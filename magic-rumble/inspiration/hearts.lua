@@ -1,0 +1,26 @@
+-- each player starts the game with 3 hearts. More may be obtained by building
+-- special buildings. If an enemy creature manages to touch the king creature,
+-- one of the king's hearts is lost, and a shockwave reverberates through the
+-- map, destroying every single one of the opponents creatures. They must
+-- respawn and strive forth once more to touch the enemy king and reduce them to
+-- zero hearts remaining, but the player who lost a heart does not lose any of
+-- their forces and so they have a temporary advantage.
+--
+-- there are buildings which, when controlled, provide an extra heart. If the
+-- controlling player loses a heart, the building is destroyed instead.
+--
+-- the king creature may be moved by the player from one room to another, where
+-- it will wander about trying to maintain the maximum distance from any enemies
+-- in the room. The king is slightly faster than most foes, but a single touch
+-- will cause them to lose a heart. Any allies in the same room as a king will
+-- be bolstered and deal a flat 20% extra damage and have 20% extra hit points.
+--
+-- when the king enters a room, all allies immediately gain 20% extra maximum
+-- hit points. They must be healed in order to benefit from the extra. When the
+-- king leaves the room, the 20% max is removed and any extra health is turned
+-- into a temporary shield that lasts until they take damage. Other effects may
+-- also add temporary shield, but the king health shield is special in that it
+-- will convert back to health should the king re-enter the room, causing units
+-- to perhaps not need to be healed from the king's presence.
+--
+--

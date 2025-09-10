@@ -1,0 +1,12 @@
+-- one of the buildings that may be built by the player is a shop.
+-- these shops come in several different varieties, specifically potion shop,
+-- blacksmith, and library.
+--
+-- the potion shop sells healing potions. If a character is about to die, they
+-- will drink a healing potion instead and recover a flat amount of health.
+--
+-- the blacksmith will upgrade weapons or armor by one level if paid a scaling
+-- fee that increases each time the unit does so.
+--
+-- the library will apply a beneficial buff to the character such as enchanting
+-- them to deal damage to a random nearby enemy or heal a random nearby ally.

@@ -1,0 +1,50 @@
+Magic Rumble - A strategic building and unit management game
+
+version 0.1:
+- Initial game implementation with Love2D engine
+- Main menu with Play Game and Quit buttons
+- Strategic gameplay where players place buildings and units fight autonomously
+- Map generation with organic, randomly-shaped rooms connected by hallways
+- Grid-based building placement system allowing multiple buildings per room
+- Five building types: Barracks, Archery Range, Mage Tower, Shop, Inn
+- Three unit types with different combat styles: Warriors (melee), Archers (ranged), Mages (spell)
+- Room capture mechanics with progress bars and strategic implications
+- King units that must be protected, with movement controls
+- Hearts system - lose hearts when enemies touch your king
+- Gold economy with income from controlled rooms
+- AI opponent that builds strategically and competes for territory
+- Camera controls: WASD/arrow keys for movement, right-click drag
+- Zoom controls: Q/E keys and mouse wheel (0.25x to 2x zoom range)
+- Building preview system with red/green placement validation
+- Unit pathfinding and exploration AI to seek out enemies
+- Collision detection to prevent units walking through each other
+- Turn-based income every 10 seconds
+- Building mana system that resets when rooms are captured
+- Map connectivity guarantee - all rooms are reachable
+- Randomized maps using OS time seed for unique layouts each game
+- Keyboard shortcuts: 1-5 keys for quick building selection
+- Visual grid system for precise building placement
+
+version 0.2:
+
+version 0.3:
+
+version 0.4:
+
+version 0.5:
+
+version 0.6:
+
+version 0.7:
+
+version 0.8:
+
+version 0.9:
+
+version 0.10:
+
+version 0.11:
+
+version 0.12:
+
+
