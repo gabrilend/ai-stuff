@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+    DIR="/home/ritz/programming/ai-stuff/magic-rumble"
+OLD_DIR=$(pwd)
+
+cd "${DIR}"
+
+love ./
+
+cd "${OLD_DIR}"
+
