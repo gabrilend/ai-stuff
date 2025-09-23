@@ -13,7 +13,7 @@ The MMO engine documentation and potentially the implementation describe traditi
 ## Violations Found
 
 ### 🚨 **VIOLATION 1: DHT Bootstrap Nodes**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **Lines**: 558-559
 ```rust
 pub struct P2PConfig {
@@ -24,7 +24,7 @@ pub struct P2PConfig {
 **Issue**: DHT bootstrap nodes typically require internet connectivity to discover peers
 
 ### 🚨 **VIOLATION 2: UDP Multicast Broadcasting**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **Lines**: 46-49
 ```
 │ │ │ UDP Multicast│ │
@@ -34,7 +34,7 @@ pub struct P2PConfig {
 **Issue**: UDP multicast implies router-based LAN networking, not WiFi Direct P2P
 
 ### 🚨 **VIOLATION 3: WebRTC Integration Plans**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **Lines**: 606-618
 ```rust
 // Future WebRTC implementation
@@ -47,7 +47,7 @@ impl WebRTCNetwork {
 **Issue**: WebRTC with STUN/TURN servers requires internet connectivity
 
 ### 🚨 **VIOLATION 4: MMO Architecture Description**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **Lines**: 341-343
 ```
 Unlike traditional MMO servers that maintain centralized player databases, the Anbernic MMO system uses distributed hash tables where each handheld device contributes to player discovery.
@@ -82,7 +82,7 @@ Unlike traditional MMO servers that maintain centralized player databases, the A
 ### **Immediate Documentation Changes**
 
 #### 1. **Update MMO Networking Description**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **REPLACE sections 314-413** with:
 - WiFi Direct P2P discovery mechanism
 - Local mesh networking without internet
@@ -90,7 +90,7 @@ Unlike traditional MMO servers that maintain centralized player databases, the A
 - No external bootstrap servers
 
 #### 2. **Remove WebRTC References**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **REMOVE sections 606-618** describing WebRTC with STUN/TURN servers
 **REPLACE** with local P2P connection establishment
 
