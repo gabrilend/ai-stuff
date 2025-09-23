@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+function fuzz(){
+   # Get the directory of this script
+   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+   DIR="${SCRIPT_DIR}"
+   
+   # Check if Ollama is running
+   if ! curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+       echo "Ollama is not running. Starting Ollama..." >&2
+       # Start Ollama in background and redirect output to avoid terminal issues
+       nohup ollama serve >/dev/null 2>&1 &
+       OLLAMA_PID=$!
+       
+       # Wait for Ollama to start up
+       echo "Waiting for Ollama to start..." >&2
+       for i in {1..30}; do
+           if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+               echo "Ollama is now running." >&2
+               break
+           fi
+           if [ $i -eq 30 ]; then
+               echo "Timeout waiting for Ollama to start" >&2
+               return 1
+           fi
+           sleep 1
+       done
+   fi
+   
+   # Handle stdin vs arguments properly
+   if [ $# -gt 0 ]; then
+       # Arguments provided - redirect stdin to prevent hanging
+       if command -v luajit >/dev/null 2>&1; then
+           cd "${DIR}" && luajit main_curl.lua "${@}" < /dev/null
+       else
+           cd "${DIR}" && lua main_curl.lua "${@}" < /dev/null
+       fi
+   else
+       # No arguments - allow stdin input
+       if command -v luajit >/dev/null 2>&1; then
+           cd "${DIR}" && luajit main_curl.lua
+       else
+           cd "${DIR}" && lua main_curl.lua
+       fi
+   fi
+}
+
