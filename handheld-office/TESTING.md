@@ -126,7 +126,7 @@ cargo test --lib
 cargo test --all
 
 # Critical tests only
-cargo run --bin test_runner -- --critical-only
+cargo test --release
 ```
 
 ## Running Tests
@@ -150,22 +150,22 @@ cargo test --test-threads=1
 cargo test -- --ignored
 ```
 
-### Using the Test Runner
+### Standard Test Commands
 
-The project includes a custom test runner for comprehensive testing:
+The project uses standard Rust testing tools for comprehensive testing:
 
 ```bash
 # Quick pre-commit tests
-cargo run --bin test_runner -- --quick
+cargo test --lib
 
-# Full CI pipeline
-cargo run --bin test_runner -- --ci
+# Full CI pipeline  
+cargo test --all --release
 
-# Nightly comprehensive tests
-cargo run --bin test_runner -- --nightly
+# Comprehensive tests with benchmarks
+cargo test --all && cargo bench
 
-# Critical tests only
-cargo run --bin test_runner -- --critical
+# Critical integration tests only
+cargo test --test integration --release
 ```
 
 ### Module-Specific Testing
@@ -226,7 +226,7 @@ Add to `.git/hooks/pre-commit`:
 
 ```bash
 #!/bin/bash
-cargo run --bin test_runner -- --critical
+cargo test --lib --release
 if [ $? -ne 0 ]; then
     echo "Critical tests failed. Commit aborted."
     exit 1
@@ -251,7 +251,7 @@ jobs:
         with:
           toolchain: stable
       - name: Run Tests
-        run: cargo run --bin test_runner -- --ci
+        run: cargo test --all --release
       - name: Generate Coverage
         run: cargo tarpaulin --out Xml
       - name: Upload Coverage
