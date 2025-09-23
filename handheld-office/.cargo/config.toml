@@ -1,0 +1,24 @@
+# Cargo configuration for Handheld Office
+[build]
+# Move target directory to files/ to keep build artifacts organized
+target-dir = "files/target"
+
+# Cross-compilation targets for Anbernic devices
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+# Optimize for handheld device builds
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# Development builds optimized for faster compilation
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true

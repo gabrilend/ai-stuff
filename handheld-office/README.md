@@ -179,7 +179,7 @@ The system automatically tries these LLM backends in order:
 ### Anbernic Handhelds (RG35XX, RG351P, RG552, etc.)
 
 **Prerequisites:**
-- Custom firmware (ArkOS, EmuELEC, or Batocera)
+- OfficeOS (custom Yocto-based distribution) or compatible firmware
 - SSH access enabled
 - Network connectivity (WiFi or Ethernet)
 

@@ -2,15 +2,16 @@
 /// Implements the proposed improvements from claude-next-2
 use crate::input_config::*;
 use crate::p2p_mesh::{P2PMeshManager, P2PIntegration, PeerDevice, DeviceType, SharedFile};
-use crate::wifi_direct_p2p::{WiFiDirectP2P, WiFiDirectIntegration, MessageContent};
+use crate::wifi_direct_p2p::{WiFiDirectP2P, MessageContent};
 use crate::ai_image_service::{ImageGenerationRequest, ImageGenerationResponse, ImageStyle, ImageResolution};
-use crate::crypto::{SecureP2PManager, P2PMigrationAdapter, RelationshipId, PairingEmoji as CryptoPairingEmoji, SecureP2PMessage, UnifiedMessage, MessageTarget};
+use crate::crypto::{P2PMigrationAdapter, RelationshipId, PairingEmoji as CryptoPairingEmoji};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use std::path::PathBuf;
 use chrono;
 use futures;
+use base64::{Engine as _, engine::general_purpose};
 
 // P2P integration is implemented directly in this file
 
@@ -775,7 +776,7 @@ impl EnhancedInputManager {
         button: UniversalButton,
         pressed: bool,
         sector: String,
-        level: usize,
+        _level: usize,
     ) -> Vec<InputResult> {
         if !pressed {
             return vec![InputResult::NoAction];
@@ -1248,7 +1249,7 @@ impl EnhancedInputManager {
                     }
                     
                     // Decode and save image
-                    if let Ok(decoded_data) = base64::decode(&image_data) {
+                    if let Ok(decoded_data) = general_purpose::STANDARD.decode(&image_data) {
                         if std::fs::write(&image_path, decoded_data).is_ok() {
                             // Add to available images
                             self.available_image_files.push(ImageFileEntry {

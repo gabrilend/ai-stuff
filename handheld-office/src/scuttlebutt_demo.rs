@@ -215,7 +215,7 @@ impl AnbernicScuttlebuttInterface {
             "│ Features:                                                                  │\n",
         );
         output.push_str(
-            "│ • Encrypted P2P messaging with PGP                                        │\n",
+            "│ • Encrypted P2P messaging with modern crypto (Ed25519/ChaCha20)               │\n",
         );
         output.push_str(
             "│ • StreetPass-style automatic data exchange                                │\n",
@@ -602,7 +602,7 @@ impl AnbernicScuttlebuttInterface {
             "│ Crypto Status:                                                             │\n",
         );
         output.push_str(&format!(
-            "│   PGP keys: {}                                                     │\n",
+            "│   Ed25519 keys: {}                                                  │\n",
             "Generated" // For now, assume keys are always generated
         ));
         output.push_str(

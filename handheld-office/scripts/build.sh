@@ -58,7 +58,7 @@ build_component() {
 
 validate_binary() {
     local component="$1"
-    local binary_path="target/release/$component"
+    local binary_path="files/target/release/$component"
     
     if [[ -f "$binary_path" ]]; then
         log "$component binary validated at $binary_path"

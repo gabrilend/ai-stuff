@@ -24,11 +24,9 @@ Complete deployment instructions for running on Anbernic devices and various oth
 
 ### Prerequisites
 
-1. **Custom Firmware** (choose one):
-   - ArkOS (recommended for RG351P/RG552)
-   - EmuELEC (good for older models)
-   - Batocera (universal but heavier)
-   - JelOS (lightweight option)
+1. **Operating System**:
+   - **OfficeOS** (custom Yocto-based distribution - recommended)
+   - **Compatible with existing firmware** for legacy deployments
 
 2. **Network Setup**:
    ```bash
@@ -53,11 +51,11 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source ~/.cargo/env
 
 # 3. Install additional dependencies
-# For ArkOS/Ubuntu-based:
-apt update && apt install build-essential lua5.3 git
+# For OfficeOS (Yocto-based):
+officeos-pkg install build-essential lua5.3 git
 
-# For EmuELEC/LibreELEC:
-opkg update && opkg install git lua
+# For legacy firmware compatibility:
+# Use appropriate package manager for your firmware
 
 # 4. Clone the project
 cd /storage  # or wherever you have write access
@@ -141,8 +139,8 @@ chmod +x /storage/roms/ports/handheld-office.sh
 
 |  Component  | Minimum | Recommended |    Optimal   |
 |-------------|---------|-------------|--------------|
-|   **RAM**   |    4GB  |    16GB     |    32GB+     |
-| **Storage** |   20GB  |   100GB SSD |   500GB NVMe |
+|   **RAM**   |   4 GB  |    16GB     |    32GB+     |
+| **Storage** |  20 GB  |   100GB SSD |   500GB NVMe |
 |   **CPU**   | 4 cores |   8 cores   |   16+ cores  |
 |   **GPU**   |  None   |  RTX 3060   |   RTX 4090   |
 

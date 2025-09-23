@@ -1,6 +1,0 @@
-a
-a
-b
-l
-r
-quit

@@ -8,7 +8,7 @@ the workflow for creating a new peer is as follows: first, the user either
 pushes a button inside the UI, or picks a device-specific button that is user-
 -configurable via config file or interface options. This button will put them
 in pair mode, which is used to find new peers. Then, the other user with their
-other device will do the same, and then each device will create new PGP keys for
+other device will do the same, and then each device will create new cryptographic keypairs (Ed25519 + X25519) for
 each new device they find. They will broadcast an emoji, unique to each of the
 pairing devices (unless there's somehow too many for the emoji keyboard, in
 which case you're probably at a convention or something. In that case it would
@@ -76,7 +76,7 @@ or poopybutthole are within mesh range, they will see their name listed as a
 potential recipient. If they are not within range, they will simply be absent.
 there is no way to see your friends list. If you don't make a peer-to-peer
 connection with someone for a certain amount of time (configurable) then you
-will forget them and their PGP key (and presumably they will forget yours when
+will forget them and their cryptographic keys (and presumably they will forget yours when
 the timer they set on their device for forgetting keys expires) and will have to
 pair again. If one user forgets a key and the other doesn't, they will
 effectively never be able to communicate using that key again. But that's
@@ -86,7 +86,7 @@ the exception to this is Scuttlebutt and the email server, which should allow
 for queueing up messages, to be sent whenever that peer is within range. If the
 key expires, but there are messages queued up, the user will be presented with
 the opportunity to assign the message or Scuttlebutt content or whatever to a
-new target PGP key.
+new target cryptographic key.
 
 Now, let's say that user A (poopybutthole) also has a laptop, and user B
 (weirdo-but-cool) wants to connect to it to use it for LLM processing. user A

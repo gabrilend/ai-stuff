@@ -322,18 +322,21 @@ impl P2PMigrationAdapter {
                 app_name: "text_message".to_string(),
                 payload: text.into_bytes(),
             },
-            UnifiedMessage::FileShare { file_info, chunk_data } => SecureP2PMessage::FileShare {
-                operation: if chunk_data.is_some() {
-                    crate::crypto::FileOperation::Chunk {
-                        file_id: file_info.id,
-                        chunk_index: 0, // Would need proper chunk tracking
-                        total_chunks: 1,
-                    }
-                } else {
-                    crate::crypto::FileOperation::Request { file_id: file_info.id }
-                },
-                file_info: Some(file_info),
-                chunk_data,
+            UnifiedMessage::FileShare { file_info, chunk_data } => {
+                let file_id = file_info.id.clone();
+                SecureP2PMessage::FileShare {
+                    operation: if chunk_data.is_some() {
+                        crate::crypto::FileOperation::Chunk {
+                            file_id: file_id.clone(),
+                            chunk_index: 0, // Would need proper chunk tracking
+                            total_chunks: 1,
+                        }
+                    } else {
+                        crate::crypto::FileOperation::Request { file_id }
+                    },
+                    file_info: Some(file_info),
+                    chunk_data,
+                }
             },
             UnifiedMessage::DocumentSync { document_id, content } => SecureP2PMessage::DocumentSync {
                 document_id,

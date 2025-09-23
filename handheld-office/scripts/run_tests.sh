@@ -150,7 +150,7 @@ run_performance_tests() {
         print_warning "Memory stress tests had issues"
     }
     
-    print_success "Performance tests completed! Check target/criterion/report/index.html for detailed results."
+    print_success "Performance tests completed! Check files/target/criterion/report/index.html for detailed results."
 }
 
 # Function to run coverage analysis
@@ -240,7 +240,7 @@ run_all_tests() {
     print_success "All tests completed in ${duration} seconds!"
     print_status "Results:"
     print_status "  - Test results: Check console output above"
-    print_status "  - Performance: target/criterion/report/index.html"
+    print_status "  - Performance: files/target/criterion/report/index.html"
     print_status "  - Coverage: coverage/tarpaulin-report.html"
 }
 

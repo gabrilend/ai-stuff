@@ -273,6 +273,13 @@ impl WiFiDirectP2P {
         Ok(())
     }
 
+    /// Receive message from P2P network
+    pub async fn receive_message(&self) -> Result<MessageContent, Box<dyn std::error::Error>> {
+        // For now, return a placeholder - this would typically interface with network stack
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        Err("No messages available".into())
+    }
+
     /// Get list of active peer relationships
     pub async fn get_active_peers(&self) -> Vec<(String, String)> {
         let relationships = self.relationships.read().await;

@@ -139,7 +139,10 @@ impl DesktopLlmService {
     }
 
     async fn try_llamacpp(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-        // Assuming llama-cpp-python server is running on localhost:8000
+        // LAPTOP DAEMON INTERNET ACCESS: Restored for off-site compute proxying
+        // Anbernic devices remain air-gapped - they only communicate via P2P bytecode
+        // Laptop daemon acts as secure proxy for internet-based LLM services
+        
         let client = reqwest::Client::new();
         let response = client
             .post("http://localhost:8000/v1/completions")
@@ -166,7 +169,10 @@ impl DesktopLlmService {
     }
 
     async fn try_koboldcpp(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-        // Assuming KoboldCPP is running on localhost:5001
+        // LAPTOP DAEMON INTERNET ACCESS: Restored for off-site compute proxying
+        // Anbernic devices remain air-gapped - they only communicate via P2P bytecode
+        // Laptop daemon acts as secure proxy for internet-based LLM services
+        
         let client = reqwest::Client::new();
         let response = client
             .post("http://localhost:5001/api/v1/generate")

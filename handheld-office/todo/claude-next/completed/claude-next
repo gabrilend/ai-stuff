@@ -1,5 +1,0 @@
-hi, some of the Anbernic devices in the tech-deployment-pipeline.md file in
-/notes/ are Android devices, but this software is only designed to run on Linux.
-Can you go through and do some research and figure out which handhelds run Linux
-and update the tech deployment pipeline documentation to only include devices
-which are Linux devices?

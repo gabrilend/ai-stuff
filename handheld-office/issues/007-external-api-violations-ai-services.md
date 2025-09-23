@@ -9,7 +9,7 @@ The AI image service violates the P2P-only encrypted communication requirement b
 The security architecture specifies:
 1. **Anbernic devices**: ONLY P2P-encrypted communication OR bytecode to paired laptops
 2. **Laptop daemon**: CAN access external services as secure proxy for Anbernic devices
-3. **All Anbernic communications**: Must be encrypted using relationship-specific PGP keys
+3. **All Anbernic communications**: Must be encrypted using relationship-specific keys (Ed25519 + X25519 + ChaCha20-Poly1305)
 4. **External access**: Only via laptop daemon with permission system and bytecode instructions
 
 ## Current Implementation Issues

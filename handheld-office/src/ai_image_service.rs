@@ -269,13 +269,17 @@ impl AIImageService {
         self.generate_ascii_art(request).await
     }
 
-    /// Try Automatic1111 WebUI API
+    /// Try Automatic1111 WebUI API (LAPTOP DAEMON INTERNET ACCESS)
     async fn try_automatic1111(
         &self,
         request: &ImageGenerationRequest,
         width: u32,
         height: u32,
     ) -> Result<(String, Option<Vec<u8>>), Box<dyn std::error::Error>> {
+        // LAPTOP DAEMON INTERNET ACCESS: Restored for off-site compute proxying
+        // Anbernic devices remain air-gapped - they only communicate via P2P bytecode
+        // Laptop daemon acts as secure proxy for internet-based image generation services
+        
         let client = reqwest::Client::new();
         
         let payload = serde_json::json!({
