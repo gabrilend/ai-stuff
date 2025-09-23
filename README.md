@@ -26,7 +26,7 @@ Imagine a text editor on a Game Boy Advance SP with:
 - SNES-style 6-option radial character selection
 - P2P-enabled collaborative document editing and real-time synchronization
 - User-configurable layouts via JSON files
-- See [Enhanced Input Documentation](docs/enhanced-input-system.md) for details
+- See [Enhanced Input Documentation](docs/input/enhanced-input-system.md) for details
 
 **P2P Mesh File Sharing System** (`src/p2p_mesh.rs`):
 - Battery-efficient peer-to-peer networking optimized for handheld devices
@@ -34,7 +34,7 @@ Imagine a text editor on a Game Boy Advance SP with:
 - Automatic file sharing and discovery between handheld devices
 - 32KB chunked transfers with SHA-256 verification
 - Integrated across media player, paint program, and word processor
-- See [P2P Mesh Documentation](docs/p2p-mesh-system.md) for complete guide
+- See [P2P Mesh Documentation](docs/networking/p2p-mesh-system.md) for complete guide
 
 **Handheld Client** (`src/handheld.rs`):
 - Game Boy-style hierarchical input system using A/B/L/R buttons
@@ -121,8 +121,8 @@ The handheld devices support multiple input modes with P2P collaboration:
 - Configurable via JSON files
 - Send LLM requests with `llm:your prompt here`
 
-See [Enhanced Input Documentation](docs/enhanced-input-system.md) for complete usage guide.
-See [P2P Mesh Documentation](docs/p2p-mesh-system.md) for collaboration features.
+See [Enhanced Input Documentation](docs/input/enhanced-input-system.md) for complete usage guide.
+See [P2P Mesh Documentation](docs/networking/p2p-mesh-system.md) for collaboration features.
 
 ### LLM Integration
 

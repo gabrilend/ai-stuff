@@ -7,6 +7,7 @@ use crate::ai_image_service::{ImageGenerationRequest, ImageGenerationResponse, I
 use crate::crypto::{P2PMigrationAdapter, RelationshipId, PairingEmoji as CryptoPairingEmoji};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 use std::path::PathBuf;
 use chrono;
@@ -54,7 +55,7 @@ pub enum EnhancedInputMode {
     Navigation,
     EditMode,
     OneTimeKeyboard { target_mode: Box<EnhancedInputMode> },
-    RadialMenu { sector: String, level: usize },
+    RadialMenu { state: RadialMenuState },
     SpecialCharacterMode,
     P2PBrowser,
     CollaborationMode,
@@ -205,6 +206,208 @@ pub enum ChangeType {
     CursorMove,
 }
 
+/// Radial menu system for enhanced input
+#[derive(Debug, Clone)]
+pub struct RadialMenuState {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub active_direction: Direction,
+    pub active_angle: f32,
+    pub menu_options: [Option<char>; 4],
+    pub selected_option: Option<usize>,
+    pub alphabet_layout: AlphabetLayout,
+    pub is_visible: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
+}
+
+#[derive(Debug, Clone)]
+pub struct AlphabetLayout {
+    pub sectors: HashMap<Direction, [char; 4]>,
+}
+
+impl Default for AlphabetLayout {
+    fn default() -> Self {
+        let mut sectors = HashMap::new();
+        
+        // Distribute A-Z across 8 directions (32 total slots, using 26)
+        sectors.insert(Direction::Up, ['A', 'B', 'C', 'D']);
+        sectors.insert(Direction::UpRight, ['E', 'F', 'G', 'H']);
+        sectors.insert(Direction::Right, ['I', 'J', 'K', 'L']);
+        sectors.insert(Direction::DownRight, ['M', 'N', 'O', 'P']);
+        sectors.insert(Direction::Down, ['Q', 'R', 'S', 'T']);
+        sectors.insert(Direction::DownLeft, ['U', 'V', 'W', 'X']);
+        sectors.insert(Direction::Left, ['Y', 'Z', ' ', '.']);
+        sectors.insert(Direction::UpLeft, ['!', '?', ',', ';']);
+        
+        Self { sectors }
+    }
+}
+
+impl RadialMenuState {
+    pub fn new(center_x: f32, center_y: f32) -> Self {
+        Self {
+            center_x,
+            center_y,
+            active_direction: Direction::Up,
+            active_angle: 0.0,
+            menu_options: [None; 4],
+            selected_option: None,
+            alphabet_layout: AlphabetLayout::default(),
+            is_visible: false,
+        }
+    }
+    
+    pub fn update_direction(&mut self, direction: Direction) {
+        self.active_direction = direction;
+        self.active_angle = self.direction_to_angle(direction);
+        self.update_menu_options();
+        self.is_visible = true;
+    }
+    
+    fn direction_to_angle(&self, direction: Direction) -> f32 {
+        match direction {
+            Direction::Up => 270.0,
+            Direction::UpRight => 315.0,
+            Direction::Right => 0.0,
+            Direction::DownRight => 45.0,
+            Direction::Down => 90.0,
+            Direction::DownLeft => 135.0,
+            Direction::Left => 180.0,
+            Direction::UpLeft => 225.0,
+        }
+    }
+    
+    fn update_menu_options(&mut self) {
+        if let Some(chars) = self.alphabet_layout.sectors.get(&self.active_direction) {
+            for (i, &ch) in chars.iter().enumerate() {
+                self.menu_options[i] = Some(ch);
+            }
+        } else {
+            self.menu_options = [None; 4];
+        }
+    }
+    
+    pub fn get_option_positions(&self) -> [(f32, f32); 4] {
+        let radius = 50.0; // Distance from center
+        let base_angle_rad = self.active_angle * PI / 180.0;
+        
+        // Position options in an arc around the direction
+        let mut positions = [(0.0, 0.0); 4];
+        
+        match self.active_direction {
+            Direction::Left => {
+                // LEFT: First two options below X-axis, next two above X-axis
+                let angles = [-30.0, -60.0, 30.0, 60.0]; // Relative to left (180°)
+                for (i, &angle_offset) in angles.iter().enumerate() {
+                    let angle_rad = (180.0 + angle_offset) * PI / 180.0;
+                    positions[i] = (
+                        self.center_x + radius * angle_rad.cos(),
+                        self.center_y + radius * angle_rad.sin(),
+                    );
+                }
+            },
+            Direction::UpRight => {
+                // UP+RIGHT: Menu at 45° angle
+                let angles = [-30.0, -15.0, 15.0, 30.0]; // Relative to 45°
+                for (i, &angle_offset) in angles.iter().enumerate() {
+                    let angle_rad = (315.0 + angle_offset) * PI / 180.0;
+                    positions[i] = (
+                        self.center_x + radius * angle_rad.cos(),
+                        self.center_y + radius * angle_rad.sin(),
+                    );
+                }
+            },
+            _ => {
+                // Default arc positioning
+                let angles = [-30.0, -10.0, 10.0, 30.0]; // Spread around direction
+                for (i, &angle_offset) in angles.iter().enumerate() {
+                    let angle_rad = (base_angle_rad + angle_offset * PI / 180.0);
+                    positions[i] = (
+                        self.center_x + radius * angle_rad.cos(),
+                        self.center_y + radius * angle_rad.sin(),
+                    );
+                }
+            }
+        }
+        
+        positions
+    }
+    
+    pub fn select_option(&mut self, button_index: usize) -> Option<char> {
+        if button_index < 4 {
+            self.selected_option = Some(button_index);
+            self.menu_options[button_index]
+        } else {
+            None
+        }
+    }
+    
+    pub fn hide(&mut self) {
+        self.is_visible = false;
+        self.selected_option = None;
+    }
+    
+    /// Get visual rendering data for the radial menu
+    pub fn get_render_data(&self) -> RadialMenuRenderData {
+        let positions = self.get_option_positions();
+        let mut options = Vec::new();
+        
+        for (i, pos) in positions.iter().enumerate() {
+            if let Some(character) = self.menu_options[i] {
+                options.push(RadialMenuOption {
+                    character,
+                    position: *pos,
+                    selected: self.selected_option == Some(i),
+                    button_hint: match i {
+                        0 => "L1".to_string(),
+                        1 => "B".to_string(), 
+                        2 => "A".to_string(),
+                        3 => "Y".to_string(),
+                        _ => "".to_string(),
+                    },
+                });
+            }
+        }
+        
+        RadialMenuRenderData {
+            center: (self.center_x, self.center_y),
+            options,
+            direction: self.active_direction.clone(),
+            angle: self.active_angle,
+            visible: self.is_visible,
+        }
+    }
+}
+
+/// Data structure for rendering the radial menu
+#[derive(Debug, Clone)]
+pub struct RadialMenuRenderData {
+    pub center: (f32, f32),
+    pub options: Vec<RadialMenuOption>,
+    pub direction: Direction,
+    pub angle: f32,
+    pub visible: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct RadialMenuOption {
+    pub character: char,
+    pub position: (f32, f32),
+    pub selected: bool,
+    pub button_hint: String,
+}
+
 /// Radial button inputs for universal controller support
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalButton {
@@ -316,8 +519,8 @@ impl EnhancedInputManager {
             EnhancedInputMode::OneTimeKeyboard { target_mode } => {
                 self.handle_one_time_keyboard_input(button, pressed, *target_mode)
             }
-            EnhancedInputMode::RadialMenu { sector, level } => {
-                self.handle_radial_menu_input(button, pressed, sector, level)
+            EnhancedInputMode::RadialMenu { state } => {
+                self.handle_radial_menu_input(button, pressed, state)
             }
             EnhancedInputMode::SpecialCharacterMode => {
                 self.handle_special_character_input(button, pressed)
@@ -534,28 +737,13 @@ impl EnhancedInputManager {
                 let l_pressed = self.button_states.get("L").map_or(false, |s| s.pressed);
                 let r_pressed = self.button_states.get("R").map_or(false, |s| s.pressed);
                 
-                // SNES-style: D-pad opens radial menus
-                let character_set = if l_pressed || r_pressed {
-                    match button {
-                        UniversalButton::Up => "media_functions",
-                        UniversalButton::Down => "media_functions",
-                        UniversalButton::Left => "media_functions", 
-                        UniversalButton::Right => "media_functions",
-                        _ => "media_functions",
-                    }
-                } else {
-                    match button {
-                        UniversalButton::Up => "upper_alpha",
-                        UniversalButton::Down => "lower_alpha",
-                        UniversalButton::Left => "numbers",
-                        UniversalButton::Right => "symbols_and_special",
-                        _ => "default",
-                    }
-                };
-
+                // SNES-style: D-pad opens radial menus with proper direction mapping
+                let direction = self.button_to_direction(button);
+                let mut radial_state = RadialMenuState::new(400.0, 300.0); // Default screen center
+                radial_state.update_direction(direction);
+                
                 self.current_mode = EnhancedInputMode::RadialMenu {
-                    sector: character_set.to_string(),
-                    level: 0,
+                    state: radial_state,
                 };
                 vec![InputResult::ModeChange {
                     new_mode: self.current_mode.clone(),
@@ -775,44 +963,74 @@ impl EnhancedInputManager {
         &mut self,
         button: UniversalButton,
         pressed: bool,
-        sector: String,
-        _level: usize,
+        mut state: RadialMenuState,
     ) -> Vec<InputResult> {
         if !pressed {
             return vec![InputResult::NoAction];
         }
 
-        // Implementation for SNES-style 6-option radial menus
         match button {
-            UniversalButton::A
-            | UniversalButton::B
-            | UniversalButton::X
-            | UniversalButton::Y
-            | UniversalButton::L
-            | UniversalButton::R => {
-                // Each button represents one of 6 options in the radial menu
-                let option_index = match button {
-                    UniversalButton::A => 0,
-                    UniversalButton::B => 1,
-                    UniversalButton::X => 2,
-                    UniversalButton::Y => 3,
-                    UniversalButton::L => 4,
-                    UniversalButton::R => 5,
-                    _ => 0,
-                };
-
-                if let Some(character) = self.get_radial_character(&sector, option_index) {
-                    // Insert character and return to previous mode
-                    self.current_mode = EnhancedInputMode::Navigation; // or previous mode
+            // D-pad changes active direction and switches to new menu
+            UniversalButton::Up
+            | UniversalButton::Down
+            | UniversalButton::Left
+            | UniversalButton::Right => {
+                let direction = self.button_to_direction(button);
+                state.update_direction(direction);
+                self.current_mode = EnhancedInputMode::RadialMenu { state };
+                vec![InputResult::ModeChange {
+                    new_mode: self.current_mode.clone(),
+                }]
+            }
+            // Face buttons (L1/X=1st, L2/B=2nd, R1/A=3rd, R2/Y=4th option)
+            UniversalButton::L => {
+                if let Some(character) = state.select_option(0) {
+                    self.current_mode = EnhancedInputMode::Navigation;
                     vec![
                         self.insert_character_at_cursor(character),
                         InputResult::ModeChange {
                             new_mode: self.current_mode.clone(),
                         },
                     ]
-                } else if let Some(action) = self.get_radial_action(&sector, option_index) {
-                    // Handle special actions
-                    self.handle_radial_action(action)
+                } else {
+                    vec![InputResult::NoAction]
+                }
+            }
+            UniversalButton::B => {
+                if let Some(character) = state.select_option(1) {
+                    self.current_mode = EnhancedInputMode::Navigation;
+                    vec![
+                        self.insert_character_at_cursor(character),
+                        InputResult::ModeChange {
+                            new_mode: self.current_mode.clone(),
+                        },
+                    ]
+                } else {
+                    vec![InputResult::NoAction]
+                }
+            }
+            UniversalButton::A => {
+                if let Some(character) = state.select_option(2) {
+                    self.current_mode = EnhancedInputMode::Navigation;
+                    vec![
+                        self.insert_character_at_cursor(character),
+                        InputResult::ModeChange {
+                            new_mode: self.current_mode.clone(),
+                        },
+                    ]
+                } else {
+                    vec![InputResult::NoAction]
+                }
+            }
+            UniversalButton::Y => {
+                if let Some(character) = state.select_option(3) {
+                    self.current_mode = EnhancedInputMode::Navigation;
+                    vec![
+                        self.insert_character_at_cursor(character),
+                        InputResult::ModeChange {
+                            new_mode: self.current_mode.clone(),
+                        },
+                    ]
                 } else {
                     vec![InputResult::NoAction]
                 }
@@ -825,6 +1043,36 @@ impl EnhancedInputManager {
                 }]
             }
             _ => vec![InputResult::NoAction],
+        }
+    }
+    
+    fn button_to_direction(&self, button: UniversalButton) -> Direction {
+        match button {
+            UniversalButton::Up => Direction::Up,
+            UniversalButton::Down => Direction::Down,
+            UniversalButton::Left => Direction::Left,
+            UniversalButton::Right => Direction::Right,
+            _ => Direction::Up, // Default
+        }
+    }
+    
+    // Support for complex directional input (UP+RIGHT, etc.)
+    pub fn handle_complex_directional_input(&mut self, buttons: &[UniversalButton]) -> Direction {
+        let up_pressed = buttons.contains(&UniversalButton::Up);
+        let down_pressed = buttons.contains(&UniversalButton::Down);
+        let left_pressed = buttons.contains(&UniversalButton::Left);
+        let right_pressed = buttons.contains(&UniversalButton::Right);
+        
+        match (up_pressed, down_pressed, left_pressed, right_pressed) {
+            (true, false, false, true) => Direction::UpRight,
+            (true, false, true, false) => Direction::UpLeft,
+            (false, true, false, true) => Direction::DownRight,
+            (false, true, true, false) => Direction::DownLeft,
+            (true, false, false, false) => Direction::Up,
+            (false, true, false, false) => Direction::Down,
+            (false, false, true, false) => Direction::Left,
+            (false, false, false, true) => Direction::Right,
+            _ => Direction::Up, // Default for ambiguous input
         }
     }
 
@@ -854,61 +1102,6 @@ impl EnhancedInputManager {
         }
     }
 
-    fn get_radial_character(&self, sector: &str, option_index: usize) -> Option<char> {
-        // Get character from predefined sets based on sector and option
-        match sector {
-            "upper_alpha" => {
-                let chars = ['A', 'B', 'C', 'D', 'E', 'F'];
-                chars.get(option_index).copied()
-            }
-            "lower_alpha" => {
-                let chars = ['a', 'b', 'c', 'd', 'e', 'f'];
-                chars.get(option_index).copied()
-            }
-            "numbers" => {
-                let chars = ['1', '2', '3', '4', '5', '6'];
-                chars.get(option_index).copied()
-            }
-            "symbols_and_special" => {
-                let chars = ['!', '@', '#', '$', '%', '^'];
-                chars.get(option_index).copied()
-            }
-            "emojis" => {
-                let chars = ['😀', '😎', '👍', '❤', '🎮', '🔥'];
-                chars.get(option_index).copied()
-            }
-            _ => None,
-        }
-    }
-    
-    fn get_radial_action(&self, sector: &str, option_index: usize) -> Option<String> {
-        // Get action from predefined sets for special sectors like images
-        match sector {
-            "images" => {
-                let actions = [
-                    "image_menu",
-                    "emoji_keyboard", 
-                    "special_chars",
-                    "settings",
-                    "shift_toggle",
-                    "caps_lock"
-                ];
-                actions.get(option_index).map(|s| s.to_string())
-            }
-            "media_functions" => {
-                let actions = [
-                    "image_menu",
-                    "file_browser",
-                    "paint_app",
-                    "camera",
-                    "voice_record",
-                    "language_toggle"
-                ];
-                actions.get(option_index).map(|s| s.to_string())
-            }
-            _ => None,
-        }
-    }
 
     fn handle_radial_action(&mut self, action: String) -> Vec<InputResult> {
         match action.as_str() {
@@ -923,10 +1116,17 @@ impl EnhancedInputManager {
                 }]
             }
             "emoji_keyboard" => {
-                self.current_mode = EnhancedInputMode::RadialMenu {
-                    sector: "emojis".to_string(),
-                    level: 0,
-                };
+                let mut emoji_state = RadialMenuState::new(400.0, 300.0);
+                // Create emoji layout
+                let mut emoji_layout = AlphabetLayout::default();
+                emoji_layout.sectors.insert(Direction::Up, ['😀', '😎', '👍', '❤']);
+                emoji_layout.sectors.insert(Direction::Right, ['🎮', '🔥', '⭐', '✨']);
+                emoji_layout.sectors.insert(Direction::Down, ['🎯', '🚀', '💯', '🎪']);
+                emoji_layout.sectors.insert(Direction::Left, ['🌟', '🎨', '🎭', '🎪']);
+                emoji_state.alphabet_layout = emoji_layout;
+                emoji_state.update_direction(Direction::Up);
+                
+                self.current_mode = EnhancedInputMode::RadialMenu { state: emoji_state };
                 vec![InputResult::ModeChange {
                     new_mode: self.current_mode.clone(),
                 }]
@@ -1336,6 +1536,16 @@ impl EnhancedInputManager {
 
         results
     }
+    
+    /// Get radial menu rendering data for UI display
+    pub fn get_radial_menu_render_data(&self) -> Option<RadialMenuRenderData> {
+        if let EnhancedInputMode::RadialMenu { state } = &self.current_mode {
+            if state.is_visible {
+                return Some(state.get_render_data());
+            }
+        }
+        None
+    }
 
     /// Get current input mode status for UI display
     pub fn get_mode_display(&self) -> String {
@@ -1343,7 +1553,7 @@ impl EnhancedInputManager {
             EnhancedInputMode::Navigation => "Navigation".to_string(),
             EnhancedInputMode::EditMode => "Edit Mode".to_string(),
             EnhancedInputMode::OneTimeKeyboard { .. } => "Keyboard".to_string(),
-            EnhancedInputMode::RadialMenu { sector, .. } => format!("Radial: {}", sector),
+            EnhancedInputMode::RadialMenu { state } => format!("Radial: {:?}", state.active_direction),
             EnhancedInputMode::SpecialCharacterMode => "Special Characters".to_string(),
             EnhancedInputMode::P2PBrowser => "P2P Browser".to_string(),
             EnhancedInputMode::CollaborationMode => "Collaboration".to_string(),
@@ -1359,6 +1569,34 @@ impl EnhancedInputManager {
             EnhancedInputMode::SecurePairing { .. } => "Secure Pairing".to_string(),
             EnhancedInputMode::SecureDeviceSelection { .. } => "Select Device".to_string(),
             EnhancedInputMode::RelationshipManager => "Relationship Manager".to_string(),
+        }
+    }
+
+    /// Draw a simple ASCII representation of the radial menu (for terminal display)
+    pub fn draw_radial_menu_ascii(&self) -> String {
+        if let Some(render_data) = self.get_radial_menu_render_data() {
+            let mut output = String::new();
+            output.push_str(&format!("\n=== Radial Menu ({:?}) ===\n", render_data.direction));
+            output.push_str("       ○ (center)\n");
+            output.push_str("\n");
+            
+            for (i, option) in render_data.options.iter().enumerate() {
+                let marker = if option.selected { "►" } else { " " };
+                output.push_str(&format!(
+                    "{} [{}] {} - '{}'\n", 
+                    marker, 
+                    option.button_hint, 
+                    if option.selected { "<<" } else { "  " },
+                    option.character
+                ));
+            }
+            
+            output.push_str("\nPress D-pad to change direction\n");
+            output.push_str("Press L1/B/A/Y to select option\n");
+            output.push_str("Press SELECT to exit\n");
+            output
+        } else {
+            String::from("Radial menu not active")
         }
     }
 
@@ -1378,6 +1616,14 @@ impl EnhancedInputManager {
         // Reset state to ensure compatibility
         self.current_mode = EnhancedInputMode::Navigation;
         self.button_states.clear();
+    }
+    
+    /// Set radial menu center position (for different screen sizes)
+    pub fn set_radial_menu_center(&mut self, x: f32, y: f32) {
+        if let EnhancedInputMode::RadialMenu { state } = &mut self.current_mode {
+            state.center_x = x;
+            state.center_y = y;
+        }
     }
     /// Handle P2P browser input
     fn handle_p2p_browser_input(&mut self, button: UniversalButton, pressed: bool) -> Vec<InputResult> {
