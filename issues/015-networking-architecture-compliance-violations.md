@@ -15,7 +15,7 @@ Multiple documentation files violate the air-gapped P2P-only networking architec
 ## Critical Violations Found
 
 ### 🚨 **VIOLATION 1: networking-architecture.md**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **Lines**: Throughout entire document
 **Issues**: 
 - Describes handheld devices having "WiFi/4G LTE" internet connectivity
