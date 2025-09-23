@@ -1,0 +1,19 @@
+I had an idea for the input keyboard.
+
+What if, when you pushed SELECT (or pushed SELECT+START in compatilibity mode)
+it would enter "edit mode", and the D pad could be used to move your cursor,
+B would act as backspace, A would insert a special character, and SELECT would
+bring you back to the regular input mode. What's a special character you ask?
+well, by pushing A you can open up the keyboard for a one-time input. This would
+open up the keyboard and you could press a letter, and then it would input it
+and drop you back to the EDIT mode keyboard. Can you think of any possible
+improvements to the system?
+
+I also think it'd be neat if there were several different input options for the
+different systems available. For example, if there's a SNES style gamepad with
+A, B, X, Y, L, and R, then you could have the D pad be a 4 directional pad and
+each direction could open up an arc-shaped menu with 6 options instead of 4.
+This would only give you 24 characters, so the last one would have to be a tree
+style menu which gave you the last 2 and also gave 4 possible options like
+emoji keyboard or change language or enter special characters. This should be
+user definable in a config file somewhere.

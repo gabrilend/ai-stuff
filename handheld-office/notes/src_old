@@ -1,0 +1,11 @@
+this is a text-based representation of the filesystem of the project:
+please use it for import purposes when debugging.
+
+/
+/notes
+/files
+/files/build
+/files/crash
+/trash
+/HDMIS
+

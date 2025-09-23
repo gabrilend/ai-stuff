@@ -1,0 +1,13 @@
+display-manager:      i3
+distribution:         void linux
+expected pixel ratio: 2560x1440
+
+also build for:
+   display-manager:      sway
+   distribution:         nixOS
+   expected pixel ratio: 1920x1080 -- FIXME: validate
+
+notice how I just left a note for my future self?
+
+also build for:
+   [computer details]

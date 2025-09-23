@@ -1,0 +1,115 @@
+#!/bin/bash
+set -euo pipefail
+
+# OOT GBA Demake - Run Script
+# Builds and launches the GBA version in an emulator
+
+function run(){
+   FIXME: ensure the paths are correct and there's no other inconsistencies. Such as building and using a game-boy advanced emulator for a project that doesn't run on a gameboy. We can just build it for Anbernic? there's  several custom open source operating systems. the system just runs linux.'
+   also, can you preserve this FIXME for documentation purposes?
+   you don't always have to solve every problem immediately. you can put things off while you work on something somewhere else.'
+   adding things to the todo list halfway through a calculation might not be a bad [dob, but pronounced job]
+   but yeah if you can save this FIXME before fixing the program that'd be helpful for future documentation purposes.'
+    local project_dir="/mnt/mtwo/programming/ai-stuff/handheld-office"
+    local rom_file="src/oot_demake_gba.gba" FIXME: like what is this variable even for
+    
+    # Change to project directory
+    cd "${project_dir}"
+   
+    # CRITICAL AND IMPORTANT {{{ CRITICAL AND IMPORTANT
+    # Backup Claude conversation transcripts before running
+    echo "Backing up Claude conversation transcripts..."
+    if command -v python3 &> /dev/null && [ -f ~/scripts/claude ]; then
+        source ~/scripts/claude
+        write-transcripts-to-project-directory "${project_dir}" 2>/dev/null || echo "  (No new transcripts to backup)"
+    else
+        echo "  (Transcript backup unavailable - missing python3 or ~/scripts/claude)"
+    fi
+    # }}}
+    
+    # Build the ROM if it doesn't exist or sources are newer
+    if [ ! -f "${rom_file}" ] || [ src/main.c -nt "${rom_file}" ] || [ src/input.c -nt "${rom_file}" ] || [ src/background.c -nt "${rom_file}" ] || [ src/sprite.c -nt "${rom_file}" ]; then
+        echo "Building GBA ROM..."
+        ./build-gba.sh
+        if [ $? -ne 0 ]; then
+            echo "Build failed!"
+            return 1
+        fi
+    fi
+    
+    # Check for available GBA emulators and run in windowed, floating mode
+    if command -v mgba-qt &> /dev/null; then
+        echo "Starting mGBA (recommended for GBA)..."
+        echo "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Backspace = Select, A = L, S = R"
+        mgba-qt "${rom_file}" &
+    elif command -v vbam &> /dev/null; then
+        echo "Starting VBA-M emulator..."
+        echo "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Backspace = Select, A = L, S = R"
+        echo "NOTE: These are the default VBA-M controls. The button icons will respond to these keys."
+        vbam --filter=17 "${rom_file}" &
+    elif command -v visualboyadvance-m &> /dev/null; then
+        echo "Starting VisualBoy Advance-M..."
+        echo "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Backspace = Select, A = L, S = R"
+        echo "NOTE: These are the default VBA-M controls. The button icons will respond to these keys."
+        visualboyadvance-m --filter=17 "${rom_file}" &
+    elif command -v mednafen &> /dev/null; then
+        echo "Starting Mednafen emulator..."
+        mednafen "${rom_file}" &
+    elif command -v retroarch &> /dev/null; then
+        echo "Starting RetroArch with mGBA core..."
+        retroarch -L /usr/lib/libretro/mgba_libretro.so "${rom_file}" &
+    else
+        echo "No Game Boy Advance emulator found!"
+        echo "Please install one of: mGBA, VBA-M, Mednafen, or RetroArch"
+        return 1
+    fi
+    
+    # Make the window floating (for DWM and other tiling window managers)
+    sleep 2
+    if command -v xdotool &> /dev/null; then
+        # Find the emulator window (prioritizing mGBA for GBA)
+        window_id=$(xdotool search --name "mGBA\|VBA\|VisualBoy\|Mednafen\|RetroArch" | head -1)
+        if [ -n "${window_id}" ]; then
+            # For DWM: set window as floating
+            if command -v /home/ritz/programs/dwm/dwmc &> /dev/null; then
+                /home/ritz/programs/dwm/dwmc togglefloating
+            elif pgrep dwm &> /dev/null; then
+                # Alternative method for DWM - make VBA-M window floating
+                xdotool windowactivate "${window_id}"
+                sleep 0.5
+                # Send DWM hotkey to make window floating (Mod+Shift+Space)
+                xdotool key Super_L+shift+space 2>/dev/null || true
+                sleep 0.5
+                # Position the floating window nicely
+                xdotool windowmove "${window_id}" 100 100
+            else
+                # Standard window positioning for other WMs - GBA uses 240x160 resolution
+                xdotool windowsize "${window_id}" 720 480  # 3x scale
+                xdotool windowmove "${window_id}" 100 100
+            fi
+        fi
+    fi
+    
+    echo "OOT GBA Demake launched!"
+    echo ""
+    echo "=== CURRENT FEATURES ==="
+    echo "• Scrolling background with D-pad movement"
+    echo "• Link sprite character with 8-directional animation"
+    echo "• L/R shoulder buttons rotate the world view"
+    echo "• A button brightens screen, B button darkens screen"
+    echo ""
+    echo "=== CONTROLS ==="
+    echo "• Arrow keys: Move Link / Scroll world"
+    echo "• A/S keys: Tap to rotate world orientation (L/R)"
+    echo "• Z key: A button (brighten screen)"
+    echo "• X key: B button (darken screen)"
+    echo "• Enter: Start button"
+    echo "• Backspace: Select button"
+    echo ""
+    echo "Press Ctrl+C to stop."
+}
+
+# If script is executed directly (not sourced), run the function
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    run "$@"
+fi

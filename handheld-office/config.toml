@@ -1,0 +1,132 @@
+# Handheld Office Configuration
+# Easily tweak settings for different environments and devices
+
+[daemon]
+port = 8080
+host = "0.0.0.0"
+max_clients = 50
+message_buffer_size = 1000
+state_save_interval_seconds = 30
+log_level = "info"
+
+[handheld]
+# Display settings for different screen sizes
+screen_width = 20  # characters
+screen_height = 10 # lines
+max_display_lines = 20
+
+# Input sensitivity for different controllers
+input_repeat_delay_ms = 250
+input_repeat_rate_ms = 100
+
+# Text formatting
+l_shape_display = true
+right_justify_continuation = true
+word_wrap = true
+
+# Device identification
+device_name_prefix = "anbernic"
+auto_generate_device_id = true
+
+[llm]
+# LLM backend preferences (in order of priority)
+backends = ["ollama", "llamacpp", "koboldcpp", "echo"]
+
+# Ollama settings
+ollama_host = "localhost"
+ollama_port = 11434
+ollama_model = "llama2"
+
+# LlamaCPP settings
+llamacpp_host = "localhost"
+llamacpp_port = 8000
+llamacpp_max_tokens = 256
+llamacpp_temperature = 0.7
+
+# KoboldCPP settings
+koboldcpp_host = "localhost"
+koboldcpp_port = 5001
+koboldcpp_max_length = 256
+koboldcpp_temperature = 0.7
+
+# Request settings
+timeout_seconds = 30
+max_concurrent_requests = 5
+
+[network]
+# Network discovery and connection settings
+daemon_host = "127.0.0.1"  # Set to your router IP for LAN-wide discovery
+daemon_port = 8080
+connection_timeout_seconds = 10
+heartbeat_interval_seconds = 30
+auto_reconnect = true
+max_reconnect_attempts = 5
+
+# For Anbernic devices on WiFi
+wifi_interface = "wlan0"
+ethernet_interface = "eth0"
+
+[build]
+# Build system configuration
+target_profile = "release"
+incremental_build = true
+save_build_states = true
+parallel_build_jobs = 4
+
+# Cross-compilation targets for different devices
+targets = [
+    "x86_64-unknown-linux-gnu",    # Desktop/laptop
+    "aarch64-unknown-linux-gnu",   # ARM64 (newer handhelds)
+    "armv7-unknown-linux-gnueabihf" # ARM32 (older handhelds)
+]
+
+[paths]
+# Customizable paths for different environments
+state_dir = "files/build"
+crash_dir = "files/crash"
+log_dir = "files/logs"
+models_dir = "models"
+scripts_dir = "scripts"
+
+# For portable installations
+use_relative_paths = true
+portable_mode = false
+
+[anbernic]
+# Anbernic-specific optimizations! 🎮
+enable_anbernic_optimizations = true
+
+# Power management for handheld devices
+battery_monitoring = true
+low_power_mode_threshold = 20  # percentage
+sleep_timeout_minutes = 5
+
+# Storage optimization for SD cards
+use_write_buffering = true
+sync_interval_seconds = 60
+compress_logs = true
+
+# Device-specific models (some Anbernics have different capabilities)
+[anbernic.rg35xx]
+screen_width = 24
+screen_height = 12
+cpu_cores = 4
+ram_mb = 1024
+
+[anbernic.rg351p]
+screen_width = 20
+screen_height = 10
+cpu_cores = 4
+ram_mb = 1024
+
+[anbernic.rg552]
+screen_width = 30
+screen_height = 15
+cpu_cores = 8
+ram_mb = 2048
+
+[anbernic.rg405m]
+screen_width = 25
+screen_height = 12
+cpu_cores = 8
+ram_mb = 4096

@@ -1,0 +1,37 @@
+wow-chat:
+-- turns world of warcraft into a roguelike. can be adapted to anbernic consoles
+   because the behavior is written in lua that is executed by the eluna
+   interpreter installed in an azerothcore installation and is built to be part
+   of the client. so, each one hosts and connects to others and syncs the data
+   between them. unrecognized data format? don't accept it! have a very strict
+   and regulated protocol. sorta like...grammar laws.
+
+-- this game is a precious namesake and can be accessed from
+   @/home/ritz/backups/neocities/wow-chat/how-to-connect.txt
+   @/home/ritz/backups/neocities/wow-chat/wow-chat-lore.txt
+   and here:
+   @https://github.com/gabrilend/wow-chat/tree/develop
+
+pong, except it's like brick breakers, and you can't see the opponent's screen
+except for like, 3 rows or whatever. to be played between anbernics, or on two
+separate TVs. make it a roguelike. make it a map painter.
+
+a game that's a swarm of particle simulation lights that live and breathe like
+artificial life, given basic rules and taught to orbit objects, falling sand
+game style simulation, but with planetary style physics.
+
+a generic control device that sends it's button status as json to any target
+that is listening in the area. TCP style. for piloting action figure drones.
+
+a game that automatically sets all the settings necessary to make sure that the
+game only accepts virtual-machine bytecode input. can read more at:
+@https://craftinginterpreters.com/contents.html
+this would essentially disable any non anbernic-to-anbernic communication.
+literally just. put something in the wifi driver or even physically between the
+wifi card and the rest of the computer that encrypted or decrypted everything.
+boom, slower, but secure.
+
+a game with default characters exploring default mechanics and simulating
+            default whims
+
+I can do better... for symbeline...
