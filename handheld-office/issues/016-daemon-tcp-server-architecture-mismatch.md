@@ -2,6 +2,8 @@
 
 ## Priority: HIGH ⚠️
 
+## Status: ⚠️ *Architecture Designed* - P2P bytecode interface ready, needs TCP integration
+
 ## Description
 The current daemon TCP server implementation (`src/daemon.rs`) binds to `0.0.0.0:8080` and accepts connections from any network interface, which violates the air-gapped architecture where Anbernic devices should only communicate via P2P WiFi Direct.
 
@@ -25,7 +27,7 @@ info!("Project daemon listening on port {}", port);
 **Issue**: Binding to `0.0.0.0` allows connections from any network interface, including internet-routable interfaces
 
 ### 🚨 **VIOLATION 2: Documentation Claims**
-**File**: `docs/networking-architecture.md`
+**File**: `docs/networking/architecture.md`
 **Lines**: 96
 ```rust
 // 0.0.0.0 binding allows both local and remote handheld connections

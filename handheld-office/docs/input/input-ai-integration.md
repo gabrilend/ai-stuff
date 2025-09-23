@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document describes how the core input system integrates with AI features including image generation, text completion, and smart assistance. It covers AI-specific input modes and workflows.
+This document describes how the core input system integrates with AI features including image generation, text completion, and smart assistance. AI services run on laptop daemons as secure proxies, with Anbernic devices sending encrypted bytecode instructions via WiFi Direct P2P.
+
+**Data Flow**: Anbernic Device → WiFi Direct P2P → Encrypted Bytecode → Laptop Daemon → AI Service HTTP APIs
 
 ## Integration Architecture
 
@@ -16,11 +18,11 @@ This document describes how the core input system integrates with AI features in
 pub struct EnhancedInputManager {
     // ... core fields (see input-core-system.md)
     
-    // WiFi Direct P2P for AI image generation (legacy)
+    // WiFi Direct P2P for secure bytecode communication to laptop daemon
     pub wifi_direct: Option<WiFiDirectP2P>,
-    pub wifi_direct_connected: bool,
+    pub laptop_daemon_connected: bool,
     pub available_image_files: Vec<ImageFileEntry>,
-    pub pending_image_requests: Vec<PendingImageRequest>,
+    pub pending_bytecode_requests: Vec<PendingBytecodeRequest>,
     pub images_directory: PathBuf,
 }
 ```

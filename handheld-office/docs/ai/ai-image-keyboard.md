@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Anbernic handheld devices support seamless AI image generation through an intuitive radial keyboard interface. This feature allows users to generate images using AI models running on paired laptop daemons via WiFi Direct peer-to-peer connections.
+The Anbernic handheld devices support seamless AI image generation through an intuitive radial keyboard interface. This feature allows users to generate images using AI models running on paired laptop daemons via secure WiFi Direct P2P bytecode communication.
+
+**Data Flow**: Anbernic Device → WiFi Direct P2P → Encrypted Bytecode → Laptop Daemon → HTTP AI APIs → External AI Services
 
 ## Architecture
 
@@ -19,9 +21,10 @@ The Anbernic handheld devices support seamless AI image generation through an in
    - Message routing for AI requests
 
 3. **Laptop Daemon Service** (`src/laptop_daemon.rs`)
-   - AI image generation backend
+   - AI image generation backend (secure proxy for external services)
    - Multiple AI model support (Automatic1111, ComfyUI, Diffusers CLI, Ollama)
    - Permission management system
+   - ✅ **HTTP calls to external AI services are ALLOWED here** (laptop daemon proxy role)
 
 ## User Interface Flow
 
