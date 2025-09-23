@@ -48,7 +48,6 @@ Successfully implemented a comprehensive cryptographic system that integrates wi
 ```toml
 # Cryptography libraries
 rsa = "0.9"
-pgp = "0.13"
 aes-gcm = "0.10"
 ring = "0.17"
 ed25519-dalek = { version = "2.0", features = ["rand_core"] }

@@ -4,6 +4,8 @@
 
 Welcome to **Aethermoor**, an original fantasy MMO designed specifically for Anbernic handheld devices. This guide covers everything you need to know about setting up, playing, and creating content for our AzerothCore-inspired server.
 
+> **⚠️ Important Architecture Note**: This MMO engine uses **peer-to-peer networking** by default, not traditional client-server architecture. No separate database server setup is required for basic multiplayer functionality. The extensive SQL examples in this document are for advanced persistent server setups only.
+
 ## Table of Contents
 
 1. [Quick Start Guide](#quick-start-guide)
@@ -36,8 +38,7 @@ Welcome to **Aethermoor**, an original fantasy MMO designed specifically for Anb
 
 1. **Download the Game**:
    ```bash
-   # Clone the handheld-office repository
-   git clone https://github.com/yourrepo/handheld-office
+   # Navigate to the handheld-office directory
    cd handheld-office
    
    # Build the MMO engine
@@ -79,8 +80,9 @@ engine.initialize_ai_world().await?;
 Connect with nearby Anbernic devices using our P2P mesh network:
 
 ```bash
-# Enable P2P discovery mode
-./mmo-demo --mode p2p --discovery-port 8888
+# Run MMO demo and select P2P mode
+./target/release/mmo-demo
+# Then select option 2 for P2P mode when prompted
 ```
 
 **P2P Features:**
@@ -99,38 +101,34 @@ For larger groups, set up a dedicated server:
 - 2GB+ RAM
 - Open ports: 3724 (auth), 8085 (world)
 
-#### Server Installation
-```bash
-# Install dependencies
-sudo apt update
-sudo apt install mysql-server build-essential cmake git
+#### P2P Architecture
 
-# Clone and build server
-git clone https://github.com/yourrepo/aethermoor-server
-cd aethermoor-server
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-
-# Setup database
-mysql -u root -p < sql/create_mysql.sql
-mysql -u root -p auth < sql/base/auth_database.sql
-mysql -u root -p characters < sql/base/characters_database.sql  
-mysql -u root -p world < sql/base/world_database.sql
-```
+**Important**: This MMO uses peer-to-peer networking, not traditional client-server architecture. No separate server installation is required.
 
 #### Configuration
-Edit `worldserver.conf`:
-```ini
-# Database settings
-LoginDatabaseInfo = "127.0.0.1;3306;username;password;acore_auth"
-WorldDatabaseInfo = "127.0.0.1;3306;username;password;acore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;username;password;acore_characters"
+Edit `config.toml` to customize your device settings:
+```toml
+[anbernic]
+# Anbernic-specific optimizations
+enable_anbernic_optimizations = true
 
-# Anbernic-specific settings
-AnbernicMode = 1
-RadialInputEnabled = 1
-BatteryOptimization = 1
+# Power management for handheld devices
+battery_monitoring = true
+low_power_mode_threshold = 20  # percentage
+sleep_timeout_minutes = 5
+
+# Storage optimization for SD cards
+use_write_buffering = true
+sync_interval_seconds = 60
+compress_logs = true
+
+[network]
+# Network discovery and connection settings
+daemon_host = "127.0.0.1"  # Set to your router IP for LAN-wide discovery
+daemon_port = 8080
+connection_timeout_seconds = 10
+heartbeat_interval_seconds = 30
+auto_reconnect = true
 ```
 
 ## Control Scheme

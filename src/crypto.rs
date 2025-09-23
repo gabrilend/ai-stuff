@@ -1,5 +1,5 @@
 /// Cryptographic operations for OfficeOS
-/// Implements relationship-based PGP encryption as specified in cryptographic-communication-vision
+/// Implements relationship-based encryption using modern cryptographic primitives (Ed25519, X25519, ChaCha20-Poly1305)
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -14,6 +14,9 @@ pub mod pairing;
 pub mod packet;
 pub mod p2p_integration;
 pub mod migration_adapter;
+pub mod bytecode;
+pub mod bytecode_executor;
+pub mod types;
 
 pub use keypair::*;
 pub use relationship::*;
@@ -22,6 +25,9 @@ pub use pairing::*;
 pub use packet::*;
 pub use p2p_integration::*;
 pub use migration_adapter::*;
+pub use bytecode::*;
+pub use bytecode_executor::*;
+pub use types::*;
 
 /// Main cryptographic manager for OfficeOS
 pub struct CryptoManager {
@@ -61,9 +67,7 @@ pub enum CipherSuite {
     Ed25519,
 }
 
-/// Unique identifier for a relationship between two devices
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RelationshipId(pub String);
+// RelationshipId is now defined in types.rs
 
 /// Context for a specific relationship
 #[derive(Debug, Clone, Serialize, Deserialize)]

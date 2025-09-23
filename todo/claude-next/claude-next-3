@@ -1,6 +1,0 @@
-hi, can you go through the documentation for the project and search for parts of
-the code which don't match the documentation? When you find an instance of the
-discongruity, please make an issue in /issues/ with a description of the
-functionality described in the docs, and a description of the implemented
-functionality. Include any other relevant information such as line-numbers and
-suggested fixes.

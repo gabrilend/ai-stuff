@@ -81,7 +81,7 @@ This document provides a comprehensive implementation plan for developing **Offi
   │   ├── packagegroups/
   │   └── handheld-office/
   ├── recipes-crypto/
-  │   ├── sequoia-openpgp/
+  │   ├── sequoia-opengpg/
   │   └── crypto-foundation/
   ├── recipes-kernel/
   │   └── linux/
@@ -113,9 +113,9 @@ This document provides a comprehensive implementation plan for developing **Offi
   ├── conf/
   │   └── layer.conf
   ├── recipes-crypto/
-  │   ├── sequoia-openpgp/
+  │   ├── sequoia-opengpg/
   │   ├── rust-crypto/
-  │   └── pgp-manager/
+  │   └── gpg-manager/
   ├── recipes-security/
   │   ├── key-storage/
   │   └── relationship-manager/
@@ -214,14 +214,14 @@ This document provides a comprehensive implementation plan for developing **Offi
 
 **Cross-Reference**: Implements `/todo/phase1-cryptographic-foundation.md` in Yocto context
 
-#### 2.2.1 Sequoia-OpenPGP Integration
-- [ ] **Create Sequoia-OpenPGP Recipe**
+#### 2.2.1 Sequoia-modern cryptographic primitives Integration
+- [ ] **Create Sequoia-modern cryptographic primitives Recipe**
   ```bash
-  # meta-crypto-office/recipes-crypto/sequoia-openpgp/sequoia-openpgp_1.17.bb
-  SUMMARY = "OpenPGP implementation in Rust"
+  # meta-crypto-office/recipes-crypto/sequoia-opengpg/sequoia-opengpg_1.17.bb
+  SUMMARY = "modern cryptographic primitives implementation in Rust"
   LICENSE = "GPL-2.0 | LGPL-2.1"
   
-  SRC_URI = "crate://crates.io/sequoia-openpgp/1.17.0"
+  SRC_URI = "crate://crates.io/sequoia-opengpg/1.17.0"
   
   inherit cargo
   
@@ -236,8 +236,8 @@ This document provides a comprehensive implementation plan for developing **Offi
   SUMMARY = "Cryptographic foundation for OfficeOS"
   LICENSE = "GPL-3.0"
   
-  DEPENDS = "sequoia-openpgp rust-native"
-  RDEPENDS:${PN} = "sequoia-openpgp"
+  DEPENDS = "sequoia-opengpg rust-native"
+  RDEPENDS:${PN} = "sequoia-opengpg"
   
   SRC_URI = "file://src/crypto"
   
@@ -362,7 +362,7 @@ This document provides a comprehensive implementation plan for developing **Offi
   SUMMARY = "Cryptographic components for OfficeOS"
   
   RDEPENDS:${PN} = "\
-      sequoia-openpgp \
+      sequoia-opengpg \
       crypto-foundation \
       key-storage \
       relationship-manager \
@@ -554,7 +554,7 @@ This document provides a comprehensive implementation plan for developing **Offi
 **Reference**: `/todo/phase1-cryptographic-foundation.md`
 
 - **Week 3**: Implement crypto module structure in Yocto recipes (Task 2.2.2)
-- **Week 4**: Integrate PGP key management (corresponds to crypto Task 1.2)
+- **Week 4**: Integrate relationship-specific cryptographic key management (corresponds to crypto Task 1.2)
 - **Week 5**: Add secure key storage (corresponds to crypto Task 1.3)
 
 ### Phase 2 Crypto Integration  
@@ -615,7 +615,7 @@ This document provides a comprehensive implementation plan for developing **Offi
 - **Yocto Project**: Kirkstone LTS release (stable base)
 - **Hardware BSP**: Rockchip, Allwinner BSP layers
 - **Rust Toolchain**: Yocto Rust integration
-- **Crypto Libraries**: Sequoia-OpenPGP, libsodium
+- **Crypto Libraries**: Sequoia-modern cryptographic primitives, libsodium
 
 ### Internal Dependencies
 - **Handheld Office Applications**: Core Rust applications completed

@@ -1,7 +1,0 @@
-demo
-save
-i2
-demo  
-save
-sleep
-q

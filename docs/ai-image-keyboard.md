@@ -93,8 +93,8 @@ Media Functions Mode (L/R + D-pad):
 
 ```
 ./images/
-├── paint/              # Paint program creations
-├── ai_generated/       # AI-generated images
+├── paint/             # Paint program creations
+├── ai_generated/      # AI-generated images
 ├── shared/            # P2P shared images
 └── downloads/         # External downloads
 ```

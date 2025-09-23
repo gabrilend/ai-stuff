@@ -27,21 +27,37 @@ The central coordinator managing all input functionality:
 
 ```rust
 pub struct EnhancedInputManager {
+    // Core input functionality
     pub config: InputConfig,
     pub current_mode: EnhancedInputMode,
     pub text_buffer: String,
     pub cursor_position: usize,
     pub edit_mode_state: EditModeState,
+    pub one_time_keyboard_state: Option<OneTimeKeyboardState>,
+    pub button_states: HashMap<String, ButtonState>,
+    pub last_input_time: Instant,
     
-    // P2P mesh networking for document sharing
+    // P2P mesh networking for document sharing (legacy)
     pub p2p_manager: Option<P2PMeshManager>,
+    pub p2p_enabled: bool,
     pub shared_documents: Vec<SharedDocument>,
+    pub auto_save_enabled: bool,
+    pub document_metadata: DocumentMetadata,
     pub collaboration_state: Option<CollaborationState>,
     
-    // WiFi Direct P2P for AI image generation
+    // WiFi Direct P2P for AI image generation (legacy)
     pub wifi_direct: Option<WiFiDirectP2P>,
+    pub wifi_direct_connected: bool,
     pub available_image_files: Vec<ImageFileEntry>,
     pub pending_image_requests: Vec<PendingImageRequest>,
+    pub images_directory: PathBuf,
+    
+    // Secure P2P system with crypto integration
+    pub secure_p2p: Option<P2PMigrationAdapter>,
+    pub secure_p2p_enabled: bool,
+    pub secure_relationships: Vec<RelationshipId>,
+    pub pairing_mode_active: bool,
+    pub discovered_secure_devices: Vec<CryptoPairingEmoji>,
 }
 ```
 
@@ -331,6 +347,40 @@ pub struct CollaborationState {
 - **Trust Management**: Establish trusted peer relationships
 - **Access Control**: Fine-grained document access permissions
 - **Air-gapped Operation**: No external network dependencies
+
+### Cryptographic Integration
+
+The Enhanced Input System includes full integration with the modern cryptographic communication system:
+
+#### Secure P2P Fields
+The following fields manage encrypted communication:
+```rust
+// Secure P2P system with crypto integration
+pub secure_p2p: Option<P2PMigrationAdapter>,
+pub secure_p2p_enabled: bool,
+pub secure_relationships: Vec<RelationshipId>,
+pub pairing_mode_active: bool,
+pub discovered_secure_devices: Vec<CryptoPairingEmoji>,
+```
+
+#### Cryptographic Features
+- **Modern Encryption**: Ed25519/X25519/ChaCha20-Poly1305 for all communications
+- **Emoji-based Pairing**: Visual device pairing with unique emoji identifiers
+- **Relationship Management**: Track encrypted relationships with peer devices
+- **Key Lifecycle**: Automatic key expiration and renewal
+- **Secure Document Sharing**: End-to-end encrypted document collaboration
+
+#### Pairing Mode
+When `pairing_mode_active` is true:
+- Device broadcasts its pairing emoji
+- Discovers other devices seeking pairing
+- Manages the pairing handshake process
+- Establishes encrypted relationship keys
+
+#### Legacy vs Modern Systems
+- **Legacy P2P** (marked with comments): Original unencrypted mesh networking
+- **Secure P2P**: New cryptographic system with relationship-based encryption
+- **Migration Adapter**: Provides compatibility between old and new systems
 
 ### P2P Integration with AI Features
 - **Shared AI Images**: AI-generated images can be shared between devices

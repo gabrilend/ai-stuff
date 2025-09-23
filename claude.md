@@ -62,3 +62,11 @@ source /home/ritz/scripts/claude && backup-conversations
 ```
 this will put the relevant text information into the project directory in
 /llm-transcripts/.
+
+---
+
+when encountering a bug or an unimplemented feature, please create an issue in
+/issues/ with all the relevant information. You can find examples of the format
+of these issues in /issues/done. When working on an issue, please edit the
+document to reflect the changes made and move the file to the /issues/done
+directory. Don't forget to update the /issues/README.md file afterwards.

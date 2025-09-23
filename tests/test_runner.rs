@@ -76,6 +76,15 @@ impl TestRunner {
             true,
         ));
 
+        // Air-gapped architecture integration tests
+        self.suites.push(TestSuite::new(
+            "air_gapped_architecture_tests",
+            "End-to-end air-gapped P2P architecture validation",
+            "cargo test air_gapped_architecture_tests",
+            480,
+            true,
+        ));
+
         // Paint module specific tests
         self.suites.push(TestSuite::new(
             "paint_tests",
@@ -118,6 +127,33 @@ impl TestRunner {
             "Network protocols and cryptography tests",
             "cargo test --features network_test scuttlebutt mmo_engine",
             600,
+            true,
+        ));
+
+        // Cryptography module tests
+        self.suites.push(TestSuite::new(
+            "crypto_tests",
+            "Cryptographic primitives and P2P security tests",
+            "cargo test crypto_tests",
+            300,
+            true,
+        ));
+
+        // Bytecode interface tests
+        self.suites.push(TestSuite::new(
+            "bytecode_tests",
+            "Bytecode instruction system and execution tests",
+            "cargo test bytecode_tests",
+            240,
+            true,
+        ));
+
+        // Laptop daemon proxy tests
+        self.suites.push(TestSuite::new(
+            "laptop_daemon_tests",
+            "Laptop daemon proxy architecture and internet gateway tests",
+            "cargo test laptop_daemon_tests",
+            360,
             true,
         ));
 

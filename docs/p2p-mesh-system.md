@@ -27,8 +27,9 @@ P2P functionality is disabled by default. To enable it:
 
 #### Media Player
 ```rust
-let mut media_player = MediaPlayer::new()?;
-media_player.enable_p2p("my_device_name".to_string())?;
+let mut media_player = AnbernicMediaPlayer::new()?;
+let p2p_manager = P2PMeshManager::new("my_device_name".to_string(), DeviceType::Handheld)?;
+media_player.enable_p2p(p2p_manager);
 ```
 
 #### Paint Program

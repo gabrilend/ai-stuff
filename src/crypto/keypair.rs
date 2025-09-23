@@ -103,7 +103,7 @@ impl Keypair {
         let verify_key = sign_key.verifying_key();
         
         // Generate X25519 keypair for encryption
-        let decrypt_key = StaticSecret::random_from_rng(&mut rng);
+        let decrypt_key = StaticSecret::new(&mut rng);
         let encrypt_key = X25519PublicKey::from(&decrypt_key);
 
         Ok(Self {

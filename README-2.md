@@ -299,7 +299,7 @@ lua scripts/orchestrator.lua start-llm
 - **Voice Messages**: Record and send audio clips with automatic compression
 
 #### **Business Integration**
-- **PGP Compatibility**: Standard encryption for business communication
+- **Modern Cryptography**: Relationship-based encryption using Ed25519 signatures and ChaCha20-Poly1305 AEAD
 - **Contact Management**: Integrated address book with trust relationships
 - **Message Threading**: Conversation-based email organization
 - **Search and Filtering**: Powerful search across all messages and attachments
@@ -497,7 +497,7 @@ Handheld Office Package (.hop) Structure:
 ├── uninstall.sh                      # Clean removal and cleanup
 ├── files.tar.xz                      # Compressed application files
 ├── icons/                            # Application icons and graphics
-└── signature.gpg                     # Cryptographic verification
+└── signature.ed25519                # Ed25519 cryptographic verification
 ```
 
 #### **Distribution Advantages**
@@ -510,7 +510,7 @@ Handheld Office Package (.hop) Structure:
 
 #### **Primary Development Strategy**
 - **Yocto-Based OfficeOS**: Purpose-built OS for handheld productivity with cryptographic foundation
-- **Integrated Cryptography**: Relationship-based PGP encryption built into the OS layer (see `/todo/cryptographic-communication-implementation.md`)
+- **Integrated Cryptography**: Relationship-based modern encryption (Ed25519, X25519, ChaCha20-Poly1305) built into the OS layer
 - **Radial Input Native**: Radial menu system integrated at the window manager level
 - **Hardware Optimization**: Direct hardware integration for Anbernic and compatible devices
 - **Security First**: Zero-trust architecture with encrypted P2P mesh networking

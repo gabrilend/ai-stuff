@@ -16,7 +16,7 @@ log() {
 
 start_daemon() {
     log "Starting daemon on port 8080..."
-    ./target/release/daemon &
+    ./files/target/release/daemon &
     DAEMON_PID=$!
     echo "$DAEMON_PID" > files/build/daemon.pid
     log "Daemon started with PID $DAEMON_PID"
@@ -25,7 +25,7 @@ start_daemon() {
 
 start_llm_service() {
     log "Starting LLM service..."
-    ./target/release/desktop-llm &
+    ./files/target/release/desktop-llm &
     LLM_PID=$!
     echo "$LLM_PID" > files/build/llm.pid
     log "LLM service started with PID $LLM_PID"
@@ -33,7 +33,7 @@ start_llm_service() {
 
 start_handheld() {
     log "Starting handheld client..."
-    ./target/release/handheld
+    ./files/target/release/handheld
 }
 
 stop_all() {

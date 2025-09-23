@@ -1,5 +1,5 @@
-# Rust build artifacts
-/target/
+# Rust build artifacts (now in files/target/)
+/files/target/
 **/*.rs.bk
 *.pdb
 
@@ -26,6 +26,8 @@ Thumbs.db
 *.log
 crash.log
 debug.log
+examples/demo_logs/
+examples/test-cases/logs/
 
 # Local configuration files
 config_local.toml
@@ -36,7 +38,10 @@ config_local.toml
 files/build/*.json
 files/build/*.log
 files/crash/
+files/target/
 trash/
+# Exclude files directory entirely except for tracking build artifacts structure
+files/
 
 # Temporary files
 *.tmp

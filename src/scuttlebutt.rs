@@ -11,7 +11,7 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::RwLock;
 
 /// Scuttlebutt-inspired peer-to-peer messaging system for Anbernic devices
-/// Implements StreetPass-style data exchange with PGP encryption
+/// Implements StreetPass-style data exchange with modern cryptographic encryption (Ed25519, ChaCha20-Poly1305)
 /// Supports both "leashed" (laptop backpack) and "unleashed" (pure P2P) modes
 #[derive(Debug, Clone)]
 pub struct ScuttlebuttNode {
@@ -28,7 +28,7 @@ pub struct ScuttlebuttNode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeIdentity {
     pub device_id: String,    // Unique device identifier (hash of hardware info)
-    pub public_key: String,   // PGP public key for encryption
+    pub public_key: String,   // Ed25519 public key for signatures
     pub display_name: String, // Human-readable name
     pub device_type: String,  // "anbernic_rg35xx", "anbernic_rg353p", etc.
     pub capabilities: Vec<String>, // ["email", "games", "paint", "music"]
@@ -41,7 +41,7 @@ pub struct NodeIdentity {
 pub enum OperatingMode {
     Leashed {
         laptop_address: SocketAddr, // Backpack laptop IP
-        laptop_public_key: String,  // Laptop's PGP key
+        laptop_public_key: String,  // Laptop's Ed25519 key
         last_heartbeat: Instant,    // Connection health
     },
     Unleashed {
@@ -104,7 +104,7 @@ pub struct LoggedMessage {
     pub content_type: ContentType,
     pub content: String,           // Encrypted content
     pub recipients: Vec<String>,   // Target device IDs (empty = public)
-    pub signature: String,         // PGP signature
+    pub signature: String,         // Ed25519 signature
     pub prev_hash: Option<String>, // Hash of previous message (chain integrity)
     pub content_hash: String,      // Hash of content (tamper detection)
 }
@@ -185,11 +185,11 @@ pub struct PeerInfo {
     pub distance_estimate: Option<f32>, // Meters, estimated from signal strength
 }
 
-/// PGP-based encryption for all communications
+/// Modern cryptographic encryption for all communications (Ed25519 + ChaCha20-Poly1305)
 #[derive(Debug, Clone)]
 pub struct CryptoManager {
-    pub private_key: String, // PGP private key (encrypted with device PIN)
-    pub public_key: String,  // PGP public key
+    pub private_key: String, // Ed25519 private key (encrypted with device PIN)
+    pub public_key: String,  // Ed25519 public key
     pub known_keys: HashMap<String, String>, // Device ID -> public key
     pub relationship_keys: HashMap<String, (String, String)>, // Device ID -> (private_key, public_key) for this relationship
     pub trust_web: TrustWeb,
@@ -216,7 +216,7 @@ pub struct TrustSignature {
     pub signer: String,  // Device ID of signer
     pub subject: String, // Device ID being vouched for
     pub trust_level: TrustLevel,
-    pub signature: String, // PGP signature
+    pub signature: String, // Ed25519 signature
     pub timestamp: DateTime<Utc>,
 }
 
@@ -755,9 +755,9 @@ impl ScuttlebuttNode {
         format!("{:x}", hasher.finalize())[..16].to_string()
     }
 
-    /// Generate PGP keypair for device
+    /// Generate Ed25519 keypair for device
     fn generate_keypair() -> (String, String) {
-        // Placeholder - would use actual PGP library
+        // Placeholder - would use actual crypto implementation from src/crypto/
         let private_key = format!("PRIVATE_KEY_{}", rand::thread_rng().gen::<u64>());
         let public_key = format!("PUBLIC_KEY_{}", rand::thread_rng().gen::<u64>());
         (private_key, public_key)
@@ -985,7 +985,7 @@ impl CryptoManager {
                 new_keys
             };
 
-        // Simplified encryption - in real implementation would use actual PGP
+        // Simplified encryption - in real implementation would use actual crypto from src/crypto/
         let encrypted = format!("ENCRYPTED[{}]:{}", device_id, content);
         Ok(encrypted)
     }
