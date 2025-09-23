@@ -1,0 +1,120 @@
+These devices should be primarily used for communicating with each other.
+Think of them like high-tech advanced walkie-talkie radios.
+All communications should route through this networking interface, and it should
+wrap each packet inside of another packet. The interior packet should be
+encrypted, while the outer one doesn't necessarily have to be.
+
+the workflow for creating a new peer is as follows: first, the user either
+pushes a button inside the UI, or picks a device-specific button that is user-
+-configurable via config file or interface options. This button will put them
+in pair mode, which is used to find new peers. Then, the other user with their
+other device will do the same, and then each device will create new PGP keys for
+each new device they find. They will broadcast an emoji, unique to each of the
+pairing devices (unless there's somehow too many for the emoji keyboard, in
+which case you're probably at a convention or something. In that case it would
+just broadcast a number). This emoji is unique to this pairing session only, and
+isn't a hard-coded value written into the device - it's simply to see which user
+has which device.
+
+the receiver would see however many emojis are pairing, and then could assign a
+handle for them similar to adding a contact in a phone. At this point, whenever
+a user is walking about they'll broadcast their own public keys, iterating
+through each of the public keys for each relationship they have. If a receiver
+recognizes one of the public keys, they know that it's for their relationship
+and ONLY their relationship, so they can immediately know who it is, and what to
+do with the received data. How to decrypt it.
+
+There is also a server daemon which can run on a laptop. This server will be
+able to connect to the devices in much the same way - over wifi, without
+requiring a wireless router, LAN, or access to the internet. Each wifi radio is
+functionally both a sender and receiver, as otherwise you wouldn't be able to
+send data back and forth from a wireless router. So our devices are using that
+functionality to eliminate the need to be tied to an ISP or other such
+networking service.
+
+The server daemon will primarily be used for off-site tasks that are too data
+intensive, such as LLM processing, image generation, file torrenting, or other
+such demands. As such it doesn't need a GUI, simply a terminal interface with
+options to enable or disable certain features interactively without shutting
+down the server. It should not accept arbitrary commands, rather it should
+utilize a virtual machine style bytecode instruction format where instructions
+are sent as bytes and the receiving laptop server daemon will interpret them.
+
+The server daemon will pair with devices in much the same way that the anbernics
+will, except instead of pressing a dedicated button the server will select a
+menu option inside of the interactive terminal UI.
+
+for each networking operation that passes through the device, whether to the
+laptop server daemon or to other anbernics, the packets that are sent must be
+encrypted. However, they must also be interpretable by the receiver, otherwise
+they are essentially garbage wifi noise. To do this, the packet is first
+encrypted in a bytewise fashion, then it is wrapped inside another packet as
+data. The outer packet is not encrypted, but contains both the data and the
+public key of the user who it is intended for. This public key is unique both to
+the sender and receiver, as it is intended to represent the relationship, rather
+than the user or their device.
+
+As an example, user A and user B both push the pairing buttons on their devices.
+user A has a smiley face, and user B has a frowney face. They look at each other
+and their devices and user A smiles, while user B puts on a comical frown.
+They laugh, and look back to their anbernics, where there is a list of all the
+emojis that are currently pairing. Apparently there's a racecar emoji being
+broadcast too, but they don't know that user or their emoji so they ignore it.
+next, they click on each other's emoji face inside the list, meaning user A
+selects the frowney face, and user B selects the smiley face (they are trying to
+identify each other, after all), and then they are given the option to enter a
+nickname. "what's your name?" asks one to the other, and a few of them say "ha
+nice trick, I'm not giving you my name, that's a one-way-ticket to being an
+eternal prisoner of the fae". Perhaps one said "shrug, well in that case I'll
+put your nickname as... poopybutthole." "ew gross! you're so weird! Okay I'm
+putting yours as... weirdo-but-cool." they laugh again, and then the device puts
+them back at the main menu, after typing in each other's device names using the
+radial keyboard input style method.
+
+Then, whenever they are inside one of the other applications, if weirdo-but-cool
+or poopybutthole are within mesh range, they will see their name listed as a
+potential recipient. If they are not within range, they will simply be absent.
+there is no way to see your friends list. If you don't make a peer-to-peer
+connection with someone for a certain amount of time (configurable) then you
+will forget them and their PGP key (and presumably they will forget yours when
+the timer they set on their device for forgetting keys expires) and will have to
+pair again. If one user forgets a key and the other doesn't, they will
+effectively never be able to communicate using that key again. But that's
+alright because nothing is really persistent between them.
+
+the exception to this is Scuttlebutt and the email server, which should allow
+for queueing up messages, to be sent whenever that peer is within range. If the
+key expires, but there are messages queued up, the user will be presented with
+the opportunity to assign the message or Scuttlebutt content or whatever to a
+new target PGP key.
+
+Now, let's say that user A (poopybutthole) also has a laptop, and user B
+(weirdo-but-cool) wants to connect to it to use it for LLM processing. user A
+will select the "pair" option inside the terminal UI, and user B will either
+select the menu-option on their device or push the dedicated key for it, and
+the emoji selection process will repeat. user A has an apple displayed on their
+device, and if the terminal doesn't support it then it displays a text-based
+description of the emoji. User B has a cup of tea emoji displayed, and they both
+have a laugh about that because it's an inside joke. You wouldn't get it, it's
+okay. Anyway user A selects the cup-of-tea emoji on their list and user B
+selects the apple. They both ignore the racecar again. I wonder what that guy's
+doing? maybe he wants a friend? well anyway they select their respective emojis
+and now they are paired. user A, with the laptop, can open up the permissions
+manager and select which permissions they want to enable for user B specifically
+such as LLM access or file torrenting. There are three permission levels, deny,
+allow without asking, and allow with confirmation. These permissions are defined
+for each potential operation the user can select, but may be configured on a per
+application basis if the user prefers the convenience. However, they will never
+be able to enable all unless they go through and manually select all - there is
+no shortcut for it.
+
+then, user B, having gained access to the offsite LLM, opens up the document
+editor on their anbernic and sends the file they've been working on to the LLM
+to interpret as a prompt. She waits, then receives a reply, and the text is
+displayed below the prompt with a user-configurable separator inserted between.
+In this case, she set it to 32 dashes, which is about the width of her screen.
+
+This is the end of the example. There are many more use-cases potentially
+available, but by creating a fully decentralized communication platform I hope
+to better enable ad-hoc and pick-up-and-go relationship building with devices
+that need more attention and exposure.

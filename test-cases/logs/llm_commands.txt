@@ -1,0 +1,4 @@
+llm:hello world
+llm:what is 2+2?
+llm:tell me a joke
+quit

@@ -1,0 +1,9 @@
+| Okay. the device should be unable to connect to wifi routers, bluetooth, or  │
+│ other remote devices. Except for other anbernics running our software suite, │
+│ and laptops who are running a server program. Can you walk through all the   │
+│ network enabled applications and ensure that none of it enables or requires  │
+│ access to a wireless router? We should design all our systems such that all  │
+│ communications are done in a peer-to-peer fashion with other anbernics on    │
+│ OfficeOS. In addition, all network interactions should be encrypted, as      │
+│ described in the /notes/cryptographic-communication-vision document.         │
+│ you can write your findings into a report in /issues/ so we can work on them │
