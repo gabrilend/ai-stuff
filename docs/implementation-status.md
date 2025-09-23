@@ -2,7 +2,9 @@
 
 ## ✅ **COMPLETED: Modern Cryptographic System**
 
-The cryptographic communication vision has been **fully implemented** using modern cryptographic primitives instead of the originally planned GPG system. This provides superior performance and security for handheld devices.
+The cryptographic communication vision has been **fully implemented** using modern cryptographic primitives instead of the originally planned GPG system. This provides superior performance and security for handheld devices operating in an air-gapped P2P architecture.
+
+**Architecture**: Anbernic devices maintain air-gapped operation, communicating only via encrypted WiFi Direct P2P. Laptop daemons act as secure proxies for external service access using bytecode instructions.
 
 ### **Implemented Cryptographic Stack**
 

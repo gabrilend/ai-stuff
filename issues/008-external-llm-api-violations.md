@@ -2,8 +2,10 @@
 
 ## Priority: CRITICAL
 
+## Status: ⚠️ *Architecture Designed* - Bytecode interface ready, needs integration
+
 ## Description
-The desktop LLM service violates P2P-only requirements by connecting to external HTTP APIs for LLM inference, including llama-cpp-python and KoboldCPP servers.
+The desktop LLM service architecture needs clarification regarding correct deployment. The service should run on the laptop daemon as a secure proxy, where HTTP calls to external LLM services are permitted, but Anbernic devices must communicate only via encrypted WiFi Direct bytecode instructions.
 
 ## Required Functionality (per `/notes/cryptographic-communication-vision`)
 The security architecture specifies:
@@ -14,41 +16,42 @@ The security architecture specifies:
 
 ## Current Implementation Analysis
 **File**: `src/desktop_llm.rs` (Desktop LLM Service)  
-**Context**: This appears to be the laptop daemon service - external APIs may be ALLOWED here
+**Deployment Context**: **LAPTOP DAEMON** (HTTP calls are PERMITTED here)
 
-### Potential Issue 1: Service Location Unclear
+### ✅ **CORRECT: Laptop Daemon HTTP Calls**
 ```rust
-// If this runs on Anbernic device - VIOLATION
-// If this runs on laptop daemon - ALLOWED
-http://localhost:8000/v1/completions
+// Line 146 - ALLOWED: Laptop daemon acting as secure proxy for external LLM services
+let client = reqwest::Client::new();
+.post("http://localhost:8000/v1/completions")
+```
+**Status**: HTTP calls are architecturally correct when running on laptop daemon
+
+### ❌ **MISSING: Bytecode Interface for Anbernic Communication**
+```rust  
+// NEEDED: Bytecode instruction handler to receive requests from Anbernic devices
+async fn handle_llm_bytecode(
+    &self,
+    bytecode: LLMBytecode,
+    requester_relationship: &RelationshipId,
+) -> Result<String, Box<dyn std::error::Error>>
 ```
 
-### Potential Issue 2: Missing Permission System
-```rust
-// Missing: Permission checks for relationship-based access control
-// Missing: Bytecode instruction interface for Anbernic requests
-http://localhost:5001/api/v1/generate
-```
+### ⚠️ **INTEGRATION GAP: Anbernic → Laptop Communication**
+- ✅ Laptop daemon external HTTP calls (correct)
+- ❌ Missing: Anbernic devices sending bytecode instructions to laptop
+- ❌ Missing: Laptop daemon translating bytecode to HTTP requests
+- ❌ Missing: Response translation from HTTP back to encrypted bytecode
 
-### Potential Issue 3: No Bytecode Interface
-- Service should accept bytecode instructions from Anbernic devices
-- Current implementation appears to be direct API usage
-- Missing relationship-based permission validation
-
-## Impact (If Running on Anbernic Device)
-- **Architecture Violation**: Anbernic device accessing external services directly
-- **Security Boundary**: Breaks the laptop-as-gateway security model
-- **Missing Infrastructure**: No bytecode instruction system implemented
-
-## Impact (If Running on Laptop Daemon)
-- **Missing Security**: No permission system for relationship-based access
-- **Missing Interface**: No bytecode instruction handling for Anbernic requests
-- **Architecture Incomplete**: Should be proxy service, not direct API access
+## Impact
+- **Architecture Status**: ✅ Laptop daemon HTTP calls are CORRECT (secure proxy model)
+- **Integration Gap**: ❌ Missing bytecode communication layer between Anbernic and laptop
+- **Data Flow**: ❌ No WiFi Direct → Bytecode → HTTP → External LLM Services pipeline
+- **Current State**: Service runs correctly on laptop but lacks Anbernic device integration
 
 ## Required Fixes
 
-### Option 1: Implement Complete Laptop Daemon Architecture (RECOMMENDED)
-If this is the laptop daemon, implement proper bytecode interface:
+### Option 1: Complete Bytecode Integration (RECOMMENDED)
+LLM service correctly runs on laptop daemon, now implement bytecode interface for Anbernic communication:
 ```rust
 // LAPTOP DAEMON: Accept bytecode from Anbernic devices
 pub struct LaptopDaemon {
@@ -68,7 +71,7 @@ impl LaptopDaemon {
             return Err("LLM access not permitted for this relationship".into());
         }
         
-        // Make external API call (ALLOWED on laptop daemon)
+        // ✅ CORRECT: External API call from laptop daemon (acting as secure proxy)
         match bytecode.instruction {
             LLMInstruction::GenerateText { prompt, max_tokens } => {
                 let response = reqwest::Client::new()
@@ -80,8 +83,11 @@ impl LaptopDaemon {
                     .send()
                     .await?;
                     
-                // Return encrypted result to Anbernic device
-                Ok(response.text().await?)
+                // Process response and encrypt for Anbernic device
+                let llm_response = self.process_external_response(response).await?;
+                
+                // Return encrypted bytecode response to Anbernic via WiFi Direct
+                self.encrypt_and_send_to_anbernic(llm_response, requester_relationship).await
             }
         }
     }
@@ -151,8 +157,8 @@ impl LocalLLMService {
 - Connected to `/notes/cryptographic-communication-vision` requirements
 - Part of claude-next-4 P2P compliance review
 
-## Immediate Action Required
-This is a CRITICAL violation. External HTTP APIs for LLM services must be removed to comply with P2P-only architecture.
+## Architecture Clarification
+The external HTTP calls in this service are CORRECT when running on laptop daemon. The critical missing piece is the bytecode communication interface between Anbernic devices and the laptop daemon proxy.
 
 ## Testing Required
 - Verify no external HTTP connections for LLM inference

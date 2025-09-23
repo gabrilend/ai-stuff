@@ -7,36 +7,37 @@ This documentation is organized by **concern separation** - each document focuse
 ## 📚 **Core System Documentation**
 
 ### Input System (Modular Architecture)
-- **[Core Input System](input-core-system.md)** - Fundamental text entry and navigation
-- **[P2P Integration](input-p2p-integration.md)** - Collaborative editing and document sharing  
-- **[AI Integration](input-ai-integration.md)** - AI-assisted text and image generation
-- **[Crypto Integration](input-crypto-integration.md)** - Secure pairing and encrypted communications
+- **[Core Input System](input/input-core-system.md)** - Fundamental text entry and navigation
+- **[P2P Integration](input/input-p2p-integration.md)** - Collaborative editing and document sharing  
+- **[AI Integration](input/input-ai-integration.md)** - AI-assisted text and image generation
+- **[Crypto Integration](input/input-crypto-integration.md)** - Secure pairing and encrypted communications
 
 ### Networking & Security
-- **[Cryptographic Architecture](cryptographic-architecture.md)** - Modern crypto system (Ed25519, ChaCha20-Poly1305)
-- **[P2P Mesh System](p2p-mesh-system.md)** - Peer-to-peer file sharing and collaboration
-- **[Networking Architecture](networking-architecture.md)** - Overall network design
+- **[Data Flow Architecture](data-flow-architecture.md)** - Complete system data flow (Anbernic → WiFi Direct → Bytecode → Laptop Daemon → HTTP)
+- **[Cryptographic Architecture](networking/cryptographic-architecture.md)** - Modern crypto system (Ed25519, ChaCha20-Poly1305)
+- **[P2P Mesh System](networking/p2p-mesh-system.md)** - Peer-to-peer file sharing and collaboration
+- **[Networking Architecture](networking/architecture.md)** - Overall network design
 
 ### Hardware & Deployment  
-- **[Anbernic Technical Architecture](anbernic-technical-architecture.md)** - Hardware-specific optimizations
-- **[Tech Deployment Pipeline](tech-deployment-pipeline.md)** - Build and deployment processes
+- **[Anbernic Technical Architecture](hardware/anbernic-technical-architecture.md)** - Hardware-specific optimizations
+- **[Tech Deployment Pipeline](hardware/tech-deployment-pipeline.md)** - Build and deployment processes
 
 ## 🎮 **Application Documentation**
 
 ### Game Engines & Demos
-- **[AzerothCore Technical Architecture](azerothcore-technical-architecture.md)** - MMO game engine
-- **[AzerothCore Setup Guide](azerothcore-setup-guide.md)** - Installation and configuration
+- **[AzerothCore Technical Architecture](games/azerothcore-technical-architecture.md)** - MMO game engine
+- **[AzerothCore Setup Guide](games/azerothcore-setup-guide.md)** - Installation and configuration
 
 ### Specialized Features
-- **[AI Image Keyboard](ai-image-keyboard.md)** - AI-powered image generation interface
-- **[Custom Linux Distro Development](custom-linux-distro-development-checklist.md)** - OfficeOS distribution
+- **[AI Image Keyboard](ai/ai-image-keyboard.md)** - AI-powered image generation interface
+- **[Custom Linux Distro Development](hardware/custom-linux-distro-development-checklist.md)** - OfficeOS distribution
 
 ## 🔧 **Quick References**
 
 ### Developer Guides
-- **[Input Quick Reference](input-quick-reference.md)** - Button layouts and commands
-- **[P2P Quick Reference](p2p-quick-reference.md)** - Network integration examples
-- **[P2P Developer Guide](p2p-developer-guide.md)** - Integration patterns
+- **[Input Quick Reference](input/input-quick-reference.md)** - Button layouts and commands
+- **[P2P Quick Reference](networking/p2p-quick-reference.md)** - Network integration examples
+- **[P2P Developer Guide](networking/p2p-developer-guide.md)** - Integration patterns
 
 ### Implementation Status
 - **[Implementation Status](implementation-status.md)** - Current completion status
@@ -83,11 +84,11 @@ Core Input System (no dependencies)
 - **Testers**: Use quick references and test applications
 
 ### **By Use Case**
-- **Text Input**: `input-core-system.md` → `input-quick-reference.md`
-- **Collaborative Editing**: `input-p2p-integration.md` → `p2p-mesh-system.md`
-- **AI Features**: `input-ai-integration.md` → `ai-image-keyboard.md`
-- **Security**: `input-crypto-integration.md` → `cryptographic-architecture.md`
-- **Hardware Integration**: `anbernic-technical-architecture.md`
+- **Text Input**: `input/input-core-system.md` → `input/input-quick-reference.md`
+- **Collaborative Editing**: `input/input-p2p-integration.md` → `networking/p2p-mesh-system.md`
+- **AI Features**: `input/input-ai-integration.md` → `ai/ai-image-keyboard.md`
+- **Security**: `input/input-crypto-integration.md` → `networking/cryptographic-architecture.md`
+- **Hardware Integration**: `hardware/anbernic-technical-architecture.md`
 
 ### **Code Integration Examples**
 ```rust

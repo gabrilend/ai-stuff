@@ -2,7 +2,9 @@
 
 ## Overview
 
-The handheld office suite includes a comprehensive peer-to-peer (P2P) mesh networking system that enables file sharing and real-time collaboration between handheld devices. This system is optimized for battery-efficient operation and works seamlessly across all major applications.
+The handheld office suite includes a comprehensive peer-to-peer (P2P) mesh networking system that enables secure file sharing and real-time collaboration between handheld devices using WiFi Direct and encrypted bytecode communication. This system is optimized for battery-efficient operation and maintains air-gapped security.
+
+**Security Model**: All P2P communication uses relationship-specific encryption (Ed25519 + X25519 + ChaCha20-Poly1305) with no external internet dependencies.
 
 ## Architecture
 

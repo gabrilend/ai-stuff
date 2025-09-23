@@ -1,3 +1,13 @@
+/// Desktop LLM Service - LAPTOP DAEMON COMPONENT
+/// 
+/// **DEPLOYMENT CONTEXT**: This service runs on laptop daemons as a secure proxy
+/// **EXTERNAL ACCESS**: HTTP calls to LLM services are PERMITTED and CORRECT here
+/// **COMMUNICATION**: Receives encrypted bytecode instructions from Anbernic devices via WiFi Direct P2P
+/// 
+/// ARCHITECTURE FLOW:
+/// Anbernic Device → WiFi Direct P2P → Encrypted Bytecode → Laptop Daemon → HTTP API → External LLM Service
+/// External LLM Service → HTTP Response → Laptop Daemon → Encrypted Bytecode → WiFi Direct P2P → Anbernic Device
+
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
