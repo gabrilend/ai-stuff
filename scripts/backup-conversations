@@ -1,0 +1,291 @@
+#!/bin/bash
+set -euo pipefail
+
+function start-claude(){
+   claude
+}
+
+function write-transcripts-to-project-directory(){ # {{{
+   DIR="${1:-$(pwd)}"
+   
+   # Resolve to absolute path
+   DIR=$(realpath "$DIR")
+   
+   if [ ! -d "$DIR" ]; then
+      echo "Error: '$DIR' is not a directory"
+      echo ""
+      echo "Usage: write-transcripts-to-project-directory [project-directory]"
+      echo ""
+      echo "Extracts Claude conversation transcripts and writes summaries to the specified"
+      echo "project directory. If no directory is provided, uses current directory."
+      echo "Output files are placed in '<project-directory>/llm-transcripts/'"
+      echo "and contain only user prompts and final assistant responses, excluding"
+      echo "intermediate problem-solving dialogue for clarity."
+      return 1
+   fi
+   
+   # Create output directory - special handling for /home/ritz/
+   if [ "$DIR" = "/home/ritz" ]; then
+      TRANSCRIPT_DIR="/home/ritz/ai/llm-transcripts"
+   else
+      TRANSCRIPT_DIR="${DIR}/llm-transcripts"
+   fi
+   mkdir -p "$TRANSCRIPT_DIR"
+   
+   # Find the corresponding Claude project directory
+   PROJECT_NAME=$(basename "$DIR")
+   CLAUDE_PROJECT_DIR="$HOME/.claude/projects/-$(echo "$DIR" | sed 's|^/||' | tr '/' '-')"
+   
+   if [ ! -d "$CLAUDE_PROJECT_DIR" ]; then
+      echo "Could not find Claude project directory: $CLAUDE_PROJECT_DIR"
+      return 1
+   fi
+   
+   echo "Extracting transcripts from $CLAUDE_PROJECT_DIR to $TRANSCRIPT_DIR"
+   
+   # Process each JSONL file
+   for jsonl_file in "$CLAUDE_PROJECT_DIR"/*.jsonl; do
+      if [ -f "$jsonl_file" ]; then
+         conversation_id=$(basename "$jsonl_file" .jsonl)
+         output_file="$TRANSCRIPT_DIR/${conversation_id}_summary.md"
+         
+         echo "Processing conversation: $conversation_id"
+         
+         # Extract conversation flow: user request -> final assistant response
+         # Also extract the timestamp of the final message for file dating
+         python3 -c "
+import json
+import sys
+import textwrap
+import re
+
+def wrap_text(text, width=80):
+    '''Wrap text to specified width, preserving markdown structure'''
+    lines = text.split('\n')
+    wrapped_lines = []
+    
+    for line in lines:
+        if line.strip() == '':
+            wrapped_lines.append('')
+        elif line.startswith('#') or line.startswith('-') or line.startswith('*') or line.startswith('\`\`\`'):
+            # Don't wrap markdown headers, lists, or code blocks
+            wrapped_lines.append(line)
+        else:
+            # Wrap regular text
+            wrapped = textwrap.fill(line, width=width, break_long_words=False, break_on_hyphens=False)
+            wrapped_lines.append(wrapped)
+    
+    return '\n'.join(wrapped_lines)
+
+def format_content(content):
+    '''Format content by converting ### to ## and wrapping text'''
+    if not content:
+        return ''
+    
+    # Convert ### to ## (downgrade heading levels to avoid conflict)
+    content = re.sub(r'^###', '##', content, flags=re.MULTILINE)
+    
+    # Wrap the text
+    content = wrap_text(content)
+    
+    return content
+
+# Read all lines and parse conversation
+messages = []
+final_timestamp = None
+with open('$jsonl_file', 'r') as f:
+    for line in f:
+        try:
+            data = json.loads(line.strip())
+            messages.append(data)
+            # Track the latest timestamp for file dating
+            if 'timestamp' in data:
+                final_timestamp = data['timestamp']
+        except:
+            continue
+
+# Header
+print('# Conversation Summary: $conversation_id')
+print()
+print('Generated on: $(date)')
+print()
+print('-' * 80)
+print()
+
+user_count = 1
+current_user_uuid = None
+assistant_responses = []
+
+for msg in messages:
+    msg_type = msg.get('type', '')
+    
+    # Process user messages (skip tool results)
+    if msg_type == 'user':
+        # Check if this is a tool result
+        content = msg.get('message', {}).get('content', '')
+        if isinstance(content, list) and len(content) > 0 and 'tool_use_id' in content[0]:
+            continue
+            
+        # If we have accumulated assistant responses, output the last one
+        if current_user_uuid and assistant_responses:
+            print(f'### Assistant Response {user_count - 1}')
+            print()
+            formatted_response = format_content(assistant_responses[-1])
+            print(formatted_response)
+            print()
+            print('-' * 80)
+            print()
+            assistant_responses = []
+        
+        # Output user message
+        print(f'### User Request {user_count}')
+        print()
+        if isinstance(content, str):
+            formatted_request = format_content(content)
+            print(formatted_request)
+        print()
+        print('-' * 80)
+        print()
+        
+        current_user_uuid = msg.get('uuid', '')
+        user_count += 1
+        
+    # Process assistant messages
+    elif msg_type == 'assistant' and current_user_uuid:
+        content_list = msg.get('message', {}).get('content', [])
+        text_content = ''
+        
+        # Extract text content from assistant message
+        for item in content_list:
+            if isinstance(item, dict) and item.get('type') == 'text':
+                text_content = item.get('text', '')
+                break
+        
+        if text_content:
+            assistant_responses.append(text_content)
+
+# Output the final assistant response if we have one
+if current_user_uuid and assistant_responses:
+    print(f'### Assistant Response {user_count - 1}')
+    print()
+    formatted_response = format_content(assistant_responses[-1])
+    print(formatted_response)
+    print()
+    print('-' * 80)
+
+# Write final timestamp to stdout for shell capture
+if final_timestamp:
+    print('FINAL_TIMESTAMP:' + str(final_timestamp), file=sys.stderr)
+" > "$output_file"
+         
+         # Capture the final timestamp and set file modification time
+         FINAL_TIMESTAMP=$(python3 -c "
+import json
+import sys
+final_timestamp = None
+with open('$jsonl_file', 'r') as f:
+    for line in f:
+        try:
+            data = json.loads(line.strip())
+            if 'timestamp' in data:
+                final_timestamp = data['timestamp']
+        except:
+            continue
+if final_timestamp:
+    # Convert timestamp to seconds (assuming it's in milliseconds)
+    if final_timestamp > 10000000000:  # More than 10 digits means milliseconds
+        final_timestamp = final_timestamp / 1000
+    print(int(final_timestamp))
+" 2>/dev/null)
+         
+         # Set file modification time if we have a timestamp
+         if [ ! -z "$FINAL_TIMESTAMP" ] && [ "$FINAL_TIMESTAMP" -gt 0 ]; then
+            touch -d "@$FINAL_TIMESTAMP" "$output_file" 2>/dev/null || true
+         fi
+         
+         # Generate descriptive name using local LLM if available
+         # Get the directory of this script to find fuzzy-computing
+         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+         FUZZY_COMPUTING="${SCRIPT_DIR}/fuzzy-computing/fuzzy-computing"
+         
+         if [ -x "$FUZZY_COMPUTING" ]; then
+            echo "Generating descriptive name for conversation..."
+            
+            # Extract first user request for naming
+            FIRST_REQUEST=$(head -50 "$output_file" | grep -A 20 "### User Request 1" | tail -n +3 | head -10 | tr '\n' ' ' | sed 's/^[ \t]*//;s/[ \t]*$//')
+            
+            if [ ! -z "$FIRST_REQUEST" ]; then
+               DESCRIPTIVE_NAME=$(echo "Generate a short (3-5 words), descriptive filename for a conversation that starts with: \"$FIRST_REQUEST\". Only respond with the filename, no quotes, no file extension, use dashes instead of spaces." | source "$FUZZY_COMPUTING" && fuzz 2>/dev/null | tr -d '\n' | sed 's/[^a-zA-Z0-9-]//g' | head -c 50)
+               
+               if [ ! -z "$DESCRIPTIVE_NAME" ] && [ ${#DESCRIPTIVE_NAME} -gt 5 ]; then
+                  NEW_OUTPUT_FILE="$TRANSCRIPT_DIR/${DESCRIPTIVE_NAME}_${conversation_id}.md"
+                  mv "$output_file" "$NEW_OUTPUT_FILE" 2>/dev/null && output_file="$NEW_OUTPUT_FILE"
+               fi
+            fi
+         fi
+         
+         echo "Created: $output_file"
+      fi
+   done
+   
+   echo "Transcript extraction complete!"
+} # }}}
+
+
+function backup-conversation(){
+   DIR="${1:-$(pwd)}" # first argument, or current directory if no argument
+    echo "Backing up Claude conversation transcripts..."
+    if command -v python3 &> /dev/null; then
+        write-transcripts-to-project-directory "${DIR}" 2>/dev/null || echo "  (No new transcripts to backup)"
+    else
+        echo "  (Transcript backup unavailable - missing python3)"
+    fi
+ }
+
+# Alias for plural form
+function backup-conversations(){
+    backup-conversation "$@"
+}
+
+function claude-next(){
+   DIR=$(pwd)
+   CLAUDE_NEXT_DIR="${DIR}/todo/claude-next"
+   
+   # Create directories if they don't exist
+   mkdir -p "${CLAUDE_NEXT_DIR}/completed"
+   
+   # Find highest number in both current and completed directories
+   NEXT=0
+   
+   # Check current directory
+   if [ -d "${CLAUDE_NEXT_DIR}" ]; then
+      for file in "${CLAUDE_NEXT_DIR}"/claude-next-*; do
+         if [ -f "$file" ]; then
+            filename=$(basename "$file")
+            if [[ $filename =~ claude-next-([0-9]+) ]]; then
+               num=${BASH_REMATCH[1]}
+               if [ "$num" -ge "$NEXT" ]; then
+                  NEXT=$((num + 1))
+               fi
+            fi
+         fi
+      done
+   fi
+   
+   # Check completed directory
+   if [ -d "${CLAUDE_NEXT_DIR}/completed" ]; then
+      for file in "${CLAUDE_NEXT_DIR}/completed"/claude-next-*; do
+         if [ -f "$file" ]; then
+            filename=$(basename "$file")
+            if [[ $filename =~ claude-next-([0-9]+) ]]; then
+               num=${BASH_REMATCH[1]}
+               if [ "$num" -ge "$NEXT" ]; then
+                  NEXT=$((num + 1))
+               fi
+            fi
+         fi
+      done
+   fi
+   
+   nvim "${CLAUDE_NEXT_DIR}/claude-next-${NEXT}"
+}

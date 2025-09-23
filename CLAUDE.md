@@ -10,6 +10,7 @@
 
 ### Development Philosophy
 - Use Git for every change, no matter how minor
+- **Always use `git mv` instead of `mv`** - preserve file history and proper tracking
 - Build libraries locally with copies for each deployment target
 - Use Rust for efficiency, Lua for orchestration, Bash for gluing components
 - Save state at each build step for easier debugging and incremental changes
@@ -110,6 +111,43 @@ The system maintains strict adherence to the air-gapped P2P vision:
 - All enhanced compute (LLM, image generation) proxied through laptop daemons
 - Relationship-based encryption for all device-to-device communication
 - Visual emoji pairing system for secure key exchange
+
+## Git Commit Process
+
+When creating commits, always follow this standardized process to maintain project documentation and conversation history:
+
+### Step 1: Backup Conversations 
+Before committing any changes, backup the current conversation:
+```bash
+# Run from project root directory
+source ./scripts/backup-conversations && backup-conversations
+```
+This preserves the Claude Code conversation context and decision-making process for future reference.
+
+**Note**: The project includes a local copy of the backup script at `./scripts/backup-conversations` for portability and consistency.
+
+### Step 2: Standard Git Commit Process
+```bash
+# Check status and stage changes
+git status
+git add [files]
+
+# Create commit with standardized format
+git commit -m "Brief description of changes
+
+- Specific change 1
+- Specific change 2
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+### Important Notes
+- **Always use `git mv`** instead of `mv` for file operations to preserve history
+- **Backup conversations first** - This captures the reasoning behind changes
+- **Use descriptive commit messages** - Focus on "why" rather than "what"
+- **Include co-authorship** - Acknowledge Claude Code assistance
 
 ## Sacred Commitment
 
