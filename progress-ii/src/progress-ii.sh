@@ -6,6 +6,10 @@ DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Source required libraries
 source "${DIR}/libs/state-directory.sh"
+source "${DIR}/libs/git-integration.sh"
+source "${DIR}/libs/save-load-operations.sh"
+source "${DIR}/libs/ai-integration.sh"
+source "${DIR}/libs/character-experience.sh"
 
 # Game state variables
 GAME_STATE="main_menu"
@@ -120,13 +124,32 @@ handle_new_game_input() {
     
     # Initialize game state directory
     if initialize_state_directory "${DIR}/game-state"; then
-        echo
-        echo "Game world initialized successfully!"
-        echo "Your adventure begins now..."
-        echo
-        echo -n "Press Enter to start your journey..."
-        read -r
-        GAME_STATE="game_world"
+        echo "Initializing character progression system..."
+        if initialize_character_experience_system "${DIR}/game-state"; then
+            # Set player name in Maxine's character data
+            update_character_stat "maxine" "name" "$PLAYER_NAME" "${DIR}/game-state"
+            
+            echo
+            echo "🎉 Game world and character system initialized successfully!"
+            echo "Welcome, $PLAYER_NAME! Your adventure begins now..."
+            echo
+            
+            # Give initial experience for starting the game
+            gain_experience "maxine" "3" "game_start" "beginning the adventure" "${DIR}/game-state"
+            
+            echo
+            echo -n "Press Enter to start your journey..."
+            read -r
+            GAME_STATE="game_world"
+        else
+            echo
+            echo "Error: Failed to initialize character system."
+            echo "Please check your permissions and try again."
+            echo
+            echo -n "Press Enter to return to menu..."
+            read -r
+            GAME_STATE="main_menu"
+        fi
     else
         echo
         echo "Error: Failed to initialize game world."
@@ -159,12 +182,56 @@ display_load_game() {
     fi
     
     echo "Checking for saved games..."
-    get_state_directory_info "${DIR}/game-state"
+    
+    # List available save games
+    if list_save_games "${DIR}/game-state"; then
+        echo
+        echo "🕒 Time Travel Options (Git Rollback):"
+        echo "====================================="
+        
+        # Show git rollback points if repository exists
+        if [ -d "${DIR}/game-state/.git" ]; then
+            list_rollback_points "${DIR}/game-state" 10
+        else
+            echo "Git repository not initialized yet."
+        fi
+        
+        echo
+        echo "Options:"
+        echo "1) Load from save slot"
+        echo "2) Browse git history (time travel)"
+        echo "3) Return to menu"
+        echo
+        echo -n "Choose option (1-3): "
+        read -r load_choice
+        
+        case "$load_choice" in
+            1)
+                echo -n "Enter save slot number (1-10): "
+                read -r slot_num
+                if load_game_state "$slot_num" "${DIR}/game-state"; then
+                    echo "Game loaded successfully!"
+                    GAME_STATE="game_world"
+                else
+                    echo "Failed to load game."
+                fi
+                ;;
+            2)
+                echo "Time travel functionality ready!"
+                echo "You can rollback to any previous commit."
+                echo "This feature will be enhanced in future phases."
+                ;;
+            *)
+                echo "Returning to menu..."
+                ;;
+        esac
+    else
+        echo "No save games found yet."
+        echo "Start a new game and save to create your first save point."
+    fi
+    
     echo
-    echo "Load game functionality will be implemented in Phase 1."
-    echo "This will include git-based save state browsing and time travel."
-    echo
-    echo -n "Press Enter to return to menu..."
+    echo -n "Press Enter to continue..."
     read -r
     GAME_STATE="main_menu"
 }
@@ -272,29 +339,136 @@ handle_game_world_input() {
             ;;
         2|"status"|"character")
             echo
-            echo "Character Status:"
-            echo "================"
-            echo "Name: $PLAYER_NAME"
-            echo "Level: 1 (Novice Adventurer)"
-            echo "Experience: 0/5"
-            echo "Companions: None yet"
+            display_character_status "maxine" "${DIR}/game-state"
+            
+            # Character progression options
             echo
-            echo "Character progression will be implemented in Phase 1."
+            echo "Character Options:"
+            echo "=================="
+            echo "1) Allocate stat points (if available)"
+            echo "2) View detailed experience log"  
+            echo "3) Practice skills to gain experience"
+            echo "4) Return to game"
+            echo
+            echo -n "Choose option (1-4): "
+            read -r char_choice
+            
+            case "$char_choice" in
+                1)
+                    # Handle stat allocation
+                    local available_points
+                    available_points=$(grep "^available_points=" "${DIR}/game-state/characters/maxine/character-data.txt" | cut -d'=' -f2)
+                    
+                    if [ "$available_points" -gt 0 ]; then
+                        echo
+                        echo "Available stat points: $available_points"
+                        echo "Choose a stat to improve:"
+                        echo "1) Wit  2) Strength  3) Intuition  4) Resilience"
+                        echo "5) Charm  6) Empathy  7) Survival  8) Luck"
+                        echo -n "Enter stat number: "
+                        read -r stat_choice
+                        
+                        local stat_name
+                        case "$stat_choice" in
+                            1) stat_name="wit" ;;
+                            2) stat_name="strength" ;;
+                            3) stat_name="intuition" ;;
+                            4) stat_name="resilience" ;;
+                            5) stat_name="charm" ;;
+                            6) stat_name="empathy" ;;
+                            7) stat_name="survival" ;;
+                            8) stat_name="luck" ;;
+                            *) echo "Invalid choice"; stat_name="" ;;
+                        esac
+                        
+                        if [ -n "$stat_name" ]; then
+                            echo -n "How many points to allocate? (1-$available_points): "
+                            read -r points_to_add
+                            
+                            if [ "$points_to_add" -le "$available_points" ] && [ "$points_to_add" -gt 0 ]; then
+                                allocate_stat_points "maxine" "$stat_name" "$points_to_add" "${DIR}/game-state"
+                            else
+                                echo "Invalid number of points."
+                            fi
+                        fi
+                    else
+                        echo
+                        echo "No stat points available. Gain more experience to unlock points!"
+                    fi
+                    ;;
+                2)
+                    echo
+                    echo "Experience Log:"
+                    echo "=============="
+                    tail -10 "${DIR}/game-state/logs/experience-events.log" 2>/dev/null || echo "No experience log yet."
+                    ;;
+                3)
+                    echo
+                    echo "Practicing skills..."
+                    gain_experience "maxine" "2" "skill_practice" "practicing in the tutorial clearing" "${DIR}/game-state"
+                    ;;
+                *)
+                    echo "Returning to game..."
+                    ;;
+            esac
+            
             echo
             echo -n "Press Enter to continue..."
             read -r
             ;;
         3|"ai"|"commands")
             echo
-            echo "AI Command Practice:"
-            echo "==================="
-            echo "The AI command system will generate bash one-liners"
-            echo "to help solve problems and automate tasks."
+            echo "🤖 AI Command Assistant"
+            echo "======================"
+            
+            # Initialize AI backend
+            initialize_ai_backend "mock"
+            
+            echo "The AI will help you generate bash commands for various tasks."
+            echo "This is perfect for learning terminal operations!"
             echo
-            echo "Example: 'Find all text files larger than 1MB'"
-            echo "AI Response: find . -name '*.txt' -size +1M"
+            echo "What would you like to do?"
+            echo "1) Ask AI to solve a specific problem"
+            echo "2) Get AI status and capabilities"
+            echo "3) Try example problems"
+            echo "4) Return to game"
             echo
-            echo "AI integration will be implemented in Phase 1."
+            echo -n "Choose option (1-4): "
+            read -r ai_choice
+            
+            case "$ai_choice" in
+                1)
+                    echo
+                    echo "Describe your problem (e.g., 'find all large files', 'count files in directory'):"
+                    echo -n "> "
+                    read -r problem_description
+                    if [ -n "$problem_description" ]; then
+                        generate_bash_command "$problem_description" "$PLAYER_NAME" "Tutorial Clearing" "${DIR}/game-state"
+                    fi
+                    ;;
+                2)
+                    echo
+                    get_ai_status
+                    ;;
+                3)
+                    echo
+                    echo "Try these example problems:"
+                    echo "- 'find files modified today'"
+                    echo "- 'count total files in current directory'"
+                    echo "- 'show the largest files'"
+                    echo "- 'list files by modification time'"
+                    echo
+                    echo -n "Pick one or describe your own: "
+                    read -r example_problem
+                    if [ -n "$example_problem" ]; then
+                        generate_bash_command "$example_problem" "$PLAYER_NAME" "Tutorial Clearing" "${DIR}/game-state"
+                    fi
+                    ;;
+                *)
+                    echo "Returning to game..."
+                    ;;
+            esac
+            
             echo
             echo -n "Press Enter to continue..."
             read -r
@@ -302,8 +476,23 @@ handle_game_world_input() {
         4|"save")
             echo
             echo "Saving game state..."
-            echo "Git-based save system will create a commit with your progress."
-            echo "Save/load functionality will be implemented in Phase 1."
+            
+            # Initialize git repository if needed
+            if [ ! -d "${DIR}/game-state/.git" ]; then
+                echo "Initializing git repository for save system..."
+                initialize_git_repository "${DIR}/game-state"
+            fi
+            
+            # Save using the save-load system
+            if save_game_state "$PLAYER_NAME" "1" "0" "Tutorial Clearing" "manual" "1" "human" "${DIR}/game-state"; then
+                echo "Creating git commit for time travel functionality..."
+                create_save_commit "Manual save by player" "$PLAYER_NAME" "1" "Tutorial Clearing" "${DIR}/game-state"
+                echo
+                echo "✅ Game saved successfully!"
+                echo "Your progress has been committed to git for time travel mechanics."
+            else
+                echo "❌ Failed to save game state."
+            fi
             echo
             echo -n "Press Enter to continue..."
             read -r
