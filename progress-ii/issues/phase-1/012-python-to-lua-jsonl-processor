@@ -1,0 +1,95 @@
+# Issue 012: Convert Python JSONL Processing to Lua
+
+## Current Behavior
+The Claude conversation export script currently uses embedded Python code for processing JSONL conversation data in v5 raw mode. The Python script handles:
+- JSON parsing of conversation messages
+- Timestamp formatting 
+- Content extraction from user and assistant messages
+- Tool use and tool result processing
+- Error handling for malformed JSON
+
+## Intended Behavior
+Replace the Python JSONL processor with a Lua-based implementation that provides the same functionality while adhering to the project's language constraints (lua, bash, c, rust for memory-critical sections).
+
+The Lua processor should:
+- Parse JSONL files line by line
+- Extract and format message content properly
+- Handle different message types (user, assistant, tool results)
+- Format timestamps consistently
+- Provide the same output format as the current Python implementation
+- Maintain error handling capabilities
+
+## Technical Requirements
+
+### Language Constraints
+- **Primary**: Lua, Bash, C
+- **Secondary**: Rust (only when C has memory management issues)
+- **Eliminate**: Python dependencies
+
+### Dependencies
+- Lua JSON library (lua-cjson or similar)
+- Standard Lua date/time libraries
+- Maintain compatibility with existing bash script integration
+
+### Performance Requirements
+- Process large JSONL files (2MB+ conversation data)
+- Memory efficient parsing (line-by-line, not loading entire file)
+- Maintain current processing speed or improve
+
+## Suggested Implementation Steps
+
+### Step 1: Environment Setup
+- [ ] Verify Lua installation and available JSON libraries
+- [ ] Test Lua integration with bash script execution
+- [ ] Create basic Lua script template
+
+### Step 2: Core JSON Processing
+- [ ] Implement line-by-line JSONL reading
+- [ ] Add JSON parsing with error handling
+- [ ] Extract basic message fields (type, timestamp, content)
+
+### Step 3: Content Processing
+- [ ] Handle string content (user messages)
+- [ ] Handle array content (assistant messages with tool uses)
+- [ ] Process tool_use and tool_result types
+- [ ] Format output to match Python script exactly
+
+### Step 4: Integration & Testing
+- [ ] Replace Python script in bash function
+- [ ] Test with existing conversation data
+- [ ] Verify output format matches exactly
+- [ ] Test error handling with malformed JSON
+
+### Step 5: Optimization
+- [ ] Optimize memory usage for large files
+- [ ] Add performance monitoring
+- [ ] Document any behavioral differences
+
+## Related Components
+- `/home/ritz/programming/ai-stuff/scripts/claude-conversation-exporter.sh` (lines 1723-1833)
+- JSONL data in `~/.claude/projects/*/` directories
+- `process_raw_conversation()` function
+- `print_conversation()` function (single conversation processing)
+
+## Success Criteria
+- [ ] No Python dependencies in conversation export script
+- [ ] Identical output format to current Python implementation
+- [ ] Proper error handling for malformed JSON
+- [ ] Memory efficient processing of large conversation files
+- [ ] Integration tests pass with existing conversation data
+
+## Risk Assessment
+- **Low Risk**: Lua JSON libraries are well-established
+- **Medium Risk**: Output format compatibility - must match exactly
+- **Low Risk**: Performance - Lua should be comparable or faster than Python for this use case
+
+## Implementation Priority
+**Medium** - This improves language consistency but doesn't affect core functionality. Should be completed during Phase 1 cleanup.
+
+## Dependencies
+- Completion of current raw JSONL output fixes (Issue resolved)
+- Lua environment verification
+- JSON library selection and installation
+
+## Estimated Effort
+2-3 hours of development and testing time.

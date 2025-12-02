@@ -1,0 +1,53 @@
+# Issue 004: AI Bash Command Framework
+
+## Current Behavior
+No AI integration exists. Game cannot generate or execute AI-created bash commands.
+
+## Intended Behavior
+Create a framework for AI-generated bash command creation, validation, and execution that enables dynamic problem-solving and task automation within the game.
+
+## Suggested Implementation Steps
+1. Design AI integration interface (local model or API)
+2. Create command generation functions with vimfolds:
+   - generate_bash_command()
+   - validate_command_safety()
+   - execute_command_safely()
+   - log_command_execution()
+3. Implement command validation and safety checking
+4. Create sandboxed execution environment
+5. Add command history and learning system
+6. Implement context-aware prompt generation
+7. Design fallback mechanisms for AI failures
+8. Add command result interpretation and feedback
+9. Create configuration for AI model selection
+
+## Related Documents
+- notes/vision (lines 1-8 about AI-generated bash one-liners as innovation)
+- docs/technical-architecture.md (AI Integration Points section)
+
+## Acceptance Criteria
+- AI can generate contextually appropriate bash commands
+- Commands are validated for safety before execution
+- Sandboxed execution prevents system damage
+- Command results are interpreted correctly
+- AI failures are handled gracefully
+- Command history provides learning opportunities
+- Different AI models can be configured
+- Performance is acceptable for gameplay
+
+## Priority
+High - Core innovation of the game
+
+## Estimated Effort
+6-8 hours
+
+## Dependencies
+- AI model access (local installation or API key)
+- Issue 001 (Basic Terminal Interface) - for integration testing
+- Basic security tools for command validation
+
+## Security Considerations
+- Command whitelist/blacklist implementation
+- Resource usage limitations
+- File system access restrictions
+- Network access controls

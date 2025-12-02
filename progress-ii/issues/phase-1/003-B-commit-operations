@@ -1,0 +1,43 @@
+# Issue 003-B: Commit Operations
+
+## Current Behavior
+No git commit functionality exists for creating save points.
+
+## Intended Behavior
+Implement git commit operations for creating versioned save points with descriptive messages and metadata.
+
+## Suggested Implementation Steps
+1. Design commit message format and metadata structure
+2. Create commit operation functions with vimfolds:
+   - create_save_commit()
+   - generate_commit_message()
+   - add_commit_metadata()
+   - validate_commit_success()
+3. Implement automatic staging of game state changes
+4. Add structured commit message generation
+5. Create commit metadata tracking (timestamp, game state, etc.)
+6. Implement commit validation and error handling
+7. Add commit message templates for different event types
+8. Create commit performance optimization
+
+## Related Documents
+- Issue 003 (parent issue)
+- notes/vision (lines 30-36 about commit descriptions)
+
+## Acceptance Criteria
+- Commits are created automatically on significant events
+- Commit messages are descriptive and useful
+- Commit metadata provides context for rollbacks
+- Commit operations handle errors gracefully
+- Commit performance doesn't impact gameplay
+- Commits include both human and machine-readable info
+
+## Priority
+High - Core save mechanism
+
+## Estimated Effort
+2-3 hours
+
+## Dependencies
+- Issue 003-A (Git Repository Management)
+- Issue 002-B (State Serialization System)
