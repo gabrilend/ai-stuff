@@ -1,0 +1,52 @@
+# Compiled binaries and objects
+*.o
+*.so
+*.a
+adroit
+simple_test
+simple_stat_test
+lua_test
+*_check
+obj/
+
+# Build artifacts
+*.log
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Runtime and temporary files
+core
+*.core
+.gdb_history
+
+# User-specific configuration (keep local only)
+config/local.conf
+
+# Test output files
+test_output/
+*.test
+
+# Dependencies (will be managed by consuming projects)
+deps/
+vendor/
+
+# Large media files (keep local only)
+*.mkv
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.mp3
+*.wav
+*.flac
+
+# Specific large files
+src/video-inspiration/2024-01-12_21-04-33.mkv
+video-inspiration/2024-01-12_21-04-33.mkv

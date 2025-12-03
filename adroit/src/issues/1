@@ -1,0 +1,6 @@
+split up the video file in /video-inspiration/ into parts large enough
+to analyze either directly by an LLM (not ideal, lots of wasted bits) or with
+a transcription style programming device. image recognition probably, with text
+and speech recognition as well. Alternatively, if the 12 hour video is split
+into 0.12 hour chunks, there'll only be 100 of them. These can be analyzed more
+concretely and with smaller junctions of separated timethoughtspace.
