@@ -1,0 +1,41 @@
+# Adroit - RPG Character Generator and Game System
+
+## Vision Statement
+
+Adroit is a tabletop RPG character generation and game management system that creates randomly-generated characters with realistic equipment distributions and statistical properties. The system emphasizes honor-based mechanics and equipment management within a traditional fantasy RPG framework.
+
+## Core Features
+
+### Character Generation
+- Random stat generation using a "highest of three d6 rolls" system for six core abilities (STR, DEX, CON, INT, WIS, CHA)
+- Honor system as a seventh core stat that affects social interactions and cooperation
+- Alignment system using a numerical scale (1-5: Law, 6-15: Neutrality, 16-20: Chaos)
+
+### Equipment System
+- Weighted random equipment tables for starting gear
+- Separate categories: armor, helmets/shields, dungeoneering gear, and general equipment
+- Inventory management with 20-slot gear arrays and quantity tracking
+- Item interaction system with function pointer-based item behaviors
+
+### Game Framework
+- Multi-threaded architecture using pthread for rendering and game logic
+- Raylib-based graphical interface
+- Modular design allowing for unit-to-unit, unit-to-item, and item-to-item interactions
+
+## Technical Architecture
+
+### Core Components
+- Unit struct containing character data (stats, equipment, followers, buildings)
+- Item struct with extensible properties
+- Equipment generation tables with probability distributions
+- Function pointer system for dynamic interactions
+
+### Design Philosophy
+- Honor affects cooperation likelihood and social standing
+- Equipment scarcity creates meaningful choices
+- Modular interaction system enables complex emergent behaviors
+- Thread separation between rendering and game logic for performance
+
+## Target Experience
+
+Players can quickly generate detailed characters with realistic starting equipment and engage in a system where honor, equipment management, and statistical abilities combine to create unique gameplay experiences. The system should feel both familiar to RPG veterans and innovative in its approach to character social dynamics.
