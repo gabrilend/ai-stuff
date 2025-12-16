@@ -653,13 +653,13 @@ interactive_mode_tui() {
         "Show what would happen without actually doing it"
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # Section 3: Streaming Settings (multi - numeric inputs when streaming)
+    # Section 3: Streaming Settings (inline editable flag values)
     # ═══════════════════════════════════════════════════════════════════════════
-    menu_add_section "streaming" "multi" "Streaming Settings (if enabled)"
-    menu_add_item "streaming" "parallel" "Parallel Jobs" "number" "1:10:3" \
-        "Max concurrent Claude calls (1-10)"
-    menu_add_item "streaming" "delay" "Output Delay" "number" "0:30:5" \
-        "Seconds between streamed outputs (0-30)"
+    menu_add_section "streaming" "multi" "Streaming Settings (type digits, →=default, ←=off)"
+    menu_add_item "streaming" "parallel" "Parallel Jobs" "flag" "3:2" \
+        "Max concurrent Claude calls (type 1-10)"
+    menu_add_item "streaming" "delay" "Output Delay (sec)" "flag" "5:2" \
+        "Seconds between streamed outputs (type 0-30)"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 4: Issue Selection (list - scrollable checkbox list)
@@ -733,14 +733,16 @@ interactive_mode_tui() {
         [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true
 
         # ═══════════════════════════════════════════════════════════════════════
-        # Extract streaming settings
+        # Extract streaming settings (0 = use default)
         # ═══════════════════════════════════════════════════════════════════════
         local parallel_val
         parallel_val=$(menu_get_value "parallel")
-        [[ -n "$parallel_val" ]] && PARALLEL_COUNT="$parallel_val"
+        # Use value if non-zero, otherwise keep default
+        [[ -n "$parallel_val" ]] && [[ "$parallel_val" != "0" ]] && PARALLEL_COUNT="$parallel_val"
 
         local delay_val
         delay_val=$(menu_get_value "delay")
+        # Use value if set (0 is valid for delay - means no delay)
         [[ -n "$delay_val" ]] && STREAM_DELAY="$delay_val"
 
         # ═══════════════════════════════════════════════════════════════════════
