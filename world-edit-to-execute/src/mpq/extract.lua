@@ -57,18 +57,30 @@ end
 
 -- {{{ decompress_zlib
 -- Decompresses zlib data using Python3 (temporary solution).
+-- MPQ files use zlib format but the Adler-32 checksum may be corrupted
+-- due to decryption padding, so we use raw deflate mode.
 local function decompress_zlib(data)
+    -- Check for zlib header and skip it
+    local has_zlib_header = #data >= 2 and data:byte(1) == 0x78
+    local deflate_data = data
+    if has_zlib_header then
+        -- Skip 2-byte zlib header, use raw deflate
+        deflate_data = data:sub(3)
+    end
+
     -- Write compressed data to temp file
     local tmp_in = os.tmpname()
     local tmp_out = os.tmpname()
 
     local f = io.open(tmp_in, "wb")
-    f:write(data)
+    f:write(deflate_data)
     f:close()
 
-    -- Use Python3 for decompression
+    -- Use Python3 for decompression with raw deflate mode (-15)
     local cmd = string.format(
-        'python3 -c "import sys,zlib; d=open(\'%s\',\'rb\').read(); ' ..
+        'python3 -c "' ..
+        'import sys,zlib; ' ..
+        'd=open(\'%s\',\'rb\').read(); ' ..
         'sys.stdout.buffer.write(zlib.decompress(d,-15))" > "%s" 2>/dev/null',
         tmp_in, tmp_out
     )

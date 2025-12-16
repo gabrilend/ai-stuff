@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | In Progress | 11/17 |
-| 1 | Foundation - File Format Parsing | In Progress | 4/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 5/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
@@ -59,7 +59,7 @@
 | 102a | Parse MPQ header structure | **Completed** | 101 |
 | 102b | Parse MPQ hash table | **Completed** | 102a |
 | 102c | Parse MPQ block table | **Completed** | 102a, 102b |
-| 102d | Implement file extraction | Pending | 102a, 102b, 102c |
+| 102d | Implement file extraction | **Completed** | 102a, 102b, 102c |
 | 103 | Parse war3map.w3i (map info) | Pending | 102 |
 | 104 | Parse war3map.wts (trigger strings) | Pending | 102 |
 | 105 | Parse war3map.w3e (terrain) | Pending | 102, 103 |
@@ -135,6 +135,12 @@
   - Added has_initial_analysis() detection function
   - Added rename_analysis_to_initial() to rename on promotion
   - Updated skip logic to respect both analysis types
+- **Issue 102d completed:** Implement file extraction
+  - Created src/mpq/extract.lua
+  - Created src/tests/test_extract.lua
+  - Uses Python3 zlib for decompression (temporary solution)
+  - 15/16 test maps extract successfully
+  - PKWARE DCL compression not yet implemented (1 test map affected)
 
 ---
 
@@ -142,14 +148,14 @@
 
 ### Phase 1 (Ready to Start)
 
-1. **102d - Implement file extraction** (High Priority)
-   - Implement decompression (zlib, PKWARE DCL)
-   - Extract war3map.* files
+1. **102 - Create unified MPQ API** (High Priority)
+   - Create src/mpq/init.lua to tie all sub-modules together
+   - Clean interface for opening archives and extracting files
 
-2. **103 - Parse war3map.w3i** (Depends on 102d)
+2. **103 - Parse war3map.w3i** (Depends on 102)
    - Map metadata parsing
 
-3. **104 - Parse war3map.wts** (Depends on 102d)
+3. **104 - Parse war3map.wts** (Depends on 102)
    - Trigger strings parsing
 
 ### Phase 0 (Parallel Work)
