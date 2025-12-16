@@ -6,73 +6,75 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 ## Current Focus
 
-### Phase 0 Progress: 1/11 complete
+### Phase 1 Progress: 6/12 complete
 
-**Recommended Issue Order:**
+**Next Priority Issues:**
 
+1. **103 - Parse war3map.w3i** (map metadata)
+   - Player info, forces, fog settings
+   - First content parser using MPQ API
+
+2. **104 - Parse war3map.wts** (trigger strings)
+   - String table with TRIGSTR resolution
+   - Needed for localized content
+
+3. **105 - Parse war3map.w3e** (terrain)
+   - Tilepoints, height maps, textures
+   - Foundation for rendering
+
+**Available Tools:**
+```bash
+# Analyze issues with parallel processing
+./src/cli/issue-splitter.sh --stream --parallel 3
+
+# Auto-implement an issue
+./src/cli/issue-splitter.sh -A -I
+
+# Interactive mode with TUI
+./src/cli/issue-splitter.sh -I
 ```
-Ready to Start (no blockers):
-├── 003 Execute analysis recommendations
-├── 004 Redesign interactive mode interface
-└── 002a Add queue infrastructure
-
-After 002a:
-├── 002b Add producer function ──┐
-└── 002c Add streamer process ───┼──▶ 002d ──▶ 002e
-                                 │
-After 003:                       │
-└── 006 Rename analysis sections │
-                                 │
-After 004:                       │
-└── 005 Migrate TUI library      │
-```
-
-**Suggested Next Actions:**
-
-1. **003 - Execute analysis recommendations** (Priority: High)
-   - Enables auto-creation of sub-issue files from analyses
-   - Unblocks 006
-   - Well-specified, single implementation session
-
-2. **004 - Redesign interactive mode interface** (Priority: High)
-   - Checkbox-style TUI with vim keybindings
-   - Unblocks 005 (shared TUI library)
-   - Improves developer experience
-
-3. **002a - Add queue infrastructure** (Priority: Medium)
-   - Foundation for streaming queue feature
-   - Unblocks 002b, 002c, and ultimately all of 002
-
-**Phase 1 can begin in parallel** with 101 (Research WC3 file formats) since it has no Phase 0 dependencies.
 
 ---
 
-## Phase 0: Tooling/Infrastructure
+## Phase 0: Tooling/Infrastructure ✓ COMPLETED
 
-Build development tools and infrastructure for efficient project management.
+All 18 issues completed. Development tools now available:
 
-- Issue splitter tool for automated analysis ✓
-- Direct output handling (no intermediate files) ✓
-- Execute mode for auto-generating sub-issues
-- Streaming queue for parallel processing
-- Checkbox-style TUI with vim keybindings
-- Shared TUI library for cross-project reuse
-- Analysis section renaming for promoted roots
+| Tool | Command | Description |
+|------|---------|-------------|
+| **Interactive Mode** | `-I` | TUI with checkbox selection, vim keybindings |
+| **Streaming Mode** | `--stream` | Parallel processing with real-time output |
+| **Execute Mode** | `-x` | Auto-create sub-issue files from analyses |
+| **Implement Mode** | `-A` | Auto-implement issues via Claude CLI |
+| **Review Mode** | `-r` | Review root issues with sub-issues |
 
-### Dependency Graph
+### Completed Features
+
+- ✓ Issue splitter tool for automated analysis
+- ✓ Direct output handling (no intermediate files)
+- ✓ Execute mode for auto-generating sub-issues
+- ✓ Streaming queue for parallel processing
+- ✓ Checkbox-style TUI with vim keybindings
+- ✓ Shared TUI library for cross-project reuse
+- ✓ Analysis section renaming for promoted roots
+- ✓ Auto-implement via Claude CLI
+
+### Final Dependency Graph (All Complete)
 
 ```
-001 ✓ ──┬──▶ 002 Streaming Queue
-        │     ├── 002a Infrastructure ──┬──▶ 002b Producer
-        │     │                         └──▶ 002c Streamer
-        │     │                              │
-        │     │         ┌────────────────────┘
+001 ✓ ──┬──▶ 002 ✓ Streaming Queue
+        │     ├── 002a ✓ Infrastructure ──┬──▶ 002b ✓ Producer
+        │     │                           └──▶ 002c ✓ Streamer
+        │     │                                │
+        │     │         ┌──────────────────────┘
         │     │         ▼
-        │     └── 002d Parallel Loop ──▶ 002e Config Flags
+        │     └── 002d ✓ Parallel Loop ──▶ 002e ✓ Config Flags
         │
-        └──▶ 003 Execute Recommendations ──▶ 006 Rename Sections
+        └──▶ 003 ✓ Execute Recommendations ──▶ 006 ✓ Rename Sections
 
-004 TUI Redesign ──▶ 005 Migrate TUI Library
+004 ✓ TUI Redesign ──▶ 005 ✓ Migrate TUI Library
+
+007 ✓ Auto-implement via Claude CLI
 ```
 
 ---
