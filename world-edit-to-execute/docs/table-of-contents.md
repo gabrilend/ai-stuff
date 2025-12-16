@@ -40,6 +40,14 @@ issues/
 ├── 106-design-internal-data-structures.md
 ├── 107-build-cli-metadata-dump-tool.md
 ├── 108-phase-1-integration-test.md
+├── 201-parse-war3map-doo.md
+├── 202-parse-war3map-units-doo.md
+├── 203-parse-war3map-w3r.md
+├── 204-parse-war3map-w3c.md
+├── 205-parse-war3map-w3s.md
+├── 206-design-game-object-types.md
+├── 207-build-object-registry-system.md
+├── 208-phase-2-integration-test.md
 ├── completed/                  Completed issue archive
 │   └── demos/                  Phase completion demonstrations
 ```
@@ -103,6 +111,19 @@ issues/
 | 106 | Design internal data structures | Pending |
 | 107 | Build CLI metadata dump tool | Pending |
 | 108 | Phase 1 integration test | Pending |
+
+### Phase 2 Issues (Data Model - Game Objects)
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 201 | Parse war3map.doo (doodads/trees) | Pending |
+| 202 | Parse war3mapUnits.doo (units/buildings) | Pending |
+| 203 | Parse war3map.w3r (regions) | Pending |
+| 204 | Parse war3map.w3c (cameras) | Pending |
+| 205 | Parse war3map.w3s (sounds) | Pending |
+| 206 | Design game object types | Pending |
+| 207 | Build object registry system | Pending |
+| 208 | Phase 2 integration test | Pending |
 
 ### Technical Documentation
 
