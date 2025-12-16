@@ -606,7 +606,7 @@ interactive_mode_tui() {
         fi
 
         menu_add_item "files" "file_$i" "$label" "checkbox" "$default" "$desc"
-        ((i++))
+        ((++i))  # Pre-increment to avoid exit code 1 when i=0
     done
 
     # Run the menu
@@ -666,7 +666,7 @@ interactive_mode_tui() {
             if [[ "$(menu_get_value "file_$j")" == "1" ]]; then
                 SELECTED_ISSUES+=("$issue")
             fi
-            ((j++))
+            ((++j))
         done
 
         # ═══════════════════════════════════════════════════════════════════════
