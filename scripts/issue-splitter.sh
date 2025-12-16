@@ -62,6 +62,41 @@ AUTO_IMPLEMENT=false
 declare -a ROOTS_WITH_SUBS=()
 # }}}
 
+# {{{ Queue Configuration
+QUEUE_DIR=""
+QUEUE_COUNTER=0
+STREAM_INDEX=0
+STREAMER_PID=""
+# }}}
+
+# {{{ setup_queue
+setup_queue() {
+    QUEUE_DIR=$(mktemp -d)
+    QUEUE_COUNTER=0
+    STREAM_INDEX=0
+    STREAMER_PID=""
+}
+# }}}
+
+# {{{ cleanup_queue
+cleanup_queue() {
+    # Kill streamer process if running
+    if [[ -n "$STREAMER_PID" ]]; then
+        kill "$STREAMER_PID" 2>/dev/null || true
+        wait "$STREAMER_PID" 2>/dev/null || true
+        STREAMER_PID=""
+    fi
+    # Remove temp directory
+    if [[ -n "$QUEUE_DIR" ]] && [[ -d "$QUEUE_DIR" ]]; then
+        rm -rf "$QUEUE_DIR"
+        QUEUE_DIR=""
+    fi
+}
+# }}}
+
+# Exit trap for queue cleanup
+trap cleanup_queue EXIT INT TERM
+
 # {{{ print_help
 print_help() {
     head -26 "$0" | tail -24 | sed 's/^# //' | sed 's/^#//'
