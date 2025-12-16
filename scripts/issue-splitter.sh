@@ -174,6 +174,26 @@ has_generated_subissues() {
 }
 # }}}
 
+# {{{ has_initial_analysis
+has_initial_analysis() {
+    local file="$1"
+    grep -qE "^## Initial Analysis$" "$file" 2>/dev/null
+}
+# }}}
+
+# {{{ rename_analysis_to_initial
+rename_analysis_to_initial() {
+    local issue_path="$1"
+
+    # Only rename if has Sub-Issue Analysis but not already renamed
+    if grep -qE "^## Sub-Issue Analysis$" "$issue_path" && \
+       ! grep -qE "^## Initial Analysis$" "$issue_path"; then
+        sed -i 's/^## Sub-Issue Analysis$/## Initial Analysis/' "$issue_path"
+        log "  Renamed analysis section to 'Initial Analysis'"
+    fi
+}
+# }}}
+
 # {{{ get_phase_name
 get_phase_name() {
     local phase="$1"
@@ -536,10 +556,12 @@ process_issue() {
         return 0
     fi
 
-    # Check if already has analysis
-    if [[ "$SKIP_EXISTING" == true ]] && has_subissue_analysis "$issue_path"; then
-        log "  Skipping (already has analysis)"
-        return 0
+    # Check if already has analysis (either form)
+    if [[ "$SKIP_EXISTING" == true ]]; then
+        if has_subissue_analysis "$issue_path" || has_initial_analysis "$issue_path"; then
+            log "  Skipping (already has analysis)"
+            return 0
+        fi
     fi
 
     if [[ "$DRY_RUN" == true ]]; then
@@ -934,6 +956,9 @@ execute_recommendations() {
         } >> "$issue_path"
 
         log "  Updated parent issue with generated sub-issues list"
+
+        # Rename "Sub-Issue Analysis" to "Initial Analysis" for clarity
+        rename_analysis_to_initial "$issue_path"
     fi
 }
 # }}}
