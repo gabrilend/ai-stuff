@@ -158,14 +158,48 @@ These issues provide foundational utilities and can be implemented independently
   - *Features*: 8 organized sections, backup management, validation, dry-run mode
   - *Status*: Completed 2024-12-15
 
-## In Progress  
-- None
+- **Issue 004**: Extract Project Histories ✅
+  - *Implemented*: Via `/scripts/import-project-histories.sh`
+  - *Result*: 5 project histories extracted and preserved as branches
+  - *Projects*: adroit (1 commit), handheld-office (7 commits), magic-rumble (1 commit), progress-ii (2 commits), risc-v-university (5 commits)
+  - *Status*: Completed 2024-12-15
+
+- **Issue 005**: Configure Branch Isolation ⚠️ PARTIAL
+  - *Completed*: Project branches created with preserved histories
+  - *Remaining*: Sparse-checkout configuration (optional - branches already contain only their project's history)
+  - *Status*: Core functionality complete
+
+- **Issue 006**: Initialize Master Branch ✅
+  - *Implemented*: Fresh master branch created with all 30+ projects
+  - *Features*: Unified .gitignore, dependency install scripts, project issue files
+  - *Status*: Completed 2024-12-15
+
+- **Issue 007**: Remote Repository Setup ✅
+  - *Implemented*: GitHub remote configured and all branches pushed
+  - *Repository*: https://github.com/gabrilend/ai-stuff
+  - *Branches*: master, adroit, handheld-office, magic-rumble, progress-ii, risc-v-university
+  - *Status*: Completed 2024-12-15
+
+- **Issue 031**: Import Project Histories ✅
+  - *Implemented*: `/scripts/import-project-histories.sh`
+  - *Features*: History-preserving branch import, embedded .git cleanup, master branch creation
+  - *Status*: Completed 2024-12-15
+
+## In Progress
+- **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## New Issues
 - **Issue 024**: External Project Directory Configuration 📝
   - *Purpose*: Enable configuration of project directories outside main repository
   - *Features*: External directory config file, enhanced project discovery, cross-directory integration
   - *Dependencies*: Issue 023 (Project Listing Utility)
+  - *Status*: Ready for implementation
+
+- **Issue 032**: Project Donation/Support Links System 📝
+  - *Purpose*: Multi-link donation system allowing supporters to allocate across projects
+  - *Features*: Support configuration format, SUPPORT.md templates, aggregation utilities, unified support page generator
+  - *Philosophy*: Signals interest without obligating developer priorities - attention as encouragement, not contract
+  - *Dependencies*: Issue 023 (Project Listing Utility), Issue 026 (Project Metadata System)
   - *Status*: Ready for implementation
 
 - **Issue 029**: Demo Runner Script ✅
@@ -181,8 +215,23 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: Completed 2024-12-15
 
 ## Pending
-- 16 remaining issues (004-008, 012-022, excluding 001, 009, 010, 011, and 023)
-- 3 new issues (024, 029, 030)
+
+### Phase 2 Remaining (Gitignore)
+- **Issue 013**: Implement Validation and Testing
+- **Issue 014**: Create Maintenance Utilities
+- **Issue 015**: Integration and Workflow Setup
+
+### Phase 3+ (Future)
+- **Issue 016-022**: Ticket Distribution System
+- **Issue 024**: External Project Directory Configuration
+- **Issue 026**: Project Metadata System
+- **Issue 027**: Basic Reporting Framework
+
+## Summary Statistics
+- **Total Issues**: ~31
+- **Completed**: 14 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031)
+- **Partial**: 2 (005, 008)
+- **Pending**: ~15
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
