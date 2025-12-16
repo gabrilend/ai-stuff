@@ -1,0 +1,90 @@
+have a thought, just a package of data - send it to a computer, and have the
+computer process it a little bit. then pass it on. create a circle and you can
+understand data, move along and you can understand a larger breadth of data.
+
+it's literally just snake, except played on a board made out of a network
+topology diagram. each computer has different programs on it, and they're
+designed specifically to run on those computers. purpose-built hardware.
+
+then a package of data is sent to that computer through a chain of connections.
+
+   think crossover ethernet cables
+
+upon arrival, the computer modifies the data and passes it along to whoever
+can process it next. the computers are constantly keeping a list of the closest
+nearby computers for each purpose. it might have like, 2, for a specific
+program. the older the list is, the larger it can grow - if connections are
+reliable then the search criteria can expand (distance etc) and the amount of
+pings between the "known good" computer can decrease. eventually a map will be
+made, and you can guide the "snake" wherever it needs to go on a strategic
+level.
+
+like... "i need to process some data for this guy in boston so i'm going to
+send it to this other guy in philly and then maybe a specialist all the way out
+in detroit, etc. whoever is the most available and the closest (fewest jumps)
+
+this way you can have purpose-built machines, sorta like the different parts of
+the brain that do different things. they're always working, and they can be
+paid for their labor. boom, market economy!
+
+ah but what about aws or azure? well it's like living in a city versus being in
+the countryside. there's more space, more room to grow... basically a "big fish
+in a small pond". they'd be useful for more niche things.
+
+a but couldn't aws or azure just leverage their monopolistic power (sorta like
+wallmart did to "mom and pop" stores) and wipe out the rural programs? well
+maybe. but the real question is why would they? they have the power of reduced
+latency. they can do all kinds of stuff with that! there's no reason for them
+to bother with the high latency networks. it's like driving in the slow lane
+when you don't need to exit for like an hour.
+
+   well, okay, what's the point then?
+
+the point is to be optimal. not for cost, but for throughput. the cost is a
+consideration, but not something to optimize for - it simply determines
+timeline. the only reason speed is important is because capitalism - the drive
+to extinct all competition is inherent in the "for profit" motivation.
+therefore something else must be optimized for.
+
+but how can you quantify the values aside from cost? what are you going to
+optimize?
+
+the same reason why diversity is a strength. more perspectives on the stated
+goal means more information, as it's passed through a medium that is unique.
+
+people grow differently in different conditions. why would you not assume their
+computers wouldn't as well? use a filter that is defined by the actions taken
+by the user, and the content they seek to view and store on the computer. have
+the filters modify the data according to that, and essentially automate hot
+takes.
+
+once you do *that* you can consider all that information gained from everyone's
+"digital vote" and decide a path forward for humanity. that's essentially what
+the "meme-o-verse" does already, and the "blogosphere" does the same thing a
+little more academically.
+
+so... compile the hot takes and look for what, an average?
+
+no, silly, it's a vote. do the smart choice and do ranked choice, or something
+like that. heck do different voting styles for different topics, and let
+everyone who contributes to a topic (by making art, writing poems, w/e think
+content creators) decide on the voting style. they'd clearly have a favorite,
+as evidenced by their search history, reddit comments, w/e. try and understand
+that history and boom you know their vote.
+
+   but you can't always vote on things. what if it's fine and not busted?
+
+well, then there wouldn't be much to talk about it would there? if there's no
+forest fires, nobody thinks about the forest fire department. if there's no
+fish at the sushi restaurant, yeah that's a problem and it needs to be solved.
+
+maybe there's too many sushi restaurants! maybe we should schedule visits in
+advance like we do for vacations! maybe we should have, i dunno, more equitable
+distribution of resources, from each to their ability from each their need or
+w/e.
+
+you know, a UI in a game is an interface to the internals of a computer. they
+see what you see, and how you act online determines their behavior. they are
+a digital form of you, like a child follows a parent or a pet learns from a
+master. so too is an operating system a method of operating both a system, and
+a user.

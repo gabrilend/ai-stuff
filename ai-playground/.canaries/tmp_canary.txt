@@ -1,0 +1,10 @@
+# Canary Token - DO NOT MODIFY
+CANARY_ID: CANARY_1762835800_27263
+PROTECTED_RESOURCE: /tmp
+ALERT_CHANNEL: security_ops
+DEPLOYMENT_TIME: Tue Nov 11 04:36:40 AM UTC 2025
+ACCESS_COUNT: 0
+LAST_ACCESS: NEVER
+
+# This file serves as a canary token for detecting unauthorized access
+# to protected resources. Any modification or access will trigger alerts.

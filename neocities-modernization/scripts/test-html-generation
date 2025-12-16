@@ -1,0 +1,174 @@
+#!/usr/bin/env lua
+
+-- Test script for validating HTML generation
+-- Generates similar/different pages for specified poem IDs to validate calculations and visuals
+
+-- {{{ local function setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+-- Script configuration
+local DIR = setup_dir_path(arg and arg[1])
+
+-- Load required libraries
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+local flat_html_generator = require("flat-html-generator")
+
+-- {{{ local function relative_path
+local function relative_path(absolute_path)
+    if absolute_path:sub(1, #DIR) == DIR then
+        local rel = absolute_path:sub(#DIR + 1)
+        if rel:sub(1, 1) == "/" then rel = rel:sub(2) end
+        return "./" .. rel
+    end
+    return absolute_path
+end
+-- }}}
+
+-- {{{ function generate_test_pages
+local function generate_test_pages(poem_ids)
+    local poems_file = DIR .. "/assets/poems.json"
+    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+    local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+    local output_dir = DIR .. "/output/test"
+
+    print("🔄 Loading data files...")
+    local poems_data = utils.read_json_file(poems_file)
+    local similarity_data = utils.read_json_file(similarity_file)
+    local embeddings_data = utils.read_json_file(embeddings_file)
+
+    if not poems_data then
+        print("❌ Error: Could not load poems.json")
+        return false
+    end
+
+    if not similarity_data then
+        print("❌ Error: Could not load similarity_matrix.json")
+        return false
+    end
+
+    if not embeddings_data then
+        print("❌ Error: Could not load embeddings.json")
+        return false
+    end
+
+    print("✅ Data files loaded successfully")
+    print(string.format("   📄 Poems: %d", #poems_data.poems))
+    print(string.format("   🧮 Embeddings: %d", embeddings_data.total_embeddings or 0))
+
+    -- Create output directories
+    os.execute("mkdir -p " .. output_dir .. "/similar")
+    os.execute("mkdir -p " .. output_dir .. "/different")
+
+    -- Build poem lookup table
+    local poem_lookup = {}
+    for i, poem in ipairs(poems_data.poems) do
+        if poem.id then
+            poem_lookup[poem.id] = poem
+        end
+    end
+
+    print("\n📝 Generating test pages for poem IDs: " .. table.concat(poem_ids, ", "))
+
+    for _, poem_id in ipairs(poem_ids) do
+        local poem_data = poem_lookup[poem_id]
+
+        if not poem_data then
+            print(string.format("⚠️  Poem ID %d not found, skipping", poem_id))
+        else
+            print(string.format("\n🔍 Processing poem %d: %s/%s.txt",
+                poem_id, poem_data.category or "unknown", poem_id))
+
+            -- Show first 100 chars of content
+            local preview = (poem_data.content or ""):sub(1, 100):gsub("\n", " ")
+            print(string.format("   Preview: %s...", preview))
+
+            -- Generate similarity page
+            print("   📊 Generating similarity-ranked page...")
+            local similar_ranking = flat_html_generator.generate_similarity_ranked_list(
+                poem_id, poems_data, similarity_data.similarities or similarity_data)
+
+            if #similar_ranking > 0 then
+                local similar_html = flat_html_generator.generate_flat_poem_list_html(
+                    poem_data, similar_ranking, "similar", poem_id)
+                local similar_file = string.format("%s/similar/%03d.html", output_dir, poem_id)
+
+                if utils.write_file(similar_file, similar_html) then
+                    print(string.format("   ✅ Similar page: %s", relative_path(similar_file)))
+                    print(string.format("      Top 3 similar: %s",
+                        table.concat({
+                            similar_ranking[2] and similar_ranking[2].id or "?",
+                            similar_ranking[3] and similar_ranking[3].id or "?",
+                            similar_ranking[4] and similar_ranking[4].id or "?"
+                        }, ", ")))
+                else
+                    print("   ❌ Failed to write similar page")
+                end
+            else
+                print("   ⚠️  No similarity data found for this poem")
+            end
+
+            -- Generate difference page
+            print("   📊 Generating difference-ranked page...")
+            local diverse_sequence = flat_html_generator.generate_maximum_diversity_sequence(
+                poem_id, poems_data, embeddings_data)
+
+            if #diverse_sequence > 0 then
+                local diverse_html = flat_html_generator.generate_flat_poem_list_html(
+                    poem_data, diverse_sequence, "different", poem_id)
+                local diverse_file = string.format("%s/different/%03d.html", output_dir, poem_id)
+
+                if utils.write_file(diverse_file, diverse_html) then
+                    print(string.format("   ✅ Different page: %s", relative_path(diverse_file)))
+                    print(string.format("      Top 3 different: %s",
+                        table.concat({
+                            diverse_sequence[2] and diverse_sequence[2].id or "?",
+                            diverse_sequence[3] and diverse_sequence[3].id or "?",
+                            diverse_sequence[4] and diverse_sequence[4].id or "?"
+                        }, ", ")))
+                else
+                    print("   ❌ Failed to write different page")
+                end
+            else
+                print("   ⚠️  No embedding data found for this poem")
+            end
+        end
+    end
+
+    print("\n✅ Test generation complete!")
+    print(string.format("   📁 Output directory: %s", relative_path(output_dir)))
+    print("\n📖 To view the test pages:")
+    print(string.format("   firefox %s/similar/%03d.html", relative_path(output_dir), poem_ids[1]))
+    print(string.format("   firefox %s/different/%03d.html", relative_path(output_dir), poem_ids[1]))
+
+    return true
+end
+-- }}}
+
+-- Main execution
+print("=" .. string.rep("=", 60))
+print("HTML Generation Test - Validation Script")
+print("=" .. string.rep("=", 60))
+print("Project directory: " .. relative_path(DIR))
+
+-- Default test poem IDs - one early, one middle
+local test_poem_ids = {1, 100}
+
+-- Allow custom IDs from command line
+if arg and arg[2] then
+    test_poem_ids = {}
+    for i = 2, #arg do
+        local id = tonumber(arg[i])
+        if id then
+            table.insert(test_poem_ids, id)
+        end
+    end
+end
+
+generate_test_pages(test_poem_ids)

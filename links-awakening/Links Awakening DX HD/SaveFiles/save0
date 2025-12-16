@@ -1,0 +1,63 @@
+b debugMode False
+i maxHearth 4
+i deathCount 12
+i currentHearth 14
+i cloak 0
+i ocarinaSong -1
+i guardianAcornCount 6
+i pieceOfPowerCount 11
+i rubyCount 94
+i posX 256
+i posY 904
+i dir 1
+i mapPosX 4
+i mapPosY 2
+i map0 16384
+i map1 -33489152
+i map2 -16713472
+i map3 -16715008
+i map4 -134154240
+i map5 -268374016
+i map6 -268374016
+i map7 -67044352
+s savename Link
+s currentMap dungeon2.map
+s dungeonKeyNames one_0,two_0,
+s one_0line0 0,0,0,0,0,0,1,
+s one_0line1 0,1,1,1,0,0,1,
+s one_0line2 1,0,1,1,1,1,1,
+s one_0line3 1,0,1,1,1,1,1,
+s one_0line4 1,0,1,1,1,0,0,
+s one_0line5 0,1,1,1,0,0,0,
+s one_0line6 0,0,0,1,0,0,0,
+s two_0line0 0,0,0,0,0,0,
+s two_0line1 0,0,0,0,0,0,
+s two_0line2 0,0,0,0,0,0,
+s two_0line3 0,0,0,0,0,0,
+s two_0line4 0,0,0,0,0,0,
+s two_0line5 0,1,1,0,0,0,
+s two_0line6 0,1,0,0,0,0,
+s two_0line7 0,1,0,0,0,0,
+s equipment0 shield:1
+s equipment1 sword1:1
+s equipment2 powder:11
+s equipment3 feather:1
+s equipment4 
+s equipment5 
+s equipment6 
+s equipment7 
+s equipment8 
+s equipment9 
+s equipment10 
+s equipment11 
+s object0 ruby:94
+s object1 heartMeter:2
+s object2 pieceOfPower:0
+s object3 guardianAcorn:0
+s object4 shell:1
+s object5 dkey1:1
+s object6 compass:1:one
+s object7 dmap:1:one
+s object8 stonebeak:1:one
+s object9 instrument0:1
+s object10 trade2:1

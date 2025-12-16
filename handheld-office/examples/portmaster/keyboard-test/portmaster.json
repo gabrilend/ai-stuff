@@ -1,0 +1,82 @@
+{
+  "name": "Radial Keyboard Test",
+  "description": "Test application for radial keyboard ergonomics and functionality",
+  "version": "0.1.0",
+  "author": "OfficeOS Team",
+  "category": "utility",
+  "app_type": "game",
+  
+  "executable": {
+    "name": "radial-test",
+    "args": []
+  },
+  
+  "controls": {
+    "description": "D-pad opens arc menus, L1/L2/R1/R2 or X/B/A/Y select letters",
+    "mapping": {
+      "dpad_up": "Open UP arc menu",
+      "dpad_down": "Open DOWN arc menu", 
+      "dpad_left": "Open LEFT arc menu",
+      "dpad_right": "Open RIGHT arc menu",
+      "dpad_up_right": "Open UP-RIGHT arc menu (45°)",
+      "dpad_up_left": "Open UP-LEFT arc menu (135°)",
+      "dpad_down_right": "Open DOWN-RIGHT arc menu (315°)",
+      "dpad_down_left": "Open DOWN-LEFT arc menu (225°)",
+      "button_l1": "Select 1st option (leftmost in arc)",
+      "button_l2": "Select 2nd option",
+      "button_r1": "Select 3rd option", 
+      "button_r2": "Select 4th option (rightmost in arc)",
+      "button_x": "Alternative for L1",
+      "button_b": "Alternative for L2",
+      "button_a": "Alternative for R1",
+      "button_y": "Alternative for R2",
+      "button_start": "Exit application",
+      "button_select": "Clear text"
+    }
+  },
+  
+  "requirements": {
+    "min_ram_mb": 32,
+    "min_storage_mb": 10,
+    "cpu_arch": ["armv7", "aarch64"],
+    "os": ["linux"]
+  },
+  
+  "features": {
+    "test_radial_input": {
+      "description": "Tests 8-way radial input with arc-shaped menus",
+      "directions": 8,
+      "options_per_direction": 4,
+      "alphabet_coverage": "A-Z distributed across directions"
+    },
+    "ergonomic_evaluation": {
+      "description": "Evaluates user experience and button accessibility",
+      "metrics": ["input_speed", "accuracy", "comfort", "learning_curve"]
+    },
+    "visual_feedback": {
+      "description": "ASCII art visualization of radial menus",
+      "center_circle": true,
+      "arc_positioning": "Mathematically accurate angles",
+      "real_time_updates": true
+    }
+  },
+  
+  "testing": {
+    "purpose": "Validate radial keyboard design before full implementation",
+    "target_users": "Handheld device users with limited physical buttons",
+    "success_criteria": [
+      "Intuitive D-pad to menu direction mapping",
+      "Comfortable L1/L2/R1/R2 reach for selection", 
+      "Quick alphabet letter access",
+      "Smooth menu switching between directions",
+      "Accurate 45-degree angle positioning"
+    ]
+  },
+  
+  "deployment": {
+    "manual_install": true,
+    "no_internet_required": true,
+    "self_contained": true,
+    "config_files": ["portmaster.json", "controls.cfg"]
+  }
+}

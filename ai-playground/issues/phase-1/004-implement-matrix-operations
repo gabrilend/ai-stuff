@@ -1,0 +1,32 @@
+# Issue 004: Implement Matrix Operations Library
+
+## Current Behavior
+No mathematical foundation exists for neural network computations.
+
+## Intended Behavior
+A Matrix operations library should provide:
+- Basic matrix arithmetic (add, subtract, multiply)
+- Matrix transpose operations
+- Element-wise operations
+- Matrix creation and initialization utilities
+
+## Suggested Implementation Steps
+1. Create libs/math/matrix.lua
+2. Implement Matrix constructor and basic properties
+3. Add arithmetic operations (+, -, *, /)
+4. Implement transpose and other common operations
+5. Add element-wise function application
+6. Create utility functions for matrix creation
+7. Add validation and error handling
+
+## Priority
+High - Required for network calculations
+
+## Estimated Effort
+4-6 hours
+
+## Dependencies
+None
+
+## Related Documents
+- docs/architecture (Mathematical Foundation section)

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Words-PDF Conversational Interface</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: #000;
+            border-bottom: 1px solid #00ff00;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .system-status {
+            color: #ffff00;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .user-message {
+            background-color: #003300;
+            border: 1px solid #00ff00;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .user-message::before {
+            content: "USER: ";
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .ai-message {
+            background-color: #330000;
+            border: 1px solid #ff0000;
+            margin-right: auto;
+        }
+        
+        .ai-message::before {
+            content: "AI: ";
+            color: #ff6666;
+            font-weight: bold;
+        }
+        
+        .expansion-mode {
+            background-color: #333300;
+            border: 1px solid #ffff00;
+            margin-right: auto;
+            border-left: 4px solid #ffff00;
+        }
+        
+        .expansion-mode::before {
+            content: "EXPANDING: ";
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .input-container {
+            background-color: #000;
+            border-top: 1px solid #00ff00;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            background-color: #1a1a1a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: #00ffff;
+            box-shadow: 0 0 5px #00ffff;
+        }
+        
+        .send-btn {
+            background-color: #003300;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 20px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .send-btn:hover {
+            background-color: #006600;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .spacebar-hint {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ffff00;
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
+        .typing-indicator {
+            color: #666;
+            font-style: italic;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Words-PDF Conversational AI</h1>
+        <div class="system-status" id="systemStatus">
+            System Status: Initializing...
+        </div>
+    </div>
+    
+    <div class="chat-container" id="chatContainer">
+        <div class="message ai-message">
+            Welcome to Words-PDF! I can generate poetry-inspired responses using our compiled text corpus. 
+            Type a message to start our conversation, or press spacebar during expansion mode for continuous generation.
+        </div>
+    </div>
+    
+    <div class="spacebar-hint" id="spacebarHint">
+        🚀 SPACEBAR to expand • Any other key to continue conversation
+    </div>
+    
+    <div class="input-container">
+        <input type="text" 
+               class="chat-input" 
+               id="chatInput" 
+               placeholder="Type your message here..." 
+               autocomplete="off">
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+    
+    <!-- WebAssembly Module will be loaded here -->
+    <script src="spacebar-handler.js"></script>
+    
+    <script>
+        // {{{ Conversational Chat Interface
+        let conversationHistory = [];
+        let expansionMode = false;
+        let currentExpansionContext = '';
+        let wasmModule = null;
+        
+        // {{{ Initialize WebAssembly
+        Module['onRuntimeInitialized'] = function() {
+            wasmModule = Module;
+            wasmModule.ccall('wasm_init', null, [], []);
+            console.log('WebAssembly spacebar handler initialized');
+        };
+        // }}}
+        
+        // {{{ System status updates
+        function updateSystemStatus() {
+            fetch('/system-status')
+                .then(response => response.text())
+                .then(status => {
+                    document.getElementById('systemStatus').textContent = `System Status: ${status}`;
+                })
+                .catch(() => {
+                    document.getElementById('systemStatus').textContent = 'System Status: Offline';
+                });
+        }
+        
+        // Update every 0.6-0.8 seconds
+        setInterval(() => {
+            const randomDelay = 600 + Math.random() * 200;
+            setTimeout(updateSystemStatus, randomDelay);
+        }, 800);
+        // }}}
+        
+        // {{{ Chat functionality
+        function addMessage(content, isUser, isExpansion = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            
+            messageDiv.className = 'message ' + (isUser ? 'user-message' : (isExpansion ? 'expansion-mode' : 'ai-message'));
+            messageDiv.textContent = content;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Store in conversation history
+            conversationHistory.push({
+                content: content,
+                isUser: isUser,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        function showTypingIndicator() {
+            const chatContainer = document.getElementById('chatContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.textContent = 'AI is thinking...';
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        function hideTypingIndicator() {
+            const typingDiv = document.getElementById('typingIndicator');
+            if (typingDiv) {
+                typingDiv.remove();
+            }
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessage(message, true);
+            input.value = '';
+            sendBtn.disabled = true;
+            
+            showTypingIndicator();
+            
+            try {
+                // Send to server for AI response
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        history: conversationHistory.slice(-10) // Last 10 messages for context
+                    })
+                });
+                
+                const data = await response.json();
+                hideTypingIndicator();
+                
+                if (data.response) {
+                    addMessage(data.response, false);
+                    
+                    // Check if we should enter expansion mode
+                    if (data.expansion_context) {
+                        enterExpansionMode(data.expansion_context);
+                    }
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.', false);
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage('Connection error. Please check your connection and try again.', false);
+                console.error('Chat error:', error);
+            }
+            
+            sendBtn.disabled = false;
+            input.focus();
+        }
+        
+        function enterExpansionMode(context) {
+            expansionMode = true;
+            currentExpansionContext = context;
+            document.getElementById('spacebarHint').style.display = 'block';
+            
+            // Disable input during expansion
+            document.getElementById('chatInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            
+            if (wasmModule) {
+                wasmModule.ccall('enter_expansion_mode', null, ['string', 'string'], 
+                               [conversationHistory[conversationHistory.length - 1].content, context]);
+            }
+        }
+        
+        function exitExpansionMode() {
+            expansionMode = false;
+            currentExpansionContext = '';
+            document.getElementById('spacebarHint').style.display = 'none';
+            
+            // Re-enable input
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('chatInput').focus();
+            
+            if (wasmModule) {
+                wasmModule.ccall('exit_expansion_mode', null, [], []);
+            }
+        }
+        
+        async function generateExpansionLine() {
+            try {
+                const response = await fetch('/expand', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        context: currentExpansionContext,
+                        previous_lines: conversationHistory.slice(-3).map(h => h.content)
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.line) {
+                    addMessage(data.line, false, true);
+                }
+            } catch (error) {
+                console.error('Expansion error:', error);
+                exitExpansionMode();
+            }
+        }
+        // }}}
+        
+        // {{{ Keyboard handling
+        document.addEventListener('keydown', function(e) {
+            if (expansionMode) {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    generateExpansionLine();
+                } else {
+                    exitExpansionMode();
+                }
+            } else if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Focus input on load
+        window.addEventListener('load', function() {
+            document.getElementById('chatInput').focus();
+            updateSystemStatus();
+        });
+        // }}}
+        // }}}
+    </script>
+</body>
+</html>

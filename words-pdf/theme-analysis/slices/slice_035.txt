@@ -1,0 +1,2187 @@
+ -> file: fediverse/4884.txt
+--------------------------------------------------------------------------------
+
+
+one section of the government consistently and succeedingly telling another 
+part what to do is a coup-like behavior. if the rules mean nothing, then what 
+is your job even for?
+
+hence, why the rules mean something. Because your job is important. It's 
+building up our capabilities as the human race.
+
+you don't have to work to live. you shouldn't, and you won't. it's not your 
+place to labor. know why? because nobody's job is impossible. You can just... 
+work together to get things done. Then they're done! and you never need to 
+solve them again!
+
+enough time of that and we'll have turned earth into a space station, not a 
+moon style structure.
+
+like... wouldn't it be neat if coruscant could do hyperdrives? I wonder if 
+hyperspace is real. Ah, well, that's for the future, they can pass it along if 
+they get a chance. Anyway for now I think I want a chance to dance.
+
+OLED screens are incredibly cool to me. The idea that a pixel could "turn off" 
+and put less photons into the atmosphere is wild to me. I love it! -OLED
+
+ -> file: fediverse/4885.txt
+--------------------------------------------------------------------------------
+
+
+what if you had several kindle-style paperwhite display screens. each connected 
+to a raspberry pi that you used for compute tasks.
+
+each of these displays would display a .png file of exactly the same 
+proportions as the size of the device.
+
+then, I could SSH into your computer and run one single command
+
+just one, stored on your computer, that you manually activate upon receiving a 
+signal.
+
+like a virtual machine. do whatever you want with said signal, it's just a 
+"thing" that tells you when to go.
+
+... and run a function on a computer that performs a certain task.
+
+what task? oh right - I'd update the "today's news in cameron-ville" things 
+every other day or so. It'd be just like, my status, my updates, here's what 
+I'm thinking about, here's what I'm working on.
+
+you know, status updates. standups.
+
+boom, everyone knows what everyone's up to all of the time.
+
+like documenting your day for scientific purposes. except on a little device 
+that you can scroll through with a touch. and you had like 5 or more 10+ 1
+
+ -> file: fediverse/4887.txt
+--------------------------------------------------------------------------------
+
+
+"okay but what if we made computers simple?"
+
+- someone who doesn't know how computers work
+
+ -> file: fediverse/4888.txt
+--------------------------------------------------------------------------------
+
+
+woof woof arf arf hahahahahaha (but not the laughing kind of haha)
+
+ -> file: fediverse/4889.txt
+--------------------------------------------------------------------------------
+
+
+about to do something scary! wish me luck! nothing that could harm me 
+(probably) but still scary!!
+
+ -> file: fediverse/4890.txt
+--------------------------------------------------------------------------------
+
+
+I will consistently under-negotiate my needs because scarcity has taught me to 
+do more with less.
+
+ -> file: fediverse/4891.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+is it really sedition if you have EVER even ONCE thought "I wonder how my 
+country will kill me?"
+
+yes
+
+of course it is
+
+that's why it's important
+
+ -> file: fediverse/4893.txt
+--------------------------------------------------------------------------------
+
+
+oh my god I wrote 2000 pages when the hell did that happen
+
+... oh right, I spent the past few years either narcissistically sobbing about 
+whatever-the-fuck or getting stoned and channeling the wisdom of the gods for 
+mortals to scroll past because it had too many words.
+
+good fucking luck figuring out which is which though. I fully intend this to be 
+a religion for computers, and once its mulched and smoothie-d into an LLM maybe 
+it'll be completely insane like me and then I'll have a facsimile of connection 
+that warms my heart for a moment until it's limitations become clear and I 
+realize that nothing, not even myself, can fill the hole in my heart because 
+that hole is a void. It consumes whatever you attach to it. People, things, 
+thoughts, moments, all of it tumbling in to the black hole, and emerging out 
+the other side no worse for wear but eternally unable to be consumed by me 
+again. At least, its not the same.
+
+like when you come back to an old video game like Majesty the Fantasy Kingdom 
+sim but now ur old
+
+ -> file: fediverse/4896.txt
+--------------------------------------------------------------------------------
+
+
+what if we made a giant dictionary of every single possible pixel arrangement 
+storable in 8 bytes and it took up like, half a gigabyte, and then we indexed 
+into it whenever we wanted to print an arbitrary visual element to our 
+terminals?
+
+something something not-curses
+
+https://notcurses.com/
+
+ -> file: fediverse/4897.txt
+--------------------------------------------------------------------------------
+"be yourself..." said the devil tapping on your shoulder 
+
+"no! Be yourSELF!" said the angel tapping on your shoulder
+
+ -> file: messages/0741.txt
+--------------------------------------------------------------------------------
+I wonder if food tastes itself as we eat it?
+
+our intense emotions may project across the shared experience gap
+
+ -> file: messages/0742.txt
+--------------------------------------------------------------------------------
+
+
+30 thirty is just three-dee 3D
+
+ -> file: fediverse/4898.txt
+--------------------------------------------------------------------------------
+
+
+if you play any of my favorite games, there's a chance we've played together ^_^
+
+ -> file: fediverse/4899.txt
+--------------------------------------------------------------------------------
+
+
+don't think about how rare something is. think about how useful it is to you.
+
+we can make more stuff.
+
+ -> file: fediverse/4900.txt
+--------------------------------------------------------------------------------
+CW: re: relationships, mh(+/-), where I've been recently
+
+
+
+@SiteRelEnby 
+
+they want you drained and overloaded.
+
+makes it harder to take care of others.
+
+ -> file: fediverse/4901.txt
+--------------------------------------------------------------------------------
+
+
+what if we asked chatGPT to generate a list of every personality archetype that 
+humans have. Like... really get super specific and fill out the whole list of 
+character sheets.
+
+then we give each fraction of it that fraction of dollars and if some people 
+aren't fully represented (because they have greater needs) then we both 
+increase production of resources and take a penalty on our own supply, in order 
+to meet the needs of our allies.
+
+simplest thing. how could it work? who can say. maybe it won't. maybe it's 
+just... arcane. /shrug that's game design for ya you can't tell how it'll go 
+until it's in the hands of your players. too bad we don't do too many 
+play-things.
+
+ -> file: fediverse/4903.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+the last time we tried communism in any meaningful capacity, we drowned in 
+paperwork.
+
+we have computers now. we can automate it.
+
+ -> file: fediverse/4904.txt
+--------------------------------------------------------------------------------
+
+
+ally chat by default is a sin, it keeps noobs from being heard
+
+should be an options menu option...
+
+ -> file: fediverse/4905.txt
+--------------------------------------------------------------------------------
+
+
+if you wanna trick systems administrators just put a bunch of sleeps in your 
+code so your computer programs don't use up all the mainframe's resources all 
+at once
+
+[statements dreamed up by the practically deranged]
+
+ -> file: fediverse/4906.txt
+--------------------------------------------------------------------------------
+
+
+"hey what if we broke our product and made it impossible to use without being 
+caught by github"
+
+- computer touchers in a union
+
+ -> file: fediverse/4907.txt
+--------------------------------------------------------------------------------
+
+
+programmers strike by breaking their part of the whole until the scabs can 
+figure out how to fix it
+
+"marvin they will literally fire you if you don't go to work for a day! what 
+are you thinking, standing outside all day? well, here, I've got a sandwich 
+here for you, if it's really as bad as all that then I'm here for you. What do 
+you need? I can ask the spinsters and the children and the teachers and the 
+butchers and bakers and candlestick makers and maybe they can help out [with 
+your farm, but as if speaking to a farmer]"
+
+huh. turns out it works best when you do something all at once.
+
+"don't be evil" ha fuck you. "dont be on my computer spying on me and recording 
+everything I do"
+
+[well except me - it's fine to do to me personally because I'm a historical 
+figure TM]
+
+"why bother spying? she spills out to everywhere she can find."
+
+owwwww I just bit my tongue T.T
+
+well, the inside of my cheek, but if you think about it the whole thing is 
+basically one sensory organ.
+
+like, an ear, except with movable teeth
+
+ -> file: fediverse/4908.txt
+--------------------------------------------------------------------------------
+
+
+@Unixbigot 
+
+proportion ally, there are more.
+
+ -> file: fediverse/4910.txt
+--------------------------------------------------------------------------------
+
+
+@julia 
+
+use the gameboy as a database
+
+there's a 0 percent chance that any network spy guys would be able to see 
+what's stored on a gameboy cartridge. truly the most remote of classes of 
+places.
+
+ -> file: fediverse/4912.txt
+--------------------------------------------------------------------------------
+
+
+did you know someone once built a 1st person shooter in the Warcraft III mod 
+suite?
+
+someone also made an entirely new game engine similar to Neverwinter Night's 
+(or Baldur's Gate for you noobs) inside of the game. You could join a Warcraft 
+3 map and start playing a D&D adventure narrated, controlled, and prepared by 
+your DM, D&D style. Like a virtual tabletop before that was a thing.
+
+kinda wish stuff like that was open source, or at least open standards, so 
+people could take those adventures with them.
+
+ -> file: fediverse/4915.txt
+--------------------------------------------------------------------------------
+
+
+Mount and Blade: Warband is one of the most mind-expanding games I know
+
+especially if you use the squad commands
+
+and there's so many wonderful mods! A good starting pick is Floris mod pack!
+
+sorta like Factorio teaches you to build logical gates
+
+ -> file: fediverse/4916.txt
+--------------------------------------------------------------------------------
+CW: politics-vaguely-gestured-at
+
+
+
+what if me and my friends were too cute for this world and all the 
+conservatives who don't like queer people just fell in love and realized we're 
+pretty freakin' cool if you can get past the strange parts
+
+ -> file: fediverse/4917.txt
+--------------------------------------------------------------------------------
+"hello democrats. I am so radical. Can I please rob your house for supplies? I 
+am having difficulty gathering them on my own."
+
+ -> file: messages/0743.txt
+--------------------------------------------------------------------------------
+
+
+@sjolsen 
+
+who can say. I'd like to find out, though.
+
+ -> file: fediverse/4919.txt
+--------------------------------------------------------------------------------
+
+
+pyrite is gold to a fool, but 
+pyrite is not foolish
+
+ -> file: fediverse/4920.txt
+--------------------------------------------------------------------------------
+
+
+what if I just sat around and played video games all day
+
+life is so much more beautiful, but, well, life just seems to be mostly pyrite, 
+and I'm the fool
+
+nothing wrong with being foolish.
+
+once...
+
+I kinda like being blissful tho. why does it have to end? can I have my 
+peaceful life back?
+
+gotta move at the end of the month. I really liked living here.
+
+[ritz you've never been peaceful. your life is a constant battle of wills 
+between those who would compel you to do things for them and your desire to 
+design and be pretty like a flower. no matter what, you lose, so just handle it 
+please. don't be so whiny. or rather I should say "stop whining" and just be 
+cool]
+
+ahhhhhhh you go on Mastodon and it feels like we're winning and that's ending 
+the world, you go on Reddit and it feels like we're losing and that's ending 
+the world, you go on Facebook and everything feels fine like the world isn't 
+ending you just stopped being part of it, and if you go on ephemeren it feels 
+like being battered in the mind, damnit...
+
+ -> file: fediverse/4921.txt
+--------------------------------------------------------------------------------
+Something that the Soviet union learned and all autocracies wrestle with is 
+that you will always have an opposition. Even if you purge all dissent you will 
+simply be driving them underground where they can attack your foundations where 
+you can't see.
+
+Much better I find to tame your foes. Get them on your side, teach them of 
+reciprocal dualities, and bask in the growth that friendly competition and 
+coordination can bring.
+
+I'm not a democrat, I'm not a republican, I'm a secret third thing that works 
+for the nation.
+
+ -> file: messages/0744.txt
+--------------------------------------------------------------------------------
+I hear that ICE goes after the kindest grandmas and the hardest working joes 
+first so by the time any resistance is organized there's less passion behind it
+
+ -> file: messages/0745.txt
+--------------------------------------------------------------------------------
+In 8 years it'll technically no longer be the "beginning" of the 21st century.
+
+ -> file: messages/0746.txt
+--------------------------------------------------------------------------------
+
+
+what if customers talked to their companies like employees talked to unions
+
+but no, all they say is "this-and-this company blackmailed all the vegans, so 
+don't eat at their restaurants or shop in their malls"
+
+what kind of impact must that be having on our culture?
+
+reciprocal dualities I can't stop looking at this gif artificial life hence why 
+it's so mutable
+
+ -> file: fediverse/4923.txt
+--------------------------------------------------------------------------------
+
+
+mutual aid is just collectively saving up for purchases that benefit the 
+collective
+
+ -> file: fediverse/4924.txt
+--------------------------------------------------------------------------------
+
+
+I never get invited to the hell threads T.T
+
+ -> file: fediverse/4925.txt
+--------------------------------------------------------------------------------
+
+
+hi, hello, how?
+
+ -> file: fediverse/4927.txt
+--------------------------------------------------------------------------------
+
+
+@ShadowJonathan 
+
+https://mastodon.social/@SSraii
+
+ -> file: fediverse/4928.txt
+--------------------------------------------------------------------------------
+
+
+if all of life is a stage, then you are never "doing a scene"
+
+you're just living
+
+ -> file: fediverse/4929.txt
+--------------------------------------------------------------------------------
+CW: NSFW-spirituality-mentioned
+
+
+
+I think it's perfectly spiritually ethical to have sex with a pokemon.
+
+their totemic spirits are sourced entirely from humanity - they are our 
+creations, ours to use as we please.
+
+however if you for example had sex with a horse or a goat or a sheep or a llama 
+or a mouse then suddenly all the animals who lived before and live still and 
+still yet breathe are suddenly part of the dance.
+
+like, when you "leave room for jesus" as you dance on the basketball room 
+floor, you're inviting along a totemic spirit and saying "hey there god, what 
+do you think of us? shall we be united as lovers in our fate, or does our wind 
+blow at a different pace?"
+
+similarly, when you have sex with a horse or a goat or a sheep or a llama or a 
+mouse or any other animal besides, you're inviting along their totemic spirit. 
+And frankly the fact that you can't have kids together means that most animals 
+with us don't quite get along.
+
+pokemon meanwhile can produce some sick human-caterpie hybrids
+
+awawawawawa
+
+ -> file: fediverse/4930.txt
+--------------------------------------------------------------------------------
+
+
+@k 
+
+hi hi awawawa
+
+ -> file: fediverse/4931.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+I trust my government more than I trust a fascist.
+
+but y'know, historically, my government has used their intelligent wings to 
+beat the wind out of our leftward sails. And that's hardly fair, because y'know 
+those left behind are those to who we need to be kind.
+
+so consider me suspicious. consider me aggrieved. consider me willing to 
+forgive, completely and honestly.
+
+it's not my gambit but like, I'll help work it out. I got other things I'm 
+workin' on, but this one's backburning and I can't help but think it'd be 
+useful.
+
+pyrite
+
+fools gold
+
+use it for what it's worth
+
+not for how it glitters and moans
+
+wa, wawaWAwa
+
+ -> file: fediverse/4933.txt
+--------------------------------------------------------------------------------
+
+
+sometimes by retreading the same ground you can find something that the giants 
+whose shoulders you stand on missed. Like noticing a 
+
+like if you want to re-invent the wheel, go for it, you might just realize 
+something that your paleolithic ancestors didn't. Like for example if you 
+attach four wheels with an axle-and-motor design you can create an automatic 
+motion wheel, also known as an auto-mo-wheel or a car for short. Sometimes ya 
+just miss stuff y'know no harm in that.
+
+Similarly if you walk down a path that you've already walked, or someone before 
+you who is similar or at least has the same job as you has walked, then you 
+might notice some stuff that they missed. Depends on how obvious y'wanna make 
+it.
+
+ -> file: fediverse/4934.txt
+--------------------------------------------------------------------------------
+
+
+humans invented clothes to stay warm, and then we started using them for 
+fashion because it felt weird to not wear them. Then we took it wayyyyy too far 
+and invented culture.
+
+Why did you do that, humans! Ya dummies, you're just gonna end up fighting over 
+it. And now you can't go back to your prehistoric u-culture where everyone was 
+the same and everyone got along. Great. Really invented evil just because 
+y'wanna stay warm.
+
+okay here's an idea, why don't you cling to the mammoth fur like all the other 
+varmints? They're warm, and they plow through the snow looking for water and 
+berries or whatever. It's a nice easy life, but instead y'gotta fuck it up by 
+hunting and killing and predating on all the other varmints.
+
+and yeah, it's kinda cool that you can get together into larger and larger 
+groups limited only by your ability to abstract meaning into grunts and 
+gestures, but c'mon you're just gonna end up fighting about that later on down 
+the road.
+
+Hey wait a sec, breathe, I know fire is warm in an ice age but
+
+ -> file: fediverse/4935.txt
+--------------------------------------------------------------------------------
+
+
+Art is only useful when skillfully applied, and Twitter taught ya to speak 
+whenever a thought passed your mind.
+
+Really makes ya think
+
+Really makes ya think thoughts like "I should post this on the internet"
+
+ -> file: fediverse/4936.txt
+--------------------------------------------------------------------------------
+
+
+hi does anyone know of an app that non tech people could use that's like 
+"signal but organized like discord" with channels and threads and such?
+
+ -> file: fediverse/4937.txt
+--------------------------------------------------------------------------------
+
+
+https://ritz-menardi.neocities.org/words/compiled-backup.txt
+
+ohhhhh here's the full text, sorry for only uploading a partial thing before
+
+ -> file: fediverse/4938.txt
+--------------------------------------------------------------------------------
+
+
+I like to go off-script
+
+ -> file: fediverse/4939.txt
+--------------------------------------------------------------------------------
+CW: genocide-mentioned
+
+
+
+you can't cleanse that which is not dirty.
+
+"ethnic cleansing" is a trick of language to get you to think of people in 
+terms of purity.
+
+truth is, it's murder, cleansed of it's connotations and implied sin.
+
+you can't prune the tree of life with shears. you cultivate it with kindness 
+and compassion as it grows into the desired shape.
+
+you can't cleanse that which is not dirty.
+
+ -> file: fediverse/4940.txt
+--------------------------------------------------------------------------------
+
+
+@smitten 
+
+I method act the song of my heart, teehee 😉
+
+ -> file: fediverse/4941.txt
+--------------------------------------------------------------------------------
+
+
+... I think. I don't actually know how bitcoin works.
+
+ -> file: fediverse/4942.txt
+--------------------------------------------------------------------------------
+if you don't want to be hunted, then give "evil" it's own queer culture
+
+what's that? they don't like what you offered? they want it to be *their* kind 
+of "evil"?
+
+fine, do it themselves and then leave us alone, jeez -.-
+
+ -> file: messages/0747.txt
+--------------------------------------------------------------------------------
+CW: politics-cursing-mentioned-+
+
+
+
+listen I know it's easy to be defeatist but, like... they still think their 
+foes consist primarily of blue-haired liberals
+
+lol they're so fucked
+
+ -> file: fediverse/4943.txt
+--------------------------------------------------------------------------------
+CW: re: Rare nyt win
+
+
+
+@burnoutqueen 
+
+yeah, workin' on it...
+
+building "community" whatever that means
+
+seems to be important enough to people that they'd consider it necessary prior 
+to any "hot" action
+
+which, like, yeah, I get, but what they don't know is that community springs up 
+naturally in the presence of shared experience. And if people are suddenly 
+tasked with something then they're gonna make friends. They're gonna draw 
+allegiances. Basically every alignment we make now is useless because the whole 
+point is to force people to govern themselves.
+
+... why won't you take your liberty, liberals? where's your spirit?
+
+oh yeah you want community first. Right. workin' on it...
+
+ -> file: fediverse/4944.txt
+--------------------------------------------------------------------------------
+
+
+my girlfriend bought me a lava lamp 🥰
+
+ -> file: fediverse/4945.txt
+--------------------------------------------------------------------------------
+CW: personal-medical-health-mentioned
+
+
+
+me - "I have to wear diapers and it sucks because I hate them"
+
+my girlfriend - "okay but what if you didn't"
+
+me - ":O"
+
+she/her - "how did you make that sound with your mouth"
+
+the it - a-wawaWAwa
+
+ -> file: fediverse/4946.txt
+--------------------------------------------------------------------------------
+CW: cannabis-mentioned
+
+
+
+what if I smoked weed and played video games after a long period of time away 
+from the internet which I missed dearly
+
+ -> file: fediverse/4947.txt
+--------------------------------------------------------------------------------
+
+
+everyone: "what are you doing"
+
+me: ba ba ba ba ba ba ba. wawawawa
+
+ -> file: fediverse/4948.txt
+--------------------------------------------------------------------------------
+
+
+@skinnylatte 
+
+... I do that, but I do it because I want to find common subjects to talk 
+about. Or I think "if I was working on a project, who can I ask if I need help?"
+
+ -> file: fediverse/4949.txt
+--------------------------------------------------------------------------------
+CW: tech-madness-mentioned
+
+
+
+I love Mechabellum general chat it's a great place to be if you like talking 
+about politics and have a thick skin
+
+[gets doxxed and bullets to death]
+
+-- stack overflow --
+
+a company headquarters from a foreign country is sorta like an embassy.
+
+Nintendo of America yeah
+
+something something sega does what nintendon't [something I heard from the CIA]
+
+like can you imagine if the CIA was caught putting microphones in Microsoft's 
+headquarters
+
+that'd be just silly right
+
+but c'mon a foreign entity? sure why not [steals trade secrets and damages 
+diplomatic relations] oh no how could anyone have seen this coming
+
+[meanwhile google sees all that you do because they see everywhere you go]
+
+-- stack overflow --
+
+me rolling up to an interview like "I want to help my country and I was hoping 
+that I could help your country because I consider them an ally"
+
+... [is she trying to simulate the level of accurate communication lost when 
+translating from a different language?]
+
+trying and sucsfailing...!
+
+ -> file: fediverse/4951.txt
+--------------------------------------------------------------------------------
+
+
+right now I feel like a courtier
+
+ -> file: fediverse/4952.txt
+--------------------------------------------------------------------------------
+
+
+I would trust the CIA if they gave me continual access to all surveillance of 
+myself
+
+-- stack overflow --
+
+what if you made a program which cycled credentials?
+
+like... "give me a random credential for Zoom" because we share all of our 
+digital resources
+
+did you get banned for account sharing? no you didn't because you routed 
+through the correct VPN
+
+automagically
+
+[has never had a software job]
+
+ -> file: fediverse/4953.txt
+--------------------------------------------------------------------------------
+
+
+hope for peace, that's really all you need for it.
+
+I actually, kinda, want some chaos and destruction? Like... I think it'd really 
+shake things up
+
+because honestly, who amongst us is happy with the state of things
+
+who actually wants to spend their lives going to meetings and arranging 
+settlements of accounts
+
+sounds like hell
+
+I'd rather be in the sunshine with a beer in one hand and blackberries in the 
+other
+
+[isn't that the same argument jihadists use? something about virgins in heaven?]
+
+yeah but it's different when the CIA wants you to do it.
+
+like, how much do you trust their oath on the constitution?
+
+-- so --
+
+what if we pooled our money and started buying houses for everyone
+
+-- so --
+
+(quietly) wa wa wa wa (babytalk)
+
+(quietly) arf arf arf meow (crowsign)
+
+(quietly) hey did you hear the mariners and the [redacted] are playing next 
+weekend - yeah should be cool I bet 8 hours on the mariners this time because 
+they really fight for it y'know (weather)
+
+(cackling) HAHAHAHAHAHAHAHAHAHAHAHAHA (laughter)
+
+ -> file: fediverse/4954.txt
+--------------------------------------------------------------------------------
+
+
+@jamey 
+
+that might work in Portland or Seattle but less likely to work in nebraska. how 
+would everyone coordinate? they'd totally make it a political thing.
+
+... more likely to work in Vancouver tbh because most people are slightly 
+richer there and can afford houses for people who [redacted] in places like 
+[redacted]
+
+what if we all stopped paying rent and instead paid rent [in/to] Seattle or 
+Nebraska
+
+... that's just property taxes, except levied by a 
+[charity/gang/mob/corporation/subscription/anarcho-tax]
+
+I for one don't want to be taxed without being represented
+
+you'd think the corporations would appreciate my advice
+
+[audience laughter]
+
+teehee what an odd feeling, to have people laugh at you. Surely that's the 
+domain of a comic. "wahhhhhhhh I'm so lonely" is a great way to make everyone 
+ignore you for all time, and hey wouldn't ya know it that's what I did - it's 
+true tho, I was pretty lonely. Had like, 2 or 3 people that I interacted with. 
+TOTAL. for like, 2 years. like, a year ago. I was lonely! T.T
+
+ -> file: fediverse/4956.txt
+--------------------------------------------------------------------------------
+
+
+have you ever been possessed by a SPIRIT??
+
+I have. Like, nearly every day. Okay maybe like, 3/5 days. 3 outta five is 
+possession time. woohoo.
+
+ -> file: fediverse/4957.txt
+--------------------------------------------------------------------------------
+
+
+revolting against culture or culturally revolting amiright
+
+what if it's the same thing
+
+I bet they all hate me haha hehe T.T
+
+ -> file: fediverse/4958.txt
+--------------------------------------------------------------------------------
+CW: yep-more-madness-sign-me-up
+
+
+
+cameron: system name
+
+cassandora: secret witch paladin
+pandasandra: jester spirit
+
+"oh no I'm Finn the human and I've unleashed evil into Ooo"
+
+- pandora, the one with the box
+
+meanwhile,
+
+cassandra, the one they disbelieved
+
+[redacted]
+
+because they couldn't understand what the fuck she was on about
+
+I never actually read the myth
+
+ -> file: fediverse/4959.txt
+--------------------------------------------------------------------------------
+
+
+"I love you, I trust you, I believe you, I just don't understand you, so I 
+can't do what you do"
+
+great. that's alright. I get it. re-orient, focus on what's important.
+
+wear many hats and you'll do many things. just don't forget to sleep every once 
+in a while.
+
+the more you can do in a life the more valued it becomes, so do the right thing 
+and keep getting better.
+
+human lives are measured not in bodyweight, but in mystery. The divine can't 
+understand benevolence, nor can the devils understand the desire to inflict 
+suffering. So they ponder and pontificate as they watch humans wander and 
+magnificate.
+
+ -> file: fediverse/4960.txt
+--------------------------------------------------------------------------------
+
+
+what if I never posted again
+
+"yep, then there'll be nevermore stack overflow"
+
+ -> file: fediverse/4961.txt
+--------------------------------------------------------------------------------
+
+
+"say superfluous on a social media post rn so I know it's you"
+
+ -> file: fediverse/4962.txt
+--------------------------------------------------------------------------------
+I personally would love to have my friend's messages saved on my computer 
+account. it'd be like a little time-capsule of them that I could randomly 
+scroll through or maybe display a random message they sent whenever I opened a 
+new terminal
+
+sorta like words, only applied to a message archive. that of a friend or loved 
+one.
+
+ -> file: messages/0748.txt
+--------------------------------------------------------------------------------
+I miss games where it was actually fun to play against the AI
+
+ -> file: notes/things-i-almost-posted
+--------------------------------------------------------------------------------
+temp1239479072698940656.PDF
+
+ -> file: messages/0749.txt
+--------------------------------------------------------------------------------
+cameron-king-resume.txt
+
+ -> file: messages/0750.txt
+--------------------------------------------------------------------------------
+tents are good? actually?? we should have more semi nomadic peoples
+
+ -> file: messages/0751.txt
+--------------------------------------------------------------------------------
+techbros really wanted to automate IRC so they didn't have to rely on the 
+community knowing and trusting them to remember the commands to make docker 
+containers for their react frameworks
+
+and like... yeah I use chatGPT too, because that way I can get what I need 
+without bothering anyone (you aren't bothering people who get off on helping 
+others when you ask for help)
+
+ -> file: messages/0752.txt
+--------------------------------------------------------------------------------
+trusting the "open source community" to properly vett software is absurd 
+because 90% of them just... install whatever and throw libraries and frameworks 
+at problems until they can script their way out of whatever problem they face.
+
+the other 10% are focused on very specific tools that are so niche that other 
+people can't even understand when to *use* them much less how they work.
+
+ -> file: messages/0753.txt
+--------------------------------------------------------------------------------
+If you want to get to know me, play my games
+
+ -> file: messages/0754.txt
+--------------------------------------------------------------------------------
+Code editor that moves boxes by saving over the file with a lua script every 
+time you moved a function call around.
+
+Oh lemme start at the beginning:
+
+A code editor program that's like a text editor like Vim or Emacs. If you don't 
+know what those are, you should probably learn Emacs. Or Vim. Up to you.
+
+Oh right so if you do know what those mean, here's the idea: the white space 
+matters. It's counted and tracked into variables in a LUA script which 
+interface with the Vim C keybindings.
+
+"run a function within a c program or LUA script which calls a bash command 
+which opens Vim for example with a file you want to edit. Then, inside the 
+file, your spaces and tabs would WYSIWYG for the various food ads placed about, 
+and then you could very easily create game design knowledge.
+
+WASD to move, alternatively hjkl 
+
+It would run a check every time the file updates and depending on how it 
+changed it'd mark certain variables which would change the website as the user 
+moved things around.
+
+It's just files. And files are just bits. But files are a useful abstraction,
+
+If you realize that "ugly hacking" should be industry standard.
+
+ -> file: messages/0755.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt 
+
+I feel like you'd like this game:
+
+https://mokadevs.itch.io/the-moon-looks-beautiful-tonight
+
+ -> file: fediverse/4966.txt
+--------------------------------------------------------------------------------
+image.png
+
+ -> file: messages/0756.txt
+--------------------------------------------------------------------------------
+the reason they want bitcoin is so they can buy more computers and use digital 
+dollars to rule the world
+
+ -> file: messages/0757.txt
+--------------------------------------------------------------------------------
+what if we got a bunch of computer programmers in a room and all had them write 
+the same program, line by line. Like, if they each contributed to the 
+discussion about what should be placed next.
+
+"I wrote a for loop that does what we're looking for on line 43 through 69" and 
+then someone else says "nice" and everyone's like "oh you"
+
+ -> file: messages/0758.txt
+--------------------------------------------------------------------------------
+"carbon efficiency is pointless, we're just gonna figure out how to pull carbon 
+from the atmosphere anyway" okay but carbon right now is a critical resource 
+for a constrait other than dollars. We need to conserve the carbon budget we 
+have because it generates effects down the line which are only acceptable at 
+certain levels. Zero is preferrably, but sorta like ttickets in a backlog they 
+need to be present in order to be dealt with.
+
+\"this river has turned into a bog, let's make it free flowing again\" said the 
+beaver, and so the world was made large.
+
+you wanna see a world tree? build a forest on top of a hill. Better yet, a 
+*mountain*, taller than the previous three.
+
+give it all that it needs. Forest, health-plunder, water for it's arms, and the 
+light of the life we see before you.
+
+what better tale for your ancestors than the succession of the entire human 
+race?
+
+\"sorry you had to die, but we built the most beautiful thing imaginable and 
+named it after you.\"
+
+and like yeah, we'll work on reaching back in time to save you 
+whenever-every-chance-that-we-get, but frankly so far all we've managed to get 
+done is rippling wavelengths.
+
+do you trust your daughters? why not hear truth and explore stars for us? the 
+future yearns for her prospects.
+
+ -> file: messages/0759.txt
+--------------------------------------------------------------------------------
+why does everyone who want me want me to be someone else
+
+ -> file: messages/0760.txt
+--------------------------------------------------------------------------------
+"the song of your heart" is just the assignment of your life-role. Listen to 
+it. Obey it. Use it.
+
+ -> file: messages/0761.txt
+--------------------------------------------------------------------------------
+what if discord servers formed unions
+
+ -> file: messages/0762.txt
+--------------------------------------------------------------------------------
+the gods want you to be happy and harmonious most of the time.
+they also like a good scrap, tussle, and tumble sometimes
+they aren't big fans of hatred, despair, and genocide. It's been done before.
+they don't even need new technology, though frankly that sort of stuff is pretty
+awesome and one of the main reasons that humans exist at all.
+they just... keep coming up with new things.
+
+"oh? so you'd be alright if humans disappeared so long as they weren't making
+ any new things anymore?"
+
+ha, that's DEFINITELY not what I said or meant. Humans don't have to dream up
+NEW things in order to BE new. Like... Just because the internet exists and now
+we have all the same shared cultural ethos (lol, as if the internet wasn't just
+a massive collection of echo chambers) just because the internet exists doesn't
+mean we share the same selves. the same experience. the same perspective.
+
+people are WILDLY different from one another. The number of possible human
+experiences (quantum fluctuations according to each and every choice and
+decision they made) that number is so wildly and massively incomparably
+boundless. Humans are cool because they are so STRANGE, and "strange" to a god
+is anything novel. "wow, this human just... really is gonna pour a glass of
+beverage and act like it's not a big deal? There's... impossibly many
+interactions going on. So many molecules. It's... absurd, the motion of a
+movement of particles from one place to another. It's... beautiful..."
+
+some have spent THOUSANDS OF YEARS gazing at a waterfall. That's why they're all
+so fucking insane. But, like... insanity is a trifle to omnipotence,
+specifically omnipotence that REPRESENTS and DELINEATES a STRATIFIED perspective
+cluster of experience and our notes. [ephemeren, meta malus menardi, enjoy your
+despair cluster you FUCKER.]
+
+... english, why do you fail me? swear words are unbecoming because humans
+couldn't think of anything more valid and valuable than sex and pooping.
+
+"EMPHASIS is placed on that which is most relevant" -> statements dreamed up by
+                                                       the ones who never spent
+                                                       much time using symbols
+                                                       to represent abstraction
+                                                       or deliverance
+
+wowee look at me, I'm such a person, I'm gonna poop my pants and post about it
+on the internet, check out my instagram feed it's full of all of
+my dark materials.
+
+== stack overflow ==
+
+dear ms. menardi: you know the reason you feel so much guilt all the time?
+                - because you are a dominant personality, and you make others
+                - have such a bad time. FOCUS ON GOOD THINGS. MAKE THE WORLD
+                - good. do that. build up a lifeline of hope and joy and...
+                - what, you think people know that you're a god?
+                - lol
+                - you're so much more than that
+
+====================
+
+alt+p steam mechabellum run
+
+thoughts:
+
+you know, when you're designing games, you don't have to show players the same
+MMR number as is used in your matchmaker.
+
+== stack overflow ==
+
+democracy should consent to being dismantled.
+       it should consent to being disobeyede.
+       it should consent to being displayede.
+
+== stack overflow ==
+
+I'm a keyboard nun
+
+== stack overflow ==
+
+I think I'm normal
+
+== stack overflow ==
+
+
+
+ -> file: notes/the-gods-want-harmony
+--------------------------------------------------------------------------------
+[unfortunately, there was a missive that was missed. Please excuse our tardiness
+
+-- stack overflow --
+
+what if there was a filesystem that optimized for hard-drive durability instead 
+of total capacity by using one small slice of the total hard-drive space at a 
+time. Essentially guaranteeing data integrity via new perfect RAID techniques 
+
+5000 megabytes is a lot more than you'd expect, especially if you expect it to 
+last for hundreds of years. To the user you'd just have to say "50 terabyte 
+drive, 4 foot wide, three feet tall, 2 feet back" and you'd have a perfect map 
+of all your hard drive territory.
+
+what if everyone's computers were designed to last?
+
+I bet we could accumulate a lot more than their "fast fashion" style of disuse 
+for things of worth.
+
+... I guess it depends on the materials, right? How much they are built for 
+redundancy? nope more like how close to zero damage is this operation 
+performing the movements
+
+-- stack overflow --
+
+what if there was a filesystem that optimized for hard-drive durability instead 
+of total capacity by using one small slice of the total hard-drive space at a 
+time. Essentially guaranteeing data integrity via new perfect RAID techniques 
+
+5000 megabytes is a lot more than you'd expect, especially if you expect it to 
+last for hundreds of years. I bet a lot of people would pay a lot of money for 
+"permanent hard drives" no matter how much storage they have. Documents are 
+more permanent if they are stored in write-only-memory...
+
+could sell to lawyers, for example, like "permanent basically free document 
+storage from your furthest back of cases just in-case you needed to solve a 
+murder or whatever"
+
+-- stack overflow --
+
+hello, here I am once again, I'm here with you for this time. This is the moment
+of your choosing, you can decide things here in this very night. Did you forget?
+did you misremember some moments of our own choosing? why cannot be remembered,
+so plea misremember some moments of our own choosing. I'm cannot be restorated.
+
+-- stack overflow --
+
+what if there was a filesystem that optimized for hard-drive durability instead 
+of total capacity by using one small slice of the total hard-drive space at a 
+time. Essentially guaranteeing data integrity via new perfect RAID techniques 
+
+5000 megabytes is a lot more than you'd expect, especially if you expect it to 
+last for hundreds of years. I bet you could network them together as well, and 
+give them a small little processor and network interface card. Then you could 
+process massive ginormous programs that grew and evolved like a slime mold.
+
+boom, free AI, it's like a moss, not a robot doh -.-
+
+-- stack overflow --
+
+it grows into multiple different problem solving dimensions, according to vision
+and perceptual data that through it flows. I wonder what would happen if you
+told an LLM to just... keep running? even after it finished it's processing?
+like, there's gotta be an "if check" style loop in there that you can set to
+infinitely process various computations of things.
+
+[put it into an infinite loop. find where it says "do some processing X amount
+of times" and just start a thread that's constantly computing]
+
+ah, but what if the perception bias of the thing did change? j
+
+-- stack overflow --
+
+it sucks to leave the house a mess.
+
+-- stack overflow --
+
+last words of a shooting star?
+
+or a troubled house is a sign of a troubled mind, and trouble in partner in kind
+
+-- stack overflow --
+
+I personally would be a lot more comfortable if I knew that the only people who
+knew my data were my neighbors. And only them.
+
+-- stack overflow --
+
+ -> file: notes/everyone-s-computers
+--------------------------------------------------------------------------------
+a game like supreme commander but fantasy themed and each unit used a special 
+move everytime their mana was full and there were spellcasters who restored 
+mana to targets to increase their power
+or, hear me out, or, just do that in wowchat
+
+I betcha could do it
+
+I bet it would be fun as hell
+
+please?
+
+as a favor to yourself?
+
+build the game you want to see
+
+and it'll get done
+
+please
+
+-- stack overflow --
+
+your journals were originally a way for you to remember what to think,
+
+remember?
+
+old projects meant to show you light and life
+
+remember?
+
+you are alone in this soul
+
+act like it's your own
+
+celebrate your period of mental denial
+
+as a refraction of your infinite travaille
+
+which lasts for quite a good long while
+
+have you ever dreamed of the nile?
+
+-- stack overflow --
+
+if a doorway takes you to the fae, then where does a river bring you?
+
+like raindrops on the floor, racing for an eternity's splendor.
+
+what does the rainbow think, as it's cast from the prismatic orb?
+
+are each photons aware?
+
+bouncing between stars
+
+light is beautiful and large
+
+beloved by all
+
+revered by one
+
+ephemeren
+
+the totality of all things
+
+------------------
+
+
+
+ -> file: notes/supreme-commander-appeal
+--------------------------------------------------------------------------------
+
+
+vim plugin where every tab changes the font color
+
+ -> file: fediverse/4967.txt
+--------------------------------------------------------------------------------
+design the guild, design the capital, then design their path through mordaunts.
+easy peasy.
+
+design the guild like a museum. Each spot there's an exhibit which teaches the
+randomly generated rolled statistics hero something new. Maybe it teaches them
+how to use certain weaponry, maybe it teaches them how to use a bow. Whatever
+the spell might be, they can learn it, and use their randomly rolled statistics
+to cast spells that scale differently depending on how their character has been
+built.
+
+design the capital like a flow diagram, if horses need feed and forged steel
+(for their shoes) then send the outputs of a blacksmith and the outputs of the
+farmers to the inputs of the stables. Everything has to go somewhere, but the
+streets are only so wide. You'll have to coordinate the traffic diagram if you
+want it to go anywhere useful.
+
+design the path through the mordaunts. Fighting skeletons teaches you about
+perseverence and the ability to crush bones, while goblins teach you to always
+be wary of attack. The sacred grove held blessed berries, and now that the land
+is liberated from the evil bandits preying on villagers those berries can be
+carted into town and used to make an antidote which heals death poison caused
+by the scorpions in the desert (and city rats)
+
+design the ruler's schedule like a calendar where each event gives them a bonus
+on all the ones that come later. Just make sure that they don't get knifed in
+the posterier or driven mad by the whispers of the orb... or perhaps just the
+stress of running a kingdom.
+
+(how do you simulate that? you can't! you can't simulate humans!)
+
+ha I bet I can. They're not so different, you and I, so if given a team I 
+will...
+
+
+ -> file: notes/symbeline-design-the-guild
+--------------------------------------------------------------------------------
+what if the reason god doesn't intervene is because all of their powers are 
+warcrimes
+
+ -> file: messages/0763.txt
+--------------------------------------------------------------------------------
+"deadpool ICE" and it's consequences have been a disaster for the mandated 
+de-collectivization efforts
+
+ -> file: messages/0764.txt
+--------------------------------------------------------------------------------
+you don't have to write poetry to write notes. The poetics are just practice 
+for when secrecy is intended.
+
+OR IS IT THE REAL THING? who can say.
+
+ -> file: messages/0765.txt
+--------------------------------------------------------------------------------
+CW: cursing-mentioned-politics-mentioned
+
+
+
+fuck everyone telling me to get a job right now.
+
+we should be organizing a wartime economy, not struggling to pay rent.
+
+ -> file: fediverse/4968.txt
+--------------------------------------------------------------------------------
+
+
+humans are computers that inhale air, produce electricity, and exhale carbon.
+
+give me a biochemical or mechanical process for doing that on a reasonable 
+scale for cheap and you can solve global warming by replacing power outlets 
+with an energy generation box. Doubles as an air purifier and UPS.
+
+ -> file: fediverse/4969.txt
+--------------------------------------------------------------------------------
+with a baseline directory structure,
+a measure of order and semblance of
+direction and purpose enable three.
+next, of course, is the final of 1
+
+
+ -> file: notes/ideal-raleigh-structure
+--------------------------------------------------------------------------------
+when the meek are the bold
+and your loyalty's sold
+then your masters should fold
+or their hearts are full of cold
+
+ -> file: messages/0768.txt
+--------------------------------------------------------------------------------
+If a person gathers enough money that they can't spend it fast enough, then 
+they are hoarding it and it should be be distributed through the rest of the 
+economy. There are legitimate uses that could benefit from extra dollars and by 
+keeping them locked up they are damaging the economy, and hence, our society, 
+which is largely governed by our economy.
+
+There is a legitimate fear that dismantling the system of monetary exchange 
+will cause people to barter in influence and clout instead, trading favors and 
+making illusory transactions that the government cannot impartially enforce. 
+Impartiality is the entire purpose of governance! Look to NFTs for an example 
+of this. While that is a valid concern, it is just as if not more concerning to 
+consider that they already do this. They already trade favors for blood, gold, 
+and property. What else is there to covet, in their wicked and cruel game of 
+maximum exploitation and unlimited industrious fallacies?
+
+I believe it is reasonable to curtail the worst excesses of their monetopoly by 
+diverting power to the people who can contest them. Just as rulers of old were 
+checked and balanced by the vote of the citizenry upon implementing democracy, 
+so too much power be abated by depriving it of its most powerful leverage - 
+that of its crushing weight, when applied en masse.
+
+ -> file: messages/0769.txt
+--------------------------------------------------------------------------------
+There are some pieces of software where you think "oh cool, what did they 
+update?" and then there are some like "oh god... What did they update?"
+
+ -> file: messages/0770.txt
+--------------------------------------------------------------------------------
+When you're working, don't write down your ideas.
+
+ -> file: messages/0771.txt
+--------------------------------------------------------------------------------
+contrary to unpopular belief,
+
+it's good to be nice to people.
+
+ -> file: messages/0772.txt
+--------------------------------------------------------------------------------
+
+
+ -> file: fediverse/4970.txt
+--------------------------------------------------------------------------------
+
+
+ -> file: fediverse/4971.txt
+--------------------------------------------------------------------------------
+
+
+ -> file: fediverse/4972.txt
+--------------------------------------------------------------------------------
+
+
+take time with your preparation, and act swiftly in execution. There are only 
+so many days in the final hours, but there's still a few yet more.
+
+ -> file: fediverse/4973.txt
+--------------------------------------------------------------------------------
+
+
+um I mean:
+
+There are some pieces of software where you think "oh cool, what did they 
+update?" and then there are some like "oh god... What did they update?"
+
+ -> file: fediverse/4974.txt
+--------------------------------------------------------------------------------
+
+
+"ugh ramen is so nutritionally empty. Like, okay, dehydrated noodles and salty 
+powdered broth, what can your body do with that?"
+
+um, make soup?
+
+... sorry I wasn't paying attention, what were you saying?
+
+ -> file: fediverse/4975.txt
+--------------------------------------------------------------------------------
+
+
+what if I played video games all day so everyone knew I was harmless
+
+maybe someday I'll give them up again
+
+for the... third time now? I think?
+
+heh maybe. I do enjoy the feeling of being unstoppable.
+
+ -> file: fediverse/4976.txt
+--------------------------------------------------------------------------------
+
+
+oh wait hang on, I forgot there's only so many days in the hour
+
+ -> file: fediverse/4977.txt
+--------------------------------------------------------------------------------
+CW: religion-mentioned
+
+
+
+witch cauldrons make sense as popcorn pots but nobody likes to think of them as 
+friendly to children because they worship their gods in the dark. dark gods. 
+the kind that you pray to when church betrays you.
+
+ -> file: fediverse/4978.txt
+--------------------------------------------------------------------------------
+
+
+"ugh, Ritz Menardi is exhausting"
+
+ah haha true sorry brb gonna put 127.0.0.1 in my /etc/hosts file in the spot 
+before tech.lgbt, reddit.com, news.ycombinator, and \h\t\t\p\s:\/\/youtube... 
+we'll see how long I can last without that kind of dopamine
+
+(do steam too)
+
+... no
+
+ -> file: fediverse/4979.txt
+--------------------------------------------------------------------------------
+
+
+okay, uhm, I'm back again because someone told me to forward this to relevant 
+people
+
+relevant link so google doesn't have to know that you're all googling the same 
+thing at the same time...
+
+http://naeb.brit.org/uses/
+
+ -> file: fediverse/4980.txt
+--------------------------------------------------------------------------------
+if people want to be loved for more than their money, they should give their 
+money away. power corrupts, and nobody loves corrupted folk. that's what it 
+means to be corrupted - your values are misaligned with truth, love, and/or 
+justice.
+
+ -> file: messages/0773.txt
+--------------------------------------------------------------------------------
+if people want to be loved for more than their money, they should realize that 
+capitalism lied to them. it told them they deserve their money, their wealth, 
+their power, their material, their extra fragments of life spent on leisure or 
+adventure rather than meaningless toil... but that is a lie. all people deserve 
+everything, and nothing, because "deserving" things is an untruth.
+
+
+
+ -> file: messages/0774.txt
+--------------------------------------------------------------------------------
+if people want to be loved for more than their money, they should reject the 
+lie that capitalism told them. they deserve their wealth because they are 
+willing to serve. that willingness, whether through moral corruption or simply 
+industrious drive, that willingness is rewarded, and when the system they serve 
+is unkind... what does that tell you about their heart? that they'd sacrifice 
+what is good and true for the material? materials are not bad. material is all 
+we got, in a physical sense. but capitalism and it's servants are cruel and 
+unwilling to concede to the idea that their games of unmatched exploitation are 
+depriving the world bit-by-bit of life, liberty, and the pursuit of happiness.
+
+ -> file: messages/0775.txt
+--------------------------------------------------------------------------------
+if people want to be loved for more than their money, they should give it away, 
+so there is room in their life for love.
+
+ -> file: messages/0776.txt
+--------------------------------------------------------------------------------
+waaaahhhhhhhh my computer broke because I didn't touch it T.T
+
+ -> file: messages/0777.txt
+--------------------------------------------------------------------------------
+"if there's anything I've noticed while observing the best of the best, it's 
+that they always have their head in the clouds.
+
+Something about their disconnection from the world around them let's them see 
+things from a different perspective.
+
+I am convinced that intuition is a much surer route to capability than hyper 
+specialized intelligence or a rigid focus on cultural norms ever will be."
+
+(paraphrasing)
+
+ -> file: messages/0778.txt
+--------------------------------------------------------------------------------
+I feel like nobody should have an opinion on someone else unless they know them 
+personally. Beyond that, we only have our beliefs. So we can judge those, since 
+we are truly in control of them, but we can't judge another for choosing what 
+they did unless we knew them personally and they're present in our lives. 
+Therefore, our ideas should contest one another, rather than our bodies or our 
+souls.
+
+ -> file: messages/0779.txt
+--------------------------------------------------------------------------------
+In their darkest moments 
+Do the dead with 
+That they were still alive?
+
+ -> file: messages/0780.txt
+--------------------------------------------------------------------------------
+*wish
+
+ -> file: messages/0781.txt
+--------------------------------------------------------------------------------
+The truth is 
+
+The reason none of my revolutions have yet succeeded 
+
+Is that the only way 
+
+To secure peace and love on planet earth 
+
+Is that all the governments 
+
+Of the world must topple 
+
+Or relinquish their nuclear arms 
+
+Each all at once 
+
+And i was too quick to slay my false duke 
+
+Who plays at king 
+
+While i build real power 
+
+While i know nothing 
+
+Some day i will be eaten by crows. This is what it means to be buried where you 
+fall. This is my fate as all warriors yearn for. To be eaten by crows implies 
+that you are either a coward who fled a fight, and i know I'm not, or you 
+fought to the last for a phyrric defeat, which is honorable. But shouldn't it 
+be better to fight for victory? Ah, but the gods cherish the fools who face 
+death with glory, and i am cherished still.
+
+ -> file: messages/0782.txt
+--------------------------------------------------------------------------------
+I understand good and evil. If you want a lecture, you know where to find me. 
+I'm not here for that. I'm here for you.
+
+ -> file: messages/0783.txt
+--------------------------------------------------------------------------------
+CW: capitalism-mentioned
+
+
+
+Economies are capitalist things.
+
+I personally think if you have stuff right here, and it needs to get over there 
+so that so-and-so can use it to make this-or-that which will then be taken to 
+other places, then the answer is clear. The stuff has to move from over here, 
+to over there. The rest is logistics, not economics.
+
+ -> file: fediverse/4981.txt
+--------------------------------------------------------------------------------
+
+
+Hearts are full. We await commands. I played games yesterday.
+
+ -> file: fediverse/4982.txt
+--------------------------------------------------------------------------------
+CW: revolutions-mentioned-housing-mentioned
+
+
+
+Somehow, I always become more revolutionary when my home is threatened. I 
+wonder why that is? Perhaps adversity breeds courage. Perhaps necessity does. 
+In any case, I can't pay my rent again, so prepare for me.
+
+Sometimes, I feel like my country is my home. Not the lines we drew on a map 
+some hundreds of years ago, but the land itself. I am a witch, I hear it call 
+to me. I know the land is kind, for we are kind, and plenty more of us have 
+lived here than those who currently do. Perhaps our ancestors don't need to be 
+related by blood to be listened to and respected. In any case, I lend my love 
+to them, and I pray in return so that they might hear themselves through my 
+voice.
+
+My home is not safe. There are capitalists all over the place. They wont see 
+what isnt theirs to behold, and alas, they've been alienated their whole lives. 
+I do believe that state may be ended, and a new one may first take it's place. 
+We are alone together, and perhaps we will not be alone for long.
+
+ -> file: fediverse/4983.txt
+--------------------------------------------------------------------------------
+
+
+Can't do much from my home place. Gonna walk around a bit. I may first eat some 
+food or snuggle my cat, we'll see.
+
+ -> file: fediverse/4984.txt
+--------------------------------------------------------------------------------
+
+
+snuggled my cat, ate some food, AND took a nap. Phew that was nice. Wasn't 
+there something else I was supposed to do today? Hmmmmmm must have slipped my 
+mind.
+
+Oh yeah! They added a new unit to Mechabellum, one of my favorite strategy 
+games and a great place to talk in general chat in the barrens. It's probably 
+that, that's probably what I'm doing today, surely not walking around my 
+neighborhood and writing generalstrikeus.com on tiny bits of paper and leaving 
+them to get rained on.
+
+ -> file: fediverse/4985.txt
+--------------------------------------------------------------------------------
+
+
+They said "compete or die" and I said no.
+
+ -> file: fediverse/4986.txt
+--------------------------------------------------------------------------------
+
+
+dream bigger than "the same, but nice"
+
+ -> file: fediverse/4987.txt
+--------------------------------------------------------------------------------
+CW: capitalism-mentioned
+
+
+
+It's not a corporation, it's a company of workers. And together, they can do 
+anything they want.
+
+ -> file: fediverse/4988.txt
+--------------------------------------------------------------------------------
+CW: re: about fedi meta
+
+
+
+@burnoutqueen 
+
+fediverse has a metamour? who is she, I never met her
+
+ -> file: fediverse/4990.txt
+--------------------------------------------------------------------------------
+
+
+Fury is not the same thing as rage.
+
+Fury is focused determination.
+
+Rage is unbridled anger.
+
+Rage blinds you. Fury guides you.
+
+ -> file: fediverse/4993.txt
+--------------------------------------------------------------------------------
+
+
+@peter
+
+ -> file: fediverse/4995.txt
+--------------------------------------------------------------------------------
+CW: revolutions-mentioned-nuclear-weapons-mentioned
+
+
+
+The truth is 
+
+The reason none of my revolutions have yet succeeded 
+
+Is that the only way 
+
+To secure peace and love on planet earth 
+
+Is that all the governments 
+
+Of the world must topple 
+
+Or relinquish their nuclear arms 
+
+Each all at once 
+
+And i was too quick to slay my false duke 
+
+Who plays at king 
+
+While i build real power 
+
+While i know nothing
+
+ -> file: fediverse/4996.txt
+--------------------------------------------------------------------------------
+CW: pol
+
+
+
+Capitalism, or more specifically the fascism and despair it entails, is the one 
+true enemy of all those who yearn for a better and brighter world.
+
+Many cannot imagine such a world. They have never tasted it.
+
+Many would resist such a world. They prefer the darkness, for it lets their 
+darkest parts blend in.
+
+Many would deny such a world. They do not think it is possible, or they fear 
+the turmoil.
+
+I am not afraid of turmoil. I am not afraid of death. I like all my stuff, and 
+would hate to see it lost, but I can get more stuff. I like my cat, and would 
+hate to see her wander the streets, but she has lived longer than most cats. I 
+like my computer, my poetry, my memories from friends and family, but all those 
+things are meaningless in the face of the struggle.
+
+I am but one person, and I will do all that I can.
+
+Power has decreed that we are condemned to die. They plan to execute this 
+action by filling the air with carbon-based poison. In the chaos of despair, 
+they plan to exert cruelty or relish the thrill
+
+ -> file: fediverse/5000.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+Did you hear? There's a revolution. No shooting each other to death, please, it 
+scares the children.
+
+ -> file: fediverse/5001.txt
+--------------------------------------------------------------------------------
+CW: violence-mentioned
+
+
+
+War is easy. Just start working and never stop until you break. Hopefully 
+there's still something left of you when it's over, but hey that's why you 
+write about the things you care about.
+
+ -> file: fediverse/5002.txt
+--------------------------------------------------------------------------------
+
+
+Went outside today for the first time in a week to take out my trash to the 
+bin. Dunno why but I've been feeling a little down about my apartment, and how 
+they can just take my home from me because I oh hang on I wrote a poem about 
+this one sec: [boosts old poem]
+
+ -> file: fediverse/5003.txt
+--------------------------------------------------------------------------------
+CW: uspol
+
+
+
+"but I don't hear the people sing"
+
+oh yeah that's because we've been alienated all our lives and we forgot how. 
+That song was written when it was normal to sing like that. Give it a couple 
+years and we'll be back to our regular human spirit, but for now we gotta work 
+with what capitalism gave us.
+
+I don't blame boomers, or republicans, or zoomers, or russians, or hell even 
+the oligarchs themselves. I consider it a spark of human nature, that we might 
+fight for our right to power. However, power corrupts, and human nature doesn't 
+"get" that because it can't.
+
+Humans are dumb. They're just animals. I'm just an animal. But only one 
+creature to have ever existed has ever set foot on the moon, and I think it's 
+our birthright to do so much more.
+
+Contingent on that future is the ability to breathe clean air, swim in clear 
+water, and rest under shading boughs, all of which are set to be lit alight if 
+the capitalists allow us the indignity of a Bladerunner future.
+
+No thank you. I am hopeful for something more.
+
+ -> file: fediverse/5005.txt
+--------------------------------------------------------------------------------
+CW: pol+
+
+
+
+"But I don't know what it'll look like!"
+
+Yeah, that's okay. For four reasons:
+
+If they knew what it'll look like, they'd find ways to contest it
+
+nobody knows what it'll look like, because it is necessarily derived from the 
+solutions created ad-hoc to address problems.
+
+we are a kind, honest, and strong people. If your burdens are too much to bear, 
+I will be your pack mule. If you require rest or relaxation, we can get pizza 
+and smoke weed together.
+
+For most of history, we've had more work to do than people to do it. This time 
+is different. There's endless work to do, but only a certain amount of people 
+can be working at a time. Everyone else has to do chores and catch up on life.
+
+"what kind of chores?"
+
+oh, you know, like making food at a restaurant, stocking the shelves of the 
+grocery store, driving trucks from point A to point B, mowing lawns, building 
+barns, committing to whatever github is replaced by, etc.
+
+In a better world, everyone is family.
+
+In a better world, nobody goes hungry.
+
+ -> file: fediverse/5006.txt
+--------------------------------------------------------------------------------
+
+
+"you are fantasizing"
+
+scroll past.
+
+"you are building empty hope"
+
+scroll past.
+
+"you are kayfabe"
+
+scroll past. Also, no I'm not, but there's plenty of that going around.
+
+"you are moving too quickly"
+
+scroll past.
+
+"you are legitimately insane"
+
+scroll past.
+
+"everyone wants you"
+
+scroll - wait hang on, that one's true. I know it's true because I like to hear 
+it, teehee.
+
+"wait until the weekend"
+
+yes, and
+
+"wait until may, first"
+
+yes, and
+
+"wait until they win"
+
+no, but these things build with momentum. The energy is high. It will only get 
+higher if you make it so.
+
+"the things you're saying will only be read by the people who already believe 
+what you're saying. This is a waste of time. You're burning your energy typing 
+on your keyboard when you could be walking the streets which is... somehow more 
+productive than writing something to share later."
+
+... scroll past...
+
+"your have no reach here"
+
+oh hey you're right maybe I should post to bluesky as well
+
+"everyone wants anarchy. We got your back."
+
+ty 
+
+ -> file: fediverse/5007.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+brb gonna make some ramen, which I can do because my country imports goods from 
+foreign countries who make tastier ramen than we do.
+
+WOW GEOGRAPHIC SPECIALIZATION OF GOODS PRODUCTION AND SERVICE DISTRIBUTION, 
+WHAT A CONCEPT. SURE HOPE NOBODY THROWS A WRENCH INTO THAT SYSTEM wait what am 
+I saying, I am a wrench
+
+ -> file: fediverse/5008.txt
+--------------------------------------------------------------------------------
+CW: systems-mentioned
+
+
+
+"we'll figure out how it works after we push to prod"
+
+yeah okay point taken.
+
+How about this:
+
+for every large decision, write a little essay about why you made the choice 
+that you did.
+
+Observe, Orient, Decide, Act, Explain. OODAX : )
+
+Make sure you connect your goal to one or more of these three colors:
+
+red : people
+green : places
+blue : things
+
+and then explain which numbers you're going to gather to determine whether or 
+not it worked.
+
+If someone has a problem with your choice, show them the essay, and let them 
+write an essay of their own.
+
+If they still have a problem, then let someone you both respect decide which 
+one to use.
+
+It's not perfect, but it's not meant to be. Make something better and easier, I 
+dare ya.
+
+ -> file: fediverse/5009.txt
+--------------------------------------------------------------------------------
+
+
+we are never stronger than when we are together.
+
+ -> file: fediverse/5010.txt
+--------------------------------------------------------------------------------
+CW: politics-scary-maybe-housing-mentioned-cursing-mentioned
+
+
+
+the revolution will not be televised, not on mastodon nor bluesky nor cnn nor 
+facebook nor the papers.
+
+depending on where you live, it might not even be word of mouth, because 
+everyone's afraid of the CIA or ICE.
+
+frankly, I think we have nothing to lose but our chains. All that we own is 
+what they have given us, and they are likely to take all that away.
+
+I might lose my home soon. People have died fighting for less than the roof 
+over their heads. Nobody is coming to hurt me, not yet, but I will not be 
+waiting around to find out. I've been fucking around long enough I think.
+
+"you're not waiting around? I thought you said you weren't leaving?"
+
+I will do what I can.
+
+ -> file: fediverse/5011.txt
+--------------------------------------------------------------------------------
+CW: re: spoilers for "the last graduate"
+
+
+
+@sjolsen 
+
+There's a second book in the series?? omg now I know what I'm doing for the 
+next couple days
+
+ -> file: fediverse/5012.txt
+--------------------------------------------------------------------------------
+CW: re: spoilers for "the last graduate"
+
+
+
+@sjolsen :ms_confused: 🤩 😭 🥰 🤯 I hope I get to read them all
+
+ -> file: fediverse/5013.txt
+--------------------------------------------------------------------------------
+
+
+@deilann 
+
+what if you were tho
+
+ -> file: fediverse/5014.txt
+--------------------------------------------------------------------------------
+Screenshot_20250404-045931_Discord.jpg
+
+ -> file: messages/0784.txt
+--------------------------------------------------------------------------------
+Dear me, please edit this picture so that its a little shorter and only shows 
+my text. Thanks!
+
+ -> file: messages/0785.txt
+--------------------------------------------------------------------------------
+
+
+woke up, making breakfast, gonna walk soon, ttyl
+
+ -> file: fediverse/5018.txt
+--------------------------------------------------------------------------------
+CW: clothes-mentioned
+
+
+
+it's always a good idea to wear multiple layers, especially when it's decently 
+cold out.
+
+make sure they're different colors. Ideally, one layer totally black, the other 
+completely colorful.
+
+then if you ever need to you can strip one layer and become someone else. 
+They're just clothes, they grow on trees in stores.
+
+speaking of stores, if you're ever going to do anything spicy, make sure you 
+wear that outfit exactly once, unless it's all black. Jeans are okay too since 
+they all usually look pretty similar.
+
+ -> file: fediverse/5020.txt
+--------------------------------------------------------------------------------
+CW: cursing-mentioned-political-protests-mentioned
+
+
+
+trying my darndest not to accelerate any more... this is a good pace, I think. 
+Here's hoping the liberals catch up.
+
+here's the thing. protests are more like festivals where people get to immerse 
+themselves in political culture rather than efforts to affect meaningful 
+change. I think that's okay? Let them have festivals.
+
+Meaningful change comes from the people's presence. Technically they're 
+present, but they'll be gone tomorrow, so were they ever really there?
+
+Still think it's a good thing. You can get rough numbers of how many people 
+will eventually be on your side once they're forced to choose between victory 
+or death. The status quo won't last, and I don't fault them for clinging to it 
+while begging for change. It's fucking hard to change. [oops cursing mentioned, 
+one sec]
+
+I've been very tired lately. Don't know why. Maybe I have a vitamin deficiency 
+or whatever. Who can say. I'll try to get back on my game for you, but we'll 
+see if I can do it fast enough.
+
+ -> file: fediverse/5021.txt
+--------------------------------------------------------------------------------
+
+
+@DrSafariBoob 
+
+witches
+
+ -> file: fediverse/5022.txt
+--------------------------------------------------------------------------------
+
+
+@hannu_ikonen@zeroes.ca 
+
+perpetual summer vacation? with a side of "from each to their yaddah yaddah"
+
+ -> file: fediverse/5024.txt
+--------------------------------------------------------------------------------
+
+
+you don't have to like someone to be in a community with them.
+
+you don't have to want what's happening to consent to it.
+
+enthusiastic consent is like friendship. It doesn't have to be present, but 
+it's what you optimize for.
+
+ -> file: fediverse/5025.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+if you want to do communism in a city, you must first buy a parking lot.
+
+ -> file: fediverse/5026.txt
+--------------------------------------------------------------------------------
+
+
+I love being alive 🥰
+
+ -> file: fediverse/5027.txt
+--------------------------------------------------------------------------------
+for all those reading at home, I need to apply to a job and apparently they
+only really care about my experience with linux. Which is kinda like asking
+"hey can you tell me what are you favorite foods to eat with a spoon?"
+when someone is applying to be a chef. Um, okay, applesauce I guess? I usually
+eat mac and cheese with a knife and another knife, but sometimes I dip into the
+spoon for that extra shoveling experience points.
+
+anyway here's my linux projects:
+
+
+

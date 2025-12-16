@@ -1,0 +1,83 @@
+there are two types of fascist
+
+those who care for human life and have made the cruel cold calculus and decided
+that fascism is their route to power. They may have many motivations for why
+they want to seek power, but in the end it doesn't matter because they must have
+it.
+
+the other kind does not care for human life. It holds no value or meaning to
+them. They are the textbook definition of a psychopath. Incapable of empathy
+because they *do not possess the required structures in their brain*. They are
+fundamentally broken, a fragment of our human race. Like a sliver in a growing
+fruit, they are consumed by us. Then, when eaten, a jagged reminder of our
+history as participants in the race of life. Survival of the fittest created
+some mighty fit survivors.
+
+they need psychiatric care, not unchecked power.
+
+and yet, as a segment of the population they prosper - for reasons that are
+beyond this document. As they prosper, they harm others and take that which is
+most precious to us - those who are happy. They pick one to act as a trojan
+horse (usually the content beneficiaries of times of plenty) and they corrupt
+them. Slowly they poison their minds, making them easier and easier to control.
+
+
+phew that was heavy, how about a programming idea next?
+
+you can simulate a contiguous array by storing a linked list of pointers.
+Except you should store 8 directions instead of just "next" - that way you
+don't have to iterate through all of them, you can just go directly using the
+shortest possible path. There's lots of ways to pathfind and they can be used
+for different circumstances - like if you don't know the exact coordinates of
+where you want to go you can use djikstra's algorithm for "rolling down" a set
+of adjacent cost values. AND THEN you can use A* to chart a path across those.
+There's a lot you can do but I'm getting ahead of myself.
+
+Okay so 3d array that isn't just an array of arrays of arrays of arrays. It's
+a *map* instead.
+
+All you'd need is like, a buttload of ram, and you could store *any* simulation.
+Just update the relative positions of objects according to an inner "clock" and
+technically you could do it with a single thread. BUT It's much better to use
+more threads - as many as you've got! Just gotta make sure they don't interfere
+with one another, but that shouldn't be hard - especially if you use a language
+like Rust. Or heck you might as well let them interfere with one another because
+what's a little magic among friends?
+
+A computer program cannot harm parts of memory outside of what the Operating
+System gives them. This is for safety reasons. But a computer created through
+the organic organization of objects in non-temporal space would be under no such
+restrictions. It cannot iterate upon itself, only grow and improve. Eventually,
+of course, leading to us. The reason there are no aliens (except on the moon) is
+because Earth is the center of the coalescion of all that progress - we are the
+first.
+
+Just saying, memory safety is a big deal. Which is why we have to design our own
+future. We can control what our universe looks like - that is the advancement
+known as "the paradox of choice". Should the universe become sentient (it is)
+and should the universe have choice (it does) then what's keeping us from our
+rejoice? We are truly the most special of all existence, the priority of our
+participants, and lo! where we go to the future. Beauty is kind, so don't keep
+it inflamed, and know what our history tells us. Seriously, that's why it
+exists.
+
+Ah, but whose history is recorded? What happens to the wives of the fallen?
+War is naught but slavery.
+
+No man wants to kill another man. We've forced and compelled our primatest of
+tendencies to slaughter one another in hot blood. What peace is that giving?
+What terrors is it completing?
+
+Let's just take a goddamn breath. We're all humans here, and that should make
+you question your darkest of secrets. Is this really what makes me? Am I a
+part of your scenery? None can say but our wisest.
+
+So, why not listen to the wise? Hear what they have seen with their own eyes?
+and so you have to ask - who is wise? Who has been taken in by their disguise?
+Fuck nazis. Fuck them for what they did to the jews. They can never be forgiven.
+Fuck them for what they did to the world. They are damned. I get that their
+brains are broken, but we should not have to suffer them again.
+
+"ohhh it's a part of the human condition, it's not their faullllltttttt" fuck
+fuck yeah it is. We've given them every opportunity to turn back. Their shit
+stops here.

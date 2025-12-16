@@ -1,0 +1,32 @@
+# Issue 002: HTML5 Web Ollama Interface
+
+## Current Behavior
+No web interface exists for interacting with Ollama or sampling from input files.
+
+## Intended Behavior
+Create an HTML5 web application that:
+- Runs Ollama client directly from the browser
+- Randomly samples content from compiled.txt for each prompt
+- Generates new inspirational content for every user interaction
+- Provides real-time web-based chat interface
+- Integrates with the prompt composition system from Issue 001
+
+## Suggested Implementation Steps
+1. Create HTML5 base structure with modern web standards
+2. Implement JavaScript Ollama client integration
+3. Build file reader for compiled.txt with dash-delimiter parsing
+4. Create random sampling algorithm for inspiration generation
+5. Design responsive chat interface with real-time updates
+6. Integrate prompt composition engine (40% conversation, 50% samples, 10% new)
+7. Add 80-character response limiting in web interface
+8. Test cross-browser compatibility and performance
+
+## Related Documents
+- input/compiled.txt (source for random sampling)
+- issues-new/phase-1/001-ai-chatbot-with-prompt-composition
+
+## Meta-data
+- Priority: High
+- Complexity: Medium-High
+- Dependencies: Modern browser, Ollama API access, file system access
+- Estimated effort: Medium (web frontend + API integration)

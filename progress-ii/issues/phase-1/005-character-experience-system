@@ -1,0 +1,53 @@
+# Issue 005: Character Experience System
+
+## Current Behavior
+No character progression system exists. Players cannot level up characters or allocate experience points.
+
+## Intended Behavior
+Implement the character experience and leveling system for Maxine and her companions, including stat allocation, experience distribution, and bonus mechanics.
+
+## Suggested Implementation Steps
+1. Define character data structure (stats, experience, levels)
+2. Create character management functions with vimfolds:
+   - gain_experience()
+   - level_up_character()
+   - allocate_stat_points()
+   - calculate_stat_bonuses()
+3. Implement experience distribution system (1 XP to companions per 5 player XP)
+4. Create point pool unlocking mechanism (unlock at 5 XP intervals)
+5. Add stat allocation interface and validation
+6. Implement bonus system for stats matching recent experiences
+7. Create companion management system
+8. Add character display and status functions
+9. Implement experience event logging
+
+## Related Documents
+- notes/vision (lines 53-66 about experience and leveling system)
+- docs/game-overview.md (Character System section)
+
+## Acceptance Criteria
+- Experience is gained and distributed correctly
+- Point pools unlock at proper intervals
+- Stat allocation interface is functional
+- Bonuses are applied for relevant stat choices
+- Companion experience system works properly
+- Character data persists between sessions
+- Character status is clearly displayed
+- Experience events are logged appropriately
+
+## Priority
+Medium-High - Core progression mechanic
+
+## Estimated Effort
+4-5 hours
+
+## Dependencies
+- Issue 002 (File System State Management) - for character data persistence
+- Issue 001 (Basic Terminal Interface) - for user interface integration
+
+## Related Stats
+Based on vision document, stats should relate to:
+- Problem-solving approaches (wit, strength, etc.)
+- Environmental interaction (druid skills for hiking)
+- Social interaction (marketplace bartering)
+- Combat and survival (luck points, resilience)

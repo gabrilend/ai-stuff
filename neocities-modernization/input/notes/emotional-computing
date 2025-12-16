@@ -1,0 +1,22 @@
+Okay I gotta go write some w7 but picture this: A computer program that emits
+emotions during it's computing. Like "oh boy this process is going great!" and
+sends that into a giant word cloud that represents the entire program. Wait,
+scratch that, it's slowly filtered up through successive layers that provide
+detail to different *parts* of a program. Like "Oh the image generation is going
+great but it looks like the garbage collector is getting bogged down" - this
+could provide lots of useful information that an AI language model could sift
+through and filter into a batch of actually useful information. Think of it like
+this - stuff as much context into the LLM's memory buffer and say "summarize
+this in the same style. Make emphasis when necessary." the LLM could process all
+that data and it could be filtered up until there's no unprocessed data and then
+it could be given to the user in the form of a report or dashboard or something.
+BOOM AI PRODUCTIVITY. The user will ask the AI to increase certain variables,
+and it'll filter BACK DOWN THE CHAIN through the same exact process (just
+backwards) this time) and then individual components will know how to behave.
+
+Like imagine if your arms knew you were mad. They'd be much more likely to
+punch stuff right? Or imagine if your legs knew you were scared. They'd probably
+try and run as fast as they fucking can. There's an evolutionary reason why this
+kind of technology would be useful, which means it's likely that it's part of
+our genetic code. I mean, we have nothing to disprove it, but it's as good an
+idea as any. 

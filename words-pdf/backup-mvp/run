@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/words-pdf"
+
+# Backup Claude conversation transcripts (using parent project directory)
+echo "Backing up Claude conversation transcripts..."
+if command -v python3 &> /dev/null && [ -f ~/scripts/claude ]; then
+    source ~/scripts/claude
+    write-transcripts-to-project-directory "${DIR}" 2>/dev/null || echo "  (No new transcripts to backup)"
+else
+    echo "  (Transcript backup unavailable - missing python3 or ~/scripts/claude)"
+fi
+
+export \
+   LD_LIBRARY_PATH=${DIR}/libs/libharu-RELEASE_2_3_0/build/src:$LD_LIBRARY_PATH
+
+lua5.2 ./compile-pdf.lua "${DIR}" "${DIR}/input/compiled.txt"
+

@@ -1,0 +1,127 @@
+#!/bin/bash
+# {{{ test-build
+# Test script to verify WASM compilation works
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Accept DIR as argument
+if [ "$1" != "" ]; then
+    DIR="$1"
+fi
+
+echo "Testing WASM build system..."
+echo "Project directory: $DIR"
+
+# {{{ test_simple_compilation
+test_simple_compilation() {
+    echo ""
+    echo "=== Testing Simple C to WASM Compilation ==="
+    
+    # Create a simple test C file
+    TEST_FILE="$DIR/src/wasm/test.c"
+    cat > "$TEST_FILE" << 'EOF'
+#include <stdint.h>
+
+// Simple test function
+int32_t add_numbers(int32_t a, int32_t b) {
+    return a + b;
+}
+
+// Test function that returns a constant
+int32_t get_magic_number(void) {
+    return 42;
+}
+EOF
+
+    echo "Created test file: $TEST_FILE"
+    
+    # Try to build it
+    echo "Building test WASM module..."
+    if ./build.sh; then
+        echo "✓ Test compilation successful"
+        
+        # Check if WASM file was created
+        if [ -f "$DIR/src/wasm/game.wasm" ]; then
+            echo "✓ WASM file generated: $(ls -lh "$DIR/src/wasm/game.wasm" | awk '{print $5}')"
+        else
+            echo "✗ WASM file not found"
+            return 1
+        fi
+        
+        # Clean up test file
+        rm -f "$TEST_FILE"
+        return 0
+    else
+        echo "✗ Test compilation failed"
+        rm -f "$TEST_FILE"
+        return 1
+    fi
+}
+# }}}
+
+# {{{ test_game_compilation
+test_game_compilation() {
+    echo ""
+    echo "=== Testing Game Module Compilation ==="
+    
+    # Build the actual game module
+    if ./build.sh; then
+        echo "✓ Game module compilation successful"
+        
+        # Check file size
+        WASM_SIZE=$(stat -c%s "$DIR/src/wasm/game.wasm" 2>/dev/null || echo "0")
+        if [ "$WASM_SIZE" -gt 0 ]; then
+            echo "✓ Game WASM size: $WASM_SIZE bytes"
+        else
+            echo "✗ Game WASM file is empty or missing"
+            return 1
+        fi
+        
+        return 0
+    else
+        echo "✗ Game module compilation failed"
+        return 1
+    fi
+}
+# }}}
+
+# {{{ run_tests
+run_tests() {
+    echo "Running compilation tests..."
+    
+    TESTS_PASSED=0
+    TESTS_TOTAL=2
+    
+    if test_simple_compilation; then
+        ((TESTS_PASSED++))
+    fi
+    
+    if test_game_compilation; then
+        ((TESTS_PASSED++))
+    fi
+    
+    echo ""
+    echo "=== Test Results ==="
+    echo "Passed: $TESTS_PASSED / $TESTS_TOTAL"
+    
+    if [ "$TESTS_PASSED" -eq "$TESTS_TOTAL" ]; then
+        echo "✓ All tests passed!"
+        echo ""
+        echo "Your WASM build system is ready!"
+        echo "You can now:"
+        echo "  1. Run ./build.sh to compile the game"
+        echo "  2. Start a web server: python3 -m http.server 8000"
+        echo "  3. Open http://localhost:8000 in your browser"
+        return 0
+    else
+        echo "✗ Some tests failed"
+        echo ""
+        echo "Check the output above for errors."
+        echo "You may need to run ./scripts/build-dependencies again."
+        return 1
+    fi
+}
+# }}}
+
+# Main execution
+run_tests
+# }}}

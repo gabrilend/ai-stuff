@@ -1,0 +1,4 @@
+should create a web dashboard using webassembly and HTML5 that refreshes every
+10ish seconds (configurable) that iterates through all the projects, examines
+their issue files and git log style history, and shows updated progress metrics
+as they slowly resolve.

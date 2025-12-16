@@ -1,0 +1,30 @@
+# Issue 002: Rolling Context Window Implementation
+
+## Current Behavior
+No context management system exists to maintain conversation history across multiple interactions.
+
+## Intended Behavior
+Implement a rolling context window that maintains conversation history, automatically manages context length limits, and preserves important information through "think twice to remember" mechanism.
+
+## Suggested Implementation Steps
+1. Design context window data structure
+2. Implement context length monitoring
+3. Create importance scoring algorithm for content retention
+4. Develop context pruning strategies
+5. Implement "remember twice" persistence mechanism
+6. Create context serialization for file storage
+7. Test context continuity across sessions
+
+## Related Documents
+- docs/architecture-overview.md
+- notes/vision
+
+## Priority
+High - Core functionality for the memory system
+
+## Estimated Effort
+High - Complex algorithms for content management and retention
+
+## Dependencies
+- Issue 001: Local LLM Setup
+- File system access for context persistence

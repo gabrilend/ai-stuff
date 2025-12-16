@@ -1,0 +1,31 @@
+# Issue 004: Basic Test Interface
+
+## Current Behavior
+No user interface exists to interact with the rolling memory system or test its functionality.
+
+## Intended Behavior
+Create a simple command-line or basic GUI interface that allows users to interact with the LLM, observe the rolling memory behavior, and test the system's functionality.
+
+## Suggested Implementation Steps
+1. Design simple command-line interface
+2. Implement basic chat functionality
+3. Add memory status display (context window state)
+4. Create debugging and monitoring features
+5. Implement session save/load functionality
+6. Add configuration options for testing different parameters
+7. Create basic help and documentation system
+
+## Related Documents
+- docs/technical-specifications.md
+- All previous issues for integration testing
+
+## Priority
+Medium - Needed for testing and validation but can be basic initially
+
+## Estimated Effort
+Low-Medium - Simple interface with standard CLI patterns
+
+## Dependencies
+- Issue 001: Local LLM Setup
+- Issue 002: Rolling Context Window
+- Issue 003: File Output Management

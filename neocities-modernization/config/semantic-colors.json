@@ -1,0 +1,33 @@
+{
+  "semantic_colors": {
+    "red": {
+      "rgb": [220, 60, 60],
+      "hex": "#dc3c3c"
+    },
+    "blue": {
+      "rgb": [60, 120, 220],
+      "hex": "#3c78dc"
+    },
+    "green": {
+      "rgb": [60, 180, 90],
+      "hex": "#3cb45a"
+    },
+    "purple": {
+      "rgb": [140, 60, 200],
+      "hex": "#8c3cc8"
+    },
+    "orange": {
+      "rgb": [230, 140, 60],
+      "hex": "#e68c3c"
+    },
+    "yellow": {
+      "rgb": [200, 180, 40],
+      "hex": "#c8b428"
+    },
+    "gray": {
+      "rgb": [120, 120, 120],
+      "hex": "#787878"
+    }
+  },
+  "color_names": ["red", "blue", "green", "purple", "orange", "yellow", "gray"]
+}

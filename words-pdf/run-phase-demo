@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# {{{ Phase Demo Runner Script
+DIR="/mnt/mtwo/programming/ai-stuff/words-pdf"
+
+# Change to project directory if argument provided
+if [ "$1" ]; then
+    DIR="$1"
+fi
+
+cd "$DIR" || exit 1
+
+echo "========================================"
+echo "WORDS-PDF PROJECT - PHASE DEMO RUNNER"
+echo "========================================"
+echo
+
+# {{{ Detect completed phases
+completed_phases=()
+for phase_dir in issues/completed/phase-*; do
+    if [ -d "$phase_dir" ] && [ -f "$phase_dir/test-demo.sh" ]; then
+        phase_num=$(basename "$phase_dir" | sed 's/phase-//')
+        completed_phases+=($phase_num)
+    fi
+done
+
+if [ ${#completed_phases[@]} -eq 0 ]; then
+    echo "❌ No completed phases found with demo scripts"
+    echo "   Expected: issues/completed/phase-X/test-demo.sh"
+    exit 1
+fi
+
+echo "📋 Available phase demos:"
+for phase in "${completed_phases[@]}"; do
+    echo "   [$phase] Phase $phase Demo"
+done
+echo
+# }}}
+
+# {{{ Interactive phase selection
+echo "🎯 Select a phase to demonstrate:"
+echo "   Enter phase number (${completed_phases[*]})"
+echo -n "   Choice: "
+read selected_phase
+
+# Validate selection
+valid_selection=false
+for phase in "${completed_phases[@]}"; do
+    if [ "$selected_phase" = "$phase" ]; then
+        valid_selection=true
+        break
+    fi
+done
+
+if [ "$valid_selection" = false ]; then
+    echo "❌ Invalid selection: $selected_phase"
+    echo "   Valid options: ${completed_phases[*]}"
+    exit 1
+fi
+# }}}
+
+# {{{ Run selected phase demo
+echo
+echo "🚀 Running Phase $selected_phase Demo..."
+echo "========================================"
+
+demo_script="issues/completed/phase-$selected_phase/test-demo.sh"
+
+if [ -x "$demo_script" ]; then
+    "$demo_script" "$DIR"
+    exit_code=$?
+    
+    echo
+    echo "========================================"
+    if [ $exit_code -eq 0 ]; then
+        echo "✅ Phase $selected_phase demo completed successfully"
+    else
+        echo "⚠️  Phase $selected_phase demo exited with code: $exit_code"
+    fi
+else
+    echo "❌ Demo script not executable: $demo_script"
+    exit 1
+fi
+# }}}
+
+# }}}

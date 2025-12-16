@@ -1,0 +1,11 @@
+=== Resource Efficiency Analysis ===
+Total files: 39
+Total size: 294959 bytes
+Average file size: 7563 bytes
+Storage efficiency: 0MB
+
+Operational Footprint Assessment:
+- Code density: 21 code files
+- Documentation: 5 documentation files
+- Configuration: 1 config files
+

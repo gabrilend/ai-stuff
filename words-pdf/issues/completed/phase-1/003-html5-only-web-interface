@@ -1,0 +1,31 @@
+# Issue 003: HTML5-Only Web Interface
+
+## Current Behavior
+Current web interface relies on JavaScript for Ollama integration and file processing.
+
+## Intended Behavior
+Create a pure HTML5 web interface that:
+- Uses only HTML5 features (no JavaScript)
+- Provides form-based interaction for chat
+- Displays randomized inspiration content statically
+- Uses server-side processing for Ollama integration
+- Maintains 80-character response formatting
+
+## Suggested Implementation Steps
+1. Create pure HTML5 interface with forms and semantic elements
+2. Design server-side script to handle form submissions
+3. Implement Lua-based web server for Ollama integration
+4. Build static content generation from compiled.txt
+5. Create form-based chat flow with page refreshes
+6. Implement response length limiting on server side
+7. Add CSS-only styling for terminal appearance
+
+## Related Documents
+- issues-new/phase-1/002-html5-web-ollama-interface
+- input/compiled.txt (source for random sampling)
+
+## Meta-data
+- Priority: Medium
+- Complexity: Medium
+- Dependencies: Lua web server, Ollama API
+- Estimated effort: Medium (server-side processing focus)

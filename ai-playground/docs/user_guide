@@ -1,0 +1,114 @@
+# AI Playground User Guide
+
+## Getting Started
+
+### Prerequisites
+- Love2d (LÖVE) game engine installed
+- Basic understanding of neural networks (optional but helpful)
+
+### Running the Application
+```bash
+love ./ai-playground
+```
+or
+```bash
+cd ai-playground
+love .
+```
+
+## Interface Overview
+
+### Main Window Layout
+- **Left Panel**: Neural network visualization area
+- **Right Panel**: Parameter controls and formula editors
+- **Bottom Panel**: Training controls and status information
+- **Top Panel**: Menu bar with save/load options
+
+## Core Features
+
+### 1. Network Visualization
+- **Neurons**: Circular nodes representing individual neurons
+- **Connections**: Lines between neurons showing weights (thickness = magnitude)
+- **Data Flow**: Animated particles showing information flow during forward pass
+- **Gradient Flow**: Color-coded arrows showing gradient direction during backpropagation
+
+### 2. Interactive Parameter Editing
+- **Weight Sliders**: Drag to adjust connection weights in real-time
+- **Bias Controls**: Modify neuron bias values
+- **Learning Rate**: Adjust the speed of parameter updates
+- **Activation Functions**: Dropdown to select different activation functions
+
+### 3. Training Controls
+- **Play/Pause**: Start or stop the training process
+- **Step Forward**: Execute one training iteration
+- **Step Backward**: Undo last training step (limited history)
+- **Reset**: Return network to initial state
+
+### 4. Formula Editing
+- **Activation Functions**: Edit mathematical expressions for neuron activation
+- **Loss Functions**: Customize how error is calculated
+- **Custom Derivatives**: Define gradient calculations for custom functions
+
+## Step-by-Step Training Walkthrough
+
+### Phase 1: Forward Pass
+1. Click "Step Forward" to begin
+2. Watch input data propagate through the network
+3. Observe how each neuron processes its inputs
+4. See the final output and loss calculation
+
+### Phase 2: Loss Calculation
+1. View the difference between predicted and target output
+2. Understand how the loss function quantifies the error
+3. See the initial gradient of the loss with respect to output
+
+### Phase 3: Backpropagation
+1. Watch gradients flow backward through the network
+2. Observe how each layer's gradients are calculated
+3. See the chain rule in action as gradients combine
+
+### Phase 4: Parameter Updates
+1. View how gradients affect weight and bias updates
+2. See the learning rate's effect on update magnitude
+3. Observe the network's new state after updates
+
+## Common Use Cases
+
+### Experimenting with Learning Rates
+1. Set a high learning rate (e.g., 0.1)
+2. Observe oscillating or divergent behavior
+3. Reduce learning rate (e.g., 0.01) for stable convergence
+
+### Understanding Activation Functions
+1. Start with sigmoid activation
+2. Switch to ReLU and observe differences
+3. Create custom activation functions
+
+### Visualizing Gradient Issues
+1. Create a deep network (5+ layers)
+2. Use sigmoid activation throughout
+3. Observe vanishing gradients in early layers
+
+## Tips and Best Practices
+
+### For Beginners
+- Start with a simple 2-layer network
+- Use the step-by-step mode extensively
+- Focus on understanding one concept at a time
+
+### For Advanced Users
+- Experiment with custom activation functions
+- Try different optimization algorithms
+- Create complex network architectures
+
+## Troubleshooting
+
+### Common Issues
+- **Network not learning**: Check learning rate and data scaling
+- **Exploding gradients**: Reduce learning rate or add gradient clipping
+- **Slow performance**: Reduce network size or disable animations
+
+### Performance Tips
+- Disable animations for large networks
+- Use simplified visualization mode for better performance
+- Save configurations to avoid re-setup

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Boy Color RPG</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #2d5016;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: monospace;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        #gameCanvas {
+            border: 4px solid #8bac0f;
+            border-radius: 8px;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            background-color: #306230;
+        }
+        
+        .controls {
+            color: #9bbd0f;
+            text-align: center;
+        }
+        
+        .status {
+            color: #8bac0f;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="720"></canvas>
+        <div class="controls">
+            <div class="status" id="status">Loading WebAssembly...</div>
+            <p>Game Boy Color RPG - Phase 1 Demo</p>
+        </div>
+    </div>
+
+    <script src="src/js/main.js"></script>
+</body>
+</html>

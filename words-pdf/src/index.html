@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Words-PDF Ollama Interface</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #00ff00;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .chat-container {
+            border: 1px solid #00ff00;
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #000;
+            white-space: pre-wrap;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        .user-message {
+            color: #00ffff;
+        }
+        .ai-message {
+            color: #00ff00;
+            max-width: 80ch;
+            word-wrap: break-word;
+        }
+        .form-container {
+            display: block;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 70%;
+            background-color: #000;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            font-family: inherit;
+            margin-right: 10px;
+        }
+        input[type="submit"] {
+            background-color: #000;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        input[type="submit"]:hover {
+            background-color: #003300;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #ffff00;
+        }
+        .conversation-history {
+            border: 1px solid #00ffff;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #000011;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .system-status {
+            border: 1px solid #ff0000;
+            padding: 5px;
+            margin: 10px 0;
+            background-color: #110000;
+            font-size: 0.8em;
+        }
+        .expansion-container {
+            border: 1px solid #ffff00;
+            padding: 10px;
+            margin: 20px 0;
+            background-color: #001100;
+        }
+        .expansion-prompt {
+            color: #ffff00;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .expanding-response {
+            color: #00ff00;
+            font-family: inherit;
+            line-height: 1.2;
+            white-space: pre-wrap;
+        }
+        .response-line {
+            max-width: 80ch;
+            margin-bottom: 2px;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Words-PDF Ollama Interface (HTML5 Only)</h1>
+        
+        <section class="conversation-history">
+            <h4>Recent Conversation:</h4>
+            <div class="user-message">USER: Hello, how are you today?</div>
+            <div class="ai-message">AI: I'm contemplating the intersection of words and digital space...</div>
+            <div class="user-message">USER: Tell me something interesting about poetry.</div>
+        </section>
+
+        <form class="form-container" method="POST" action="/chat">
+            <label for="userInput">Your Message:</label><br>
+            <input type="text" id="userInput" name="message" placeholder="Enter your message..." required />
+            <input type="submit" value="Send" />
+        </form>
+
+        <div id="expansionMode" class="expansion-container" style="display: none;">
+            <div class="expansion-prompt">Press SPACEBAR for next line, or type to continue...</div>
+            <div id="expandingResponse" class="expanding-response"></div>
+            <input type="hidden" id="expansionContext" />
+        </div>
+
+        <section class="chat-container">
+            <h4>Latest AI Response (Limited to 80 characters):</h4>
+            <div class="ai-message">Poetry lives in the spaces between thoughts, where meaning dances with mystery...</div>
+        </section>
+
+        <section class="system-status">
+            <h4>System Status:</h4>
+            CPU: 23.4%, Memory: 67.8%, Time: 14:32:15, Idle: Yes
+        </section>
+
+        <div class="status">
+            Ready for HTML5-only interaction | No JavaScript required
+        </div>
+    </div>
+<script>
+// {{{ Spacebar Interception System
+let expansionMode = false;
+let currentContext = '';
+let responseLines = [];
+
+// {{{ Global keydown handler for spacebar interception
+document.addEventListener('keydown', function(e) {
+    // Intercept spacebar BEFORE it reaches input field
+    if (e.code === 'Space' && expansionMode) {
+        e.preventDefault();
+        e.stopPropagation();
+        generateNextLine();
+        return false;
+    }
+    
+    // Any other key exits expansion mode
+    if (expansionMode && e.code !== 'Space') {
+        exitExpansionMode();
+    }
+});
+// }}}
+
+// {{{ Enter expansion mode after initial AI response
+function enterExpansionMode(initialResponse, context) {
+    expansionMode = true;
+    currentContext = context;
+    responseLines = [initialResponse];
+    
+    document.getElementById('expansionMode').style.display = 'block';
+    document.getElementById('userInput').style.display = 'none';
+    document.querySelector('input[type="submit"]').style.display = 'none';
+    
+    displayExpandingResponse();
+}
+// }}}
+
+// {{{ Generate next 80-character line
+function generateNextLine() {
+    // Build accumulated context
+    const accumulatedLines = responseLines.join('\n');
+    
+    // Make request for next line
+    fetch('/expand-line', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            context: currentContext,
+            previousLines: accumulatedLines,
+            lineNumber: responseLines.length + 1
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.line) {
+            responseLines.push(data.line);
+            displayExpandingResponse();
+        }
+    })
+    .catch(error => {
+        console.error('Error generating next line:', error);
+    });
+}
+// }}}
+
+// {{{ Display accumulated response lines
+function displayExpandingResponse() {
+    const container = document.getElementById('expandingResponse');
+    container.innerHTML = '';
+    
+    responseLines.forEach((line, index) => {
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'response-line';
+        lineDiv.textContent = `${index + 1}: ${line}`;
+        container.appendChild(lineDiv);
+    });
+}
+// }}}
+
+// {{{ Exit expansion mode
+function exitExpansionMode() {
+    expansionMode = false;
+    currentContext = '';
+    responseLines = [];
+    
+    document.getElementById('expansionMode').style.display = 'none';
+    document.getElementById('userInput').style.display = 'inline';
+    document.querySelector('input[type="submit"]').style.display = 'inline';
+    document.getElementById('userInput').focus();
+}
+// }}}
+
+// {{{ Check for expansion trigger on page load
+window.addEventListener('load', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('expand') === 'true') {
+        const initialResponse = urlParams.get('response') || '';
+        const context = urlParams.get('context') || '';
+        if (initialResponse) {
+            enterExpansionMode(decodeURIComponent(initialResponse), decodeURIComponent(context));
+        }
+    }
+});
+// }}}
+// }}}
+</script>
+
+</body>
+</html>

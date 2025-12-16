@@ -1,0 +1,101 @@
+this is a game framework for a jrpg on the gameboy color
+the design should be flexible enough to allow for on-screen gameplay of other
+NPC style characters passed through the same control bytecode interpreter as the
+player, essentially allowing the player to do everything that an NPC might and
+vice-versa. the gameplay should be designed around the role of the player as a
+camp follower in an army - every time they stop, there's various tasks to be
+done, as determined by the randomly rolled conditions (you're not the leader of
+the warband, after all) and the status of the equipment stores and other various
+factors. For example, perhaps you as the player one stop decide to go and find
+some fish to eat, so you take your fishing pole from the camp wagon Runescape
+style and then go fish in the river. If you wanted to make more equipment, you
+could find some nearby iron ore to mine and then you could take it back to the
+donkey-led portable smelter. there's like 20 of them in a team! there's also
+monsters to contest, and you do that JRPG style with a roguelike flair - think
+the combat styles of Quest64 except on the gameboy color, so top-down and the
+player can move around and cast spells and all sorts of cool things. A is attack
+and B is pause the world and open up the spellcasting or item using menu. the
+D-pad is for moving around the enemies. Also, your allies will wander into the
+combat area while searching for materials and they'll help you fight in the same
+way that the player has available - it's 0.2 seconds per selection when they're
+choosing a spell, that way the player doesn't have to wait while the computer
+picks a spell to cast. then, after a certain amount of real-world time, the
+whistle blows and everyone has to stop adventuring and make their way back...
+I hope you remember how, because the environment is randomly generated! that's
+why it takes 15-30 seconds to load the next map... also there's quests that
+are written by my friend so make sure that each text-box can hold two lines,
+each with about 16 characters per line. her writing is configured for 32 letter
+blurbs. when the player is talking to a character or reading some examine text
+or something, the world goes on without them (unless in combat then they can't
+read or examine anything because they're busy) and also there's shops so if you
+use your skills to gather materials but you don't want to use other skills to
+manufacture goods, then you can sell the items you find. similarly, if you want
+to just manufacture, you can get some gold somehow and then just start buying
+the resources and manufacturing high quality goods that will then be used by
+the NPCs in the warband to fight in the battles that happen when you are lodging
+at a new place for the night, same time as when you could go out and gather
+materials or otherwise adventure by looking for trouble or interesting things to
+explore or examine. then after purchasing items that are raw materials and have
+no use in their current form for cheap, you can combine them with other material
+and make useful equipment that the warband can sell or use (you don't get to
+choose what the camp leader's trade skill determines is the best deal to make
+when the wandering merchant wanders past) but sometimes rare and powerful
+artifacts are procured this way like a many-colored gem or a book of cryonics or
+a mens fashion magazine from 1940 or a claw hammer of piercing pines (which is
+just a metal hammer with spikes instead of hammer but they're carved to look
+like pine trees) or other such neato artifacts. these artifacts can't be found
+anywhere else except in dark secret ruinous caves or abandoned places that have
+attracted monsters and treasure alike. venture through them if you dare, and
+gather party members by walking around, pushing the "yell" button, and then when
+they stop and are like "... what" then you can say "hey wanna get some treasure"
+and they'll be like "no" and walk away and it's like... what - then you gotta
+talk to someone else and maybe they'll come with you. anyway the quests are
+passed out by examining a bounty notice board, and when at that board you can
+see the quests but the good news is your character will remember them so you
+don't even really need to know the details just know that the more times the
+player visits the quest board the more quests they get, and if the board is
+upgraded (not under player control) then they get better quests and then when
+the possible exploration options nearby are being presented if a thing is part
+of a quest it'll have a little icon over it so you know to prioritize it because
+when a quest is finished you gotta hand it in to the quartermaster who will pass
+it to the bursar and the contracting agent and they'll handle the rewards for
+you... and anyway you don't have to remember which quest is for what, because
+the player never sees so just roll it randomly for each new item and give a
+weight or bias when the player has more quests to do. The player should have no
+main classes but there are many skills, and as you level up your skill totals
+give you a class name title but it has no use except what people refer to you as
+in conversation dialogue. these skills include things like woodcarving and
+foresting and fletching and mining and smithing and forging and gemcutting and
+leatherworking and magic serenading and magic contemplating and magic inscribing
+and magic demonstrating (like putting on a ritual or dance-around-the-fire) and
+magic synthesizing (like enchanting objects by combining them) and cooking and
+computer coding and literature writing and tailoring and botany and alchemy and
+many others besides. these skills gain exp points when you use them, and they
+will unlock new recipe options when you find recipes out in the wild. you can
+use the recipe item and it'll randomly roll one of the available options for you
+and there's lots of cross-paths so if you have a certain level in one skill and
+a certain level in another then it opens up recipes that can be found in the
+world by picking up a generic recipe scroll which can be opened "lootbox style"
+to get a random recipe selected from among the ones that you can have able to be
+learnabled. this also applies to any martial skills like bravery and footwork
+and parryability and exhaustion tolerance and brawn (which also increases hp)
+your equipment in the game is randomly generated. each piece has one or maybe
+two if it's a magic or masterwork item enhancements. sometimes, especially for
+mage items, they are empty slots that you can slot your own enhancement items
+into. these enhancements are generically named like "attack increase" or "bonus
+to one elemental power" or "recovers health per moment" or "periodically stuns
+a random nearby ally" or "randomly buffs a nearby ally's health regeneration"
+or other such things. mostly they are randomly rolled with the items, and the
+player and other characters can use equipment and select priorities about what
+items they want which is naturally calculated based on their randomly rolled
+personality matrix which is a set of two axises, or four variablesm, each with
+a color: red, yellow, green, and blue. they are like humours, or elemental
+natures. anyway the core of the game is following with the horde and/or doing
+your own thing, the warband will wait for you it takes time to start moving, and
+everyone's there for the happiness and the feast. yay celebration! we're getting
+where we're going! yay let's keep moving, pack up the this-and-this thing. when
+you get to the front, you can set up again, and then by the time you're at the
+back it'll have been quite a bit more time. plus it generally stops around night
+time so you might as well hang out a bit. oh no in the morning they left me!
+that's okay, I'll catch up, their footfalls are still echoing heavily from the
+horizon.

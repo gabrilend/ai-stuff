@@ -1,0 +1,117 @@
+{
+  "controller_type": {
+    "GameBoy": {
+      "buttons": {
+        "a": {
+          "primary_action": "Select",
+          "secondary_action": "OpenKeyboard",
+          "edit_mode_action": "OpenKeyboard"
+        },
+        "b": {
+          "primary_action": "Back",
+          "secondary_action": null,
+          "edit_mode_action": "Backspace"
+        },
+        "select": {
+          "primary_action": "ToggleMode",
+          "secondary_action": "EnterEditMode",
+          "edit_mode_action": "ExitEditMode"
+        },
+        "start": {
+          "primary_action": "Navigate",
+          "secondary_action": null,
+          "edit_mode_action": null
+        },
+        "dpad": {
+          "up": "Navigate",
+          "down": "Navigate",
+          "left": "Navigate",
+          "right": "Navigate",
+          "edit_mode_actions": {
+            "up": "MoveCursor",
+            "down": "MoveCursor",
+            "left": "MoveCursor",
+            "right": "MoveCursor"
+          }
+        }
+      }
+    }
+  },
+  "keyboard_layouts": {
+    "english": {
+      "name": "English (Game Boy)",
+      "sectors": [
+        {
+          "direction": "Up",
+          "characters": ["a", "b", "c", "d"],
+          "submenu": null,
+          "action_type": "CharacterInput"
+        },
+        {
+          "direction": "Down", 
+          "characters": ["e", "f", "g", "h"],
+          "submenu": null,
+          "action_type": "CharacterInput"
+        },
+        {
+          "direction": "Left",
+          "characters": ["i", "j", "k", "l"],
+          "submenu": null,
+          "action_type": "CharacterInput"
+        },
+        {
+          "direction": "Right",
+          "characters": ["m", "n", "o", "p"],
+          "submenu": null,
+          "action_type": "CharacterInput"
+        }
+      ],
+      "max_characters_per_sector": 4,
+      "special_actions": [
+        {
+          "trigger": {
+            "LongPress": {
+              "button": "A",
+              "duration_ms": 1000
+            }
+          },
+          "result": {
+            "OpenKeyboard": {
+              "layout": "symbols"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "edit_mode_settings": {
+    "cursor_blink_rate_ms": 500,
+    "auto_exit_timeout_ms": 30000,
+    "word_wrap": true,
+    "show_line_numbers": false,
+    "highlight_current_line": true,
+    "tab_size": 4,
+    "vim_mode": false
+  },
+  "special_character_sets": {
+    "symbols": ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "+", "="],
+    "emojis": ["😀", "😎", "👍", "❤️", "🎮", "🔥", "⭐", "🚀", "💯", "🎵", "📱", "💻"]
+  },
+  "language_layouts": {
+    "en": {
+      "language_code": "en",
+      "display_name": "English",
+      "character_sets": {
+        "lowercase": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"],
+        "uppercase": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"],
+        "numbers": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+      },
+      "special_combinations": {},
+      "number_format": {
+        "decimal_separator": ".",
+        "thousands_separator": ",",
+        "currency_symbol": "$"
+      }
+    }
+  }
+}

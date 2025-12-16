@@ -1,0 +1,32 @@
+[package]
+name = "radial-keyboard-test"
+version = "0.1.0"
+edition = "2021"
+description = "Portmaster test application for radial keyboard ergonomics"
+authors = ["OfficeOS Team"]
+
+# Portmaster compatibility
+[package.metadata.portmaster]
+app_type = "game"
+category = "utility"
+min_portmaster_version = "2024.01"
+supported_devices = ["anbernic-rg35xx", "anbernic-rg353p", "anbernic-rg353v"]
+
+[[bin]]
+name = "radial-test"
+path = "main.rs"
+
+[dependencies]
+# Minimal dependencies for Portmaster compatibility
+# No external crates to ensure it runs on isolated systems
+
+[dev-dependencies]
+# Keep test dependencies minimal for Portmaster
+
+[profile.release]
+# Optimize for handheld devices
+opt-level = "s"      # Optimize for size
+lto = true           # Link-time optimization
+codegen-units = 1    # Better optimization
+panic = "abort"      # Smaller binary size
+strip = true         # Remove debug symbols

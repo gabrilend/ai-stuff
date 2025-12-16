@@ -1,0 +1,86 @@
+# Issue 003: Download and Analyze Source Code
+
+## Current Behavior
+No local copy of the City of Heroes server source code exists in the project.
+
+## Intended Behavior
+Have the complete City of Heroes server source code downloaded locally with initial analysis of the codebase structure and build requirements.
+
+## Suggested Implementation Steps
+1. Clone or download the identified source code repository
+2. Organize source code in the src/ directory structure
+3. Analyze the project structure and identify main components
+4. Read any existing documentation or README files
+5. Identify build scripts and compilation instructions
+6. Create initial codebase analysis documentation
+7. List all external dependencies and requirements
+
+## Metadata
+- **Priority**: High
+- **Estimated Effort**: 3-6 hours
+- **Dependencies**: Issue 001 (source location), Issue 002 (dev environment)
+- **Tags**: source-code, analysis, download
+
+## Related Documents
+- docs/project-overview.md
+- src/ directory (to be populated)
+
+## Tools
+- Git for cloning repositories
+- File manager for organization
+- Text editor for code review
+- Documentation tools
+
+## Progress Log
+**Status**: COMPLETED
+**Date**: 2025-11-12
+
+### Completed Steps
+1. ✅ **Source Code Organization**: Organized source from zip file into `src/coh-source/`
+2. ✅ **Project Structure Analysis**: Identified 15+ major server components
+3. ✅ **Documentation Review**: Read README, coding standards, and build requirements
+4. ✅ **Build System Analysis**: Analyzed Visual Studio 2019 build structure
+5. ✅ **Dependency Inventory**: Catalogued 29 external 3rdparty libraries
+6. ✅ **Linux Porting Assessment**: Evaluated cross-platform compatibility
+7. ✅ **Comprehensive Documentation**: Created detailed codebase analysis
+
+### Key Discoveries
+
+**Server Architecture**:
+- **15 Major Components**: MapServer, DBServer, AuthServer, etc.
+- **Modular Design**: Each component has independent build targets
+- **Enterprise Scale**: ~60+ individual build projects
+
+**Build System**:
+- **Windows-Centric**: Visual Studio 2019 MSBuild projects
+- **Component Structure**: Standard /build/vs2019/*.vcxproj pattern
+- **Batch Scripts**: Windows startup automation included
+
+**Dependencies Analysis**:
+- **29 Total Libraries**: Comprehensive 3rdparty ecosystem
+- **76% Linux Compatible**: 22/29 libraries have Linux versions
+- **Major Libraries**: Boost, OpenSSL, PhysX, cryptopp, GLEW
+
+**Linux Porting Viability**:
+- **Feasible**: Majority of dependencies are cross-platform
+- **Challenges**: DirectX, Visual Studio build system, SQL Server
+- **Solutions**: OpenGL, CMake, PostgreSQL alternatives identified
+
+### Files Created
+- `docs/codebase-analysis.md` - Complete architectural analysis
+- `docs/dependencies-list.md` - Full dependency inventory with Linux compatibility
+- `src/coh-source/` - Organized source code structure
+
+### Critical Findings for Next Phase
+- **Build System Replacement Needed**: Visual Studio → CMake conversion required
+- **Database Porting Required**: SQL Server → PostgreSQL migration needed
+- **Graphics API Replacement**: DirectX → OpenGL/Vulkan transition needed
+- **Platform Abstraction**: Windows API → POSIX API replacement needed
+
+### Dependencies Ready for Build Script Enhancement
+The build script can be extended to include:
+- cryptopp, sqlite, freetype, curl, expat
+- Image libraries (libjpeg, libpng, libtiff)
+- Graphics libraries (GLEW, PhysX Linux)
+
+**Issue 003 COMPLETED - Ready to proceed to Issue 004: Compile Base Server**

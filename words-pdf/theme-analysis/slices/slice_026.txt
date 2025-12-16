@@ -1,0 +1,2006 @@
+ -> file: fediverse/3576.txt
+--------------------------------------------------------------------------------
+CW: re: leftist "talk to ur neighbours" thing
+
+
+
+@raeaw 
+
+also "your neighbors" could mean people in your general area. It doesn't have 
+to be explicitly people who live in your building or the one nextdoor.
+
+Networking professionally can also be a decent substitute. Visiting churches or 
+D&D groups or hiking groups or whatever can also work.
+
+ -> file: fediverse/3577.txt
+--------------------------------------------------------------------------------
+CW: computers-mentioned
+
+
+
+I love writing installation scripts like this!
+
+If you want to install something on Linux but you have difficulty, talk to me 
+and I'll write you a script like this. I might even make it fancier.
+
+This one installs a programming language that is useful for parallel computing 
+across multiple clusters of computers which could be useful if you want to 
+leverage multiple CPUs and GPUs with ease to compute tasks which are far beyond 
+a normal computer.
+
+https://chapel-lang.org/download.html
+
+ -> file: fediverse/3578.txt
+--------------------------------------------------------------------------------
+
+
+It's so sad how some of the best games ever made get glossed over because the 
+fun you remember is the friendship and fantasy you felt rather than the game 
+itself
+
+time marches forward, and culture changes to no longer fit the old tools quite 
+right. Plus they look like PS1 graphics ewwwwww look at those muddy textures 
+and blocky bits arranged into triangles and meshes! how dorky, how retro
+
+ -> file: fediverse/3579.txt
+--------------------------------------------------------------------------------
+
+
+If you want to clean your room, try pushing everything loose into a pile in the 
+center. Then, sit down next to it and sort things into piles.
+
+"here's a pen pile, here's a paper pile, here's a rubber band pile, here's a 
+trash pile" etc etc. Then, when you can't reach anything more or the piles are 
+too large, find a spot for them in the bookcase or drawer or wherever.
+
+If you can't, then reorganize. If you still can't, then pick things to get rid 
+of.
+
+ -> file: fediverse/3580.txt
+--------------------------------------------------------------------------------
+
+
+friendship ended with best friend
+
+now my cat is my best friend
+
+ -> file: fediverse/3581.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+or vaporize, which doesn't have a smell beyond ~5 feet, especially if you 
+exhale into a carbon filter
+
+like "weed smell" is a solvable problem and some people don't get it
+
+ -> file: fediverse/3582.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+I like #2 best but #1 looks more realistic??
+
+ -> file: fediverse/3583.txt
+--------------------------------------------------------------------------------
+
+
+when was the last time you licked a plate?
+
+ -> file: fediverse/3584.txt
+--------------------------------------------------------------------------------
+CW: drugs-mentioned
+
+
+
+"If I look like a fool, it'll keep eyes on me instead of looking at my friends 
+who are stoned and paranoid"
+
+maybe the friends are paranoid because you're acting like a dork and drawing 
+attention to the group
+
+ -> file: fediverse/3585.txt
+--------------------------------------------------------------------------------
+CW: re: pol-paranoia
+
+
+
+hmmmm I should probably put this in "things I almost posted"
+
+ -> file: fediverse/3586.txt
+--------------------------------------------------------------------------------
+CW: programming-mentioned
+
+
+
+I love programming!! Currently working on learning decentralized and GPU 
+oriented computing. It's lots of fun! Plus Bash is a great language, it's not 
+funky or hacky at all. Just a great language. Haha suuuuch a great thing to 
+play with.
+
+But GPUs are legitimately cool, aside from Bash's purported funkiness / 
+hackiness. You can do all kinds of cool things at scale that just don't make 
+sense up close.
+
+EDIT: oops sorry forgot the content warning
+
+ -> file: fediverse/3587.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+I realized that script was bugged, so... here's a better one. Plus a fun run 
+script too!#!/bin/bash
+set -euo pipefail
+
+DIR="/home/ritz/programming/chapel/language-files"
+VER="2.1.0"
+FIL="chapel-${VER}.tar.gz"
+URL="https://github.com/chapel-lang/chapel/releases/download/${VER}/${FIL}"
+NUM_THREADS="16"
+
+touch     ${DIR}/files
+rm    -dr ${DIR}/files
+mkdir -p  ${DIR}/files
+
+wget --output-document ${DIR}/${FIL} ${URL}
+
+tar xf ${FIL} --directory=${DIR}/files
+rm ${FIL}
+
+cd ${DIR}/files/chapel-${VER}
+
+   export CHPL_LLVM=system
+   source ${DIR}/files/chapel-${VER}/util/setchplenv.bash
+
+   make -j${NUM_THREADS}
+
+
+   echo "now testing, to validate LLVM configuration as suggested in the docs:"
+   chpl "./examples/hello3-datapar.chpl"
+   ./hello3-datapar
+
+   echo "the chapel programming language is now fully installed! Have fun!"
+
+cd -
+
+
+ -> file: fediverse/3588.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+#!/bin/bash
+set -euo pipefail
+
+CHAPEL_DIR="/home/ritz/programming/chapel"
+COMPILER_DIR="${CHAPEL_DIR}/language-files/files/chapel-2.1.0"
+PROJECT_DIR="${CHAPEL_DIR}/projects/practice"
+SOURCE_DIR="${PROJECT_DIR}/src"
+
+clear
+
+cd "${COMPILER_DIR}" > /dev/null
+   export CHPL_LLVM=system
+   source "${COMPILER_DIR}/util/setchplenv.bash" > /dev/null
+cd - > /dev/null
+
+cd "${PROJECT_DIR}" > /dev/null
+   echo "compiling..."
+   chpl "${SOURCE_DIR}/main.chpl"
+   clear
+   ./main
+cd - > /dev/null
+
+
+you should update the directories at the top yourself, of course. And give it a 
+cursory glance to make sure it works on your setup.
+
+ -> file: fediverse/3589.txt
+--------------------------------------------------------------------------------
+
+
+@hannu_ikonen@zeroes.ca 
+
+I'm betting on team Hannu tbh 😉
+
+ -> file: fediverse/3590.txt
+--------------------------------------------------------------------------------
+CW: violence-mentioned
+
+
+
+@hannu_ikonen@zeroes.ca 
+
+like throwing bricks at cop cars without having the infrastructure in place to 
+keep you safe from their wrath? they're asking for trouble by pissing you off. 
+🥰
+
+ -> file: fediverse/3591.txt
+--------------------------------------------------------------------------------
+
+
+@bram 
+
+[meme of Mr Incredible from the Incredibles pointing at a table]
+
+LINUX IS LINUX.
+
+(anything that works on Linux can theoretically be made to work on your 
+toaster, if it also runs Linux!)
+
+This is very cool, and if I understand correctly it means that any Godot games 
+could theoretically be played on these NEAT as HECK little devices, yeah? So 
+cool!
+
+ -> file: fediverse/3593.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+I feel like you could set up a performance where you walk through your workflow 
+on various things and set it to music and make a dope-as-heck music video.
+
+like, the "retro" vibes and aesthetics of your posts on my timeline are always 
+a joy to see. I can't help but wonder if they could be crystallized / 
+essentialized somehow into something neat to watch.
+
+ -> file: fediverse/3594.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+Yes it is!! I don't customize it too much so it's mostly defaults hehe
+
+ -> file: fediverse/3595.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+do you have music videos tho? :O :O
+
+ -> file: fediverse/3596.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+I think I fiddled a little bit with the colors because the default background 
+was the same as some other color and it was making it hard to do things, and I 
+also have a plugin that lets me talk to a local LLM which I sometimes ask 
+syntax questions to if I'm offline and don't feel like searching through 
+documentation. I think that's it tho
+
+ -> file: fediverse/3597.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+oh how could I forget! VIMFOLDS! Absolutely impossible for me to live without 
+them tbh
+
+ -> file: fediverse/3598.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+hehe mine is technically 2016 and it's BARELY capable of it, so you're probably 
+right. It was top of the line, but also a hand-me-down.
+
+ -> file: fediverse/3599.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+" Select the font for the hardcopy
+set printfont=Courier:h8
+:let &printheader = " "
+command! -range=% HardcopyPdf , hardcopy > %.ps | !ps2pdf %.ps && rm %.ps && 
+echo 'Created: %.pdf'
+
+" vimfolds - use marker as fold method
+set foldmethod=marker
+set foldtext=MyFoldText()
+
+" Functions
+function! MyFoldText()
+    let line = getline(v:foldstart)
+    let folded_line_num = v:foldend - v:foldstart
+    let line_text = substitute(line, '^"{\+', '', 'g')
+    let fillcharcount = &textwidth - len(line_text) - len(folded_line_num)
+    return '+'. repeat('-', 4) . line_text . repeat('.', fillcharcount) . ' (' 
+. folded_line_num . ' L)'
+endfunction
+
+let g:rainbow_active = 1
+
+
+Here's the bottom part of the config - I ran out of characters and couldn't 
+post the whole thing.
+
+If you don't know what vimfolds are here's a good guide:
+
+https://www.vimfromscratch.com/articles/vim-folding
+
+also:
+
+https://vim.fandom.com/wiki/Folding
+
+ -> file: fediverse/3600.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+Also HardcopyPdf is nice, it turns a file into a pdf. Does what it says on the 
+tin. ^_^
+
+And it doesn't need anything more than those lines there in the config.
+
+ -> file: fediverse/3601.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+bookshelves up above mounted on the wall to hold small objects? cable 
+management to reduce wire tangles, and... more space, to put moar monitoars.
+
+ -> file: fediverse/3602.txt
+--------------------------------------------------------------------------------
+Question. Is it more dangerous for a fed or a leftist right now in Portland? 
+Why am I so worried about my own country's infiltration? They could just, 
+y'know, work with me instead of deceiving me. Alas, that's how they do, and *i 
+get it* but it still hurts my feelings a little to be lied to.
+
+Your allies operate best with complete information. Unless you're using them, 
+like in Andor when that one guy left the... "stochastic militia" to die
+
+ -> file: messages/0502.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition
+
+nope
+
+I figure if I have to rebuild them, oh well.
+
+plus this way I can give each of my computers a slightly different personality.
+
+ -> file: fediverse/3603.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+ooooo I see, yeah I picked one distro and I stuck with it. Void Linux.
+
+then my friend wanted me to learn Gentoo, so I did.
+
+I use DWM on my Void Linux computer but i3 on my Gentoo one, just to mess with 
+myself and stay on my toes 🤓
+
+ -> file: fediverse/3604.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+I was JUST thinking about suggesting Qubes halfway through your comment and 
+then I saw the last line. noooooo xD
+
+ -> file: fediverse/3605.txt
+--------------------------------------------------------------------------------
+
+
+I think I'm okay no matter my own fate
+
+I think I'm okay.
+
+ -> file: fediverse/3606.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+make sure you get full disk encryption! I hear it's quite important, but I 
+can't use it because I'm an artist and if I like, died or whatever, nobody 
+would be able to get my art.
+
+though knowing the reasons why I might suddenly die, odds are they'd just 
+reflash the drives with windows or whatever xD
+
+ -> file: fediverse/3607.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+ooooo both good ideas!!
+
+ -> file: fediverse/3608.txt
+--------------------------------------------------------------------------------
+CW: re: computers-mentioned
+
+
+
+@RadioAddition 
+
+true but someone could walk in while you're away! the locks on doors aren't 
+THAT useful if someone already knows where you live and what your room looks 
+like and that you use linux. If you leave for a night they can just, copy the 
+hard drives and scan through them at home.
+
+... I'm too paranoid for my level of precaution xD xD
+
+ -> file: fediverse/3609.txt
+--------------------------------------------------------------------------------
+CW: programming-mentioned
+
+
+
+I FINALLY HAVE SYNTAX HIGHLIGHTING OMGGG
+
+... I'm gonna take a break and play a game or something jeez
+
+ -> file: fediverse/3610.txt
+--------------------------------------------------------------------------------
+
+
+I must be the only autistic person in the world who can't stand parallel play...
+
+ -> file: fediverse/3611.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+I wish they sold ramen noodle seasoning by the jar and ramen noodles by the 
+package (without seasoning)
+
+ -> file: fediverse/3612.txt
+--------------------------------------------------------------------------------
+
+
+http://www.cyberlore.com/Majesty/
+
+this is my favorite game ever!! too bad it's old as dirt.
+
+ -> file: fediverse/3613.txt
+--------------------------------------------------------------------------------
+CW: trans-hrt-graphic
+
+
+
+did my hormone shot and now my leg feels funny -.-
+
+ -> file: fediverse/3614.txt
+--------------------------------------------------------------------------------
+
+
+socks are a lie drafted by big thread to get us to invest in knitting machines 
+so we don't have to buy our own footwear at the store
+
+ -> file: fediverse/3615.txt
+--------------------------------------------------------------------------------
+
+
+code is useless
+
+the ability to write, maintain, or implement it is priceless
+
+ -> file: fediverse/3616.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+menardis will literally eat cheetos and ramen for dinner and wonder why they 
+feel exhausted the next day
+
+drink some damn water
+
+ -> file: fediverse/3617.txt
+--------------------------------------------------------------------------------
+
+
+@sydney 
+
+true. what do you want to do with all those bits, hmmm?
+
+ -> file: fediverse/3618.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+they say fat people are jolly, which makes me wonder if the only reason I'm 
+often sad is because I'm too skinny.
+
+I need an italian grandma to feed me butter and pasta T.T
+
+eat somethin' why don'tcha you're skin an' bones, kid
+
+ -> file: fediverse/3619.txt
+--------------------------------------------------------------------------------
+
+
+@sjolsen 
+
+ah yes like when I used to go to the cantina with my ex-girlfriend in Star Wars 
+the Old Republic and bag a stranger to Electronic Role Play with back at my 
+ship after a few drinks and some light four play where the four of us would 
+play Electronic RolePlay together in the privacy of my ship on the soft plush 
+couches or maybe in the padded gym or maybe in the pilots seat so we could look 
+at the stars while playing (just the four of us)
+
+ -> file: fediverse/3620.txt
+--------------------------------------------------------------------------------
+
+
+@sjolsen 
+
+Yep! back in the day be-fore "four play" you could generally only single-play, 
+and for "four play" you'd typically find friends be-fore play-ing.
+
+ -> file: fediverse/3621.txt
+--------------------------------------------------------------------------------
+
+
+howwwww is it only monday it feels like it's been a month since last week
+
+ -> file: fediverse/3622.txt
+--------------------------------------------------------------------------------
+CW: food-recipe
+
+
+
+nachos
+
+cast-iron skillet (or other deep pan)
+
+throw in some butter or vegetable oil (not olive oil)
+
+heat it up a bit
+
+crack four eggs in there
+
+cut some slices off of a hunk of cheese
+
+add some chips on top of the eggs
+
+add the cheese on top of the eggs
+
+cover it and leave it on the like, 2 or 3 out of 10 heat setting
+
+come back whenever it's done
+
+transfer to plate
+
+add salsa
+
+boom nachos
+
+(optional but recommended: beans):
+
+for the beans, if you want, throw a can of refried beans on the stove and add a 
+TINY can of tomato chunks and a big hunk of butter
+
+let it cook until it's smooth consistency, stirring and such. Add paprika, 
+cumin, and a bit of oregano.
+
+then put the beans on before the salsa, and BOOM even BETTER nachos.
+
+ -> file: fediverse/3623.txt
+--------------------------------------------------------------------------------
+CW: re: food-recipe-caps-mentioned
+
+
+
+NO BAD RITZ CHEETOS AREN'T CHIPS
+
+ -> file: fediverse/3624.txt
+--------------------------------------------------------------------------------
+CW: death-mentioned
+
+
+
+I am sincere, which is why I die so quickly
+
+ -> file: fediverse/3625.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+"special sauce" is just dorito gogurt. Maybe with some garlic added in.
+
+just because you phrase it in a weird way doesn't make it less delicious on a 
+burger
+
+ -> file: fediverse/3626.txt
+--------------------------------------------------------------------------------
+CW: re: food-mentioned
+
+
+
+ritz why would you say this
+
+ -> file: fediverse/3627.txt
+--------------------------------------------------------------------------------
+CW: computer-toucher-stuff
+
+
+
+"why putting SSH on a port other than 22 is a bad idea"
+
+https://www.adayinthelifeof.nl/2012/03/12/why-putting-ssh-on-another-port-than-2
+2-is-bad-idea/
+
+"When you are logged onto a system as a non-root user you cannot create a 
+listing TCP or UDP port below 1024. This is because port numbers below 1024 are 
+so-called privileged ports and can only be opened by root or processes that are 
+running as root."
+
+thoughts?
+
+ -> file: fediverse/3628.txt
+--------------------------------------------------------------------------------
+CW: re: energy drinks
+
+
+
+@k 
+
+I love the colors!! 🤩 
+
+sorry about the price, tho...
+
+ -> file: fediverse/3629.txt
+--------------------------------------------------------------------------------
+CW: re: computer-toucher-stuff
+
+
+
+I'm still putting ssh on a different port because... I want to
+
+ -> file: fediverse/3630.txt
+--------------------------------------------------------------------------------
+CW: re: computer-toucher-stuff
+
+
+
+@wyatt8740 
+
+I have a different port for my desktop and my laptop just in-case the router 
+forgets to check the postmarked address on the packets it receives... at least 
+it'll know which port to send it to!
+
+ -> file: fediverse/3632.txt
+--------------------------------------------------------------------------------
+
+
+@sashin 
+
+make sure you clean grease and such from appliances too! Like, sometimes 
+previous renters will spill something down the side of the oven and you won't 
+notice because it's right up against the wall / cabinet / fridge...
+
+if you can, pull them out a bit and check to see if there's anything you can 
+clean. Cockroaches will eat grease and can live off of it for a long time.
+
+ -> file: fediverse/3633.txt
+--------------------------------------------------------------------------------
+
+
+@ErikUden 
+
+what's a fool to do these days but babble? maybe they'd be better as an acolyte 
+in the temple but hey, ya'll are the ones that are building it so don't blame 
+the fool for residing there.
+
+non-foolish people for leaders only, please
+
+ -> file: fediverse/3634.txt
+--------------------------------------------------------------------------------
+
+
+you can tell these guys are kings because they have space to breathe.
+
+also low-key kinda jealous of how much physical contact people used to have. we 
+really have it good nowadays, I mean our houses are larger than barns and our 
+castles scrape the skies while our dungeons spread beneath the earth and our 
+roads can bring you to any piece of the empire you can dream of
+
+but I also wanna hold hands
+
+(picture made one thousand and fourty years after the event lmao. romantic, 
+much??)
+
+credit:
+The Treaty of Verdun of 843, Louis the Pious' sons create France, Germany, and 
+Italy with Lothair I of Italy becoming Emperor. This treaty would be replaced 
+several times as East Frankia (Ger) in particular took over large segments of 
+"Lotharingia" | Ward & Lock illustrated history of the world 1882
+
+ -> file: fediverse/3635.txt
+--------------------------------------------------------------------------------
+CW: politics-housing-crisis
+
+
+
+if you want to solve EVERY housing issue in the United States, at least in the 
+short and mid-term, add a ramping tax penalty for unoccupied houses that 
+doesn't reset to 0 upon being occupied but rather starts ticking down at the 
+same rate that it increases.
+
+Something like 0.5% to 1% of the property value for every month it's gone 
+unoccupied as a primary residence.
+
+ -> file: fediverse/3636.txt
+--------------------------------------------------------------------------------
+CW: NSFW-content-mentioned
+
+
+
+@sykora @aaronfc 
+
+Whoa Tildes was so cool!
+
+I use forums for specific interests like games and such. Also for, uh... porn 
+sometimes.
+
+ -> file: fediverse/3637.txt
+--------------------------------------------------------------------------------
+CW: re: politics-housing-crisis
+
+
+
+@burnoutqueen 
+
+you can't start a game of chess with a checkmate. you're not wrong on the goal, 
+but the timing would only be possible if a significant amount of other unnamed 
+"effects" were in play. Or rather, if a whole lot of other conditions were made 
+to be true.
+
+I find the best strategies are the ones that rely the least on externalities 
+and potentialities. Fewer points of failure, smaller attack surfaces.
+
+ -> file: fediverse/3638.txt
+--------------------------------------------------------------------------------
+CW: re: NSFW-content-mentioned
+
+
+
+@sykora @aaronfc 
+
+sounds like I should have spent more time there. I was always pretty good at 
+convincing readers that the person I was arguing with was wrong or an asshole. 
+Or both.
+
+At least, the Reddit upvote / downvote system told me so.
+
+ -> file: fediverse/3639.txt
+--------------------------------------------------------------------------------
+I am *sincere*, which is why I die so soon
+
+ -> file: messages/0503.txt
+--------------------------------------------------------------------------------
+"special sauce" is just dorito gogurt. Maybe with some garlic added in.
+
+*just because you phrase it in a weird way doesn't make it less delicious on a 
+burger*
+
+ -> file: messages/0504.txt
+--------------------------------------------------------------------------------
+I am brave with what I say but fearful with what I do
+
+ -> file: messages/0505.txt
+--------------------------------------------------------------------------------
+... That's not true, I am incapable of fear. I possess an abundance of caution, 
+however.
+
+ -> file: messages/0506.txt
+--------------------------------------------------------------------------------
+Trust me, but don't depend on me. I will let you down, for I am just a person, 
+and people pin their hopes upon people and are defeated when they fall.
+
+Trust, but verify. Trust, do not depend.
+
+ -> file: messages/0507.txt
+--------------------------------------------------------------------------------
+
+
+love nature no matter what
+love nurture if they earn it
+
+ -> file: fediverse/3640.txt
+--------------------------------------------------------------------------------
+
+
+eye tracked kindle that reads aloud the words you're looking at so you get 
+visual and audio books at the same time
+
+bonus points if it does so in your own voice (give it a few years)
+
+ -> file: fediverse/3641.txt
+--------------------------------------------------------------------------------
+
+
+@gwynnion
+
+ -> file: fediverse/3642.txt
+--------------------------------------------------------------------------------
+
+
+@limebar 
+
+Fief II
+
+https://fief.bandcamp.com/album/ii
+
+ -> file: fediverse/3643.txt
+--------------------------------------------------------------------------------
+
+
+if you cannot rapidly reorganize, then you are not organized.
+
+ -> file: fediverse/3644.txt
+--------------------------------------------------------------------------------
+CW: capitalism-mentioned
+
+
+
+remote jobs are less common these days because they're realizing which parts 
+can be either automated or are extraneous.
+
+the entire capitalist machine runs on like, 50,000% more labor than it needs. 
+It's not that complicated, it's not very revolutionary, just a lot of 
+duplicated effort and meaningless communicational transactions.
+
+I'm kind of glad they're getting rid of all the jobs. Maybe it'll free up 
+people to do something productive, for once, if only we had the capital to 
+start.
+
+ -> file: fediverse/3645.txt
+--------------------------------------------------------------------------------
+
+
+me, sitting down at my computer in order to be distracted:
+
+"I should make and eat a sandwich"
+
+me, sitting down at my computer with a PB&J and peanut-butter fingers:
+
+"I should be productive"
+
+me, sitting at my "work desk":
+
+"I'm hungry. And I'm bored. And I can't stop thinking about this video game I 
+haven't played in a year."
+
+repeat
+
+ -> file: fediverse/3646.txt
+--------------------------------------------------------------------------------
+
+
+@la_sombra 
+
+they look like they have a lot of fun...!
+
+ -> file: fediverse/3647.txt
+--------------------------------------------------------------------------------
+
+
+it's always wild when the exact moment I start playing music (quiet enough not 
+to hear more than 5 feet away) or switch tasks suddenly there's a LOT of 
+activity outside my apartment. like... if you're gonna watch me at least make 
+it more subtle lmao
+
+ -> file: fediverse/3648.txt
+--------------------------------------------------------------------------------
+
+
+oh I remember why it's because my software is always set to 100% because I have 
+a hardware knob controlling the volume. Because I'm not a NOOB who trusts BITS
+
+(pls deliver this message to the entire world whoever wants to hear for me, pls 
+thx I trust in the bits) 🙏 😇 ❤️
+
+ -> file: fediverse/3649.txt
+--------------------------------------------------------------------------------
+
+
+double tapping the star button because I want them to know I appreciate them 
+but I don't want to clog up my "pinned for all time" section of this neat 
+little website
+
+ -> file: fediverse/3650.txt
+--------------------------------------------------------------------------------
+
+
+anything with layers is an open-faced sandwich
+
+or a pizza in disguise
+
+rawr ex dee
+
+ -> file: fediverse/3651.txt
+--------------------------------------------------------------------------------
+
+
+@raccoonformality 
+
+do you ever think up ideas and then dismiss them because they're too massive in 
+scale? Not mechanical complexity, but like... you'd need 128gb of ram to run 
+them or something like that
+
+ -> file: fediverse/3652.txt
+--------------------------------------------------------------------------------
+CW: lewd-nsfw
+
+
+
+my favorite position is doggy style because of course I want to be mounted like 
+that drive you keep forgetting to add to your fstab
+
+you're supposed to gesture at "the bond between a man and his horse" or 
+something to that effect
+
+men shouldn't fuck horses just saying
+
+first of all the horse would fucking kick them in the balls or break their knees
+
+second they're way too tall so you'd have to find a stool and that's just like 
+a lot of effort
+
+third like... no thank you please, get out of my head stupid thoughts I want to 
+think about being degraded and horses are too noble for degradation
+
+what the fuck are you even talking about
+
+... yeah. sometimes it do be like that tho...
+
+"I came here for kink and horny but I left with confusion"
+
+ -> file: fediverse/3653.txt
+--------------------------------------------------------------------------------
+CW: nsfw-topic-mentioned
+
+
+
+if your affection toward someone is based on whether or not they pay you (and 
+how much), then you are a prostitute.
+
+ -> file: fediverse/3654.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+phew this is what happens when you make your morning pages public. gonna eat 
+some pizza instead of this nonsense.
+
+ -> file: fediverse/3655.txt
+--------------------------------------------------------------------------------
+
+
+born to write xlock screensavers
+
+cursed to shitpost
+
+ -> file: fediverse/3656.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+they say you should always shop for groceries after a meal, so you don't buy 
+the things you want to eat in that moment but instead the things you know in 
+your heart to be good for you
+
+but I just always end up looking for desert
+
+ -> file: fediverse/3657.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+the tiara is pretty cute just sayin' ^_^
+
+ -> file: fediverse/3658.txt
+--------------------------------------------------------------------------------
+
+
+@wyatt8740 
+
+yeah I probably should have said "tiara" hehe
+
+ -> file: fediverse/3659.txt
+--------------------------------------------------------------------------------
+
+
+but to err is to be human
+
+ -> file: fediverse/3660.txt
+--------------------------------------------------------------------------------
+
+
+be me, improving my life bit by bit:
+
+"I should stop procrastinating"
+
+ -> file: fediverse/3661.txt
+--------------------------------------------------------------------------------
+
+
+@jamey 
+
+improving your environment?
+learning a new skill?
+reaching out to an old friend?
+visiting someplace new?
+trying a new recipe?
+watching something from your backlist?
+
+... surely not working, or doing the thing that you're supposed to be doing, 
+that would just be productive after all
+
+ -> file: fediverse/3662.txt
+--------------------------------------------------------------------------------
+
+
+@jamey 
+
+maybe you can schedule them to be picked up, I know that's a thing sometimes, 
+and maybe that 5-10$ pickup fee would be better than hauling yourself up and to 
+the post-office...!
+
+ -> file: fediverse/3663.txt
+--------------------------------------------------------------------------------
+
+
+@attaboy 
+
+It depends on the size of the file, copying a thousand lines of config file 
+probably isn't that big of a deal, but copying a million lines in a log file 
+just to pass it as an argument to... pad it to the left, or whatever, that'll 
+DEFINITELY slow down your execution speed!
+
+Much better to pass by reference, usually...
+
+ -> file: fediverse/3664.txt
+--------------------------------------------------------------------------------
+
+
+@jamey 
+
+ooooooo what kind of books do you read?
+
+ -> file: fediverse/3665.txt
+--------------------------------------------------------------------------------
+
+
+@jamey 
+
+cool! my tip is to walk down the aisles and look at at least one book per aisle 
+- whichever you feel called to, don't question it too much. Then just grab 
+whichever one you're most interested in learning more about and BOOK IT out of 
+the store before they can tackle you to the ground while yelling "STOP THIEF"
+
+if you're lucky there'll be an old grandma in the background crying and maybe a 
+kid saying "mommy why are they tackling that poor person" and the mom will say 
+"hush now this kind of thing happens, say would you like some icecream?" and 
+before you know it they're down the street and out of earshot just as the 
+handcuffs clink into place. Unfortunately you'll forever be banned from that 
+bookstore and you'll never know what secrets were held within those pages, but 
+at least you'll have some shiny new bracelets, if only for a time.
+
+ -> file: fediverse/3666.txt
+--------------------------------------------------------------------------------
+
+
+@jamey 
+
+anytime! 🥰
+
+ -> file: fediverse/3667.txt
+--------------------------------------------------------------------------------
+CW: large-language-models-mentioned
+
+
+
+low key kinda surprised they haven't made an animated robot friend that 
+narrates whatever chatGPT says in a back-and-forth conversation.
+
+though I kinda get why, because setting up the context is the expensive part 
+and generating 100 words and generating 1000 words is basically the same 
+computationally.
+
+somehow, that doesn't feel very human. Maybe, just maybe, LLMs aren't 
+intelligent?
+
+ -> file: fediverse/3668.txt
+--------------------------------------------------------------------------------
+
+
+setting up an SSH server is like a rite of passage for Linux administrators
+
+(notice I didn't say users, you can't use linux, only administer it)
+
+... I'm having trouble with my rites >.>
+
+ -> file: fediverse/3669.txt
+--------------------------------------------------------------------------------
+
+
+@sirenita 
+
+mood
+
+vibe
+
+real tho
+
+ -> file: fediverse/3670.txt
+--------------------------------------------------------------------------------
+
+
+@sirenita 
+
+maple has always tasted a little salty to me. Or maybe you're just into maple. 
+It was always my favorite but these days I'm into old fashioned
+
+ -> file: fediverse/3671.txt
+--------------------------------------------------------------------------------
+I dreamt of vegetables, precious babies, and leaves bourne on their own wind.
+
+ -> file: messages/0508.txt
+--------------------------------------------------------------------------------
+I had a dream about "what if people listened to me" and it was a melancholy 
+kind of sad, the kind that comes after a great tribulation as one picks up the 
+pieces.
+
+Food is so important, people grow tired of the same thing every day. They say 
+an army marches on its stomach, and our stomachs these days are accustomed to 
+variety, taste, and plenty.
+
+It would get better, give it time, and in time our wounds would heal. But 
+wouldn't you rather persist in this timeline, the one that isn't doomed, and 
+instead flourish in the ways inertia brings us? Capitalism must fall, of 
+course, but it will fall of its own accord after we've done our best to 
+maintain the world we live in.
+
+"better to be starting from scratch, than lose your path"
+
+... Yeah, okay, true, but just like justice is its own reward, so too is 
+hardship it's own burden.
+
+*you can't eat justice* 
+
+No, but at least you aren't enslaving anyone.
+
+*they would be slaves still, without your patronage* 
+
+Liberation for all comes later, I guess. First up is building a safe and stable 
+home for us.
+
+*safe and stable... Like the one you have now? Like the kind the Democrats 
+promise?* 
+
+Yes, but ideological purity calls me to believe that slavery should not be 
+accepted. It should not be something we condone. And yet they do, albeit 
+indirectly, and so I am perplexed.
+
+*if you want good food, live in the country. Hence why all the suburbs are 
+empty.* 
+
+... Anyway, 3am musings, gonna program a bit and go to sleep again...
+
+ -> file: messages/0509.txt
+--------------------------------------------------------------------------------
+It's not sparkling reconnaisance if you're *fucking telepathic you stupid bitch*
+
+ -> file: messages/0510.txt
+--------------------------------------------------------------------------------
+That feeling when running a command on my laptop causes the fans to spin up on 
+my desktop...!
+
+ -> file: messages/0511.txt
+--------------------------------------------------------------------------------
+Never write poetry in your sleep. You will forever miss it upon waking.
+
+ -> file: messages/0512.txt
+--------------------------------------------------------------------------------
+A wherewolf and a human stumble into a bedroom in the dark of night, their arms 
+clutching each other as they make out in front of the window.
+
+Just then, the moonlight appears, and the wherewolf's form begins to shift, as 
+strangled cries turn into a cacophanous mess.
+
+The moment passes, and the wherewolf collapses onto the bed, exhausted.
+
+He rests there on his back for precious moments, before throwing himself to his 
+feet and putting on his socks and sandals.
+
+Ha glances in the mirror.
+
+He straightens his tie.
+
+He goes to fucking work, again, just as the laundry dings.
+
+When he gets back, it smells musty, so he washes it again with bleach.
+
+*exhaustion cares not for form, only exertion.* 
+
+The wolf collapses once more into bed, tired from a day of accounting. He 
+thinks to turn on the TV, but he slips away before getting the strength to rise 
+for the remote.
+
+In his dreams, there are children clutching at his skirt with big bright eyes 
+begging him not to sleep. Not to dream. Not to feed. He brushes them aside as 
+he always does, and fixes her makeup in the mirror. She glances back at them, 
+quivering on the bed like a bear, a shark, a dinosaur, before she sweeps to her 
+feet and goes out for a night on the streets, looking for a bar and a stranger 
+to meat.
+
+The moon once more reaches it's zenith. He is awoken with a pang of humanity as 
+his hunger transforms him back into an ape with lust in her eyes.
+
+ -> file: messages/0513.txt
+--------------------------------------------------------------------------------
+Paying your employees more *makes them better workers*.
+
+An extra 2$ per hour might mean they can eat out an extra night, they might be 
+able to afford a car, and they might be able to focus just a bit more without 
+crying in their sleep about an unexpected bill.
+
+With less stress, employees perform better. They are more loyal. They work 
+harder.
+
+Pay your employees more. They are your greatest resource.
+
+ -> file: messages/0514.txt
+--------------------------------------------------------------------------------
+
+
+Phew got SSH working! Turns out it was the fact that the authentication key was 
+owned by root instead of ritz. Doh, how could I forget the thing that wasn't 
+mentioned anywhere in my search queries.
+
+you didn't search query, you used chatGPT, which is why you were stuck for so 
+long
+
+haha oh yeah
+
+... now I should fix my obs, it won't record video for some reason.
+
+ -> file: fediverse/3672.txt
+--------------------------------------------------------------------------------
+CW: cursing-mentioned
+
+
+
+there's something kinda... liberating about working with computers at work.
+
+you always know that worst case scenario, even if you totally fuck up the 
+system configuration, you can always reimage the machine.
+
+so... who cares! if you can't get something working, just fucking try shit 
+until it works. Whack it with a software hammer. See what happens.
+
+ -> file: fediverse/3673.txt
+--------------------------------------------------------------------------------
+
+
+@attaboy 
+
+that's so cool! I love little jobs like that. More dynamic and fun I think than 
+implementing features hehe
+
+ -> file: fediverse/3674.txt
+--------------------------------------------------------------------------------
+CW: politics
+
+
+
+On one hand, elected officials! 🤩 
+
+on the other hand... elected officials 😒
+
+ -> file: fediverse/3675.txt
+--------------------------------------------------------------------------------
+CW: politics
+
+
+
+can we add "against-eugenics on principle" to the requirements for being 
+president??
+
+ -> file: fediverse/3676.txt
+--------------------------------------------------------------------------------
+CW: politics-AI
+
+
+
+if you're running for office we should train an LLM on your social media posts 
+and let people talk to it to see if you're actually a psycho in disguise.
+
+it's just statistics
+
+you can't fool statistics
+
+Then we should give you a chance to explain yourself and how you've learned 
+from your most cringey mistakes. It'd also give you an opportunity to reify 
+your principles and stand fast to the things people disagree with you on.
+
+and if that sounds a little too dystopian, then maybe we could just have the 
+LLMs debate each other and continue outputting text until they actually say 
+something conclusive. Then throw it through a sanitized, general LLM which 
+strips out all the trumpisms and fluff (with the original of course available 
+for viewing)
+
+notice I said we should TRAIN an LLM on your data, not pass it into an existing 
+LLM. That way there'd be no outside biases.
+
+If there isnt enough data then... maybe you can have a hot-seat rapid 
+back-and-forth session or three to clarify your positions on things.
+
+ -> file: fediverse/3677.txt
+--------------------------------------------------------------------------------
+CW: re: politics
+
+
+
+on one hand, un-elected officials! 😒 
+
+On the other hand... un-elected officials. 😭
+
+ -> file: fediverse/3678.txt
+--------------------------------------------------------------------------------
+CW: drugs-mentioned
+
+
+
+I stopped smoking cannabis because possible job and wow... life feels between 4 
+and 6 times longer
+
+ -> file: fediverse/3679.txt
+--------------------------------------------------------------------------------
+
+
+Heavy things should be stored closer to the ground.
+
+ -> file: fediverse/3680.txt
+--------------------------------------------------------------------------------
+
+
+it's probably a good idea to write pseudocode, then real code, instead of 
+starting with real code, and bugfixing something incomplete and more difficult 
+to reason with.
+
+unless you write real code easier than pseudocode. idk do what works for you.
+
+ -> file: fediverse/3681.txt
+--------------------------------------------------------------------------------
+
+
+being large means that all things are not sized correctly. meaning you always 
+feel out of place.
+
+ -> file: fediverse/3683.txt
+--------------------------------------------------------------------------------
+CW: cursing-mentioned
+
+
+
+"your hat makes you look like a fucking nazgul"
+
+hell yeah it does. I'm a witch what the fuck did you think I was going for??
+
+ -> file: fediverse/3684.txt
+--------------------------------------------------------------------------------
+
+
+long have I searched for some material which may compare to glowsticks.
+
+It seems I shall yearn forever. None are equivalent to chemically produced 
+light, none fulfill my desire for thrumming neon radiance.
+
+maybe someday I'll find a bracelet of bioluminescent algae. Maybe someday we'll 
+make an LED that is not piercing, but warm and close. Alas.
+
+ -> file: fediverse/3685.txt
+--------------------------------------------------------------------------------
+
+
+@RadioAddition 
+
+It's similar but it's not the saaaaame... Plus it's only one color I think. And 
+a lot less bright.
+
+Maybe we can find some kind of bacteria that can be genetically engineered to 
+produce one type of the chemicals, and another that produces the other, so when 
+they interact it'll produce light indefinitely.
+
+(what about conservation of energy?)
+
+um... maybe make them photosynthesize or something? so you have to charge it in 
+the sun and then it'll glow all night.
+
+ -> file: fediverse/3686.txt
+--------------------------------------------------------------------------------
+
+
+@RadioAddition 
+
+I do, but git is pretty complex! I can do some pretty basic stuff but I'd like 
+more experience with the more complicated aspects.
+
+I currently use Void Linux and Gentoo, and I was thinking of installing NixOS 
+on my raspberry pi. I'll let you know when I end up doing that ^_^
+
+ -> file: fediverse/3687.txt
+--------------------------------------------------------------------------------
+
+
+@RadioAddition 
+
+I saw this video:
+https://www.youtube.com/watch?v=CwfKlX3rA6E
+
+and I was like "yeah that sounds pretty neat" so I started doing it by hand 
+lmaoooo but learning their system could be probably better. Reduced duplication 
+of effort. Though TBH the biggest effort for me is learning someone else's 
+tools, not writing them. So....
+
+ -> file: fediverse/3688.txt
+--------------------------------------------------------------------------------
+
+
+@RadioAddition 
+
+automation builds resiliency. "you in 2 years" or "your partner in 5" will have 
+a lot easier time running a script called "update" and fixing the 2 errors than 
+redoing it from scratch and working through 5 or 6 errors.
+
+ -> file: fediverse/3689.txt
+--------------------------------------------------------------------------------
+
+
+"mom can we have some kirby's air ride"
+
+"sure we have kirby's air ride at home"
+
+the kirby's air ride at home:
+
+ -> file: fediverse/3690.txt
+--------------------------------------------------------------------------------
+CW: capitalism-mentioned
+
+
+
+what if we demanded private servers for video games (by law? what else would 
+even work??) and encouraged companies to hire people to make high-quality mods 
+for their competitors games so they couldn't make as much money selling 
+expansion packs and DLC
+
+ -> file: fediverse/3691.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned
+
+
+
+I had a dream that someone fed me a McDonalds burger in the airport (with 
+"special sauce") and then the next time I was at the grocery store in the 
+waking world I ended up buying a bunch of those meat replacements that I 
+usually skip in favor of moar vegetables.
+
+Hmmmmm.... I wonder if I have a deficiency
+
+(yeah you dumbass it's a calorie deficiency, just eat more)
+
+ -> file: fediverse/3692.txt
+--------------------------------------------------------------------------------
+
+
+the reason Discord won't allow you to join their communities via 3rd party 
+clients like TUI's and CLI's is because they're worried games will just bake a 
+client into the game and hide all the community stuff. They're worried because 
+there's no reason why a fighting game needs to have a button for viewing a 
+puzzle game's community.
+
+ -> file: fediverse/3693.txt
+--------------------------------------------------------------------------------
+
+
+@avaa_8 
+
+vimm.net still seems to be up for me...?
+
+ -> file: fediverse/3694.txt
+--------------------------------------------------------------------------------
+
+
+if advertisers feel comfortable putting an ad on your profile then you're not 
+using the fediverse correctly
+
+if anyone tells you how to use the fediverse then they're using the fediverse 
+wrong
+
+if anyone ever tells you to do anything ever at all for any reason you are 
+legally obligated to bite their flesh
+
+ -> file: fediverse/3695.txt
+--------------------------------------------------------------------------------
+
+
+@avaa_8 
+
+I see. That's unfortunate. Here's a backup for you:
+
+https://r-roms.github.io/
+
+and here's a gitlab backup of the backup:
+
+https://r-roms.gitlab.io/megathread/
+
+RIP VIMM you were the best. Alas.
+
+ -> file: fediverse/3696.txt
+--------------------------------------------------------------------------------
+CW: mental-health
+
+
+
+why does my fridge keep saying "you're dead to me"...?
+
+ -> file: fediverse/3697.txt
+--------------------------------------------------------------------------------
+CW: re: mental-health
+
+
+
+oh wait nevermind it's saying "what's this one mean" but they have the same 
+cadence so it's impossible to tell apart.
+
+angel and a demon, tapping on your shoulder... where you wander next is where 
+your soul grows fonder.
+
+ -> file: fediverse/3698.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+the law is a weapon to be wielded by the masses to subjugate their masters
+
+ -> file: fediverse/3699.txt
+--------------------------------------------------------------------------------
+
+
+no gods, no masters, only rapture
+
+bUt WhAt AbOuT tHe EcOnOmY ? ! ?
+
+(... wait what's this one mean?)
+
+ -> file: fediverse/3700.txt
+--------------------------------------------------------------------------------
+
+
+There is almost zero reason to have a messaging client (like Discord) that is 
+anything more than a wrapper over IRC.
+
+There is almost zero reason to have a social media site that is anything more 
+than a wrapper over HTML pages.
+
+There is almost zero reason to have forums that is anything more than a wrapper 
+over email.
+
+and yet, we build things.
+
+and yet, we construct.
+
+ -> file: fediverse/3701.txt
+--------------------------------------------------------------------------------
+
+
+@banaanihillo 
+
+haha openstreetmap KNOWS
+
+tbh if you know anything about me online... you know how non-neurotypical I am 
+=P
+
+ -> file: fediverse/3702.txt
+--------------------------------------------------------------------------------
+CW: physical-health-mentioned
+
+
+
+just helped a friend move to a new place in 92` fahrenheit... I am exHAUSted... 
+and a different friend invited me to a bar T.T
+
+we'll see how I feel after a shower and a nap.
+
+I'm honestly a little delirious teehee
+
+ -> file: fediverse/3703.txt
+--------------------------------------------------------------------------------
+CW: D&D-mentioned
+
+
+
+if the map you present to the players in session 0 had a mountain range on the 
+OTHER SIDE of another mountain range, you need to zoooooom in. Unless your 
+characters are all dwarves, a game should start in a valley or on an island.
+
+ -> file: fediverse/3704.txt
+--------------------------------------------------------------------------------
+
+
+Growing up, I started with 3 video games - Super Mario Deluxe, Dragon Warrior 
+1&2, and Asteroids. For the gameboy color. Then, a year or two later (what felt 
+like forever), Super Mario 64 and The Legend of Zelda Ocarina of Time.
+
+Classics. I was so lucky. Not because it was more expensive than my peers, but 
+because I had the right games.
+
+Others joined later, Tetris, Mario Kart, Star Fox, etc... But having so few 
+that were so good for so long made me adore them. I would play for about an 
+hour a day, any more would cut into my imaginative play-time.
+
+I did not dream of games. But I craved their moments.
+
+These days, I play games for so long that I dream of them. In my most 
+vulnerable moments I treat them like my baseline state, rather than a 
+prescribed appointment of delight.
+
+I miss wandering around without thinking of my objective. The games seemed to 
+change, rather than progress. They felt alive to me. I never beat them, because 
+I didn't need to.
+
+I'll raise my kids the same way, if I ever having any...
+
+ -> file: fediverse/3705.txt
+--------------------------------------------------------------------------------
+
+
+what is the point of modular power supplies if they can't use cables from 
+another power supply?
+
+ -> file: fediverse/3706.txt
+--------------------------------------------------------------------------------
+
+
+@sjolsen 
+
+... that makes sense. Downside is as soon as you do, suddenly there's a 0% 
+chance you'll remember which goes where.
+
+I guess that's why you keep the box, lmao xD
+
+ -> file: fediverse/3707.txt
+--------------------------------------------------------------------------------
+
+
+phew I'm tired of productivity, gonna play a game and fall asleep ^_^
+
+ -> file: fediverse/3708.txt
+--------------------------------------------------------------------------------
+
+
+@sjolsen 
+
+doesn't everyone do that??
+
+ -> file: fediverse/3709.txt
+--------------------------------------------------------------------------------
+
+
+@sjolsen 
+
+normal? maybe not. But it sounds like a cool room regardless.
+
+ -> file: fediverse/3710.txt
+--------------------------------------------------------------------------------
+
+
+Today's a saturday, aka the BEST day
+
+ -> file: fediverse/3711.txt
+--------------------------------------------------------------------------------
+CW: food-mentioned-politics-capitalism-mentioned
+
+
+
+what if instead of spending most of our paycheck on rent we spent most of it on 
+food so that our food could be higher quality
+
+"but then people will starve because they can't afford food"
+
+okay how about we make food free and tax it
+
+"but then people will be fed by MY tax dollars and what if I don't want to use 
+the services that the tax dollars are paying for"
+
+oh you don't want to eat, do you? or do you just not want THEM to eat? I hope 
+leopards eat your face
+
+ -> file: fediverse/3712.txt
+--------------------------------------------------------------------------------
+CW: re: food-mentioned-politics-capitalism-mentioned
+
+
+
+girls (me) would literally rather be paid 200$ a month and have free rent and 
+food than be paid 2200$ per month and pay 1600 in rent and 400 in food
+
+ -> file: fediverse/3713.txt
+--------------------------------------------------------------------------------
+CW: politics-economics-mentioned
+
+
+
+@sashin 
+
+Ah but then inflation wouldn't increase, and don't you know inflation is just a 
+(loose) measurement of how much wealth the ruling class extracts from the 
+populace each year?
+
+When the total amount of wealth increases more than inflation, it's okay. When 
+it doesn't... They tighten our chains.
+
+ -> file: fediverse/3714.txt
+--------------------------------------------------------------------------------
+
+
+@flameReactor 
+
+I see flossing teeth
+
+I see thongs in a butt
+
+I see a gravity well with a pinprick of a singularity
+
+I see the Mandelbrot set being caressed by inter-spatial wind
+
+I bet if I stared a bit longer I'd see more
+
+ -> file: fediverse/3716.txt
+--------------------------------------------------------------------------------
+CW: tech-accessibility-rant
+
+
+
+https://www.reddit.com/r/comics/comments/1f5u47p/transfer/
+
+This Reddit thread is wild to me. Like... Why did the designers of Androids and 
+iPhone just... stop designing ways to safely and easily transfer files? Why the 
+heck doesn't every android have a built-in SSH server that automatically and 
+permanently pairs to your PC using an automatically managed private key the 
+first time you plug it in? The user doesn't care about security, they just want 
+to click on a picture, click the "view on PC" button, and then open up their 
+downloads folder. (paraphrasing the comments) - so why don't we make that 
+happen. What happened to tech, that we stopped working as soon as the consumer 
+decided they wouldn't pay for it? (it being a file transfer service)
+
+It's like healthcare. You don't stop treating someone when they're healthy, you 
+ask them how they'd like to feel and you make it happen. (hormones).
+
+[continued in picture because letter count]
+
+ -> file: fediverse/3717.txt
+--------------------------------------------------------------------------------
+CW: mental-health-minus
+
+
+
+hey, you know how historically they used to lobotomize young women who were too 
+fiery, passionate, independent, driven, motivated, and clairvoyant?
+
+they did that on purpose.
+
+that was less than a lifetime ago.
+
+ -> file: fediverse/3718.txt
+--------------------------------------------------------------------------------
+
+
+Real life is improv, but real life is not a skit.
+
+I am unwilling to give control of my life's scene to someone who won't tell me 
+what they want to do with it.
+
+Even if I don't believe you, I'll still give it to you, but I will remain 
+cautious and will abandon the scene if it appears that I can trust you to hurt 
+me.
+
+ -> file: fediverse/3719.txt
+--------------------------------------------------------------------------------
+
+
+how many people could your apartment comfortably fit?
+
+I got one desktop
+one laptop desk
+two on the couch
+one in a comfy chair
+one on the bed
+and two outside on the porch
+
+so (1 2 4 5) that's 5 indoors, 6 if they're familiar enough to lounge on my 
+bed, and 8 if we're allowed outside.
+
+Could also pull the hammock and chair in from outside but it might get a little 
+cozy. Call it 8 or 9 depending on how close we are.
+
+ -> file: fediverse/3720.txt
+--------------------------------------------------------------------------------
+
+
+beep-boop look at me, building up my computer and setting up a new TV
+
+I like making things work, I like making things turn on, I like the way they 
+glitter when they light up the room at dark
+
+it feels good to build up
+this new functionality
+
+it feels good to make things work and go
+"beep"
+when they turn on
+
+... I should get a buzzer for my motherboard. Like, a really quiet one, that's 
+just louder than the fans.
+
+looks at dwindling bank account
+
+oh right, nobody will hire me, so.
+
+I wonder if they would if I could still pass for a man?
+
+ -> file: fediverse/3721.txt
+--------------------------------------------------------------------------------
+CW: PSA-not-serious
+
+
+
+1 2 3 - 1... 2... 3... - 1 2 3 means SOS, so if you hear it that means 
+someone's in trouble.
+
+don't go about willy nilly saying it though.
+
+ -> file: fediverse/3722.txt
+--------------------------------------------------------------------------------
+
+
+@banaanihillo 
+
+playing one of my 4 gameboys, reading some of my books or journals, using their 
+own brought devices, playing with my cat (she's not sociable but if you don't 
+mind her claws she can fight and that's kinda fun) watching something on the 
+TV, talking with other people, making / eating food, um... sleeping... and 
+"sleeping"... idk what else tho. Drawing? Getting stoned? I have lots of bad 
+edibles.
+
+ -> file: fediverse/3723.txt
+--------------------------------------------------------------------------------
+
+
+@banaanihillo 
+
+sadly no, I only have one that's a legit gameboy. And I realized that puts it 
+at 5. 6 if you could my 3DS too.
+
+so two handhelds capable of linkage, and they're the wrong generations! T.T
+
+The others are Anbernics
+
+https://anbernic.com/
+
+ -> file: fediverse/3724.txt
+--------------------------------------------------------------------------------
+CW: sexual-assault-mentioned
+
+
+
+witches would "ride brooms" everywhere because they're quarterstaves, and when 
+you have like 3 brooms being pushed in your face because your backup is there 
+to help keep the men away, it's a lot more intimidating for would-be-rapists.
+
+Witches ride bikes everywhere (now that they've been invented) because they're 
+easy, they're free, they're quiet, and they're cheap. They let you get away 
+from any encounter, which is the BEST way to get out alive and still retain 
+your experience point bonus.
+
+ -> file: fediverse/3725.txt
+--------------------------------------------------------------------------------
+
+
+the earth doesn't know how big she is, and everytime you carry a seed across 
+state lines she learns a bit more about her surface.
+
+ -> file: fediverse/3726.txt
+--------------------------------------------------------------------------------
+
+
+@banaanihillo 
+
+They're Linux handheld consoles from China. I have 4 different types. This 
+brand is the most durable and reliable I've found. They can play everything 
+before PS1, a couple N64 games, and about half of the Nintendo DS games.
+
+ -> file: fediverse/3727.txt
+--------------------------------------------------------------------------------
+CW: politics-mentioned
+
+
+
+I'm not an anarchist who believes in dismantling all hierarchies.
+
+I am an anarchist who believes in dismantling unjustified hierarchies.
+
+I'm not an anarchist who believes that all hierarchies are unjust.
+
+I am an anarchist who believes that most of our hierarchies are just, because 
+people are just, and people built those hierarchies.
+
+I am not an anarchist who would want to harm my country. I live in my country! 
+I would never harm it!
+
+I am an anarchist who believes that our country is being harmed by those who 
+wield hierarchy as a weapon against the enslaved.
+
+I am not an anarchist who wants to avenge this power disparity by blood and 
+blood alone.
+
+I am an anarchist who believes in peace, sanctity, and justified respect 
+[insert that tumblr post picture about the two kinds of respect]
+
+I am not an anarchist who believes that the world is doomed.
+
+I am an anarchist who believes that the only true relations between people are 
+those we consent to and those we forge with the people we chose.
+
+ -> file: fediverse/3728.txt
+--------------------------------------------------------------------------------
+
+
+@vera 
+
+NOOOOOOOOOO
+

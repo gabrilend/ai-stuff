@@ -1,0 +1,22 @@
+-- units spawn at each building and walk through the maze to fight their foes.
+-- each building is placed by clicking on the icon in the bottom tray of the UI
+-- and selecting an available space on the map. Buildings may be placed upon
+-- controlled rooms, and each player starts with one room available.
+--
+-- the buildings generate mana as the game progresses, a typical rate is about
+-- one mana per second with a minimum of 0 and a maximum of 10. Some buildings
+-- generate more mana more quickly, and others are slower.
+--
+-- upon reaching maximum mana, the building will apply it's effect to the map
+-- a common effect is to spawn a unit who will wander the maze and fight, but
+-- other common effects include throwing fireballs at random foes, healing an
+-- injured ally, or creating a magic item that may be picked up by a character
+-- walking past.
+--
+-- buildings may not be destroyed by wandering units. If the room they are in is
+-- captured, then the buildings are now controlled by the capturing player and
+-- will apply their effect to the controlling player's benefit.
+--
+-- some buildings are shops, and anytime a character is within range of an enemy
+-- that dies, they will receive some gold coins. They may spend these coins at
+-- a shop, and will try to do so before leaving a room if possible.

@@ -1,0 +1,3 @@
+=== Behavioral Pattern Analysis ===
+RECENT_ACCESS: settings.dat | Access lag: 900s
+

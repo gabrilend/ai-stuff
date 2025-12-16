@@ -1,0 +1,23 @@
+okay how about that idea that I had before [delete this line and replace with idea] but instead of a pdf it's an html document
+[for context, the original wasn't saved when I turned my computer off]
+[how lame]
+
+anyway okay so what if there was an HTML document that had all the poems in
+chronological order. Then, if you clicked a poem (ANY poem!) then it took you to
+a page that had all the poems above a certain threshold sorted by similarity
+(as determined by the EMBEDDINGS comparison created through Ollama)
+
+so, if you're interested in knowing more, here's a bunch of related poems
+there'd also be a link at the top to take you back to the chronological sorting
+it could be displayed similarly to the PDF (which is primarily for printing)
+so that it looks aesthetically pleasing.
+
+all the HTML pages would be generated beforehand and stored on the server.
+since it's just text and some basic color graphics, it's fine and shouldn't take
+much hard drive space.
+
+however, since there's a new page generated for EACH poem, and since there's
+400+ pages of poems, each with sometimes at least 6-10 poems... there might be
+around 4000 pages, each of which must be pre-computed beforehand. We need to
+create some excellent TESTING processes and ensure that the output is correctly
+produced BEFORE we do the intense processing tasks which cannot be parallelized.

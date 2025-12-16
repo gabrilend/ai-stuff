@@ -1,0 +1,137 @@
+--{{{ introduction 
+   When division is explained at the elementary arithmetic level, it is often 
+   considered as splitting a set of objects into equal parts. As an example, 
+   consider having ten cookies, and these cookies are to be distributed equally
+   to five people at a table. Each person would receive 10 / 5 = 2  cookies. 
+   Similarly, if there are ten cookies, and only one person at the table, that 
+   person would receive 10 / 1 = 10  cookies.
+
+   So, for dividing by zero, what is the number of cookies that each person
+   receives when 10 cookies are evenly distributed among 0 people at a table? 
+   Certain words can be pinpointed in the question to highlight the problem. The 
+   problem with this question is the "when". There is no way to distribute 10 
+   cookies to nobody. Therefore, 10 / 0 —at least in elementary arithmetic—is
+   said to be either meaningless or undefined.
+
+- wikipedia, division by zero, 7-12-23
+
+
+
+   alright I have several problems with this. I like the idea of dividing
+cookies, but I disagree with their conclusions. So dividing by integers works as
+they say, but division by zero is a little different - they say "the problem
+with this question is 'when'" when in reality 'when' is the same for this
+question as it is for any of the others. Obviously, zero is just a number. Why
+would this be any different? The computational actions necessary to complete
+this statement all occur at the same time, because they are by definition
+immutable. You cannot change any equation, you only generate new ones.
+
+Okay so here's my thinking. To answer the question "what is the number of 
+cookies that each person receives when 10 cookies are evenly distributed among 0
+people at a table?" we simply have to answer the question. "How many cookies do
+I get?" well, none, because you weren't at the table. In fact nobody was at the
+table, so the result is that nobody got zero cookies.
+
+You might even say you have a remainder of 10 cookies, as none of them were
+distributed.
+
+10 / 0 = 0 remainder 10
+
+^^^ that's how I think it should be. I have an algorithmic justification, and
+excuse me as I don't have a mathematical proof or anything. Math was never my
+strong suit, there's too many symbols and strange names for obvious operations
+that get in the way of the abstract big picture.
+
+ahem...
+
+abstract:
+
+Given: x = 13 / 3 what is x?
+
+step 1: convert 13 to base 3
+step 2: digit shift right by 1
+step 3: convert back to binary
+--}}}
+
+--{{{ step 1:
+                                v
+start with the binary number 1101 which is 13 in decimal. To convert to a base 3
+number,                          \___________________.
+       \                                             |
+        first start with the Least Significant Bit (LSB) which is 1. So our 
+        base-3 number starts with 0001.
+
+                              v
+Next, move to the next bit: 1101 
+                              ^-----It's a zero so we can skip it. 
+Which means our 
+base 3 number remains unchanged as "0001"
+                              v
+Next, move to the third bit: 1101 
+                              ^-----It's a 1, which evaluates to 4 in decimal, 
+                                    meaning we should add 4 to our base 3 number
+
+                                              base 3
+   4 in base 3 is "11", which means we         0001 <----- 1 in decimal
+ should have a base 3 number of "12" now.     +0011 <----- 4 in decimal
+                                              =0012 <----- 5 in decimal
+                                                   \_________ 2? -> yes, base 3
+                                                                    remember?
+Next, move to the fourth and final bit: 1101
+                                        ^ --it's a 1, which evaluates to 8 in 
+      0012-----.____________                   decimal. 8 in decimal is "22" in 
+     +0022-----.            \                        base 3, which means we need to 
+     =0111      \            T---- add "22" and "12" in base 3 
+                 \__________/                        to get our final number of 
+                                                     13. Which should evaluate 
+step 2:                                              to 0111 in base 3.
+          .____.
+bit shift |0111| to the right, 
+          |>>>>|
+          |0011|--->1 underflow
+          .----.
+          
+meaning the base 3 number is now 0011 with an underflow (remainder) of 1
+
+step 3:
+
+convert back to binary, meaning 0011 in base-3 becomes 4 in decimal or 0100 in
+binary. Store the underflow as the remainder.
+
+================================================================================
+
+okay that's great and all, but what does this have to do with dividing by zero?
+
+great question, me. I have two questions I want to pose to you:
+
+1. what happens when trying to divide by 1 with this algorithm?
+   - you convert to base 1
+                          \
+                           wait hang on base 1? Sounds made up... Well, its not!
+                           or at least if it is, then I'm the one who made it up
+                           so... yeah
+                           |
+okayyy how does base 1 work?
+                            \
+                             glad you asked. 
+
+--}}}
+
+--{{{ bases
+--}}}
+
+--{{{ decimal (base 10)
+--}}}
+
+--{{{ binary  (base 2)
+--}}}
+
+--{{{ digit shifting
+--}}}
+
+--{{{ bases higher than 2 and not 10
+--}}}
+
+--{{{ base 1? base 0?
+--}}}
+

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Unicode Character Cross-Browser Compatibility Test</title>
+<meta charset="UTF-8">
+<style>
+body { 
+    font-family: monospace; 
+    line-height: 1.8; 
+    padding: 20px; 
+    background: #f5f5f5;
+}
+.test-section { 
+    background: white; 
+    padding: 15px; 
+    margin: 15px 0; 
+    border: 1px solid #ddd; 
+    border-radius: 5px;
+}
+.character-test { 
+    font-size: 16px; 
+    margin: 8px 0; 
+    padding: 5px;
+    background: #fafafa;
+    border-left: 3px solid #007acc;
+}
+.progress { color: #dc3c3c; font-weight: bold; }
+.unicode-info { 
+    color: #666; 
+    font-size: 12px; 
+    font-family: sans-serif;
+}
+.browser-info {
+    background: #e8f4f8;
+    padding: 10px;
+    border-radius: 3px;
+    margin-bottom: 15px;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+.fallback-test {
+    font-family: Arial, sans-serif; /* Test fallback font */
+}
+</style>
+</head>
+<body>
+
+<h1>Unicode Progress Bar Compatibility Test</h1>
+
+<div class="browser-info">
+    <strong>Browser Detection:</strong>
+    <script>
+    document.write("User Agent: " + navigator.userAgent + "<br>");
+    document.write("Platform: " + navigator.platform + "<br>");
+    document.write("Language: " + navigator.language);
+    </script>
+</div>
+
+<div class="test-section">
+    <h2>1. Current Progress Bar Characters</h2>
+    
+    <div class="character-test">
+        <div class="unicode-info">█ (U+2588 FULL BLOCK) / ░ (U+2591 LIGHT SHADE)</div>
+        <span class="progress">████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test fallback-test">
+        <div class="unicode-info">Same characters in Arial fallback font:</div>
+        <span class="progress">████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+</div>
+
+<div class="test-section">
+    <h2>2. Alternative Character Options</h2>
+    
+    <div class="character-test">
+        <div class="unicode-info">━ (U+2501 BOX HEAVY HORIZONTAL) / ─ (U+2500 BOX LIGHT HORIZONTAL)</div>
+        <span class="progress">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>────────────────────────────────────────
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">▓ (U+2593 DARK SHADE) / ▒ (U+2592 MEDIUM SHADE)</div>
+        <span class="progress">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span>▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">═ (U+2550 BOX DOUBLE HORIZONTAL) / ─ (U+2500 BOX LIGHT HORIZONTAL)</div>
+        <span class="progress">════════════════════════════════════════</span>────────────────────────────────────────
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">● (U+25CF BLACK CIRCLE) / ○ (U+25CB WHITE CIRCLE)</div>
+        <span class="progress">●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●</span>○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○○
+    </div>
+</div>
+
+<div class="test-section">
+    <h2>3. Accessibility & Color Testing</h2>
+    
+    <div class="character-test">
+        <div class="unicode-info">Red progress (current semantic color)</div>
+        <span style="color: #dc3c3c; font-weight: bold;">████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">Blue progress</div>
+        <span style="color: #3c78dc; font-weight: bold;">████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">Green progress</div>
+        <span style="color: #3cb45a; font-weight: bold;">████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">High contrast (black/gray)</div>
+        <span style="color: #000000; font-weight: bold;">████████████████████████████████████████</span><span style="color: #888888;">░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░</span>
+    </div>
+</div>
+
+<div class="test-section">
+    <h2>4. Different Progress Levels</h2>
+    
+    <div class="character-test">
+        <div class="unicode-info">0% Progress (ID: 1)</div>
+        <span class="progress"></span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">25% Progress (ID: 1625)</div>
+        <span class="progress">████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">50% Progress (ID: 3250)</div>
+        <span class="progress">████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">75% Progress (ID: 4875)</div>
+        <span class="progress">████████████████████████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">90% Progress (ID: 5850)</div>
+        <span class="progress">████████████████████████████████████████████████████████████████████████</span>░░░░░░░░
+    </div>
+    
+    <div class="character-test">
+        <div class="unicode-info">100% Progress (ID: 6500)</div>
+        <span class="progress">████████████████████████████████████████████████████████████████████████████████</span>
+    </div>
+</div>
+
+<div class="test-section">
+    <h2>5. Font Support Test</h2>
+    <p>If you see any missing characters (boxes □ or question marks ?), those indicate poor font support for specific Unicode characters in your browser/system combination.</p>
+    
+    <div class="character-test">
+        <div class="unicode-info">Required characters test:</div>
+        Individual characters: █ ░ ━ ─ ▓ ▒ ═ ● ○<br>
+        Missing character indicators: □ ? �
+    </div>
+</div>
+
+<div class="test-section">
+    <h2>6. Screen Reader ARIA Test</h2>
+    <div class="character-test">
+        <div aria-label="Progress bar: 67.2 percent through timeline. Semantic color: red.">
+            <span class="progress">██████████████████████████████████████████████████████</span>░░░░░░░░░░░░░░░░░░░░░░░░
+        </div>
+        <div class="unicode-info">Hover or use screen reader to test ARIA label</div>
+    </div>
+</div>
+
+<script>
+// Feature detection
+document.addEventListener('DOMContentLoaded', function() {
+    // Test if Unicode characters render properly
+    var testElement = document.createElement('div');
+    testElement.style.position = 'absolute';
+    testElement.style.left = '-9999px';
+    testElement.innerHTML = '█░';
+    document.body.appendChild(testElement);
+    
+    var charWidth = testElement.offsetWidth;
+    document.body.removeChild(testElement);
+    
+    if (charWidth < 10) {
+        console.warn('Unicode characters may not be rendering properly');
+        document.body.insertAdjacentHTML('afterbegin', 
+            '<div style="background:#ffeeee; padding:10px; border:1px solid #cc0000; margin:10px 0;">' +
+            '<strong>Warning:</strong> Unicode characters may not display correctly in your browser.' +
+            '</div>'
+        );
+    } else {
+        document.body.insertAdjacentHTML('afterbegin',
+            '<div style="background:#eeffee; padding:10px; border:1px solid #00cc00; margin:10px 0;">' +
+            '<strong>Success:</strong> Unicode characters appear to be rendering correctly.' +
+            '</div>'
+        );
+    }
+});
+</script>
+
+</body>
+</html>

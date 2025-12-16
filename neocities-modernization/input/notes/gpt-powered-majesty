@@ -1,0 +1,50 @@
+it's like majesty except textual. And it uses GPT to generate short descriptions
+of what's going on. And you can click on a phrase or token and it'll "zoom in"
+and update the text descriptions with more detail. You can keep zooming in and
+in until you're literally looking at microbes.
+
+Zooming out is the same thing - the description on the page will slowly become
+more and more general until eventually you have a description of the solar
+system (or beyond!)
+
+And it'll just keep updating as stuff happens in the underlying simulation. So
+the descriptions will dynamically update as things happen. Downside is you need
+to spend a lot on GPT but it'd be TOTALLY WORTH IT OMG
+
+THINK ABOUT IT you have a fantasy world simulator! JUST PROGRAM IT and have GPT
+describe it dynamically! DO IT NOOOOW -> capitals courtesy of "inner child"
+
+AND THEN you just need a "prompt to video" AI (those exist btw, and will only
+get better over time) and tell it to create a video of what's happening - BOOM
+instant video game. THEN give the player the ability to edit the prompt, and BAM
+godlike powers. Wow what a concept. Brilliant idea Cameron, you truly are this
+world's premier game designer. NOW GO MAKE IT okay okay I'll try.
+
+First things first. We need an "underlying simulation" - Joust is a good example
+of GPT3 integration. But we need a simulation to go below it. And for that you
+need a lot of data. Github COPILOT to the rescue.
+
+So this simulation needs to keep track of positions, and classes of things that
+can act upon the world. Everything has a position, and it can only affect things
+near it. That's just baked into the rules of the world. Near can be a conceptual
+near though, like being close to a person or something.
+
+These things will have descriptions. Descriptions can be created by AI later on,
+but for now they are randomly generated. Or for MVP they can be static.
+
+These things will have names. These names don't have to be unique, because they
+also have an ID number.
+
+They also need functions. These functions can be added and removed from the
+thing, or maybe just enabled or disabled. I'm not sure which would be better.
+Maybe both? So the entity can control it's own functions but also they can be
+added or removed more permanently.
+
+If you think about it, growing up is kinda like adding functions to your class.
+like, every time you do something, it adds another entry for that particular
+method. Like a "trial of the fittest" instead of "survival of the fittest".
+When other animals *literally fight for life and death survival*, humans have
+the luxury of... not doing that. That's the entire purpose of civilization - to
+elevate people beyond the claws of nature. And yet we still let people go
+homeless? We still imprison them when they've harmed us, rather than help them
+reintegrate to society? Anyway you just asked me to hit you so here goes:

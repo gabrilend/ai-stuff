@@ -1,0 +1,24 @@
+there should be biomes in wowchat - like, paint on a map where the oozes can
+go, and it'll spawn a random ooze for ya.
+
+next find the ones that are wildlife, and paint a zone where wildlife creatures
+can spawn. make sure they're initially friendly but will attack if you do.
+
+then give +reputation to the wolves if you fight monsters besides them
+
+and +reputation to the cats if you fight undead
+
+this is easily implementable.
+
+all you have to do is walk around, find the rough general border points with
+your character at 5x speed, and then type them into a text file.
+
+it's not like Azeroth changed.
+
+then, ideally, make small dense zones which travel and cause their monsters
+to either spawn at a point or move toward a point.
+
+then let the "flock" travel as it pleased, traversing the map-painted-lua-script
+-ed-monster-delivery-system-I-wield
+
+

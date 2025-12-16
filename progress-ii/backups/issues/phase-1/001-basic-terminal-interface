@@ -1,0 +1,38 @@
+# Issue 001: Basic Terminal Interface
+
+## Current Behavior
+No game interface exists. The project is in initial setup phase with no executable components.
+
+## Intended Behavior
+Create a basic terminal-based game interface that displays a main menu, accepts user input, and provides basic navigation between game states.
+
+## Suggested Implementation Steps
+1. Create main game script with proper DIR variable handling as per CLAUDE.md
+2. Implement basic terminal clearing and display functions using vimfolds
+3. Create main menu with options: New Game, Load Game, Quit
+4. Add input handling for menu navigation
+5. Implement basic state management for menu transitions
+6. Add error handling for invalid inputs
+7. Create placeholder functions for game states (to be implemented in later issues)
+
+## Related Documents
+- docs/game-overview.md
+- docs/technical-architecture.md
+- docs/roadmap.md (Phase 1)
+
+## Acceptance Criteria
+- Script runs from any directory using DIR variable
+- Main menu displays correctly in terminal
+- User can navigate menu options with keyboard input
+- Invalid inputs are handled gracefully
+- Menu can transition to placeholder game states
+- Quit option terminates program cleanly
+
+## Priority
+High - Foundation requirement for all other functionality
+
+## Estimated Effort
+2-3 hours
+
+## Dependencies
+None - this is a foundational issue

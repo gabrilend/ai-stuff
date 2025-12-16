@@ -1,0 +1,59 @@
+Here's my idea and I'll explain it later:
+
+a video game with a ui that utilizes chat-gpt. The game is as close to a
+simulation as it can do, but it's a dynamic simulation meaning the parameters
+and values being simulated constantly change - not that the parameters and
+values are dynamic, but because they are chosen to be more or less important in
+reaching a goal.
+
+but that's not even the important part - the important part is that the ui of
+the game is textual, but it still simulates a dynamic playfield. And chat-gpt
+describes it. Essentially stimulating the "theatre of the mind" playstyle. It's
+a real simulation with real rules, but chat-gpt is just describing it like an
+observer would. The real game is being played by the player. It's a movie to one
+person, and a game to another. The computer has switches roles, as usually it's
+either the human being the observer and the computer being the simulator, or the
+computer and the human sharing the role of observer - movies and games. So in
+this game, the computer and human have specific rules - the human's job is to be
+a player, while the computer is just an observer - therefore allowing a 
+conversation to take place. One person says something while the other listens,
+and then they switch roles such that the other person talks while the one person
+does the listening. And they "speak" by playing the game. The computer by
+simulating, the player by doing the same. Essentially you can engage with one
+another and share something profound - that essential feeling of connection that
+all humans relish. Society, culture, and devotion are all examples of
+connection. this gameplay is just another. So to describe it in more detail:
+
+player gives a prompt
+
+computer sets up the playmat by placing entities where they go
+
+chat-gpt describes the playmat to the player
+
+player types a decision that one of the entities makes
+
+computer reacts by simulating the effects of that action physically (like a
+physics simulation)
+
+chat-gpt (and stable-diffusion later for visuals) describe the situation by
+creating a rendering using the data given by the physical inputs given from the
+simulation - like "X object is at Y position and has Z attributes"
+
+which is then shown to the player
+
+who types the next decision,
+
+which is rendered by the computer,
+
+which is described by chat-gpt
+
+------
+
+you see why it's important? Make something simple. Just, like spheres moving
+around on blocks. Like the actual blocks you used to play with as a kid.
+
+let the computer build the buildings, and you place the marbles. It can be
+rendered with a 3d modelling stable-diffusion (whenever that's created) and it
+can also be painted with 2d stable-diffusion.
+
+Each time is like a letter written back and forth.

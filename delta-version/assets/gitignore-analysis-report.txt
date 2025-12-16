@@ -1,0 +1,128 @@
+=== DETAILED ANALYSIS REPORT ===
+Generated: Wed Dec 10 08:31:45 PM PST 2025
+
+DISCOVERED FILES (43 total):
+  /mnt/mtwo/programming/ai-stuff/games/city-of-chat/src/coh-source/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/test_external/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/test_secondary_lto_cache/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil-jit/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil-jit/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil-jit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/c/raylib/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/gfx/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/asm/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/fix/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/src/link/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/src/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/src/asm/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/luahpdf/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/libharu-RELEASE_2_3_0/include/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/libharu-RELEASE_2_3_0/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/libharu-RELEASE_2_3_0/src/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/luasocket/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/luahpdf/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/libharu-RELEASE_2_3_0/include/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/libharu-RELEASE_2_3_0/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/libharu-RELEASE_2_3_0/src/.gitignore
+  /mnt/mtwo/programming/ai-stuff/adroit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil-jit/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil-jit/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil-jit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/libs/adroit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/build/libs/adroit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/game-state/.gitignore
+  /mnt/mtwo/programming/ai-stuff/handheld-office/.gitignore
+
+=== FILE CATEGORIZATION BY LOCATION ===
+
+MAIN PROJECT GITIGNORE FILES:
+  /mnt/mtwo/programming/ai-stuff/console-demakes/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/.gitignore
+  /mnt/mtwo/programming/ai-stuff/adroit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/.gitignore
+  /mnt/mtwo/programming/ai-stuff/handheld-office/.gitignore
+
+LIBRARY/DEPENDENCY GITIGNORE FILES:
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/test_external/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/test_secondary_lto_cache/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil-jit/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil-jit/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/lua/effil-jit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/libs/c/raylib/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/luahpdf/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/libharu-RELEASE_2_3_0/include/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/libharu-RELEASE_2_3_0/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/libharu-RELEASE_2_3_0/src/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/libs/luasocket/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/luahpdf/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/libharu-RELEASE_2_3_0/include/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/libharu-RELEASE_2_3_0/.gitignore
+  /mnt/mtwo/programming/ai-stuff/words-pdf/backup-mvp/libs/libharu-RELEASE_2_3_0/src/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil-jit/libs/sol/Catch/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil-jit/libs/sol/.gitignore
+  /mnt/mtwo/programming/ai-stuff/continual-co-operation/libs/effil-jit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/libs/adroit/.gitignore
+  /mnt/mtwo/programming/ai-stuff/progress-ii/build/libs/adroit/.gitignore
+
+TOOL/SDK GITIGNORE FILES:
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/test_external/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/bazel/test_secondary_lto_cache/.gitignore
+  /mnt/mtwo/programming/ai-stuff/games/gameboy-color-rpg/libs/emsdk/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/gfx/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/asm/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/test/fix/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/src/link/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/src/.gitignore
+  /mnt/mtwo/programming/ai-stuff/console-demakes/tools/rgbds/src/asm/.gitignore
+
+=== PATTERN ANALYSIS ===
+
+TOTAL PATTERNS FOUND: 919
+
+PATTERN CATEGORIES:
+  ide_files: 33 patterns
+  project_specific: 756 patterns
+  build_artifacts: 80 patterns
+  language_specific: 13 patterns
+  os_specific: 24 patterns
+  logs_temp: 12 patterns
+  version_control: 1 patterns
+
+MOST COMMON PATTERNS:
+  '*.user' appears in 15 files
+  '.DS_Store' appears in 12 files
+  '*.o' appears in 12 files
+  '.vscode/' appears in 10 files
+  '*.a' appears in 10 files
+  '*.pyc' appears in 9 files
+  'lua-5.3.4/' appears in 8 files
+  'lua-5.3.4-cxx/' appears in 8 files
+  'Thumbs.db' appears in 8 files
+  '.idea' appears in 8 files
+
+POTENTIAL CONFLICTS:
+

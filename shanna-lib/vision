@@ -1,0 +1,30 @@
+shanna-lib is a library for text input using a joypad direction stick which
+supports multiple different graphics backends and is easily hot-swappable in-or
+out with whichever type of programming the user is likely to perform.
+
+in this case, raylib with C, love with Lua, Bevy with Rust, and HTML5 with web.
+
+################################################################################
+#each of these should have importable versions of this library which primarily
+#acts as an input translation layer for inputting text using only a control stick
+#input device. By default, the system doesn't use buttons, preferring instead to
+#use a time-out based approach with specific spots holding values as both
+#code and data, but if buttons are provided then the code can be brought out and
+#more of the input possibilities can be used for data.
+#
+#the data in this case being whichever text you wanted to input, by default only
+#the english letters but with button presses or by selecting a specific field in
+#the display able to switch to any other keyboards.
+################################################################################
+
+that part above is garbage don't listen to it
+
+listen to this part instead:
+
+shanna-lib is a portable joystick-to-keyboard emulation solution. It fits into
+all of your favorite games, essentially allowing you to add text-input
+capabilities to any handheld game console. Or others too but I'm focusing on the
+handheld consoles for now.
+
+
+

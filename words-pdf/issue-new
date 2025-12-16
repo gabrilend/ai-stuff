@@ -1,0 +1,3 @@
+ai chat bot with the first 50% of each prompt is the previous conversation with only the users responses included and the other 50% is randomly sampled examples of words.pdf or compiled.txt plus the last 10% is the user's next prompt and system statuses like the other 50% of the computation speed on the computer currently tasked with idling because the user isn't interacting with it
+
+presented in chatbot format using ollama and 80 character responses. no more, no

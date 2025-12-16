@@ -1,0 +1,47 @@
+this project is intended to modernize the ritzmenardi.com website.
+primarily by leaving it mostly alone, but adding a new section inside of
+words.pdf called - words.pdf-sorted.
+
+the goal of words.pdf-sorted is to enable users to better find the words that
+best resonate with them. To that end, we are going to create a MASSIVE cache of
+all of the poems that are in words.pdf. They will then be SORTED, and each one
+will have a similarity score calculated between it and EACH OTHER POEM in words.
+
+then, when a user clicks on a poem, it will show them ALL of the other poems
+ranked in order of similarity. We will do this by using a local LLM via Ollama
+and test the similarity using an embedding model. Then, we will pre-process the
+words.pdf file (or output.txt) and extract the poems one by one, and then
+generate (cached) an HTML document which has all the poems in the right order.
+
+Once we've generated a sorted list for each poem, we can then add a link to each
+sorted list (in an HTML document of course) inside of each poem, essentially
+making it so that if the user clicks on a poem, it shows them all the other
+related poems... and all the other non-related poems below that. With the
+related ones prioritized near the top, of course.
+
+you can find the format for the poems in words.pdf. It's generated in this
+directory: /home/ritz/programming/ai-stuff/words-pdf
+
+you can find best practices for front-end development in the docs directory:
+/home/ritz/programming/ai-stuff/neocities-modernization/docs
+
+the website should be created using only HTML, no javascript or CSS allowed.
+
+you can find backups of the neocities website at /home/ritz/neocities
+please copy these files to the project directory if you want to use them.
+
+for the cached file generation, Ollama should be used. You can find the Ollama
+installation at /home/ritz/programs/ollama. Ollama should not run on localhost,
+but instead on the local IP address 192.168.0.115 with the port number 10265 -
+make sure the ollama serve command is actually listening on this port and IP.
+
+we can use the embeddinggemma:latest model for generating similarity scores.
+
+The goal of the project in general is to create a flat HTML page with an easy
+URL (simply linking to the hierarchical file location of the particular poem)
+which shows all the related poems without removing any poems from the page.
+
+Thus, if a player finds a poem that really resonates with them, by clicking on
+it then they will be enabled to see all the poems that are meant to be. for them
+and for thee, a poem or a note to see. vay, what beauty! lao, mon duty! perfect
+it for me, computee. my faith is in your design, my hope is in your confine.

@@ -1,0 +1,95 @@
+[a picture of someone's neofetch]
+
+/u/HartBreaker27
+===============================================================================
+I was gunna pass this over... than my spidey senses kicked in.. whats Arch 
+fam.. and explain like your talking to a potatoe.
+
+Also, if this is beyond potatoes level skills, im fine with being told that..
+
+Seriously fam, potatoes..
+
+
+/u/ugathanki
+===============================================================================
+You know how using a windows and a mac feel different? Like they have different
+personalities. That's because they're using a different "Operating System". An 
+OS is a collection of tools and utilities that coalesce into a cohesive unit 
+that co-illustrates your coincidental contact with computers. Paired, of 
+course, with the contributions of the hardware and the network.
+
+Linux is sorta like the soul of an OS - not quite an entire OS, but rather just
+a piece called a "kernel" - like a nugget of gold (or truth!) the kernel 
+defines basic operating methodologies and brings order to the chaos of the 
+machine. From that order strives the will that dutifully obeys your base 
+instructions after being passed through several translation layers.
+
+Huh? Oh right potatoes.
+
+Arch is like a body that's layered upon the soul (kernel) of Linux. It's what's
+known as a "distribution" or "distro" - and one that's quite focused. Arch is 
+very close to the machine, with barely any translation going on at all! It's 
+also very bare bones, allowing you to build up exactly what kind of computer 
+you'd like to have through various "packages" of software that you can download
+through a "package manager". Each distro can use whichever package manager 
+they'd like, but it's generally good practice to pick one and stick with it.
+
+This distro is known as Arch Linux because it's the fusion of "Arch" and 
+"Linux" - who'd've thought amiright? There are plenty of others that are more 
+familiar to users of Windows and Macintosh computers, mostly via mimicking 
+their user-interface styles (such as having desktops with icons and start-menus
+with dropdowns and the like) - these distros are great for people who'd prefer 
+the workflow of the other OS's but would still like to use Linux.
+
+Arch in it's base form is nothing like Windows or Mac. You interact with it 
+purely through a "terminal" which is like having a conversation with your 
+computer. Like a scientist writing notes on the moon, and sending them to a lab
+orbiting around it to conduct experiments. You type commands, and those 
+commands (if properly understood) can produce a myriad of effects great and 
+small.
+
+But some of the experiments you'd like to conduct need to be done more than 
+once - it'd be nice if you could ask the moon-lab to store some of the
+procedures and execute them whenever you need - sorta like abbreviating a long 
+phrase or sentence that you use often - like ASAP for As Soon As Possible or OS
+for Operating System. Well... There are! They're called "scripts", and you can
+write scripts for anything you'd like. Since everything is controlled on the
+terminal via a TUI -> "Terminal User Interface" -> you can write down a note 
+with all the commands you'd like to run and give it a name. Then you can use 
+that name in the future to execute that familiar experiment in your moon-lab.
+
+after writing enough scripts, you can start to chain them together and layer 
+them on top of one another - sorta like creating your own language. a personal 
+dialect between you and your computer. and these scripts are portable too - 
+they can be given to another computer, who'll instantly understand what you're 
+trying to say. this kind of sharing is a central tenant of what's known as the:
+
+"Unix Philosophy: Do one thing, and do it right."
+
+Linux lends itself toward people who love to hack things together - not like 
+breaking into a system and stealing your credit cards, like you see on TV, but
+more like cobbling together a go-cart out of rusty parts and proceeding to get 
+a speeding ticket on the high-way. That kind of fervent creative impulse is 
+true passion, a shining light for us who are blinded to follow. These "hackers"
+are some of the brightest people around, and I have immense respect for them. 
+They are kind and share knowledge freely, which often gets them in trouble with
+copyright laws!
+
+I make it sound difficult, but really it's pretty easy - about as easy as
+learning Windows or Mac for the first time. Most of us did that when we were
+young though, and kids learn pretty quick - so it may feel harder now, but it's
+really not. Once everything starts to "click" then it's just a matter of 
+knowing which commands to run.
+
+Speaking of which, if you know a command but you don't know how to use it, 
+you're in luck! There's some super convenient notes written by previous
+scientists who came before you and live on other nearby planets. These are 
+called "the man pages", and they are instructions written in a manual format 
+for manual application of man-made management applied to manufactured 
+man-chines. Sorry for that last one I had to. You can always find new commands
+by downloading new software on your package manager - generally, one package = 
+one command. "Do one thing and do it right"
+
+if you have any questions lmk - i'm not exactly a wizard, more of a prophet / 
+wielder of the will of the watchers within, but i'll do my best
+

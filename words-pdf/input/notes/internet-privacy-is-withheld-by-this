@@ -1,0 +1,66 @@
+Recently, there's been a ton of buzz in the news about internet privacy.
+From the many lawsuits against Facebook, to the rise of Duck Duck Go and the
+creepy nature of apps and IoT devices that listen to your every motion and
+record and transmit endless amounts of data to a central server somewhere to
+be processed. The traditional argument against privacy online is that the
+infrastructure was designed to accomodate rapid adoption of the new tech,
+rather than efficient design for distributed throughput. So we were told to
+accept the minor downsides associated with centralized servers - downsides
+that we neither understood nor truly accepted. Well, the technology has
+advanced to the point that those arguments are no longer valid - we have mesh
+networking and 5g internet access, and now that big tech is in control of the
+industry (wrenching it from the people, I might add) they seek to maintain
+their hold by any means necessary.
+
+Luckily, there is a way out - self hosting.
+
+If we hosted our own email server, then theoretically Gmail couldn't read your
+messages. If we hosted our own social media websites, then theoretically
+big data processing corporations couldn't scrape your personal information
+and distribute it as they please. If we hosted our own videos, software, art,
+and anything else we see fit to use a computer for, then we'd be unshackled
+from the dominion of the silicon valley powers that be. The liberation of the
+computer is the liberation of us all.
+
+The problem, of course, is the difficulty involved.
+
+People are conditioned to desire and only accept a level of accessibility that
+can only be provided by massive corporate think tanks leveraging all the
+marketing prowess that the markets of capital provides. That is to say,
+essentially infinite eyes examining the interactions of man with machine, to
+find the most generally applicable font, color scheme, layout, and style of
+each and every website they host. Every function will be scrutinized to death
+and optimized to extract the most profit while subtely conforming the minds
+of those who use it. This is the era of group think, fake news, and
+journalistic fraud. We have no windows to the outside world that are truly
+and completely untainted by the bias inherent in the system.
+
+A self perpetuating rhythm of continuous dissatisfaction.
+
+But I believe the only person who can truly design a tool is the person who
+the tool is intended to be used by. And by increasing the accessibility of the
+tools themselves, rather than the products of those tools, we can raise the
+tide that lifts all ships - we can put more tools that use less time to use
+and are easier to learn into the hands of as many people as possible. The
+crossbow was originally no more devastating than a longbow, yet it rapidly
+outpaced the latter by reducing it's difficulty curve. The screwdriver is the
+same - stronger joints can be made with nails or traditional joinery, but
+once someone understands how a screwdriver works they can pretty much force
+two pieces of wood to be permanently fixed together without understanding the
+angles of nails or cuts. The capabilities are the same, while ease of access
+increased.
+
+So, to truly liberate the internet, we must develop tools that allow people to
+host their own content as easily, cheaply, and flexibly as possible, while
+being aesthetically pleasing, affordable (free), and accessible to
+as many people as possible - inertia is important, after all. It seems to be
+an insurmountable task, but that's what free and open source software
+developers fight for. Raspberry Pis can host email servers, Mastodon can host
+a facsimile of Twitter, and torrents can be used to exchange any type of file
+to be presented in whatever way the user sees fit. These are all free (or very
+cheap, in the Raspberry Pi's case) and accessible to anyone with access to the
+internet. But they aren't easy. They aren't always flashy. And sometimes it's
+hard to even describe what problem you're trying to solve.
+
+But still you try, because to fail in this fight is to fade from this earth.
+

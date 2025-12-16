@@ -1,0 +1,85 @@
+# Rust build artifacts (now in files/target/)
+/files/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo lock file (uncomment if this is a library)
+# Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and debugging
+*.log
+crash.log
+debug.log
+examples/demo_logs/
+examples/test-cases/logs/
+
+# Local configuration files
+config_local.toml
+.env
+.env.local
+
+# Build artifacts and state files
+files/build/*.json
+files/build/*.log
+files/crash/
+files/target/
+trash/
+# Exclude files directory entirely except for tracking build artifacts structure
+files/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Binary releases
+releases/
+dist/
+
+# Platform specific
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Rust specific
+**/*.rs.bk
+*.orig
+
+# Documentation builds
+book/
+docs/_site/
+
+# Testing artifacts
+*.profraw
+
+# AI model files (can be large)
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# Keys and sensitive data
+*.key
+*.pem
+secrets/
+.secrets
+
+# Compilation database
+compile_commands.json

@@ -1,0 +1,32 @@
+# Issue 004: Compile Base Server
+
+## Current Behavior
+Source code exists but has not been compiled into working server binaries.
+
+## Intended Behavior
+Successfully compiled City of Heroes server binaries that can be executed, with documentation of the build process and any modifications needed.
+
+## Suggested Implementation Steps
+1. Read and follow existing build instructions
+2. Install any missing dependencies identified during compilation
+3. Resolve compilation errors and warnings
+4. Document any modifications needed for successful compilation
+5. Create automated build scripts
+6. Test that compiled binaries can execute without errors
+7. Document the complete build process for future reference
+
+## Metadata
+- **Priority**: High
+- **Estimated Effort**: 4-8 hours
+- **Dependencies**: Issue 002 (dev environment), Issue 003 (source code)
+- **Tags**: compilation, build, binaries
+
+## Related Documents
+- docs/roadmap.md
+- Build documentation (to be created)
+
+## Tools
+- C++ compiler and build tools
+- Build system (make, cmake, etc.)
+- Terminal for compilation process
+- Text editor for build scripts

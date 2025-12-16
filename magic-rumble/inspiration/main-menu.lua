@@ -1,0 +1,16 @@
+-- main menu script
+--
+-- should have several buttons to click, each comprised of a box drawn and
+-- placed in the "drawables" global table, accessible from every thread.
+--
+-- the button boxes should have a border that is a slightly different color than
+-- the interior. The top and left border should be slightly lighter than the
+-- bottom and right edges.
+--
+-- The first button should be "play game"
+--
+-- the second button should be "quit"
+--
+-- clicking quit should close the program.
+--
+-- clicking "play game" should start the game.

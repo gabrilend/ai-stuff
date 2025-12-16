@@ -1,0 +1,53 @@
+# Issue 014: Lua Integration Function Declaration Errors
+
+## Current Behavior
+Adroit phase 2 demo compilation fails with multiple Lua integration function errors:
+```
+./issues/completed/phase-2/phase2_demo.c:134:23: error: implicit declaration of function 'lua_create_context'
+./issues/completed/phase-2/phase2_demo.c:150:29: error: implicit declaration of function 'lua_execute_script'  
+./issues/completed/phase-2/phase2_demo.c:154:13: error: implicit declaration of function 'lua_free_result'
+./issues/completed/phase-2/phase2_demo.c:175:9: error: implicit declaration of function 'lua_destroy_context'
+```
+
+The phase 2 demo expects specific Lua integration functions that are either:
+1. Not declared in the included headers
+2. Using different function names than what's implemented
+3. Missing from the Lua bridge implementation
+
+## Intended Behavior
+Phase 2 Lua integration demo should compile and run successfully, demonstrating:
+- Lua context creation and destruction
+- Script execution with proper result handling
+- Memory management for Lua results
+- Cross-language communication between C and Lua
+
+## Suggested Implementation Steps
+1. **Audit Lua bridge interface**: Examine `libs/integration/lua_bridge.c` and associated headers
+2. **Map function signatures**: Compare expected functions in phase2_demo.c with actual implementations
+3. **Resolve naming mismatches**: Either:
+   - Update demo to use correct function names, or
+   - Add function aliases/wrappers for expected names
+4. **Implement missing functions**: Create any functions that are expected but don't exist
+5. **Update headers**: Ensure all Lua bridge functions are properly declared in headers
+6. **Test integration**: Verify phase 2 demo compiles and executes Lua scripts correctly
+
+## Current Function Mapping Analysis
+Expected in demo vs. Available (based on warnings):
+- `lua_create_context()` → Missing or different name
+- `lua_execute_script()` → May be `lua_execute_string()` 
+- `lua_free_result()` → Missing declaration
+- `lua_destroy_context()` → Missing declaration
+
+## Related Files
+- `libs/adroit/issues/completed/phase-2/phase2_demo.c` - Demo with function calls
+- `libs/adroit/libs/integration/lua_bridge.c` - Lua bridge implementation
+- `libs/adroit/libs/integration/lua_bridge.h` - Header declarations (if exists)
+- `libs/adroit/src/Makefile` - Build system for linking
+
+## Issue Metadata
+- **Priority**: High (blocks phase 2 demo)
+- **Category**: Integration / Lua Bridge
+- **Phase**: 2  
+- **Affects**: Cross-language integration, demo functionality
+- **Dependencies**: Issue 013 (header dependencies)
+- **Est. Time**: 4-6 hours

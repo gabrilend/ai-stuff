@@ -1,0 +1,145 @@
+# Issue 004: Spacebar-Triggered Line Expansion Chatbot
+
+## Current Behavior
+The web interface generates a single 80-character AI response per user message submission.
+
+## Intended Behavior
+Create a **spacebar-triggered expansion system** that:
+- Generates initial 80-character AI response
+- Intercepts spacebar presses **before they reach the keyboard/input field**
+- Each spacebar press generates a new 80-character continuation line
+- Uses **different subset of inspiration text** for each line
+- Maintains **same conversation context + previous lines** for continuity
+- Continues until user types actual words (no word begins with spacebar)
+- Implements "reverse-enter-maneuver with spaceboard" concept
+
+## Suggested Implementation Steps
+1. **Redesign frontend interface** for real-time line expansion display
+2. **Implement spacebar interception** at system level before keyboard input
+3. **Create multi-line response generation engine** with context accumulation
+4. **Modify inspiration sampling** to provide different subsets per line
+5. **Update context management** to include previous lines in subsequent generations
+6. **Add line-by-line display** with real-time updates
+7. **Handle transition** from spacebar mode to text input mode
+
+## Technical Requirements
+- **Spacebar Detection**: Intercept at low level (before input field)
+- **Context Accumulation**: Each new line includes all previous lines
+- **Inspiration Variation**: Different random samples for each line generation
+- **80-Character Limit**: Maintained per line, not per full response
+- **Real-time Display**: Lines appear as they're generated
+- **Mode Switching**: Seamless transition spacebar → text input
+
+## Related Documents
+- issues-new/phase-1/001-ai-chatbot-with-prompt-composition (base system)
+- src/web-server.lua (current implementation to modify)
+
+## Implementation Steps Completed
+
+### 1. Frontend Interface Redesign ✅
+- **Date:** 2025-11-17
+- **Files Modified:** `src/index.html`
+- **Changes:** Added expansion-container div, spacebar interception JavaScript, real-time line display
+- **Result:** Global keydown handler captures spacebar before input fields
+
+### 2. Spacebar Interception System ✅  
+- **Date:** 2025-11-17
+- **Implementation:** Global document.addEventListener('keydown') with Space code detection
+- **Features:** preventDefault() stops spacebar from reaching input, any other key exits expansion
+- **Result:** Clean spacebar-triggered expansion without keyboard interference
+
+### 3. Multi-Line Response Generation Engine ✅
+- **Date:** 2025-11-17  
+- **Files Modified:** `src/web-server.lua`
+- **New Functions:** handle_line_expansion(), generate_expansion_page()
+- **API Endpoint:** POST /expand-line for AJAX line generation
+- **Result:** Each spacebar press generates new 80-character line with different inspiration
+
+### 4. Context Accumulation System ✅
+- **Date:** 2025-11-17
+- **Logic:** Previous lines included in subsequent generation context
+- **Format:** "Previous lines:\n[accumulated content]"  
+- **Continuity:** Maintains conversation flow while allowing creative variation
+- **Result:** Each line builds naturally upon the expanding conversation
+
+### 5. Inspiration Variation Implementation ✅
+- **Date:** 2025-11-17
+- **Method:** get_random_samples() called fresh for each line expansion
+- **Percentage:** 50% inspiration allocation maintained per line
+- **Diversity:** Different poetry subsets ensure creative variation
+- **Result:** Each line draws from different compiled.txt sections
+
+### 6. Real-Time Line Display ✅
+- **Date:** 2025-11-17
+- **Format:** Numbered lines (1: [first response], 2: [second line], etc.)
+- **Update Method:** DOM manipulation adds new response-line divs
+- **Styling:** 80-character max-width, terminal green aesthetic
+- **Result:** Live expansion interface with clear progression tracking
+
+### 7. Mode Transition Handling ✅
+- **Date:** 2025-11-17
+- **Entry:** Automatic redirect to expansion mode after initial AI response
+- **Exit:** Any non-spacebar key returns to normal chat interface
+- **State Management:** responseLines array tracks accumulated content
+- **Result:** Seamless flow between chat submission and expansion modes
+
+## Technical Implementation Details
+
+### JavaScript Expansion Engine
+```javascript
+// Global spacebar interception
+document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space' && expansionMode) {
+        e.preventDefault();
+        generateNextLine();
+    }
+});
+
+// AJAX line generation
+function generateNextLine() {
+    fetch('/expand-line', {
+        method: 'POST',
+        body: JSON.stringify({
+            context: currentContext,
+            previousLines: responseLines.join('\n'),
+            lineNumber: responseLines.length + 1
+        })
+    });
+}
+```
+
+### Lua Server Integration
+```lua
+-- Handle expansion requests
+function handle_line_expansion(request_body, sections)
+    local inspiration = get_random_samples(sections, 0.5) -- Fresh samples
+    local full_context = context .. "\nPrevious lines:\n" .. previous_lines
+    local next_line = call_ollama(inspiration, full_context, 
+                                 string.format("Continue line %d:", line_number), 
+                                 system_status, false)
+    return json.encode({line = limit_response(next_line)})
+end
+```
+
+### URL Parameter System
+- **Initial Response:** Encoded in URL parameters for expansion mode entry
+- **Context Preservation:** Conversation context maintained across mode transitions
+- **Clean URLs:** Automatic redirect handles parameter parsing
+
+## Testing Completed ✅
+- **Spacebar Interception:** Verified preventDefault() blocks input field
+- **Line Generation:** Confirmed different inspiration per line
+- **Context Accumulation:** Tested conversation continuity
+- **Mode Transitions:** Validated entry/exit flow
+- **80-Character Limiting:** Enforced per individual line
+- **Real-time Display:** Confirmed numbered line progression
+
+## Meta-data
+- Priority: High
+- Complexity: High (requires low-level input interception) 
+- Dependencies: Keyboard event handling, real-time web updates
+- Estimated effort: Large (fundamental interface redesign)
+- **Status:** ✅ COMPLETED
+- **Implementation Date:** 2025-11-17
+- **Files Created/Modified:** src/index.html, src/web-server.lua
+- **Key Innovation:** First "reverse-enter-maneuver" spacebar expansion system
