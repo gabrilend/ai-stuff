@@ -120,6 +120,61 @@ queue_claude_response() {
 }
 # }}}
 
+# {{{ stream_queue
+stream_queue() {
+    local done_file="$QUEUE_DIR/done"
+    local stream_idx=0
+    local idle_count=0
+    local max_idle=25  # 5 seconds at 0.2s poll interval
+
+    while true; do
+        local ready_file="$QUEUE_DIR/${stream_idx}.ready"
+
+        if [[ -f "$ready_file" ]]; then
+            idle_count=0
+            local output_file="$QUEUE_DIR/${stream_idx}.output"
+            local meta_file="$QUEUE_DIR/${stream_idx}.meta"
+            local issue_path
+            local status
+            issue_path=$(head -1 "$meta_file")
+            status=$(tail -1 "$meta_file")
+            local basename
+            basename=$(basename "$issue_path")
+
+            # Display header
+            echo ""
+            echo "┌─────────────────────────────────────────────────────────────"
+            echo "│ Response for: $basename [$status]"
+            echo "└─────────────────────────────────────────────────────────────"
+            echo ""
+
+            # Display content
+            cat "$output_file"
+
+            echo ""
+            echo "─────────────────────────────────────────────────────────────────"
+
+            ((++stream_idx))
+
+            # Wait before next (the "divider") unless done
+            if [[ ! -f "$done_file" ]] || [[ -f "$QUEUE_DIR/${stream_idx}.ready" ]]; then
+                sleep "${STREAM_DELAY:-5}"
+            fi
+        else
+            # Check termination: done file exists and no more items coming
+            if [[ -f "$done_file" ]]; then
+                ((++idle_count))
+                if [[ $idle_count -ge $max_idle ]]; then
+                    break
+                fi
+            fi
+            # Poll interval
+            sleep 0.2
+        fi
+    done
+}
+# }}}
+
 # {{{ print_help
 print_help() {
     head -26 "$0" | tail -24 | sed 's/^# //' | sed 's/^#//'
