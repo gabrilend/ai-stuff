@@ -10,7 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 12/18 |
+| 0 | Tooling/Infrastructure | In Progress | 13/18 |
 | 1 | Foundation - File Format Parsing | In Progress | 5/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
@@ -29,7 +29,7 @@
 |----|------|--------|--------------|
 | 001 | Fix issue-splitter output handling | **Completed** | None |
 | 002 | Add streaming queue to issue-splitter | In Progress | 001 |
-| 002a | Add queue infrastructure | Pending | None (within 002) |
+| 002a | Add queue infrastructure | **Completed** | None (within 002) |
 | 002b | Add producer function | Pending | 002a |
 | 002c | Add streamer process | Pending | 002a |
 | 002d | Add parallel processing loop | Pending | 002a, 002b, 002c |
@@ -147,6 +147,11 @@
   - Invokes `claude --dangerously-skip-permissions` with issue content
   - Added "Implement" option to TUI interactive mode
   - Supports dry-run preview and confirmation prompts
+- **Issue 002a completed:** Add queue infrastructure
+  - Added Queue Configuration variables (QUEUE_DIR, QUEUE_COUNTER, STREAM_INDEX, STREAMER_PID)
+  - Implemented setup_queue() and cleanup_queue() functions
+  - Added EXIT/INT/TERM trap for cleanup
+  - Created test file: src/tests/test_002a_queue_infrastructure.sh
 
 ---
 
