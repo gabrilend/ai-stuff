@@ -622,41 +622,78 @@ interactive_mode_tui() {
 
     # Build the menu
     menu_init
-    menu_set_title "Issue Splitter" "Interactive Mode"
+    menu_set_title "Issue Splitter" "Interactive Mode - Use j/k to navigate, space to toggle, r to run"
 
-    # Section 1: Mode (radio buttons)
-    menu_add_section "mode" "single" "Mode"
-    menu_add_item "mode" "analyze" "Analyze" "checkbox" "1" "Analyze issues for sub-issue splitting"
-    menu_add_item "mode" "review" "Review" "checkbox" "0" "Review existing sub-issue structures"
-    menu_add_item "mode" "execute" "Execute" "checkbox" "0" "Execute recommendations from analyses"
-    menu_add_item "mode" "implement" "Implement" "checkbox" "0" "Auto-implement issues via Claude CLI"
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 1: Mode Selection (single/radio - only one can be active)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "mode" "single" "Operation Mode"
+    menu_add_item "mode" "analyze" "Analyze Issues" "checkbox" "1" \
+        "Ask Claude to analyze issues and suggest sub-issue splits"
+    menu_add_item "mode" "review" "Review Structures" "checkbox" "0" \
+        "Review root issues that already have sub-issues"
+    menu_add_item "mode" "execute" "Execute Recommendations" "checkbox" "0" \
+        "Create sub-issue files from analysis recommendations"
+    menu_add_item "mode" "implement" "Auto-Implement" "checkbox" "0" \
+        "Invoke Claude CLI to implement the selected issues"
 
-    # Section 2: Options (checkboxes)
-    menu_add_section "options" "multi" "Options"
-    menu_add_item "options" "skip_existing" "Skip existing" "checkbox" "1" "Don't re-analyze issues with analysis"
-    menu_add_item "options" "dry_run" "Dry run" "checkbox" "0" "Show what would happen without doing it"
-    menu_add_item "options" "archive" "Archive" "checkbox" "0" "Save copies to issues/analysis/"
-    menu_add_item "options" "execute_all" "Execute all" "checkbox" "0" "Execute without confirmation"
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2: Processing Options (multi - can select multiple)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "processing" "multi" "Processing Options"
+    menu_add_item "processing" "streaming" "Enable Streaming" "checkbox" "0" \
+        "Process issues in parallel with real-time output"
+    menu_add_item "processing" "skip_existing" "Skip Analyzed" "checkbox" "1" \
+        "Don't re-analyze issues that already have analysis"
+    menu_add_item "processing" "archive" "Archive Outputs" "checkbox" "0" \
+        "Save copies of analyses to issues/analysis/"
+    menu_add_item "processing" "execute_all" "No Confirmations" "checkbox" "0" \
+        "Execute/implement without asking for confirmation"
+    menu_add_item "processing" "dry_run" "Dry Run" "checkbox" "0" \
+        "Show what would happen without actually doing it"
 
-    # Section 3: Files (list with checkboxes)
-    menu_add_section "files" "list" "Issues to Process"
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 3: Streaming Settings (multi - numeric inputs when streaming)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "streaming" "multi" "Streaming Settings (if enabled)"
+    menu_add_item "streaming" "parallel" "Parallel Jobs" "number" "1:10:3" \
+        "Max concurrent Claude calls (1-10)"
+    menu_add_item "streaming" "delay" "Output Delay" "number" "0:30:5" \
+        "Seconds between streamed outputs (0-30)"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 4: Issue Selection (list - scrollable checkbox list)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "files" "list" "Issues to Process (use 'a' for all, 'n' for none)"
     local i=0
     for issue in "${issues[@]}"; do
-        local basename=$(basename "$issue")
-        local root_id=$(get_root_id "$basename")
+        local basename
+        basename=$(basename "$issue")
+        local root_id
+        root_id=$(get_root_id "$basename")
+        local issue_id
+        issue_id=$(get_issue_id "$basename")
         local label="$basename"
         local desc=""
-        local disabled=0
+        local default="1"
 
+        # Build description based on issue status
         if is_subissue "$basename"; then
-            desc="Sub-issue of ${root_id}"
+            desc="[SUB] Part of issue ${root_id}"
+            default="0"  # Sub-issues off by default
         elif has_subissues "$root_id"; then
-            desc="Has sub-issues - review at end"
-        elif has_subissue_analysis "$issue"; then
-            desc="Has existing analysis"
+            local sub_count
+            sub_count=$(get_subissues_for_root "$root_id" | wc -l)
+            desc="[ROOT+${sub_count}] Has ${sub_count} sub-issue(s) - will review"
+        elif has_subissue_analysis "$issue" || has_initial_analysis "$issue"; then
+            desc="[ANALYZED] Has existing analysis"
+        elif has_generated_subissues "$issue"; then
+            desc="[EXECUTED] Sub-issues already generated"
+        else
+            desc="[NEW] Ready for analysis"
         fi
 
-        menu_add_item "files" "file_$i" "$label" "checkbox" "1" "$desc"
+        menu_add_item "files" "file_$i" "$label" "checkbox" "$default" "$desc"
         ((i++))
     done
 
@@ -664,7 +701,13 @@ interactive_mode_tui() {
     if menu_run; then
         tui_cleanup
 
-        # Extract mode selection
+        # ═══════════════════════════════════════════════════════════════════════
+        # Extract mode selection (radio button behavior)
+        # ═══════════════════════════════════════════════════════════════════════
+        REVIEW_ONLY=false
+        EXECUTE_MODE=false
+        AUTO_IMPLEMENT=false
+
         if [[ "$(menu_get_value "review")" == "1" ]]; then
             REVIEW_ONLY=true
         elif [[ "$(menu_get_value "execute")" == "1" ]]; then
@@ -672,14 +715,37 @@ interactive_mode_tui() {
         elif [[ "$(menu_get_value "implement")" == "1" ]]; then
             AUTO_IMPLEMENT=true
         fi
+        # Default: analyze mode (none of the above set)
 
-        # Extract options
+        # ═══════════════════════════════════════════════════════════════════════
+        # Extract processing options
+        # ═══════════════════════════════════════════════════════════════════════
+        STREAMING_MODE=false
+        SKIP_EXISTING=false
+        ARCHIVE_MODE=false
+        EXECUTE_ALL=false
+        DRY_RUN=false
+
+        [[ "$(menu_get_value "streaming")" == "1" ]] && STREAMING_MODE=true
         [[ "$(menu_get_value "skip_existing")" == "1" ]] && SKIP_EXISTING=true
-        [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true
         [[ "$(menu_get_value "archive")" == "1" ]] && ARCHIVE_MODE=true
         [[ "$(menu_get_value "execute_all")" == "1" ]] && EXECUTE_ALL=true
+        [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true
 
+        # ═══════════════════════════════════════════════════════════════════════
+        # Extract streaming settings
+        # ═══════════════════════════════════════════════════════════════════════
+        local parallel_val
+        parallel_val=$(menu_get_value "parallel")
+        [[ -n "$parallel_val" ]] && PARALLEL_COUNT="$parallel_val"
+
+        local delay_val
+        delay_val=$(menu_get_value "delay")
+        [[ -n "$delay_val" ]] && STREAM_DELAY="$delay_val"
+
+        # ═══════════════════════════════════════════════════════════════════════
         # Extract selected files
+        # ═══════════════════════════════════════════════════════════════════════
         SELECTED_ISSUES=()
         local j=0
         for issue in "${issues[@]}"; do
@@ -689,14 +755,41 @@ interactive_mode_tui() {
             ((j++))
         done
 
+        # ═══════════════════════════════════════════════════════════════════════
+        # Display configuration summary
+        # ═══════════════════════════════════════════════════════════════════════
         echo
-        echo "Configuration:"
-        echo "  Directory: $DIR"
-        echo "  Issues: ${#SELECTED_ISSUES[@]} selected"
-        echo "  Skip existing: $SKIP_EXISTING"
-        echo "  Review only: $REVIEW_ONLY"
-        echo "  Execute mode: $EXECUTE_MODE"
-        echo "  Dry run: $DRY_RUN"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                    Configuration Summary                      ║"
+        echo "╠══════════════════════════════════════════════════════════════╣"
+        echo "║ Directory: $(printf '%-49s' "$DIR")║"
+        echo "║ Issues selected: $(printf '%-43s' "${#SELECTED_ISSUES[@]}")║"
+        echo "╠══════════════════════════════════════════════════════════════╣"
+
+        # Mode
+        local mode_str="Analyze"
+        [[ "$REVIEW_ONLY" == true ]] && mode_str="Review"
+        [[ "$EXECUTE_MODE" == true ]] && mode_str="Execute"
+        [[ "$AUTO_IMPLEMENT" == true ]] && mode_str="Implement"
+        echo "║ Mode: $(printf '%-54s' "$mode_str")║"
+
+        # Options
+        local opts=""
+        [[ "$STREAMING_MODE" == true ]] && opts+="streaming, "
+        [[ "$SKIP_EXISTING" == true ]] && opts+="skip-existing, "
+        [[ "$ARCHIVE_MODE" == true ]] && opts+="archive, "
+        [[ "$EXECUTE_ALL" == true ]] && opts+="no-confirm, "
+        [[ "$DRY_RUN" == true ]] && opts+="dry-run, "
+        [[ -z "$opts" ]] && opts="(none)"
+        opts="${opts%, }"  # Remove trailing comma
+        echo "║ Options: $(printf '%-51s' "$opts")║"
+
+        # Streaming settings
+        if [[ "$STREAMING_MODE" == true ]]; then
+            echo "║ Parallel: $(printf '%-50s' "$PARALLEL_COUNT jobs, ${STREAM_DELAY}s delay")║"
+        fi
+
+        echo "╚══════════════════════════════════════════════════════════════╝"
         echo
     else
         tui_cleanup
