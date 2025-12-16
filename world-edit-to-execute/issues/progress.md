@@ -10,7 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 15/18 |
+| 0 | Tooling/Infrastructure | In Progress | 16/18 |
 | 1 | Foundation - File Format Parsing | In Progress | 6/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
@@ -32,7 +32,7 @@
 | 002a | Add queue infrastructure | **Completed** | None (within 002) |
 | 002b | Add producer function | **Completed** | 002a |
 | 002c | Add streamer process | **Completed** | 002a |
-| 002d | Add parallel processing loop | Pending | 002a, 002b, 002c |
+| 002d | Add parallel processing loop | **Completed** | 002a, 002b, 002c |
 | 002e | Add streaming config flags | Pending | 002d |
 | 003 | Execute analysis recommendations | **Completed** | 001 |
 | 004 | Redesign interactive mode interface | **Completed** | None |
@@ -167,6 +167,12 @@
   - Created src/tests/test_mpq.lua
   - API: mpq.open(), archive:has(), archive:extract(), archive:info(), archive:close()
   - 15/16 test maps work (1 uses unsupported PKWARE DCL)
+- **Issue 002d completed:** Add parallel processing loop
+  - Added PARALLEL_COUNT, STREAM_DELAY, STREAMING_MODE config
+  - Implemented process_issue_parallel() for queue+append
+  - Implemented parallel_process_issues() orchestrator
+  - Uses wait -n for job slot management (requires Bash 4.3+)
+  - Created test file: src/tests/test_002d_parallel_processing.sh
 
 ---
 
@@ -186,5 +192,6 @@
 
 ### Phase 0 (Parallel Work)
 
-4. **002d - Add parallel processing loop**
+4. **002e - Add streaming config flags**
+   - Add --parallel, --delay, --stream flags
    - Complete streaming queue implementation
