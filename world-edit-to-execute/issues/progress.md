@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | In Progress | 15/18 |
-| 1 | Foundation - File Format Parsing | In Progress | 5/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 6/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
@@ -56,7 +56,7 @@
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 101 | Research WC3 file formats | **Completed** | None |
-| 102 | Implement MPQ archive parser | Pending | 101 |
+| 102 | Implement MPQ archive parser | **Completed** | 101 |
 | 102a | Parse MPQ header structure | **Completed** | 101 |
 | 102b | Parse MPQ hash table | **Completed** | 102a |
 | 102c | Parse MPQ block table | **Completed** | 102a, 102b |
@@ -162,6 +162,11 @@
   - Displays outputs in order with formatted headers
   - Uses idle timeout for termination (subshell-safe)
   - Created test file: src/tests/test_002c_streamer_process.sh
+- **Issue 102 completed:** Implement MPQ archive parser
+  - Created src/mpq/init.lua (unified API)
+  - Created src/tests/test_mpq.lua
+  - API: mpq.open(), archive:has(), archive:extract(), archive:info(), archive:close()
+  - 15/16 test maps work (1 uses unsupported PKWARE DCL)
 
 ---
 
@@ -169,17 +174,17 @@
 
 ### Phase 1 (Ready to Start)
 
-1. **102 - Create unified MPQ API** (High Priority)
-   - Create src/mpq/init.lua to tie all sub-modules together
-   - Clean interface for opening archives and extracting files
+1. **103 - Parse war3map.w3i** (High Priority)
+   - Map metadata parsing (name, players, forces)
+   - First content parser
 
-2. **103 - Parse war3map.w3i** (Depends on 102)
-   - Map metadata parsing
-
-3. **104 - Parse war3map.wts** (Depends on 102)
+2. **104 - Parse war3map.wts** (Depends on 102)
    - Trigger strings parsing
+
+3. **105 - Parse war3map.w3e** (Depends on 102)
+   - Terrain data parsing
 
 ### Phase 0 (Parallel Work)
 
-4. **002 - Add streaming queue to issue-splitter**
-   - 002a-002e sub-issues pending
+4. **002d - Add parallel processing loop**
+   - Complete streaming queue implementation
