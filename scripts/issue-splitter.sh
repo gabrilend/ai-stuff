@@ -97,6 +97,29 @@ cleanup_queue() {
 # Exit trap for queue cleanup
 trap cleanup_queue EXIT INT TERM
 
+# {{{ queue_claude_response
+queue_claude_response() {
+    local issue_path="$1"
+    local prompt="$2"
+    local queue_num=$((QUEUE_COUNTER++))
+    local output_file="$QUEUE_DIR/${queue_num}.output"
+    local meta_file="$QUEUE_DIR/${queue_num}.meta"
+
+    # Store metadata (issue path)
+    echo "$issue_path" > "$meta_file"
+
+    # Run Claude and capture output
+    if timeout 300 claude -p "$prompt" > "$output_file" 2>&1; then
+        echo "success" >> "$meta_file"
+    else
+        echo "failed" >> "$meta_file"
+    fi
+
+    # Mark as ready (atomic signal)
+    touch "$QUEUE_DIR/${queue_num}.ready"
+}
+# }}}
+
 # {{{ print_help
 print_help() {
     head -26 "$0" | tail -24 | sed 's/^# //' | sed 's/^#//'
