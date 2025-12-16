@@ -27,6 +27,22 @@
 
 set -euo pipefail
 
+# {{{ TUI Libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIBS_DIR="${SCRIPT_DIR}/libs"
+
+# Source TUI libraries if available
+TUI_AVAILABLE=false
+if [[ -f "${LIBS_DIR}/tui.sh" ]] && [[ -f "${LIBS_DIR}/menu.sh" ]]; then
+    source "${LIBS_DIR}/tui.sh"
+    source "${LIBS_DIR}/checkbox.sh"
+    source "${LIBS_DIR}/multistate.sh"
+    source "${LIBS_DIR}/input.sh"
+    source "${LIBS_DIR}/menu.sh"
+    TUI_AVAILABLE=true
+fi
+# }}}
+
 # {{{ Configuration
 DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 ISSUES_DIR="${DIR}/issues"
@@ -220,8 +236,9 @@ get_subissues_for_root() {
 }
 # }}}
 
-# {{{ interactive_mode
-interactive_mode() {
+# {{{ interactive_mode_simple
+interactive_mode_simple() {
+    # Fallback simple interactive mode (no TUI)
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║           Issue Splitter - Interactive Mode                  ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
@@ -312,6 +329,118 @@ interactive_mode() {
     if [[ "$proceed" =~ ^[Nn] ]]; then
         echo "Aborted."
         exit 0
+    fi
+}
+# }}}
+
+# {{{ interactive_mode_tui
+interactive_mode_tui() {
+    # TUI-based interactive mode using menu.sh
+    local issues
+    mapfile -t issues < <(get_issues "$PATTERN")
+
+    if [[ ${#issues[@]} -eq 0 ]]; then
+        echo "ERROR: No issues found matching pattern '$PATTERN' in $ISSUES_DIR"
+        exit 1
+    fi
+
+    # Initialize TUI
+    if ! tui_init; then
+        echo "ERROR: Could not initialize TUI mode, falling back to simple mode"
+        interactive_mode_simple
+        return
+    fi
+
+    # Build the menu
+    menu_init
+    menu_set_title "Issue Splitter" "Interactive Mode"
+
+    # Section 1: Mode (radio buttons)
+    menu_add_section "mode" "single" "Mode"
+    menu_add_item "mode" "analyze" "Analyze" "checkbox" "1" "Analyze issues for sub-issue splitting"
+    menu_add_item "mode" "review" "Review" "checkbox" "0" "Review existing sub-issue structures"
+    menu_add_item "mode" "execute" "Execute" "checkbox" "0" "Execute recommendations from analyses"
+
+    # Section 2: Options (checkboxes)
+    menu_add_section "options" "multi" "Options"
+    menu_add_item "options" "skip_existing" "Skip existing" "checkbox" "1" "Don't re-analyze issues with analysis"
+    menu_add_item "options" "dry_run" "Dry run" "checkbox" "0" "Show what would happen without doing it"
+    menu_add_item "options" "archive" "Archive" "checkbox" "0" "Save copies to issues/analysis/"
+    menu_add_item "options" "execute_all" "Execute all" "checkbox" "0" "Execute without confirmation"
+
+    # Section 3: Files (list with checkboxes)
+    menu_add_section "files" "list" "Issues to Process"
+    local i=0
+    for issue in "${issues[@]}"; do
+        local basename=$(basename "$issue")
+        local root_id=$(get_root_id "$basename")
+        local label="$basename"
+        local desc=""
+        local disabled=0
+
+        if is_subissue "$basename"; then
+            desc="Sub-issue of ${root_id}"
+        elif has_subissues "$root_id"; then
+            desc="Has sub-issues - review at end"
+        elif has_subissue_analysis "$issue"; then
+            desc="Has existing analysis"
+        fi
+
+        menu_add_item "files" "file_$i" "$label" "checkbox" "1" "$desc"
+        ((i++))
+    done
+
+    # Run the menu
+    if menu_run; then
+        tui_cleanup
+
+        # Extract mode selection
+        if [[ "$(menu_get_value "review")" == "1" ]]; then
+            REVIEW_ONLY=true
+        elif [[ "$(menu_get_value "execute")" == "1" ]]; then
+            EXECUTE_MODE=true
+        fi
+
+        # Extract options
+        [[ "$(menu_get_value "skip_existing")" == "1" ]] && SKIP_EXISTING=true
+        [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true
+        [[ "$(menu_get_value "archive")" == "1" ]] && ARCHIVE_MODE=true
+        [[ "$(menu_get_value "execute_all")" == "1" ]] && EXECUTE_ALL=true
+
+        # Extract selected files
+        SELECTED_ISSUES=()
+        local j=0
+        for issue in "${issues[@]}"; do
+            if [[ "$(menu_get_value "file_$j")" == "1" ]]; then
+                SELECTED_ISSUES+=("$issue")
+            fi
+            ((j++))
+        done
+
+        echo
+        echo "Configuration:"
+        echo "  Directory: $DIR"
+        echo "  Issues: ${#SELECTED_ISSUES[@]} selected"
+        echo "  Skip existing: $SKIP_EXISTING"
+        echo "  Review only: $REVIEW_ONLY"
+        echo "  Execute mode: $EXECUTE_MODE"
+        echo "  Dry run: $DRY_RUN"
+        echo
+    else
+        tui_cleanup
+        echo
+        echo "Cancelled by user."
+        exit 0
+    fi
+}
+# }}}
+
+# {{{ interactive_mode
+interactive_mode() {
+    if [[ "$TUI_AVAILABLE" == true ]]; then
+        interactive_mode_tui
+    else
+        interactive_mode_simple
     fi
 }
 # }}}
