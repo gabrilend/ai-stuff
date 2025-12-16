@@ -13,7 +13,8 @@ docs/
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
 │   ├── wts-trigger-strings.md  Trigger string table format
-│   └── w3e-terrain.md          Terrain/tileset data format
+│   ├── w3e-terrain.md          Terrain/tileset data format
+│   └── pkware-dcl-compression.md  PKWARE DCL compression (not yet implemented)
 │
 src/
 ├── cli/
@@ -95,7 +96,7 @@ issues/
 | 006 | Rename analysis sections for promoted roots | **Completed** |
 | 007 | Add auto-implement via Claude CLI | **Completed** |
 
-### Phase 1 Issues (File Format Parsing)
+### Phase 1 Issues (File Format Parsing) - **COMPLETED**
 
 | Issue | Description | Status |
 |-------|-------------|--------|
@@ -105,12 +106,12 @@ issues/
 | 102b | Parse MPQ hash table | **Completed** |
 | 102c | Parse MPQ block table | **Completed** |
 | 102d | Implement file extraction | **Completed** |
-| 103 | Parse war3map.w3i (map info) | Pending |
-| 104 | Parse war3map.wts (trigger strings) | Pending |
-| 105 | Parse war3map.w3e (terrain) | Pending |
-| 106 | Design internal data structures | Pending |
-| 107 | Build CLI metadata dump tool | Pending |
-| 108 | Phase 1 integration test | Pending |
+| 103 | Parse war3map.w3i (map info) | **Completed** |
+| 104 | Parse war3map.wts (trigger strings) | **Completed** |
+| 105 | Parse war3map.w3e (terrain) | **Completed** |
+| 106 | Design internal data structures | **Completed** |
+| 107 | Build CLI metadata dump tool | **Completed** |
+| 108 | Phase 1 integration test | **Completed** |
 
 ### Phase 2 Issues (Data Model - Game Objects)
 
@@ -133,6 +134,7 @@ issues/
 | w3i-map-info.md | Map info: metadata, players, forces, fog settings | Created |
 | wts-trigger-strings.md | Trigger string table format and TRIGSTR resolution | Created |
 | w3e-terrain.md | Terrain: tilepoints, height maps, textures, cliffs | Created |
+| pkware-dcl-compression.md | PKWARE DCL compression (limitation doc, delete when implemented) | Created |
 
 ### Guides
 
