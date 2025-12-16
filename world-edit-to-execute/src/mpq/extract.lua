@@ -121,7 +121,8 @@ function extract.decompress_sector(data, is_implode, is_compress)
 
     if is_implode then
         -- PKWARE DCL - not implemented yet
-        return nil, "PKWARE DCL decompression not implemented"
+        -- See: docs/formats/pkware-dcl-compression.md
+        return nil, "PKWARE DCL decompression not implemented (see docs/formats/pkware-dcl-compression.md)"
     end
 
     if is_compress then
@@ -138,7 +139,8 @@ function extract.decompress_sector(data, is_implode, is_compress)
         end
 
         if band(flags, COMPRESSION.PKWARE) ~= 0 then
-            return nil, "PKWARE DCL decompression not implemented"
+            -- See: docs/formats/pkware-dcl-compression.md
+            return nil, "PKWARE DCL decompression not implemented (see docs/formats/pkware-dcl-compression.md)"
         end
 
         if band(flags, COMPRESSION.ZLIB) ~= 0 then

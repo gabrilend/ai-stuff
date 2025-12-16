@@ -135,6 +135,50 @@ When implementing PKWARE DCL support, complete these steps:
 
 ---
 
+## Code References to Update
+
+The following files contain references to this document or PKWARE DCL limitations.
+When implementing PKWARE DCL support, update or remove these references:
+
+### Source Code (error messages and comments)
+
+| File | Line(s) | Description |
+|------|---------|-------------|
+| `src/mpq/extract.lua` | 123-125 | IMPLODE flag error message |
+| `src/mpq/extract.lua` | 141-143 | Multi-compression PKWARE error |
+| `src/mpq/blocktable.lua` | 16-19 | IMPLODE flag comment |
+| `src/mpq/blocktable.lua` | 30-35 | COMPRESSION constants comment |
+
+### Test and Demo Files
+
+| File | Line(s) | Description |
+|------|---------|-------------|
+| `src/tests/phase1_test.lua` | 297-303 | Known limitations output |
+| `issues/completed/demos/phase1_demo.lua` | 399-402 | Demo limitations display |
+
+### Documentation Files
+
+| File | Description |
+|------|-------------|
+| `docs/table-of-contents.md` | Entry in formats directory and tech docs table |
+| `docs/formats/mpq-archive.md` | References to PKWARE compression |
+| `issues/progress.md` | Known limitation notes |
+| `issues/102d-implement-file-extraction.md` | Implementation notes |
+
+### Cleanup Commands
+
+After implementing PKWARE DCL, run these commands to find remaining references:
+
+```bash
+# Find all remaining PKWARE/DCL references
+grep -rn "PKWARE\|pkware-dcl" src/ docs/ issues/ --include="*.lua" --include="*.md"
+
+# Verify no error messages remain
+grep -rn "not implemented.*pkware\|pkware.*not implemented" src/
+```
+
+---
+
 ## Document Removal Instructions
 
 Once PKWARE DCL decompression is implemented and verified:
