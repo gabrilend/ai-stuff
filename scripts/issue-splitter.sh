@@ -24,6 +24,9 @@
 #   -x, --execute         Execute recommendations (create sub-issue files)
 #   -X, --execute-all     Execute all recommendations without confirmation
 #   -A, --auto-implement  Auto-implement issues via Claude CLI
+#   --stream              Enable streaming mode with parallel processing
+#   --parallel <n>        Max concurrent Claude calls (default: 3, requires --stream)
+#   --delay <n>           Seconds between streamed outputs (default: 5)
 #   -h, --help            Show this help message
 
 set -euo pipefail
@@ -292,7 +295,7 @@ parallel_process_issues() {
 
 # {{{ print_help
 print_help() {
-    head -26 "$0" | tail -24 | sed 's/^# //' | sed 's/^#//'
+    head -30 "$0" | tail -28 | sed 's/^# //' | sed 's/^#//'
 }
 # }}}
 
@@ -355,6 +358,18 @@ parse_args() {
             -A|--auto-implement)
                 AUTO_IMPLEMENT=true
                 shift
+                ;;
+            --stream)
+                STREAMING_MODE=true
+                shift
+                ;;
+            --parallel)
+                PARALLEL_COUNT="$2"
+                shift 2
+                ;;
+            --delay)
+                STREAM_DELAY="$2"
+                shift 2
                 ;;
             -h|--help)
                 print_help
@@ -1372,20 +1387,29 @@ main() {
     # Phase 1: Process issues without sub-issues (unless review-only mode)
     if [[ "$REVIEW_ONLY" != true ]]; then
         echo "════════════════════════════════════════════════════════════════"
-        log "PHASE 1: Analyzing issues for sub-issue splitting"
+        if [[ "$STREAMING_MODE" == true ]]; then
+            log "PHASE 1: Analyzing issues (streaming mode, parallel=$PARALLEL_COUNT)"
+        else
+            log "PHASE 1: Analyzing issues for sub-issue splitting"
+        fi
         echo "════════════════════════════════════════════════════════════════"
         echo
 
-        for issue in "${SELECTED_ISSUES[@]}"; do
-            if process_issue "$issue"; then
-                ((++processed))
-            else
-                ((++skipped))
-            fi
-        done
-
-        echo
-        log "Phase 1 complete: $processed processed, $skipped skipped"
+        if [[ "$STREAMING_MODE" == true ]]; then
+            # Use parallel processing with streaming output
+            parallel_process_issues "${SELECTED_ISSUES[@]}"
+        else
+            # Sequential processing
+            for issue in "${SELECTED_ISSUES[@]}"; do
+                if process_issue "$issue"; then
+                    ((++processed))
+                else
+                    ((++skipped))
+                fi
+            done
+            echo
+            log "Phase 1 complete: $processed processed, $skipped skipped"
+        fi
     else
         # In review-only mode, just find roots with sub-issues
         find_roots_with_subissues

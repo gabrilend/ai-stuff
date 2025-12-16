@@ -10,7 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 16/18 |
+| 0 | Tooling/Infrastructure | **Completed** | 18/18 |
 | 1 | Foundation - File Format Parsing | In Progress | 6/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
@@ -28,12 +28,12 @@
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 001 | Fix issue-splitter output handling | **Completed** | None |
-| 002 | Add streaming queue to issue-splitter | In Progress | 001 |
+| 002 | Add streaming queue to issue-splitter | **Completed** | 001 |
 | 002a | Add queue infrastructure | **Completed** | None (within 002) |
 | 002b | Add producer function | **Completed** | 002a |
 | 002c | Add streamer process | **Completed** | 002a |
 | 002d | Add parallel processing loop | **Completed** | 002a, 002b, 002c |
-| 002e | Add streaming config flags | Pending | 002d |
+| 002e | Add streaming config flags | **Completed** | 002d |
 | 003 | Execute analysis recommendations | **Completed** | 001 |
 | 004 | Redesign interactive mode interface | **Completed** | None |
 | 004a | Create TUI core library | **Completed** | None |
@@ -173,6 +173,12 @@
   - Implemented parallel_process_issues() orchestrator
   - Uses wait -n for job slot management (requires Bash 4.3+)
   - Created test file: src/tests/test_002d_parallel_processing.sh
+- **Issue 002e completed:** Add streaming config flags
+  - Added --stream, --parallel, --delay flags to parse_args
+  - Updated help text with new options
+  - Modified main() for conditional parallel/sequential processing
+- **Issue 002 completed:** Add streaming queue to issue-splitter (all sub-issues done)
+- **Phase 0 completed:** Tooling/Infrastructure (18/18 issues)
 
 ---
 
@@ -190,8 +196,7 @@
 3. **105 - Parse war3map.w3e** (Depends on 102)
    - Terrain data parsing
 
-### Phase 0 (Parallel Work)
+### Phase 0 Complete
 
-4. **002e - Add streaming config flags**
-   - Add --parallel, --delay, --stream flags
-   - Complete streaming queue implementation
+All Phase 0 (Tooling/Infrastructure) issues are now complete.
+The streaming queue system is available via `--stream` flag.
