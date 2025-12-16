@@ -161,13 +161,13 @@ Text content
 
 ## Acceptance Criteria
 
-- [ ] Can parse war3map.wts from test archives
-- [ ] Correctly extracts all string IDs and content
-- [ ] Handles multi-line strings
-- [ ] Preserves color codes and formatting
-- [ ] resolve() function replaces TRIGSTR references
-- [ ] Handles empty/missing strings gracefully
-- [ ] Unit tests for parser and resolver
+- [x] Can parse war3map.wts from test archives
+- [x] Correctly extracts all string IDs and content
+- [x] Handles multi-line strings
+- [x] Preserves color codes and formatting
+- [x] resolve() function replaces TRIGSTR references
+- [x] Handles empty/missing strings gracefully
+- [x] Unit tests for parser and resolver
 
 ---
 
@@ -224,3 +224,47 @@ But this creates 3 issues for what amounts to ~100 lines of code, which is exces
 ### Summary
 
 Keep issue 104 as a single atomic issue. It's well-defined, appropriately sized (estimated 2-4 hours of work), and splitting it would add process overhead without improving manageability. The issue notes themselves acknowledge this: "The wts parser is simple but critical."
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-16*
+
+### What Was Built
+
+Created `src/parsers/wts.lua` - a full parser for war3map.wts string table files:
+
+```lua
+local wts = require("parsers.wts")
+local st = wts.new(content)
+
+-- Available methods:
+st:get(id)          -- Get string by ID (returns nil if not found)
+st:resolve(text)    -- Replace TRIGSTR_xxx references
+st:count()          -- Number of strings
+st:ids()            -- Sorted list of all IDs
+st:pairs()          -- Iterate (id, content) pairs
+
+-- Formatting:
+print(wts.format(st))
+```
+
+### Features Implemented
+
+- **Robust parsing** with nested brace handling
+- **TRIGSTR resolution** including negative ID handling (resolve to empty)
+- **Multi-line string support** with proper newline handling
+- **Color code preservation** (|cffRRGGBB...|r)
+- **StringTable class** with clean API
+
+### Test Results
+
+- **16/16 test maps** parse successfully
+- Maps have between 0 and 4993 strings
+- TRIGSTR references resolve correctly (e.g., `TRIGSTR_199` → `Dark Ages of Warcraft 2.1`)
+
+### Files Created
+
+- `src/parsers/wts.lua` - Main parser module
+- `src/tests/test_wts.lua` - Comprehensive test suite

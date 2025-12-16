@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
-| 1 | Foundation - File Format Parsing | In Progress | 7/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 8/12 |
 | 2 | Data Model - Game Objects | Issues Created | 0/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
@@ -62,7 +62,7 @@
 | 102c | Parse MPQ block table | **Completed** | 102a, 102b |
 | 102d | Implement file extraction | **Completed** | 102a, 102b, 102c |
 | 103 | Parse war3map.w3i (map info) | **Completed** | 102 |
-| 104 | Parse war3map.wts (trigger strings) | Pending | 102 |
+| 104 | Parse war3map.wts (trigger strings) | **Completed** | 102 |
 | 105 | Parse war3map.w3e (terrain) | Pending | 102, 103 |
 | 106 | Design internal data structures | Pending | 103, 104, 105 |
 | 107 | Build CLI metadata dump tool | Pending | 106 |
@@ -231,6 +231,11 @@ Phase 1 Complete (102 MPQ Parser)
   - Updated all MPQ modules to use compat layer
   - 15/16 test maps parse successfully
   - Parses: map name, author, players, forces, flags, fog, weather
+- **Issue 104 completed:** Parse war3map.wts (trigger strings)
+  - Created src/parsers/wts.lua (StringTable class)
+  - Created src/tests/test_wts.lua
+  - 16/16 test maps parse successfully
+  - TRIGSTR_xxx resolution working (e.g., TRIGSTR_199 → actual map name)
 
 ---
 
@@ -238,15 +243,15 @@ Phase 1 Complete (102 MPQ Parser)
 
 ### Phase 1 (Ready to Start)
 
-1. **104 - Parse war3map.wts** (High Priority)
-   - Trigger strings parsing
-   - Required to resolve TRIGSTR_xxx references in w3i
-
-2. **105 - Parse war3map.w3e** (Depends on 102, 103)
+1. **105 - Parse war3map.w3e** (High Priority)
    - Terrain data parsing
+   - Depends on 102, 103
 
-3. **106 - Design internal data structures** (Depends on 103, 104, 105)
+2. **106 - Design internal data structures** (Depends on 103, 104, 105)
    - Unified data model for parsed content
+
+3. **107 - Build CLI metadata dump tool** (Depends on 106)
+   - CLI for inspecting map files
 
 ### Phase 0 Complete
 
