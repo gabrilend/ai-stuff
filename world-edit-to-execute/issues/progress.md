@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
-| 1 | Foundation - File Format Parsing | In Progress | 9/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 10/12 |
 | 2 | Data Model - Game Objects | Issues Created | 0/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
@@ -64,7 +64,7 @@
 | 103 | Parse war3map.w3i (map info) | **Completed** | 102 |
 | 104 | Parse war3map.wts (trigger strings) | **Completed** | 102 |
 | 105 | Parse war3map.w3e (terrain) | **Completed** | 102, 103 |
-| 106 | Design internal data structures | Pending | 103, 104, 105 |
+| 106 | Design internal data structures | **Completed** | 103, 104, 105 |
 | 107 | Build CLI metadata dump tool | Pending | 106 |
 | 108 | Phase 1 integration test | Pending | 101-107 |
 
@@ -241,6 +241,11 @@ Phase 1 Complete (102 MPQ Parser)
   - Created src/tests/test_w3e.lua
   - 15/16 test maps parse successfully
   - Full terrain data: heights, textures, water, cliffs, ramps
+- **Issue 106 completed:** Design internal data structures
+  - Created src/data/init.lua (unified Map class)
+  - Created src/tests/test_data.lua
+  - Map.load() integrates all parsers (w3i, wts, w3e)
+  - 16/16 test maps load successfully
 
 ---
 
@@ -248,15 +253,13 @@ Phase 1 Complete (102 MPQ Parser)
 
 ### Phase 1 (Ready to Start)
 
-1. **106 - Design internal data structures** (High Priority)
-   - Unified data model for parsed content
-   - Depends on 103, 104, 105
-
-2. **107 - Build CLI metadata dump tool** (Depends on 106)
+1. **107 - Build CLI metadata dump tool** (High Priority)
    - CLI for inspecting map files
+   - Depends on 106
 
-3. **108 - Phase 1 integration test** (Depends on 101-107)
+2. **108 - Phase 1 integration test** (Depends on 101-107)
    - Validate all parsers work together
+   - Create demo showing Phase 1 capabilities
 
 ### Phase 0 Complete
 
