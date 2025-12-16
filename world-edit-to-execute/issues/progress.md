@@ -10,7 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 10/17 |
+| 0 | Tooling/Infrastructure | In Progress | 11/17 |
 | 1 | Foundation - File Format Parsing | In Progress | 4/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
@@ -43,7 +43,7 @@
 | 004e | Build menu navigation system | **Completed** | 004b, 004c, 004d |
 | 004f | Integrate TUI into issue-splitter | **Completed** | 004a-e |
 | 005 | Migrate TUI library to shared libs | **Completed** | 004 |
-| 006 | Rename analysis sections for promoted roots | Pending | 003 |
+| 006 | Rename analysis sections for promoted roots | **Completed** | 003 |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -131,6 +131,10 @@
 - **Issue 005 completed:** Migrate TUI library to shared libs
   - Already achieved via scripts/libs/ location (different path than spec)
   - Library accessible by all projects under ai-stuff/
+- **Issue 006 completed:** Rename analysis sections for promoted roots
+  - Added has_initial_analysis() detection function
+  - Added rename_analysis_to_initial() to rename on promotion
+  - Updated skip logic to respect both analysis types
 
 ---
 
@@ -152,5 +156,3 @@
 
 4. **002 - Add streaming queue to issue-splitter**
    - 002a-002e sub-issues pending
-
-5. **006 - Rename analysis sections for promoted roots**
