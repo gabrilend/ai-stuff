@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
-| 1 | Foundation - File Format Parsing | In Progress | 10/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 11/12 |
 | 2 | Data Model - Game Objects | Issues Created | 0/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
@@ -65,7 +65,7 @@
 | 104 | Parse war3map.wts (trigger strings) | **Completed** | 102 |
 | 105 | Parse war3map.w3e (terrain) | **Completed** | 102, 103 |
 | 106 | Design internal data structures | **Completed** | 103, 104, 105 |
-| 107 | Build CLI metadata dump tool | Pending | 106 |
+| 107 | Build CLI metadata dump tool | **Completed** | 106 |
 | 108 | Phase 1 integration test | Pending | 101-107 |
 
 ### Dependency Graph
@@ -246,20 +246,22 @@ Phase 1 Complete (102 MPQ Parser)
   - Created src/tests/test_data.lua
   - Map.load() integrates all parsers (w3i, wts, w3e)
   - 16/16 test maps load successfully
+- **Issue 107 completed:** Build CLI metadata dump tool
+  - Created src/cli/mapdump.lua
+  - Supports text and JSON output formats
+  - Components: info, strings, terrain, files, all
+  - Interactive mode with -I flag
 
 ---
 
 ## Next Steps
 
-### Phase 1 (Ready to Start)
+### Phase 1 (Final Issue)
 
-1. **107 - Build CLI metadata dump tool** (High Priority)
-   - CLI for inspecting map files
-   - Depends on 106
-
-2. **108 - Phase 1 integration test** (Depends on 101-107)
+1. **108 - Phase 1 integration test** (High Priority)
    - Validate all parsers work together
    - Create demo showing Phase 1 capabilities
+   - Final issue to complete Phase 1
 
 ### Phase 0 Complete
 
