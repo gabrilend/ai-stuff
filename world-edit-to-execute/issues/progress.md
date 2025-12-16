@@ -11,8 +11,8 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
-| 1 | Foundation - File Format Parsing | In Progress | 6/12 |
-| 2 | Data Model - Game Objects | Planned | - |
+| 1 | Foundation - File Format Parsing | In Progress | 7/12 |
+| 2 | Data Model - Game Objects | Issues Created | 0/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -61,7 +61,7 @@
 | 102b | Parse MPQ hash table | **Completed** | 102a |
 | 102c | Parse MPQ block table | **Completed** | 102a, 102b |
 | 102d | Implement file extraction | **Completed** | 102a, 102b, 102c |
-| 103 | Parse war3map.w3i (map info) | Pending | 102 |
+| 103 | Parse war3map.w3i (map info) | **Completed** | 102 |
 | 104 | Parse war3map.wts (trigger strings) | Pending | 102 |
 | 105 | Parse war3map.w3e (terrain) | Pending | 102, 103 |
 | 106 | Design internal data structures | Pending | 103, 104, 105 |
@@ -88,6 +88,42 @@
                 └──▶ 107 CLI Tool
                      │
                      └──▶ 108 Integration Test
+```
+
+---
+
+## Phase 2 Issues
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 201 | Parse war3map.doo (doodads/trees) | Pending | 102 |
+| 202 | Parse war3mapUnits.doo (units/buildings) | Pending | 102, 201 |
+| 203 | Parse war3map.w3r (regions) | Pending | 102 |
+| 204 | Parse war3map.w3c (cameras) | Pending | 102 |
+| 205 | Parse war3map.w3s (sounds) | Pending | 102 |
+| 206 | Design game object types | Pending | 201-205 |
+| 207 | Build object registry system | Pending | 206 |
+| 208 | Phase 2 integration test | Pending | 201-207 |
+
+### Dependency Graph
+
+```
+Phase 1 Complete (102 MPQ Parser)
+ │
+ ├──▶ 201 doo Parser (doodads/trees)
+ │     └──▶ 202 Units.doo Parser
+ │
+ ├──▶ 203 w3r Parser (regions)
+ │
+ ├──▶ 204 w3c Parser (cameras)
+ │
+ └──▶ 205 w3s Parser (sounds)
+       │
+       └──▶ 206 Game Object Types
+            │
+            └──▶ 207 Object Registry
+                 │
+                 └──▶ 208 Integration Test
 ```
 
 ---
@@ -179,6 +215,22 @@
   - Modified main() for conditional parallel/sequential processing
 - **Issue 002 completed:** Add streaming queue to issue-splitter (all sub-issues done)
 - **Phase 0 completed:** Tooling/Infrastructure (18/18 issues)
+- **Phase 2 issues created:** Data Model - Game Objects (8 issues)
+  - 201: Parse war3map.doo (doodads/trees)
+  - 202: Parse war3mapUnits.doo (units/buildings)
+  - 203: Parse war3map.w3r (regions)
+  - 204: Parse war3map.w3c (cameras)
+  - 205: Parse war3map.w3s (sounds)
+  - 206: Design game object types
+  - 207: Build object registry system
+  - 208: Phase 2 integration test
+- **Issue 103 completed:** Parse war3map.w3i (map info)
+  - Created src/parsers/w3i.lua (full w3i parser)
+  - Created src/compat.lua (Lua 5.3+/LuaJIT compatibility layer)
+  - Created src/tests/test_w3i.lua
+  - Updated all MPQ modules to use compat layer
+  - 15/16 test maps parse successfully
+  - Parses: map name, author, players, forces, flags, fog, weather
 
 ---
 
@@ -186,15 +238,15 @@
 
 ### Phase 1 (Ready to Start)
 
-1. **103 - Parse war3map.w3i** (High Priority)
-   - Map metadata parsing (name, players, forces)
-   - First content parser
-
-2. **104 - Parse war3map.wts** (Depends on 102)
+1. **104 - Parse war3map.wts** (High Priority)
    - Trigger strings parsing
+   - Required to resolve TRIGSTR_xxx references in w3i
 
-3. **105 - Parse war3map.w3e** (Depends on 102)
+2. **105 - Parse war3map.w3e** (Depends on 102, 103)
    - Terrain data parsing
+
+3. **106 - Design internal data structures** (Depends on 103, 104, 105)
+   - Unified data model for parsed content
 
 ### Phase 0 Complete
 
