@@ -1,0 +1,7 @@
+ls /home/ritz/games/claude-code/
+
+ls /home/ritz/programming/lua/
+
+ssh sorelu && ls /home/ritz/documents/ && ls /home/ritz/ && ls /home/ritz/programming/ && ssh tirilu
+
+

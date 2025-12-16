@@ -1,0 +1,32 @@
+# Issue 002: Implement Basic Neuron Class
+
+## Current Behavior
+No neuron implementation exists.
+
+## Intended Behavior
+A Neuron class should be implemented with:
+- Weights and bias storage
+- Forward propagation calculation
+- Activation function support
+- Basic getter/setter methods for parameters
+
+## Suggested Implementation Steps
+1. Create libs/neural/ directory structure
+2. Implement Neuron class with constructor
+3. Add weight and bias initialization methods
+4. Implement forward propagation method
+5. Add support for different activation functions (sigmoid, relu)
+6. Create unit tests for neuron functionality
+
+## Priority
+High - Core component
+
+## Estimated Effort
+4-6 hours
+
+## Dependencies
+- Issue 001 (Love2d setup)
+
+## Related Documents
+- docs/architecture (Neural Network Engine section)
+- notes/vision (Core Objectives)

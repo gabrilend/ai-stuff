@@ -1,0 +1,320 @@
+#!/bin/bash
+# Fediverse content extraction script
+# Extracts posts from ActivityPub ZIP archives and processes them
+
+set -euo pipefail
+
+# {{{ setup_dir_path
+setup_dir_path() {
+    if [ -n "$1" ]; then
+        echo "$1"
+    else
+        echo "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+    fi
+}
+# }}}
+
+# Parse command line arguments for project directory
+SCRIPT_DIR=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            SCRIPT_DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+# Set up project directory
+PROJECT_DIR=$(setup_dir_path "$SCRIPT_DIR")
+
+# Use project input directory
+DIR="${PROJECT_DIR}/input"
+ZIP_FILE_NAME="most-recent-29.zip"
+
+ rm -drf "${DIR}/files"
+mkdir -p "${DIR}/files"
+ rm -drf "${DIR}/extract"
+mkdir -p "${DIR}/extract"
+
+unzip -o -qq "${DIR}/${ZIP_FILE_NAME}" -d "${DIR}/extract"
+
+# add new posts that are missing and which break the script if they are??
+# FIXME
+
+# {{{
+
+touch "${DIR}/files/0581.txt"
+
+# }}}
+
+cd "${DIR}"
+luajit "${PROJECT_DIR}/scripts/extract-fediverse.lua" "${PROJECT_DIR}"
+cd -
+
+# blacklisted fediverse posts
+function delete-post(){
+   rm "${DIR}/files/${1}.txt"
+}
+
+# {{{
+
+#delete-post 0243
+#delete-post 1207
+#delete-post 0522
+#delete-post 1021
+#delete-post 1239
+#delete-post 0450
+#delete-post 0501
+#delete-post 0507
+#delete-post 0218
+#delete-post 0142
+#delete-post 0361
+#delete-post 0782
+#delete-post 0778
+#delete-post 0888
+#delete-post 0903
+#delete-post 0180
+#delete-post 1516
+##delete-post 1016
+#delete-post 0662
+#delete-post 1134
+#delete-post 1148
+#delete-post 0944
+#delete-post 0945
+#delete-post 1162
+#delete-post 1241
+#delete-post 0019
+#delete-post 0301
+#delete-post 1363
+#delete-post 1365
+#delete-post 0503
+#delete-post 0023
+##delete-post 0961
+#delete-post 0083
+#delete-post 0082
+#delete-post 0081
+#delete-post 0080
+#delete-post 0079
+#delete-post 0653
+#delete-post 0054
+#delete-post 0055
+#delete-post 1599
+#delete-post 0047
+#delete-post 0091
+##delete-post 1007
+#delete-post 1006
+#delete-post 1001
+#delete-post 1002
+#delete-post 1003
+#delete-post 1004
+#delete-post 1005
+##delete-post 0729
+#delete-post 0520
+#delete-post 1117
+#delete-post 0125
+#delete-post 0254
+##delete-post 1576
+#delete-post 0851
+#delete-post 1052
+#delete-post 1245
+#delete-post 0017
+#delete-post 0709
+#delete-post 0804
+#delete-post 0208
+#delete-post 0582
+#delete-post 0152
+#delete-post 0339
+##delete-post 1560
+##delete-post 0846
+#delete-post 0498
+#delete-post 0551
+#delete-post 0795
+#delete-post 1226
+#delete-post 0015
+#delete-post 1184
+#delete-post 1299
+#delete-post 1304
+#delete-post 1195
+#delete-post 1267
+#delete-post 1399
+#delete-post 1522
+#delete-post 1227
+#delete-post 1284
+#delete-post 1246
+#delete-post 1487
+#delete-post 1273
+#delete-post 1341
+##delete-post 1491
+#delete-post 1411
+#delete-post 1236
+##delete-post 1233
+#delete-post 1278
+##delete-post 1223
+#delete-post 0562
+#delete-post 0116
+#delete-post 0798
+#delete-post 0384
+#delete-post 0150
+#delete-post 0156
+#delete-post 0155
+#delete-post 0883
+#delete-post 0139
+#delete-post 1277
+#delete-post 0924
+#delete-post 0526
+#delete-post 0479
+#delete-post 0893
+#delete-post 0977
+#delete-post 1028
+#delete-post 0403
+#delete-post 0697
+#delete-post 1573
+#delete-post 1221
+#delete-post 1126
+#delete-post 1557
+##delete-post 0962
+#delete-post 0939
+#delete-post 0378
+#delete-post 1324
+#delete-post 0165
+#delete-post 0769
+#delete-post 0660
+#delete-post 0032
+#delete-post 1435
+#delete-post 0716
+#delete-post 0574
+#delete-post 0030
+#delete-post 0328
+#delete-post 1389
+#delete-post 1217
+#delete-post 0335
+#delete-post 0051
+#delete-post 0205
+##delete-post 0750
+#delete-post 1456
+#delete-post 0398
+#delete-post 0233
+##delete-post 1292
+#delete-post 0771
+#delete-post 0659
+#delete-post 0731
+#delete-post 0153
+##delete-post 0744
+#delete-post 0954
+#delete-post 0018
+#delete-post 0057
+#delete-post 1209
+#delete-post 0221
+#delete-post 0067
+##delete-post 0470
+#delete-post 0087
+#delete-post 0004
+#delete-post 0005
+##delete-post 1100
+#delete-post 1088
+#delete-post 0178
+#delete-post 0115
+#delete-post 0938
+#delete-post 0173
+#delete-post 1187
+#delete-post 0271
+#delete-post 0592
+#delete-post 0176
+#delete-post 0303
+#delete-post 0089
+
+# }}}
+
+# combined fediverse posts
+function combine-post(){
+   # first generate a random color:
+   foreground_color=0
+   background_color=4
+   while [ "${background_color}" -eq 4 ]; do
+      background_color=$(shuf -i 1-7 -n 1)
+   done
+   
+   FILE1="$(cat ${DIR}/files/${1}.txt)"
+   FILE2="$(cat ${DIR}/files/${2}.txt)"
+   rm "${DIR}/files/${1}.txt"
+   rm "${DIR}/files/${2}.txt"
+   touch "${DIR}/files/${1}.txt"
+   echo "${FILE1} " > "${DIR}/files/${1}.txt"
+   echo -e "\033[3${foreground_color}m" >> "${DIR}/files/${1}.txt"
+   echo -e "\033[4${background_color}m" >> "${DIR}/files/${1}.txt"
+   echo "${FILE2}" >> "${DIR}/files/${1}.txt"
+}
+
+# {{{
+
+#combine-post 0282 0283
+#combine-post 0160 0161
+#combine-post 1253 1256
+#combine-post 1511 1512
+#combine-post 1511 1513
+#combine-post 1511 1514
+#combine-post 0192 0193
+#combine-post 0192 0194
+#combine-post 0036 0037
+#combine-post 0036 0038
+#combine-post 0036 0039
+#combine-post 0036 0040
+#combine-post 0036 0041
+#combine-post 0036 0042
+#combine-post 0036 0043
+#combine-post 0036 0044
+#combine-post 0036 0045
+#combine-post 0036 0046
+#combine-post 0947 0948
+#combine-post 0947 0949
+#combine-post 1163 1164
+#combine-post 0210 0211
+#combine-post 0210 0212
+#combine-post 0210 0213
+#combine-post 0210 0214
+#combine-post 1320 1322
+
+#if [ -e "/home/ritz/programming/c/games/template/src/main.c" ]; then
+#   cp ~/programming/c/games/template/src/main.c ${DIR}/files/c-programming-template.txt
+#   cp ${DIR}/files/c-programming-template.txt ${DIR}/files/c-programming-template2.txt
+#   combine-post 0622 c-programming-template
+#   combine-post 1244 c-programming-template2
+#fi
+
+#combine-post 1017 1024
+#combine-post 0580 0581
+#combine-post 0844 0845
+#combine-post 1178 1182
+#combine-post 1188 1189
+#combine-post 0792 0793
+#combine-post 0792 0794
+#combine-post 0068 0069
+#combine-post 0068 0070
+#combine-post 0068 0071
+#combine-post 0068 0072
+#combine-post 0068 0073
+#combine-post 0068 0076
+#combine-post 0068 0077
+#combine-post 0068 0078
+#combine-post 0296 0297
+
+#touch ${DIR}/files/wow-pretty-cringe.txt
+#echo "wow, that was pretty cringe. Sorry you had to read that." > ${DIR}/files/wow-pretty-cringe.txt
+#combine-post 0028 wow-pretty-cringe
+#
+
+
+# }}}
+
+for file in "${DIR}/files"/*.txt; do
+    first_line=$(head -n 1 "$file")
+    if date -d "$first_line" >/dev/null 2>&1; then
+        tail -n +2 "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+        touch -d "$first_line" "$file"
+    fi
+done

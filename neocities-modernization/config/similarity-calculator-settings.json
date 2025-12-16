@@ -1,0 +1,41 @@
+{
+  "default_algorithm": "cosine",
+  "algorithms": {
+    "cosine": {
+      "description": "Cosine similarity - measures angle between vectors, standard for text embeddings",
+      "recommended_for": ["text_embeddings", "high_dimensional_vectors"],
+      "performance": "fast",
+      "range": "[-1, 1]"
+    },
+    "euclidean": {
+      "description": "Euclidean distance converted to similarity - measures straight-line distance",
+      "recommended_for": ["spatial_data", "dense_vectors"],
+      "performance": "fast",
+      "range": "[0, 1]"
+    },
+    "manhattan": {
+      "description": "Manhattan distance converted to similarity - measures city-block distance",
+      "recommended_for": ["sparse_vectors", "robust_to_outliers"],
+      "performance": "fast",
+      "range": "[0, 1]"
+    },
+    "angular": {
+      "description": "Angular similarity - normalized angle between vectors",
+      "recommended_for": ["directional_data", "normalized_vectors"],
+      "performance": "medium",
+      "range": "[0, 1]"
+    },
+    "pearson_correlation": {
+      "description": "Pearson correlation coefficient - measures linear correlation",
+      "recommended_for": ["statistical_analysis", "linear_relationships"],
+      "performance": "medium",
+      "range": "[0, 1]"
+    }
+  },
+  "validation_settings": {
+    "enable_validation": true,
+    "tolerance_identical": 0.001,
+    "tolerance_orthogonal": 0.6,
+    "tolerance_opposite": 1.2
+  }
+}

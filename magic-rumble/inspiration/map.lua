@@ -1,0 +1,30 @@
+-- the map should be generated at the start of the game.
+-- the map should have the player's base on the southernmost part, with the
+-- enemy base on the northernmost. There should be a simple maze between them,
+-- with long-straight lines connecting boxes representing rooms.
+--
+-- units spawn at each building placed by the player and by the enemy and walk
+-- through the maze to fight their opponent. Upon entering a room, they are
+-- engaged in combat. If a room is ever un-contested, then it is placed in the
+-- "capturing" state, which takes 10 seconds. If a foe enters the room, the
+-- state is paused, and it resumes when the room is under control again. If the
+-- newcomer manages to overcome the defences, then the timer is reset and the
+-- room begins being captured for the other team.
+--
+-- each room should have a maximum capacity of about 50 units.
+--
+-- if a room is fully captured, the controlling player will receive +1 income
+-- every turn, which is about every 10 seconds or so.
+--
+-- each room has two or more exits - a minimum of one toward one player and one
+-- to the other player. Rooms may have more than two exits, each going toward a
+-- different room, but each ultimately leading toward a player.
+--
+-- the map should be roughly symmetrical for each player.
+--
+-- the map should be randomized each round.
+--
+-- the player can move about the map using the arrow keys or by dragging the
+-- mouse across the screen. They should not be able to use edge scrolling. The
+-- right click key should be used to drag. Also the wasd keys can be used to
+-- scroll, and the 12345 keys should be shortcuts to clicking the bottom tray.

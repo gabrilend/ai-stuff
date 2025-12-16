@@ -1,0 +1,20 @@
+Magic Rumble is a casual game for computers written in Lua using the Love2d
+engine. All documents are to have 80 characters per line or fewer.
+
+Magic Rumble is a strategy game where players do not control their units. Rather
+they instead place buildings on a map and let the game unfold before them. The
+building mechanics involve clicking on an icon in a tray along the bottom of the
+screen and then placing the building in a valid spot on the map - buildings cost
+gold, which is gained every "turn", which equals about 10 seconds in real time.
+
+buildings spawn units which will traverse the map and fight opponents. These
+units will sometimes visit other buildings like shops or inns, and if the enemy
+is defeated they will capture areas and generate more gold.
+
+each player has a "king" unit that they must keep safe - if an enemy unit
+touches the king, then that player loses a heart, and all units belonging to a
+player BESIDES the one who lost a heart will suddenly disappear.
+
+Buildings are invulnerable and, once built, can only be captured.
+
+the game is designed to last about 30 minutes each round.

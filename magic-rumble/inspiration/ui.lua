@@ -1,0 +1,10 @@
+-- the ui should only appear when in-game, not when in the main menu.
+-- the ui should display your hearts at the top-left, and the enemy on top-right
+--
+-- along the bottom there should be a tray with several icons
+-- by clicking on an icon, the player may be able to place a building on the map
+-- after placing a building, the icon disappears and is replaced by the next one
+-- in the next_building_queue.
+--
+-- each building has a cost. This cost is shown on the top-left of the icon with
+-- a yellow circle with a white number inside.

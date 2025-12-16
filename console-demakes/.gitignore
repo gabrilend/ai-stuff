@@ -1,0 +1,17 @@
+# Build artifacts
+obj/
+*.gbc
+*.sym
+
+# VBA-M config (local to project)
+.vbam.cfg
+
+# Editor files
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

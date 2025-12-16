@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactorIDE - Visual Lua Programming</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #2b2b2b;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            border: 1px solid #555;
+            cursor: crosshair;
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .toolbar {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tool-button {
+            padding: 8px 12px;
+            background: #444;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        
+        .tool-button:hover {
+            background: #666;
+        }
+        
+        .tool-button.active {
+            background: #0066cc;
+        }
+        
+        #codeEditor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 400px;
+            background: #1e1e1e;
+            border: 2px solid #555;
+            border-radius: 5px;
+            display: none;
+            pointer-events: auto;
+        }
+        
+        #codeEditor textarea {
+            width: calc(100% - 20px);
+            height: calc(100% - 60px);
+            margin: 10px;
+            background: #1e1e1e;
+            color: #ffffff;
+            border: none;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+        
+        .editor-buttons {
+            padding: 10px;
+            text-align: right;
+        }
+        
+        .editor-buttons button {
+            margin-left: 10px;
+            padding: 5px 15px;
+            background: #0066cc;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        
+        .editor-buttons button:hover {
+            background: #0088ff;
+        }
+        
+        #contextMenu {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 5px 0;
+            display: none;
+            pointer-events: auto;
+            z-index: 1000;
+        }
+        
+        .context-item {
+            padding: 8px 15px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .context-item:hover {
+            background: #444;
+        }
+        
+        #configDialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            background: #1e1e1e;
+            border: 2px solid #555;
+            border-radius: 5px;
+            padding: 20px;
+            display: none;
+            pointer-events: auto;
+            z-index: 1001;
+        }
+        
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .config-row label {
+            color: white;
+            font-weight: bold;
+        }
+        
+        .config-row input {
+            width: 60px;
+            padding: 5px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1200" height="800"></canvas>
+    
+    <div id="ui">
+        <div class="toolbar">
+            <button class="tool-button active" id="selectTool">Select</button>
+            <button class="tool-button" id="factoryTool">Factory</button>
+            <button class="tool-button" id="beltTool">Conveyor</button>
+            <button class="tool-button" id="deleteTool">Delete</button>
+            <button class="tool-button" id="saveTool">Save</button>
+            <button class="tool-button" id="loadTool">Load</button>
+        </div>
+    </div>
+    
+    <div id="codeEditor">
+        <textarea id="codeTextarea" placeholder="-- Enter your continuous Lua code here&#10;-- This function is called continuously with deltaTime&#10;&#10;function update(deltaTime, inputBuffer, state, timer)&#10;    -- Your code here&#10;    return outputs, newState, newTimer&#10;end"></textarea>
+        <div class="editor-buttons">
+            <button id="saveCode">Save</button>
+            <button id="closeEditor">Close</button>
+        </div>
+    </div>
+    
+    <div id="contextMenu">
+        <div class="context-item" id="editFactory">Edit Code</div>
+    </div>
+
+    <script src="js/engine.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/lua-engine.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

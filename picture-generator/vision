@@ -1,0 +1,31 @@
+a set of utilities which are networked together with a miniature .exe style executable client
+designed for one thing alone: generate a single picture per day for every picture 
+in a pictures directory and store it in a separate directory called "picture-
+-generation" which takes as input every single file in a user's picture-generation
+directory as context and matched with the original picture
+
+                                                                                                                                                             it would create a picture after
+                                                                                                                                                             a delay, which would then be
+                                                                                                                                                             used to collate into a vast but
+                                                                                                                                                             methodical timelapse style
+                                                                                                                                                             growth or remediation phase.
+
+thus the effects of marijuana did began to fade, and she toked up once more.
+
+okay so it's a day later, lemme explain what this project is about:
+
+essentially, it looks at a directory of pictures (recursively) and creates a
+new, separate directory at a location specified in the config file. In this new
+directory, it creates a new directory for each picture / file in the target
+directory. They should have the same names. This process is utterly sandboxed
+from the original.
+
+Then, it runs an image generator on each picture once per day and saves the
+results in the newly created directory. This should enable future timelapse
+support, as each picture takes itself as input and each other picture in it's
+directory and each other picture in the target pictures directory. The ratio
+is as follows: 1 original picture (iterating through each of the generated pics)
+to 1 random picture (generated or original) in the newly created directory.
+
+This ratio will preserve the spirit of the original while allowing it to be
+altered and guided by the random pictures in the newly created directory.

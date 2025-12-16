@@ -1,0 +1,43 @@
+# Issue 008-B: Resource Monitoring System
+
+## Current Behavior
+No resource monitoring exists for tracking system usage and preventing resource exhaustion.
+
+## Intended Behavior
+Implement comprehensive resource monitoring that tracks CPU, memory, disk, and network usage with limits and alerts to prevent system overload.
+
+## Suggested Implementation Steps
+1. Design resource monitoring strategy and thresholds
+2. Create resource monitoring functions with vimfolds:
+   - monitor_system_resources()
+   - check_resource_limits()
+   - alert_resource_usage()
+   - throttle_operations()
+3. Implement CPU usage monitoring and limits
+4. Add memory usage tracking and management
+5. Create disk space monitoring and cleanup
+6. Implement network usage monitoring (for AI APIs)
+7. Add resource usage alerts and warnings
+8. Create automatic resource management and throttling
+
+## Related Documents
+- Issue 008 (parent issue)
+- docs/technical-architecture.md (Performance Considerations)
+
+## Acceptance Criteria
+- System resources are monitored continuously
+- Resource limits prevent system overload
+- Alerts warn before resource exhaustion
+- Automatic throttling manages resource usage
+- Resource usage data is logged and tracked
+- Resource monitoring operates efficiently
+
+## Priority
+High - Prevents system instability
+
+## Estimated Effort
+2-3 hours
+
+## Dependencies
+- System monitoring utilities (top, df, etc.)
+- Issue 006 (Configuration Management) for limits

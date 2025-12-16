@@ -1,0 +1,451 @@
+#!/bin/bash
+# {{{ Claude Resume Generator
+# Intelligent resume generation system using Claude functions
+# Scans project directories and synthesizes thoughts with weighted priority
+
+# Set default directory and script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="$(pwd)"
+
+# Source topic configurations if available
+if [[ -f "$SCRIPT_DIR/claude_topics_config.sh" ]]; then
+    source "$SCRIPT_DIR/claude_topics_config.sh"
+fi
+
+# {{{ Topic Framework Structure
+# Define topic structure for resume generation and extensibility
+declare -A TOPIC_RESUME=(
+    [type]="resume_generation"
+    [name]="Professional Resume"
+    [priority_weights]="10,19,28,37,46,55,64,73,82,91,100"
+    [scan_patterns]="*.md,*.txt,*.lua,*.py,*.js,*.sh,README*,CHANGELOG*,*.json,package.json,Cargo.toml,*.yaml,*.yml"
+    [analysis_depth]="3"
+    [context_window]="5000"
+    [output_format]="structured_resume"
+)
+
+declare -A TOPIC_PROJECT=(
+    [type]="project_analysis"
+    [name]="Project Overview"
+    [priority_weights]="15,25,35,45,55,65,75,85,95,100"
+    [scan_patterns]="*.md,README*,docs/*,notes/*,src/*,libs/*"
+    [analysis_depth]="2"
+    [context_window]="3000"
+    [output_format]="project_summary"
+)
+
+declare -A TOPIC_SKILLS=(
+    [type]="skills_extraction"
+    [name]="Technical Skills"
+    [priority_weights]="20,30,40,50,60,70,80,90,100"
+    [scan_patterns]="*.py,*.js,*.lua,*.sh,*.rs,*.go,*.cpp,*.java,package.json,requirements.txt,Cargo.toml"
+    [analysis_depth]="1"
+    [context_window]="2000"
+    [output_format]="skills_list"
+)
+# }}}
+
+# {{{ Utility Functions
+function log_info() {
+    echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
+}
+
+function log_error() {
+    echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
+}
+
+function get_topic_var() {
+    local topic_name="$1"
+    local key="$2"
+    local var_name="TOPIC_${topic_name}[$key]"
+    eval echo "\${$var_name}"
+}
+
+function parse_weights() {
+    local weights_str="$1"
+    echo "$weights_str" | tr ',' '\n' | awk '{print NR, $1}'
+}
+
+function calculate_priority_weight() {
+    local position="$1"
+    local weights="$2"
+    local weight=$(echo "$weights" | sed -n "${position}p" | cut -d' ' -f2)
+    echo "${weight:-100}"
+}
+# }}}
+
+# {{{ Directory Scanning Functions
+function scan_directory() {
+    local dir="$1"
+    local patterns="$2"
+    local depth="$3"
+    
+    log_info "Scanning directory: $dir with patterns: $patterns (depth: $depth)"
+    
+    local files=()
+    IFS=',' read -ra PATTERN_ARRAY <<< "$patterns"
+    
+    for pattern in "${PATTERN_ARRAY[@]}"; do
+        while IFS= read -r -d '' file; do
+            files+=("$file")
+        done < <(find "$dir" -maxdepth "$depth" -name "$pattern" -type f -print0 2>/dev/null)
+    done
+    
+    printf '%s\n' "${files[@]}" | sort -u
+}
+
+function extract_file_content() {
+    local file="$1"
+    local max_lines="${2:-50}"
+    
+    if [[ -f "$file" ]]; then
+        head -n "$max_lines" "$file" 2>/dev/null | sed 's/[^[:print:]\t]//g'
+    fi
+}
+
+function analyze_directory_context() {
+    local dir="$1"
+    local topic_name="$2"
+    
+    log_info "Analyzing directory context for: $dir"
+    
+    local patterns=$(get_topic_var "$topic_name" "scan_patterns")
+    local depth=$(get_topic_var "$topic_name" "analysis_depth")
+    
+    local context=""
+    local file_count=0
+    
+    while IFS= read -r file; do
+        if [[ -n "$file" ]]; then
+            local relative_path=$(realpath --relative-to="$dir" "$file" 2>/dev/null || echo "$file")
+            local content=$(extract_file_content "$file" 20)
+            
+            context+="=== File: $relative_path ===\n"
+            context+="$content\n\n"
+            
+            ((file_count++))
+            if [[ $file_count -ge 20 ]]; then
+                break
+            fi
+        fi
+    done < <(scan_directory "$dir" "$patterns" "$depth")
+    
+    echo -e "$context"
+}
+# }}}
+
+# {{{ Claude Integration Functions
+function generate_claude_prompt() {
+    local topic_name="$1"
+    local directory_contexts="$2"
+    local weights="$3"
+    
+    local topic_type=$(get_topic_var "$topic_name" "type")
+    local topic_display=$(get_topic_var "$topic_name" "name")
+    local output_format=$(get_topic_var "$topic_name" "output_format")
+    
+    cat << EOF
+# ${topic_display} Generation Task
+
+## Context
+You are analyzing project directories to generate insights for: **${topic_type}**
+
+## Task
+Generate a comprehensive ${output_format} based on the following directory analysis with weighted priorities:
+
+## Priority Weighting System
+${weights}
+
+## Directory Analysis Data
+${directory_contexts}
+
+## Instructions
+1. Analyze all provided content with attention to the priority weighting system
+2. Extract relevant information for ${topic_type}
+3. Synthesize findings into ${output_format} format
+4. Focus on actionable, specific details
+5. Maintain professional tone and accuracy
+
+## Expected Output Format
+Generate a well-structured response appropriate for ${output_format}.
+EOF
+}
+
+function call_claude_api() {
+    local prompt="$1"
+    local temp_file=$(mktemp)
+    
+    # For now, create a mock response since we don't have direct Claude API access
+    # In practice, this would call the actual Claude API
+    cat << EOF > "$temp_file"
+# Generated Analysis
+
+Based on the provided project directory analysis, here are the synthesized insights:
+
+## Summary
+The analyzed directories contain evidence of technical projects with focus areas including:
+- Software development and engineering
+- Documentation and project management
+- Technical skills demonstration
+
+## Key Findings
+1. **Technical Proficiency**: Evidence of multiple programming languages and frameworks
+2. **Project Organization**: Well-structured repositories with documentation
+3. **Development Practices**: Use of version control, testing, and best practices
+
+## Recommendations
+- Highlight technical versatility demonstrated across projects
+- Emphasize problem-solving and project completion capabilities
+- Showcase documentation and communication skills
+
+*Note: This is a template response. In production, this would connect to Claude API.*
+EOF
+    
+    echo "$temp_file"
+}
+# }}}
+
+# {{{ Main Resume Generation Function
+function claude_resume_generation() {
+    local random_dir="${1:-$(find /tmp -maxdepth 2 -type d | shuf -n 1)}"
+    local current_dir="${2:-$(pwd)}"
+    local topic="${3:-RESUME}"
+    
+    log_info "Starting Claude Resume Generation"
+    log_info "Random directory: $random_dir"
+    log_info "Current directory: $current_dir"
+    log_info "Topic: $topic"
+    
+    # Get topic configuration
+    local weights_str=$(get_topic_var "$topic" "priority_weights")
+    if [[ -z "$weights_str" ]]; then
+        log_error "Unknown topic: $topic. Available: RESUME, PROJECT, SKILLS"
+        return 1
+    fi
+    
+    local parsed_weights=$(parse_weights "$weights_str")
+    
+    # Analyze directories with priority weighting
+    log_info "Analyzing directories with priority weighting..."
+    
+    local context_data=""
+    local dir_count=1
+    
+    # Process random directory with lower priority
+    local random_weight=$(calculate_priority_weight 1 "$parsed_weights")
+    context_data+="## Directory $dir_count: $random_dir (Priority Weight: ${random_weight}%)\n"
+    context_data+="$(analyze_directory_context "$random_dir" "$topic")\n\n"
+    ((dir_count++))
+    
+    # Process current directory with higher priority
+    local current_weight=$(calculate_priority_weight 2 "$parsed_weights")
+    context_data+="## Directory $dir_count: $current_dir (Priority Weight: ${current_weight}%)\n"
+    context_data+="$(analyze_directory_context "$current_dir" "$topic")\n\n"
+    
+    # Generate prompt for Claude
+    local prompt=$(generate_claude_prompt "$topic" "$context_data" "$parsed_weights")
+    
+    # Call Claude API (mocked for now)
+    log_info "Generating analysis with Claude..."
+    local result_file=$(call_claude_api "$prompt")
+    
+    # Output results
+    local output_file="$DIR/claude_resume_$(date +%Y%m%d_%H%M%S).md"
+    cat "$result_file" > "$output_file"
+    
+    log_info "Analysis complete! Output saved to: $output_file"
+    
+    # Display summary
+    echo "=== Claude Resume Generation Complete ==="
+    echo "Topic: $(get_topic_var "$topic" "name")"
+    echo "Directories analyzed: 2"
+    echo "Output format: $(get_topic_var "$topic" "output_format")"
+    echo "Results saved to: $output_file"
+    echo ""
+    echo "=== Preview ==="
+    head -n 20 "$output_file"
+    echo ""
+    echo "=== Full results in: $output_file ==="
+    
+    # Cleanup
+    rm -f "$result_file"
+}
+# }}}
+
+# {{{ Interactive Mode Function
+function interactive_mode() {
+    echo "=== Claude Resume Generator - Interactive Mode ==="
+    echo ""
+    
+    # Select topic
+    echo "Available topics:"
+    echo "1. RESUME - Professional resume generation"
+    echo "2. PROJECT - Project analysis and overview"
+    echo "3. SKILLS - Technical skills extraction"
+    echo ""
+    read -p "Select topic (1-3): " topic_choice
+    
+    case $topic_choice in
+        1) selected_topic="RESUME" ;;
+        2) selected_topic="PROJECT" ;;
+        3) selected_topic="SKILLS" ;;
+        *) echo "Invalid choice. Using RESUME."; selected_topic="RESUME" ;;
+    esac
+    
+    # Select directories
+    echo ""
+    echo "Directory selection:"
+    read -p "Enter random directory (or press Enter for auto-select): " random_dir
+    read -p "Enter current directory (or press Enter for pwd): " current_dir
+    
+    # Use defaults if empty
+    random_dir=${random_dir:-$(find /tmp -maxdepth 2 -type d 2>/dev/null | shuf -n 1)}
+    current_dir=${current_dir:-$(pwd)}
+    
+    echo ""
+    echo "Configuration:"
+    echo "Topic: $selected_topic"
+    echo "Random directory: $random_dir"
+    echo "Current directory: $current_dir"
+    echo ""
+    read -p "Proceed? (y/N): " confirm
+    
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        claude_resume_generation "$random_dir" "$current_dir" "$selected_topic"
+    else
+        echo "Operation cancelled."
+    fi
+}
+# }}}
+
+# {{{ Global Installation Function
+function install_global_function() {
+    local function_name="${1:-claude_resume_gen}"
+    local bashrc_file="$HOME/.bashrc"
+    
+    cat << EOF >> "$bashrc_file"
+
+# Claude Resume Generator Function
+function $function_name() {
+    local script_path="$SCRIPT_DIR/claude_resume_generator.sh"
+    if [[ -f "\$script_path" ]]; then
+        "\$script_path" "\$@"
+    else
+        echo "Error: Claude Resume Generator script not found at: \$script_path"
+        echo "Please run the installer from the correct directory."
+        return 1
+    fi
+}
+export -f $function_name
+EOF
+    
+    log_info "Global function '$function_name' installed to $bashrc_file"
+    log_info "Run 'source ~/.bashrc' or restart your shell to use the function"
+    log_info "Usage: $function_name -I  # for interactive mode"
+}
+
+function uninstall_global_function() {
+    local function_name="${1:-claude_resume_gen}"
+    local bashrc_file="$HOME/.bashrc"
+    
+    if [[ -f "$bashrc_file" ]]; then
+        # Remove the function definition
+        sed -i "/# Claude Resume Generator Function/,/export -f $function_name/d" "$bashrc_file"
+        log_info "Global function '$function_name' removed from $bashrc_file"
+    fi
+}
+# }}}
+
+# {{{ Main Script Logic
+function main() {
+    # Parse command line arguments
+    local interactive=false
+    local random_dir=""
+    local current_dir="$(pwd)"
+    local topic="RESUME"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -I|--interactive)
+                interactive=true
+                shift
+                ;;
+            -r|--random-dir)
+                random_dir="$2"
+                shift 2
+                ;;
+            -c|--current-dir)
+                current_dir="$2"
+                shift 2
+                ;;
+            -t|--topic)
+                topic="$2"
+                shift 2
+                ;;
+            --install)
+                install_global_function "${2:-claude_resume_gen}"
+                exit 0
+                ;;
+            --uninstall)
+                uninstall_global_function "${2:-claude_resume_gen}"
+                exit 0
+                ;;
+            --list-topics)
+                if command -v list_available_topics &> /dev/null; then
+                    list_available_topics
+                else
+                    echo "Available basic topics: RESUME, PROJECT, SKILLS"
+                fi
+                exit 0
+                ;;
+            -h|--help)
+                cat << EOF
+Claude Resume Generator
+
+Usage: $0 [OPTIONS]
+
+Options:
+    -I, --interactive           Run in interactive mode
+    -r, --random-dir DIR        Specify random directory to analyze
+    -c, --current-dir DIR       Specify current directory to analyze
+    -t, --topic TOPIC           Specify topic (see --list-topics)
+    --install [FUNC_NAME]       Install global bash function (default: claude_resume_gen)
+    --uninstall [FUNC_NAME]     Uninstall global bash function
+    --list-topics               List all available topics
+    -h, --help                  Show this help message
+
+Examples:
+    $0 -I                                    # Interactive mode
+    $0 -r /tmp/project -c . -t RESUME       # Direct execution
+    $0 -t SKILLS                            # Skills analysis of current dir
+    $0 --install                            # Install global function
+    $0 --list-topics                        # Show available topics
+
+Topic Framework:
+    - Each topic has configurable scan patterns, priority weights, and output formats
+    - Supports extensible structure for different analysis types
+    - Priority weights follow pattern: 10%, 19%, 28%, 37%, etc. (or custom)
+EOF
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Use -h or --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ "$interactive" == true ]]; then
+        interactive_mode
+    else
+        claude_resume_generation "$random_dir" "$current_dir" "$topic"
+    fi
+}
+
+# Execute main function if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
+# }}}
+# }}}

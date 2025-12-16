@@ -1,0 +1,44 @@
+# Issue 003-C: Rollback System
+
+## Current Behavior
+No rollback functionality exists for "time rewind" gameplay.
+
+## Intended Behavior
+Implement git-based rollback system that allows players to revert to previous game states, enabling the core "time manipulation" gameplay mechanic.
+
+## Suggested Implementation Steps
+1. Design rollback interface and user experience
+2. Create rollback functions with vimfolds:
+   - rollback_to_commit()
+   - list_rollback_points()
+   - preview_rollback_changes()
+   - confirm_rollback_operation()
+3. Implement commit browsing and selection interface
+4. Add rollback preview and confirmation system
+5. Create rollback safety checks and warnings
+6. Implement branch-based parallel timeline support
+7. Add rollback history and undo functionality
+8. Create rollback performance optimization
+
+## Related Documents
+- Issue 003 (parent issue)
+- notes/vision (lines 17-20 about "respec" and timeframe adjustment)
+
+## Acceptance Criteria
+- Players can browse and select previous save states
+- Rollback operations work reliably without data loss
+- Users receive clear previews before rollback
+- Rollback confirmation prevents accidental reverts
+- Parallel timelines work through branching
+- Rollback performance is acceptable for gameplay
+
+## Priority
+High - Core gameplay innovation
+
+## Estimated Effort
+2-3 hours
+
+## Dependencies
+- Issue 003-A (Git Repository Management)
+- Issue 003-B (Commit Operations)
+- Issue 001 (Basic Terminal Interface) for user interaction

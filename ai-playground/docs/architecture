@@ -1,0 +1,93 @@
+# AI Playground Architecture
+
+## System Overview
+The AI Playground is built on Love2d framework using Lua, designed with modular components for neural network simulation, visualization, and interaction.
+
+## Core Components
+
+### 1. Neural Network Engine (`libs/neural/`)
+- **Neuron Class**: Individual neuron with weights, bias, and activation function
+- **Network Class**: Collection of neurons organized in layers
+- **Matrix Operations**: Efficient mathematical operations for forward/backward pass
+- **Activation Functions**: Sigmoid, ReLU, Tanh, and custom functions
+- **Loss Functions**: MSE, Cross-entropy, and custom loss implementations
+
+### 2. Visualization System (`src/visualization/`)
+- **NetworkRenderer**: Draws neural network with nodes and connections
+- **GradientVisualizer**: Shows gradient flow during backpropagation
+- **GraphRenderer**: Plots loss curves and training metrics
+- **AnimationController**: Manages smooth transitions and animations
+
+### 3. User Interface (`src/ui/`)
+- **ParameterPanel**: Sliders and inputs for weights, biases, learning rate
+- **FormulaEditor**: Text editor for mathematical expressions
+- **ControlPanel**: Play/pause/step controls for training
+- **StatusDisplay**: Shows current network state and metrics
+
+### 4. Training Controller (`src/training/`)
+- **TrainingManager**: Orchestrates the training process
+- **StepController**: Enables step-by-step execution
+- **HistoryTracker**: Records training history and metrics
+- **ConfigurationManager**: Saves/loads network configurations
+
+### 5. Mathematical Foundation (`libs/math/`)
+- **Matrix**: Basic matrix operations (multiply, transpose, add)
+- **Calculus**: Derivative calculation for backpropagation
+- **ExpressionParser**: Parses and evaluates custom mathematical formulas
+- **Optimizer**: Gradient descent and other optimization algorithms
+
+## Data Flow
+
+### Forward Pass:
+1. Input data enters through InputLayer
+2. Each layer processes data through neurons
+3. Activation functions transform neuron outputs
+4. Final output is compared to target using loss function
+
+### Backward Pass:
+1. Loss gradient is calculated at output layer
+2. Gradients propagate backward through network
+3. Weight and bias gradients are computed
+4. Parameters are updated using optimizer
+
+### Visualization Updates:
+1. Neural network state changes trigger visual updates
+2. Animation system smoothly transitions between states
+3. UI components reflect current parameter values
+4. Graphs update with new training metrics
+
+## File Structure
+```
+src/
+├── main.lua              # Love2d entry point
+├── game_state.lua        # Global state management
+├── ui/
+│   ├── parameter_panel.lua
+│   ├── formula_editor.lua
+│   ├── control_panel.lua
+│   └── status_display.lua
+├── visualization/
+│   ├── network_renderer.lua
+│   ├── gradient_visualizer.lua
+│   └── animation_controller.lua
+└── training/
+    ├── training_manager.lua
+    ├── step_controller.lua
+    └── history_tracker.lua
+
+libs/
+├── neural/
+│   ├── neuron.lua
+│   ├── network.lua
+│   └── activation_functions.lua
+└── math/
+    ├── matrix.lua
+    ├── expression_parser.lua
+    └── optimizer.lua
+```
+
+## Extensibility
+- Plugin system for custom activation functions
+- Template system for different network architectures
+- Configuration files for easy setup of demo scenarios
+- Export system for sharing network configurations

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -euo pipefail
+
+DIR="/home/ritz/backups/words/pdfs"
+
+export \
+   LD_LIBRARY_PATH=${DIR}/libs/libharu-RELEASE_2_3_0/build/src:$LD_LIBRARY_PATH
+
+cd ${DIR}/libs/luahpdf
+
+make
+
+cd -
+

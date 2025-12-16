@@ -1,0 +1,11 @@
+can we make a dark mode as well? it should use bright vivid colors, and the font
+color should be the color of the poem background. However, they should follow a
+similar pattern as the strokes with their black outline by printing a black
+letter with 1.3x size centered specifically on each character before printing
+the character with the background color. This is to improve readability. Be
+aware that the kerning will probably be off, so we'll have to write each
+character individually and move the cursor such that the positioning of the
+inner colored letter is consistant, but the position of the outer black border
+is variable and may overlap with each other.
+
+this dark mode should be selected with a command line argument to the run script

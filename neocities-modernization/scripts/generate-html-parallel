@@ -1,0 +1,817 @@
+#!/usr/bin/env luajit
+
+-- Multi-threaded HTML page generation using effil
+-- Generates similarity and difference pages in parallel for better performance
+
+-- {{{ local function setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path(arg and arg[1])
+
+-- Add effil library path
+package.cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;" .. package.cpath
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+
+local effil = require("effil")
+local utils = require("utils")
+local dkjson = require("dkjson")
+
+-- {{{ local function relative_path
+local function relative_path(absolute_path)
+    if absolute_path:sub(1, #DIR) == DIR then
+        local rel = absolute_path:sub(#DIR + 1)
+        if rel:sub(1, 1) == "/" then rel = rel:sub(2) end
+        return "./" .. rel
+    end
+    return absolute_path
+end
+-- }}}
+
+-- Configuration
+local NUM_THREADS = tonumber(arg and arg[2]) or 8
+local TEST_MODE = arg and arg[3] == "--test"
+local SIMILARITY_ONLY = arg and arg[3] == "--similar-only"
+local DIFFERENCE_ONLY = arg and arg[3] == "--different-only"
+local MAX_TEST_PAGES = 10
+local DIVERSITY_LIMIT = 0  -- 0 = all poems, or set to limit diversity sequence length
+local USE_CACHE = true  -- Use pre-computed diversity sequences if available
+
+-- Color configuration (shared)
+local COLOR_CONFIG = {
+    red = "#dc3c3c",
+    blue = "#3c78dc",
+    green = "#3cb45a",
+    purple = "#8c3cc8",
+    orange = "#e68c3c",
+    yellow = "#c8b428",
+    gray = "#787878"
+}
+
+-- {{{ Worker function for similarity page generation
+-- Note: This function must not capture any upvalues - all data passed as parameters
+local function similarity_worker(poem_id, poem_content, poem_category, similarities_for_poem,
+                                  all_poems_array, poem_colors_table, max_poem_id, output_dir)
+    -- Generate similarity ranking
+    local ranked_poems = {}
+
+    -- Add starting poem first
+    table.insert(ranked_poems, {
+        id = poem_id,
+        content = poem_content,
+        category = poem_category,
+        similarity = 1.0
+    })
+
+    -- Add other poems sorted by similarity
+    local other_poems = {}
+    for i = 1, #all_poems_array, 3 do
+        local other_id = all_poems_array[i]
+        local other_content = all_poems_array[i + 1]
+        local other_category = all_poems_array[i + 2]
+
+        if other_id ~= poem_id then
+            local sim_score = similarities_for_poem[tostring(other_id)] or 0
+            table.insert(other_poems, {
+                id = other_id,
+                content = other_content,
+                category = other_category,
+                similarity = sim_score
+            })
+        end
+    end
+
+    table.sort(other_poems, function(a, b)
+        return a.similarity > b.similarity
+    end)
+
+    for _, p in ipairs(other_poems) do
+        table.insert(ranked_poems, p)
+    end
+
+    -- Generate HTML content
+    local content_parts = {}
+    for _, poem_info in ipairs(ranked_poems) do
+        local pid = poem_info.id
+
+        -- Calculate progress
+        local progress_pct = (pid / max_poem_id) * 100
+        local progress_chars = math.floor((progress_pct / 100) * 80)
+        local remaining_chars = 80 - progress_chars
+
+        -- Get color
+        local color_name = poem_colors_table[tostring(pid)] or "gray"
+        local hex_color = ({
+            red = "#dc3c3c", blue = "#3c78dc", green = "#3cb45a",
+            purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
+        })[color_name] or "#787878"
+
+        -- Generate progress bar
+        local progress_section = string.rep("═", progress_chars)
+        local remaining_section = string.rep("─", remaining_chars)
+        local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+            hex_color, progress_section, remaining_section)
+
+        -- Format poem entry
+        table.insert(content_parts, string.format(" -> file: %s/%s.txt\n", poem_info.category or "unknown", pid))
+        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
+        table.insert(content_parts, (poem_info.content or "") .. "\n")
+        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+    end
+
+    local html_content = table.concat(content_parts)
+
+    -- Generate HTML
+    local html = string.format([[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Poems sorted by similarity to: Poem %d</title>
+</head>
+<body>
+<center>
+<h1>Poetry Collection</h1>
+<p>All poems sorted by similarity to: Poem %d</p>
+<pre>
+%s
+</pre>
+</center>
+</body>
+</html>]], poem_id, poem_id, html_content)
+
+    -- Write file
+    local filename = string.format("%s/similar/%03d.html", output_dir, poem_id)
+    local f = io.open(filename, "w")
+    if f then
+        f:write(html)
+        f:close()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ Worker function for difference page generation (centroid-based diversity)
+-- Note: This function must not capture any upvalues - all data passed as parameters
+local function diversity_worker(poem_id, poem_content, poem_category, starting_embedding_flat,
+                                 all_poems_array, all_embeddings_flat, embedding_dim,
+                                 poem_colors_table, max_poem_id, output_dir, diversity_limit)
+    -- Helper: cosine distance between two embeddings (passed as flat arrays with offset)
+    local function cosine_distance(emb1, emb2)
+        local dot_product = 0
+        local norm1 = 0
+        local norm2 = 0
+
+        for i = 1, #emb1 do
+            dot_product = dot_product + (emb1[i] * emb2[i])
+            norm1 = norm1 + (emb1[i] * emb1[i])
+            norm2 = norm2 + (emb2[i] * emb2[i])
+        end
+
+        norm1 = math.sqrt(norm1)
+        norm2 = math.sqrt(norm2)
+
+        if norm1 == 0 or norm2 == 0 then
+            return 1.0
+        end
+
+        return 1.0 - (dot_product / (norm1 * norm2))
+    end
+
+    -- Helper: calculate centroid of a list of embeddings
+    local function calculate_centroid(embeddings_list)
+        if #embeddings_list == 0 then return nil end
+
+        local dim = #embeddings_list[1]
+        local centroid = {}
+        for i = 1, dim do centroid[i] = 0 end
+
+        for _, emb in ipairs(embeddings_list) do
+            for i = 1, dim do
+                centroid[i] = centroid[i] + emb[i]
+            end
+        end
+
+        for i = 1, dim do
+            centroid[i] = centroid[i] / #embeddings_list
+        end
+
+        return centroid
+    end
+
+    -- Build starting embedding as table
+    local starting_embedding = {}
+    for i = 1, embedding_dim do
+        starting_embedding[i] = starting_embedding_flat[i]
+    end
+
+    -- Build list of other poems with embeddings
+    local remaining_poems = {}
+    local num_poems = #all_poems_array / 3
+
+    for i = 1, num_poems do
+        local idx = (i - 1) * 3 + 1
+        local other_id = all_poems_array[idx]
+        local other_content = all_poems_array[idx + 1]
+        local other_category = all_poems_array[idx + 2]
+
+        if other_id ~= poem_id then
+            -- Extract embedding for this poem
+            local emb_start = (i - 1) * embedding_dim + 1
+            local embedding = {}
+            for j = 1, embedding_dim do
+                embedding[j] = all_embeddings_flat[emb_start + j - 1]
+            end
+
+            table.insert(remaining_poems, {
+                id = other_id,
+                content = other_content,
+                category = other_category,
+                embedding = embedding
+            })
+        end
+    end
+
+    -- Generate diversity sequence using centroid-based selection
+    local diversity_sequence = {{
+        id = poem_id,
+        content = poem_content,
+        category = poem_category
+    }}
+    local selected_embeddings = {starting_embedding}
+
+    -- Limit diversity sequence if specified
+    local max_sequence = diversity_limit > 0 and diversity_limit or (#remaining_poems + 1)
+
+    while #remaining_poems > 0 and #diversity_sequence < max_sequence do
+        local centroid = calculate_centroid(selected_embeddings)
+        if not centroid then break end
+
+        -- Find poem with maximum distance from centroid
+        local max_dist = -1
+        local max_idx = -1
+
+        for i, poem_info in ipairs(remaining_poems) do
+            local dist = cosine_distance(centroid, poem_info.embedding)
+            if dist > max_dist then
+                max_dist = dist
+                max_idx = i
+            end
+        end
+
+        if max_idx > 0 then
+            local selected = remaining_poems[max_idx]
+            table.insert(diversity_sequence, {
+                id = selected.id,
+                content = selected.content,
+                category = selected.category
+            })
+            table.insert(selected_embeddings, selected.embedding)
+            table.remove(remaining_poems, max_idx)
+        else
+            break
+        end
+    end
+
+    -- Generate HTML content
+    local content_parts = {}
+    for _, poem_info in ipairs(diversity_sequence) do
+        local pid = poem_info.id
+
+        -- Calculate progress
+        local progress_pct = (pid / max_poem_id) * 100
+        local progress_chars = math.floor((progress_pct / 100) * 80)
+        local remaining_chars = 80 - progress_chars
+
+        -- Get color
+        local color_name = poem_colors_table[tostring(pid)] or "gray"
+        local hex_color = ({
+            red = "#dc3c3c", blue = "#3c78dc", green = "#3cb45a",
+            purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
+        })[color_name] or "#787878"
+
+        -- Generate progress bar
+        local progress_section = string.rep("═", progress_chars)
+        local remaining_section = string.rep("─", remaining_chars)
+        local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+            hex_color, progress_section, remaining_section)
+
+        -- Format poem entry
+        table.insert(content_parts, string.format(" -> file: %s/%s.txt\n", poem_info.category or "unknown", pid))
+        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
+        table.insert(content_parts, (poem_info.content or "") .. "\n")
+        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+    end
+
+    local html_content = table.concat(content_parts)
+
+    -- Generate HTML
+    local html = string.format([[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Poems sorted by difference from: Poem %d</title>
+</head>
+<body>
+<center>
+<h1>Poetry Collection</h1>
+<p>All poems sorted by difference from: Poem %d</p>
+<pre>
+%s
+</pre>
+</center>
+</body>
+</html>]], poem_id, poem_id, html_content)
+
+    -- Write file
+    local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
+    local f = io.open(filename, "w")
+    if f then
+        f:write(html)
+        f:close()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ Worker function for cached difference page generation (uses pre-computed sequences)
+-- Much faster than on-the-fly computation - just looks up poem data and generates HTML
+local function cached_diversity_worker(poem_id, diversity_sequence, all_poems_lookup,
+                                        poem_colors_table, max_poem_id, output_dir)
+    -- diversity_sequence is already ordered list of poem IDs
+    -- all_poems_lookup maps poem_id -> {content, category}
+
+    -- Generate HTML content
+    local content_parts = {}
+    for _, pid in ipairs(diversity_sequence) do
+        local poem_data = all_poems_lookup[tostring(pid)]
+        if poem_data then
+            -- Calculate progress
+            local progress_pct = (pid / max_poem_id) * 100
+            local progress_chars = math.floor((progress_pct / 100) * 80)
+            local remaining_chars = 80 - progress_chars
+
+            -- Get color
+            local color_name = poem_colors_table[tostring(pid)] or "gray"
+            local hex_color = ({
+                red = "#dc3c3c", blue = "#3c78dc", green = "#3cb45a",
+                purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
+            })[color_name] or "#787878"
+
+            -- Generate progress bar
+            local progress_section = string.rep("═", progress_chars)
+            local remaining_section = string.rep("─", remaining_chars)
+            local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+                hex_color, progress_section, remaining_section)
+
+            -- Format poem entry
+            table.insert(content_parts, string.format(" -> file: %s/%s.txt\n", poem_data.category or "unknown", pid))
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
+            table.insert(content_parts, (poem_data.content or "") .. "\n")
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+        end
+    end
+
+    local html_content = table.concat(content_parts)
+
+    -- Generate HTML
+    local html = string.format([[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Poems sorted by difference from: Poem %d</title>
+</head>
+<body>
+<center>
+<h1>Poetry Collection</h1>
+<p>All poems sorted by difference from: Poem %d</p>
+<pre>
+%s
+</pre>
+</center>
+</body>
+</html>]], poem_id, poem_id, html_content)
+
+    -- Write file
+    local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
+    local f = io.open(filename, "w")
+    if f then
+        f:write(html)
+        f:close()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ Main execution
+print("=" .. string.rep("=", 60))
+print("Multi-threaded HTML Generation")
+print("=" .. string.rep("=", 60))
+print(string.format("Project directory: %s", relative_path(DIR)))
+print(string.format("Thread count: %d", NUM_THREADS))
+local mode_desc = TEST_MODE and "test (first " .. MAX_TEST_PAGES .. " pages)" or
+                  SIMILARITY_ONLY and "similarity only" or
+                  DIFFERENCE_ONLY and "difference only" or "full"
+print(string.format("Mode: %s", mode_desc))
+
+-- Load data files
+print("\n🔄 Loading data files...")
+local poems_file = DIR .. "/assets/poems.json"
+local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+local poem_colors_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json"
+local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+local diversity_cache_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/diversity_cache.json"
+
+local poems_data = utils.read_json_file(poems_file)
+local similarity_data = utils.read_json_file(similarity_file)
+local poem_colors_data = utils.read_json_file(poem_colors_file)
+local embeddings_data = nil
+local diversity_cache = nil
+
+-- Check for diversity cache first (much faster than computing on-the-fly)
+if not SIMILARITY_ONLY and USE_CACHE then
+    diversity_cache = utils.read_json_file(diversity_cache_file)
+    if diversity_cache then
+        print("   ✅ Diversity cache found - using pre-computed sequences")
+    end
+end
+
+-- Only load embeddings if generating difference pages AND no cache
+if not SIMILARITY_ONLY and not diversity_cache then
+    print("   Loading embeddings (62MB, may take a moment)...")
+    print("   Note: Run scripts/precompute-diversity-sequences for faster generation")
+    embeddings_data = utils.read_json_file(embeddings_file)
+end
+
+if not poems_data then
+    print("❌ Error: Could not load poems.json")
+    os.exit(1)
+end
+
+if not similarity_data and not DIFFERENCE_ONLY then
+    print("❌ Error: Could not load similarity_matrix.json")
+    os.exit(1)
+end
+
+if not embeddings_data and not diversity_cache and not SIMILARITY_ONLY then
+    print("❌ Error: Could not load embeddings.json or diversity_cache.json")
+    print("   Run: scripts/precompute-diversity-sequences")
+    os.exit(1)
+end
+
+-- Validate that all poems with content have valid embeddings
+-- Load embeddings for validation if not already loaded
+local validation_embeddings = embeddings_data
+if not validation_embeddings then
+    validation_embeddings = utils.read_json_file(embeddings_file)
+end
+
+if validation_embeddings and validation_embeddings.embeddings then
+    local missing_embeddings = {}
+    local invalid_dimensions = {}
+    local random_embeddings = 0
+
+    for i, poem in ipairs(poems_data.poems) do
+        if poem.id and poem.content and poem.content ~= "" then
+            local emb_entry = validation_embeddings.embeddings[i]
+            if not emb_entry or not emb_entry.embedding then
+                table.insert(missing_embeddings, poem.id)
+            elseif type(emb_entry.embedding) ~= "table" or #emb_entry.embedding ~= 768 then
+                table.insert(invalid_dimensions, poem.id)
+            elseif emb_entry.is_random then
+                random_embeddings = random_embeddings + 1
+            end
+        end
+    end
+
+    if #missing_embeddings > 0 or #invalid_dimensions > 0 then
+        print("\n❌ EMBEDDING VALIDATION FAILED")
+        print("════════════════════════════════════════════════════════════════════════════")
+        if #missing_embeddings > 0 then
+            print(string.format("   Missing embeddings: %d poems with content have no embedding", #missing_embeddings))
+            print("   First 10 IDs: " .. table.concat({unpack(missing_embeddings, 1, 10)}, ", "))
+        end
+        if #invalid_dimensions > 0 then
+            print(string.format("   Invalid dimensions: %d poems have wrong embedding size", #invalid_dimensions))
+            print("   First 10 IDs: " .. table.concat({unpack(invalid_dimensions, 1, 10)}, ", "))
+        end
+        print("")
+        print("   Please regenerate embeddings before generating HTML:")
+        print("   lua src/similarity-engine.lua -I  (option 1)")
+        print("════════════════════════════════════════════════════════════════════════════")
+        os.exit(1)
+    end
+
+    if random_embeddings > 0 then
+        print(string.format("   ℹ️  %d empty poems have random embeddings (expected)", random_embeddings))
+    end
+end
+
+local similarities = similarity_data and (similarity_data.similarities or similarity_data) or {}
+local embedding_dim = embeddings_data and embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
+print("✅ Data files loaded")
+print(string.format("   📄 Poems: %d", #poems_data.poems))
+if diversity_cache then
+    local cache_count = 0
+    for _ in pairs(diversity_cache.sequences or {}) do cache_count = cache_count + 1 end
+    print(string.format("   📦 Diversity cache: %d sequences", cache_count))
+elseif embeddings_data then
+    print(string.format("   🧮 Embeddings: %d (dim=%d)", #embeddings_data.embeddings, embedding_dim))
+end
+
+-- Build flat array of poems for worker (id, content, category triplets)
+-- Also build embeddings lookup for diversity generation
+local all_poems_array = {}
+local all_embeddings_flat = {}
+local poem_lookup = {}
+local poem_index_lookup = {}  -- poem_id -> index in arrays
+local valid_poem_ids = {}
+local max_poem_id = 0
+
+for i, poem in ipairs(poems_data.poems) do
+    if poem.id then
+        table.insert(all_poems_array, poem.id)
+        table.insert(all_poems_array, poem.content or "")
+        table.insert(all_poems_array, poem.category or "unknown")
+
+        -- Store embedding as flat values if available
+        if embeddings_data and embeddings_data.embeddings[i] and embeddings_data.embeddings[i].embedding then
+            for _, val in ipairs(embeddings_data.embeddings[i].embedding) do
+                table.insert(all_embeddings_flat, val)
+            end
+        else
+            -- Pad with zeros if no embedding
+            for _ = 1, embedding_dim do
+                table.insert(all_embeddings_flat, 0)
+            end
+        end
+
+        poem_lookup[poem.id] = poem
+        poem_index_lookup[poem.id] = i
+        table.insert(valid_poem_ids, poem.id)
+        if poem.id > max_poem_id then
+            max_poem_id = poem.id
+        end
+    end
+end
+
+-- Build poem colors lookup (just color names)
+local poem_colors_lookup = {}
+if poem_colors_data and poem_colors_data.poem_colors then
+    for id, data in pairs(poem_colors_data.poem_colors) do
+        poem_colors_lookup[tostring(id)] = data.color or "gray"
+    end
+end
+
+-- Build poem content lookup for cached diversity worker (id -> {content, category})
+local poem_content_lookup = {}
+for _, poem in ipairs(poems_data.poems) do
+    if poem.id then
+        poem_content_lookup[tostring(poem.id)] = {
+            content = poem.content or "",
+            category = poem.category or "unknown"
+        }
+    end
+end
+
+-- Sort IDs for consistent ordering
+table.sort(valid_poem_ids)
+
+-- Limit in test mode
+if TEST_MODE then
+    local limited_ids = {}
+    for i = 1, math.min(MAX_TEST_PAGES, #valid_poem_ids) do
+        table.insert(limited_ids, valid_poem_ids[i])
+    end
+    valid_poem_ids = limited_ids
+end
+
+print(string.format("   🔢 Pages to generate: %d", #valid_poem_ids))
+
+-- Create output directories
+local output_dir = DIR .. "/output"
+os.execute("mkdir -p " .. output_dir .. "/similar")
+os.execute("mkdir -p " .. output_dir .. "/different")
+
+-- Convert data to effil-shareable format
+print("\n📦 Converting data for parallel processing...")
+local shared_poems_array = effil.table(all_poems_array)
+local shared_colors = effil.table(poem_colors_lookup)
+local shared_embeddings = nil
+if embeddings_data then
+    print("   Converting embeddings to shared format...")
+    shared_embeddings = effil.table(all_embeddings_flat)
+    print(string.format("   ✅ Embeddings converted (%d values)", #all_embeddings_flat))
+end
+
+-- Generate similarity pages in parallel (unless --different-only)
+local sim_completed = 0
+local sim_failed = 0
+local sim_elapsed = 0
+
+if not DIFFERENCE_ONLY then
+    print("\n🚀 Generating similarity pages...")
+    local start_time = os.time()
+
+    local threads = {}
+
+    -- Process in batches
+    local batch_start = 1
+    while batch_start <= #valid_poem_ids do
+        local batch_end = math.min(batch_start + NUM_THREADS - 1, #valid_poem_ids)
+
+        -- Start threads for this batch
+        for i = batch_start, batch_end do
+            local poem_id = valid_poem_ids[i]
+            local poem = poem_lookup[poem_id]
+            local poem_sims = similarities[tostring(poem_id)] or {}
+
+            -- Convert similarities to effil table
+            local shared_sims = effil.table(poem_sims)
+
+            threads[i - batch_start + 1] = effil.thread(similarity_worker)(
+                poem_id,
+                poem.content or "",
+                poem.category or "unknown",
+                shared_sims,
+                shared_poems_array,
+                shared_colors,
+                max_poem_id,
+                output_dir
+            )
+        end
+
+        -- Wait for batch to complete
+        for i = 1, batch_end - batch_start + 1 do
+            local status = threads[i]:wait()
+            -- effil doesn't return function values directly, check file existence instead
+            local poem_id = valid_poem_ids[batch_start + i - 1]
+            local filename = string.format("%s/similar/%03d.html", output_dir, poem_id)
+            local f = io.open(filename, "r")
+            if f then
+                f:close()
+                sim_completed = sim_completed + 1
+            else
+                sim_failed = sim_failed + 1
+            end
+        end
+
+        -- Progress update
+        local elapsed = os.time() - start_time
+        local rate = sim_completed / math.max(elapsed, 1)
+        print(string.format("   Similarity: %d/%d completed, %d failed (%.1f pages/sec)",
+            sim_completed, #valid_poem_ids, sim_failed, rate))
+
+        threads = {}
+        batch_start = batch_end + 1
+    end
+
+    sim_elapsed = os.time() - start_time
+    print(string.format("\n✅ Similarity pages: %d in %d seconds (%.1f pages/sec)",
+        sim_completed, sim_elapsed, sim_completed / math.max(sim_elapsed, 1)))
+else
+    print("\n⏭️  Skipping similarity pages (--different-only)")
+end
+
+-- Generate difference pages in parallel (unless --similar-only)
+local diff_completed = 0
+local diff_failed = 0
+local diff_elapsed = 0
+
+if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
+    local using_cache = diversity_cache ~= nil
+
+    if using_cache then
+        print("\n🚀 Generating difference pages (using cached sequences)...")
+        -- Convert poem content lookup to effil-shareable format
+        local shared_poem_content = effil.table(poem_content_lookup)
+    else
+        print("\n🚀 Generating difference pages (O(n²) diversity algorithm)...")
+        print("   Note: This is slower than similarity due to centroid calculations")
+        print("   Tip: Run scripts/precompute-diversity-sequences for faster generation")
+    end
+
+    local start_time = os.time()
+    local threads = {}
+
+    -- Process in batches
+    local batch_start = 1
+    while batch_start <= #valid_poem_ids do
+        local batch_end = math.min(batch_start + NUM_THREADS - 1, #valid_poem_ids)
+
+        -- Start threads for this batch
+        for i = batch_start, batch_end do
+            local poem_id = valid_poem_ids[i]
+
+            if using_cache then
+                -- Use cached sequence (fast path)
+                local cached_sequence = diversity_cache.sequences[tostring(poem_id)]
+                if cached_sequence then
+                    local shared_sequence = effil.table(cached_sequence)
+                    local shared_poem_content = effil.table(poem_content_lookup)
+
+                    threads[i - batch_start + 1] = effil.thread(cached_diversity_worker)(
+                        poem_id,
+                        shared_sequence,
+                        shared_poem_content,
+                        shared_colors,
+                        max_poem_id,
+                        output_dir
+                    )
+                end
+            else
+                -- Compute on-the-fly (slow path)
+                local poem = poem_lookup[poem_id]
+                local poem_index = poem_index_lookup[poem_id]
+
+                -- Extract embedding for starting poem
+                local emb_start = (poem_index - 1) * embedding_dim + 1
+                local starting_embedding = {}
+                for j = 1, embedding_dim do
+                    starting_embedding[j] = all_embeddings_flat[emb_start + j - 1]
+                end
+                local shared_starting_emb = effil.table(starting_embedding)
+
+                threads[i - batch_start + 1] = effil.thread(diversity_worker)(
+                    poem_id,
+                    poem.content or "",
+                    poem.category or "unknown",
+                    shared_starting_emb,
+                    shared_poems_array,
+                    shared_embeddings,
+                    embedding_dim,
+                    shared_colors,
+                    max_poem_id,
+                    output_dir,
+                    DIVERSITY_LIMIT
+                )
+            end
+        end
+
+        -- Wait for batch to complete
+        for i = 1, batch_end - batch_start + 1 do
+            if threads[i] then
+                local status = threads[i]:wait()
+            end
+            -- Check file existence to verify success
+            local poem_id = valid_poem_ids[batch_start + i - 1]
+            local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
+            local f = io.open(filename, "r")
+            if f then
+                f:close()
+                diff_completed = diff_completed + 1
+            else
+                diff_failed = diff_failed + 1
+            end
+        end
+
+        -- Progress update
+        local elapsed = os.time() - start_time
+        local rate = diff_completed / math.max(elapsed, 1)
+        print(string.format("   Difference: %d/%d completed, %d failed (%.1f pages/sec)",
+            diff_completed, #valid_poem_ids, diff_failed, rate))
+
+        threads = {}
+        batch_start = batch_end + 1
+    end
+
+    diff_elapsed = os.time() - start_time
+    print(string.format("\n✅ Difference pages: %d in %d seconds (%.1f pages/sec)",
+        diff_completed, diff_elapsed, diff_completed / math.max(diff_elapsed, 1)))
+else
+    if SIMILARITY_ONLY then
+        print("\n⏭️  Skipping difference pages (--similar-only)")
+    else
+        print("\n⚠️  Skipping difference pages (no cache or embeddings)")
+        print("   Run: scripts/precompute-diversity-sequences")
+    end
+end
+
+-- Summary
+print("\n" .. string.rep("=", 61))
+print("Generation Summary")
+print(string.rep("=", 61))
+if not DIFFERENCE_ONLY then
+    print(string.format("   Similarity pages: %d completed, %d failed", sim_completed, sim_failed))
+end
+if not SIMILARITY_ONLY then
+    print(string.format("   Difference pages: %d completed, %d failed", diff_completed, diff_failed))
+end
+local total_elapsed = sim_elapsed + diff_elapsed
+print(string.format("   Total time: %d seconds", total_elapsed))
+
+print("\n📖 Output directory: " .. relative_path(output_dir))
+if not DIFFERENCE_ONLY then
+    print("   Similar: firefox " .. relative_path(output_dir) .. "/similar/001.html")
+end
+if not SIMILARITY_ONLY then
+    print("   Different: firefox " .. relative_path(output_dir) .. "/different/001.html")
+end
+-- }}}

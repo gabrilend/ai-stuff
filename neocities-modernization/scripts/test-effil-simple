@@ -1,0 +1,45 @@
+#!/usr/bin/env luajit
+
+-- Simple test of effil threading
+
+package.cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;" .. package.cpath
+local effil = require("effil")
+
+-- Simple worker function
+local function worker(x)
+    return x * 2
+end
+
+print("Testing effil.thread...")
+
+local thread = effil.thread(worker)(5)
+local status, result = thread:wait()
+
+print(string.format("Status: %s", tostring(status)))
+print(string.format("Result: %s", tostring(result)))
+
+-- Test with file I/O
+local function file_worker(filename, content)
+    local f = io.open(filename, "w")
+    if f then
+        f:write(content)
+        f:close()
+        return true
+    end
+    return false
+end
+
+print("\nTesting file I/O in thread...")
+local thread2 = effil.thread(file_worker)("/tmp/effil-test.txt", "Hello from thread!")
+local status2, result2 = thread2:wait()
+print(string.format("Status: %s", tostring(status2)))
+print(string.format("Result: %s", tostring(result2)))
+
+-- Check if file was created
+local f = io.open("/tmp/effil-test.txt", "r")
+if f then
+    print("File content: " .. f:read("*a"))
+    f:close()
+else
+    print("File was not created")
+end

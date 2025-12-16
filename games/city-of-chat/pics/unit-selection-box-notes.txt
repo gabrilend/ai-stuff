@@ -1,0 +1,24 @@
+Image Analysis for Game Design Inspiration
+==================================================
+Filename: unit-selection-box.png
+Dimensions: 918x328 pixels
+Format: PNG
+Color Mode: RGBA
+
+ORIENTATION: Landscape format
+- Good for: Wide environments, panoramic views, UI layouts
+- Game design use: Environment concepts, level backgrounds
+
+RESOLUTION: Low resolution
+- Suitable for: Icons, small UI elements, pixel art inspiration
+- Can be used for: Button designs, status indicators
+
+GAME DESIGN CONSIDERATIONS:
+- Analyze color palette for mood and atmosphere
+- Consider composition for UI layout inspiration
+- Look for design patterns applicable to game mechanics
+- Note artistic style that could influence game aesthetics
+
+USER NOTES:
+(Add your own observations and design ideas below)
+

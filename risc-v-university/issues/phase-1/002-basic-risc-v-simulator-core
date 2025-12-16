@@ -1,0 +1,44 @@
+# Issue 002: Basic RISC-V Simulator Core
+
+## Current Behavior
+No RISC-V simulation engine exists.
+
+## Intended Behavior
+A functional RISC-V RV32I instruction set simulator that can execute basic assembly programs with register and memory management.
+
+## Suggested Implementation Steps
+1. Design CPU state representation (registers, memory, PC)
+2. Implement instruction decoding for RV32I base instruction set
+3. Create instruction execution engine
+4. Implement memory management system
+5. Add register file management
+6. Create program loading and initialization
+7. Implement basic debugging capabilities
+8. Add instruction cycle counting
+
+## Priority
+High
+
+## Estimated Effort
+5-7 days
+
+## Dependencies
+- Issue 001 (Project Setup)
+
+## Related Documents
+- RISC-V ISA Specification
+- docs/technical-requirements.md
+
+## Tools
+- RISC-V instruction set reference
+- Existing RISC-V simulators for reference
+
+## Acceptance Criteria
+- [ ] CPU state properly represented
+- [ ] All RV32I instructions implemented
+- [ ] Memory read/write operations working
+- [ ] Register file operations working
+- [ ] Program loading from assembly text
+- [ ] Step-by-step execution capability
+- [ ] Basic error handling for invalid instructions
+- [ ] Comprehensive unit tests for all instructions

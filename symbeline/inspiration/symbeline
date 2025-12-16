@@ -1,0 +1,171 @@
+                            Code Name: Symbeline
+
+
+----------------------------- gdd initial draft -------------------------------
+
+   1. introduction to fantasy (elevator pitches)
+   2. kickstarter demands
+   2. introduction to core gameplay loop
+   4. tenants and core values of the game design
+   3. introduction to game modes
+   5. introduction to technical requirements
+   6. breakdown of core gameplay loop
+   7. breakdown of game modes
+   8. breakdown of fantasy
+   9. breakdown of technical requirements
+
+
+-------------------------- introduction to fantasy-----------------------------
+
+   Symbeline is a macro based strategy game and city-builder based around the
+concept of indirect control. It's inspirations are Majesty the Fantasy Kingdom
+Simulator (2000), Supreme Commander (2007), and Hearts of Iron IV (2016). It is
+designed to appeal to fans of tabletop roleplaying games with it's focus on
+dynamic worldbuilding and sandbox playstyle. The gameplay consists of multiple
+playstyles depending on which aspects of the game appeal to the player, with
+choices between an economic focus via the GUI, longterm planning and resource
+allocation, or diplomacy and subterfuge a'la Ruinarch (2020).
+
+
+---------------------------- kickstarter demands ------------------------------
+
+   1. prototype
+   2. gdd
+   3. estimates for character and environment art
+   4. estimates for music and sounds
+   5. estimates for engine development
+   6. estimates for community management
+   7. breakdown of mvp, ideal game state, and stretch goals
+
+
+----------------------- introduction to core gameplay loop --------------------
+
+   1. management of lanes, both width and length
+   2. casting of spells and utilization of special boons
+   3. city building with placement, upgrades, and henchmen pathing routes
+   4. satisfying guild requirements of equipment, manpower, and special
+      resources by managing shipments and local income (UI commodity trading)
+   5. placement of generalized bounties
+      (think champion's guild from Majesty, not reward flags)
+   6. diplomacy with neutral, AI, or player controlled kingdoms. Capabilities
+      include pacts and treaties, projects, subterfuge, and tournaments. The
+      diplomacy system can be a stretch goal.
+
+
+-------------------------- tenants and core values ----------------------------
+
+   1. always something to do, but nothing falls apart without your attention.
+   2. gameplay should be focused on macro rather than micro. Longterm planning
+      and strategic decision making are favored over tactics and skill.
+   3. defeat should feel avoidable until the last moment, and only as a result
+      of longterm continuous failures rather than short-term mistakes or being
+      blindsided by a cheesy tactic.
+   4. victory should be gained through exploiting weaknesses and by using
+      lateral thinking.
+   5. the careful balance of internal and external threats is essential.
+   6. rapid expansion leads to depletion of internal resources, while slowly
+      expanding can lead to a lack of options
+   7. the world should feel alive and reactive to your decisions.
+   8. your kingdom should feel alive and reactive to your decisions.
+   9. your heroes should feel alive and completely ignorant of your decisions.
+  10. there should always be opportunities for cooperation with your fellow
+      kingdoms.
+  11. the frontlines should feel peaceful outside of large battles.
+  12. everything is flexible and dependant on circumstance
+  13. there should be enough space on the map for multiple parties of heroes
+      to pass each other like ships in the night without engaging in combat.
+      It should feel like the real world, with canyons and valleys and rivers
+      and mountains - room for lairs and wild animals to roam.
+  14. monsters are always more dangerous than other humans.
+  15. the art style should be rooted in classic medieval fantasy. 
+  16. equipment should feel either mass-produced (kingdom), organic (monsters),
+      ancient (lair treasure), or artisinal (enchanted).
+  17. heroes should feel campy, fun, and adventurous. Avoid dark, grim, and
+      fearful.
+  18. This game is a toy.
+  19. This toy should run on any modern computer.
+  20. This toy should encourage modding.
+
+
+-------------------------- introduction to game modes -------------------------
+
+   1. singleplayer - single kingdom against an island of monsters and neutral
+                     settlements. essentially the multiplayer game against
+                     zero opponents.
+   2. singleplayer - multiple kingdoms against an island of monsters and
+                     neutral settlements. One player controlled kingdom against
+                     multiple AI controlled kingdoms.
+   3. singleplayer - scenarios, similar to MFKS
+   4. multiplayer  - multiple kingdoms against an island of monsters and
+                     neutral settlements. Essentially the singleplayer game
+                     with networking added in.
+   5. multiplayer  - co-op scenarios where multiple players play as the same
+                     kingdom. A test of the core tenant "there's always
+                     something to do"
+   6. multiplayer  - co-op island invasion. Essentially the multiplayer game
+                     with more than one player controlling a kingdom.
+   7. singleplayer - play in 3rd person as a hero in an AI kingdom. Mostly for
+                     the novelty since the core gameplay loop is focused on
+                     city-building. A test of the core tenant "nothing falls
+                     apart without your attention"
+
+   1 is mvp. 2-6 are stretch goals in order of ascending difficulty. They
+   should build upon one another - the main steps are:
+
+   1. singleplayer island invasion (biggest step)
+   2. AI controlled kingdoms
+   3. scenarios
+   4. multiplayer (second biggest step)
+   5. cooperatively controlling the same kingdom
+   6. 3rd person perspective and character controller
+
+
+------------------------ technical requirements -------------------------------
+   
+   1. this game will be written in lua (with Fennel support) and using Raylib.
+   2. the prototype will be made with Godot using GDscript.
+   3. if the performance demands are too much for lua or the engine is out of
+      scope for the budget, Rust with the Bevy engine could be used.
+   4. the final product will include a custom 2d engine designed for large
+      scale maps with an isometric perspective and a data-first design.
+   5. the game should be as concurrent as possible, to support large numbers of
+      cpu cores and compute shaders.
+   6. the game will be data-driven, meaning the visual aspects are simply a
+      representation of the interactions of the underlying simulation, rather
+      than an intrinsic component of the computation.
+   7. Each "event" in the game (a character moves, a building is placed, a
+      monster spawns, etc) will send a message to the visual processing side of
+      the engine, which will present a representation to the user.
+   8. the map will be a hex grid with pointed-top hexagons. The visual
+      representation of the underlying data may be continuous (non-hex) but the
+      underlying data will be represented on a hexagonal grid.
+
+   9. there needs to be character portraits for each type of monster, henchmen,
+      and hero type. You should be able to recognize what attributes a hero
+      specializes in by their portrait. Mvp is 1 attribute, but more can be
+      a stretch goal.
+  10. Each building, upgrade, and equipment type needs an icon. Stretch goals
+      can be portraits.
+
+  11. each henchman, hero type, and monster needs 3 sprites for each action.
+      more actions may be added if budget allows, but mvp is movement and
+      attacking. Several additional sprites may be necessary, like dying,
+      standing still, gathering loot, socializing, or any others.
+  12. each building needs 4 sprites for the construction process and 4 for the
+      destruction process. Flame effects are stretch goals.
+  13. each building needs an animated sprite for when it is in use.
+  14. each lair needs a sprite and an icon.
+  15. each spell needs an icon and a spell effect sprite. Each projectile needs
+      a sprite.
+  16. a stretch goal would be differing sprites for each piece of equipment.
+      included with this would be engine work to allow for dynamic sprites.
+  17. each terrain type should have a ground material and sprites for doodads.
+  18. there needs to be several GUI menus. The precise number depends on
+      gameplay breakdown.
+
+  17. each hero type and henchman needs to have pithy and unique voice lines.
+      this is a stretch goal.
+  18. there should be music tracks for each part of the game - beginning,
+      middle, and end.
+  19. there should be sounds for each action that takes place in the game
+      including combat, UI interactions, and spellcasts.

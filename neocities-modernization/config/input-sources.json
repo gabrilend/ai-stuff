@@ -1,0 +1,38 @@
+{
+  "input_sources": {
+    "fediverse_backup_path": "input/fediverse",
+    "messages_backup_path": "input/messages", 
+    "words_source_path": "input/words",
+    "notes_source_path": "input/notes"
+  },
+  "project_structure": {
+    "input_dir": "input",
+    "scripts_dir": "scripts", 
+    "output_dir": "output",
+    "config_dir": "config"
+  },
+  "extraction": {
+    "enable_fediverse": true,
+    "enable_messages": true,
+    "enable_notes": true,
+    "output_format": "json"
+  },
+  "privacy": {
+    "mode": "clean",
+    "anonymization_prefix": "user-",
+    "include_boosts": true,
+    "preserve_original_length": true,
+    "store_anonymization_map": false,
+    "local_server_domain": "tech.lgbt"
+  },
+  "image_integration": {
+    "enabled": true,
+    "image_directories": [
+      "input/media_attachments"
+    ],
+    "supported_formats": ["png", "jpg", "jpeg", "gif", "webp", "svg"],
+    "max_file_size_mb": 10,
+    "output_path": "assets/images",
+    "catalog_file": "assets/image-catalog.json"
+  }
+}

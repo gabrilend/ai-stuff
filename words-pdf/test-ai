@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/words-pdf"
+
+export \
+   LD_LIBRARY_PATH=${DIR}/libs/libharu-RELEASE_2_3_0/build/src:$LD_LIBRARY_PATH
+
+lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt"

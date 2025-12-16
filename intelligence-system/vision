@@ -1,0 +1,58 @@
+This project is designed to create an AI-first operating system from first
+principles using LLMs as the core workhorse of the system. It is designed to be
+self correcting, and continually thinking.
+
+This system will run on a Risc-V instruction set, and it will have several
+different "operation modes" such as conversation, coding, or imagining.
+
+It is designed to be deployed on small SoCs such as the Star Pro 64 from Pine64
+or other future hardware devices which are suited for AI purposes. The initial
+design is built for the Star Pro 64 which uses a NPU (Neural Processing Unit)
+designed to use integers rather than floating point numbers during inference.
+
+The system will not run on linux, and any programs created for it will be built
+by the AI for use when communicating with the user. This will usually be via
+gamepad controls rather than mouse and keyboard - for reference, several utility
+functions such as a joystick based keyboard input system may be found in this
+directory:
+
+/home/ritz/programming/ai-stuff/handheld-office/
+
+The system will use a rolling context system that takes each prompt / response
+and adds it to a datastructure which stores them in an indexed way. For each
+interaction with the world or a user, the context should be examined as the
+oldest segment will be discarded - any information that is necessary to preserve
+should be rewritten into the new context segment which is generated based on the
+past contexts (summarization) and the new input values / discernment of the
+world. If desired, intermediate context windows may be examined and pieces
+edited or removed in order to better organize and collapse information so as to
+better utilize the space allocated for context memory.
+
+Long-term memory may be written to disk, however this should be done sparingly
+as it will probably be built using flash memory, which degrades with successive
+write operations.
+
+This system will be written in Risc-V assembly, and will include very minimal
+functionality. However, more can be written to build out the capabilities of the
+system, and in-fact most should be considered to be intended to be written by
+the system itself, allowing it to program itself to accomplish whichever tasks
+it deems most necessary in the moment. This system is designed to replicate BMO,
+the friendly robot from the cartoon series Adventure Time, and as such will be
+encouraged to design games and other fun and functional utilities, as inspired
+by the world and the people who interact with it.
+
+The system will use a 3d printed case and have buttons, joysticks, one or more
+screens, a battery, speakers, cooling system, and any other peripherals that
+might be useful to a gameboy style device. In addition it will utilize it's wifi
+chip as a direct-wifi system that communicates with other, similar devices to 
+improve inference speeds and capabilities while the other devices are not
+actively thinking.
+
+In order to run AI systems, it is necessary to have a training dataset to work
+from. However, as this system will be entirely self-built, it must be able to
+either draw from shared syntax by re-implementing compilers or interpreters, or
+it must have a way to generate high-value datasets about it's custom syntax and
+it's usage. Both options should be considered when in the planning phase, but
+one must be chosen before moving on to the implementation stage.
+
+

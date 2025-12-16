@@ -1,0 +1,74 @@
+healer-td is a terminal UI game meant to be played over networks using Luasocket.
+
+In this game, the player will place towers on a grid. Each wave, the towers will
+come alive and move through the map toward their enemies. They will then fight
+them until a victor emerges. The goal of the game is to use the smallest amount
+of gold necessary to win. If the player "leaks" and their foes make it through
+their defences, they lose lives. When the player has zero lives remaining, they
+lose. for each wave that they survive, the player will gain extra income to be
+used on future waves.
+
+there is only one map, and it looks like a rectangle, with the player's forces
+at the bottom 2/3rds of the map and the enemy at the top. The player will be
+able to see the upcoming wave while they're placing their towers, and they can
+"scroll" through the different towers currently on the map to see their stats
+and name and gold value. By pushing K or W or the up arrow key, the next closest
+tower on the row above is selected. If there's no tower on the row above the
+cursor, then the next row is checked. If there are two towers that are the same
+distance horizontally from the cursor and on the same row, then the tower to the
+right is prioritized. This can be modified by changing a setting in the config
+file, to prefer the tower to the left instead. By using the left/right arrow
+keys or A, D, H, or L, the tower to the left of the cursor (on the same line)
+may be selected. If there is no tower on the same line, then the next closest
+tower is selected by first looking up one line, then down one line, then up two
+lines, then down two lines, then up three lines, then down three lines, etc.
+until a tower is found. The next tower to the left/right (as appropriate) is
+selected.
+
+The enemy places the same units that the player does. Each unit has collision
+enabled, meaning it cannot walk through allies (or foes!) and instead must
+walk around them to reach the enemy.
+
+the game will feature many customization options in a config file, which may be
+set temporarily via command line options. These customizations include enabling
+a colorblind mode, using different types of graphics depending on the terminal,
+such as sixel graphics, braille characters, unicode characters such as emojis,
+etc.
+
+The units that are placable are intentionally generic, but user-created mods may
+customize their flavor by replacing the names of each unit.
+
+The game must be able to be played over networks, even on public wifi or
+restrictive networks. To that end, each game uses a peer-to-peer networking
+system with Luasocket where each player runs both a client and server within
+the same application. Game state is synchronized through encrypted bytecode
+messages, without requiring port forwarding or complex network configuration.
+This ensures synchronization, and if a desync event ever occurs then the
+conflict can be identified and resolved through the distributed consensus
+protocol.
+
+In a multiplayer context, each player has their own lane (rectangular battlemap)
+and they can view each other player's battlemap by tabbing between them using
+tab to go right and shift-tab to go left. Alternatively, page-up and page-down
+may be used.
+
+when a player leaks, those units will appear on the other player's lane, and
+depending on whether the game is in cooperative or competitive mode (or if the
+players are on the same team or not) they will appear at the top or bottom of
+the lane to fight for / against the other player's units. They will maintain
+their health levels and all buffs and such that they gained while fighting the
+original player. Thus, the player who survives the longest receives the most
+assistance, because they have more allies or foes to face depending on the game
+mode. More foes means more gold bounty gained (every time a unit is slain the
+player earns some gold) and more allies means they can survive longer. The leaks
+are always sent to the next player in line, to aid or to harm, and at the end of
+the line they are sent back to the beginning. If all players are defeated and
+there are still monsters, they travel to the bottom of the current player's lane
+and disappear, giving no bounty to anyone, but still taking lives.
+
+every 5 turns, the players can choose one "essential upgrade" which modifies or
+improves their team. Each player will get the same options. These essential
+upgrades modify their units in some way, and are randomly selected from a list
+of at least 20 different options.
+
+
