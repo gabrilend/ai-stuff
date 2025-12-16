@@ -56,8 +56,11 @@ the next iteration's priorities.
 ### Workflow Stages
 
 ```
-1. ANALYZE    ──▶  2. REVIEW    ──▶  3. EXECUTE   ──▶  4. IMPLEMENT
-   (Claude)         (Human)           (Tool/Human)      (Claude)
+1. ANALYZE    ──▶  2. REVIEW    ──▶  3. EXECUTE     ──▶  4. IMPLEMENT
+   (Claude)           (Human)           (Tool/Human)        (Claude)
+
+2. THINK      ──▶  2. PROCESS    ──▶  3. VALIDATE   ──▶  4. EXECUTE 
+   (Human/Claude)     (Computer)         (Tool/Human)       (Claude)
 
    Suggest          Approve/modify    Create sub-issue   Write code
    sub-issues       recommendations   files if needed    for each issue
@@ -187,6 +190,9 @@ Chosen for:
 - Good binary parsing capabilities with string.unpack
 - Cross-platform portability
 - Existing ecosystem for game development
+  - see /home/ritz/programming/ai-stuff/libs/lua/ for available libraries
+  - can enable an Ollama server if requested to user
+  - can provide samples of many types of input, including video, audio, and text
 
 ## Current Phase
 
