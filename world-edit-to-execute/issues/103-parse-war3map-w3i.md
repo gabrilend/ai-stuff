@@ -1,0 +1,234 @@
+# Issue 103: Parse war3map.w3i (Map Info)
+
+**Phase:** 1 - Foundation
+**Type:** Feature
+**Priority:** High
+**Dependencies:** 102-implement-mpq-archive-parser
+
+---
+
+## Current Behavior
+
+Cannot read map metadata. Map name, author, description, player configuration,
+and other essential information are inaccessible.
+
+---
+
+## Intended Behavior
+
+A parser that extracts all map metadata from war3map.w3i:
+- Map name and description
+- Author and suggested players
+- Map dimensions and playable area
+- Player slot configuration
+- Force (team) definitions
+- Loading screen settings
+- Game data settings
+
+---
+
+## Suggested Implementation Steps
+
+1. **Create parser module**
+   ```
+   src/parsers/
+   └── w3i.lua          (this issue)
+   ```
+
+2. **Implement w3i header parsing**
+   ```lua
+   -- w3i structure (version 25 - Frozen Throne):
+   -- Offset  Type      Description
+   -- 0x00    int32     File format version (25 for TFT)
+   -- 0x04    int32     Number of saves
+   -- 0x08    int32     Editor version
+   -- 0x0C    string    Map name (null-terminated)
+   -- ...     string    Map author
+   -- ...     string    Map description
+   -- ...     string    Suggested players
+   ```
+
+3. **Parse camera bounds**
+   ```lua
+   -- 8 floats defining camera boundaries:
+   -- Camera bounds (for boundsComplements)
+   -- float[4]: left, bottom, right, top
+   -- float[4]: left, bottom, right, top (complements)
+   ```
+
+4. **Parse map dimensions**
+   ```lua
+   -- int32: Map width
+   -- int32: Map height
+   -- int32: Flags
+   -- byte:  Ground type (tileset)
+   ```
+
+5. **Parse player data**
+   ```lua
+   -- int32: Number of players
+   -- For each player:
+   --   int32: Player number (0-15)
+   --   int32: Player type (1=human, 2=computer, 3=neutral, 4=rescuable)
+   --   int32: Player race (1=human, 2=orc, 3=undead, 4=night elf, 5=selectable)
+   --   int32: Fixed start position (0/1)
+   --   string: Player name
+   --   float: Start X
+   --   float: Start Y
+   --   int32: Ally low flags
+   --   int32: Ally high flags
+   ```
+
+6. **Parse force data**
+   ```lua
+   -- int32: Number of forces
+   -- For each force:
+   --   int32: Force flags (allied, shared vision, etc.)
+   --   int32: Player mask (which players in this force)
+   --   string: Force name
+   ```
+
+7. **Parse loading screen data**
+   ```lua
+   -- int32: Loading screen preset (-1 for custom)
+   -- string: Loading screen model path
+   -- string: Loading screen text
+   -- string: Loading screen title
+   -- string: Loading screen subtitle
+   ```
+
+8. **Return structured data**
+   ```lua
+   return {
+       version = 25,
+       name = "DAoW 5.4c",
+       author = "Author Name",
+       description = "Map description...",
+       suggested_players = "2-12",
+
+       dimensions = { width = 256, height = 256 },
+       playable_area = { x = 16, y = 16, w = 224, h = 224 },
+       tileset = "lordaeron_summer",
+
+       players = {
+           { id = 0, type = "human", race = "human", name = "Player 1", ... },
+           { id = 1, type = "human", race = "orc", name = "Player 2", ... },
+           -- ...
+       },
+
+       forces = {
+           { name = "Team 1", players = {0, 1, 2}, allied = true, ... },
+           { name = "Team 2", players = {3, 4, 5}, allied = true, ... },
+       },
+
+       loading_screen = { ... },
+   }
+   ```
+
+---
+
+## Technical Notes
+
+### String Encoding
+
+WC3 uses null-terminated strings. In Lua:
+```lua
+function read_string(data, offset)
+    local str_end = data:find("\0", offset)
+    return data:sub(offset, str_end - 1), str_end + 1
+end
+```
+
+### Version Differences
+
+- Version 18: Reign of Chaos
+- Version 25: Frozen Throne (most common)
+- Version 28+: Reforged (may need special handling)
+
+Focus on version 25 first. Add version 18 support if needed for older maps.
+
+### Tileset Codes
+
+```lua
+local TILESETS = {
+    ['A'] = "ashenvale",
+    ['B'] = "barrens",
+    ['C'] = "felwood",
+    ['D'] = "dungeon",
+    ['F'] = "lordaeron_fall",
+    ['G'] = "underground",
+    ['L'] = "lordaeron_summer",
+    ['N'] = "northrend",
+    ['W'] = "lordaeron_winter",
+    ['X'] = "dalaran",
+    ['Y'] = "cityscape",
+    ['Z'] = "sunken_ruins",
+    -- ... more
+}
+```
+
+---
+
+## Related Documents
+
+- docs/formats/w3i-map-info.md (to be created in 101)
+- issues/102-implement-mpq-archive-parser.md (provides file access)
+
+---
+
+## Acceptance Criteria
+
+- [ ] Can parse war3map.w3i from all test archives
+- [ ] Extracts map name correctly
+- [ ] Extracts player configurations correctly
+- [ ] Extracts force definitions correctly
+- [ ] Handles version 25 (TFT) format
+- [ ] Returns structured Lua table
+- [ ] Unit tests for parser
+
+---
+
+## Notes
+
+This is the first "content" parser - it reads actual game data rather than
+archive structure. Patterns established here will be reused for other parsers.
+
+The w3i file is relatively simple and well-documented, making it a good
+starting point before tackling more complex formats like terrain.
+
+---
+
+## Sub-Issue Analysis
+
+*Generated by Claude Code on 2025-12-16 00:21*
+
+## Analysis: Issue 103 Sub-Issue Recommendation
+
+**Verdict: This issue does NOT benefit from splitting.**
+
+### Reasoning
+
+1. **Cohesive single-file deliverable** - The entire parser lives in one file (`src/parsers/w3i.lua`) and parses a single sequential binary format. Splitting would create artificial boundaries.
+
+2. **Sequential parsing with no parallelism** - The w3i format is read linearly: header → strings → camera bounds → dimensions → players → forces → loading screen. Each section depends on knowing the offset from the previous section. You can't implement "parse forces" without first implementing everything that comes before it.
+
+3. **Reasonable scope** - The implementation steps (8 total) are concrete and achievable in a single work session. The format is described as "relatively simple and well-documented" in the issue notes.
+
+4. **Single responsibility** - All acceptance criteria relate to one thing: correctly parsing this file format. Splitting would just create overhead without meaningful modularity.
+
+5. **Pattern establishment** - The issue notes this is the first "content" parser and patterns here will be reused. Better to establish the complete pattern in one issue than fragment it.
+
+### Alternative Consideration
+
+If splitting were desired for educational/progress-tracking purposes, the *only* reasonable split would be:
+
+| ID | Name | Description | Dependencies |
+|----|------|-------------|--------------|
+| 103a | `w3i-core-parser` | Header, strings, camera bounds, dimensions (steps 1-4) | 102 |
+| 103b | `w3i-player-force-data` | Player slots, force definitions, loading screen (steps 5-8) | 103a |
+
+But this split is artificial - both sub-issues would modify the same file and the "boundary" between them is arbitrary. The offset tracking means 103b literally cannot be implemented without 103a being complete first.
+
+### Recommendation
+
+**Keep as single issue.** The parser is straightforward, the format is well-documented, and splitting would add coordination overhead without any benefit. The 8 implementation steps serve as an internal checklist during development.
