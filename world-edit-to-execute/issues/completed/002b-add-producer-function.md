@@ -85,12 +85,12 @@ Can be unit-tested by:
 
 ## Acceptance Criteria
 
-- [ ] `queue_claude_response()` function exists
-- [ ] Function increments `QUEUE_COUNTER` atomically
-- [ ] Creates `.output` file with Claude response
-- [ ] Creates `.meta` file with issue path and status
-- [ ] Creates `.ready` file only after completion (atomic signal)
-- [ ] Handles Claude timeout gracefully (marks as failed)
+- [x] `queue_claude_response()` function exists
+- [x] Function increments `QUEUE_COUNTER` atomically
+- [x] Creates `.output` file with Claude response
+- [x] Creates `.meta` file with issue path and status
+- [x] Creates `.ready` file only after completion (atomic signal)
+- [x] Handles Claude timeout gracefully (marks as failed)
 
 ---
 
@@ -98,3 +98,32 @@ Can be unit-tested by:
 
 *This sub-issue was auto-generated from analysis recommendations.*
 The `.ready` file pattern ensures the streamer never reads incomplete output.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-16*
+
+### Changes Made
+
+Added `queue_claude_response()` function at lines 100-121 in issue-splitter.sh:
+- Takes issue_path and prompt as arguments
+- Assigns queue slot number via `$((QUEUE_COUNTER++))`
+- Creates three files per slot:
+  - `{N}.output` - Claude's response text
+  - `{N}.meta` - Line 1: issue path, Line 2: "success" or "failed"
+  - `{N}.ready` - Empty file, signals completion (atomic)
+- Uses `timeout 300` for 5-minute limit on Claude calls
+- Marks as "failed" if timeout or error occurs
+
+### Testing
+
+Created `src/tests/test_002b_producer_function.sh` which verifies:
+- All three queue files are created
+- Output file contains correct response
+- Meta file contains path and status
+- Counter increments correctly across calls
+- Failure status recorded when command fails
+
+All tests pass (using mock claude command).
