@@ -63,6 +63,7 @@
 
 ### Enhancement Issues
 - [Issue 024: External Project Directory Configuration](../issues/024-external-project-directory-configuration.md) 📝
+- [Issue 032: Project Donation/Support Links](../issues/032-project-donation-support-links.md) 📝
 
 ### Master Reference Issues
 - [Issue 001: Comprehensive Git Repository Setup](../issues/001-comprehensive-git-repository-setup.md) - Master reference
@@ -74,6 +75,9 @@
 
 ## Configuration Files
 - [External Projects Configuration Template](../issues/024-external-project-directory-configuration.md#configuration-file-specification) - External directory setup
+
+## Templates
+- [Project CLAUDE.md Template](../assets/project-claude-md-template.md) - Source control guidelines for project CLAUDE.md files
 
 ## Implementation Guidelines
 - [CLAUDE.md](../issues/CLAUDE.md) - Project-specific implementation conventions
