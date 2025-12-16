@@ -23,6 +23,7 @@
 #   -a, --archive         Save copies of analyses to issues/analysis/ directory
 #   -x, --execute         Execute recommendations (create sub-issue files)
 #   -X, --execute-all     Execute all recommendations without confirmation
+#   -A, --auto-implement  Auto-implement issues via Claude CLI
 #   -h, --help            Show this help message
 
 set -euo pipefail
@@ -55,6 +56,7 @@ ARCHIVE_MODE=false
 ARCHIVE_DIR="${DIR}/issues/analysis"
 EXECUTE_MODE=false
 EXECUTE_ALL=false
+AUTO_IMPLEMENT=false
 
 # Track root issues that have sub-issues (for final review)
 declare -a ROOTS_WITH_SUBS=()
@@ -120,6 +122,10 @@ parse_args() {
             -X|--execute-all)
                 EXECUTE_MODE=true
                 EXECUTE_ALL=true
+                shift
+                ;;
+            -A|--auto-implement)
+                AUTO_IMPLEMENT=true
                 shift
                 ;;
             -h|--help)
@@ -380,6 +386,7 @@ interactive_mode_tui() {
     menu_add_item "mode" "analyze" "Analyze" "checkbox" "1" "Analyze issues for sub-issue splitting"
     menu_add_item "mode" "review" "Review" "checkbox" "0" "Review existing sub-issue structures"
     menu_add_item "mode" "execute" "Execute" "checkbox" "0" "Execute recommendations from analyses"
+    menu_add_item "mode" "implement" "Implement" "checkbox" "0" "Auto-implement issues via Claude CLI"
 
     # Section 2: Options (checkboxes)
     menu_add_section "options" "multi" "Options"
@@ -419,6 +426,8 @@ interactive_mode_tui() {
             REVIEW_ONLY=true
         elif [[ "$(menu_get_value "execute")" == "1" ]]; then
             EXECUTE_MODE=true
+        elif [[ "$(menu_get_value "implement")" == "1" ]]; then
+            AUTO_IMPLEMENT=true
         fi
 
         # Extract options
@@ -963,6 +972,110 @@ execute_recommendations() {
 }
 # }}}
 
+# {{{ build_implementation_prompt
+build_implementation_prompt() {
+    local issue_path="$1"
+    local issue_content
+    issue_content=$(cat "$issue_path")
+
+    cat <<EOF
+Please implement the following issue. Read the file carefully, understand
+the current behavior, intended behavior, and suggested implementation steps.
+Then write the code to complete each step.
+
+After implementation:
+1. Test that the changes work
+2. Update the issue file with an implementation log section
+3. Report what was done
+
+Issue file: $issue_path
+
+---
+
+$issue_content
+EOF
+}
+# }}}
+
+# {{{ auto_implement_issue
+auto_implement_issue() {
+    local issue_path="$1"
+    local basename
+    basename=$(basename "$issue_path")
+
+    log "Auto-implementing: $basename"
+
+    # Check if claude CLI is available
+    if ! command -v claude &> /dev/null; then
+        error "claude CLI not found. Please install Claude Code."
+        return 1
+    fi
+
+    # Build the prompt
+    local prompt
+    prompt=$(build_implementation_prompt "$issue_path")
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log "[DRY RUN] Would invoke claude with implementation prompt"
+        echo "--- Prompt Preview (first 30 lines) ---"
+        echo "$prompt" | head -30
+        echo "..."
+        echo "--- End Preview ---"
+        return 0
+    fi
+
+    # Confirm unless --execute-all
+    if [[ "$EXECUTE_ALL" != true ]]; then
+        echo ""
+        echo "About to invoke Claude CLI to implement: $basename"
+        echo "This will allow Claude to read/write files autonomously."
+        echo ""
+        read -p "Proceed? [y/N]: " confirm
+        if [[ ! "$confirm" =~ ^[Yy] ]]; then
+            log "  Skipped by user"
+            return 0
+        fi
+    fi
+
+    # Invoke claude CLI
+    log "  Invoking Claude CLI..."
+    echo "$prompt" | claude --dangerously-skip-permissions
+
+    local exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        log "  Implementation completed successfully"
+    else
+        log "  Implementation exited with code $exit_code"
+    fi
+
+    return $exit_code
+}
+# }}}
+
+# {{{ run_implement_phase
+run_implement_phase() {
+    echo
+    echo "════════════════════════════════════════════════════════════════"
+    log "PHASE: Auto-implementing issues via Claude CLI"
+    echo "════════════════════════════════════════════════════════════════"
+    echo
+
+    local implemented=0
+    local skipped=0
+
+    for issue in "${SELECTED_ISSUES[@]}"; do
+        if auto_implement_issue "$issue"; then
+            ((++implemented))
+        else
+            ((++skipped))
+        fi
+    done
+
+    echo
+    log "Implementation complete: $implemented processed, $skipped skipped"
+}
+# }}}
+
 # {{{ run_execute_phase
 run_execute_phase() {
     echo
@@ -1056,6 +1169,11 @@ main() {
     # Phase 3: Execute recommendations (create sub-issue files)
     if [[ "$EXECUTE_MODE" == true ]]; then
         run_execute_phase
+    fi
+
+    # Phase 4: Auto-implement issues via Claude CLI
+    if [[ "$AUTO_IMPLEMENT" == true ]]; then
+        run_implement_phase
     fi
 
     echo
