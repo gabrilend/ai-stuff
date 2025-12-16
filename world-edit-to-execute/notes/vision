@@ -1,0 +1,44 @@
+This project reads in a WC3 file and recreates it in a new engine.
+then, allows it to be tweaked with lua and such.
+
+---
+
+## Addendum: Legal Philosophy and Visual Independence
+
+### The Emulator Precedent
+
+This engine operates under the same legal principle as console emulators: reading and
+interpreting proprietary data formats is legal, just as emulators legally read ROM files.
+The WC3 map files (.w3m, .w3x) were freely distributed during the game's active period,
+and the community has preserved these files. This engine reads these files like a ROM
+reader - parsing the data structures without containing any proprietary code.
+
+### Visual Independence
+
+This engine explicitly does NOT seek to recreate the visual style of Warcraft 3.
+Instead, it provides:
+
+1. **A neutral rendering layer** - The engine interprets map data (terrain, units,
+   triggers, scripts) into abstract game objects
+
+2. **Modder-supplied visuals** - Content creators can provide their own art assets,
+   models, textures, and UI themes to give maps any visual identity they choose
+
+3. **Community-shared defaults** - A repository of community-created default assets
+   that are freely distributable and have no connection to Blizzard's IP
+
+### What This Engine Is
+
+- A data interpreter for WC3 map formats
+- A Lua-scriptable game runtime
+- A platform for modders to re-skin and extend classic maps
+- An open framework for community asset packs
+
+### What This Engine Is Not
+
+- A clone of Warcraft 3's visuals or audio
+- A container for any Blizzard-owned assets
+- A recreation of the original game's look and feel
+
+The goal is preservation through transformation: keeping the gameplay logic and community
+creations alive while giving them new visual identities determined by the community.
