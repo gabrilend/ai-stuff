@@ -266,6 +266,69 @@ tui_cleanup
 | Analysis section renaming | 006 | **Completed** |
 | Auto-implement via Claude CLI | 007 | **Completed** |
 
+---
+
+## Phase 1: File Format Parsing (In Progress)
+
+### MPQ Archive System (Complete)
+
+```
+src/mpq/
+├── init.lua        # Unified API: mpq.open(), archive:extract(), etc.
+├── header.lua      # MPQ header parsing (HM3W wrapper support)
+├── hash.lua        # Hash algorithm and crypto table
+├── hashtable.lua   # Hash table parsing and file lookup
+├── blocktable.lua  # Block table parsing
+└── extract.lua     # File extraction (zlib decompression)
+```
+
+**API Example:**
+```lua
+local mpq = require("mpq")
+local archive = mpq.open("path/to/map.w3x")
+
+if archive:has("war3map.w3i") then
+    local data = archive:extract("war3map.w3i")
+    -- Process data...
+end
+
+local info = archive:info()  -- file_size, file_count, map_name
+archive:close()
+```
+
+### Content Parsers
+
+| File | Parser | Description | Status |
+|------|--------|-------------|--------|
+| war3map.w3i | `parsers/w3i.lua` | Map info (name, players, forces, fog) | **Completed** |
+| war3map.wts | `parsers/wts.lua` | Trigger strings (TRIGSTR_xxx resolution) | **Completed** |
+| war3map.w3e | (pending) | Terrain data (tilepoints, heights) | Pending |
+
+### Test Suite
+
+Run all Phase 1 tests:
+```bash
+# MPQ API test
+lua src/tests/test_mpq.lua
+
+# W3I parser test
+lua src/tests/test_w3i.lua
+
+# WTS parser test
+lua src/tests/test_wts.lua
+
+# Or run all tests
+./issues/completed/demos/run_phase1.sh
+```
+
+### Compatibility Layer
+
+`src/compat.lua` provides cross-version compatibility between Lua 5.1/LuaJIT and Lua 5.3+:
+- `compat.unpack()` - binary unpacking
+- `compat.rshift()`, `compat.band()`, etc. - bitwise operations
+
+---
+
 ## Issue Naming Convention
 
 - Root issues: `{PHASE}{ID}-{description}.md` (e.g., `103-parse-war3map-w3i.md`)
@@ -288,6 +351,34 @@ Chosen for:
 
 ## Current Phase
 
-**Phase 1: Foundation - File Format Parsing**
+**Phase 1: Foundation - File Format Parsing** (8/12 complete)
 
-Focus on MPQ archive parsing and WC3 file format extraction before any gameplay logic.
+Current focus:
+- MPQ archive parser: **Complete** (102a-d)
+- W3I parser: **Complete** (103)
+- WTS parser: **Complete** (104)
+- W3E terrain parser: **Pending** (105)
+- Data structures: **Pending** (106)
+- CLI tool: **Pending** (107)
+- Integration test: **Pending** (108)
+
+**Phase 2: Data Model - Game Objects** (Issues created)
+
+8 issues ready for implementation after Phase 1 completes.
+
+---
+
+## Phase Demos
+
+Run phase completion demos to verify functionality:
+
+```bash
+# Run Phase 0 demo (launches issue-splitter TUI)
+./issues/completed/demos/run_phase0.sh
+
+# Run Phase 1 validation tests
+./issues/completed/demos/run_phase1.sh
+
+# Phase selector (interactive)
+./run_demo.sh
+```
