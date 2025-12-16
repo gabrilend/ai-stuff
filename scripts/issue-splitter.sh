@@ -505,102 +505,6 @@ get_subissues_for_root() {
 }
 # }}}
 
-# {{{ interactive_mode_simple
-interactive_mode_simple() {
-    # Fallback simple interactive mode (no TUI)
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║           Issue Splitter - Interactive Mode                  ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
-    echo
-
-    # Select directory
-    echo "Project directory: $DIR"
-    read -p "Use this directory? [Y/n]: " use_dir
-    if [[ "$use_dir" =~ ^[Nn] ]]; then
-        read -p "Enter project directory: " DIR
-        ISSUES_DIR="${DIR}/issues"
-        ARCHIVE_DIR="${DIR}/issues/analysis"
-    fi
-    echo
-
-    # List available issues with status
-    echo "Available issues:"
-    local issues
-    mapfile -t issues < <(get_issues "$PATTERN")
-
-    local i=1
-    for issue in "${issues[@]}"; do
-        local basename=$(basename "$issue")
-        local root_id=$(get_root_id "$basename")
-        local status=""
-
-        if is_subissue "$basename"; then
-            status=" [sub-issue of ${root_id}]"
-        elif has_subissues "$root_id"; then
-            status=" [has sub-issues - will skip, review at end]"
-        elif has_subissue_analysis "$issue"; then
-            status=" [has analysis]"
-        fi
-        echo "  [$i] $basename$status"
-        ((i++))
-    done
-    echo "  [A] All eligible issues"
-    echo "  [R] Review-only mode (just review existing sub-issue structures)"
-    echo
-
-    read -p "Select issues (comma-separated numbers, A, or R): " selection
-
-    case "$selection" in
-        [Aa])
-            SELECTED_ISSUES=("${issues[@]}")
-            ;;
-        [Rr])
-            REVIEW_ONLY=true
-            SELECTED_ISSUES=("${issues[@]}")
-            ;;
-        *)
-            SELECTED_ISSUES=()
-            IFS=',' read -ra indices <<< "$selection"
-            for idx in "${indices[@]}"; do
-                idx=$(echo "$idx" | tr -d ' ')
-                if [[ "$idx" =~ ^[0-9]+$ ]] && (( idx >= 1 && idx <= ${#issues[@]} )); then
-                    SELECTED_ISSUES+=("${issues[$((idx-1))]}")
-                fi
-            done
-            ;;
-    esac
-    echo
-
-    if [[ "$REVIEW_ONLY" != true ]]; then
-        # Skip existing?
-        read -p "Skip issues that already have analysis? [Y/n]: " skip
-        if [[ ! "$skip" =~ ^[Nn] ]]; then
-            SKIP_EXISTING=true
-        fi
-        echo
-    fi
-
-    # Dry run?
-    read -p "Dry run (show what would be processed)? [y/N]: " dry
-    if [[ "$dry" =~ ^[Yy] ]]; then
-        DRY_RUN=true
-    fi
-    echo
-
-    echo "Configuration:"
-    echo "  Directory: $DIR"
-    echo "  Issues: ${#SELECTED_ISSUES[@]} selected"
-    echo "  Skip existing: $SKIP_EXISTING"
-    echo "  Review only: $REVIEW_ONLY"
-    echo "  Dry run: $DRY_RUN"
-    echo
-    read -p "Proceed? [Y/n]: " proceed
-    if [[ "$proceed" =~ ^[Nn] ]]; then
-        echo "Aborted."
-        exit 0
-    fi
-}
-# }}}
 
 # {{{ interactive_mode_tui
 interactive_mode_tui() {
@@ -613,11 +517,12 @@ interactive_mode_tui() {
         exit 1
     fi
 
-    # Initialize TUI
+    # Initialize TUI - requires a real terminal
     if ! tui_init; then
-        echo "ERROR: Could not initialize TUI mode, falling back to simple mode"
-        interactive_mode_simple
-        return
+        echo "ERROR: TUI initialization failed." >&2
+        echo "Interactive mode requires a terminal (stdin/stdout must be TTY)." >&2
+        echo "Run from a terminal, not a pipe or script." >&2
+        exit 1
     fi
 
     # Build the menu
@@ -804,11 +709,13 @@ interactive_mode_tui() {
 
 # {{{ interactive_mode
 interactive_mode() {
-    if [[ "$TUI_AVAILABLE" == true ]]; then
-        interactive_mode_tui
-    else
-        interactive_mode_simple
+    if [[ "$TUI_AVAILABLE" != true ]]; then
+        echo "ERROR: TUI libraries not available." >&2
+        echo "Expected libraries in: ${LIBS_DIR}/" >&2
+        echo "Required: tui.sh, menu.sh, checkbox.sh, multistate.sh, input.sh" >&2
+        exit 1
     fi
+    interactive_mode_tui
 }
 # }}}
 
