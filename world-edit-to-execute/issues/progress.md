@@ -10,7 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 11/17 |
+| 0 | Tooling/Infrastructure | In Progress | 12/18 |
 | 1 | Foundation - File Format Parsing | In Progress | 5/12 |
 | 2 | Data Model - Game Objects | Planned | - |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
@@ -44,6 +44,7 @@
 | 004f | Integrate TUI into issue-splitter | **Completed** | 004a-e |
 | 005 | Migrate TUI library to shared libs | **Completed** | 004 |
 | 006 | Rename analysis sections for promoted roots | **Completed** | 003 |
+| 007 | Add auto-implement via Claude CLI | **Completed** | None |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -141,6 +142,11 @@
   - Uses Python3 zlib for decompression (temporary solution)
   - 15/16 test maps extract successfully
   - PKWARE DCL compression not yet implemented (1 test map affected)
+- **Issue 007 completed:** Add auto-implement via Claude CLI
+  - Added -A/--auto-implement flag to issue-splitter.sh
+  - Invokes `claude --dangerously-skip-permissions` with issue content
+  - Added "Implement" option to TUI interactive mode
+  - Supports dry-run preview and confirmation prompts
 
 ---
 
