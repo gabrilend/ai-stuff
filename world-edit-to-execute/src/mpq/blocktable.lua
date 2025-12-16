@@ -13,8 +13,10 @@ local blocktable = {}
 local BLOCK_ENTRY_SIZE = 16
 
 -- Block flags
+-- Note: IMPLODE uses PKWARE DCL compression (not implemented)
+-- See: docs/formats/pkware-dcl-compression.md
 blocktable.FLAGS = {
-    IMPLODE       = 0x00000100,  -- PKWARE DCL compressed
+    IMPLODE       = 0x00000100,  -- PKWARE DCL compressed (not implemented)
     COMPRESS      = 0x00000200,  -- Multi-method compressed (check first byte)
     ENCRYPTED     = 0x00010000,  -- File is encrypted
     FIX_KEY       = 0x00020000,  -- Encryption key adjusted by offset
@@ -26,10 +28,11 @@ blocktable.FLAGS = {
 }
 
 -- Compression method flags (first byte of compressed data)
+-- Note: PKWARE (0x08) not implemented - see docs/formats/pkware-dcl-compression.md
 blocktable.COMPRESSION = {
     HUFFMAN      = 0x01,
     ZLIB         = 0x02,
-    PKWARE       = 0x08,
+    PKWARE       = 0x08,  -- Not implemented
     BZIP2        = 0x10,
     SPARSE       = 0x20,
     ADPCM_MONO   = 0x40,

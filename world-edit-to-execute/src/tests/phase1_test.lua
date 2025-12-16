@@ -295,10 +295,12 @@ local function print_summary(results)
     print("  ✓ Coordinate conversion (tile ↔ world)")
 
     -- Known limitations
+    -- See: docs/formats/pkware-dcl-compression.md for PKWARE DCL status
     print("\n" .. string.rep("─", 70))
     print("KNOWN LIMITATIONS")
     print(string.rep("─", 70))
     print("  • PKWARE DCL compression not implemented (affects 1 test map)")
+    print("    See: docs/formats/pkware-dcl-compression.md")
     print("  • Some maps may not have (listfile) entry")
 
     print("\n" .. string.rep("═", 70))
