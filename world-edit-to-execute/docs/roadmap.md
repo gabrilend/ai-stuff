@@ -6,21 +6,26 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 ## Current Focus
 
-### Phase 1 Progress: 6/12 complete
+### Phase 1 Progress: 8/12 complete
+
+**Completed:**
+- ✓ **101** - Research WC3 file formats
+- ✓ **102** - MPQ archive parser (102a-d sub-issues)
+- ✓ **103** - Parse war3map.w3i (map metadata)
+- ✓ **104** - Parse war3map.wts (trigger strings)
 
 **Next Priority Issues:**
 
-1. **103 - Parse war3map.w3i** (map metadata)
-   - Player info, forces, fog settings
-   - First content parser using MPQ API
-
-2. **104 - Parse war3map.wts** (trigger strings)
-   - String table with TRIGSTR resolution
-   - Needed for localized content
-
-3. **105 - Parse war3map.w3e** (terrain)
+1. **105 - Parse war3map.w3e** (terrain)
    - Tilepoints, height maps, textures
    - Foundation for rendering
+
+2. **106 - Design internal data structures**
+   - Map class integrating all parsed data
+   - Coordinate systems and lookups
+
+3. **107 - Build CLI metadata dump tool**
+   - Command-line tool to inspect map contents
 
 **Available Tools:**
 ```bash
@@ -32,6 +37,9 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 # Interactive mode with TUI
 ./src/cli/issue-splitter.sh -I
+
+# Run Phase 1 validation tests
+./issues/completed/demos/run_phase1.sh
 ```
 
 ---
@@ -79,21 +87,45 @@ All 18 issues completed. Development tools now available:
 
 ---
 
-## Phase 1: Foundation - File Format Parsing
+## Phase 1: Foundation - File Format Parsing (8/12 Complete)
 
 Establish the core ability to read and parse WC3 map archives.
 
-- Parse MPQ archive structure (.w3m/.w3x containers)
-- Extract embedded files from archive
-- Parse war3map.w3i (map info)
-- Parse war3map.wts (trigger strings)
-- Parse war3map.w3e (terrain data)
-- Create internal data structures for parsed content
-- Build CLI tool to dump map metadata
+| Task | Status |
+|------|--------|
+| Parse MPQ archive structure (.w3m/.w3x containers) | ✓ Complete |
+| Extract embedded files from archive | ✓ Complete |
+| Parse war3map.w3i (map info) | ✓ Complete |
+| Parse war3map.wts (trigger strings) | ✓ Complete |
+| Parse war3map.w3e (terrain data) | Pending |
+| Create internal data structures for parsed content | Pending |
+| Build CLI tool to dump map metadata | Pending |
+| Integration test | Pending |
+
+### Module Structure
+
+```
+src/
+├── compat.lua           # Lua 5.1/LuaJIT ↔ Lua 5.3+ compatibility
+├── mpq/                 # MPQ archive system
+│   ├── init.lua         # Unified API
+│   ├── header.lua       # Header parsing (HM3W wrapper)
+│   ├── hash.lua         # Hash algorithm
+│   ├── hashtable.lua    # File lookup
+│   ├── blocktable.lua   # Block table
+│   └── extract.lua      # File extraction
+├── parsers/             # Content parsers
+│   ├── w3i.lua          # Map info parser
+│   └── wts.lua          # Trigger strings parser
+└── tests/               # Test suite
+    ├── test_mpq.lua
+    ├── test_w3i.lua
+    └── test_wts.lua
+```
 
 ---
 
-## Phase 2: Data Model - Game Objects
+## Phase 2: Data Model - Game Objects (0/8 - Issues Created)
 
 Build the abstract representation layer for game entities.
 
