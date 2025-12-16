@@ -21,6 +21,8 @@
 #   -n, --dry-run         Show what would be processed without running
 #   -I, --interactive     Interactive mode for selecting options
 #   -a, --archive         Save copies of analyses to issues/analysis/ directory
+#   -x, --execute         Execute recommendations (create sub-issue files)
+#   -X, --execute-all     Execute all recommendations without confirmation
 #   -h, --help            Show this help message
 
 set -euo pipefail
@@ -35,6 +37,8 @@ DRY_RUN=false
 INTERACTIVE=false
 ARCHIVE_MODE=false
 ARCHIVE_DIR="${DIR}/issues/analysis"
+EXECUTE_MODE=false
+EXECUTE_ALL=false
 
 # Track root issues that have sub-issues (for final review)
 declare -a ROOTS_WITH_SUBS=()
@@ -42,7 +46,7 @@ declare -a ROOTS_WITH_SUBS=()
 
 # {{{ print_help
 print_help() {
-    head -24 "$0" | tail -22 | sed 's/^# //' | sed 's/^#//'
+    head -26 "$0" | tail -24 | sed 's/^# //' | sed 's/^#//'
 }
 # }}}
 
@@ -93,6 +97,15 @@ parse_args() {
                 INTERACTIVE=true
                 shift
                 ;;
+            -x|--execute)
+                EXECUTE_MODE=true
+                shift
+                ;;
+            -X|--execute-all)
+                EXECUTE_MODE=true
+                EXECUTE_ALL=true
+                shift
+                ;;
             -h|--help)
                 print_help
                 exit 0
@@ -135,6 +148,32 @@ has_structure_review() {
     local file="$1"
     # Use precise pattern to avoid matching content inside code blocks
     grep -qE "^## Structure Review$" "$file" 2>/dev/null
+}
+# }}}
+
+# {{{ has_generated_subissues
+has_generated_subissues() {
+    local file="$1"
+    grep -qE "^## Generated Sub-Issues$" "$file" 2>/dev/null
+}
+# }}}
+
+# {{{ get_phase_name
+get_phase_name() {
+    local phase="$1"
+    case "$phase" in
+        0) echo "Tooling/Infrastructure" ;;
+        1) echo "Foundation - File Format Parsing" ;;
+        2) echo "Data Model - Game Objects" ;;
+        3) echo "Logic Layer - Triggers and JASS" ;;
+        4) echo "Runtime - Basic Engine Loop" ;;
+        5) echo "Rendering - Visual Abstraction" ;;
+        6) echo "Asset System - Community Content" ;;
+        7) echo "Gameplay - Core Mechanics" ;;
+        8) echo "Multiplayer - Network Layer" ;;
+        9) echo "Polish - Tools and UX" ;;
+        *) echo "Unknown Phase" ;;
+    esac
 }
 # }}}
 
@@ -539,6 +578,269 @@ run_final_review() {
 }
 # }}}
 
+# {{{ parse_analysis
+parse_analysis() {
+    local issue_path="$1"
+
+    # Extract Sub-Issue Analysis section (or Initial Analysis if renamed)
+    # Stop at the next ## heading or end of file
+    local section=""
+    section=$(sed -n '/^## Sub-Issue Analysis$/,/^## /p' "$issue_path" 2>/dev/null | head -n -1)
+
+    # If not found, try Initial Analysis
+    if [[ -z "$section" ]]; then
+        section=$(sed -n '/^## Initial Analysis$/,/^## /p' "$issue_path" 2>/dev/null | head -n -1)
+    fi
+
+    echo "$section"
+}
+# }}}
+
+# {{{ extract_recommendations
+extract_recommendations() {
+    local analysis="$1"
+    local -a recommendations=()
+
+    # Parse table format: | 002a | add-queue-infrastructure | description |
+    while IFS='|' read -r _ id name desc _; do
+        id=$(echo "$id" | tr -d ' ')
+        name=$(echo "$name" | tr -d ' ' | sed 's/^-//' | sed 's/-$//')
+        if [[ "$id" =~ ^[0-9]+[a-z]+$ ]]; then
+            recommendations+=("$id|$name|$desc")
+        fi
+    done <<< "$analysis"
+
+    # Parse bold list format: - **002a-add-queue-infrastructure**: description
+    # Or: **002a** | `add-queue-infrastructure` | description
+    while IFS= read -r line; do
+        # Format: **002a-name**: description
+        if [[ "$line" =~ \*\*([0-9]+[a-z]+)-([^*]+)\*\*:?[[:space:]]*(.+) ]]; then
+            local id="${BASH_REMATCH[1]}"
+            local name="${BASH_REMATCH[2]}"
+            local desc="${BASH_REMATCH[3]}"
+            recommendations+=("$id|$name|$desc")
+        # Format: **002a** | `name` | description (table with backticks)
+        elif [[ "$line" =~ \*\*([0-9]+[a-z]+)\*\*[[:space:]]*\|[[:space:]]*\`([^\`]+)\`[[:space:]]*\|[[:space:]]*(.+) ]]; then
+            local id="${BASH_REMATCH[1]}"
+            local name="${BASH_REMATCH[2]}"
+            local desc="${BASH_REMATCH[3]}"
+            recommendations+=("$id|$name|$desc")
+        fi
+    done <<< "$analysis"
+
+    # Remove duplicates and print
+    printf '%s\n' "${recommendations[@]}" | sort -u
+}
+# }}}
+
+# {{{ generate_subissue
+generate_subissue() {
+    local parent_path="$1"
+    local id="$2"
+    local name="$3"
+    local description="$4"
+    local dependencies="${5:-}"
+
+    local parent_basename
+    parent_basename=$(basename "$parent_path")
+    local parent_id
+    parent_id=$(get_root_id "$parent_basename")
+    local phase=$((parent_id / 100))
+
+    # Clean up name - remove leading/trailing dashes and spaces
+    name=$(echo "$name" | sed 's/^[- ]*//' | sed 's/[- ]*$//' | tr ' ' '-')
+
+    local filename="${id}-${name}.md"
+    local filepath="${ISSUES_DIR}/${filename}"
+
+    # Don't overwrite existing files
+    if [[ -f "$filepath" ]]; then
+        log "    Skipping $filename (already exists)"
+        return 1
+    fi
+
+    # Convert name to title case for heading
+    local title
+    title=$(echo "${name//-/ }" | sed 's/\b\(.\)/\u\1/g')
+
+    cat > "$filepath" << EOF
+# Issue ${id}: ${title}
+
+**Phase:** ${phase} - $(get_phase_name "$phase")
+**Type:** Sub-Issue of ${parent_id}
+**Priority:** Medium
+**Dependencies:** ${dependencies:-"None"}
+
+---
+
+## Current Behavior
+
+(To be filled in during implementation)
+
+---
+
+## Intended Behavior
+
+${description}
+
+---
+
+## Suggested Implementation Steps
+
+1. (To be determined based on analysis)
+
+---
+
+## Related Documents
+
+- ${parent_basename} (parent issue)
+
+---
+
+## Acceptance Criteria
+
+- [ ] (To be defined)
+
+---
+
+## Notes
+
+*This sub-issue was auto-generated from analysis recommendations.*
+*Review and expand before implementation.*
+EOF
+
+    log "    Created: $filename"
+    return 0
+}
+# }}}
+
+# {{{ execute_recommendations
+execute_recommendations() {
+    local issue_path="$1"
+    local basename
+    basename=$(basename "$issue_path")
+
+    log "Executing recommendations for: $basename"
+
+    # Skip if already has generated sub-issues
+    if has_generated_subissues "$issue_path"; then
+        log "  Skipping (already has generated sub-issues)"
+        return 0
+    fi
+
+    # Check if has analysis
+    if ! has_subissue_analysis "$issue_path"; then
+        log "  Skipping (no analysis found)"
+        return 0
+    fi
+
+    # Parse and extract recommendations
+    local analysis
+    analysis=$(parse_analysis "$issue_path")
+    local -a recommendations=()
+    mapfile -t recommendations < <(extract_recommendations "$analysis")
+
+    # Filter out empty entries
+    local -a valid_recommendations=()
+    for rec in "${recommendations[@]}"; do
+        if [[ -n "$rec" ]]; then
+            valid_recommendations+=("$rec")
+        fi
+    done
+
+    if [[ ${#valid_recommendations[@]} -eq 0 ]]; then
+        log "  No sub-issue recommendations found in analysis"
+        return 0
+    fi
+
+    log "  Found ${#valid_recommendations[@]} recommendation(s)"
+
+    # Show recommendations and confirm (unless --execute-all)
+    if [[ "$EXECUTE_ALL" != true ]] && [[ "$DRY_RUN" != true ]]; then
+        echo ""
+        echo "  Recommended sub-issues:"
+        for rec in "${valid_recommendations[@]}"; do
+            IFS='|' read -r id name desc <<< "$rec"
+            echo "    - ${id}-${name}: ${desc:0:60}..."
+        done
+        echo ""
+        read -p "  Create these sub-issues? [y/N]: " confirm
+        if [[ ! "$confirm" =~ ^[Yy] ]]; then
+            log "  Skipped by user"
+            return 0
+        fi
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log "  [DRY RUN] Would create ${#valid_recommendations[@]} sub-issue file(s)"
+        return 0
+    fi
+
+    # Generate sub-issue files
+    local created=0
+    for rec in "${valid_recommendations[@]}"; do
+        IFS='|' read -r id name desc <<< "$rec"
+        if generate_subissue "$issue_path" "$id" "$name" "$desc"; then
+            ((++created))
+        fi
+    done
+
+    log "  Created $created sub-issue file(s)"
+
+    # Update parent issue to note sub-issues were created
+    if [[ $created -gt 0 ]]; then
+        {
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Generated Sub-Issues"
+            echo ""
+            echo "*Auto-generated on $(date '+%Y-%m-%d %H:%M')*"
+            echo ""
+            for rec in "${valid_recommendations[@]}"; do
+                IFS='|' read -r id name desc <<< "$rec"
+                name=$(echo "$name" | sed 's/^[- ]*//' | sed 's/[- ]*$//' | tr ' ' '-')
+                echo "- ${id}-${name}.md"
+            done
+        } >> "$issue_path"
+
+        log "  Updated parent issue with generated sub-issues list"
+    fi
+}
+# }}}
+
+# {{{ run_execute_phase
+run_execute_phase() {
+    echo
+    echo "════════════════════════════════════════════════════════════════"
+    log "PHASE 3: Executing analysis recommendations"
+    echo "════════════════════════════════════════════════════════════════"
+    echo
+
+    local executed=0
+    local skipped=0
+
+    for issue in "${SELECTED_ISSUES[@]}"; do
+        local basename
+        basename=$(basename "$issue")
+
+        # Skip sub-issues
+        if is_subissue "$basename"; then
+            continue
+        fi
+
+        if execute_recommendations "$issue"; then
+            ((++executed))
+        else
+            ((++skipped))
+        fi
+        echo
+    done
+
+    log "Phase 3 complete: $executed processed, $skipped skipped"
+}
+# }}}
+
 # {{{ main
 main() {
     parse_args "$@"
@@ -596,6 +898,11 @@ main() {
 
     # Phase 2: Review root issues that have sub-issues
     run_final_review
+
+    # Phase 3: Execute recommendations (create sub-issue files)
+    if [[ "$EXECUTE_MODE" == true ]]; then
+        run_execute_phase
+    fi
 
     echo
     echo "════════════════════════════════════════════════════════════════"
