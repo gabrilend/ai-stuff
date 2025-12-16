@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
-| 1 | Foundation - File Format Parsing | In Progress | 8/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 9/12 |
 | 2 | Data Model - Game Objects | Issues Created | 0/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
@@ -63,7 +63,7 @@
 | 102d | Implement file extraction | **Completed** | 102a, 102b, 102c |
 | 103 | Parse war3map.w3i (map info) | **Completed** | 102 |
 | 104 | Parse war3map.wts (trigger strings) | **Completed** | 102 |
-| 105 | Parse war3map.w3e (terrain) | Pending | 102, 103 |
+| 105 | Parse war3map.w3e (terrain) | **Completed** | 102, 103 |
 | 106 | Design internal data structures | Pending | 103, 104, 105 |
 | 107 | Build CLI metadata dump tool | Pending | 106 |
 | 108 | Phase 1 integration test | Pending | 101-107 |
@@ -236,6 +236,11 @@ Phase 1 Complete (102 MPQ Parser)
   - Created src/tests/test_wts.lua
   - 16/16 test maps parse successfully
   - TRIGSTR_xxx resolution working (e.g., TRIGSTR_199 → actual map name)
+- **Issue 105 completed:** Parse war3map.w3e (terrain)
+  - Created src/parsers/w3e.lua (Terrain class with Tilepoint data)
+  - Created src/tests/test_w3e.lua
+  - 15/16 test maps parse successfully
+  - Full terrain data: heights, textures, water, cliffs, ramps
 
 ---
 
@@ -243,15 +248,15 @@ Phase 1 Complete (102 MPQ Parser)
 
 ### Phase 1 (Ready to Start)
 
-1. **105 - Parse war3map.w3e** (High Priority)
-   - Terrain data parsing
-   - Depends on 102, 103
-
-2. **106 - Design internal data structures** (Depends on 103, 104, 105)
+1. **106 - Design internal data structures** (High Priority)
    - Unified data model for parsed content
+   - Depends on 103, 104, 105
 
-3. **107 - Build CLI metadata dump tool** (Depends on 106)
+2. **107 - Build CLI metadata dump tool** (Depends on 106)
    - CLI for inspecting map files
+
+3. **108 - Phase 1 integration test** (Depends on 101-107)
+   - Validate all parsers work together
 
 ### Phase 0 Complete
 
