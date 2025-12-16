@@ -111,7 +111,7 @@ the next iteration's priorities.
 
 Location: `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh` (symlinked)
 
-Automated tool for analyzing issues and managing sub-issue creation.
+Automated tool for analyzing issues, managing sub-issue creation, and implementing features.
 
 #### Capabilities
 
@@ -119,60 +119,152 @@ Automated tool for analyzing issues and managing sub-issue creation.
 |------|-------------|
 | **Analyze** | Ask Claude to evaluate if issue should be split |
 | **Review** | Review root issues that already have sub-issues |
-| **Execute** | Create sub-issue files from analysis recommendations (planned) |
+| **Execute** | Create sub-issue files from analysis recommendations |
+| **Implement** | Auto-implement issues via Claude CLI |
+| **Stream** | Parallel processing with real-time output streaming |
 
-#### Usage
+#### Quick Start
 
 ```bash
-# Interactive mode - select issues and options via menu
+# Interactive mode - TUI with checkbox selection and vim keybindings
 ./src/cli/issue-splitter.sh -I
 
-# Analyze all issues, skip those with existing analysis
-./src/cli/issue-splitter.sh -s
+# Analyze issues with parallel processing (streaming mode)
+./src/cli/issue-splitter.sh --stream --parallel 3
 
-# Review-only mode (just review roots with sub-issues)
-./src/cli/issue-splitter.sh -r
+# Execute recommendations to create sub-issue files
+./src/cli/issue-splitter.sh -x
 
-# Dry run (preview what would be processed)
-./src/cli/issue-splitter.sh -n
-
-# Archive copies of analyses to issues/analysis/
-./src/cli/issue-splitter.sh -a
+# Auto-implement an issue via Claude CLI
+./src/cli/issue-splitter.sh -A
 ```
 
-#### Processing Phases
+#### Processing Modes
 
-1. **Phase 1: Analysis** - Processes issues without sub-issues
-   - Skips sub-issues (102a, 102b, etc.)
-   - Skips roots that already have sub-issues (deferred to Phase 2)
-   - Appends `## Sub-Issue Analysis` to each processed issue
+**1. Analysis Mode (default)**
+```bash
+./src/cli/issue-splitter.sh -s              # Skip already-analyzed issues
+./src/cli/issue-splitter.sh --stream        # Use parallel processing
+./src/cli/issue-splitter.sh --stream --parallel 5 --delay 2
+```
+- Processes issues without sub-issues
+- Skips sub-issues (102a, 102b, etc.)
+- Skips roots that already have sub-issues (deferred to review)
+- Appends `## Sub-Issue Analysis` to each processed issue
 
-2. **Phase 2: Structure Review** - Reviews roots with existing sub-issues
-   - Reads root issue + all its sub-issues
-   - Appends `## Structure Review` with structural recommendations
+**2. Review Mode**
+```bash
+./src/cli/issue-splitter.sh -r              # Review-only
+./src/cli/issue-splitter.sh -r -s           # Skip already-reviewed
+```
+- Reviews root issues with existing sub-issues
+- Reads root + all sub-issues together
+- Appends `## Structure Review` with recommendations
 
-#### Flags Reference
+**3. Execute Mode**
+```bash
+./src/cli/issue-splitter.sh -x              # With confirmation prompts
+./src/cli/issue-splitter.sh -X              # Execute all without prompts
+```
+- Parses analysis recommendations from issue files
+- Auto-creates sub-issue files from recommendations
+- Renames `## Sub-Issue Analysis` to `## Initial Analysis`
+- Adds `## Generated Sub-Issues` section
+
+**4. Implement Mode**
+```bash
+./src/cli/issue-splitter.sh -A              # With confirmation
+./src/cli/issue-splitter.sh -A -X           # Without confirmation
+```
+- Invokes Claude CLI with issue content
+- Claude reads issue, implements code, updates issue file
+- Uses `--dangerously-skip-permissions` for autonomous operation
+
+**5. Interactive Mode**
+```bash
+./src/cli/issue-splitter.sh -I
+```
+- TUI with checkbox-style selection
+- Vim keybindings (j/k navigation, i/space select, q quit)
+- Select mode: Analyze, Review, Execute, or Implement
+- Select options: Skip existing, Dry run, Archive, Execute all
+- Select specific issues to process
+
+#### Streaming Mode (Parallel Processing)
+
+```bash
+# Enable streaming with default settings (3 parallel, 5s delay)
+./src/cli/issue-splitter.sh --stream
+
+# Custom parallelism and delay
+./src/cli/issue-splitter.sh --stream --parallel 5 --delay 2
+
+# Streaming requires Bash 4.3+ (uses wait -n)
+```
+
+**How it works:**
+1. Queue infrastructure creates temp directory for job coordination
+2. Producer spawns parallel Claude calls (up to PARALLEL_COUNT)
+3. Responses queued with .output, .meta, .ready files
+4. Streamer displays outputs in order with formatted headers
+5. Configurable delay between outputs ("grocery store divider" pattern)
+
+#### Complete Flags Reference
 
 | Flag | Description |
 |------|-------------|
 | `-d, --dir <path>` | Project directory (default: world-edit-to-execute) |
 | `-p, --pattern <glob>` | Issue file pattern (default: `[0-9]*.md`) |
 | `-s, --skip-existing` | Skip issues that already have analysis |
-| `-r, --review-only` | Only run Phase 2 (structure review) |
+| `-r, --review-only` | Only run structure review (skip analysis) |
 | `-n, --dry-run` | Show what would be processed |
 | `-a, --archive` | Save copies to issues/analysis/ directory |
-| `-I, --interactive` | Interactive mode with menus |
+| `-x, --execute` | Execute recommendations (create sub-issues) |
+| `-X, --execute-all` | Execute all without confirmation |
+| `-A, --auto-implement` | Auto-implement issues via Claude CLI |
+| `--stream` | Enable streaming mode with parallel processing |
+| `--parallel <n>` | Max concurrent Claude calls (default: 3) |
+| `--delay <n>` | Seconds between streamed outputs (default: 5) |
+| `-I, --interactive` | Interactive mode with TUI menus |
 | `-h, --help` | Show help |
 
-### Planned Tool Enhancements (Phase 0)
+### TUI Library (`/home/ritz/programming/ai-stuff/scripts/libs/`)
+
+Shared terminal UI library for interactive scripts.
+
+| Module | Description |
+|--------|-------------|
+| `tui.sh` | Core library (terminal modes, cursor, colors) |
+| `checkbox.sh` | Checkbox component with selection state |
+| `multistate.sh` | Multi-state toggle (radio button behavior) |
+| `input.sh` | Text input component |
+| `menu.sh` | Menu navigation with sections and vim keybindings |
+
+**Usage in scripts:**
+```bash
+source "${LIBS_DIR}/tui.sh"
+source "${LIBS_DIR}/menu.sh"
+
+tui_init
+menu_init
+menu_set_title "My Tool" "Interactive Mode"
+menu_add_section "options" "multi" "Options"
+menu_add_item "options" "verbose" "Verbose" "checkbox" "0" "Enable verbose output"
+menu_run
+tui_cleanup
+```
+
+### Phase 0 Tool Summary (Completed)
 
 | Feature | Issue | Status |
 |---------|-------|--------|
-| Execute mode (auto-create sub-issues) | 003 | Pending |
-| Streaming queue (parallel processing) | 002 | In Progress |
-| Checkbox-style TUI | 004 | Pending |
-| Shared TUI library | 005 | Pending |
-| Analysis section renaming | 006 | Pending |
+| Direct output handling | 001 | **Completed** |
+| Streaming queue (parallel processing) | 002 | **Completed** |
+| Execute mode (auto-create sub-issues) | 003 | **Completed** |
+| Checkbox-style TUI | 004 | **Completed** |
+| Shared TUI library | 005 | **Completed** |
+| Analysis section renaming | 006 | **Completed** |
+| Auto-implement via Claude CLI | 007 | **Completed** |
 
 ## Issue Naming Convention
 

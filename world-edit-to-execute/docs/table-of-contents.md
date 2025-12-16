@@ -61,40 +61,42 @@ issues/
 
 | Tool | Location | Description |
 |------|----------|-------------|
-| issue-splitter.sh | src/cli/issue-splitter.sh (symlink) | Automated issue analysis for sub-issue splitting |
+| issue-splitter.sh | src/cli/issue-splitter.sh (symlink) | Issue analysis, sub-issue creation, auto-implementation |
+| TUI library | /home/ritz/.../scripts/libs/ | Shared terminal UI (checkbox, menu, input) |
 
-### Phase 0 Issues (Tooling)
+### Phase 0 Issues (Tooling) - **COMPLETED**
 
 | Issue | Description | Status |
 |-------|-------------|--------|
 | 001 | Fix issue-splitter output handling | **Completed** |
-| 002 | Add streaming queue to issue-splitter | In Progress |
-| 002a | Add queue infrastructure | Pending |
-| 002b | Add producer function | Pending |
-| 002c | Add streamer process | Pending |
-| 002d | Add parallel processing loop | Pending |
-| 002e | Add streaming config flags | Pending |
+| 002 | Add streaming queue to issue-splitter | **Completed** |
+| 002a | Add queue infrastructure | **Completed** |
+| 002b | Add producer function | **Completed** |
+| 002c | Add streamer process | **Completed** |
+| 002d | Add parallel processing loop | **Completed** |
+| 002e | Add streaming config flags | **Completed** |
 | 003 | Execute analysis recommendations | **Completed** |
-| 004 | Redesign interactive mode interface | In Progress |
-| 004a | Create TUI core library | Pending |
-| 004b | Implement checkbox component | Pending |
-| 004c | Implement multistate toggle | Pending |
-| 004d | Implement input components | Pending |
-| 004e | Build menu navigation system | Pending |
-| 004f | Integrate TUI into issue-splitter | Pending |
-| 005 | Migrate TUI library to shared libs | Pending |
-| 006 | Rename analysis sections for promoted roots | Pending |
+| 004 | Redesign interactive mode interface | **Completed** |
+| 004a | Create TUI core library | **Completed** |
+| 004b | Implement checkbox component | **Completed** |
+| 004c | Implement multistate toggle | **Completed** |
+| 004d | Implement input components | **Completed** |
+| 004e | Build menu navigation system | **Completed** |
+| 004f | Integrate TUI into issue-splitter | **Completed** |
+| 005 | Migrate TUI library to shared libs | **Completed** |
+| 006 | Rename analysis sections for promoted roots | **Completed** |
+| 007 | Add auto-implement via Claude CLI | **Completed** |
 
-### Phase 1 Issues
+### Phase 1 Issues (File Format Parsing)
 
 | Issue | Description | Status |
 |-------|-------------|--------|
 | 101 | Research WC3 file formats | **Completed** |
-| 102 | Implement MPQ archive parser | Pending |
-| 102a | Parse MPQ header structure | Pending |
-| 102b | Parse MPQ hash table | Pending |
-| 102c | Parse MPQ block table | Pending |
-| 102d | Implement file extraction | Pending |
+| 102 | Implement MPQ archive parser | **Completed** |
+| 102a | Parse MPQ header structure | **Completed** |
+| 102b | Parse MPQ hash table | **Completed** |
+| 102c | Parse MPQ block table | **Completed** |
+| 102d | Implement file extraction | **Completed** |
 | 103 | Parse war3map.w3i (map info) | Pending |
 | 104 | Parse war3map.wts (trigger strings) | Pending |
 | 105 | Parse war3map.w3e (terrain) | Pending |
