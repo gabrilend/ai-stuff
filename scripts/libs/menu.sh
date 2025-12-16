@@ -287,6 +287,58 @@ menu_nav_bottom() {
 }
 # }}}
 
+# {{{ menu_nav_to_index
+# Navigate to a specific 1-based index within the current section
+# Args: index (1-based, as displayed to user)
+menu_nav_to_index() {
+    local index="$1"
+    local section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
+    local count
+    count=$(menu_get_section_item_count "$section_id")
+
+    # Convert 1-based user input to 0-based array index
+    local target=$((index - 1))
+
+    # Clamp to valid range
+    if [[ $target -lt 0 ]]; then
+        target=0
+    elif [[ $target -ge $count ]]; then
+        target=$((count - 1))
+    fi
+
+    MENU_CURRENT_ITEM=$target
+}
+# }}}
+
+# {{{ menu_nav_to_global_index
+# Navigate to a specific 1-based global index across all sections
+# Args: index (1-based, as displayed to user)
+menu_nav_to_global_index() {
+    local target_index="$1"
+    local current_index=0
+
+    for ((s=0; s<${#MENU_SECTIONS[@]}; s++)); do
+        local section_id="${MENU_SECTIONS[$s]}"
+        local count
+        count=$(menu_get_section_item_count "$section_id")
+
+        for ((i=0; i<count; i++)); do
+            current_index=$((current_index + 1))
+            if [[ $current_index -eq $target_index ]]; then
+                MENU_CURRENT_SECTION=$s
+                MENU_CURRENT_ITEM=$i
+                return 0
+            fi
+        done
+    done
+
+    # If index is too large, go to last item
+    if [[ $target_index -gt $current_index ]]; then
+        menu_nav_bottom
+    fi
+}
+# }}}
+
 # {{{ menu_get_current_item_id
 menu_get_current_item_id() {
     local section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
@@ -336,7 +388,7 @@ menu_toggle() {
 # }}}
 
 # {{{ menu_handle_left_right
-# Handle left/right keys for multistate options
+# Handle left/right keys for checkboxes (select/deselect) and multistate (cycle)
 menu_handle_left_right() {
     local direction="$1"  # "left" or "right"
     local item_id
@@ -346,11 +398,36 @@ menu_handle_left_right() {
     [[ -n "${MENU_ITEM_DISABLED[$item_id]:-}" ]] && return 1
 
     local item_type="${MENU_ITEM_TYPES[$item_id]:-checkbox}"
+    local section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
+    local section_type="${MENU_SECTION_TYPES[$section_id]}"
 
-    if [[ "$item_type" == "multistate" ]]; then
-        multistate_cycle "$item_id" "$direction"
-        return 0
-    fi
+    case "$item_type" in
+        checkbox)
+            # RIGHT = select (check), LEFT = deselect (uncheck)
+            if [[ "$direction" == "right" ]]; then
+                if [[ "$section_type" == "single" ]]; then
+                    # Radio button - clear others first
+                    local items="${MENU_SECTION_ITEMS[$section_id]}"
+                    IFS=',' read -ra arr <<< "$items"
+                    for it in "${arr[@]}"; do
+                        MENU_VALUES[$it]=0
+                    done
+                fi
+                MENU_VALUES[$item_id]=1
+            else
+                # LEFT = deselect (but not for single/radio sections)
+                if [[ "$section_type" != "single" ]]; then
+                    MENU_VALUES[$item_id]=0
+                fi
+            fi
+            return 0
+            ;;
+        multistate)
+            # LEFT/RIGHT cycles through multistate options
+            multistate_cycle "$item_id" "$direction"
+            return 0
+            ;;
+    esac
 
     return 1
 }
@@ -444,6 +521,7 @@ menu_render() {
     tui_clear
 
     local row=0
+    local global_index=0  # Track global item number for [1-9] jump
 
     # Header
     row=$(menu_render_header)
@@ -452,7 +530,11 @@ menu_render() {
     for ((s = 0; s < ${#MENU_SECTIONS[@]}; s++)); do
         local section_id="${MENU_SECTIONS[$s]}"
         local is_current=$([[ $s -eq $MENU_CURRENT_SECTION ]] && echo 1 || echo 0)
-        row=$(menu_render_section "$section_id" "$row" "$is_current")
+        # menu_render_section returns "row:global_index"
+        local result
+        result=$(menu_render_section "$section_id" "$row" "$is_current" "$global_index")
+        row="${result%:*}"
+        global_index="${result#*:}"
         ((row++))  # Space between sections
     done
 
@@ -488,6 +570,7 @@ menu_render_section() {
     local section_id="$1"
     local start_row="$2"
     local is_current="$3"
+    local global_index="${4:-0}"
 
     local title="${MENU_SECTION_TITLES[$section_id]}"
     local items="${MENU_SECTION_ITEMS[$section_id]:-}"
@@ -513,12 +596,14 @@ menu_render_section() {
                 highlight=1
             fi
 
-            menu_render_item "$item_id" "$row" "$highlight"
+            ((global_index++))
+            menu_render_item "$item_id" "$row" "$highlight" "$global_index"
             ((row++))
         done
     fi
 
-    echo "$row"
+    # Return both row and global_index
+    echo "$row:$global_index"
 }
 # }}}
 
@@ -527,6 +612,7 @@ menu_render_item() {
     local item_id="$1"
     local row="$2"
     local highlight="$3"
+    local item_num="${4:-}"
 
     local label="${MENU_ITEM_LABELS[$item_id]:-$item_id}"
     local desc="${MENU_ITEM_DESCRIPTIONS[$item_id]:-}"
@@ -537,11 +623,20 @@ menu_render_item() {
     tui_goto "$row" 0
     tui_clear_line
 
+    # Item number (1-9 shown, 10+ shown as *)
+    if [[ -n "$item_num" ]]; then
+        if [[ "$item_num" -le 9 ]]; then
+            echo -n "${TUI_DIM}${item_num}${TUI_RESET}"
+        else
+            echo -n "${TUI_DIM}*${TUI_RESET}"
+        fi
+    fi
+
     # Cursor indicator
     if [[ "$highlight" == "1" ]]; then
-        echo -n "${TUI_BOLD}▸ ${TUI_RESET}"
+        echo -n "${TUI_BOLD}▸${TUI_RESET}"
     else
-        echo -n "  "
+        echo -n " "
     fi
 
     case "$type" in
@@ -638,7 +733,7 @@ menu_render_footer() {
     ((row++))
     tui_goto "$row" 0
     tui_box_line "$TUI_COLS" \
-        "${TUI_YELLOW}[a]${TUI_RESET} All  ${TUI_YELLOW}[n]${TUI_RESET} None  ${TUI_YELLOW}[g/G]${TUI_RESET} Top/Bottom  ${TUI_YELLOW}[r]${TUI_RESET} Run  ${TUI_YELLOW}[q]${TUI_RESET} Quit" \
+        "${TUI_YELLOW}[1-9]${TUI_RESET} Jump  ${TUI_YELLOW}[a]${TUI_RESET} All  ${TUI_YELLOW}[n]${TUI_RESET} None  ${TUI_YELLOW}[g/G]${TUI_RESET} Top/Bot  ${TUI_YELLOW}[r]${TUI_RESET} Run  ${TUI_YELLOW}[q]${TUI_RESET} Quit" \
         left double
 
     ((row++))
@@ -682,6 +777,11 @@ menu_run() {
                     esac
                 fi
                 ;;
+            INDEX:*)
+                # Number key pressed - jump to that index (1-based)
+                local index="${key#INDEX:}"
+                menu_nav_to_global_index "$index"
+                ;;
             ALL)    menu_select_all ;;
             NONE)   menu_select_none ;;
             RUN)    return 0 ;;
@@ -712,6 +812,11 @@ menu_handle_key() {
                 echo "$action"
                 return
             fi
+            ;;
+        INDEX:*)
+            # Number key pressed - jump to that index (1-based)
+            local index="${key#INDEX:}"
+            menu_nav_to_global_index "$index"
             ;;
         ALL)    menu_select_all ;;
         NONE)   menu_select_none ;;
