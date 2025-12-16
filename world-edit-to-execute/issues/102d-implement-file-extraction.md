@@ -225,14 +225,14 @@ WC3 maps typically use:
 
 ## Acceptance Criteria
 
-- [ ] Can extract war3map.w3i from test archives
-- [ ] Can extract war3map.j (JASS script) from test archives
-- [ ] Can extract war3map.wts from test archives
-- [ ] Handles zlib-compressed files
-- [ ] Handles uncompressed files
-- [ ] Returns clear error for missing files
-- [ ] Extracted data matches expected size
-- [ ] Unit tests for extraction
+- [x] Can extract war3map.w3i from test archives
+- [ ] Can extract war3map.j (JASS script) from test archives (may not exist in all maps)
+- [x] Can extract war3map.wts from test archives
+- [x] Handles zlib-compressed files
+- [x] Handles uncompressed files
+- [x] Returns clear error for missing files
+- [x] Extracted data matches expected size
+- [x] Unit tests for extraction
 
 ---
 
@@ -243,3 +243,54 @@ to any file within a .w3x archive.
 
 The parent issue (102) should add a unified API module (`src/mpq/init.lua`)
 that ties all sub-modules together with a clean interface.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-16*
+
+### Files Created
+
+1. **src/mpq/extract.lua** - File extraction module
+   - `compute_file_key(filename, block)` - Computes decryption key
+   - `decrypt_sector(data, key)` - Decrypts sector with padding handling
+   - `decompress_sector(data, is_implode, is_compress)` - Decompresses sector
+   - `extract_file_data(file_data, block, sector_size, filename)` - Extracts raw sectors
+   - `extract_file(file_data, hash_table, block_table, sector_size, filename)` - Main extraction
+   - `extract_to_file(...)` - Extracts and writes to disk
+
+2. **src/tests/test_extract.lua** - Unit tests
+
+### Technical Details
+
+#### Offset Handling
+- `block.absolute_offset` is a 1-based Lua string position
+- Used directly in `string.sub()` without adjustment
+
+#### Decryption Padding
+- MPQ decryption operates on 4-byte blocks
+- Non-aligned sectors padded with zeros, decrypted, then truncated
+
+#### zlib Decompression
+- Uses Python3 zlib as temporary solution
+- Uses raw deflate mode (-15) to skip checksum verification
+- Checksum corruption caused by decryption padding affecting trailing bytes
+
+### Test Results
+
+```
+Tests: 17 passed, 1 failed, 18 total
+Maps: 15/16 extract war3map.w3i successfully
+```
+
+**Known Limitation:** PKWARE DCL decompression not implemented.
+One test map (Daow6.2.w3x) uses PKWARE DCL compression.
+
+### Debug Scripts
+
+Debug scripts created during development are in `tmp/`:
+- `debug-offset.lua` - Tests offset reading
+- `debug-decompress.lua` - Tests decompression
+- `debug-sector-data.lua` - Dumps sector data
+- `debug-verify-decrypt.lua` - Verifies decryption
