@@ -53,6 +53,10 @@ MENU_HEADER_HEIGHT=4
 MENU_FOOTER_HEIGHT=4
 MENU_FLAG_WIDTH=10                    # Width of flag value display box
 
+# Render state (used to return values from render functions without subshells)
+MENU_RENDER_ROW=0
+MENU_RENDER_GLOBAL_INDEX=0
+
 # ============================================================================
 # Initialization
 # ============================================================================
@@ -655,21 +659,19 @@ menu_render() {
     tui_clear
 
     local row=0
-    local global_index=0  # Track global item number for [1-9] jump
+    MENU_RENDER_GLOBAL_INDEX=0  # Track global item number for [1-9] jump
 
     # Header
-    row=$(menu_render_header)
+    menu_render_header
+    row=$MENU_RENDER_ROW
 
     # Sections
     for ((s = 0; s < ${#MENU_SECTIONS[@]}; s++)); do
         local section_id="${MENU_SECTIONS[$s]}"
         local is_current=$([[ $s -eq $MENU_CURRENT_SECTION ]] && echo 1 || echo 0)
-        # menu_render_section returns "row:global_index"
-        local result
-        result=$(menu_render_section "$section_id" "$row" "$is_current" "$global_index")
-        row="${result%:*}"
-        global_index="${result#*:}"
-        ((row++))  # Space between sections
+        menu_render_section "$section_id" "$row" "$is_current"
+        row=$MENU_RENDER_ROW
+        ((++row))  # Space between sections
     done
 
     # Footer
@@ -695,7 +697,7 @@ menu_render_header() {
     tui_goto 3 0
     tui_box_separator "$TUI_COLS" double
 
-    echo 4
+    MENU_RENDER_ROW=4
 }
 # }}}
 
@@ -704,7 +706,6 @@ menu_render_section() {
     local section_id="$1"
     local start_row="$2"
     local is_current="$3"
-    local global_index="${4:-0}"
 
     local title="${MENU_SECTION_TITLES[$section_id]}"
     local items="${MENU_SECTION_ITEMS[$section_id]:-}"
@@ -713,11 +714,11 @@ menu_render_section() {
     # Section title
     tui_goto "$row" 2
     tui_bold "$title"
-    ((row++))
+    ((++row))
 
     tui_goto "$row" 2
     tui_hline "${#title}" "─"
-    ((row++))
+    ((++row))
 
     # Items
     if [[ -n "$items" ]]; then
@@ -730,14 +731,14 @@ menu_render_section() {
                 highlight=1
             fi
 
-            ((global_index++))
-            menu_render_item "$item_id" "$row" "$highlight" "$global_index"
-            ((row++))
+            ((++MENU_RENDER_GLOBAL_INDEX))
+            menu_render_item "$item_id" "$row" "$highlight" "$MENU_RENDER_GLOBAL_INDEX"
+            ((++row))
         done
     fi
 
-    # Return both row and global_index
-    echo "$row:$global_index"
+    # Set global return value
+    MENU_RENDER_ROW=$row
 }
 # }}}
 
