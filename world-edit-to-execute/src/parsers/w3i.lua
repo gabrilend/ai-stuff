@@ -1,6 +1,10 @@
 -- war3map.w3i Parser
 -- Parses WC3 map info files containing metadata: name, players, forces, etc.
 -- Supports Frozen Throne (version 25) and Reign of Chaos (version 18) formats.
+-- Compatible with both LuaJIT and Lua 5.3+.
+
+local compat = require("compat")
+local band, lshift, rshift = compat.band, compat.lshift, compat.rshift
 
 local w3i = {}
 
@@ -13,6 +17,7 @@ local PLAYER_TYPES = {
 }
 
 local RACE_TYPES = {
+    [0] = "selectable",
     [1] = "human",
     [2] = "orc",
     [3] = "undead",
@@ -68,15 +73,15 @@ local FORCE_FLAGS = {
 
 -- {{{ Binary reading utilities
 local function read_int32(data, pos)
-    return string.unpack("<i4", data, pos)
+    return compat.unpack_int32(data, pos)
 end
 
 local function read_uint32(data, pos)
-    return string.unpack("<I4", data, pos)
+    return compat.unpack_uint32(data, pos)
 end
 
 local function read_float32(data, pos)
-    return string.unpack("<f", data, pos)
+    return compat.unpack_float(data, pos)
 end
 
 local function read_string(data, pos)
@@ -96,16 +101,16 @@ end
 -- Parses a bitmask into a table of boolean flags.
 local function parse_map_flags(value)
     local flags = { raw = value }
-    for name, bit in pairs(MAP_FLAGS) do
-        flags[name:lower()] = (value & bit) ~= 0
+    for name, flag_bit in pairs(MAP_FLAGS) do
+        flags[name:lower()] = band(value, flag_bit) ~= 0
     end
     return flags
 end
 
 local function parse_force_flags(value)
     local flags = { raw = value }
-    for name, bit in pairs(FORCE_FLAGS) do
-        flags[name:lower()] = (value & bit) ~= 0
+    for name, flag_bit in pairs(FORCE_FLAGS) do
+        flags[name:lower()] = band(value, flag_bit) ~= 0
     end
     return flags
 end
@@ -158,7 +163,7 @@ local function parse_forces(data, pos)
         -- Decode player mask into list
         force.players = {}
         for p = 0, 27 do
-            if (force.player_mask & (1 << p)) ~= 0 then
+            if band(force.player_mask, lshift(1, p)) ~= 0 then
                 force.players[#force.players + 1] = p
             end
         end
@@ -372,9 +377,9 @@ function w3i.parse(data)
 
         -- Extract RGB from BGRA
         local color = map.fog.color
-        map.fog.color_r = (color >> 16) & 0xFF
-        map.fog.color_g = (color >> 8) & 0xFF
-        map.fog.color_b = color & 0xFF
+        map.fog.color_r = band(rshift(color, 16), 0xFF)
+        map.fog.color_g = band(rshift(color, 8), 0xFF)
+        map.fog.color_b = band(color, 0xFF)
 
         -- Environment
         map.weather, pos = read_char4(data, pos)
@@ -392,16 +397,23 @@ function w3i.parse(data)
     -- Forces
     map.forces, pos = parse_forces(data, pos)
 
-    -- TFT: Upgrades and tech
-    if map.version >= 25 then
+    -- TFT: Upgrades and tech (optional - some maps don't have these)
+    if map.version >= 25 and pos + 4 <= #data then
         map.upgrades, pos = parse_upgrades(data, pos)
-        map.tech, pos = parse_tech(data, pos)
+
+        if pos + 4 <= #data then
+            map.tech, pos = parse_tech(data, pos)
+        end
 
         -- Random unit tables
-        map.random_unit_tables, pos = parse_random_unit_tables(data, pos)
+        if pos + 4 <= #data then
+            map.random_unit_tables, pos = parse_random_unit_tables(data, pos)
+        end
 
         -- Random item tables
-        map.random_item_tables, pos = parse_random_item_tables(data, pos)
+        if pos + 4 <= #data then
+            map.random_item_tables, pos = parse_random_item_tables(data, pos)
+        end
     end
 
     return map

@@ -1,7 +1,10 @@
 -- MPQ File Extraction
 -- Extracts files from MPQ archives with decryption and decompression.
 -- Uses Python3 zlib for decompression (temporary solution until pure Lua).
+-- Compatible with both LuaJIT and Lua 5.3+.
 
+local compat = require("compat")
+local band, bxor = compat.band, compat.bxor
 local hash = require("mpq.hash")
 
 local extract = {}
@@ -29,7 +32,7 @@ function extract.compute_file_key(filename, block)
 
     -- Adjust key if FIX_KEY flag is set
     if block.flags.fix_key then
-        key = ((key + block.file_offset) ~ block.uncompressed_size) & 0xFFFFFFFF
+        key = band(bxor(key + block.file_offset, block.uncompressed_size), 0xFFFFFFFF)
     end
 
     return key
@@ -130,15 +133,15 @@ function extract.decompress_sector(data, is_implode, is_compress)
         data = data:sub(2)
 
         -- Handle each compression in reverse order
-        if (flags & COMPRESSION.BZIP2) ~= 0 then
+        if band(flags, COMPRESSION.BZIP2) ~= 0 then
             return nil, "bzip2 decompression not implemented"
         end
 
-        if (flags & COMPRESSION.PKWARE) ~= 0 then
+        if band(flags, COMPRESSION.PKWARE) ~= 0 then
             return nil, "PKWARE DCL decompression not implemented"
         end
 
-        if (flags & COMPRESSION.ZLIB) ~= 0 then
+        if band(flags, COMPRESSION.ZLIB) ~= 0 then
             local decompressed = decompress_zlib(data)
             if not decompressed then
                 return nil, "zlib decompression failed"
@@ -146,7 +149,7 @@ function extract.decompress_sector(data, is_implode, is_compress)
             data = decompressed
         end
 
-        if (flags & COMPRESSION.HUFFMAN) ~= 0 then
+        if band(flags, COMPRESSION.HUFFMAN) ~= 0 then
             return nil, "Huffman decompression not implemented"
         end
 
@@ -163,7 +166,7 @@ local function read_sector_offsets(data, start_offset, num_entries)
     local offsets = {}
     for i = 0, num_entries - 1 do
         local pos = start_offset + (i * 4) + 1
-        offsets[i] = string.unpack("<I4", data, pos)
+        offsets[i] = compat.unpack_uint32(data, pos)
     end
     return offsets
 end

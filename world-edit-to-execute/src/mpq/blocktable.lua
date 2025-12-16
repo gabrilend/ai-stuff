@@ -1,7 +1,10 @@
 -- MPQ Block Table Parser
 -- Parses block tables to get file metadata: offset, sizes, compression, encryption.
 -- Each block describes how a file is stored in the archive.
+-- Compatible with both LuaJIT and Lua 5.3+.
 
+local compat = require("compat")
+local band = compat.band
 local hash = require("mpq.hash")
 
 local blocktable = {}
@@ -39,15 +42,15 @@ blocktable.COMPRESSION = {
 local function parse_flags(flags)
     local F = blocktable.FLAGS
     return {
-        implode       = (flags & F.IMPLODE) ~= 0,
-        compress      = (flags & F.COMPRESS) ~= 0,
-        encrypted     = (flags & F.ENCRYPTED) ~= 0,
-        fix_key       = (flags & F.FIX_KEY) ~= 0,
-        patch_file    = (flags & F.PATCH_FILE) ~= 0,
-        single_unit   = (flags & F.SINGLE_UNIT) ~= 0,
-        delete_marker = (flags & F.DELETE_MARKER) ~= 0,
-        sector_crc    = (flags & F.SECTOR_CRC) ~= 0,
-        exists        = (flags & F.EXISTS) ~= 0,
+        implode       = band(flags, F.IMPLODE) ~= 0,
+        compress      = band(flags, F.COMPRESS) ~= 0,
+        encrypted     = band(flags, F.ENCRYPTED) ~= 0,
+        fix_key       = band(flags, F.FIX_KEY) ~= 0,
+        patch_file    = band(flags, F.PATCH_FILE) ~= 0,
+        single_unit   = band(flags, F.SINGLE_UNIT) ~= 0,
+        delete_marker = band(flags, F.DELETE_MARKER) ~= 0,
+        sector_crc    = band(flags, F.SECTOR_CRC) ~= 0,
+        exists        = band(flags, F.EXISTS) ~= 0,
         raw = flags,
     }
 end
@@ -59,10 +62,10 @@ local function parse_entry(data, offset, archive_offset)
     local entry = {}
 
     -- Raw values from table
-    entry.file_offset = string.unpack("<I4", data, offset)
-    entry.compressed_size = string.unpack("<I4", data, offset + 4)
-    entry.uncompressed_size = string.unpack("<I4", data, offset + 8)
-    entry.flags_raw = string.unpack("<I4", data, offset + 12)
+    entry.file_offset = compat.unpack_uint32(data, offset)
+    entry.compressed_size = compat.unpack_uint32(data, offset + 4)
+    entry.uncompressed_size = compat.unpack_uint32(data, offset + 8)
+    entry.flags_raw = compat.unpack_uint32(data, offset + 12)
 
     -- Parse flags
     entry.flags = parse_flags(entry.flags_raw)
@@ -134,13 +137,13 @@ function blocktable.get_compression_name(first_byte)
     local C = blocktable.COMPRESSION
     local methods = {}
 
-    if (first_byte & C.HUFFMAN) ~= 0 then methods[#methods + 1] = "Huffman" end
-    if (first_byte & C.ZLIB) ~= 0 then methods[#methods + 1] = "zlib" end
-    if (first_byte & C.PKWARE) ~= 0 then methods[#methods + 1] = "PKWARE" end
-    if (first_byte & C.BZIP2) ~= 0 then methods[#methods + 1] = "bzip2" end
-    if (first_byte & C.SPARSE) ~= 0 then methods[#methods + 1] = "sparse" end
-    if (first_byte & C.ADPCM_MONO) ~= 0 then methods[#methods + 1] = "ADPCM-mono" end
-    if (first_byte & C.ADPCM_STEREO) ~= 0 then methods[#methods + 1] = "ADPCM-stereo" end
+    if band(first_byte, C.HUFFMAN) ~= 0 then methods[#methods + 1] = "Huffman" end
+    if band(first_byte, C.ZLIB) ~= 0 then methods[#methods + 1] = "zlib" end
+    if band(first_byte, C.PKWARE) ~= 0 then methods[#methods + 1] = "PKWARE" end
+    if band(first_byte, C.BZIP2) ~= 0 then methods[#methods + 1] = "bzip2" end
+    if band(first_byte, C.SPARSE) ~= 0 then methods[#methods + 1] = "sparse" end
+    if band(first_byte, C.ADPCM_MONO) ~= 0 then methods[#methods + 1] = "ADPCM-mono" end
+    if band(first_byte, C.ADPCM_STEREO) ~= 0 then methods[#methods + 1] = "ADPCM-stereo" end
 
     if #methods == 0 then
         return "none"

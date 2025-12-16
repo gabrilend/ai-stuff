@@ -1,6 +1,10 @@
 -- MPQ Header Parser
 -- Parses MPQ archive headers from Warcraft 3 map files (.w3x/.w3m).
 -- WC3 maps have a 512-byte HM3W wrapper header before the MPQ archive.
+-- Compatible with both LuaJIT and Lua 5.3+.
+
+local compat = require("compat")
+local band = compat.band
 
 local header = {}
 
@@ -13,19 +17,19 @@ local HM3W_HEADER_SIZE = 512
 
 -- {{{ read_uint32
 local function read_uint32(data, pos)
-    return string.unpack("<I4", data, pos)
+    return compat.unpack_uint32(data, pos)
 end
 -- }}}
 
 -- {{{ read_uint16
 local function read_uint16(data, pos)
-    return string.unpack("<I2", data, pos)
+    return compat.unpack_uint16(data, pos)
 end
 -- }}}
 
 -- {{{ read_int16
 local function read_int16(data, pos)
-    return string.unpack("<i2", data, pos)
+    return compat.unpack_int16(data, pos)
 end
 -- }}}
 
@@ -214,7 +218,7 @@ function header.validate(mpq)
 
     -- Hash table entries should be power of 2
     local hash_count = mpq.hash_table_entries
-    if hash_count > 0 and (hash_count & (hash_count - 1)) ~= 0 then
+    if hash_count > 0 and band(hash_count, hash_count - 1) ~= 0 then
         errors[#errors + 1] = "Hash table entries not power of 2: " .. hash_count
     end
 

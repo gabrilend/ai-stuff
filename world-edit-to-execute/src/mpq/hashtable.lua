@@ -1,7 +1,9 @@
 -- MPQ Hash Table Parser
 -- Parses and provides lookup for MPQ hash tables.
 -- The hash table maps filenames to block table indices.
+-- Compatible with both LuaJIT and Lua 5.3+.
 
+local compat = require("compat")
 local hash = require("mpq.hash")
 
 local hashtable = {}
@@ -16,11 +18,11 @@ local DELETED_SLOT = 0xFFFFFFFE  -- Deleted entry (continue search)
 -- Parses a single hash table entry (16 bytes).
 local function parse_entry(data, offset)
     local entry = {}
-    entry.hash_a = string.unpack("<I4", data, offset)
-    entry.hash_b = string.unpack("<I4", data, offset + 4)
-    entry.locale = string.unpack("<I2", data, offset + 8)
-    entry.platform = string.unpack("<I2", data, offset + 10)
-    entry.block_index = string.unpack("<I4", data, offset + 12)
+    entry.hash_a = compat.unpack_uint32(data, offset)
+    entry.hash_b = compat.unpack_uint32(data, offset + 4)
+    entry.locale = compat.unpack_uint16(data, offset + 8)
+    entry.platform = compat.unpack_uint16(data, offset + 10)
+    entry.block_index = compat.unpack_uint32(data, offset + 12)
     return entry
 end
 -- }}}
