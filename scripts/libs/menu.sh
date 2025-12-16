@@ -44,9 +44,14 @@ MENU_CURRENT_ITEM=0
 MENU_TITLE=""
 MENU_SUBTITLE=""
 
+# Inline editing state
+MENU_EDITING_ITEM=""                  # item_id being edited inline (empty = not editing)
+MENU_EDIT_BUFFER=""                   # current edit buffer for inline editing
+
 # Render settings
 MENU_HEADER_HEIGHT=4
 MENU_FOOTER_HEIGHT=4
+MENU_FLAG_WIDTH=10                    # Width of flag value display box
 
 # ============================================================================
 # Initialization
@@ -72,6 +77,10 @@ menu_init() {
     MENU_CURRENT_ITEM=0
     MENU_TITLE=""
     MENU_SUBTITLE=""
+
+    # Reset inline editing state
+    MENU_EDITING_ITEM=""
+    MENU_EDIT_BUFFER=""
 
     # Reset component states
     checkbox_init
@@ -113,7 +122,14 @@ menu_add_section() {
 # {{{ menu_add_item
 # Add an item to a section
 # Args: section_id item_id label [type] [config] [description]
-# Types: checkbox (default), multistate, number, text, action
+# Types: checkbox (default), multistate, number, text, action, flag
+#
+# Flag type config format: "default:width" (width optional, default 10)
+#   - Inline editable numeric value with right-justified display
+#   - Type numbers directly when highlighted
+#   - RIGHT sets to default, LEFT sets to 0 (disabled)
+#   - Backspace erases, Enter confirms
+#   - Value of 0 or empty means flag is disabled
 menu_add_item() {
     local section_id="$1"
     local item_id="$2"
@@ -153,6 +169,12 @@ menu_add_item() {
             ;;
         text)
             MENU_VALUES[$item_id]="${config:-}"
+            ;;
+        flag)
+            # Config format: "default:width" - inline editable value
+            # default = value to set on RIGHT, width = display width (default 10)
+            local default="${config%%:*}"
+            MENU_VALUES[$item_id]="${default:-0}"
             ;;
         action)
             # No value for actions
@@ -427,6 +449,118 @@ menu_handle_left_right() {
             multistate_cycle "$item_id" "$direction"
             return 0
             ;;
+        flag)
+            # RIGHT = set to default, LEFT = set to 0 (disable)
+            local config="${MENU_ITEM_CONFIG[$item_id]:-}"
+            local default="${config%%:*}"
+            if [[ "$direction" == "right" ]]; then
+                # Set to default (if there is one)
+                if [[ -n "$default" ]] && [[ "$default" != "0" ]]; then
+                    MENU_VALUES[$item_id]="$default"
+                    # Clear any editing state
+                    MENU_EDITING_ITEM=""
+                    MENU_EDIT_BUFFER=""
+                fi
+            else
+                # LEFT = disable (set to 0)
+                MENU_VALUES[$item_id]="0"
+                MENU_EDITING_ITEM=""
+                MENU_EDIT_BUFFER=""
+            fi
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+# }}}
+
+# {{{ menu_flag_start_edit
+# Start inline editing for a flag item
+menu_flag_start_edit() {
+    local item_id
+    item_id=$(menu_get_current_item_id)
+    [[ -z "$item_id" ]] && return 1
+
+    local item_type="${MENU_ITEM_TYPES[$item_id]:-checkbox}"
+    [[ "$item_type" != "flag" ]] && return 1
+
+    MENU_EDITING_ITEM="$item_id"
+    MENU_EDIT_BUFFER="${MENU_VALUES[$item_id]:-}"
+    # If current value is 0, start with empty buffer
+    [[ "$MENU_EDIT_BUFFER" == "0" ]] && MENU_EDIT_BUFFER=""
+    return 0
+}
+# }}}
+
+# {{{ menu_flag_commit_edit
+# Commit the current edit buffer to the flag value
+menu_flag_commit_edit() {
+    if [[ -n "$MENU_EDITING_ITEM" ]]; then
+        # Commit buffer to value (empty becomes 0)
+        local new_val="${MENU_EDIT_BUFFER:-0}"
+        MENU_VALUES[$MENU_EDITING_ITEM]="$new_val"
+        MENU_EDITING_ITEM=""
+        MENU_EDIT_BUFFER=""
+    fi
+}
+# }}}
+
+# {{{ menu_flag_handle_key
+# Handle a key during flag inline editing
+# Args: key
+# Returns: 0 if handled, 1 if should pass through
+menu_flag_handle_key() {
+    local key="$1"
+    local item_id
+    item_id=$(menu_get_current_item_id)
+
+    local item_type="${MENU_ITEM_TYPES[$item_id]:-checkbox}"
+
+    # If not on a flag item, don't handle
+    [[ "$item_type" != "flag" ]] && return 1
+
+    case "$key" in
+        INDEX:*)
+            # Digit pressed - start editing if not already, then append
+            local digit="${key#INDEX:}"
+            if [[ -z "$MENU_EDITING_ITEM" ]]; then
+                menu_flag_start_edit
+                MENU_EDIT_BUFFER="$digit"
+            else
+                MENU_EDIT_BUFFER="${MENU_EDIT_BUFFER}${digit}"
+            fi
+            return 0
+            ;;
+        BACKSPACE)
+            # Erase last character
+            if [[ -n "$MENU_EDITING_ITEM" ]] && [[ -n "$MENU_EDIT_BUFFER" ]]; then
+                MENU_EDIT_BUFFER="${MENU_EDIT_BUFFER%?}"
+            elif [[ -z "$MENU_EDITING_ITEM" ]]; then
+                # Start editing and clear the value
+                menu_flag_start_edit
+                MENU_EDIT_BUFFER=""
+            fi
+            return 0
+            ;;
+        SELECT)
+            # Enter commits the edit
+            if [[ -n "$MENU_EDITING_ITEM" ]]; then
+                menu_flag_commit_edit
+                return 0
+            fi
+            # If not editing, select could start editing
+            menu_flag_start_edit
+            return 0
+            ;;
+    esac
+
+    # Navigation keys should commit any pending edit
+    case "$key" in
+        UP|DOWN|TOP|BOTTOM|LEFT|RIGHT|TAB)
+            menu_flag_commit_edit
+            return 1  # Pass through to normal handling
+            ;;
     esac
 
     return 1
@@ -659,6 +793,9 @@ menu_render_item() {
         text)
             echo -n "  "
             ;;
+        flag)
+            echo -n "  "  # No checkbox prefix for flag (value shown inline)
+            ;;
         action)
             echo -n "  "
             ;;
@@ -702,6 +839,48 @@ menu_render_item() {
             local display_val="${value:0:30}"
             [[ ${#value} -gt 30 ]] && display_val="${display_val}..."
             echo -n " [${display_val}]"
+            ;;
+        flag)
+            # Inline editable value with right-justified display
+            local config="${MENU_ITEM_CONFIG[$item_id]:-}"
+            local default="${config%%:*}"
+            local width="${config#*:}"
+            [[ "$width" == "$config" ]] && width="$MENU_FLAG_WIDTH"
+            [[ -z "$width" ]] && width="$MENU_FLAG_WIDTH"
+
+            # Check if we're editing this item
+            local is_editing=0
+            local display_value="$value"
+            if [[ "$MENU_EDITING_ITEM" == "$item_id" ]]; then
+                is_editing=1
+                display_value="$MENU_EDIT_BUFFER"
+            fi
+
+            # Right-justify the value
+            local padded
+            printf -v padded "%${width}s" "$display_value"
+
+            echo -n ": ["
+            if [[ "$is_editing" == "1" ]]; then
+                # Editing mode - show cursor
+                echo -n "${TUI_INVERSE}${padded}${TUI_RESET}"
+            elif [[ "$value" == "0" ]] || [[ -z "$value" ]]; then
+                # Disabled (0 or empty) - dim
+                echo -n "${TUI_DIM}${padded}${TUI_RESET}"
+            else
+                # Active value
+                echo -n "${TUI_GREEN}${padded}${TUI_RESET}"
+            fi
+            echo -n "]"
+
+            # Show hint when highlighted
+            if [[ "$highlight" == "1" ]]; then
+                if [[ -n "$default" ]] && [[ "$default" != "0" ]]; then
+                    echo -n " ${TUI_DIM}(→=${default}, ←=off)${TUI_RESET}"
+                else
+                    echo -n " ${TUI_DIM}(←=off)${TUI_RESET}"
+                fi
+            fi
             ;;
         action)
             echo -n " ${TUI_CYAN}→${TUI_RESET}"
@@ -756,6 +935,11 @@ menu_run() {
         local key
         key=$(tui_read_key)
 
+        # First, try flag inline editing (handles digits, backspace, enter on flag items)
+        if menu_flag_handle_key "$key"; then
+            continue
+        fi
+
         case "$key" in
             UP)     menu_nav_up ;;
             DOWN)   menu_nav_down ;;
@@ -779,13 +963,20 @@ menu_run() {
                 ;;
             INDEX:*)
                 # Number key pressed - jump to that index (1-based)
+                # (only reached if not on a flag item)
                 local index="${key#INDEX:}"
                 menu_nav_to_global_index "$index"
                 ;;
             ALL)    menu_select_all ;;
             NONE)   menu_select_none ;;
-            RUN)    return 0 ;;
-            QUIT|ESCAPE) return 1 ;;
+            RUN)
+                menu_flag_commit_edit  # Commit any pending flag edit
+                return 0
+                ;;
+            QUIT|ESCAPE)
+                menu_flag_commit_edit  # Commit any pending flag edit
+                return 1
+                ;;
         esac
     done
 }
