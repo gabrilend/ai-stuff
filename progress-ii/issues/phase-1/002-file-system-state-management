@@ -1,0 +1,43 @@
+# Issue 002: File System State Management
+
+## Current Behavior
+No state management system exists. Game cannot persist or load state data.
+
+## Intended Behavior
+Implement a file system-based state management system that stores all game data as files and directories, allowing for persistent game state across sessions.
+
+## Suggested Implementation Steps
+1. Design directory structure for game state storage (characters/, world/, logs/, saves/)
+2. Create state management functions with vimfolds:
+   - save_game_state()
+   - load_game_state()
+   - initialize_new_game()
+   - validate_state_integrity()
+3. Implement character data storage (Maxine and companions)
+4. Create world state file management (environmental variables, locations)
+5. Add configuration file handling (HDD path, logging mode)
+6. Implement state serialization (both human-readable and binary formats)
+7. Add error handling for corrupted or missing state files
+8. Create backup and recovery mechanisms
+
+## Related Documents
+- docs/technical-architecture.md (Storage Architecture section)
+- notes/vision (lines 14-42 about filesystem integration)
+
+## Acceptance Criteria
+- Game state persists between sessions
+- Character data is correctly saved and loaded
+- World state variables are maintained
+- Configuration settings are preserved
+- Both human-readable and serialized formats work
+- State corruption is detected and handled
+- Backup mechanisms prevent data loss
+
+## Priority
+High - Required for game persistence
+
+## Estimated Effort
+4-6 hours
+
+## Dependencies
+- Issue 001 (Basic Terminal Interface) - for integration testing

@@ -1,0 +1,29 @@
+first you gotta build an entire simulation of the game mechanics. Essentially,
+building the game from scratch without any of the graphics. Sorta like those
+aimbot games for Overwatch, or KSU or w/e the aim training game was. Then,
+map the relationship between various objects in the game to a table situated
+a level above them. So, like, a barrel can be climbed on or walls can be used
+as cover or w/e the game you're playing is. Have a table one level above that
+relationship (an abstraction, if you will) and record the conclusion. Then take
+one more step back, then another, and another, all the way to the present.
+
+   Essentially, processing backward.
+
+Eventually you'll get to the present moment, and ideally you'd do it in one
+step - this is why it's important to map things on two dimensional planes, so
+that you can aim. Anyway here's the steps: 1. recognize the environment, 2.
+Take one step backward from each object in the environment (predicting it's 
+motion, you might say) and on and on gathering ideas about how git'll move
+next. Draw a 2d line (on a map, as the crow flies) then another about halfway
+to the target and it'll be +/- a certain amount. So you'll add another dot on
+the graphed line at x=(1/2 of the distance) - x being of course the distance
+and y being concieved of as the distance from the shortest possible route.
+
+   sorta like throwing a ball at a wall and making ripples.
+
+the projected cone is a field of perception - the interpretation of what's at
+stake. Life, and existence, is little more than a perspective applied on (or by
+) a biological machine. What separates the man from the animal? Nothing but
+time, as all evolution teaches us.
+
+

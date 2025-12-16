@@ -1,0 +1,17 @@
+-- combat between two units is fairly simple. A unit applies their damage value
+-- to an enemy's health value. When a unit reaches zero hit points or below,
+-- they die.
+--
+-- when engaged in melee combat, some units have the ability to parry. If so, a
+-- unit will parry any attack that deals less than a threshold of damage (for
+-- example a unit who is dealt a crushing blow of 20 damage in one hit will not
+-- be able to block that hit - it is too powerful. However another unit might be
+-- strong enough to parry it, depending on their strength) after parrying an
+-- attack, their chance to parry drops by 5%. Whenever they are hit by an attack
+-- their chance to parry increases by 5%. Most hits deal 1d6 points of damage,
+-- and most units have between 5 and 15 health points. Some large monsters may
+-- have as much as 40 or 60 health points.
+--
+-- ranged attacks always hit.
+--
+-- spell attacks always hit.

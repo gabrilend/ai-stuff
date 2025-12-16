@@ -1,0 +1,41 @@
+-- units are small, mobile creatures that wander the map in a general direction
+-- looking for foes to fight. They are created at buildings and they move toward
+-- any nearby foes that are in their current room. When in range, they will try
+-- and attack their foes.
+--
+-- if they are melee creatures, they will try to first
+-- move to the foe's location (radius_of_foe + radius_of_self units away from
+-- the target's center) and then they will attack. As they do so, they will try
+-- and orbit their foe, switching to new targets if necessary.
+--
+-- if they are ranged creatures, they will try to first move to the foe's
+-- location (radius_of_foe + radius_of_range units away from the target's
+-- center) and then they will attack. If an enemy moves close, they will try and
+-- move away. If an ally moves between them and their foe, they will adjust to
+-- try and maintain line-of-sight - if they cannot, after a second or two they
+-- will search for a different foe.
+--
+-- if they are support creatures, they will try to first move to their target's
+-- location (whether friend or foe, depending on the type of support they
+-- provide) and then they will use their abilities to help win the battle. For
+-- example, a healing character will first iterate through the list of all units
+-- in the room and build a small list of those who are damaged, sorted by their
+-- distance to the healer. This is an intentionally slow process, taking between
+-- 1 and 3 seconds depending on how many creatures are in the room. Then they
+-- will work through that list, healing each unit to full before re-generating
+-- the list.
+--
+-- ranged creatures have ammo. After exhausting their ammo, they can either move
+-- to replenish it from a nearby ammo source (a unit or a building or an item)
+-- or they can move into melee and engage in combat as a melee unit would.
+--
+-- when there are no enemy units in a room, they will wait until the room is
+-- captured. When the room is captured, they will leave through a random door,
+-- according to their preferences.
+--
+-- some creatures will prefer to move to rooms that have more allies than foes.
+-- others will prefer to move to rooms that have more foes than allies.
+-- others will prefer to move to rooms with fewer units total.
+-- others will prefer to move to rooms with the largest number of units total.
+-- others will have specific quests or goals in mind and will move to the rooms
+-- that enable them to achieve those quests or goals.

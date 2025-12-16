@@ -1,0 +1,41 @@
+# AI Playground Vision Document
+
+## Project Overview
+An interactive Love2d-based visualization tool for understanding neural network training processes, specifically focusing on gradient descent and backpropagation algorithms.
+
+## Core Objectives
+1. **Educational Visualization**: Create an intuitive visual representation of neural networks that shows the flow of data, weights, and gradients
+2. **Interactive Learning**: Allow users to modify network parameters, weights, and activation functions in real-time
+3. **Step-by-Step Training**: Provide granular control over the training process, enabling step-by-step execution of forward pass, loss calculation, and backpropagation
+4. **Formula Transparency**: Display and allow modification of mathematical formulas used in each step of the training process
+
+## Target Features
+- Visual representation of neurons with adjustable weights and biases
+- Real-time modification of network parameters through GUI controls
+- Step-by-step execution controls (pause, step forward, step backward)
+- Live display of gradients, loss values, and parameter updates
+- Customizable activation functions and loss functions
+- Interactive formula editing for mathematical operations
+- Visual gradient flow during backpropagation
+- Training data visualization and manipulation
+
+## Technical Requirements
+- **Framework**: Love2d (Lua-based game engine)
+- **Graphics**: 2D visualization with clear neuron representations
+- **Interactivity**: Mouse and keyboard controls for parameter adjustment
+- **Performance**: Real-time updates without lag
+- **Modularity**: Clean separation between neural network logic and visualization
+
+## Educational Goals
+- Demystify the "black box" of neural network training
+- Provide hands-on understanding of gradient descent optimization
+- Illustrate the mathematical foundations of backpropagation
+- Enable experimentation with different network architectures and parameters
+- Foster intuitive understanding of how neural networks learn
+
+## Success Metrics
+- Users can visually track how gradients flow backward through the network
+- Parameter changes result in immediate visual feedback
+- Training process can be paused and inspected at any step
+- Users can modify formulas and see the impact on network behavior
+- Clear visualization of convergence and learning dynamics

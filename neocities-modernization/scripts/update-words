@@ -1,0 +1,12 @@
+#!/bin/bash
+# Syncs words/notes/images from backup locations to project input directory
+# Suppresses verbose rsync output to keep run.sh clean
+
+set -euo pipefail
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+
+/home/ritz/backups/words/sync-to-projects > /dev/null 2>&1
+
+# Remove unwanted ZIP files that get synced but aren't content archives
+rm -f "${DIR}/input/images/poem-pictures/neocities-ritz-menardi.zip"

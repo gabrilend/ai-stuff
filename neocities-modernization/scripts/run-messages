@@ -1,0 +1,177 @@
+#!/bin/bash
+# Messages content extraction script  
+# Extracts personal messages from ZIP archives and processes them
+
+set -euo pipefail
+
+# {{{ setup_dir_path
+setup_dir_path() {
+    if [ -n "$1" ]; then
+        echo "$1"
+    else
+        echo "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+    fi
+}
+# }}}
+
+# Parse command line arguments for project directory
+SCRIPT_DIR=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            SCRIPT_DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+# Set up project directory
+PROJECT_DIR=$(setup_dir_path "$SCRIPT_DIR")
+
+# Use project input directory
+DIR="${PROJECT_DIR}/input"
+ZIP_FILE_NAME="similar-different.zip"
+
+mkdir -p "${DIR}/extract"
+
+#unnecessary unless the script crashes
+rm -drf "${DIR}/extract"
+
+unzip -o -qq "${DIR}/${ZIP_FILE_NAME}" -d "${DIR}/extract/"
+mv ${DIR}/extract/* ${DIR}/extract/export
+
+cd "${DIR}"
+luajit "${PROJECT_DIR}/scripts/extract-messages.lua" "${PROJECT_DIR}"
+cd -
+
+rm -drf "${DIR}/extract"
+
+# timestamps
+for file in "${DIR}/files/"*.txt; do
+    file_date=$(head -n 1 "$file")
+    tail -n +2 "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+    touch -d "$file_date" "$file"
+done
+
+# blacklisted messages
+function delete-message(){
+   rm "${DIR}/files/${1}.txt"
+}
+
+# {{{
+delete-message 0001
+delete-message 0448
+delete-message 0265
+delete-message 0153
+delete-message 0057
+delete-message 0059
+delete-message 0183
+delete-message 0040
+delete-message 0038
+delete-message 0051
+delete-message 0064
+delete-message 0056
+delete-message 0241
+delete-message 0039
+delete-message 0014
+delete-message 0074
+delete-message 0157
+delete-message 0007
+delete-message 0253
+delete-message 0047
+delete-message 0072
+delete-message 0044
+delete-message 0063
+delete-message 0027
+delete-message 0036
+delete-message 0050
+delete-message 0048
+delete-message 0067
+delete-message 0015
+delete-message 0042
+delete-message 0008
+delete-message 0058
+delete-message 0031
+delete-message 0066
+delete-message 0046
+delete-message 0065
+delete-message 0023
+delete-message 0049
+delete-message 0068
+delete-message 0120
+delete-message 0134
+delete-message 0019
+delete-message 0017
+delete-message 0184
+delete-message 0158
+delete-message 0222
+delete-message 0236
+delete-message 0013
+delete-message 0016
+delete-message 0028
+delete-message 0041
+delete-message 0009
+delete-message 0010
+delete-message 0011
+delete-message 0012
+delete-message 0021
+delete-message 0035
+delete-message 0037
+delete-message 0054
+delete-message 0055
+delete-message 0060
+delete-message 0061
+delete-message 0062
+delete-message 0069
+delete-message 0070
+# }}}
+
+# combined messages
+function combine-messages(){
+   # first generate a random color:
+   foreground_color=0
+   background_color=4
+   while [ "${background_color}" -eq 4 ]; do
+      background_color=$(shuf -i 1-7 -n 1)
+   done
+ 
+   FILE1="$(cat ${DIR}/files/${1}.txt)"
+   FILE2="$(cat ${DIR}/files/${2}.txt)"
+   rm "${DIR}/files/${1}.txt"
+   rm "${DIR}/files/${2}.txt"
+   touch "${DIR}/files/${1}.txt"
+   echo "${FILE1} " > "${DIR}/files/${1}.txt"
+   echo -e "\033[3${foreground_color}m" >> "${DIR}/files/${1}.txt"
+   echo -e "\033[4${background_color}m" >> "${DIR}/files/${1}.txt"
+   echo "${FILE2}" >> "${DIR}/files/${1}.txt"
+
+}
+
+# {{{
+combine-messages 0240 0242
+combine-messages 0240 0243
+combine-messages 0240 0244
+combine-messages 0209 0210
+combine-messages 0209 0211
+combine-messages 0209 0212
+combine-messages 0259 0260
+combine-messages 0333 0334
+combine-messages 0335 0336
+combine-messages 0335 0337
+combine-messages 0335 0338
+combine-messages 0335 0339
+combine-messages 0335 0340
+combine-messages 0335 0341
+combine-messages 0335 0342
+combine-messages 0335 0343
+combine-messages 0335 0344
+combine-messages 0335 0345
+combine-messages 0335 0346
+combine-messages 0335 0347
+combine-messages 0335 0348
+# }}}
+

@@ -1,0 +1,15 @@
+Factory War is a game about creating factories and defeating your opponents.
+The gameplay is similar to Supreme Commander, but without any of the micro.
+Units move without being prompted, and if without orders will self destruct.
+Therefore, it is important to give them orders if you wish to defeat your foes.
+
+the gameplay involves building factories to help scale faster and better than
+your opponent, while also using those factories to create units which will
+reinforce frontlines and push your foes back, thus securing resource nodes for
+you or your team. By claiming a larger portion of the map, you increase your
+resources, and in doing so help secure a victory for yourself and your team.
+
+The game has air, land, and naval combat. The land combat is implemented first,
+while air and naval are supplementary.
+
+land units include tanks, 

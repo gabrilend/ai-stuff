@@ -1,0 +1,133 @@
+#!/bin/bash
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/words-pdf"
+
+# Backup Claude conversation transcripts
+echo "Backing up Claude conversation transcripts..."
+if command -v python3 &> /dev/null && [ -f /home/ritz/programming/ai-stuff/scripts/backup-conversations ]; then
+    source /home/ritz/programming/ai-stuff/scripts/backup-conversations
+    write-transcripts-to-project-directory "${DIR}" 2>/dev/null || echo "  (No new transcripts to backup)"
+else
+    echo "  (Transcript backup unavailable - missing python3 or backup-conversations script)"
+fi
+
+# Check if WebAssembly module needs building
+if [ ! -f "${DIR}/src/spacebar-handler.wasm" ]; then
+    echo "Building WebAssembly module for web interface..."
+    "${DIR}/build-wasm.sh" "${DIR}"
+fi
+
+export \
+   LD_LIBRARY_PATH=${DIR}/libs/libharu-RELEASE_2_3_0/build/src:$LD_LIBRARY_PATH
+
+# {{{ Interactive poem ordering selection function
+show_poem_ordering_menu() {
+    echo "========================================"
+    echo "WORDS-PDF - POEM ORDERING SELECTION"
+    echo "========================================"
+    echo ""
+    echo "📝 Available poem ordering methods:"
+    echo "   [1] Normal - Original poem order (default)"
+    echo "   [2] Reverse - Sophisticated reverse ordering with cross-compilation validation"
+    echo "   [3] Both - Generate both versions with different output names"
+    echo ""
+    echo "🎯 Select ordering method:"
+    echo "   • Index selection: 1, 2, 3"
+    echo "   • Vim-style: 'i' to confirm selection"
+    echo -n "   Choice: "
+    
+    read selected_choice
+    
+    # Validate selection
+    case "$selected_choice" in
+        1|"normal")
+            echo "✅ Selected: Normal poem ordering"
+            POEM_ORDERING="normal"
+            ;;
+        2|"reverse") 
+            echo "✅ Selected: Reverse ordering with cross-compilation validation"
+            POEM_ORDERING="reverse"
+            ;;
+        3|"both")
+            echo "✅ Selected: Both versions (dual output)"
+            POEM_ORDERING="both"
+            ;;
+        "i")
+            echo "📋 Please first select 1, 2, or 3, then use 'i' to confirm"
+            show_poem_ordering_menu
+            return
+            ;;
+        *)
+            echo "❌ Invalid selection: $selected_choice"
+            echo "   Valid options: 1 (normal), 2 (reverse), 3 (both)"
+            echo ""
+            show_poem_ordering_menu
+            return
+            ;;
+    esac
+    
+    echo ""
+    echo "🔧 Configuration:"
+    echo "   Poem Ordering: $POEM_ORDERING"
+    echo "   Input File: ${DIR}/input/compiled.txt" 
+    echo ""
+}
+# }}}
+
+# Check if user wants to run web server or PDF generation
+if [ "${1:-pdf}" = "-I" ] || [ "${1}" = "interactive" ]; then
+    # Interactive mode for poem ordering selection
+    show_poem_ordering_menu
+    
+    # Generate PDF(s) based on selection
+    if [ "$POEM_ORDERING" = "both" ]; then
+        echo "📄 Generating normal ordering PDF..."
+        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "normal"
+        mv output.pdf "output-normal.pdf"
+        
+        echo "📄 Generating reverse ordering PDF..."  
+        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "reverse"
+        mv output.pdf "output-reverse.pdf"
+        
+        echo "✅ Generated both versions:"
+        echo "   📘 output-normal.pdf"
+        echo "   📗 output-reverse.pdf"
+    else
+        echo "📄 Generating PDF with $POEM_ORDERING ordering..."
+        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "$POEM_ORDERING"
+        
+        if [ "$POEM_ORDERING" = "reverse" ]; then
+            mv output.pdf "output-reverse.pdf"
+            echo "✅ Generated: 📗 output-reverse.pdf"
+        else
+            echo "✅ Generated: 📘 output.pdf"
+        fi
+    fi
+    
+elif [ "${1:-pdf}" = "web" ]; then
+    CHAR_LIMIT=${2:-80}  # Second argument is character limit (default 80)
+    echo "Starting simple continuous chat server (${CHAR_LIMIT} char limit)..."
+    luajit "${DIR}/src/web-server.lua" "${CHAR_LIMIT}"
+elif [ "${1}" = "web-chatbot" ]; then
+    CHAR_LIMIT=${2:-80}  # Second argument is character limit (default 80)
+    echo "Starting conversational chatbot server with WebAssembly security (${CHAR_LIMIT} char limit)..."
+    luajit "${DIR}/src/chatbot-server.lua" "${CHAR_LIMIT}"
+elif [ "${1}" = "web-old" ]; then
+    echo "Starting old web server..."
+    luajit "${DIR}/src/web-server-old.lua"
+else
+    # Default PDF generation with optional ordering parameter
+    ORDERING=${2:-"normal"}
+    echo "Generating PDF with $ORDERING ordering..."
+    lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "$ORDERING"
+    
+    if [ "$ORDERING" = "reverse" ]; then
+        mv output.pdf "output-reverse.pdf" 2>/dev/null || true
+        echo "✅ Generated: 📗 output-reverse.pdf"
+    else
+        echo "✅ Generated: 📘 output.pdf"
+    fi
+fi
+

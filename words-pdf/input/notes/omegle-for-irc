@@ -1,0 +1,32 @@
+I wonder if anyone's made "Omegle for IRC"? Like, 5 people get thrown in a room
+together for as long as they want - they can chat through text or whatever and
+like it doesn't matter, who cares, because in ~10 minutes nobody will care what
+you said
+
+I feel like a lot of people would express their true feelings. The people 
+running the service could set it up so that a personality profile is set up 
+(all locally, never seen by the company) and sent to the user through email. It
+would highlight potential weaknesses and give you ideas for how to improve.
+Sorta like, weaponized spying software that works FOR the user instead of
+against.
+
+It could also be used as sort of a... digital profile that would interface with 
+other applications. All locally, of course. ~~They could transmit to one another
+through open sourced and industry standard protocols, and frankly each
+interaction could use a *different* protocol. So like, you don't know whether 
+some packets are encoded in one way or another. They're also encrypted, so it's 
+like... twice as unlikely that you'll hack their bits or w/e.~~ dead end, sorry
+-> here's the real continuation: All locally, of course. Your "profile" would
+essentially be the best approximation of your personality, passed through a 
+large language model that is trained on EVERYONE's data. The inner workings of 
+an LLM are NOT understood by humanity, and I believe that's all that's necessary
+for some semblance of artificiality. Errr I mean Synthetic Intelligence. The
+reason why is that each individual user, the conversation partner, is a person 
+living their life. Every digital thing they interact with, even CAMERAS and
+MICROPHONES on PHONES would essentially be like... data gathering for the
+algorithm (Again, I want to stress, the algorithm that nobody *can* understand.)
+
+Idk. AI is a blackbox. I think that's okay. I think that running things locally 
+is important, at least until everyone's forgotten how to design AIs...
+
+The framework that these programs

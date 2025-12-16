@@ -1,0 +1,42 @@
+# Issue 002-B: State Serialization System
+
+## Current Behavior
+No serialization system exists for converting game state to/from persistent storage.
+
+## Intended Behavior
+Implement dual-format serialization system supporting both human-readable and binary formats for game state persistence.
+
+## Suggested Implementation Steps
+1. Design serialization format specifications
+2. Create serialization functions with vimfolds:
+   - serialize_state_human()
+   - serialize_state_binary()
+   - deserialize_state_human()
+   - deserialize_state_binary()
+3. Implement character data serialization
+4. Add world state serialization
+5. Create configuration serialization
+6. Implement format validation and conversion
+7. Add compression for binary format
+8. Create serialization testing and validation
+
+## Related Documents
+- notes/vision (lines 38-42 about dual format system)
+- Issue 002 (parent issue)
+
+## Acceptance Criteria
+- Both human-readable and binary formats work correctly
+- Character data serializes/deserializes without loss
+- World state is preserved accurately
+- Format conversion between types works
+- Serialization performance is acceptable
+- Data validation catches corruption
+
+## Priority
+High - Core persistence mechanism
+
+## Estimated Effort
+2-3 hours
+
+## Dependencies
+- Issue 002-A (State Directory Structure)

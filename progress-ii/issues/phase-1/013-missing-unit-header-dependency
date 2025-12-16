@@ -1,0 +1,40 @@
+# Issue 013: Missing unit.h Header Dependency
+
+## Current Behavior
+Adroit phase demo compilation fails with error:
+```
+./issues/completed/phase-1/main_funcs.c:6:10: fatal error: unit.h: No such file or directory
+    6 | #include "unit.h"
+      |          ^~~~~~~~
+compilation terminated.
+```
+
+The `unit.h` header file is referenced in main_funcs.c but does not exist in the adroit project structure.
+
+## Intended Behavior  
+Phase demos should compile successfully without missing header dependencies. The `unit.h` header should either:
+1. Be created with appropriate unit testing framework declarations, or
+2. Be replaced with existing header alternatives, or  
+3. Have the dependency removed if not needed
+
+## Suggested Implementation Steps
+1. **Analyze dependency**: Examine what functions/declarations from `unit.h` are actually used in main_funcs.c
+2. **Identify solution approach**:
+   - Option A: Create minimal `unit.h` with required declarations
+   - Option B: Replace with existing headers (e.g., `<assert.h>`, custom test framework)
+   - Option C: Remove dependency if it's legacy/unused code
+3. **Implement solution**: Create or modify headers as determined
+4. **Test compilation**: Verify phase demos compile successfully
+5. **Update build system**: Ensure consistent header management across phases
+
+## Related Files
+- `libs/adroit/issues/completed/phase-1/main_funcs.c` - File with missing include
+- `libs/adroit/src/` - Project source directory for potential header creation
+- `libs/adroit/Makefile` - Build system that may need header path updates
+
+## Issue Metadata
+- **Priority**: High (blocks demo compilation)
+- **Category**: Build System / Dependencies  
+- **Phase**: 1
+- **Affects**: Demo compilation, integration testing
+- **Est. Time**: 2-4 hours

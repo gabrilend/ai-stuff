@@ -1,0 +1,17 @@
+# API Keys and sensitive data
+.env
+*.key
+*_api_key*
+
+# Temporary files
+/tmp/*
+*_temp_*
+
+# Analysis results (optional - you might want to keep these)
+theme_analysis_*.json
+
+# PDF outputs (optional)
+*.pdf
+
+# Lua temporary files
+luac.out

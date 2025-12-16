@@ -1,0 +1,34 @@
+there is a requirement for a simple, easy to set-up, and easily replacable
+system which can be used for comms.
+
+Specifically running a variety of different services, such as fediverse
+instances, matrix for text-comms, VoIP, and distributed computing using Chapel
+or DistCC or other such capabilities. In addition, it should be able to run a
+file-server and a web-server which hosts an HTML page for the user.
+
+All of this functionality should be operational out-of-the-box, with minimal
+configuration required. No more than adding a checkbox to a config file in order
+to activate each individual service.
+
+This box should be cheap, and easy to provision. An image must be made, and
+some bash scripts should be written to easily configure it.
+
+In addition, there should be rudimentary programming capabilities included, just
+in-case a user is left with no other options. It should come pre-configured with
+SSH access out of the box, so it can be remotely controlled, and the languages
+included should be:
+   C/C++
+   Python
+   Lua
+   Bash
+   Rust
+   Chapel
+This should cover most surfaces in terms of programming capability requirements.
+
+In terms of hardware, it need be little more than a SoC such as a Raspberry Pi
+or other such hardware. It needs at a minimum an ethernet port, and USB ports.
+
+The box itself should cost no more than 40$, excluding provisioning and the cost
+to pay back whatever capital investments are necessary to create such a thing.
+
+

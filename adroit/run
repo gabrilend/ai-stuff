@@ -1,0 +1,23 @@
+#!/bin/bash
+
+project_name="adroit"
+
+project_path="/home/ritz/programming/c/games/${project_name}"
+raylib_path="/home/ritz/programming/c/libs/raylib/src/"
+frames_path="/home/ritz/programming/c/my-libs/frames/"
+
+clear
+
+cd ${project_path}
+
+gcc -pthread -Wall -g -Og -lm -o ${project_name} src/main.c -I${frames_path} -I${raylib_path}/include -L${raylib_path}/lib -lraylib -pthread |& tee ./compiler-log
+
+
+if [ "$?" = 0 ] ; then
+   ./${project_name} |& tee ./output
+fi
+
+rm ./${project_name}
+
+cd -
+

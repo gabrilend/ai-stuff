@@ -1,0 +1,89 @@
+First things first, we need to develop a miniature game of star realms.
+It shouldn't be too hard, just start with making a card class that has certain
+attributes, like "combat" or "discard" or whatever. They could literally be
+enums with a value attached.
+
+Next set up the rules of the game, like "draw 5 cards" and "add card to deck"
+Create a deck class that holds pointers to cards (in the general sense)
+Next create methods on that deck for things like "drawing a card" or
+"shuffling discard pile into deck" and whatnot. Arrange each card in a specific
+order for each shuffle, and add the ability to convert one card's attributes
+to something else - whether that be "is_scrapped" or "if you've played an X
+card this turn then do Y" or even "add one authority for every time card is
+played" (to simulate an ability or boon that increases in effectiveness as the
+hero uses it more often) etc etc.
+
+Then, add a trade row. This is just a class that contains pointers to each card
+that currently exists on it. Also add a method for "scrapping" one of the cards
+and for drawing a new card from the pile. That's pretty much it for the trade
+row to be honest.
+
+Next add functionality for an opponent by creating a "game" method that stores
+the two player's decks (with the ability to add more than 2) and administers
+turn order. This functionality can be expanded later once we've implemented
+attributes, but for now that's pretty much all it needs to do.
+
+    Finally, we get to the AI part.
+
+First we have to create an AI object that stores a list of all options for a
+turn. Essentially just evaluating every option if/then style - "this card costs
+5 coins so IF the player has enough coins THEN (evaluate effectiveness)"
+ignore that last part for a second and just focus on the IF part -> essentially
+just start with all available options, and then remove all the unavailable
+options from the list. This approach only works when there's just a few
+options, but that's why we're using Star Realms which only has like 2 or 3
+decisions per turn.
+
+The evaluation is the next step, and for that we need to have goals, so we'll
+just put a pin in evaluation for now. Spoiler alert, once we have goals we'll
+just estimate how close each choice will bring us to the objective and assign
+the result to the "effectiveness" value, which will give us a simple hard
+number to work with in the evaluation step.
+
+    So, next up we have "goals"
+
+So to create a short term goal, we can start with a pregenerated list and
+continuously increase the list as the hero levels up. But in the context of
+Star Realms, that'd essentially be static for each hero. Goals like "buy more
+combat" or "scrap more cards" would be specified on the hero's character
+sheet, but until we develop that functionality it can be randomly rolled.
+
+Why not just do it the hard way now if we're just going to have to refactor
+it later? Well, because we can still use this functionality - Each round of
+Star Realms could be either randomly rolled, or given a personality. Randomly
+rolling would be MUCH cheaper computationally, and would still give an illusion
+of character because they are unpredictable, but it'd also massively cut down
+on GPU cycles. You could even build it into the mechanics of the game and say
+that "wisdom" for example might cause a hero to receive more GPU cycles on
+actually computing their goals rather than randomly rolling them, which would
+on average lead to worse outcomes. Essentially, turning "tactics" into a stat.
+
+    Anyway, that's all theory. Let's get back to design:
+
+Create a "hero" object, and attach an AI to it. It doesn't have to do anything
+right now, we're just setting up an anchor point to jump off of once we move
+on to the game of Majesty. Give it a reference to an AI object, an inventory
+(which for now can just be potions and maybe blacksmith equipment), and a
+pointer to a "stat block"
+
+Now create a "character sheet" class and give it a reference to a hero. This is
+important because it allows one character sheet to reference multiple units,
+such as hirelings or summoned units. In additon, it may make it easier when we
+need to revive heroes from the dead. Primarily though, the purpose for this
+architecture style is that the data from heroes can be reused - essentially
+letting heroes learn from one another.
+
+On the character sheet, add a section that stores statistics - these will be
+the same for every unit of a similar type in the game, and some of them can be
+stored for all units (like health or x,y coordinates) - some only for buildings
+(like tax coffers) and some only for heroes and monsters (like strength or
+agility or experience points)
+
+Add some methods for manipulating those values, like "level up" and "take
+damage" and add a "personality" value that's just a 4d graph of colors
+for example: 40% red, 20% green, 15% blue, 25% yellow. These values will guide
+the hero to take certain decisions over others, but for now just randomly
+generate them. We'll also need a way to update the value dynamically to react
+to certain events, so don't make it static.
+
+

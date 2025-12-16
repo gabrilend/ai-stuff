@@ -1,0 +1,9 @@
+screenshot of the alt-text input field which has more characters available because the visual processing field (aka horses on treadmills) are helpingable too if you train them to do something besides horsing
+
+hero of the kingdom style strategy game with LoS for the units (scroll out-table
+like Supreme Commander) in lua tables that combine themselves or are organized
+in a tree-like structure a'la frames
+
+then there's a picture of some source code I wrote. it's a C program, and it defines a datastructure comprised of two bits each, and stackable into an array with associated modifier functions. the purpose of the structure is to represent compass-points (one byte (aka "word" in assembly) can store four of four directions. one frame holds "left, right, near or away" as possible values, and there are four frames in a byte (aka "word" in assembly).
+
+aka, a princess simulator, with actors performing the distant tasks in a way that corresponds to the nature of what's going on beyond them in a compass orientation composed fourier-transform combination style

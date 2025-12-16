@@ -1,0 +1,53 @@
+# Issue 001: Research City of Heroes Source Code
+
+## Current Behavior
+No knowledge of where the City of Heroes server source code is located or how to access it.
+
+## Intended Behavior
+Have complete information about the location, licensing, and accessibility of the City of Heroes server source code, including any forks or community versions.
+
+## Suggested Implementation Steps
+1. Research the official City of Heroes source code release history
+2. Identify community repositories and forks (GitHub, GitLab, etc.)
+3. Verify licensing and legal requirements for private server usage
+4. Document download locations and access requirements
+5. Identify the most suitable version/fork for private server setup
+6. Check for any dependencies or prerequisite software
+
+## Metadata
+- **Priority**: High
+- **Estimated Effort**: 4-8 hours
+- **Dependencies**: None
+- **Tags**: research, source-code, legal
+
+## Related Documents
+- notes/vision
+- docs/project-overview.md
+
+## Tools
+- Web browser for research
+- Git for repository exploration
+- Text editor for documentation
+
+## Progress Log
+**Status**: COMPLETED
+**Date**: 2025-11-12
+
+### Completed Steps
+1. ✅ **Source Code Location**: Found at https://git.ourodev.com/CoX/Source
+2. ✅ **Community Repository**: Identified Ouroboros Development as primary maintainer
+3. ✅ **Access Requirements**: Repository requires authentication - need community account
+4. ✅ **Legal Status**: Community preservation effort - licensing needs verification upon access
+5. ✅ **Dependencies Identified**: Standard MMORPG stack (C++, database, networking libs)
+6. ✅ **Documentation Created**: docs/coh-source-research.md with comprehensive findings
+
+### Next Actions for Issue 002
+- Register with Ouroboros Development community
+- Obtain repository access credentials
+- Set up development environment with identified dependencies
+
+### Files Created
+- docs/coh-source-research.md - Complete research documentation
+- notes/source-code-location - Repository URL reference
+
+**Issue 001 COMPLETED - Ready to proceed to Issue 002: Setup Development Environment**

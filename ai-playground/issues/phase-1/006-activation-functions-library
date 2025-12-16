@@ -1,0 +1,33 @@
+# Issue 006: Activation Functions Library
+
+## Current Behavior
+No activation function implementations exist.
+
+## Intended Behavior
+An activation functions library should provide:
+- Common activation functions (sigmoid, ReLU, tanh)
+- Derivative calculations for backpropagation
+- Function registration system for easy extension
+- Numerical stability considerations
+
+## Suggested Implementation Steps
+1. Create libs/neural/activation_functions.lua
+2. Implement sigmoid function and its derivative
+3. Implement ReLU function and its derivative  
+4. Implement tanh function and its derivative
+5. Create function registry system
+6. Add numerical stability improvements
+7. Create activation function selector interface
+
+## Priority
+Medium - Required for functional neurons
+
+## Estimated Effort
+3-4 hours
+
+## Dependencies
+- Issue 002 (Neuron class)
+
+## Related Documents
+- docs/architecture (Neural Network Engine section)
+- notes/vision (Formula Transparency goal)

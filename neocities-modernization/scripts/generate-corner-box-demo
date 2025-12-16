@@ -1,0 +1,207 @@
+#!/usr/bin/env lua
+
+-- Demo page generator for Issue 8-007: Corner Box Navigation Links
+-- Generates a single HTML page showcasing golden poems at various progress levels
+-- to demonstrate the adaptive junction characters (╧ vs ┴)
+
+-- {{{ local function setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path(arg and arg[1])
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+
+local utils = require("utils")
+local dkjson = require("dkjson")
+
+-- Load the flat-html-generator module
+local generator = dofile(DIR .. "/src/flat-html-generator.lua")
+
+-- {{{ local function find_golden_poems_at_progress_levels
+local function find_golden_poems_at_progress_levels(poems_data)
+    -- Find golden poems at approximately 5%, 25%, 50%, 75%, and 95% progress
+    local golden_poems = {}
+    local total_poems = #poems_data.poems
+
+    for i, poem in ipairs(poems_data.poems) do
+        if poem.content and #poem.content == 1024 then
+            local progress = (poem.id / total_poems) * 100
+            table.insert(golden_poems, {
+                poem = poem,
+                index = i,
+                progress = progress
+            })
+        end
+    end
+
+    -- Sort by progress
+    table.sort(golden_poems, function(a, b)
+        return a.progress < b.progress
+    end)
+
+    -- Select poems at target percentages (avoiding duplicates)
+    local targets = {5, 15, 50, 85, 97}
+    local selected = {}
+    local used_ids = {}
+
+    for _, target in ipairs(targets) do
+        local best = nil
+        local best_diff = 100
+        for _, gp in ipairs(golden_poems) do
+            local diff = math.abs(gp.progress - target)
+            if diff < best_diff and not used_ids[gp.poem.id] then
+                best_diff = diff
+                best = gp
+            end
+        end
+        if best then
+            table.insert(selected, best)
+            used_ids[best.poem.id] = true
+        end
+    end
+
+    return selected
+end
+-- }}}
+
+-- {{{ local function generate_demo_page
+local function generate_demo_page(poems_data, poem_colors, output_file)
+    local selected_poems = find_golden_poems_at_progress_levels(poems_data)
+    local total_poems = #poems_data.poems
+
+    -- HTML template
+    local html = [[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Corner Box Navigation Demo - Issue 8-007</title>
+</head>
+<body>
+<h1>Corner Box Navigation Demo</h1>
+<p>Issue 8-007: Box-Drawing Borders Around Navigation Links</p>
+<p>This demo showcases golden poems (exactly 1024 characters) at various progress levels.</p>
+<p>Notice how the bottom border junction characters adapt:</p>
+<ul style="text-align: left; display: inline-block;">
+<li><b>╧</b> - used when the junction is in the progress (═) section</li>
+<li><b>┴</b> - used when the junction is in the remaining (─) section</li>
+</ul>
+<p>Junction positions: left at position 9, right at position 70 (of 82-char interior)</p>
+<hr>
+<pre>
+]]
+
+    -- Add each selected poem
+    for i, gp in ipairs(selected_poems) do
+        local poem = gp.poem
+        local poem_id = poem.id
+
+        -- Calculate progress info
+        local progress_percentage = (poem_id / total_poems) * 100
+        local progress_chars = math.floor((progress_percentage / 100) * 82)
+
+        -- Determine junction characters
+        local left_junction = (9 < progress_chars) and "╧" or "┴"
+        local right_junction = (70 < progress_chars) and "╧" or "┴"
+
+        -- Add section header
+        html = html .. string.format([[
+<b>═══════════════════════════════════════════════════════════════════════════════════</b>
+<b>Poem #%d - Approximate progress by ID: %.1f%%</b>
+<b>(Note: Actual progress uses temporal ordering, so rendered junctions may differ)</b>
+<b>═══════════════════════════════════════════════════════════════════════════════════</b>
+
+]], poem_id, progress_percentage)
+
+        -- Get semantic color
+        local poem_color_data = poem_colors[poem_id]
+        local semantic_color = poem_color_data and poem_color_data.color or "gray"
+
+        -- Generate the poem with corner boxes using the actual generator
+        local progress_info = {
+            poem_id = poem_id,
+            total_poems = total_poems,
+            percentage = progress_percentage,
+            position = poem_id
+        }
+
+        -- We need to manually construct the output since we don't have direct access
+        -- to the internal functions. Let's extract from chronological.html instead
+        html = html .. string.format(" -> file: %s/%s.txt\n", poem.category or "unknown", poem_id)
+
+        -- Read the generated content for this poem from chronological.html
+        local chrono_file = io.open(DIR .. "/output/chronological.html", "r")
+        if chrono_file then
+            local chrono_content = chrono_file:read("*a")
+            chrono_file:close()
+
+            -- Find this poem's section
+            local pattern = string.format("%s/%d.txt", poem.category, poem_id)
+            local start_pos = chrono_content:find(pattern, 1, true)
+            if start_pos then
+                -- Find the end (next poem or end of pre)
+                local end_pos = chrono_content:find(" -> file:", start_pos + #pattern)
+                if not end_pos then
+                    end_pos = chrono_content:find("</pre>", start_pos)
+                end
+                if end_pos then
+                    local poem_section = chrono_content:sub(start_pos, end_pos - 1)
+                    -- Remove the file header since we already added it
+                    poem_section = poem_section:gsub("^[^\n]+\n", "")
+                    html = html .. poem_section
+                end
+            end
+        end
+
+        html = html .. "\n\n"
+    end
+
+    -- Close HTML
+    html = html .. [[
+</pre>
+<hr>
+<p><a href="chronological.html">View full chronological index</a></p>
+<p><i>Generated for Phase 8 - Issue 8-007</i></p>
+</body>
+</html>]]
+
+    -- Write output file
+    local f = io.open(output_file, "w")
+    if f then
+        f:write(html)
+        f:close()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ main
+local function main()
+    print("[INFO] Loading poems data...")
+    local poems_data = utils.read_json_file(DIR .. "/assets/poems.json")
+    if not poems_data then
+        print("[ERROR] Could not load poems data")
+        return
+    end
+
+    print("[INFO] Loading poem colors...")
+    local poem_colors_data = utils.read_json_file(DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json")
+    local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
+
+    print("[INFO] Generating corner box demo page...")
+    local output_file = DIR .. "/output/corner-box-demo.html"
+
+    if generate_demo_page(poems_data, poem_colors, output_file) then
+        print("[INFO] Demo page generated: " .. output_file)
+    else
+        print("[ERROR] Failed to generate demo page")
+    end
+end
+-- }}}
+
+main()

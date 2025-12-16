@@ -1,0 +1,91 @@
+this is an example of the golden poem format:
+
+╔══════════════════════════════════════════════════════════════════════════────────┐
+║                                                                                  │
+║                                                                                  │
+║                                                                                  │
+║                            poem text goes in here                                │
+║                                                                                  │
+║                                                                                  │
+║                                                                                  │
+╟─────────┐                                                            ┌───────────┤
+║ similar │                                                            │ different │
+╚═════════╧════════════════════════════════════════════════════════════╧═══════════┘
+
+
+this is an example of the regular poem format:
+
+ ═════════════════════════════════════════════════════════════════════════─────────
+
+                                poem text goes in here
+
+similar                                                                    different
+ ═════════════════════════════════════════════════════════════════════════─────────
+
+
+GOLDEN POEM SPECIFICATIONS:
+===========================
+
+Total visual width: 84 characters (including corner characters)
+
+Border structure:
+  - Top border:    ╔ + (progress × ═) + (remaining × ─) + ┐ = 84 chars
+  - Side borders:  ║ + space + 80 content + space + │ = 84 chars
+  - Bottom border: ╚ + (progress × ═) + (remaining × ─) + ┘ = 84 chars
+
+Width breakdown:
+  - Corner/border chars: 2 (║ and │, or ╔/╚ and ┐/┘)
+  - Padding spaces: 2 (one after ║, one before │)
+  - Content area: 80 characters (matches original poem formatting)
+
+The ═/─ transition in top/bottom borders represents chronological progress
+through the collection (═ = completed portion, ─ = remaining).
+
+Navigation links (similar/different) are rendered with CORNER BOXES:
+  - Separator line: ╟─────────┐ + 60 spaces + ┌───────────┤ = 84 chars
+  - Navigation line: ║ similar │ + 60 spaces + │ different │ = 84 chars
+  - Bottom junctions: ╧ where wall meets ═, ┴ where wall meets ─
+
+Corner box widths:
+  - Left (similar): 11 chars (╟/║ + space + "similar" + space + ┐/│)
+  - Right (different): 13 chars (┌/│ + space + "different" + space + ┤/│)
+  - Center gap: 60 chars (empty space)
+
+Bottom border junction positions (in 82-char interior, 0-indexed):
+  - Position 9: similar box wall
+  - Position 70: different box wall
+
+
+REGULAR POEM SPECIFICATIONS:
+============================
+
+Border structure:
+  - Top/bottom: space + (progress × ═) + (remaining × ─) = 83 chars
+
+The leading space aligns regular poems visually with golden poem borders.
+Content is rendered without side borders at 80 characters width.
+Navigation links appear OUTSIDE the separator bars at 82 characters width.
+
+
+UNICODE BOX-DRAWING CHARACTERS:
+===============================
+Main box:
+  ╔ (U+2554) - double down and right (top-left corner)
+  ═ (U+2550) - double horizontal (progress indicator)
+  ─ (U+2500) - light horizontal (remaining indicator)
+  ┐ (U+2510) - light down and left (top-right corner)
+  ║ (U+2551) - double vertical (left side)
+  │ (U+2502) - light vertical (right side)
+  ╚ (U+255A) - double up and right (bottom-left corner)
+  ┘ (U+2518) - light up and left (bottom-right corner)
+
+Corner box additions:
+  ╟ (U+255F) - double vertical and single right (left junction)
+  ┤ (U+2524) - light vertical and left (right junction)
+  ┌ (U+250C) - light down and right (different box top-left)
+  ╧ (U+2567) - up single and horizontal double (junction in ═ section)
+  ┴ (U+2534) - up and horizontal single (junction in ─ section)
+
+The asymmetric corners (double on left, light on right) create a distinctive
+visual style that transitions from the "completed" feeling of double lines
+to the "open" feeling of single lines.

@@ -1,0 +1,14 @@
+originally created may 28th 2022. The date has to be changed because it was
+moved, and linux considers moving a file to be the same thing as changing it.
+
+which I get, I guess, but really I'm concerned with the contents of the view.
+
+anyway, it was originally filed in: ~/pictures/my view.png, however there was
+a space in the name suggesting it was written hastily or in some state of
+inebriation. in addition, it was found in the wrong folder, when it should have
+been filed under: ~/pictures/my-art/my-view.png. This would have prevented the
+renaming operation, and thus preserved the authenticity of the file as it was
+created.
+
+this kind of documentation is important for my religion, so I practice it when
+I can.

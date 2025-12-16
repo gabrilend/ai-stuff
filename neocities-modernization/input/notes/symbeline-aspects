@@ -1,0 +1,135 @@
+7-24-22
+
+There are three aspects to this game. Broadly, they are military, economics,
+and diplomacy. More specifically, they are lateral problem solving and lane
+management, logistic traffic management, and a worker-placement bluffing game.
+
+These three aspects can be toggled on and off at will, essentially designating
+one or more as "AI controlled" and will require no input from the player. They
+will time their progression to be about at the same rate as the player, thus
+creating a balanced feel to the game. They also provide alerts and
+notifications to the player, for example if military is AI controlled and it
+needs a certain type of hero to progress, it'll ask for it specifically.
+
+Each aspect will develop and progress at it's own rate, and the difficulty
+increases as each milestone is achieved. This is to allow the player to create
+their own difficulty curve, mediated primarily by their drive to proceed.
+An analogy would be in Factorio, the game doesn't increase in difficulty unless
+the player builds pollution spawning factories - in the same way, in Symbeline
+the difficulty doesn't increase unless the player solves lane challenges in the
+military aspect, develops new trade routes / traffic paths in the economic
+aspect, or creates new treaties in the diplomatic aspect.
+
+In order to properly explain each aspect, a brief overview will be necessary.
+
+In Symbeline, the game plays as a factory might operate. The economic aspect
+produces heroes, items, and other deliverables that are consumed by the
+military and diplomatic aspects. There are various problems that need to be
+solved far from the capital, such as a particular type of monster that is weak
+or immune to various damage types which necessitates particular heroes or
+items in order to progress on the military aspect. All of the resources in the
+game operate on an "income based" system, where output is not measured in total
+amounts but rather in terms of how much is produced versus consumed. If the
+input cannot meet the demand, the output is slowed. If input exceeds demand it
+can be converted into gold which can be used to hire guards and heroes.
+Resources can be produced inside and outside of the city, depending on their
+type. But they need to be moved around to various shops for various processing
+and productive purposes, so pathways must be constructed to deliver those
+goods. In addition, each building must be supported by several houses for the
+workers to live in, and the closer they are to the building the better. The
+denizens of the kingdom don't mind being shuffled about, so they'll organize
+themselves according to what's most efficient. However they will not organize
+the paths they take to get places, which is the primary gameplay for the
+player - designing routes for each building and ensuring they don't overlap or
+cross too many times, causing traffic and disruptions to your income.
+
+Each choice the player makes is immediately reflected in the income
+calculation, thus allowing for the visual aspect of the game to be wholely
+separate from the economic side - in fact this is a common thread throughout
+all three aspects. Computation power is the ultimate enemy of scale, and this
+game flourishes with a massive scale.
+
+The gameplay for the military aspect consists of manipulating "lanes" that
+designate where each hero will adventure. These lanes are scalable to the
+player / AI's whims, with a careful balance required - too thin, and the heroes
+might not encounter enough monsters to level up. Too thick, and they may find
+themselves patrolling a vast wilderness full of dark and evil monsters. At the
+end of every lane is a "frontline", where progress has essentially been halted.
+These frontlines can develop as a result of meeting a foreign kingdoms front
+or finding a monster type or puzzle that is particularily difficult for your
+heroes to overcome. The lane / frontline can be scaled not just laterally, but
+linearly as well such that heroes will be a certain level when they reach the
+end - think scrolling on a mousewheel translating into deepening level zones.
+In addition, each monster zone can be set to a certain "security level" meaning
+how many monsters are there for your heroes to defeat. It's important that they
+have ample targets for training, however it's always more effective to train on
+monsters near their level so you have to be careful not to wipe out the native
+skeleton / goblin / troll population.
+
+Each monster zone can have a relationship with the kingdom, on a 2x2 matrix -
+cultivating / desecrating the land, and fostering / exterminating the monsters.
+The land produces monsters and treasures, while the monsters provide experience
+and danger to the heroes and kingdom denizens who live there. However by
+desecrating the land, farms may be built and by exterminating the monsters,
+those farms may be safe and require fewer guards. As ruler, you must balance
+the development of unique magical and alchemical productions with the need for
+food and other mundane requirements.
+
+Diplomacy is a careful balance of internal and external matters, played out
+through feasts, tournaments, and faires. Each of these events will require
+input from the economic side and military side, and will involve "courting"
+other nobles from neighboring kingdoms to sway them to supporting your edicts.
+When hosting an event, you may pick a particular topic of conversation for your
+nobles to discuss with their guests. You may also assign your nobles to
+attempt to engage with a particular foreign noble. Each member of your court
+has a differing personality (including you, the Majesty) and depending on how
+you assign them you may experience better or worse results - such as assigning
+someone who's kind to talk with someone who's cruel would impart a malus to
+their conversation. Unless the kind person has the trusting trait, in which
+case they'd succeed in this encounter but fall sway to them in future
+conversations... Complex interactions that all boil down to a single pair of
+d12 dice - one for your noble, one for the enemy. This represents the charisma
+of the two conversants on that particular day, and whoever wins the roll sways
+the other to supporting their edict. Speaking of edicts, they may include trade
+agreements, non-aggression pacts (lasting for a short time), and other
+regulations - perhaps your greatest rival utilizes necromancy, so it would
+behoove you to attempt to regulate the practice and limit it's effect. By
+swaying the nobles of their kingdom, you may be able to enact a mutual
+agreement to limit the usage of dark magics, essentially hamstringing their
+progress. But in order to learn of their necromantic usage, you'll need
+espionage... Which brings us to spies.
+
+Spies are similar to nobles in that they can be assigned to various roles,
+however they take a more passive role, acting in the background. The
+information they gather is compiled into a report that is presented at
+pertinent parts of the game, such as when preparing for a feast or inspecting
+an enemy frontline. These reports are considered the diplomatic deliverables,
+giving information and mechanical bonuses to many different parts of the game.
+They may be given three possible roles - information, defence, or offense.
+Offense involves placing cursed artifacts (creating through economy) in enemy
+lands, which debuff their heroes when used and bind themselves to them
+preventing their removal except through extraordinary means. Defence is
+essentially countering that in your own kingdom, and uncovering disloyalty in
+your nobles.
+
+These three aspects fit together like interlocking puzzle pieces, but each is
+able to be utilized or ignored depending on the preferences of the player.
+It is important that the game doesn't progress unless input is received. The
+simulation plays in the background, but each stage of development must be
+considered "stable" such that nothing changes. There are three different
+exceptions to this rule, one for each aspect:
+
+The military side encounters raids from enemy kingdoms and the dark lord.
+The economic side encounters raids from ratmen and moss trolls and bandits.
+The diplomatic side has a rolling schedule of events that must be attended.
+
+These three "exceptions" are recurrent events that require attention, but they
+don't *increase* in difficulty unless the player takes an action that causes
+it. Meaning, if the player overcomes the rock golems, then they are displaced
+from their home and join the dark lord in his conquests. If a new district is
+built new sewer connections must be built as well, creating a larger attack
+surface for ratmen to exploit. As time goes by, various foreign events must be
+attended, as absence causes your future events to attract fewer foreign nobles.
+
+By addressing these threats, your kingdom may grow and eventually overcome the
+dark lord at the center of the island.

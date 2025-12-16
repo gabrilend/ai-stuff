@@ -1,0 +1,45 @@
+draw a line from every single pixel straight outward. The first thing it hits
+is what you render.
+
+okay it's more complicated than that, but it's the gist.
+
+here's a more detailed explanation:
+
+your monitor is 2560x1440p. that means there's 2560 pixels left to right, and
+1440 pixels up and down. okay so define a 3d scene programmatically - it's not
+hard, just "draw cube here with this size and rotation" and "draw a sphere here
+with this position and rotation" etc. Something simple.
+
+then, draw a ray trace straight out from your monitor. Not to the nearest light
+source, but to the nearest other camera. Use the length of it to determine
+distance, both indirectly (through the center node) and directly (pythagorean
+theorum style).
+
+Why? I dunno.
+
+Okay back to the original idea, if you make an array with 2560 elements and
+store arrays of size 1440 within it, then you have a simple boolean checkbox
+for each pixel. Then, whenever you create a visible entity, make sure there's a
+single boolean ticked right on the top of the entity when it's stored in the
+graph mentioned above. Find the center of the entity, draw to the top, and one
+more, and switch a boolean to "true". Then, every tick / update, cycle through
+the entire list and the first one you find that has a "true" value is where you
+draw the entity stored in the array.
+
+Each "sprite" has an odd shape - it doesn't exist on it's top line, except for
+one single dot right in the middle. Sorta like this:
+
+o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o o
+o o o o o o o o o o o o o o o o o o ->X<- o o o o o o o o o o o o o o o o o o o
+x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+
+when scanning left to right from the top, it'd bump into the X right there in
+the middle. Inside the X is some data - an id corresponding to the sprite that
+needs to be drawn, and a displacement value - like 500 pixels or something -
+and the scanner with drop down 500 pixels, draw the sprite there (assuming a
+centered origin point), jump 500 pixels up, and keep scanning.
+
+each tick, right before this, the "list of entities" will scan through itself
+and for each entity it'll change the "render graph" mentioned above to have an
+X wherever the entity is stored. Whenever the camera moves, it updates the list
+too. 

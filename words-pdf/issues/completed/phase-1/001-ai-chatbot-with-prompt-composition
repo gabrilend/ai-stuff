@@ -1,0 +1,38 @@
+# Issue 001: AI Chatbot with Prompt Composition
+
+## Current Behavior
+No AI chatbot system exists in the current words-pdf project.
+
+## Intended Behavior
+Create an AI chatbot system that:
+- Composes prompts with 40% previous conversation (user responses only)
+- Includes 50% randomly sampled content from words.pdf or compiled.txt
+- Appends 10% user's next prompt and system status information
+- Uses Ollama for chat interface
+- Limits responses to exactly 80 characters
+- Provides computation speed feedback when system is idling
+
+## Suggested Implementation Steps
+1. Integrate Ollama chatbot framework into the project
+-- partial implementation already complete
+2. Create conversation history management system
+-- such system already exists, check out the project directory
+3. Implement random sampling from compiled.txt content
+-- be sure to split on the separation marks. but include them, top and bottom,
+   for each submission, to better delineate.
+-- make separate issues from this point below
+4. Build prompt composition engine with specified percentages
+5. Add 80-character response limiting functionality
+6. Implement system status monitoring for computation speed
+7. Create chat interface with proper formatting
+8. Test prompt composition ratios and response length constraints
+
+## Related Documents
+- input/compiled.txt (source for random sampling)
+- Main application: compile-pdf.lua
+
+## Meta-data
+- Priority: Medium
+- Complexity: High
+- Dependencies: Ollama, system monitoring tools
+- Estimated effort: Large (multiple components)

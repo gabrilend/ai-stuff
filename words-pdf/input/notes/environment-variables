@@ -1,0 +1,7 @@
+To edit environment variables:
+
+~/.bashrc is for variables only accessible by the user.
+
+/etc/profile is for variables accessible by all users.
+
+/etc/environment is for variables accessible by anyone.

@@ -1,0 +1,259 @@
+#!/usr/bin/env lua
+
+-- Quick diversity test - generates truncated difference page for validation
+-- Only calculates first 50 most different poems to avoid O(n²) full calculation
+
+-- {{{ local function setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path(arg and arg[1])
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+local dkjson = require("dkjson")
+
+-- {{{ local function relative_path
+local function relative_path(absolute_path)
+    if absolute_path:sub(1, #DIR) == DIR then
+        local rel = absolute_path:sub(#DIR + 1)
+        if rel:sub(1, 1) == "/" then rel = rel:sub(2) end
+        return "./" .. rel
+    end
+    return absolute_path
+end
+-- }}}
+
+-- {{{ function cosine_distance
+local function cosine_distance(vec1, vec2)
+    if #vec1 ~= #vec2 then
+        error("Vectors must have same dimension")
+    end
+
+    local dot_product = 0
+    local norm1 = 0
+    local norm2 = 0
+
+    for i = 1, #vec1 do
+        dot_product = dot_product + (vec1[i] * vec2[i])
+        norm1 = norm1 + (vec1[i] * vec1[i])
+        norm2 = norm2 + (vec2[i] * vec2[i])
+    end
+
+    norm1 = math.sqrt(norm1)
+    norm2 = math.sqrt(norm2)
+
+    if norm1 == 0 or norm2 == 0 then
+        return 1.0
+    end
+
+    local cosine_sim = dot_product / (norm1 * norm2)
+    return 1.0 - cosine_sim
+end
+-- }}}
+
+-- {{{ function calculate_embedding_centroid
+local function calculate_embedding_centroid(embeddings_list)
+    if #embeddings_list == 0 then
+        return nil
+    end
+
+    local embedding_dim = #embeddings_list[1]
+    local centroid = {}
+
+    for i = 1, embedding_dim do
+        centroid[i] = 0
+    end
+
+    for _, embedding in ipairs(embeddings_list) do
+        for i = 1, embedding_dim do
+            centroid[i] = centroid[i] + embedding[i]
+        end
+    end
+
+    for i = 1, embedding_dim do
+        centroid[i] = centroid[i] / #embeddings_list
+    end
+
+    return centroid
+end
+-- }}}
+
+-- {{{ function generate_truncated_diversity_sequence
+local function generate_truncated_diversity_sequence(starting_poem_id, poems_data, embeddings_data, max_poems)
+    max_poems = max_poems or 50
+    print(string.format("   Generating diversity sequence (first %d poems)...", max_poems))
+
+    local diversity_sequence = {}
+    local remaining_poems = {}
+    local selected_embeddings = {}
+
+    -- Build embedding lookup
+    local embedding_lookup = {}
+    for i, emb_entry in ipairs(embeddings_data.embeddings or {}) do
+        if emb_entry.id and emb_entry.embedding then
+            embedding_lookup[emb_entry.id] = emb_entry.embedding
+        end
+    end
+
+    -- Find starting poem and its embedding
+    local starting_poem = nil
+    local starting_embedding = nil
+
+    for _, poem in ipairs(poems_data.poems) do
+        if poem.id == starting_poem_id then
+            starting_poem = poem
+            starting_embedding = embedding_lookup[starting_poem_id]
+            break
+        end
+    end
+
+    if not starting_poem or not starting_embedding then
+        print("   Error: Could not find starting poem or embedding")
+        return {}
+    end
+
+    table.insert(diversity_sequence, {
+        id = starting_poem_id,
+        poem = starting_poem,
+        step = 1
+    })
+    table.insert(selected_embeddings, starting_embedding)
+
+    -- Create list of all other poems with embeddings
+    for _, poem in ipairs(poems_data.poems) do
+        if poem.id and poem.id ~= starting_poem_id then
+            local embedding = embedding_lookup[poem.id]
+            if embedding then
+                table.insert(remaining_poems, {
+                    id = poem.id,
+                    poem = poem,
+                    embedding = embedding
+                })
+            end
+        end
+    end
+
+    print(string.format("   Found %d poems with embeddings", #remaining_poems))
+
+    -- Progressive centroid-based selection (limited iterations)
+    local iterations = math.min(max_poems - 1, #remaining_poems)
+    for step = 1, iterations do
+        if step % 10 == 0 then
+            print(string.format("      Progress: %d/%d", step, iterations))
+        end
+
+        local centroid = calculate_embedding_centroid(selected_embeddings)
+        if not centroid then break end
+
+        local max_distance = -1
+        local max_distance_poem = nil
+        local max_distance_index = -1
+
+        for i, poem_info in ipairs(remaining_poems) do
+            local distance = cosine_distance(centroid, poem_info.embedding)
+            if distance > max_distance then
+                max_distance = distance
+                max_distance_poem = poem_info
+                max_distance_index = i
+            end
+        end
+
+        if max_distance_poem then
+            table.insert(diversity_sequence, {
+                id = max_distance_poem.id,
+                poem = max_distance_poem.poem,
+                step = #diversity_sequence + 1,
+                diversity_score = max_distance
+            })
+            table.insert(selected_embeddings, max_distance_poem.embedding)
+            table.remove(remaining_poems, max_distance_index)
+        else
+            break
+        end
+    end
+
+    return diversity_sequence
+end
+-- }}}
+
+-- Main execution
+print("=" .. string.rep("=", 60))
+print("Quick Diversity Test - Truncated Sequence")
+print("=" .. string.rep("=", 60))
+
+local poems_file = DIR .. "/assets/poems.json"
+local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+local output_dir = DIR .. "/output/test"
+
+print("🔄 Loading data files...")
+local poems_data = utils.read_json_file(poems_file)
+local embeddings_data = utils.read_json_file(embeddings_file)
+
+if not poems_data or not embeddings_data then
+    print("❌ Error loading data files")
+    os.exit(1)
+end
+
+print("✅ Data loaded")
+
+-- Test with poem ID 1 (or custom from arg[2])
+local test_poem_id = tonumber(arg and arg[2]) or 1
+
+-- Find the poem
+local test_poem = nil
+for _, poem in ipairs(poems_data.poems) do
+    if poem.id == test_poem_id then
+        test_poem = poem
+        break
+    end
+end
+
+if not test_poem then
+    print("❌ Poem ID " .. test_poem_id .. " not found")
+    os.exit(1)
+end
+
+print(string.format("\n🔍 Testing poem %d: %s/%d.txt", test_poem_id, test_poem.category or "unknown", test_poem_id))
+
+-- Generate truncated diversity sequence
+local diversity_sequence = generate_truncated_diversity_sequence(test_poem_id, poems_data, embeddings_data, 50)
+
+if #diversity_sequence > 0 then
+    print(string.format("\n✅ Generated diversity sequence: %d poems", #diversity_sequence))
+
+    -- Show top 10 most different
+    print("\n📊 Top 10 most different poems from starting poem:")
+    for i = 2, math.min(11, #diversity_sequence) do
+        local entry = diversity_sequence[i]
+        local preview = (entry.poem.content or ""):sub(1, 60):gsub("\n", " ")
+        print(string.format("   %2d. ID %d (%s) - score: %.4f",
+            i-1, entry.id, entry.poem.category or "?",
+            entry.diversity_score or 0))
+        print(string.format("       %s...", preview))
+    end
+
+    -- Generate HTML page with truncated content
+    os.execute("mkdir -p " .. output_dir .. "/different")
+    local flat_html_generator = require("flat-html-generator")
+
+    local html = flat_html_generator.generate_flat_poem_list_html(test_poem, diversity_sequence, "different", test_poem_id)
+    local output_file = string.format("%s/different/%03d.html", output_dir, test_poem_id)
+
+    if utils.write_file(output_file, html) then
+        print(string.format("\n✅ Difference page: %s", relative_path(output_file)))
+        print(string.format("   (Contains first %d most different poems)", #diversity_sequence))
+    else
+        print("❌ Failed to write HTML file")
+    end
+else
+    print("❌ Failed to generate diversity sequence")
+end
+
+print("\n📖 To view test pages:")
+print(string.format("   firefox %s/similar/%03d.html", relative_path(output_dir), test_poem_id))
+print(string.format("   firefox %s/different/%03d.html", relative_path(output_dir), test_poem_id))

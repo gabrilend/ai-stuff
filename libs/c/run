@@ -1,0 +1,28 @@
+#!/bin/bash
+
+PROJECT_NAME="template"
+
+PROJECT_PATH="/home/ritz/programming/c/games/${PROJECT_NAME}"
+RAYLIB_PATH="/home/ritz/programming/c/libs/raylib/src/"
+FRAMES_PATH="/home/ritz/programming/c/my-libs/frames/"
+
+clear
+
+cd ${PROJECT_PATH}
+
+gcc -pthread -Wall -g -Og -lm -o ${PROJECT_NAME} src/main.c \
+    -I${FRAMES_PATH}                                         \
+    -I${RAYLIB_PATH}/include                                  \
+    -L${RAYLIB_PATH}/lib -lraylib                              \
+    -pthread                                                    \
+    |& tee ./compiler-log
+
+
+if [ "$?" = 0 ] ; then
+   ./${PROJECT_NAME} |& tee ./output
+fi
+
+rm ./${PROJECT_NAME}
+
+cd -
+

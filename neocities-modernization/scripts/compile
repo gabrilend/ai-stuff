@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+TARGET_ZIP_FILE="${TARGET_DIR}/words.zip"
+
+rm -f "${TARGET_FILE}"
+rm -f "${TARGET_ZIP_FILE}"
+
+bash "${UPDATE_SCRIPT}"
+
+find "$SOURCE_DIR"  \
+   -type f           \
+   -printf "%T@ %p\n" \
+   | sort -n           \
+   | cut -d' ' -f2-     \
+   | while read -r file; \
+   do [[ "$file" == *.zip ]]    && continue
+     cat "$file" | fold -w80 -s >> "$TARGET_FILE"
+
+    # Add extra newline only for files in the "messages" directory
+    if [[ "$file" == "$SOURCE_DIR/messages/"* ]]; then 
+        printf "\n" >> "$TARGET_FILE"
+    fi
+
+    printf "\n" >> "$TARGET_FILE"
+    echo " -> file: ${file#$SOURCE_DIR/}" | fold -w80 >> "$TARGET_FILE"
+    printf '%*s\n' 80 '' | tr ' ' '-' >> "${TARGET_FILE}"
+#    printf "%s\n" "$(printf '%.0s-' {1..80})" >> "$TARGET_FILE"
+done
+
+touch               "${TARGET_DIR}/pdfs/input"
+rm -dr              "${TARGET_DIR}/pdfs/input"
+mkdir               "${TARGET_DIR}/pdfs/input"
+cp "${TARGET_FILE}" "${TARGET_DIR}/pdfs/input"
+
+#${TARGET_DIR}/sync-to-projects
+
+zip -qq --encrypt -r "${TARGET_ZIP_FILE}" "${TARGET_DIR}"
+echo "Files combined into '${TARGET_FILE}' and '${TARGET_DIR}/words.zip'"
+

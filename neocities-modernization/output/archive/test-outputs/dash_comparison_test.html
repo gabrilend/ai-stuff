@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dash Character Thickness Comparison</title>
+<meta charset="UTF-8">
+<style>
+body { 
+    font-family: monospace; 
+    line-height: 2; 
+    padding: 20px; 
+}
+.test-row { 
+    margin: 10px 0; 
+    padding: 8px;
+    background: #f9f9f9;
+    border-left: 3px solid #007acc;
+}
+.progress { color: #dc3c3c; font-weight: bold; }
+.label { color: #666; margin-right: 10px; width: 200px; display: inline-block; }
+.result { color: #333; font-size: 14px; margin-top: 5px; }
+</style>
+</head>
+<body>
+
+<h1>Progress Bar Dash Character Comparison</h1>
+<p>Testing different dash combinations for optimal visual distinction:</p>
+
+<div class="test-row">
+    <div class="label">Previous (━/─):</div>
+    <span class="progress">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>────────────────────────────────────────
+    <div class="result">Issue: Similar thickness, poor distinction</div>
+</div>
+
+<div class="test-row">
+    <div class="label">Current (═/─):</div>
+    <span class="progress">════════════════════════════════════════</span>────────────────────────────────────────
+    <div class="result">Improved: Double vs single line thickness</div>
+</div>
+
+<div class="test-row">
+    <div class="label">Alternative 1 (▬/▭):</div>
+    <span class="progress">▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</span>▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭
+    <div class="result">Alternative: Thick vs thin rectangles</div>
+</div>
+
+<div class="test-row">
+    <div class="label">Alternative 2 (▓/▒):</div>
+    <span class="progress">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</span>▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+    <div class="result">Alternative: Dark vs medium shade</div>
+</div>
+
+<h2>Real Progress Examples</h2>
+
+<div class="test-row">
+    <div class="label">0% (Poem #1):</div>
+    <span class="progress"></span>────────────────────────────────────────────────────────────────────────────────
+    <div class="result">All single dashes</div>
+</div>
+
+<div class="test-row">
+    <div class="label">25% (Poem #1625):</div>
+    <span class="progress">════════════════════</span>────────────────────────────────────────────────────────────
+    <div class="result">Double dashes for progress, single for remainder</div>
+</div>
+
+<div class="test-row">
+    <div class="label">50% (Poem #3250):</div>
+    <span class="progress">════════════════════════════════════════</span>────────────────────────────────────────
+    <div class="result">Half and half</div>
+</div>
+
+<div class="test-row">
+    <div class="label">75% (Poem #4875):</div>
+    <span class="progress">════════════════════════════════════════════════════════════</span>────────────────────
+    <div class="result">Mostly double dashes</div>
+</div>
+
+<div class="test-row">
+    <div class="label">100% (Poem #6500):</div>
+    <span class="progress">════════════════════════════════════════════════════════════════════════════════</span>
+    <div class="result">All double dashes</div>
+</div>
+
+<h2>Screen Reader Test</h2>
+<div class="test-row">
+    <div aria-label="eighty dashes. red.">
+        <div class="label">With ARIA:</div>
+        <span class="progress">════════════════════════════════════════════════════════════</span>────────────────────
+    </div>
+    <div class="result">Hover or use screen reader: "eighty dashes. red."</div>
+</div>
+
+</body>
+</html>

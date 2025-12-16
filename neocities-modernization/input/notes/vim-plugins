@@ -1,0 +1,6 @@
+Put them here: /home/ritz/.local/share/nvim/site/pack/CATEGORY/start/NAME
+
+where CATEGORY is a general package category and NAME is the specific plugin
+
+If you don't want them to be automatically included then don't put them in the
+/start/ folder, put them somewhere else idk

@@ -1,0 +1,243 @@
+===============================================================================
+
+This server has several modifications to the base gameplay elements of World of
+Warcraft. The first is the reduction in scale - the entirety of the server is
+located in The Barrens and Ashenvale. The second is the new itemization system,
+which necessitates alterations to the base game as well - gear upgrades are
+replaced with gem upgrades, allowing gameplay customization to a greater degree
+than with gear upgrades. Third and finally, the goals of the game are no longer
+personal development - rather, a more communal focus will be implemented via
+shared goals and contributions.
+
+===============================================================================
+The first of these aspects is the easiest to explain. The server is intended to
+be a PvP server, with the primary conflict being between Orcs and Night Elves.
+The orcs are of course set up in The Barrens, while the Night Elves have
+Ashenvale. The core meta-gameplay loop is that each faction sends out patrols
+and raids. Patrols are defensive groups of NPCs that rotate around the map
+searching for enemies. If they encounter an enemy, they fight and should they
+survive they'll return home with all the loot that is placed in a pool for the
+next patrol. Once a certain amount of equipment and supplies have been gathered
+it'll automatically depart.
+
+Raids, on the other hand, are offensive maneuvers into enemy territory. They
+offer the greatest rewards (enemy equipment is priceless for intel) and they
+require the strongest equipment and warriors. Offensive raids are less
+automatic than patrols, and are sent toward a designated location rather than
+spiraling outward. Should the raid be successful, they'll set up camp at the
+location and become a quest hub for their faction. In doing so, they'll have
+opportunities for players to complete that will grant their faction bonuses.
+Usually something like unlocking a vendor that sells unique items to players,
+or providing a steady supply of food or weapons for the faction.
+
+Players can contribute supplies (trade goods or equipment) to the war effort,
+and ideally they'd actually see their weapons and armor being used by the
+soldiers carrying out these maneuvers. To that end, the profession system must
+be revamped to create more interesting gameplay. First, however, the
+itemization system must be explained or else the professions won't make sense.
+===============================================================================
+
+===============================================================================
+On this server, everyone wears the same equipment - they're part of an army
+after all. And armies have uniforms. These pieces of equipment have sockets
+that can be fit with gems, allowing the player to customize their gameplay
+style. The combat system is intentionally a little bland or slow, to allow for
+the choices made in gearing to have the greatest effect on the gameplay style
+of the character.
+
+Inspired by roguelike games, this server has a level cap of 20 with the
+starting level at 10. During the 10 levels your character will grow more
+specialized, but not necessarily stronger. The most interesting abilities are
+at level 20 of course, to incentivize levelling all the way, but you can make
+due with lower levels if necessary. There's no permadeath, however there is an
+incentive to "prestige" your character - they become a permanent member of the
+faction guard! This elite cadre defends the Crossroads and Astranaar. Until
+they die, of course...
+
+The combat system is revamped a little as well - all characters have a default
+of 95% chance to parry, but every parry reduces that chance by 5%. Every time
+a character is hit, that chance goes halfway back up to 95%, to create a more
+rhythmic flow to the combat. All attack speeds are standardized at 2.00 to help
+players follow the tempo, and most abilities are like Heroic Strike or Cleave
+in that they activate on next weapon swing.
+
+Here's a few examples of melee abilities:
+
+ - Your next melee strike deals 130% damage
+ - Your next melee strike hits two additional nearby targets for 20% damage
+
+ - Your next melee strike has a 100% chance to hit, but increases their parry
+   chance by 10%
+ - Your next melee strike has a 100% chance to hit, but lowers your parry
+   chance by 10%
+
+ - Your next melee strike doubles the cast-speed on your next spell
+ - Your next melee strike halves the cast-speed on your opponents next spell
+
+ - Your next melee strike grants a buff which reduces your attack cooldown to
+   1.50 seconds, hopefully confusing the enemy...!
+ - Your next melee strike increases your movement speed by 20% for 5 seconds
+
+Each gem has a special effect that is unlike the standard "+5 strength" style
+gems typical in World of Warcraft. Here's a few examples:
+
+ - Every 5 seconds gain a damage shield for 10 hit points
+ - Gain 4 hp5
+
+ - Every 3 hits deal 12 extra fire damage
+ - Deal an extra 5 fire damage on each melee attack
+
+ - Every 16 seconds deal 40 cold damage to a random nearby opponent
+ - Deal 5 thorns damage whenever you are struck in combat
+
+ - Every 20 seconds cast a HoT spell on a random nearby injured ally
+ - Every 20 seconds cast a DoT spell on a random nearby enemy
+
+ - Increase your baseline parry chance by 5%
+ - Reduces your opponent's parry chance by an extra 1% on every hit
+
+ - Every time you are hit while below 30% health increase your movement speed
+   by 30% for 5 seconds (30 second cooldown)
+ - Increases your movement and attack speed by 5%
+===============================================================================
+
+===============================================================================
+The profession system has been overhauled as well. There are four classes in
+the game, two for each faction. On the Horde, you play as either a Grunt or a
+Shaman, while on the Alliance you are either a Huntress or a Druid. These
+classes are similar to their faction counterparts, with differing flavor and
+some mechanical differences. In addition, the Horde values the elements while
+the Night Elves favor natural powers - Storm Earth and Fire versus Leaf Cold
+and Star.
+
+The magic user classes are the primary production class, while the warrior
+classes are better suited for gathering. There are both PvP and PvE methods to
+acquire materials, but the PvP combat rewards more and better goods while the
+PvE methods are reliable and farmable. These goods primarily consist of ores,
+crystal gems, and arcane dust. Ores can be fashioned into weapons and armor,
+while gems can be cut into gems and dust can be used for enchantments. The
+strongest equipment requires all three to make, but can be assembled from the
+intermediate components in addition to the raw components.
+
+Magic users have gems as well, here's some examples:
+
+ - Every 3rd weapon you craft has a random lightning enchantment
+ - Every 7th lightning enchantment you cast creates a random yellow gemstone
+ 
+ - Your summoned elementals cost one fewer gemstone (minimum 1)
+ - Every third elemental you summon has an extra support drone
+
+ - Each time you conjure strawberries, you generate one more.
+ - Each time you create sharpening/weightstones, you create one more.
+
+ - You gain an extra inventory slot.
+ - Your movement speed is increased by 20% for 15 seconds each time you
+   complete a profession action
+
+ - The weapons you forge deal an extra 5 damage
+ - The armor you create has an extra 25 armor
+
+ - The gemstones you cut are slightly stronger (depending on the stone)
+ - The enchantments you cast are slightly stronger (depending on the spell)
+
+Magic users can still engage in combat, and their gameplay is slightly altered.
+Most offensive spells have a "target ground" targeting method, however the
+splash box is very small, and the actual spell is a cone attack toward the
+specified point. The cones are very thin, thin enough to be lines, and they
+target only the first enemy hit by the cone.
+
+Here's an illustration:
+
+mage         targeting ||   spell
+ #     X        O      ||  #-----X      O
+     enemy    reticle  ||
+
+Their support abilities are all auras, some with passive effects and others
+with active (but untargeted) effects. Meaning, one might be similar to a
+paladin's Devotion Aura while another might randomly target a wounded ally and
+heal them.
+
+Should scope permit, each class (shaman vs druid) might have flipped ability
+types - shamans targeting ground for their support abilities with auras for
+their offensive abilities, while druids targeting ground on offense and auras
+for support. For now, this is enough.
+===============================================================================
+
+===============================================================================
+In addition to crafting weapons and magical augmentations for their faction,
+magic users can also summon elementals to aid them. These elementals act as
+soldiers in the army, and are about as strong as one too - "summoning" one
+creates an item in your inventory that can be turned into the quartermaster
+who will treat it as another soldier.
+
+Speaking of soldiers, they can be recruited by trading in "meat" (gained from
+hunting) or other types of food (including summoned strawberries) to the
+quartermaster (located in Astranaar / The Crossroads) who will put the food in
+the stockpile. When the stockpile of trade goods is large enough, a caravan
+will be sent to the capital cities. These caravans travel through mostly
+friendly territory (to Ratchet for the Horde, and to Darkshore for Night Elves)
+These caravans can be raided, but it's a difficult proposition since they're
+heavily armed. MVP doesn't include this btw, it's just turning in goods to the
+quartermaster who "handles it" and recruits new soldiers.
+
+The quartermaster will show exactly what resources your faction has, and
+depending on certain threshholds stuff will happen. For example, if you have
+enough men and weapons then a patrol will be sent out. Extras get put into the
+pile for the next raid, so depending on what resource you have the most of the
+next raid will look different. This information may be valuable to your
+opponents...!
+
+The Orcs raid during the day because they are brave and strong. The Night Elves
+raid during the night because... Well it's in their name. And they can see in
+the dark. Ultravision, baby! Anyway the server has a drastically reduced time
+frame, each day is around 2 hours of IRL time - meaning there's a raid 
+approximately once every hour.
+
+Here are some examples of material exchanges:
+
+ - Food = Soldiers
+ - Food = Gold (sent back on caravan)
+
+ - Gold = Mercenaries (Quilboar / Furlbog)
+ - Gold = Purchasing ores from caravans
+
+ - Equipment = "Activated" warriors
+ - Equipment = Sold for gold
+
+ - Ores = Forged into equipment
+ - Ores = Prospected for gemstones
+
+ - Gemstones = Cut into gems for equipment
+ - Gemstones = Crushed into arcane dust
+ - Gemstones = Used to contain the soul of an elemental soldier
+
+ - Arcane dust = Used for enchantments
+ - Arcane dust = Used to conjure berries
+
+ - Misc trade goods = sold for gold, can be acquired via quests
+
+All of these exchanges happen through various NPCs in Astranaar / Crossroads.
+The result of these interactions between player and NPC is a communal effect,
+not a personal one - gold is stored with the faction, not the player. The idea
+is to make the player feel like part of a cohesive whole - a cog in a machine,
+rather than a superhero. I believe this is an important lesson to learn, and
+I'd like to apply the game mechanics toward teaching that lesson.
+===============================================================================
+
+===============================================================================
+Each quest hub taken over by a raid can offer quests for players to do. These
+are daily quests (repeatable) and they usually unlock a piece of content such
+as a vendor "the murlocs to the south have a clam farm, I bet we can harvest
+pearls there" so if the player fights murlocs, then the vendor is unlocked for
+everyone to use. With a limited supply of course, meaning if you want more than
+X pearls then someone has to go kill more murlocs...! This dynamic allows
+people to play the game how they will. It also incentivizes people to explore
+different playstyles - maybe it's worth it to have one person visit each quest
+hub, grab all the extra goods that have been farmed, and take them home to the
+capital? Sorta like a hauler in Eve Online.
+
+There are also places like mines and caves. These often have golems made out of
+copper or tin (remember this is only level 20 or so) that can be mined after
+being defeated - but they're tough! Tough as a raid boss, in fact. They reward
+primarily profession materials, but only basic ores. Useful for equipment, less
+so for player progression.

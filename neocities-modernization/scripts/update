@@ -1,0 +1,114 @@
+#!/bin/bash
+# Content extraction script with ZIP archive support
+# Automatically detects ZIP archives and extracts JSON data for poem processing pipeline
+
+set -euo pipefail
+
+# {{{ setup_dir_path
+setup_dir_path() {
+    if [ -n "$1" ]; then
+        echo "$1"
+    else
+        echo "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+    fi
+}
+# }}}
+
+# Parse command line arguments for project directory
+SCRIPT_DIR=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            SCRIPT_DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+# Set up project directory
+DIR=$(setup_dir_path "$SCRIPT_DIR")
+
+echo "🔄 Starting content extraction with ZIP archive support..."
+
+# Create temporary extraction directory
+TEMP_EXTRACT_DIR="${DIR}/temp/extract-$(date +%s)"
+mkdir -p "${TEMP_EXTRACT_DIR}"
+
+# Extract ZIP archives to temporary locations
+echo "📦 Extracting ZIP archives..."
+lua "${DIR}/scripts/zip-extractor.lua" "${DIR}" "${TEMP_EXTRACT_DIR}" || {
+    echo "Error: ZIP extraction failed" >&2
+    rm -rf "${TEMP_EXTRACT_DIR}"
+    exit 1
+}
+
+# Check extraction summary to see what was extracted
+EXTRACTION_SUMMARY="${TEMP_EXTRACT_DIR}/extraction-summary.json"
+if [ ! -f "${EXTRACTION_SUMMARY}" ]; then
+    echo "Error: Extraction summary not found" >&2
+    rm -rf "${TEMP_EXTRACT_DIR}"
+    exit 1
+fi
+
+# Extract content from temporary ZIP extractions
+echo "📱 Processing extracted archives..."
+
+# Check for fediverse data
+if [ -f "${TEMP_EXTRACT_DIR}/fediverse/extract/outbox.json" ]; then
+    echo "📱 Extracting fediverse content..."
+    lua "${DIR}/scripts/extract-fediverse.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/fediverse" || {
+        echo "Warning: Fediverse extraction failed" >&2
+    }
+else
+    echo "ℹ️  No fediverse data found in archives"
+fi
+
+# Check for messages data
+if [ -f "${TEMP_EXTRACT_DIR}/messages/extract/export.json" ]; then
+    echo "💬 Extracting messages content..."
+    lua "${DIR}/scripts/extract-messages.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/messages" || {
+        echo "Warning: Messages extraction failed" >&2
+    }
+else
+    echo "ℹ️  No messages data found in archives"
+fi
+
+# Check for notes data
+if [ -d "${TEMP_EXTRACT_DIR}/notes/extract" ] && [ "$(find "${TEMP_EXTRACT_DIR}/notes/extract" -type f | head -1)" ]; then
+    echo "📝 Extracting notes content..."
+    lua "${DIR}/scripts/extract-notes.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/notes" || {
+        echo "Warning: Notes extraction failed" >&2
+    }
+else
+    echo "ℹ️  No notes data found in archives"
+fi
+
+# Also process notes from main directory if not from ZIP
+if [ -d "${DIR}/input/notes" ] && [ "$(find "${DIR}/input/notes" -type f -not -name '.*' | head -1)" ]; then
+    echo "📝 Processing notes from main directory..."
+    bash "${DIR}/scripts/run-notes" "${DIR}" || {
+        echo "Warning: Main notes processing failed" >&2
+    }
+fi
+
+# Preserve media attachments before cleanup
+echo "🖼️  Preserving media attachments..."
+MEDIA_DEST="${DIR}/input/media_attachments"
+if [ -d "${TEMP_EXTRACT_DIR}/fediverse/extract/media_attachments" ]; then
+    mkdir -p "${MEDIA_DEST}"
+    cp -rn "${TEMP_EXTRACT_DIR}/fediverse/extract/media_attachments/"* "${MEDIA_DEST}/" 2>/dev/null || true
+    MEDIA_COUNT=$(find "${MEDIA_DEST}" -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.webp" \) 2>/dev/null | wc -l)
+    echo "   📷 Preserved ${MEDIA_COUNT} media files to ./${MEDIA_DEST#${DIR}/}"
+fi
+
+# Cleanup temporary files
+echo "🧹 Cleaning up temporary extraction files..."
+rm -rf "${TEMP_EXTRACT_DIR}"
+
+echo "✅ Content extraction complete"
+echo "   📄 JSON files generated from ZIP archives for HTML pipeline"
+

@@ -1,0 +1,41 @@
+#!/bin/bash
+# Notes extraction runner script
+# Processes notes directory and generates JSON output
+
+set -euo pipefail
+
+# {{{ setup_dir_path
+setup_dir_path() {
+    if [ -n "$1" ]; then
+        echo "$1"
+    else
+        echo "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+    fi
+}
+# }}}
+
+# Parse command line arguments for project directory
+SCRIPT_DIR=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            SCRIPT_DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+# Set up project directory
+DIR=$(setup_dir_path "$SCRIPT_DIR")
+
+echo "📝 Processing notes directory..."
+lua "${DIR}/scripts/extract-notes.lua" "${DIR}" || {
+    echo "Error: Notes extraction failed" >&2
+    exit 1
+}
+
+echo "✅ Notes processing completed"

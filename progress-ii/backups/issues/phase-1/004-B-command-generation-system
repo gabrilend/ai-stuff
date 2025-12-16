@@ -1,0 +1,43 @@
+# Issue 004-B: Command Generation System
+
+## Current Behavior
+No command generation system exists for creating contextual bash commands.
+
+## Intended Behavior
+Implement AI-powered bash command generation that creates contextually appropriate commands based on game state and player needs.
+
+## Suggested Implementation Steps
+1. Design command generation prompts and templates
+2. Create command generation functions with vimfolds:
+   - generate_bash_command()
+   - create_context_prompt()
+   - parse_command_response()
+   - validate_command_syntax()
+3. Implement context-aware prompt generation
+4. Add game state integration for command context
+5. Create command suggestion and ranking system
+6. Implement command history and learning
+7. Add command optimization and efficiency checking
+8. Create command explanation and documentation
+
+## Related Documents
+- Issue 004 (parent issue)
+- notes/vision (lines 1-8 about AI-generated bash one-liners)
+
+## Acceptance Criteria
+- AI generates contextually appropriate bash commands
+- Commands are syntactically valid and safe
+- Command context includes relevant game state
+- Command suggestions are ranked by usefulness
+- Command history enables learning and improvement
+- Generated commands include explanations
+
+## Priority
+High - Core innovation feature
+
+## Estimated Effort
+3-4 hours
+
+## Dependencies
+- Issue 004-A (AI Integration Interface)
+- Issue 002 (File System State Management) for context

@@ -1,0 +1,176 @@
+MAZE BATTLE SIMULATION - GAME DESIGN DOCUMENT
+=====================================================
+
+VERSION: 0.1
+DATE: Initial Creation
+LANGUAGE: Lua
+FRAMEWORK: Love2D
+
+OVERVIEW
+--------
+A maze-based battle simulation where heroes and monsters wander through randomly generated mazes, exploring new areas and engaging in combat when they encounter each other.
+
+CORE FEATURES (Phase 1)
+-----------------------
+1. Random Maze Generation
+   - Procedurally generated maze layouts
+   - Walls and pathways clearly defined
+   - Variable maze sizes
+
+2. Unit System
+   - Base unit class for all entities
+   - Heroes and monsters as distinct unit types
+   - Each unit tracks personal exploration data
+
+3. Movement System
+   - Pseudo-random movement with exploration preference
+   - Units prefer moving to areas they haven't seen before
+   - Collision detection with maze walls
+
+4. Combat System
+   - Basic battle mechanics when units encounter each other
+   - Health and damage system
+   - Victory/defeat resolution
+
+5. Visual Display
+   - Real-time maze rendering
+   - Unit representation (different colors/symbols for heroes vs monsters)
+   - Movement animation
+
+FUTURE FEATURES (Phase 2+)
+--------------------------
+- Vendors for trading
+- Treasure chests with loot
+- Equipment and inventory system
+- More complex AI behaviors
+- Sound effects and music
+- Save/load functionality
+
+TECHNICAL ARCHITECTURE
+----------------------
+- main.lua: Entry point and game loop
+- maze.lua: Maze generation and management with treasure spawning
+- unit.lua: Base unit class with resting and item mechanics
+- hero.lua: Hero-specific behavior with advanced inventory system and gold tracking
+- monster.lua: Monster-specific behavior
+- combat.lua: Battle system
+- item.lua: Comprehensive item system (potions, gems, gold, treasure chests)
+
+CURRENT STATUS
+--------------
+[COMPLETED] Phase 2.3 - Treasure Chest System!
+
+IMPLEMENTED FEATURES:
+- ✓ Random maze generation using recursive backtracking algorithm
+- ✓ Enhanced maze with additional pathways for better exploration
+- ✓ **NEW** Grid-based unit tracking for scalable performance
+- ✓ Base unit class with exploration tracking system
+- ✓ Hero units (blue circles) with balanced exploration AI
+- ✓ Monster units (red circles) with aggressive exploration preference  
+- ✓ **NEW** Advanced movement system with dead-end detection
+- ✓ **NEW** Path blocking system to prevent infinite loops
+- ✓ **NEW** Exploration reset mechanics for smart backtracking
+- ✓ **NEW** Adjacent-cell combat system (no unit stacking)
+- ✓ **NEW** Combat state management (frozen movement during fights)
+- ✓ **NEW** Multi-unit combat scenarios with proper resolution
+- ✓ Turn-based combat system with damage variance
+- ✓ Health bars and visual unit representation
+- ✓ Real-time simulation with configurable update speed
+- ✓ Unit counter display and reset functionality
+- ✓ **NEW** Smooth position interpolation between grid cells
+- ✓ **NEW** Individual speed attributes for each unit
+- ✓ **NEW** Organic movement feel with lerping animation
+- ✓ **NEW** Variable movement speeds (Heroes: 0.8-1.4, Monsters: 1.0-1.8)
+- ✓ **NEW** Health-based strategic resting system with multi-turn recovery
+- ✓ **NEW** Visual flashing effects when units are resting
+- ✓ **NEW** Probability-based resting decisions (40% at low health, 2% at high health)
+- ✓ **NEW** Health potion item system with purple square visual indicators
+- ✓ **NEW** Hero-only inventory system with item pickup mechanics
+- ✓ **NEW** Automatic death prevention through emergency potion use
+- ✓ **NEW** Strategic potion use instead of resting when optimal
+- ✓ **NEW** Treasure chest system with randomized loot generation
+- ✓ **NEW** Five gemstone types: Ruby, Sapphire, Peridot, Spinel, Emerald
+- ✓ **NEW** Gold piece currency system with hero gold tracking
+- ✓ **NEW** Chest opening mechanics - heroes automatically open chests when walked over
+- ✓ **NEW** Visual treasure chest rendering (brown rectangles with lids)
+- ✓ **NEW** Distinct visual rendering for gems and gold (circles for gold, squares for gems)
+- ✓ **NEW** Enhanced hero inventory system with item categorization
+
+PERFORMANCE IMPROVEMENTS:
+- Grid-based collision detection (O(1) instead of O(n²))
+- Efficient unit tracking per maze cell
+- Scalable architecture for large unit counts
+- Smooth 60fps interpolation independent of game logic
+
+ADVANCED AI BEHAVIORS:
+- Dead-end detection and intelligent backtracking
+- Path memory system prevents revisiting failed routes
+- Combat freezes movement until resolution
+- Smart exploration preference algorithms
+- **NEW** Previous intersection tracking for strategic retreats
+- **NEW** Undesirable path system (vs hard-blocked paths)
+- **NEW** Automatic pathfinding back to last known intersection
+- **NEW** Dead-end entrance marking to discourage re-entry
+- **NEW** Priority-based movement: Good > Undesirable > Blocked
+- **NEW** Individual unit path memory with "maze fatigue" system
+- **NEW** Pre-computed dead-end exits using breadth-first search
+- **NEW** Turn-skipping anti-backtracking system prevents infinite loops
+- **NEW** Strategic health-based resting with probability scaling
+- **NEW** Multi-turn resting sessions (8-10 turns for critical health)
+- **NEW** Health potions automatically used to prevent death
+- **NEW** Heroes strategically choose potions over resting when optimal
+- **NEW** Treasure chest loot tables with weighted random generation (2-5 items per chest)
+- **NEW** Loot distribution: 30% health potions, 20% gold (5-25 pieces), 50% gemstones
+- **NEW** Gemstone value system: Emerald (150g), Sapphire (120g), Ruby (100g), Spinel (90g), Peridot (80g)
+- **NEW** Hero gold accumulation system with inventory value tracking
+- **NEW** Automatic chest opening when heroes walk over them
+
+VISUAL ENHANCEMENTS:
+- Linear interpolation (lerp) creates fluid movement
+- Units smoothly glide between grid positions
+- Speed variations add personality to different unit types
+- Movement animation maintains grid-based logic accuracy
+
+HOW TO RUN:
+1. Install Love2D (https://love2d.org/)
+2. Run: love .
+3. Press R to reset simulation
+4. Press ESC to quit
+
+GAMEPLAY:
+- 3 Heroes (blue) vs 5 Monsters (red) spawn randomly in maze
+- Units move smoothly with individual speed variations
+- Heroes move at 0.8-1.4 speed, Monsters at 1.0-1.8 speed
+- Fluid animation between grid positions with lerping
+- Units decide new moves every 0.3 seconds toward unexplored areas
+- Combat occurs when different unit types are adjacent
+- Units cannot occupy same space (collision prevention) 
+- Movement freezes during combat encounters
+- Winner gains health, loser takes damage and may die
+- **NEW** Advanced dead-end handling with intersection memory
+- **NEW** Units automatically backtrack when trapped
+- **NEW** Path preference system: Fresh > Explored > Undesirable
+- **NEW** Realistic "maze fatigue" - units remember bad routes
+- **NEW** No more infinite loops or unit clustering in dead-ends
+- **NEW** Health potions (purple squares) spawn throughout maze
+- **NEW** Heroes automatically pick up potions when walked over
+- **NEW** Units rest strategically based on health percentage
+- **NEW** Resting provides +1 HP per turn with visual flashing
+- **NEW** Heroes use potions automatically to prevent death
+- **NEW** Strategic potion use: Heroes prefer potions over resting when health missing ≥30
+- **NEW** Multi-turn resting sessions with health-based duration goals
+- **NEW** Treasure chests (brown rectangles) spawn throughout maze
+- **NEW** Heroes automatically open chests when walked over, releasing loot
+- **NEW** Gems rendered as colored squares, gold as golden circles
+- **NEW** Five gemstone types with distinct colors and values
+- **NEW** Hero inventory system tracks potions, gems, and gold separately
+- **NEW** Opened chests remain visible but darker to show they've been looted
+- Simulation continues until one side is eliminated
+
+PATHFINDING INTELLIGENCE:
+- Units track their last intersection for emergency retreats
+- Dead-end entrances become "undesirable" rather than blocked
+- Automatic breadcrumb trail system guides units back to safety
+- Heroes more cautious (20% chance to enter undesirable paths)
+- Monsters more aggressive (40% chance to enter undesirable paths)
+- Solves issues with nearby allies blocking escape routes

@@ -1,0 +1,9 @@
+current LLMs only identify words based on "similarity"
+
+what if instead they identified relations between using any kind of 
+relationship? Or verb or adjective or... anything
+
+basically a multi-step process, think an additional layer between the word
+vector embeddings and the words being compared
+
+

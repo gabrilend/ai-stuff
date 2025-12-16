@@ -1,0 +1,42 @@
+project-orchestration is a library which consists of a set of simple scripts
+written in bash and lua which will enable the development of each of the various
+projects currently in production in parallel.
+
+it will do this by iterating through the projects, finding those that have
+issue files, and then working through the issues one-by-one. It will attempt to
+focus on one project per session, in order to better clarify the context window.
+
+when all of the projects lack issue files, it will attempt to generate new issue
+files from the documentation provided. If all the projects are fully complete in
+terms of their issues, it will then attempt to ensure that the described
+functionality matches the source-code. It will generate tests to validate this
+programmatically and in a data-driven way, producing build artifacts that are
+compared against known-good values that may be generated as part of the
+development process (development targets) or through randomized testing (to
+ensure that user-input is incorporated into the results of the test)
+
+next, the orchestrator will attempt to refactor the code to make it more modular
+and to incorporate various development paradigms or technologies produced in the
+other projects. It should prioritize the same languages used in the projects,
+and it should attempt to create inter-operability between them. If necessary, a
+new project may be created to develop the interoperability functionality.
+
+It should also attempt to streamline documentation, providing both a technical
+descriptor of functions, classes, and datastructures, and also a human-readable
+description of the vision, purpose, and nature of each piece of functionality.
+these meta-documentation pieces should be focused on highlighting the
+comparative relationships between the other various libraries, and should be
+considered to be part of the code, as they are important for any computer or
+humans reading in the data as context to understand the nature of the
+relationships between various kingdoms and their libraries.
+
+Next, the orchestrator should attempt to combine the various combined libraries
+by integrating their vision files into a new meta-vision file. When possible,
+vision files should be left in their original state and new vision files should
+be created with names reflecting the combinations described. These meta-vision
+files should describe the trajectory and spirit of the two or more libraries as
+they are placed together for warmth, like penguins huddling, and build for a
+more comprehensive and focused objective, like bullets in the chamber of a
+revolver. The vision files should prioritize utilizing the style and spirit of
+the original vision files, as the styles are the most important capability of
+the visions themselves.

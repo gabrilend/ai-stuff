@@ -1,0 +1,21 @@
+"okay let's see, we need a new
+   CREATURE
+ and let's name it
+   TERRY
+ and let's give it a title:
+ .TITLE = "The Acrobat"
+"
+
+"cool, let me just go show my friends."
+
+"hello friends, I have created a creature. It's name is Terrance."
+
+wow yeah cool so anyway
+
+"hm. let's see if we make him slightly more interesting..."
+
+"okay now I've defined him as capable of monotony, maybe they'll see his strife
+ and relate"
+
+TERRY.STRIVE += TERRY.REPETITION * global.misery / slaughter_count_victims
+TERRY.STRIFE += global.war_percentage + 

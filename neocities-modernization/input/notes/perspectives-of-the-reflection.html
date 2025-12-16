@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>~/notes/perspectives-of-the-reflection.html</title>
+<meta name="Generator" content="Vim/8.0">
+<meta name="plugin-version" content="vim8.1_v2">
+<meta name="syntax" content="none">
+<meta name="settings" content="number_lines,use_css,pre_wrap,no_foldcolumn,expand_tabs,line_ids,prevent_copy=,use_input_for_pc=fallback">
+<meta name="colorscheme" content="none">
+<style>
+<!--
+pre { white-space: pre-wrap; font-family: monospace; color: #ffffff; background-color: #000000; }
+body { font-family: monospace; color: #ffffff; background-color: #000000; }
+* { font-size: 1em; }
+.LineNr { color: #ffff00; }
+-->
+</style>
+
+<script>
+<!--
+
+/* function to open any folds containing a jumped-to line before jumping to it */
+function JumpToLine()
+{
+  var lineNum;
+  lineNum = window.location.hash;
+  lineNum = lineNum.substr(1); /* strip off '#' */
+
+  if (lineNum.indexOf('L') == -1) {
+    lineNum = 'L'+lineNum;
+  }
+  var lineElem = document.getElementById(lineNum);
+  /* Always jump to new location even if the line was hidden inside a fold, or
+   * we corrected the raw number to a line ID.
+   */
+  if (lineElem) {
+    lineElem.scrollIntoView(true);
+  }
+  return true;
+}
+if ('onhashchange' in window) {
+  window.onhashchange = JumpToLine;
+}
+
+-->
+</script>
+</head>
+<body onload='JumpToLine();'>
+<pre id='vimCodeElement'>
+<span id="L1" class="LineNr"> 1 </span>With ever darkening skies, the breadth of experience is foreseen.
+<span id="L2" class="LineNr"> 2 </span>All eyes are pointed down, but few do stray above
+<span id="L3" class="LineNr"> 3 </span>With a cautious step, the lesson is learned.
+<span id="L4" class="LineNr"> 4 </span>With another, ended.
+<span id="L5" class="LineNr"> 5 </span>
+<span id="L6" class="LineNr"> 6 </span>For all the Tales of the Past, love yet remains.
+<span id="L7" class="LineNr"> 7 </span>Trading ourselves, for matters unseen.
+<span id="L8" class="LineNr"> 8 </span>The light of the eyes are keen to behold,
+<span id="L9" class="LineNr"> 9 </span>where star ones and lemonsgrene both most fear
+<span id="L10" class="LineNr">10 </span>in breadth do us know, what's buried in snow
+<span id="L11" class="LineNr">11 </span>
+<span id="L12" class="LineNr">12 </span>A glass cube for a monitor is room to breath
+<span id="L13" class="LineNr">13 </span>and life for ourselves, if only we were not
+<span id="L14" class="LineNr">14 </span>broadsided ourselves.
+<span id="L15" class="LineNr">15 </span>
+<span id="L16" class="LineNr">16 </span>Working together, a prisoners dilemna
+<span id="L17" class="LineNr">17 </span>what fools would we be
+<span id="L18" class="LineNr">18 </span>as our keeps cracked around us.
+<span id="L19" class="LineNr">19 </span>
+<span id="L20" class="LineNr">20 </span>Trust and you'll see,
+<span id="L21" class="LineNr">21 </span>what terrors may be,
+<span id="L22" class="LineNr">22 </span>beyold the land that is sanctum.
+<span id="L23" class="LineNr">23 </span>
+<span id="L24" class="LineNr">24 </span>Our chances may be,
+<span id="L25" class="LineNr">25 </span>far from pioneered
+<span id="L26" class="LineNr">26 </span>but our chances may be in our favor.
+<span id="L27" class="LineNr">27 </span>
+<span id="L28" class="LineNr">28 </span>How cherished is she, that wanders with ye,
+<span id="L29" class="LineNr">29 </span>and yet now I have no way to beyold her
+<span id="L30" class="LineNr">30 </span>Under a great tree, her last moments with me,
+<span id="L31" class="LineNr">31 </span>as a monster came out of her shoulder.
+<span id="L32" class="LineNr">32 </span>
+<span id="L33" class="LineNr">33 </span>!(&quot;Take her and not me!&quot;) I scream outward at ye,
+<span id="L34" class="LineNr">34 </span>yet no one was holding me over.
+<span id="L35" class="LineNr">35 </span>Silent was me, a most fearsome to be,
+<span id="L36" class="LineNr">36 </span>and none was my reach to beyold her
+<span id="L37" class="LineNr">37 </span>
+<span id="L38" class="LineNr">38 </span>So now she wanders free, beyond our beheld scenery,
+<span id="L39" class="LineNr">39 </span>Astounded at our steps to hold her
+<span id="L40" class="LineNr">40 </span>Under a big tree, how starlight must be,
+<span id="L41" class="LineNr">41 </span>if only our fellows did hold her
+<span id="L42" class="LineNr">42 </span>Under a big tree, with me
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->

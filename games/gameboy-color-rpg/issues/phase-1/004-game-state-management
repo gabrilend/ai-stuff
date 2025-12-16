@@ -1,0 +1,46 @@
+# Issue #004 - Game State Management
+
+## Current Behavior
+No state management system exists.
+
+## Intended Behavior
+Create a web-optimized state management system using ES6 modules that handles game states with proper browser lifecycle integration.
+
+## Suggested Implementation Steps
+1. Create WASM state management system with enum-based states
+2. Implement WASM state manager with transition callbacks
+3. Add JS-WASM bridge for browser lifecycle events (focus/blur, visibility)
+4. Create WASM-based state transitions with timing control
+5. Implement WASM state persistence interface with JS storage bridge
+6. Design WASM state stack for overlay states (pause, settings)
+7. Test WASM state management performance and reliability
+
+## Technical Requirements
+- **WASM States**: State enumeration and management in WASM linear memory
+- **JS Bridge**: Minimal JS interface for browser lifecycle events
+- **Memory Layout**: Efficient state data organization in WASM
+- **Export Interface**: WASM functions for state queries and transitions
+- **Performance**: Sub-millisecond state transitions in WASM
+
+## State Definitions
+- **MENU**: Main menu, options, save selection
+- **PLAYING**: Active gameplay state  
+- **PAUSED**: Game paused, overlay menu visible
+- **SETTINGS**: Configuration screens
+- **LOADING**: Asset loading state (future)
+
+## Related Documents
+- docs/technical-specification.md (Core Engine)
+- docs/game-design.md (Technical Implementation)
+
+## Dependencies
+- Issue #001 (Game window)
+- Issue #003 (Input system for state navigation)
+
+## Acceptance Criteria
+- [ ] Can switch between defined game states
+- [ ] State transitions work smoothly
+- [ ] Pause state preserves game state
+- [ ] No memory leaks during state changes
+- [ ] Input routing works per-state
+- [ ] Basic menu state functional

@@ -1,0 +1,21 @@
+some transcripts may include privacy-violating data. The incident that
+inspired the creation of this ticket was in the neocities-modernization
+project, where many usernames are being included in the transcript.
+
+to complete this ticket, there should be a complete audit done of all the
+project transcripts, after retranscribing each of them. In this audit, all
+personally identifiable information including names, addresses, and usernames
+should be scrubbed. This excludes Ritz Menardi, because she's me, and I don't
+mind if people know who I am, because this is my project after all! If they
+know the project, then they know my name, which is okay. BUT other people did
+not consent to have their names displayed for all to see, so we should try and
+audit the transcript files as best we can to identify and remove such data.
+
+Identification is the first part. A sub-issue should be implemented to
+create a PII stripping system that can be customized on a per-project basis.
+These customizations should live in the LLM-transcripts directory created by
+the script, in a "custom-privacy-rules" directory. In this directory, we should
+create lua functions that are called dynamically from the main script when the
+transcription script is run. They should iterate through the transcript and
+strip out any PII, replacing it with anonymized identifiers such as "user-1" and
+"user-2" etc.

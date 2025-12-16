@@ -1,0 +1,106 @@
+[package]
+name = "handheld-office"
+version = "0.1.0"
+edition = "2021"
+
+# Note: Use CARGO_TARGET_DIR environment variable or --target-dir flag to use files/target/
+# See: https://doc.rust-lang.org/cargo/reference/config.html
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+log = "0.4"
+env_logger = "0.10"
+mlua = { version = "0.9", features = ["lua54", "vendored"] }
+chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.11", features = ["json"] }
+thiserror = "1.0"
+anyhow = "1.0"
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.21"
+futures = "0.3"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+async-trait = "0.1"
+arrayref = "0.3"
+# Cryptography libraries
+rsa = "0.9"
+aes-gcm = "0.10"
+ring = "0.17"
+ed25519-dalek = { version = "2.0", features = ["rand_core", "serde"] }
+x25519-dalek = "1.1"
+chacha20poly1305 = "0.10"
+# Media libraries
+rodio = "0.17"
+symphonia = { version = "0.5", features = ["all"] }
+gstreamer = { version = "0.21", optional = true }
+gstreamer-player = { version = "0.21", optional = true }
+
+[[bin]]
+name = "daemon"
+path = "src/daemon.rs"
+
+[[bin]]
+name = "laptop-daemon"
+path = "src/laptop_daemon.rs"
+
+[[bin]]
+name = "handheld"
+path = "src/handheld.rs"
+
+[[bin]]
+name = "desktop-llm"
+path = "src/desktop_llm.rs"
+
+[[bin]]
+name = "paint-demo"
+path = "src/paint_demo.rs"
+
+[[bin]]
+name = "music-demo"
+path = "src/music_demo.rs"
+
+[[bin]]
+name = "mmo-demo"
+path = "src/mmo_demo.rs"
+
+[[bin]]
+name = "email-demo"
+path = "src/email_demo.rs"
+
+[[bin]]
+name = "battleship-pong"
+path = "src/battleship_pong_demo.rs"
+
+[[bin]]
+name = "rocketship-bacterium"
+path = "src/rocketship_bacterium_demo.rs"
+
+[[bin]]
+name = "scuttlebutt-mesh"
+path = "src/scuttlebutt_demo.rs"
+
+[[bin]]
+name = "terminal-demo"
+path = "src/terminal_demo.rs"
+
+[[bin]]
+name = "media-demo"
+path = "src/media_demo.rs"
+
+# secure_p2p_demo.rs is in examples/ directory and will be treated as an example automatically
+
+[lib]
+name = "handheld_office"
+path = "src/lib.rs"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.0"
+mockall = "0.11"
+tempfile = "3.0"
+tokio-test = "0.4"
+assert_matches = "1.5"

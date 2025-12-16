@@ -1,0 +1,53 @@
+# Issue 009: Phase 1 Integration Demo
+
+## Current Behavior
+Individual components exist separately without integration or demonstration of combined functionality.
+
+## Intended Behavior
+Create a comprehensive demonstration program that showcases all Phase 1 functionality working together, providing a foundation for Phase 2 development.
+
+## Suggested Implementation Steps
+1. Design demo script that exercises all Phase 1 features
+2. Create demo functions with vimfolds:
+   - demo_character_creation()
+   - demo_state_management()
+   - demo_git_operations()
+   - demo_ai_commands()
+3. Implement character creation and basic progression demo
+4. Add state save/load demonstration with git commits
+5. Create AI command generation showcase
+6. Implement configuration management demonstration
+7. Add error handling and recovery scenarios
+8. Create performance and reliability testing
+9. Implement user-friendly demo runner script
+
+## Related Documents
+- CLAUDE.md instructions about test programs for each phase
+- docs/roadmap.md (Phase 1 deliverables)
+
+## Acceptance Criteria
+- Demo showcases character creation and progression
+- State management with git integration is demonstrated
+- AI command generation works in practice
+- Configuration system is shown working
+- Error scenarios are handled gracefully
+- Demo runs reliably and showcases key features
+- Demo provides foundation for Phase 2 development
+- Demo can be run with simple bash script
+
+## Priority
+Medium - Important for validation and progression to Phase 2
+
+## Estimated Effort
+3-4 hours
+
+## Dependencies
+- All other Phase 1 issues must be completed first
+- Issues 001-008 provide the functionality to demonstrate
+
+## Demo Scenarios
+- **New Player Experience**: Character creation through first adventure
+- **Save/Load Cycle**: Demonstrating git-based time manipulation
+- **AI Integration**: Showing AI-generated solutions to problems
+- **Configuration**: Customizing game settings and behavior
+- **Error Recovery**: Handling failures gracefully

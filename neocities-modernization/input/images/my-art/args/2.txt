@@ -1,0 +1,13 @@
+a picture on it's side of one of the graphs posted on the website. I don't quite
+understand it enough to compare it directly (the math is a bit above my head) 
+but it reminds me of two graphs I made (well, same graph, just with different
+visualizations) from a few months ago when I was thinking about prime numbers. 
+You might be interested. Here are their links:
+
+https://www.desmos.com/calculator/qljvhpkqzd
+
+and
+
+https://www.desmos.com/calculator/mt6hasfcvm
+
+... hope you can copy that from there, if not... sorry

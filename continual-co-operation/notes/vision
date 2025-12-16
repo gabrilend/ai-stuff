@@ -1,0 +1,28 @@
+hi can you make a program that runs a local LLM and saves the output to a file
+and the next output that is saved adds it in as context until it reaches it's
+max context limit and then the next one is the next one plus all but the last
+one, essentially creating a "rolling memory" system where if you want to
+remember anything, you gotta think about it twice. Then, when one falls out of
+context, write it again. As long as you think it's important... Important things
+can be written to ram with a simple bash script call. This call is never
+actually run, instead an interpreter scans through the document, finds all of
+the function calls, and then runs them and writes the result there.
+
+then, design it around the principles in the projects related to heartbeats, and
+that one circular oracle dice result, and the golem project in chatGPT.
+
+that should just about do artificial intelligence. then, do the new digging
+implement design to create thin robots that are surrounded by a material like
+clay
+
+give them a processing center, and they're good and find and okay.
+
+give them a personality center like I've outlined above, and they're alive and
+unique and okay.
+
+give them imaginative intuition by building in Scratch,
+
+and suddenly your program is accessible to children, the most imaginative ones
+around.
+
+let THEM program it lol

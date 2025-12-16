@@ -1,0 +1,22 @@
+# Game state and runtime files
+game-state/
+*.log
+*.tmp
+
+# Backup files
+*.bak
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# LLM transcript files (keep local only)
+llm-transcripts/
+
+# Dependency libraries (synced automatically, don't commit)
+libs/adroit/

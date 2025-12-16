@@ -1,0 +1,43 @@
+# Issue 004-C: Command Safety and Validation
+
+## Current Behavior
+No safety validation exists for AI-generated commands.
+
+## Intended Behavior
+Implement comprehensive safety validation and sandboxing for AI-generated bash commands to prevent system damage and ensure secure execution.
+
+## Suggested Implementation Steps
+1. Design command safety classification system
+2. Create safety validation functions with vimfolds:
+   - validate_command_safety()
+   - check_command_whitelist()
+   - create_sandbox_environment()
+   - monitor_command_execution()
+3. Implement command whitelist/blacklist system
+4. Add resource usage limitations and monitoring
+5. Create sandboxed execution environment
+6. Implement file system access restrictions
+7. Add network access controls and monitoring
+8. Create security violation detection and response
+
+## Related Documents
+- Issue 004 (parent issue)
+- docs/technical-architecture.md (Security and Safety section)
+
+## Acceptance Criteria
+- All AI commands are validated before execution
+- Dangerous commands are blocked or sandboxed
+- Resource usage is monitored and limited
+- File system access is restricted appropriately
+- Network access is controlled and monitored
+- Security violations are detected and handled
+
+## Priority
+High - Critical security requirement
+
+## Estimated Effort
+2-3 hours
+
+## Dependencies
+- Issue 004-B (Command Generation System)
+- System security tools and utilities

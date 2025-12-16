@@ -1,0 +1,41 @@
+okay great, next can you configure a system which creates hyperlinks between
+each word in the text that uses embeddings to determine which files it should
+lead you to next in the text? so if you text in a word, typing, or clicking, it
+could take you to the next most closely related piece of the art. Then, it could
+slowly eliminate the poems it showed to you, literally erasing them from your
+hard drive bit by bit and year by year.
+
+... okay there should be a way to make immortal versions, but yes something
+like that would do nicely.
+
+we'd probably need a custom, non-terminal interface? maybe we could type with a
+little console down at the bottom, and if we preferred we could move the cursor
+up a bit and select with enter. or, get this, or how about both? you type
+something and you select something with the arrow keys and then you push enter
+to move to the nearest embedding of both, combined.
+
+could also use the mouse to select instead of the arrow keys, but something
+about scrolling between words (not cursor positions) with the mouse wheel is
+kinda nice. maybe you could scroll up and down with the mouse scroll wheel up
+and down? and then by holding the left-mouse button you could move the cursor
+left, such that it takes about 1.5-3 seconds to reach the edge of the screen
+depending on user preference (fast or slow with a slider)
+
+left click moves the cursor left, right click moves it right. Then, the typing
+of the user, and an enter press pushes you forward. could also do a similar
+behavior with just keyboard users by holding up to scroll up, tapping it to go
+up one or two, and left/right as well. there should be a very small hesitation
+before moving from "tap" mode to "scroll" mode with the keyboard input, and it
+should be I'm estimating about 0.1 seconds. users can test it and see what time
+they like.
+
+... this has moved beyond a pdf generator and into a complicated lua script.
+That's okay, let's build it into the generator script. If you select an option
+at the main menu where it gathers your argument requirements, you can also
+provide an argument as your requirement. if the argument isn't present, it
+assumes you want to generate, and the interactive mode which has the scrolling
+and embedding navigation technology (pre-calculated and cached during generation)
+
+(careful you might create an opportunity for abuse)
+
+... scary... anyway yeah let's build that

@@ -1,0 +1,76 @@
+RPG-battler is a strategy game built in Lua using the love2d framework.
+
+In this game, the player is presented with a map comprised of a randomly
+generated paths that units can travel down to face their foes. Their shape is
+inspired by the dense mesh network of pipes from that old screensaver, with lots
+of space between each pathway. Each pipe is wide enough to have about 5 units
+stand side-by-side, with extras queueing up behind them. When one team's units
+meets the other team, they will do battle and push their foes back until they
+reach the enemy's base, which has about as many hit-points as 5 average units.
+The base will fight back with an automatic turret, and if it is destroyed then
+the game will be won. However, it has several defence mechanisms - there are
+three defence-shields, each with about as much health as 5 average units. These
+three defence-shields combined with the health-points of the base gives the
+base about as many hit points as 20 average units. When a defence-shield is
+destroyed, all enemy units will be removed from the map and the enemy will be
+forced to push forward again to defeat their foes. This should help prevent
+extreme snowball situations where one side is impossible to defeat because of
+the compounding advantage of winning one battle after another as the surviving
+units pile up and overcome their foes.
+
+Each unit has up to four abilities, which they will use automatically as valid
+targets come into range. These abilities are determined according to the unit
+template that the unit is created from, and the templates can be created by each
+player between games. Each template must use the same amount of design points,
+to ensure that each unit is approximately balanced when compared to the other
+units. However, some synergies will naturally emerge as players develop unique
+strategies which emphasize the strengths and weaknesses of the units they create
+
+Each player receives gold over time, and they can use this gold to purchase
+units and send them down a particular lane.
+
+Some units are melee units, while others are ranged. The ranged units will
+attempt to maintain a safe distance from foes by backing up when they approach,
+however this will prevent them from contributing to the fight until they stand
+still again. Melee units will move into melee with the nearest foe, and engage
+until they are defeated. When not actively fighting a foe, each unit will try to
+maintain the relative position in the lane that they were spawned at. In this
+way, players can customize the formation of their units by, for example, placing
+melee units on one side of the lane and ranged units on the other. This will
+cause the melee units to pass by the ranged units when new melee units arrive.
+To simulate this technically, behind the scenes each lane can have 5 paths that
+each unit can follow when moving forward. These paths are arranged side-by-side
+and comprise about 20% of each lane. When moving forward, units will attempt to
+follow their path, but if allies are stopped and in the way then they will move
+around them instead of queueing up behind them, unless there is no space for
+them to do so.
+
+The visuals in the game are intentionally basic, consisting primarily of shapes
+and lines drawn using the graphics primitives in the design framework. The game
+should use primary colors on a pure black background, but should still be
+visible to people who are colorblind by using shape-based symbols with colors
+simply for an aesthetic bonus.
+
+Each unit will have several abilities, between 1 and 4 (but at least 1). These
+abilities will each have a "mana bar", which fills over time. When the bar
+reaches the max, the unit will use the ability. The primary ability of each unit
+will generate mana at all times, while the other 0-3 abilities will only
+generate mana if certain conditions are met. For ranged units, they must be
+standing still, whether because they are engaged in combat with their foes or
+because they are waiting to reach the front but cannot move forward. Melee units
+will generate mana when they are in range of their foes, whether they are moving
+or not. However, the primary ability of both melee and ranged will always gain
+mana. If the mana bar reaches the max but there are no valid targets, then the
+bar will remain at max until a target appears and then they will use the ability
+and begin generating mana for it again (if applicable).
+
+If an ability deals damage to a foe but that foe has less health points than the
+amount of damage dealt by the ability, then the attacking unit will use as much
+mana as is proportional, thus ensuring that none is wasted. Similarly, if a unit
+has an ability which heals an ally but that ally has nearly a full health bar,
+only enough mana will be used to top off their ally, thus ensuring that none is
+wasted.
+
+By carefully designing their units and skillfully deploying their units, a
+player or team should be able to emerge victorious in a way that feels fair and
+satisfying.

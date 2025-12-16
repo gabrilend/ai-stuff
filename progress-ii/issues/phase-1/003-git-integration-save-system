@@ -1,0 +1,46 @@
+# Issue 003: Git Integration Save System
+
+## Current Behavior
+No version control integration exists. Game cannot utilize git for save/load mechanics or time manipulation features.
+
+## Intended Behavior
+Integrate git as the core save/load mechanism, enabling "time rewind" gameplay through commit rollbacks and providing versioned state management.
+
+## Suggested Implementation Steps
+1. Initialize git repository in game state directory
+2. Create git operation functions with vimfolds:
+   - create_save_commit()
+   - rollback_to_commit()
+   - list_save_commits()
+   - get_commit_metadata()
+3. Implement automatic commit creation on significant game events
+4. Design commit message format (both human-readable and structured)
+5. Add commit browsing and selection interface
+6. Implement rollback confirmation and safety checks
+7. Create repository maintenance functions (cleanup, compression)
+8. Add error handling for git operation failures
+9. Implement branch-based parallel timeline support
+
+## Related Documents
+- notes/vision (lines 14-20 about git versioning as gameplay mechanic)
+- docs/technical-architecture.md (Git as Time Manipulation section)
+
+## Acceptance Criteria
+- Git repository is automatically managed during gameplay
+- Save commits are created on significant game events
+- Players can browse and select previous save states
+- Rollback functionality works reliably
+- Commit messages are descriptive and useful
+- Repository performance remains acceptable
+- Git operations are transparent to the user
+- Failed git operations don't crash the game
+
+## Priority
+High - Core gameplay mechanic
+
+## Estimated Effort
+5-7 hours
+
+## Dependencies
+- Issue 002 (File System State Management) - git will version the state files
+- Basic git installation on target system

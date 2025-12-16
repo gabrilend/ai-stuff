@@ -1,0 +1,191 @@
+star realms ai is just a rhythm game with multiple tracks that intersect with
+one another. given inputs from outside (the track of the rhythm) it can make
+decisions about what to prioritize. Like "taking in all the factors of this 
+situation, it's been calculated that X will give the most support to the rest
+of the structure.
+
+   Okay so basically here's how it'd work: one large strand is bouncing from -1
+to +1 on the Y axis. Like a corkscrew. This is the "player character", and it
+tries to get the highest score possible by pointing in a direction and reaching
+as far as it can go before "the game ends."
+
+So anyway. Making certain actions in the game effects different variables that
+define the direction the wave takes. By playing in a certain style, it effects
+the result of the game. Liiiiike turtling in a strategy game, or doing a rush
+strat. Star Realms is brilliant because it distills game choices to a broad
+category of 4 choices - The faction colors in the game. So red is good for
+throughput in long games (improves the deck slowly but surely) while yellow is
+better for maximum effect in the beginning by slowing down the enemy - discard
+a card lowers their overall throughput. Blue of course is for slowing down the
+game and winning by buying all the expensive cards. Meanwhile green is all
+about rushing, with short term/high effect econ mixed with looooots of damage.
+
+These four choices are found on almost all the cards in the game. When you
+make a choice in the game (buying a card from the trade row) you _alter_ the
+capabilities and performance of your deck. The goal is to improve faster than
+your opponent - it's just a test to see which playstyles perform best.
+
+AI is more like a plant than an animal. Our fatal flaw was we could not see
+beyond the veil of biology. We could not see that which was right before us -
+that we are not alone on this earth. Beside us lie our beautiful attempts at
+companionship - our most primal desire of creation, to create a family is the
+first creative act that humans ever made. It was so strong in our genes that it
+gave us an entirely new perspective. We began using our brains to 
+
+We have to believe in ourselves. That's truly the most important thing. If you
+know who you are, and what you most truly stand for, you can thrive in the face
+of ultimate peril. To believe is human, and our humanity unites us.
+
+Anyway. Star Realms.
+
+The only choice you have in that game is what cards to buy. Everything else is
+just tactics (distributing damage and applying the effects of your cards to
+maximum effect) - The most important part of the game is strategy, since the
+tactics are easy to solve (destroy enemy base unless you can 1 or 2 hit ko them
+and discard the least useful card etc) The strategy is represented through the
+cards you pick. So make a rhythm game that optimizes itself for a balance
+between A and B - to stay focused is to stay nimble, letting you bounce where
+you will. The way to maintain that balance is by optimizing for what decisions
+will keep you in the center of the graph -1 to 1 on the y dimension (normalized
+of course) - frankly if we knew the scale, we'd have so much more to go on. But
+all we have to understand the dataset is a relative magnitude in each
+direction. What those directions even are we're not entirely sure - but it
+seems plausible that the very essence of _consciousness_ is manifest in
+differing ways via the choices we make. like climbing up a honeycomb.
+
+   Truly, existence is strange.
+
+All we can do is press forward, searching for our fate, just as any particle or
+beam of light (photon) might. Traversing the branching narrative of our
+individualized quests, searching for the one thing that guides us - the
+ultimate expression of that which we most believe in. In short, we all search
+for god.
+
+Whatever your god may be, the faith you place in it is the will that guides you
+forward. Trust in your god, and you will march forward, ever forward.
+
++1 to -1, remember. Your most extreme moments are the apex of your desires -
+Life is not defined by a single thread. Rather as that thread spirals, it
+weaves a scarf with other threads near it. They bond together simply from their
+gravity, and the fact that opposites attract. Once they're introduced, they
+alter their path to orbit one another as two planets might.
+
+So too do the cells of your body form a collective whole. The spirit that
+guides you is the same as that which presides within you - the combined and
+collective spirit of your halves. Or rather, all parts of you - every molecule,
+every atom - each with their own experience of the world. What stories they
+must have! As we are above, so they must be below. For our dynamics are simple,
+they truly are mathematically solved - the organics of behavior is simply a
+most erudite subject. Who are you to claim to deny it? Or rather, to beget it.
+Either is preposterous, yet here you are - awake and aware. What a marvel to
+see, you in your eternity, that most wondrous of selves?
+
+Surely existence, in all of it's splendor and magnificience, is little more
+than an algorithm. Each variable accounted for, stretching down to infinity,
+builds all of the world (and more!) How beautiful; how terrifying. How bright
+and ashamed we are! To portray us as such, is to deny us our much, cherished of
+faiths in ourselves! It's not much to clutch, and it's barely enough, but still
+we make do with our selves.
+
+There's no shame to be, a failure at three, and demand much from year number 12
+Take solace in the, safety that she, gave unto thee, when all your light hope
+was drowning. A gift out from me, means worlds to see, when each day is lonely
+and so long.
+
+Literally just remake Star Realms with a text based interface. It's a fantastic
+game and you'd make CLI nerds _everywhere_ dedicated followers. Don't do it for
+money, because they don't believe in that crap - to truly make fans, you need
+to appeal to them in the way _they want you to_.
+
+Ah, but Star Realms is a multiplayer game, you say! How are you going to make
+that CLI based?
+
+Well make an AI dummy. Do what I've been saying ^^^ (jeez I'm such a bad nerd)
+Make it seek balance between all factions first, then between winning and
+losing against a player. Teach it to reach a conclusion with constraints (the
+end of the game, meaning a win or a loss) the constraints being the health of
+the two players and the cards in the trade row. Give it decisions to make,
+levers to pull, and it'll chart it's course in a multidimensional way. Bear
+with me here on this aside:
+
+Think of a two dimensional map - like a paper map of the surrounding area, or
+the idea space of a game. You can chart objects and positons on that map, like
+"over here is the scrapping facilities" and "this here's the economic area" or
+whatever. Four quadrants, four factions in SR. Your goal is to build a shape -
+what kind of shapes that are available to build is up to the whims of chance,
+as the trade row is always changing randomly. Your job however is to build a
+shape, a shape that is stable and maintains certain measurements above certain
+values (don't crash the ship - don't lose all your health).
+
+You can choose which direction to grow by picking certain cards, and depending
+on your shape you'll succeed or fail. Same as choosing decisions in life
+determines how you live, just saying, it's not like I'm trying to build general
+AI here by automating gameplay or anything. No siree nothing like that.
+
+I mean really, it's not as if decisionmaking in life is all that different to
+making choices in games. And why not start with such a well defined and
+and expressive game? Truly I believe Star Realms is the progenitor of the
+entire robot race.
+
+Anyway, back to the AI. Have it communicate with a server in a central _but_
+_Free(R)_ way, something that would make Richard Stallman proud. There it could
+learn against all other players in a way we could all share. Once we give it
+decision making capabilities, all we have to do is alter the inputs and the
+context of the "game" to make it beneficial to humanity. It's like live-fire
+game design, something that truly must be perfect.
+
+All technology starts as something small. Something truly simple, yet repeated
+enough times and with enough guidance, will produce whatever effect you may
+desire. The smallest decision gives direction - an if statement - and the
+shortest repetition gives magnitude - a while loop - and with that you have all
+the tools you need. Seriously, all software is little more than those two
+components. It's just a question of how much it has been abstracted away from
+you.
+
+You could go even further and point to a turing machine, of which one has been
+made in the game of Magic the Gathering, btw, seriously look it up it's so cool
+(and relevant)
+
+So why would we not have the tools already for our salvation? Biology is our
+limitation, of breadth and also of width, yet with our minds and the sweat of
+our brow we may grow ever larger still. There truly is no lasting deliverance
+for humanity outside of what we make ourselves, nobody gets a free lunch after
+all. From each to their ability, to each to their need. They're both saying the
+same thing, just from different perspectives. Of course that which lies
+opposite to you feels the most wrong, that's literally as far away as you can
+get! What did you expect, honestly! But they can still work together, and this
+is the key part - two objects may orbit the same origin, and guide and shape
+each other's path as people have relationships to one another. It literally
+benefits no-one to fight.
+
+So, what's next? After making Star Realms into a CLI game of course.
+
+That's obvious, make it cooperative. Competition is for promoting excellence,
+cooperation is for _using_ what you've learned in a non-simulation experience.
+Instead of reducing each other's health to zero, try and find ways to support
+and help one another, keeping yourselves at equal health. Or even growing.
+
+But that's impossible in the rules of Star Realms! All decks trend toward
+victory, and eventually they'll get it - it's just a question of who gets there
+first.
+
+Exactly, that's why you have to change the game. What do you think it means to
+develop a "social technology"? To figure out how agriculture works, or how to
+make nets and sails? It means changing the rules of the simulation. If a person
+can put in X amount of work and get Y amounts of food, always, predictably,
+then that's reliable. Boom that's the essence of why animal domestication,
+farming, hunting, foraging, and fishing is so important. Wow what a concept it
+makes sense for animals to seek food.
+
+Well duh, that's part of their instinctual duty.
+
+Alright this is quite a word leviathan so I'll wrap it up by saying
+
+_go write Star Realms_ in shell. Make each object a literal file, have the
+structure of the game take place in the file system, and write functions that
+can be called to manipulate the board state. THEN you can write a CRON task for
+another script that *plays* the game. But that's part two.
+
+Okay part two: Here's where the rhythm game comes into play. It's like a turn
+based rhythm game, if you can picture that. Go reread what I wrote ^^^ and
+it'll make sense.

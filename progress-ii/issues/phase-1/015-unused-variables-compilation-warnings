@@ -1,0 +1,60 @@
+# Issue 015: Unused Variables and Function Parameters Compilation Warnings
+
+## Current Behavior
+Adroit project compilation generates multiple warnings about unused variables and parameters:
+```
+./libs/common/module.c:13:13: warning: 'g_initialized' defined but not used [-Wunused-variable]
+   13 | static bool g_initialized = false;
+
+./libs/integration/bash_bridge.c:106:79: warning: unused parameter 'input_json' [-Wunused-parameter]
+  106 | int execute_bash_json(const char* script_path, const char** args, const char* input_json, char** output_json) {
+
+./libs/integration/lua_bridge.c:172:41: warning: unused parameter 'args' [-Wunused-parameter]
+  172 |                            const char** args, int arg_count) {
+```
+
+While these are warnings and don't prevent compilation, they indicate:
+1. Dead code that should be cleaned up
+2. Incomplete function implementations  
+3. Interface design that may need refinement
+
+## Intended Behavior
+Compilation should complete without warnings, indicating:
+- Clean, production-ready codebase
+- All variables and parameters serve a purpose
+- No dead code or incomplete implementations
+- Clear interface contracts
+
+## Suggested Implementation Steps
+1. **Audit unused variables**:
+   - `g_initialized` in module.c: Determine if this should be used for initialization tracking or removed
+   - Consider if module system needs initialization state management
+
+2. **Review function parameters**:
+   - `input_json` in `execute_bash_json()`: Implement JSON input parsing or remove parameter
+   - `args` in lua_bridge.c function: Implement argument passing or remove parameters
+
+3. **Implementation options per warning**:
+   - **Use variables**: Implement the intended functionality 
+   - **Remove unused code**: Delete if truly unnecessary
+   - **Add usage annotations**: Use `(void)parameter;` if parameter is reserved for future use
+
+4. **Code quality improvements**:
+   - Add function documentation explaining parameter purposes
+   - Implement TODO comments for incomplete features
+   - Consider interface design - are unused parameters part of planned API?
+
+5. **Verification**: Ensure compilation completes with zero warnings
+
+## Related Files
+- `libs/adroit/libs/common/module.c` - Unused g_initialized variable
+- `libs/adroit/libs/integration/bash_bridge.c` - Unused input_json parameter  
+- `libs/adroit/libs/integration/lua_bridge.c` - Unused args parameter
+- `libs/adroit/src/Makefile` - May need warning flag adjustments
+
+## Issue Metadata  
+- **Priority**: Medium (code quality, not blocking)
+- **Category**: Code Quality / Refactoring
+- **Phase**: 1-2 (affects multiple phases)
+- **Affects**: Code maintainability, professional appearance
+- **Est. Time**: 2-3 hours

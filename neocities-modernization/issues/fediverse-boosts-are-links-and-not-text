@@ -1,0 +1,6 @@
+currently, the fediverse boosts are simply links to the post.
+
+we should change this behavior to (slowly!) scrape the text of the post and
+present it instead of the link. We should anonymize the usernames included in
+the boost (if any) in the same way that we anonymize the usernames inside of
+the rest of the poem text.
