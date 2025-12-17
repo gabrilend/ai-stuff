@@ -28,6 +28,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-001 | Integrate complete HTML generation into pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-005 | Integrate images into HTML output | Open | Medium |
+| 8-008 | Implement configurable centroid embedding system | Open | Medium |
 
 ### Completed Issues
 
@@ -91,7 +92,15 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Added corner box separator line: `╟─────────┐` + gap + `┌───────────┤`
 - ✅ Added corner box navigation line with vertical walls
 - ✅ Bottom border junctions adapt to progress: `╧` for ═ section, `┴` for ─ section
-- ✅ Regular (non-golden) poems unaffected
+- ✅ Regular (non-golden) poems now have corner boxes connecting to progress bar
+- ✅ Corner characters: `╘` (left) and `┘` (right) close regular poem corner boxes
+
+**8-008: Implement Configurable Centroid Embedding System** - OPEN
+- Allow users to define named centroids via JSON configuration
+- Compute centroid embeddings from multiple poem vectors
+- Generate centroid-based similarity/diversity exploration pages
+- Enable "context window" feature for session-based recommendations
+- Use cases: themed entry points, curated collections, reading session context
 
 ## Completion Criteria
 
