@@ -44,12 +44,9 @@ LIBS_DIR="${SCRIPT_DIR}/libs"
 
 # Source TUI libraries if available
 TUI_AVAILABLE=false
-if [[ -f "${LIBS_DIR}/tui.sh" ]] && [[ -f "${LIBS_DIR}/menu.sh" ]]; then
-    source "${LIBS_DIR}/tui.sh"
-    source "${LIBS_DIR}/checkbox.sh"
-    source "${LIBS_DIR}/multistate.sh"
-    source "${LIBS_DIR}/input.sh"
-    source "${LIBS_DIR}/menu.sh"
+if [[ -f "${LIBS_DIR}/lua-menu.sh" ]] && command -v luajit &>/dev/null; then
+    # Use Lua-based menu for stable rendering (fixes off-by-one bug in bash TUI)
+    source "${LIBS_DIR}/lua-menu.sh"
     TUI_AVAILABLE=true
 fi
 # }}}
@@ -567,7 +564,7 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Streaming Settings (inline editable flag values)
     # ═══════════════════════════════════════════════════════════════════════════
-    menu_add_section "streaming" "multi" "Streaming Settings (type digits, →=default, ←=off)"
+    menu_add_section "streaming" "multi" "Streaming Settings (type digits, >=default, <=off)"
     menu_add_item "streaming" "parallel" "Parallel Jobs" "flag" "3:2" \
         "Max concurrent Claude calls (type 1-10)"
     menu_add_item "streaming" "delay" "Output Delay (sec)" "flag" "5:2" \

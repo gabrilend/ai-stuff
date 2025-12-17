@@ -273,6 +273,10 @@ tui_color() {
 tui_goto() {
     local row="$1"
     local col="${2:-0}"
+    # DEBUG: Log actual ANSI coords (only if MENU_DEBUG=1)
+    if [[ "${MENU_DEBUG:-}" == "1" ]]; then
+        echo "GOTO: input=($row,$col) ANSI=($((row+1)),$((col+1)))" >> /tmp/menu_goto_debug.log
+    fi
     # Use printf to stdout - must match where content goes
     printf '\033[%d;%dH' "$((row + 1))" "$((col + 1))"
 }
