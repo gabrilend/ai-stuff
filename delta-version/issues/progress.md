@@ -202,6 +202,20 @@ These issues provide foundational utilities and can be implemented independently
   - *Dependencies*: Issue 023 (Project Listing Utility), Issue 026 (Project Metadata System)
   - *Status*: Ready for implementation
 
+- **Issue 033**: Creator Revenue Sharing System 📝
+  - *Purpose*: Revenue sharing framework for derivative content (e.g., Warcraft 3 maps)
+  - *Features*: Revenue split configuration, escrow holding for original creators, consent-based distribution
+  - *Philosophy*: Hold funds indefinitely for original creators; redirect option to "new projects for users"
+  - *Dependencies*: Issue 032 (conceptual alignment)
+  - *Status*: Ready for implementation
+
+- **Issue 034**: Bug Bounty Reward System 📝
+  - *Purpose*: Incentivize difficult bug fixes through token-based rewards
+  - *Features*: Auto-escalation after 3+ revision attempts, expert registry, stock-indexed tokens, exchange kiosk
+  - *Philosophy*: Build expertise registry, align contributor incentives with project success
+  - *Dependencies*: Bug tracking system, Issue 033 (conceptual alignment)
+  - *Status*: Ready for implementation
+
 - **Issue 029**: Demo Runner Script ✅
   - *Purpose*: Unified script to run phase demonstration scripts
   - *Implemented*: `run-demo.sh` with demo discovery, interactive/headless modes
@@ -228,10 +242,10 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~31
+- **Total Issues**: ~33
 - **Completed**: 14 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~15
+- **Pending**: ~17
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
