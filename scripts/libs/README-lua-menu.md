@@ -183,9 +183,9 @@ Items are indexed using a repeated-digit pattern that allows quick access to any
 
 Pressing a different digit resets the sequence.
 
-**Note:** Index numbers are only displayed for checkbox items. Flag (text-entry),
-multistate, and action items do not show index numbers. When on a flag field,
-digit keys enter text instead of navigating.
+**Note:** Index shortcuts only apply to checkbox items. Flag (text-entry),
+multistate, and action items are completely skipped in the numbering sequence.
+When on a flag field, digit keys enter text instead of navigating.
 
 ## Complete Example
 
