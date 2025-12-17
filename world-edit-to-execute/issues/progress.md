@@ -10,6 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
+| A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | In Progress | 3/8 |
@@ -20,6 +21,42 @@
 | 7 | Gameplay - Core Mechanics | Planned | - |
 | 8 | Multiplayer - Network Layer | Planned | - |
 | 9 | Polish - Tools and UX | Planned | - |
+
+---
+
+## Phase A Issues (Infrastructure Tools)
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| A01 | Git history prettifier | Pending | None |
+| A02 | Phase progress dashboard | Pending | None |
+| A03 | Unified test runner | Pending | None |
+| A04 | Issue validator | Pending | None |
+| A05 | Documentation index updater | Pending | None |
+| A06 | Parser coverage report | Pending | None |
+| A07 | Phase A integration test | Pending | A01-A06 |
+
+### Design Philosophy
+
+Phase A tools are **project-abstract** and live in the shared scripts directory:
+- Location: `/home/ritz/programming/ai-stuff/scripts/`
+- Symlinked into projects: `src/cli/<tool>`
+- Usable as both CLI tools and sourceable libraries
+
+### Dependency Graph
+
+```
+No dependencies (all independent except A07)
+ │
+ ├──▶ A01 Git History Prettifier
+ ├──▶ A02 Progress Dashboard
+ ├──▶ A03 Test Runner
+ ├──▶ A04 Issue Validator
+ ├──▶ A05 TOC Updater
+ ├──▶ A06 Parser Coverage
+ │
+ └──▶ A07 Integration Test (depends on A01-A06)
+```
 
 ---
 
@@ -371,6 +408,21 @@ Phase 2 & 3 Complete
   - 307: Implement trigger framework (conditions/actions)
   - 308: Build event dispatch system
   - 309: Phase 3 integration test
+- **Phase A issues created:** Infrastructure Tools - Shared Libraries (7 issues)
+  - A01: Git history prettifier (per-phase commit logs)
+  - A02: Phase progress dashboard (issue status visualization)
+  - A03: Unified test runner (aggregate test execution)
+  - A04: Issue validator (check issue file format)
+  - A05: Documentation index updater (auto-generate TOC)
+  - A06: Parser coverage report (compatibility matrix)
+  - A07: Phase A integration test
+- **Issue 109 completed:** Implement PKWARE DCL decompression
+  - Created src/mpq/pkware.lua (pure Lua decompressor, ~470 lines)
+  - Updated src/mpq/extract.lua with expected_size parameter
+  - Supports Binary and ASCII compression modes
+  - Supports 4/5/6 bit dictionary sizes
+  - Key fix: Use expected output size from block table (not all streams have end marker)
+  - **16/16 test maps now pass** (Daow6.2.w3x previously failed)
 
 ---
 

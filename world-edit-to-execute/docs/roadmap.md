@@ -44,6 +44,28 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 ---
 
+## Phase A: Infrastructure Tools (Shared Libraries)
+
+Cross-project development tools that live in the shared scripts directory.
+Designed to be project-abstract and usable as both CLI tools and libraries.
+
+| Tool | Script | Description |
+|------|--------|-------------|
+| **Git History** | `git-history.sh` | Generate per-phase commit logs |
+| **Progress Dashboard** | `progress-dashboard.lua` | Visualize issue completion status |
+| **Test Runner** | `test-runner.sh` | Unified test execution and reporting |
+| **Issue Validator** | `issue-validator.sh` | Validate issue file format |
+| **TOC Updater** | `update-toc.lua` | Auto-generate documentation index |
+| **Parser Coverage** | `parser-coverage.lua` | Map file compatibility matrix |
+
+**Design Principles:**
+- Location: `/home/ritz/programming/ai-stuff/scripts/`
+- Symlinked into projects: `src/cli/<tool>`
+- Usable as CLI tools OR sourceable/requireable libraries
+- Project-abstract configuration
+
+---
+
 ## Phase 0: Tooling/Infrastructure ✓ COMPLETED
 
 All 18 issues completed. Development tools now available:
