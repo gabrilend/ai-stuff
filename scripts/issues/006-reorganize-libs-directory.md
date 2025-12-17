@@ -44,6 +44,12 @@ scripts/
 /home/ritz/programming/ai-stuff/
 ├── my-libs/                          # NEW: Centralized library location
 │   ├── README.md                     # Dependency reference list
+│   ├── script-files/                 # Script implementations (called by shortcuts)
+│   │   ├── backup-conversations.sh
+│   │   ├── sync-visions.sh
+│   │   ├── issue-splitter.sh
+│   │   ├── git-history.sh
+│   │   └── poem-context-generator/   # Multi-file implementations
 │   ├── tui/                          # TUI component library
 │   │   ├── tui.sh                    # Core utilities
 │   │   ├── menu.sh                   # Menu component
@@ -59,14 +65,13 @@ scripts/
 │
 ├── scripts/                          # Executable shortcuts ONLY
 │   ├── README.md                     # Documents shortcut pattern
-│   ├── backup-conversations          # Shortcut → implementation
-│   ├── sync-visions                  # Shortcut → implementation
-│   ├── issue-splitter                # Shortcut → implementation
-│   ├── git-history                   # Shortcut → implementation
-│   └── _impl/                        # Actual implementations
-│       ├── backup-conversations.sh
-│       ├── sync-visions.sh
-│       └── ...
+│   ├── backup-conversations          # Shortcut → my-libs/script-files/
+│   ├── sync-visions                  # Shortcut → my-libs/script-files/
+│   ├── issue-splitter                # Shortcut → my-libs/script-files/
+│   ├── git-history                   # Shortcut → my-libs/script-files/
+│   ├── issues/                       # Infrastructure (stays here)
+│   ├── debug/                        # Infrastructure (stays here)
+│   └── visions/                      # Symlink directory (stays here)
 ```
 
 ### Shortcut Pattern
@@ -77,10 +82,11 @@ Each script in `scripts/` is a minimal bash wrapper:
 #!/usr/bin/env bash
 # backup-conversations - Shortcut to backup-conversations implementation
 #
-# This file exists for PATH convenience. Actual implementation lives in _impl/
+# This file exists for PATH convenience.
+# Actual implementation: my-libs/script-files/backup-conversations.sh
 
 DIR="${DIR:-/home/ritz/programming/ai-stuff}"
-exec "${DIR}/scripts/_impl/backup-conversations.sh" "$@"
+exec "${DIR}/my-libs/script-files/backup-conversations.sh" "$@"
 ```
 
 ### Library README.md Format
@@ -141,9 +147,9 @@ Before making breaking changes to a library:
 - Move test scripts to `my-libs/tui/tests/`
 - Create `my-libs/README.md` with dependency reference template
 
-#### 006b: Create Scripts Implementation Directory
-- Create `scripts/_impl/` directory
-- Move implementation scripts to `_impl/`
+#### 006b: Create Script-Files Directory
+- Create `my-libs/script-files/` directory
+- Move implementation scripts from `scripts/` to `my-libs/script-files/`
 - Update any internal paths in moved scripts
 - Create `scripts/README.md` documenting the shortcut pattern
 
@@ -201,25 +207,25 @@ source "${DIR}/my-libs/tui/menu.sh"
 # {script-name} - Shortcut to {script-name} implementation
 #
 # This is a thin wrapper for PATH convenience.
-# Actual implementation: _impl/{script-name}.sh
+# Actual implementation: my-libs/script-files/{script-name}.sh
 # Library dependencies: (list if any)
 
 set -euo pipefail
 
 DIR="${DIR:-/home/ritz/programming/ai-stuff}"
-exec "${DIR}/scripts/_impl/{script-name}.sh" "$@"
+exec "${DIR}/my-libs/script-files/{script-name}.sh" "$@"
 ```
 
 ### Scripts to Migrate
 
 | Current Location | New Implementation | New Shortcut |
 |------------------|-------------------|--------------|
-| `scripts/backup-conversations` | `scripts/_impl/backup-conversations.sh` | `scripts/backup-conversations` |
-| `scripts/sync-visions.sh` | `scripts/_impl/sync-visions.sh` | `scripts/sync-visions` |
-| `scripts/issue-splitter.sh` | `scripts/_impl/issue-splitter.sh` | `scripts/issue-splitter` |
-| `scripts/git-history.sh` | `scripts/_impl/git-history.sh` | `scripts/git-history` |
-| `scripts/filesystem_scanner.sh` | `scripts/_impl/filesystem_scanner.sh` | `scripts/filesystem-scanner` |
-| `scripts/claude-conversation-exporter.sh` | `scripts/_impl/claude-conversation-exporter.sh` | `scripts/claude-exporter` |
+| `scripts/backup-conversations` | `my-libs/script-files/backup-conversations.sh` | `scripts/backup-conversations` |
+| `scripts/sync-visions.sh` | `my-libs/script-files/sync-visions.sh` | `scripts/sync-visions` |
+| `scripts/issue-splitter.sh` | `my-libs/script-files/issue-splitter.sh` | `scripts/issue-splitter` |
+| `scripts/git-history.sh` | `my-libs/script-files/git-history.sh` | `scripts/git-history` |
+| `scripts/filesystem_scanner.sh` | `my-libs/script-files/filesystem_scanner.sh` | `scripts/filesystem-scanner` |
+| `scripts/claude-conversation-exporter.sh` | `my-libs/script-files/claude-conversation-exporter.sh` | `scripts/claude-exporter` |
 | `scripts/progress-dashboard.lua` | `my-libs/lua/progress-dashboard.lua` | `scripts/progress-dashboard` |
 
 ### Directory Decisions
@@ -231,7 +237,7 @@ exec "${DIR}/scripts/_impl/{script-name}.sh" "$@"
 | `debug/` | `scripts/debug/` | Keep as infrastructure |
 | `issues/` | `scripts/issues/` | Keep as infrastructure |
 | `visions/` | `scripts/visions/` | Keep as symlink directory |
-| `poem-context-generator/` | `scripts/_impl/poem-context-generator/` | Multi-file implementation |
+| `poem-context-generator/` | `my-libs/script-files/poem-context-generator/` | Multi-file implementation |
 
 ## Related Documents
 - Issue 004: Fix TUI Menu Incremental Rendering (uses libs/menu.sh)
@@ -249,10 +255,10 @@ exec "${DIR}/scripts/_impl/{script-name}.sh" "$@"
 
 ### Structure
 - [ ] `my-libs/` directory exists at repository root
+- [ ] `my-libs/script-files/` contains all script implementations
 - [ ] `my-libs/tui/` contains all TUI components
 - [ ] `my-libs/tui/tests/` contains all TUI test scripts
-- [ ] `scripts/` contains only shortcut executables and infrastructure
-- [ ] `scripts/_impl/` contains actual implementations
+- [ ] `scripts/` contains only shortcut executables and infrastructure directories
 
 ### Documentation
 - [ ] `my-libs/README.md` exists with dependency reference format
