@@ -1,0 +1,57 @@
+=== FRAME 0 (FULL RENDER) ===
+Timestamp: 22:04:45.822863983
+
+--- Full Render Complete ---
+MENU_HEADER_HEIGHT=4
+MENU_ITEMS_END_ROW=57
+MENU_CURRENT_SECTION=0
+MENU_CURRENT_ITEM=0
+
+--- Item Row Cache ---
+  files:22 → row 48
+  files:23 → row 49
+  files:20 → row 46
+  files:21 → row 47
+  files:26 → row 52
+  files:27 → row 53
+  files:24 → row 50
+  files:25 → row 51
+  files:28 → row 54
+  files:29 → row 55
+  streaming:1 → row 22
+  streaming:0 → row 21
+  files:19 → row 45
+  files:18 → row 44
+  files:17 → row 43
+  files:16 → row 42
+  files:15 → row 41
+  files:14 → row 40
+  files:13 → row 39
+  files:12 → row 38
+  files:11 → row 37
+  files:10 → row 36
+  files:4 → row 30
+  files:5 → row 31
+  files:6 → row 32
+  files:7 → row 33
+  files:0 → row 26
+  files:1 → row 27
+  files:2 → row 28
+  files:3 → row 29
+  files:8 → row 34
+  files:9 → row 35
+  mode:2 → row 8
+  mode:3 → row 9
+  mode:0 → row 6
+  mode:1 → row 7
+  processing:2 → row 15
+  processing:3 → row 16
+  processing:0 → row 13
+  processing:1 → row 14
+  processing:4 → row 17
+
+--- Expected Layout ---
+Row 0-3: Header
+Row 4: Section 0 title
+Row 5: Section 0 underline
+Row 6+: Section 0 items...
