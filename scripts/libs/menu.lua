@@ -96,15 +96,45 @@ local function get_total_items()
     return total
 end
 
+-- Count only checkbox items (for index numbering)
+local function get_checkbox_count()
+    local count = 0
+    for _, sid in ipairs(state.sections) do
+        for _, item_id in ipairs(state.section_data[sid].items) do
+            if state.item_data[item_id].type == "checkbox" then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+-- Get the Nth checkbox item's section and item indices (1-based)
+-- Returns section_idx, item_idx, item_id or nil if not found
+local function get_checkbox_by_index(target_idx)
+    local count = 0
+    for si, sid in ipairs(state.sections) do
+        for ii, item_id in ipairs(state.section_data[sid].items) do
+            if state.item_data[item_id].type == "checkbox" then
+                count = count + 1
+                if count == target_idx then
+                    return si, ii, item_id
+                end
+            end
+        end
+    end
+    return nil, nil, nil
+end
+
 -- Calculate the tier (number of digit repetitions) for an item number
 -- Items 1-10: tier 1, Items 11-20: tier 2, etc.
 local function get_item_tier(item_num)
     return math.ceil(item_num / 10)
 end
 
--- Get the max tier needed for displaying all items
+-- Get the max tier needed for displaying checkbox items
 local function get_max_tier()
-    local total = get_total_items()
+    local total = get_checkbox_count()
     if total == 0 then return 1 end
     return get_item_tier(total)
 end
@@ -118,10 +148,10 @@ local function item_to_index_str(item_num)
     return string.rep(tostring(digit), tier)
 end
 
--- Convert digit and repeat count to item number
+-- Convert digit and repeat count to checkbox index
 -- digit=1, count=1 -> 1, digit=0, count=1 -> 10
 -- digit=1, count=2 -> 11, digit=0, count=2 -> 20
-local function index_to_item(digit, repeat_count)
+local function index_to_checkbox(digit, repeat_count)
     local position = (digit == 0) and 10 or digit
     return (repeat_count - 1) * 10 + position
 end
@@ -266,17 +296,12 @@ local function render_item(row, item_id, highlight, item_num)
     tui.reset_style()
 end
 
-local function render_section(section_idx, start_row)
+local function render_section(section_idx, start_row, checkbox_idx_start)
     local sid = state.sections[section_idx]
     local data = state.section_data[sid]
     local row = start_row
     local is_current = (section_idx == state.current_section)
-    local global_idx = 0
-
-    -- Calculate global index offset
-    for i = 1, section_idx - 1 do
-        global_idx = global_idx + get_section_item_count(i)
-    end
+    local checkbox_idx = checkbox_idx_start or 0
 
     -- Section title
     tui.clear_row(row)
@@ -292,13 +317,20 @@ local function render_section(section_idx, start_row)
 
     -- Items
     for i, item_id in ipairs(data.items) do
-        global_idx = global_idx + 1
+        local item_type = state.item_data[item_id].type
         local highlight = is_current and (i == state.current_item)
-        render_item(row, item_id, highlight, global_idx)
+
+        -- Only increment and pass checkbox index for checkbox items
+        if item_type == "checkbox" then
+            checkbox_idx = checkbox_idx + 1
+            render_item(row, item_id, highlight, checkbox_idx)
+        else
+            render_item(row, item_id, highlight, nil)
+        end
         row = row + 1
     end
 
-    return row
+    return row, checkbox_idx
 end
 
 local function render_description(start_row)
@@ -354,10 +386,11 @@ function menu.render()
     tui.clear_back_buffer()
 
     local row = render_header()
+    local checkbox_idx = 0
 
     -- Sections
     for i, _ in ipairs(state.sections) do
-        row = render_section(i, row)
+        row, checkbox_idx = render_section(i, row, checkbox_idx)
         row = row + 1  -- Space between sections
     end
 
@@ -445,6 +478,20 @@ function menu.nav_to_action()
                 return true
             end
         end
+    end
+    return false
+end
+
+function menu.nav_to_checkbox(target_idx)
+    -- Navigate to the Nth checkbox item (1-based index)
+    reset_flag_edit_state()
+    -- Note: don't reset digit state here, caller handles it
+    local si, ii, _ = get_checkbox_by_index(target_idx)
+    if si and ii then
+        state.current_section = si
+        state.current_item = ii
+        menu.render()
+        return true
     end
     return false
 end
@@ -752,7 +799,7 @@ function menu.run()
         -- Jump to action item: ` or ~
         elseif key == "`" or key == "~" then
             menu.nav_to_action()
-        -- Digit keys 0-9: for flag fields or jump to item by index
+        -- Digit keys 0-9: for flag fields or jump to checkbox by index
         elseif type(key) == "string" and #key == 1 and key >= "0" and key <= "9" then
             -- Check if current item is a flag field
             local item_id = get_current_item_id()
@@ -760,7 +807,7 @@ function menu.run()
             if is_flag then
                 menu.handle_flag_digit(key)
             else
-                -- Index navigation with consecutive digit tracking
+                -- Index navigation with consecutive digit tracking (checkbox items only)
                 local digit = tonumber(key)
 
                 -- Track consecutive presses of same digit
@@ -771,19 +818,19 @@ function menu.run()
                     state.digit_count = 1
                 end
 
-                -- Calculate target item from digit and repeat count
-                local target = index_to_item(digit, state.digit_count)
-                local total = get_total_items()
+                -- Calculate target checkbox from digit and repeat count
+                local target = index_to_checkbox(digit, state.digit_count)
+                local total = get_checkbox_count()
 
-                -- Only navigate if target exists
+                -- Only navigate if target checkbox exists
                 if target <= total then
-                    menu.nav_to_index(target)
+                    menu.nav_to_checkbox(target)
                 else
                     -- Target doesn't exist, reset to single press
                     state.digit_count = 1
-                    target = index_to_item(digit, 1)
+                    target = index_to_checkbox(digit, 1)
                     if target <= total then
-                        menu.nav_to_index(target)
+                        menu.nav_to_checkbox(target)
                     end
                 end
             end
