@@ -45,7 +45,8 @@ For each commit, concatenate content in this priority order:
 ├─────────────────────────────────────────────────┤
 │ § COMPLETED ISSUES                              │
 │ ─────────────────────────────────────────────── │
-│ (files from issues/completed/ in this commit)   │
+│ (files added/changed in issues/completed/)      │
+│ (EXCLUDES issues/ root - those are just plans)  │
 │                                                 │
 ├─────────────────────────────────────────────────┤
 │ § DOCUMENTATION                                 │
@@ -140,6 +141,9 @@ This issue requires the following sub-issues:
 - Extract full file content (not diffs) at each commit
 - Filter to text files only (skip binaries)
 - Categorize files: notes/, issues/completed/, docs/, other .md
+- **IMPORTANT**: Only show `issues/completed/*` files, NOT `issues/*.md` (root level)
+- Issues in root `issues/` are plans/specs; `issues/completed/` represents done work
+- If a file is added directly to `issues/completed/` (retroactive ticket), treat as completed
 - Concatenate in priority order with section headers
 
 #### 036d: Paginator TUI Component
@@ -195,7 +199,14 @@ get_commit_content() {
                 notes_content+="### $file\n$content\n\n"
                 ;;
             issues/completed/*)
+                # Only completed issues - these represent done work
+                # Includes retroactively created tickets (added directly to completed/)
                 issues_content+="### $file\n$content\n\n"
+                ;;
+            issues/*.md)
+                # SKIP: Root-level issues are plans/specs, not completed work
+                # These don't represent narrative progress, just future intentions
+                continue
                 ;;
             docs/*)
                 docs_content+="### $file\n$content\n\n"

@@ -99,6 +99,34 @@ Generated: 2024-12-17 14:30:00
 5. **Full Messages**: Complete commit messages, not just first lines
 6. **Project Isolation**: Only commits affecting that project's files
 7. **Header/Footer**: Document metadata and summary statistics
+8. **Completed Work Focus**: Emphasize commits that complete work, not just add plans
+
+### Commit Classification
+
+Not all commits represent equal narrative value. The history should emphasize **completed work** over **planning commits**:
+
+| Commit Type | Example | Narrative Value |
+|-------------|---------|-----------------|
+| Completed Issue | "Issue 035a: Implement project detection" | **HIGH** - actual work done |
+| Retroactive Issue | File added directly to `issues/completed/` | **HIGH** - work was done, ticket created after |
+| New Issue Spec | "Create Issue 036 specification" | **LOW** - just planning, no implementation |
+| Vision/Notes | Changes to `notes/vision` | **HIGH** - foundational narrative |
+| Code Changes | "Fix bug in parser" | **MEDIUM** - implementation progress |
+
+#### Filtering Options
+
+```
+--completed-only     Show only commits touching issues/completed/
+--skip-specs         Hide commits that only add issues/*.md (not completed/)
+--all-commits        Include all commits (default behavior)
+```
+
+#### Retroactive Tickets
+
+When an issue file is added directly to `issues/completed/` (not moved there from `issues/`), this indicates:
+- Work was done first, ticket created retroactively
+- The commit represents **completed work**, not planning
+- Should be treated the same as any other completed issue
 
 ### CLI Interface
 
@@ -114,6 +142,8 @@ Options:
     --since DATE         Only include commits after DATE
     --until DATE         Only include commits before DATE
     --min-commits N      Skip projects with fewer than N commits
+    --completed-only     Only show commits touching issues/completed/
+    --skip-specs         Hide commits that only add issue specs (issues/*.md)
     -n, --dry-run        Show what would be generated
     -v, --verbose        Show progress during generation
     -I, --interactive    Select projects interactively
