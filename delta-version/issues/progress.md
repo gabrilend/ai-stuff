@@ -235,6 +235,14 @@ These issues provide foundational utilities and can be implemented independently
   - *Dependencies*: Bug tracking system, Issue 033 (conceptual alignment)
   - *Status*: Ready for implementation
 
+- **Issue 036**: Commit History Viewer 📝
+  - *Purpose*: Terminal-based viewer to browse project git history as readable narrative
+  - *Features*: Paginator with commit flipping (left/right), content scrolling (up/down), double-tap navigation
+  - *Content Order*: Commit message → notes/ → issues/completed/ → docs/ → other .md files
+  - *Dependencies*: Issue 035 (Project History Reconstruction)
+  - *Sub-issues*: 036a (project selection), 036b (git traversal), 036c (content extraction), 036d (paginator TUI), 036e (input handling), 036f (session state)
+  - *Status*: Ready for implementation (blocked by 035)
+
 - **Issue 029**: Demo Runner Script ✅
   - *Purpose*: Unified script to run phase demonstration scripts
   - *Implemented*: `run-demo.sh` with demo discovery, interactive/headless modes
@@ -261,12 +269,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~40 (including sub-issues)
+- **Total Issues**: ~47 (including sub-issues)
 - **Completed**: 15 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a)
 - **In Progress**: 1 (035 - Project History Reconstruction)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~22
-- **High Priority**: 1 (035 - blocks project imports)
+- **Pending**: ~29
+- **High Priority**: 1 (035 - blocks 036 and project imports)
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
