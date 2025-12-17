@@ -189,6 +189,25 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## New Issues
+
+### HIGH PRIORITY
+- **Issue 035**: Project History Reconstruction 🔴 HIGH PRIORITY - IN PROGRESS
+  - *Purpose*: Reconstruct git history from completed issue files for projects without git history
+  - *Features*: Vision-first commit, one commit per completed issue, bulk final commit
+  - *Commit Order*: 1) Vision file → 2) Each completed issue → 3) Remaining project files
+  - *Blocks*: Issue 008 (Validation and Documentation), future project imports
+  - *Dependencies*: None
+  - *Implemented*: `/delta-version/scripts/reconstruct-history.sh`
+  - *Status*: Sub-issue 035a complete, core framework implemented
+  - *Sub-issues*:
+    - **035a** ✅: Project detection and external import (unified workflow, state classification)
+    - **035b**: Dependency graph and topological sort
+    - **035c**: Date estimation from file timestamps
+    - **035d**: File-to-issue association
+    - **035e**: History rewriting with rebase (preserve post-blob commits)
+    - **035f**: Local LLM integration for ambiguous decisions
+
+### Standard Priority
 - **Issue 024**: External Project Directory Configuration 📝
   - *Purpose*: Enable configuration of project directories outside main repository
   - *Features*: External directory config file, enhanced project discovery, cross-directory integration
@@ -242,10 +261,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~33
-- **Completed**: 14 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031)
+- **Total Issues**: ~40 (including sub-issues)
+- **Completed**: 15 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a)
+- **In Progress**: 1 (035 - Project History Reconstruction)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~17
+- **Pending**: ~22
+- **High Priority**: 1 (035 - blocks project imports)
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
