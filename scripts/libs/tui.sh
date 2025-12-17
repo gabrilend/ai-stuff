@@ -273,7 +273,8 @@ tui_color() {
 tui_goto() {
     local row="$1"
     local col="${2:-0}"
-    tput cup "$row" "$col" 2>/dev/null || echo -en "\e[${row};${col}H"
+    # Use printf to stdout - must match where content goes
+    printf '\033[%d;%dH' "$((row + 1))" "$((col + 1))"
 }
 # }}}
 
@@ -287,7 +288,7 @@ tui_clear() {
 # {{{ tui_clear_line
 # Clear from cursor to end of line
 tui_clear_line() {
-    tput el 2>/dev/null || echo -en "\e[K"
+    printf '\033[K'
 }
 # }}}
 
@@ -544,7 +545,12 @@ tui_hline() {
         tui_goto "$row" "${col:-0}"
     fi
 
-    printf '%*s' "$length" '' | tr ' ' "$char"
+    # Build string by repeating char (tr doesn't work with multi-byte UTF-8)
+    local line=""
+    for ((i = 0; i < length; i++)); do
+        line+="$char"
+    done
+    echo -n "$line"
 }
 # }}}
 

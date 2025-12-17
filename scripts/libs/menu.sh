@@ -52,10 +52,22 @@ MENU_EDIT_BUFFER=""                   # current edit buffer for inline editing
 MENU_HEADER_HEIGHT=4
 MENU_FOOTER_HEIGHT=4
 MENU_FLAG_WIDTH=10                    # Width of flag value display box
+MENU_DESC_MAX_LINES=3                 # Maximum lines for description area
 
 # Render state (used to return values from render functions without subshells)
 MENU_RENDER_ROW=0
 MENU_RENDER_GLOBAL_INDEX=0
+MENU_ITEMS_END_ROW=0                  # Row after last item (for description area)
+
+# Item position cache for incremental updates
+declare -A MENU_ITEM_ROWS              # "section:item_idx" -> screen row
+declare -A MENU_ITEM_GLOBAL_IDX        # "section:item_idx" -> global index (1-based)
+declare -A MENU_ITEM_IDS               # "section:item_idx" -> item_id
+MENU_NEEDS_FULL_REDRAW=1               # 1 = need full redraw, 0 = can do incremental
+
+# Previous cursor position (for incremental updates)
+MENU_PREV_SECTION=-1
+MENU_PREV_ITEM=-1
 
 # ============================================================================
 # Initialization
@@ -85,6 +97,27 @@ menu_init() {
     # Reset inline editing state
     MENU_EDITING_ITEM=""
     MENU_EDIT_BUFFER=""
+
+    # Reset position cache
+    MENU_ITEM_ROWS=()
+    MENU_ITEM_GLOBAL_IDX=()
+    MENU_ITEM_IDS=()
+    MENU_NEEDS_FULL_REDRAW=1
+    MENU_PREV_SECTION=-1
+    MENU_PREV_ITEM=-1
+
+    # DEBUG: Initialize frame-by-frame logging
+    # DEPRECATED: Remove after issue 004 is resolved (causes SSD wear)
+    # See: scripts/issues/004-fix-tui-menu-incremental-rendering.md
+    MENU_DEBUG_FRAME_COUNT=0
+    # Store debug frames in project directory (relative to this library)
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    MENU_DEBUG_DIR="${script_dir}/../debug/menu_frames"
+    rm -rf "$MENU_DEBUG_DIR" 2>/dev/null || true
+    mkdir -p "$MENU_DEBUG_DIR"
+    echo "=== Debug Session Started: $(date) ===" > "${MENU_DEBUG_DIR}/summary.log"
+    echo "Debug directory: $MENU_DEBUG_DIR" >> "${MENU_DEBUG_DIR}/summary.log"
+    echo "Cleared debug directory, ready for frame capture" >> "${MENU_DEBUG_DIR}/summary.log"
 
     # Reset component states
     checkbox_init
@@ -674,8 +707,45 @@ menu_render() {
         ((++row))  # Space between sections
     done
 
+    # Store where items end (for description area positioning)
+    MENU_ITEMS_END_ROW=$row
+
+    # Description area (below items, above footer)
+    menu_render_description_area
+
     # Footer
     menu_render_footer
+
+    # DEBUG: Log full render state
+    if [[ -d "$MENU_DEBUG_DIR" ]]; then
+        local frame_file="${MENU_DEBUG_DIR}/frame_$(printf '%04d' $MENU_DEBUG_FRAME_COUNT).txt"
+        {
+            echo "=== FRAME $MENU_DEBUG_FRAME_COUNT (FULL RENDER) ==="
+            echo "Timestamp: $(date +%H:%M:%S.%N)"
+            echo ""
+            echo "--- Full Render Complete ---"
+            echo "MENU_HEADER_HEIGHT=$MENU_HEADER_HEIGHT"
+            echo "MENU_ITEMS_END_ROW=$MENU_ITEMS_END_ROW"
+            echo "MENU_CURRENT_SECTION=$MENU_CURRENT_SECTION"
+            echo "MENU_CURRENT_ITEM=$MENU_CURRENT_ITEM"
+            echo ""
+            echo "--- Item Row Cache ---"
+            for key in "${!MENU_ITEM_ROWS[@]}"; do
+                echo "  $key → row ${MENU_ITEM_ROWS[$key]}"
+            done
+            echo ""
+            echo "--- Expected Layout ---"
+            echo "Row 0-3: Header"
+            echo "Row 4: Section 0 title"
+            echo "Row 5: Section 0 underline"
+            echo "Row 6+: Section 0 items..."
+        } > "$frame_file"
+        ((MENU_DEBUG_FRAME_COUNT++))
+        echo "Frame $((MENU_DEBUG_FRAME_COUNT - 1)): FULL RENDER" >> "${MENU_DEBUG_DIR}/summary.log"
+    fi
+
+    # Move cursor to bottom-right to avoid visual artifacts
+    tui_goto "$((TUI_ROWS - 1))" "$((TUI_COLS - 1))"
 }
 # }}}
 
@@ -732,6 +802,16 @@ menu_render_section() {
             fi
 
             ((++MENU_RENDER_GLOBAL_INDEX))
+
+            # Store item position in cache for incremental updates
+            local cache_key="${section_id}:${i}"
+            MENU_ITEM_ROWS[$cache_key]=$row
+            MENU_ITEM_GLOBAL_IDX[$cache_key]=$MENU_RENDER_GLOBAL_INDEX
+            MENU_ITEM_IDS[$cache_key]="$item_id"
+
+            # DEBUG: Log to file what row we're about to render at
+            echo "FULL_RENDER: section=$section_id item=$i row=$row (ANSI $((row+1))) label=${MENU_ITEM_LABELS[$item_id]}" >> "${MENU_DEBUG_DIR}/full_render.log"
+
             menu_render_item "$item_id" "$row" "$highlight" "$MENU_RENDER_GLOBAL_INDEX"
             ((++row))
         done
@@ -750,10 +830,12 @@ menu_render_item() {
     local item_num="${4:-}"
 
     local label="${MENU_ITEM_LABELS[$item_id]:-$item_id}"
-    local desc="${MENU_ITEM_DESCRIPTIONS[$item_id]:-}"
     local type="${MENU_ITEM_TYPES[$item_id]:-checkbox}"
     local disabled="${MENU_ITEM_DISABLED[$item_id]:-}"
     local value="${MENU_VALUES[$item_id]:-}"
+
+    # DEBUG: Log actual row used for tui_goto
+    echo "  menu_render_item: tui_goto row=$row col=0 (ANSI $((row+1));1) item=$item_id" >> "${MENU_DEBUG_DIR}/full_render.log"
 
     tui_goto "$row" 0
     tui_clear_line
@@ -888,11 +970,321 @@ menu_render_item() {
             ;;
     esac
 
-    # Description (on highlight)
-    if [[ "$highlight" == "1" ]] && [[ -n "$desc" ]]; then
-        echo
-        tui_goto "$((row + 1))" 6
-        echo -n "${TUI_DIM}${desc}${TUI_RESET}"
+    # Note: Descriptions are now shown in a dedicated area below items
+    # See menu_render_description_area()
+}
+# }}}
+
+# {{{ menu_redraw_single_item
+# Redraw a single item at a specific row (for incremental updates)
+# Args: row item_id global_idx highlight
+menu_redraw_single_item() {
+    local row="$1"
+    local item_id="$2"
+    local global_idx="$3"
+    local highlight="$4"
+
+    menu_render_item "$item_id" "$row" "$highlight" "$global_idx"
+}
+# }}}
+
+# {{{ menu_compute_item_row
+# Compute the screen row for an item by walking through the layout
+# Args: section_idx item_idx
+# Sets: MENU_COMPUTED_ROW (global, to avoid subshell)
+menu_compute_item_row() {
+    local target_section="$1"
+    local target_item="$2"
+
+    # Start after header
+    local row=$MENU_HEADER_HEIGHT
+
+    # Walk through sections
+    for ((s = 0; s <= target_section; s++)); do
+        local section_id="${MENU_SECTIONS[$s]}"
+
+        # Section title + underline = 2 rows
+        ((row += 2))
+
+        if [[ $s -eq $target_section ]]; then
+            # Target section - add rows for items before target
+            ((row += target_item))
+            break
+        else
+            # Earlier section - add all item rows + spacing
+            local count
+            count=$(menu_get_section_item_count "$section_id")
+            ((row += count))
+            ((++row))  # Space between sections
+        fi
+    done
+
+    MENU_COMPUTED_ROW=$row
+}
+# }}}
+
+# {{{ menu_compute_global_index
+# Compute the 1-based global index for an item
+# Args: section_idx item_idx
+# Sets: MENU_COMPUTED_GLOBAL_IDX (global, to avoid subshell)
+menu_compute_global_index() {
+    local target_section="$1"
+    local target_item="$2"
+
+    local idx=0
+
+    for ((s = 0; s <= target_section; s++)); do
+        local section_id="${MENU_SECTIONS[$s]}"
+
+        if [[ $s -eq $target_section ]]; then
+            ((idx += target_item + 1))
+            break
+        else
+            local count
+            count=$(menu_get_section_item_count "$section_id")
+            ((idx += count))
+        fi
+    done
+
+    MENU_COMPUTED_GLOBAL_IDX=$idx
+}
+# }}}
+
+# {{{ menu_get_item_id_at
+# Get the item ID at a specific section and item index
+# Args: section_idx item_idx
+# Sets: MENU_COMPUTED_ITEM_ID (global, to avoid subshell)
+menu_get_item_id_at() {
+    local section_idx="$1"
+    local item_idx="$2"
+
+    local section_id="${MENU_SECTIONS[$section_idx]}"
+    local items="${MENU_SECTION_ITEMS[$section_id]:-}"
+
+    MENU_COMPUTED_ITEM_ID=""
+    if [[ -n "$items" ]]; then
+        IFS=',' read -ra arr <<< "$items"
+        if [[ $item_idx -lt ${#arr[@]} ]]; then
+            MENU_COMPUTED_ITEM_ID="${arr[$item_idx]}"
+        fi
+    fi
+}
+# }}}
+
+# {{{ menu_incremental_update
+# Update display incrementally (only changed items + description area)
+# Returns: 0 if incremental update done, 1 if full redraw needed
+#
+# Performs incremental update for adjacent items in the same section.
+# Cross-section moves and jumps trigger full redraw for simplicity.
+menu_incremental_update() {
+    # Can't do incremental if we need full redraw or no previous position
+    if [[ "$MENU_NEEDS_FULL_REDRAW" == "1" ]]; then
+        return 1
+    fi
+
+    if [[ "$MENU_PREV_SECTION" -lt 0 ]] || [[ "$MENU_PREV_ITEM" -lt 0 ]]; then
+        return 1
+    fi
+
+    # If position didn't change, nothing to do
+    if [[ "$MENU_PREV_SECTION" -eq "$MENU_CURRENT_SECTION" ]] && \
+       [[ "$MENU_PREV_ITEM" -eq "$MENU_CURRENT_ITEM" ]]; then
+        return 0
+    fi
+
+    # Only do incremental for same section, adjacent items (diff of 1)
+    if [[ "$MENU_PREV_SECTION" -ne "$MENU_CURRENT_SECTION" ]]; then
+        return 1  # Different sections - full redraw
+    fi
+
+    local item_diff=$((MENU_CURRENT_ITEM - MENU_PREV_ITEM))
+    if [[ $item_diff -lt -1 ]] || [[ $item_diff -gt 1 ]]; then
+        return 1  # Jumped more than 1 item - full redraw
+    fi
+
+    # Compute positions on-the-fly (avoids caching issues)
+    # Get section IDs for cache lookup
+    local old_section_id="${MENU_SECTIONS[$MENU_PREV_SECTION]}"
+    local new_section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
+    local old_cache_key="${old_section_id}:${MENU_PREV_ITEM}"
+    local new_cache_key="${new_section_id}:${MENU_CURRENT_ITEM}"
+
+    # Use CACHED row values from full render (not recomputed)
+    local old_row="${MENU_ITEM_ROWS[$old_cache_key]}"
+    local new_row="${MENU_ITEM_ROWS[$new_cache_key]}"
+    local old_global_idx="${MENU_ITEM_GLOBAL_IDX[$old_cache_key]}"
+    local new_global_idx="${MENU_ITEM_GLOBAL_IDX[$new_cache_key]}"
+    local old_item_id="${MENU_ITEM_IDS[$old_cache_key]}"
+    local new_item_id="${MENU_ITEM_IDS[$new_cache_key]}"
+
+    # DEBUG: Write to file to see what's happening
+    {
+        echo "=== Incremental Update Debug ==="
+        echo "PREV: section=$MENU_PREV_SECTION item=$MENU_PREV_ITEM"
+        echo "CURR: section=$MENU_CURRENT_SECTION item=$MENU_CURRENT_ITEM"
+        echo "old_row=$old_row old_global_idx=$old_global_idx old_item_id=$old_item_id"
+        echo "new_row=$new_row new_global_idx=$new_global_idx new_item_id=$new_item_id"
+        echo "MENU_HEADER_HEIGHT=$MENU_HEADER_HEIGHT"
+        echo "==="
+    } >> /tmp/menu_debug.log
+
+    # If we couldn't get item IDs, need full redraw
+    if [[ -z "$old_item_id" ]] || [[ -z "$new_item_id" ]]; then
+        return 1
+    fi
+
+    # DEBUG: Frame-by-frame logging
+    local frame_file="${MENU_DEBUG_DIR}/frame_$(printf '%04d' $MENU_DEBUG_FRAME_COUNT).txt"
+
+    {
+        echo "=== FRAME $MENU_DEBUG_FRAME_COUNT ==="
+        echo "Timestamp: $(date +%H:%M:%S.%N)"
+        echo ""
+        echo "--- Navigation State ---"
+        echo "PREV: section=$MENU_PREV_SECTION item=$MENU_PREV_ITEM"
+        echo "CURR: section=$MENU_CURRENT_SECTION item=$MENU_CURRENT_ITEM"
+        echo ""
+        echo "--- Computed Values (from menu_compute_item_row) ---"
+        echo "old_row=$old_row (ANSI: $((old_row + 1)))"
+        echo "new_row=$new_row (ANSI: $((new_row + 1)))"
+        echo "old_global_idx=$old_global_idx"
+        echo "new_global_idx=$new_global_idx"
+        echo "old_item_id=$old_item_id → '${MENU_ITEM_LABELS[$old_item_id]}'"
+        echo "new_item_id=$new_item_id → '${MENU_ITEM_LABELS[$new_item_id]}'"
+        echo ""
+        echo "--- Cached Values (from full render) ---"
+        local old_section_id="${MENU_SECTIONS[$MENU_PREV_SECTION]}"
+        local new_section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
+        local old_cache_key="${old_section_id}:${MENU_PREV_ITEM}"
+        local new_cache_key="${new_section_id}:${MENU_CURRENT_ITEM}"
+        echo "old_cache_key=$old_cache_key → cached_row=${MENU_ITEM_ROWS[$old_cache_key]}"
+        echo "new_cache_key=$new_cache_key → cached_row=${MENU_ITEM_ROWS[$new_cache_key]}"
+        if [[ "${MENU_ITEM_ROWS[$old_cache_key]}" != "$old_row" ]]; then
+            echo "!!! MISMATCH: old computed=$old_row vs cached=${MENU_ITEM_ROWS[$old_cache_key]}"
+        fi
+        if [[ "${MENU_ITEM_ROWS[$new_cache_key]}" != "$new_row" ]]; then
+            echo "!!! MISMATCH: new computed=$new_row vs cached=${MENU_ITEM_ROWS[$new_cache_key]}"
+        fi
+        echo ""
+        echo "--- Constants ---"
+        echo "MENU_HEADER_HEIGHT=$MENU_HEADER_HEIGHT"
+        echo "MENU_ITEMS_END_ROW=$MENU_ITEMS_END_ROW"
+        echo "TUI_ROWS=$TUI_ROWS TUI_COLS=$TUI_COLS"
+        echo ""
+        echo "--- Operations Sequence ---"
+    } > "$frame_file"
+
+    # Build content strings
+    local old_content="$old_global_idx [ ] ${MENU_ITEM_LABELS[$old_item_id]}"
+    local new_content="$new_global_idx▸[●] ${MENU_ITEM_LABELS[$new_item_id]}"
+
+    # Log to debug file FIRST (all file I/O before screen output)
+    {
+        echo "STEP 1: position to ANSI row $((old_row + 1)), col 1"
+        echo "STEP 2: clear line"
+        echo "STEP 3: write '$old_content'"
+        echo "STEP 4: position to ANSI row $((new_row + 1)), col 1"
+        echo "STEP 5: clear line"
+        echo "STEP 6: write '$new_content' (with reverse video)"
+    } >> "$frame_file"
+
+    # ALL screen output in ONE printf call to eliminate buffering issues
+    # Format: \033[row;colH = position, \033[K = clear to end of line (matches tui_clear_line)
+    printf '\033[%d;1H\033[K%s\033[%d;1H\033[K%d▸[●] \033[7m%s\033[0m' \
+        "$((old_row + 1))" "$old_content" \
+        "$((new_row + 1))" "$new_global_idx" "${MENU_ITEM_LABELS[$new_item_id]}"
+
+    echo "" >> "$frame_file"
+    echo "--- Expected Screen State (rows 4-12) ---" >> "$frame_file"
+    # Draw expected state based on our data model
+    for ((r = 4; r <= 12; r++)); do
+        local expected_line="row $r: "
+        if [[ $r -eq $old_row ]]; then
+            expected_line+="[OLD→UNHIGHLIGHT] $old_content"
+        elif [[ $r -eq $new_row ]]; then
+            expected_line+="[NEW→HIGHLIGHT] $new_content"
+        else
+            expected_line+="(unchanged)"
+        fi
+        echo "$expected_line" >> "$frame_file"
+    done
+
+    ((MENU_DEBUG_FRAME_COUNT++))
+
+    # Also append to summary log
+    echo "Frame $((MENU_DEBUG_FRAME_COUNT - 1)): old_row=$old_row new_row=$new_row" >> "${MENU_DEBUG_DIR}/summary.log"
+
+    menu_render_description_area
+
+    # Move cursor to bottom-right to avoid visual artifacts
+    tui_goto "$((TUI_ROWS - 1))" "$((TUI_COLS - 1))"
+
+    return 0
+}
+# }}}
+
+# {{{ menu_render_description_area
+# Render the description area below items (separator + description text)
+menu_render_description_area() {
+    local row=$MENU_ITEMS_END_ROW
+
+    # Draw separator line
+    tui_goto "$row" 0
+    tui_hline "$TUI_COLS" "─"
+    ((++row))
+
+    # Get current item's description
+    local item_id
+    item_id=$(menu_get_current_item_id)
+    local desc="${MENU_ITEM_DESCRIPTIONS[$item_id]:-}"
+
+    # Calculate available width for description (with padding)
+    local desc_width=$((TUI_COLS - 4))
+
+    # Clear and render description lines
+    for ((i = 0; i < MENU_DESC_MAX_LINES; i++)); do
+        tui_goto "$((row + i))" 0
+        tui_clear_line
+    done
+
+    if [[ -n "$desc" ]]; then
+        # Word-wrap description to fit width
+        local line_num=0
+        local remaining="$desc"
+
+        while [[ -n "$remaining" ]] && [[ $line_num -lt $MENU_DESC_MAX_LINES ]]; do
+            local line
+            if [[ ${#remaining} -le $desc_width ]]; then
+                line="$remaining"
+                remaining=""
+            else
+                # Find last space before width limit for word wrap
+                line="${remaining:0:$desc_width}"
+                local last_space
+                # Find last space in the substring
+                if [[ "$line" == *" "* ]]; then
+                    # Get everything up to and including the last space
+                    local before_last_space="${line% *}"
+                    last_space=${#before_last_space}
+                    line="${remaining:0:$last_space}"
+                    remaining="${remaining:$((last_space + 1))}"
+                else
+                    # No space found, hard break
+                    remaining="${remaining:$desc_width}"
+                fi
+            fi
+
+            tui_goto "$((row + line_num))" 2
+            echo -n "${TUI_DIM}${line}${TUI_RESET}"
+            ((++line_num))
+        done
+
+        # Show ellipsis if description was truncated
+        if [[ -n "$remaining" ]]; then
+            tui_goto "$((row + MENU_DESC_MAX_LINES - 1))" "$((TUI_COLS - 5))"
+            echo -n "${TUI_DIM}...${TUI_RESET}"
+        fi
     fi
 }
 # }}}
@@ -930,25 +1322,69 @@ menu_render_footer() {
 # Run the menu interactively
 # Returns: 0 if user pressed Run, 1 if Quit
 menu_run() {
-    while true; do
-        menu_render
+    # Initial render (always full)
+    MENU_NEEDS_FULL_REDRAW=1
+    menu_render
+    MENU_NEEDS_FULL_REDRAW=0
+    MENU_PREV_SECTION=$MENU_CURRENT_SECTION
+    MENU_PREV_ITEM=$MENU_CURRENT_ITEM
 
+    while true; do
         local key
         key=$(tui_read_key)
 
+        # Save current position before handling key
+        MENU_PREV_SECTION=$MENU_CURRENT_SECTION
+        MENU_PREV_ITEM=$MENU_CURRENT_ITEM
+
+        # Track if this key only changes cursor position (can use incremental)
+        local nav_only=0
+
         # First, try flag inline editing (handles digits, backspace, enter on flag items)
         if menu_flag_handle_key "$key"; then
+            # Flag editing changes display, need full redraw of current item
+            MENU_NEEDS_FULL_REDRAW=1
+            menu_render
+            MENU_NEEDS_FULL_REDRAW=0
             continue
         fi
 
         case "$key" in
-            UP)     menu_nav_up ;;
-            DOWN)   menu_nav_down ;;
-            TOP)    menu_nav_top ;;
-            BOTTOM) menu_nav_bottom ;;
-            LEFT)   menu_handle_left_right "left" ;;
-            RIGHT)  menu_handle_left_right "right" ;;
-            TOGGLE) menu_toggle ;;
+            UP)
+                menu_nav_up
+                nav_only=1
+                ;;
+            DOWN)
+                menu_nav_down
+                nav_only=1
+                ;;
+            TOP)
+                menu_nav_top
+                nav_only=1
+                ;;
+            BOTTOM)
+                menu_nav_bottom
+                nav_only=1
+                ;;
+            INDEX:*)
+                # Number key pressed - jump to that index (1-based)
+                # (only reached if not on a flag item)
+                local index="${key#INDEX:}"
+                menu_nav_to_global_index "$index"
+                nav_only=1
+                ;;
+            LEFT)
+                menu_handle_left_right "left"
+                MENU_NEEDS_FULL_REDRAW=1
+                ;;
+            RIGHT)
+                menu_handle_left_right "right"
+                MENU_NEEDS_FULL_REDRAW=1
+                ;;
+            TOGGLE)
+                menu_toggle
+                MENU_NEEDS_FULL_REDRAW=1
+                ;;
             SELECT)
                 local action
                 action=$(menu_select)
@@ -961,15 +1397,16 @@ menu_run() {
                         *) ;;  # Custom actions handled by caller
                     esac
                 fi
+                MENU_NEEDS_FULL_REDRAW=1
                 ;;
-            INDEX:*)
-                # Number key pressed - jump to that index (1-based)
-                # (only reached if not on a flag item)
-                local index="${key#INDEX:}"
-                menu_nav_to_global_index "$index"
+            ALL)
+                menu_select_all
+                MENU_NEEDS_FULL_REDRAW=1
                 ;;
-            ALL)    menu_select_all ;;
-            NONE)   menu_select_none ;;
+            NONE)
+                menu_select_none
+                MENU_NEEDS_FULL_REDRAW=1
+                ;;
             RUN)
                 menu_flag_commit_edit  # Commit any pending flag edit
                 return 0
@@ -979,6 +1416,20 @@ menu_run() {
                 return 1
                 ;;
         esac
+
+        # Update display
+        if [[ "$nav_only" == "1" ]] && [[ "$MENU_NEEDS_FULL_REDRAW" != "1" ]]; then
+            # Try incremental update (only redraw old and new cursor positions)
+            if ! menu_incremental_update; then
+                # Incremental failed, do full redraw
+                menu_render
+                MENU_NEEDS_FULL_REDRAW=0
+            fi
+        else
+            # Need full redraw
+            menu_render
+            MENU_NEEDS_FULL_REDRAW=0
+        fi
     done
 }
 # }}}
