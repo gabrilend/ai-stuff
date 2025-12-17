@@ -2,3 +2,5 @@ should create a web dashboard using webassembly and HTML5 that refreshes every
 10ish seconds (configurable) that iterates through all the projects, examines
 their issue files and git log style history, and shows updated progress metrics
 as they slowly resolve.
+
+[see the related issues in /home/ritz/programming/ai-stuff/world-edit-to-execute/issues, and referencing web-dashboard (planned) scripts in the /home/ritz/programming/ai-stuff/scripts/ directory, available as a development library created on-site at the job-site sorta like how a carpenter creates their tools.]
