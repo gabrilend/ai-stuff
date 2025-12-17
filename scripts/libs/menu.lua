@@ -497,6 +497,7 @@ end
 
 -- {{{ menu.handle_flag_left
 -- Set flag value to 0 (off)
+-- Does NOT mark as edited, so next digit will overwrite
 function menu.handle_flag_left()
     local item_id = get_current_item_id()
     if not item_id then return false end
@@ -505,7 +506,7 @@ function menu.handle_flag_left()
     if data.type ~= "flag" or data.disabled then return false end
 
     state.values[item_id] = "0"
-    state.flag_edit_started[item_id] = true  -- Mark as edited
+    state.flag_edit_started[item_id] = nil  -- Reset so next digit overwrites
     menu.render()
     return true
 end
@@ -513,6 +514,7 @@ end
 
 -- {{{ menu.handle_flag_right
 -- Set flag value to default
+-- Does NOT mark as edited, so next digit will overwrite
 function menu.handle_flag_right()
     local item_id = get_current_item_id()
     if not item_id then return false end
@@ -521,7 +523,7 @@ function menu.handle_flag_right()
     if data.type ~= "flag" or data.disabled then return false end
 
     state.values[item_id] = data.default_value or "0"
-    state.flag_edit_started[item_id] = true  -- Mark as edited
+    state.flag_edit_started[item_id] = nil  -- Reset so next digit overwrites
     menu.render()
     return true
 end
