@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (1/8 Complete)
+**Status:** In Progress (2/8 Complete)
 
 ---
 
@@ -12,7 +12,7 @@
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 1/8 |
+| 2 | Data Model - Game Objects | In Progress | 2/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -99,7 +99,7 @@
 | 201 | Parse war3map.doo (doodads/trees) | Pending | 102 |
 | 202 | Parse war3mapUnits.doo (units/buildings) | Pending | 102, 201 |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
-| 204 | Parse war3map.w3c (cameras) | Pending | 102 |
+| 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | Pending | 102 |
 | 206 | Design game object types | Pending | 201-205 |
 | 207 | Build object registry system | Pending | 206 |
@@ -264,6 +264,15 @@ Phase 1 Complete (102 MPQ Parser)
   - Provides lookup by creation_number for waygate targeting
   - 16/16 test maps process (all happen to have no regions defined)
   - Synthetic data test validates all parsing logic
+- **Issue 204 completed:** Parse war3map.w3c (cameras)
+  - Created src/parsers/w3c.lua (camera parser)
+  - Created src/tests/test_w3c.lua (test suite with synthetic data)
+  - Created src/tests/check_file_presence.lua (debug utility)
+  - Parses: target positions, angles, distances, FOV, clipping planes
+  - Supports both standard and 1.31+ extended format (local rotations)
+  - Provides lookup by camera name via by_name index
+  - 16/16 test maps process (all happen to have no cameras defined)
+  - 22/22 tests pass (6 synthetic + 16 map tests)
 
 ---
 
@@ -283,8 +292,8 @@ Capabilities established:
 
 1. **201 - Parse war3map.doo** (doodads/trees)
 2. **202 - Parse war3mapUnits.doo** (units/buildings)
-3. **203 - Parse war3map.w3r** (regions)
-4. **204 - Parse war3map.w3c** (cameras)
+3. ~~**203 - Parse war3map.w3r** (regions)~~ ✓
+4. ~~**204 - Parse war3map.w3c** (cameras)~~ ✓
 5. **205 - Parse war3map.w3s** (sounds)
 6. **206 - Design game object types**
 7. **207 - Build object registry system**
