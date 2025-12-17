@@ -159,7 +159,8 @@ menu_get_value "item_id"    # Returns current value for item
 | `g` | Jump to first item |
 | `G` | Jump to last item |
 | `` ` `` / `~` | Jump to action item |
-| `0-9` | Jump to item by index (see below) / Enter digits on flag fields |
+| `0-9` | Jump to checkbox by index (see below) / Enter digits on flag fields |
+| `SHIFT+0-9` | Go back one tier in index navigation (!@#$%^&*()) |
 | `BACKSPACE` | Delete last digit (flag fields) |
 | `q` / `Q` / `ESC` | Quit menu |
 
@@ -177,9 +178,13 @@ Items are indexed using a repeated-digit pattern that allows quick access to any
 | 30 | 000 | `0` three times |
 
 **Example:** To jump to item 22 (displayed as `222`):
-1. Press `2` → goes to item 2
-2. Press `2` again → goes to item 12
-3. Press `2` again → goes to item 22
+1. Press `2` → goes to checkbox 2
+2. Press `2` again → goes to checkbox 12
+3. Press `2` again → goes to checkbox 22
+
+**Going back:** Press SHIFT+digit to go back one tier:
+- At `222` (checkbox 22), press `SHIFT+2` → goes to `22` (checkbox 12)
+- At `22` (checkbox 12), press `SHIFT+2` → goes to `2` (checkbox 2)
 
 Pressing a different digit resets the sequence.
 
