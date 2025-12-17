@@ -300,8 +300,11 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
         visual_output = colored_corner .. interior .. "┘"
 
     elseif not is_golden and position == "bottom" and has_corner_boxes then
-        -- Regular poem bottom border with junctions connecting to corner boxes
-        -- No corner characters (╚/┘), just progress bar with junctions at wall positions
+        -- Regular poem bottom border with corner characters and junctions connecting to corner boxes
+        -- Structure: ╘ (pos 0) + progress bar + ┴/╧ (pos 10) + progress bar + ┴/╧ (pos 69) + progress bar + ┘ (pos 81)
+        -- ╘ (U+2558) - up single and right double - closes left box, connects to ═ progress
+        -- ┘ (U+2518) - light up and left - closes right box, connects to ─ remaining
+
         local left_in_progress = REGULAR_LEFT_JUNCTION_POS < progress_chars
         local right_in_progress = REGULAR_RIGHT_JUNCTION_POS < progress_chars
 
@@ -320,10 +323,22 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
             right_junction = "┴"
         end
 
+        -- Left corner ╘ - colored if progress > 0 (position 0 is always in progress section if any progress)
+        local left_corner
+        if progress_chars > 0 then
+            left_corner = string.format('<font color="%s"><b>╘</b></font>', hex_color)
+        else
+            left_corner = "╘"
+        end
+
+        -- Right corner ┘ - always uncolored (position 81 is almost never in progress section)
+        local right_corner = "┘"
+
         -- Build the progress bar with junctions
         local segments = {}
 
         -- Helper to add a segment with proper coloring
+        -- Note: positions are now 1-80 since 0 and 81 are corner characters
         local function add_segment(start_pos, end_pos)
             if end_pos <= start_pos then return end
             local seg_len = end_pos - start_pos
@@ -340,16 +355,22 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
             end
         end
 
-        -- Segment 1: from 0 to left junction (exclusive)
-        add_segment(0, REGULAR_LEFT_JUNCTION_POS)
+        -- Start with left corner
+        table.insert(segments, left_corner)
+
+        -- Segment 1: from 1 to left junction (exclusive) - 9 chars
+        add_segment(1, REGULAR_LEFT_JUNCTION_POS)
         table.insert(segments, left_junction)
 
-        -- Segment 2: from left junction + 1 to right junction (exclusive)
+        -- Segment 2: from left junction + 1 to right junction (exclusive) - 58 chars
         add_segment(REGULAR_LEFT_JUNCTION_POS + 1, REGULAR_RIGHT_JUNCTION_POS)
         table.insert(segments, right_junction)
 
-        -- Segment 3: from right junction + 1 to end
-        add_segment(REGULAR_RIGHT_JUNCTION_POS + 1, total_chars)
+        -- Segment 3: from right junction + 1 to end - 1 (exclusive of right corner) - 11 chars
+        add_segment(REGULAR_RIGHT_JUNCTION_POS + 1, total_chars - 1)
+
+        -- End with right corner
+        table.insert(segments, right_corner)
 
         -- Add 2-space padding to align with content (where ║ would be in golden poems)
         visual_output = "  " .. table.concat(segments, "")
@@ -972,7 +993,7 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
 
     -- Generate top progress bar separator (with golden corners if applicable)
     local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
-    formatted = formatted .. string.format('<div %s>%s</div>',
+    formatted = formatted .. string.format('<span %s>%s</span>',
                                           top_dashes.accessibility,
                                           top_dashes.visual)
 
@@ -999,12 +1020,15 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
         formatted = formatted .. generate_regular_corner_box_top() .. "\n"
         formatted = formatted .. generate_regular_corner_box_nav_line(similar_link, different_link) .. "\n"
         -- No bottom line - corner boxes connect directly to progress bar via junctions
+    else
+        -- Golden poems: add newline after nav line (content_formatted doesn't end with newline)
+        formatted = formatted .. "\n"
     end
 
     -- Generate bottom progress bar separator (with junctions for both golden and regular poems)
     -- The has_corner_boxes parameter enables junction characters at wall positions
     local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
-    formatted = formatted .. string.format('<div %s>%s</div>\n',
+    formatted = formatted .. string.format('<span %s>%s</span>\n',
                                           bottom_dashes.accessibility,
                                           bottom_dashes.visual)
 
@@ -1120,13 +1144,13 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
 <title>Poems sorted by %s to: %s</title>
 </head>
 <body>
-<div style="text-align: center;">
+<center>
 <h1>Poetry Collection</h1>
 <p>All poems sorted by %s to: %s</p>
-<pre style="display: inline-block; text-align: left;">
+</center>
+<pre style="text-align: left; max-width: 90ch; margin: 0 auto;">
 %s
 </pre>
-</div>
 </body>
 </html>]]
     
@@ -1184,17 +1208,17 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
 <title>Poetry Collection - Chronological Order</title>
 </head>
 <body>
-<div style="text-align: center;">
+<center>
 <h1>Poetry Collection</h1>
 <p>All poems in true chronological order by post date</p>
 <p><a href="explore.html">How to explore this collection</a></p>
-<pre style="display: inline-block; text-align: left;">
+</center>
+<pre style="text-align: left; max-width: 90ch; margin: 0 auto;">
 %s
 </pre>
-</div>
 </body>
 </html>]]
-    
+
     -- Sort poems chronologically (by actual post dates)
     local sorted_poems_with_timestamps = sort_poems_chronologically_by_dates(poems_data)
     
@@ -1236,7 +1260,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
 
         -- Generate top progress bar separator (with golden corners if applicable)
         local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
-        content = content .. string.format('<div %s>%s</div>',
+        content = content .. string.format('<span %s>%s</span>',
                                           top_dashes.accessibility,
                                           top_dashes.visual)
 
@@ -1258,7 +1282,6 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
         )
         content = content .. formatted_content
 
-        -- For golden poems, no newline before bottom border (content connects directly to border)
         -- For regular poems, add newline and corner-boxed navigation links (top and nav lines only)
         if not is_golden then
             content = content .. "\n"
@@ -1266,11 +1289,14 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
             content = content .. generate_regular_corner_box_top() .. "\n"
             content = content .. generate_regular_corner_box_nav_line(similar_link, different_link) .. "\n"
             -- No bottom line - corner boxes connect directly to progress bar via junctions
+        else
+            -- Golden poems: add newline after nav line (formatted_content doesn't end with newline)
+            content = content .. "\n"
         end
 
         -- Generate bottom progress bar separator (with junctions for both golden and regular poems)
         local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
-        content = content .. string.format('<div %s>%s</div>\n\n',
+        content = content .. string.format('<span %s>%s</span>\n\n',
                                           bottom_dashes.accessibility,
                                           bottom_dashes.visual)
     end
