@@ -13,8 +13,8 @@
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | In Progress | 3/8 |
-| 3 | Logic Layer - Triggers and JASS | Planned | - |
-| 4 | Runtime - Basic Engine Loop | Planned | - |
+| 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
+| 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -124,6 +124,76 @@ Phase 1 Complete (102 MPQ Parser)
             └──▶ 207 Object Registry
                  │
                  └──▶ 208 Integration Test
+```
+
+---
+
+## Phase 3 Issues
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 301 | Parse war3map.wtg (trigger definitions) | Pending | 102 |
+| 302 | Parse war3map.wct (custom text triggers) | Pending | 102, 301 |
+| 303 | Parse war3map.j (JASS script) | Pending | 102 |
+| 304 | Build JASS lexer | Pending | 303 |
+| 305 | Build JASS parser | Pending | 304 |
+| 306 | Create JASS-to-Lua transpiler | Pending | 305 |
+| 307 | Implement trigger framework | Pending | 306 |
+| 308 | Build event dispatch system | Pending | 307 |
+| 309 | Phase 3 integration test | Pending | 301-308 |
+
+### Dependency Graph
+
+```
+Phase 1 Complete (102 MPQ Parser)
+ │
+ ├──▶ 301 wtg Parser (triggers)
+ │     └──▶ 302 wct Parser (custom triggers)
+ │
+ └──▶ 303 j Extractor (JASS script)
+       │
+       └──▶ 304 JASS Lexer
+            │
+            └──▶ 305 JASS Parser
+                 │
+                 └──▶ 306 JASS-to-Lua Transpiler
+                      │
+                      └──▶ 307 Trigger Framework
+                           │
+                           └──▶ 308 Event Dispatch
+                                │
+                                └──▶ 309 Integration Test
+```
+
+---
+
+## Phase 4 Issues
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 401 | Implement game tick/update loop | Pending | Phase 2, Phase 3 |
+| 402 | Build entity component system | Pending | 401 |
+| 403 | Implement basic pathfinding | Pending | 401, 402, 105 |
+| 404 | Create unit movement system | Pending | 401, 402, 403 |
+| 405 | Implement basic collision detection | Pending | 401, 402, 404 |
+| 406 | Build resource management system | Pending | 401, 402, 407 |
+| 407 | Create player state management | Pending | 401, 402 |
+| 408 | Phase 4 integration test | Pending | 401-407 |
+
+### Dependency Graph
+
+```
+Phase 2 & 3 Complete
+ │
+ └──▶ 401 Game Loop
+      │
+      └──▶ 402 ECS
+           │
+           ├──▶ 403 Pathfinding ──▶ 404 Movement ──▶ 405 Collision
+           │
+           └──▶ 407 Player State ──▶ 406 Resources
+                │
+                └──▶ 408 Integration Test
 ```
 
 ---
@@ -282,6 +352,25 @@ Phase 1 Complete (102 MPQ Parser)
   - Provides lookup by sound name via SoundTable class
   - 16/16 test maps process (all happen to have no sounds defined)
   - 10/10 tests pass (9 synthetic + 1 map batch test)
+- **Phase 4 issues created:** Runtime - Basic Engine Loop (8 issues)
+  - 401: Implement game tick/update loop (62.5 ticks/sec, timers)
+  - 402: Build entity component system (ECS for all game objects)
+  - 403: Implement basic pathfinding (A* on terrain grid)
+  - 404: Create unit movement system (orders, path following)
+  - 405: Implement basic collision detection (spatial hash)
+  - 406: Build resource management system (gold, lumber, food)
+  - 407: Create player state management (alliances, victory)
+  - 408: Phase 4 integration test
+- **Phase 3 issues created:** Logic Layer - Triggers and JASS (9 issues)
+  - 301: Parse war3map.wtg (trigger definitions)
+  - 302: Parse war3map.wct (custom text triggers)
+  - 303: Parse war3map.j (JASS script extraction)
+  - 304: Build JASS lexer (tokenization)
+  - 305: Build JASS parser (AST generation)
+  - 306: Create JASS-to-Lua transpiler
+  - 307: Implement trigger framework (conditions/actions)
+  - 308: Build event dispatch system
+  - 309: Phase 3 integration test
 
 ---
 
