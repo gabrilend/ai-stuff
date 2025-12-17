@@ -520,10 +520,11 @@ fi
 
 - [x] Identified root cause of rendering bug
 - [ ] Created minimal reproduction test
-- [x] Applied fix to menu.sh
+- [x] Applied fix to menu.sh (superseded by Lua rewrite)
 - [ ] Verified fix in test scripts
-- [ ] Verified fix in issue-splitter.sh
-- [ ] No regression in existing functionality
+- [x] Verified fix in issue-splitter.sh
+- [x] No regression in existing functionality
+- [ ] Screen resize functionality (NOT IMPLEMENTED - future work)
 
 ---
 
@@ -585,3 +586,130 @@ fi
 Run `issue-splitter.sh -I` and navigate through all sections, especially
 into the "Streaming Settings" section which contains FLAG type items.
 Verify that incremental rendering works correctly without visual artifacts.
+
+---
+
+## Final Solution: Lua-Based TUI (2025-12-17)
+
+After multiple attempts to fix the bash TUI's incremental rendering issues (off-by-one
+row positioning, style bleeding), the root cause was identified as fundamental to bash's
+output buffering behavior when mixing printf, echo, and cursor positioning sequences.
+
+### Solution: Complete Lua Rewrite
+
+The bash TUI was replaced with a Lua-based framebuffer implementation that:
+
+1. **Uses a screen buffer** - Each cell stores character + foreground + background + attributes
+2. **Diff-based rendering** - Only changed cells are written to terminal
+3. **Direct /dev/tty I/O** - Bypasses bash's stdout capture in command substitution
+4. **stty for terminal control** - Uses stty commands instead of FFI termios
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `scripts/libs/tui.lua` | Framebuffer-based terminal library (raw mode, cursor, colors) |
+| `scripts/libs/menu.lua` | Menu component with vim keybindings, sections, item types |
+| `scripts/libs/menu-runner.lua` | Standalone runner that bash calls via luajit |
+| `scripts/libs/lua-menu.sh` | API-compatible bash wrapper (same menu_* functions) |
+
+### Key Design Decisions
+
+1. **Framebuffer approach**: Every cell on screen tracked in back_buffer/front_buffer.
+   On present(), only cells that differ are written. This eliminates timing/buffering issues.
+
+2. **Direct /dev/tty access**: TUI writes to /dev/tty and reads from /dev/tty, not stdin/stdout.
+   This allows bash to capture the JSON result via stdout while TUI uses the terminal directly.
+
+3. **Style reset tracking**: When jumping to a new position after styled text, an explicit
+   reset sequence is output to prevent style bleeding.
+
+4. **API compatibility**: lua-menu.sh provides identical function names (menu_init, menu_add_section,
+   menu_add_item, menu_run, menu_get_value) so issue-splitter.sh required minimal changes.
+
+### Changes to issue-splitter.sh
+
+```bash
+# OLD:
+source "${LIBS_DIR}/tui.sh"
+source "${LIBS_DIR}/checkbox.sh"
+source "${LIBS_DIR}/multistate.sh"
+source "${LIBS_DIR}/input.sh"
+source "${LIBS_DIR}/menu.sh"
+
+# NEW:
+source "${LIBS_DIR}/lua-menu.sh"
+```
+
+The lua-menu.sh wrapper provides stub functions for tui_init and tui_cleanup for compatibility.
+
+### Known Limitations
+
+- **Screen resize**: NOT IMPLEMENTED. The Lua TUI does not yet handle SIGWINCH or detect
+  terminal resize. This should be added in a future issue.
+
+- **Unicode in JSON**: Some UTF-8 characters (arrows, box drawing) may not pass through
+  the JSON encoding correctly. ASCII alternatives should be used in section titles.
+
+### Dependencies
+
+- LuaJIT (tested with 2.1.1748459687)
+- dkjson (from /home/ritz/programming/ai-stuff/libs/lua/)
+
+### Verification
+
+Tested with issue-splitter.sh -I:
+- Navigation through all 4 sections works correctly
+- Incremental updates render at correct positions
+- No style bleeding between items
+- FLAG type items render correctly
+- Quit (q) and Run (Enter) work properly
+
+---
+
+## Update: Flag/Checkbox Field Editing (2025-12-17)
+
+Added comprehensive field editing support for flag (text-entry) and checkbox items.
+
+### New Functionality
+
+| Key | Action |
+|-----|--------|
+| LEFT/h | Checkbox: unset (uncheck), Flag: set to "0", Multistate: cycle backwards |
+| RIGHT/l | Checkbox: set (check), Flag: set to default, Multistate: cycle forwards |
+| 0-9 | Flag: digit input (first keystroke clears field, subsequent append) |
+| BACKSPACE/DELETE | Flag: remove last character |
+
+### Key Unification
+
+Arrow keys and vim keybindings are now treated as equivalent:
+- UP = k (navigation)
+- DOWN = j (navigation)
+- LEFT = h (unset/decrease)
+- RIGHT = l (set/increase)
+- SPACE/i = toggle
+
+### Implementation Details
+
+Added to `menu.lua`:
+- `menu.set_checkbox()` - explicitly set checkbox to checked
+- `menu.unset_checkbox()` - explicitly unset checkbox to unchecked
+- `menu.handle_left()` - unified LEFT/h handler for all item types
+- `menu.handle_right()` - unified RIGHT/l handler for all item types
+- `menu.handle_flag_digit(digit)` - digit input with first-keystroke-clears behavior
+- `menu.handle_flag_backspace()` - backspace handling
+- `state.flag_edit_started` - tracks whether first keystroke has occurred
+
+### Input Sanitization
+
+Flag fields only accept digits 0-9, validated via pattern match:
+```lua
+if not digit:match("^%d$") then return false end
+```
+
+Length limited to 5 characters to prevent overflow.
+
+### Navigation Reset
+
+When navigating away from a flag field, the `flag_edit_started` state is reset
+so the next selection of that field will clear on first keystroke again.
