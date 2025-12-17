@@ -22,6 +22,8 @@ local state = {
     cols = 80,
     items_end_row = 0,
     flag_edit_started = {}, -- item_id -> true if user started typing (first keystroke clears)
+    last_digit = nil,       -- Last digit pressed for index navigation
+    digit_count = 0,        -- How many times same digit pressed consecutively
 }
 -- }}}
 
@@ -37,6 +39,8 @@ function menu.init(config)
     state.current_section = 1
     state.current_item = 1
     state.flag_edit_started = {}
+    state.last_digit = nil
+    state.digit_count = 0
 
     -- Process sections
     for _, section in ipairs(config.sections or {}) do
@@ -92,9 +96,45 @@ local function get_total_items()
     return total
 end
 
+-- Calculate the tier (number of digit repetitions) for an item number
+-- Items 1-10: tier 1, Items 11-20: tier 2, etc.
+local function get_item_tier(item_num)
+    return math.ceil(item_num / 10)
+end
+
+-- Get the max tier needed for displaying all items
+local function get_max_tier()
+    local total = get_total_items()
+    if total == 0 then return 1 end
+    return get_item_tier(total)
+end
+
+-- Convert item number (1-based) to index string
+-- 1-9 -> "1"-"9", 10 -> "0", 11-19 -> "11"-"99", 20 -> "00", etc.
+local function item_to_index_str(item_num)
+    local tier = get_item_tier(item_num)
+    local position = ((item_num - 1) % 10) + 1  -- 1-10
+    local digit = position % 10  -- 1-9, then 0
+    return string.rep(tostring(digit), tier)
+end
+
+-- Convert digit and repeat count to item number
+-- digit=1, count=1 -> 1, digit=0, count=1 -> 10
+-- digit=1, count=2 -> 11, digit=0, count=2 -> 20
+local function index_to_item(digit, repeat_count)
+    local position = (digit == 0) and 10 or digit
+    return (repeat_count - 1) * 10 + position
+end
+
 -- Reset the edit state when navigating away from an item
 local function reset_flag_edit_state()
     state.flag_edit_started = {}
+end
+
+-- Reset digit input state for index navigation
+local function reset_digit_input_state()
+    state.last_digit = nil
+    state.digit_count = 0
 end
 -- }}}
 
@@ -142,16 +182,21 @@ local function render_item(row, item_id, highlight, item_num)
 
     local col = 1
 
-    -- Item number (1-9, then *)
+    -- Item number with repeated digit pattern (1-9, 0, 11-99, 00, 111-999, 000, ...)
+    -- Only shown for checkbox items (not flag/action/multistate)
+    -- Padded to max tier width for alignment
+    local max_tier = get_max_tier()
     tui.set_attrs(tui.ATTR_DIM)
-    if item_num then
-        if item_num <= 9 then
-            tui.write_str(row, col, tostring(item_num))
-        else
-            tui.write_str(row, col, "*")
-        end
+    if item_num and item_type == "checkbox" then
+        local index_str = item_to_index_str(item_num)
+        -- Right-pad to max_tier width
+        local padded = string.format("%-" .. max_tier .. "s", index_str)
+        tui.write_str(row, col, padded)
+    else
+        -- No index for non-checkbox items, just spaces
+        tui.write_str(row, col, string.rep(" ", max_tier))
     end
-    col = col + 1
+    col = col + max_tier
 
     -- Cursor indicator
     tui.reset_style()
@@ -328,6 +373,7 @@ end
 -- {{{ Navigation functions
 function menu.nav_up()
     reset_flag_edit_state()
+    reset_digit_input_state()
     if state.current_item > 1 then
         state.current_item = state.current_item - 1
     elseif state.current_section > 1 then
@@ -339,6 +385,7 @@ end
 
 function menu.nav_down()
     reset_flag_edit_state()
+    reset_digit_input_state()
     local item_count = get_section_item_count(state.current_section)
 
     if state.current_item < item_count then
@@ -352,6 +399,7 @@ end
 
 function menu.nav_top()
     reset_flag_edit_state()
+    reset_digit_input_state()
     state.current_section = 1
     state.current_item = 1
     menu.render()
@@ -359,6 +407,7 @@ end
 
 function menu.nav_bottom()
     reset_flag_edit_state()
+    reset_digit_input_state()
     state.current_section = #state.sections
     state.current_item = get_section_item_count(state.current_section)
     menu.render()
@@ -366,6 +415,7 @@ end
 
 function menu.nav_to_index(target)
     reset_flag_edit_state()
+    -- Note: don't reset digit state here, caller handles it
     local current = 0
     for si, sid in ipairs(state.sections) do
         for ii, _ in ipairs(state.section_data[sid].items) do
@@ -374,15 +424,17 @@ function menu.nav_to_index(target)
                 state.current_section = si
                 state.current_item = ii
                 menu.render()
-                return
+                return true
             end
         end
     end
+    return false
 end
 
 function menu.nav_to_action()
     -- Navigate to the first action item (usually at bottom)
     reset_flag_edit_state()
+    reset_digit_input_state()
     for si, sid in ipairs(state.sections) do
         local items = state.section_data[sid].items
         for ii, item_id in ipairs(items) do
@@ -700,16 +752,40 @@ function menu.run()
         -- Jump to action item: ` or ~
         elseif key == "`" or key == "~" then
             menu.nav_to_action()
-        -- Digit keys 0-9: for flag fields or jump to item 1-9
+        -- Digit keys 0-9: for flag fields or jump to item by index
         elseif type(key) == "string" and #key == 1 and key >= "0" and key <= "9" then
             -- Check if current item is a flag field
             local item_id = get_current_item_id()
             local is_flag = item_id and state.item_data[item_id] and state.item_data[item_id].type == "flag"
             if is_flag then
                 menu.handle_flag_digit(key)
-            elseif key >= "1" then
-                -- Jump to item by number (only 1-9, not 0)
-                menu.nav_to_index(tonumber(key))
+            else
+                -- Index navigation with consecutive digit tracking
+                local digit = tonumber(key)
+
+                -- Track consecutive presses of same digit
+                if digit == state.last_digit then
+                    state.digit_count = state.digit_count + 1
+                else
+                    state.last_digit = digit
+                    state.digit_count = 1
+                end
+
+                -- Calculate target item from digit and repeat count
+                local target = index_to_item(digit, state.digit_count)
+                local total = get_total_items()
+
+                -- Only navigate if target exists
+                if target <= total then
+                    menu.nav_to_index(target)
+                else
+                    -- Target doesn't exist, reset to single press
+                    state.digit_count = 1
+                    target = index_to_item(digit, 1)
+                    if target <= total then
+                        menu.nav_to_index(target)
+                    end
+                end
             end
         -- Backspace: for flag fields
         elseif key == "BACKSPACE" or key == "DELETE" then
