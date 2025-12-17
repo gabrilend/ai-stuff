@@ -159,10 +159,33 @@ menu_get_value "item_id"    # Returns current value for item
 | `g` | Jump to first item |
 | `G` | Jump to last item |
 | `` ` `` / `~` | Jump to action item |
-| `1-9` | Jump to item by number (when not on flag field) |
-| `0-9` | Enter digits (when on flag field) |
+| `0-9` | Jump to item by index (see below) / Enter digits on flag fields |
 | `BACKSPACE` | Delete last digit (flag fields) |
 | `q` / `Q` / `ESC` | Quit menu |
+
+### Index Selection (Repeated Digits)
+
+Items are indexed using a repeated-digit pattern that allows quick access to any item:
+
+| Items | Index Pattern | Keys to Press |
+|-------|---------------|---------------|
+| 1-9 | 1, 2, 3...9 | Single digit |
+| 10 | 0 | `0` |
+| 11-19 | 11, 22, 33...99 | Same digit twice |
+| 20 | 00 | `0` twice |
+| 21-29 | 111, 222, 333...999 | Same digit three times |
+| 30 | 000 | `0` three times |
+
+**Example:** To jump to item 22 (displayed as `222`):
+1. Press `2` → goes to item 2
+2. Press `2` again → goes to item 12
+3. Press `2` again → goes to item 22
+
+Pressing a different digit resets the sequence.
+
+**Note:** Index numbers are only displayed for checkbox items. Flag (text-entry),
+multistate, and action items do not show index numbers. When on a flag field,
+digit keys enter text instead of navigating.
 
 ## Complete Example
 
