@@ -211,6 +211,11 @@ local function render_item(row, item_id, highlight, item_num)
         tui.set_attrs(highlight and tui.ATTR_NONE or tui.ATTR_DIM)
         tui.set_fg(highlight and tui.FG_CYAN or tui.FG_DEFAULT)
         tui.write_str(row, col, ">")
+    elseif item_type == "action" then
+        -- Action items show an arrow indicator
+        tui.set_fg(highlight and tui.FG_YELLOW or tui.FG_DEFAULT)
+        tui.set_attrs(highlight and tui.ATTR_BOLD or tui.ATTR_DIM)
+        tui.write_str(row, col, " -->")
     end
 
     tui.reset_style()
@@ -291,7 +296,7 @@ local function render_footer()
     tui.clear_row(row + 1)
     tui.draw_box_line(row + 1, 1, state.cols, "double")
     tui.set_attrs(tui.ATTR_DIM)
-    local help = "j/k:nav  space:toggle  enter:run  q:quit"
+    local help = "j/k:nav  space:toggle  `:action  q:quit"
     local help_start = math.floor((state.cols - #help) / 2)
     tui.write_str(row + 1, help_start, help)
     tui.reset_style()
@@ -374,20 +379,41 @@ function menu.nav_to_index(target)
         end
     end
 end
+
+function menu.nav_to_action()
+    -- Navigate to the first action item (usually at bottom)
+    reset_flag_edit_state()
+    for si, sid in ipairs(state.sections) do
+        local items = state.section_data[sid].items
+        for ii, item_id in ipairs(items) do
+            if state.item_data[item_id].type == "action" then
+                state.current_section = si
+                state.current_item = ii
+                menu.render()
+                return true
+            end
+        end
+    end
+    return false
+end
 -- }}}
 
 -- {{{ menu.toggle
+-- Returns "action" if an action item was activated, nil otherwise
 function menu.toggle()
     local item_id = get_current_item_id()
-    if not item_id then return end
+    if not item_id then return nil end
 
     local data = state.item_data[item_id]
-    if data.disabled then return end
+    if data.disabled then return nil end
 
     local sid = state.sections[state.current_section]
     local section_type = state.section_data[sid].type
 
-    if data.type == "checkbox" then
+    if data.type == "action" then
+        -- Action items trigger immediate execution
+        return "action"
+    elseif data.type == "checkbox" then
         if section_type == "single" then
             -- Radio button behavior: unselect all others in section
             for _, iid in ipairs(state.section_data[sid].items) do
@@ -418,6 +444,7 @@ function menu.toggle()
     end
 
     menu.render()
+    return nil
 end
 -- }}}
 
@@ -644,11 +671,6 @@ function menu.run()
             return "quit", state.values
         end
 
-        -- Run/execute (ENTER only - not SPACE, which is toggle)
-        if key == "ENTER" then
-            return "run", state.values
-        end
-
         -- Navigation: UP/k
         if key == "UP" or key == "k" then
             menu.nav_up()
@@ -661,15 +683,21 @@ function menu.run()
         -- RIGHT/l: set checkbox, set flag to default, cycle multistate forwards
         elseif key == "RIGHT" or key == "l" then
             menu.handle_right()
-        -- Toggle: SPACE/i
-        elseif key == "SPACE" or key == "i" then
-            menu.toggle()
+        -- Toggle/Activate: SPACE/i/ENTER
+        elseif key == "SPACE" or key == "i" or key == "ENTER" then
+            local result = menu.toggle()
+            if result == "action" then
+                return "run", state.values
+            end
         -- Go to top
         elseif key == "g" then
             menu.nav_top()
         -- Go to bottom
         elseif key == "G" then
             menu.nav_bottom()
+        -- Jump to action item: ` or ~
+        elseif key == "`" or key == "~" then
+            menu.nav_to_action()
         -- Digit keys 0-9: for flag fields or jump to item 1-9
         elseif type(key) == "string" and #key == 1 and key >= "0" and key <= "9" then
             -- Check if current item is a flag field
