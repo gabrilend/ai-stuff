@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** Issues Created (Phase 1 Complete)
+**Status:** In Progress (1/8 Complete)
 
 ---
 
@@ -12,7 +12,7 @@
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | Issues Created | 0/8 |
+| 2 | Data Model - Game Objects | In Progress | 1/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -98,7 +98,7 @@
 |----|------|--------|--------------|
 | 201 | Parse war3map.doo (doodads/trees) | Pending | 102 |
 | 202 | Parse war3mapUnits.doo (units/buildings) | Pending | 102, 201 |
-| 203 | Parse war3map.w3r (regions) | Pending | 102 |
+| 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | Pending | 102 |
 | 205 | Parse war3map.w3s (sounds) | Pending | 102 |
 | 206 | Design game object types | Pending | 201-205 |
@@ -257,6 +257,13 @@ Phase 1 Complete (102 MPQ Parser)
   - Created run-demo.sh (phase demo runner)
   - 15/16 test maps pass (1 uses PKWARE DCL - known limitation)
   - **Phase 1 Complete!**
+- **Issue 203 completed:** Parse war3map.w3r (regions)
+  - Created src/parsers/w3r.lua (region parser)
+  - Created src/tests/test_w3r.lua (test suite)
+  - Parses: bounds, names, creation numbers, weather, sounds, colors
+  - Provides lookup by creation_number for waygate targeting
+  - 16/16 test maps process (all happen to have no regions defined)
+  - Synthetic data test validates all parsing logic
 
 ---
 
