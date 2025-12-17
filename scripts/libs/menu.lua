@@ -834,6 +834,36 @@ function menu.run()
                     end
                 end
             end
+        -- SHIFT+digit (!@#$%^&*()): go back one tier in index navigation
+        elseif type(key) == "string" and #key == 1 then
+            -- Map shifted digits to their base digit
+            local shift_map = {
+                ["!"] = 1, ["@"] = 2, ["#"] = 3, ["$"] = 4, ["%"] = 5,
+                ["^"] = 6, ["&"] = 7, ["*"] = 8, ["("] = 9, [")"] = 0
+            }
+            local digit = shift_map[key]
+            if digit ~= nil then
+                -- Only act if this matches the current digit sequence
+                if digit == state.last_digit and state.digit_count > 1 then
+                    state.digit_count = state.digit_count - 1
+                    local target = index_to_checkbox(digit, state.digit_count)
+                    local total = get_checkbox_count()
+                    if target <= total then
+                        menu.nav_to_checkbox(target)
+                    end
+                elseif digit == state.last_digit and state.digit_count == 1 then
+                    -- Already at tier 1, can't go back further - just stay
+                elseif state.last_digit == nil then
+                    -- No previous digit, treat as starting fresh at tier 1
+                    state.last_digit = digit
+                    state.digit_count = 1
+                    local target = index_to_checkbox(digit, 1)
+                    local total = get_checkbox_count()
+                    if target <= total then
+                        menu.nav_to_checkbox(target)
+                    end
+                end
+            end
         -- Backspace: for flag fields
         elseif key == "BACKSPACE" or key == "DELETE" then
             menu.handle_flag_backspace()
