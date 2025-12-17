@@ -106,18 +106,17 @@ menu_init() {
     MENU_PREV_SECTION=-1
     MENU_PREV_ITEM=-1
 
-    # DEBUG: Initialize frame-by-frame logging
-    # DEPRECATED: Remove after issue 004 is resolved (causes SSD wear)
-    # See: scripts/issues/004-fix-tui-menu-incremental-rendering.md
+    # DEBUG: Initialize frame-by-frame logging (only if MENU_DEBUG=1)
+    # Set MENU_DEBUG=1 before calling menu_init to enable debug logging
     MENU_DEBUG_FRAME_COUNT=0
-    # Store debug frames in project directory (relative to this library)
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    MENU_DEBUG_DIR="${script_dir}/../debug/menu_frames"
-    rm -rf "$MENU_DEBUG_DIR" 2>/dev/null || true
-    mkdir -p "$MENU_DEBUG_DIR"
-    echo "=== Debug Session Started: $(date) ===" > "${MENU_DEBUG_DIR}/summary.log"
-    echo "Debug directory: $MENU_DEBUG_DIR" >> "${MENU_DEBUG_DIR}/summary.log"
-    echo "Cleared debug directory, ready for frame capture" >> "${MENU_DEBUG_DIR}/summary.log"
+    MENU_DEBUG_DIR=""
+    if [[ "${MENU_DEBUG:-}" == "1" ]]; then
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        MENU_DEBUG_DIR="${script_dir}/../debug/menu_frames"
+        rm -rf "$MENU_DEBUG_DIR" 2>/dev/null || true
+        mkdir -p "$MENU_DEBUG_DIR"
+        echo "=== Debug Session Started: $(date) ===" > "${MENU_DEBUG_DIR}/summary.log"
+    fi
 
     # Reset component states
     checkbox_init
@@ -809,8 +808,10 @@ menu_render_section() {
             MENU_ITEM_GLOBAL_IDX[$cache_key]=$MENU_RENDER_GLOBAL_INDEX
             MENU_ITEM_IDS[$cache_key]="$item_id"
 
-            # DEBUG: Log to file what row we're about to render at
-            echo "FULL_RENDER: section=$section_id item=$i row=$row (ANSI $((row+1))) label=${MENU_ITEM_LABELS[$item_id]}" >> "${MENU_DEBUG_DIR}/full_render.log"
+            # DEBUG: Log to file what row we're about to render at (only if MENU_DEBUG=1)
+            if [[ "${MENU_DEBUG:-}" == "1" ]] && [[ -n "$MENU_DEBUG_DIR" ]]; then
+                echo "FULL_RENDER: section=$section_id item=$i row=$row label=${MENU_ITEM_LABELS[$item_id]}" >> "${MENU_DEBUG_DIR}/full_render.log"
+            fi
 
             menu_render_item "$item_id" "$row" "$highlight" "$MENU_RENDER_GLOBAL_INDEX"
             ((++row))
@@ -834,8 +835,10 @@ menu_render_item() {
     local disabled="${MENU_ITEM_DISABLED[$item_id]:-}"
     local value="${MENU_VALUES[$item_id]:-}"
 
-    # DEBUG: Log actual row used for tui_goto
-    echo "  menu_render_item: tui_goto row=$row col=0 (ANSI $((row+1));1) item=$item_id" >> "${MENU_DEBUG_DIR}/full_render.log"
+    # DEBUG: Log actual row used for tui_goto (only if MENU_DEBUG=1)
+    if [[ "${MENU_DEBUG:-}" == "1" ]] && [[ -n "$MENU_DEBUG_DIR" ]]; then
+        echo "  menu_render_item: tui_goto row=$row item=$item_id" >> "${MENU_DEBUG_DIR}/full_render.log"
+    fi
 
     tui_goto "$row" 0
     tui_clear_line
@@ -1077,6 +1080,9 @@ menu_get_item_id_at() {
 #
 # Performs incremental update for adjacent items in the same section.
 # Cross-section moves and jumps trigger full redraw for simplicity.
+#
+# FIX (issue 010): Now uses menu_render_item() instead of hardcoded checkbox
+# format, so all item types (checkbox, flag, multistate, etc.) render correctly.
 menu_incremental_update() {
     # Can't do incremental if we need full redraw or no previous position
     if [[ "$MENU_NEEDS_FULL_REDRAW" == "1" ]]; then
@@ -1103,14 +1109,13 @@ menu_incremental_update() {
         return 1  # Jumped more than 1 item - full redraw
     fi
 
-    # Compute positions on-the-fly (avoids caching issues)
     # Get section IDs for cache lookup
     local old_section_id="${MENU_SECTIONS[$MENU_PREV_SECTION]}"
     local new_section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
     local old_cache_key="${old_section_id}:${MENU_PREV_ITEM}"
     local new_cache_key="${new_section_id}:${MENU_CURRENT_ITEM}"
 
-    # Use CACHED row values from full render (not recomputed)
+    # Use CACHED row values from full render
     local old_row="${MENU_ITEM_ROWS[$old_cache_key]}"
     local new_row="${MENU_ITEM_ROWS[$new_cache_key]}"
     local old_global_idx="${MENU_ITEM_GLOBAL_IDX[$old_cache_key]}"
@@ -1118,103 +1123,39 @@ menu_incremental_update() {
     local old_item_id="${MENU_ITEM_IDS[$old_cache_key]}"
     local new_item_id="${MENU_ITEM_IDS[$new_cache_key]}"
 
-    # DEBUG: Write to file to see what's happening
-    {
-        echo "=== Incremental Update Debug ==="
-        echo "PREV: section=$MENU_PREV_SECTION item=$MENU_PREV_ITEM"
-        echo "CURR: section=$MENU_CURRENT_SECTION item=$MENU_CURRENT_ITEM"
-        echo "old_row=$old_row old_global_idx=$old_global_idx old_item_id=$old_item_id"
-        echo "new_row=$new_row new_global_idx=$new_global_idx new_item_id=$new_item_id"
-        echo "MENU_HEADER_HEIGHT=$MENU_HEADER_HEIGHT"
-        echo "==="
-    } >> /tmp/menu_debug.log
-
-    # If we couldn't get item IDs, need full redraw
+    # If we couldn't get item IDs or rows, need full redraw
     if [[ -z "$old_item_id" ]] || [[ -z "$new_item_id" ]]; then
         return 1
     fi
+    if [[ -z "$old_row" ]] || [[ -z "$new_row" ]]; then
+        return 1
+    fi
 
-    # DEBUG: Frame-by-frame logging
-    local frame_file="${MENU_DEBUG_DIR}/frame_$(printf '%04d' $MENU_DEBUG_FRAME_COUNT).txt"
+    # DEBUG: Conditional logging (set MENU_DEBUG=1 to enable)
+    if [[ "${MENU_DEBUG:-}" == "1" ]] && [[ -d "$MENU_DEBUG_DIR" ]]; then
+        local frame_file="${MENU_DEBUG_DIR}/frame_$(printf '%04d' $MENU_DEBUG_FRAME_COUNT).txt"
+        {
+            echo "=== FRAME $MENU_DEBUG_FRAME_COUNT (INCREMENTAL) ==="
+            echo "Timestamp: $(date +%H:%M:%S.%N)"
+            echo "PREV: section=$MENU_PREV_SECTION item=$MENU_PREV_ITEM"
+            echo "CURR: section=$MENU_CURRENT_SECTION item=$MENU_CURRENT_ITEM"
+            echo "old: row=$old_row idx=$old_global_idx id=$old_item_id"
+            echo "new: row=$new_row idx=$new_global_idx id=$new_item_id"
+        } > "$frame_file"
+        ((MENU_DEBUG_FRAME_COUNT++))
+    fi
 
-    {
-        echo "=== FRAME $MENU_DEBUG_FRAME_COUNT ==="
-        echo "Timestamp: $(date +%H:%M:%S.%N)"
-        echo ""
-        echo "--- Navigation State ---"
-        echo "PREV: section=$MENU_PREV_SECTION item=$MENU_PREV_ITEM"
-        echo "CURR: section=$MENU_CURRENT_SECTION item=$MENU_CURRENT_ITEM"
-        echo ""
-        echo "--- Computed Values (from menu_compute_item_row) ---"
-        echo "old_row=$old_row (ANSI: $((old_row + 1)))"
-        echo "new_row=$new_row (ANSI: $((new_row + 1)))"
-        echo "old_global_idx=$old_global_idx"
-        echo "new_global_idx=$new_global_idx"
-        echo "old_item_id=$old_item_id → '${MENU_ITEM_LABELS[$old_item_id]}'"
-        echo "new_item_id=$new_item_id → '${MENU_ITEM_LABELS[$new_item_id]}'"
-        echo ""
-        echo "--- Cached Values (from full render) ---"
-        local old_section_id="${MENU_SECTIONS[$MENU_PREV_SECTION]}"
-        local new_section_id="${MENU_SECTIONS[$MENU_CURRENT_SECTION]}"
-        local old_cache_key="${old_section_id}:${MENU_PREV_ITEM}"
-        local new_cache_key="${new_section_id}:${MENU_CURRENT_ITEM}"
-        echo "old_cache_key=$old_cache_key → cached_row=${MENU_ITEM_ROWS[$old_cache_key]}"
-        echo "new_cache_key=$new_cache_key → cached_row=${MENU_ITEM_ROWS[$new_cache_key]}"
-        if [[ "${MENU_ITEM_ROWS[$old_cache_key]}" != "$old_row" ]]; then
-            echo "!!! MISMATCH: old computed=$old_row vs cached=${MENU_ITEM_ROWS[$old_cache_key]}"
-        fi
-        if [[ "${MENU_ITEM_ROWS[$new_cache_key]}" != "$new_row" ]]; then
-            echo "!!! MISMATCH: new computed=$new_row vs cached=${MENU_ITEM_ROWS[$new_cache_key]}"
-        fi
-        echo ""
-        echo "--- Constants ---"
-        echo "MENU_HEADER_HEIGHT=$MENU_HEADER_HEIGHT"
-        echo "MENU_ITEMS_END_ROW=$MENU_ITEMS_END_ROW"
-        echo "TUI_ROWS=$TUI_ROWS TUI_COLS=$TUI_COLS"
-        echo ""
-        echo "--- Operations Sequence ---"
-    } > "$frame_file"
+    # FIX: Use menu_render_item for both old and new items
+    # This properly handles all item types (checkbox, flag, multistate, etc.)
+    # instead of hardcoding checkbox format "[ ]" which was the original bug.
 
-    # Build content strings
-    local old_content="$old_global_idx [ ] ${MENU_ITEM_LABELS[$old_item_id]}"
-    local new_content="$new_global_idx▸[●] ${MENU_ITEM_LABELS[$new_item_id]}"
+    # Render old item WITHOUT highlight (unhighlight it)
+    menu_render_item "$old_item_id" "$old_row" 0 "$old_global_idx"
 
-    # Log to debug file FIRST (all file I/O before screen output)
-    {
-        echo "STEP 1: position to ANSI row $((old_row + 1)), col 1"
-        echo "STEP 2: clear line"
-        echo "STEP 3: write '$old_content'"
-        echo "STEP 4: position to ANSI row $((new_row + 1)), col 1"
-        echo "STEP 5: clear line"
-        echo "STEP 6: write '$new_content' (with reverse video)"
-    } >> "$frame_file"
+    # Render new item WITH highlight
+    menu_render_item "$new_item_id" "$new_row" 1 "$new_global_idx"
 
-    # ALL screen output in ONE printf call to eliminate buffering issues
-    # Format: \033[row;colH = position, \033[K = clear to end of line (matches tui_clear_line)
-    printf '\033[%d;1H\033[K%s\033[%d;1H\033[K%d▸[●] \033[7m%s\033[0m' \
-        "$((old_row + 1))" "$old_content" \
-        "$((new_row + 1))" "$new_global_idx" "${MENU_ITEM_LABELS[$new_item_id]}"
-
-    echo "" >> "$frame_file"
-    echo "--- Expected Screen State (rows 4-12) ---" >> "$frame_file"
-    # Draw expected state based on our data model
-    for ((r = 4; r <= 12; r++)); do
-        local expected_line="row $r: "
-        if [[ $r -eq $old_row ]]; then
-            expected_line+="[OLD→UNHIGHLIGHT] $old_content"
-        elif [[ $r -eq $new_row ]]; then
-            expected_line+="[NEW→HIGHLIGHT] $new_content"
-        else
-            expected_line+="(unchanged)"
-        fi
-        echo "$expected_line" >> "$frame_file"
-    done
-
-    ((MENU_DEBUG_FRAME_COUNT++))
-
-    # Also append to summary log
-    echo "Frame $((MENU_DEBUG_FRAME_COUNT - 1)): old_row=$old_row new_row=$new_row" >> "${MENU_DEBUG_DIR}/summary.log"
-
+    # Update description area to show new item's description
     menu_render_description_area
 
     # Move cursor to bottom-right to avoid visual artifacts
