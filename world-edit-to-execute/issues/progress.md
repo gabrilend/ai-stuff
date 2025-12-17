@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (2/8 Complete)
+**Status:** In Progress (3/8 Complete)
 
 ---
 
@@ -12,7 +12,7 @@
 |-------|------|--------|--------|
 | 0 | Tooling/Infrastructure | **Completed** | 18/18 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 2/8 |
+| 2 | Data Model - Game Objects | In Progress | 3/8 |
 | 3 | Logic Layer - Triggers and JASS | Planned | - |
 | 4 | Runtime - Basic Engine Loop | Planned | - |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -100,7 +100,7 @@
 | 202 | Parse war3mapUnits.doo (units/buildings) | Pending | 102, 201 |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
-| 205 | Parse war3map.w3s (sounds) | Pending | 102 |
+| 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |
 | 206 | Design game object types | Pending | 201-205 |
 | 207 | Build object registry system | Pending | 206 |
 | 208 | Phase 2 integration test | Pending | 201-207 |
@@ -273,6 +273,15 @@ Phase 1 Complete (102 MPQ Parser)
   - Provides lookup by camera name via by_name index
   - 16/16 test maps process (all happen to have no cameras defined)
   - 22/22 tests pass (6 synthetic + 16 map tests)
+- **Issue 205 completed:** Parse war3map.w3s (sounds)
+  - Created src/parsers/w3s.lua (sound definitions parser)
+  - Created src/tests/test_w3s.lua (test suite with synthetic data)
+  - Parses: variable names, file paths, EAX effects, flags, channels
+  - Parses: volume, pitch, 3D distance params, cone params
+  - Supports version 1 (TFT) and version 3 (Reforged) formats
+  - Provides lookup by sound name via SoundTable class
+  - 16/16 test maps process (all happen to have no sounds defined)
+  - 10/10 tests pass (9 synthetic + 1 map batch test)
 
 ---
 
@@ -294,7 +303,7 @@ Capabilities established:
 2. **202 - Parse war3mapUnits.doo** (units/buildings)
 3. ~~**203 - Parse war3map.w3r** (regions)~~ ✓
 4. ~~**204 - Parse war3map.w3c** (cameras)~~ ✓
-5. **205 - Parse war3map.w3s** (sounds)
+5. ~~**205 - Parse war3map.w3s** (sounds)~~ ✓
 6. **206 - Design game object types**
 7. **207 - Build object registry system**
 8. **208 - Phase 2 integration test**
