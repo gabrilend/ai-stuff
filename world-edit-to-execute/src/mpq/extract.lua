@@ -6,6 +6,7 @@
 local compat = require("compat")
 local band, bxor = compat.band, compat.bxor
 local hash = require("mpq.hash")
+local pkware = require("mpq.pkware")
 
 local extract = {}
 
@@ -110,7 +111,11 @@ end
 
 -- {{{ decompress_sector
 -- Decompresses a sector based on compression flags.
-function extract.decompress_sector(data, is_implode, is_compress)
+-- @param data: Compressed sector data
+-- @param is_implode: True if IMPLODE flag is set on the file
+-- @param is_compress: True if COMPRESS flag is set on the file
+-- @param expected_size: Optional expected decompressed size for PKWARE DCL
+function extract.decompress_sector(data, is_implode, is_compress, expected_size)
     if not data or #data == 0 then
         return ""
     end
@@ -120,9 +125,12 @@ function extract.decompress_sector(data, is_implode, is_compress)
     end
 
     if is_implode then
-        -- PKWARE DCL - not implemented yet
-        -- See: docs/formats/pkware-dcl-compression.md
-        return nil, "PKWARE DCL decompression not implemented (see docs/formats/pkware-dcl-compression.md)"
+        -- PKWARE DCL (implode) decompression
+        local decompressed, err = pkware.decompress(data, expected_size)
+        if not decompressed then
+            return nil, "PKWARE DCL decompression failed: " .. (err or "unknown")
+        end
+        return decompressed
     end
 
     if is_compress then
@@ -139,8 +147,12 @@ function extract.decompress_sector(data, is_implode, is_compress)
         end
 
         if band(flags, COMPRESSION.PKWARE) ~= 0 then
-            -- See: docs/formats/pkware-dcl-compression.md
-            return nil, "PKWARE DCL decompression not implemented (see docs/formats/pkware-dcl-compression.md)"
+            -- PKWARE DCL (implode) decompression
+            local decompressed, err = pkware.decompress(data, expected_size)
+            if not decompressed then
+                return nil, "PKWARE DCL decompression failed: " .. (err or "unknown")
+            end
+            data = decompressed
         end
 
         if band(flags, COMPRESSION.ZLIB) ~= 0 then
@@ -290,16 +302,30 @@ function extract.extract_file(file_data, hash_table, block_table, sector_size, f
         return nil, err
     end
 
+    -- Calculate number of sectors and remaining size
+    local num_sectors = #sectors
+    local remaining_size = block.uncompressed_size
+
     -- Decompress each sector
     local output = {}
     for i, sector in ipairs(sectors) do
+        -- Calculate expected decompressed size for this sector
+        -- Last sector may be smaller than sector_size
+        local expected_sector_size
+        if i == num_sectors then
+            expected_sector_size = remaining_size
+        else
+            expected_sector_size = math.min(sector_size, remaining_size)
+        end
+
         local decompressed, decomp_err = extract.decompress_sector(
-            sector, block.flags.implode, block.flags.compress
+            sector, block.flags.implode, block.flags.compress, expected_sector_size
         )
         if not decompressed then
             return nil, "Sector " .. i .. " decompression failed: " .. (decomp_err or "unknown")
         end
         output[i] = decompressed
+        remaining_size = remaining_size - #decompressed
     end
 
     return table.concat(output)
