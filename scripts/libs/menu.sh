@@ -808,9 +808,12 @@ menu_render_section() {
             MENU_ITEM_GLOBAL_IDX[$cache_key]=$MENU_RENDER_GLOBAL_INDEX
             MENU_ITEM_IDS[$cache_key]="$item_id"
 
-            # DEBUG: Log to file what row we're about to render at (only if MENU_DEBUG=1)
-            if [[ "${MENU_DEBUG:-}" == "1" ]] && [[ -n "$MENU_DEBUG_DIR" ]]; then
-                echo "FULL_RENDER: section=$section_id item=$i row=$row label=${MENU_ITEM_LABELS[$item_id]}" >> "${MENU_DEBUG_DIR}/full_render.log"
+            # DEBUG: Log cache population and render row (only if MENU_DEBUG=1)
+            if [[ "${MENU_DEBUG:-}" == "1" ]]; then
+                echo "CACHE: key='$cache_key' row=$row (ANSI $((row+1))) global=$MENU_RENDER_GLOBAL_INDEX id=$item_id" >> /tmp/menu_cache_debug.log
+                if [[ -n "$MENU_DEBUG_DIR" ]]; then
+                    echo "FULL_RENDER: section=$section_id item=$i row=$row label=${MENU_ITEM_LABELS[$item_id]}" >> "${MENU_DEBUG_DIR}/full_render.log"
+                fi
             fi
 
             menu_render_item "$item_id" "$row" "$highlight" "$MENU_RENDER_GLOBAL_INDEX"
@@ -836,8 +839,11 @@ menu_render_item() {
     local value="${MENU_VALUES[$item_id]:-}"
 
     # DEBUG: Log actual row used for tui_goto (only if MENU_DEBUG=1)
-    if [[ "${MENU_DEBUG:-}" == "1" ]] && [[ -n "$MENU_DEBUG_DIR" ]]; then
-        echo "  menu_render_item: tui_goto row=$row item=$item_id" >> "${MENU_DEBUG_DIR}/full_render.log"
+    if [[ "${MENU_DEBUG:-}" == "1" ]]; then
+        echo "RENDER: item=$item_id row=$row (ANSI $((row+1))) highlight=$highlight" >> /tmp/menu_render_debug.log
+        if [[ -n "$MENU_DEBUG_DIR" ]]; then
+            echo "  menu_render_item: tui_goto row=$row item=$item_id" >> "${MENU_DEBUG_DIR}/full_render.log"
+        fi
     fi
 
     tui_goto "$row" 0
@@ -1145,15 +1151,72 @@ menu_incremental_update() {
         ((MENU_DEBUG_FRAME_COUNT++))
     fi
 
-    # FIX: Use menu_render_item for both old and new items
-    # This properly handles all item types (checkbox, flag, multistate, etc.)
-    # instead of hardcoding checkbox format "[ ]" which was the original bug.
+    # FIX (issue 010): Use single printf call to avoid buffering issues
+    # The original code used a single printf, and calling menu_render_item
+    # (which uses tui_goto + echo -n) seems to cause off-by-one rendering.
+    #
+    # Build content strings for old (unhighlight) and new (highlight) items
+    local old_label="${MENU_ITEM_LABELS[$old_item_id]:-$old_item_id}"
+    local new_label="${MENU_ITEM_LABELS[$new_item_id]:-$new_item_id}"
+    local old_type="${MENU_ITEM_TYPES[$old_item_id]:-checkbox}"
+    local new_type="${MENU_ITEM_TYPES[$new_item_id]:-checkbox}"
+    local old_value="${MENU_VALUES[$old_item_id]:-}"
+    local new_value="${MENU_VALUES[$new_item_id]:-}"
 
-    # Render old item WITHOUT highlight (unhighlight it)
-    menu_render_item "$old_item_id" "$old_row" 0 "$old_global_idx"
+    # Build checkbox indicator for old item (unhighlighted)
+    local old_check="[ ]"
+    if [[ "$old_type" == "checkbox" ]]; then
+        [[ "$old_value" == "1" ]] && old_check="${TUI_GREEN}[●]${TUI_RESET}" || old_check="[ ]"
+    fi
 
-    # Render new item WITH highlight
-    menu_render_item "$new_item_id" "$new_row" 1 "$new_global_idx"
+    # Build checkbox indicator for new item (highlighted)
+    local new_check="[ ]"
+    if [[ "$new_type" == "checkbox" ]]; then
+        [[ "$new_value" == "1" ]] && new_check="${TUI_GREEN}[●]${TUI_RESET}" || new_check="[ ]"
+    fi
+
+    # Handle non-checkbox types (flag, multistate, etc.)
+    local old_suffix=""
+    local new_suffix=""
+    if [[ "$old_type" == "flag" ]]; then
+        old_check="  "
+        local old_config="${MENU_ITEM_CONFIG[$old_item_id]:-}"
+        local old_width="${old_config#*:}"
+        [[ "$old_width" == "$old_config" ]] && old_width="$MENU_FLAG_WIDTH"
+        printf -v old_suffix ": [%${old_width}s]" "$old_value"
+    fi
+    if [[ "$new_type" == "flag" ]]; then
+        new_check="  "
+        local new_config="${MENU_ITEM_CONFIG[$new_item_id]:-}"
+        local new_width="${new_config#*:}"
+        [[ "$new_width" == "$new_config" ]] && new_width="$MENU_FLAG_WIDTH"
+        printf -v new_suffix ": [%${new_width}s]" "$new_value"
+    fi
+    if [[ "$old_type" == "multistate" ]]; then
+        old_check="  "
+        old_suffix=" ${TUI_DIM}◀${TUI_RESET}[$(multistate_get "$old_item_id" | tr '[:lower:]' '[:upper:]')]${TUI_DIM}▶${TUI_RESET}"
+    fi
+    if [[ "$new_type" == "multistate" ]]; then
+        new_check="  "
+        new_suffix=" ${TUI_CYAN}◀${TUI_RESET}[$(multistate_get "$new_item_id" | tr '[:lower:]' '[:upper:]')]${TUI_CYAN}▶${TUI_RESET}"
+    fi
+
+    # Single printf call: position, clear, content for BOTH items
+    # This avoids any buffering issues between separate tui_goto + echo calls
+    # Format: old_item at old_row, new_item (highlighted) at new_row
+    # Old: "idx  check label suffix" (space for cursor)
+    # New: "idx▸check label suffix" (▸ for cursor)
+    printf '\033[%d;1H\033[K%s %s %s%s\033[%d;1H\033[K%s▸%s %s%s\033[0m' \
+        "$((old_row + 1))" \
+        "${TUI_DIM}${old_global_idx}${TUI_RESET}" \
+        "$old_check" \
+        "$old_label" \
+        "$old_suffix" \
+        "$((new_row + 1))" \
+        "${TUI_DIM}${new_global_idx}${TUI_RESET}" \
+        "$new_check" \
+        "${TUI_INVERSE}${new_label}${TUI_RESET}" \
+        "$new_suffix"
 
     # Update description area to show new item's description
     menu_render_description_area
