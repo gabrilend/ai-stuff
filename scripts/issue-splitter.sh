@@ -606,6 +606,13 @@ interactive_mode_tui() {
         ((++i))  # Pre-increment to avoid exit code 1 when i=0
     done
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 5: Actions (execute button)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "actions" "single" "Actions"
+    menu_add_item "actions" "run" "Run Selected Operations" "action" "" \
+        "Execute the selected mode with chosen options and files"
+
     # Run the menu
     if menu_run; then
         tui_cleanup
