@@ -750,6 +750,274 @@ format_epoch_for_git() {
 }
 # }}}
 
+# =============================================================================
+# File-to-Issue Association Heuristics (035d)
+# =============================================================================
+
+# -- {{{ File Association Configuration
+ASSOC_MTIME_THRESHOLD="${ASSOC_MTIME_THRESHOLD:-3600}"   # 1 hour proximity threshold
+ASSOC_MIN_SIMILARITY="${ASSOC_MIN_SIMILARITY:-50}"       # Minimum name similarity (0-100)
+ASSOC_VERBOSE="${ASSOC_VERBOSE:-false}"                  # Show association reasoning
+# }}}
+
+# -- {{{ extract_mentioned_paths
+extract_mentioned_paths() {
+    local issue_file="$1"
+
+    # Extract file paths from backticks: `src/foo.lua`
+    local backtick_paths
+    backtick_paths=$(grep -oE '\`[^`]*\.(lua|sh|py|js|ts|c|h|rs|go|json|yaml|yml|toml|conf|cfg)\`' "$issue_file" 2>/dev/null | \
+                     tr -d '`' | sort -u)
+
+    # Extract paths from "Files Changed" or "Files Modified" sections
+    local section_paths
+    section_paths=$(sed -n '/^##.*[Ff]iles/,/^##/p' "$issue_file" 2>/dev/null | \
+                    grep -oE '[a-zA-Z0-9_/./-]+\.[a-z]+' | sort -u)
+
+    # Also look for paths in bullet points: - `path/to/file.lua`
+    local bullet_paths
+    bullet_paths=$(grep -oE '^\s*[-*]\s*\`[^`]+\`' "$issue_file" 2>/dev/null | \
+                   grep -oE '[a-zA-Z0-9_/./-]+\.[a-z]+' | sort -u)
+
+    # Combine and deduplicate
+    echo -e "${backtick_paths}\n${section_paths}\n${bullet_paths}" | sort -u | grep -v '^$'
+}
+# }}}
+
+# -- {{{ extract_mentioned_directories
+extract_mentioned_directories() {
+    local issue_file="$1"
+
+    # Extract directory paths from backticks: `src/parsers/`
+    local backtick_dirs
+    backtick_dirs=$(grep -oE '\`[^`]+/\`' "$issue_file" 2>/dev/null | tr -d '`')
+
+    # Extract from prose: "in the src/parsers directory" or "src/parsers/ folder"
+    local prose_dirs
+    prose_dirs=$(grep -oE '[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)*/' "$issue_file" 2>/dev/null | \
+                 grep -v '^//' | sort -u)
+
+    echo -e "${backtick_dirs}\n${prose_dirs}" | sort -u | grep -v '^$'
+}
+# }}}
+
+# -- {{{ calculate_name_similarity
+calculate_name_similarity() {
+    local issue_name="$1"   # e.g., "002-build-parser-module"
+    local file_name="$2"    # e.g., "parser-module.lua"
+
+    # Extract keywords from issue name (remove number prefix)
+    local issue_clean
+    issue_clean=$(echo "$issue_name" | sed 's/^[0-9]*[a-z]*-//')
+
+    # Extract keywords from file name (remove extension)
+    local file_clean
+    file_clean=$(echo "$file_name" | sed 's/\.[^.]*$//')
+
+    # Split into keywords
+    local -a issue_keywords
+    IFS='-_' read -ra issue_keywords <<< "$issue_clean"
+
+    local -a file_keywords
+    IFS='-_' read -ra file_keywords <<< "$file_clean"
+
+    # Count matching keywords
+    local matches=0
+    local total=${#issue_keywords[@]}
+
+    for issue_kw in "${issue_keywords[@]}"; do
+        [[ -z "$issue_kw" ]] && continue
+        for file_kw in "${file_keywords[@]}"; do
+            # Case-insensitive comparison
+            if [[ "${issue_kw,,}" == "${file_kw,,}" ]]; then
+                ((matches++))
+                break
+            fi
+        done
+    done
+
+    # Return similarity as percentage (0-100)
+    if [[ $total -gt 0 ]]; then
+        echo $((matches * 100 / total))
+    else
+        echo "0"
+    fi
+}
+# }}}
+
+# -- {{{ check_mtime_proximity
+check_mtime_proximity() {
+    local file_path="$1"
+    local issue_mtime="$2"
+    local threshold="${ASSOC_MTIME_THRESHOLD}"
+
+    local file_mtime
+    file_mtime=$(stat -c %Y "$file_path" 2>/dev/null || echo "0")
+
+    local delta=$((file_mtime - issue_mtime))
+    [[ $delta -lt 0 ]] && delta=$((-delta))
+
+    # Return true (0) if within threshold
+    [[ $delta -le $threshold ]]
+}
+# }}}
+
+# -- {{{ associate_files_with_issues
+associate_files_with_issues() {
+    local project_dir="$1"
+    local issues_dir="${project_dir}/issues/completed"
+
+    # Get all project files (excluding .git, issues, and common non-code files)
+    local -a all_files
+    mapfile -t all_files < <(find "$project_dir" -type f \
+        ! -path "*/.git/*" \
+        ! -path "*/issues/*" \
+        ! -path "*/node_modules/*" \
+        ! -name "*.md" \
+        ! -name ".gitignore" \
+        ! -name "LICENSE" \
+        ! -name "README*" \
+        2>/dev/null | sort)
+
+    if [[ ${#all_files[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # Track associations
+    local -A file_to_issue   # file -> issue_id
+    local -A issue_to_files  # issue_id -> "file1 file2 file3"
+
+    # Get ordered issues with their dates
+    local -a issues
+    mapfile -t issues < <(discover_completed_issues "$project_dir")
+
+    if [[ ${#issues[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # Get estimated dates for all issues
+    local -A issue_dates
+    while IFS=':' read -r file epoch source; do
+        [[ -z "$file" ]] && continue
+        issue_dates["$file"]="$epoch"
+    done < <(printf '%s\n' "${issues[@]}" | interpolate_dates 2>/dev/null)
+
+    # Process each issue to find associated files
+    for issue_file in "${issues[@]}"; do
+        local issue_id
+        issue_id=$(extract_issue_id "$issue_file")
+        [[ -z "$issue_id" ]] && continue
+
+        issue_to_files["$issue_id"]=""
+
+        # Get issue metadata
+        local issue_mtime="${issue_dates[$issue_file]:-$(date +%s)}"
+        local issue_name
+        issue_name=$(basename "$issue_file" .md)
+
+        # Extract mentioned paths and directories from issue content
+        local -a mentioned_paths=()
+        local -a mentioned_dirs=()
+
+        while IFS= read -r path; do
+            [[ -n "$path" ]] && mentioned_paths+=("$path")
+        done < <(extract_mentioned_paths "$issue_file")
+
+        while IFS= read -r dir; do
+            [[ -n "$dir" ]] && mentioned_dirs+=("$dir")
+        done < <(extract_mentioned_directories "$issue_file")
+
+        # Process each project file
+        for file in "${all_files[@]}"; do
+            # Skip if already associated with a previous issue
+            [[ -n "${file_to_issue[$file]:-}" ]] && continue
+
+            local file_basename file_relative
+            file_basename=$(basename "$file")
+            file_relative="${file#$project_dir/}"
+
+            local matched=false
+            local match_reason=""
+
+            # Heuristic 1: Explicit path match
+            for path in "${mentioned_paths[@]}"; do
+                if [[ "$file_relative" == "$path" ]] || \
+                   [[ "$file_relative" == *"/$path" ]] || \
+                   [[ "$file_relative" == *"$path" ]]; then
+                    matched=true
+                    match_reason="explicit_path"
+                    break
+                fi
+            done
+
+            # Heuristic 2: Filename mention (basename match)
+            if [[ "$matched" == false ]]; then
+                for path in "${mentioned_paths[@]}"; do
+                    local mentioned_basename
+                    mentioned_basename=$(basename "$path")
+                    if [[ "$file_basename" == "$mentioned_basename" ]]; then
+                        matched=true
+                        match_reason="filename_mention"
+                        break
+                    fi
+                done
+            fi
+
+            # Heuristic 3: Directory mention
+            if [[ "$matched" == false ]]; then
+                for dir in "${mentioned_dirs[@]}"; do
+                    # Normalize directory (ensure trailing slash removed for comparison)
+                    local dir_clean="${dir%/}"
+                    if [[ "$file_relative" == "$dir_clean"/* ]] || \
+                       [[ "$file_relative" == *"/$dir_clean"/* ]]; then
+                        matched=true
+                        match_reason="directory_mention"
+                        break
+                    fi
+                done
+            fi
+
+            # Heuristic 4: Naming convention similarity
+            if [[ "$matched" == false ]]; then
+                local similarity
+                similarity=$(calculate_name_similarity "$issue_name" "$file_basename")
+                if [[ "$similarity" -ge "$ASSOC_MIN_SIMILARITY" ]]; then
+                    matched=true
+                    match_reason="naming_convention(${similarity}%)"
+                fi
+            fi
+
+            # Heuristic 5: Mtime proximity (lowest priority, disabled by default)
+            # Uncomment to enable mtime-based association
+            # if [[ "$matched" == false ]]; then
+            #     if check_mtime_proximity "$file" "$issue_mtime"; then
+            #         matched=true
+            #         match_reason="mtime_proximity"
+            #     fi
+            # fi
+
+            # Record association
+            if [[ "$matched" == true ]]; then
+                file_to_issue["$file"]="$issue_id"
+                issue_to_files["$issue_id"]+="$file_relative "
+
+                if [[ "$ASSOC_VERBOSE" == true ]] || [[ "$VERBOSE" == true ]]; then
+                    log "    Association: $file_relative → $issue_id ($match_reason)"
+                fi
+            fi
+        done
+    done
+
+    # Output associations as "issue_id:file1 file2 file3"
+    for issue_id in "${!issue_to_files[@]}"; do
+        local files="${issue_to_files[$issue_id]}"
+        # Trim trailing space
+        files="${files% }"
+        [[ -n "$files" ]] && echo "$issue_id:$files"
+    done
+}
+# }}}
+
 # -- {{{ get_vision_date
 get_vision_date() {
     local project_dir="$1"
@@ -827,7 +1095,8 @@ EOF
 # -- {{{ create_issue_commit
 create_issue_commit() {
     local issue_file="$1"
-    local commit_date="${2:-}"  # Optional: epoch timestamp
+    local commit_date="${2:-}"      # Optional: epoch timestamp
+    local associated_files="${3:-}" # Optional: space-separated list of associated files
     local issue_name
     local title
 
@@ -836,7 +1105,20 @@ create_issue_commit() {
 
     log "Creating issue commit for: $issue_name"
 
+    # Add issue file
     git add "$issue_file"
+
+    # Add associated source files (035d)
+    local file_count=0
+    if [[ -n "$associated_files" ]]; then
+        for file in $associated_files; do
+            if [[ -f "$file" ]]; then
+                git add "$file"
+                ((file_count++))
+                log "  + $file (associated)"
+            fi
+        done
+    fi
 
     # Check if there's anything to commit
     if ! git diff --cached --quiet; then
@@ -851,10 +1133,14 @@ create_issue_commit() {
             log "  Using date: $git_date"
         fi
 
-        git commit "${date_args[@]}" -m "$(cat <<EOF
-${title}
+        # Build commit message with file count if files were associated
+        local file_summary=""
+        [[ $file_count -gt 0 ]] && file_summary=" (+${file_count} files)"
 
-Completed issue documentation for ${issue_name}.
+        git commit "${date_args[@]}" -m "$(cat <<EOF
+${title}${file_summary}
+
+Completed issue ${issue_name}$([ $file_count -gt 0 ] && echo " with associated implementation files").
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
@@ -966,18 +1252,34 @@ reconstruct_history() {
             log "  Date source for $(basename "$file"): $source"
         done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates)
 
+        # Build file-to-issue associations (035d)
+        echo "      Building file associations..."
+        local -A issue_file_map
+        while IFS=':' read -r issue_id files; do
+            [[ -z "$issue_id" ]] && continue
+            issue_file_map["$issue_id"]="$files"
+            log "    $issue_id -> $files"
+        done < <(associate_files_with_issues "$project_dir")
+
         for issue_file in "${completed_issues[@]}"; do
-            local issue_name issue_date date_display
+            local issue_name issue_date date_display issue_id associated_files
             issue_name=$(basename "$issue_file" .md)
             issue_date="${issue_dates[$issue_file]:-}"
+            issue_id=$(extract_issue_id "$issue_file")
+            associated_files="${issue_file_map[$issue_id]:-}"
 
             date_display=""
             if [[ -n "$issue_date" ]]; then
                 date_display=" ($(date -d "@$issue_date" '+%Y-%m-%d'))"
             fi
 
-            echo "      - $issue_name$date_display"
-            if create_issue_commit "$issue_file" "$issue_date"; then
+            local file_count=0
+            [[ -n "$associated_files" ]] && file_count=$(echo "$associated_files" | wc -w)
+            local file_info=""
+            [[ $file_count -gt 0 ]] && file_info=" [+${file_count} files]"
+
+            echo "      - $issue_name$date_display$file_info"
+            if create_issue_commit "$issue_file" "$issue_date" "$associated_files"; then
                 ((commit_count++))
             fi
         done
@@ -1193,6 +1495,16 @@ dry_run_report() {
             issue_sources["$file"]="$source"
         done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates 2>/dev/null)
 
+        # Build file-to-issue associations (035d)
+        local -A issue_file_map
+        while IFS=':' read -r issue_id files; do
+            [[ -z "$issue_id" ]] && continue
+            issue_file_map["$issue_id"]="$files"
+        done < <(associate_files_with_issues "$project_dir" 2>/dev/null)
+
+        # Count total associated files for summary
+        local total_associated=0
+
         local i=2
         for issue_file in "${completed_issues[@]}"; do
             local issue_name title issue_id deps_info date_info
@@ -1215,10 +1527,32 @@ dry_run_report() {
                 date_info=" @ $date_str [$source_str]"
             fi
 
-            echo "    [$i] $issue_name$deps_info$date_info"
+            # Show associated files (035d)
+            local associated="${issue_file_map[$issue_id]:-}"
+            local file_count=0
+            [[ -n "$associated" ]] && file_count=$(echo "$associated" | wc -w)
+            local file_info=""
+            [[ $file_count -gt 0 ]] && file_info=" [+${file_count} files]"
+            ((total_associated += file_count))
+
+            echo "    [$i] $issue_name$deps_info$date_info$file_info"
             echo "        \"$title\""
+
+            # Show associated files if verbose or if there are files
+            if [[ $file_count -gt 0 ]] && [[ "$VERBOSE" == true ]]; then
+                for assoc_file in $associated; do
+                    echo "          + $assoc_file"
+                done
+            fi
             ((i++))
         done
+
+        # Show association summary
+        if [[ $total_associated -gt 0 ]]; then
+            echo ""
+            echo "  File Associations: $total_associated files will be associated with issues"
+            echo "    (use --verbose to see details)"
+        fi
     else
         echo "    (no completed issues found)"
     fi
