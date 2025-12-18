@@ -697,6 +697,83 @@ function menu.unset_checkbox()
 end
 -- }}}
 
+-- {{{ menu.cycle_radio_prev
+-- Cycle to previous radio button in the current section (with looping)
+-- Does not move cursor, just changes which option is selected
+function menu.cycle_radio_prev()
+    local section_type = get_current_section_type()
+    if section_type ~= "single" then return false end
+
+    local sid = state.sections[state.current_section]
+    local items = state.section_data[sid].items
+
+    -- Find which checkbox items exist and which is currently selected
+    local checkbox_items = {}
+    local selected_idx = nil
+    for i, iid in ipairs(items) do
+        if state.item_data[iid].type == "checkbox" and not state.item_data[iid].disabled then
+            table.insert(checkbox_items, iid)
+            if state.values[iid] == "1" then
+                selected_idx = #checkbox_items
+            end
+        end
+    end
+
+    if #checkbox_items == 0 then return false end
+    if not selected_idx then selected_idx = 1 end
+
+    -- Calculate previous index with looping
+    local new_idx = selected_idx - 1
+    if new_idx < 1 then new_idx = #checkbox_items end
+
+    -- Unselect current, select new
+    for i, iid in ipairs(checkbox_items) do
+        state.values[iid] = (i == new_idx) and "1" or "0"
+    end
+
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cycle_radio_next
+-- Cycle to next radio button in the current section (with looping)
+-- Does not move cursor, just changes which option is selected
+function menu.cycle_radio_next()
+    local section_type = get_current_section_type()
+    if section_type ~= "single" then return false end
+
+    local sid = state.sections[state.current_section]
+    local items = state.section_data[sid].items
+
+    -- Find which checkbox items exist and which is currently selected
+    local checkbox_items = {}
+    local selected_idx = nil
+    for i, iid in ipairs(items) do
+        if state.item_data[iid].type == "checkbox" and not state.item_data[iid].disabled then
+            table.insert(checkbox_items, iid)
+            if state.values[iid] == "1" then
+                selected_idx = #checkbox_items
+            end
+        end
+    end
+
+    if #checkbox_items == 0 then return false end
+    if not selected_idx then selected_idx = 1 end
+
+    -- Calculate next index with looping
+    local new_idx = (selected_idx % #checkbox_items) + 1
+
+    -- Unselect current, select new
+    for i, iid in ipairs(checkbox_items) do
+        state.values[iid] = (i == new_idx) and "1" or "0"
+    end
+
+    menu.render()
+    return true
+end
+-- }}}
+
 -- {{{ menu.handle_flag_left
 -- Set flag value to 0 (off)
 -- Does NOT mark as edited, so next digit will overwrite
@@ -797,10 +874,18 @@ function menu.handle_left()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
+    local section_type = get_current_section_type()
+
     if data.type == "flag" then
         return menu.handle_flag_left()
     elseif data.type == "checkbox" then
-        return menu.unset_checkbox()
+        if section_type == "single" then
+            -- Radio buttons: cycle to previous option
+            return menu.cycle_radio_prev()
+        else
+            -- Regular checkboxes: uncheck
+            return menu.unset_checkbox()
+        end
     elseif data.type == "multistate" then
         -- Cycle backwards through states
         local options = {}
@@ -831,10 +916,18 @@ function menu.handle_right()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
+    local section_type = get_current_section_type()
+
     if data.type == "flag" then
         return menu.handle_flag_right()
     elseif data.type == "checkbox" then
-        return menu.set_checkbox()
+        if section_type == "single" then
+            -- Radio buttons: cycle to next option
+            return menu.cycle_radio_next()
+        else
+            -- Regular checkboxes: check
+            return menu.set_checkbox()
+        end
     elseif data.type == "multistate" then
         -- Cycle forwards through states (same as toggle)
         local options = {}
