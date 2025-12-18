@@ -243,13 +243,14 @@ These issues provide foundational utilities and can be implemented independently
   - *Sub-issues*: 036a (project selection), 036b (git traversal), 036c (content extraction), 036d (paginator TUI), 036e (input handling), 036f (session state)
   - *Status*: Ready for implementation (blocked by 035)
 
-- **Issue 037**: Project History Narrative Generator 📝
+- **Issue 037**: Project History Narrative Generator ✅
   - *Purpose*: Generate readable HISTORY.txt files from git log for each project
   - *Features*: Chronological order (oldest first), numbered commits, clean formatting with dashes
   - *Output*: Text file readable like a story, first commit at top, last at bottom
-  - *Formats*: txt (default), md, html
-  - *Dependencies*: Issue 035 (optional - better with reconstructed history)
-  - *Status*: Ready for implementation
+  - *Formats*: txt (default), md (HTML deferred)
+  - *Implemented*: `delta-version/scripts/generate-history.sh`
+  - *Additional*: `--skip-specs` and `--completed-only` filters, detailed dry-run, interactive mode
+  - *Status*: Completed 2025-12-17
 
 - **Issue 029**: Demo Runner Script ✅
   - *Purpose*: Unified script to run phase demonstration scripts
@@ -278,10 +279,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~48 (including sub-issues)
-- **Completed**: 15 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a)
+- **Completed**: 16 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 037)
 - **In Progress**: 1 (035 - Project History Reconstruction)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~30
+- **Pending**: ~29
 - **High Priority**: 1 (035 - blocks 036 and project imports)
 
 ## Notes

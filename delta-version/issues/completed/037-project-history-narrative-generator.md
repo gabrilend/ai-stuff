@@ -403,32 +403,50 @@ delta-version/scripts/
 ## Success Criteria
 
 ### Core Functionality
-- [ ] Script generates history file for specified project
-- [ ] Commits appear in chronological order (oldest first)
-- [ ] Full commit messages preserved (subject + body)
-- [ ] Clear visual separation between commits
+- [x] Script generates history file for specified project
+- [x] Commits appear in chronological order (oldest first)
+- [x] Full commit messages preserved (subject + body)
+- [x] Clear visual separation between commits
 
 ### Formatting
-- [ ] Header includes project name and generation date
-- [ ] Footer includes commit count summary
-- [ ] Commits are numbered sequentially
-- [ ] Dates are human-readable (no timestamps)
-- [ ] Dashes and newlines create readable separation
+- [x] Header includes project name and generation date
+- [x] Footer includes commit count summary
+- [x] Commits are numbered sequentially
+- [x] Dates are human-readable (no timestamps)
+- [x] Dashes and newlines create readable separation
 
 ### Batch Processing
-- [ ] `--all` flag processes every project
-- [ ] Projects with few commits can be skipped (`--min-commits`)
-- [ ] Progress shown during batch generation
-- [ ] Dry-run mode shows what would be created
+- [x] `--all` flag processes every project
+- [x] Projects with few commits can be skipped (`--min-commits`)
+- [x] Progress shown during batch generation
+- [x] Dry-run mode shows what would be created
 
 ### Output Options
-- [ ] Default output to `{project}/docs/HISTORY.txt`
-- [ ] Custom output directory via `--output`
-- [ ] Custom filename via `--filename`
-- [ ] Multiple format support (txt, md, html)
+- [x] Default output to `{project}/docs/HISTORY.txt`
+- [x] Custom output directory via `--output`
+- [x] Custom filename via `--filename`
+- [x] Multiple format support (txt, md) - HTML deferred
 
 ### Edge Cases
-- [ ] Handles projects with no commits gracefully
-- [ ] Handles commits with empty bodies
-- [ ] Handles special characters in commit messages
-- [ ] Works from any directory (uses DIR variable)
+- [x] Handles projects with no commits gracefully
+- [x] Handles commits with empty bodies
+- [x] Handles special characters in commit messages
+- [x] Works from any directory (uses DIR variable)
+
+## Implementation Notes
+
+**Completed:** 2025-12-17
+
+**Implementation details:**
+- Script: `delta-version/scripts/generate-history.sh`
+- Uses `git log --reverse` with pipe-separated format for reliable parsing
+- Root commits handled specially via `git ls-tree` (no parent to diff against)
+- Commit body fetched separately to avoid multi-line parsing issues
+- Global variable `GENERATED_COMMIT_COUNT` used for subshell communication
+- Comprehensive dry-run report shows all commits and filters before generation
+
+**Additional features implemented:**
+- `--skip-specs`: Filters out commits that only add issue specifications
+- `--completed-only`: Shows only commits touching issues/completed/
+- Interactive mode (`-I`) for project selection
+- Detailed dry-run output showing which commits will be included/skipped
