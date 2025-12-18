@@ -1,0 +1,7 @@
+/mnt/mtwo/programming/ai-stuff/.gitignore:02107ea65580d486c89c1c4ce6f957fb:1765844546:4976
+/mnt/mtwo/programming/ai-stuff/adroit/.gitignore:dce467b496c984b2dad93df04c8177c1:1764737274:628
+/mnt/mtwo/programming/ai-stuff/console-demakes/.gitignore:b5cc880d43fe0f1654235b01a88c8943:1758189811:151
+/mnt/mtwo/programming/ai-stuff/handheld-office/.gitignore:d7285220d200456955c242db303bb1f7:1758611657:1032
+/mnt/mtwo/programming/ai-stuff/progress-ii/.gitignore:fcf3678e10e1f3db9f3df95418e47948:1764714046:273
+/mnt/mtwo/programming/ai-stuff/progress-ii/game-state/.gitignore:069442c80a3cdb828e6cffe29cefd257:1764655612:122
+/mnt/mtwo/programming/ai-stuff/words-pdf/.gitignore:9ccdd2c12079aa9d2cf16882204eaad9:1758668285:234
