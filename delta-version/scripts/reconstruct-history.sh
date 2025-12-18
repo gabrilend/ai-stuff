@@ -40,6 +40,12 @@ LLM_VERIFY_COUNT="${LLM_VERIFY_COUNT:-3}"
 LLM_STATS_FILE="${LLM_STATS_FILE:-$HOME/.config/reconstruct-history/llm-stats.txt}"
 SHOW_LLM_STATS=false
 RESET_LLM_STATS=false
+
+# Post-Blob Commit Preservation (035e)
+PRESERVE_POST_BLOB="${PRESERVE_POST_BLOB:-true}"
+REPLACE_ORIGINAL="${REPLACE_ORIGINAL:-false}"
+POST_BLOB_COMMIT_FILE=""      # Temp file for commit list (set at runtime)
+ORIGINAL_BRANCH=""            # Store original branch name for restoration
 # }}}
 
 # -- {{{ log
@@ -476,6 +482,101 @@ get_post_blob_commits() {
 }
 # }}}
 
+# -- {{{ save_post_blob_commits
+save_post_blob_commits() {
+    local project_dir="$1"
+    local blob_commit="$2"
+    local output_file="$3"
+
+    cd "$project_dir" || return 1
+
+    # Save commit hashes with metadata for cherry-pick
+    # Format: HASH|ISO_DATE|AUTHOR_NAME|AUTHOR_EMAIL|SUBJECT
+    git log --reverse --format='%H|%aI|%an|%ae|%s' \
+        "${blob_commit}..HEAD" > "$output_file" 2>/dev/null
+
+    local count
+    count=$(wc -l < "$output_file" 2>/dev/null || echo "0")
+
+    if [[ "$count" -gt 0 ]]; then
+        log "Found $count post-blob commits to preserve"
+        return 0
+    else
+        log "No post-blob commits found"
+        return 1
+    fi
+}
+# }}}
+
+# -- {{{ apply_post_blob_commits
+apply_post_blob_commits() {
+    local project_dir="$1"
+    local commits_file="$2"
+
+    cd "$project_dir" || return 1
+
+    local applied=0
+    local failed=0
+    local skipped=0
+
+    echo "  Applying post-blob commits..."
+
+    while IFS='|' read -r hash date author email message; do
+        # Skip empty lines
+        [[ -z "$hash" ]] && continue
+
+        log "  Applying: $message"
+
+        # Attempt cherry-pick with original author and date
+        if GIT_AUTHOR_DATE="$date" \
+           GIT_AUTHOR_NAME="$author" \
+           GIT_AUTHOR_EMAIL="$email" \
+           git cherry-pick --no-commit "$hash" 2>/dev/null; then
+
+            # Check if there's anything to commit (cherry-pick might be empty after reconstruction)
+            if ! git diff --cached --quiet 2>/dev/null; then
+                # Commit with preserved metadata
+                GIT_AUTHOR_DATE="$date" \
+                GIT_AUTHOR_NAME="$author" \
+                GIT_AUTHOR_EMAIL="$email" \
+                GIT_COMMITTER_DATE="$date" \
+                git commit -m "$message" 2>/dev/null
+
+                echo "      + Applied: $message"
+                ((applied++))
+            else
+                # No changes to commit (already included in reconstruction)
+                log "      - Skipped (no changes): $message"
+                ((skipped++))
+            fi
+        else
+            # Cherry-pick failed - likely conflict
+            echo "      ! FAILED: $message (${hash:0:7})"
+            echo "        Aborting cherry-pick and continuing..."
+            git cherry-pick --abort 2>/dev/null
+            git reset --hard HEAD 2>/dev/null
+            ((failed++))
+        fi
+    done < "$commits_file"
+
+    echo ""
+    echo "  Post-blob commit results:"
+    echo "    Applied: $applied"
+    echo "    Skipped: $skipped (already in reconstruction)"
+    echo "    Failed:  $failed"
+
+    [[ "$failed" -gt 0 ]] && return 1
+    return 0
+}
+# }}}
+
+# -- {{{ get_current_branch
+get_current_branch() {
+    local project_dir="$1"
+    git -C "$project_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD"
+}
+# }}}
+
 # =============================================================================
 # External Project Import
 # =============================================================================
@@ -820,7 +921,16 @@ order_issues_by_dependencies() {
     local graph_output
     graph_output=$(build_dependency_graph "$completed_dir")
 
-    if [[ -z "$graph_output" ]]; then
+    # Check if there are any actual dependencies (not just "id:" lines with empty deps)
+    local has_deps=false
+    while IFS=':' read -r id deps; do
+        if [[ -n "$deps" && "$deps" =~ [0-9] ]]; then
+            has_deps=true
+            break
+        fi
+    done <<< "$graph_output"
+
+    if [[ "$has_deps" == false ]]; then
         log "No dependencies found, falling back to numerical order"
         discover_completed_issues "$project_dir"
         return 0
@@ -1588,6 +1698,191 @@ reconstruct_history() {
 }
 # }}}
 
+# -- {{{ reconstruct_history_with_rebase
+reconstruct_history_with_rebase() {
+    # Reconstructs history for a project that has existing git history,
+    # preserving any commits made after the initial blob import.
+    #
+    # Workflow:
+    # 1. Identify blob boundary (where the bulk import ends)
+    # 2. Save post-blob commits to temp file
+    # 3. Create orphan branch with reconstructed history
+    # 4. Cherry-pick post-blob commits onto new history
+    # 5. Optionally replace original branch
+
+    local project_dir="$1"
+    local project_name
+    project_name=$(basename "$project_dir")
+
+    # Validate project directory
+    if [[ ! -d "$project_dir" ]]; then
+        error "Project directory not found: $project_dir"
+        return 1
+    fi
+
+    if [[ ! -d "${project_dir}/.git" ]]; then
+        error "No git repository found at: $project_dir"
+        error "Use regular reconstruct_history for projects without git"
+        return 1
+    fi
+
+    cd "$project_dir" || return 1
+
+    echo "=== History Reconstruction with Rebase ==="
+    echo "Project: $project_name"
+    echo ""
+
+    # Step 1: Identify blob boundary
+    echo "[1/5] Identifying blob boundary..."
+    local blob_boundary
+    blob_boundary=$(get_blob_boundary "$project_dir")
+
+    if [[ -z "$blob_boundary" ]]; then
+        error "Could not identify blob boundary"
+        return 1
+    fi
+    echo "      Blob commit: ${blob_boundary:0:7}"
+
+    # Step 2: Save post-blob commits
+    echo "[2/5] Saving post-blob commits..."
+    POST_BLOB_COMMIT_FILE=$(mktemp)
+    local has_post_blob=false
+
+    if save_post_blob_commits "$project_dir" "$blob_boundary" "$POST_BLOB_COMMIT_FILE"; then
+        has_post_blob=true
+        local post_count
+        post_count=$(wc -l < "$POST_BLOB_COMMIT_FILE")
+        echo "      Found $post_count commits to preserve"
+    else
+        echo "      No post-blob commits found"
+    fi
+
+    # Step 3: Store original branch name and create backup
+    ORIGINAL_BRANCH=$(get_current_branch "$project_dir")
+    echo "      Original branch: $ORIGINAL_BRANCH"
+
+    # Create backup branch
+    local backup_branch="backup-${ORIGINAL_BRANCH}-$(date +%Y%m%d-%H%M%S)"
+    git branch "$backup_branch" 2>/dev/null
+    echo "      Backup created: $backup_branch"
+    echo ""
+
+    # Step 4: Create orphan branch with reconstructed history
+    echo "[3/5] Creating reconstructed history on orphan branch..."
+    local orphan_branch="reconstructed-history-$(date +%Y%m%d-%H%M%S)"
+
+    # Create orphan branch
+    git checkout --orphan "$orphan_branch" 2>/dev/null
+    git rm -rf --cached . 2>/dev/null || true
+
+    local commit_count=0
+
+    # 4a: Vision commit
+    local vision_file vision_date
+    if vision_file=$(find_vision_file "$project_dir"); then
+        vision_date=$(get_vision_date "$project_dir" "$vision_file")
+        local date_display=""
+        if [[ -n "$vision_date" ]]; then
+            date_display=" ($(date -d "@$vision_date" '+%Y-%m-%d'))"
+        fi
+
+        echo "      [1] Vision: $vision_file$date_display"
+        if create_vision_commit "$vision_file" "$project_name" "$vision_date"; then
+            ((commit_count++))
+        fi
+    else
+        echo "      [!] No vision file found, skipping vision commit"
+    fi
+
+    # 4b: Issue commits
+    local -a completed_issues
+    mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir")
+
+    if [[ ${#completed_issues[@]} -gt 0 ]]; then
+        echo "      [2] Processing ${#completed_issues[@]} completed issue(s)..."
+
+        # Estimate dates
+        local -A issue_dates
+        while IFS=':' read -r file epoch source; do
+            [[ -z "$file" ]] && continue
+            issue_dates["$file"]="$epoch"
+        done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates)
+
+        # Build file associations if enabled
+        local -A issue_file_map
+        if [[ "$SKIP_FILE_ASSOCIATION" != true ]]; then
+            while IFS=':' read -r issue_id files; do
+                [[ -z "$issue_id" ]] && continue
+                issue_file_map["$issue_id"]="$files"
+            done < <(associate_files_with_issues "$project_dir")
+        fi
+
+        for issue_file in "${completed_issues[@]}"; do
+            local issue_name issue_date issue_id associated_files
+            issue_name=$(basename "$issue_file" .md)
+            issue_date="${issue_dates[$issue_file]:-}"
+            issue_id=$(extract_issue_id "$issue_file")
+            associated_files="${issue_file_map[$issue_id]:-}"
+
+            echo "          - $issue_name"
+            if create_issue_commit "$issue_file" "$issue_date" "$associated_files"; then
+                ((commit_count++))
+            fi
+        done
+    else
+        echo "      [2] No completed issues found"
+    fi
+
+    # 4c: Bulk commit
+    echo "      [3] Importing remaining project files..."
+    if create_bulk_commit "$project_name"; then
+        ((commit_count++))
+    fi
+
+    echo ""
+    echo "      Reconstructed commits: $commit_count"
+
+    # Step 5: Apply post-blob commits
+    echo ""
+    echo "[4/5] Applying post-blob commits..."
+    if [[ "$has_post_blob" == true ]] && [[ "$PRESERVE_POST_BLOB" == true ]]; then
+        apply_post_blob_commits "$project_dir" "$POST_BLOB_COMMIT_FILE"
+    else
+        echo "      No post-blob commits to apply"
+    fi
+
+    # Cleanup temp file
+    rm -f "$POST_BLOB_COMMIT_FILE"
+
+    # Step 6: Handle branch replacement
+    echo ""
+    echo "[5/5] Finalizing branches..."
+    if [[ "$REPLACE_ORIGINAL" == true ]]; then
+        echo "      Replacing original branch '$ORIGINAL_BRANCH' with reconstructed history"
+        git branch -D "$ORIGINAL_BRANCH" 2>/dev/null || true
+        git branch -m "$orphan_branch" "$ORIGINAL_BRANCH"
+        echo "      Done. Backup preserved as: $backup_branch"
+    else
+        echo "      Reconstructed history is on branch: $orphan_branch"
+        echo "      Original branch preserved as: $ORIGINAL_BRANCH"
+        echo "      Backup preserved as: $backup_branch"
+        echo ""
+        echo "  To replace original branch, run:"
+        echo "    git branch -D $ORIGINAL_BRANCH"
+        echo "    git branch -m $orphan_branch $ORIGINAL_BRANCH"
+        echo ""
+        echo "  To restore from backup:"
+        echo "    git checkout $backup_branch"
+    fi
+
+    echo ""
+    echo "=== History Reconstruction Complete ==="
+    echo ""
+    echo "Recent commits on $orphan_branch:"
+    git log --oneline -10
+}
+# }}}
+
 # =============================================================================
 # Unified Workflow
 # =============================================================================
@@ -1628,19 +1923,19 @@ process_project() {
             post_blob_count=$(count_post_blob_commits "$project_dir" "$blob_boundary")
 
             if [[ "$post_blob_count" -gt 0 ]]; then
-                echo "Found $post_blob_count commits after initial blob that will be preserved"
+                echo "Found $post_blob_count commits after initial blob"
                 echo "Blob boundary: $blob_boundary"
                 echo ""
-                echo "NOTE: Full history rewriting with rebase not yet implemented (035e)"
-                echo "      For now, only the blob commits will be examined."
-                echo "      Use --force to rebuild from scratch (loses post-blob commits)"
-                if [[ "$FORCE" == true ]]; then
+
+                if [[ "$FORCE" == true ]] && [[ "$PRESERVE_POST_BLOB" != true ]]; then
+                    echo "WARNING: --force specified without --preserve-post-blob"
+                    echo "         This will remove ALL history including post-blob commits"
                     echo ""
-                    echo "WARNING: --force specified, removing ALL history including post-blob commits"
                     rm -rf "$project_dir/.git"
                     reconstruct_history "$project_dir"
                 else
-                    return 1
+                    echo "Using rebase workflow to preserve post-blob commits..."
+                    reconstruct_history_with_rebase "$project_dir"
                 fi
             else
                 echo "No post-blob commits to preserve, rebuilding history..."
@@ -1721,14 +2016,24 @@ dry_run_report() {
             echo "  Git Statistics:"
             echo "    Total commits:     $commit_count"
             echo "    Total files:       $file_count"
-            echo "    Blob boundary:     $blob_boundary"
+            echo "    Blob boundary:     ${blob_boundary:0:7}"
             echo "    Post-blob commits: $post_blob_count"
             if [[ "$post_blob_count" -gt 0 ]]; then
                 echo ""
-                echo "  Post-blob commits to preserve:"
+                if [[ "$PRESERVE_POST_BLOB" == true ]]; then
+                    echo "  Post-blob commits (will be PRESERVED via cherry-pick):"
+                else
+                    echo "  Post-blob commits (will be LOST - use --preserve-post-blob to keep):"
+                fi
                 git -C "$project_dir" log --oneline "${blob_boundary}..HEAD" 2>/dev/null | head -5 | sed 's/^/    /'
                 local remaining=$((post_blob_count - 5))
                 [[ $remaining -gt 0 ]] && echo "    ... and $remaining more"
+                echo ""
+                if [[ "$REPLACE_ORIGINAL" == true ]]; then
+                    echo "  Branch handling: Original branch will be REPLACED"
+                else
+                    echo "  Branch handling: Reconstructed history on new branch (original preserved)"
+                fi
             fi
             ;;
 
@@ -1896,6 +2201,11 @@ LLM Options (requires ollama):
 Advanced Options:
     --with-file-association  Enable file-to-issue association (slower)
 
+Post-Blob Commit Options:
+    --preserve-post-blob     Preserve commits after blob (default: true)
+    --no-preserve-post-blob  Skip post-blob commit preservation
+    --replace-original       Replace original branch with reconstructed (DANGEROUS)
+
 Project States:
     external       - Outside monorepo, will be imported first
     no_git         - No git history, create from scratch
@@ -1912,8 +2222,10 @@ Commit Order:
     3. All remaining project files (source, docs, assets)
 
 For existing repos with post-blob commits:
-    - Only the initial blob commits are rewritten
-    - Subsequent commits are preserved and rebased (future: 035e)
+    - Initial blob commits are expanded into issue-based history
+    - Post-blob commits are preserved via cherry-pick onto new history
+    - Original branch is backed up, reconstructed history on new branch
+    - Use --replace-original to swap the original branch
 
 Examples:
     # Preview what would happen
@@ -2061,6 +2373,18 @@ parse_args() {
                 ;;
             --with-file-association)
                 SKIP_FILE_ASSOCIATION=false
+                shift
+                ;;
+            --preserve-post-blob)
+                PRESERVE_POST_BLOB=true
+                shift
+                ;;
+            --no-preserve-post-blob)
+                PRESERVE_POST_BLOB=false
+                shift
+                ;;
+            --replace-original)
+                REPLACE_ORIGINAL=true
                 shift
                 ;;
             -h|--help)
