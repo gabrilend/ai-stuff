@@ -189,6 +189,11 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 014 & 015**: Gitignore Maintenance and Workflow (2025-12-18)
+  - Unified maintenance script: maintain-gitignore.sh
+  - Change detection, health monitoring, project detection
+  - Interactive mode, status dashboard, git hooks
+
 - **Issue 013**: Implement Validation and Testing (2025-12-18)
   - Comprehensive gitignore validation script
   - 39 tests: syntax, critical files, functional, performance
@@ -297,10 +302,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~49 (including sub-issues)
-- **Completed**: 22 (001, 004, 006, 007, 009, 010, 011, 012, 013, 023, 029, 030, 031, 035 w/ all sub-issues, 037)
+- **Completed**: 24 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 029, 030, 031, 035 w/ all sub-issues, 037)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~25
+- **Pending**: ~23
 - **High Priority**: None
 
 ## Notes
