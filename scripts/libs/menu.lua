@@ -14,7 +14,7 @@ local state = {
     subtitle = "",
     sections = {},          -- Ordered list of section IDs
     section_data = {},      -- section_id -> {title, type, items}
-    item_data = {},         -- item_id -> {label, type, value, description, config, disabled, default_value, shortcut}
+    item_data = {},         -- item_id -> {label, type, value, description, config, disabled, default_value, shortcut, flag}
     values = {},            -- item_id -> current value
     shortcuts = {},         -- key -> item_id (custom shortcut keys)
     current_section = 1,
@@ -25,6 +25,10 @@ local state = {
     flag_edit_started = {}, -- item_id -> true if user started typing (first keystroke clears)
     last_digit = nil,       -- Last digit pressed for index navigation
     digit_count = 0,        -- How many times same digit pressed consecutively
+    -- Command preview configuration
+    command_base = "",              -- Base command (e.g., "./script.sh")
+    command_preview_item = nil,     -- item_id of the command preview text item
+    command_file_section = nil,     -- section_id containing file selections
 }
 -- }}}
 
@@ -43,6 +47,10 @@ function menu.init(config)
     state.flag_edit_started = {}
     state.last_digit = nil
     state.digit_count = 0
+    -- Command preview config
+    state.command_base = config.command_base or ""
+    state.command_preview_item = config.command_preview_item or nil
+    state.command_file_section = config.command_file_section or nil
 
     -- Process sections
     for _, section in ipairs(config.sections or {}) do
@@ -66,7 +74,8 @@ function menu.init(config)
                 config = item.config or "",
                 disabled = item.disabled or false,
                 default_value = item.value or "",  -- Store original as default for flag items
-                shortcut = item.shortcut or nil    -- Optional keyboard shortcut
+                shortcut = item.shortcut or nil,   -- Optional keyboard shortcut
+                flag = item.flag or nil            -- CLI flag (e.g., "--verbose")
             }
             state.values[iid] = item.value or (item.type == "checkbox" and "0" or "")
 
@@ -179,6 +188,78 @@ end
 local function reset_digit_input_state()
     state.last_digit = nil
     state.digit_count = 0
+end
+
+-- Compute the command preview string based on current values
+-- Iterates through sections in order, adding flags for enabled options
+local function compute_command_preview()
+    if not state.command_preview_item or state.command_base == "" then
+        return nil
+    end
+
+    local parts = {state.command_base}
+
+    -- Iterate through sections in menu order
+    for _, sid in ipairs(state.sections) do
+        -- Skip the file section (handled at the end) and command preview section
+        if sid ~= state.command_file_section then
+            local section_data = state.section_data[sid]
+            for _, iid in ipairs(section_data.items) do
+                local item = state.item_data[iid]
+                local value = state.values[iid]
+                local flag = item.flag
+
+                -- Skip items without flags or the preview item itself
+                if flag and iid ~= state.command_preview_item then
+                    if item.type == "checkbox" then
+                        -- Add flag if checkbox is checked
+                        if value == "1" then
+                            table.insert(parts, flag)
+                        end
+                    elseif item.type == "flag" then
+                        -- Add flag with value if not default/empty
+                        if value and value ~= "" and value ~= "0" then
+                            table.insert(parts, flag .. " " .. value)
+                        end
+                    elseif item.type == "multistate" then
+                        -- Add flag with current state value
+                        if value and value ~= "" then
+                            table.insert(parts, flag .. " " .. value)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Add selected files at the end (from command_file_section)
+    if state.command_file_section then
+        local file_section = state.section_data[state.command_file_section]
+        if file_section then
+            local file_count = 0
+            for _, iid in ipairs(file_section.items) do
+                local item = state.item_data[iid]
+                if item.type == "checkbox" and state.values[iid] == "1" then
+                    file_count = file_count + 1
+                end
+            end
+            if file_count > 0 then
+                table.insert(parts, string.format("<%d files>", file_count))
+            end
+        end
+    end
+
+    return table.concat(parts, " ")
+end
+
+-- Update the command preview item's value
+local function update_command_preview()
+    if state.command_preview_item then
+        local cmd = compute_command_preview()
+        if cmd then
+            state.values[state.command_preview_item] = cmd
+        end
+    end
 end
 
 -- Find an item's section and item indices by item_id
@@ -320,6 +401,17 @@ local function render_item(row, item_id, highlight, item_num, section_type)
         tui.set_fg(highlight and tui.FG_YELLOW or tui.FG_DEFAULT)
         tui.set_attrs(highlight and tui.ATTR_BOLD or tui.ATTR_DIM)
         tui.write_str(row, col, " -->")
+    elseif item_type == "text" then
+        -- Text items display read-only content (like command preview)
+        tui.set_attrs(tui.ATTR_DIM)
+        tui.set_fg(tui.FG_CYAN)
+        -- Truncate if too long
+        local max_len = state.cols - col - 2
+        local display_val = value
+        if #display_val > max_len then
+            display_val = display_val:sub(1, max_len - 3) .. "..."
+        end
+        tui.write_str(row, col, display_val)
     end
 
     tui.reset_style()
@@ -447,6 +539,9 @@ end
 -- {{{ menu.render
 -- Full render of the menu (writes to back buffer, then presents)
 function menu.render()
+    -- Update command preview before rendering
+    update_command_preview()
+
     tui.clear_back_buffer()
 
     local row = render_header()
