@@ -4,6 +4,30 @@
 -- Generates an HTML interface for browsing programming projects in a tree structure.
 -- Uses file:// protocol links to access local directories directly, with analytics sidebar.
 
+-- {{{ BLOCKER: Issue 007 - Remove CSS and JavaScript
+-- This application is BLOCKED until issue 007 is resolved.
+-- See: /home/ritz/programming/ai-stuff/scripts/issues/007-remove-css-and-javascript-from-file-server.md
+print("")
+print("╔══════════════════════════════════════════════════════════════════════════════╗")
+print("║                           ⛔ APPLICATION BLOCKED                              ║")
+print("╠══════════════════════════════════════════════════════════════════════════════╣")
+print("║                                                                              ║")
+print("║  The project-file-server library is currently BLOCKED.                      ║")
+print("║                                                                              ║")
+print("║  Issue: 007 - Remove CSS and JavaScript from File Server                    ║")
+print("║  Priority: HIGH                                                              ║")
+print("║                                                                              ║")
+print("║  This library generates HTML with embedded CSS and JavaScript, violating    ║")
+print("║  project standards. The output must be pure HTML.                           ║")
+print("║                                                                              ║")
+print("║  Issue file:                                                                 ║")
+print("║  scripts/issues/007-remove-css-and-javascript-from-file-server.md           ║")
+print("║                                                                              ║")
+print("╚══════════════════════════════════════════════════════════════════════════════╝")
+print("")
+os.exit(1)
+-- }}}
+
 -- Configure shared library path for dkjson
 local SCRIPT_DIR = "/home/ritz/programming/ai-stuff"
 package.path = SCRIPT_DIR .. "/libs/lua/?.lua;" .. package.path
