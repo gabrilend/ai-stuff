@@ -3,7 +3,7 @@
 ================================================================================
 
 This document traces the development of delta-version from inception to present.
-Generated: 2025-12-17 15:56:46
+Generated: 2025-12-17 21:18:38
 
 --------------------------------------------------------------------------------
 
@@ -187,8 +187,93 @@ Generated: 2025-12-17 15:56:46
 
 --------------------------------------------------------------------------------
 
+[9] Issue 037: Implement project history narrative generator
+    2025-12-17
+
+    Creates generate-history.sh that produces readable HISTORY.txt files
+    from git log, presenting project development as a chronological story.
+    Features:
+    - Chronological order (oldest commit first, like reading a book)
+    - Numbered commits with clean date display (YYYY-MM-DD)
+    - Full commit messages preserved (subject + body)
+    - Visual separation with dashes and newlines
+    - Multiple formats: txt (default), md (HTML deferred)
+    - Batch processing with --all flag
+    - Filtering: --skip-specs, --completed-only, --since, --until
+    - Detailed dry-run showing commits to include/skip
+    - Interactive project selection mode (-I)
+    Technical implementation:
+    - Pipe-separated git log format for reliable parsing
+    - Root commit handling via git ls-tree (no parent to diff)
+    - Commit body fetched separately to avoid multi-line issues
+    - Global variable for subshell communication of commit count
+    Generated initial HISTORY.txt for delta-version (8 commits).
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[10] Issue 035b: Implement dependency graph and topological sort
+    2025-12-17
+
+    Adds intelligent issue ordering based on dependency relationships
+    to reconstruct-history.sh. Issues are now committed in the order
+    that respects their dependencies.
+    New functions:
+    - extract_issue_id(): Gets issue ID (e.g., 035b) from filename
+    - parse_issue_dependencies(): Extracts Dependencies/Blocked By fields
+    - parse_issue_blocks(): Extracts Blocks field (reverse relationship)
+    - build_dependency_graph(): Constructs graph from issue files
+    - topological_sort_issues(): Implements Kahn's algorithm
+    - order_issues_by_dependencies(): Main orchestration function
+    Algorithm:
+    - Uses Kahn's algorithm for topological sorting
+    - Handles both forward (Dependencies) and reverse (Blocks) edges
+    - Issues with unmet dependencies treated as having them satisfied
+    - Ties broken by numerical issue ID for deterministic output
+    Changes:
+    - reconstruct_history() now uses order_issues_by_dependencies()
+    - dry_run_report() shows dependency information
+    - Help text updated to document new ordering behavior
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[11] Issue 035c: Implement date estimation and interpolation
+    2025-12-17
+
+    Adds commit date estimation to reconstruct-history.sh so commits
+    reflect actual development timeline instead of all being "now".
+    New functions:
+    - extract_explicit_date(): Parse "Completed: YYYY-MM-DD" from issues
+    - get_file_mtime(): Get file modification time via stat
+    - estimate_issue_date(): Primary estimation with fallback chain
+    - interpolate_dates(): Ensure chronological ordering
+    - format_epoch_for_git(): Format epoch for git --date
+    - get_vision_date(): Estimate vision file date
+    Date source priority:
+    1. Explicit dates in issue content (Completed:, Status:)
+    2. File modification time (mtime)
+    3. Interpolation from adjacent issues (add 1 hour)
+    4. Current time (last resort)
+    Sanity checks:
+    - Clamp future dates to current time
+    - Clamp ancient dates to 2020-01-01 minimum
+    - Interpolate if date would be before previous issue
+    Changes:
+    - create_vision_commit() accepts optional date parameter
+    - create_issue_commit() accepts optional date parameter
+    - reconstruct_history() estimates and uses dates
+    - dry_run_report() shows dates and sources [mtime/explicit/interpolated]
+    - Uses GIT_AUTHOR_DATE and GIT_COMMITTER_DATE environment variables
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
 ================================================================================
                                  End of History
-                              8 commits recorded
+                              11 commits recorded
                          (2025-12-15 to 2025-12-17)
 ================================================================================
