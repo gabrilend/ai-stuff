@@ -793,8 +793,8 @@ Target State:
 
 | ID | Title | Status | Description |
 |----|-------|--------|-------------|
-| **035a** | Project detection and external import | Pending | Detect monorepo membership, import external projects, classify project state |
-| **035b** | Dependency graph and topological sort | Pending | Parse Dependencies/Blocks fields, build graph, sort issues correctly |
+| **035a** | Project detection and external import | ✅ Complete | Detect monorepo membership, import external projects, classify project state |
+| **035b** | Dependency graph and topological sort | ✅ Complete | Parse Dependencies/Blocks fields, build graph, sort issues correctly |
 | **035c** | Date estimation and interpolation | Pending | Extract dates from issue content/mtimes, interpolate gaps, apply sanity checks |
 | **035d** | File-to-issue association heuristics | Pending | Map source files to issues via mentions, mtime proximity, naming conventions |
 | **035e** | History rewriting on orphan branch | Pending | Create dated commits on orphan branch, preserve original history |
