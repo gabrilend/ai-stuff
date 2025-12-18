@@ -1629,7 +1629,7 @@ reconstruct_history() {
 
         echo "  [1] Vision: $vision_file$date_display"
         if create_vision_commit "$vision_file" "$project_name" "$vision_date"; then
-            ((commit_count++))
+            ((commit_count++)) || true
         fi
     else
         echo "  [!] No vision file found, skipping vision commit"
@@ -1650,14 +1650,16 @@ reconstruct_history() {
             log "  Date source for $(basename "$file"): $source"
         done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates)
 
-        # Build file-to-issue associations (035d)
-        echo "      Building file associations..."
+        # Build file-to-issue associations (035d) - skip if flag set
         local -A issue_file_map
-        while IFS=':' read -r issue_id files; do
-            [[ -z "$issue_id" ]] && continue
-            issue_file_map["$issue_id"]="$files"
-            log "    $issue_id -> $files"
-        done < <(associate_files_with_issues "$project_dir")
+        if [[ "$SKIP_FILE_ASSOCIATION" != true ]]; then
+            echo "      Building file associations..."
+            while IFS=':' read -r issue_id files; do
+                [[ -z "$issue_id" ]] && continue
+                issue_file_map["$issue_id"]="$files"
+                log "    $issue_id -> $files"
+            done < <(associate_files_with_issues "$project_dir")
+        fi
 
         for issue_file in "${completed_issues[@]}"; do
             local issue_name issue_date date_display issue_id associated_files
@@ -1678,7 +1680,7 @@ reconstruct_history() {
 
             echo "      - $issue_name$date_display$file_info"
             if create_issue_commit "$issue_file" "$issue_date" "$associated_files"; then
-                ((commit_count++))
+                ((commit_count++)) || true
             fi
         done
     else
@@ -1688,7 +1690,7 @@ reconstruct_history() {
     # Step 3: Bulk commit for remaining files
     echo "  [3] Importing remaining project files..."
     if create_bulk_commit "$project_name"; then
-        ((commit_count++))
+        ((commit_count++)) || true
     fi
 
     echo ""
@@ -1791,7 +1793,7 @@ reconstruct_history_with_rebase() {
 
         echo "      [1] Vision: $vision_file$date_display"
         if create_vision_commit "$vision_file" "$project_name" "$vision_date"; then
-            ((commit_count++))
+            ((commit_count++)) || true
         fi
     else
         echo "      [!] No vision file found, skipping vision commit"
@@ -1829,7 +1831,7 @@ reconstruct_history_with_rebase() {
 
             echo "          - $issue_name"
             if create_issue_commit "$issue_file" "$issue_date" "$associated_files"; then
-                ((commit_count++))
+                ((commit_count++)) || true
             fi
         done
     else
@@ -1839,7 +1841,7 @@ reconstruct_history_with_rebase() {
     # 4c: Bulk commit
     echo "      [3] Importing remaining project files..."
     if create_bulk_commit "$project_name"; then
-        ((commit_count++))
+        ((commit_count++)) || true
     fi
 
     echo ""
