@@ -275,7 +275,7 @@ with known, predictable structure.
 
 The demo should be runnable via the phase demo runner:
 ```bash
-./run_demo.sh 4
+./run-demo.sh 4
 ```
 
 Timing is critical for the game loop - use high-resolution timers if
