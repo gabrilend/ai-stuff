@@ -31,6 +31,15 @@ VERBOSE=false
 FORCE=false
 INTERACTIVE=false
 BRANCH_NAME="main"
+SKIP_FILE_ASSOCIATION=true  # 035d is slow, skip by default for now
+
+# LLM Integration (035f) - optional, disabled by default
+LLM_ENABLED="${LLM_ENABLED:-false}"
+LLM_MODEL="${LLM_MODEL:-llama3}"
+LLM_VERIFY_COUNT="${LLM_VERIFY_COUNT:-3}"
+LLM_STATS_FILE="${LLM_STATS_FILE:-$HOME/.config/reconstruct-history/llm-stats.txt}"
+SHOW_LLM_STATS=false
+RESET_LLM_STATS=false
 # }}}
 
 # -- {{{ log
@@ -44,6 +53,282 @@ log() {
 # -- {{{ error
 error() {
     echo "[ERROR] $*" >&2
+}
+# }}}
+
+# =============================================================================
+# Local LLM Integration (035f)
+# =============================================================================
+
+# -- {{{ init_llm_stats
+init_llm_stats() {
+    # Ensure stats directory and file exist
+    mkdir -p "$(dirname "$LLM_STATS_FILE")"
+
+    if [[ ! -f "$LLM_STATS_FILE" ]]; then
+        echo "0" > "$LLM_STATS_FILE"
+        echo "0" >> "$LLM_STATS_FILE"
+        echo "0/0" >> "$LLM_STATS_FILE"
+    fi
+}
+# }}}
+
+# -- {{{ record_llm_result
+record_llm_result() {
+    local result="$1"  # "success" or "failure"
+
+    init_llm_stats
+
+    # Read current counts
+    local success_count failure_count
+    success_count=$(sed -n '1p' "$LLM_STATS_FILE")
+    failure_count=$(sed -n '2p' "$LLM_STATS_FILE")
+
+    # Increment appropriate counter
+    if [[ "$result" == "success" ]]; then
+        ((success_count++))
+    else
+        ((failure_count++))
+    fi
+
+    # Write updated stats atomically
+    {
+        echo "$success_count"
+        echo "$failure_count"
+        echo "${success_count}/${failure_count}"
+    } > "$LLM_STATS_FILE"
+
+    log "LLM stats: ${success_count}/${failure_count} (success/failure)"
+}
+# }}}
+
+# -- {{{ show_llm_stats
+show_llm_stats() {
+    if [[ ! -f "$LLM_STATS_FILE" ]]; then
+        echo "No LLM stats recorded yet"
+        echo "  Stats file: $LLM_STATS_FILE"
+        return 0
+    fi
+
+    local success_count failure_count ratio
+    success_count=$(sed -n '1p' "$LLM_STATS_FILE")
+    failure_count=$(sed -n '2p' "$LLM_STATS_FILE")
+    ratio=$(sed -n '3p' "$LLM_STATS_FILE")
+
+    local total=$((success_count + failure_count))
+    local pct=0
+    [[ $total -gt 0 ]] && pct=$((success_count * 100 / total))
+
+    echo "LLM Statistics:"
+    echo "  Model:     $LLM_MODEL"
+    echo "  Successes: $success_count"
+    echo "  Failures:  $failure_count"
+    echo "  Ratio:     $ratio ($pct% success rate)"
+    echo "  Stats file: $LLM_STATS_FILE"
+}
+# }}}
+
+# -- {{{ reset_llm_stats
+reset_llm_stats() {
+    mkdir -p "$(dirname "$LLM_STATS_FILE")"
+    {
+        echo "0"
+        echo "0"
+        echo "0/0"
+    } > "$LLM_STATS_FILE"
+    echo "LLM stats reset to 0/0"
+}
+# }}}
+
+# -- {{{ check_llm_available
+check_llm_available() {
+    # Check if ollama is available and the model exists
+    if ! command -v ollama &>/dev/null; then
+        log "ollama not found in PATH"
+        return 1
+    fi
+
+    # Check if ollama service is running (try a simple list)
+    if ! ollama list &>/dev/null; then
+        log "ollama service not responding"
+        return 1
+    fi
+
+    # Check if model is available
+    if ! ollama list 2>/dev/null | grep -q "^${LLM_MODEL}"; then
+        log "Model '$LLM_MODEL' not found. Run: ollama pull $LLM_MODEL"
+        return 1
+    fi
+
+    return 0
+}
+# }}}
+
+# -- {{{ query_local_llm
+query_local_llm() {
+    local prompt="$1"
+
+    if [[ "$LLM_ENABLED" != true ]]; then
+        return 1
+    fi
+
+    # Query using ollama
+    local response
+    response=$(echo "$prompt" | ollama run "$LLM_MODEL" 2>/dev/null)
+
+    if [[ -z "$response" ]]; then
+        log "LLM returned empty response"
+        return 1
+    fi
+
+    # Trim whitespace and return
+    echo "$response" | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+# }}}
+
+# -- {{{ llm_triple_check
+llm_triple_check() {
+    local question="$1"
+
+    if [[ "$LLM_ENABLED" != true ]]; then
+        return 1
+    fi
+
+    local -a responses=()
+    local i
+
+    log "LLM triple-check: Querying $LLM_VERIFY_COUNT times..."
+
+    # Get N responses (default 3)
+    for ((i = 1; i <= LLM_VERIFY_COUNT; i++)); do
+        local response
+        response=$(query_local_llm "$question")
+        responses+=("$response")
+        log "  Response $i: $response"
+    done
+
+    # Output as newline-separated for easy parsing
+    printf '%s\n' "${responses[@]}"
+}
+# }}}
+
+# -- {{{ llm_get_consensus
+llm_get_consensus() {
+    # Read responses from stdin (newline-separated)
+    local -a responses=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && responses+=("$line")
+    done
+
+    if [[ ${#responses[@]} -lt 2 ]]; then
+        log "Not enough responses for consensus"
+        record_llm_result "failure"
+        return 1
+    fi
+
+    # Count occurrences of each response
+    local -A counts
+    for r in "${responses[@]}"; do
+        ((counts["$r"]++)) || counts["$r"]=1
+    done
+
+    # Find response with majority (2/3 or more)
+    local threshold=$(( (${#responses[@]} + 1) / 2 ))  # Ceiling of half
+
+    for r in "${!counts[@]}"; do
+        if [[ ${counts[$r]} -ge $threshold ]]; then
+            log "LLM consensus reached: '$r' (${counts[$r]}/${#responses[@]} agree)"
+            record_llm_result "success"
+            echo "$r"
+            return 0
+        fi
+    done
+
+    # No consensus
+    log "LLM no consensus: responses were ${responses[*]}"
+    record_llm_result "failure"
+    return 1
+}
+# }}}
+
+# -- {{{ resolve_ambiguous_ordering
+resolve_ambiguous_ordering() {
+    local issue1_file="$1"
+    local issue2_file="$2"
+
+    if [[ "$LLM_ENABLED" != true ]]; then
+        echo "numerical"
+        return
+    fi
+
+    local issue1_name issue2_name
+    issue1_name=$(basename "$issue1_file" .md)
+    issue2_name=$(basename "$issue2_file" .md)
+
+    local issue1_title issue2_title
+    issue1_title=$(extract_issue_title "$issue1_file")
+    issue2_title=$(extract_issue_title "$issue2_file")
+
+    local prompt="Given these two software development issues, which one should logically come FIRST in the development timeline?
+
+Issue A: $issue1_name
+Title: $issue1_title
+
+Issue B: $issue2_name
+Title: $issue2_title
+
+Answer with ONLY the letter A or B, nothing else."
+
+    local consensus
+    if consensus=$(llm_triple_check "$prompt" | llm_get_consensus); then
+        case "$consensus" in
+            A|a) echo "$issue1_name" ;;
+            B|b) echo "$issue2_name" ;;
+            *) echo "numerical" ;;
+        esac
+    else
+        echo "numerical"
+    fi
+}
+# }}}
+
+# -- {{{ resolve_ambiguous_file_association
+resolve_ambiguous_file_association() {
+    local file="$1"
+    local issue1_file="$2"
+    local issue2_file="$3"
+
+    if [[ "$LLM_ENABLED" != true ]]; then
+        echo "first"
+        return
+    fi
+
+    local file_name issue1_name issue2_name
+    file_name=$(basename "$file")
+    issue1_name=$(basename "$issue1_file" .md)
+    issue2_name=$(basename "$issue2_file" .md)
+
+    local issue1_title issue2_title
+    issue1_title=$(extract_issue_title "$issue1_file")
+    issue2_title=$(extract_issue_title "$issue2_file")
+
+    local prompt="A source file named '$file_name' could belong to either of these issues. Which issue most likely created or modified this file?
+
+Issue A: $issue1_name - $issue1_title
+Issue B: $issue2_name - $issue2_title
+
+Answer with ONLY the letter A or B, nothing else."
+
+    local consensus
+    if consensus=$(llm_triple_check "$prompt" | llm_get_consensus); then
+        case "$consensus" in
+            A|a) echo "$issue1_name" ;;
+            B|b) echo "$issue2_name" ;;
+            *) echo "first" ;;
+        esac
+    else
+        echo "first"
+    fi
 }
 # }}}
 
@@ -1495,12 +1780,14 @@ dry_run_report() {
             issue_sources["$file"]="$source"
         done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates 2>/dev/null)
 
-        # Build file-to-issue associations (035d)
+        # Build file-to-issue associations (035d) - skip if flag set
         local -A issue_file_map
-        while IFS=':' read -r issue_id files; do
-            [[ -z "$issue_id" ]] && continue
-            issue_file_map["$issue_id"]="$files"
-        done < <(associate_files_with_issues "$project_dir" 2>/dev/null)
+        if [[ "$SKIP_FILE_ASSOCIATION" != true ]]; then
+            while IFS=':' read -r issue_id files; do
+                [[ -z "$issue_id" ]] && continue
+                issue_file_map["$issue_id"]="$files"
+            done < <(associate_files_with_issues "$project_dir" 2>/dev/null)
+        fi
 
         # Count total associated files for summary
         local total_associated=0
@@ -1600,6 +1887,15 @@ Import Options (for external projects):
     --move               Move instead of copy when importing
     --monorepo DIR       Override monorepo root directory
 
+LLM Options (requires ollama):
+    --llm                Enable LLM integration for ambiguous decisions
+    --llm-model NAME     Specify model (default: llama3)
+    --llm-stats          Show LLM success/failure statistics
+    --llm-reset-stats    Reset LLM statistics counters
+
+Advanced Options:
+    --with-file-association  Enable file-to-issue association (slower)
+
 Project States:
     external       - Outside monorepo, will be imported first
     no_git         - No git history, create from scratch
@@ -1637,6 +1933,15 @@ Examples:
 
     # Interactive mode - select from available projects
     reconstruct-history.sh -I
+
+    # Enable LLM for ambiguous decisions
+    reconstruct-history.sh --llm /path/to/project
+
+    # Use a different model
+    reconstruct-history.sh --llm --llm-model mistral /path/to/project
+
+    # Check LLM success/failure statistics
+    reconstruct-history.sh --llm-stats
 
 Vision File Patterns:
     notes/vision.md, notes/vision, vision.md, vision,
@@ -1738,6 +2043,26 @@ parse_args() {
                 MONOREPO_ROOT="$2"
                 shift 2
                 ;;
+            --llm)
+                LLM_ENABLED=true
+                shift
+                ;;
+            --llm-model)
+                LLM_MODEL="$2"
+                shift 2
+                ;;
+            --llm-stats)
+                SHOW_LLM_STATS=true
+                shift
+                ;;
+            --llm-reset-stats)
+                RESET_LLM_STATS=true
+                shift
+                ;;
+            --with-file-association)
+                SKIP_FILE_ASSOCIATION=false
+                shift
+                ;;
             -h|--help)
                 show_help
                 exit 0
@@ -1760,6 +2085,27 @@ parse_args() {
 # -- {{{ main
 main() {
     parse_args "$@"
+
+    # Handle LLM stats commands first (don't need project)
+    if [[ "$SHOW_LLM_STATS" == true ]]; then
+        show_llm_stats
+        exit 0
+    fi
+
+    if [[ "$RESET_LLM_STATS" == true ]]; then
+        reset_llm_stats
+        exit 0
+    fi
+
+    # Check LLM availability if enabled
+    if [[ "$LLM_ENABLED" == true ]]; then
+        if check_llm_available; then
+            echo "LLM enabled: $LLM_MODEL"
+        else
+            echo "WARNING: LLM requested but ollama not available, disabling"
+            LLM_ENABLED=false
+        fi
+    fi
 
     # Interactive mode
     if [[ "$INTERACTIVE" == true ]]; then

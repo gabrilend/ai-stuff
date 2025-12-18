@@ -198,14 +198,14 @@ These issues provide foundational utilities and can be implemented independently
   - *Blocks*: Issue 008 (Validation and Documentation), future project imports
   - *Dependencies*: None
   - *Implemented*: `/delta-version/scripts/reconstruct-history.sh`
-  - *Status*: Sub-issues 035a-035d complete, file association working
+  - *Status*: Sub-issues 035a-035d, 035f complete; 035e pending
   - *Sub-issues*:
     - **035a** ✅: Project detection and external import (unified workflow, state classification)
     - **035b** ✅: Dependency graph and topological sort (Kahn's algorithm, parses Dependencies/Blocks fields)
     - **035c** ✅: Date estimation from file timestamps (explicit dates, mtime fallback, interpolation)
     - **035d** ✅: File-to-issue association (explicit paths, filename mentions, directory mentions, naming similarity)
     - **035e**: History rewriting with rebase (preserve post-blob commits)
-    - **035f**: Local LLM integration for ambiguous decisions
+    - **035f** ✅: Local LLM integration (triple-check consensus, stats tracking, graceful fallback)
 
 ### Standard Priority
 - **Issue 024**: External Project Directory Configuration 📝
@@ -279,10 +279,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~48 (including sub-issues)
-- **Completed**: 19 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 035b, 035c, 035d, 037)
-- **In Progress**: 1 (035 - Project History Reconstruction)
+- **Completed**: 20 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 035b, 035c, 035d, 035f, 037)
+- **In Progress**: 1 (035 - Project History Reconstruction, only 035e remaining)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~26
+- **Pending**: ~25
 - **High Priority**: 1 (035 - blocks 036 and project imports)
 
 ## Notes
