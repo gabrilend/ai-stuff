@@ -1,20 +1,20 @@
-=== FRAME 1 ===
-Timestamp: 13:39:50.713461302
+=== FRAME 5 ===
+Timestamp: 13:39:52.704758648
 
 --- Navigation State ---
-PREV: section=0 item=0
+PREV: section=0 item=2
 CURR: section=0 item=1
 
 --- Computed Values (from menu_compute_item_row) ---
-old_row=6 (ANSI: 7)
+old_row=8 (ANSI: 9)
 new_row=7 (ANSI: 8)
-old_global_idx=1
+old_global_idx=3
 new_global_idx=2
-old_item_id=analyze → 'Analyze Issues'
+old_item_id=execute → 'Execute Recommendations'
 new_item_id=review → 'Review Structures'
 
 --- Cached Values (from full render) ---
-old_cache_key=mode:0 → cached_row=6
+old_cache_key=mode:2 → cached_row=8
 new_cache_key=mode:1 → cached_row=7
 
 --- Constants ---
@@ -23,9 +23,9 @@ MENU_ITEMS_END_ROW=57
 TUI_ROWS=78 TUI_COLS=141
 
 --- Operations Sequence ---
-STEP 1: position to ANSI row 7, col 1
+STEP 1: position to ANSI row 9, col 1
 STEP 2: clear line
-STEP 3: write '1 [ ] Analyze Issues'
+STEP 3: write '3 [ ] Execute Recommendations'
 STEP 4: position to ANSI row 8, col 1
 STEP 5: clear line
 STEP 6: write '2▸[●] Review Structures' (with reverse video)
@@ -33,9 +33,9 @@ STEP 6: write '2▸[●] Review Structures' (with reverse video)
 --- Expected Screen State (rows 4-12) ---
 row 4: (unchanged)
 row 5: (unchanged)
-row 6: [OLD→UNHIGHLIGHT] 1 [ ] Analyze Issues
+row 6: (unchanged)
 row 7: [NEW→HIGHLIGHT] 2▸[●] Review Structures
-row 8: (unchanged)
+row 8: [OLD→UNHIGHLIGHT] 3 [ ] Execute Recommendations
 row 9: (unchanged)
 row 10: (unchanged)
 row 11: (unchanged)
