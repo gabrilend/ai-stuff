@@ -32,7 +32,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-010 | Fix note filenames in generated HTML | Open | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | **Blocked** | High |
-| 8-013 | Implement TXT export functionality | In Progress | High |
+| 8-013 | Implement TXT export functionality | **Near Complete** | High |
 
 ### Completed Issues
 
@@ -99,6 +99,16 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Bottom border junctions adapt to progress: `╧` for ═ section, `┴` for ─ section
 - ✅ Regular (non-golden) poems now have corner boxes connecting to progress bar
 - ✅ Corner characters: `╘` (left) and `┘` (right) close regular poem corner boxes
+
+**8-013: Implement TXT Export Functionality** - NEAR COMPLETE
+- ✅ `render_attachment_images_txt()` for `[Image: alt-text]` format
+- ✅ `strip_html_tags()` for removing HTML and decoding entities
+- ✅ `generate_txt_file_header()` for consistent file headers
+- ✅ `generate_similarity_txt_file()` with headers
+- ✅ `generate_diversity_txt_file()` with headers
+- ✅ `M.generate_chronological_txt_file()` created and integrated
+- ✅ Pipeline integration (regenerate-clean-site.lua, main.lua)
+- Pending: Download links in HTML pages (depends on 8-012 pagination)
 
 **8-008: Implement Configurable Centroid Embedding System** - OPEN
 - Allow users to define named centroids via JSON configuration
