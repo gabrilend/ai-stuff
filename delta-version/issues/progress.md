@@ -214,6 +214,13 @@ These issues provide foundational utilities and can be implemented independently
     - **035f** ✅: Local LLM integration (triple-check consensus, stats tracking, graceful fallback)
 
 ### Standard Priority
+- **Issue 038**: Dependency Visualization Tool 📝
+  - *Purpose*: Visualize and analyze issue dependencies as tree diagrams
+  - *Features*: ASCII trees, DOT/Graphviz export, impact queries, parallel work identification
+  - *Use Cases*: Project structure understanding, debug impact analysis, branch topology
+  - *Dependencies*: Issue 035b (completed)
+  - *Status*: Ready for implementation
+
 - **Issue 024**: External Project Directory Configuration 📝
   - *Purpose*: Enable configuration of project directories outside main repository
   - *Features*: External directory config file, enhanced project discovery, cross-directory integration
@@ -284,11 +291,11 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~48 (including sub-issues)
+- **Total Issues**: ~49 (including sub-issues)
 - **Completed**: 21 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035 w/ all sub-issues, 037)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~25
+- **Pending**: ~26
 - **High Priority**: None (035 complete)
 
 ## Notes
