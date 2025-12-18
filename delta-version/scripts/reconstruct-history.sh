@@ -1063,21 +1063,24 @@ interpolate_dates() {
     local -A date_source=() # file -> "explicit" or "mtime" or "interpolated"
 
     # Read all files and get initial dates
+    local count=0
     while IFS= read -r file; do
         [[ -z "$file" ]] && continue
         files+=("$file")
+        ((count++)) || true  # Prevent set -e from exiting when count was 0
 
-        local date
-        date=$(estimate_issue_date "$file")
-        file_dates["$file"]="$date"
-
-        # Track source for logging
-        if extract_explicit_date "$file" >/dev/null 2>&1; then
+        # Try explicit date first, then mtime - avoids double grep
+        local explicit_date
+        explicit_date=$(extract_explicit_date "$file" 2>/dev/null) || true  # May return 1 if no explicit date
+        if [[ -n "$explicit_date" && "$explicit_date" != "0" ]]; then
+            file_dates["$file"]="$explicit_date"
             date_source["$file"]="explicit"
         else
+            file_dates["$file"]=$(get_file_mtime "$file")
             date_source["$file"]="mtime"
         fi
     done
+    log "interpolate_dates: read $count files"
 
     if [[ ${#files[@]} -eq 0 ]]; then
         return 0
@@ -2074,7 +2077,8 @@ dry_run_report() {
     echo ""
     echo "  Commits 2..N - Completed Issues (dependency-ordered with dates):"
     local -a completed_issues
-    mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir" 2>/dev/null)
+    mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir")
+    log "Found ${#completed_issues[@]} issues after dependency ordering"
 
     if [[ ${#completed_issues[@]} -gt 0 ]]; then
         # Get interpolated dates for all issues
@@ -2083,7 +2087,8 @@ dry_run_report() {
             [[ -z "$file" ]] && continue
             issue_dates["$file"]="$epoch"
             issue_sources["$file"]="$source"
-        done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates 2>/dev/null)
+        done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates)
+        log "Interpolated dates for ${#issue_dates[@]} issues"
 
         # Build file-to-issue associations (035d) - skip if flag set
         local -A issue_file_map
@@ -2106,7 +2111,7 @@ dry_run_report() {
 
             # Show dependencies if any
             local deps
-            deps=$(parse_issue_dependencies "$issue_file" 2>/dev/null)
+            deps=$(parse_issue_dependencies "$issue_file" 2>/dev/null) || true
             deps_info=""
             [[ -n "$deps" ]] && deps_info=" (depends on: $deps)"
 
@@ -2125,7 +2130,7 @@ dry_run_report() {
             [[ -n "$associated" ]] && file_count=$(echo "$associated" | wc -w)
             local file_info=""
             [[ $file_count -gt 0 ]] && file_info=" [+${file_count} files]"
-            ((total_associated += file_count))
+            ((total_associated += file_count)) || true  # May be 0
 
             echo "    [$i] $issue_name$deps_info$date_info$file_info"
             echo "        \"$title\""
