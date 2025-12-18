@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# {{{ Project File Server Runner
+# Generates an HTML interface for browsing programming projects in a tree structure.
+# Uses file:// protocol links to access local directories directly.
+# }}}
+
+DIR="/home/ritz/programming/ai-stuff"
+if [ -n "$1" ] && [ "$1" != "-I" ]; then
+    DIR="$1"
+fi
+
+OUTPUT="$DIR/project-file-server.html"
+if [ -n "$2" ]; then
+    OUTPUT="$2"
+fi
+
+INTERACTIVE=false
+
+# {{{ parse_args
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -I|--interactive)
+            INTERACTIVE=true
+            shift
+            ;;
+        -o|--output)
+            OUTPUT="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: project-file-server [DIRECTORY] [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -I, --interactive    Run in interactive mode"
+            echo "  -o, --output FILE    Specify output HTML file"
+            echo "  -h, --help           Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  project-file-server                    # Scan default dir, output to default"
+            echo "  project-file-server /path/to/projects  # Scan specific directory"
+            echo "  project-file-server -o ~/my-server.html"
+            echo "  project-file-server -I                 # Interactive mode"
+            exit 0
+            ;;
+        *)
+            if [ -d "$1" ]; then
+                DIR="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+# }}}
+
+# {{{ interactive_mode
+interactive_mode() {
+    echo "Project File Server - Interactive Mode"
+    echo "======================================="
+    echo
+    echo "Current settings:"
+    echo "  Directory: $DIR"
+    echo "  Output: $OUTPUT"
+    echo
+    echo "Select an action:"
+    echo "1) Generate file server HTML"
+    echo "2) Start HTTP server (port 8080)"
+    echo "3) Start HTTP server (custom port)"
+    echo "4) Open file server in browser"
+    echo "5) Change directory to scan"
+    echo "6) Change output location"
+    echo "7) Exit"
+    echo
+    read -p "Enter your choice (1-7): " choice
+
+    case $choice in
+        1)
+            echo "Generating file server HTML..."
+            lua "$DIR/scripts/libs/project-file-server.lua" "$DIR" "$OUTPUT"
+            ;;
+        2)
+            if [ -f "$OUTPUT" ]; then
+                echo "Starting HTTP server on port 8080..."
+                echo "Open: http://localhost:8080/$(basename "$OUTPUT")"
+                echo "Press Ctrl+C to stop"
+                cd "$(dirname "$OUTPUT")" && python3 -m http.server 8080
+            else
+                echo "Error: Output file not found. Generate it first (option 1)"
+            fi
+            ;;
+        3)
+            read -p "Enter port number: " port
+            if [ -f "$OUTPUT" ]; then
+                echo "Starting HTTP server on port $port..."
+                cd "$(dirname "$OUTPUT")" && python3 -m http.server "$port"
+            else
+                echo "Error: Output file not found. Generate it first (option 1)"
+            fi
+            ;;
+        4)
+            if [ -f "$OUTPUT" ]; then
+                echo "Opening file server in browser..."
+                xdg-open "file://$OUTPUT" 2>/dev/null || open "file://$OUTPUT" 2>/dev/null || echo "Open manually: file://$OUTPUT"
+            else
+                echo "Error: Output file not found. Generate it first (option 1)"
+            fi
+            ;;
+        5)
+            read -p "Enter directory to scan: " new_dir
+            if [ -d "$new_dir" ]; then
+                DIR="$new_dir"
+                echo "Directory updated to: $DIR"
+            else
+                echo "Error: Directory does not exist"
+            fi
+            ;;
+        6)
+            read -p "Enter output file path: " new_output
+            OUTPUT="$new_output"
+            echo "Output updated to: $OUTPUT"
+            ;;
+        7)
+            echo "Goodbye!"
+            exit 0
+            ;;
+        *)
+            echo "Invalid choice. Please select 1-7."
+            ;;
+    esac
+}
+# }}}
+
+# {{{ main
+if [ "$INTERACTIVE" = true ]; then
+    while true; do
+        interactive_mode
+        echo
+        read -p "Press Enter to continue or Ctrl+C to exit..."
+        echo
+    done
+else
+    # Default: generate file server
+    echo "Generating Project File Server..."
+    lua "$DIR/scripts/libs/project-file-server.lua" "$DIR" "$OUTPUT"
+fi
+# }}}
