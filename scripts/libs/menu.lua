@@ -96,6 +96,12 @@ local function get_current_item_id()
     return items[state.current_item]
 end
 
+local function get_current_section_type()
+    local sid = state.sections[state.current_section]
+    if not sid then return nil end
+    return state.section_data[sid].type
+end
+
 local function get_total_items()
     local total = 0
     for i = 1, #state.sections do
@@ -219,7 +225,7 @@ local function render_header()
     return 5  -- Next row (1-indexed)
 end
 
-local function render_item(row, item_id, highlight, item_num)
+local function render_item(row, item_id, highlight, item_num, section_type)
     local data = state.item_data[item_id]
     if not data then return end
 
@@ -227,6 +233,7 @@ local function render_item(row, item_id, highlight, item_num)
     local label = data.label
     local item_type = data.type
     local disabled = data.disabled
+    local is_radio = (section_type == "single")  -- Radio button in single-select section
 
     -- Clear the row first
     tui.clear_row(row)
@@ -259,17 +266,18 @@ local function render_item(row, item_id, highlight, item_num)
     end
     col = col + 1
 
-    -- Type-specific prefix (checkbox indicator)
+    -- Type-specific prefix (checkbox/radio indicator)
+    -- Radio buttons use ( ) parentheses, checkboxes use [ ] brackets
     tui.reset_style()
     if item_type == "checkbox" then
         if disabled then
             tui.set_attrs(tui.ATTR_DIM)
-            tui.write_str(row, col, "[o]")
+            tui.write_str(row, col, is_radio and "(o)" or "[o]")
         elseif value == "1" then
             tui.set_fg(tui.FG_GREEN)
-            tui.write_str(row, col, "[*]")
+            tui.write_str(row, col, is_radio and "(*)" or "[*]")
         else
-            tui.write_str(row, col, "[ ]")
+            tui.write_str(row, col, is_radio and "( )" or "[ ]")
         end
         col = col + 4
     else
@@ -337,6 +345,7 @@ local function render_section(section_idx, start_row, checkbox_idx_start)
     row = row + 1
 
     -- Items
+    local section_type = data.type
     for i, item_id in ipairs(data.items) do
         local item_type = state.item_data[item_id].type
         local highlight = is_current and (i == state.current_item)
@@ -344,9 +353,9 @@ local function render_section(section_idx, start_row, checkbox_idx_start)
         -- Only increment and pass checkbox index for checkbox items
         if item_type == "checkbox" then
             checkbox_idx = checkbox_idx + 1
-            render_item(row, item_id, highlight, checkbox_idx)
+            render_item(row, item_id, highlight, checkbox_idx, section_type)
         else
-            render_item(row, item_id, highlight, nil)
+            render_item(row, item_id, highlight, nil, section_type)
         end
         row = row + 1
     end
@@ -665,12 +674,19 @@ end
 
 -- {{{ menu.unset_checkbox
 -- Explicitly unset checkbox to unchecked (0)
+-- Radio buttons (single sections) cannot be unchecked - one must always be selected
 function menu.unset_checkbox()
     local item_id = get_current_item_id()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
     if data.disabled then return false end
+
+    -- Prevent unchecking radio buttons (single-select sections)
+    local section_type = get_current_section_type()
+    if section_type == "single" then
+        return false  -- Radio buttons cannot be unchecked
+    end
 
     if data.type == "checkbox" then
         state.values[item_id] = "0"
