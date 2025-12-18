@@ -38,6 +38,7 @@ LLM_ENABLED="${LLM_ENABLED:-false}"
 LLM_MODEL="${LLM_MODEL:-llama3}"
 LLM_VERIFY_COUNT="${LLM_VERIFY_COUNT:-3}"
 LLM_STATS_FILE="${LLM_STATS_FILE:-$HOME/.config/reconstruct-history/llm-stats.txt}"
+OLLAMA_ENDPOINT="${OLLAMA_ENDPOINT:-http://192.168.0.115:10265}"
 SHOW_LLM_STATS=false
 RESET_LLM_STATS=false
 
@@ -148,24 +149,21 @@ reset_llm_stats() {
 
 # -- {{{ check_llm_available
 check_llm_available() {
-    # Check if ollama is available and the model exists
-    if ! command -v ollama &>/dev/null; then
-        log "ollama not found in PATH"
-        return 1
-    fi
-
-    # Check if ollama service is running (try a simple list)
-    if ! ollama list &>/dev/null; then
-        log "ollama service not responding"
+    # Check if ollama API endpoint is reachable
+    if ! curl -s --max-time 5 "${OLLAMA_ENDPOINT}/api/tags" &>/dev/null; then
+        log "Ollama endpoint not responding: ${OLLAMA_ENDPOINT}"
         return 1
     fi
 
     # Check if model is available
-    if ! ollama list 2>/dev/null | grep -q "^${LLM_MODEL}"; then
-        log "Model '$LLM_MODEL' not found. Run: ollama pull $LLM_MODEL"
+    local models
+    models=$(curl -s "${OLLAMA_ENDPOINT}/api/tags" 2>/dev/null)
+    if ! echo "$models" | grep -q "\"name\":\"${LLM_MODEL}"; then
+        log "Model '$LLM_MODEL' not found at ${OLLAMA_ENDPOINT}. Run: ollama pull $LLM_MODEL"
         return 1
     fi
 
+    log "LLM available: ${LLM_MODEL} at ${OLLAMA_ENDPOINT}"
     return 0
 }
 # }}}
@@ -178,17 +176,37 @@ query_local_llm() {
         return 1
     fi
 
-    # Query using ollama
+    # Create temp files for request/response
+    local request_file="/tmp/llm_request_$$.json"
+    local response_file="/tmp/llm_response_$$.json"
+
+    # Build JSON request (escape special chars in prompt)
+    local escaped_prompt
+    escaped_prompt=$(echo "$prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
+
+    cat > "$request_file" << JSONEOF
+{"model": "${LLM_MODEL}", "messages": [{"role": "user", "content": "${escaped_prompt}"}], "stream": false}
+JSONEOF
+
+    # Query using curl
+    curl -s -X POST "${OLLAMA_ENDPOINT}/api/chat" \
+        -H "Content-Type: application/json" \
+        -d @"$request_file" > "$response_file" 2>/dev/null
+
+    # Extract response content
     local response
-    response=$(echo "$prompt" | ollama run "$LLM_MODEL" 2>/dev/null)
+    response=$(grep -o '"content":"[^"]*"' "$response_file" | sed 's/"content":"//;s/"$//' | head -1)
+
+    # Cleanup
+    rm -f "$request_file" "$response_file"
 
     if [[ -z "$response" ]]; then
         log "LLM returned empty response"
         return 1
     fi
 
-    # Trim whitespace and return
-    echo "$response" | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+    # Return response (unescape basic chars)
+    echo "$response" | sed 's/\\n/\n/g; s/\\t/\t/g'
 }
 # }}}
 
@@ -254,6 +272,52 @@ llm_get_consensus() {
     log "LLM no consensus: responses were ${responses[*]}"
     record_llm_result "failure"
     return 1
+}
+# }}}
+
+# -- {{{ generate_commit_message_llm
+generate_commit_message_llm() {
+    # Generate a descriptive commit message body from issue file content
+    local issue_file="$1"
+    local title="$2"
+
+    if [[ "$LLM_ENABLED" != true ]]; then
+        return 1
+    fi
+
+    # Read issue content (first 2000 chars to avoid token limits)
+    local issue_content
+    issue_content=$(head -c 2000 "$issue_file" 2>/dev/null)
+
+    if [[ -z "$issue_content" ]]; then
+        return 1
+    fi
+
+    local prompt="You are generating a git commit message body. Given this issue ticket, write a 2-3 sentence summary describing what was implemented. Focus on the technical changes and their purpose. Do not include the title (already provided). Do not use markdown formatting. Do not start with 'This commit' or similar.
+
+Issue Title: ${title}
+
+Issue Content:
+${issue_content}
+
+Commit message body (2-3 sentences):"
+
+    local response
+    response=$(query_local_llm "$prompt")
+
+    if [[ -n "$response" ]]; then
+        # Clean up response - remove preamble, quotes, and whitespace
+        echo "$response" | sed '
+            s/^["'\''[:space:]]*//
+            s/["'\''[:space:]]*$//
+            s/^Here is a[^:]*://i
+            s/^This commit message[^:]*://i
+            s/^A possible[^:]*://i
+            s/^[[:space:]]*//
+        '
+    else
+        return 1
+    fi
 }
 # }}}
 
@@ -1535,10 +1599,22 @@ create_issue_commit() {
         local file_summary=""
         [[ $file_count -gt 0 ]] && file_summary=" (+${file_count} files)"
 
+        # Try to generate descriptive message body with LLM
+        local message_body=""
+        if [[ "$LLM_ENABLED" == true ]]; then
+            log "  Generating commit message with LLM..."
+            message_body=$(generate_commit_message_llm "$issue_file" "$title") || true
+        fi
+
+        # Fallback to generic message if LLM not available or failed
+        if [[ -z "$message_body" ]]; then
+            message_body="Completed issue ${issue_name}$([ $file_count -gt 0 ] && echo " with associated implementation files")."
+        fi
+
         git commit "${date_args[@]}" -m "$(cat <<EOF
 ${title}${file_summary}
 
-Completed issue ${issue_name}$([ $file_count -gt 0 ] && echo " with associated implementation files").
+${message_body}
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
