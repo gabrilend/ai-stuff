@@ -538,28 +538,28 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "mode" "single" "Operation Mode"
     menu_add_item "mode" "analyze" "Analyze Issues" "checkbox" "1" \
-        "Ask Claude to analyze issues and suggest sub-issue splits"
+        "Ask Claude to analyze issues and suggest sub-issue splits" "a"
     menu_add_item "mode" "review" "Review Structures" "checkbox" "0" \
-        "Review root issues that already have sub-issues"
+        "Review root issues that already have sub-issues" "r"
     menu_add_item "mode" "execute" "Execute Recommendations" "checkbox" "0" \
-        "Create sub-issue files from analysis recommendations"
+        "Create sub-issue files from analysis recommendations" "x"
     menu_add_item "mode" "implement" "Auto-Implement" "checkbox" "0" \
-        "Invoke Claude CLI to implement the selected issues"
+        "Invoke Claude CLI to implement the selected issues" "m"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 2: Processing Options (multi - can select multiple)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "processing" "multi" "Processing Options"
     menu_add_item "processing" "streaming" "Enable Streaming" "checkbox" "0" \
-        "Process issues in parallel with real-time output"
+        "Process issues in parallel with real-time output" "s"
     menu_add_item "processing" "skip_existing" "Skip Analyzed" "checkbox" "1" \
-        "Don't re-analyze issues that already have analysis"
+        "Don't re-analyze issues that already have analysis" "p"
     menu_add_item "processing" "archive" "Archive Outputs" "checkbox" "0" \
-        "Save copies of analyses to issues/analysis/"
+        "Save copies of analyses to issues/analysis/" "c"
     menu_add_item "processing" "execute_all" "No Confirmations" "checkbox" "0" \
-        "Execute/implement without asking for confirmation"
+        "Execute/implement without asking for confirmation" "n"
     menu_add_item "processing" "dry_run" "Dry Run" "checkbox" "0" \
-        "Show what would happen without actually doing it"
+        "Show what would happen without actually doing it" "d"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Streaming Settings (inline editable flag values)
