@@ -23,6 +23,7 @@ This document prioritizes open issues based on:
 | 030 | Issue Management Utility | 2024-12-15 |
 | 031 | Import Project Histories | 2024-12-15 |
 | 035a | Project Detection and Import | 2024-12-17 |
+| 037 | Project History Narrative Generator | 2025-12-17 |
 
 ---
 
@@ -46,19 +47,16 @@ Remaining sub-issues:
 
 ---
 
-### 🟠 Issue 037: Project History Narrative Generator
-**Status:** Ready
-**Blocks:** Nothing
-**Blocked by:** 035 (optional - works better with, not required)
+### ✅ Issue 037: Project History Narrative Generator
+**Status:** COMPLETED (2025-12-17)
+**Implemented:** `delta-version/scripts/generate-history.sh`
 **Complexity:** Low-Medium
 
-**Why prioritize:**
-- Standalone utility with immediate value
-- Can generate HISTORY.txt files for any project with git history
-- Low complexity, high visibility
-- Implements CLAUDE.md requirement ("git log readable like a book")
-
-**Recommended:** Implement soon, doesn't need to wait for 035
+**Features delivered:**
+- Generate HISTORY.txt files for any project with git history
+- Chronological order (oldest first), numbered commits
+- Multiple formats (txt, md), filtering options (--skip-specs, --completed-only)
+- Detailed dry-run, interactive project selection
 
 ---
 
@@ -168,8 +166,10 @@ Remaining sub-issues:
 NOW (Parallel):
 ├── 035b: Dependency graph        ─┐
 ├── 035c: Date estimation          ├── Continue 035 sub-issues
-├── 037: History narrative gen    ─┘  (can do alongside)
-└── 008: Documentation portions
+└── 008: Documentation portions   ─┘
+
+RECENTLY COMPLETED:
+└── 037: History narrative gen ✅  (2025-12-17)
 
 NEXT:
 ├── 035d, 035e: File association + rewrite
@@ -246,9 +246,9 @@ LATER:
 
 | If you have... | Work on... |
 |----------------|------------|
-| 30 minutes | 037 (history narrative) - straightforward script |
+| 30 minutes | 008 documentation (README portions) |
 | 1-2 hours | 035b or 035c (sub-issues of main focus) |
-| Half day | 008 documentation, or 013 validation |
+| Half day | 013 validation, or 024 external dirs |
 | Full day | 035d + 035e (file association + rewrite) |
 | Multi-day | 036 (commit viewer) after 035 is done |
 

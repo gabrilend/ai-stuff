@@ -1,0 +1,194 @@
+================================================================================
+                      DELTA-VERSION - Development History
+================================================================================
+
+This document traces the development of delta-version from inception to present.
+Generated: 2025-12-17 15:56:46
+
+--------------------------------------------------------------------------------
+
+[1] Initial commit: AI project collection
+    2025-12-15
+
+    This repository contains 30+ AI-related projects managed by the
+    Delta-Version meta-project system.
+    Projects include:
+    - adroit, handheld-office, magic-rumble, progress-ii, risc-v-university
+    - Games, tools, utilities, and experimental AI projects
+    Each project with preserved git history is available on its own branch.
+    Use 'git branch -a' to see all project branches.
+    Dependencies are managed via install scripts in each project's libs/ directory.
+    See the corresponding issue files in each project's issues/ directory.
+    Repository managed by Delta-Version meta-project system.
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[2] Add donation/support links issue and update documentation
+    2025-12-16
+
+    Create Issue 032 for multi-link donation system allowing supporters to
+    allocate across projects as interest signals. Update roadmap and progress
+    tracking to reflect Phase 1 completion and move completed issues (004,
+    006, 007, 031) to completed directory.
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[3] Add economic incentive system issues (033, 034)
+    2025-12-17
+
+    - Issue 033: Creator Revenue Sharing System
+      - Revenue framework for derivative content (e.g., WC3 maps)
+      - Consent-based distribution with indefinite holding for original creators
+      - Philosophy: Keep funds within creative ecosystem
+    - Issue 034: Bug Bounty Reward System
+      - Token-based rewards for difficult bug fixes
+      - Auto-escalation after 3+ revision attempts
+      - Expert registry and stock-indexed tokens
+    - Updated progress.md with new issue summaries
+    - Added issue-splitter reference images
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[4] Issue 035a: Implement project detection and external import
+    2025-12-17
+
+    Adds unified workflow for project onboarding to reconstruct-history.sh:
+    Project Detection:
+    - is_in_monorepo(): Detects if project is inside monorepo
+    - has_flat_history(): Identifies projects with few commits but many files
+    - has_good_history(): Checks if commit/file ratio is healthy
+    - determine_project_state(): Classifies as external/no_git/flat_blob/sparse_history/good_history
+    Blob Boundary Detection:
+    - find_blob_commits(): Identifies large file-dump commits
+    - get_blob_boundary(): Finds where "real" development starts
+    - count_post_blob_commits(): Counts commits to preserve
+    External Import:
+    - import_external_project(): Copies with timestamp preservation (cp -a)
+    - Supports --name override and --move mode
+    - Removes existing .git after import
+    Unified Workflow:
+    - process_project(): Routes each state to appropriate action
+    - Preserves post-blob commits (warns if present, --force required)
+    - Enhanced dry-run report shows state and planned actions
+    Parent issue 035 defines full reconstruction strategy with sub-issues
+    035b-035f for remaining features (dependency graph, date estimation,
+    file association, history rewrite, LLM integration).
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[5] Issue 036: Create commit history viewer specification
+    2025-12-17
+
+    Defines a terminal-based viewer for browsing project git history as a
+    readable narrative, presenting commits like pages of a book.
+    Core Features:
+    - Project selection (integrates with list-projects.sh)
+    - Left/right navigation flips between commits
+    - Up/down navigation scrolls within commit content
+    - Double-tap up/down jumps to top/bottom
+    - Position preserved when flipping commits
+    Content Display Order:
+    1. Commit message (always at top)
+    2. Changed files from notes/ directory
+    3. Completed issues (issues/completed/)
+    4. Documentation (docs/)
+    5. Other markdown files
+    Sub-issues planned:
+    - 036a: Project selection interface
+    - 036b: Git commit traversal
+    - 036c: Content extraction and ordering
+    - 036d: Paginator TUI component
+    - 036e: Navigation and input handling
+    - 036f: Session state management
+    Blocked by Issue 035 (Project History Reconstruction) - projects need
+    meaningful reconstructed history before viewing makes sense.
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[6] Issue 037: Create project history narrative generator specification
+    2025-12-17
+
+    Defines a script to generate readable HISTORY.txt files from git log,
+    presenting project development as a story readable from top to bottom.
+    Output Format:
+    - Chronological order (oldest commit first, like reading a book)
+    - Numbered commits with clean date display
+    - Full commit messages (subject + body)
+    - Visual separation with dashes and newlines
+    - Header with project name, footer with commit count
+    Features:
+    - Process single project or all projects (--all)
+    - Configurable output location and filename
+    - Multiple formats: txt (default), md, html
+    - Skip projects with few commits (--min-commits)
+    - Date range filtering (--since, --until)
+    Related to CLAUDE.md requirement: "git log should be appended to a
+    long history file... prettified... that can be grepped through easily.
+    Or, printed and read like a book."
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[7] Issues 036, 037: Clarify completed vs new issue handling
+    2025-12-17
+
+    Both viewer scripts should focus on COMPLETED issues (actual work done),
+    not newly-added issue specifications (just planning).
+    Key distinctions:
+    - issues/completed/*.md → Show these (completed work)
+    - issues/*.md (root) → Skip these (just plans/specs)
+    - Retroactive tickets (added directly to completed/) → Treat as completed
+    Issue 036 changes:
+    - Updated content display to exclude issues/ root
+    - Added explicit skip logic for issues/*.md in extraction algorithm
+    - Clarified that issues/completed/ represents done work
+    Issue 037 changes:
+    - Added "Commit Classification" section with narrative value ratings
+    - Added --completed-only and --skip-specs filtering options
+    - Documented retroactive ticket handling
+    Rationale: Creating an issue spec is planning; moving/adding to
+    issues/completed/ is documentation of actual implementation work.
+    The narrative should reflect work done, not intentions.
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+[8] Add issue prioritization document
+    2025-12-17
+
+    Creates PRIORITY.md with analysis of all open issues based on:
+    - Blocking relationships
+    - Immediate utility
+    - Complexity
+    - Foundation vs feature work
+    Priority Tiers:
+    TIER 1 (HIGH): 035 sub-issues, 037 narrative generator, 008 docs
+    TIER 2 (MED-HIGH): 036 viewer, 013-015 gitignore chain, 024 external dirs
+    TIER 3 (MEDIUM): 026 metadata, 027 reports, 016-022 ticket system
+    TIER 4 (LOW): 032-034 economic incentive systems
+    Key insight: Issue 035 (history reconstruction) is the critical path -
+    it blocks the commit viewer (036) and improves all downstream tools.
+    Issue 037 (narrative generator) can proceed in parallel as low-hanging fruit.
+    Includes blocking diagram and "what to work on" quick reference.
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+--------------------------------------------------------------------------------
+
+================================================================================
+                                 End of History
+                              8 commits recorded
+                         (2025-12-15 to 2025-12-17)
+================================================================================
