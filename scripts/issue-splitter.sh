@@ -538,37 +538,37 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "mode" "single" "Operation Mode"
     menu_add_item "mode" "analyze" "Analyze Issues" "checkbox" "1" \
-        "Ask Claude to analyze issues and suggest sub-issue splits" "a"
+        "Ask Claude to analyze issues and suggest sub-issue splits" "a" ""
     menu_add_item "mode" "review" "Review Structures" "checkbox" "0" \
-        "Review root issues that already have sub-issues" "r"
+        "Review root issues that already have sub-issues" "r" "-r"
     menu_add_item "mode" "execute" "Execute Recommendations" "checkbox" "0" \
-        "Create sub-issue files from analysis recommendations" "x"
+        "Create sub-issue files from analysis recommendations" "x" "-x"
     menu_add_item "mode" "implement" "Auto-Implement" "checkbox" "0" \
-        "Invoke Claude CLI to implement the selected issues" "m"
+        "Invoke Claude CLI to implement the selected issues" "m" "-A"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 2: Processing Options (multi - can select multiple)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "processing" "multi" "Processing Options"
     menu_add_item "processing" "streaming" "Enable Streaming" "checkbox" "0" \
-        "Process issues in parallel with real-time output" "s"
+        "Process issues in parallel with real-time output" "s" "--stream"
     menu_add_item "processing" "skip_existing" "Skip Analyzed" "checkbox" "1" \
-        "Don't re-analyze issues that already have analysis" "p"
+        "Don't re-analyze issues that already have analysis" "p" "-s"
     menu_add_item "processing" "archive" "Archive Outputs" "checkbox" "0" \
-        "Save copies of analyses to issues/analysis/" "c"
+        "Save copies of analyses to issues/analysis/" "c" "-a"
     menu_add_item "processing" "execute_all" "No Confirmations" "checkbox" "0" \
-        "Execute/implement without asking for confirmation" "n"
+        "Execute/implement without asking for confirmation" "n" "-X"
     menu_add_item "processing" "dry_run" "Dry Run" "checkbox" "0" \
-        "Show what would happen without actually doing it" "d"
+        "Show what would happen without actually doing it" "d" "-n"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Streaming Settings (inline editable flag values)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "streaming" "multi" "Streaming Settings (type digits, >=default, <=off)"
     menu_add_item "streaming" "parallel" "Parallel Jobs" "flag" "3:2" \
-        "Max concurrent Claude calls (type 1-10)"
+        "Max concurrent Claude calls (type 1-10)" "" "--parallel"
     menu_add_item "streaming" "delay" "Output Delay (sec)" "flag" "5:2" \
-        "Seconds between streamed outputs (type 0-30)"
+        "Seconds between streamed outputs (type 0-30)" "" "--delay"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 4: Issue Selection (list - scrollable checkbox list)
@@ -607,7 +607,17 @@ interactive_mode_tui() {
     done
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # Section 5: Actions (execute button)
+    # Section 5: Command Preview (shows the command that will be executed)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "preview" "multi" "Command Preview"
+    menu_add_item "preview" "cmd_preview" "$" "text" "" \
+        "The command that will be executed (updated in real-time)"
+
+    # Configure command preview
+    menu_set_command_config "./issue-splitter.sh" "cmd_preview" "files"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 6: Actions (execute button)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "actions" "single" "Actions"
     menu_add_item "actions" "run" "Run Selected Operations" "action" "" \
