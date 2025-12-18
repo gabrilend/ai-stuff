@@ -5,6 +5,46 @@
 # Uses file:// protocol links to access local directories directly.
 # }}}
 
+# {{{ BLOCKER: Issue 007 - Remove CSS and JavaScript
+# This application is BLOCKED until issue 007 is resolved.
+# The file server currently generates HTML with embedded CSS and JavaScript,
+# which violates project standards (pure HTML output required).
+#
+# To unblock:
+#   1. Begin work on issue 007
+#   2. Remove this guard block
+#   3. Implement the CSS/JS removal
+#
+# See: /home/ritz/programming/ai-stuff/scripts/issues/007-remove-css-and-javascript-from-file-server.md
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+echo "║                           ⛔ APPLICATION BLOCKED                              ║"
+echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+echo "║                                                                              ║"
+echo "║  The project-file-server is currently BLOCKED pending issue resolution.     ║"
+echo "║                                                                              ║"
+echo "║  Issue: 007 - Remove CSS and JavaScript from File Server                    ║"
+echo "║  Priority: HIGH                                                              ║"
+echo "║  Status: BLOCKING                                                            ║"
+echo "║                                                                              ║"
+echo "║  The current implementation generates HTML with embedded CSS (~230 lines)   ║"
+echo "║  and JavaScript (~80 lines), which violates project standards requiring     ║"
+echo "║  pure HTML output.                                                           ║"
+echo "║                                                                              ║"
+echo "║  To unblock this application:                                                ║"
+echo "║    1. Read the issue file (path below)                                       ║"
+echo "║    2. Begin implementation of CSS/JS removal                                 ║"
+echo "║    3. Remove the blocker guard from this script                              ║"
+echo "║                                                                              ║"
+echo "║  Issue file:                                                                 ║"
+echo "║  /home/ritz/programming/ai-stuff/scripts/issues/007-remove-css-and-javascript-from-file-server.md"
+echo "║                                                                              ║"
+echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+echo ""
+exit 1
+# }}}
+
 DIR="/home/ritz/programming/ai-stuff"
 if [ -n "$1" ] && [ "$1" != "-I" ]; then
     DIR="$1"
