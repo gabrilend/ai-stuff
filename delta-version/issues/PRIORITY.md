@@ -24,6 +24,7 @@ This document prioritizes open issues based on:
 | 031 | Import Project Histories | 2024-12-15 |
 | 035a | Project Detection and Import | 2024-12-17 |
 | 035b | Dependency Graph and Topological Sort | 2025-12-17 |
+| 035c | Date Estimation and Interpolation | 2025-12-17 |
 | 037 | Project History Narrative Generator | 2025-12-17 |
 
 ---
@@ -39,12 +40,12 @@ Remaining sub-issues:
 | Sub-Issue | Description | Status |
 |-----------|-------------|--------|
 | **035b** | Dependency graph and topological sort | ✅ Complete |
-| **035c** | Date estimation from file timestamps | Pending |
+| **035c** | Date estimation from file timestamps | ✅ Complete |
 | **035d** | File-to-issue association | Pending |
 | **035e** | History rewriting with rebase | Pending |
 | **035f** | Local LLM integration | Pending (optional) |
 
-**Recommended next:** 035c (date estimation)
+**Recommended next:** 035d (file association) or 035e (history rewrite)
 
 ---
 
