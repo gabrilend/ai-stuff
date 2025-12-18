@@ -688,6 +688,112 @@ function M.generate_maximum_diversity_sequence(starting_poem_id, poems_data, emb
 end
 -- }}}
 
+-- {{{ function render_attachment_images
+local function render_attachment_images(attachments)
+    -- Render HTML for poem attachments (images)
+    -- Returns empty string if no attachments or no image attachments
+    -- Image output format designed for 80-char width aesthetic
+    --
+    -- ATTACHMENT STRUCTURE (from ActivityPub extraction):
+    -- {
+    --   media_type = "image/png",
+    --   url = "https://server.com/media/files/123/456/original/abc.png",
+    --   relative_path = "files/123/456/original/abc.png",
+    --   alt_text = "User description" or nil,
+    --   width = 1920,
+    --   height = 1080
+    -- }
+
+    if not attachments or #attachments == 0 then
+        return ""
+    end
+
+    local image_html = {}
+
+    for _, attachment in ipairs(attachments) do
+        -- Only process image types
+        local media_type = attachment.media_type or ""
+        if media_type:match("^image/") then
+            -- Build image path relative to output directory
+            -- Images are served from ../input/media_attachments/{relative_path}
+            local img_src = "../input/media_attachments/" .. (attachment.relative_path or "")
+
+            -- Use alt text if available, otherwise generate generic description
+            local alt_text = attachment.alt_text or "Image attachment"
+            -- Escape quotes in alt text for HTML attribute
+            alt_text = alt_text:gsub('"', '&quot;')
+
+            -- Build image tag with lazy loading for performance
+            -- width/height hints help browser reserve space before load
+            local img_tag
+            if attachment.width and attachment.height then
+                img_tag = string.format(
+                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="max-width:100%%; height:auto;">',
+                    img_src, alt_text, attachment.width, attachment.height
+                )
+            else
+                img_tag = string.format(
+                    '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto;">',
+                    img_src, alt_text
+                )
+            end
+
+            table.insert(image_html, img_tag)
+        end
+    end
+
+    if #image_html == 0 then
+        return ""
+    end
+
+    -- Return with newline prefix/suffix for proper spacing in poem layout
+    return "\n" .. table.concat(image_html, "\n") .. "\n"
+end
+-- }}}
+
+-- {{{ function render_attachment_images_txt
+local function render_attachment_images_txt(attachments)
+    -- Render plain text placeholders for poem attachments (images)
+    -- Returns [Image: alt-text] format for TXT export
+    -- Unlike render_attachment_images(), this outputs plain text, not HTML
+    --
+    -- This function exists because TXT exports cannot contain HTML <img> tags.
+    -- Images are replaced with bracketed alt-text descriptions.
+
+    if not attachments or #attachments == 0 then
+        return ""
+    end
+
+    local image_lines = {}
+
+    for _, attachment in ipairs(attachments) do
+        -- Only process image types
+        local media_type = attachment.media_type or ""
+        if media_type:match("^image/") then
+            -- Use alt text if available, otherwise indicate no description
+            local alt_text = attachment.alt_text or "no description"
+
+            -- Format as bracketed placeholder, wrapped at 80 chars if needed
+            local placeholder = string.format("[Image: %s]", alt_text)
+
+            -- Wrap long alt-text to 80 characters
+            if #placeholder > 80 then
+                placeholder = wrap_text_80_chars(placeholder)
+            end
+
+            table.insert(image_lines, placeholder)
+        end
+    end
+
+    if #image_lines == 0 then
+        return ""
+    end
+
+    -- Return with newline prefix/suffix for proper spacing
+    return "\n" .. table.concat(image_lines, "\n") .. "\n"
+end
+-- }}}
+
 -- {{{ function format_warning_box
 local function format_warning_box(warning_text)
     -- Create simple ASCII box around content warning
@@ -1013,6 +1119,12 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     )
     formatted = formatted .. content_formatted
 
+    -- Render attached images if present (from ActivityPub extraction)
+    -- Images appear after poem content, before navigation links
+    if poem.attachments then
+        formatted = formatted .. render_attachment_images(poem.attachments)
+    end
+
     -- For golden poems, content already includes nav in corner boxes
     -- For regular poems, add corner-boxed navigation links (top and nav lines only, bottom connects to progress bar)
     if not is_golden then
@@ -1044,33 +1156,45 @@ end
 -- {{{ function format_single_poem_with_warnings
 local function format_single_poem_with_warnings(poem)
     local formatted = ""
-    
+
     -- Add file header (matching compiled.txt format)
-    formatted = formatted .. string.format(" -> file: %s/%s.txt\n", 
+    formatted = formatted .. string.format(" -> file: %s/%s.txt\n",
                                           poem.category or "unknown",
                                           poem.id or "unknown")
     formatted = formatted .. string.rep("-", 80) .. "\n"
-    
+
     -- Format poem content with content warning handling and whitespace preservation
     formatted = formatted .. format_content_with_warnings(poem.content or "", poem.category, poem)
-    
+
+    -- Render attached images if present
+    if poem.attachments then
+        formatted = formatted .. render_attachment_images(poem.attachments)
+    end
+
     return formatted
 end
 -- }}}
 
 -- {{{ function format_single_poem_80_width
 local function format_single_poem_80_width(poem)
+    -- Format a single poem for TXT export (80-character width, no HTML)
+    -- Uses render_attachment_images_txt() for plain text image placeholders
     local formatted = ""
-    
+
     -- Add file header (matching compiled.txt format)
-    formatted = formatted .. string.format(" -> file: %s/%s.txt\n", 
+    formatted = formatted .. string.format(" -> file: %s/%s\n",
                                           poem.category or "unknown",
                                           poem.id or "unknown")
     formatted = formatted .. string.rep("-", 80) .. "\n"
-    
+
     -- Format poem content to 80-character width
     formatted = formatted .. wrap_text_80_chars(poem.content or "")
-    
+
+    -- Render attached images as [Image: alt-text] placeholders (not HTML)
+    if poem.attachments then
+        formatted = formatted .. render_attachment_images_txt(poem.attachments)
+    end
+
     return formatted
 end
 -- }}}
@@ -1366,16 +1490,46 @@ The "different" pages help you discover unexpected contrasts and new perspective
 end
 -- }}}
 
+-- {{{ function generate_txt_file_header
+local function generate_txt_file_header(title, total_poems)
+    -- Generate a consistent header for TXT export files
+    -- Matches the compiled.txt aesthetic with 80-character width
+    local separator = string.rep("=", 80)
+    local header = separator .. "\n"
+
+    -- Center the title
+    local padding = math.floor((80 - #title) / 2)
+    header = header .. string.rep(" ", padding) .. title .. "\n"
+
+    header = header .. separator .. "\n"
+    header = header .. string.format("Total poems: %d\n", total_poems)
+    header = header .. string.format("Generated: %s\n", os.date("%Y-%m-%d %H:%M:%S"))
+    header = header .. separator .. "\n\n"
+
+    return header
+end
+-- }}}
+
 -- {{{ function generate_similarity_txt_file
 function generate_similarity_txt_file(starting_poem, sorted_poems, output_file)
-    local content = format_all_poems_80_width(starting_poem, sorted_poems)
+    -- Generate TXT export for similarity-sorted poems
+    -- Includes file header with metadata and all poems formatted at 80-char width
+    local title = string.format("POEMS SORTED BY SIMILARITY TO POEM %s", starting_poem.id or "?")
+    local header = generate_txt_file_header(title, #sorted_poems + 1)
+    local poems_content = format_all_poems_80_width(starting_poem, sorted_poems)
+    local content = header .. poems_content
     return utils.write_file(output_file, content) and output_file or nil
 end
 -- }}}
 
 -- {{{ function generate_diversity_txt_file
 function generate_diversity_txt_file(starting_poem, sorted_poems, output_file)
-    local content = format_all_poems_80_width(starting_poem, sorted_poems)
+    -- Generate TXT export for diversity-sorted poems
+    -- Includes file header with metadata and all poems formatted at 80-char width
+    local title = string.format("POEMS SORTED BY DIVERSITY FROM POEM %s", starting_poem.id or "?")
+    local header = generate_txt_file_header(title, #sorted_poems + 1)
+    local poems_content = format_all_poems_80_width(starting_poem, sorted_poems)
+    local content = header .. poems_content
     return utils.write_file(output_file, content) and output_file or nil
 end
 -- }}}
