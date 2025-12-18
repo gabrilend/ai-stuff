@@ -49,14 +49,20 @@ local embeddings_data = utils.read_json_file(DIR .. "/assets/embeddings/Embeddin
 
 if not similarity_data or not embeddings_data then
     print("WARNING: Could not load similarity/embedding data. Generating chronological index only...")
-    -- Generate just the chronological index
+    -- Generate just the chronological index (HTML and TXT)
     local output_dir = DIR .. "/output"
     print("Generating chronological index...")
     local result = flat_generator.generate_chronological_index_with_navigation(poems_data, output_dir)
     if result then
         print("Successfully generated chronological.html at: " .. result)
     else
-        print("ERROR: Failed to generate chronological index")
+        print("ERROR: Failed to generate chronological HTML index")
+    end
+    local txt_result = flat_generator.generate_chronological_txt_file(poems_data, output_dir .. "/chronological.txt")
+    if txt_result then
+        print("Successfully generated chronological.txt at: " .. txt_result)
+    else
+        print("ERROR: Failed to generate chronological TXT export")
     end
 else
     -- Generate complete site
@@ -75,6 +81,9 @@ else
         print(string.format("- Generated %d diversity pages", #results.diversity_pages))
         if results.chronological_index then
             print("- Generated chronological index: " .. results.chronological_index)
+        end
+        if results.chronological_txt then
+            print("- Generated chronological TXT: " .. results.chronological_txt)
         end
         if results.instructions_page then
             print("- Generated instructions page: " .. results.instructions_page)

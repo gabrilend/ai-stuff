@@ -187,7 +187,7 @@ Grand total: ~34GB of .txt exports
 
 - [x] .txt files generate for all similarity orderings
 - [x] .txt files generate for all diversity orderings
-- [ ] .txt files generate for chronological ordering
+- [x] .txt files generate for chronological ordering
 - [x] Images converted to `[Image: alt-text]` format
 - [x] No HTML tags in .txt output
 - [x] 80-character line width enforced
@@ -236,7 +236,55 @@ The existing `format_single_poem_80_width()` function called `render_attachment_
 ```
 
 **Remaining Work:**
-- Chronological.txt generation (new function needed)
+- ~~Chronological.txt generation (new function needed)~~ ✅ Completed
 - Download links in HTML pages (depends on 8-012 pagination)
+
+---
+
+### Session: 2025-12-17 (Continued)
+
+**Chronological TXT Generation Implemented:**
+
+1. **Created `M.generate_chronological_txt_file()`** (lines 1537-1559)
+   - Exported function for generating chronological.txt
+   - Uses `sort_poems_chronologically_by_dates()` for temporal ordering
+   - Includes header with title, total poems count, and timestamp
+   - Formats each poem using `format_single_poem_80_width()`
+
+2. **Created `strip_html_tags()`** (lines 531-558)
+   - Strips HTML tags from poem content
+   - Decodes HTML entities (&amp;, &lt;, &gt;, etc.)
+   - Normalizes whitespace (multiple spaces, newlines)
+   - Called before `wrap_text_80_chars()` in TXT formatting
+
+3. **Updated `format_single_poem_80_width()`** (lines 1208-1229)
+   - Now calls `strip_html_tags()` before wrapping
+   - Ensures TXT output is clean plain text
+
+4. **Pipeline Integration:**
+   - Added to `M.generate_complete_flat_html_collection()` (line 1637-1643)
+   - Added to `M.main()` interactive mode option 2 (line 1686-1688)
+   - Added to `regenerate-clean-site.lua` fallback path (line 61-65)
+   - Added to `regenerate-clean-site.lua` success reporting (line 85-87)
+
+**Test Results:**
+```
+✓ PASS: No HTML tags found
+✓ PASS: No <img> tags found
+✓ PASS: Found 532 [Image:] placeholders
+✓ PASS: Found header title
+✓ PASS: Found total poems count: Total poems: 7791
+✓ PASS: 80-char visual width OK (73 URLs, 394 edge cases)
+✓ PASS: Found 230 header separator lines
+✓ PASS: Found 7805 poem file markers
+```
+
+**Edge Cases Identified:**
+- Some poems contain raw PDF binary data (poem 103) - data quality issue
+- Emoji characters affect visual width calculations
+- Long hashtag slugs can't be word-wrapped (single "words")
+- `===` separator lines in poem content exceed 80 chars
+
+**File Size:** ~5.9 MB for full chronological export (7791 poems)
 
 ---

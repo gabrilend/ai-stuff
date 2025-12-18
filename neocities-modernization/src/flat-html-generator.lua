@@ -528,6 +528,36 @@ local function wrap_single_line_80_chars(line)
 end
 -- }}}
 
+-- {{{ function strip_html_tags
+local function strip_html_tags(content)
+    -- Strip all HTML tags and decode HTML entities for TXT export
+    -- Images should be converted with render_attachment_images_txt() separately
+    local result = content
+
+    -- Strip HTML tags
+    result = result:gsub("<[^>]+>", "")
+
+    -- Decode common HTML entities
+    result = result:gsub("&amp;", "&")
+    result = result:gsub("&lt;", "<")
+    result = result:gsub("&gt;", ">")
+    result = result:gsub("&quot;", '"')
+    result = result:gsub("&#39;", "'")
+    result = result:gsub("&nbsp;", " ")
+    result = result:gsub("&#(%d+);", function(n)
+        return string.char(tonumber(n))
+    end)
+
+    -- Normalize multiple consecutive spaces/newlines
+    result = result:gsub("[ \t]+", " ")
+    result = result:gsub("\n[ \t]+", "\n")
+    result = result:gsub("[ \t]+\n", "\n")
+    result = result:gsub("\n\n\n+", "\n\n")
+
+    return result
+end
+-- }}}
+
 -- {{{ function wrap_text_80_chars
 local function wrap_text_80_chars(text)
     -- Wrap text to 80 chars while preserving existing newlines (paragraph breaks)
@@ -1178,7 +1208,7 @@ end
 -- {{{ function format_single_poem_80_width
 local function format_single_poem_80_width(poem)
     -- Format a single poem for TXT export (80-character width, no HTML)
-    -- Uses render_attachment_images_txt() for plain text image placeholders
+    -- Uses strip_html_tags() to remove HTML and render_attachment_images_txt() for images
     local formatted = ""
 
     -- Add file header (matching compiled.txt format)
@@ -1187,8 +1217,9 @@ local function format_single_poem_80_width(poem)
                                           poem.id or "unknown")
     formatted = formatted .. string.rep("-", 80) .. "\n"
 
-    -- Format poem content to 80-character width
-    formatted = formatted .. wrap_text_80_chars(poem.content or "")
+    -- Strip HTML tags and format poem content to 80-character width
+    local clean_content = strip_html_tags(poem.content or "")
+    formatted = formatted .. wrap_text_80_chars(clean_content)
 
     -- Render attached images as [Image: alt-text] placeholders (not HTML)
     if poem.attachments then
@@ -1534,6 +1565,31 @@ function generate_diversity_txt_file(starting_poem, sorted_poems, output_file)
 end
 -- }}}
 
+-- {{{ function M.generate_chronological_txt_file
+function M.generate_chronological_txt_file(poems_data, output_file)
+    -- Generate TXT export for all poems in chronological order
+    -- Uses actual post dates for sorting (not poem IDs)
+    -- Includes file header with metadata and all poems formatted at 80-char width
+
+    -- Sort poems chronologically by actual post dates
+    local sorted_poems = sort_poems_chronologically_by_dates(poems_data)
+    local total_poems = #sorted_poems
+
+    -- Generate header
+    local title = "POEMS IN CHRONOLOGICAL ORDER"
+    local header = generate_txt_file_header(title, total_poems)
+
+    -- Generate content for each poem
+    local content = header
+    for i, poem_info in ipairs(sorted_poems) do
+        content = content .. format_single_poem_80_width(poem_info.poem)
+        content = content .. "\n\n"
+    end
+
+    return utils.write_file(output_file, content) and output_file or nil
+end
+-- }}}
+
 -- {{{ function M.generate_complete_flat_html_collection
 function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir)
     -- Count poems with valid IDs
@@ -1606,9 +1662,17 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         end
     end
     
-    -- Generate chronological index
+    -- Generate chronological index (HTML)
     results.chronological_index = M.generate_chronological_index_with_navigation(poems_data, output_dir)
-    
+
+    -- Generate chronological TXT export
+    local chrono_txt_file = output_dir .. "/chronological.txt"
+    local chrono_txt = M.generate_chronological_txt_file(poems_data, chrono_txt_file)
+    if chrono_txt then
+        table.insert(results.txt_files, chrono_txt)
+        results.chronological_txt = chrono_txt
+    end
+
     -- Generate instructions page
     results.instructions_page = M.generate_simple_discovery_instructions(output_dir)
     
@@ -1651,6 +1715,8 @@ function M.main(interactive_mode)
             local poems_data = utils.read_json_file(poems_file)
             if poems_data then
                 M.generate_chronological_index_with_navigation(poems_data, output_dir)
+                M.generate_chronological_txt_file(poems_data, output_dir .. "/chronological.txt")
+                utils.log_info("Generated chronological.html and chronological.txt")
             end
         elseif choice == "3" then
             M.generate_simple_discovery_instructions(output_dir)
