@@ -585,6 +585,90 @@ associate_files_with_issues() {
 ```
 
 ### 7. Local LLM Integration (Optional)
+
+#### Success/Failure Tracking
+Store permanent incrementing counters for LLM reliability monitoring:
+```
+# File: ~/.config/reconstruct-history/llm-stats.txt
+# Line 1: success count (integer)
+# Line 2: failure count (integer)
+# Line 3: ratio string "success/failure" for display
+
+42
+7
+42/7
+```
+
+This enables:
+- Debugging hallucination rates ("it's hallucinating a lot, maybe turn temperature down")
+- A/B testing model changes ("did switching to mistral help?")
+- Historical record of parameter twiddling to isolate what's working
+- Quick sanity check before trusting LLM decisions
+
+```bash
+# -- {{{ LLM Stats File
+LLM_STATS_FILE="${LLM_STATS_FILE:-$HOME/.config/reconstruct-history/llm-stats.txt}"
+# }}}
+
+# -- {{{ record_llm_result
+record_llm_result() {
+    local success="$1"  # "success" or "failure"
+
+    # Ensure directory exists
+    mkdir -p "$(dirname "$LLM_STATS_FILE")"
+
+    # Initialize file if missing
+    if [[ ! -f "$LLM_STATS_FILE" ]]; then
+        echo "0" > "$LLM_STATS_FILE"
+        echo "0" >> "$LLM_STATS_FILE"
+        echo "0/0" >> "$LLM_STATS_FILE"
+    fi
+
+    # Read current counts
+    local success_count failure_count
+    success_count=$(sed -n '1p' "$LLM_STATS_FILE")
+    failure_count=$(sed -n '2p' "$LLM_STATS_FILE")
+
+    # Increment appropriate counter
+    if [[ "$success" == "success" ]]; then
+        ((success_count++))
+    else
+        ((failure_count++))
+    fi
+
+    # Write updated stats
+    echo "$success_count" > "$LLM_STATS_FILE"
+    echo "$failure_count" >> "$LLM_STATS_FILE"
+    echo "${success_count}/${failure_count}" >> "$LLM_STATS_FILE"
+
+    log "LLM stats: ${success_count}/${failure_count} (success/failure)"
+}
+# }}}
+
+# -- {{{ show_llm_stats
+show_llm_stats() {
+    if [[ ! -f "$LLM_STATS_FILE" ]]; then
+        echo "No LLM stats recorded yet"
+        return
+    fi
+
+    local success_count failure_count ratio
+    success_count=$(sed -n '1p' "$LLM_STATS_FILE")
+    failure_count=$(sed -n '2p' "$LLM_STATS_FILE")
+    ratio=$(sed -n '3p' "$LLM_STATS_FILE")
+
+    local total=$((success_count + failure_count))
+    local pct=0
+    [[ $total -gt 0 ]] && pct=$((success_count * 100 / total))
+
+    echo "LLM Statistics:"
+    echo "  Successes: $success_count"
+    echo "  Failures:  $failure_count"
+    echo "  Ratio:     $ratio ($pct% success rate)"
+}
+# }}}
+```
+
 ```bash
 # -- {{{ Configuration for LLM
 LLM_ENABLED="${LLM_ENABLED:-false}"
