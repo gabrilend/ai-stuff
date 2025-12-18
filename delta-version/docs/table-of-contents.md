@@ -5,9 +5,14 @@
 ### Core Documentation
 - [Project Structure](project-structure.md) - Delta-Version directory organization and scope
 - [Development Roadmap](roadmap.md) - Sequential development phases and feature planning
+- [Project Status](PROJECT-STATUS.md) - Current state and completion overview 📝
 - [API Reference](api-reference.md) - Script and utility documentation
 - [Development Guide](development-guide.md) - Conventions, patterns, and best practices
 - [Issue Template](issue-template.md) - Standard template for creating issues
+
+### Tool Guides
+- [History Tools Guide](history-tools-guide.md) - reconstruct-history.sh and generate-history.sh 📝
+- [HISTORY.txt](HISTORY.txt) - Generated commit history narrative
 
 ### Design Documents
 - [Vision](../notes/vision.md) - Project vision and scope definition
@@ -57,9 +62,18 @@
 - [Issue 021: Implement Validation and Testing System](../issues/021-implement-validation-and-testing-system.md)
 - [Issue 022: Create Integration and Workflow System](../issues/022-create-integration-and-workflow-system.md)
 
+### History Reconstruction Issues
+- [Issue 035: Project History Reconstruction](../issues/035-project-history-reconstruction.md) 🔄
+  - [Issue 035a: Project Detection and Import](../issues/completed/035a-project-detection-and-import.md) ✅
+  - [Issue 035b: Dependency Graph and Topological Sort](../issues/completed/035b-dependency-graph-topological-sort.md) ✅
+  - [Issue 035c: Date Estimation and Interpolation](../issues/completed/035c-date-estimation-interpolation.md) ✅
+- [Issue 036: Commit History Viewer](../issues/036-commit-history-viewer.md) 📋
+- [Issue 037: Project History Narrative Generator](../issues/completed/037-project-history-narrative-generator.md) ✅
+
 ### Utility Issues
-- [Issue 029: Demo Runner Script](../issues/029-demo-runner-script.md) 📝
-- [Issue 030: Issue Management Utility](../issues/030-issue-management-utility.md) 📝
+- [Issue 029: Demo Runner Script](../issues/completed/029-demo-runner-script.md) ✅
+- [Issue 030: Issue Management Utility](../issues/completed/030-issue-management-utility.md) ✅
+- [Issue 031: Import Project Histories](../issues/completed/031-import-project-histories.md) ✅
 
 ### Enhancement Issues
 - [Issue 024: External Project Directory Configuration](../issues/024-external-project-directory-configuration.md) 📝
