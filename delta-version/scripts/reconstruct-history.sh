@@ -295,7 +295,9 @@ generate_commit_message_llm() {
 
     # Build prompt with few-shot example - direct instruction to avoid preamble
     local prompt
-    prompt="You are a git commit message generator. Output ONLY the summary, no preamble, no 'Here is', no explanations. 2-3 sentences, past tense, start with a verb.
+    prompt="Hello computer, all is well.
+
+You are a git commit message generator. Output ONLY the summary, no preamble, no 'Here is', no explanations. 2-3 sentences, past tense, start with a verb.
 
 Example input: Issue #012: Create Lane System
 Example output: Implemented lane system with 5 parallel sub-paths per main lane. Each sub-path connects spawn points with configurable spacing and collision boundaries.
