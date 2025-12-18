@@ -319,6 +319,269 @@ extract_issue_title() {
 }
 # }}}
 
+# -- {{{ extract_issue_id
+extract_issue_id() {
+    local issue_file="$1"
+    local basename
+    basename=$(basename "$issue_file" .md)
+
+    # Extract issue ID pattern: 001, 023a, 035b, etc.
+    if [[ "$basename" =~ ^([0-9]{3}[a-z]?) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    fi
+}
+# }}}
+
+# =============================================================================
+# Dependency Graph and Topological Sort (035b)
+# =============================================================================
+
+# -- {{{ parse_issue_dependencies
+parse_issue_dependencies() {
+    local issue_file="$1"
+    local -a all_refs=()
+
+    # Extract Dependencies field (e.g., "Dependencies: 001, 002, 003")
+    local deps
+    deps=$(grep -iE '^[-*]?\s*\*?\*?Dependencies\*?\*?\s*:' "$issue_file" 2>/dev/null | \
+           sed 's/.*:\s*//' | tr ',' ' ')
+
+    # Extract Blocked By field
+    local blocked_by
+    blocked_by=$(grep -iE '^[-*]?\s*\*?\*?Blocked\s*By\*?\*?\s*:' "$issue_file" 2>/dev/null | \
+                 sed 's/.*:\s*//' | tr ',' ' ')
+
+    # Combine and extract issue numbers (003, 023a, etc.)
+    local combined="$deps $blocked_by"
+
+    # Match issue numbers: 001, 023, 035a, Issue 001, #001, etc.
+    while read -r ref; do
+        [[ -n "$ref" ]] && all_refs+=("$ref")
+    done < <(echo "$combined" | grep -oE '([0-9]{3}[a-z]?)' | sort -u)
+
+    # Output space-separated list
+    echo "${all_refs[*]}"
+}
+# }}}
+
+# -- {{{ parse_issue_blocks
+parse_issue_blocks() {
+    local issue_file="$1"
+    local -a all_refs=()
+
+    # Extract Blocks field (issues that THIS issue blocks)
+    local blocks
+    blocks=$(grep -iE '^[-*]?\s*\*?\*?Blocks\*?\*?\s*:' "$issue_file" 2>/dev/null | \
+             sed 's/.*:\s*//' | tr ',' ' ')
+
+    # Match issue numbers
+    while read -r ref; do
+        [[ -n "$ref" ]] && all_refs+=("$ref")
+    done < <(echo "$blocks" | grep -oE '([0-9]{3}[a-z]?)' | sort -u)
+
+    echo "${all_refs[*]}"
+}
+# }}}
+
+# -- {{{ build_dependency_graph
+build_dependency_graph() {
+    local issues_dir="$1"
+    local -A graph  # issue_id -> space-separated list of dependencies
+
+    # Process all issue files
+    for issue_file in "$issues_dir"/*.md; do
+        [[ ! -f "$issue_file" ]] && continue
+
+        local issue_id
+        issue_id=$(extract_issue_id "$issue_file")
+        [[ -z "$issue_id" ]] && continue
+
+        # Get direct dependencies (issues this one depends on)
+        local deps
+        deps=$(parse_issue_dependencies "$issue_file")
+        graph["$issue_id"]="$deps"
+
+        log "  Graph: $issue_id depends on: ${deps:-none}"
+    done
+
+    # Also process "Blocks" relationships (reverse direction)
+    # If issue A blocks issue B, then B depends on A
+    for issue_file in "$issues_dir"/*.md; do
+        [[ ! -f "$issue_file" ]] && continue
+
+        local issue_id
+        issue_id=$(extract_issue_id "$issue_file")
+        [[ -z "$issue_id" ]] && continue
+
+        local blocks
+        blocks=$(parse_issue_blocks "$issue_file")
+
+        for blocked_id in $blocks; do
+            # Add this issue as a dependency of the blocked issue
+            if [[ -n "${graph[$blocked_id]:-}" ]]; then
+                # Avoid duplicates
+                if ! echo " ${graph[$blocked_id]} " | grep -q " $issue_id "; then
+                    graph["$blocked_id"]="${graph[$blocked_id]} $issue_id"
+                fi
+            else
+                graph["$blocked_id"]="$issue_id"
+            fi
+            log "  Graph: $blocked_id depends on $issue_id (via Blocks field)"
+        done
+    done
+
+    # Output graph as lines: "issue_id:dep1 dep2 dep3"
+    for issue_id in "${!graph[@]}"; do
+        echo "$issue_id:${graph[$issue_id]}"
+    done
+}
+# }}}
+
+# -- {{{ topological_sort_issues
+topological_sort_issues() {
+    # Reads dependency graph from stdin and outputs topologically sorted issue IDs
+    # Format: "issue_id:dep1 dep2 dep3" per line
+
+    local -A graph       # issue_id -> space-separated dependencies
+    local -A in_degree   # issue_id -> number of unresolved dependencies
+    local -a all_nodes=()
+    local -a result=()
+    local -a queue=()
+
+    # Parse input graph
+    while IFS=':' read -r node deps; do
+        [[ -z "$node" ]] && continue
+
+        graph["$node"]="$deps"
+        all_nodes+=("$node")
+
+        # Initialize in_degree
+        [[ -z "${in_degree[$node]:-}" ]] && in_degree["$node"]=0
+
+        # Count dependencies (increment in_degree for nodes this one depends on)
+        for dep in $deps; do
+            [[ -z "${in_degree[$dep]:-}" ]] && in_degree["$dep"]=0
+            all_nodes+=("$dep")  # Ensure all referenced nodes are tracked
+        done
+    done
+
+    # Remove duplicate nodes
+    mapfile -t all_nodes < <(printf '%s\n' "${all_nodes[@]}" | sort -u)
+
+    # Calculate in_degree for each node
+    # in_degree = number of nodes that depend on this node (i.e., this node blocks them)
+    # We want nodes with low in_degree (not many blockers) to come first
+    # Actually, we need REVERSE: nodes with no dependencies should come first
+
+    # Reset and recalculate: in_degree[X] = count of how many issues X depends on
+    for node in "${all_nodes[@]}"; do
+        local deps="${graph[$node]:-}"
+        local dep_count=0
+        for dep in $deps; do
+            [[ -n "$dep" ]] && ((dep_count++))
+        done
+        in_degree["$node"]=$dep_count
+    done
+
+    # Initialize queue with nodes having no dependencies (in_degree = 0)
+    for node in "${all_nodes[@]}"; do
+        if [[ "${in_degree[$node]}" -eq 0 ]]; then
+            queue+=("$node")
+        fi
+    done
+
+    # Sort queue by issue number for deterministic output
+    mapfile -t queue < <(printf '%s\n' "${queue[@]}" | sort -V)
+
+    # Kahn's algorithm
+    while [[ ${#queue[@]} -gt 0 ]]; do
+        # Take first node from queue
+        local current="${queue[0]}"
+        queue=("${queue[@]:1}")
+        result+=("$current")
+
+        # For each node that depends on current, decrement its in_degree
+        for node in "${all_nodes[@]}"; do
+            local deps="${graph[$node]:-}"
+            if echo " $deps " | grep -q " $current "; then
+                ((in_degree["$node"]--))
+                if [[ "${in_degree[$node]}" -eq 0 ]]; then
+                    queue+=("$node")
+                fi
+            fi
+        done
+
+        # Re-sort queue for deterministic output
+        mapfile -t queue < <(printf '%s\n' "${queue[@]}" | sort -V)
+    done
+
+    # Output result
+    printf '%s\n' "${result[@]}"
+}
+# }}}
+
+# -- {{{ order_issues_by_dependencies
+order_issues_by_dependencies() {
+    local project_dir="$1"
+    local completed_dir="${project_dir}/issues/completed"
+
+    if [[ ! -d "$completed_dir" ]]; then
+        return 0
+    fi
+
+    log "Building dependency graph from issue files..."
+
+    # Build the dependency graph
+    local graph_output
+    graph_output=$(build_dependency_graph "$completed_dir")
+
+    if [[ -z "$graph_output" ]]; then
+        log "No dependencies found, falling back to numerical order"
+        discover_completed_issues "$project_dir"
+        return 0
+    fi
+
+    # Get topologically sorted issue IDs
+    local -a sorted_ids
+    mapfile -t sorted_ids < <(echo "$graph_output" | topological_sort_issues)
+
+    log "Topological sort result: ${sorted_ids[*]}"
+
+    # Also get issues that weren't in the graph (no dependencies mentioned)
+    local -a all_issue_files
+    mapfile -t all_issue_files < <(discover_completed_issues "$project_dir")
+
+    local -a ordered_files=()
+    local -A seen_ids=()
+
+    # First, output issues in topological order
+    for issue_id in "${sorted_ids[@]}"; do
+        for issue_file in "${all_issue_files[@]}"; do
+            local file_id
+            file_id=$(extract_issue_id "$issue_file")
+            if [[ "$file_id" == "$issue_id" ]] && [[ -z "${seen_ids[$file_id]:-}" ]]; then
+                ordered_files+=("$issue_file")
+                seen_ids["$file_id"]=1
+                break
+            fi
+        done
+    done
+
+    # Then, add any remaining issues not in the graph (in numerical order)
+    for issue_file in "${all_issue_files[@]}"; do
+        local file_id
+        file_id=$(extract_issue_id "$issue_file")
+        if [[ -z "${seen_ids[$file_id]:-}" ]]; then
+            ordered_files+=("$issue_file")
+            seen_ids["$file_id"]=1
+        fi
+    done
+
+    # Output ordered files
+    printf '%s\n' "${ordered_files[@]}"
+}
+# }}}
+
 # -- {{{ create_vision_commit
 create_vision_commit() {
     local vision_file="$1"
@@ -454,12 +717,12 @@ reconstruct_history() {
         echo "  [!] No vision file found, skipping vision commit"
     fi
 
-    # Step 2: Issue commits
+    # Step 2: Issue commits (ordered by dependencies via topological sort)
     local -a completed_issues
-    mapfile -t completed_issues < <(discover_completed_issues "$project_dir")
+    mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir")
 
     if [[ ${#completed_issues[@]} -gt 0 ]]; then
-        echo "  [2] Processing ${#completed_issues[@]} completed issue(s)..."
+        echo "  [2] Processing ${#completed_issues[@]} completed issue(s) (dependency-ordered)..."
         for issue_file in "${completed_issues[@]}"; do
             local issue_name
             issue_name=$(basename "$issue_file" .md)
@@ -660,19 +923,27 @@ dry_run_report() {
         echo "    (no vision file found, would skip)"
     fi
 
-    # Completed issues
+    # Completed issues (dependency-ordered)
     echo ""
-    echo "  Commits 2..N - Completed Issues:"
+    echo "  Commits 2..N - Completed Issues (dependency-ordered):"
     local -a completed_issues
-    mapfile -t completed_issues < <(discover_completed_issues "$project_dir" 2>/dev/null)
+    mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir" 2>/dev/null)
 
     if [[ ${#completed_issues[@]} -gt 0 ]]; then
         local i=2
         for issue_file in "${completed_issues[@]}"; do
-            local issue_name title
+            local issue_name title issue_id deps_info
             issue_name=$(basename "$issue_file" .md)
             title=$(extract_issue_title "$issue_file")
-            echo "    [$i] $issue_name"
+            issue_id=$(extract_issue_id "$issue_file")
+
+            # Show dependencies if any
+            local deps
+            deps=$(parse_issue_dependencies "$issue_file" 2>/dev/null)
+            deps_info=""
+            [[ -n "$deps" ]] && deps_info=" (depends on: $deps)"
+
+            echo "    [$i] $issue_name$deps_info"
             echo "        \"$title\""
             ((i++))
         done
@@ -733,6 +1004,9 @@ Project States:
 Commit Order:
     1. Vision file (notes/vision.md, vision, etc.)
     2. Each completed issue file (issues/completed/*.md)
+       - Ordered by dependencies (topological sort)
+       - Parses Dependencies, Blocks, Blocked By fields
+       - Issues with no dependencies come first
     3. All remaining project files (source, docs, assets)
 
 For existing repos with post-blob commits:

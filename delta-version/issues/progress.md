@@ -201,7 +201,7 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: Sub-issue 035a complete, core framework implemented
   - *Sub-issues*:
     - **035a** ✅: Project detection and external import (unified workflow, state classification)
-    - **035b**: Dependency graph and topological sort
+    - **035b** ✅: Dependency graph and topological sort (Kahn's algorithm, parses Dependencies/Blocks fields)
     - **035c**: Date estimation from file timestamps
     - **035d**: File-to-issue association
     - **035e**: History rewriting with rebase (preserve post-blob commits)
@@ -279,10 +279,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~48 (including sub-issues)
-- **Completed**: 16 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 037)
+- **Completed**: 17 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 035b, 037)
 - **In Progress**: 1 (035 - Project History Reconstruction)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~29
+- **Pending**: ~28
 - **High Priority**: 1 (035 - blocks 036 and project imports)
 
 ## Notes

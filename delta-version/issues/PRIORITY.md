@@ -23,6 +23,7 @@ This document prioritizes open issues based on:
 | 030 | Issue Management Utility | 2024-12-15 |
 | 031 | Import Project Histories | 2024-12-15 |
 | 035a | Project Detection and Import | 2024-12-17 |
+| 035b | Dependency Graph and Topological Sort | 2025-12-17 |
 | 037 | Project History Narrative Generator | 2025-12-17 |
 
 ---
@@ -35,15 +36,15 @@ This document prioritizes open issues based on:
 **Complexity:** High
 
 Remaining sub-issues:
-| Sub-Issue | Description | Complexity |
-|-----------|-------------|------------|
-| **035b** | Dependency graph and topological sort | Medium |
-| **035c** | Date estimation from file timestamps | Medium |
-| **035d** | File-to-issue association | Medium |
-| **035e** | History rewriting with rebase | High |
-| **035f** | Local LLM integration | Low (optional) |
+| Sub-Issue | Description | Status |
+|-----------|-------------|--------|
+| **035b** | Dependency graph and topological sort | ✅ Complete |
+| **035c** | Date estimation from file timestamps | Pending |
+| **035d** | File-to-issue association | Pending |
+| **035e** | History rewriting with rebase | Pending |
+| **035f** | Local LLM integration | Pending (optional) |
 
-**Recommended next:** 035b or 035c (can be parallel)
+**Recommended next:** 035c (date estimation)
 
 ---
 
