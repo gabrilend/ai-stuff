@@ -103,6 +103,79 @@ Some menus have numeric input fields (shown as `Label: [  5]`).
 
 **Note:** When cursor is on a number field, digit keys edit the value instead of jumping.
 
+## Command Preview Editing (Vim-Style Modal)
+
+Some menus display a live command preview showing the bash command being built from your selections.
+When the cursor is on the command preview, it uses vim-style modal editing with three modes.
+
+### Vim-Nav Mode (Default)
+
+When you first navigate to the command preview, you're in **vim-nav mode**:
+
+| Key | Action |
+|-----|--------|
+| `h` | Move cursor left |
+| `l` | Move cursor right |
+| `j` | Navigate to next menu item |
+| `k` | Navigate to previous menu item |
+| `0` | Go to start of line |
+| `$` | Go to end of line |
+| `x` | Delete character at cursor |
+| `i` | Enter **insert mode** at cursor |
+| `A` | Enter **insert mode** at end of line (append) |
+| `ENTER` | Run command (if no invalid flags) |
+| `q` | Quit |
+
+### Insert Mode
+
+Enter with `i` or `A`. The footer shows `-- INSERT --`:
+
+| Key | Action |
+|-----|--------|
+| Any character | Insert at cursor (including h/j/k/l) |
+| Arrow keys | Move cursor |
+| `BACKSPACE` | Delete character before cursor |
+| `DELETE` | Delete character at cursor |
+| `ESC` | Exit to vim-nav mode |
+| `UP` / `DOWN` | Navigate out (also exits insert mode) |
+| `ENTER` | Run command (if no invalid flags) |
+
+### Arrow Mode
+
+If you use arrow keys while in vim-nav mode, you switch to **arrow mode**:
+
+| Key | Action |
+|-----|--------|
+| Arrow keys | Move cursor |
+| Any character | Insert at cursor (including h/j/k/l/q) |
+| `BACKSPACE` | Delete character before cursor |
+| `ESC` | Return to vim-nav mode |
+| `UP` / `DOWN` | Navigate out (returns to vim-nav) |
+| `ENTER` | Run command (if no invalid flags) |
+
+### Mode Reset
+
+When you navigate away from the command preview (to another menu item), the mode
+automatically resets to **vim-nav mode** for the next time you return.
+
+### How Editing Works
+
+As you edit the command text:
+- **Valid flags** (like `--verbose`, `-s`) are shown in cyan and automatically check
+  the corresponding options in the menu above
+- **Invalid flags** (unrecognized options) are shown in **red** - you cannot run
+  the command until these are fixed
+- Options not present in the command are automatically unchecked
+
+### Example
+
+```
+$ ./script.sh --verbose --skip-existing
+```
+
+If you delete `--verbose` from the command, the "Verbose" checkbox will be unchecked.
+If you type `--invalid-flag`, it will be shown in red until corrected.
+
 ## Exiting
 
 | Key | Action |

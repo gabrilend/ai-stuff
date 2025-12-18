@@ -29,6 +29,18 @@ local state = {
     command_base = "",              -- Base command (e.g., "./script.sh")
     command_preview_item = nil,     -- item_id of the command preview text item
     command_file_section = nil,     -- section_id containing file selections
+    -- Command preview inline editing state
+    cmd_cursor = 0,                 -- Cursor position within command (0 = at end)
+    cmd_invalid_ranges = {},        -- List of {start, end} for invalid flags to render red
+    -- Input mode for command preview: "vim-nav", "insert", or "arrow"
+    -- vim-nav: h/l move cursor, j/k navigate out, i/A enter insert mode
+    -- insert: all printable chars insert, arrows move cursor, ESC exits
+    -- arrow: arrows move cursor, vim keys insert text
+    cmd_input_mode = "vim-nav",
+    -- Status message to display in description area (e.g., error messages)
+    status_message = nil,
+    -- Track which menu items are in an invalid/conflicting state (item_id -> true)
+    cmd_invalid_items = {},
 }
 -- }}}
 
@@ -51,6 +63,12 @@ function menu.init(config)
     state.command_base = config.command_base or ""
     state.command_preview_item = config.command_preview_item or nil
     state.command_file_section = config.command_file_section or nil
+    -- Command preview inline editing init
+    state.cmd_cursor = 0
+    state.cmd_invalid_ranges = {}
+    state.cmd_input_mode = "vim-nav"
+    state.status_message = nil
+    state.cmd_invalid_items = {}
 
     -- Process sections
     for _, section in ipairs(config.sections or {}) do
@@ -109,6 +127,18 @@ local function get_current_section_type()
     local sid = state.sections[state.current_section]
     if not sid then return nil end
     return state.section_data[sid].type
+end
+
+local function is_on_command_preview()
+    local item_id = get_current_item_id()
+    return item_id and item_id == state.command_preview_item
+end
+
+local function get_command_text()
+    if state.command_preview_item then
+        return state.values[state.command_preview_item] or ""
+    end
+    return ""
 end
 
 local function get_total_items()
@@ -252,14 +282,333 @@ local function compute_command_preview()
     return table.concat(parts, " ")
 end
 
--- Update the command preview item's value
-local function update_command_preview()
-    if state.command_preview_item then
-        local cmd = compute_command_preview()
-        if cmd then
-            state.values[state.command_preview_item] = cmd
+-- Build a lookup table of all known flags -> item info
+-- {{{ local function build_flag_lookup
+local function build_flag_lookup()
+    local lookup = {}
+    for _, sid in ipairs(state.sections) do
+        if sid ~= state.command_file_section then
+            for _, iid in ipairs(state.section_data[sid].items) do
+                local item = state.item_data[iid]
+                if item.flag and iid ~= state.command_preview_item then
+                    lookup[item.flag] = {
+                        section_id = sid,
+                        item_id = iid,
+                        type = item.type
+                    }
+                end
+            end
         end
     end
+    return lookup
+end
+-- }}}
+
+-- Parse command text into tokens (words separated by spaces)
+-- Returns: {tokens = {text, start, end}, flag_lookup = {...}}
+-- {{{ local function parse_command_tokens
+local function parse_command_tokens(cmd_text)
+    local tokens = {}
+    local pos = 1
+
+    for word in cmd_text:gmatch("%S+") do
+        local start_pos = cmd_text:find(word, pos, true)
+        if start_pos then
+            table.insert(tokens, {
+                text = word,
+                start_pos = start_pos,
+                end_pos = start_pos + #word - 1
+            })
+            pos = start_pos + #word
+        end
+    end
+
+    return tokens
+end
+-- }}}
+
+-- Sync checkbox states based on parsed command
+-- Returns list of invalid ranges {start, end} for flags that don't exist
+-- Also updates cmd_invalid_items for conflicting radio buttons
+-- {{{ local function sync_checkboxes_from_command
+local function sync_checkboxes_from_command(cmd_text)
+    local flag_lookup = build_flag_lookup()
+    local tokens = parse_command_tokens(cmd_text)
+    local invalid_ranges = {}
+    local found_flags = {}  -- Track which flags were found in command
+    local found_by_section = {}  -- Track which flags found per section (for conflict detection)
+
+    -- Skip the base command (first token if it matches)
+    local start_idx = 1
+    if #tokens > 0 and tokens[1].text == state.command_base then
+        start_idx = 2
+    end
+
+    -- Process each token as a potential flag
+    for i = start_idx, #tokens do
+        local token = tokens[i]
+        local flag_info = flag_lookup[token.text]
+
+        if flag_info then
+            -- Valid flag found
+            found_flags[flag_info.item_id] = true
+            -- Track by section for conflict detection
+            local sid = flag_info.section_id
+            if not found_by_section[sid] then
+                found_by_section[sid] = {}
+            end
+            table.insert(found_by_section[sid], flag_info.item_id)
+        elseif not token.text:match("^<.*>$") then
+            -- Not a valid flag and not a file placeholder - mark as invalid
+            table.insert(invalid_ranges, {
+                start_pos = token.start_pos,
+                end_pos = token.end_pos
+            })
+        end
+    end
+
+    -- Clear previous invalid items
+    state.cmd_invalid_items = {}
+
+    -- Detect conflicts in single-select sections (radio buttons)
+    -- If multiple flags from the same single-select section are present, mark all as conflicting
+    for _, sid in ipairs(state.sections) do
+        local section_data = state.section_data[sid]
+        if section_data.type == "single" and found_by_section[sid] and #found_by_section[sid] > 1 then
+            -- Conflict: multiple radio buttons selected
+            for _, iid in ipairs(found_by_section[sid]) do
+                state.cmd_invalid_items[iid] = true
+            end
+        end
+    end
+
+    -- Update checkbox states: check found flags, uncheck others
+    for _, sid in ipairs(state.sections) do
+        if sid ~= state.command_file_section then
+            local section_data = state.section_data[sid]
+            for _, iid in ipairs(section_data.items) do
+                local item = state.item_data[iid]
+                if item.flag and item.type == "checkbox" and iid ~= state.command_preview_item then
+                    if found_flags[iid] then
+                        state.values[iid] = "1"
+                    else
+                        state.values[iid] = "0"
+                    end
+                end
+            end
+        end
+    end
+
+    return invalid_ranges
+end
+-- }}}
+
+-- Reconcile command preview with checkbox states
+-- Instead of full recompute, incrementally add/remove flags to preserve other content
+-- This enables true bidirectional binding between checkboxes and command text
+local function reconcile_command_preview()
+    io.stderr:write("DEBUG reconcile_command_preview: called\n")
+    if not state.command_preview_item then
+        io.stderr:write("DEBUG reconcile_command_preview: no command_preview_item, returning\n")
+        return
+    end
+    if is_on_command_preview() then
+        io.stderr:write("DEBUG reconcile_command_preview: on command preview, returning\n")
+        return
+    end
+
+    local cmd_text = state.values[state.command_preview_item] or ""
+    io.stderr:write("DEBUG reconcile_command_preview: cmd_text='" .. cmd_text .. "'\n")
+
+    -- If command is empty, do a full compute
+    if cmd_text == "" then
+        io.stderr:write("DEBUG reconcile_command_preview: cmd_text is empty, calling compute\n")
+        local cmd = compute_command_preview()
+        io.stderr:write("DEBUG reconcile_command_preview: computed cmd='" .. tostring(cmd) .. "'\n")
+        if cmd then
+            state.values[state.command_preview_item] = cmd
+            state.cmd_invalid_ranges = {}
+        end
+        return
+    end
+
+    local flag_lookup = build_flag_lookup()
+    local tokens = parse_command_tokens(cmd_text)
+
+    -- Build set of flags currently in command
+    local flags_in_cmd = {}
+    for _, token in ipairs(tokens) do
+        if flag_lookup[token.text] then
+            flags_in_cmd[token.text] = true
+        end
+    end
+
+    -- Determine what flags SHOULD be in command based on checkbox states
+    local flags_should_have = {}
+    for _, sid in ipairs(state.sections) do
+        if sid ~= state.command_file_section then
+            for _, iid in ipairs(state.section_data[sid].items) do
+                local item = state.item_data[iid]
+                local flag = item.flag
+                if flag and iid ~= state.command_preview_item then
+                    if item.type == "checkbox" and state.values[iid] == "1" then
+                        flags_should_have[flag] = true
+                    end
+                end
+            end
+        end
+    end
+
+    -- Find flags to add (should have but don't)
+    local flags_to_add = {}
+    for flag, _ in pairs(flags_should_have) do
+        if not flags_in_cmd[flag] then
+            table.insert(flags_to_add, flag)
+        end
+    end
+
+    -- Find flags to remove (have but shouldn't)
+    local flags_to_remove = {}
+    for flag, _ in pairs(flags_in_cmd) do
+        if not flags_should_have[flag] then
+            flags_to_remove[flag] = true
+        end
+    end
+
+    -- Remove flags that shouldn't be there
+    -- Work backwards through tokens to preserve positions
+    local new_cmd = cmd_text
+    for i = #tokens, 1, -1 do
+        local token = tokens[i]
+        if flags_to_remove[token.text] then
+            -- Remove this token (and trailing space if any)
+            local before = new_cmd:sub(1, token.start_pos - 1)
+            local after = new_cmd:sub(token.end_pos + 1)
+            -- Trim extra space
+            if before:sub(-1) == " " and (after == "" or after:sub(1, 1) == " ") then
+                before = before:sub(1, -2)
+            elseif after:sub(1, 1) == " " then
+                after = after:sub(2)
+            end
+            new_cmd = before .. after
+        end
+    end
+
+    -- Add flags that should be there (insert after base command)
+    if #flags_to_add > 0 then
+        -- Find position after base command
+        local insert_pos = #state.command_base + 1
+        if new_cmd:sub(insert_pos, insert_pos) == " " then
+            insert_pos = insert_pos + 1
+        end
+        local flags_str = table.concat(flags_to_add, " ")
+        local before = new_cmd:sub(1, insert_pos - 1)
+        local after = new_cmd:sub(insert_pos)
+        -- Add space if needed
+        if before ~= "" and before:sub(-1) ~= " " then
+            before = before .. " "
+        end
+        if after ~= "" and after:sub(1, 1) ~= " " then
+            flags_str = flags_str .. " "
+        end
+        new_cmd = before .. flags_str .. after
+    end
+
+    -- Update command and re-validate
+    if new_cmd ~= cmd_text then
+        state.values[state.command_preview_item] = new_cmd
+        state.cmd_invalid_ranges = sync_checkboxes_from_command(new_cmd)
+    end
+end
+
+-- Update the command preview (alias for reconcile for backward compatibility)
+local function update_command_preview()
+    reconcile_command_preview()
+end
+
+-- Get the start and end positions of the <N files> placeholder in command text
+-- Returns start_pos, end_pos or nil if not found
+local function get_file_placeholder_range(cmd_text)
+    local start_pos, end_pos = cmd_text:find("<%d+ files>")
+    return start_pos, end_pos
+end
+
+-- Get list of selected file labels from the file section
+local function get_selected_files()
+    local files = {}
+    if state.command_file_section then
+        local file_section = state.section_data[state.command_file_section]
+        if file_section then
+            for _, iid in ipairs(file_section.items) do
+                local item = state.item_data[iid]
+                if item.type == "checkbox" and state.values[iid] == "1" then
+                    table.insert(files, item.label)
+                end
+            end
+        end
+    end
+    return files
+end
+
+-- Expand the <N files> placeholder in command text to show actual files
+-- Format: space-separated with shell escaping for safe copy-paste
+local function expand_files_in_command()
+    local cmd_text = get_command_text()
+    local start_pos, end_pos = get_file_placeholder_range(cmd_text)
+    if not start_pos then return false end
+
+    local files = get_selected_files()
+    if #files == 0 then return false end
+
+    -- Build file list with shell escaping
+    local file_parts = {}
+    for _, file in ipairs(files) do
+        -- Escape special shell characters in filename
+        local escaped = file:gsub("([%s'\"\\$`!#&*?|<>(){}%[%];])", "\\%1")
+        table.insert(file_parts, escaped)
+    end
+
+    -- Join with spaces (single-line for TUI display)
+    local files_str = table.concat(file_parts, " ")
+
+    -- Replace placeholder with expanded files
+    local before = cmd_text:sub(1, start_pos - 1)
+    local after = cmd_text:sub(end_pos + 1)
+    local new_text = before .. files_str .. after
+
+    state.values[state.command_preview_item] = new_text
+    -- Update cursor to after the expanded section
+    state.cmd_cursor = start_pos + #files_str
+
+    -- Re-sync checkboxes (files aren't flags, so this should work fine)
+    state.cmd_invalid_ranges = sync_checkboxes_from_command(new_text)
+
+    return true
+end
+
+-- Check if there are any invalid states (invalid flags in command or conflicting menu items)
+local function has_invalid_state()
+    -- Check for invalid ranges in command text
+    if #state.cmd_invalid_ranges > 0 then
+        return true
+    end
+    -- Check for conflicting/invalid menu items
+    for _, _ in pairs(state.cmd_invalid_items) do
+        return true
+    end
+    return false
+end
+
+-- Check if cursor position is within the <N files> placeholder
+local function is_cursor_in_file_placeholder()
+    local cmd_text = get_command_text()
+    local start_pos, end_pos = get_file_placeholder_range(cmd_text)
+    if not start_pos then return false end
+
+    local cursor = state.cmd_cursor
+    if cursor == 0 then cursor = #cmd_text + 1 end
+
+    return cursor >= start_pos and cursor <= end_pos + 1
 end
 
 -- Find an item's section and item indices by item_id
@@ -315,6 +664,7 @@ local function render_item(row, item_id, highlight, item_num, section_type)
     local item_type = data.type
     local disabled = data.disabled
     local is_radio = (section_type == "single")  -- Radio button in single-select section
+    local is_invalid = state.cmd_invalid_items[item_id]  -- Item is in conflicting/invalid state
 
     -- Clear the row first
     tui.clear_row(row)
@@ -349,11 +699,17 @@ local function render_item(row, item_id, highlight, item_num, section_type)
 
     -- Type-specific prefix (checkbox/radio indicator)
     -- Radio buttons use ( ) parentheses, checkboxes use [ ] brackets
+    -- Invalid/conflicting items are shown in red
     tui.reset_style()
     if item_type == "checkbox" then
         if disabled then
             tui.set_attrs(tui.ATTR_DIM)
             tui.write_str(row, col, is_radio and "(o)" or "[o]")
+        elseif is_invalid then
+            -- Conflicting/invalid state - show in red
+            tui.set_fg(tui.FG_RED)
+            tui.set_attrs(tui.ATTR_BOLD)
+            tui.write_str(row, col, is_radio and "(!)" or "[!]")
         elseif value == "1" then
             tui.set_fg(tui.FG_GREEN)
             tui.write_str(row, col, is_radio and "(*)" or "[*]")
@@ -368,7 +724,13 @@ local function render_item(row, item_id, highlight, item_num, section_type)
 
     -- Label
     tui.reset_style()
-    if highlight then
+    if is_invalid then
+        -- Conflicting/invalid state - show label in red
+        tui.set_fg(tui.FG_RED)
+        if highlight then
+            tui.set_attrs(tui.ATTR_INVERSE)
+        end
+    elseif highlight then
         if disabled then
             tui.set_attrs(bit.bor(tui.ATTR_DIM, tui.ATTR_INVERSE))
         else
@@ -402,16 +764,75 @@ local function render_item(row, item_id, highlight, item_num, section_type)
         tui.set_attrs(highlight and tui.ATTR_BOLD or tui.ATTR_DIM)
         tui.write_str(row, col, " -->")
     elseif item_type == "text" then
-        -- Text items display read-only content (like command preview)
-        tui.set_attrs(tui.ATTR_DIM)
-        tui.set_fg(tui.FG_CYAN)
-        -- Truncate if too long
+        -- Text items display content (like command preview)
+        -- When highlighted and is command preview, show with cursor for inline editing
         local max_len = state.cols - col - 2
         local display_val = value
-        if #display_val > max_len then
-            display_val = display_val:sub(1, max_len - 3) .. "..."
+        local is_cmd_preview = (item_id == state.command_preview_item)
+
+        if highlight and is_cmd_preview then
+            -- Inline editing mode: show with cursor and red invalid flags
+            local truncated = false
+
+            if #display_val > max_len then
+                display_val = display_val:sub(1, max_len - 3)
+                truncated = true
+            end
+
+            -- Render character by character to support coloring and cursor
+            local char_col = col
+            for i = 1, #display_val do
+                local c = display_val:sub(i, i)
+                local in_invalid = false
+
+                -- Check if this position is in an invalid range
+                for _, range in ipairs(state.cmd_invalid_ranges) do
+                    if i >= range.start_pos and i <= range.end_pos then
+                        in_invalid = true
+                        break
+                    end
+                end
+
+                -- Set color
+                tui.reset_style()
+                if in_invalid then
+                    tui.set_fg(tui.FG_RED)
+                    tui.set_attrs(tui.ATTR_BOLD)
+                else
+                    tui.set_fg(tui.FG_CYAN)
+                end
+
+                -- Show cursor (inverse video at cursor position)
+                if i == state.cmd_cursor then
+                    tui.set_attrs(tui.ATTR_INVERSE)
+                end
+
+                tui.write_str(row, char_col, c)
+                char_col = char_col + 1
+            end
+
+            -- Show cursor at end if cursor is past last character
+            if state.cmd_cursor > #display_val or state.cmd_cursor == 0 then
+                tui.reset_style()
+                tui.set_attrs(tui.ATTR_INVERSE)
+                tui.write_str(row, char_col, " ")
+                char_col = char_col + 1
+            end
+
+            if truncated then
+                tui.reset_style()
+                tui.set_attrs(tui.ATTR_DIM)
+                tui.write_str(row, char_col, "...")
+            end
+        else
+            -- Normal display mode
+            tui.set_attrs(tui.ATTR_DIM)
+            tui.set_fg(tui.FG_CYAN)
+            if #display_val > max_len then
+                display_val = display_val:sub(1, max_len - 3) .. "..."
+            end
+            tui.write_str(row, col, display_val)
         end
-        tui.write_str(row, col, display_val)
     end
 
     tui.reset_style()
@@ -468,16 +889,29 @@ local function render_description(start_row)
     tui.clear_row(row)
     tui.clear_row(row + 1)
 
-    -- Get current item description
-    local item_id = get_current_item_id()
-    if item_id then
-        local desc = state.item_data[item_id].description
-        if desc and desc ~= "" then
-            local max_len = state.cols - 4
-            if #desc > max_len then
-                desc = desc:sub(1, max_len - 3) .. "..."
+    -- Show status message if set (e.g., error messages), otherwise show item description
+    if state.status_message then
+        tui.set_fg(tui.FG_RED)
+        tui.set_attrs(tui.ATTR_BOLD)
+        local max_len = state.cols - 4
+        local msg = state.status_message
+        if #msg > max_len then
+            msg = msg:sub(1, max_len - 3) .. "..."
+        end
+        tui.write_str(row, 3, msg)
+        tui.reset_style()
+    else
+        -- Get current item description
+        local item_id = get_current_item_id()
+        if item_id then
+            local desc = state.item_data[item_id].description
+            if desc and desc ~= "" then
+                local max_len = state.cols - 4
+                if #desc > max_len then
+                    desc = desc:sub(1, max_len - 3) .. "..."
+                end
+                tui.write_str(row, 3, desc)
             end
-            tui.write_str(row, 3, desc)
         end
     end
 
@@ -500,9 +934,21 @@ local function render_footer()
     end
     local shortcuts_str = table.concat(shortcuts_parts, "  ")
 
-    -- Determine if we need extra rows for shortcuts
-    local base_help = "j/k:nav  space:toggle  `:action  q:quit"
-    local has_shortcuts = #shortcuts_parts > 0
+    -- Build base help text - show different help when on command preview
+    local base_help
+    local on_cmd = is_on_command_preview()
+    if on_cmd then
+        if state.cmd_input_mode == "vim-nav" then
+            base_help = "h/l:cursor  j/k:nav  i:insert  A:append  ENTER:run  q:quit"
+        elseif state.cmd_input_mode == "insert" then
+            base_help = "-- INSERT --  arrows:move  type:edit  ESC:exit  ENTER:run"
+        else  -- arrow mode
+            base_help = "arrows:cursor  type:edit  ENTER:run  q:quit"
+        end
+    else
+        base_help = "j/k:nav  space:toggle  `:action  q:quit"
+    end
+    local has_shortcuts = #shortcuts_parts > 0 and not on_cmd
 
     local row
     if has_shortcuts then
@@ -956,6 +1402,181 @@ function menu.handle_flag_backspace()
 end
 -- }}}
 
+-- {{{ Command preview inline editing functions
+-- These work directly on the command preview value when cursor is on that item
+
+-- {{{ menu.cmd_insert_char
+-- Insert a character at cursor position in command preview
+-- If cursor is within <N files> placeholder, expand files instead
+function menu.cmd_insert_char(char)
+    if not is_on_command_preview() then return false end
+
+    -- Check if cursor is within file placeholder - expand instead of insert
+    if is_cursor_in_file_placeholder() then
+        if expand_files_in_command() then
+            menu.render()
+            return true
+        end
+    end
+
+    local text = get_command_text()
+    local cursor = state.cmd_cursor
+    if cursor == 0 then cursor = #text + 1 end
+
+    -- Insert character at cursor position
+    local before = text:sub(1, cursor - 1)
+    local after = text:sub(cursor)
+    local new_text = before .. char .. after
+    state.values[state.command_preview_item] = new_text
+    state.cmd_cursor = cursor + 1
+
+    -- Re-sync checkboxes and detect invalid flags
+    state.cmd_invalid_ranges = sync_checkboxes_from_command(new_text)
+
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_backspace
+-- Delete character before cursor in command preview
+-- If cursor is within <N files> placeholder, expand files instead
+function menu.cmd_backspace()
+    if not is_on_command_preview() then return false end
+
+    -- Check if cursor is within file placeholder - expand instead of delete
+    if is_cursor_in_file_placeholder() then
+        if expand_files_in_command() then
+            menu.render()
+            return true
+        end
+    end
+
+    local text = get_command_text()
+    local cursor = state.cmd_cursor
+    if cursor == 0 then cursor = #text + 1 end
+    if cursor <= 1 then return false end
+
+    local before = text:sub(1, cursor - 2)
+    local after = text:sub(cursor)
+    local new_text = before .. after
+    state.values[state.command_preview_item] = new_text
+    state.cmd_cursor = cursor - 1
+
+    -- Re-sync checkboxes and detect invalid flags
+    state.cmd_invalid_ranges = sync_checkboxes_from_command(new_text)
+
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_delete
+-- Delete character at cursor in command preview
+-- If cursor is within <N files> placeholder, expand files instead
+function menu.cmd_delete()
+    if not is_on_command_preview() then return false end
+
+    -- Check if cursor is within file placeholder - expand instead of delete
+    if is_cursor_in_file_placeholder() then
+        if expand_files_in_command() then
+            menu.render()
+            return true
+        end
+    end
+
+    local text = get_command_text()
+    local cursor = state.cmd_cursor
+    if cursor == 0 then cursor = #text + 1 end
+    if cursor > #text then return false end
+
+    local before = text:sub(1, cursor - 1)
+    local after = text:sub(cursor + 1)
+    local new_text = before .. after
+    state.values[state.command_preview_item] = new_text
+
+    -- Re-sync checkboxes and detect invalid flags
+    state.cmd_invalid_ranges = sync_checkboxes_from_command(new_text)
+
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_left
+-- Move cursor left in command preview
+function menu.cmd_cursor_left()
+    if not is_on_command_preview() then return false end
+
+    local text = get_command_text()
+    local cursor = state.cmd_cursor
+    if cursor == 0 then cursor = #text + 1 end
+
+    if cursor > 1 then
+        state.cmd_cursor = cursor - 1
+        menu.render()
+    end
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_right
+-- Move cursor right in command preview
+function menu.cmd_cursor_right()
+    if not is_on_command_preview() then return false end
+
+    local text = get_command_text()
+    local cursor = state.cmd_cursor
+    if cursor == 0 then cursor = #text + 1 end
+
+    if cursor <= #text then
+        state.cmd_cursor = cursor + 1
+        menu.render()
+    end
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_start
+-- Move cursor to beginning of command
+function menu.cmd_cursor_start()
+    if not is_on_command_preview() then return false end
+    state.cmd_cursor = 1
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_end
+-- Move cursor to end of command
+function menu.cmd_cursor_end()
+    if not is_on_command_preview() then return false end
+    local text = get_command_text()
+    state.cmd_cursor = #text + 1
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_is_cursor_at_start
+-- Check if cursor is at start of command
+function menu.cmd_is_cursor_at_start()
+    local cursor = state.cmd_cursor
+    return cursor == 0 or cursor == 1
+end
+-- }}}
+
+-- {{{ menu.cmd_is_cursor_at_end
+-- Check if cursor is at end of command
+function menu.cmd_is_cursor_at_end()
+    local text = get_command_text()
+    local cursor = state.cmd_cursor
+    return cursor == 0 or cursor > #text
+end
+-- }}}
+
+-- }}}
+
 -- {{{ menu.get_values
 function menu.get_values()
     return state.values
@@ -1058,115 +1679,307 @@ function menu.run()
             return "quit", state.values
         end
 
-        -- Quit keys
-        if key == "q" or key == "Q" or key == "ESCAPE" or key == "CTRL_C" then
-            return "quit", state.values
-        end
+        -- Clear status message on any keypress (it will be re-set if needed)
+        state.status_message = nil
 
-        -- Navigation: UP/k
-        if key == "UP" or key == "k" then
-            menu.nav_up()
-        -- Navigation: DOWN/j
-        elseif key == "DOWN" or key == "j" then
-            menu.nav_down()
-        -- LEFT/h: unset checkbox, set flag to 0, cycle multistate backwards
-        elseif key == "LEFT" or key == "h" then
-            menu.handle_left()
-        -- RIGHT/l: set checkbox, set flag to default, cycle multistate forwards
-        elseif key == "RIGHT" or key == "l" then
-            menu.handle_right()
-        -- Toggle/Activate: SPACE/i/ENTER
-        elseif key == "SPACE" or key == "i" or key == "ENTER" then
-            local result = menu.toggle()
-            if result == "action" then
-                return "run", state.values
+        -- Check if we're on the command preview item
+        local on_cmd_preview = is_on_command_preview()
+
+        -- === Command preview with modal editing ===
+        if on_cmd_preview then
+            local mode = state.cmd_input_mode
+
+            -- Global quit (q only in vim-nav mode, always for Q/Ctrl+C)
+            if key == "Q" or key == "CTRL_C" then
+                return "quit", state.values
             end
-        -- Go to top
-        elseif key == "g" then
-            menu.nav_top()
-        -- Go to bottom
-        elseif key == "G" then
-            menu.nav_bottom()
-        -- Jump to action item: ` or ~
-        elseif key == "`" or key == "~" then
-            menu.nav_to_action()
-        -- Digit keys 0-9: for flag fields or jump to checkbox by index
-        elseif type(key) == "string" and #key == 1 and key >= "0" and key <= "9" then
-            -- Check if current item is a flag field
-            local item_id = get_current_item_id()
-            local is_flag = item_id and state.item_data[item_id] and state.item_data[item_id].type == "flag"
-            if is_flag then
-                menu.handle_flag_digit(key)
-            else
-                -- Index navigation with consecutive digit tracking (checkbox items only)
-                local digit = tonumber(key)
+            if key == "q" and mode == "vim-nav" then
+                return "quit", state.values
+            end
 
-                -- Track consecutive presses of same digit
-                if digit == state.last_digit then
-                    state.digit_count = state.digit_count + 1
-                else
-                    state.last_digit = digit
-                    state.digit_count = 1
+            -- Mode-specific handling
+            if mode == "vim-nav" then
+                -- === VIM-NAV MODE ===
+                -- h/l move cursor, j/k navigate out, i enters insert, A appends
+                -- ENTER navigates to action item (run option)
+
+                if key == "ENTER" then
+                    -- Navigate to the Run action item
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_to_action()
+                elseif key == "h" then
+                    menu.cmd_cursor_left()
+                elseif key == "l" then
+                    menu.cmd_cursor_right()
+                elseif key == "j" then
+                    -- Navigate down, reset mode for next time
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_down()
+                elseif key == "k" then
+                    -- Navigate up, reset mode for next time
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_up()
+                elseif key == "i" then
+                    -- Enter insert mode at current cursor position
+                    -- If cursor is in file placeholder, expand it first
+                    if is_cursor_in_file_placeholder() then
+                        expand_files_in_command()
+                    end
+                    state.cmd_input_mode = "insert"
+                    menu.render()
+                elseif key == "A" then
+                    -- Enter insert mode at end of line (append)
+                    menu.cmd_cursor_end()
+                    -- If cursor is now in/at file placeholder, expand it first
+                    if is_cursor_in_file_placeholder() then
+                        expand_files_in_command()
+                    end
+                    state.cmd_input_mode = "insert"
+                    menu.render()
+                elseif key == "0" then
+                    -- Go to start of line (vim)
+                    menu.cmd_cursor_start()
+                elseif key == "$" then
+                    -- Go to end of line (vim)
+                    menu.cmd_cursor_end()
+                elseif key == "LEFT" or key == "RIGHT" or key == "UP" or key == "DOWN" then
+                    -- Arrow keys switch to arrow mode
+                    state.cmd_input_mode = "arrow"
+                    if key == "LEFT" then
+                        menu.cmd_cursor_left()
+                    elseif key == "RIGHT" then
+                        menu.cmd_cursor_right()
+                    elseif key == "UP" then
+                        state.cmd_cursor = 0
+                        state.cmd_input_mode = "vim-nav"
+                        menu.nav_up()
+                    elseif key == "DOWN" then
+                        state.cmd_cursor = 0
+                        state.cmd_input_mode = "vim-nav"
+                        menu.nav_down()
+                    end
+                elseif key == "HOME" or key == "CTRL_A" then
+                    menu.cmd_cursor_start()
+                elseif key == "END" or key == "CTRL_E" then
+                    menu.cmd_cursor_end()
+                elseif key == "`" or key == "~" then
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_to_action()
+                elseif key == "x" then
+                    -- Delete char at cursor (vim x)
+                    menu.cmd_delete()
+                elseif key == "BACKSPACE" or key == "DELETE" then
+                    menu.cmd_backspace()
+                end
+                -- Other keys ignored in vim-nav mode
+
+            elseif mode == "insert" then
+                -- === INSERT MODE ===
+                -- All printable chars insert, arrows move cursor, ESC exits
+
+                if key == "ENTER" then
+                    -- Navigate to the Run action item
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_to_action()
+                elseif key == "ESCAPE" then
+                    -- Exit insert mode back to vim-nav
+                    state.cmd_input_mode = "vim-nav"
+                    menu.render()
+                elseif key == "LEFT" then
+                    menu.cmd_cursor_left()
+                elseif key == "RIGHT" then
+                    menu.cmd_cursor_right()
+                elseif key == "UP" then
+                    -- Navigate up, exit insert mode
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_up()
+                elseif key == "DOWN" then
+                    -- Navigate down, exit insert mode
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_down()
+                elseif key == "HOME" or key == "CTRL_A" then
+                    menu.cmd_cursor_start()
+                elseif key == "END" or key == "CTRL_E" then
+                    menu.cmd_cursor_end()
+                elseif key == "BACKSPACE" then
+                    menu.cmd_backspace()
+                elseif key == "DELETE" then
+                    menu.cmd_delete()
+                elseif type(key) == "string" and #key == 1 and key:byte() >= 32 and key:byte() <= 126 then
+                    -- Insert printable character (including h/j/k/l)
+                    menu.cmd_insert_char(key)
                 end
 
-                -- Calculate target checkbox from digit and repeat count
-                local target = index_to_checkbox(digit, state.digit_count)
-                local total = get_checkbox_count()
+            else  -- mode == "arrow"
+                -- === ARROW MODE ===
+                -- Arrows move cursor, vim keys (and other printable) insert text
 
-                -- Only navigate if target checkbox exists
-                if target <= total then
-                    menu.nav_to_checkbox(target)
-                else
-                    -- Target doesn't exist, reset to single press
-                    state.digit_count = 1
-                    target = index_to_checkbox(digit, 1)
-                    if target <= total then
-                        menu.nav_to_checkbox(target)
+                if key == "ENTER" then
+                    -- Navigate to the Run action item
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_to_action()
+                elseif key == "LEFT" then
+                    menu.cmd_cursor_left()
+                elseif key == "RIGHT" then
+                    menu.cmd_cursor_right()
+                elseif key == "UP" then
+                    -- Navigate up, reset to vim-nav
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_up()
+                elseif key == "DOWN" then
+                    -- Navigate down, reset to vim-nav
+                    state.cmd_cursor = 0
+                    state.cmd_input_mode = "vim-nav"
+                    menu.nav_down()
+                elseif key == "HOME" or key == "CTRL_A" then
+                    menu.cmd_cursor_start()
+                elseif key == "END" or key == "CTRL_E" then
+                    menu.cmd_cursor_end()
+                elseif key == "BACKSPACE" then
+                    menu.cmd_backspace()
+                elseif key == "DELETE" then
+                    menu.cmd_delete()
+                elseif key == "ESCAPE" then
+                    -- ESC resets to vim-nav mode
+                    state.cmd_input_mode = "vim-nav"
+                    menu.render()
+                elseif type(key) == "string" and #key == 1 and key:byte() >= 32 and key:byte() <= 126 then
+                    -- Insert printable character (including h/j/k/l/q)
+                    menu.cmd_insert_char(key)
+                end
+            end
+
+        else
+            -- === Normal menu mode (not on command preview) ===
+
+            -- Reset command input mode when we leave the command preview
+            state.cmd_input_mode = "vim-nav"
+
+            -- Global quit keys
+            if key == "q" or key == "Q" or key == "ESCAPE" or key == "CTRL_C" then
+                return "quit", state.values
+            end
+
+            -- Navigation: UP/k
+            if key == "UP" or key == "k" then
+                menu.nav_up()
+            -- Navigation: DOWN/j
+            elseif key == "DOWN" or key == "j" then
+                menu.nav_down()
+            -- LEFT/h: unset checkbox, set flag to 0, cycle multistate backwards
+            elseif key == "LEFT" or key == "h" then
+                menu.handle_left()
+            -- RIGHT/l: set checkbox, set flag to default, cycle multistate forwards
+            elseif key == "RIGHT" or key == "l" then
+                menu.handle_right()
+            -- Toggle/Activate: SPACE/i/ENTER
+            elseif key == "SPACE" or key == "i" or key == "ENTER" then
+                local result = menu.toggle()
+                if result == "action" then
+                    -- Check for invalid states before allowing run
+                    if has_invalid_state() then
+                        state.status_message = "Invalid options! Please fix the conflicts before running."
+                        menu.render()
+                    else
+                        return "run", state.values
                     end
                 end
-            end
-        -- SHIFT+digit (!@#$%^&*()): go back one tier in index navigation
-        -- Also handles custom shortcuts for other single characters
-        elseif type(key) == "string" and #key == 1 then
-            -- Map shifted digits to their base digit
-            local shift_map = {
-                ["!"] = 1, ["@"] = 2, ["#"] = 3, ["$"] = 4, ["%"] = 5,
-                ["^"] = 6, ["&"] = 7, ["*"] = 8, ["("] = 9, [")"] = 0
-            }
-            local digit = shift_map[key]
-            if digit ~= nil then
-                -- SHIFT+digit: go back one tier
-                if digit == state.last_digit and state.digit_count > 1 then
-                    state.digit_count = state.digit_count - 1
+            -- Go to top
+            elseif key == "g" then
+                menu.nav_top()
+            -- Go to bottom
+            elseif key == "G" then
+                menu.nav_bottom()
+            -- Jump to action item: ` or ~
+            elseif key == "`" or key == "~" then
+                menu.nav_to_action()
+            -- Digit keys 0-9: for flag fields or jump to checkbox by index
+            elseif type(key) == "string" and #key == 1 and key >= "0" and key <= "9" then
+                -- Check if current item is a flag field
+                local item_id = get_current_item_id()
+                local is_flag = item_id and state.item_data[item_id] and state.item_data[item_id].type == "flag"
+                if is_flag then
+                    menu.handle_flag_digit(key)
+                else
+                    -- Index navigation with consecutive digit tracking (checkbox items only)
+                    local digit = tonumber(key)
+
+                    -- Track consecutive presses of same digit
+                    if digit == state.last_digit then
+                        state.digit_count = state.digit_count + 1
+                    else
+                        state.last_digit = digit
+                        state.digit_count = 1
+                    end
+
+                    -- Calculate target checkbox from digit and repeat count
                     local target = index_to_checkbox(digit, state.digit_count)
                     local total = get_checkbox_count()
+
+                    -- Only navigate if target checkbox exists
                     if target <= total then
                         menu.nav_to_checkbox(target)
-                    end
-                elseif digit == state.last_digit and state.digit_count == 1 then
-                    -- Already at tier 1, can't go back further - just stay
-                elseif state.last_digit == nil then
-                    -- No previous digit, treat as starting fresh at tier 1
-                    state.last_digit = digit
-                    state.digit_count = 1
-                    local target = index_to_checkbox(digit, 1)
-                    local total = get_checkbox_count()
-                    if target <= total then
-                        menu.nav_to_checkbox(target)
+                    else
+                        -- Target doesn't exist, reset to single press
+                        state.digit_count = 1
+                        target = index_to_checkbox(digit, 1)
+                        if target <= total then
+                            menu.nav_to_checkbox(target)
+                        end
                     end
                 end
-            elseif state.shortcuts[key] then
-                -- Custom shortcut key: jump to item, or toggle if already there
-                local result = menu.handle_shortcut(key)
-                if result == "action" then
-                    return "run", state.values
+            -- SHIFT+digit (!@#$%^&*()): go back one tier in index navigation
+            -- Also handles custom shortcuts for other single characters
+            elseif type(key) == "string" and #key == 1 then
+                -- Map shifted digits to their base digit
+                local shift_map = {
+                    ["!"] = 1, ["@"] = 2, ["#"] = 3, ["$"] = 4, ["%"] = 5,
+                    ["^"] = 6, ["&"] = 7, ["*"] = 8, ["("] = 9, [")"] = 0
+                }
+                local digit = shift_map[key]
+                if digit ~= nil then
+                    -- SHIFT+digit: go back one tier
+                    if digit == state.last_digit and state.digit_count > 1 then
+                        state.digit_count = state.digit_count - 1
+                        local target = index_to_checkbox(digit, state.digit_count)
+                        local total = get_checkbox_count()
+                        if target <= total then
+                            menu.nav_to_checkbox(target)
+                        end
+                    elseif digit == state.last_digit and state.digit_count == 1 then
+                        -- Already at tier 1, can't go back further - just stay
+                    elseif state.last_digit == nil then
+                        -- No previous digit, treat as starting fresh at tier 1
+                        state.last_digit = digit
+                        state.digit_count = 1
+                        local target = index_to_checkbox(digit, 1)
+                        local total = get_checkbox_count()
+                        if target <= total then
+                            menu.nav_to_checkbox(target)
+                        end
+                    end
+                elseif state.shortcuts[key] then
+                    -- Custom shortcut key: jump to item, or toggle if already there
+                    local result = menu.handle_shortcut(key)
+                    if result == "action" then
+                        return "run", state.values
+                    end
                 end
+            -- Backspace: for flag fields
+            elseif key == "BACKSPACE" or key == "DELETE" then
+                menu.handle_flag_backspace()
             end
-        -- Backspace: for flag fields
-        elseif key == "BACKSPACE" or key == "DELETE" then
-            menu.handle_flag_backspace()
-        end
-    end
+        end  -- end of normal mode
+    end  -- end of while loop
 end
 -- }}}
 

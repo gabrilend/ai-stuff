@@ -1,5 +1,5 @@
 === FRAME 1 ===
-Timestamp: 22:04:46.512497027
+Timestamp: 13:39:50.713461302
 
 --- Navigation State ---
 PREV: section=0 item=0
@@ -20,7 +20,7 @@ new_cache_key=mode:1 → cached_row=7
 --- Constants ---
 MENU_HEADER_HEIGHT=4
 MENU_ITEMS_END_ROW=57
-TUI_ROWS=78 TUI_COLS=84
+TUI_ROWS=78 TUI_COLS=141
 
 --- Operations Sequence ---
 STEP 1: position to ANSI row 7, col 1

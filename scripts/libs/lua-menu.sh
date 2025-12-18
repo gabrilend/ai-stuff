@@ -92,6 +92,36 @@ menu_add_item() {
     local shortcut="${7:-}"
     local cli_flag="${8:-}"
 
+    # === Developer validation checks ===
+    # Check for duplicate item_id
+    if [[ -n "${MENU_ITEM_LABELS[$item_id]+isset}" ]]; then
+        printf >&2 "ERROR: Duplicate item_id '%s' (label: '%s')\n" "$item_id" "$label"
+        printf >&2 "       Previously defined with label: '%s'\n" "${MENU_ITEM_LABELS[$item_id]}"
+        return 1
+    fi
+
+    # Check for duplicate shortcut (if provided)
+    if [[ -n "$shortcut" ]]; then
+        for existing_id in "${!MENU_ITEM_SHORTCUTS[@]}"; do
+            if [[ "${MENU_ITEM_SHORTCUTS[$existing_id]}" == "$shortcut" ]]; then
+                printf >&2 "ERROR: Duplicate shortcut '%s' for item '%s'\n" "$shortcut" "$item_id"
+                printf >&2 "       Already used by item: '%s'\n" "$existing_id"
+                return 1
+            fi
+        done
+    fi
+
+    # Check for duplicate cli_flag (if provided)
+    if [[ -n "$cli_flag" ]]; then
+        for existing_id in "${!MENU_ITEM_FLAGS[@]}"; do
+            if [[ "${MENU_ITEM_FLAGS[$existing_id]}" == "$cli_flag" ]]; then
+                printf >&2 "ERROR: Duplicate cli_flag '%s' for item '%s'\n" "$cli_flag" "$item_id"
+                printf >&2 "       Already used by item: '%s'\n" "$existing_id"
+                return 1
+            fi
+        done
+    fi
+
     # Append to section's item list
     if [[ -n "${MENU_SECTION_ITEMS[$section_id]}" ]]; then
         MENU_SECTION_ITEMS["$section_id"]="${MENU_SECTION_ITEMS[$section_id]},$item_id"
@@ -160,7 +190,8 @@ _menu_escape_json() {
     str="${str//$'\n'/\\n}"
     str="${str//$'\r'/\\r}"
     str="${str//$'\t'/\\t}"
-    echo "$str"
+    # Use printf to avoid echo interpreting flags like -n, -e
+    printf '%s\n' "$str"
 }
 # }}}
 

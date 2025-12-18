@@ -1,0 +1,42 @@
+=== FRAME 3 ===
+Timestamp: 13:39:51.777223677
+
+--- Navigation State ---
+PREV: section=0 item=2
+CURR: section=0 item=3
+
+--- Computed Values (from menu_compute_item_row) ---
+old_row=8 (ANSI: 9)
+new_row=9 (ANSI: 10)
+old_global_idx=3
+new_global_idx=4
+old_item_id=execute → 'Execute Recommendations'
+new_item_id=implement → 'Auto-Implement'
+
+--- Cached Values (from full render) ---
+old_cache_key=mode:2 → cached_row=8
+new_cache_key=mode:3 → cached_row=9
+
+--- Constants ---
+MENU_HEADER_HEIGHT=4
+MENU_ITEMS_END_ROW=57
+TUI_ROWS=78 TUI_COLS=141
+
+--- Operations Sequence ---
+STEP 1: position to ANSI row 9, col 1
+STEP 2: clear line
+STEP 3: write '3 [ ] Execute Recommendations'
+STEP 4: position to ANSI row 10, col 1
+STEP 5: clear line
+STEP 6: write '4▸[●] Auto-Implement' (with reverse video)
+
+--- Expected Screen State (rows 4-12) ---
+row 4: (unchanged)
+row 5: (unchanged)
+row 6: (unchanged)
+row 7: (unchanged)
+row 8: [OLD→UNHIGHLIGHT] 3 [ ] Execute Recommendations
+row 9: [NEW→HIGHLIGHT] 4▸[●] Auto-Implement
+row 10: (unchanged)
+row 11: (unchanged)
+row 12: (unchanged)
