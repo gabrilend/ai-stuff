@@ -72,6 +72,24 @@ SHIFT+6 = ^    SHIFT+7 = &    SHIFT+8 = *    SHIFT+9 = (    SHIFT+0 = )
 - Quick jump only works for **checkbox** items (not text fields or actions)
 - The displayed index shows what keys to press (e.g., `22` means press `2` twice)
 
+## Custom Shortcuts
+
+Some menus define custom keyboard shortcuts for frequently-used items. These are shown
+in a cyan-colored line at the bottom of the menu:
+
+```
+j/k:nav  space:toggle  `:action  q:quit
+                f:flush  r:reset  x:execute
+```
+
+**Behavior:**
+- Press the shortcut key once to **jump** to that item
+- Press it again (when already on that item) to **toggle/activate** it
+
+For example, if `f` is defined for "Flush Cache":
+- First `f` press: cursor moves to "Flush Cache" item
+- Second `f` press: toggles the checkbox on/off
+
 ## Number Entry Fields
 
 Some menus have numeric input fields (shown as `Label: [  5]`).
