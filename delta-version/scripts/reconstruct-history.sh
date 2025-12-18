@@ -582,10 +582,210 @@ order_issues_by_dependencies() {
 }
 # }}}
 
+# =============================================================================
+# Date Estimation and Interpolation (035c)
+# =============================================================================
+
+# -- {{{ extract_explicit_date
+extract_explicit_date() {
+    local issue_file="$1"
+
+    # Try to find explicit completion date in various formats
+    local date_patterns=(
+        'Completed:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}'
+        'Status:\s*Completed\s*[0-9]{4}-[0-9]{2}-[0-9]{2}'
+        'Date:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}'
+        '\*\*Completed\*\*:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}'
+        '\*\*Completed:\*\*\s*[0-9]{4}-[0-9]{2}-[0-9]{2}'
+    )
+
+    for pattern in "${date_patterns[@]}"; do
+        local match
+        match=$(grep -oE "$pattern" "$issue_file" 2>/dev/null | head -1)
+        if [[ -n "$match" ]]; then
+            # Extract just the date part
+            local date_str
+            date_str=$(echo "$match" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            if [[ -n "$date_str" ]]; then
+                # Validate date and convert to epoch
+                local epoch
+                epoch=$(date -d "$date_str" +%s 2>/dev/null)
+                if [[ -n "$epoch" ]]; then
+                    echo "$epoch"
+                    return 0
+                fi
+            fi
+        fi
+    done
+
+    return 1
+}
+# }}}
+
+# -- {{{ get_file_mtime
+get_file_mtime() {
+    local file_path="$1"
+    stat -c %Y "$file_path" 2>/dev/null || echo "0"
+}
+# }}}
+
+# -- {{{ estimate_issue_date
+estimate_issue_date() {
+    local issue_file="$1"
+
+    # Try explicit date first
+    local explicit_date
+    explicit_date=$(extract_explicit_date "$issue_file")
+    if [[ -n "$explicit_date" && "$explicit_date" != "0" ]]; then
+        log "  Date for $(basename "$issue_file"): explicit ($explicit_date)"
+        echo "$explicit_date"
+        return 0
+    fi
+
+    # Fall back to file modification time
+    local mtime
+    mtime=$(get_file_mtime "$issue_file")
+    if [[ "$mtime" != "0" ]]; then
+        log "  Date for $(basename "$issue_file"): mtime ($mtime)"
+        echo "$mtime"
+        return 0
+    fi
+
+    # Last resort: current time
+    date +%s
+}
+# }}}
+
+# -- {{{ interpolate_dates
+interpolate_dates() {
+    # Input: file paths on stdin
+    # Output: "filepath:epoch" lines
+    #
+    # Fills in gaps between known dates for smoother progression
+
+    local -a files=()
+    local -A file_dates=()  # file -> epoch
+    local -A date_source=() # file -> "explicit" or "mtime" or "interpolated"
+
+    # Read all files and get initial dates
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        files+=("$file")
+
+        local date
+        date=$(estimate_issue_date "$file")
+        file_dates["$file"]="$date"
+
+        # Track source for logging
+        if extract_explicit_date "$file" >/dev/null 2>&1; then
+            date_source["$file"]="explicit"
+        else
+            date_source["$file"]="mtime"
+        fi
+    done
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # Interpolate missing/suspicious dates
+    # A date is suspicious if it's significantly out of sequence
+    local prev_date=""
+    local prev_idx=-1
+
+    for ((i=0; i<${#files[@]}; i++)); do
+        local file="${files[$i]}"
+        local curr_date="${file_dates[$file]}"
+
+        if [[ -n "$prev_date" ]]; then
+            # Check if current date is before previous (out of order)
+            if [[ "$curr_date" -lt "$prev_date" ]]; then
+                log "  WARNING: $(basename "$file") date ($curr_date) before previous ($prev_date), interpolating"
+
+                # Interpolate: add 1 hour from previous
+                local new_date=$((prev_date + 3600))
+                file_dates["$file"]="$new_date"
+                date_source["$file"]="interpolated"
+            fi
+        fi
+
+        prev_date="${file_dates[$file]}"
+    done
+
+    # Apply sanity checks
+    local now
+    now=$(date +%s)
+
+    for file in "${files[@]}"; do
+        local date="${file_dates[$file]}"
+
+        # No future dates
+        if [[ "$date" -gt "$now" ]]; then
+            log "  WARNING: $(basename "$file") has future date, using now"
+            file_dates["$file"]="$now"
+            date_source["$file"]="clamped"
+        fi
+
+        # No dates before 2020 (likely mtime corruption)
+        local min_date
+        min_date=$(date -d "2020-01-01" +%s)
+        if [[ "$date" -lt "$min_date" ]]; then
+            log "  WARNING: $(basename "$file") has ancient date, using min"
+            file_dates["$file"]="$min_date"
+            date_source["$file"]="clamped"
+        fi
+    done
+
+    # Output results
+    for file in "${files[@]}"; do
+        echo "${file}:${file_dates[$file]}:${date_source[$file]}"
+    done
+}
+# }}}
+
+# -- {{{ format_epoch_for_git
+format_epoch_for_git() {
+    local epoch="$1"
+    date -d "@$epoch" '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %z'
+}
+# }}}
+
+# -- {{{ get_vision_date
+get_vision_date() {
+    local project_dir="$1"
+    local vision_file="$2"
+
+    # Vision date should be the earliest known date
+    # Try to get date from vision file itself, or use its mtime
+
+    local vision_path="${project_dir}/${vision_file}"
+
+    # Check for date in vision file
+    local explicit_date
+    explicit_date=$(extract_explicit_date "$vision_path" 2>/dev/null)
+    if [[ -n "$explicit_date" && "$explicit_date" != "0" ]]; then
+        echo "$explicit_date"
+        return 0
+    fi
+
+    # Use file mtime
+    local mtime
+    mtime=$(get_file_mtime "$vision_path")
+    if [[ "$mtime" != "0" ]]; then
+        echo "$mtime"
+        return 0
+    fi
+
+    # No good date found, return empty (will use current time)
+    echo ""
+}
+# }}}
+
 # -- {{{ create_vision_commit
 create_vision_commit() {
     local vision_file="$1"
     local project_name="$2"
+    local commit_date="${3:-}"  # Optional: epoch timestamp
 
     log "Creating vision commit for: $vision_file"
 
@@ -593,7 +793,18 @@ create_vision_commit() {
 
     # Check if there's anything to commit
     if ! git diff --cached --quiet; then
-        git commit -m "$(cat <<EOF
+        # Set commit date if provided
+        local date_args=()
+        if [[ -n "$commit_date" ]]; then
+            local git_date
+            git_date=$(format_epoch_for_git "$commit_date")
+            date_args=(--date="$git_date")
+            export GIT_AUTHOR_DATE="$git_date"
+            export GIT_COMMITTER_DATE="$git_date"
+            log "  Using date: $git_date"
+        fi
+
+        git commit "${date_args[@]}" -m "$(cat <<EOF
 Initial vision: ${project_name} project purpose and goals
 
 Establishes the foundational vision for this project.
@@ -603,6 +814,8 @@ Establishes the foundational vision for this project.
 Co-Authored-By: reconstruct-history.sh <noreply@delta-version>
 EOF
 )"
+        # Unset date environment
+        unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
         return 0
     else
         log "Vision file already committed or empty"
@@ -614,6 +827,7 @@ EOF
 # -- {{{ create_issue_commit
 create_issue_commit() {
     local issue_file="$1"
+    local commit_date="${2:-}"  # Optional: epoch timestamp
     local issue_name
     local title
 
@@ -626,7 +840,18 @@ create_issue_commit() {
 
     # Check if there's anything to commit
     if ! git diff --cached --quiet; then
-        git commit -m "$(cat <<EOF
+        # Set commit date if provided
+        local date_args=()
+        if [[ -n "$commit_date" ]]; then
+            local git_date
+            git_date=$(format_epoch_for_git "$commit_date")
+            date_args=(--date="$git_date")
+            export GIT_AUTHOR_DATE="$git_date"
+            export GIT_COMMITTER_DATE="$git_date"
+            log "  Using date: $git_date"
+        fi
+
+        git commit "${date_args[@]}" -m "$(cat <<EOF
 ${title}
 
 Completed issue documentation for ${issue_name}.
@@ -636,6 +861,8 @@ Completed issue documentation for ${issue_name}.
 Co-Authored-By: reconstruct-history.sh <noreply@delta-version>
 EOF
 )"
+        # Unset date environment
+        unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
         return 0
     else
         log "Issue file already committed or empty: $issue_name"
@@ -707,10 +934,17 @@ reconstruct_history() {
     local commit_count=0
 
     # Step 1: Vision commit
-    local vision_file
+    local vision_file vision_date
     if vision_file=$(find_vision_file "$project_dir"); then
-        echo "  [1] Vision: $vision_file"
-        if create_vision_commit "$vision_file" "$project_name"; then
+        # Estimate vision date
+        vision_date=$(get_vision_date "$project_dir" "$vision_file")
+        local date_display=""
+        if [[ -n "$vision_date" ]]; then
+            date_display=" ($(date -d "@$vision_date" '+%Y-%m-%d'))"
+        fi
+
+        echo "  [1] Vision: $vision_file$date_display"
+        if create_vision_commit "$vision_file" "$project_name" "$vision_date"; then
             ((commit_count++))
         fi
     else
@@ -723,11 +957,27 @@ reconstruct_history() {
 
     if [[ ${#completed_issues[@]} -gt 0 ]]; then
         echo "  [2] Processing ${#completed_issues[@]} completed issue(s) (dependency-ordered)..."
+
+        # Estimate dates for all issues and interpolate
+        local -A issue_dates
+        while IFS=':' read -r file epoch source; do
+            [[ -z "$file" ]] && continue
+            issue_dates["$file"]="$epoch"
+            log "  Date source for $(basename "$file"): $source"
+        done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates)
+
         for issue_file in "${completed_issues[@]}"; do
-            local issue_name
+            local issue_name issue_date date_display
             issue_name=$(basename "$issue_file" .md)
-            echo "      - $issue_name"
-            if create_issue_commit "$issue_file"; then
+            issue_date="${issue_dates[$issue_file]:-}"
+
+            date_display=""
+            if [[ -n "$issue_date" ]]; then
+                date_display=" ($(date -d "@$issue_date" '+%Y-%m-%d'))"
+            fi
+
+            echo "      - $issue_name$date_display"
+            if create_issue_commit "$issue_file" "$issue_date"; then
                 ((commit_count++))
             fi
         done
@@ -916,23 +1166,36 @@ dry_run_report() {
 
     # Vision file
     echo "  Commit 1 - Vision:"
-    local vision_file
+    local vision_file vision_date
     if vision_file=$(find_vision_file "$project_dir" 2>/dev/null); then
-        echo "    + $vision_file"
+        vision_date=$(get_vision_date "$project_dir" "$vision_file" 2>/dev/null)
+        local date_str=""
+        if [[ -n "$vision_date" ]]; then
+            date_str=" @ $(date -d "@$vision_date" '+%Y-%m-%d')"
+        fi
+        echo "    + $vision_file$date_str"
     else
         echo "    (no vision file found, would skip)"
     fi
 
-    # Completed issues (dependency-ordered)
+    # Completed issues (dependency-ordered with estimated dates)
     echo ""
-    echo "  Commits 2..N - Completed Issues (dependency-ordered):"
+    echo "  Commits 2..N - Completed Issues (dependency-ordered with dates):"
     local -a completed_issues
     mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir" 2>/dev/null)
 
     if [[ ${#completed_issues[@]} -gt 0 ]]; then
+        # Get interpolated dates for all issues
+        local -A issue_dates issue_sources
+        while IFS=':' read -r file epoch source; do
+            [[ -z "$file" ]] && continue
+            issue_dates["$file"]="$epoch"
+            issue_sources["$file"]="$source"
+        done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates 2>/dev/null)
+
         local i=2
         for issue_file in "${completed_issues[@]}"; do
-            local issue_name title issue_id deps_info
+            local issue_name title issue_id deps_info date_info
             issue_name=$(basename "$issue_file" .md)
             title=$(extract_issue_title "$issue_file")
             issue_id=$(extract_issue_id "$issue_file")
@@ -943,7 +1206,16 @@ dry_run_report() {
             deps_info=""
             [[ -n "$deps" ]] && deps_info=" (depends on: $deps)"
 
-            echo "    [$i] $issue_name$deps_info"
+            # Show estimated date
+            date_info=""
+            if [[ -n "${issue_dates[$issue_file]:-}" ]]; then
+                local date_str source_str
+                date_str=$(date -d "@${issue_dates[$issue_file]}" '+%Y-%m-%d')
+                source_str="${issue_sources[$issue_file]:-unknown}"
+                date_info=" @ $date_str [$source_str]"
+            fi
+
+            echo "    [$i] $issue_name$deps_info$date_info"
             echo "        \"$title\""
             ((i++))
         done
