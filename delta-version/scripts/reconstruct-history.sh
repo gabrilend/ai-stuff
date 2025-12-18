@@ -285,36 +285,32 @@ generate_commit_message_llm() {
         return 1
     fi
 
-    # Read issue content (first 2000 chars to avoid token limits)
+    # Read issue content (first 1500 chars to avoid token limits)
     local issue_content
-    issue_content=$(head -c 2000 "$issue_file" 2>/dev/null)
+    issue_content=$(head -c 1500 "$issue_file" 2>/dev/null)
 
     if [[ -z "$issue_content" ]]; then
         return 1
     fi
 
-    local prompt="You are generating a git commit message body. Given this issue ticket, write a 2-3 sentence summary describing what was implemented. Focus on the technical changes and their purpose. Do not include the title (already provided). Do not use markdown formatting. Do not start with 'This commit' or similar.
+    # Build prompt with few-shot example - direct instruction to avoid preamble
+    local prompt
+    prompt="You are a git commit message generator. Output ONLY the summary, no preamble, no 'Here is', no explanations. 2-3 sentences, past tense, start with a verb.
 
-Issue Title: ${title}
+Example input: Issue #012: Create Lane System
+Example output: Implemented lane system with 5 parallel sub-paths per main lane. Each sub-path connects spawn points with configurable spacing and collision boundaries.
 
-Issue Content:
-${issue_content}
+Your turn. Output only the summary:
+${title}
 
-Commit message body (2-3 sentences):"
+${issue_content}"
 
     local response
     response=$(query_local_llm "$prompt")
 
     if [[ -n "$response" ]]; then
-        # Clean up response - remove preamble, quotes, and whitespace
-        echo "$response" | sed '
-            s/^["'\''[:space:]]*//
-            s/["'\''[:space:]]*$//
-            s/^Here is a[^:]*://i
-            s/^This commit message[^:]*://i
-            s/^A possible[^:]*://i
-            s/^[[:space:]]*//
-        '
+        # Minimal cleanup - just trim whitespace
+        echo "$response" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
     else
         return 1
     fi
