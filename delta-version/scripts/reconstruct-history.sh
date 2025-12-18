@@ -471,8 +471,39 @@ determine_project_state() {
 # Blob Boundary Detection (for preserving post-blob commits)
 # =============================================================================
 
-# -- {{{ find_blob_commits
-find_blob_commits() {
+# -- {{{ find_blob_commits_by_message
+find_blob_commits_by_message() {
+    # Detect blob commits by semantic commit message patterns
+    # This works for projects of any size, including single-file projects
+    # Returns only the EARLIEST matching commit (first in chronological order)
+    local project_dir="$1"
+
+    # Common patterns for initial/blob commits (case-insensitive)
+    # Check first 5 commits - blobs are always near the start
+    # Using --reverse so earliest commits come first
+    local hash msg msg_lower
+    while read -r hash msg; do
+        # Normalize to lowercase for matching
+        msg_lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+
+        # Match common initial commit patterns
+        # Return immediately on first match - we want the earliest one
+        if [[ "$msg_lower" =~ ^(initial|first|init)( |$) ]] || \
+           [[ "$msg_lower" =~ ^(initial|first)\ (commit|import|add|version) ]] || \
+           [[ "$msg_lower" =~ ^add(ed)?\ (all|project|initial|files) ]] || \
+           [[ "$msg_lower" =~ ^(import|create)(ed)?\ (project|initial|from) ]] || \
+           [[ "$msg_lower" == "init" ]]; then
+            echo "$hash"
+            return 0  # Stop at first match - earliest commit wins
+        fi
+    done < <(git -C "$project_dir" log --oneline --reverse 2>/dev/null | head -5)
+}
+# }}}
+
+# -- {{{ find_blob_commits_by_filecount
+find_blob_commits_by_filecount() {
+    # Fallback: detect blob commits by large file additions
+    # Used when message-based detection finds nothing
     local project_dir="$1"
 
     # Find commits that added a large number of files at once
@@ -494,6 +525,26 @@ find_blob_commits() {
             }
         }
     ' | head -2  # Usually first 1-2 commits are the blob
+}
+# }}}
+
+# -- {{{ find_blob_commits
+find_blob_commits() {
+    local project_dir="$1"
+
+    # Strategy 1: Semantic detection by commit message
+    # Works for projects of any size, including single-file "thank you note" projects
+    local msg_blobs
+    msg_blobs=$(find_blob_commits_by_message "$project_dir")
+
+    if [[ -n "$msg_blobs" ]]; then
+        echo "$msg_blobs"
+        return 0
+    fi
+
+    # Strategy 2: Heuristic detection by file count
+    # Catches bulk imports that don't follow naming conventions
+    find_blob_commits_by_filecount "$project_dir"
 }
 # }}}
 
@@ -2126,8 +2177,12 @@ dry_run_report() {
             echo "    Files:   $file_count"
             echo "    Ratio:   1 commit per $((file_count / (commit_count > 0 ? commit_count : 1))) files"
             echo ""
-            echo "  Action: Skip (use --force to reconstruct anyway)"
-            return 0
+            # Only return early if --force is not set
+            if [[ "$FORCE" != true ]]; then
+                echo "  Action: Skip (use --force to reconstruct anyway)"
+                return 0
+            fi
+            echo "  Action: Force rebuild (--force specified)"
             ;;
     esac
 
