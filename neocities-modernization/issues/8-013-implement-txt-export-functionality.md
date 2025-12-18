@@ -185,12 +185,58 @@ Grand total: ~34GB of .txt exports
 
 ## Acceptance Criteria
 
-- [ ] .txt files generate for all similarity orderings
-- [ ] .txt files generate for all diversity orderings
+- [x] .txt files generate for all similarity orderings
+- [x] .txt files generate for all diversity orderings
 - [ ] .txt files generate for chronological ordering
-- [ ] Images converted to `[Image: alt-text]` format
-- [ ] No HTML tags in .txt output
-- [ ] 80-character line width enforced
+- [x] Images converted to `[Image: alt-text]` format
+- [x] No HTML tags in .txt output
+- [x] 80-character line width enforced
 - [ ] Download links work from HTML pages
+
+---
+
+## Implementation Log
+
+### Session: 2025-12-17
+
+**Problem Identified:**
+The existing `format_single_poem_80_width()` function called `render_attachment_images()` which returned HTML `<img>` tags. This meant TXT files were getting HTML embedded in them.
+
+**Changes Made:**
+
+1. **Created `render_attachment_images_txt()`** (lines 754-795)
+   - Returns `[Image: alt-text]` format instead of HTML
+   - Handles missing alt-text: `[Image: no description]`
+   - Wraps long alt-text to 80 characters
+
+2. **Updated `format_single_poem_80_width()`** (lines 1178-1200)
+   - Now calls `render_attachment_images_txt()` instead of HTML version
+   - Removed `.txt` extension from file header (per issue 8-010)
+   - Added documentation comment
+
+3. **Created `generate_txt_file_header()`** (lines 1493-1511)
+   - Generates centered title with 80-char width
+   - Includes total poem count and generation timestamp
+   - Matches compiled.txt aesthetic
+
+4. **Updated `generate_similarity_txt_file()`** (lines 1513-1523)
+   - Now includes file header with metadata
+
+5. **Updated `generate_diversity_txt_file()`** (lines 1525-1535)
+   - Now includes file header with metadata
+
+**Test Results:**
+```
+  ✓ No <img> tags found (correct)
+  ✓ No HTML tags found (correct)
+  ✓ Found [Image:] placeholders (correct)
+  ✓ Found header title (correct)
+  ✓ Found total poems count (correct)
+  ✓ All lines within 80-char limit
+```
+
+**Remaining Work:**
+- Chronological.txt generation (new function needed)
+- Download links in HTML pages (depends on 8-012 pagination)
 
 ---
