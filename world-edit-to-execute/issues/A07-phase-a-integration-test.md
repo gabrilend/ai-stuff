@@ -284,7 +284,7 @@ A comprehensive integration test that:
 
 - Issues A01-A06 (individual tool specifications)
 - issues/completed/demos/ (demo location)
-- run_demo.sh (phase demo runner)
+- run-demo.sh (phase demo runner)
 
 ---
 
@@ -294,5 +294,5 @@ The Phase A integration test validates that all infrastructure tools
 work together. The demo script provides a visual showcase of
 capabilities.
 
-Consider adding this demo to the phase selector in run_demo.sh as
+Consider adding this demo to the phase selector in run-demo.sh as
 Phase A/Auxiliary.

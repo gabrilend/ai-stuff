@@ -380,5 +380,5 @@ Run phase completion demos to verify functionality:
 ./issues/completed/demos/run_phase1.sh
 
 # Phase selector (interactive)
-./run_demo.sh
+./run-demo.sh
 ```
