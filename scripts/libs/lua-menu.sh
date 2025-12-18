@@ -16,6 +16,7 @@ declare -A MENU_VALUES=()
 declare -A MENU_ITEM_DESCRIPTIONS=()
 declare -A MENU_ITEM_CONFIGS=()
 declare -A MENU_ITEM_DISABLED=()
+declare -A MENU_ITEM_SHORTCUTS=()
 
 MENU_TITLE=""
 MENU_SUBTITLE=""
@@ -35,6 +36,7 @@ menu_init() {
     MENU_ITEM_DESCRIPTIONS=()
     MENU_ITEM_CONFIGS=()
     MENU_ITEM_DISABLED=()
+    MENU_ITEM_SHORTCUTS=()
     MENU_TITLE=""
     MENU_SUBTITLE=""
     MENU_RESULT_ACTION=""
@@ -66,8 +68,9 @@ menu_add_section() {
 # }}}
 
 # {{{ menu_add_item
-# Add item: section_id, item_id, label, type, value, description
+# Add item: section_id, item_id, label, type, value, description, shortcut
 # For flag type: value format is "value:width" (e.g., "3:2")
+# shortcut: optional single character for quick access (e.g., "r" for reset)
 menu_add_item() {
     local section_id="$1"
     local item_id="$2"
@@ -75,6 +78,7 @@ menu_add_item() {
     local type="${4:-checkbox}"
     local value="${5:-0}"
     local description="${6:-}"
+    local shortcut="${7:-}"
 
     # Append to section's item list
     if [[ -n "${MENU_SECTION_ITEMS[$section_id]}" ]]; then
@@ -87,6 +91,7 @@ menu_add_item() {
     MENU_ITEM_TYPES["$item_id"]="$type"
     MENU_ITEM_DESCRIPTIONS["$item_id"]="$description"
     MENU_ITEM_DISABLED["$item_id"]=""
+    MENU_ITEM_SHORTCUTS["$item_id"]="$shortcut"
 
     # For flag type, value may be "value:width" - parse it
     if [[ "$type" == "flag" ]]; then
@@ -168,6 +173,7 @@ _menu_build_json() {
             local desc="${MENU_ITEM_DESCRIPTIONS[$item_id]}"
             local config="${MENU_ITEM_CONFIGS[$item_id]}"
             local disabled="${MENU_ITEM_DISABLED[$item_id]}"
+            local shortcut="${MENU_ITEM_SHORTCUTS[$item_id]}"
 
             json+='{"id":"'"$item_id"'"'
             json+=',"label":"'"$(_menu_escape_json "$label")"'"'
@@ -179,6 +185,9 @@ _menu_build_json() {
                 json+=',"disabled":true'
             else
                 json+=',"disabled":false'
+            fi
+            if [[ -n "$shortcut" ]]; then
+                json+=',"shortcut":"'"$shortcut"'"'
             fi
             json+='}'
         done

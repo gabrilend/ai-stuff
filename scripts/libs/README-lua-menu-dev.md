@@ -64,8 +64,20 @@ menu_add_section "section_id" "type" "Display Title"
 ### Items
 
 ```bash
-menu_add_item "section_id" "item_id" "Label" "type" "value" "description"
+menu_add_item "section_id" "item_id" "Label" "type" "value" "description" "shortcut"
 ```
+
+The 7th parameter `shortcut` is optional and defines a custom keyboard shortcut for the item.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| section_id | Yes | ID of the section to add item to |
+| item_id | Yes | Unique identifier for the item |
+| Label | Yes | Display text |
+| type | Yes | checkbox, flag, multistate, or action |
+| value | Yes | Initial value |
+| description | Yes | Help text shown when item is highlighted |
+| shortcut | No | Single character keyboard shortcut (e.g., "r") |
 
 #### checkbox
 
@@ -74,11 +86,13 @@ Binary toggle. In `single` sections, behaves as radio button.
 ```bash
 menu_add_item "opts" "debug" "Debug Mode" "checkbox" "0" "Enable debug output"
 menu_add_item "opts" "color" "Color Output" "checkbox" "1" "Use ANSI colors"
+menu_add_item "opts" "reset" "Reset Settings" "checkbox" "0" "Reset to defaults" "r"
 ```
 
 - **value**: `"0"` (unchecked) or `"1"` (checked)
 - **Keyboard**: SPACE toggles, LEFT unchecks, RIGHT checks
 - **Index shortcuts**: Only checkbox items get numeric index shortcuts
+- **Custom shortcut**: The 7th parameter adds a quick-access key (shown in footer)
 
 #### flag
 
@@ -121,6 +135,29 @@ menu_add_item "actions" "run" "Execute" "action" "" "Run with current settings"
 - **value**: Ignored (use empty string)
 - **Keyboard**: SPACE/ENTER activates, `` ` `` jumps here
 - **No index shortcut**: Action items don't receive index numbers
+
+### Custom Shortcuts
+
+Define custom keyboard shortcuts for quick item access:
+
+```bash
+menu_add_item "cache" "flush" "Flush Cache" "checkbox" "0" "Clear all cached data" "f"
+menu_add_item "cache" "rebuild" "Rebuild Index" "checkbox" "0" "Regenerate search index" "r"
+menu_add_item "actions" "run" "Execute" "action" "" "Run operations" "x"
+```
+
+**Behavior:**
+- First press: Jump to the item
+- Second press (when already on item): Toggle/activate the item
+
+**Display:**
+- Shortcuts are shown in a cyan-colored line in the footer
+- Format: `key:label` (e.g., `f:flush  r:rebuild  x:execute`)
+
+**Best Practices:**
+- Use memorable single letters (f=flush, r=reset, c=clean)
+- Avoid conflicts with built-in keys (j, k, g, G, h, l, i, q, space, etc.)
+- Safe choices: b, c, d, e, f, m, n, o, p, r, s, t, u, v, w, x, y, z
 
 ### Running & Results
 

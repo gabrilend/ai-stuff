@@ -14,8 +14,9 @@ local state = {
     subtitle = "",
     sections = {},          -- Ordered list of section IDs
     section_data = {},      -- section_id -> {title, type, items}
-    item_data = {},         -- item_id -> {label, type, value, description, config, disabled, default_value}
+    item_data = {},         -- item_id -> {label, type, value, description, config, disabled, default_value, shortcut}
     values = {},            -- item_id -> current value
+    shortcuts = {},         -- key -> item_id (custom shortcut keys)
     current_section = 1,
     current_item = 1,
     rows = 24,
@@ -36,6 +37,7 @@ function menu.init(config)
     state.section_data = {}
     state.item_data = {}
     state.values = {}
+    state.shortcuts = {}
     state.current_section = 1
     state.current_item = 1
     state.flag_edit_started = {}
@@ -63,9 +65,15 @@ function menu.init(config)
                 description = item.description or "",
                 config = item.config or "",
                 disabled = item.disabled or false,
-                default_value = item.value or ""  -- Store original as default for flag items
+                default_value = item.value or "",  -- Store original as default for flag items
+                shortcut = item.shortcut or nil    -- Optional keyboard shortcut
             }
             state.values[iid] = item.value or (item.type == "checkbox" and "0" or "")
+
+            -- Build shortcuts lookup table
+            if item.shortcut and #item.shortcut == 1 then
+                state.shortcuts[item.shortcut] = iid
+            end
         end
     end
 
@@ -165,6 +173,19 @@ end
 local function reset_digit_input_state()
     state.last_digit = nil
     state.digit_count = 0
+end
+
+-- Find an item's section and item indices by item_id
+-- Returns section_idx, item_idx or nil if not found
+local function find_item_position(target_item_id)
+    for si, sid in ipairs(state.sections) do
+        for ii, item_id in ipairs(state.section_data[sid].items) do
+            if item_id == target_item_id then
+                return si, ii
+            end
+        end
+    end
+    return nil, nil
 end
 -- }}}
 
@@ -363,7 +384,31 @@ local function render_description(start_row)
 end
 
 local function render_footer()
-    local row = state.rows - 1
+    -- Build custom shortcuts string
+    local shortcuts_parts = {}
+    for key, item_id in pairs(state.shortcuts) do
+        local data = state.item_data[item_id]
+        if data then
+            -- Use first word of label or short version
+            local short_label = data.label:match("^(%S+)") or data.label
+            if #short_label > 12 then
+                short_label = short_label:sub(1, 10) .. ".."
+            end
+            table.insert(shortcuts_parts, key .. ":" .. short_label:lower())
+        end
+    end
+    local shortcuts_str = table.concat(shortcuts_parts, "  ")
+
+    -- Determine if we need extra rows for shortcuts
+    local base_help = "j/k:nav  space:toggle  `:action  q:quit"
+    local has_shortcuts = #shortcuts_parts > 0
+
+    local row
+    if has_shortcuts then
+        row = state.rows - 2
+    else
+        row = state.rows - 1
+    end
 
     -- Separator
     tui.reset_style()
@@ -373,9 +418,19 @@ local function render_footer()
     tui.clear_row(row + 1)
     tui.draw_box_line(row + 1, 1, state.cols, "double")
     tui.set_attrs(tui.ATTR_DIM)
-    local help = "j/k:nav  space:toggle  `:action  q:quit"
-    local help_start = math.floor((state.cols - #help) / 2)
-    tui.write_str(row + 1, help_start, help)
+    local help_start = math.floor((state.cols - #base_help) / 2)
+    tui.write_str(row + 1, help_start, base_help)
+
+    -- Shortcuts line (if any)
+    if has_shortcuts then
+        tui.clear_row(row + 2)
+        tui.draw_box_line(row + 2, 1, state.cols, "double")
+        tui.set_fg(tui.FG_CYAN)
+        tui.set_attrs(tui.ATTR_DIM)
+        local sc_start = math.floor((state.cols - #shortcuts_str) / 2)
+        tui.write_str(row + 2, sc_start, shortcuts_str)
+    end
+
     tui.reset_style()
 end
 -- }}}
@@ -494,6 +549,38 @@ function menu.nav_to_checkbox(target_idx)
         return true
     end
     return false
+end
+
+function menu.nav_to_item(item_id)
+    -- Navigate to a specific item by its ID
+    reset_flag_edit_state()
+    reset_digit_input_state()
+    local si, ii = find_item_position(item_id)
+    if si and ii then
+        state.current_section = si
+        state.current_item = ii
+        menu.render()
+        return true
+    end
+    return false
+end
+
+function menu.handle_shortcut(key)
+    -- Handle custom shortcut key
+    -- If already on the item, toggle it; otherwise navigate to it
+    local target_item_id = state.shortcuts[key]
+    if not target_item_id then return false end
+
+    local current_item_id = get_current_item_id()
+
+    if current_item_id == target_item_id then
+        -- Already on this item, toggle it
+        return menu.toggle()
+    else
+        -- Navigate to this item
+        menu.nav_to_item(target_item_id)
+        return nil
+    end
 end
 -- }}}
 
@@ -835,6 +922,7 @@ function menu.run()
                 end
             end
         -- SHIFT+digit (!@#$%^&*()): go back one tier in index navigation
+        -- Also handles custom shortcuts for other single characters
         elseif type(key) == "string" and #key == 1 then
             -- Map shifted digits to their base digit
             local shift_map = {
@@ -843,7 +931,7 @@ function menu.run()
             }
             local digit = shift_map[key]
             if digit ~= nil then
-                -- Only act if this matches the current digit sequence
+                -- SHIFT+digit: go back one tier
                 if digit == state.last_digit and state.digit_count > 1 then
                     state.digit_count = state.digit_count - 1
                     local target = index_to_checkbox(digit, state.digit_count)
@@ -862,6 +950,12 @@ function menu.run()
                     if target <= total then
                         menu.nav_to_checkbox(target)
                     end
+                end
+            elseif state.shortcuts[key] then
+                -- Custom shortcut key: jump to item, or toggle if already there
+                local result = menu.handle_shortcut(key)
+                if result == "action" then
+                    return "run", state.values
                 end
             end
         -- Backspace: for flag fields
