@@ -31,6 +31,8 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-008 | Implement configurable centroid embedding system | Open | Medium |
 | 8-010 | Fix note filenames in generated HTML | Open | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
+| 8-012 | Implement paginated similarity chapters | **Blocked** | High |
+| 8-013 | Implement TXT export functionality | Open | High |
 
 ### Completed Issues
 
