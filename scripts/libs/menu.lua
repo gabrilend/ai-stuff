@@ -407,24 +407,14 @@ end
 -- Instead of full recompute, incrementally add/remove flags to preserve other content
 -- This enables true bidirectional binding between checkboxes and command text
 local function reconcile_command_preview()
-    io.stderr:write("DEBUG reconcile_command_preview: called\n")
-    if not state.command_preview_item then
-        io.stderr:write("DEBUG reconcile_command_preview: no command_preview_item, returning\n")
-        return
-    end
-    if is_on_command_preview() then
-        io.stderr:write("DEBUG reconcile_command_preview: on command preview, returning\n")
-        return
-    end
+    if not state.command_preview_item then return end
+    if is_on_command_preview() then return end
 
     local cmd_text = state.values[state.command_preview_item] or ""
-    io.stderr:write("DEBUG reconcile_command_preview: cmd_text='" .. cmd_text .. "'\n")
 
     -- If command is empty, do a full compute
     if cmd_text == "" then
-        io.stderr:write("DEBUG reconcile_command_preview: cmd_text is empty, calling compute\n")
         local cmd = compute_command_preview()
-        io.stderr:write("DEBUG reconcile_command_preview: computed cmd='" .. tostring(cmd) .. "'\n")
         if cmd then
             state.values[state.command_preview_item] = cmd
             state.cmd_invalid_ranges = {}
@@ -1669,6 +1659,17 @@ end
 -- {{{ menu.run
 -- Main event loop
 function menu.run()
+    -- DEBUG: Write state to file (won't interfere with TUI)
+    local dbg = io.open("/tmp/menu_debug.log", "w")
+    if dbg then
+        dbg:write("command_base: '" .. tostring(state.command_base) .. "'\n")
+        dbg:write("command_preview_item: '" .. tostring(state.command_preview_item) .. "'\n")
+        dbg:write("command_file_section: '" .. tostring(state.command_file_section) .. "'\n")
+        dbg:write("initial cmd_preview value: '" .. tostring(state.values[state.command_preview_item]) .. "'\n")
+        dbg:write("sections: " .. table.concat(state.sections, ", ") .. "\n")
+        dbg:close()
+    end
+
     menu.render()
 
     while true do
