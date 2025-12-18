@@ -29,6 +29,8 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-005 | Integrate images into HTML output | Open | Medium |
 | 8-008 | Implement configurable centroid embedding system | Open | Medium |
+| 8-010 | Fix note filenames in generated HTML | Open | Medium |
+| 8-011 | Scrape fediverse boost content | Open | Low |
 
 ### Completed Issues
 
@@ -38,6 +40,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-004 | Implement embedding validation and empty poem handling | Completed | 2025-12-14 |
 | 8-006 | Fix golden poem box-drawing format | Completed | 2025-12-15 |
 | 8-007 | Add box-drawing borders around navigation links | Completed | 2025-12-15 |
+| 8-009 | Project cleanup and organization | Completed | 2025-12-17 |
 
 ### Issue Details
 

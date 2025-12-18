@@ -33,15 +33,15 @@ that should be cleaned up:
 ## Suggested Implementation Steps
 
 1. [x] Verify each file/directory state before modifying
-2. [ ] Delete empty `/libs/libs-2/` directory
-3. [ ] Move `/output5.pdf` to `/output/archive/`
-4. [ ] Verify media files exist in `/input/media_attachments/` before deleting temp
-5. [ ] Remove temp extraction directories
-6. [ ] Handle `/assets/assets-2/` (move HTML file or remove)
-7. [ ] Reformat `notes-lack-names-in-generated-html.md` as `8-006-fix-note-filenames-in-html.md`
-8. [ ] Reformat `fediverse-boosts-are-links-and-not-text` as `8-007-scrape-fediverse-boost-content.md`
-9. [ ] Update phase-8-progress.md
-10. [ ] Commit changes
+2. [x] Delete empty `/libs/libs-2/` directory
+3. [x] Move `/output5.pdf` to `/output/archive/`
+4. [x] Verify media files exist in `/input/media_attachments/` before deleting temp
+5. [x] Remove temp extraction directories (~688MB freed)
+6. [x] Handle `/assets/assets-2/` - migrated to shared utility location
+7. [x] Reformat `notes-lack-names-in-generated-html.md` as `8-006-fix-note-filenames-in-html.md`
+8. [x] Reformat `fediverse-boosts-are-links-and-not-text` as `8-007-scrape-fediverse-boost-content.md`
+9. [x] Update phase-8-progress.md
+10. [x] Commit changes
 
 ## Related Documents
 
@@ -59,5 +59,21 @@ that should be cleaned up:
 - `/assets/assets-2/`: Contains `enhanced-project-file-server.html` (83KB)
 - `/output/archive/`: EXISTS, has `generated-site/` and `test-outputs/` subdirs
 - Informal issues: Both exist and need reformatting
+
+**Actions Taken:**
+1. Deleted empty `/libs/libs-2/` directory
+2. Moved `/output5.pdf` to `/output/archive/output5.pdf`
+3. Verified media files in `/input/media_attachments/` (546 files) before deleting temp
+4. Removed temp extraction directories: ~688MB freed
+5. Migrated file server utility to shared location:
+   - Library: `/home/ritz/programming/ai-stuff/scripts/libs/project-file-server.lua`
+   - Runner: `/home/ritz/programming/ai-stuff/scripts/project-file-server`
+   - Updated issue 2-015 reference
+6. Created properly formatted issue files:
+   - `8-006-fix-note-filenames-in-html.md`
+   - `8-007-scrape-fediverse-boost-content.md`
+7. Removed old informal issue files
+
+**Space Recovered:** ~693MB (688MB temp + 5MB PDF from root)
 
 ---

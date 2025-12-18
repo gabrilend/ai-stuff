@@ -1,13 +1,27 @@
 #!/usr/bin/env lua
 
 -- {{{ Enhanced Project File Server Generator
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- Generates an HTML interface for browsing programming projects in a tree structure.
+-- Uses file:// protocol links to access local directories directly, with analytics sidebar.
+
+-- Configure shared library path for dkjson
+local SCRIPT_DIR = "/home/ritz/programming/ai-stuff"
+package.path = SCRIPT_DIR .. "/libs/lua/?.lua;" .. package.path
+
+-- Default scan directory - can be overridden via first argument
+local DIR = SCRIPT_DIR
 if arg and arg[1] then
     DIR = arg[1]
 end
 
+-- Output path - can be overridden via second argument
+local OUTPUT_PATH = SCRIPT_DIR .. "/project-file-server.html"
+if arg and arg[2] then
+    OUTPUT_PATH = arg[2]
+end
+
 -- Load required libraries
-local json = require('libs.dkjson')
+local json = require('dkjson')
 
 -- {{{ execute_command
 local function execute_command(cmd)
@@ -655,7 +669,7 @@ local function main()
     print("Generating enhanced HTML file server...")
     local html_content = generate_html_page(tree_data, programming_root)
     
-    local output_path = DIR .. "/assets/assets-2/enhanced-project-file-server.html"
+    local output_path = OUTPUT_PATH
     local file = io.open(output_path, "w")
     if not file then
         print("Error: Could not create output file " .. output_path)
