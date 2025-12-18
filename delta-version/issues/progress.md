@@ -194,16 +194,16 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 035**: Project History Reconstruction 🔴 HIGH PRIORITY - IN PROGRESS
   - *Purpose*: Reconstruct git history from completed issue files for projects without git history
   - *Features*: Vision-first commit, one commit per completed issue, bulk final commit
-  - *Commit Order*: 1) Vision file → 2) Each completed issue → 3) Remaining project files
+  - *Commit Order*: 1) Vision file → 2) Each completed issue (with associated files) → 3) Remaining project files
   - *Blocks*: Issue 008 (Validation and Documentation), future project imports
   - *Dependencies*: None
   - *Implemented*: `/delta-version/scripts/reconstruct-history.sh`
-  - *Status*: Sub-issue 035a complete, core framework implemented
+  - *Status*: Sub-issues 035a-035d complete, file association working
   - *Sub-issues*:
     - **035a** ✅: Project detection and external import (unified workflow, state classification)
     - **035b** ✅: Dependency graph and topological sort (Kahn's algorithm, parses Dependencies/Blocks fields)
     - **035c** ✅: Date estimation from file timestamps (explicit dates, mtime fallback, interpolation)
-    - **035d**: File-to-issue association
+    - **035d** ✅: File-to-issue association (explicit paths, filename mentions, directory mentions, naming similarity)
     - **035e**: History rewriting with rebase (preserve post-blob commits)
     - **035f**: Local LLM integration for ambiguous decisions
 
@@ -279,10 +279,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~48 (including sub-issues)
-- **Completed**: 18 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 035b, 035c, 037)
+- **Completed**: 19 (001, 004, 006, 007, 009, 010, 011, 012, 023, 029, 030, 031, 035a, 035b, 035c, 035d, 037)
 - **In Progress**: 1 (035 - Project History Reconstruction)
 - **Partial**: 2 (005, 008)
-- **Pending**: ~27
+- **Pending**: ~26
 - **High Priority**: 1 (035 - blocks 036 and project imports)
 
 ## Notes
