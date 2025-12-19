@@ -1,6 +1,9 @@
 # Project-local temporary files
 temp/
 
+# Build products (regenerated each run)
+output/numeric-index.html
+
 # Editor files
 *.swp
 *~

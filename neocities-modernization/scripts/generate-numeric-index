@@ -20,6 +20,7 @@ local DIR = setup_dir_path(arg[1])
 -- Configuration
 local LINKS_PER_ROW = 15
 local TEST_PAGE_PATH = DIR .. "/temp/numeric-index-test.html"
+local BUILD_OUTPUT_PATH = DIR .. "/output/numeric-index.html"
 
 -- Add libs to package path
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -104,16 +105,16 @@ local function generate_test_page(fragment, total_poems)
 end
 -- }}}
 
--- {{{ write_test_page
-local function write_test_page(content)
-    local file = io.open(TEST_PAGE_PATH, "w")
+-- {{{ write_file
+local function write_file(path, content, label)
+    local file = io.open(path, "w")
     if file then
         file:write(content)
         file:close()
-        io.stderr:write(string.format("Test page: %s\n", TEST_PAGE_PATH))
+        io.stderr:write(string.format("%s: %s\n", label, path))
         return true
     else
-        io.stderr:write("Warning: Could not write test page to " .. TEST_PAGE_PATH .. "\n")
+        io.stderr:write(string.format("Error: Could not write %s to %s\n", label, path))
         return false
     end
 end
@@ -136,11 +137,16 @@ local function main()
 
     local fragment = table.concat(output, "\n")
 
-    -- Generate and write test page to temp/
-    local test_page = generate_test_page(fragment, total_poems)
-    write_test_page(test_page)
+    -- Generate full page from fragment
+    local full_page = generate_test_page(fragment, total_poems)
 
-    -- Output fragment to stdout
+    -- Write build output to output/ (main build product)
+    write_file(BUILD_OUTPUT_PATH, full_page, "Build output")
+
+    -- Write test page to temp/ (for local preview)
+    write_file(TEST_PAGE_PATH, full_page, "Test page")
+
+    -- Output fragment to stdout (for piping/insertion)
     print(fragment)
 
     io.stderr:write(string.format("Generated %d links in %d rows\n", total_poems, #lines))
