@@ -37,10 +37,10 @@ project-name-2
 For excluded projects that should remain at their current locations:
 ```bash
 # Create symlink in main ai-stuff directory
-ln -s /path/to/excluded/project /mnt/mtwo/programming/ai-stuff/.local/project-name
+ln -s /path/to/excluded/project /mnt/mtwo/programming/ai-stuff/the-frontier/project-name
 ```
 
-The `.local/` subdirectory indicates these are local-only projects not synced to remote.
+The `the-frontier/` subdirectory houses projects at the edge of the main repository - visible locally but not pushed to remote. The distinctive name prevents conflicts with system `.local` conventions and makes the separation explicit.
 
 ### Suggested Implementation Steps
 1. Add `--discover` flag to find all ai-stuff directories
@@ -58,8 +58,9 @@ The `.local/` subdirectory indicates these are local-only projects not synced to
 ## Notes
 - The exclusion mechanism protects against accidental public exposure
 - Symlinks allow unified local development while maintaining separation
-- Consider adding a `.gitignore` pattern for `.local/` directories
+- Consider adding a `.gitignore` pattern for `the-frontier/` directory
 - "The sword of Damocles" - platform ban risk for certain content types
+- "The frontier" - where projects roam free, beyond the reach of remote pushes
 
 ## Priority
 Medium - Quality of life improvement for multi-drive setups
