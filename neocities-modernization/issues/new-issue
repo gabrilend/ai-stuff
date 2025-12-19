@@ -1,0 +1,27 @@
+the user browses poems. they click a drop-down menu. they can select from among their pinned favorites
+the style of the poem they want to [error: their pinned favorites not available, instead fallback to [curated collection]]
+and then it would display the generated art that was derived from the poem they clicked on displayed in the style of the
+poem or curated compilation that was available (calculated and cached)
+
+(at first, make the drop-down auto-active, but as more and more of them get
+filled out, consider making it hidden by default)
+
+essentially, combining the forms of two disparate poems, and generating something
+that was the same message as one, but the presentation style of the other.
+
+rather than melange style soup, try making parts that are uneven. (this side
+shift 40% in this vector direction, this side shift -60% in the opposite vector
+direction. then, let it normalize, which is really all that AI training is do.)
+
+(this should be considered a toy, and the link to any melange-style-soup-manipulator toys
+should be recorded as a symlink and table-of-contents entry as "toys")
+
+stored monorepo-wide, and genericized like the scripts/ and libs/ directory.
+
+then make it abstractable to any AI embedding generated dataset (like the similarity matrix and embedding array)
+and let the user play around, see if they can create it by routing their process
+through some script files
+
+"here's the absolute path of the similarity matrix, here's the path to the image file that this is based off of"
+
+
