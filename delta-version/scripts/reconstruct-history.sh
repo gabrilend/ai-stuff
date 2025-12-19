@@ -30,6 +30,7 @@ DRY_RUN=false
 VERBOSE=false
 FORCE=false
 INTERACTIVE=false
+SCAN_MODE=false
 BRANCH_NAME="main"
 SKIP_FILE_ASSOCIATION=true  # 035d is slow, skip by default for now
 
@@ -2321,6 +2322,7 @@ Options:
     -v, --verbose        Verbose output
     -f, --force          Override existing git history (destructive!)
     -I, --interactive    Interactive mode (select project from list)
+    -S, --scan           Scan all projects and show reconstruction candidates
     -h, --help           Show this help message
 
 Import Options (for external projects):
@@ -2402,6 +2404,127 @@ EOF
 }
 # }}}
 
+# -- {{{ scan_projects
+scan_projects() {
+    # Scan all projects and display reconstruction candidacy status
+    # Shows state, commit count, file count, issue count, and recommended action
+    local projects_script="${DIR}/delta-version/scripts/list-projects.sh"
+
+    if [[ ! -x "$projects_script" ]]; then
+        error "Project listing script not found: $projects_script"
+        error "Cannot scan without list-projects.sh"
+        return 1
+    fi
+
+    echo "Scanning projects for reconstruction candidates..."
+    echo ""
+
+    local -a projects
+    mapfile -t projects < <("$projects_script" --abs-paths)
+
+    if [[ ${#projects[@]} -eq 0 ]]; then
+        error "No projects found"
+        return 1
+    fi
+
+    # Print header
+    printf "  %-28s %-14s %7s %6s %6s  %-12s\n" \
+        "Project" "State" "Commits" "Files" "Issues" "Action"
+    printf "  %s\n" "────────────────────────────────────────────────────────────────────────────────"
+
+    local candidates=0
+    local total=${#projects[@]}
+
+    for project in "${projects[@]}"; do
+        local name state commits files issues action
+        name=$(basename "$project")
+
+        # Get state
+        if [[ ! -d "${project}/.git" ]]; then
+            state="no_git"
+            commits="-"
+        else
+            state=$(determine_project_state "$project" 2>/dev/null) || state="unknown"
+            commits=$(git -C "$project" rev-list --count HEAD 2>/dev/null || echo "0")
+        fi
+
+        # Count files (excluding .git)
+        files=$(find "$project" -type f ! -path "*/.git/*" 2>/dev/null | wc -l)
+
+        # Count completed issues (check multiple legacy structures)
+        # Patterns: issues/completed/, issues/phase-*/completed/, issues/phase-*/*.md
+        issues=0
+        if [[ -d "${project}/issues" ]]; then
+            # Standard: issues/completed/*.md
+            if [[ -d "${project}/issues/completed" ]]; then
+                issues=$((issues + $(find "${project}/issues/completed" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l)))
+            fi
+            # Legacy: issues/phase-*/completed/*.md
+            for phase_dir in "${project}"/issues/phase-*/completed; do
+                [[ -d "$phase_dir" ]] && issues=$((issues + $(find "$phase_dir" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l)))
+            done
+            # Legacy: issues/completed/phase-*/*.md (nested phases)
+            for phase_dir in "${project}"/issues/completed/phase-*; do
+                [[ -d "$phase_dir" ]] && issues=$((issues + $(find "$phase_dir" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l)))
+            done
+        fi
+
+        # Check if project has issues directory (indicates reconstruction intent)
+        local has_issues_dir=false
+        [[ -d "${project}/issues" ]] && has_issues_dir=true
+
+        # Determine action
+        case "$state" in
+            no_git)
+                if [[ "$issues" -gt 0 ]] || [[ "$has_issues_dir" == true ]]; then
+                    action="CANDIDATE"
+                    ((candidates++)) || true
+                else
+                    action="No issues"
+                fi
+                ;;
+            flat_blob|sparse_history)
+                action="CANDIDATE"
+                ((candidates++)) || true
+                ;;
+            good_history)
+                action="Skip"
+                ;;
+            external)
+                action="Import first"
+                ;;
+            *)
+                action="Unknown"
+                ;;
+        esac
+
+        # Color coding for action (use $'...' for proper escape interpretation)
+        local action_display="$action"
+        if [[ "$action" == "CANDIDATE" ]]; then
+            action_display=$'\033[1;32mCANDIDATE\033[0m'  # Bold green
+        elif [[ "$action" == "Skip" ]]; then
+            action_display=$'\033[0;90mSkip\033[0m'       # Gray
+        fi
+
+        # Print row
+        printf "  %-28s %-14s %7s %6s %6s  %s\n" \
+            "${name:0:28}" "$state" "$commits" "$files" "$issues" "$action_display"
+    done
+
+    echo ""
+    printf "  %s\n" "────────────────────────────────────────────────────────────────────────────────"
+    echo "  Summary: $candidates candidates out of $total projects"
+    echo ""
+
+    if [[ $candidates -gt 0 ]]; then
+        echo "  To reconstruct a candidate:"
+        echo "    reconstruct-history.sh --dry-run <project-path>    # Preview"
+        echo "    reconstruct-history.sh <project-path>              # Execute"
+        echo "    reconstruct-history.sh --llm <project-path>        # With LLM commit messages"
+    fi
+}
+# }}}
+
 # -- {{{ interactive_select_project
 interactive_select_project() {
     local projects_script="${DIR}/delta-version/scripts/list-projects.sh"
@@ -2416,7 +2539,7 @@ interactive_select_project() {
     echo ""
 
     local -a projects
-    mapfile -t projects < <("$projects_script" --paths)
+    mapfile -t projects < <("$projects_script" --abs-paths)
 
     if [[ ${#projects[@]} -eq 0 ]]; then
         error "No projects found"
@@ -2477,6 +2600,10 @@ parse_args() {
                 ;;
             -I|--interactive)
                 INTERACTIVE=true
+                shift
+                ;;
+            -S|--scan)
+                SCAN_MODE=true
                 shift
                 ;;
             --name)
@@ -2554,6 +2681,12 @@ main() {
 
     if [[ "$RESET_LLM_STATS" == true ]]; then
         reset_llm_stats
+        exit 0
+    fi
+
+    # Scan mode - analyze all projects
+    if [[ "$SCAN_MODE" == true ]]; then
+        scan_projects
         exit 0
     fi
 
