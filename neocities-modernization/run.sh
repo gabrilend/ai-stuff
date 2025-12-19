@@ -60,3 +60,10 @@ if [ "$INTERACTIVE" = true ]; then
 else
     lua src/main.lua "$DIR"
 fi
+
+# Generate numeric similarity index (build product, always overwrites)
+echo "🔢 Generating numeric similarity index..."
+lua "$DIR/scripts/generate-numeric-index" "$DIR" > /dev/null || {
+    echo "Error: Numeric index generation failed" >&2
+    exit 1
+}
