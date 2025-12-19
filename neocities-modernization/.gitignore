@@ -1,0 +1,9 @@
+# Project-local temporary files
+temp/
+
+# Editor files
+*.swp
+*~
+
+# OS files
+.DS_Store
