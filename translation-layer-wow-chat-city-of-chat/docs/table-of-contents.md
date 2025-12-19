@@ -12,6 +12,7 @@ translation-layer-wow-chat-city-of-chat/
 |   +-- table-of-contents.md      # This file
 |   +-- roadmap.md                # 4-phase development plan
 |   +-- architecture.md           # System design overview
+|   +-- translation-philosophy.md # Core translation concept
 |   |
 |   +-- [Phase 1 - Protocol Research]
 |   |   +-- wow-protocol.md       # (planned) WoW protocol analysis
@@ -51,6 +52,7 @@ translation-layer-wow-chat-city-of-chat/
 | `notes/vision` | Original creative vision | Complete |
 | `docs/roadmap.md` | Development phases | Complete |
 | `docs/architecture.md` | System design | Complete |
+| `docs/translation-philosophy.md` | How translation actually works | Complete |
 | `docs/wow-protocol.md` | WoW protocol details | Phase 1 |
 | `docs/coh-protocol.md` | CoH protocol details | Phase 1 |
 | `docs/protocol-mapping.md` | Translation mappings | Phase 1 |
