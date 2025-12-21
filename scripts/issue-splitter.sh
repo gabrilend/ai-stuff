@@ -1586,13 +1586,56 @@ parse_analysis() {
     local issue_path="$1"
 
     # Extract Sub-Issue Analysis section (or Initial Analysis if renamed)
-    # Stop at the next ## heading or end of file
+    # Must continue through sub-headings like "## Recommended Sub-Issues"
+    # until we hit a section separator "---" or end of file
+    #
+    # Strategy: Find the LAST "## Sub-Issue Analysis" section (most recent)
+    # and extract everything from there to the next "---" or EOF
     local section=""
-    section=$(sed -n '/^## Sub-Issue Analysis$/,/^## /p' "$issue_path" 2>/dev/null | head -n -1)
 
-    # If not found, try Initial Analysis
+    # Use awk to find the last Sub-Issue Analysis section and extract to --- or EOF
+    section=$(awk '
+        /^## Sub-Issue Analysis/ {
+            # Start capturing from this line
+            capturing = 1
+            buffer = ""
+        }
+        capturing {
+            if (/^---$/) {
+                # End of section - print what we have and stop capturing
+                print buffer
+                capturing = 0
+                buffer = ""
+            } else {
+                buffer = buffer $0 "\n"
+            }
+        }
+        END {
+            # If still capturing at EOF, print the buffer
+            if (capturing) print buffer
+        }
+    ' "$issue_path" 2>/dev/null)
+
+    # If not found, try Initial Analysis with same logic
     if [[ -z "$section" ]]; then
-        section=$(sed -n '/^## Initial Analysis$/,/^## /p' "$issue_path" 2>/dev/null | head -n -1)
+        section=$(awk '
+            /^## Initial Analysis/ {
+                capturing = 1
+                buffer = ""
+            }
+            capturing {
+                if (/^---$/) {
+                    print buffer
+                    capturing = 0
+                    buffer = ""
+                } else {
+                    buffer = buffer $0 "\n"
+                }
+            }
+            END {
+                if (capturing) print buffer
+            }
+        ' "$issue_path" 2>/dev/null)
     fi
 
     echo "$section"
