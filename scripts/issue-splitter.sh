@@ -1593,17 +1593,18 @@ parse_analysis() {
     # and extract everything from there to the next "---" or EOF
     local section=""
 
-    # Use awk to find the last Sub-Issue Analysis section and extract to --- or EOF
+    # Use awk to find the LAST Sub-Issue Analysis section and extract to --- or EOF
+    # If multiple sections exist (from multiple analysis runs), only use the most recent
     section=$(awk '
         /^## Sub-Issue Analysis/ {
-            # Start capturing from this line
+            # Start capturing from this line (resets any previous section)
             capturing = 1
             buffer = ""
         }
         capturing {
             if (/^---$/) {
-                # End of section - print what we have and stop capturing
-                print buffer
+                # End of section - save but do not print yet (might not be last)
+                last_section = buffer
                 capturing = 0
                 buffer = ""
             } else {
@@ -1611,8 +1612,13 @@ parse_analysis() {
             }
         }
         END {
-            # If still capturing at EOF, print the buffer
-            if (capturing) print buffer
+            # Print the last section we captured
+            # Either still capturing (section runs to EOF) or last completed section
+            if (capturing && buffer != "") {
+                print buffer
+            } else if (last_section != "") {
+                print last_section
+            }
         }
     ' "$issue_path" 2>/dev/null)
 
@@ -1625,7 +1631,7 @@ parse_analysis() {
             }
             capturing {
                 if (/^---$/) {
-                    print buffer
+                    last_section = buffer
                     capturing = 0
                     buffer = ""
                 } else {
@@ -1633,7 +1639,11 @@ parse_analysis() {
                 }
             }
             END {
-                if (capturing) print buffer
+                if (capturing && buffer != "") {
+                    print buffer
+                } else if (last_section != "") {
+                    print last_section
+                }
             }
         ' "$issue_path" 2>/dev/null)
     fi
