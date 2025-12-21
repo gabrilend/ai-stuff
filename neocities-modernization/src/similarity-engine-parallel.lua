@@ -126,14 +126,21 @@ local function count_completed_poems(output_dir, total_poems)
     
     -- Validate existing similarity files and detect corruption
     local list_handle = io.popen("find '" .. output_dir .. "' -name 'poem_*.json' 2>/dev/null")
+    local checked = 0
     if list_handle then
         for filepath in list_handle:lines() do
             local filename = filepath:match("([^/]+)%.json$")
             if filename then
+                checked = checked + 1
+                -- Show progress every 10 files (updates in place)
+                if checked % 10 == 0 then
+                    io.write(string.format("\r  Validating: %d files checked...", checked))
+                    io.flush()
+                end
                 -- Validate file integrity
                 local file_data = utils.read_json_file(filepath)
-                if file_data and file_data.metadata and file_data.similarities and 
-                   file_data.metadata.total_comparisons and 
+                if file_data and file_data.metadata and file_data.similarities and
+                   file_data.metadata.total_comparisons and
                    #file_data.similarities == file_data.metadata.total_comparisons then
                     -- File is valid and complete
                     completed_poems[filename] = true
@@ -147,6 +154,10 @@ local function count_completed_poems(output_dir, total_poems)
             end
         end
         list_handle:close()
+        if checked > 0 then
+            io.write("\r" .. string.rep(" ", 40) .. "\r") -- Clear progress line
+            io.flush()
+        end
     end
     
     if #corrupted_files > 0 then
@@ -608,11 +619,22 @@ function M.main()
             print("Embedding model (default: embeddinggemma:latest): ")
             local model = io.read()
             if model == "" then model = "embeddinggemma:latest" end
-            
+
             local output_dir = get_similarity_output_dir(model)
+            utils.log_info("Checking " .. output_dir .. " ...")
+
+            -- Quick count first (no validation)
+            local quick_count_handle = io.popen("find '" .. output_dir .. "' -name 'poem_*.json' 2>/dev/null | wc -l")
+            local quick_count = 0
+            if quick_count_handle then
+                quick_count = tonumber(quick_count_handle:read("*a")) or 0
+                quick_count_handle:close()
+            end
+            utils.log_info("Found " .. quick_count .. " similarity files (validating...)")
+
             local completed_count = count_completed_poems(output_dir, 0)
-            
-            utils.log_info("Similarity files in " .. output_dir .. ": " .. completed_count)
+
+            utils.log_info("✅ Valid similarity files: " .. completed_count .. "/" .. quick_count)
         end
     end
     
