@@ -1,48 +1,11 @@
 #!/bin/bash
 
 # {{{ Project File Server Runner
-# Generates an HTML interface for browsing programming projects in a tree structure.
+# Generates a pure HTML interface for browsing programming projects in a tree structure.
 # Uses file:// protocol links to access local directories directly.
-# }}}
-
-# {{{ BLOCKER: Issue 007 - Remove CSS and JavaScript
-# This application is BLOCKED until issue 007 is resolved.
-# The file server currently generates HTML with embedded CSS and JavaScript,
-# which violates project standards (pure HTML output required).
+# Uses native <details>/<summary> for collapsible folders - no JavaScript required.
 #
-# To unblock:
-#   1. Begin work on issue 007
-#   2. Remove this guard block
-#   3. Implement the CSS/JS removal
-#
-# See: /home/ritz/programming/ai-stuff/scripts/issues/007-remove-css-and-javascript-from-file-server.md
-
-echo ""
-echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-echo "║                           ⛔ APPLICATION BLOCKED                              ║"
-echo "╠══════════════════════════════════════════════════════════════════════════════╣"
-echo "║                                                                              ║"
-echo "║  The project-file-server is currently BLOCKED pending issue resolution.     ║"
-echo "║                                                                              ║"
-echo "║  Issue: 007 - Remove CSS and JavaScript from File Server                    ║"
-echo "║  Priority: HIGH                                                              ║"
-echo "║  Status: BLOCKING                                                            ║"
-echo "║                                                                              ║"
-echo "║  The current implementation generates HTML with embedded CSS (~230 lines)   ║"
-echo "║  and JavaScript (~80 lines), which violates project standards requiring     ║"
-echo "║  pure HTML output.                                                           ║"
-echo "║                                                                              ║"
-echo "║  To unblock this application:                                                ║"
-echo "║    1. Read the issue file (path below)                                       ║"
-echo "║    2. Begin implementation of CSS/JS removal                                 ║"
-echo "║    3. Remove the blocker guard from this script                              ║"
-echo "║                                                                              ║"
-echo "║  Issue file:                                                                 ║"
-echo "║  /home/ritz/programming/ai-stuff/scripts/issues/007-remove-css-and-javascript-from-file-server.md"
-echo "║                                                                              ║"
-echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-echo ""
-exit 1
+# Issue 007 RESOLVED: Converted to pure HTML output.
 # }}}
 
 DIR="/home/ritz/programming/ai-stuff"
@@ -71,6 +34,9 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: project-file-server [DIRECTORY] [OPTIONS]"
             echo ""
+            echo "Generates a pure HTML file browser with collapsible directories."
+            echo "No CSS. No JavaScript. Just HTML with <details>/<summary>."
+            echo ""
             echo "Options:"
             echo "  -I, --interactive    Run in interactive mode"
             echo "  -o, --output FILE    Specify output HTML file"
@@ -81,6 +47,12 @@ while [[ $# -gt 0 ]]; do
             echo "  project-file-server /path/to/projects  # Scan specific directory"
             echo "  project-file-server -o ~/my-server.html"
             echo "  project-file-server -I                 # Interactive mode"
+            echo ""
+            echo "After generating, view in Firefox:"
+            echo "  firefox project-file-server.html"
+            echo ""
+            echo "Or serve via HTTP:"
+            echo "  python3 -m http.server 8080"
             exit 0
             ;;
         *)
