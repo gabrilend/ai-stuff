@@ -16,7 +16,10 @@ if not io.open("libs/utils.lua", "r") and not io.open("../libs/utils.lua", "r") 
 end
 
 -- Add paths for both project root and src/ directory execution
-package.path = package.path .. ';./libs/?.lua;./src/?.lua;../libs/?.lua;../src/?.lua;/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so'
+package.path = package.path .. ';./libs/?.lua;./src/?.lua;../libs/?.lua;../src/?.lua'
+-- CRITICAL: effil.so is a C library, must be in cpath not path
+-- The original bug put .so in package.path which caused "unexpected symbol near char(127)"
+package.cpath = package.cpath .. ';/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so'
 
 local utils = require('utils')
 local dkjson = require('dkjson')
