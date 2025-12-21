@@ -3,6 +3,7 @@
 ## Project Documentation
 
 ### Core Documentation
+- [Quick Start](QUICK-START.md) - Get up and running in 5 minutes 📝
 - [Project Structure](project-structure.md) - Delta-Version directory organization and scope
 - [Development Roadmap](roadmap.md) - Sequential development phases and feature planning
 - [Project Status](PROJECT-STATUS.md) - Current state and completion overview 📝
