@@ -24,6 +24,11 @@
 #   -x, --execute         Execute recommendations (create sub-issue files)
 #   -X, --execute-all     Execute all recommendations without confirmation
 #   -A, --auto-implement  Auto-implement issues via Claude CLI
+#   -C, --clear           Clear analysis sections from issue files (no Claude)
+#   -F, --feedback        Enable interactive feedback loop with Claude
+#   -S, --session         Reuse Claude context across issues (sequential only)
+#   -E, --expert          Fresh context per issue for focused analysis (default)
+#   --max-rounds <n>      Max feedback rounds per issue (default: 10)
 #   --stream              Enable streaming mode with parallel processing
 #   --parallel <n>        Max concurrent Claude calls (default: 3, requires --stream)
 #   --delay <n>           Seconds between streamed outputs (default: 5)
@@ -64,6 +69,12 @@ ARCHIVE_DIR="${DIR}/issues/analysis"
 EXECUTE_MODE=false
 EXECUTE_ALL=false
 AUTO_IMPLEMENT=false
+CLEAR_MODE=false         # Clear analysis sections from issue files
+FEEDBACK_MODE=false      # Interactive feedback loop with Claude
+MAX_FEEDBACK_ROUNDS=10   # Safety limit on conversation rounds
+SESSION_MODE=false       # Reuse Claude context across issues (--continue)
+EXPERT_MODE=false        # Fresh context per issue (explicit default)
+SESSION_STARTED=false    # Track if first call has been made in session mode
 
 # Track root issues that have sub-issues (for final review)
 declare -a ROOTS_WITH_SUBS=()
@@ -104,8 +115,21 @@ cleanup_queue() {
 }
 # }}}
 
-# Exit trap for queue cleanup
-trap cleanup_queue EXIT INT TERM
+# {{{ handle_interrupt
+# Handle Ctrl+C - cleanup and exit immediately
+handle_interrupt() {
+    cleanup_queue
+    # Reset terminal in case we were in raw mode
+    stty sane 2>/dev/null || true
+    echo ""
+    echo "Interrupted."
+    exit 130
+}
+# }}}
+
+# Trap EXIT for normal cleanup, INT/TERM for immediate exit
+trap cleanup_queue EXIT
+trap handle_interrupt INT TERM
 
 # {{{ queue_claude_response
 queue_claude_response() {
@@ -119,6 +143,7 @@ queue_claude_response() {
     echo "$issue_path" > "$meta_file"
 
     # Run Claude and capture output
+    # Note: Parallel mode always uses fresh context (--session not compatible)
     if timeout 300 claude -p "$prompt" > "$output_file" 2>&1; then
         echo "success" >> "$meta_file"
     else
@@ -199,6 +224,7 @@ process_issue_parallel() {
     echo "$issue_path" > "$meta_file"
 
     # Run Claude and capture output
+    # Note: Parallel mode always uses fresh context (--session not compatible with parallel)
     local response=""
     if timeout 300 claude -p "$prompt" > "$output_file" 2>&1; then
         echo "success" >> "$meta_file"
@@ -363,6 +389,26 @@ parse_args() {
                 AUTO_IMPLEMENT=true
                 shift
                 ;;
+            -C|--clear)
+                CLEAR_MODE=true
+                shift
+                ;;
+            -F|--feedback)
+                FEEDBACK_MODE=true
+                shift
+                ;;
+            -S|--session)
+                SESSION_MODE=true
+                shift
+                ;;
+            -E|--expert)
+                EXPERT_MODE=true
+                shift
+                ;;
+            --max-rounds)
+                MAX_FEEDBACK_ROUNDS="$2"
+                shift 2
+                ;;
             --stream)
                 STREAMING_MODE=true
                 shift
@@ -387,17 +433,55 @@ parse_args() {
 }
 # }}}
 
+# {{{ is_text_file
+is_text_file() {
+    # Check if first ~100 bytes are ASCII (printable + whitespace)
+    # Returns 0 if text, 1 if binary
+    local file="$1"
+    local sample
+    sample=$(head -c 100 "$file" 2>/dev/null | tr -d '[:print:][:space:]')
+    # If removing printable chars + whitespace leaves nothing, it's text
+    [[ -z "$sample" ]]
+}
+# }}}
+
 # {{{ get_issues
 get_issues() {
     local pattern="$1"
     local issues=()
+    local -A seen=()  # Track unique files by basename
 
+    # First pass: find files matching the exact pattern
     while IFS= read -r -d '' file; do
-        # Skip files in completed/ or analysis/ directories
         if [[ "$file" != *"/completed/"* ]] && [[ "$file" != *"/analysis/"* ]]; then
-            issues+=("$file")
+            local base
+            base=$(basename "$file")
+            if [[ -z "${seen[$base]:-}" ]]; then
+                issues+=("$file")
+                seen[$base]=1
+            fi
         fi
-    done < <(find "$ISSUES_DIR" -maxdepth 1 -name "$pattern" -type f -print0 | sort -z)
+    done < <(find "$ISSUES_DIR" -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null | sort -z)
+
+    # Second pass: if pattern ends with .md, also check for extension-less files
+    # This handles projects where issue files don't have .md extension
+    if [[ "$pattern" == *.md ]]; then
+        local base_pattern="${pattern%.md}"
+        while IFS= read -r -d '' file; do
+            if [[ "$file" != *"/completed/"* ]] && [[ "$file" != *"/analysis/"* ]]; then
+                local base
+                base=$(basename "$file")
+                # Skip if already found (with .md) or if it has any extension
+                if [[ -z "${seen[$base]:-}" ]] && [[ "$base" != *.* ]]; then
+                    # Validate it's a text file, not binary
+                    if is_text_file "$file"; then
+                        issues+=("$file")
+                        seen[$base]=1
+                    fi
+                fi
+            fi
+        done < <(find "$ISSUES_DIR" -maxdepth 1 -name "$base_pattern" -type f -print0 2>/dev/null | sort -z)
+    fi
 
     printf '%s\n' "${issues[@]}"
 }
@@ -539,12 +623,16 @@ interactive_mode_tui() {
     menu_add_section "mode" "single" "Operation Mode"
     menu_add_item "mode" "analyze" "Analyze Issues" "checkbox" "1" \
         "Ask Claude to analyze issues and suggest sub-issue splits" "a" ""
+    menu_add_item "mode" "feedback" "Feedback Loop" "checkbox" "0" \
+        "Interactive Q&A with Claude until analysis is complete" "f" "-F"
     menu_add_item "mode" "review" "Review Structures" "checkbox" "0" \
         "Review root issues that already have sub-issues" "r" "-r"
     menu_add_item "mode" "execute" "Execute Recommendations" "checkbox" "0" \
         "Create sub-issue files from analysis recommendations" "x" "-x"
     menu_add_item "mode" "implement" "Auto-Implement" "checkbox" "0" \
         "Invoke Claude CLI to implement the selected issues" "m" "-A"
+    menu_add_item "mode" "clear" "Clear Analysis" "checkbox" "0" \
+        "Remove analysis sections from issue files (no Claude)" "l" "-C"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 2: Processing Options (multi - can select multiple)
@@ -560,6 +648,8 @@ interactive_mode_tui() {
         "Execute/implement without asking for confirmation" "n" "-X"
     menu_add_item "processing" "dry_run" "Dry Run" "checkbox" "0" \
         "Show what would happen without actually doing it" "d" "-n"
+    menu_add_item "processing" "session" "Session Mode" "checkbox" "0" \
+        "Reuse Claude context across issues (faster, sequential only)" "e" "-S"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Streaming Settings (inline editable flag values)
@@ -603,15 +693,23 @@ interactive_mode_tui() {
         fi
 
         menu_add_item "files" "file_$i" "$label" "checkbox" "$default" "$desc"
+        # Set file path for preview when this item is selected
+        menu_set_item_filepath "file_$i" "$issue"
         ((++i))  # Pre-increment to avoid exit code 1 when i=0
     done
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Content Preview: Show first N lines of selected issue file
+    # Uses remaining screen space, separated by dashed box-drawing line
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_content_source "item_file" "" ""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 5: Command Preview (shows the command that will be executed)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "preview" "multi" "Command Preview"
-    menu_add_item "preview" "cmd_preview" "$" "text" "" \
-        "The command that will be executed (updated in real-time)"
+    menu_add_item "preview" "cmd_preview" "" "text" "" \
+        "The command that will be executed (press ~ to copy to clipboard)"
 
     # Configure command preview
     menu_set_command_config "./issue-splitter.sh" "cmd_preview" "files"
@@ -623,6 +721,46 @@ interactive_mode_tui() {
     menu_add_item "actions" "run" "Run Selected Operations" "action" "" \
         "Execute the selected mode with chosen options and files"
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Dependencies: disable options that don't apply based on mode selection
+    # ═══════════════════════════════════════════════════════════════════════════
+    # "No Confirmations" only relevant when execute or implement mode is selected
+    menu_add_dependency_multi "execute_all" "execute:1 implement:1" "false" \
+        "Only applies to Execute or Implement modes" "yellow"
+
+    # "Feedback Loop" and "Streaming" are mutually exclusive
+    # (feedback is interactive Q&A, streaming is parallel batch processing)
+    menu_add_dependency "feedback" "streaming" "1" "true" \
+        "Incompatible with Streaming (feedback is interactive)" "yellow"
+    menu_add_dependency "streaming" "feedback" "1" "true" \
+        "Incompatible with Feedback Loop (streaming is batch processing)" "yellow"
+
+    # "Session Mode" is incompatible with streaming (parallel processing)
+    menu_add_dependency "session" "streaming" "1" "true" \
+        "Incompatible with Streaming (parallel workers can't share context)" "yellow"
+
+    # "Parallel Jobs" and "Output Delay" only apply when streaming is enabled
+    # (these cascade-disable when streaming is disabled by feedback loop)
+    menu_add_dependency "parallel" "streaming" "1" "false" \
+        "Requires Streaming mode to be enabled" "yellow"
+    menu_add_dependency "delay" "streaming" "1" "false" \
+        "Requires Streaming mode to be enabled" "yellow"
+
+    # "Clear Analysis" mode doesn't use Claude - disable Claude-related options
+    menu_add_dependency "streaming" "clear" "1" "true" \
+        "Clear mode doesn't use Claude" "yellow"
+    menu_add_dependency "skip_existing" "clear" "1" "true" \
+        "Clear mode doesn't use Claude" "yellow"
+    menu_add_dependency "archive" "clear" "1" "true" \
+        "Clear mode doesn't use Claude" "yellow"
+    menu_add_dependency "session" "clear" "1" "true" \
+        "Clear mode doesn't use Claude" "yellow"
+
+    # "Execute Recommendations" mode only processes issues WITH analysis
+    # Skipping analyzed issues would skip the only ones that can be executed
+    menu_add_dependency "skip_existing" "execute" "1" "true" \
+        "Execute mode requires analysis (would skip processable issues)" "yellow"
+
     # Run the menu
     if menu_run; then
         tui_cleanup
@@ -633,13 +771,19 @@ interactive_mode_tui() {
         REVIEW_ONLY=false
         EXECUTE_MODE=false
         AUTO_IMPLEMENT=false
+        CLEAR_MODE=false
+        FEEDBACK_MODE=false
 
-        if [[ "$(menu_get_value "review")" == "1" ]]; then
+        if [[ "$(menu_get_value "feedback")" == "1" ]]; then
+            FEEDBACK_MODE=true
+        elif [[ "$(menu_get_value "review")" == "1" ]]; then
             REVIEW_ONLY=true
         elif [[ "$(menu_get_value "execute")" == "1" ]]; then
             EXECUTE_MODE=true
         elif [[ "$(menu_get_value "implement")" == "1" ]]; then
             AUTO_IMPLEMENT=true
+        elif [[ "$(menu_get_value "clear")" == "1" ]]; then
+            CLEAR_MODE=true
         fi
         # Default: analyze mode (none of the above set)
 
@@ -651,12 +795,14 @@ interactive_mode_tui() {
         ARCHIVE_MODE=false
         EXECUTE_ALL=false
         DRY_RUN=false
+        SESSION_MODE=false
 
         [[ "$(menu_get_value "streaming")" == "1" ]] && STREAMING_MODE=true
         [[ "$(menu_get_value "skip_existing")" == "1" ]] && SKIP_EXISTING=true
         [[ "$(menu_get_value "archive")" == "1" ]] && ARCHIVE_MODE=true
         [[ "$(menu_get_value "execute_all")" == "1" ]] && EXECUTE_ALL=true
         [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true
+        [[ "$(menu_get_value "session")" == "1" ]] && SESSION_MODE=true
 
         # ═══════════════════════════════════════════════════════════════════════
         # Extract streaming settings (0 = use default)
@@ -696,9 +842,11 @@ interactive_mode_tui() {
 
         # Mode
         local mode_str="Analyze"
+        [[ "$FEEDBACK_MODE" == true ]] && mode_str="Feedback Loop"
         [[ "$REVIEW_ONLY" == true ]] && mode_str="Review"
         [[ "$EXECUTE_MODE" == true ]] && mode_str="Execute"
         [[ "$AUTO_IMPLEMENT" == true ]] && mode_str="Implement"
+        [[ "$CLEAR_MODE" == true ]] && mode_str="Clear Analysis"
         echo "║ Mode: $(printf '%-54s' "$mode_str")║"
 
         # Options
@@ -708,6 +856,7 @@ interactive_mode_tui() {
         [[ "$ARCHIVE_MODE" == true ]] && opts+="archive, "
         [[ "$EXECUTE_ALL" == true ]] && opts+="no-confirm, "
         [[ "$DRY_RUN" == true ]] && opts+="dry-run, "
+        [[ "$SESSION_MODE" == true ]] && opts+="session, "
         [[ -z "$opts" ]] && opts="(none)"
         opts="${opts%, }"  # Remove trailing comma
         echo "║ Options: $(printf '%-51s' "$opts")║"
@@ -740,29 +889,356 @@ interactive_mode() {
 }
 # }}}
 
+# {{{ call_claude
+# Wrapper to invoke Claude with appropriate session/expert mode flags
+# Session mode: reuse context across calls with --continue
+# Expert mode: fresh context per call (default behavior)
+call_claude() {
+    local prompt="$1"
+    local timeout_seconds="${2:-300}"
+
+    if [[ "$SESSION_MODE" == true ]] && [[ "$SESSION_STARTED" == true ]]; then
+        # Continue previous conversation to reuse context
+        # Claude won't need to re-read project files
+        timeout "$timeout_seconds" claude --continue -p "$prompt" 2>&1
+    else
+        # Fresh context (expert mode or first call in session)
+        timeout "$timeout_seconds" claude -p "$prompt" 2>&1
+
+        # Mark session as started for subsequent calls
+        if [[ "$SESSION_MODE" == true ]]; then
+            SESSION_STARTED=true
+        fi
+    fi
+}
+# }}}
+
 # {{{ build_prompt
 build_prompt() {
     local issue_path="$1"
     local issue_content
     issue_content=$(cat "$issue_path")
 
-    cat <<EOF
+    cat <<'EOF'
 Hello computer, all is well. Can you analyze this issue and suggest how it could be split into sub-issues?
 
-For each suggested sub-issue, provide:
-1. A suggested ID following the pattern {PARENT_ID}{letter} (e.g., if parent is 103, sub-issues are 103a, 103b, etc.)
-2. A short dash-separated name
-3. A brief description of what it covers
-4. Dependencies on other sub-issues
+If you recommend splitting, format your suggestions as a markdown table with these exact columns:
 
-If the issue is already small enough or doesn't benefit from splitting, say so.
+| ID | Name | Description |
+|----|------|-------------|
+| 103a | parse-header | Parse the header structure and validate magic bytes |
+| 103b | parse-body | Parse the main body content |
 
-Here is the issue file located at: $issue_path
+FORMAT REQUIREMENTS (for automatic parsing):
+- ID: parent issue number + lowercase letter (e.g., 103a, 103b, 103c)
+- Name: dash-separated lowercase words (e.g., parse-header, validate-input)
+- Description: brief explanation of what this sub-issue covers
+- Each row must have pipes | separating the columns
+- Do NOT include a header row separator in data rows
+
+If the issue is already small enough or doesn't benefit from splitting, explain why
+and do not include a recommendations table.
+
+EOF
+    echo "Here is the issue file located at: $issue_path"
+    echo ""
+    echo "---"
+    echo ""
+    echo "$issue_content"
+}
+# }}}
+
+# {{{ build_feedback_prompt
+# Build initial prompt for feedback mode - instructs Claude to ask questions
+build_feedback_prompt() {
+    local issue_path="$1"
+    local issue_content
+    issue_content=$(cat "$issue_path")
+
+    cat <<'PROMPT_HEADER'
+Hello computer, all is well. I need your help analyzing this issue to create a detailed implementation plan.
+
+## Your Task
+
+Analyze the issue and help me understand exactly how to break it down into sub-issues.
+This is an interactive conversation - please ask me clarifying questions to ensure you
+fully understand the requirements before finalizing your analysis.
+
+## Conversation Protocol
+
+1. **Ask Questions First**: Before providing a final analysis, ask me 2-5 clarifying questions
+   about aspects that are unclear, ambiguous, or where my input would improve the plan.
+
+2. **Format Questions**: Start your questions block with "## Questions" and number each question.
+
+3. **When Satisfied**: Once you have enough information, provide your final analysis.
+   Start the final analysis with "## ANALYSIS COMPLETE" on its own line.
+
+4. **Final Analysis Format**: After "## ANALYSIS COMPLETE", provide:
+   - A summary of understanding based on our conversation
+   - Suggested sub-issues as a markdown table:
+
+     | ID | Name | Description |
+     |----|------|-------------|
+     | 103a | setup-foundation | Initial setup and scaffolding |
+     | 103b | implement-core | Core implementation logic |
+
+   FORMAT: ID must be parent number + letter (103a), Name must be dash-separated.
+
+## Types of Good Questions
+
+- Architecture decisions: "Should this use X pattern or Y pattern?"
+- Scope clarification: "Should this include Z functionality or is that separate?"
+- Priority/ordering: "Which sub-component is most critical to implement first?"
+- Integration points: "How should this interact with the existing X system?"
+- Edge cases: "What should happen when X occurs?"
+
+## Issue to Analyze
+
+PROMPT_HEADER
+
+    echo "File: $issue_path"
+    echo ""
+    echo "---"
+    echo ""
+    echo "$issue_content"
+}
+# }}}
+
+# {{{ build_followup_prompt
+# Build a follow-up prompt with conversation history
+build_followup_prompt() {
+    local conversation_history="$1"
+    local user_response="$2"
+
+    cat <<EOF
+$conversation_history
 
 ---
 
-$issue_content
+## User Response
+
+$user_response
+
+---
+
+Please continue the analysis. If you need more clarification, ask additional questions
+(starting with "## Questions"). If you have enough information, provide your final
+analysis (starting with "## ANALYSIS COMPLETE").
 EOF
+}
+# }}}
+
+# {{{ has_questions
+# Check if Claude's response contains questions (not yet complete)
+has_questions() {
+    local response="$1"
+    # Has questions section but NOT the completion marker
+    if echo "$response" | grep -q "^## Questions" && \
+       ! echo "$response" | grep -q "^## ANALYSIS COMPLETE"; then
+        return 0
+    fi
+    return 1
+}
+# }}}
+
+# {{{ extract_questions
+# Extract the questions section from Claude's response for display
+extract_questions() {
+    local response="$1"
+    # Extract from "## Questions" to the next "##" or end
+    echo "$response" | sed -n '/^## Questions/,/^## [^Q]/p' | head -n -1
+    # If that didn't work (no following section), try to end of response
+    if [[ -z "$(echo "$response" | sed -n '/^## Questions/,/^## [^Q]/p')" ]]; then
+        echo "$response" | sed -n '/^## Questions/,$p'
+    fi
+}
+# }}}
+
+# {{{ prompt_user_response
+# Display questions and prompt user for response using TUI dialog
+# Requires luajit (same as the rest of the TUI system)
+prompt_user_response() {
+    local questions="$1"
+    local round="$2"
+
+    # Verify TUI input dialog is available
+    if [[ ! -f "${LIBS_DIR}/input-dialog.lua" ]]; then
+        error "input-dialog.lua not found in ${LIBS_DIR}/"
+    fi
+    if ! command -v luajit &>/dev/null; then
+        error "luajit required for feedback mode (TUI input dialog)"
+    fi
+
+    # Write questions to temp file for the dialog
+    local prompt_file
+    prompt_file=$(mktemp /tmp/feedback-prompt-XXXXXX.txt)
+
+    {
+        echo "Claude has questions (Round $round)"
+        echo ""
+        echo "$questions"
+    } > "$prompt_file"
+
+    # Run the TUI input dialog
+    # Set LUA_PATH so input-dialog.lua can find tui.lua and other modules
+    local response
+    if response=$(LUA_PATH="${LIBS_DIR}/?.lua;;" luajit "${LIBS_DIR}/input-dialog.lua" "Feedback Response" "$prompt_file" </dev/tty); then
+        rm -f "$prompt_file"
+        echo "$response"
+        return 0
+    else
+        rm -f "$prompt_file"
+        # User cancelled
+        echo ""
+        return 1
+    fi
+}
+# }}}
+
+# {{{ process_issue_with_feedback
+# Process an issue with interactive feedback loop
+process_issue_with_feedback() {
+    local issue_path="$1"
+    local basename
+    basename=$(basename "$issue_path")
+    local root_id
+    root_id=$(get_root_id "$basename")
+
+    log "Processing with feedback: $basename"
+
+    # Skip sub-issues
+    if is_subissue "$basename"; then
+        log "  Skipping (is a sub-issue)"
+        return 0
+    fi
+
+    # Skip root issues that already have sub-issues
+    if has_subissues "$root_id"; then
+        log "  Skipping (already has sub-issues: will review at end)"
+        ROOTS_WITH_SUBS+=("$issue_path")
+        return 0
+    fi
+
+    # Check if already has analysis
+    if [[ "$SKIP_EXISTING" == true ]]; then
+        if has_subissue_analysis "$issue_path" || has_initial_analysis "$issue_path"; then
+            log "  Skipping (already has analysis)"
+            return 0
+        fi
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log "  [DRY RUN] Would analyze with feedback loop"
+        return 0
+    fi
+
+    # Build initial prompt
+    local prompt
+    prompt=$(build_feedback_prompt "$issue_path")
+
+    local conversation_history="$prompt"
+    local round=1
+    local response=""
+    local final_analysis=""
+
+    echo ""
+    echo "════════════════════════════════════════════════════════════════════════"
+    echo "  Starting feedback loop for: $basename"
+    echo "════════════════════════════════════════════════════════════════════════"
+    echo ""
+
+    while [[ $round -le $MAX_FEEDBACK_ROUNDS ]]; do
+        log "  Round $round: Sending to Claude..."
+
+        # Get Claude's response (uses call_claude for session/expert mode)
+        if ! response=$(call_claude "$conversation_history" 300); then
+            log "  [ERROR] Claude failed or timed out"
+            return 1
+        fi
+
+        # Check if response has questions or is complete
+        if has_questions "$response"; then
+            # Extract and display questions
+            local questions
+            questions=$(extract_questions "$response")
+
+            # Get user's response via TUI dialog
+            local user_response
+            if ! user_response=$(prompt_user_response "$questions" "$round"); then
+                log "  User cancelled feedback loop"
+                echo ""
+                echo "Feedback loop cancelled. No analysis saved."
+                return 0
+            fi
+
+            # Check for empty response (user might have submitted empty)
+            if [[ -z "$user_response" ]]; then
+                log "  Empty response - treating as skip"
+                user_response="(No response provided - please continue with your best judgment)"
+            fi
+
+            # Build updated conversation
+            conversation_history=$(build_followup_prompt "$conversation_history
+
+---
+
+## Claude (Round $round)
+
+$response" "$user_response")
+
+            ((++round))
+        else
+            # Analysis is complete
+            final_analysis="$response"
+            log "  Analysis complete after $round round(s)"
+            break
+        fi
+    done
+
+    if [[ -z "$final_analysis" ]]; then
+        log "  [WARNING] Reached max rounds ($MAX_FEEDBACK_ROUNDS) without completion"
+        final_analysis="$response"
+    fi
+
+    # Append the full conversation and final analysis to the issue file
+    {
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Sub-Issue Analysis (Feedback Mode)"
+        echo ""
+        echo "*Generated by Claude Code on $(date '+%Y-%m-%d %H:%M') after $round round(s)*"
+        echo ""
+        echo "### Conversation Summary"
+        echo ""
+        echo "Rounds: $round"
+        echo ""
+        echo "### Final Analysis"
+        echo ""
+        echo "$final_analysis"
+    } >> "$issue_path"
+
+    log "  Analysis appended to issue"
+
+    # Archive if enabled
+    if [[ "$ARCHIVE_MODE" == true ]]; then
+        mkdir -p "$ARCHIVE_DIR"
+        local archive_file="${ARCHIVE_DIR}/${basename%.md}-feedback-analysis.md"
+        {
+            echo "# Feedback Analysis: $basename"
+            echo ""
+            echo "Generated: $(date '+%Y-%m-%d %H:%M')"
+            echo "Rounds: $round"
+            echo ""
+            echo "---"
+            echo ""
+            echo "$final_analysis"
+        } > "$archive_file"
+        log "  Archived to: $archive_file"
+    fi
+
+    return 0
 }
 # }}}
 
@@ -778,7 +1254,14 @@ build_review_prompt() {
 2. Whether the root issue needs additional sub-issues to cover gaps
 3. Any structural improvements to the sub-issue organization
 
-For each suggestion, provide the issue ID and your recommendation.
+If you recommend NEW sub-issues, format them as a markdown table:
+
+| ID | Name | Description |
+|----|------|-------------|
+| 103d | handle-edge-cases | Handle error conditions and edge cases |
+
+FORMAT: ID must be parent number + letter (103d), Name must be dash-separated.
+For existing sub-issues, just reference them by their current ID.
 
 Here is the root issue and its sub-issues:
 
@@ -804,6 +1287,100 @@ $(cat "$subissue")
     done < <(get_subissues_for_root "$root_id")
 
     echo "$prompt"
+}
+# }}}
+
+# {{{ clear_analysis_from_issue
+# Remove analysis sections from an issue file, archiving them first
+# Sections removed:
+#   - ## Sub-Issue Analysis
+#   - ## Initial Analysis
+#   - ## Structure Review
+#   - ## Generated Sub-Issues
+# Archived to: issues/analysis/<basename>-cleared-<timestamp>.md
+# Preserves all other content in original file
+clear_analysis_from_issue() {
+    local issue_path="$1"
+    local basename
+    basename=$(basename "$issue_path")
+
+    log "Clearing analysis: $basename"
+
+    if [[ ! -f "$issue_path" ]]; then
+        error "File not found: $issue_path"
+        return 1
+    fi
+
+    # First, extract the analysis sections to archive
+    local analysis_content
+    analysis_content=$(awk '
+    BEGIN { skip = 0; found = 0 }
+    /^## Sub-Issue Analysis$/ || /^## Initial Analysis$/ || /^## Structure Review$/ || /^## Generated Sub-Issues$/ {
+        skip = 1
+        found = 1
+        print
+        next
+    }
+    /^## / {
+        skip = 0
+    }
+    skip == 1 { print }
+    END { exit (found ? 0 : 1) }
+    ' "$issue_path")
+
+    if [[ -z "$analysis_content" ]]; then
+        log "  No analysis sections found"
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log "  [DRY RUN] Would archive and clear analysis sections"
+        return 0
+    fi
+
+    # Archive the extracted analysis
+    mkdir -p "$ARCHIVE_DIR"
+    local timestamp
+    timestamp=$(date +%Y%m%d-%H%M%S)
+    local archive_file="${ARCHIVE_DIR}/${basename%.md}-cleared-${timestamp}.md"
+
+    {
+        echo "# Archived Analysis: $basename"
+        echo "# Cleared on: $(date)"
+        echo "# Original file: $issue_path"
+        echo ""
+        echo "$analysis_content"
+    } > "$archive_file"
+    log "  Archived to: $(basename "$archive_file")"
+
+    # Create temp file for the cleaned content
+    local temp_file
+    temp_file=$(mktemp)
+
+    # Use awk to remove analysis sections
+    # A section starts with ## <heading> and ends at the next ## or end of file
+    # Pattern matches EXACT section headers (anchored start and end)
+    awk '
+    BEGIN { skip = 0 }
+    /^## Sub-Issue Analysis$/ || /^## Initial Analysis$/ || /^## Structure Review$/ || /^## Generated Sub-Issues$/ {
+        skip = 1
+        next
+    }
+    /^## / {
+        # New section starts - stop skipping
+        skip = 0
+    }
+    skip == 0 { print }
+    ' "$issue_path" > "$temp_file"
+
+    # Remove trailing blank lines that might be left over
+    # (keep at most one trailing newline)
+    sed -i -e :a -e '/^\s*$/{ $d; N; ba; }' "$temp_file"
+
+    # Replace original file
+    mv "$temp_file" "$issue_path"
+    log "  Cleared analysis sections"
+    return 0
 }
 # }}}
 
@@ -850,10 +1427,10 @@ process_issue() {
 
     log "  Sending to Claude Code..."
 
-    # Use claude with --print flag for non-interactive single response
+    # Use call_claude wrapper to handle session/expert mode
     # Timeout after 5 minutes per issue
     local response
-    if response=$(timeout 300 claude -p "$prompt" 2>&1); then
+    if response=$(call_claude "$prompt" 300); then
         # Append analysis directly to original issue
         {
             echo ""
@@ -944,9 +1521,9 @@ review_root_issue() {
 
     log "  Sending to Claude Code..."
 
-    # Timeout after 5 minutes per review
+    # Use call_claude wrapper to handle session/expert mode
     local response
-    if response=$(timeout 300 claude -p "$prompt" 2>&1); then
+    if response=$(call_claude "$prompt" 300); then
         # Append review directly to root issue
         {
             echo ""
@@ -1023,11 +1600,29 @@ parse_analysis() {
 # }}}
 
 # {{{ extract_recommendations
+# Parses Claude's analysis to extract sub-issue recommendations.
+#
+# SUPPORTED FORMATS (Claude must use one of these):
+#
+# 1. Markdown table (preferred):
+#    | 103a | parse-header | Description of the sub-issue |
+#    | 103b | parse-body   | Another description here     |
+#
+# 2. Bold list format:
+#    - **103a-parse-header**: Description of the sub-issue
+#    - **103b-parse-body**: Another description here
+#
+# 3. Bold ID with backtick name:
+#    | **103a** | `parse-header` | Description of the sub-issue |
+#
+# The ID must match pattern: {digits}{letter(s)} (e.g., 103a, 201b, 42abc)
+# The name should be dash-separated lowercase words.
+#
 extract_recommendations() {
     local analysis="$1"
     local -a recommendations=()
 
-    # Parse table format: | 002a | add-queue-infrastructure | description |
+    # Parse markdown table format: | 103a | parse-header | description |
     while IFS='|' read -r _ id name desc _; do
         id=$(echo "$id" | tr -d ' ')
         name=$(echo "$name" | tr -d ' ' | sed 's/^-//' | sed 's/-$//')
@@ -1036,16 +1631,16 @@ extract_recommendations() {
         fi
     done <<< "$analysis"
 
-    # Parse bold list format: - **002a-add-queue-infrastructure**: description
-    # Or: **002a** | `add-queue-infrastructure` | description
+    # Parse bold list format: - **103a-parse-header**: description
+    # Or bold ID with backtick name: | **103a** | `parse-header` | description
     while IFS= read -r line; do
-        # Format: **002a-name**: description
+        # Format: **103a-name**: description
         if [[ "$line" =~ \*\*([0-9]+[a-z]+)-([^*]+)\*\*:?[[:space:]]*(.+) ]]; then
             local id="${BASH_REMATCH[1]}"
             local name="${BASH_REMATCH[2]}"
             local desc="${BASH_REMATCH[3]}"
             recommendations+=("$id|$name|$desc")
-        # Format: **002a** | `name` | description (table with backticks)
+        # Format: **103a** | `name` | description
         elif [[ "$line" =~ \*\*([0-9]+[a-z]+)\*\*[[:space:]]*\|[[:space:]]*\`([^\`]+)\`[[:space:]]*\|[[:space:]]*(.+) ]]; then
             local id="${BASH_REMATCH[1]}"
             local name="${BASH_REMATCH[2]}"
@@ -1383,6 +1978,19 @@ main() {
         error "claude command not found. Is Claude Code installed?"
     fi
 
+    # Warn about incompatible options
+    if [[ "$SESSION_MODE" == true ]] && [[ "$STREAMING_MODE" == true ]]; then
+        log "WARNING: --session is incompatible with --stream (parallel processing)"
+        log "         Session mode disabled; using fresh context per issue."
+        SESSION_MODE=false
+    fi
+
+    if [[ "$SESSION_MODE" == true ]] && [[ "$EXPERT_MODE" == true ]]; then
+        log "WARNING: --session and --expert are mutually exclusive"
+        log "         Using session mode (--session takes precedence)."
+        EXPERT_MODE=false
+    fi
+
     # Verify issues directory exists
     if [[ ! -d "$ISSUES_DIR" ]]; then
         error "Issues directory not found: $ISSUES_DIR"
@@ -1407,18 +2015,50 @@ main() {
     local processed=0
     local skipped=0
 
-    # Phase 1: Process issues without sub-issues (unless review-only mode)
-    if [[ "$REVIEW_ONLY" != true ]]; then
+    # Phase 1: Process issues (mode determines action)
+    if [[ "$CLEAR_MODE" == true ]]; then
+        # Clear mode - remove analysis sections from issues (no Claude)
         echo "════════════════════════════════════════════════════════════════"
-        if [[ "$STREAMING_MODE" == true ]]; then
+        log "Clearing analysis sections from selected issues"
+        echo "════════════════════════════════════════════════════════════════"
+        echo
+
+        for issue in "${SELECTED_ISSUES[@]}"; do
+            if clear_analysis_from_issue "$issue"; then
+                ((++processed))
+            else
+                ((++skipped))
+            fi
+        done
+        echo
+        log "Clear complete: $processed processed, $skipped skipped"
+
+    elif [[ "$REVIEW_ONLY" != true ]]; then
+        echo "════════════════════════════════════════════════════════════════"
+        if [[ "$FEEDBACK_MODE" == true ]]; then
+            log "PHASE 1: Analyzing issues with interactive feedback loop"
+        elif [[ "$STREAMING_MODE" == true ]]; then
             log "PHASE 1: Analyzing issues (streaming mode, parallel=$PARALLEL_COUNT)"
+        elif [[ "$SESSION_MODE" == true ]]; then
+            log "PHASE 1: Analyzing issues (session mode - reusing context)"
         else
-            log "PHASE 1: Analyzing issues for sub-issue splitting"
+            log "PHASE 1: Analyzing issues for sub-issue splitting (expert mode)"
         fi
         echo "════════════════════════════════════════════════════════════════"
         echo
 
-        if [[ "$STREAMING_MODE" == true ]]; then
+        if [[ "$FEEDBACK_MODE" == true ]]; then
+            # Interactive feedback mode - process one at a time with user input
+            for issue in "${SELECTED_ISSUES[@]}"; do
+                if process_issue_with_feedback "$issue"; then
+                    ((++processed))
+                else
+                    ((++skipped))
+                fi
+            done
+            echo
+            log "Phase 1 complete: $processed processed, $skipped skipped"
+        elif [[ "$STREAMING_MODE" == true ]]; then
             # Use parallel processing with streaming output
             parallel_process_issues "${SELECTED_ISSUES[@]}"
         else
@@ -1438,17 +2078,20 @@ main() {
         find_roots_with_subissues
     fi
 
-    # Phase 2: Review root issues that have sub-issues
-    run_final_review
+    # Skip remaining phases for clear mode (it's a standalone operation)
+    if [[ "$CLEAR_MODE" != true ]]; then
+        # Phase 2: Review root issues that have sub-issues
+        run_final_review
 
-    # Phase 3: Execute recommendations (create sub-issue files)
-    if [[ "$EXECUTE_MODE" == true ]]; then
-        run_execute_phase
-    fi
+        # Phase 3: Execute recommendations (create sub-issue files)
+        if [[ "$EXECUTE_MODE" == true ]]; then
+            run_execute_phase
+        fi
 
-    # Phase 4: Auto-implement issues via Claude CLI
-    if [[ "$AUTO_IMPLEMENT" == true ]]; then
-        run_implement_phase
+        # Phase 4: Auto-implement issues via Claude CLI
+        if [[ "$AUTO_IMPLEMENT" == true ]]; then
+            run_implement_phase
+        fi
     fi
 
     echo
