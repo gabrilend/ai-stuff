@@ -224,3 +224,19 @@ The effil library is unsuitable for this workload due to the massive number of c
 4. **Process-based parallelism**: Spawn separate processes instead of threads (no shared memory overhead)
 
 See: `docs/effil-vs-compute-shader-feasibility.md` for detailed comparison.
+
+---
+
+## Bug 2 Fix Applied (2025-12-20)
+
+**Solution Implemented**: Option 1 - Copy effil.table to local Lua tables at worker start
+
+All three worker functions in `scripts/generate-html-parallel` now copy effil.tables to local Lua tables at the beginning of execution:
+
+1. **similarity_worker**: Copies `all_poems_array`, `similarities_for_poem`, `poem_colors_table`
+2. **diversity_worker**: Copies `all_poems_array`, `all_embeddings_flat`, `starting_embedding_flat`, `poem_colors_table`
+3. **cached_diversity_worker**: Copies `diversity_sequence`, `all_poems_lookup`, `poem_colors_table`
+
+**Performance Impact**:
+- Before: ~17B IPC calls per diversity sequence (~5 hours each)
+- After: O(n) one-time copy, then O(1) local table access
