@@ -467,31 +467,52 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
         end
 
         -- Progress display function (updates in place using ANSI escape codes)
+        -- Each thread gets its own line, plus a summary line
+        local num_display_lines = thread_count + 1
+        local first_display = true
+
         local function display_progress()
-            local parts = {}
             local total_done = 0
             local total_size = 0
+
+            -- Move cursor up to overwrite previous display (except first time)
+            if not first_display then
+                io.write(string.format("\027[%dA", num_display_lines))
+            end
+            first_display = false
+
+            -- Print each thread's progress on its own line
             for tid = 1, thread_count do
                 if progress_counters[tid] and batch_sizes[tid] then
                     local done = progress_counters[tid]:get()
                     local size = batch_sizes[tid]
                     total_done = total_done + done
                     total_size = total_size + size
-                    table.insert(parts, string.format("T%d:%d/%d", tid, done, size))
+                    local pct = (done / math.max(size, 1)) * 100
+                    local bar_width = 20
+                    local filled = math.floor((done / math.max(size, 1)) * bar_width)
+                    local bar = string.rep("█", filled) .. string.rep("░", bar_width - filled)
+                    io.write(string.format("\r  Thread %2d: [%s] %4d/%4d (%5.1f%%)\027[K\n",
+                        tid, bar, done, size, pct))
                 end
             end
+
+            -- Summary line
             local elapsed = os.time() - start_time
             local rate = total_done / math.max(elapsed, 1)
             local eta = (total_size - total_done) / math.max(rate, 0.01)
-            -- \r moves cursor to start of line, no newline
-            io.write(string.format("\r⏳ [%s] Total: %d/%d (%.1f/s, ETA: %ds)   ",
-                table.concat(parts, " "), total_done, total_size, rate, math.floor(eta)))
+            local total_pct = (total_done / math.max(total_size, 1)) * 100
+            io.write(string.format("\r  ─── Total: %d/%d (%.1f%%) │ %.1f poems/s │ ETA: %ds \027[K",
+                total_done, total_size, total_pct, rate, math.floor(eta)))
             io.flush()
         end
 
         -- Wait for all threads to complete with progress updates
         utils.log_info("⏳ Waiting for " .. #tasks .. " threads to complete...")
-        print("") -- blank line for progress display
+        -- Print initial blank lines for progress display area
+        for _ = 1, num_display_lines do
+            print("")
+        end
 
         -- Poll progress while threads are running
         local all_done = false
