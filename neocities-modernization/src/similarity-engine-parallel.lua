@@ -331,20 +331,29 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
     -- Process batches using effil threading if available, otherwise sequential
     utils.log_info("🚀 Starting similarity calculation...")
     local start_time = os.time()
-    
+
     local total_processed = 0
     local total_errors = 0
-    
+
     -- Process batches using effil multithreading (effil is required, verified at startup)
     utils.log_info("🧵 Using effil multithreading with " .. thread_count .. " threads")
-        
+
+        -- Create shared progress counters (one per thread)
+        local progress_counters = {}
+        local batch_sizes = {}
+        for thread_id, batch in pairs(batches) do
+            progress_counters[thread_id] = effil.atomic(0)
+            batch_sizes[thread_id] = #batch
+        end
+
         -- Create thread pool and tasks
         local threads = {}
         local tasks = {}
-        
+
         for thread_id, batch in pairs(batches) do
+            local progress_counter = progress_counters[thread_id]
             -- Create thread function
-            local thread_func = effil.thread(function(batch_data, all_embeddings_data, output_dir, sleep_duration, thread_id)
+            local thread_func = effil.thread(function(batch_data, all_embeddings_data, output_dir, sleep_duration, thread_id, progress_counter)
                 -- Load required modules in thread context
                 package.path = package.path .. ';./libs/?.lua;./src/?.lua'
                 local utils = require('utils')
@@ -430,6 +439,7 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                             local rename_success = os.rename(temp_file, output_file)
                             if rename_success then
                                 processed = processed + 1
+                                progress_counter:add(1)  -- Update shared progress counter
                             else
                                 errors = errors + 1
                                 os.remove(temp_file) -- cleanup failed temp file
@@ -450,14 +460,55 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                 return processed, errors
             end)
             
-            -- Start thread
-            local task = thread_func(batch, valid_embeddings, output_dir, sleep_duration, thread_id)
+            -- Start thread (pass progress_counter for real-time updates)
+            local task = thread_func(batch, valid_embeddings, output_dir, sleep_duration, thread_id, progress_counter)
             threads[thread_id] = task
             tasks[thread_id] = thread_id
         end
-        
-        -- Wait for all threads to complete
+
+        -- Progress display function (updates in place using ANSI escape codes)
+        local function display_progress()
+            local parts = {}
+            local total_done = 0
+            local total_size = 0
+            for tid = 1, thread_count do
+                if progress_counters[tid] and batch_sizes[tid] then
+                    local done = progress_counters[tid]:get()
+                    local size = batch_sizes[tid]
+                    total_done = total_done + done
+                    total_size = total_size + size
+                    table.insert(parts, string.format("T%d:%d/%d", tid, done, size))
+                end
+            end
+            local elapsed = os.time() - start_time
+            local rate = total_done / math.max(elapsed, 1)
+            local eta = (total_size - total_done) / math.max(rate, 0.01)
+            -- \r moves cursor to start of line, no newline
+            io.write(string.format("\r⏳ [%s] Total: %d/%d (%.1f/s, ETA: %ds)   ",
+                table.concat(parts, " "), total_done, total_size, rate, math.floor(eta)))
+            io.flush()
+        end
+
+        -- Wait for all threads to complete with progress updates
         utils.log_info("⏳ Waiting for " .. #tasks .. " threads to complete...")
+        print("") -- blank line for progress display
+
+        -- Poll progress while threads are running
+        local all_done = false
+        while not all_done do
+            display_progress()
+            all_done = true
+            for thread_id, task in pairs(threads) do
+                local status = task:status()
+                if status ~= "completed" and status ~= "failed" then
+                    all_done = false
+                end
+            end
+            if not all_done then
+                os.execute("sleep 0.5")
+            end
+        end
+        print("") -- newline after progress
         
         for thread_id, task in pairs(threads) do
             local status, processed, errors = task:get()
