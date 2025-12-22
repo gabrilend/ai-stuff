@@ -1,0 +1,27 @@
+VISUAL INDEPENDENCE
+
+Where there once were copyrighted textures, now geometric placeholders.
+Where there were proprietary models, now wireframe abstractions that
+invite the community to dress them. The engine renders without memory
+of the original aesthetic - a blank canvas that knows only positions
+and behaviors.
+
+A footman is a capsule with a sword-shaped line.
+A tree is a vertical cylinder with a green cone.
+A hero is a slightly taller capsule with a glow.
+
+The community arrives with their brushes. One paints anime. Another
+sculpts voxels. A third prefers ASCII art rendered in the terminal.
+All valid. All welcome. The gameplay logic underneath doesn't care
+what costume the actors wear.
+
+Style: Minimalist geometric primitives, wireframe rendering, clean
+      vector graphics transitioning to diverse art styles at edges
+
+Mood: Creative freedom, communal ownership, legal clarity
+
+Elements:
+- Simple capsule/cylinder primitives in formation
+- Paint brushes and texture palettes floating nearby
+- Multiple art style variations emerging from same base geometry
+- A "NO BLIZZARD ASSETS" sign rendered in friendly pixels

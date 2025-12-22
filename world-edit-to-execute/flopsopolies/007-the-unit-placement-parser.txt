@@ -1,0 +1,32 @@
+THE UNIT PLACEMENT PARSER (Issue 202)
+
+A single file - war3mapUnits.doo - contains multitudes. Every preplaced
+unit, building, hero, and item. Their positions frozen in time. Their
+inventories loaded. Their abilities configured. Their drop tables set.
+
+The parser approaches it like a census taker visiting a vast city.
+First the header: "W3do", version 8, 2,847 entries. Then each citizen,
+one by one. The footman at (1024.0, 2048.0) facing northeast. The
+archmage with 3 points in Blizzard. The gold mine with 12,500 gold.
+
+Some entries are heroes - capital letter IDs betraying their nature.
+These have levels, stat bonuses, six inventory slots. The parser notes
+everything.
+
+Some entries are random. "YYU5" - a placeholder meaning "spawn a random
+level 5 unit here when the game begins." The parser preserves this
+intention without interpreting it.
+
+At the end, creation_number 2847, the census is complete.
+
+Style: Cadastral map meets unit roster, blueprint precision, military
+      deployment diagram with soft edges
+
+Mood: Thorough documentation, respectful enumeration, data as history
+
+Elements:
+- A grid map with unit positions marked as geometric tokens
+- Player ownership shown as color-coded territories
+- Hero units with stat cards floating above them
+- Item drop tables as small loot icons
+- The parser's reading position advancing through the file

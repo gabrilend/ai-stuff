@@ -1,0 +1,29 @@
+PRESERVATION THROUGH TRANSFORMATION
+
+A community's creative works - tower defense maps, hero arenas, RPGs,
+custom campaigns - were trapped in a format tied to a single game.
+The company moved on. The game changed. The old maps grew silent.
+
+But the data remains. Encoded in war3map.w3i are the names mapmakers
+chose. In war3mapUnits.doo are the positions they carefully placed.
+In war3map.j are the scripts they wrote, function by function, in
+a language called JASS that only this one game understood.
+
+The engine doesn't resurrect the original. It transforms. The JASS
+becomes Lua. The proprietary visuals become community placeholders.
+The format-locked creativity becomes platform-independent data.
+
+The maps live again, wearing new clothes, speaking new tongues,
+but carrying the same souls their creators gave them.
+
+Style: Metamorphosis imagery, chrysalis to butterfly, translation
+      as transformation, data as spirit passing between vessels
+
+Mood: Hopeful preservation, respectful continuation, creative rebirth
+
+Elements:
+- Old .w3x files as cocoons, new Lua tables as emerging forms
+- JASS syntax morphing into Lua syntax mid-flight
+- Community asset packs as colorful wings being attached
+- A timeline showing 2002 -> 2024, with the spirit passing through
+- Map names in TRIGSTR format resolving to actual titles

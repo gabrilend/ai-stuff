@@ -1,0 +1,23 @@
+PARSING THE ANCIENT FORMATS
+
+A craftsperson's workbench covered in disassembled binary structures.
+The MPQ archive lies open like a puzzle box, its hash tables exposed
+as intricate clockwork. Each gear represents a cryptographic dance -
+strings hashed through arcane algorithms, blocks encrypted then
+compressed, all to store a child's tower defense map from 2004.
+
+The parser is patient. It reads int32, little-endian. It unpacks
+floats representing coordinates where digital footmen once patrolled.
+It extracts terrain heightmaps that shaped imaginary battles.
+
+Style: Exploded technical diagram, watchmaker's precision, warm wood
+      and brass machinery aesthetic applied to software concepts
+
+Mood: Concentrated focus, the satisfaction of understanding
+
+Elements:
+- A hash table visualized as an ornate filing cabinet
+- Block table entries as gilded storage compartments
+- Zlib decompression shown as compressed spring expanding
+- PKWARE DCL algorithm as an ancient astronomical instrument
+- Unit position floats becoming constellation maps
