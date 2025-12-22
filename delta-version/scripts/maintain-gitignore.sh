@@ -16,6 +16,9 @@ set -euo pipefail
 DIR="${DIR:-/mnt/mtwo/programming/ai-stuff}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# TUI Library path
+TUI_LIB_DIR="${DIR}/scripts/libs"
+
 # State files
 STATE_DIR="${DIR}/delta-version/assets/gitignore-state"
 CHECKSUMS_FILE="${STATE_DIR}/checksums.txt"
@@ -35,7 +38,7 @@ AUTO_UPDATE=false
 ACTION=""
 # }}}
 
-# -- {{{ Colors
+# -- {{{ Colors (fallback if TUI library not loaded)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -43,6 +46,15 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
+# }}}
+
+# -- {{{ TUI Library Loading
+# Load TUI menu library for interactive mode (if available)
+TUI_AVAILABLE=false
+if [[ -f "${TUI_LIB_DIR}/menu.sh" ]]; then
+    source "${TUI_LIB_DIR}/menu.sh"
+    TUI_AVAILABLE=true
+fi
 # }}}
 
 # -- {{{ Logging functions
@@ -531,8 +543,9 @@ show_status() {
 # Interactive Mode
 # =============================================================================
 
-# -- {{{ interactive_mode
-interactive_mode() {
+# -- {{{ interactive_mode_fallback
+# Fallback interactive mode when TUI library is not available
+interactive_mode_fallback() {
     while true; do
         echo ""
         echo "╔════════════════════════════════════════════════════════════════════╗"
@@ -595,6 +608,125 @@ interactive_mode() {
         echo ""
         echo "Press Enter to continue..."
         read -r
+    done
+}
+# }}}
+
+# -- {{{ run_action_with_pause
+# Runs an action, pauses for user input, then returns to menu
+run_action_with_pause() {
+    local action_name="$1"
+
+    # Temporarily restore terminal for action output
+    tui_cleanup
+
+    echo ""
+    case "$action_name" in
+        check_changes)
+            detect_changes || true
+            ;;
+        new_projects)
+            detect_new_projects
+            ;;
+        health_check)
+            check_health || true
+            ;;
+        regenerate)
+            trigger_regeneration
+            ;;
+        view_status)
+            show_status
+            ;;
+        update_checksums)
+            update_checksums
+            ;;
+        restore_backup)
+            restore_backup
+            ;;
+        view_log)
+            echo ""
+            echo -e "${BOLD}Maintenance Log (last 20 entries):${NC}"
+            echo "────────────────────────────────────"
+            if [[ -f "$MAINTENANCE_LOG" ]]; then
+                tail -20 "$MAINTENANCE_LOG"
+            else
+                echo "(no log entries)"
+            fi
+            ;;
+    esac
+
+    echo ""
+    echo "Press Enter to return to menu..."
+    read -r
+
+    # Re-initialize TUI for menu
+    tui_init
+}
+# }}}
+
+# -- {{{ interactive_mode
+# TUI-based interactive mode using menu library
+interactive_mode() {
+    # Use fallback if TUI library not available
+    if [[ "$TUI_AVAILABLE" != true ]]; then
+        warn "TUI library not found, using fallback mode"
+        interactive_mode_fallback
+        return $?
+    fi
+
+    # Initialize TUI
+    if ! tui_init; then
+        warn "Could not initialize TUI, using fallback mode"
+        interactive_mode_fallback
+        return $?
+    fi
+
+    # Main menu loop
+    while true; do
+        # Initialize menu
+        menu_init
+        menu_set_title "Gitignore Maintenance System" "Unified gitignore management"
+
+        # Add actions section
+        menu_add_section "actions" "single" "Actions"
+        menu_add_item "actions" "check_changes" "Check for Changes" "action" "" \
+            "Scan project .gitignore files for modifications since last update"
+        menu_add_item "actions" "new_projects" "Detect New Projects" "action" "" \
+            "Find newly added projects that may need gitignore entries"
+        menu_add_item "actions" "health_check" "Run Health Check" "action" "" \
+            "Validate unified .gitignore syntax and coverage"
+        menu_add_item "actions" "regenerate" "Regenerate .gitignore" "action" "" \
+            "Rebuild unified .gitignore from all project sources"
+        menu_add_item "actions" "view_status" "View System Status" "action" "" \
+            "Display dashboard with tracking info, backups, and recent activity"
+        menu_add_item "actions" "update_checksums" "Update Checksums" "action" "" \
+            "Refresh checksum database for change detection"
+        menu_add_item "actions" "restore_backup" "Emergency Restore" "action" "" \
+            "Restore .gitignore from a previous backup"
+        menu_add_item "actions" "view_log" "View Maintenance Log" "action" "" \
+            "Show recent maintenance activity"
+        menu_add_item "actions" "quit" "Quit" "action" "" \
+            "Exit the maintenance system"
+
+        # Run menu
+        if menu_run; then
+            # User pressed 'r' (run) - get selected action
+            local selected
+            selected=$(menu_get_current_item_id)
+
+            if [[ "$selected" == "quit" ]]; then
+                tui_cleanup
+                echo "Exiting..."
+                return 0
+            fi
+
+            run_action_with_pause "$selected"
+        else
+            # User pressed 'q' (quit)
+            tui_cleanup
+            echo "Exiting..."
+            return 0
+        fi
     done
 }
 # }}}
@@ -672,7 +804,7 @@ Options:
     -h, --help           Show this help
 
 Examples:
-    # Interactive mode
+    # Interactive mode (TUI-based menu)
     maintain-gitignore.sh -I
 
     # Check for changes

@@ -240,3 +240,125 @@ All three worker functions in `scripts/generate-html-parallel` now copy effil.ta
 **Performance Impact**:
 - Before: ~17B IPC calls per diversity sequence (~5 hours each)
 - After: O(n) one-time copy, then O(1) local table access
+
+---
+
+## Bug 3 Fix Applied (2025-12-21)
+
+**Problem**: `effil.atomic` is nil - function doesn't exist in installed effil version
+
+The progress display originally used `effil.atomic()` counters for real-time per-thread progress updates. However, the installed effil library (effil-jit build) doesn't include the `atomic` function - only has: `thread`, `channel`, `table`, `size`.
+
+**Error encountered**:
+```
+luajit: src/similarity-engine-parallel.lua:356: attempt to call field 'atomic' (a nil value)
+```
+
+**Solution Implemented**: File-based progress polling
+
+Instead of atomic counters, the main thread now polls the output directory for completed files:
+
+1. Removed all `effil.atomic()` counter creation and usage
+2. Added `count_output_files()` function that uses `find | wc -l` for fast file counting
+3. Progress display now polls file count every 0.5 seconds
+4. Simplified from per-thread progress lines to single aggregate progress bar
+
+**Progress display format**:
+```
+  [██████████░░░░░░░░░░░░░░░░░░░░] 500/7000 (7.1%) │ 0.83/s │ ETA: 7819s
+```
+
+This approach is simpler and doesn't require any shared memory between threads.
+
+---
+
+## Per-Thread Progress Display (2025-12-21)
+
+**Enhancement**: Per-thread progress bars using `effil.channel`
+
+User requested individual progress bars for each thread instead of a single aggregate bar.
+
+**Implementation**:
+
+1. Create shared `effil.channel()` before spawning threads
+2. Each thread sends `(thread_id, processed_count)` to channel after each poem
+3. Main thread drains channel with `pop(0)` (non-blocking) every 0.5 seconds
+4. Display one progress bar per thread, plus summary line
+
+**Progress display format**:
+```
+  Thread  1: [████████████░░░░░░░░] 600/1000 ( 60.0%)
+  Thread  2: [██████████░░░░░░░░░░] 500/1000 ( 50.0%)
+  Thread  3: [████████░░░░░░░░░░░░] 400/1000 ( 40.0%)
+  Thread  4: [██████░░░░░░░░░░░░░░] 300/1000 ( 30.0%)
+  ─── Total: 1800/4000 (45.0%) │ 0.95/s │ ETA: 2316s
+```
+
+**Key insight**: `effil.channel` provides a thread-safe message queue that works across threads, unlike `effil.atomic` which isn't available in the effil-jit build.
+
+---
+
+## Graceful Ctrl+C Interruption (2025-12-21)
+
+**Enhancement**: Added SIGINT (Ctrl+C) signal handling for graceful shutdown
+
+**Implementation**:
+
+1. Uses LuaJIT FFI to install a C signal handler for SIGINT (signal 2)
+2. When Ctrl+C is pressed, sets `interrupted = true` flag
+3. Main polling loop checks flag every 0.5 seconds
+4. On interrupt: breaks loop, waits 5 seconds for threads to finish current poem
+5. Reports partial results and reminds user they can resume
+
+**Code pattern** (LuaJIT FFI signal handling):
+```lua
+local ffi = require("ffi")
+ffi.cdef[[
+    typedef void (*sighandler_t)(int);
+    sighandler_t signal(int signum, sighandler_t handler);
+]]
+
+local SIGINT = 2
+local interrupted = false
+
+local function on_interrupt(sig)
+    interrupted = true
+end
+
+-- Must keep reference to prevent garbage collection
+local handler = ffi.cast("sighandler_t", on_interrupt)
+ffi.C.signal(SIGINT, handler)
+```
+
+**User experience**:
+```
+💡 Press Ctrl+C to gracefully stop (threads will finish current poem)
+  Thread  1: [████████░░░░░░░░░░░░] 400/1000 ( 40.0%)
+  ...
+^C
+⚠️ Ctrl+C detected! Waiting for threads to finish current poem...
+⏳ Giving threads 5 seconds to complete current work...
+⏸️ Similarity calculation interrupted by user
+💡 Run again to resume - already-completed files will be skipped
+```
+
+---
+
+## TUI Menu Integration (2025-12-21)
+
+**Enhancement**: Replaced simple text menu with full TUI framebuffer menu
+
+The main menu now uses the `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua` TUI library for:
+- Interactive vim-style navigation (j/k, arrows)
+- Checkbox toggles with keyboard shortcuts
+- Flag/numeric input fields
+- Dependency-based item enabling/disabling
+- Graceful Ctrl+C handling built into TUI (returns "CTRL_C" key event)
+
+**Features**:
+- Action selection: Calculate vs Check Status (radio-button style)
+- Options section: Force regenerate, Sleep duration, Model name
+- Dependencies: Force and Sleep only enabled when Calculate is selected
+- Fallback: If TUI unavailable, uses `main_text_mode()` text-based menu
+
+**Usage**: Run with `-I` flag as before - TUI will launch automatically if available.
