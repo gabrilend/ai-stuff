@@ -28,6 +28,9 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
 
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+utils.init_assets_root(arg)
+
 local M = {}
 
 -- Mock color assignment for testing (until we have real embeddings)
@@ -54,7 +57,7 @@ local COLOR_CONFIG = {
 
 -- {{{ function load_poem_colors
 local function load_poem_colors()
-    local poem_colors_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json"
+    local poem_colors_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
     
     if poem_colors_data and poem_colors_data.poem_colors then
@@ -1695,9 +1698,9 @@ function M.main(interactive_mode)
         io.write("Select option (1-5): ")
         local choice = io.read()
         
-        local poems_file = DIR .. "/assets/poems.json"
-        local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
-        local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+        local poems_file = utils.asset_path("poems.json")
+        local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+        local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
         local output_dir = DIR .. "/output"
         
         if choice == "1" then

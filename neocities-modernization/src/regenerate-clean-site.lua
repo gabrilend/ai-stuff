@@ -9,8 +9,11 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local flat_generator = require("flat-html-generator")
 
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+utils.init_assets_root(arg)
+
 print("Loading poems data...")
-local poems_data = utils.read_json_file(DIR .. "/assets/poems.json")
+local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
 
 if not poems_data then
     print("ERROR: Could not load poems.json")
@@ -41,11 +44,11 @@ poems_data.poems = filtered_poems
 
 -- Load similarity data
 print("Loading similarity matrix...")
-local similarity_data = utils.read_json_file(DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json")
+local similarity_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json")
 
 -- Load embeddings data
 print("Loading embeddings...")
-local embeddings_data = utils.read_json_file(DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json")
+local embeddings_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json")
 
 if not similarity_data or not embeddings_data then
     print("WARNING: Could not load similarity/embedding data. Generating chronological index only...")

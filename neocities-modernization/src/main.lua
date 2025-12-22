@@ -16,6 +16,10 @@ local DIR = setup_dir_path(arg and arg[1])
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- This must happen early, before any asset_path() calls
+utils.init_assets_root(arg)
+
 -- Load modules properly by temporarily updating package.path
 local old_path = package.path
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
@@ -49,7 +53,7 @@ end
 -- {{{ function M.is_data_fresh
 function M.is_data_fresh()
     -- Check if assets/poems.json exists and is newer than source files
-    local output_file = DIR .. "/assets/poems.json"
+    local output_file = utils.asset_path("poems.json")
     if not utils.file_exists(output_file) then
         return false
     end
@@ -89,7 +93,7 @@ function M.extract_poems(force)
     end
 
     utils.log_info("Starting poem extraction with auto-detection...")
-    local output_file = DIR .. "/assets/poems.json"
+    local output_file = utils.asset_path("poems.json")
 
     -- Use auto-detection to handle both JSON extracts and compiled.txt
     local success, result = pcall(function()
@@ -111,8 +115,8 @@ end
 -- {{{ function M.validate_poems
 function M.validate_poems()
     utils.log_info("Starting poem validation...")
-    local input_file = DIR .. "/assets/poems.json"
-    local output_file = DIR .. "/assets/validation-report.json"
+    local input_file = utils.asset_path("poems.json")
+    local output_file = utils.asset_path("validation-report.json")
     
     if not utils.file_exists(input_file) then
         utils.log_error("Poems file not found. Run extraction first.")
@@ -186,39 +190,44 @@ end
 -- {{{ function M.show_project_status
 function M.show_project_status()
     print("\n=== PROJECT STATUS ===")
-    
+
     local paths = utils.get_project_paths(DIR)
-    
-    -- Check key files
+    local assets_root = utils.get_assets_root()
+
+    -- Check key files (input files use paths.root, generated assets use assets_root)
     local status_items = {
         {"Legacy Source", paths.root .. "/compiled.txt"},
         {"JSON Extracts (Fed)", paths.root .. "/input/fediverse/files/poems.json"},
         {"JSON Extracts (Msg)", paths.root .. "/input/messages/files/poems.json"},
         {"JSON Extracts (Notes)", paths.root .. "/input/notes/files/poems.json"},
-        {"Processed Poems", paths.assets .. "/poems.json"},
-        {"Validation Report", paths.assets .. "/validation-report.json"},
-        {"Image Catalog", paths.assets .. "/image-catalog.json"},
+        {"Processed Poems", utils.asset_path("poems.json")},
+        {"Validation Report", utils.asset_path("validation-report.json")},
+        {"Image Catalog", utils.asset_path("image-catalog.json")},
         {"Poem Extractor", paths.src .. "/poem-extractor.lua"},
         {"Poem Validator", paths.src .. "/poem-validator.lua"},
         {"Image Manager", paths.src .. "/image-manager.lua"},
         {"Ollama Manager", paths.src .. "/ollama-manager.lua"}
     }
-    
+
+    -- Show assets location
+    print(string.format("%-20s: %s", "Assets Location", assets_root))
+
     for _, item in ipairs(status_items) do
         local name, filepath = item[1], item[2]
         local status = utils.file_exists(filepath) and "✅ Found" or "❌ Missing"
         print(string.format("%-20s: %s", name, status))
     end
-    
+
     -- Show poem count if available
-    if utils.file_exists(paths.assets .. "/poems.json") then
-        local content = utils.read_file(paths.assets .. "/poems.json")
+    local poems_file = utils.asset_path("poems.json")
+    if utils.file_exists(poems_file) then
+        local content = utils.read_file(poems_file)
         if content then
             local poem_count = select(2, content:gsub('"id":', '"id":'))
             print(string.format("%-20s: %d poems", "Dataset Size", poem_count))
         end
     end
-    
+
     print("")
 end
 -- }}}
@@ -226,14 +235,12 @@ end
 -- {{{ function M.clean_and_rebuild
 function M.clean_and_rebuild()
     utils.log_info("Cleaning and rebuilding assets...")
-    
+
     if utils.confirm_action("This will delete existing assets. Continue?") then
-        local paths = utils.get_project_paths(DIR)
-        
-        -- Remove old assets
-        os.execute("rm -f " .. paths.assets .. "/poems.json")
-        os.execute("rm -f " .. paths.assets .. "/validation-report.json")
-        
+        -- Remove old generated assets (from configured assets location)
+        os.execute("rm -f " .. utils.asset_path("poems.json"))
+        os.execute("rm -f " .. utils.asset_path("validation-report.json"))
+
         -- Regenerate
         return M.generate_complete_dataset()
     else

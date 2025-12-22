@@ -15,6 +15,10 @@ local DIR = setup_dir_path(arg and arg[1])
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
+local utils = require("utils")
+
+-- Initialize asset path configuration for standalone execution
+utils.init_assets_root(arg)
 
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
@@ -131,10 +135,11 @@ function M.load_extracted_json(input_directory)
     -- Load fediverse poems
     local fediverse_file = input_directory .. "/fediverse/files/poems.json"
     local fediverse_data = load_json_file(fediverse_file)
+    local attachment_count = 0
     if fediverse_data and fediverse_data.poems then
         print("Loading " .. #fediverse_data.poems .. " fediverse poems from JSON")
         for _, poem in ipairs(fediverse_data.poems) do
-            table.insert(poems, {
+            local poem_entry = {
                 id = tonumber(poem.id),
                 filepath = poem.category .. "/" .. poem.id .. ".txt", -- Reconstruct legacy path format
                 category = poem.category,
@@ -144,7 +149,17 @@ function M.load_extracted_json(input_directory)
                 content_warning = poem.content_warning,
                 length = poem.metadata and poem.metadata.character_count or #(poem.content or ""),
                 metadata = poem.metadata
-            })
+            }
+            -- Preserve media attachments if present (from ActivityPub extraction)
+            -- Attachments contain image/video metadata that can be used for HTML generation
+            if poem.attachments then
+                poem_entry.attachments = poem.attachments
+                attachment_count = attachment_count + #poem.attachments
+            end
+            table.insert(poems, poem_entry)
+        end
+        if attachment_count > 0 then
+            print("  Found " .. attachment_count .. " media attachments in fediverse poems")
         end
     else
         print("No fediverse poems found at: " .. fediverse_file)
@@ -336,8 +351,8 @@ function M.main(interactive_mode)
         io.write("Select option (1-3): ")
         local choice = io.read()
         
-        local output_file = DIR .. "/assets/poems.json"
-        
+        local output_file = utils.asset_path("poems.json")
+
         if choice == "1" then
             M.extract_poems_auto(DIR, output_file)
         elseif choice == "2" then
@@ -355,7 +370,7 @@ function M.main(interactive_mode)
         end
     else
         -- Default non-interactive mode - use auto-detection
-        local output_file = DIR .. "/assets/poems.json"
+        local output_file = utils.asset_path("poems.json")
         M.extract_poems_auto(DIR, output_file)
     end
 end
