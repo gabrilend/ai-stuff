@@ -838,12 +838,268 @@ local sound = Sound.new({
     name = "test_sound",
     file = "Sound\\test.wav",
     volume = 80,
-    flags = 3,  -- looping + 3D
+    flags = 3,  -- looping + 3D (numeric legacy format)
 })
 assert_eq(sound.name, "test_sound", "sound.name")
 assert_not_nil(sound.is_looping, "sound should have is_looping()")
 assert_not_nil(sound.is_3d, "sound should have is_3d()")
 assert_not_nil(sound.get_effective_volume, "sound should have get_effective_volume()")
+print("  PASSED")
+-- }}}
+
+-- ============================================================================
+-- 206f: Sound Class Detailed Tests
+-- ============================================================================
+
+-- {{{ Test: Sound constructor copies all fields (table flags)
+print("Test: Sound constructor with table flags")
+do
+    local s = Sound.new({
+        name = "battle_music",
+        file = "Sound\\Music\\battle.mp3",
+        eax = "DefaultEAXON",
+        eax_name = "Default",
+        flags = {
+            raw = 11,
+            looping = true,
+            sound_3d = true,
+            stop_out_range = false,
+            music = true,
+        },
+        fade_in = 500,
+        fade_out = 1000,
+        volume = 75,
+        pitch = 1.2,
+        channel = 7,
+        channel_name = "Music",
+        distance = { min = 100, max = 5000, cutoff = 2000 },
+        cone = { inside_angle = 90, outside_angle = 180, outside_volume = 50 },
+    })
+    assert_eq(s.name, "battle_music", "name")
+    assert_eq(s.file, "Sound\\Music\\battle.mp3", "file")
+    assert_eq(s.eax, "DefaultEAXON", "eax")
+    assert_eq(s.flags.looping, true, "flags.looping")
+    assert_eq(s.flags.sound_3d, true, "flags.sound_3d")
+    assert_eq(s.flags.music, true, "flags.music")
+    assert_eq(s.fade_in, 500, "fade_in")
+    assert_eq(s.fade_out, 1000, "fade_out")
+    assert_eq(s.volume, 75, "volume")
+    assert_eq(s.pitch, 1.2, "pitch")
+    assert_eq(s.channel, 7, "channel")
+    assert_eq(s.distance.min, 100, "distance.min")
+    assert_eq(s.distance.max, 5000, "distance.max")
+    assert_eq(s.distance.cutoff, 2000, "distance.cutoff")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: Sound constructor with numeric flags (legacy)
+print("Test: Sound constructor with numeric flags (legacy)")
+do
+    -- flags=11 = 1+2+8 = looping + 3d + music
+    local s = Sound.new({
+        name = "test",
+        flags = 11,
+    })
+    assert_eq(s:is_looping(), true, "bit 0 = looping")
+    assert_eq(s:is_3d(), true, "bit 1 = 3d")
+    assert_eq(s:stops_out_of_range(), false, "bit 2 = stop_out_range")
+    assert_eq(s:is_music(), true, "bit 3 = music")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: Sound default values
+print("Test: Sound default values when fields missing")
+do
+    local s = Sound.new({ name = "minimal" })
+    assert_eq(s.name, "minimal", "name")
+    assert_eq(s.file, "", "default file")
+    assert_eq(s.flags.looping, false, "default looping")
+    assert_eq(s.flags.sound_3d, false, "default sound_3d")
+    assert_eq(s.fade_in, 10, "default fade_in")
+    assert_eq(s.fade_out, 10, "default fade_out")
+    assert_eq(s.volume, -1, "default volume (-1)")
+    assert_eq(s.pitch, 1.0, "default pitch")
+    assert_eq(s.channel, 0, "default channel")
+    assert_eq(s.distance.min, 0, "default distance.min")
+    assert_eq(s.distance.max, 10000, "default distance.max")
+    assert_eq(s.distance.cutoff, 3000, "default distance.cutoff")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: is_looping
+print("Test: is_looping() returns correct value")
+do
+    local looping = Sound.new({ flags = { looping = true } })
+    local not_looping = Sound.new({ flags = { looping = false } })
+    local no_flags = Sound.new({})
+
+    assert_eq(looping:is_looping(), true, "looping=true")
+    assert_eq(not_looping:is_looping(), false, "looping=false")
+    assert_eq(no_flags:is_looping(), false, "no flags = not looping")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: is_3d
+print("Test: is_3d() returns correct value")
+do
+    local is_3d = Sound.new({ flags = { sound_3d = true } })
+    local not_3d = Sound.new({ flags = { sound_3d = false } })
+
+    assert_eq(is_3d:is_3d(), true, "sound_3d=true")
+    assert_eq(not_3d:is_3d(), false, "sound_3d=false")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: is_music
+print("Test: is_music() returns correct value")
+do
+    local music = Sound.new({ flags = { music = true } })
+    local not_music = Sound.new({ flags = { music = false } })
+
+    assert_eq(music:is_music(), true, "music=true")
+    assert_eq(not_music:is_music(), false, "music=false")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: stops_out_of_range
+print("Test: stops_out_of_range() returns correct value")
+do
+    local stops = Sound.new({ flags = { stop_out_range = true } })
+    local not_stops = Sound.new({ flags = { stop_out_range = false } })
+
+    assert_eq(stops:stops_out_of_range(), true, "stop_out_range=true")
+    assert_eq(not_stops:stops_out_of_range(), false, "stop_out_range=false")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_effective_volume
+print("Test: get_effective_volume() handles -1 default")
+do
+    local default_vol = Sound.new({ volume = -1 })
+    local custom_vol = Sound.new({ volume = 50 })
+    local zero_vol = Sound.new({ volume = 0 })
+
+    assert_eq(default_vol:get_effective_volume(), 100, "-1 = 100%")
+    assert_eq(custom_vol:get_effective_volume(), 50, "50 = 50%")
+    assert_eq(zero_vol:get_effective_volume(), 0, "0 = 0%")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_effective_pitch
+print("Test: get_effective_pitch() handles -1 default")
+do
+    local default_pitch = Sound.new({ pitch = -1 })
+    local custom_pitch = Sound.new({ pitch = 1.5 })
+    local normal_pitch = Sound.new({ pitch = 1.0 })
+
+    assert_eq(default_pitch:get_effective_pitch(), 1.0, "-1 = 1.0")
+    assert_eq(custom_pitch:get_effective_pitch(), 1.5, "1.5 = 1.5")
+    assert_eq(normal_pitch:get_effective_pitch(), 1.0, "1.0 = 1.0")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: distance methods
+print("Test: get_min/max/cutoff_distance()")
+do
+    local s = Sound.new({
+        distance = { min = 200, max = 8000, cutoff = 4000 },
+    })
+
+    assert_eq(s:get_min_distance(), 200, "min_distance")
+    assert_eq(s:get_max_distance(), 8000, "max_distance")
+    assert_eq(s:get_cutoff_distance(), 4000, "cutoff_distance")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: fade methods
+print("Test: get_fade_in() and get_fade_out()")
+do
+    local s = Sound.new({ fade_in = 250, fade_out = 500 })
+
+    assert_eq(s:get_fade_in(), 250, "fade_in")
+    assert_eq(s:get_fade_out(), 500, "fade_out")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_channel
+print("Test: get_channel() returns number and name")
+do
+    local s = Sound.new({ channel = 7, channel_name = "Music" })
+    local ch_num, ch_name = s:get_channel()
+
+    assert_eq(ch_num, 7, "channel number")
+    assert_eq(ch_name, "Music", "channel name")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: has_cone
+print("Test: has_cone() detects cone parameters")
+do
+    local with_cone = Sound.new({
+        cone = { inside_angle = 90, outside_angle = 180, outside_volume = 50 },
+    })
+    local no_cone = Sound.new({
+        cone = { inside_angle = 0, outside_angle = 0, outside_volume = 0 },
+    })
+    local default_cone = Sound.new({})
+
+    assert_eq(with_cone:has_cone(), true, "has cone parameters")
+    assert_eq(no_cone:has_cone(), false, "zero angles = no cone")
+    assert_eq(default_cone:has_cone(), false, "default = no cone")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: distance table is copied
+print("Test: distance table is copied (no external mutation)")
+do
+    local dist = { min = 100, max = 5000, cutoff = 2000 }
+    local s = Sound.new({ distance = dist })
+
+    -- Modify original
+    dist.min = 999
+
+    -- Sound should be unaffected
+    assert_eq(s.distance.min, 100, "distance should be copied")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: __tostring shows flags
+print("Test: __tostring shows flag indicators")
+do
+    local plain = Sound.new({ name = "plain" })
+    local looping = Sound.new({ name = "loop", flags = { looping = true } })
+    local music_3d = Sound.new({
+        name = "music_3d",
+        flags = { music = true, sound_3d = true },
+    })
+    local quiet = Sound.new({ name = "quiet", volume = 50 })
+
+    local plain_str = tostring(plain)
+    local loop_str = tostring(looping)
+    local music_str = tostring(music_3d)
+    local quiet_str = tostring(quiet)
+
+    assert_true(plain_str:find("Sound"), "should contain 'Sound'")
+    assert_true(not plain_str:find("%["), "plain has no flags")
+    assert_true(loop_str:find("loop"), "looping shows [loop]")
+    assert_true(music_str:find("music"), "music shows [music]")
+    assert_true(music_str:find("3D"), "3D shows [3D]")
+    assert_true(quiet_str:find("vol=50"), "non-100 volume shown")
+end
 print("  PASSED")
 -- }}}
 
