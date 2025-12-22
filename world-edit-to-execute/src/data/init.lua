@@ -423,7 +423,7 @@ end
 -- {{{ info
 -- Get map info summary.
 function Map:info()
-    return {
+    local result = {
         name = self:get_display_name(),
         author = self:get_display_author(),
         description = self:get_display_description(),
@@ -435,7 +435,20 @@ function Map:info()
         force_count = self:force_count(),
         has_terrain = self.terrain ~= nil,
         has_strings = self.strings ~= nil,
+        has_registry = self.registry ~= nil,
     }
+    -- Include registry counts if available
+    if self.registry then
+        result.object_counts = {
+            doodads = self.registry.counts.doodads,
+            units = self.registry.counts.units,
+            regions = self.registry.counts.regions,
+            cameras = self.registry.counts.cameras,
+            sounds = self.registry.counts.sounds,
+            total = self.registry:get_total_count(),
+        }
+    end
+    return result
 end
 -- }}}
 
@@ -512,6 +525,21 @@ local function format(map)
         lines[#lines + 1] = string.format("String Table: %d strings", map.strings:count())
     else
         lines[#lines + 1] = "String Table: Not loaded"
+    end
+    lines[#lines + 1] = ""
+
+    -- Game Objects (registry)
+    if map.registry then
+        local counts = map.registry.counts
+        local total = map.registry:get_total_count()
+        lines[#lines + 1] = string.format("Game Objects (%d total):", total)
+        lines[#lines + 1] = string.format("  Doodads: %d", counts.doodads)
+        lines[#lines + 1] = string.format("  Units: %d", counts.units)
+        lines[#lines + 1] = string.format("  Regions: %d", counts.regions)
+        lines[#lines + 1] = string.format("  Cameras: %d", counts.cameras)
+        lines[#lines + 1] = string.format("  Sounds: %d", counts.sounds)
+    else
+        lines[#lines + 1] = "Game Objects: Not loaded"
     end
 
     return table.concat(lines, "\n")

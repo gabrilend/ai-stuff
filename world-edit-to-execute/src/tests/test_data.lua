@@ -283,6 +283,191 @@ local function test_terrain_access()
     end
 end
 -- }}}
+
+-- {{{ test_registry_creation
+local function test_registry_creation()
+    print("Testing registry creation...")
+
+    -- Empty map should have nil registry
+    local empty_map = data.Map.new()
+    assert(empty_map.registry == nil, "Empty map should have nil registry")
+
+    -- Loaded map should have registry
+    local map_files = get_map_files()
+    if #map_files == 0 then
+        print("  SKIP: No test maps")
+        return
+    end
+
+    local map = data.load(map_files[1])
+    assert(map.registry ~= nil, "Loaded map should have registry")
+    assert(map.registry.counts ~= nil, "Registry should have counts")
+
+    print("  PASS: Registry creation works")
+end
+-- }}}
+
+-- {{{ test_registry_population
+local function test_registry_population()
+    print("Testing registry population...")
+
+    local map_files = get_map_files()
+    if #map_files == 0 then
+        print("  SKIP: No test maps")
+        return
+    end
+
+    local map = data.load(map_files[1])
+    local counts = map.registry.counts
+    local total = map.registry:get_total_count()
+
+    log(string.format("  Doodads: %d", counts.doodads))
+    log(string.format("  Units: %d", counts.units))
+    log(string.format("  Regions: %d", counts.regions))
+    log(string.format("  Cameras: %d", counts.cameras))
+    log(string.format("  Sounds: %d", counts.sounds))
+    log(string.format("  Total: %d", total))
+
+    -- Verify counts match arrays
+    assert(counts.doodads == #map.registry.doodads, "Doodad count mismatch")
+    assert(counts.units == #map.registry.units, "Unit count mismatch")
+    assert(counts.regions == #map.registry.regions, "Region count mismatch")
+    assert(counts.cameras == #map.registry.cameras, "Camera count mismatch")
+    assert(counts.sounds == #map.registry.sounds, "Sound count mismatch")
+
+    -- Verify total
+    local expected_total = counts.doodads + counts.units + counts.regions + counts.cameras + counts.sounds
+    assert(total == expected_total, "Total count mismatch")
+
+    print("  PASS: Registry population works")
+end
+-- }}}
+
+-- {{{ test_registry_convenience_methods
+local function test_registry_convenience_methods()
+    print("Testing registry convenience methods...")
+
+    local map_files = get_map_files()
+    if #map_files == 0 then
+        print("  SKIP: No test maps")
+        return
+    end
+
+    local map = data.load(map_files[1])
+    local tests_run = 0
+
+    -- Test get_unit with actual unit creation_number if any exist
+    if #map.registry.units > 0 then
+        local first_unit = map.registry.units[1]
+        local creation_id = first_unit.creation_id or first_unit.creation_number
+        if creation_id then
+            local found = map:get_unit(creation_id)
+            assert(found ~= nil, "Should find unit by creation_id")
+            assert(found == first_unit, "Should return same object reference")
+            tests_run = tests_run + 1
+        end
+    end
+
+    -- Test get_region with actual region if any exist
+    if #map.registry.regions > 0 then
+        local first_region = map.registry.regions[1]
+        local creation_id = first_region.creation_id or first_region.creation_number
+        if creation_id then
+            local found = map:get_region(creation_id)
+            assert(found ~= nil, "Should find region by creation_id")
+            tests_run = tests_run + 1
+        end
+        -- Also test by name if available
+        if first_region.name and first_region.name ~= "" then
+            local found_by_name = map:get_region(first_region.name)
+            assert(found_by_name ~= nil, "Should find region by name")
+            tests_run = tests_run + 1
+        end
+    end
+
+    -- Test get_camera with actual camera if any exist
+    if #map.registry.cameras > 0 then
+        local first_camera = map.registry.cameras[1]
+        if first_camera.name and first_camera.name ~= "" then
+            local found = map:get_camera(first_camera.name)
+            assert(found ~= nil, "Should find camera by name")
+            assert(found == first_camera, "Should return same object reference")
+            tests_run = tests_run + 1
+        end
+    end
+
+    -- Test lookup for non-existent returns nil
+    local missing = map:get_unit(-99999)
+    assert(missing == nil, "Non-existent should return nil")
+
+    if tests_run > 0 then
+        print(string.format("  PASS: Registry convenience methods work (%d tests)", tests_run))
+    else
+        print("  SKIP: No objects with IDs/names to test")
+    end
+end
+-- }}}
+
+-- {{{ test_registry_info_output
+local function test_registry_info_output()
+    print("Testing registry info output...")
+
+    local map_files = get_map_files()
+    if #map_files == 0 then
+        print("  SKIP: No test maps")
+        return
+    end
+
+    local map = data.load(map_files[1])
+    local info = map:info()
+
+    -- Check has_registry flag
+    assert(info.has_registry == true, "info should have has_registry=true")
+
+    -- Check object_counts
+    assert(info.object_counts ~= nil, "info should have object_counts")
+    assert(info.object_counts.doodads ~= nil, "object_counts should have doodads")
+    assert(info.object_counts.units ~= nil, "object_counts should have units")
+    assert(info.object_counts.total ~= nil, "object_counts should have total")
+
+    -- Verify counts match registry
+    assert(info.object_counts.doodads == map.registry.counts.doodads, "info doodads should match")
+    assert(info.object_counts.total == map.registry:get_total_count(), "info total should match")
+
+    print("  PASS: Registry info output works")
+end
+-- }}}
+
+-- {{{ test_registry_format_output
+local function test_registry_format_output()
+    print("Testing registry format output...")
+
+    local map_files = get_map_files()
+    if #map_files == 0 then
+        print("  SKIP: No test maps")
+        return
+    end
+
+    local map = data.load(map_files[1])
+    local formatted = data.format(map)
+
+    -- Check Game Objects section exists
+    assert(formatted:find("Game Objects"), "Should have Game Objects section")
+    assert(formatted:find("Doodads:"), "Should have Doodads count")
+    assert(formatted:find("Units:"), "Should have Units count")
+    assert(formatted:find("Regions:"), "Should have Regions count")
+    assert(formatted:find("Cameras:"), "Should have Cameras count")
+    assert(formatted:find("Sounds:"), "Should have Sounds count")
+
+    if VERBOSE then
+        print("--- Format output ---")
+        print(formatted)
+        print("---")
+    end
+
+    print("  PASS: Registry format output works")
+end
+-- }}}
 -- }}}
 
 -- {{{ Main
@@ -297,6 +482,13 @@ local function main()
     test_string_resolution()
     test_player_access()
     test_terrain_access()
+
+    -- Registry integration tests (207e)
+    test_registry_creation()
+    test_registry_population()
+    test_registry_convenience_methods()
+    test_registry_info_output()
+    test_registry_format_output()
 
     print("\n=== All tests completed ===")
 end

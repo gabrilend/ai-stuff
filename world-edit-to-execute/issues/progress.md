@@ -159,7 +159,7 @@ No dependencies (all independent except A07)
 | 207b | Filtering and iteration | Pending | 207a |
 | 207c | Spatial index | **Completed** | None |
 | 207d | Spatial integration | **Completed** | 207a, 207c |
-| 207e | Map integration | Pending | 207a |
+| 207e | Map integration | **Completed** | 207a |
 | 207f | Registry tests | Pending | 207a-207e |
 | 208 | Phase 2 integration test | Pending | 201-207 |
 
@@ -512,6 +512,14 @@ Phase 2 & 3 Complete
   - enable_spatial_index(), get_objects_in_radius(), get_objects_in_region()
   - Auto-indexing of doodads/units when spatial enabled
   - 31/31 new tests pass
+- **Issue 207e completed:** Map integration
+  - Updated src/data/init.lua with Phase 2 parser requires and ObjectRegistry
+  - Map.load() now populates registry with doodads, units, regions, cameras, sounds
+  - Added convenience methods: get_unit, get_doodad, get_region, get_camera, get_sound
+  - Updated format() and info() to include registry statistics
+  - Added 5 registry tests to test_data.lua, all pass
+  - Added diagnostic scripts: check_map_files.lua, check_registry_stats.lua
+  - 226,232 doodads and 5 units loaded across 16 test maps
 
 ---
 
