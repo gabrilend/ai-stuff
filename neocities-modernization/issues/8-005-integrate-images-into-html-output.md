@@ -107,7 +107,49 @@ similar | different
 
 ---
 
-**ISSUE STATUS: OPEN**
+## Implementation Progress
+
+### 2025-12-17: Core Implementation Complete
+
+**Changes Made:**
+
+1. **`scripts/extract-fediverse.lua`** - Added ActivityPub attachment extraction
+   - Added comprehensive documentation of ActivityPub attachment format (lines 2-32)
+   - Implemented `extract_attachments()` function (lines 393-430)
+   - Attachments now captured in poem metadata with: media_type, url, relative_path, alt_text, width, height, blurhash
+   - Added attachment statistics to extraction summary output
+
+2. **`src/poem-extractor.lua`** - Preserved attachments during aggregation
+   - Modified `load_extracted_json()` to preserve `poem.attachments` field (lines 149-155)
+   - Added attachment count logging for visibility
+
+3. **`src/flat-html-generator.lua`** - Added image rendering
+   - Implemented `render_attachment_images()` function (lines 691-752)
+   - Integrated image rendering into all three poem formatting functions:
+     - `format_single_poem_with_progress_and_color()` (line 1079-1083)
+     - `format_single_poem_with_warnings()` (line 1126-1129)
+     - `format_single_poem_80_width()` (line 1148-1151)
+   - Images use lazy loading (`loading="lazy"`)
+   - Alt text preserved from ActivityPub or defaults to "Image attachment"
+   - Responsive sizing with `max-width:100%; height:auto`
+
+**Key Technical Decision:**
+Rather than using the image catalog as a lookup table, we now extract attachment data directly from ActivityPub during fediverse extraction. This provides:
+- Direct poem-to-image association (no mapping needed)
+- Alt text preservation from user-provided descriptions
+- Image dimensions for proper layout hints
+- Simpler data flow through the pipeline
+
+### Remaining Steps
+
+Before marking complete:
+- [ ] Re-run extraction: `./scripts/update` to regenerate poems with attachments
+- [ ] Verify attachment data in `input/fediverse/files/poems.json`
+- [ ] Generate HTML and verify images appear correctly
+- [ ] Test image paths work with relative `../input/media_attachments/` prefix
+- [ ] Consider whether images should be copied to output/ for deployment
+
+**ISSUE STATUS: IN PROGRESS**
 
 **Created**: 2025-12-15
 

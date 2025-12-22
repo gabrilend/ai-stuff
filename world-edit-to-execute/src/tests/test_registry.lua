@@ -297,6 +297,270 @@ end
 print("  PASSED")
 -- }}}
 
+-- ============================================================================
+-- 207b: Filtering and Iteration Tests
+-- ============================================================================
+
+-- {{{ Test: get_units_for_player
+print("Test: get_units_for_player returns correct units")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_unit({ id = "hfoo", player = 0 })
+    registry:add_unit({ id = "hkni", player = 0 })
+    registry:add_unit({ id = "ogru", player = 1 })
+    registry:add_unit({ id = "hpea", player = 2 })
+
+    local p0_units = registry:get_units_for_player(0)
+    local p1_units = registry:get_units_for_player(1)
+    local p3_units = registry:get_units_for_player(3)
+
+    assert_eq(#p0_units, 2, "player 0 should have 2 units")
+    assert_eq(#p1_units, 1, "player 1 should have 1 unit")
+    assert_eq(#p3_units, 0, "player 3 should have 0 units")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_heroes with is_hero method
+print("Test: get_heroes returns only hero units (using is_hero method)")
+do
+    local registry = ObjectRegistry.new()
+    -- Unit with is_hero method (gameobject pattern)
+    local hero = { id = "Hpal", is_hero = function(self) return true end }
+    local unit = { id = "hfoo", is_hero = function(self) return false end }
+
+    registry:add_unit(hero)
+    registry:add_unit(unit)
+
+    local heroes = registry:get_heroes()
+    assert_eq(#heroes, 1, "should return 1 hero")
+    assert_eq(heroes[1], hero, "hero should be the returned unit")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_heroes fallback to ID pattern
+print("Test: get_heroes uses ID pattern fallback for plain tables")
+do
+    local registry = ObjectRegistry.new()
+    -- Plain tables without is_hero method (raw parser data)
+    registry:add_unit({ id = "Hpal" })  -- Capital = hero
+    registry:add_unit({ id = "Edem" })  -- Capital = hero
+    registry:add_unit({ id = "hfoo" })  -- lowercase = unit
+    registry:add_unit({ id = "ogru" })  -- lowercase = unit
+
+    local heroes = registry:get_heroes()
+    assert_eq(#heroes, 2, "should detect 2 heroes by ID pattern")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_buildings
+print("Test: get_buildings returns only building units")
+do
+    local registry = ObjectRegistry.new()
+    local building = { id = "htow", is_building = function(self) return true end }
+    local unit = { id = "hfoo", is_building = function(self) return false end }
+    local no_method = { id = "hpea" }  -- no is_building method
+
+    registry:add_unit(building)
+    registry:add_unit(unit)
+    registry:add_unit(no_method)
+
+    local buildings = registry:get_buildings()
+    assert_eq(#buildings, 1, "should return 1 building")
+    assert_eq(buildings[1], building, "building should be the returned unit")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_waygates with method
+print("Test: get_waygates returns units with is_waygate() method")
+do
+    local registry = ObjectRegistry.new()
+    local waygate = { id = "nwgt", is_waygate = function(self) return true end }
+    local unit = { id = "hfoo", is_waygate = function(self) return false end }
+
+    registry:add_unit(waygate)
+    registry:add_unit(unit)
+
+    local waygates = registry:get_waygates()
+    assert_eq(#waygates, 1, "should return 1 waygate")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_waygates with waygate_dest field
+print("Test: get_waygates detects waygate_dest field")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_unit({ id = "nwgt", waygate_dest = 5 })  -- active waygate
+    registry:add_unit({ id = "nwg2", waygate_dest = 0 })  -- active (dest=0 is valid)
+    registry:add_unit({ id = "nwg3", waygate_dest = -1 }) -- inactive
+    registry:add_unit({ id = "hfoo" })  -- regular unit
+
+    local waygates = registry:get_waygates()
+    assert_eq(#waygates, 2, "should return 2 waygates (5 and 0 are valid)")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: each_doodad
+print("Test: each_doodad iterates all doodads")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_doodad({ id = "LTlt" })
+    registry:add_doodad({ id = "LTex" })
+    registry:add_doodad({ id = "NTtw" })
+
+    local count = 0
+    registry:each_doodad(function(d)
+        count = count + 1
+    end)
+
+    assert_eq(count, 3, "should iterate 3 doodads")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: each_unit
+print("Test: each_unit iterates all units")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_unit({ id = "hfoo" })
+    registry:add_unit({ id = "hkni" })
+
+    local ids = {}
+    registry:each_unit(function(u)
+        ids[#ids + 1] = u.id
+    end)
+
+    assert_eq(#ids, 2, "should iterate 2 units")
+    assert_eq(ids[1], "hfoo", "first unit should be hfoo")
+    assert_eq(ids[2], "hkni", "second unit should be hkni")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: each_region
+print("Test: each_region iterates all regions")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_region({ name = "r1" })
+    registry:add_region({ name = "r2" })
+
+    local count = 0
+    registry:each_region(function(r)
+        count = count + 1
+    end)
+
+    assert_eq(count, 2, "should iterate 2 regions")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: each_camera
+print("Test: each_camera iterates all cameras")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_camera({ name = "cam1" })
+
+    local count = 0
+    registry:each_camera(function(c)
+        count = count + 1
+    end)
+
+    assert_eq(count, 1, "should iterate 1 camera")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: each_sound
+print("Test: each_sound iterates all sounds")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_sound({ name = "snd1" })
+    registry:add_sound({ name = "snd2" })
+    registry:add_sound({ name = "snd3" })
+
+    local count = 0
+    registry:each_sound(function(s)
+        count = count + 1
+    end)
+
+    assert_eq(count, 3, "should iterate 3 sounds")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: filter with predicate
+print("Test: filter with predicate returns matching objects")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_unit({ id = "hfoo", hp = 100 })
+    registry:add_unit({ id = "hkni", hp = 50 })
+    registry:add_unit({ id = "hpea", hp = 200 })
+    registry:add_unit({ id = "ogru", hp = 80 })
+
+    local high_hp = registry:filter("unit", function(u)
+        return u.hp >= 100
+    end)
+
+    assert_eq(#high_hp, 2, "should return 2 units with hp >= 100")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: filter empty results
+print("Test: filter returns empty table, not nil")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_doodad({ id = "LTlt" })
+
+    local result = registry:filter("doodad", function(d)
+        return false  -- Match nothing
+    end)
+
+    assert_not_nil(result, "result should not be nil")
+    assert_eq(#result, 0, "result should be empty table")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: filter errors on invalid type
+print("Test: filter errors on invalid object type")
+do
+    local registry = ObjectRegistry.new()
+
+    local ok, err = pcall(function()
+        registry:filter("invalid", function(x) return true end)
+    end)
+
+    assert_eq(ok, false, "should error on invalid type")
+    assert_not_nil(err:match("Unknown object type"), "error should mention unknown type")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: filter with complex predicate
+print("Test: filter with complex predicate")
+do
+    local registry = ObjectRegistry.new()
+    registry:add_region({ name = "spawn", bounds = { left = 0, right = 100, bottom = 0, top = 100 } })
+    registry:add_region({ name = "big", bounds = { left = 0, right = 500, bottom = 0, top = 500 } })
+    registry:add_region({ name = "tiny", bounds = { left = 0, right = 10, bottom = 0, top = 10 } })
+
+    local large_regions = registry:filter("region", function(r)
+        local w = r.bounds.right - r.bounds.left
+        local h = r.bounds.top - r.bounds.bottom
+        return w * h >= 10000  -- 100x100 or larger
+    end)
+
+    assert_eq(#large_regions, 2, "should return 2 large regions")
+end
+print("  PASSED")
+-- }}}
+
 -- {{{ Summary
 print("")
 print(string.format("========================================"))

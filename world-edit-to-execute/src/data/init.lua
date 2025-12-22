@@ -7,6 +7,16 @@ local w3i = require("parsers.w3i")
 local wts = require("parsers.wts")
 local w3e = require("parsers.w3e")
 
+-- Phase 2 parsers
+local doo = require("parsers.doo")
+local unitsdoo = require("parsers.unitsdoo")
+local w3r = require("parsers.w3r")
+local w3c = require("parsers.w3c")
+local w3s = require("parsers.w3s")
+
+-- Object registry
+local ObjectRegistry = require("registry")
+
 -- {{{ Player colors
 local PLAYER_COLORS = {
     [0] = { r = 255, g = 3, b = 3, name = "Red" },
@@ -60,6 +70,7 @@ function Map.new()
     self.players = {}       -- Player definitions from w3i
     self.forces = {}        -- Force definitions from w3i
     self.flags = {}         -- Map flags from w3i
+    self.registry = nil     -- ObjectRegistry for game objects (doodads, units, etc.)
 
     -- Additional data
     self.fog = nil          -- Fog settings from w3i
@@ -136,6 +147,74 @@ function Map.load(path)
             local terrain_ok, terrain = pcall(w3e.parse, w3e_data)
             if terrain_ok and terrain then
                 map.terrain = terrain
+            end
+        end
+    end
+
+    -- Create object registry for Phase 2 game objects
+    map.registry = ObjectRegistry.new()
+
+    -- Load doodads (war3map.doo)
+    if archive:has("war3map.doo") then
+        local ok, doo_data = pcall(archive.extract, archive, "war3map.doo")
+        if ok and doo_data then
+            local parse_ok, parsed = pcall(doo.parse, doo_data)
+            if parse_ok and parsed and parsed.doodads then
+                for _, d in ipairs(parsed.doodads) do
+                    map.registry:add_doodad(d)
+                end
+            end
+        end
+    end
+
+    -- Load units (war3mapUnits.doo)
+    if archive:has("war3mapUnits.doo") then
+        local ok, units_data = pcall(archive.extract, archive, "war3mapUnits.doo")
+        if ok and units_data then
+            local parse_ok, parsed = pcall(unitsdoo.parse, units_data)
+            if parse_ok and parsed and parsed.units then
+                for _, u in ipairs(parsed.units) do
+                    map.registry:add_unit(u)
+                end
+            end
+        end
+    end
+
+    -- Load regions (war3map.w3r)
+    if archive:has("war3map.w3r") then
+        local ok, w3r_data = pcall(archive.extract, archive, "war3map.w3r")
+        if ok and w3r_data then
+            local parse_ok, parsed = pcall(w3r.parse, w3r_data)
+            if parse_ok and parsed and parsed.regions then
+                for _, r in ipairs(parsed.regions) do
+                    map.registry:add_region(r)
+                end
+            end
+        end
+    end
+
+    -- Load cameras (war3map.w3c)
+    if archive:has("war3map.w3c") then
+        local ok, w3c_data = pcall(archive.extract, archive, "war3map.w3c")
+        if ok and w3c_data then
+            local parse_ok, parsed = pcall(w3c.parse, w3c_data)
+            if parse_ok and parsed and parsed.cameras then
+                for _, c in ipairs(parsed.cameras) do
+                    map.registry:add_camera(c)
+                end
+            end
+        end
+    end
+
+    -- Load sounds (war3map.w3s)
+    if archive:has("war3map.w3s") then
+        local ok, w3s_data = pcall(archive.extract, archive, "war3map.w3s")
+        if ok and w3s_data then
+            local parse_ok, parsed = pcall(w3s.parse, w3s_data)
+            if parse_ok and parsed and parsed.sounds then
+                for _, s in ipairs(parsed.sounds) do
+                    map.registry:add_sound(s)
+                end
             end
         end
     end
@@ -280,6 +359,62 @@ function Map:world_to_tile(wx, wy)
         return self.terrain:world_to_tile(wx, wy)
     end
     return { x = math.floor(wx / 128), y = math.floor(wy / 128) }
+end
+-- }}}
+-- }}}
+
+-- {{{ Registry accessors
+-- {{{ get_unit
+-- Get unit by creation_id. Delegates to registry.
+function Map:get_unit(creation_id)
+    if self.registry then
+        return self.registry:get_by_creation_id(creation_id)
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ get_doodad
+-- Get doodad by creation_id. Delegates to registry.
+function Map:get_doodad(creation_id)
+    if self.registry then
+        return self.registry:get_by_creation_id(creation_id)
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ get_region
+-- Get region by creation_id or name. Delegates to registry.
+function Map:get_region(id_or_name)
+    if not self.registry then
+        return nil
+    end
+    -- Try creation_id first
+    local result = self.registry:get_by_creation_id(id_or_name)
+    if result then return result end
+    -- Try name lookup
+    return self.registry:get_by_name(id_or_name)
+end
+-- }}}
+
+-- {{{ get_camera
+-- Get camera by name. Delegates to registry.
+function Map:get_camera(name)
+    if self.registry then
+        return self.registry:get_by_name(name)
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ get_sound
+-- Get sound by name. Delegates to registry.
+function Map:get_sound(name)
+    if self.registry then
+        return self.registry:get_by_name(name)
+    end
+    return nil
 end
 -- }}}
 -- }}}
