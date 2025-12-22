@@ -155,6 +155,12 @@ No dependencies (all independent except A07)
 | 206f | Implement Sound class | Pending | 206a, 205 |
 | 206g | Finalize module and documentation | Pending | 206b-f |
 | 207 | Build object registry system | Pending | 206 |
+| 207a | Core registry class | Pending | 206 |
+| 207b | Filtering and iteration | Pending | 207a |
+| 207c | Spatial index | Pending | None |
+| 207d | Spatial integration | Pending | 207a, 207c |
+| 207e | Map integration | Pending | 207a |
+| 207f | Registry tests | Pending | 207a-207e |
 | 208 | Phase 2 integration test | Pending | 201-207 |
 
 ### Dependency Graph
@@ -481,6 +487,13 @@ Phase 2 & 3 Complete
   - Distinguishes "YYU" (random unit) from "YYI" (random item) prefixes
   - Format output shows random info and active waygate destinations
   - 139/139 tests pass (all 5 202 sub-issues complete)
+- **Issue 207 sub-issues created:**
+  - 207a: Core registry class (storage, add_*, lookup)
+  - 207b: Filtering and iteration (get_heroes, each_*, filter)
+  - 207c: Spatial index (standalone grid-based spatial queries)
+  - 207d: Spatial integration (connect spatial index to registry)
+  - 207e: Map integration (populate registry from Map.load)
+  - 207f: Registry tests (comprehensive test suite)
 - **Issue 206 split into sub-issues:** Design game object types
   - 206a: Create gameobjects module structure
   - 206b-f: Implement Doodad, Unit, Region, Camera, Sound classes
