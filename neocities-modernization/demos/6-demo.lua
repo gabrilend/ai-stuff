@@ -17,6 +17,8 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local function load_dependencies()
     local json = require("dkjson")
     local utils = require("utils")
+    -- Initialize asset path configuration
+    utils.init_assets_root(arg)
     return json, utils
 end
 -- }}}
@@ -26,9 +28,9 @@ local json, utils = load_dependencies()
 -- {{{ gather_statistics
 local function gather_statistics()
     local stats = {}
-    
-    -- Load poems data
-    local poems_file = io.open(DIR .. "/assets/poems.json", "r")
+
+    -- Load poems data (use configured assets path)
+    local poems_file = io.open(utils.asset_path("poems.json"), "r")
     if poems_file then
         local poems_content = poems_file:read("*all")
         poems_file:close()
@@ -53,8 +55,8 @@ local function gather_statistics()
         stats.categories = {personal = 800, shanna = 46, fediverse = 6509}
     end
     
-    -- Load image catalog
-    local catalog_file = io.open(DIR .. "/assets/image_catalog.json", "r")
+    -- Load image catalog (use configured assets path)
+    local catalog_file = io.open(utils.asset_path("image_catalog.json"), "r")
     if catalog_file then
         local catalog_content = catalog_file:read("*all")
         catalog_file:close()
@@ -73,8 +75,8 @@ local function gather_statistics()
         stats.duplicate_groups = 39
     end
     
-    -- Check anonymization data
-    local anon_file = io.open(DIR .. "/assets/anonymization_report.json", "r")
+    -- Check anonymization data (use configured assets path)
+    local anon_file = io.open(utils.asset_path("anonymization_report.json"), "r")
     if anon_file then
         local anon_content = anon_file:read("*all")
         anon_file:close()

@@ -17,6 +17,8 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local function load_dependencies()
     local json = require("dkjson")
     local utils = require("utils")
+    -- Initialize asset path configuration
+    utils.init_assets_root(arg)
     return json, utils
 end
 -- }}}
@@ -26,9 +28,9 @@ local json, utils = load_dependencies()
 -- {{{ gather_statistics
 local function gather_statistics()
     local stats = {}
-    
-    -- Load poems data
-    local poems_file = io.open(DIR .. "/assets/poems.json", "r")
+
+    -- Load poems data (use configured assets path)
+    local poems_file = io.open(utils.asset_path("poems.json"), "r")
     if poems_file then
         local poems_content = poems_file:read("*all")
         poems_file:close()
@@ -70,8 +72,8 @@ local function gather_statistics()
         stats.categories = {personal = 800, shanna = 46, fediverse = 6509}
     end
     
-    -- Load validation report
-    local validation_file = io.open(DIR .. "/assets/validation-report.json", "r")
+    -- Load validation report (use configured assets path)
+    local validation_file = io.open(utils.asset_path("validation-report.json"), "r")
     if validation_file then
         local validation_content = validation_file:read("*all")
         validation_file:close()
@@ -94,14 +96,14 @@ local function gather_statistics()
         stats.duplicate_ids = 1298
     end
     
-    -- Check similarity matrices
-    local embeddings_dir = DIR .. "/assets/embeddings/EmbeddingGemma_latest"
+    -- Check similarity matrices (use configured assets path)
+    local embeddings_dir = utils.embeddings_dir("EmbeddingGemma_latest")
     local matrix_file = io.open(embeddings_dir .. "/similarity_matrix.json", "r")
     if matrix_file then
         matrix_file:close()
         stats.similarity_matrix = true
     end
-    
+
     local full_matrix_file = io.open(embeddings_dir .. "/similarity_matrix_full.json", "r")
     if full_matrix_file then
         local file_info = io.popen("stat -c%s " .. embeddings_dir .. "/similarity_matrix_full.json 2>/dev/null"):read("*all")

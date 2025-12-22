@@ -28,6 +28,9 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
 
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+utils.init_assets_root(arg)
+
 local M = {}
 
 -- {{{ function cosine_similarity
@@ -217,10 +220,10 @@ function M.main(interactive_mode)
         local choice = io.read()
         
         local color_config_file = DIR .. "/config/semantic-colors.json"
-        local poems_file = DIR .. "/assets/poems.json"
-        local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
-        local color_embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/color_embeddings.json"
-        local poem_colors_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json"
+        local poems_file = utils.asset_path("poems.json")
+        local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+        local color_embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/color_embeddings.json"
+        local poem_colors_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/poem_colors.json"
         
         -- Load color configuration
         local color_config = utils.read_json_file(color_config_file)

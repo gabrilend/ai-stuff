@@ -24,9 +24,13 @@ LIST_MODELS=false
 MODEL_STATUS=false
 INTERACTIVE_MODE=false
 DIRECTORY_ARG=""
+ASSETS_DIR=""
 
 for arg in "$@"; do
     case $arg in
+        --dir=*)
+            ASSETS_DIR="${arg#*=}"
+            ;;
         --full-regen|--full)
             INCREMENTAL=false
             FORCE_REGEN=true
@@ -86,6 +90,7 @@ for arg in "$@"; do
             echo "  --model=MODEL_NAME      Specify embedding model (default: embeddinggemma:latest)"
             echo "  --list-models           Show available models and their configurations"
             echo "  --model-status          Show cache status for all models"
+            echo "  --dir=PATH              Use custom assets directory instead of default"
             echo ""
             echo "Examples:"
             echo "  $0 --flush-errors             # Clean up failed entries"
@@ -175,6 +180,12 @@ fi
 # Set up directory after parsing arguments
 DIR=$(setup_dir_path "$DIRECTORY_ARG")
 cd "$DIR" || exit 1
+
+# Build --dir argument for Lua scripts if assets dir was specified
+ASSETS_ARG=""
+if [ -n "$ASSETS_DIR" ]; then
+    ASSETS_ARG="--dir $ASSETS_DIR"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -536,9 +547,9 @@ monitor_progress() {
 # Start the embedding generation in background
 echo "Generating embeddings..." > "$TEMP_LOG"
 if [ "$INCREMENTAL" = true ]; then
-    (echo -e "1\ny\n$MODEL_NAME" | lua src/similarity-engine.lua -I) >> "$TEMP_LOG" 2>&1 &
+    (echo -e "1\ny\n$MODEL_NAME" | lua src/similarity-engine.lua -I $ASSETS_ARG) >> "$TEMP_LOG" 2>&1 &
 else
-    (echo -e "1\nn\n$MODEL_NAME" | lua src/similarity-engine.lua -I) >> "$TEMP_LOG" 2>&1 &
+    (echo -e "1\nn\n$MODEL_NAME" | lua src/similarity-engine.lua -I $ASSETS_ARG) >> "$TEMP_LOG" 2>&1 &
 fi
 EMBED_PID=$!
 

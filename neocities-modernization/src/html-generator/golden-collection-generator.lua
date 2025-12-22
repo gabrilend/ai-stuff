@@ -25,6 +25,9 @@ local COLOR_CONFIG = {
     gray = "#787878"
 }
 
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+utils.init_assets_root(arg)
+
 local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
@@ -61,7 +64,7 @@ end
 
 -- {{{ function load_poem_colors
 local function load_poem_colors()
-    local poem_colors_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json"
+    local poem_colors_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
     
     if poem_colors_data and poem_colors_data.poem_colors then

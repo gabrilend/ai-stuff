@@ -229,4 +229,175 @@ function M.relative_path(absolute_path, base_dir)
 end
 -- }}}
 
+-- ============================================================================
+-- Asset Path Configuration
+-- Configurable storage for generated assets (embeddings, poems.json, etc.)
+-- ============================================================================
+
+-- Module state for cached asset configuration
+local _assets_root = nil
+local _assets_config_loaded = false
+
+-- {{{ function M.parse_assets_dir
+-- Parse --dir flag from command line arguments
+-- @param args: table of command line arguments (default: global 'arg')
+-- @return: string path if --dir found, nil otherwise
+function M.parse_assets_dir(args)
+    args = args or arg
+    if not args then return nil end
+
+    local i = 1
+    while i <= #args do
+        local arg_val = args[i]
+        if arg_val == "--dir" and args[i + 1] then
+            return args[i + 1]
+        elseif arg_val:match("^%-%-dir=") then
+            return arg_val:match("^%-%-dir=(.+)$")
+        end
+        i = i + 1
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ function M.load_asset_config
+-- Load asset path configuration from config/asset-paths.lua
+-- @return: table with assets_root key, or nil if file not found
+function M.load_asset_config()
+    local config_path = M.DIR .. "/config/asset-paths.lua"
+    local config_func = loadfile(config_path)
+    if config_func then
+        local ok, config = pcall(config_func)
+        if ok and type(config) == "table" then
+            return config
+        end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ function M.init_assets_root
+-- Initialize assets root path with priority: CLI > config > error
+-- Must be called once at startup, before any asset_path() calls
+-- @param cli_args: optional table of CLI arguments (default: global 'arg')
+-- @return: string path to assets root, or nil on error (after printing message)
+function M.init_assets_root(cli_args)
+    -- Check CLI argument first (highest priority)
+    local cli_dir = M.parse_assets_dir(cli_args)
+    if cli_dir then
+        if not M.directory_exists(cli_dir) then
+            io.stderr:write("\n")
+            io.stderr:write("Error: Assets directory not found: " .. cli_dir .. "\n")
+            io.stderr:write("\n")
+            io.stderr:write("Fix: supply valid path via --dir ~/your/assets/path\n")
+            io.stderr:write("\n")
+            io.stderr:write("Expected structure:\n")
+            io.stderr:write("  " .. cli_dir .. "/\n")
+            io.stderr:write("    poems.json\n")
+            io.stderr:write("    embeddings/\n")
+            io.stderr:write("      EmbeddingGemma_latest/\n")
+            io.stderr:write("        embeddings.json\n")
+            io.stderr:write("\n")
+            return nil
+        end
+        _assets_root = cli_dir
+        _assets_config_loaded = true
+        return _assets_root
+    end
+
+    -- Try config file (second priority)
+    local config = M.load_asset_config()
+    if config and config.assets_root then
+        if not M.directory_exists(config.assets_root) then
+            io.stderr:write("\n")
+            io.stderr:write("Error: Assets directory not found: " .. config.assets_root .. "\n")
+            io.stderr:write("\n")
+            io.stderr:write("Fix: supply path via --dir ~/your/assets/path\n")
+            io.stderr:write("     or update config/asset-paths.lua\n")
+            io.stderr:write("\n")
+            io.stderr:write("Expected structure:\n")
+            io.stderr:write("  " .. config.assets_root .. "/\n")
+            io.stderr:write("    poems.json\n")
+            io.stderr:write("    embeddings/\n")
+            io.stderr:write("      EmbeddingGemma_latest/\n")
+            io.stderr:write("        embeddings.json\n")
+            io.stderr:write("\n")
+            return nil
+        end
+        _assets_root = config.assets_root
+        _assets_config_loaded = true
+        return _assets_root
+    end
+
+    -- Fallback to project default (for backward compatibility during transition)
+    local default_path = M.DIR .. "/assets"
+    if M.directory_exists(default_path) then
+        _assets_root = default_path
+        _assets_config_loaded = true
+        return _assets_root
+    end
+
+    -- Nothing found - error
+    io.stderr:write("\n")
+    io.stderr:write("Error: Assets directory not found\n")
+    io.stderr:write("\n")
+    io.stderr:write("Fix: supply path via --dir ~/your/assets/path\n")
+    io.stderr:write("\n")
+    io.stderr:write("Expected structure:\n")
+    io.stderr:write("  ~/your/assets/path/\n")
+    io.stderr:write("    poems.json\n")
+    io.stderr:write("    embeddings/\n")
+    io.stderr:write("      EmbeddingGemma_latest/\n")
+    io.stderr:write("        embeddings.json\n")
+    io.stderr:write("\n")
+    return nil
+end
+-- }}}
+
+-- {{{ function M.get_assets_root
+-- Get the configured assets root path
+-- Initializes from config if not already done
+-- @param cli_args: optional CLI args for initialization
+-- @return: string path to assets root
+function M.get_assets_root(cli_args)
+    if not _assets_config_loaded then
+        local result = M.init_assets_root(cli_args)
+        if not result then
+            os.exit(1)
+        end
+    end
+    return _assets_root
+end
+-- }}}
+
+-- {{{ function M.asset_path
+-- Build full path to an asset file
+-- @param relative: relative path within assets (e.g., "poems.json")
+-- @return: full absolute path
+function M.asset_path(relative)
+    return M.get_assets_root() .. "/" .. relative
+end
+-- }}}
+
+-- {{{ function M.embeddings_dir
+-- Get path to embeddings directory for a specific model
+-- @param model_name: optional model name (default: "EmbeddingGemma_latest")
+-- @return: full path to model's embeddings directory
+function M.embeddings_dir(model_name)
+    model_name = model_name or "EmbeddingGemma_latest"
+    -- Sanitize model name for filesystem safety
+    local safe_name = model_name:gsub("[^%w%-_.]", "_")
+    return M.asset_path("embeddings/" .. safe_name)
+end
+-- }}}
+
+-- {{{ function M.similarities_dir
+-- Get path to similarities directory for a specific model
+-- @param model_name: optional model name
+-- @return: full path to model's similarities directory
+function M.similarities_dir(model_name)
+    return M.embeddings_dir(model_name) .. "/similarities"
+end
+-- }}}
+
 return M

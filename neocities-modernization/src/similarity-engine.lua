@@ -19,6 +19,9 @@ local dkjson = require("dkjson")
 local ollama_config = require("ollama-config")
 local poem_extractor = require("poem-extractor")
 
+-- Initialize asset path configuration for standalone execution
+utils.init_assets_root(arg)
+
 local M = {}
 
 -- {{{ Model configurations
@@ -648,9 +651,9 @@ end
 function M.calculate_similarity_matrix(embeddings_file, output_file, top_n, force_regenerate)
     top_n = top_n or 10
     force_regenerate = force_regenerate or false
-    
-    -- Need poems file for validation
-    local poems_file = "assets/poems.json"
+
+    -- Need poems file for validation (use configured assets path)
+    local poems_file = utils.asset_path("poems.json")
     
     -- Validate existing matrix unless forced to regenerate
     if not force_regenerate then
@@ -792,9 +795,9 @@ end
 -- {{{ function M.calculate_full_similarity_matrix
 function M.calculate_full_similarity_matrix(embeddings_file, output_file, force_regenerate)
     force_regenerate = force_regenerate or false
-    
-    -- Need poems file for validation
-    local poems_file = "assets/poems.json"
+
+    -- Need poems file for validation (use configured assets path)
+    local poems_file = utils.asset_path("poems.json")
     
     -- Check if full matrix already exists and is current
     if not force_regenerate and utils.file_exists(output_file) then
@@ -1397,8 +1400,8 @@ function M.main(interactive_mode)
         local choice = io.read()
         
         if choice == "1" then
-            local poems_file = DIR .. "/assets/poems.json"
-            local base_output_dir = DIR .. "/assets"
+            local poems_file = utils.asset_path("poems.json")
+            local base_output_dir = utils.get_assets_root()
             io.write("Use incremental processing? (Y/n): ")
             local incremental_choice = io.read()
             local incremental = not (incremental_choice:lower() == "n" or incremental_choice:lower() == "no")
@@ -1410,7 +1413,7 @@ function M.main(interactive_mode)
             io.write("Embedding model (default: EmbeddingGemma:latest): ")
             local model_input = io.read()
             local model_name = model_input ~= "" and model_input or "embeddinggemma:latest"
-            local base_output_dir = DIR .. "/assets"
+            local base_output_dir = utils.get_assets_root()
             local storage_paths = get_model_storage_path(base_output_dir, model_name)
             local embeddings_file = storage_paths.embeddings
             local output_file = storage_paths.similarity_matrix
@@ -1419,11 +1422,11 @@ function M.main(interactive_mode)
             io.write("Embedding model (default: EmbeddingGemma:latest): ")
             local model_input = io.read()
             local model_name = model_input ~= "" and model_input or "embeddinggemma:latest"
-            local base_output_dir = DIR .. "/assets"
+            local base_output_dir = utils.get_assets_root()
             local storage_paths = get_model_storage_path(base_output_dir, model_name)
             local embeddings_file = storage_paths.embeddings
             local output_file = storage_paths.similarity_matrix:gsub("%.json$", "_full.json")
-            
+
             utils.log_info("⚠️  FULL matrix generation will take 2-4 hours and create ~100MB file")
             io.write("Continue? (y/N): ")
             local confirm = io.read()
@@ -1433,17 +1436,17 @@ function M.main(interactive_mode)
                 utils.log_info("Full matrix generation cancelled")
             end
         elseif choice == "4" then
-            local similarity_file = DIR .. "/assets/similarity-matrix.json"
-            local poems_file = DIR .. "/assets/poems.json"
-            local output_file = DIR .. "/assets/similarity-report.json"
+            local similarity_file = utils.asset_path("similarity-matrix.json")
+            local poems_file = utils.asset_path("poems.json")
+            local output_file = utils.asset_path("similarity-report.json")
             M.generate_similarity_report(similarity_file, poems_file, output_file)
         elseif choice == "5" then
             utils.log_info("Running complete similarity engine pipeline...")
-            local poems_file = DIR .. "/assets/poems.json"
-            local base_output_dir = DIR .. "/assets"
-            local similarity_file = DIR .. "/assets/similarity-matrix.json"
-            local report_file = DIR .. "/assets/similarity-report.json"
-            
+            local poems_file = utils.asset_path("poems.json")
+            local base_output_dir = utils.get_assets_root()
+            local similarity_file = utils.asset_path("similarity-matrix.json")
+            local report_file = utils.asset_path("similarity-report.json")
+
             if M.generate_all_embeddings(poems_file, base_output_dir) then
                 local storage_paths = get_model_storage_path(base_output_dir, "embeddinggemma:latest")
                 local embeddings_file = storage_paths.embeddings
@@ -1457,29 +1460,29 @@ function M.main(interactive_mode)
                 utils.log_error("Pipeline failed at embedding generation")
             end
         elseif choice == "6" then
-            local base_output_dir = DIR .. "/assets"
+            local base_output_dir = utils.get_assets_root()
             io.write("Matrix type - (s)parse or (f)ull? (default: sparse): ")
             local matrix_type = io.read()
             local use_full_matrix = matrix_type:lower():sub(1,1) == "f"
-            
+
             io.write("Minimum completeness percentage (default: 80): ")
             local completeness_input = io.read()
             local min_completeness = tonumber(completeness_input) or 80
             min_completeness = min_completeness / 100  -- Convert percentage to decimal
-            
+
             local results = M.generate_all_model_similarity_matrices(base_output_dir, min_completeness, use_full_matrix)
             utils.log_info("Multi-model generation complete. Results available in similarity engine.")
         elseif choice == "7" then
-            local base_output_dir = DIR .. "/assets"
+            local base_output_dir = utils.get_assets_root()
             M.get_multi_model_status(base_output_dir)
         elseif choice == "8" then
             io.write("Poem ID to compare: ")
             local poem_id = tonumber(io.read())
-            local base_output_dir = DIR .. "/assets"
+            local base_output_dir = utils.get_assets_root()
             io.write("Use (s)parse or (f)ull matrices? (default: sparse): ")
             local matrix_type = io.read()
             local use_full_matrix = matrix_type:lower():sub(1,1) == "f"
-            
+
             local results = M.compare_model_similarities(poem_id, base_output_dir, {}, use_full_matrix)
             utils.log_info("Model comparison complete.")
         else
@@ -1488,10 +1491,10 @@ function M.main(interactive_mode)
     else
         -- Default: run similarity analysis on existing data
         utils.log_info("Running similarity engine analysis...")
-        local similarity_file = DIR .. "/assets/similarity-matrix.json"
-        local poems_file = DIR .. "/assets/poems.json"
-        local report_file = DIR .. "/assets/similarity-report.json"
-        
+        local similarity_file = utils.asset_path("similarity-matrix.json")
+        local poems_file = utils.asset_path("poems.json")
+        local report_file = utils.asset_path("similarity-report.json")
+
         if utils.file_exists(similarity_file) then
             M.generate_similarity_report(similarity_file, poems_file, report_file)
         else
