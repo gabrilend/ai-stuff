@@ -354,3 +354,21 @@ The following sub-issue files were created based on the analysis above:
 ```
 
 Sub-issues 202b-202e can be implemented in parallel after 202a is complete.
+
+---
+
+## Implementation Notes
+
+**Completed:** 2024-12-21 (via sub-issues)
+
+All sub-issues completed:
+- **202a**: Header and basic fields (type, position, player, HP/MP)
+- **202b**: Item drop tables parsing
+- **202c**: Modified abilities parsing
+- **202d**: Hero data (level, stats, inventory)
+- **202e**: Random unit config and waygate destinations
+
+Parser location: `src/parsers/unitsdoo.lua` (609 lines)
+Test suite: `src/tests/test_unitsdoo.lua` (139 tests, all pass)
+
+5/16 test maps contain war3mapUnits.doo, all parse successfully.

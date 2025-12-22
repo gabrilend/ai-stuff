@@ -145,13 +145,13 @@ From src/parsers/doo.lua DoodadEntry:
 
 ## Acceptance Criteria
 
-- [ ] Doodad class with constructor
-- [ ] is_visible() method
-- [ ] is_solid() method
-- [ ] get_max_life() method
-- [ ] __tostring metamethod
-- [ ] Unit tests for Doodad class
-- [ ] init.lua exports Doodad
+- [x] Doodad class with constructor
+- [x] is_visible() method
+- [x] is_solid() method
+- [x] get_max_life() method
+- [x] __tostring metamethod
+- [x] Unit tests for Doodad class
+- [x] init.lua exports Doodad
 
 ---
 
@@ -159,3 +159,61 @@ From src/parsers/doo.lua DoodadEntry:
 
 Doodads are the simplest game object type. Starting here establishes patterns
 for the more complex Unit and Region classes.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-22*
+
+### Constructor
+
+The Doodad.new() constructor copies all fields from parser output:
+- Core: id, name, variation, creation_number
+- Position: position {x,y,z}, angle
+- Scale: scale {x,y,z}
+- Flags: flags (0=invisible_non_solid, 1=visible_non_solid, 2=normal)
+- Life: life percentage (0-100)
+- V8 fields: item_table_pointer, item_sets_count
+
+Position and scale tables are copied (not referenced) to prevent external mutation.
+Missing fields use sensible defaults (position=0,0,0, scale=1,1,1, flags=2, life=100).
+
+### Methods Implemented
+
+| Method | Description |
+|--------|-------------|
+| `is_visible()` | Returns true if flags >= 1 |
+| `is_solid()` | Returns true if flags >= 2 |
+| `get_max_life()` | Returns life percentage |
+| `get_current_life()` | Returns runtime life (nil before game start) |
+| `is_destroyed()` | Returns runtime destroyed state |
+| `has_item_drops()` | Checks item_table_pointer >= 0 (v8 only) |
+| `get_angle_degrees()` | Converts angle from radians to degrees |
+
+### Runtime State
+
+Two fields are initialized for runtime game state:
+- `current_life` - starts nil, set during gameplay
+- `destroyed` - starts false, set when doodad destroyed
+
+### __tostring
+
+Shows visibility state in string representation:
+- `Doodad<LTlt @ 100,200>` - normal (visible+solid)
+- `Doodad<LTlt @ 100,200 [invisible]>` - flags=0
+- `Doodad<LTlt @ 100,200 [non-solid]>` - flags=1
+
+### Tests Added
+
+11 new tests added to test_gameobjects.lua (total now 83):
+- Constructor copies all fields
+- Default values when fields missing
+- is_visible() with different flags
+- is_solid() with different flags
+- get_max_life()
+- has_item_drops()
+- get_angle_degrees() conversion
+- Runtime state fields initialized
+- Position table copied (no external mutation)
+- __tostring shows visibility state
