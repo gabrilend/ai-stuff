@@ -1,6 +1,35 @@
 
 -- Fediverse content extraction script
--- Parses ActivityPub JSON and extracts formatted posts
+-- Parses ActivityPub JSON and extracts formatted posts with attachment metadata
+--
+-- ACTIVITYPUB ATTACHMENT FORMAT (Mastodon/W3C Standard):
+-- Each Note object in outbox.json may contain an "attachment" array:
+-- {
+--   "type": "Create",
+--   "object": {
+--     "type": "Note",
+--     "content": "<p>Post text here</p>",
+--     "attachment": [
+--       {
+--         "type": "Document",
+--         "mediaType": "image/png",           -- MIME type (image/png, image/jpeg, video/mp4, etc.)
+--         "url": "https://server.com/media/files/123/456/789/original/abc123.png",
+--         "name": "Alt text description",     -- User-provided alt text (may be null)
+--         "blurhash": "LEHV6nWB2yk8...",      -- Blur hash for placeholder (optional)
+--         "width": 1920,                      -- Image dimensions (optional)
+--         "height": 1080
+--       }
+--     ]
+--   }
+-- }
+--
+-- URL PATH MAPPING:
+-- The URL path structure maps directly to local media_attachments directory:
+--   URL:   https://tech.lgbt/media/files/113/464/378/730/595/557/original/658cbf8cc6804a09.png
+--   Local: input/media_attachments/files/113/464/378/730/595/557/original/658cbf8cc6804a09.png
+--
+-- The numeric segments (113/464/378/...) are derived from Mastodon's internal attachment ID
+-- split into 3-digit chunks for filesystem distribution.
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -361,9 +390,50 @@ local function generate_poem_metadata(content, cw, source_data, golden_poem_cont
 end
 -- }}}
 
+-- {{{ function extract_attachments
+local function extract_attachments(content_object)
+    -- Extract media attachment metadata from ActivityPub Note object
+    -- Returns nil if no attachments, or array of attachment metadata
+    if not content_object.attachment then
+        return nil
+    end
+
+    local attachments = {}
+    for _, attachment in ipairs(content_object.attachment) do
+        -- Only process Document type attachments (images, videos, etc.)
+        if attachment.type == "Document" and attachment.url then
+            -- Extract the relative path from the URL
+            -- URL format: https://server.com/media/files/123/456/789/original/filename.ext
+            -- We extract: files/123/456/789/original/filename.ext
+            local relative_path = attachment.url:match("/files/(.+)$")
+            if relative_path then
+                relative_path = "files/" .. relative_path
+            end
+
+            local attachment_entry = {
+                media_type = attachment.mediaType,
+                url = attachment.url,
+                relative_path = relative_path,
+                alt_text = attachment.name,  -- May be nil if no alt text provided
+                width = attachment.width,
+                height = attachment.height,
+                blurhash = attachment.blurhash
+            }
+            table.insert(attachments, attachment_entry)
+        end
+    end
+
+    if #attachments > 0 then
+        return attachments
+    end
+    return nil
+end
+-- }}}
+
 local poems_json = {}
 local boost_count = 0
 local original_count = 0
+local attachment_count = 0
 
 print("🔄 Processing activities with privacy mode: " .. privacy_config.mode)
 print("🔄 Include boosts: " .. tostring(privacy_config.include_boosts))
@@ -389,7 +459,7 @@ for key, activity in pairs(data.orderedItems) do
                 raw_content = processed_content.raw_content,
                 metadata = generate_poem_metadata(processed_content.content, cw, activity, processed_content.golden_poem_content)
             }
-            
+
             -- Add privacy metadata
             if processed_content.privacy_applied then
                 poem_entry.metadata.privacy_mode = privacy_config.mode
@@ -398,7 +468,17 @@ for key, activity in pairs(data.orderedItems) do
                     poem_entry.metadata.original_character_count = string.len(processed_content.original_content)
                 end
             end
-            
+
+            -- Extract media attachments from the Note object
+            -- Attachments contain image/video URLs that map to local media_attachments directory
+            local attachments = extract_attachments(content_object)
+            if attachments then
+                poem_entry.attachments = attachments
+                poem_entry.metadata.has_attachments = true
+                poem_entry.metadata.attachment_count = #attachments
+                attachment_count = attachment_count + #attachments
+            end
+
             table.insert(poems_json, poem_entry)
             original_count = original_count + 1
         end
@@ -437,6 +517,14 @@ end
 -- Create output directory
 os.execute("mkdir -p " .. save_location)
 
+-- Count posts with attachments for statistics
+local posts_with_attachments = 0
+for _, poem in ipairs(poems_json) do
+    if poem.attachments then
+        posts_with_attachments = posts_with_attachments + 1
+    end
+end
+
 -- Generate JSON output
 local json_output = {
     poems = poems_json,
@@ -444,7 +532,7 @@ local json_output = {
         total_poems = #poems_json,
         original_posts = original_count,
         boosted_posts = boost_count,
-        by_category = { 
+        by_category = {
             fediverse = original_count,
             fediverse_boost = boost_count
         },
@@ -455,6 +543,10 @@ local json_output = {
             include_boosts = privacy_config.include_boosts,
             mentions_anonymized = (privacy_config.mode == "clean"),
             anonymization_prefix = privacy_config.anonymization_prefix
+        },
+        attachment_statistics = {
+            total_attachments = attachment_count,
+            posts_with_attachments = posts_with_attachments
         }
     }
 }
@@ -480,6 +572,7 @@ print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Total posts processed: " .. #poems_json)
 print("   📝 Original posts: " .. original_count)
 print("   🔄 Boosted posts: " .. boost_count)
+print("   🖼️  Attachments found: " .. attachment_count .. " in " .. posts_with_attachments .. " posts")
 print("   🚨 Content warnings: " .. #json_output.extraction_summary.content_warnings)
 print("   🔒 Privacy mode: " .. privacy_config.mode)
 if privacy_config.mode == "clean" then
