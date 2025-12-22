@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
-| 0 | Tooling/Infrastructure | **Completed** | 18/18 |
+| 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | In Progress | 3/8 |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
@@ -82,6 +82,9 @@ No dependencies (all independent except A07)
 | 005 | Migrate TUI library to shared libs | **Completed** | 004 |
 | 006 | Rename analysis sections for promoted roots | **Completed** | 003 |
 | 007 | Add auto-implement via Claude CLI | **Completed** | None |
+| 010 | Debug TUI integration analysis | Pending | 004 |
+| 011 | TUI history insert on run | Pending | 004 |
+| 012 | Interactive verdict review mode | Pending | 003, 004 |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -423,6 +426,15 @@ Phase 2 & 3 Complete
   - Supports 4/5/6 bit dictionary sizes
   - Key fix: Use expected output size from block table (not all streams have end marker)
   - **16/16 test maps now pass** (Daow6.2.w3x previously failed)
+- **Issue 011 created:** TUI history insert on run
+  - Enhancement: TUI exits with command in history instead of executing
+  - User can press "up" to recall and re-run without re-entering TUI
+  - Enables "command discovery" workflow (learn CLI via TUI, then use directly)
+- Added --session (-S) flag to issue-splitter.sh
+  - Reuses Claude context across issues (faster, avoids re-reading project files)
+  - Uses `claude --continue` for sequential processing
+  - Added --expert (-E) for explicit fresh context per issue (default behavior)
+  - Session mode auto-disabled when using --stream (parallel incompatible)
 
 ---
 

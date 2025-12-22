@@ -454,6 +454,7 @@ function tui.read_key()
             if seq2 == "D" then return "LEFT" end
             if seq2 == "H" then return "HOME" end
             if seq2 == "F" then return "END" end
+            if seq2 == "Z" then return "SHIFT_TAB" end  -- Shift+Tab (backtab)
 
             if seq2 >= "0" and seq2 <= "9" then
                 local seq3 = read_char()
@@ -463,6 +464,34 @@ function tui.read_key()
                     if seq2 == "4" then return "END" end
                     if seq2 == "5" then return "PAGEUP" end
                     if seq2 == "6" then return "PAGEDOWN" end
+                elseif seq3 == ";" then
+                    -- Extended key with modifier: CSI number ; modifier ~ or u
+                    local seq4 = read_char()
+                    local seq5 = read_char()
+                    -- Shift+Enter: \e[13;2u (kitty) or \e[27;2;13~ (xterm modifyOtherKeys)
+                    if seq2 == "1" and seq4 == "2" and seq5 == "u" then
+                        -- \e[1;2u - could be Shift+something, check context
+                        return "SHIFT_ENTER"
+                    elseif seq4 == "2" then
+                        -- Modifier 2 = Shift
+                        if seq5 == "u" or seq5 == "~" then
+                            if seq2 == "1" then return "SHIFT_HOME" end
+                        end
+                    end
+                end
+            end
+            -- Kitty keyboard protocol: \e[13;2u for Shift+Enter
+            if seq2 == "1" then
+                local seq3 = read_char()
+                if seq3 == "3" then
+                    local seq4 = read_char()
+                    if seq4 == ";" then
+                        local seq5 = read_char()
+                        local seq6 = read_char()
+                        if seq5 == "2" and seq6 == "u" then
+                            return "SHIFT_ENTER"
+                        end
+                    end
                 end
             end
         end
