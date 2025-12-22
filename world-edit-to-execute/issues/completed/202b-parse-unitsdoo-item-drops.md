@@ -108,13 +108,13 @@ When a unit with item drops dies:
 
 ## Acceptance Criteria
 
-- [ ] Correctly parses item table pointer
-- [ ] Correctly parses number of item sets
-- [ ] Correctly parses items per set with IDs and chances
-- [ ] Handles units with no item drops
-- [ ] Handles units with multiple item sets
-- [ ] Unit tests for item drop parsing
-- [ ] Format output shows item drop info
+- [x] Correctly parses item table pointer
+- [x] Correctly parses number of item sets
+- [x] Correctly parses items per set with IDs and chances
+- [x] Handles units with no item drops
+- [x] Handles units with multiple item sets
+- [x] Unit tests for item drop parsing
+- [x] Format output shows item drop info
 
 ---
 
@@ -122,3 +122,39 @@ When a unit with item drops dies:
 
 Item drops are important for RPG-style maps where loot is a core mechanic.
 This data feeds into the game's item spawning system when units die.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-21*
+
+### Changes Made
+
+1. **Replaced `skip_item_drops` with `parse_item_drops`:**
+   - Returns structured item_drops with table_pointer and sets array
+   - Each set contains items array with id, chance, and optional name
+
+2. **Added COMMON_ITEMS lookup table:**
+   - Maps item type IDs to human-readable names
+   - Used for display and debugging
+
+3. **Updated unit entry structure:**
+   - Changed `unit._item_sets_count` placeholder to `unit.item_drops` structure
+   - Structure: `{ table_pointer, sets = [ { items = [...] } ] }`
+
+4. **Updated tests:**
+   - Expanded item drops test to verify full structure
+   - Added assertions for set counts, item IDs, and drop chances
+
+5. **Updated format function:**
+   - Added item drop statistics (units with drops, total items)
+   - Added per-unit drop listing in sample output with item names and chances
+
+6. **Added UnitTable:with_drops() method:**
+   - Query all units that have item drops configured
+   - Exported COMMON_ITEMS for external use
+
+### Test Results
+
+94/94 tests pass - item drops parsing verified with synthetic test data and 5 real maps

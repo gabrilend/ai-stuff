@@ -297,8 +297,8 @@ end
 print("  PASSED")
 -- }}}
 
--- {{{ Test: unit with item drops (skip)
-print("Test: unit with item drops (skip)")
+-- {{{ Test: unit with item drops
+print("Test: unit with item drops")
 do
     -- Build a unit with item drops
     local unit_entry = "hfoo"          -- Type ID
@@ -315,7 +315,7 @@ do
         .. string.char(0, 0)           -- Unknown bytes
         .. make_int32(-1)              -- HP (default)
         .. make_int32(-1)              -- MP (default)
-        -- Item drops section (2 sets, 2 items each)
+        -- Item drops section (2 sets, items in each)
         .. make_int32(0)               -- Item table pointer
         .. make_int32(2)               -- 2 item sets
         -- Set 1: 2 items
@@ -345,14 +345,24 @@ do
 
     local u = result.units[1]
     assert_eq(u.id, "hfoo", "type ID should be hfoo")
-    assert_eq(u._item_sets_count, 2, "should have 2 item sets")
+    assert_eq(#u.item_drops.sets, 2, "should have 2 item sets")
     assert_eq(u.creation_number, 3, "creation number should be 3")
+
+    -- Verify first set has 2 items
+    assert_eq(#u.item_drops.sets[1].items, 2, "set 1 should have 2 items")
+    assert_eq(u.item_drops.sets[1].items[1].id, "rat6", "set 1 item 1 should be rat6")
+    assert_eq(u.item_drops.sets[1].items[1].chance, 50, "set 1 item 1 should have 50% chance")
+
+    -- Verify second set has 1 item
+    assert_eq(#u.item_drops.sets[2].items, 1, "set 2 should have 1 item")
+    assert_eq(u.item_drops.sets[2].items[1].id, "afac", "set 2 item 1 should be afac")
+    assert_eq(u.item_drops.sets[2].items[1].chance, 100, "set 2 item 1 should have 100% chance")
 end
 print("  PASSED")
 -- }}}
 
--- {{{ Test: unit with abilities (skip)
-print("Test: unit with abilities (skip)")
+-- {{{ Test: unit with abilities
+print("Test: unit with abilities")
 do
     -- Build a unit with modified abilities
     local unit_entry = "hfoo"          -- Type ID
@@ -394,8 +404,23 @@ do
     assert_true(result ~= nil, "unit with abilities should parse: " .. tostring(err))
 
     local u = result.units[1]
-    assert_eq(u._abilities_count, 3, "should have 3 abilities")
+    assert_eq(#u.abilities, 3, "should have 3 abilities")
     assert_eq(u.creation_number, 4, "creation number should be 4")
+
+    -- Verify first ability (Holy Light, autocast, level 1)
+    assert_eq(u.abilities[1].id, "AHhb", "ability 1 id should be AHhb")
+    assert_true(u.abilities[1].autocast, "ability 1 should have autocast")
+    assert_eq(u.abilities[1].level, 1, "ability 1 level should be 1")
+
+    -- Verify second ability (Divine Shield, no autocast, level 2)
+    assert_eq(u.abilities[2].id, "AHds", "ability 2 id should be AHds")
+    assert_true(not u.abilities[2].autocast, "ability 2 should not have autocast")
+    assert_eq(u.abilities[2].level, 2, "ability 2 level should be 2")
+
+    -- Verify third ability (Devotion Aura, autocast, level 3)
+    assert_eq(u.abilities[3].id, "AHad", "ability 3 id should be AHad")
+    assert_true(u.abilities[3].autocast, "ability 3 should have autocast")
+    assert_eq(u.abilities[3].level, 3, "ability 3 level should be 3")
 end
 print("  PASSED")
 -- }}}
