@@ -206,18 +206,18 @@ From src/parsers/unitsdoo.lua:
 
 ## Acceptance Criteria
 
-- [ ] Unit class with constructor
-- [ ] is_hero() method
-- [ ] is_building() method
-- [ ] is_item() method
-- [ ] is_random() method
-- [ ] is_waygate() method
-- [ ] get_hero_level() method
-- [ ] get_hero_stats() method
-- [ ] get_inventory() method
-- [ ] __tostring metamethod
-- [ ] Unit tests for Unit class
-- [ ] init.lua exports Unit
+- [x] Unit class with constructor
+- [x] is_hero() method
+- [x] is_building() method
+- [x] is_item() method
+- [x] is_random() method
+- [x] is_waygate() method
+- [x] get_hero_level() method
+- [x] get_hero_stats() method
+- [x] get_inventory() method
+- [x] __tostring metamethod
+- [x] Unit tests for Unit class
+- [x] init.lua exports Unit
 
 ---
 
@@ -229,3 +229,54 @@ where items appear in war3mapUnits.doo.
 
 Note: 202e (random/waygate) should be completed before this issue to ensure
 random_unit and waygate_dest fields are available.
+
+---
+
+## Implementation Notes
+
+**Completed:** 2024-12-22
+
+### Files Modified
+- `src/gameobjects/unit.lua` - Full Unit class implementation
+- `src/tests/test_unit.lua` - Comprehensive test suite (68 tests)
+
+### Implementation Details
+
+1. **Constructor** - Copies all fields from parsed data with defaults:
+   - `type_id` and `id` alias for compatibility
+   - Position/scale with default zeroes/ones
+   - `base_hp`/`base_mp` default to -1 (use object data)
+   - Runtime state (`current_hp`, `current_mp`, `is_alive`) initialized
+
+2. **Type Detection Methods**
+   - `is_hero()` - Checks hero_data first, falls back to capital first letter
+   - `is_building()` - Heuristic based on second character (t/b/a/w/f/s patterns)
+   - `is_item()` - Checks for 'I' prefix (custom items)
+   - `is_random()` - Checks random_unit data or 'Y' prefix
+   - `is_waygate()` - Checks waygate_dest >= 0
+
+3. **Hero Methods**
+   - `get_hero_level()` - Returns level from hero_data or nil
+   - `get_hero_stats()` - Returns {str_bonus, agi_bonus, int_bonus} or nil
+   - `get_inventory()` - Returns slot->item_id table or empty
+
+4. **Additional Methods**
+   - `get_waygate_destination()` - Returns destination creation_id
+   - `has_item_drops()`, `get_item_drops()` - Item drop access
+   - `has_modified_abilities()`, `get_abilities()` - Ability access
+   - `__tostring()` - Debug output with type markers
+
+### Known Limitations
+
+- `is_building()` uses heuristic pattern matching; 'g' removed due to false
+  positives (ogru=Grunt vs ogrv=Great Hall). Proper detection requires
+  object data lookup which will be added in Phase 3.
+
+### Test Coverage
+
+68 tests covering all methods and edge cases including:
+- Constructor field copying and defaults
+- Hero detection (hero_data, capital letter fallback, random exclusion)
+- Building/item/random/waygate detection
+- Hero level, stats, inventory access
+- __tostring output formatting
