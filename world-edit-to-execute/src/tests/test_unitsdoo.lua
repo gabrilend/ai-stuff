@@ -425,11 +425,11 @@ end
 print("  PASSED")
 -- }}}
 
--- {{{ Test: random unit types
+-- {{{ Test: random unit types (expanded for 202e)
 print("Test: random unit types")
 do
-    -- Unit with random flag = 1 (random from level)
-    local unit_entry1 = "YYU5"         -- Random unit level 5
+    -- Unit with random flag = 1 (random unit from level)
+    local unit_entry1 = "YYU5"         -- Random unit level 5 (type ID is placeholder)
         .. make_int32(0)               -- Variation
         .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
         .. make_float32(0.0)
@@ -440,11 +440,11 @@ do
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)  -- No items
         .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 1)
-        .. make_int32(1)               -- Random from level
-        .. "YYU5"                      -- Level data (4 bytes)
-        .. make_int32(-1)
-        .. make_int32(5)
+        -- Random unit section (flag = 1, random from level)
+        .. make_int32(1)               -- Flag = random from level
+        .. "YYU5"                      -- "YYU" + level char '5'
+        .. make_int32(-1)              -- Waygate inactive
+        .. make_int32(100)             -- Creation number
 
     -- Unit with random flag = 2 (random from group)
     local unit_entry2 = "hfoo"
@@ -458,29 +458,110 @@ do
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)  -- No items
         .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 2)
-        .. make_int32(2)               -- Random from group
+        -- Random unit section (flag = 2, random from group)
+        .. make_int32(2)               -- Flag = random from group
         .. make_int32(3)               -- Group index
         .. make_int32(1)               -- Position in group
-        .. make_int32(-1)
-        .. make_int32(6)
+        .. make_int32(-1)              -- Waygate inactive
+        .. make_int32(101)             -- Creation number
+
+    -- Unit with random item (flag = 1, "YYI" prefix)
+    local unit_entry3 = "YYI3"         -- Random item level 3
+        .. make_int32(0)
+        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
+        .. make_float32(0.0)
+        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
+        .. string.char(0)
+        .. make_int32(0)
+        .. string.char(0, 0)
+        .. make_int32(-1) .. make_int32(-1)
+        .. make_int32(-1) .. make_int32(0)  -- No items
+        .. make_int32(0)                    -- No abilities
+        -- Random unit section (flag = 1, random item from level)
+        .. make_int32(1)               -- Flag = random from level
+        .. "YYI3"                      -- "YYI" + level char '3'
+        .. make_int32(-1)              -- Waygate inactive
+        .. make_int32(102)             -- Creation number
+
+    -- Unit with active waygate
+    local unit_entry4 = "nwgt"         -- Waygate unit type
+        .. make_int32(0)
+        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
+        .. make_float32(0.0)
+        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
+        .. string.char(0)
+        .. make_int32(0)
+        .. string.char(0, 0)
+        .. make_int32(-1) .. make_int32(-1)
+        .. make_int32(-1) .. make_int32(0)  -- No items
+        .. make_int32(0)                    -- No abilities
+        -- Random unit section (flag = 0, not random)
+        .. make_int32(0)               -- Not random
+        .. make_int32(42)              -- Waygate destination = region 42
+        .. make_int32(103)             -- Creation number
 
     local data = "W3do"
         .. make_int32(8)
         .. make_int32(11)
-        .. make_int32(2)
+        .. make_int32(4)               -- 4 units
         .. unit_entry1
         .. unit_entry2
+        .. unit_entry3
+        .. unit_entry4
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "random units should parse: " .. tostring(err))
-    assert_eq(#result.units, 2, "should have 2 units")
+    assert_eq(#result.units, 4, "should have 4 units")
 
-    assert_eq(result.units[1].random_flag, 1, "unit 1 random flag should be 1")
-    assert_eq(result.units[1].creation_number, 5, "unit 1 creation number")
+    -- Unit 1: Random unit from level 5
+    local u1 = result.units[1]
+    assert_true(u1.random_unit ~= nil, "unit 1 should have random_unit")
+    assert_eq(u1.random_unit.flag, 1, "unit 1 random flag should be 1")
+    assert_eq(u1.random_unit.type, "unit", "unit 1 should be random unit type")
+    assert_eq(u1.random_unit.level, 5, "unit 1 should be level 5")
+    assert_eq(u1.waygate_dest, -1, "unit 1 waygate should be inactive")
+    assert_eq(u1.creation_number, 100, "unit 1 creation number")
 
-    assert_eq(result.units[2].random_flag, 2, "unit 2 random flag should be 2")
-    assert_eq(result.units[2].creation_number, 6, "unit 2 creation number")
+    -- Unit 2: Random from group
+    local u2 = result.units[2]
+    assert_true(u2.random_unit ~= nil, "unit 2 should have random_unit")
+    assert_eq(u2.random_unit.flag, 2, "unit 2 random flag should be 2")
+    assert_eq(u2.random_unit.group_index, 3, "unit 2 group index should be 3")
+    assert_eq(u2.random_unit.position, 1, "unit 2 position should be 1")
+    assert_eq(u2.creation_number, 101, "unit 2 creation number")
+
+    -- Unit 3: Random item from level 3
+    local u3 = result.units[3]
+    assert_true(u3.random_unit ~= nil, "unit 3 should have random_unit")
+    assert_eq(u3.random_unit.flag, 1, "unit 3 random flag should be 1")
+    assert_eq(u3.random_unit.type, "item", "unit 3 should be random item type")
+    assert_eq(u3.random_unit.level, 3, "unit 3 should be level 3")
+    assert_eq(u3.creation_number, 102, "unit 3 creation number")
+
+    -- Unit 4: Waygate with active destination
+    local u4 = result.units[4]
+    assert_nil(u4.random_unit, "unit 4 should not have random_unit")
+    assert_eq(u4.waygate_dest, 42, "unit 4 waygate should be region 42")
+    assert_eq(u4.creation_number, 103, "unit 4 creation number")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: decode_random_level
+print("Test: decode_random_level")
+do
+    -- Test digit levels
+    assert_eq(unitsdoo.decode_random_level("0"), 0, "level 0")
+    assert_eq(unitsdoo.decode_random_level("5"), 5, "level 5")
+    assert_eq(unitsdoo.decode_random_level("9"), 9, "level 9")
+
+    -- Test letter levels
+    assert_eq(unitsdoo.decode_random_level("A"), 10, "level A=10")
+    assert_eq(unitsdoo.decode_random_level("B"), 11, "level B=11")
+    assert_eq(unitsdoo.decode_random_level("Z"), 35, "level Z=35")
+
+    -- Test edge cases
+    assert_eq(unitsdoo.decode_random_level(" "), 0, "invalid char returns 0")
 end
 print("  PASSED")
 -- }}}

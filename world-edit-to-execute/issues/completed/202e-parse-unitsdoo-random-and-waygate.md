@@ -153,15 +153,15 @@ Every preplaced object has a unique creation_number:
 
 ## Acceptance Criteria
 
-- [ ] Correctly parses random unit flag (0, 1, 2)
-- [ ] Correctly parses random-from-level data ("YYU"/"YYI" + level)
-- [ ] Correctly parses random-from-group data (group index, position)
-- [ ] Correctly parses waygate destination
-- [ ] Correctly parses creation number
-- [ ] Handles non-random units (flag = 0)
-- [ ] Handles inactive waygates (dest = -1)
-- [ ] Unit tests for random/waygate parsing
-- [ ] Format output shows random/waygate info
+- [x] Correctly parses random unit flag (0, 1, 2)
+- [x] Correctly parses random-from-level data ("YYU"/"YYI" + level)
+- [x] Correctly parses random-from-group data (group index, position)
+- [x] Correctly parses waygate destination
+- [x] Correctly parses creation number
+- [x] Handles non-random units (flag = 0)
+- [x] Handles inactive waygates (dest = -1)
+- [x] Unit tests for random/waygate parsing
+- [x] Format output shows random/waygate info
 
 ---
 
@@ -173,3 +173,41 @@ maps for teleportation.
 
 The creation_number is critical for trigger compatibility - many map
 scripts reference units by their creation number.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-21*
+
+### Changes Made
+
+1. **Added `decode_random_level` function:**
+   - Decodes level character to numeric level
+   - '0'-'9' = levels 0-9, 'A'-'Z' = levels 10-35
+   - Exported as `unitsdoo.decode_random_level` for testing
+
+2. **Replaced `skip_random_unit` with `parse_random_unit`:**
+   - Returns structured random_unit table (or nil for non-random)
+   - Structure varies by flag type:
+     - flag=1: `{ flag=1, type="unit"/"item", level=N }`
+     - flag=2: `{ flag=2, group_index=N, position=N }`
+   - Distinguishes "YYU" (random unit) from "YYI" (random item) prefixes
+
+3. **Updated unit entry structure:**
+   - Changed `unit.random_flag` to `unit.random_unit` structure
+   - Waygate destination and creation number were already parsed
+
+4. **Updated format output:**
+   - Shows random unit/item info: `random: unit level 5` or `random: group 3 pos 1`
+   - Shows active waygates: `waygate -> region 42`
+
+5. **Expanded test suite:**
+   - 4 test units covering all random flag types
+   - Tests for random unit from level, random from group, random item from level
+   - Tests for active waygate destination
+   - Separate test for `decode_random_level` edge cases
+
+### Test Results
+
+139/139 tests pass - random unit and waygate parsing verified with synthetic data and 5 real maps
