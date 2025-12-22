@@ -150,14 +150,14 @@ Check war3map.w3i game version to determine parsing behavior.
 
 ## Acceptance Criteria
 
-- [ ] Can parse war3map.doo from all test archives
-- [ ] Correctly extracts doodad type IDs
-- [ ] Correctly extracts positions and rotations
-- [ ] Correctly extracts scale values
-- [ ] Correctly extracts flags and life
-- [ ] Handles special doodad item drops
-- [ ] Returns structured Lua table
-- [ ] Unit tests for parser
+- [x] Can parse war3map.doo from all test archives
+- [x] Correctly extracts doodad type IDs
+- [x] Correctly extracts positions and rotations
+- [x] Correctly extracts scale values
+- [x] Correctly extracts flags and life
+- [x] Handles special doodad item drops
+- [x] Returns structured Lua table
+- [x] Unit tests for parser
 
 ---
 
@@ -243,3 +243,53 @@ Looking at this issue, I think it **would benefit from splitting** into sub-issu
 ## Alternative: Minimal Split
 
 If you prefer fewer sub-issues, you could combine 201a+201b into one (basic parsing) and 201c+201d into another (extensions), giving you just two sub-issues. But the four-way split provides cleaner boundaries for implementation and testing.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-21*
+
+### Files Created
+
+- `src/parsers/doo.lua` - Main parser module
+- `src/tests/test_doo.lua` - Test suite (9 synthetic tests + 16 map tests)
+
+### Key Findings
+
+**Version Differences:**
+- Version 7: 42 bytes per doodad entry
+- Version 8: 50 bytes per doodad entry (adds item_table_pointer and item_sets_count fields)
+
+**Special Doodads Section:**
+- Version 7: Variable-length item drop table format (ID + item sets + items)
+- Version 8: Fixed 16-byte entries (ID + 3 int32 values for position/reference)
+
+**FFI Segfault Fix:**
+- Disabled FFI unpacking in `src/compat.lua` due to GC-related segfaults under heavy load
+- FFI's string-to-pointer casting caused segfaults when parsing 200k+ doodads
+- Manual byte manipulation fallback is reliable and sufficient for performance
+
+### Test Results
+
+- 16/16 test maps parse successfully
+- 226,232 total doodads parsed across all maps
+- Synthetic tests cover: empty files, single/multiple entries, flags, special doodads, DoodadTable class, in_bounds queries, format output, invalid data handling
+
+### API Summary
+
+```lua
+local doo = require("parsers.doo")
+
+-- Parse raw data
+local result = doo.parse(data)
+-- result.version, result.subversion, result.doodads[], result.special_doodads
+
+-- Create searchable DoodadTable
+local dt = doo.new(data)
+dt:count()                    -- Total doodads
+dt:get(creation_number)       -- Lookup by editor ID
+dt:get_by_type("LTlt")        -- Get all of a type
+dt:in_bounds(x1, y1, x2, y2)  -- Spatial query
+dt:types()                    -- List unique types
+```
