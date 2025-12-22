@@ -1,0 +1,66 @@
+Phase 2: Data Model - Work Order
+=================================
+
+This file tracks the implementation order for Phase 2 sub-issues.
+Issues can be worked in parallel where indicated.
+
+Legend:
+  → = sequential dependency (must complete before next)
+  + = can be done in parallel
+  ✓ = completed
+  * = in progress
+
+Issue 206: Design Game Object Types
+------------------------------------
+206a  Create gameobjects module structure
+  ↓
+206b  Implement Doodad class        ─┐
+206c  Implement Unit class           │ (parallel)
+206d  Implement Region class         │
+206e  Implement Camera class         │
+206f  Implement Sound class         ─┘
+  ↓
+206g  Finalize module and documentation
+
+Issue 207: Build Object Registry System
+---------------------------------------
+207a  Core registry class
+  ↓
+207b  Filtering and iteration  ─┐
+                                │ (parallel)
+207c  Spatial index (standalone)─┘
+  ↓
+207d  Spatial integration
+  ↓
+207e  Map integration
+
+Issue 208: Phase 2 Integration Test
+-----------------------------------
+208a  Parser integration tests
+  ↓
+208b  Gameobject creation tests
+  ↓
+208c  Registry integration tests
+  ↓
+208d  Phase 2 demo script
+
+Cross-Issue Dependencies
+------------------------
+206a must complete before 206b-f
+206g must complete before 207a (needs object types)
+207e must complete before 208a (needs Map integration)
+208c must complete before 208d
+
+Recommended Execution Order
+---------------------------
+1. 206a (module structure)
+2. 206b-f in parallel (all object classes)
+3. 206g (finalize)
+4. 207a (core registry)
+5. 207b + 207c in parallel (filtering + spatial)
+6. 207d (spatial integration)
+7. 207e (map integration)
+8. 208a (parser tests)
+9. 208b (object tests)
+10. 208c (registry tests)
+11. 208d (demo script)

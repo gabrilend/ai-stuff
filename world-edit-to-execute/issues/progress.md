@@ -154,8 +154,8 @@ No dependencies (all independent except A07)
 | 206e | Implement Camera class | Pending | 206a, 204 |
 | 206f | Implement Sound class | Pending | 206a, 205 |
 | 206g | Finalize module and documentation | Pending | 206b-f |
-| 207 | Build object registry system | Pending | 206 |
-| 207a | Core registry class | Pending | 206 |
+| 207 | Build object registry system | In Progress | 206 |
+| 207a | Core registry class | **Completed** | 206 |
 | 207b | Filtering and iteration | Pending | 207a |
 | 207c | Spatial index | Pending | None |
 | 207d | Spatial integration | Pending | 207a, 207c |
@@ -497,8 +497,11 @@ Phase 2 & 3 Complete
 - **Issue 206 split into sub-issues:** Design game object types
   - 206a: Create gameobjects module structure
   - 206b-f: Implement Doodad, Unit, Region, Camera, Sound classes
-  - 206g: Finalize module and documentation
-  - 7 sub-issues total, 206b-f can run in parallel after 206a
+- **Issue 207a completed:** Core registry class
+  - Created src/registry/init.lua (ObjectRegistry class)
+  - Type-specific storage arrays with by_creation_id and by_name indexes
+  - Supports parser output (creation_number field)
+  - 48/48 tests pass
 
 ---
 
