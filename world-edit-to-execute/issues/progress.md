@@ -149,7 +149,7 @@ No dependencies (all independent except A07)
 | 206 | Design game object types | In Progress | 201-205 |
 | 206a | Create gameobjects module structure | Pending | None |
 | 206b | Implement Doodad class | Pending | 206a, 201 |
-| 206c | Implement Unit class | Pending | 206a, 202 |
+| 206c | Implement Unit class | **Completed** | 206a, 202 |
 | 206d | Implement Region class | Pending | 206a, 203 |
 | 206e | Implement Camera class | Pending | 206a, 204 |
 | 206f | Implement Sound class | Pending | 206a, 205 |
@@ -520,6 +520,13 @@ Phase 2 & 3 Complete
   - Added 5 registry tests to test_data.lua, all pass
   - Added diagnostic scripts: check_map_files.lua, check_registry_stats.lua
   - 226,232 doodads and 5 units loaded across 16 test maps
+- **Issue 206c completed:** Implement Unit class
+  - Created src/gameobjects/unit.lua (full Unit class implementation)
+  - Created src/tests/test_unit.lua (68 tests, all pass)
+  - Type detection: is_hero(), is_building(), is_item(), is_random(), is_waygate()
+  - Hero methods: get_hero_level(), get_hero_stats(), get_inventory()
+  - Additional: has_item_drops(), has_modified_abilities(), __tostring()
+  - Note: is_building() uses heuristic (proper detection needs object data lookup)
 
 ---
 
