@@ -187,19 +187,19 @@ From src/parsers/w3s.lua:
 
 ## Acceptance Criteria
 
-- [ ] Sound class with constructor
-- [ ] is_looping() method
-- [ ] is_3d() method
-- [ ] is_music() method
-- [ ] stops_out_of_range() method
-- [ ] get_effective_volume() method
-- [ ] get_effective_pitch() method
-- [ ] get_min_distance() method
-- [ ] get_max_distance() method
-- [ ] get_cutoff_distance() method
-- [ ] __tostring metamethod
-- [ ] Unit tests for Sound class
-- [ ] init.lua exports Sound
+- [x] Sound class with constructor
+- [x] is_looping() method
+- [x] is_3d() method
+- [x] is_music() method
+- [x] stops_out_of_range() method
+- [x] get_effective_volume() method
+- [x] get_effective_pitch() method
+- [x] get_min_distance() method
+- [x] get_max_distance() method
+- [x] get_cutoff_distance() method
+- [x] __tostring metamethod
+- [x] Unit tests for Sound class
+- [x] init.lua exports Sound
 
 ---
 
@@ -208,3 +208,69 @@ From src/parsers/w3s.lua:
 Sound is important for audio playback but relatively simple compared to
 Unit or Region. The main complexity is handling the flags and default
 values correctly.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-22*
+
+### Constructor
+
+The Sound.new() constructor copies all fields from parser output:
+- Core: name, file, eax, eax_name
+- Flags: supports both table format (parser output) and numeric format (legacy)
+- Audio: volume (-1=default 100%), pitch (-1=default 1.0)
+- Timing: fade_in, fade_out (in ms)
+- Channel: channel number and channel_name
+- 3D: distance {min, max, cutoff}
+- Cone: cone {inside_angle, outside_angle, outside_volume}
+- Reforged: label, asset_path
+
+### Dual Flags Support
+
+The constructor handles both formats:
+- **Table format** (from parser): `{ looping=true, sound_3d=true, ... }`
+- **Numeric format** (legacy): bits 0-3 for looping, 3d, stop_out_range, music
+
+### Methods Implemented
+
+| Method | Description |
+|--------|-------------|
+| `is_looping()` | Check if sound loops |
+| `is_3d()` | Check if 3D positional sound |
+| `is_music()` | Check if music track |
+| `stops_out_of_range()` | Check if stops when out of range |
+| `get_effective_volume()` | Volume (100 if -1) |
+| `get_effective_pitch()` | Pitch (1.0 if -1) |
+| `get_min_distance()` | Full volume radius |
+| `get_max_distance()` | Inaudible radius |
+| `get_cutoff_distance()` | Sharp cutoff distance |
+| `get_fade_in()` | Fade-in rate in ms |
+| `get_fade_out()` | Fade-out rate in ms |
+| `get_channel()` | Returns number and name |
+| `has_cone()` | Check if directional cone set |
+
+### __tostring
+
+Shows volume (if not 100%) and flag indicators:
+- `Sound<battle_music>` - default volume, no flags
+- `Sound<loop_sound [loop]>` - looping
+- `Sound<music_3d [3D,music]>` - 3D and music
+- `Sound<quiet vol=50>` - custom volume
+
+### Tests Added
+
+16 new tests added to test_gameobjects.lua (total now 259):
+- Constructor with table flags
+- Constructor with numeric flags (legacy)
+- Default values when fields missing
+- is_looping(), is_3d(), is_music(), stops_out_of_range()
+- get_effective_volume() with -1 default
+- get_effective_pitch() with -1 default
+- get_min/max/cutoff_distance()
+- get_fade_in(), get_fade_out()
+- get_channel()
+- has_cone()
+- Distance table copied (no external mutation)
+- __tostring shows flag indicators
