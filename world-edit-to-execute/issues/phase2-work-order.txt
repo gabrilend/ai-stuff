@@ -16,7 +16,7 @@ Issue 206: Design Game Object Types
   ↓
 ✓ 206b  Implement Doodad class        ─┐
 206c  Implement Unit class           │ (parallel)
-206d  Implement Region class         │
+✓ 206d  Implement Region class         │
 206e  Implement Camera class         │
 206f  Implement Sound class         ─┘
   ↓
