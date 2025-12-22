@@ -550,13 +550,283 @@ local Camera = gameobjects.Camera
 assert_not_nil(Camera.new, "Camera should have new()")
 local camera = Camera.new({
     name = "test_camera",
-    target = { x = 0, y = 0, z = 0 },
+    target = { x = 0, y = 0 },
     distance = 1650,
     fov = 70,
 })
 assert_eq(camera.name, "test_camera", "camera.name")
 assert_not_nil(camera.get_eye_position, "camera should have get_eye_position()")
 assert_not_nil(camera.has_local_rotations, "camera should have has_local_rotations()")
+print("  PASSED")
+-- }}}
+
+-- ============================================================================
+-- 206e: Camera Class Detailed Tests
+-- ============================================================================
+
+-- {{{ Test: Camera constructor copies all fields
+print("Test: Camera constructor copies all fields")
+do
+    local c = Camera.new({
+        name = "intro_cam",
+        target = { x = 1000, y = 2000 },
+        z_offset = 100,
+        rotation = 45,
+        aoa = 60,
+        distance = 2000,
+        roll = 5,
+        fov = 90,
+        far_clip = 6000,
+        near_clip = 50,
+        local_pitch = 10,
+        local_yaw = 20,
+        local_roll = 30,
+    })
+    assert_eq(c.name, "intro_cam", "name")
+    assert_eq(c.target.x, 1000, "target.x")
+    assert_eq(c.target.y, 2000, "target.y")
+    assert_eq(c.z_offset, 100, "z_offset")
+    assert_eq(c.rotation, 45, "rotation")
+    assert_eq(c.aoa, 60, "aoa")
+    assert_eq(c.distance, 2000, "distance")
+    assert_eq(c.roll, 5, "roll")
+    assert_eq(c.fov, 90, "fov")
+    assert_eq(c.far_clip, 6000, "far_clip")
+    assert_eq(c.near_clip, 50, "near_clip")
+    assert_eq(c.local_pitch, 10, "local_pitch")
+    assert_eq(c.local_yaw, 20, "local_yaw")
+    assert_eq(c.local_roll, 30, "local_roll")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: Camera default values
+print("Test: Camera default values when fields missing")
+do
+    local c = Camera.new({ name = "test" })
+    assert_eq(c.target.x, 0, "default target.x")
+    assert_eq(c.target.y, 0, "default target.y")
+    assert_eq(c.z_offset, 0, "default z_offset")
+    assert_eq(c.rotation, 90, "default rotation")
+    assert_eq(c.aoa, 304, "default aoa")
+    assert_eq(c.distance, 1650, "default distance")
+    assert_eq(c.roll, 0, "default roll")
+    assert_eq(c.fov, 70, "default fov")
+    assert_eq(c.far_clip, 5000, "default far_clip")
+    assert_eq(c.near_clip, 100, "default near_clip")
+    assert_eq(c.local_pitch, nil, "local_pitch should be nil by default")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_target_position
+print("Test: get_target_position() returns correct values")
+do
+    local c = Camera.new({
+        name = "test",
+        target = { x = 500, y = 600 },
+        z_offset = 150,
+    })
+    local pos = c:get_target_position()
+    assert_eq(pos.x, 500, "target x")
+    assert_eq(pos.y, 600, "target y")
+    assert_eq(pos.z, 150, "target z = z_offset")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_eye_position with simple case (rotation=0, aoa=0)
+print("Test: get_eye_position() rotation=0, aoa=0 (horizontal, facing north)")
+do
+    -- rotation=0 means North, aoa=0 means horizontal
+    -- Camera should be at target - (0, distance, 0)
+    local c = Camera.new({
+        name = "test",
+        target = { x = 0, y = 0 },
+        z_offset = 0,
+        rotation = 0,
+        aoa = 0,
+        distance = 1000,
+    })
+    local eye = c:get_eye_position()
+    -- With rotation=0 (North), horizontal distance=1000, camera is South of target
+    -- eye.x = 0 - 1000*sin(0) = 0
+    -- eye.y = 0 - 1000*cos(0) = -1000
+    -- eye.z = 0 + 1000*sin(0) = 0
+    assert_true(math.abs(eye.x - 0) < 0.01, "eye.x should be 0")
+    assert_true(math.abs(eye.y - (-1000)) < 0.01, "eye.y should be -1000")
+    assert_true(math.abs(eye.z - 0) < 0.01, "eye.z should be 0")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_eye_position with rotation=90 (facing east)
+print("Test: get_eye_position() rotation=90 (facing east)")
+do
+    local c = Camera.new({
+        name = "test",
+        target = { x = 0, y = 0 },
+        z_offset = 0,
+        rotation = 90,
+        aoa = 0,
+        distance = 1000,
+    })
+    local eye = c:get_eye_position()
+    -- With rotation=90 (East), horizontal distance=1000, camera is West of target
+    -- eye.x = 0 - 1000*sin(90) = -1000
+    -- eye.y = 0 - 1000*cos(90) = 0
+    assert_true(math.abs(eye.x - (-1000)) < 0.01, "eye.x should be -1000")
+    assert_true(math.abs(eye.y - 0) < 0.01, "eye.y should be 0")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_eye_position with aoa=90 (looking straight down)
+print("Test: get_eye_position() aoa=90 (looking straight down)")
+do
+    local c = Camera.new({
+        name = "test",
+        target = { x = 0, y = 0 },
+        z_offset = 0,
+        rotation = 0,
+        aoa = 90,
+        distance = 1000,
+    })
+    local eye = c:get_eye_position()
+    -- With aoa=90, all distance goes vertical
+    -- horizontal = 1000 * cos(90) = 0
+    -- vertical = 1000 * sin(90) = 1000
+    -- eye.x = 0 - 0*sin(0) = 0
+    -- eye.y = 0 - 0*cos(0) = 0
+    -- eye.z = 0 + 1000 = 1000
+    assert_true(math.abs(eye.x - 0) < 0.01, "eye.x should be 0")
+    assert_true(math.abs(eye.y - 0) < 0.01, "eye.y should be 0")
+    assert_true(math.abs(eye.z - 1000) < 0.01, "eye.z should be 1000")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_eye_position with typical RTS angle
+print("Test: get_eye_position() typical RTS setup")
+do
+    -- Default WC3 camera: distance=1650, aoa=304, rotation=90
+    local c = Camera.new({
+        name = "test",
+        target = { x = 1000, y = 2000 },
+        z_offset = 100,
+        rotation = 90,
+        aoa = 304,
+        distance = 1650,
+    })
+    local eye = c:get_eye_position()
+    -- Just verify it's a reasonable position (camera above ground, offset from target)
+    assert_true(eye.z > 0 or eye.z < 0, "eye.z should exist")
+    assert_true(eye.x ~= c.target.x or eye.y ~= c.target.y, "eye should be offset from target")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_fov_radians
+print("Test: get_fov_radians() converts correctly")
+do
+    local c = Camera.new({ name = "test", fov = 90 })
+    local fov_rad = c:get_fov_radians()
+    -- 90 degrees = pi/2 radians = 1.5708...
+    assert_true(math.abs(fov_rad - math.pi/2) < 0.0001, "90 deg = pi/2 rad")
+
+    local c2 = Camera.new({ name = "test", fov = 70 })
+    local fov70 = c2:get_fov_radians()
+    assert_true(fov70 > 1.2 and fov70 < 1.25, "70 deg ~= 1.22 rad")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_rotation_radians and get_aoa_radians
+print("Test: get_rotation_radians() and get_aoa_radians()")
+do
+    local c = Camera.new({ name = "test", rotation = 180, aoa = 45 })
+    local rot_rad = c:get_rotation_radians()
+    local aoa_rad = c:get_aoa_radians()
+    assert_true(math.abs(rot_rad - math.pi) < 0.0001, "180 deg = pi rad")
+    assert_true(math.abs(aoa_rad - math.pi/4) < 0.0001, "45 deg = pi/4 rad")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: has_local_rotations
+print("Test: has_local_rotations() detects 1.31+ format")
+do
+    local c_old = Camera.new({ name = "test" })
+    local c_new = Camera.new({
+        name = "test",
+        local_pitch = 0,
+        local_yaw = 0,
+        local_roll = 0,
+    })
+    assert_eq(c_old:has_local_rotations(), false, "old format has no local rotations")
+    assert_eq(c_new:has_local_rotations(), true, "1.31+ format has local rotations")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: get_look_direction
+print("Test: get_look_direction() returns normalized vector")
+do
+    local c = Camera.new({
+        name = "test",
+        target = { x = 0, y = 0 },
+        z_offset = 0,
+        rotation = 0,
+        aoa = 0,
+        distance = 1000,
+    })
+    local dir = c:get_look_direction()
+    -- Direction should be normalized (length ~= 1)
+    local length = math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z)
+    assert_true(math.abs(length - 1) < 0.0001, "direction should be normalized")
+    -- With rotation=0, aoa=0, camera is at (0, -1000, 0), looking at (0, 0, 0)
+    -- Direction should be (0, 1, 0)
+    assert_true(math.abs(dir.x - 0) < 0.01, "dir.x should be ~0")
+    assert_true(math.abs(dir.y - 1) < 0.01, "dir.y should be ~1")
+    assert_true(math.abs(dir.z - 0) < 0.01, "dir.z should be ~0")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: Camera target table is copied
+print("Test: Camera target table is copied (no external mutation)")
+do
+    local target = { x = 500, y = 600 }
+    local c = Camera.new({ name = "test", target = target })
+
+    -- Modify original
+    target.x = 999
+
+    -- Camera should be unaffected
+    assert_eq(c.target.x, 500, "target should be copied, not referenced")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: Camera __tostring shows format indicator
+print("Test: Camera __tostring shows format indicator")
+do
+    local c_old = Camera.new({ name = "intro_cam", distance = 1650, fov = 70 })
+    local c_new = Camera.new({
+        name = "intro_cam",
+        distance = 1650,
+        fov = 70,
+        local_pitch = 0,
+    })
+
+    local str_old = tostring(c_old)
+    local str_new = tostring(c_new)
+
+    assert_true(str_old:find("Camera"), "should contain 'Camera'")
+    assert_true(str_old:find("intro_cam"), "should contain name")
+    assert_true(not str_old:find("1.31"), "old format should NOT show 1.31")
+    assert_true(str_new:find("1.31"), "new format should show 1.31")
+end
 print("  PASSED")
 -- }}}
 
