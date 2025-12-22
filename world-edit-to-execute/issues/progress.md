@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (4/8 Complete)
+**Status:** In Progress (5/8 Complete)
 
 ---
 
@@ -13,7 +13,7 @@
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 4/8 |
+| 2 | Data Model - Game Objects | In Progress | 5/8 |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -137,7 +137,12 @@ No dependencies (all independent except A07)
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 201 | Parse war3map.doo (doodads/trees) | **Completed** | 102 |
-| 202 | Parse war3mapUnits.doo (units/buildings) | Pending | 102, 201 |
+| 202 | Parse war3mapUnits.doo (units/buildings) | In Progress | 102, 201 |
+| 202a | Parse unitsdoo header and basic fields | **Completed** | 201 |
+| 202b | Parse unitsdoo item drops | Pending | 202a |
+| 202c | Parse unitsdoo abilities | Pending | 202a |
+| 202d | Parse unitsdoo hero data | Pending | 202a |
+| 202e | Parse unitsdoo random/waygate | Pending | 202a |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |
@@ -442,6 +447,12 @@ Phase 2 & 3 Complete
   - Supports version 7 (42 bytes/entry) and version 8 (50 bytes/entry)
   - Fixed FFI segfault in compat.lua (disabled FFI, use manual byte unpacking)
   - Special doodads section differs between v7 (item drops) and v8 (fixed entries)
+- **Issue 202a completed:** Parse unitsdoo header and basic fields
+  - Created src/parsers/unitsdoo.lua (609 lines, UnitTable class)
+  - Created src/tests/test_unitsdoo.lua (79 tests)
+  - 5/16 test maps contain war3mapUnits.doo, all parse successfully
+  - Skip functions for variable-length sections (202b-e will implement these)
+  - Fixed hero detection to exclude random unit placeholders (YY* prefix)
 
 ---
 
