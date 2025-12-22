@@ -116,17 +116,17 @@ Only doodads and units are spatially indexed because:
 
 ## Acceptance Criteria
 
-- [ ] enable_spatial_index creates and populates spatial index
-- [ ] Existing doodads indexed when spatial enabled
-- [ ] Existing units indexed when spatial enabled
-- [ ] New doodads auto-indexed when added after enable
-- [ ] New units auto-indexed when added after enable
-- [ ] get_objects_in_radius returns correct objects
-- [ ] get_objects_in_region returns correct objects
-- [ ] Error thrown if spatial query called before enable
-- [ ] get_units_in_radius filters correctly
-- [ ] get_doodads_in_radius filters correctly
-- [ ] Unit tests for integration
+- [x] enable_spatial_index creates and populates spatial index
+- [x] Existing doodads indexed when spatial enabled
+- [x] Existing units indexed when spatial enabled
+- [x] New doodads auto-indexed when added after enable
+- [x] New units auto-indexed when added after enable
+- [x] get_objects_in_radius returns correct objects
+- [x] get_objects_in_region returns correct objects
+- [x] Error thrown if spatial query called before enable
+- [x] get_units_in_radius filters correctly
+- [x] get_doodads_in_radius filters correctly
+- [x] Unit tests for integration
 
 ---
 
@@ -135,3 +135,40 @@ Only doodads and units are spatially indexed because:
 The enable_spatial_index call should typically happen after loading all
 objects but before runtime queries. This avoids the overhead of index
 updates during bulk loading (though it's still correct if done earlier).
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-22*
+
+### Changes Made
+
+1. **Added spatial field to ObjectRegistry:**
+   - `self.spatial = nil` in constructor (optional, off by default)
+
+2. **Implemented enable_spatial_index(cell_size):**
+   - Creates SpatialIndex with specified cell size (default 512)
+   - Indexes all existing doodads and units with positions
+
+3. **Updated add_doodad and add_unit:**
+   - Auto-insert into spatial index if enabled and object has position
+   - Objects without position field are gracefully skipped
+
+4. **Implemented spatial query methods:**
+   - `has_spatial_index()` - check if enabled
+   - `get_objects_in_radius(x, y, radius)` - circular query
+   - `get_objects_in_rect(left, bottom, right, top)` - rectangular query
+   - `get_objects_in_region(region)` - query using region bounds
+   - `get_units_in_radius(x, y, radius)` - filtered for units only
+   - `get_doodads_in_radius(x, y, radius)` - filtered for doodads only
+
+5. **Error handling:**
+   - All spatial queries throw clear error if called before enable
+   - get_objects_in_region throws if region lacks bounds
+
+### Test Results
+
+- 71/71 existing registry tests pass
+- 31/31 new spatial integration tests pass
+- Created src/tests/test_spatial_integration.lua
