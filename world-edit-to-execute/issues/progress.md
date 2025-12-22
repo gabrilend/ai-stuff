@@ -139,8 +139,8 @@ No dependencies (all independent except A07)
 | 201 | Parse war3map.doo (doodads/trees) | **Completed** | 102 |
 | 202 | Parse war3mapUnits.doo (units/buildings) | In Progress | 102, 201 |
 | 202a | Parse unitsdoo header and basic fields | **Completed** | 201 |
-| 202b | Parse unitsdoo item drops | Pending | 202a |
-| 202c | Parse unitsdoo abilities | Pending | 202a |
+| 202b | Parse unitsdoo item drops | **Completed** | 202a |
+| 202c | Parse unitsdoo abilities | **Completed** | 202a |
 | 202d | Parse unitsdoo hero data | Pending | 202a |
 | 202e | Parse unitsdoo random/waygate | Pending | 202a |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
@@ -453,6 +453,15 @@ Phase 2 & 3 Complete
   - 5/16 test maps contain war3mapUnits.doo, all parse successfully
   - Skip functions for variable-length sections (202b-e will implement these)
   - Fixed hero detection to exclude random unit placeholders (YY* prefix)
+- **Issue 202b completed:** Parse unitsdoo item drops
+  - Replaced skip_item_drops with parse_item_drops
+  - Returns structured item_drops with table_pointer and sets array
+  - Added COMMON_ITEMS lookup table for item names
+- **Issue 202c completed:** Parse unitsdoo abilities
+  - Replaced skip_abilities with parse_abilities
+  - Returns array of abilities with id, autocast (bool), level
+  - Format output shows units with modified abilities
+  - 94/94 tests pass
 
 ---
 
