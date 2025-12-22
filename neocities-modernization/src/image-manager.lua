@@ -18,6 +18,10 @@ local DIR = setup_dir_path(arg and arg[1])
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
+local utils = require("utils")
+
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+utils.init_assets_root(arg)
 
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
@@ -246,9 +250,9 @@ end
 -- {{{ function M.generate_catalog
 function M.generate_catalog(images, output_file)
     local config = load_config()
-    
-    -- Create assets directory if it doesn't exist
-    local assets_dir = DIR .. "/assets"
+
+    -- Create assets directory if it doesn't exist (use configured path)
+    local assets_dir = utils.get_assets_root()
     os.execute("mkdir -p " .. assets_dir)
     
     -- Generate duplicate analysis
@@ -347,8 +351,8 @@ function M.generate_catalog(images, output_file)
         end
     end
     
-    -- Write catalog to file
-    local catalog_path = output_file or (DIR .. "/" .. (config.catalog_file or "assets/image-catalog.json"))
+    -- Write catalog to file (use configured assets path)
+    local catalog_path = output_file or utils.asset_path("image-catalog.json")
     local file = io.open(catalog_path, "w")
     if not file then
         error("Could not create catalog file: " .. catalog_path)

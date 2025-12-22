@@ -30,6 +30,9 @@ local utils = require("utils")
 local flat_gen = require("flat-html-generator")
 local dkjson = require("dkjson")
 
+-- Initialize asset path configuration
+utils.init_assets_root(arg)
+
 -- {{{ function center_text
 local function center_text(text, width)
     local padding = math.floor((width - #text) / 2)
@@ -77,10 +80,10 @@ local function demo_flat_html_generation()
     print("🏗️  DEMO 1: FLAT HTML GENERATION SYSTEM")
     print(string.rep("-", 80))
     
-    -- Load required data
+    -- Load required data (use configured assets path)
     print("📁 Loading data files...")
-    local poems_data = utils.read_json_file(DIR .. "/assets/poems.json")
-    local similarity_data = utils.read_json_file(DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json")
+    local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
+    local similarity_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json")
     
     if not poems_data or not similarity_data then
         print("❌ Error: Could not load required data files")
@@ -131,9 +134,9 @@ local function demo_timeline_progress()
     -- Generate a sample page with progress bars
     print("🎯 Generating sample similarity page with timeline progress...")
     
-    local poems_data = utils.read_json_file(DIR .. "/assets/poems.json")
-    local similarity_data = utils.read_json_file(DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json")
-    
+    local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
+    local similarity_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json")
+
     if poems_data and similarity_data then
         -- Find a poem with an ID for testing
         local test_poem = nil

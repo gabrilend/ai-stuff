@@ -9,6 +9,9 @@ local url_manager = require("src.html-generator.url-manager")
 local similarity_engine = require("src.html-generator.similarity-engine")
 local golden_indicators = require("src.html-generator.golden-poem-indicators")
 
+-- Initialize asset path configuration (CLI --dir takes precedence over config)
+utils.init_assets_root(arg)
+
 local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
@@ -213,7 +216,7 @@ end
 
 -- {{{ function M.load_poems_data
 function M.load_poems_data(poems_file)
-    poems_file = poems_file or (DIR .. "/assets/poems.json")
+    poems_file = poems_file or utils.asset_path("poems.json")
     
     if not utils.file_exists(poems_file) then
         utils.log_error("Poems data file not found: " .. poems_file)

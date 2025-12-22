@@ -15,6 +15,10 @@ local DIR = setup_dir_path()
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local dkjson = require("dkjson")
+local utils = require("utils")
+
+-- Initialize asset path configuration for standalone execution
+utils.init_assets_root(arg)
 
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
@@ -353,8 +357,8 @@ function M.main(interactive_mode)
         local input_file, output_file
         
         if choice == "1" then
-            input_file = DIR .. "/assets/poems.json"
-            output_file = DIR .. "/assets/validation-report.json"
+            input_file = utils.asset_path("poems.json")
+            output_file = utils.asset_path("validation-report.json")
         elseif choice == "2" then
             io.write("Enter input file path: ")
             input_file = io.read()
@@ -368,8 +372,8 @@ function M.main(interactive_mode)
         M.validate_poems(input_file, output_file)
     else
         -- Default non-interactive mode
-        local input_file = DIR .. "/assets/poems.json"
-        local output_file = DIR .. "/assets/validation-report.json"
+        local input_file = utils.asset_path("poems.json")
+        local output_file = utils.asset_path("validation-report.json")
         M.validate_poems(input_file, output_file)
     end
 end
