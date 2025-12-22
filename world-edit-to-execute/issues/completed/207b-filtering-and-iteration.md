@@ -123,16 +123,16 @@ maintain a list of building type IDs.
 
 ## Acceptance Criteria
 
-- [ ] get_units_for_player returns correct units
-- [ ] get_heroes returns only hero units
-- [ ] get_buildings returns only building units
-- [ ] get_waygates returns units with active waygate
-- [ ] each_doodad iterates all doodads
-- [ ] each_unit iterates all units
-- [ ] each_region iterates all regions
-- [ ] filter works with custom predicates
-- [ ] Empty results return empty tables, not nil
-- [ ] Unit tests for filtering methods
+- [x] get_units_for_player returns correct units
+- [x] get_heroes returns only hero units
+- [x] get_buildings returns only building units
+- [x] get_waygates returns units with active waygate
+- [x] each_doodad iterates all doodads
+- [x] each_unit iterates all units
+- [x] each_region iterates all regions
+- [x] filter works with custom predicates
+- [x] Empty results return empty tables, not nil
+- [x] Unit tests for filtering methods
 
 ---
 
@@ -140,3 +140,60 @@ maintain a list of building type IDs.
 
 These methods are essential for JASS/trigger compatibility. Many triggers
 iterate "all units of player" or "all units in region" type queries.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-22*
+
+### Methods Added to ObjectRegistry
+
+All filtering and iteration methods were added to `src/registry/init.lua`:
+
+| Method | Description |
+|--------|-------------|
+| `get_units_for_player(player_id)` | Returns array of units owned by specified player |
+| `get_heroes()` | Returns array of hero units (using is_hero method or ID pattern) |
+| `get_buildings()` | Returns array of building units (requires is_building method) |
+| `get_waygates()` | Returns array of waygate units (using is_waygate or waygate_dest) |
+| `each_doodad(callback)` | Iterates all doodads |
+| `each_unit(callback)` | Iterates all units |
+| `each_region(callback)` | Iterates all regions |
+| `each_camera(callback)` | Iterates all cameras |
+| `each_sound(callback)` | Iterates all sounds |
+| `filter(object_type, predicate)` | Generic filter with custom predicate |
+
+### Design Decisions
+
+1. **Hero detection dual-strategy:** `get_heroes()` first checks for an `is_hero()` method
+   (for gameobject instances), then falls back to capital-first-letter ID pattern (for raw
+   parser data). This allows the registry to work with both wrapped and unwrapped objects.
+
+2. **Waygate detection dual-strategy:** Similar to heroes, checks for `is_waygate()` method
+   first, then falls back to `waygate_dest >= 0` field check.
+
+3. **Building detection method-only:** Since WC3 lacks a simple building flag and detection
+   requires checking type IDs against known building types, `get_buildings()` only returns
+   units with an `is_building()` method that returns true. Raw parser data without this
+   method won't be detected.
+
+4. **Index-based iteration:** All methods use numeric index iteration (`for i = 1, #arr`)
+   rather than `ipairs` for slightly better performance.
+
+### Tests Added
+
+15 new tests added to `src/tests/test_registry.lua`:
+- get_units_for_player (player filtering)
+- get_heroes with is_hero method
+- get_heroes fallback to ID pattern
+- get_buildings
+- get_waygates with method
+- get_waygates with waygate_dest field
+- each_doodad, each_unit, each_region, each_camera, each_sound
+- filter with predicate
+- filter returns empty table not nil
+- filter errors on invalid type
+- filter with complex predicate
+
+Total tests: 71/71 passing
