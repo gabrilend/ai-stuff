@@ -29,6 +29,9 @@ issues/
 ├── 002-add-streaming-queue-to-issue-splitter.md
 ├── 003-execute-analysis-recommendations.md
 ├── 004-redesign-interactive-mode-interface.md
+├── 010-debug-tui-integration-analysis.md
+├── 011-tui-history-insert-on-run.md
+├── 012-interactive-verdict-review-mode.md
 ├── 101-research-wc3-file-formats.md
 ├── 102-implement-mpq-archive-parser.md
 ├── 102a-parse-mpq-header.md
@@ -73,7 +76,7 @@ issues/
 | issue-splitter.sh | src/cli/issue-splitter.sh (symlink) | Issue analysis, sub-issue creation, auto-implementation |
 | TUI library | /home/ritz/.../scripts/libs/ | Shared terminal UI (checkbox, menu, input) |
 
-### Phase 0 Issues (Tooling) - **COMPLETED**
+### Phase 0 Issues (Tooling)
 
 | Issue | Description | Status |
 |-------|-------------|--------|
@@ -95,6 +98,9 @@ issues/
 | 005 | Migrate TUI library to shared libs | **Completed** |
 | 006 | Rename analysis sections for promoted roots | **Completed** |
 | 007 | Add auto-implement via Claude CLI | **Completed** |
+| 010 | Debug TUI integration analysis | Pending |
+| 011 | TUI history insert on run | Pending |
+| 012 | Interactive verdict review mode | Pending |
 
 ### Phase 1 Issues (File Format Parsing) - **COMPLETED**
 

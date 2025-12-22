@@ -518,6 +518,51 @@ has_initial_analysis() {
 }
 # }}}
 
+# {{{ get_analysis_verdict
+# Determines if an analyzed issue recommends splitting or not
+# Returns: "split", "no-split", or "unknown"
+# Searches ALL analysis sections (not just the last) because multiple
+# analysis runs may exist, and later runs may be empty/timestamp-only
+get_analysis_verdict() {
+    local file="$1"
+
+    # Extract ALL analysis section content (all Sub-Issue Analysis and Initial Analysis)
+    # Only stop on --- or known non-analysis sections (not on sub-headings like ## Recommendation:)
+    local analysis=""
+    analysis=$(awk '
+        /^## Sub-Issue Analysis$/ || /^## Initial Analysis$/ {
+            capturing = 1
+            next
+        }
+        capturing {
+            # Stop on section separator or known non-analysis sections
+            if (/^---$/ || /^## (Implementation Notes|Related Documents|Generated Sub-Issues|Structure Review|Acceptance Criteria|Notes)/) {
+                capturing = 0
+            } else {
+                print $0
+            }
+        }
+    ' "$file" 2>/dev/null)
+
+    [[ -z "$analysis" ]] && echo "unknown" && return
+
+    # Check for "don't split" indicators (check these first - more specific)
+    # Case-insensitive matching using grep -i
+    if echo "$analysis" | grep -qiE "(don't|do not|does not) (recommend )?split|keep as (single|one) issue|does not (need|benefit)|not (be )?split|Recommendation:.*Keep|Recommendation:.*Do Not Split|No splitting needed"; then
+        echo "no-split"
+        return
+    fi
+
+    # Check for "split" indicators
+    if echo "$analysis" | grep -qiE "would benefit from split|Split into [0-9]+ sub-issues|Recommendation:.*Split|SPLIT|should be split|recommend split|split this issue"; then
+        echo "split"
+        return
+    fi
+
+    echo "unknown"
+}
+# }}}
+
 # {{{ rename_analysis_to_initial
 rename_analysis_to_initial() {
     local issue_path="$1"
@@ -685,7 +730,21 @@ interactive_mode_tui() {
             sub_count=$(get_subissues_for_root "$root_id" | wc -l)
             desc="[ROOT+${sub_count}] Has ${sub_count} sub-issue(s) - will review"
         elif has_subissue_analysis "$issue" || has_initial_analysis "$issue"; then
-            desc="[ANALYZED] Has existing analysis"
+            # Check the verdict from analysis
+            local verdict
+            verdict=$(get_analysis_verdict "$issue")
+            case "$verdict" in
+                split)
+                    desc="[ANALYZED] verdict: split"
+                    ;;
+                no-split)
+                    desc="[ANALYZED] verdict: don't split"
+                    default="0"  # Don't split = unchecked by default
+                    ;;
+                *)
+                    desc="[ANALYZED] verdict: unclear"
+                    ;;
+            esac
         elif has_generated_subissues "$issue"; then
             desc="[EXECUTED] Sub-issues already generated"
         else

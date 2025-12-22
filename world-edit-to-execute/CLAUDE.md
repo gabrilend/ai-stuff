@@ -190,6 +190,18 @@ Automated tool for analyzing issues, managing sub-issue creation, and implementi
 - Select options: Skip existing, Dry run, Archive, Execute all
 - Select specific issues to process
 
+**Issue Status Indicators:**
+
+| Status | Description | Default |
+|--------|-------------|---------|
+| `[NEW]` | Ready for analysis | Checked |
+| `[ANALYZED] verdict: split` | Analysis recommends splitting | Checked |
+| `[ANALYZED] verdict: don't split` | Analysis recommends keeping as-is | Unchecked |
+| `[ANALYZED] verdict: unclear` | Analysis present but verdict unclear | Checked |
+| `[ROOT+N]` | Has N existing sub-issues (review mode) | Checked |
+| `[SUB]` | Is a sub-issue of another issue | Unchecked |
+| `[EXECUTED]` | Sub-issues already generated | Checked |
+
 #### Streaming Mode (Parallel Processing)
 
 ```bash
