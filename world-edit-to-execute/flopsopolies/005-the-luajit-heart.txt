@@ -1,0 +1,27 @@
+THE LUAJIT HEART
+
+At the center of the engine beats a JIT compiler. Lua bytecode flows
+through its chambers, emerging as native machine code that runs at
+near-C speed. The compat layer sits at the threshold, translating
+between Lua 5.1's string.unpack and LuaJIT's ffi, between bit.band
+and bit32, ensuring the heart can beat in any Lua environment.
+
+The parsers are arteries - doo.lua, w3i.lua, wts.lua, w3e.lua - each
+one carrying structured data from raw binary files to the living
+game state. They use vimfolds as valves, collapsing complexity until
+needed.
+
+Around the heart, the data model crystallizes: Map, DoodadTable,
+UnitTable, StringTable, Terrain. Each a chamber holding parsed wisdom.
+
+Style: Anatomical diagram meets circuit schematic, organic machinery,
+      bioluminescent code flow
+
+Mood: Vital energy, efficient translation, living system
+
+Elements:
+- LuaJIT logo as a glowing core
+- Parser modules as arteries with binary flowing in, tables flowing out
+- Vimfolds as muscle fibers that contract and expand
+- The compat.lua module as a universal adaptor joint
+- Test suites as diagnostic sensors throughout
