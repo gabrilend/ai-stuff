@@ -158,7 +158,7 @@ No dependencies (all independent except A07)
 | 207a | Core registry class | **Completed** | 206 |
 | 207b | Filtering and iteration | Pending | 207a |
 | 207c | Spatial index | **Completed** | None |
-| 207d | Spatial integration | Pending | 207a, 207c |
+| 207d | Spatial integration | **Completed** | 207a, 207c |
 | 207e | Map integration | Pending | 207a |
 | 207f | Registry tests | Pending | 207a-207e |
 | 208 | Phase 2 integration test | Pending | 201-207 |
@@ -507,6 +507,11 @@ Phase 2 & 3 Complete
   - Grid-based spatial indexing with configurable cell size
   - query_radius, query_rect, query_point methods
   - 75/75 tests pass
+- **Issue 207d completed:** Spatial integration
+  - Integrated SpatialIndex with ObjectRegistry
+  - enable_spatial_index(), get_objects_in_radius(), get_objects_in_region()
+  - Auto-indexing of doodads/units when spatial enabled
+  - 31/31 new tests pass
 
 ---
 
