@@ -159,3 +159,38 @@ Optional enhancements:
 - HTML report generation
 - ASCII map visualization showing object placements
 - Performance timing breakdown
+
+---
+
+## Implementation Notes
+
+*In Progress - 2025-12-22*
+
+### Work Completed
+
+1. **Created phase2_demo.lua** at `issues/completed/demos/phase2_demo.lua`
+   - Full demo script structure following Phase 1 demo pattern
+   - Sections implemented:
+     - `demo_overview()` - Phase 2 capabilities overview
+     - `demo_doodad_stats()` - Doodad statistics across all test maps
+     - `demo_unit_parsing()` - Unit parsing with hero detection
+     - `demo_registry()` - Object registry demonstration
+     - `demo_spatial()` - Spatial query demonstration
+     - `demo_gameobjects()` - Gameobjects class wrappers demo
+     - `demo_all_maps_summary()` - Summary table for all 16 test maps
+     - `demo_summary()` - Next steps info
+   - Non-interactive mode support (`-n` flag)
+   - Uses all Phase 2 parsers and modules
+
+### Work Remaining
+
+1. **Test the demo script** - Run and verify output is correct
+2. **Create run_phase2.sh** - Bash runner script
+3. **Update run-demo.sh** - Add Phase 2 option to selector
+4. **Debug any issues** - Fix runtime errors if present
+
+### Notes
+
+- Test maps have doodads (16/16) and some units (5/16)
+- No regions/cameras/sounds files exist in test maps - spatial/registry demos will show empty results for those types
+- Demo follows Phase 1 pattern: show statistics/data, not just describe functionality

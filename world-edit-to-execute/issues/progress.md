@@ -147,16 +147,16 @@ No dependencies (all independent except A07)
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |
 | 206 | Design game object types | In Progress | 201-205 |
-| 206a | Create gameobjects module structure | Pending | None |
-| 206b | Implement Doodad class | Pending | 206a, 201 |
+| 206a | Create gameobjects module structure | **Completed** | None |
+| 206b | Implement Doodad class | **Completed** | 206a, 201 |
 | 206c | Implement Unit class | **Completed** | 206a, 202 |
-| 206d | Implement Region class | Pending | 206a, 203 |
+| 206d | Implement Region class | **Completed** | 206a, 203 |
 | 206e | Implement Camera class | **Completed** | 206a, 204 |
 | 206f | Implement Sound class | Pending | 206a, 205 |
 | 206g | Finalize module and documentation | Pending | 206b-f |
 | 207 | Build object registry system | In Progress | 206 |
 | 207a | Core registry class | **Completed** | 206 |
-| 207b | Filtering and iteration | Pending | 207a |
+| 207b | Filtering and iteration | **Completed** | 207a |
 | 207c | Spatial index | **Completed** | None |
 | 207d | Spatial integration | **Completed** | 207a, 207c |
 | 207e | Map integration | **Completed** | 207a |
