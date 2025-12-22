@@ -1,0 +1,42 @@
+THE NINE PHASES
+
+The roadmap stretches into the distance like a mountain range.
+
+Phase 0: Tools - The forge where issue-splitter and TUI libraries
+         were crafted. COMPLETED, its peaks behind us.
+
+Phase 1: File Formats - The excavation. MPQ, W3I, WTS, W3E. Learning
+         to read what others wrote. COMPLETED, treasures extracted.
+
+Phase 2: Data Model - Where we stand now. Units, doodads, regions,
+         cameras, sounds. Organizing the excavated treasures.
+
+Phase 3: Logic Layer - The distant spire. Triggers, JASS, transpilation
+         to Lua. Teaching the engine to think as the maps intended.
+
+Phase 4: Runtime - The engine room. Game loops, ECS, pathfinding.
+         Making things move.
+
+Phase 5: Rendering - The artist's studio. Visual abstraction, asset
+         pack loading, wireframe defaults.
+
+Phase 6: Asset System - The community marketplace. Pack formats,
+         hot reload, validation.
+
+Phase 7: Gameplay - The arena. Combat, abilities, resources, fog.
+
+Phase 8: Multiplayer - The network. Protocols, determinism, replays.
+
+Phase 9: Polish - The final pass. Console, debug tools, UX.
+
+Style: Mountain range with labeled peaks, journey map, RPG skill tree
+      aesthetic, progress markers
+
+Mood: Ambitious but achievable, clear path forward, milestone pride
+
+Elements:
+- Nine mountain peaks of increasing height
+- Completed phases shown with flags planted
+- Current phase (2) highlighted with active camp
+- Future phases in morning mist
+- The roadmap.md file visible as a trail guide

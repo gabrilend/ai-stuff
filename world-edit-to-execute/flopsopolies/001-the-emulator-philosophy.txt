@@ -1,0 +1,18 @@
+THE EMULATOR PHILOSOPHY
+
+A vast library of ancient cartridges and CD-ROMs floats in digital amber,
+their contents preserved but unplayable. A machine awakens - not to clone
+the original console, but to read and interpret. Binary becomes meaning.
+Data structures emerge from chaos like archaeological dig sites revealing
+buried temples.
+
+Style: Digital archaeology, circuit board aesthetics, amber preservation,
+      gentle blue diagnostic light illuminating forgotten media
+
+Mood: Reverent preservation, quiet resurrection, patient interpretation
+
+Elements:
+- Stacks of .w3x map files glowing softly like preserved specimens
+- A lua script running, its syntax highlighted in warm terminal colors
+- Ghostly outlines of game units emerging from raw hexadecimal
+- The phrase "W3do" visible in a hex dump, a magic signature

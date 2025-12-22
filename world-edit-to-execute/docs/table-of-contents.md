@@ -14,7 +14,8 @@ docs/
 │   ├── w3i-map-info.md         Map info file format
 │   ├── wts-trigger-strings.md  Trigger string table format
 │   ├── w3e-terrain.md          Terrain/tileset data format
-│   └── pkware-dcl-compression.md  PKWARE DCL compression (not yet implemented)
+│   ├── pkware-dcl-compression.md  PKWARE DCL compression
+│   └── unitsdoo.md               Unit/building placement format
 │
 src/
 ├── cli/
@@ -123,11 +124,16 @@ issues/
 
 | Issue | Description | Status |
 |-------|-------------|--------|
-| 201 | Parse war3map.doo (doodads/trees) | Pending |
-| 202 | Parse war3mapUnits.doo (units/buildings) | Pending |
-| 203 | Parse war3map.w3r (regions) | Pending |
-| 204 | Parse war3map.w3c (cameras) | Pending |
-| 205 | Parse war3map.w3s (sounds) | Pending |
+| 201 | Parse war3map.doo (doodads/trees) | **Completed** |
+| 202 | Parse war3mapUnits.doo (units/buildings) | In Progress |
+| 202a | Parse unitsdoo header and basic fields | Pending |
+| 202b | Parse unitsdoo item drops | Pending |
+| 202c | Parse unitsdoo abilities | Pending |
+| 202d | Parse unitsdoo hero data | Pending |
+| 202e | Parse unitsdoo random/waygate | Pending |
+| 203 | Parse war3map.w3r (regions) | **Completed** |
+| 204 | Parse war3map.w3c (cameras) | **Completed** |
+| 205 | Parse war3map.w3s (sounds) | **Completed** |
 | 206 | Design game object types | Pending |
 | 207 | Build object registry system | Pending |
 | 208 | Phase 2 integration test | Pending |
@@ -140,7 +146,8 @@ issues/
 | w3i-map-info.md | Map info: metadata, players, forces, fog settings | Created |
 | wts-trigger-strings.md | Trigger string table format and TRIGSTR resolution | Created |
 | w3e-terrain.md | Terrain: tilepoints, height maps, textures, cliffs | Created |
-| pkware-dcl-compression.md | PKWARE DCL compression (limitation doc, delete when implemented) | Created |
+| pkware-dcl-compression.md | PKWARE DCL compression algorithm | Created |
+| unitsdoo.md | Unit/building placement format | Created |
 
 ### Guides
 

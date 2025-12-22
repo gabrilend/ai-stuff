@@ -1,0 +1,26 @@
+THE ISSUE-TRACKER FOREST
+
+A forest of markdown files grows organically. Each tree is an issue,
+its trunk inscribed with "Current Behavior" and "Intended Behavior".
+Sub-issues branch outward - 202a, 202b, 202c - each leaf a checkbox
+waiting to be filled.
+
+The forest floor is littered with completed issues, their checkboxes
+all marked, now composting into the /completed/ directory where they
+nourish future growth. A small demo script runs at the edge of each
+clearing, showing what this phase of growth has produced.
+
+An issue-splitter daemon floats between trees, pruning and grafting,
+analyzing which issues should divide and which should remain whole.
+
+Style: Bonsai information architecture, organic git branching patterns,
+      markdown syntax rendered as natural growth rings
+
+Mood: Patient cultivation, systematic progress, living documentation
+
+Elements:
+- Trees with issue numbers carved into bark (201, 202, 203...)
+- Dependency arrows as vines connecting related issues
+- A "Phase 2: Data Model" canopy section
+- Checkmarks appearing like flowers blooming
+- The completed/ directory as a peaceful grove
