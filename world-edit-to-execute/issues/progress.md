@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (5/8 Complete)
+**Status:** In Progress (6/8 Complete)
 
 ---
 
@@ -13,7 +13,7 @@
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 5/8 |
+| 2 | Data Model - Game Objects | In Progress | 6/8 |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -141,7 +141,7 @@ No dependencies (all independent except A07)
 | 202a | Parse unitsdoo header and basic fields | **Completed** | 201 |
 | 202b | Parse unitsdoo item drops | **Completed** | 202a |
 | 202c | Parse unitsdoo abilities | **Completed** | 202a |
-| 202d | Parse unitsdoo hero data | Pending | 202a |
+| 202d | Parse unitsdoo hero data | **Completed** | 202a |
 | 202e | Parse unitsdoo random/waygate | Pending | 202a |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
@@ -461,6 +461,12 @@ Phase 2 & 3 Complete
   - Replaced skip_abilities with parse_abilities
   - Returns array of abilities with id, autocast (bool), level
   - Format output shows units with modified abilities
+  - 94/94 tests pass
+- **Issue 202d completed:** Parse unitsdoo hero data
+  - parse_hero_data extracts hero level, stat bonuses, inventory
+  - is_hero detects heroes via capital first letter in type ID
+  - Hero inventory stored by slot (0-5) with COMMON_ITEMS lookup
+  - Format output shows hero stats and inventory
   - 94/94 tests pass
 
 ---

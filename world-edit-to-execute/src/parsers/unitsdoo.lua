@@ -245,51 +245,104 @@ local function parse_abilities(data, pos)
 end
 -- }}}
 
--- {{{ skip_hero_data
--- Skip the hero-specific data section.
+-- {{{ parse_hero_data
+-- Parse the hero-specific data section.
 -- Only call this for hero units (capital first letter in type ID).
--- Returns the new position after skipping.
-local function skip_hero_data(data, pos)
-    -- Hero level
-    pos = pos + 4
+-- Returns hero_data table and the new position after parsing.
+-- Hero data includes level, stat bonuses from tomes, and inventory items.
+local function parse_hero_data(data, pos)
+    local hero_data = {}
 
-    -- Strength bonus
-    pos = pos + 4
+    -- Hero level (1+)
+    hero_data.level = read_int32(data, pos); pos = pos + 4
 
-    -- Agility bonus
-    pos = pos + 4
-
-    -- Intelligence bonus
-    pos = pos + 4
+    -- Stat bonuses from tomes
+    hero_data.str_bonus = read_int32(data, pos); pos = pos + 4
+    hero_data.agi_bonus = read_int32(data, pos); pos = pos + 4
+    hero_data.int_bonus = read_int32(data, pos); pos = pos + 4
 
     -- Number of items in inventory
     local num_items = read_int32(data, pos); pos = pos + 4
 
-    -- Skip each inventory item (4 bytes slot + 4 bytes item ID = 8 bytes each)
-    pos = pos + (num_items * 8)
+    -- Parse inventory items
+    -- Inventory slots are 0-5, laid out as:
+    --   [0] [1]
+    --   [2] [3]
+    --   [4] [5]
+    hero_data.inventory = {}
+    for i = 1, num_items do
+        local slot = read_int32(data, pos); pos = pos + 4
+        local item_id, new_pos = read_id(data, pos); pos = new_pos
+        hero_data.inventory[slot] = item_id
+    end
 
-    return pos
+    return hero_data, pos
 end
 -- }}}
 
--- {{{ skip_random_unit
--- Skip the random unit data section.
--- Returns the new position after skipping.
-local function skip_random_unit(data, pos)
+-- {{{ decode_random_level
+-- Decode level character to numeric level.
+-- '0'-'9' = levels 0-9, 'A'-'Z' = levels 10-35
+local function decode_random_level(char)
+    local byte = string.byte(char)
+    if byte >= 48 and byte <= 57 then  -- '0'-'9'
+        return byte - 48
+    elseif byte >= 65 and byte <= 90 then  -- 'A'-'Z'
+        return byte - 65 + 10
+    else
+        return 0
+    end
+end
+-- }}}
+
+-- {{{ parse_random_unit
+-- Parse the random unit/item data section.
+-- Returns the random_unit structure (or nil) and the new position.
+-- Structure:
+--   random_unit = {
+--       flag = 0/1/2,           -- 0=not random, 1=from level, 2=from group
+--       type = "unit"/"item",   -- Only for flag=1
+--       level = N,              -- Only for flag=1
+--       group_index = N,        -- Only for flag=2
+--       position = N,           -- Only for flag=2
+--   }
+local function parse_random_unit(data, pos)
     -- Random unit flag (0=not random, 1=random from level, 2=random from group)
     local random_flag = read_int32(data, pos); pos = pos + 4
 
     if random_flag == 0 then
         -- Not random, no additional data
-    elseif random_flag == 1 then
-        -- Random from level: 3 chars "YYU" + 1 byte level = 4 bytes
-        pos = pos + 4
-    elseif random_flag == 2 then
-        -- Random from group: 4 bytes group + 4 bytes position = 8 bytes
-        pos = pos + 8
-    end
+        return nil, pos
 
-    return pos, random_flag
+    elseif random_flag == 1 then
+        -- Random from level: 4 bytes = 3 char prefix + 1 level char
+        local prefix = data:sub(pos, pos + 2)  -- "YYU" or "YYI"
+        local level_char = data:sub(pos + 3, pos + 3)
+        pos = pos + 4
+
+        local random_unit = {
+            flag = 1,
+            type = (prefix:sub(3, 3) == "I") and "item" or "unit",
+            level = decode_random_level(level_char),
+        }
+        return random_unit, pos
+
+    elseif random_flag == 2 then
+        -- Random from group: 4 bytes group index + 4 bytes position
+        local group_index = read_int32(data, pos); pos = pos + 4
+        local group_position = read_int32(data, pos); pos = pos + 4
+
+        local random_unit = {
+            flag = 2,
+            group_index = group_index,
+            position = group_position,
+        }
+        return random_unit, pos
+
+    else
+        -- Unknown flag, skip nothing and return nil
+        return nil, pos
+    end
 end
 -- }}}
 
@@ -349,15 +402,15 @@ local function parse_unit_entry(data, pos, version)
     -- Modified abilities (variable length)
     unit.abilities, pos = parse_abilities(data, pos)
 
-    -- Hero-specific data (conditional - skip for now, implemented in 202d)
+    -- Hero-specific data (conditional - only for heroes)
     if unit.is_hero then
-        pos = skip_hero_data(data, pos)
+        unit.hero_data, pos = parse_hero_data(data, pos)
+    else
+        unit.hero_data = nil
     end
 
-    -- Random unit data (variable length - skip for now, implemented in 202e)
-    local random_flag
-    pos, random_flag = skip_random_unit(data, pos)
-    unit.random_flag = random_flag
+    -- Random unit data (variable length - parsed in 202e)
+    unit.random_unit, pos = parse_random_unit(data, pos)
 
     -- Waygate destination (-1 = inactive, else region creation number)
     unit.waygate_dest = read_int32(data, pos); pos = pos + 4
@@ -440,13 +493,11 @@ function unitsdoo.format(result)
     end
     lines[#lines + 1] = ""
 
-    -- Count units by player, abilities, and item drops
+    -- Count units by player and units with abilities
     local player_counts = {}
     local hero_count = 0
     local units_with_abilities = 0
     local total_abilities = 0
-    local units_with_drops = 0
-    local total_drop_items = 0
     for _, u in ipairs(result.units) do
         player_counts[u.player] = (player_counts[u.player] or 0) + 1
         if u.is_hero then hero_count = hero_count + 1 end
@@ -454,22 +505,12 @@ function unitsdoo.format(result)
             units_with_abilities = units_with_abilities + 1
             total_abilities = total_abilities + #u.abilities
         end
-        if u.item_drops and #u.item_drops.sets > 0 then
-            units_with_drops = units_with_drops + 1
-            for _, set in ipairs(u.item_drops.sets) do
-                total_drop_items = total_drop_items + #set.items
-            end
-        end
     end
 
     lines[#lines + 1] = string.format("Heroes: %d", hero_count)
     if units_with_abilities > 0 then
         lines[#lines + 1] = string.format("Units with modified abilities: %d (%d total)",
             units_with_abilities, total_abilities)
-    end
-    if units_with_drops > 0 then
-        lines[#lines + 1] = string.format("Units with item drops: %d (%d total items)",
-            units_with_drops, total_drop_items)
     end
     lines[#lines + 1] = ""
 
@@ -542,22 +583,64 @@ function unitsdoo.format(result)
             end
             lines[#lines + 1] = "      abilities: " .. table.concat(ability_strs, ", ")
         end
-        -- Show item drops if present
-        if u.item_drops and #u.item_drops.sets > 0 then
-            local drop_strs = {}
-            for set_idx, set in ipairs(u.item_drops.sets) do
-                for _, item in ipairs(set.items) do
-                    local item_name = item.name or item.id
-                    drop_strs[#drop_strs + 1] = string.format("%s %d%%",
-                        item_name, item.chance)
-                end
+        -- Show random unit info if present (202e)
+        if u.random_unit then
+            if u.random_unit.flag == 1 then
+                lines[#lines + 1] = string.format("      random: %s level %d",
+                    u.random_unit.type, u.random_unit.level)
+            elseif u.random_unit.flag == 2 then
+                lines[#lines + 1] = string.format("      random: group %d pos %d",
+                    u.random_unit.group_index, u.random_unit.position)
             end
-            lines[#lines + 1] = "      drops: " .. table.concat(drop_strs, ", ")
+        end
+        -- Show waygate if active (202e)
+        if u.waygate_dest >= 0 then
+            lines[#lines + 1] = string.format("      waygate -> region %d", u.waygate_dest)
         end
     end
     if #result.units > max_samples then
         lines[#lines + 1] = string.format("  ... and %d more units",
             #result.units - max_samples)
+    end
+
+    -- Show heroes with details (202d enhancement)
+    local heroes = {}
+    for _, u in ipairs(result.units) do
+        if u.is_hero and u.hero_data then
+            heroes[#heroes + 1] = u
+        end
+    end
+
+    if #heroes > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "Hero details:"
+        local max_heroes = math.min(5, #heroes)
+        for i = 1, max_heroes do
+            local u = heroes[i]
+            local h = u.hero_data
+            local name = COMMON_UNITS[u.id] or u.id
+            lines[#lines + 1] = string.format("  %s (Lv.%d) STR+%d AGI+%d INT+%d",
+                name, h.level, h.str_bonus, h.agi_bonus, h.int_bonus)
+
+            -- Show inventory items if any
+            local item_count = 0
+            for _ in pairs(h.inventory) do item_count = item_count + 1 end
+            if item_count > 0 then
+                local items_str = "    Inventory:"
+                for slot = 0, 5 do
+                    local item_id = h.inventory[slot]
+                    if item_id then
+                        local item_name = COMMON_ITEMS[item_id] or item_id
+                        items_str = items_str .. string.format(" [%d]=%s", slot, item_name)
+                    end
+                end
+                lines[#lines + 1] = items_str
+            end
+        end
+        if #heroes > max_heroes then
+            lines[#lines + 1] = string.format("  ... and %d more heroes",
+                #heroes - max_heroes)
+        end
     end
 
     return table.concat(lines, "\n")
@@ -690,19 +773,6 @@ function UnitTable:heroes()
 end
 -- }}}
 
--- {{{ with_drops
--- Return a list of all units with item drops configured.
-function UnitTable:with_drops()
-    local result = {}
-    for _, u in ipairs(self.units) do
-        if u.item_drops and #u.item_drops.sets > 0 then
-            result[#result + 1] = u
-        end
-    end
-    return result
-end
--- }}}
-
 -- {{{ pairs
 -- Iterate over all units (index, unit).
 function UnitTable:pairs()
@@ -733,6 +803,7 @@ unitsdoo.COMMON_UNITS = COMMON_UNITS
 unitsdoo.COMMON_ITEMS = COMMON_ITEMS
 unitsdoo.FILE_ID = FILE_ID
 unitsdoo.is_hero = is_hero
+unitsdoo.decode_random_level = decode_random_level
 
 -- {{{ new
 -- Convenience function to create a UnitTable.
