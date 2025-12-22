@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (3/8 Complete)
+**Status:** In Progress (4/8 Complete)
 
 ---
 
@@ -13,7 +13,7 @@
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 3/8 |
+| 2 | Data Model - Game Objects | In Progress | 4/8 |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -136,7 +136,7 @@ No dependencies (all independent except A07)
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 201 | Parse war3map.doo (doodads/trees) | Pending | 102 |
+| 201 | Parse war3map.doo (doodads/trees) | **Completed** | 102 |
 | 202 | Parse war3mapUnits.doo (units/buildings) | Pending | 102, 201 |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
@@ -435,6 +435,13 @@ Phase 2 & 3 Complete
   - Uses `claude --continue` for sequential processing
   - Added --expert (-E) for explicit fresh context per issue (default behavior)
   - Session mode auto-disabled when using --stream (parallel incompatible)
+- **Issue 201 completed:** Parse war3map.doo (doodads/trees)
+  - Created src/parsers/doo.lua (DoodadTable class with spatial queries)
+  - Created src/tests/test_doo.lua (9 synthetic + 16 map tests)
+  - 16/16 test maps parse successfully (226,232 doodads total)
+  - Supports version 7 (42 bytes/entry) and version 8 (50 bytes/entry)
+  - Fixed FFI segfault in compat.lua (disabled FFI, use manual byte unpacking)
+  - Special doodads section differs between v7 (item drops) and v8 (fixed entries)
 
 ---
 
@@ -452,7 +459,7 @@ Capabilities established:
 
 ### Phase 2 - Data Model: Game Objects
 
-1. **201 - Parse war3map.doo** (doodads/trees)
+1. ~~**201 - Parse war3map.doo** (doodads/trees)~~ ✓
 2. **202 - Parse war3mapUnits.doo** (units/buildings)
 3. ~~**203 - Parse war3map.w3r** (regions)~~ ✓
 4. ~~**204 - Parse war3map.w3c** (cameras)~~ ✓

@@ -73,58 +73,12 @@ else
     -- LuaJIT: use ffi or manual byte manipulation
     local ffi_ok, ffi = pcall(require, "ffi")
 
-    if ffi_ok then
-        -- Use FFI for efficient unpacking
-        ffi.cdef[[
-            typedef struct { int32_t v; } int32_s;
-            typedef struct { uint32_t v; } uint32_s;
-            typedef struct { int16_t v; } int16_s;
-            typedef struct { uint16_t v; } uint16_s;
-            typedef struct { float v; } float_s;
-            typedef struct { double v; } double_s;
-        ]]
-
-        compat.unpack_int32 = function(data, pos)
-            pos = pos or 1
-            local bytes = data:sub(pos, pos + 3)
-            local ptr = ffi.cast("int32_s*", bytes)
-            return ptr.v, pos + 4
-        end
-
-        compat.unpack_uint32 = function(data, pos)
-            pos = pos or 1
-            local bytes = data:sub(pos, pos + 3)
-            local ptr = ffi.cast("uint32_s*", bytes)
-            return ptr.v, pos + 4
-        end
-
-        compat.unpack_int16 = function(data, pos)
-            pos = pos or 1
-            local bytes = data:sub(pos, pos + 1)
-            local ptr = ffi.cast("int16_s*", bytes)
-            return ptr.v, pos + 2
-        end
-
-        compat.unpack_uint16 = function(data, pos)
-            pos = pos or 1
-            local bytes = data:sub(pos, pos + 1)
-            local ptr = ffi.cast("uint16_s*", bytes)
-            return ptr.v, pos + 2
-        end
-
-        compat.unpack_float = function(data, pos)
-            pos = pos or 1
-            local bytes = data:sub(pos, pos + 3)
-            local ptr = ffi.cast("float_s*", bytes)
-            return ptr.v, pos + 4
-        end
-
-        compat.unpack_double = function(data, pos)
-            pos = pos or 1
-            local bytes = data:sub(pos, pos + 7)
-            local ptr = ffi.cast("double_s*", bytes)
-            return ptr.v, pos + 8
-        end
+    -- FFI unpacking disabled due to GC-related segfaults under heavy load.
+    -- The manual byte manipulation approach is slightly slower but reliable.
+    -- TODO: Investigate safe FFI string handling for future optimization.
+    if false and ffi_ok then
+        -- FFI path disabled - see comment above
+        error("FFI path disabled")
     else
         -- Manual byte manipulation fallback
         local band = compat.band
