@@ -600,6 +600,164 @@ end
 print("  PASSED")
 -- }}}
 
+-- {{{ Test: hero data parsing (202d)
+print("Test: hero data parsing (202d)")
+do
+    -- Build a hero with level, stats, and inventory
+    local unit_entry = "Hpal"          -- Paladin (hero)
+        .. make_int32(0)               -- Variation
+        .. make_float32(100.0) .. make_float32(200.0) .. make_float32(0.0)
+        .. make_float32(0.0)           -- Angle
+        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
+        .. string.char(0)              -- Flags
+        .. make_int32(0)               -- Player 0
+        .. string.char(0, 0)           -- Unknown bytes
+        .. make_int32(-1) .. make_int32(-1)  -- HP/MP (default)
+        -- Item drops section (empty)
+        .. make_int32(-1)              -- Item table pointer
+        .. make_int32(0)               -- Num item sets
+        -- Abilities section (empty)
+        .. make_int32(0)               -- Num abilities
+        -- Hero data section
+        .. make_int32(5)               -- Hero level = 5
+        .. make_int32(2)               -- Strength bonus = 2 (from tomes)
+        .. make_int32(0)               -- Agility bonus = 0
+        .. make_int32(3)               -- Intelligence bonus = 3
+        .. make_int32(2)               -- 2 inventory items
+        -- Inventory item 1: Boots of Speed in slot 0
+        .. make_int32(0)               -- Slot 0
+        .. "bspd"                      -- Item ID (Boots of Speed)
+        -- Inventory item 2: Ring of Protection in slot 2
+        .. make_int32(2)               -- Slot 2
+        .. "rin1"                      -- Item ID (Ring of Protection +1)
+        -- Random unit section
+        .. make_int32(0)               -- Not random
+        -- Waygate and creation number
+        .. make_int32(-1)
+        .. make_int32(100)
+
+    local data = "W3do"
+        .. make_int32(8)
+        .. make_int32(11)
+        .. make_int32(1)
+        .. unit_entry
+
+    local result, err = unitsdoo.parse(data)
+    assert_true(result ~= nil, "hero with data should parse: " .. tostring(err))
+    assert_eq(#result.units, 1, "should have 1 unit")
+
+    local u = result.units[1]
+    assert_true(u.is_hero, "should be hero")
+    assert_true(u.hero_data ~= nil, "hero should have hero_data")
+
+    -- Check hero level and stats
+    local h = u.hero_data
+    assert_eq(h.level, 5, "hero level should be 5")
+    assert_eq(h.str_bonus, 2, "str bonus should be 2")
+    assert_eq(h.agi_bonus, 0, "agi bonus should be 0")
+    assert_eq(h.int_bonus, 3, "int bonus should be 3")
+
+    -- Check inventory
+    assert_eq(h.inventory[0], "bspd", "slot 0 should have bspd (Boots of Speed)")
+    assert_eq(h.inventory[2], "rin1", "slot 2 should have rin1 (Ring of Protection)")
+    assert_nil(h.inventory[1], "slot 1 should be empty")
+    assert_nil(h.inventory[3], "slot 3 should be empty")
+    assert_nil(h.inventory[4], "slot 4 should be empty")
+    assert_nil(h.inventory[5], "slot 5 should be empty")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: non-hero has nil hero_data
+print("Test: non-hero has nil hero_data")
+do
+    -- Build a regular unit (not a hero)
+    local unit_entry = "hfoo"          -- Footman (not hero)
+        .. make_int32(0)               -- Variation
+        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
+        .. make_float32(0.0)
+        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
+        .. string.char(0)
+        .. make_int32(0)
+        .. string.char(0, 0)
+        .. make_int32(-1) .. make_int32(-1)
+        -- Item drops section (empty)
+        .. make_int32(-1) .. make_int32(0)
+        -- Abilities section (empty)
+        .. make_int32(0)
+        -- NO hero data section (not a hero)
+        -- Random unit section
+        .. make_int32(0)
+        -- Waygate and creation number
+        .. make_int32(-1)
+        .. make_int32(101)
+
+    local data = "W3do"
+        .. make_int32(8)
+        .. make_int32(11)
+        .. make_int32(1)
+        .. unit_entry
+
+    local result, err = unitsdoo.parse(data)
+    assert_true(result ~= nil, "non-hero should parse: " .. tostring(err))
+
+    local u = result.units[1]
+    assert_true(not u.is_hero, "should not be hero")
+    assert_nil(u.hero_data, "non-hero should have nil hero_data")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: hero format output includes hero details
+print("Test: hero format output includes hero details")
+do
+    -- Build a hero with stats
+    local unit_entry = "Hamg"          -- Archmage
+        .. make_int32(0)
+        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
+        .. make_float32(0.0)
+        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
+        .. string.char(0)
+        .. make_int32(0)
+        .. string.char(0, 0)
+        .. make_int32(-1) .. make_int32(-1)
+        -- Item drops (empty)
+        .. make_int32(-1) .. make_int32(0)
+        -- Abilities (empty)
+        .. make_int32(0)
+        -- Hero data
+        .. make_int32(10)              -- Level 10
+        .. make_int32(5)               -- STR+5
+        .. make_int32(3)               -- AGI+3
+        .. make_int32(7)               -- INT+7
+        .. make_int32(1)               -- 1 inventory item
+        .. make_int32(0) .. "phea"     -- Healing Potion in slot 0
+        -- Random
+        .. make_int32(0)
+        -- Waygate and creation
+        .. make_int32(-1)
+        .. make_int32(200)
+
+    local data = "W3do"
+        .. make_int32(8)
+        .. make_int32(11)
+        .. make_int32(1)
+        .. unit_entry
+
+    local result = unitsdoo.parse(data)
+    local output = unitsdoo.format(result)
+
+    -- Check format output includes hero details
+    assert_true(output:find("Hero details"), "format should have 'Hero details' section")
+    assert_true(output:find("Lv%.10"), "format should show level 10")
+    assert_true(output:find("STR%+5"), "format should show STR+5")
+    assert_true(output:find("AGI%+3"), "format should show AGI+3")
+    assert_true(output:find("INT%+7"), "format should show INT+7")
+    assert_true(output:find("Inventory"), "format should show inventory")
+end
+print("  PASSED")
+-- }}}
+
 -- {{{ Test: real map files
 print("")
 print("=== Testing real map files ===")
