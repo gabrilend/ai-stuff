@@ -104,14 +104,14 @@ For non-autocast abilities, the autocast field is ignored (always 0).
 
 ## Acceptance Criteria
 
-- [ ] Correctly parses ability count
-- [ ] Correctly parses ability IDs
-- [ ] Correctly parses autocast flag
-- [ ] Correctly parses ability levels
-- [ ] Handles units with no modified abilities
-- [ ] Handles units with multiple modified abilities
-- [ ] Unit tests for ability parsing
-- [ ] Format output shows ability info
+- [x] Correctly parses ability count
+- [x] Correctly parses ability IDs
+- [x] Correctly parses autocast flag
+- [x] Correctly parses ability levels
+- [x] Handles units with no modified abilities
+- [x] Handles units with multiple modified abilities
+- [x] Unit tests for ability parsing
+- [x] Format output shows ability info
 
 ---
 
@@ -120,3 +120,31 @@ For non-autocast abilities, the autocast field is ignored (always 0).
 Modified abilities are common in hero arena and RPG maps where units have
 custom skill configurations. This also applies to preplaced creeps with
 specific ability levels.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-21*
+
+### Changes Made
+
+1. **Replaced `skip_abilities` with `parse_abilities`:**
+   - Now returns array of ability structs instead of just count
+   - Each ability has: id (4-char code), autocast (bool), level (int)
+
+2. **Updated unit entry structure:**
+   - Changed `unit._abilities_count` placeholder to `unit.abilities` array
+   - Empty array for units with no modified abilities
+
+3. **Updated format output:**
+   - Added count of units with modified abilities in summary
+   - Shows abilities in sample units with format: `AHbz L2 [auto]`
+
+4. **Updated tests:**
+   - Expanded ability test to verify all 3 ability fields
+   - Added assertions for autocast flag and level values
+
+### Test Results
+
+94/94 tests pass (10 synthetic + 5 map tests + additional assertions)

@@ -85,6 +85,36 @@ local COMMON_UNITS = {
     Emoo = "Priestess of the Moon",
     Ewar = "Warden",
 }
+
+-- Common item type IDs for reference
+-- Used by item drop tables and hero inventories
+local COMMON_ITEMS = {
+    -- Permanent items
+    ratc = "Claws of Attack +3",
+    rat6 = "Claws of Attack +6",
+    rat9 = "Claws of Attack +9",
+    rin1 = "Ring of Protection +1",
+    rde1 = "Ring of Protection +2",
+    rde2 = "Ring of Protection +3",
+    bspd = "Boots of Speed",
+    rwiz = "Sobi Mask",
+    afac = "Alleria's Flute of Accuracy",
+    ajen = "Ancient Janggo of Endurance",
+    -- Charged items
+    pman = "Mana Potion",
+    phea = "Healing Potion",
+    pinv = "Potion of Invisibility",
+    pnvu = "Potion of Invulnerability",
+    stwp = "Scroll of Town Portal",
+    -- Powerups
+    texp = "Tome of Experience",
+    tstr = "Tome of Strength",
+    tagi = "Tome of Agility",
+    tint = "Tome of Intelligence",
+    -- Resources
+    gold = "Gold Coins",
+    lmbr = "Bundle of Lumber",
+}
 -- }}}
 
 -- {{{ Binary reading utilities
@@ -134,40 +164,84 @@ end
 -- }}}
 -- }}}
 
--- {{{ skip_item_drops
--- Skip the item drop table section of a unit entry.
--- Returns the new position after skipping.
-local function skip_item_drops(data, pos)
-    -- Item table pointer (-1 = none)
-    local item_table_pointer = read_int32(data, pos); pos = pos + 4
+-- {{{ parse_item_drops
+-- Parse the item drop table section of a unit entry.
+-- Returns the item_drops structure and the new position.
+-- Structure:
+--   item_drops = {
+--       table_pointer = -1,  -- -1 if none, else index into external table
+--       sets = {
+--           { items = { { id = "ratc", chance = 100, name = "Claws..." }, ... } },
+--           ...
+--       }
+--   }
+local function parse_item_drops(data, pos)
+    local item_drops = {
+        table_pointer = -1,
+        sets = {}
+    }
 
-    -- Number of item sets dropped
+    -- Item table pointer (-1 = none, >= 0 = external table index)
+    item_drops.table_pointer = read_int32(data, pos); pos = pos + 4
+
+    -- Number of item sets dropped (one random set chosen on death)
     local num_item_sets = read_int32(data, pos); pos = pos + 4
 
-    -- For each item set
+    -- Parse each item set
     for i = 1, num_item_sets do
+        local item_set = { items = {} }
+
         -- Number of items in this set
         local num_items = read_int32(data, pos); pos = pos + 4
 
-        -- Skip each item entry (4 bytes ID + 4 bytes chance = 8 bytes each)
-        pos = pos + (num_items * 8)
+        -- Parse each item (4 bytes ID + 4 bytes chance)
+        for j = 1, num_items do
+            local item = {}
+
+            -- Item type ID (4 chars, e.g., "ratc")
+            item.id, pos = read_id(data, pos)
+            item.name = COMMON_ITEMS[item.id]  -- May be nil for unknown items
+
+            -- Drop chance percentage (0-100)
+            item.chance = read_int32(data, pos); pos = pos + 4
+
+            item_set.items[j] = item
+        end
+
+        item_drops.sets[i] = item_set
     end
 
-    return pos, item_table_pointer, num_item_sets
+    return item_drops, pos
 end
 -- }}}
 
--- {{{ skip_abilities
--- Skip the modified abilities section.
--- Returns the new position after skipping.
-local function skip_abilities(data, pos)
+-- {{{ parse_abilities
+-- Parse the modified abilities section.
+-- Returns the abilities array and the new position.
+local function parse_abilities(data, pos)
+    local abilities = {}
+
     -- Number of modified abilities
     local num_abilities = read_int32(data, pos); pos = pos + 4
 
-    -- Skip each ability entry (4 bytes ID + 4 bytes autocast + 4 bytes level = 12 bytes each)
-    pos = pos + (num_abilities * 12)
+    -- Parse each ability entry (4 bytes ID + 4 bytes autocast + 4 bytes level = 12 bytes each)
+    for i = 1, num_abilities do
+        local ability = {}
 
-    return pos, num_abilities
+        -- Ability ID (4 chars, e.g., "AHbz" = Blizzard)
+        ability.id, pos = read_id(data, pos)
+
+        -- Autocast enabled (0 = off, 1 = on)
+        local autocast_raw = read_int32(data, pos); pos = pos + 4
+        ability.autocast = (autocast_raw ~= 0)
+
+        -- Ability level (1+)
+        ability.level = read_int32(data, pos); pos = pos + 4
+
+        abilities[i] = ability
+    end
+
+    return abilities, pos
 end
 -- }}}
 
@@ -269,16 +343,11 @@ local function parse_unit_entry(data, pos, version)
     -- Mana points (-1 = default)
     unit.mp = read_int32(data, pos); pos = pos + 4
 
-    -- Item drop table (variable length - skip for now, implemented in 202b)
-    local item_table_pointer, num_item_sets
-    pos, item_table_pointer, num_item_sets = skip_item_drops(data, pos)
-    unit.item_table_pointer = item_table_pointer
-    unit._item_sets_count = num_item_sets  -- Prefixed with _ to indicate placeholder
+    -- Item drop table (variable length)
+    unit.item_drops, pos = parse_item_drops(data, pos)
 
-    -- Modified abilities (variable length - skip for now, implemented in 202c)
-    local num_abilities
-    pos, num_abilities = skip_abilities(data, pos)
-    unit._abilities_count = num_abilities  -- Prefixed with _ to indicate placeholder
+    -- Modified abilities (variable length)
+    unit.abilities, pos = parse_abilities(data, pos)
 
     -- Hero-specific data (conditional - skip for now, implemented in 202d)
     if unit.is_hero then
@@ -371,15 +440,37 @@ function unitsdoo.format(result)
     end
     lines[#lines + 1] = ""
 
-    -- Count units by player
+    -- Count units by player, abilities, and item drops
     local player_counts = {}
     local hero_count = 0
+    local units_with_abilities = 0
+    local total_abilities = 0
+    local units_with_drops = 0
+    local total_drop_items = 0
     for _, u in ipairs(result.units) do
         player_counts[u.player] = (player_counts[u.player] or 0) + 1
         if u.is_hero then hero_count = hero_count + 1 end
+        if u.abilities and #u.abilities > 0 then
+            units_with_abilities = units_with_abilities + 1
+            total_abilities = total_abilities + #u.abilities
+        end
+        if u.item_drops and #u.item_drops.sets > 0 then
+            units_with_drops = units_with_drops + 1
+            for _, set in ipairs(u.item_drops.sets) do
+                total_drop_items = total_drop_items + #set.items
+            end
+        end
     end
 
     lines[#lines + 1] = string.format("Heroes: %d", hero_count)
+    if units_with_abilities > 0 then
+        lines[#lines + 1] = string.format("Units with modified abilities: %d (%d total)",
+            units_with_abilities, total_abilities)
+    end
+    if units_with_drops > 0 then
+        lines[#lines + 1] = string.format("Units with item drops: %d (%d total items)",
+            units_with_drops, total_drop_items)
+    end
     lines[#lines + 1] = ""
 
     -- Sort players by count
@@ -441,6 +532,28 @@ function unitsdoo.format(result)
             u.creation_number, u.id, hero_marker,
             u.position.x, u.position.y,
             u.player, hp_str)
+        -- Show abilities if present
+        if u.abilities and #u.abilities > 0 then
+            local ability_strs = {}
+            for _, a in ipairs(u.abilities) do
+                local autocast_str = a.autocast and " [auto]" or ""
+                ability_strs[#ability_strs + 1] = string.format("%s L%d%s",
+                    a.id, a.level, autocast_str)
+            end
+            lines[#lines + 1] = "      abilities: " .. table.concat(ability_strs, ", ")
+        end
+        -- Show item drops if present
+        if u.item_drops and #u.item_drops.sets > 0 then
+            local drop_strs = {}
+            for set_idx, set in ipairs(u.item_drops.sets) do
+                for _, item in ipairs(set.items) do
+                    local item_name = item.name or item.id
+                    drop_strs[#drop_strs + 1] = string.format("%s %d%%",
+                        item_name, item.chance)
+                end
+            end
+            lines[#lines + 1] = "      drops: " .. table.concat(drop_strs, ", ")
+        end
     end
     if #result.units > max_samples then
         lines[#lines + 1] = string.format("  ... and %d more units",
@@ -577,6 +690,19 @@ function UnitTable:heroes()
 end
 -- }}}
 
+-- {{{ with_drops
+-- Return a list of all units with item drops configured.
+function UnitTable:with_drops()
+    local result = {}
+    for _, u in ipairs(self.units) do
+        if u.item_drops and #u.item_drops.sets > 0 then
+            result[#result + 1] = u
+        end
+    end
+    return result
+end
+-- }}}
+
 -- {{{ pairs
 -- Iterate over all units (index, unit).
 function UnitTable:pairs()
@@ -604,6 +730,7 @@ end
 unitsdoo.UnitTable = UnitTable
 unitsdoo.PLAYERS = PLAYERS
 unitsdoo.COMMON_UNITS = COMMON_UNITS
+unitsdoo.COMMON_ITEMS = COMMON_ITEMS
 unitsdoo.FILE_ID = FILE_ID
 unitsdoo.is_hero = is_hero
 
