@@ -125,16 +125,16 @@ structure from all our parsers (doodad, unit, etc.).
 
 ## Acceptance Criteria
 
-- [ ] SpatialIndex.new() creates empty index
-- [ ] insert() adds objects to correct cells
-- [ ] query_radius returns objects within radius
-- [ ] query_radius excludes objects outside radius
-- [ ] query_rect returns objects within bounds
-- [ ] query_rect excludes objects outside bounds
-- [ ] Works with objects at negative coordinates
-- [ ] Works with objects at (0, 0)
-- [ ] Empty queries return empty tables
-- [ ] Unit tests with known positions and distances
+- [x] SpatialIndex.new() creates empty index
+- [x] insert() adds objects to correct cells
+- [x] query_radius returns objects within radius
+- [x] query_radius excludes objects outside radius
+- [x] query_rect returns objects within bounds
+- [x] query_rect excludes objects outside bounds
+- [x] Works with objects at negative coordinates
+- [x] Works with objects at (0, 0)
+- [x] Empty queries return empty tables
+- [x] Unit tests with known positions and distances
 
 ---
 
@@ -143,3 +143,43 @@ structure from all our parsers (doodad, unit, etc.).
 This module is intentionally standalone with no registry dependencies.
 It can be tested and used independently. The registry integration comes
 in 207d.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-21*
+
+### Changes Made
+
+1. **Created src/registry/spatial.lua:**
+   - SpatialIndex class with configurable cell_size (default 512)
+   - Grid-based storage using "cx,cy" string keys
+   - Object count tracking
+
+2. **Core methods:**
+   - `new(cell_size)` - create index with specified cell size
+   - `insert(object)` - add object to appropriate cell
+   - `remove(object)` - remove object from index
+   - `query_radius(x, y, radius)` - circular area query
+   - `query_rect(left, bottom, right, top)` - rectangular area query
+   - `query_point(x, y)` - get all objects in same cell
+   - `clear()` - remove all objects
+
+3. **Utility methods:**
+   - `get_count()` - total indexed objects
+   - `get_cell_count()` - number of non-empty cells
+   - `debug_info()` - statistics (avg/min/max per cell)
+
+4. **Error handling:**
+   - Validates object.position.x and object.position.y on insert
+
+5. **Created src/tests/test_spatial.lua:**
+   - 18 test groups covering all functionality
+   - Tests for origin, negative coords, cell boundaries
+   - Tests for diagonal distance calculations
+   - Tests for empty queries and error handling
+
+### Test Results
+
+75/75 tests pass

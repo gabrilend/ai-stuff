@@ -157,7 +157,7 @@ No dependencies (all independent except A07)
 | 207 | Build object registry system | In Progress | 206 |
 | 207a | Core registry class | **Completed** | 206 |
 | 207b | Filtering and iteration | Pending | 207a |
-| 207c | Spatial index | Pending | None |
+| 207c | Spatial index | **Completed** | None |
 | 207d | Spatial integration | Pending | 207a, 207c |
 | 207e | Map integration | Pending | 207a |
 | 207f | Registry tests | Pending | 207a-207e |
@@ -502,6 +502,11 @@ Phase 2 & 3 Complete
   - Type-specific storage arrays with by_creation_id and by_name indexes
   - Supports parser output (creation_number field)
   - 48/48 tests pass
+- **Issue 207c completed:** Spatial index
+  - Created src/registry/spatial.lua (SpatialIndex class)
+  - Grid-based spatial indexing with configurable cell size
+  - query_radius, query_rect, query_point methods
+  - 75/75 tests pass
 
 ---
 
