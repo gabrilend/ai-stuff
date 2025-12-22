@@ -146,7 +146,14 @@ No dependencies (all independent except A07)
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |
-| 206 | Design game object types | Pending | 201-205 |
+| 206 | Design game object types | In Progress | 201-205 |
+| 206a | Create gameobjects module structure | Pending | None |
+| 206b | Implement Doodad class | Pending | 206a, 201 |
+| 206c | Implement Unit class | Pending | 206a, 202 |
+| 206d | Implement Region class | Pending | 206a, 203 |
+| 206e | Implement Camera class | Pending | 206a, 204 |
+| 206f | Implement Sound class | Pending | 206a, 205 |
+| 206g | Finalize module and documentation | Pending | 206b-f |
 | 207 | Build object registry system | Pending | 206 |
 | 208 | Phase 2 integration test | Pending | 201-207 |
 
@@ -474,6 +481,11 @@ Phase 2 & 3 Complete
   - Distinguishes "YYU" (random unit) from "YYI" (random item) prefixes
   - Format output shows random info and active waygate destinations
   - 139/139 tests pass (all 5 202 sub-issues complete)
+- **Issue 206 split into sub-issues:** Design game object types
+  - 206a: Create gameobjects module structure
+  - 206b-f: Implement Doodad, Unit, Region, Camera, Sound classes
+  - 206g: Finalize module and documentation
+  - 7 sub-issues total, 206b-f can run in parallel after 206a
 
 ---
 
