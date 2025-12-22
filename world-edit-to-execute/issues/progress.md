@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (6/8 Complete)
+**Status:** In Progress (7/8 Complete)
 
 ---
 
@@ -13,7 +13,7 @@
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 6/8 |
+| 2 | Data Model - Game Objects | In Progress | 7/8 |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -137,12 +137,12 @@ No dependencies (all independent except A07)
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 201 | Parse war3map.doo (doodads/trees) | **Completed** | 102 |
-| 202 | Parse war3mapUnits.doo (units/buildings) | In Progress | 102, 201 |
+| 202 | Parse war3mapUnits.doo (units/buildings) | **Completed** | 102, 201 |
 | 202a | Parse unitsdoo header and basic fields | **Completed** | 201 |
 | 202b | Parse unitsdoo item drops | **Completed** | 202a |
 | 202c | Parse unitsdoo abilities | **Completed** | 202a |
 | 202d | Parse unitsdoo hero data | **Completed** | 202a |
-| 202e | Parse unitsdoo random/waygate | Pending | 202a |
+| 202e | Parse unitsdoo random/waygate | **Completed** | 202a |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |
@@ -468,6 +468,12 @@ Phase 2 & 3 Complete
   - Hero inventory stored by slot (0-5) with COMMON_ITEMS lookup
   - Format output shows hero stats and inventory
   - 94/94 tests pass
+- **Issue 202e completed:** Parse unitsdoo random/waygate data
+  - Added decode_random_level for level char decoding ('0'-'9', 'A'-'Z')
+  - Replaced skip_random_unit with parse_random_unit
+  - Distinguishes "YYU" (random unit) from "YYI" (random item) prefixes
+  - Format output shows random info and active waygate destinations
+  - 139/139 tests pass (all 5 202 sub-issues complete)
 
 ---
 
@@ -486,7 +492,8 @@ Capabilities established:
 ### Phase 2 - Data Model: Game Objects
 
 1. ~~**201 - Parse war3map.doo** (doodads/trees)~~ ✓
-2. **202 - Parse war3mapUnits.doo** (units/buildings)
+2. ~~**202 - Parse war3mapUnits.doo** (units/buildings)~~ ✓
+   - 202a-202e all complete (header, items, abilities, hero data, random/waygate)
 3. ~~**203 - Parse war3map.w3r** (regions)~~ ✓
 4. ~~**204 - Parse war3map.w3c** (cameras)~~ ✓
 5. ~~**205 - Parse war3map.w3s** (sounds)~~ ✓
