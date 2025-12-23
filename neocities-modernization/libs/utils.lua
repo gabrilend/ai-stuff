@@ -105,7 +105,7 @@ end
 function M.parse_interactive_args(args)
     local interactive = false
     local dir_override = nil
-    
+
     for i, arg in ipairs(args or {}) do
         if arg == "-I" then
             interactive = true
@@ -114,8 +114,60 @@ function M.parse_interactive_args(args)
             dir_override = arg
         end
     end
-    
+
     return interactive, dir_override
+end
+-- }}}
+
+-- {{{ function M.parse_cli_args
+-- Comprehensive CLI argument parser for main.lua
+-- Returns a table with all parsed options for selective stage execution
+-- Supports: stage flags (--parse-only, --validate-only, etc.), config (--force, --threads)
+function M.parse_cli_args(args)
+    local options = {
+        interactive = false,
+        dir_override = nil,
+        -- Stage flags (when set, only run specified stages)
+        parse_only = false,
+        validate_only = false,
+        catalog_only = false,
+        html_only = false,
+        -- Config flags
+        force = false,
+        threads = nil,
+    }
+
+    local i = 1
+    while i <= #(args or {}) do
+        local arg = args[i]
+
+        if arg == "-I" or arg == "--interactive" then
+            options.interactive = true
+        elseif arg == "--parse-only" then
+            options.parse_only = true
+        elseif arg == "--validate-only" then
+            options.validate_only = true
+        elseif arg == "--catalog-only" then
+            options.catalog_only = true
+        elseif arg == "--html-only" then
+            options.html_only = true
+        elseif arg == "--force" then
+            options.force = true
+        elseif arg == "--threads" and args[i + 1] then
+            options.threads = tonumber(args[i + 1])
+            i = i + 1
+        elseif arg:match("^--threads=") then
+            options.threads = tonumber(arg:match("^--threads=(%d+)"))
+        elseif not arg:match("^%-") then
+            -- Non-flag argument, treat as directory override
+            options.dir_override = arg
+        end
+        -- Skip unknown flags (--dir handled elsewhere)
+
+        i = i + 1
+    end
+
+    return options
 end
 -- }}}
 
