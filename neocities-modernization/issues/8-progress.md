@@ -43,6 +43,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-006 | Fix golden poem box-drawing format | Completed | 2025-12-15 |
 | 8-007 | Add box-drawing borders around navigation links | Completed | 2025-12-15 |
 | 8-009 | Project cleanup and organization | Completed | 2025-12-17 |
+| 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
 
 ### Issue Details
 
