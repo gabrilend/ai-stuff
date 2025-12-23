@@ -857,8 +857,12 @@ end
 -- }}}
 
 -- {{{ function M.main
-function M.main(interactive_mode)
-    if interactive_mode then
+-- Main entry point with support for selective stage execution via CLI flags
+-- Options table can include: interactive, parse_only, validate_only, catalog_only, html_only, force, threads
+function M.main(options)
+    options = options or {}
+
+    if options.interactive then
         -- Use TUI menu if available, otherwise fall back to simple menu
         while true do
             local action, values = M.show_tui_menu()
@@ -882,25 +886,41 @@ function M.main(interactive_mode)
                 end
             end
         end
+    elseif options.parse_only then
+        -- Run only poem parsing/extraction
+        utils.log_info("Running poem extraction only")
+        M.extract_poems(options.force)
+    elseif options.validate_only then
+        -- Run only validation
+        utils.log_info("Running poem validation only")
+        M.validate_poems()
+    elseif options.catalog_only then
+        -- Run only image cataloging
+        utils.log_info("Running image cataloging only")
+        M.catalog_images()
+    elseif options.html_only then
+        -- Run only HTML generation
+        utils.log_info("Running HTML generation only")
+        M.generate_website_html(options.force)
     else
-        -- Non-interactive mode - generate dataset and website HTML
-        utils.log_info("Running in non-interactive mode")
+        -- Non-interactive mode - generate dataset and website HTML (full pipeline)
+        utils.log_info("Running in non-interactive mode (full pipeline)")
         M.show_project_status()
         M.generate_complete_dataset()
-        M.generate_website_html()
+        M.generate_website_html(options.force)
     end
 end
 -- }}}
 
 -- Command line execution
 if arg then
-    local interactive, dir_override = utils.parse_interactive_args(arg)
-    if dir_override then
-        DIR = dir_override
+    local options = utils.parse_cli_args(arg)
+    if options.dir_override then
+        DIR = options.dir_override
         package.path = DIR .. "/libs/?.lua;" .. package.path
     end
-    
-    M.main(interactive)
+
+    M.main(options)
 end
 
 return M
