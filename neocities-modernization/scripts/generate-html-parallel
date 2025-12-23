@@ -3,6 +3,32 @@
 -- Multi-threaded HTML page generation using effil
 -- Generates similarity and difference pages in parallel for better performance
 
+-- {{{ Early help check (before any requires)
+-- Check for --help early, before setting up package paths
+for i = 1, #arg do
+    if arg[i] == "--help" or arg[i] == "-h" then
+        print([[
+Usage: generate-html-parallel [DIR] [OPTIONS]
+
+Options:
+  --test           Generate only first 10 pages (for testing)
+  --similar-only   Generate only similarity pages
+  --different-only Generate only difference pages
+  --incremental    Skip poems that already have HTML files
+  --threads=N      Number of parallel threads (default: 8)
+  -h, --help       Show this help message
+
+Examples:
+  generate-html-parallel                      # Default: 8 threads, all pages
+  generate-html-parallel . 4                  # 4 threads
+  generate-html-parallel . --incremental      # Skip existing files
+  generate-html-parallel . --similar-only     # Only similarity pages
+]])
+        os.exit(0)
+    end
+end
+-- }}}
+
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)
     if provided_dir then
@@ -12,7 +38,20 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg and arg[1])
+-- {{{ Parse directory from arguments (before package.path setup)
+local function find_dir_arg(args)
+    for i = 1, #args do
+        local a = args[i]
+        -- Skip flags
+        if a:sub(1, 1) ~= "-" and a:match("^%d+$") == nil then
+            return a
+        end
+    end
+    return nil
+end
+
+local DIR = setup_dir_path(find_dir_arg(arg))
+-- }}}
 
 -- Add effil library path
 package.cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;" .. package.cpath
@@ -33,14 +72,63 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Configuration
-local NUM_THREADS = tonumber(arg and arg[2]) or 8
-local TEST_MODE = arg and arg[3] == "--test"
-local SIMILARITY_ONLY = arg and arg[3] == "--similar-only"
-local DIFFERENCE_ONLY = arg and arg[3] == "--different-only"
+-- {{{ Argument parsing
+-- Parse command line arguments for more flexible option handling
+local function parse_args(args)
+    local opts = {
+        dir = nil,
+        threads = 8,
+        test = false,
+        similar_only = false,
+        different_only = false,
+        incremental = false,  -- Skip existing files
+        help = false
+    }
+
+    local i = 1
+    while args and i <= #args do
+        local a = args[i]
+        if a == "--test" then
+            opts.test = true
+        elseif a == "--similar-only" then
+            opts.similar_only = true
+        elseif a == "--different-only" then
+            opts.different_only = true
+        elseif a == "--incremental" or a == "-i" then
+            opts.incremental = true
+        elseif a == "--help" or a == "-h" then
+            opts.help = true
+        elseif a:match("^--threads=") then
+            opts.threads = tonumber(a:match("^--threads=(%d+)")) or 8
+        elseif a:match("^%d+$") then
+            opts.threads = tonumber(a)
+        elseif a:sub(1, 1) ~= "-" then
+            opts.dir = a
+        end
+        i = i + 1
+    end
+
+    return opts
+end
+
+local OPTS = parse_args(arg)
+-- Note: --help is handled early (before requires) at top of script
+-- }}}
+
+-- Configuration (from parsed arguments)
+local NUM_THREADS = OPTS.threads
+local TEST_MODE = OPTS.test
+local SIMILARITY_ONLY = OPTS.similar_only
+local DIFFERENCE_ONLY = OPTS.different_only
+local INCREMENTAL_MODE = OPTS.incremental
 local MAX_TEST_PAGES = 10
 local DIVERSITY_LIMIT = 0  -- 0 = all poems, or set to limit diversity sequence length
 local USE_CACHE = true  -- Use pre-computed diversity sequences if available
+
+-- Update DIR if provided in args
+if OPTS.dir then
+    DIR = OPTS.dir
+end
 
 -- Color configuration (shared)
 local COLOR_CONFIG = {
@@ -487,16 +575,79 @@ print(string.format("Mode: %s", mode_desc))
 -- Load data files
 print("\n🔄 Loading data files...")
 local poems_file = DIR .. "/assets/poems.json"
-local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+local similarities_dir = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarities/"
 local poem_colors_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json"
 local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
 local diversity_cache_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/diversity_cache.json"
 
 local poems_data = utils.read_json_file(poems_file)
-local similarity_data = utils.read_json_file(similarity_file)
 local poem_colors_data = utils.read_json_file(poem_colors_file)
 local embeddings_data = nil
 local diversity_cache = nil
+
+-- {{{ local function load_individual_similarity_files
+-- Loads similarity data from individual poem_X.json files in similarities_dir
+-- Returns a dictionary matching the expected format: {poem_id: {other_id: score, ...}, ...}
+-- This replaces the monolithic similarity_matrix.json with per-poem files
+local function load_individual_similarity_files(sim_dir)
+    local similarities = {}
+    local loaded_count = 0
+
+    -- Find all similarity files
+    local handle = io.popen("find '" .. sim_dir .. "' -name 'poem_*.json' 2>/dev/null")
+    if not handle then
+        return nil, 0
+    end
+
+    local files = {}
+    for filepath in handle:lines() do
+        table.insert(files, filepath)
+    end
+    handle:close()
+
+    if #files == 0 then
+        return nil, 0
+    end
+
+    print(string.format("   Loading %d individual similarity files...", #files))
+
+    -- Load each file and convert to expected format
+    for i, filepath in ipairs(files) do
+        local sim_data = utils.read_json_file(filepath)
+        if sim_data and sim_data.metadata and sim_data.similarities then
+            local poem_id = sim_data.metadata.poem_id
+            if poem_id then
+                -- Convert array format to dictionary: {other_id: score, ...}
+                local poem_sims = {}
+                for _, entry in ipairs(sim_data.similarities) do
+                    if entry.id then
+                        poem_sims[tostring(entry.id)] = entry.similarity
+                    end
+                end
+                similarities[tostring(poem_id)] = poem_sims
+                loaded_count = loaded_count + 1
+            end
+        end
+
+        -- Progress update every 500 files
+        if i % 500 == 0 then
+            print(string.format("      Loaded %d/%d files...", i, #files))
+        end
+    end
+
+    return similarities, loaded_count
+end
+-- }}}
+
+-- Load similarities from individual files (replaces similarity_matrix.json)
+local similarity_data = nil
+local similarity_count = 0
+if not DIFFERENCE_ONLY then
+    similarity_data, similarity_count = load_individual_similarity_files(similarities_dir)
+    if similarity_data then
+        print(string.format("   ✅ Loaded similarities for %d poems from individual files", similarity_count))
+    end
+end
 
 -- Check for diversity cache first (much faster than computing on-the-fly)
 if not SIMILARITY_ONLY and USE_CACHE then
@@ -519,7 +670,8 @@ if not poems_data then
 end
 
 if not similarity_data and not DIFFERENCE_ONLY then
-    print("❌ Error: Could not load similarity_matrix.json")
+    print("❌ Error: Could not load similarity files from " .. similarities_dir)
+    print("   Run: lua src/similarity-engine-parallel.lua -I  (to generate similarity files)")
     os.exit(1)
 end
 
@@ -656,6 +808,84 @@ if TEST_MODE then
     valid_poem_ids = limited_ids
 end
 
+-- {{{ Incremental mode: skip poems that already have HTML files
+-- Filter out poem IDs that have existing output files
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then f:close() return true end
+    return false
+end
+
+local skipped_similar = 0
+local skipped_different = 0
+local original_count = #valid_poem_ids
+
+-- Track which poem IDs need similarity vs difference pages (for incremental mode)
+local sim_needed_set = {}
+local diff_needed_set = {}
+
+if INCREMENTAL_MODE then
+    local output_dir = DIR .. "/output"
+
+    -- Check each poem for existing files
+    local sim_needed_count = 0
+    local diff_needed_count = 0
+
+    for _, poem_id in ipairs(valid_poem_ids) do
+        local sim_file = string.format("%s/similar/%03d.html", output_dir, poem_id)
+        local diff_file = string.format("%s/different/%03d.html", output_dir, poem_id)
+
+        if not file_exists(sim_file) then
+            sim_needed_set[poem_id] = true
+            sim_needed_count = sim_needed_count + 1
+        else
+            skipped_similar = skipped_similar + 1
+        end
+
+        if not file_exists(diff_file) then
+            diff_needed_set[poem_id] = true
+            diff_needed_count = diff_needed_count + 1
+        else
+            skipped_different = skipped_different + 1
+        end
+    end
+
+    -- Filter to poems needing at least one type of page
+    local filtered_ids = {}
+    for _, poem_id in ipairs(valid_poem_ids) do
+        local needs_sim = (not DIFFERENCE_ONLY) and sim_needed_set[poem_id]
+        local needs_diff = (not SIMILARITY_ONLY) and diff_needed_set[poem_id]
+        if needs_sim or needs_diff then
+            table.insert(filtered_ids, poem_id)
+        end
+    end
+
+    valid_poem_ids = filtered_ids
+
+    if skipped_similar > 0 or skipped_different > 0 then
+        print(string.format("   ⏭️  Incremental mode: skipping existing files"))
+        if not DIFFERENCE_ONLY then
+            print(string.format("      Similar pages: %d exist, %d to generate", skipped_similar, sim_needed_count))
+        end
+        if not SIMILARITY_ONLY then
+            print(string.format("      Difference pages: %d exist, %d to generate", skipped_different, diff_needed_count))
+        end
+    end
+
+    -- If nothing to do, exit early
+    if #valid_poem_ids == 0 then
+        print("\n✅ All pages already exist, nothing to generate")
+        os.exit(0)
+    end
+else
+    -- Non-incremental mode: mark all poems as needing generation
+    for _, poem_id in ipairs(valid_poem_ids) do
+        sim_needed_set[poem_id] = true
+        diff_needed_set[poem_id] = true
+    end
+end
+-- }}}
+
 print(string.format("   🔢 Pages to generate: %d", #valid_poem_ids))
 
 -- Create output directories
@@ -675,8 +905,8 @@ if embeddings_data then
 end
 
 -- Generate similarity pages in parallel (unless --different-only)
+-- Note: sim_failed removed - we now fail-fast on any error
 local sim_completed = 0
-local sim_failed = 0
 local sim_elapsed = 0
 
 if not DIFFERENCE_ONLY then
@@ -690,47 +920,68 @@ if not DIFFERENCE_ONLY then
     while batch_start <= #valid_poem_ids do
         local batch_end = math.min(batch_start + NUM_THREADS - 1, #valid_poem_ids)
 
-        -- Start threads for this batch
+        -- Start threads for this batch (skip poems that don't need similarity pages in incremental mode)
+        local batch_threads = {}
+        local batch_poem_ids = {}
+        local thread_idx = 0
+
         for i = batch_start, batch_end do
             local poem_id = valid_poem_ids[i]
-            local poem = poem_lookup[poem_id]
-            local poem_sims = similarities[tostring(poem_id)] or {}
 
-            -- Convert similarities to effil table
-            local shared_sims = effil.table(poem_sims)
+            -- In incremental mode, skip poems that already have similarity pages
+            if not sim_needed_set[poem_id] then
+                -- Already exists, skip (counted in skipped_similar earlier)
+            else
+                local poem = poem_lookup[poem_id]
+                local poem_sims = similarities[tostring(poem_id)] or {}
 
-            threads[i - batch_start + 1] = effil.thread(similarity_worker)(
-                poem_id,
-                poem.content or "",
-                poem.category or "unknown",
-                shared_sims,
-                shared_poems_array,
-                shared_colors,
-                max_poem_id,
-                output_dir
-            )
+                -- Convert similarities to effil table
+                local shared_sims = effil.table(poem_sims)
+
+                thread_idx = thread_idx + 1
+                batch_poem_ids[thread_idx] = poem_id
+                batch_threads[thread_idx] = effil.thread(similarity_worker)(
+                    poem_id,
+                    poem.content or "",
+                    poem.category or "unknown",
+                    shared_sims,
+                    shared_poems_array,
+                    shared_colors,
+                    max_poem_id,
+                    output_dir
+                )
+            end
         end
 
-        -- Wait for batch to complete
-        for i = 1, batch_end - batch_start + 1 do
-            local status = threads[i]:wait()
+        -- Wait for batch to complete (FAIL-FAST: any failure stops generation)
+        for i = 1, thread_idx do
+            local status = batch_threads[i]:wait()
             -- effil doesn't return function values directly, check file existence instead
-            local poem_id = valid_poem_ids[batch_start + i - 1]
+            local poem_id = batch_poem_ids[i]
             local filename = string.format("%s/similar/%03d.html", output_dir, poem_id)
             local f = io.open(filename, "r")
             if f then
                 f:close()
                 sim_completed = sim_completed + 1
             else
-                sim_failed = sim_failed + 1
+                -- FAIL-FAST: Stop immediately on any page generation failure
+                print(string.format("\n❌ SIMILARITY PAGE GENERATION FAILED"))
+                print(string.format("   Poem ID: %d", poem_id))
+                print(string.format("   Expected file: %s", filename))
+                print(string.format("   Completed before failure: %d/%d", sim_completed, #valid_poem_ids))
+                print("")
+                print("   Remedy: Check similarity data for this poem:")
+                print(string.format("   - Similarity file: %s/assets/embeddings/EmbeddingGemma_latest/similarities/poem_%d.json", DIR, poem_id))
+                print("   - Regenerate similarity data: lua src/similarity-engine-parallel.lua -I")
+                os.exit(1)
             end
         end
 
         -- Progress update
         local elapsed = os.time() - start_time
         local rate = sim_completed / math.max(elapsed, 1)
-        print(string.format("   Similarity: %d/%d completed, %d failed (%.1f pages/sec)",
-            sim_completed, #valid_poem_ids, sim_failed, rate))
+        print(string.format("   Similarity: %d/%d completed (%.1f pages/sec)",
+            sim_completed, #valid_poem_ids, rate))
 
         threads = {}
         batch_start = batch_end + 1
@@ -744,8 +995,8 @@ else
 end
 
 -- Generate difference pages in parallel (unless --similar-only)
+-- Note: diff_failed removed - we now fail-fast on any error
 local diff_completed = 0
-local diff_failed = 0
 local diff_elapsed = 0
 
 if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
@@ -762,25 +1013,33 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
     end
 
     local start_time = os.time()
-    local threads = {}
 
     -- Process in batches
     local batch_start = 1
     while batch_start <= #valid_poem_ids do
         local batch_end = math.min(batch_start + NUM_THREADS - 1, #valid_poem_ids)
 
-        -- Start threads for this batch
+        -- Start threads for this batch (skip poems that don't need difference pages in incremental mode)
+        local batch_threads = {}
+        local batch_poem_ids = {}
+        local thread_idx = 0
+
         for i = batch_start, batch_end do
             local poem_id = valid_poem_ids[i]
 
-            if using_cache then
+            -- In incremental mode, skip poems that already have difference pages
+            if not diff_needed_set[poem_id] then
+                -- Already exists, skip (counted in skipped_different earlier)
+            elseif using_cache then
                 -- Use cached sequence (fast path)
                 local cached_sequence = diversity_cache.sequences[tostring(poem_id)]
                 if cached_sequence then
                     local shared_sequence = effil.table(cached_sequence)
                     local shared_poem_content = effil.table(poem_content_lookup)
 
-                    threads[i - batch_start + 1] = effil.thread(cached_diversity_worker)(
+                    thread_idx = thread_idx + 1
+                    batch_poem_ids[thread_idx] = poem_id
+                    batch_threads[thread_idx] = effil.thread(cached_diversity_worker)(
                         poem_id,
                         shared_sequence,
                         shared_poem_content,
@@ -802,7 +1061,9 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
                 end
                 local shared_starting_emb = effil.table(starting_embedding)
 
-                threads[i - batch_start + 1] = effil.thread(diversity_worker)(
+                thread_idx = thread_idx + 1
+                batch_poem_ids[thread_idx] = poem_id
+                batch_threads[thread_idx] = effil.thread(diversity_worker)(
                     poem_id,
                     poem.content or "",
                     poem.category or "unknown",
@@ -818,30 +1079,38 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
             end
         end
 
-        -- Wait for batch to complete
-        for i = 1, batch_end - batch_start + 1 do
-            if threads[i] then
-                local status = threads[i]:wait()
+        -- Wait for batch to complete (FAIL-FAST: any failure stops generation)
+        for i = 1, thread_idx do
+            if batch_threads[i] then
+                local status = batch_threads[i]:wait()
             end
             -- Check file existence to verify success
-            local poem_id = valid_poem_ids[batch_start + i - 1]
+            local poem_id = batch_poem_ids[i]
             local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
             local f = io.open(filename, "r")
             if f then
                 f:close()
                 diff_completed = diff_completed + 1
             else
-                diff_failed = diff_failed + 1
+                -- FAIL-FAST: Stop immediately on any page generation failure
+                print(string.format("\n❌ DIFFERENCE PAGE GENERATION FAILED"))
+                print(string.format("   Poem ID: %d", poem_id))
+                print(string.format("   Expected file: %s", filename))
+                print(string.format("   Completed before failure: %d/%d", diff_completed, #valid_poem_ids))
+                print("")
+                print("   Remedy: Check diversity data for this poem:")
+                print(string.format("   - Diversity cache: %s/assets/embeddings/EmbeddingGemma_latest/diversity_cache.json", DIR))
+                print("   - Regenerate diversity data: scripts/precompute-diversity-sequences")
+                os.exit(1)
             end
         end
 
         -- Progress update
         local elapsed = os.time() - start_time
         local rate = diff_completed / math.max(elapsed, 1)
-        print(string.format("   Difference: %d/%d completed, %d failed (%.1f pages/sec)",
-            diff_completed, #valid_poem_ids, diff_failed, rate))
+        print(string.format("   Difference: %d/%d completed (%.1f pages/sec)",
+            diff_completed, #valid_poem_ids, rate))
 
-        threads = {}
         batch_start = batch_end + 1
     end
 
@@ -857,15 +1126,15 @@ else
     end
 end
 
--- Summary
+-- Summary (FAIL-FAST: if we reach here, all pages generated successfully)
 print("\n" .. string.rep("=", 61))
 print("Generation Summary")
 print(string.rep("=", 61))
 if not DIFFERENCE_ONLY then
-    print(string.format("   Similarity pages: %d completed, %d failed", sim_completed, sim_failed))
+    print(string.format("   Similarity pages: %d completed", sim_completed))
 end
 if not SIMILARITY_ONLY then
-    print(string.format("   Difference pages: %d completed, %d failed", diff_completed, diff_failed))
+    print(string.format("   Difference pages: %d completed", diff_completed))
 end
 local total_elapsed = sim_elapsed + diff_elapsed
 print(string.format("   Total time: %d seconds", total_elapsed))
