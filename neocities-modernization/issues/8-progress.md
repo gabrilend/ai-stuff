@@ -27,7 +27,6 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 |-------|-------------|--------|----------|
 | 8-001 | Integrate complete HTML generation into pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
-| 8-005 | Integrate images into HTML output | Open | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | **In Progress** | High |
 | 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
@@ -45,6 +44,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-010 | Fix note filenames in generated HTML | Completed | 2025-12-23 |
 | 8-013 | Implement TXT export functionality | Completed | 2025-12-23 |
 | 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
+| 8-005 | Integrate images into HTML output | Completed | 2025-12-23 |
 
 ### Issue Details
 
