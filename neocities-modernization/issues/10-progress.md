@@ -31,7 +31,7 @@ option selection.
 | 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
 | 10-003 | Consolidate config files into single source | Open | Low |
 | 10-004 | Implement built-up command preview system | Open | Medium |
-| 10-005 | Implement CLI flag support for all functionality | Open | High |
+| 10-005 | Implement CLI flag support for all functionality | **Completed** | High |
 | 10-006 | Identify checkbox conversion opportunities | Open | Low |
 | 10-007 | Fix text-entry field display bug | Open | High |
 
@@ -39,7 +39,7 @@ option selection.
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
-| (none yet) | - | - | - |
+| 10-005 | Implement CLI flag support for all functionality | Completed | 2025-12-23 |
 
 ## TUI Library Location
 
@@ -86,10 +86,13 @@ Documentation:
 - Press `~` to copy command to clipboard
 - Depends on: 10-005 (CLI flag support)
 
-**10-005: Implement CLI Flag Support for All Functionality** - OPEN
-- Add comprehensive CLI flags to run.sh for all pipeline stages
-- Enable selective stage execution (--update-words, --extract, --validate, etc.)
-- Maintain backward compatibility (no flags = run all)
+**10-005: Implement CLI Flag Support for All Functionality** - COMPLETED (2025-12-23)
+- ✅ Added comprehensive CLI flags to run.sh for all 7 pipeline stages
+- ✅ Added config flags: --threads, --force, --quiet, --verbose, --dry-run
+- ✅ Added --help with comprehensive usage documentation
+- ✅ Stages execute in pipeline order regardless of argument order
+- ✅ Backward compatible (no flags = run all stages)
+- ✅ Added `parse_cli_args()` to utils.lua for main.lua integration
 - Required by: 10-004 (command preview), 10-006 (checkbox mapping)
 
 **10-006: Identify Checkbox Conversion Opportunities** - OPEN
