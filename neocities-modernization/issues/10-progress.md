@@ -30,6 +30,10 @@ option selection.
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
 | 10-003 | Consolidate config files into single source | Open | Low |
+| 10-004 | Implement built-up command preview system | Open | Medium |
+| 10-005 | Implement CLI flag support for all functionality | Open | High |
+| 10-006 | Identify checkbox conversion opportunities | Open | Low |
+| 10-007 | Fix text-entry field display bug | Open | High |
 
 ### Completed Issues
 
@@ -74,8 +78,34 @@ Documentation:
 
 **Started**: 2025-12-17
 
+### Issue Details
+
+**10-004: Implement Built-Up Command Preview System** - OPEN
+- Implement real-time command preview panel (shows exact command that will execute)
+- Pattern from `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
+- Press `~` to copy command to clipboard
+- Depends on: 10-005 (CLI flag support)
+
+**10-005: Implement CLI Flag Support for All Functionality** - OPEN
+- Add comprehensive CLI flags to run.sh for all pipeline stages
+- Enable selective stage execution (--update-words, --extract, --validate, etc.)
+- Maintain backward compatibility (no flags = run all)
+- Required by: 10-004 (command preview), 10-006 (checkbox mapping)
+
+**10-006: Identify Checkbox Conversion Opportunities** - OPEN
+- Analyze current menu items for checkbox conversion potential
+- Pipeline stages → checkboxes (toggleable, build command)
+- Actions → remain as actions (immediate execution)
+- Numeric inputs → flag type with value:width format
+
+**10-007: Fix Text-Entry Field Display Bug** - OPEN
+- Bug: Fields display `[value:width]` instead of just `[value]`
+- Example: `Test poem ID: [       1:5]` shows the `:5` width metadata
+- Fix needed in TUI library or implementation
+
 ## Related Documents
 
 - `/home/ritz/programming/ai-stuff/scripts/libs/README-lua-menu-dev.md` - Integration guide
+- `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh` - Reference for command preview
 - `phase-demo.sh` - Primary integration target
 - `generate-embeddings.sh` - Secondary integration target
