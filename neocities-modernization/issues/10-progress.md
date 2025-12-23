@@ -29,6 +29,7 @@ option selection.
 |-------|-------------|--------|----------|
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
+| 10-003 | Consolidate config files into single source | Open | Low |
 
 ### Completed Issues
 
