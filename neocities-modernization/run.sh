@@ -68,8 +68,12 @@ echo "🔄 Extracting content from backup archives..."
     exit 1
 }
 
-# Run main HTML generation pipeline
-echo "🌐 Generating HTML from extracted content..."
+# Run main pipeline (poem extraction, validation, image cataloging, and HTML generation)
+echo "🌐 Running main pipeline..."
+echo "   - Extracting poems from JSON sources"
+echo "   - Validating poem data"
+echo "   - Cataloging images"
+echo "   - Generating website HTML (similarity + diversity pages)"
 if [ "$INTERACTIVE" = true ]; then
     lua src/main.lua "$DIR" -I $ASSETS_ARG
 else
