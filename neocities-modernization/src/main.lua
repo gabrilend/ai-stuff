@@ -1,6 +1,27 @@
-#!/usr/bin/env lua
+#!/usr/bin/env luajit
 
--- {{{ local function setup_dir_path
+-- {{{ Early argument parsing (before package.path setup)
+-- Parse arguments to extract directory path, skipping flags like -I
+-- This must happen before utils is loaded since package.path depends on DIR
+local function parse_dir_from_args(args)
+    if not args then return nil end
+    for i = 1, #args do
+        local a = args[i]
+        -- Skip flags (start with -)
+        if a and a:sub(1, 1) ~= "-" then
+            return a
+        end
+        -- Handle --dir=path or --dir path
+        if a == "--dir" and args[i + 1] then
+            return args[i + 1]
+        end
+        if a:match("^--dir=") then
+            return a:match("^--dir=(.+)")
+        end
+    end
+    return nil
+end
+
 local function setup_dir_path(provided_dir)
     if provided_dir then
         return provided_dir
@@ -10,10 +31,12 @@ end
 -- }}}
 
 -- Script configuration
-local DIR = setup_dir_path(arg and arg[1])
+local DIR = setup_dir_path(parse_dir_from_args(arg))
 
 -- Load required libraries
-package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+-- Include TUI library from shared scripts location (updates propagate automatically)
+local TUI_LIBS = "/home/ritz/programming/ai-stuff/scripts/libs"
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. TUI_LIBS .. "/?.lua;" .. package.path
 local utils = require("utils")
 
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
@@ -35,7 +58,300 @@ package.path = old_path
 
 local M = {}
 
--- {{{ function M.show_main_menu
+-- {{{ TUI Menu Configuration
+-- Try to load TUI menu library (falls back to simple text menu if unavailable)
+-- NOTE: The TUI library requires LuaJIT (for the 'bit' module). If running with
+-- standard Lua, it will fall back to the simple text menu.
+local tui_available, menu = pcall(require, "menu")
+local tui_load_error = not tui_available and menu or nil  -- menu contains error message when pcall fails
+local tui = tui_available and require("tui") or nil
+
+-- {{{ function M.build_menu_config
+-- Builds the unified menu configuration for the TUI library
+-- Combines functionality from main.lua and flat-html-generator.lua into one interface
+local function build_menu_config()
+    return {
+        title = "Neocities Poetry Modernization",
+        subtitle = "Static HTML poetry recommendation system",
+        sections = {
+            -- Data Pipeline Section
+            {
+                id = "pipeline",
+                title = "Data Pipeline",
+                type = "single",  -- Radio-button style (one action at a time)
+                items = {
+                    {
+                        id = "extract",
+                        label = "Extract poems from sources",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Auto-detect JSON extracts or compiled.txt",
+                        shortcut = "e"
+                    },
+                    {
+                        id = "validate",
+                        label = "Validate extracted poems",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Check data quality and generate validation report",
+                        shortcut = "v"
+                    },
+                    {
+                        id = "catalog",
+                        label = "Catalog and manage images",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Index media attachments from archives",
+                        shortcut = "c"
+                    },
+                    {
+                        id = "dataset",
+                        label = "Generate complete dataset",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Run extract + validate + catalog in sequence",
+                        shortcut = "d"
+                    }
+                }
+            },
+            -- Embedding & Similarity Section
+            {
+                id = "embedding",
+                title = "Embedding & Similarity",
+                type = "single",
+                items = {
+                    {
+                        id = "test_ollama",
+                        label = "Test Ollama embedding service",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Verify connection to local LLM service",
+                        shortcut = "t"
+                    },
+                    {
+                        id = "similarity",
+                        label = "Calculate similarity matrix (parallel)",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Generate per-poem similarity files using effil threads",
+                        shortcut = "s"
+                    }
+                }
+            },
+            -- HTML Generation Section
+            {
+                id = "html",
+                title = "HTML Generation",
+                type = "single",
+                items = {
+                    {
+                        id = "chronological",
+                        label = "Generate chronological index",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Main entry point listing all poems in order"
+                    },
+                    {
+                        id = "explore",
+                        label = "Generate explore.html",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Discovery instructions page"
+                    },
+                    {
+                        id = "similar_pages",
+                        label = "Generate similarity pages (parallel)",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Per-poem pages sorted by semantic similarity"
+                    },
+                    {
+                        id = "different_pages",
+                        label = "Generate difference pages (parallel)",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Per-poem pages sorted by maximum diversity"
+                    },
+                    {
+                        id = "full_website",
+                        label = "Generate complete website",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Run all HTML generation steps",
+                        shortcut = "w"
+                    }
+                }
+            },
+            -- Testing Section
+            {
+                id = "testing",
+                title = "Testing & Debug",
+                type = "single",
+                items = {
+                    {
+                        id = "test_similar",
+                        label = "Test single similarity page",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Generate one similarity page for testing"
+                    },
+                    {
+                        id = "test_different",
+                        label = "Test single difference page",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Generate one difference page for testing"
+                    }
+                }
+            },
+            -- Options Section (with editable fields)
+            {
+                id = "options",
+                title = "Options",
+                type = "multi",  -- Allow multiple options to be set
+                items = {
+                    {
+                        id = "test_poem_id",
+                        label = "Test poem ID",
+                        type = "flag",
+                        value = "1:5",  -- value:width format
+                        description = "Poem ID for test page generation"
+                    },
+                    {
+                        id = "thread_count",
+                        label = "Thread count",
+                        type = "flag",
+                        value = "8:3",
+                        description = "Number of parallel threads for generation"
+                    }
+                }
+            },
+            -- Utilities Section
+            {
+                id = "utilities",
+                title = "Utilities",
+                type = "single",
+                items = {
+                    {
+                        id = "status",
+                        label = "View project status",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Show file status and dataset statistics",
+                        shortcut = "i"
+                    },
+                    {
+                        id = "clean",
+                        label = "Clean and rebuild assets",
+                        type = "checkbox",
+                        value = "0",
+                        description = "Delete generated assets and regenerate",
+                        shortcut = "r"
+                    }
+                }
+            },
+            -- Action Section
+            {
+                id = "action",
+                title = "",
+                type = "single",
+                items = {
+                    {
+                        id = "run",
+                        label = "[Run]",
+                        type = "action",
+                        value = "",
+                        description = "Execute selected operation"
+                    }
+                }
+            }
+        }
+    }
+end
+-- }}}
+
+-- {{{ function M.show_tui_menu
+-- Runs the TUI menu and returns the selected action and values
+function M.show_tui_menu()
+    if not tui_available then
+        -- Fallback to simple text menu
+        return M.show_simple_menu()
+    end
+
+    local config = build_menu_config()
+    menu.init(config)
+
+    local action, values = menu.run()
+    menu.cleanup()
+
+    return action, values
+end
+-- }}}
+
+-- {{{ function M.show_simple_menu
+-- Simple text-based menu fallback when TUI is not available
+function M.show_simple_menu()
+    -- Show why TUI isn't available (once per session)
+    if tui_load_error and not M._tui_warning_shown then
+        M._tui_warning_shown = true
+        io.stderr:write("\n")
+        io.stderr:write("╔══════════════════════════════════════════════════════════════════════╗\n")
+        io.stderr:write("║  NOTE: TUI menu not available. Using simple text menu.              ║\n")
+        io.stderr:write("║                                                                      ║\n")
+        if tui_load_error:match("bit") then
+            io.stderr:write("║  Reason: The 'bit' module requires LuaJIT.                         ║\n")
+            io.stderr:write("║  Fix: Run with 'luajit src/main.lua -I' instead of 'lua'           ║\n")
+            io.stderr:write("║       or use the shebang: './src/main.lua -I'                      ║\n")
+        else
+            io.stderr:write("║  Reason: " .. tostring(tui_load_error):sub(1, 60) .. "\n")
+        end
+        io.stderr:write("╚══════════════════════════════════════════════════════════════════════╝\n")
+        io.stderr:write("\n")
+    end
+
+    local options = {
+        "Extract poems (auto-detect JSON/compiled.txt)",
+        "Validate extracted poems",
+        "Test Ollama embedding service",
+        "Generate complete dataset",
+        "Catalog and manage images",
+        "Generate website HTML",
+        "View project status",
+        "Clean and rebuild assets",
+        "Exit"
+    }
+
+    local choice = utils.show_menu("Neocities Poetry Modernization", options)
+
+    -- Map simple menu choice to action/values format
+    local action_map = {
+        [1] = "extract",
+        [2] = "validate",
+        [3] = "test_ollama",
+        [4] = "dataset",
+        [5] = "catalog",
+        [6] = "full_website",
+        [7] = "status",
+        [8] = "clean",
+        [9] = nil  -- Exit
+    }
+
+    if choice == 9 then
+        return "quit", {}
+    end
+
+    local values = {}
+    local action_id = action_map[choice]
+    if action_id then
+        values[action_id] = "1"
+    end
+
+    return "run", values
+end
+-- }}}
+
+-- {{{ function M.show_main_menu (legacy wrapper)
+-- Legacy wrapper for backwards compatibility
 function M.show_main_menu()
     local options = {
         "Extract poems (auto-detect JSON/compiled.txt)",
@@ -51,6 +367,7 @@ function M.show_main_menu()
 
     return utils.show_menu("Neocities Poetry Modernization", options)
 end
+-- }}}
 -- }}}
 
 -- {{{ function M.is_data_fresh
@@ -371,41 +688,198 @@ function M.clean_and_rebuild()
 end
 -- }}}
 
+-- {{{ function M.handle_tui_action
+-- Handles actions from the TUI menu based on which items are selected
+-- values is a table mapping item_id -> "1" for selected items
+function M.handle_tui_action(values)
+    local executed = false
+
+    -- Data Pipeline actions
+    if values.extract == "1" then
+        M.extract_poems(true)  -- force=true in interactive mode
+        executed = true
+    end
+    if values.validate == "1" then
+        M.validate_poems()
+        executed = true
+    end
+    if values.catalog == "1" then
+        M.catalog_images()
+        executed = true
+    end
+    if values.dataset == "1" then
+        M.generate_complete_dataset()
+        executed = true
+    end
+
+    -- Embedding & Similarity actions
+    if values.test_ollama == "1" then
+        M.test_embedding_service()
+        executed = true
+    end
+    if values.similarity == "1" then
+        -- Run parallel similarity calculation
+        utils.log_info("Running parallel similarity calculation...")
+        local sim_engine = require("similarity-engine-parallel")
+        local thread_count = tonumber(values.thread_count) or 8
+        local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+        sim_engine.calculate_similarity_matrix_parallel(embeddings_file, "embeddinggemma:latest", 0.2, false, thread_count)
+        executed = true
+    end
+
+    -- HTML Generation actions
+    if values.chronological == "1" then
+        local poems_file = utils.asset_path("poems.json")
+        local poems_data = utils.read_json_file(poems_file)
+        if poems_data then
+            flat_html_generator.generate_chronological_index_with_navigation(poems_data, DIR .. "/output")
+            utils.log_info("Generated chronological.html")
+        end
+        executed = true
+    end
+    if values.explore == "1" then
+        flat_html_generator.generate_simple_discovery_instructions(DIR .. "/output")
+        utils.log_info("Generated explore.html")
+        executed = true
+    end
+    if values.similar_pages == "1" then
+        utils.log_info("Generating similarity pages (use scripts/generate-html-parallel --similar-only)...")
+        os.execute("luajit " .. DIR .. "/scripts/generate-html-parallel --similar-only")
+        executed = true
+    end
+    if values.different_pages == "1" then
+        utils.log_info("Generating difference pages (use scripts/generate-html-parallel --different-only)...")
+        os.execute("luajit " .. DIR .. "/scripts/generate-html-parallel --different-only")
+        executed = true
+    end
+    if values.full_website == "1" then
+        M.generate_website_html(true)
+        executed = true
+    end
+
+    -- Testing actions
+    if values.test_similar == "1" then
+        local poem_id = tonumber(values.test_poem_id) or 1
+        M.test_single_similarity_page(poem_id)
+        executed = true
+    end
+    if values.test_different == "1" then
+        local poem_id = tonumber(values.test_poem_id) or 1
+        M.test_single_difference_page(poem_id)
+        executed = true
+    end
+
+    -- Utility actions
+    if values.status == "1" then
+        M.show_project_status()
+        executed = true
+    end
+    if values.clean == "1" then
+        M.clean_and_rebuild()
+        executed = true
+    end
+
+    return executed
+end
+-- }}}
+
+-- {{{ function M.test_single_similarity_page
+-- Test generating a single similarity page for debugging
+function M.test_single_similarity_page(poem_id)
+    utils.log_info("Testing similarity page for poem " .. poem_id .. "...")
+    local poems_file = utils.asset_path("poems.json")
+    local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+    local output_dir = DIR .. "/output"
+
+    local poems_data = utils.read_json_file(poems_file)
+    local similarity_data = utils.read_json_file(similarity_file)
+
+    if poems_data and similarity_data then
+        local poem_data = nil
+        for _, poem in ipairs(poems_data.poems) do
+            if poem.id == poem_id then
+                poem_data = poem
+                break
+            end
+        end
+
+        if poem_data then
+            local ranking = flat_html_generator.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities or similarity_data)
+            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id)
+            local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
+            os.execute("mkdir -p " .. output_dir)
+            utils.write_file(test_file, html)
+            utils.log_info("Test file written: " .. test_file)
+        else
+            utils.log_error("Poem ID " .. poem_id .. " not found")
+        end
+    else
+        utils.log_error("Failed to load required data files")
+    end
+end
+-- }}}
+
+-- {{{ function M.test_single_difference_page
+-- Test generating a single difference page for debugging
+function M.test_single_difference_page(poem_id)
+    utils.log_info("Testing difference page for poem " .. poem_id .. "...")
+    local poems_file = utils.asset_path("poems.json")
+    local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+    local output_dir = DIR .. "/output"
+
+    local poems_data = utils.read_json_file(poems_file)
+    local embeddings_data = utils.read_json_file(embeddings_file)
+
+    if poems_data and embeddings_data then
+        local poem_data = nil
+        for _, poem in ipairs(poems_data.poems) do
+            if poem.id == poem_id then
+                poem_data = poem
+                break
+            end
+        end
+
+        if poem_data then
+            local diversity_chaining = require("diversity-chaining")
+            local ranking = diversity_chaining.generate_diversity_chain(poem_id, poems_data, embeddings_data)
+            local html = flat_html_generator.generate_flat_poem_list_html(poem_data, ranking, "different", poem_id)
+            local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
+            os.execute("mkdir -p " .. output_dir)
+            utils.write_file(test_file, html)
+            utils.log_info("Test file written: " .. test_file)
+        else
+            utils.log_error("Poem ID " .. poem_id .. " not found")
+        end
+    else
+        utils.log_error("Failed to load required data files")
+    end
+end
+-- }}}
+
 -- {{{ function M.main
 function M.main(interactive_mode)
     if interactive_mode then
-        print("Neocities Poetry Modernization - Main Interface")
-        print("Project Directory: " .. utils.relative_path(DIR, DIR))
-
+        -- Use TUI menu if available, otherwise fall back to simple menu
         while true do
-            local choice = M.show_main_menu()
+            local action, values = M.show_tui_menu()
 
-            if choice == 1 then
-                M.extract_poems()
-            elseif choice == 2 then
-                M.validate_poems()
-            elseif choice == 3 then
-                M.test_embedding_service()
-            elseif choice == 4 then
-                M.generate_complete_dataset()
-            elseif choice == 5 then
-                M.catalog_images()
-            elseif choice == 6 then
-                M.generate_website_html(true)  -- force=true in interactive mode
-            elseif choice == 7 then
-                M.show_project_status()
-            elseif choice == 8 then
-                M.clean_and_rebuild()
-            elseif choice == 9 then
+            if action == "quit" then
                 print("Goodbye!")
                 break
-            else
-                print("Invalid choice. Please try again.")
-            end
+            elseif action == "run" then
+                local executed = M.handle_tui_action(values)
 
-            if choice and choice ~= 7 then  -- Don't pause after status display
-                print("\nPress Enter to continue...")
-                io.read()
+                if executed then
+                    -- Don't pause after status display
+                    if values.status ~= "1" then
+                        print("\nPress Enter to continue...")
+                        io.read()
+                    end
+                else
+                    print("No action selected. Use space to toggle options, then press Enter or select [Run].")
+                    print("\nPress Enter to continue...")
+                    io.read()
+                end
             end
         end
     else
