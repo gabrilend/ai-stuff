@@ -204,6 +204,10 @@ The TUI library (tui.lua) provides:
    - Simple menu fallback works with standard lua (with warning)
    - Shebang (`#!/usr/bin/env luajit`) ensures correct interpreter when run directly
 
+9. ✅ **Updated run.sh to use luajit** (2025-12-23)
+   - Changed `lua src/main.lua` to `luajit src/main.lua` at lines 78-80
+   - Shebang is ignored when shell script explicitly specifies interpreter
+
 ### Remaining Steps
 
 - [ ] Remove standalone interactive mode from `flat-html-generator.lua`
