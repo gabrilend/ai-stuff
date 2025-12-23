@@ -14,6 +14,7 @@ This document provides a hierarchical view of all project documentation.
 - `/docs/phase-2-completion-summary.md` - Phase 2 similarity engine development results
 
 ### 🔧 Technical Guides
+- `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
 - `/docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis comparing effil threading vs GPU compute shaders for diversity pre-computation
 - `/docs/similarity-algorithms-research-report.md` - Detailed similarity algorithm research with recommendations
 - `/docs/similarity-algorithm-research.md` - Comprehensive research analysis of 12 similarity algorithms for poetry embeddings
@@ -92,7 +93,7 @@ This document provides a hierarchical view of all project documentation.
 
 ## Document Maintenance
 
-**Last Updated**: December 14, 2025  
+**Last Updated**: December 23, 2025  
 **Maintained By**: Project development team  
 **Update Policy**: All new documents must be added to this table of contents
 
