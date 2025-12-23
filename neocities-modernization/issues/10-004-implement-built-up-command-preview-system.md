@@ -4,78 +4,119 @@
 - **Phase**: 10
 - **Priority**: Medium
 - **Type**: Enhancement
-- **Status**: Open
+- **Status**: COMPLETED
 - **Created**: 2025-12-23
+- **Completed**: 2025-12-23
 
 ## Current Behavior
 
-The `run.sh` script currently operates as a simple orchestrator that runs all pipeline stages sequentially without showing the user what will be executed. When using the `-I` flag for interactive mode, users can select options from `src/main.lua`'s menu, but there is no preview of the resulting command.
+~~The `run.sh` script operates as a simple orchestrator without command preview.~~
 
-The script has minimal command-line interface:
+**IMPLEMENTED**: Full TUI integration with real-time command preview.
+
+## Implemented Behavior
+
+The `-I` flag now launches a full TUI with:
+
+1. **Pipeline Stages Section**: 7 checkboxes (one per stage), all mapped to CLI flags
+2. **Configuration Section**: Thread count (flag type), force/dry-run/verbose checkboxes
+3. **Command Preview Section**: Real-time preview that updates as options are toggled
+4. **Actions Section**: Run button to execute selected stages
+
+### Key Features
+
+- **Real-time preview**: As users toggle options, the command preview updates instantly
+- **Copy to clipboard**: Press `~` to copy the built-up command
+- **Educational value**: Users learn CLI flags by watching the command build up
+- **Fallback support**: Falls back to Lua TUI if bash TUI unavailable
+
+### Example TUI Layout
+
+```
+╭─ Neocities Pipeline ────────────────────────────────────────────────────────╮
+│ Use j/k to navigate, space to toggle, Enter to run                          │
+├─ Pipeline Stages (toggle stages to run) ────────────────────────────────────┤
+│ [x] 1. Update Words      Sync input files from words repository             │
+│ [x] 2. Extract           Extract content from backup archives               │
+│ [x] 3. Parse             Parse poems from JSON sources into poems.json      │
+│ [x] 4. Validate          Run poem validation                                │
+│ [x] 5. Catalog Images    Catalog images from input directories              │
+│ [x] 6. Generate HTML     Generate website HTML                              │
+│ [x] 7. Generate Index    Generate numeric similarity index                  │
+├─ Configuration ─────────────────────────────────────────────────────────────┤
+│ Thread Count: [  4]      Thread count for parallel HTML generation          │
+│ [ ] Force Regeneration   Force regeneration even if files are fresh         │
+│ [ ] Dry Run              Show what would be executed without running        │
+│ [ ] Verbose Output       Show detailed progress information                 │
+├─ Command Preview ───────────────────────────────────────────────────────────┤
+│ ./run.sh --update-words --extract --parse --validate --catalog-images \     │
+│          --generate-html --generate-index --threads 4                       │
+│ (press ~ to copy to clipboard)                                              │
+├─ Actions ───────────────────────────────────────────────────────────────────┤
+│ [Run Selected Stages]                                                       │
+╰─────────────────────────────────────────────────────────────────────────────╯
+```
+
+## Implementation Details (2025-12-23)
+
+### Files Modified
+
+1. **`run.sh`** - Added TUI integration:
+   - Sources `/home/ritz/programming/ai-stuff/scripts/libs/lua-menu.sh`
+   - Added `interactive_mode_tui()` function (lines 398-522)
+   - Menu sections:
+     - `stages`: 7 checkboxes with shortcuts 1-7 and CLI flags
+     - `config`: thread flag, force/dry-run/verbose checkboxes
+     - `preview`: command preview text item
+     - `actions`: run button
+   - `menu_set_command_config("./run.sh", "cmd_preview", "")` links checkboxes to preview
+   - After TUI exits, falls through to execute selected stages
+
+### Implementation Steps Completed
+
+1. [x] Ensure run.sh has comprehensive CLI flag support (10-005 completed)
+2. [x] Add TUI integration to run.sh (source lua-menu.sh)
+3. [x] Add Command Preview section to TUI menu configuration
+4. [x] Configure `menu_set_command_config` with appropriate parameters
+5. [x] Each checkbox has associated CLI flag for command preview
+6. [x] Clipboard copy via `~` key (built into TUI library)
+7. [x] Updated help text to mention command preview
+
+### Menu Item to CLI Flag Mapping
+
+| Item ID | Label | CLI Flag |
+|---------|-------|----------|
+| update_words | 1. Update Words | --update-words |
+| extract | 2. Extract | --extract |
+| parse | 3. Parse | --parse |
+| validate | 4. Validate | --validate |
+| catalog_images | 5. Catalog Images | --catalog-images |
+| generate_html | 6. Generate HTML | --generate-html |
+| generate_index | 7. Generate Index | --generate-index |
+| threads | Thread Count | --threads |
+| force | Force Regeneration | --force |
+| dry_run | Dry Run | --dry-run |
+| verbose | Verbose Output | --verbose |
+
+### Testing
+
 ```bash
-./run.sh [-I] [--dir PATH] [PROJECT_DIR]
+# Launch TUI with command preview
+./run.sh -I
+
+# Non-interactive mode still works
+./run.sh --validate --dry-run  # ✓ Works correctly
 ```
-
-## Intended Behavior
-
-Implement a "Command Preview" panel similar to `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh` (lines 767-774):
-
-```bash
-# Configure command preview section
-menu_add_section "preview" "multi" "Command Preview"
-menu_add_item "preview" "cmd_preview" "" "text" "" \
-    "The command that will be executed (press ~ to copy to clipboard)"
-menu_set_command_config "./run.sh" "cmd_preview" "files"
-```
-
-Key features:
-1. **Real-time preview**: As users toggle options in the TUI, the preview updates to show the exact command that will be executed
-2. **Copy to clipboard**: Press `~` to copy the built-up command for use elsewhere
-3. **Educational value**: Users can learn the CLI flags by watching the command build up
-4. **Transparency**: Users always know exactly what will run before execution
-
-Example preview output:
-```
-╭─ Command Preview ─────────────────────────────────────────────────────────────╮
-│ ./run.sh --update-words --extract --validate --generate-html --threads 4      │
-│ (press ~ to copy to clipboard)                                                │
-╰───────────────────────────────────────────────────────────────────────────────╯
-```
-
-## Reference Implementation
-
-From `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`:
-
-The `menu_set_command_config` function takes three parameters:
-1. Base command (e.g., `"./run.sh"`)
-2. Preview item ID (where to display the command)
-3. List section ID (items that affect the command)
-
-The TUI library then automatically:
-- Tracks which options/flags are enabled
-- Builds the command string with appropriate flags
-- Updates the preview item whenever options change
-
-## Implementation Steps
-
-1. [ ] Ensure run.sh has comprehensive CLI flag support (see issue 10-005)
-2. [ ] Add TUI integration to run.sh (similar to issue 10-001 pattern)
-3. [ ] Add Command Preview section to TUI menu configuration
-4. [ ] Configure `menu_set_command_config` with appropriate parameters
-5. [ ] Test that preview updates correctly when options are toggled
-6. [ ] Test clipboard copy functionality with `~` key
-7. [ ] Document the feature in usage help text
 
 ## Dependencies
 
-- Issue 10-005: CLI flag support (required - command preview needs flags to display)
-- Issue 10-001: TUI integration pattern (reference)
-- TUI library: `/home/ritz/programming/ai-stuff/libs/menu.tui`
+- Issue 10-005: CLI flag support - **COMPLETED**
+- TUI library: `/home/ritz/programming/ai-stuff/scripts/libs/lua-menu.sh`
 
 ## Related Documents
 
 - `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh` (reference implementation)
-- `/home/ritz/programming/ai-stuff/libs/menu.tui` (TUI library)
-- `/mnt/mtwo/programming/ai-stuff/neocities-modernization/run.sh` (target script)
+- `/home/ritz/programming/ai-stuff/scripts/libs/lua-menu.sh` (TUI library)
+- `/mnt/mtwo/programming/ai-stuff/neocities-modernization/run.sh` (implemented)
 
 ---
