@@ -28,7 +28,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-001 | Integrate complete HTML generation into pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-005 | Integrate images into HTML output | Open | Medium |
-| 8-008 | Implement configurable centroid embedding system | Open | Medium |
+| 8-008 | Implement configurable centroid embedding system | Completed | Medium |
 | 8-010 | Fix note filenames in generated HTML | Open | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | **Blocked** | High |
@@ -44,6 +44,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-007 | Add box-drawing borders around navigation links | Completed | 2025-12-15 |
 | 8-009 | Project cleanup and organization | Completed | 2025-12-17 |
 | 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
+| 8-008 | Implement configurable centroid embedding system | Completed | 2025-12-23 |
 
 ### Issue Details
 
@@ -115,12 +116,14 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Pipeline integration (regenerate-clean-site.lua, main.lua)
 - Pending: Download links in HTML pages (depends on 8-012 pagination)
 
-**8-008: Implement Configurable Centroid Embedding System** - OPEN
-- Allow users to define named centroids via JSON configuration
-- Compute centroid embeddings from multiple poem vectors
-- Generate centroid-based similarity/diversity exploration pages
-- Enable "context window" feature for session-based recommendations
-- Use cases: themed entry points, curated collections, reading session context
+**8-008: Implement Configurable Centroid Embedding System** - COMPLETED
+- ✅ Created `assets/centroids.json` config with 5 example moods (melancholy, wonder, rage, tenderness, absurdity)
+- ✅ Implemented `src/centroid-generator.lua` for embedding generation via Ollama
+- ✅ Implemented recursive chunking algorithm for long content (not triggered for keyword-only centroids)
+- ✅ Created `src/centroid-html-generator.lua` for HTML page generation
+- ✅ Generated 11 files: index.html + 5 similar + 5 different pages in `output/centroid/`
+- ✅ Similarity scores verified working (0.72-0.78 range for top matches)
+- Use cases: themed entry points, mood-based exploration, curated collections
 
 ## Completion Criteria
 

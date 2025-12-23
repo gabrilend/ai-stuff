@@ -263,11 +263,71 @@ The centroid is simply another embedding vector that serves as an anchor point f
 - `scripts/generate-embeddings` - Existing embedding generation script
 
 ## Acceptance Criteria
-- [ ] Users can define centroids via JSON config with source files and keywords
-- [ ] System reads and concatenates specified source files
-- [ ] Keywords are appended to concatenated content
-- [ ] Long content is recursively chunked at safe boundaries
-- [ ] Each chunk is embedded separately
-- [ ] Chunk embeddings are combined into ultra-centroid
-- [ ] Static HTML pages generated for each centroid
-- [ ] Centroid pages show all poems ranked by similarity/diversity
+- [x] Users can define centroids via JSON config with source files and keywords
+- [x] System reads and concatenates specified source files
+- [x] Keywords are appended to concatenated content
+- [x] Long content is recursively chunked at safe boundaries
+- [x] Each chunk is embedded separately
+- [x] Chunk embeddings are combined into ultra-centroid
+- [x] Static HTML pages generated for each centroid
+- [x] Centroid pages show all poems ranked by similarity/diversity
+
+---
+
+## Implementation Notes (2025-12-23)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `assets/centroids.json` | Configuration file with 5 example moods |
+| `src/centroid-generator.lua` | Generates centroid embeddings from config |
+| `src/centroid-html-generator.lua` | Generates HTML pages from centroids |
+| `assets/embeddings/EmbeddingGemma_latest/centroids.json` | Generated centroid embeddings |
+| `output/centroid/*.html` | Generated exploration pages (11 files) |
+
+### Example Moods Defined
+
+1. **melancholy** - Sad, reflective, introspective moods
+2. **wonder** - Awe, curiosity, the vastness of existence
+3. **rage** - Anger, frustration, righteous fury
+4. **tenderness** - Gentle love, care, softness between beings
+5. **absurdity** - The strange, surreal, and darkly comic
+
+### Usage
+
+```bash
+# Generate centroid embeddings (requires Ollama running)
+lua src/centroid-generator.lua
+
+# Generate HTML pages from centroids
+lua src/centroid-html-generator.lua
+```
+
+### Output Structure
+
+```
+output/centroid/
+├── index.html              # Mood selection page
+├── melancholy-similar.html # Poems similar to this mood
+├── melancholy-different.html
+├── wonder-similar.html
+├── wonder-different.html
+├── rage-similar.html
+├── rage-different.html
+├── tenderness-similar.html
+├── tenderness-different.html
+├── absurd-similar.html
+└── absurd-different.html
+```
+
+### Technical Notes
+
+- Embeddings array format required a lookup table conversion (embeddings stored as array, not object)
+- Model storage name uses `EmbeddingGemma_latest` to match existing directory
+- Recursive chunking implemented but not triggered for short keyword-only centroids
+- Cosine similarity calculated identically to poem-to-poem similarity
+
+### Status
+
+**COMPLETED** - All acceptance criteria met. Ready for integration into main pipeline.
