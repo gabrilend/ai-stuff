@@ -75,9 +75,9 @@ echo "   - Validating poem data"
 echo "   - Cataloging images"
 echo "   - Generating website HTML (similarity + diversity pages)"
 if [ "$INTERACTIVE" = true ]; then
-    lua src/main.lua "$DIR" -I $ASSETS_ARG
+    luajit src/main.lua "$DIR" -I $ASSETS_ARG
 else
-    lua src/main.lua "$DIR" $ASSETS_ARG
+    luajit src/main.lua "$DIR" $ASSETS_ARG
 fi
 
 # Generate numeric similarity index (build product, always overwrites)
