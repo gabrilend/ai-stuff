@@ -46,13 +46,17 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 ### Issue Details
 
-**8-001: Integrate Complete HTML Generation into Pipeline** - IN PROGRESS
+**8-001: Integrate Complete HTML Generation into Pipeline** - IN PROGRESS (Steps 1-3 complete)
 - ✅ Renamed "unique" to "different" in navigation
 - ✅ Added `<meta charset="UTF-8">` to all HTML templates
-- Integrate `flat-html-generator.lua` into `src/main.lua`
-- Update `run.sh` to trigger full website generation
-- Generate ~12,000 HTML files for complete navigation
-- Address cross-category ID overlap (fediverse/messages/notes have overlapping IDs)
+- ✅ Integrated `flat-html-generator.lua` into `src/main.lua`
+- ✅ Added "Generate website HTML" menu option (option 6)
+- ✅ Implemented `M.is_html_fresh()` freshness check function
+- ✅ Implemented `M.generate_website_html(force)` with dependency validation
+- ✅ Updated `run.sh` to trigger full website generation with progress messages
+- ✅ Tested chronological index generation (12.1MB, 99,970 lines)
+- Pending: Step 4 performance optimization (see Issue 8-002)
+- Note: Cross-category ID overlap needs addressing for full generation
 
 **8-002: Implement Multi-threaded HTML Generation** - IN PROGRESS
 - ✅ Created `scripts/generate-html-parallel` using effil library

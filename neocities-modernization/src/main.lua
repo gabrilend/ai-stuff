@@ -27,6 +27,8 @@ package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
 local poem_extractor = require("poem-extractor")
 local poem_validator = require("poem-validator")
 local image_manager = require("image-manager")
+local flat_html_generator = require("flat-html-generator")
+local dkjson = require("dkjson")
 
 -- Restore original path
 package.path = old_path
@@ -39,13 +41,14 @@ function M.show_main_menu()
         "Extract poems (auto-detect JSON/compiled.txt)",
         "Validate extracted poems",
         "Test Ollama embedding service",
-        "Generate complete dataset", 
+        "Generate complete dataset",
         "Catalog and manage images",
+        "Generate website HTML",
         "View project status",
         "Clean and rebuild assets",
         "Exit"
     }
-    
+
     return utils.show_menu("Neocities Poetry Modernization", options)
 end
 -- }}}
@@ -166,22 +169,140 @@ function M.catalog_images()
 end
 -- }}}
 
+-- {{{ function M.is_html_fresh
+function M.is_html_fresh()
+    -- Check if output HTML files exist and are newer than source data
+    -- We check chronological.html as the main indicator
+    local output_file = DIR .. "/output/chronological.html"
+    if not utils.file_exists(output_file) then
+        return false
+    end
+
+    local output_mtime = utils.get_file_mtime(output_file)
+    if not output_mtime then
+        return false
+    end
+
+    -- Check against poems.json (the primary source data)
+    local poems_file = utils.asset_path("poems.json")
+    if utils.file_exists(poems_file) then
+        local poems_mtime = utils.get_file_mtime(poems_file)
+        if poems_mtime and poems_mtime > output_mtime then
+            return false
+        end
+    end
+
+    -- Check against similarity matrix (affects similarity/different pages)
+    local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+    if utils.file_exists(similarity_file) then
+        local similarity_mtime = utils.get_file_mtime(similarity_file)
+        if similarity_mtime and similarity_mtime > output_mtime then
+            return false
+        end
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ function M.generate_website_html
+function M.generate_website_html(force)
+    -- Skip if HTML is fresh (unless forced)
+    if not force and M.is_html_fresh() then
+        utils.log_info("Website HTML is up to date, skipping generation")
+        return true
+    end
+
+    utils.log_info("Starting website HTML generation...")
+
+    -- Check dependencies
+    local poems_file = utils.asset_path("poems.json")
+    if not utils.file_exists(poems_file) then
+        utils.log_error("Poems file not found. Run extraction first.")
+        return false
+    end
+
+    local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+    if not utils.file_exists(embeddings_file) then
+        utils.log_error("Embeddings file not found. Run generate-embeddings.sh first.")
+        return false
+    end
+
+    local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+    if not utils.file_exists(similarity_file) then
+        utils.log_error("Similarity matrix not found. Run generate-embeddings.sh first.")
+        return false
+    end
+
+    -- Load required data
+    utils.log_info("Loading poems data...")
+    local poems_data = utils.read_json_file(poems_file)
+    if not poems_data then
+        utils.log_error("Failed to load poems data")
+        return false
+    end
+
+    utils.log_info("Loading embeddings...")
+    local embeddings_data = utils.read_json_file(embeddings_file)
+    if not embeddings_data then
+        utils.log_error("Failed to load embeddings")
+        return false
+    end
+
+    utils.log_info("Loading similarity matrix...")
+    local similarity_data = utils.read_json_file(similarity_file)
+    if not similarity_data then
+        utils.log_error("Failed to load similarity matrix")
+        return false
+    end
+
+    local output_dir = DIR .. "/output"
+
+    -- Generate chronological index (main entry point)
+    utils.log_info("Generating chronological index...")
+    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir)
+    if not success then
+        utils.log_error("Failed to generate chronological index")
+        return false
+    end
+
+    -- Generate explore.html (discovery instructions)
+    utils.log_info("Generating explore.html...")
+    flat_html_generator.generate_simple_discovery_instructions(output_dir)
+
+    -- Generate all similarity and diversity pages
+    -- Note: This is the long operation - generates ~12,000+ files
+    utils.log_info("Generating similarity and diversity pages (this may take a while)...")
+    local gen_success = flat_html_generator.generate_complete_flat_html_collection(
+        poems_data, similarity_data, embeddings_data, output_dir
+    )
+
+    if gen_success then
+        utils.log_info("Website HTML generation completed successfully")
+        return true
+    else
+        utils.log_error("Website HTML generation failed")
+        return false
+    end
+end
+-- }}}
+
 -- {{{ function M.generate_complete_dataset
 function M.generate_complete_dataset()
     utils.log_info("Generating complete dataset...")
-    
+
     if not M.extract_poems() then
         return false
     end
-    
+
     if not M.validate_poems() then
         return false
     end
-    
+
     if not M.catalog_images() then
         return false
     end
-    
+
     utils.log_info("Complete dataset generation finished")
     return true
 end
@@ -255,10 +376,10 @@ function M.main(interactive_mode)
     if interactive_mode then
         print("Neocities Poetry Modernization - Main Interface")
         print("Project Directory: " .. utils.relative_path(DIR, DIR))
-        
+
         while true do
             local choice = M.show_main_menu()
-            
+
             if choice == 1 then
                 M.extract_poems()
             elseif choice == 2 then
@@ -270,26 +391,29 @@ function M.main(interactive_mode)
             elseif choice == 5 then
                 M.catalog_images()
             elseif choice == 6 then
-                M.show_project_status()
+                M.generate_website_html(true)  -- force=true in interactive mode
             elseif choice == 7 then
-                M.clean_and_rebuild()
+                M.show_project_status()
             elseif choice == 8 then
+                M.clean_and_rebuild()
+            elseif choice == 9 then
                 print("Goodbye!")
                 break
             else
                 print("Invalid choice. Please try again.")
             end
-            
-            if choice and choice ~= 6 then  -- Don't pause after status display
+
+            if choice and choice ~= 7 then  -- Don't pause after status display
                 print("\nPress Enter to continue...")
                 io.read()
             end
         end
     else
-        -- Non-interactive mode - show status and generate dataset
+        -- Non-interactive mode - generate dataset and website HTML
         utils.log_info("Running in non-interactive mode")
         M.show_project_status()
         M.generate_complete_dataset()
+        M.generate_website_html()
     end
 end
 -- }}}
