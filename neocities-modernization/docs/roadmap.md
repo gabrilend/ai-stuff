@@ -175,26 +175,162 @@
 **Goal**: Complete website generation pipeline for full deployment
 
 ### Deliverables:
-- Integration of complete HTML generation into `run.sh`
-- Generation of all similarity-sorted pages (similar/XXX.html)
-- Generation of all diversity-sorted pages (different/XXX.html)
-- Rename "unique" to "different" for clarity
-- Functional navigation between all pages
+- ✅ Integration of complete HTML generation into `run.sh`
+- ✅ Rename "unique" to "different" for clarity
+- ✅ Image integration (532 images with lazy loading)
+- ✅ Freshness checking for extraction and generation
+- ❌ Generation of all similarity-sorted pages (6 of 7,793)
+- ❌ Generation of all diversity-sorted pages (4 of 7,793)
+- ❌ Complete embeddings for all poems (missing 1,132)
 
 ### Key Milestones:
-1. Rename "unique" terminology to "different" throughout codebase
-2. Integrate `flat-html-generator.lua` into automated pipeline
-3. Generate ~12,000 HTML files for complete website
-4. Verify all navigation links are functional
-5. Optimize generation time if needed
+1. ✅ Rename "unique" terminology to "different" throughout codebase
+2. ✅ Integrate `flat-html-generator.lua` into automated pipeline
+3. ✅ Implement freshness checking (skip unchanged data)
+4. ✅ Integrate images into HTML output
+5. ❌ Complete embedding generation (blocked by network error recovery)
+6. ❌ Generate ~15,590 HTML files for complete website
+7. ❌ Verify all navigation links are functional
 
 **Active Issues:**
-- `8-001-integrate-complete-html-generation-into-pipeline.md`
-- `8-002-implement-multithreaded-html-generation.md`
+- `8-001-integrate-complete-html-generation-into-pipeline.md` (Steps 1-3 ✅, Step 4 pending)
+- `8-002-implement-multithreaded-html-generation.md` (infrastructure ✅, full run pending)
+- `8-012-implement-paginated-similarity-chapters.md`
 
 **Completed Issues:**
 - `8-003-remove-remaining-css-from-html-generation.md`
 - `8-004-implement-embedding-validation-and-empty-poem-handling.md`
+- `8-005-integrate-images-into-html-output.md`
+- `8-006-fix-golden-poem-box-drawing-format.md`
+- `8-007-add-box-drawing-borders-around-navigation-links.md`
+- `8-008-implement-configurable-centroid-embedding-system.md`
+- `8-009-project-cleanup-and-organization.md`
+- `8-010-fix-note-filenames-in-generated-html.md`
+- `8-013-implement-txt-export-functionality.md`
+- `8-015-implement-zip-extraction-freshness-check.md`
+
+## Deployment Readiness Assessment 📊
+
+**Last Updated**: 2025-12-23
+
+This section tracks progress toward deploying the complete website to Neocities.
+
+### Required Components Status
+
+| Component | Current | Required | % Complete | Blocker? |
+|-----------|---------|----------|------------|----------|
+| Poems corpus | 7,793 | 7,793 | ✅ 100% | No |
+| Embeddings | 6,661 | 7,793 | ❌ 85% | **YES** |
+| Similarity matrix | 71 files | 7,793 files | ❌ 1% | **YES** |
+| Diversity cache | 0 | 1 file | ❌ 0% | Optional |
+| Similar pages | 6 | 7,793 | ❌ 0.07% | Blocked |
+| Different pages | 4 | 7,793 | ❌ 0.05% | Blocked |
+| Chronological index | 1 | 1 | ✅ 100% | No |
+| Numeric index | 1 | 1 | ✅ 100% | No |
+| Explore page | 1 | 1 | ✅ 100% | No |
+
+### Expected Final Output
+
+```
+output/
+├── index.html              (12 MB)     ✅ Complete
+├── chronological.html      (12 MB)     ✅ Complete
+├── numeric-index.html      (282 KB)    ✅ Complete
+├── explore.html            (1 KB)      ✅ Complete
+├── similar/
+│   ├── 001.html ... 7793.html          ❌ 6 of 7,793 (0.07%)
+│   └── (expected: ~6 MB each × 7,793 = ~47 GB)
+├── different/
+│   ├── 001.html ... 7793.html          ❌ 4 of 7,793 (0.05%)
+│   └── (expected: ~6 MB each × 7,793 = ~47 GB)
+└── input/media_attachments/            ✅ 639 MB (532 images)
+
+Total HTML files expected: ~15,590
+Total output size expected: ~95 GB
+```
+
+### Deployment Pipeline Steps
+
+**Step 1: Complete Embeddings** ❌ BLOCKED
+- Missing: 1,132 embeddings (poems added after Nov 2025 network error)
+- Tool: `./generate-embeddings.sh`
+- Requires: Ollama running with EmbeddingGemma:latest
+- Est. time: ~5 minutes per 100 poems = ~1 hour
+
+**Step 2: Calculate Similarity Matrix** ❌ BLOCKED (depends on Step 1)
+- Tool: `lua src/similarity-engine-parallel.lua`
+- Generates: 7,793 individual similarity JSON files
+- Est. time: 1-2 hours (8 threads)
+
+**Step 3: Pre-compute Diversity Cache** ⏸️ OPTIONAL (speeds up Step 4)
+- Tool: `./scripts/precompute-diversity-sequences`
+- Generates: `diversity_cache.json` (~500 MB)
+- Est. time: 42 hours unattended
+- Benefit: Reduces Step 4 from 3 days → 1 hour
+
+**Step 4: Generate All HTML Pages** ❌ BLOCKED (depends on Steps 1-2)
+- Tool: `./scripts/generate-html-parallel`
+- Generates: 15,586 HTML files (7,793 similar + 7,793 different)
+- Est. time WITH cache: ~1 hour
+- Est. time WITHOUT cache: ~3 days
+
+**Step 5: Deploy to Neocities**
+- Deploy: `output/` directory contents
+- Deploy: `input/media_attachments/` for images
+- Total upload: ~95 GB
+
+### Configuration Reference
+
+**Pagination settings** (`config/input-sources.json`):
+```json
+{
+  "pagination": {
+    "poems_per_page": 100,
+    "minimum_pages": 1,
+    "generate_txt_exports": true
+  }
+}
+```
+
+**Generation script limits** (`scripts/generate-html-parallel`):
+```lua
+NUM_THREADS = 8           -- Parallel workers
+DIVERSITY_LIMIT = 0       -- 0 = all poems (no limit)
+USE_CACHE = true          -- Use pre-computed sequences
+TEST_MODE = false         -- Set true for 10-page test
+```
+
+### Quick Commands for Full Deployment
+
+```bash
+# 1. Ensure Ollama is running with CUDA
+./scripts/start-ollama-cuda.sh
+
+# 2. Generate missing embeddings
+./generate-embeddings.sh
+
+# 3. Calculate similarity matrix
+lua src/similarity-engine-parallel.lua
+
+# 4. (Optional) Pre-compute diversity - runs 42 hours
+./scripts/precompute-diversity-sequences &
+
+# 5. Generate all HTML pages
+./scripts/generate-html-parallel 8
+
+# 6. Verify output
+ls output/similar/ | wc -l    # Should be 7,793
+ls output/different/ | wc -l  # Should be 7,793
+```
+
+### Estimated Total Time to Deployment
+
+| Scenario | Embeddings | Similarity | Diversity Cache | HTML Gen | Total |
+|----------|------------|------------|-----------------|----------|-------|
+| **Fast path** (with cache) | 1 hour | 2 hours | 42 hours | 1 hour | ~46 hours |
+| **Slow path** (no cache) | 1 hour | 2 hours | skip | 72 hours | ~75 hours |
+
+---
 
 ## Phase 9: GPU Acceleration 📋 **PLANNED**
 **Duration**: TBD
