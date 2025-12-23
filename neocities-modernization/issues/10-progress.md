@@ -32,7 +32,7 @@ option selection.
 | 10-003 | Consolidate config files into single source | Open | Low |
 | 10-004 | Implement built-up command preview system | **Completed** | Medium |
 | 10-005 | Implement CLI flag support for all functionality | **Completed** | High |
-| 10-006 | Identify checkbox conversion opportunities | Open | Low |
+| 10-006 | Identify checkbox conversion opportunities | **Completed** | Low |
 
 ### Completed Issues
 
@@ -40,6 +40,7 @@ option selection.
 |-------|-------------|--------|-----------|
 | 10-004 | Implement built-up command preview system | Completed | 2025-12-23 |
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2025-12-23 |
+| 10-006 | Identify checkbox conversion opportunities | Completed | 2025-12-23 |
 | 10-007 | Fix text-entry field display bug | Completed | 2025-12-23 |
 
 ## TUI Library Location
@@ -98,11 +99,12 @@ Documentation:
 - ✅ Added `parse_cli_args()` to utils.lua for main.lua integration
 - Required by: 10-004 (command preview), 10-006 (checkbox mapping)
 
-**10-006: Identify Checkbox Conversion Opportunities** - OPEN
-- Analyze current menu items for checkbox conversion potential
-- Pipeline stages → checkboxes (toggleable, build command)
-- Actions → remain as actions (immediate execution)
-- Numeric inputs → flag type with value:width format
+**10-006: Identify Checkbox Conversion Opportunities** - COMPLETED (2025-12-23)
+- ✅ Analyzed run.sh TUI - already optimally configured with checkboxes
+- ✅ Analyzed main.lua TUI - identified 3 sections needing "single" → "multi" change
+- ✅ Documented missing CLI flag mappings in main.lua menu items
+- ✅ Compared run.sh vs main.lua TUI features
+- ✅ Recommendation: Use run.sh -I as primary interface (has command preview)
 
 **10-007: Fix Text-Entry Field Display Bug** - COMPLETED (2025-12-23)
 - ✅ Bug identified: `render_item()` in menu.lua displayed raw value including `:width`
