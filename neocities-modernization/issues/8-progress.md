@@ -38,7 +38,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
-| 8-003 | Remove remaining CSS from HTML generation | Completed | 2025-12-14 |
+| 8-003 | Remove remaining CSS from HTML generation | Completed | 2025-12-23 (reopened, re-completed) |
 | 8-004 | Implement embedding validation and empty poem handling | Completed | 2025-12-14 |
 | 8-006 | Fix golden poem box-drawing format | Completed | 2025-12-15 |
 | 8-007 | Add box-drawing borders around navigation links | Completed | 2025-12-15 |
@@ -71,11 +71,16 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Cache-based fast path in generate-html-parallel
 - Pending: Run pre-computation (~42 hours), pipeline integration
 
-**8-003: Remove Remaining CSS from HTML Generation** - COMPLETED
-- ✅ Removed 3 `<style>` blocks from templates
-- ✅ Replaced inline `style=` with `<font color=""><b>` tags
-- ✅ Removed container div inline styles
-- ✅ Verified: 0 style attributes, 15,576 font color tags in test output
+**8-003: Remove Remaining CSS from HTML Generation** - COMPLETED (2025-12-23 re-completed)
+- ✅ Removed 3 `<style>` blocks from templates (Phase 1)
+- ✅ Replaced inline `style=` with `<font color=""><b>` tags (Phase 1)
+- ✅ Removed container div inline styles (Phase 1)
+- ✅ Verified: 0 style attributes, 15,576 font color tags in test output (Phase 1)
+- ✅ [PHASE 2] Removed remaining 4 `style=` attributes missed in Phase 1:
+  - Image tags: `style="max-width:100%%; height:auto;"` (2 occurrences)
+  - Pre tags: `style="text-align: left; max-width: 90ch; margin: 0 auto;"` (2 occurrences)
+- ✅ [PHASE 2] Templates now use plain `<pre>` tag without CSS
+- ✅ [PHASE 2] Verified: 0 style attributes in generated HTML
 
 **8-004: Implement Embedding Validation and Empty Poem Handling** - COMPLETED
 - ✅ Empty poems now get random embeddings (seeded by poem ID for reproducibility)

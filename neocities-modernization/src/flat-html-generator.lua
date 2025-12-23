@@ -758,15 +758,17 @@ local function render_attachment_images(attachments)
 
             -- Build image tag with lazy loading for performance
             -- width/height hints help browser reserve space before load
+            -- CSS removed for performance - images display at native size
+            -- (acceptable for poetry site where text is primary content)
             local img_tag
             if attachment.width and attachment.height then
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="max-width:100%%; height:auto;">',
+                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d">',
                     img_src, alt_text, attachment.width, attachment.height
                 )
             else
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto;">',
+                    '  <img src="%s" alt="%s" loading="lazy">',
                     img_src, alt_text
                 )
             end
@@ -1295,6 +1297,8 @@ end
 
 -- {{{ function M.generate_flat_poem_list_html_with_progress
 function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, use_progress)
+    -- Template uses pure HTML without CSS for performance
+    -- Content is pre-wrapped to 80 chars, <pre> provides monospace formatting
     local template = [[<!DOCTYPE html>
 <html>
 <head>
@@ -1306,7 +1310,7 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
 <h1>Poetry Collection</h1>
 <p>All poems sorted by %s to: %s</p>
 </center>
-<pre style="text-align: left; max-width: 90ch; margin: 0 auto;">
+<pre>
 %s
 </pre>
 </body>
@@ -1359,6 +1363,8 @@ end
 
 -- {{{ function M.generate_chronological_index_with_navigation
 function M.generate_chronological_index_with_navigation(poems_data, output_dir)
+    -- Template uses pure HTML without CSS for performance
+    -- Content is pre-wrapped to 80 chars, <pre> provides monospace formatting
     local template = [[<!DOCTYPE html>
 <html>
 <head>
@@ -1371,7 +1377,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
 <p>All poems in true chronological order by post date</p>
 <p><a href="explore.html">How to explore this collection</a></p>
 </center>
-<pre style="text-align: left; max-width: 90ch; margin: 0 auto;">
+<pre>
 %s
 </pre>
 </body>
@@ -1782,8 +1788,9 @@ function M.main(interactive_mode)
 end
 -- }}}
 
--- Command line execution
-if arg then
+-- Command line execution (only when run directly, not when require()'d)
+-- arg[0] contains the script name - check if it matches this file
+if arg and arg[0] and arg[0]:match("flat%-html%-generator%.lua$") then
     -- Check for interactive flag
     local interactive = false
     for _, arg_val in ipairs(arg) do
@@ -1792,7 +1799,7 @@ if arg then
             break
         end
     end
-    
+
     M.main(interactive)
 end
 

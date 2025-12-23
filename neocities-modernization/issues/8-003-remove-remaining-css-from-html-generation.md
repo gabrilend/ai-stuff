@@ -126,7 +126,8 @@ Expected improvement: Faster initial render, smoother scrolling on large pages.
 **ISSUE STATUS: COMPLETED**
 
 **Created**: 2025-12-14
-**Completed**: 2025-12-14
+**Reopened**: 2025-12-23 - Found 4 remaining style= attributes that were missed
+**Completed**: 2025-12-23
 
 **Phase**: 8 (Website Completion)
 
@@ -134,9 +135,65 @@ Expected improvement: Faster initial render, smoother scrolling on large pages.
 
 ## Summary
 
-All CSS removed from HTML generation:
+Previous work completed:
 - 3 `<style>` blocks removed from templates
-- 4 inline `style=` attributes removed
 - Progress bar colors now use `<font color=""><b>` tags
 - Semantic color functionality preserved
 - Layout relies on `<pre>` and `<center>` tags
+
+### Remaining Work (2025-12-23)
+
+**4 inline `style=` attributes still present:**
+
+1. **Line 764**: Image with dimensions
+   ```lua
+   style="max-width:100%%; height:auto;"
+   ```
+
+2. **Line 769**: Image without dimensions
+   ```lua
+   style="max-width:100%%; height:auto;"
+   ```
+
+3. **Line 1309**: Poem list template pre tag
+   ```lua
+   <pre style="text-align: left; max-width: 90ch; margin: 0 auto;">
+   ```
+
+4. **Line 1374**: Chronological template pre tag
+   ```lua
+   <pre style="text-align: left; max-width: 90ch; margin: 0 auto;">
+   ```
+
+### Solution Approach
+
+**For image tags:**
+- Remove `style` attribute entirely
+- Images display at native size (acceptable for poetry site)
+- `width` and `height` attributes already provide browser hints
+
+**For pre tags:**
+- Remove `style` attribute
+- Content is already wrapped to 80 characters
+- `<center>` tag wraps `<pre>`, providing natural centering
+- `<pre>` default is left-aligned, monospace - exactly what we need
+
+### Implementation Completed (2025-12-23)
+
+**Changes made to `src/flat-html-generator.lua`:**
+
+1. **Image tags (lines 764, 769)**:
+   - Removed `style="max-width:100%%; height:auto;"` from both image format strings
+   - Images now display at native size (width/height hints still provided)
+   - Added comment explaining the change reason
+
+2. **Pre tags (lines 1309, 1374)**:
+   - Removed `style="text-align: left; max-width: 90ch; margin: 0 auto;"` from both templates
+   - Templates now use plain `<pre>` tag
+   - Added comments explaining pure HTML approach
+
+**Verification:**
+- Test generated HTML with 0 `style=` attributes
+- Chronological template verified working
+- Similarity/difference template verified working
+- Colors still function via `<font color="">` tags
