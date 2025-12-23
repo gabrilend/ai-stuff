@@ -1,12 +1,70 @@
 #!/bin/bash
 # Syncs words/notes/images from backup locations to project input directory
-# Suppresses verbose rsync output to keep run.sh clean
+# Preserves generated poems.json files to avoid redundant extraction
+#
+# The external sync-to-projects script does rm -rf input/, which would delete
+# the generated files that scripts/update creates. We preserve and restore them
+# so the freshness check works correctly.
 
 set -euo pipefail
 
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+BACKUP_DIR="${DIR}/temp/preserved-files-$$"
 
+# {{{ preserve_generated_files
+# Back up generated files before sync (they get deleted by rm -rf input/)
+preserve_generated_files() {
+    local preserved=0
+    mkdir -p "${BACKUP_DIR}"
+
+    for subdir in fediverse messages notes; do
+        local files_dir="${DIR}/input/${subdir}/files"
+        if [ -d "${files_dir}" ]; then
+            mkdir -p "${BACKUP_DIR}/${subdir}"
+            cp -a "${files_dir}" "${BACKUP_DIR}/${subdir}/"
+            preserved=$((preserved + 1))
+        fi
+    done
+
+    if [ $preserved -gt 0 ]; then
+        echo "   💾 Preserved ${preserved} generated file directories"
+    fi
+}
+# }}}
+
+# {{{ restore_generated_files
+# Restore generated files after sync
+restore_generated_files() {
+    local restored=0
+
+    for subdir in fediverse messages notes; do
+        local backup_files="${BACKUP_DIR}/${subdir}/files"
+        if [ -d "${backup_files}" ]; then
+            mkdir -p "${DIR}/input/${subdir}"
+            cp -a "${backup_files}" "${DIR}/input/${subdir}/"
+            restored=$((restored + 1))
+        fi
+    done
+
+    # Cleanup backup directory
+    rm -rf "${BACKUP_DIR}"
+
+    if [ $restored -gt 0 ]; then
+        echo "   ♻️  Restored ${restored} generated file directories"
+    fi
+}
+# }}}
+
+# {{{ main
+# Preserve generated files before the destructive sync
+preserve_generated_files
+
+# Run the external sync script (does rm -rf input/)
 /home/ritz/backups/words/sync-to-projects > /dev/null 2>&1
+
+# Restore preserved files
+restore_generated_files
 
 # Remove unwanted ZIP files that get synced but aren't content archives
 rm -f "${DIR}/input/images/poem-pictures/neocities-ritz-menardi.zip"
+# }}}
