@@ -1,6 +1,7 @@
 #!/bin/bash
 # Content extraction script with ZIP archive support
 # Automatically detects ZIP archives and extracts JSON data for poem processing pipeline
+# Implements freshness checking to skip extraction when outputs are up to date
 
 set -euo pipefail
 
@@ -14,10 +15,75 @@ setup_dir_path() {
 }
 # }}}
 
+# {{{ is_extraction_fresh
+# Check if extracted poems.json files are newer than source ZIP archives
+# Returns 0 (true) if fresh, 1 (false) if extraction needed
+is_extraction_fresh() {
+    local dir="$1"
+
+    # Output files to check
+    local outputs=(
+        "${dir}/input/fediverse/files/poems.json"
+        "${dir}/input/messages/files/poems.json"
+        "${dir}/input/notes/files/poems.json"
+    )
+
+    # Find all ZIP archives in input directory
+    local zips=()
+    while IFS= read -r -d '' zip; do
+        zips+=("$zip")
+    done < <(find "${dir}/input" -name "*.zip" -type f -print0 2>/dev/null)
+
+    # If no ZIPs found, nothing to extract
+    if [ ${#zips[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    # Check if all output files exist
+    for output in "${outputs[@]}"; do
+        if [ ! -f "$output" ]; then
+            return 1  # Output missing, need to extract
+        fi
+    done
+
+    # Get the oldest output file modification time
+    local oldest_output_mtime=999999999999
+    for output in "${outputs[@]}"; do
+        local mtime
+        mtime=$(stat -c %Y "$output" 2>/dev/null || echo "0")
+        if [ "$mtime" -lt "$oldest_output_mtime" ]; then
+            oldest_output_mtime=$mtime
+        fi
+    done
+
+    # Get the newest ZIP file modification time
+    local newest_zip_mtime=0
+    for zip in "${zips[@]}"; do
+        local mtime
+        mtime=$(stat -c %Y "$zip" 2>/dev/null || echo "0")
+        if [ "$mtime" -gt "$newest_zip_mtime" ]; then
+            newest_zip_mtime=$mtime
+        fi
+    done
+
+    # Fresh if oldest output is newer than newest ZIP
+    if [ "$oldest_output_mtime" -gt "$newest_zip_mtime" ]; then
+        return 0  # Fresh
+    else
+        return 1  # Stale, need to extract
+    fi
+}
+# }}}
+
 # Parse command line arguments for project directory
 SCRIPT_DIR=""
+FORCE_EXTRACT=false
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --force|-f)
+            FORCE_EXTRACT=true
+            shift
+            ;;
         -*)
             echo "Unknown option: $1" >&2
             exit 1
@@ -31,6 +97,13 @@ done
 
 # Set up project directory
 DIR=$(setup_dir_path "$SCRIPT_DIR")
+
+# Check if extraction is needed (freshness check)
+if [ "$FORCE_EXTRACT" = false ] && is_extraction_fresh "$DIR"; then
+    echo "✅ Extraction data is up to date, skipping ZIP extraction"
+    echo "   (use --force to extract anyway)"
+    exit 0
+fi
 
 echo "🔄 Starting content extraction with ZIP archive support..."
 
