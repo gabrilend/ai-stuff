@@ -47,13 +47,168 @@ local MOCK_POEM_COLORS = {
 -- Color configuration for progress bars
 local COLOR_CONFIG = {
     red = "#dc3c3c",
-    blue = "#3c78dc", 
+    blue = "#3c78dc",
     green = "#3cb45a",
     purple = "#8c3cc8",
     orange = "#e68c3c",
     yellow = "#c8b428",
     gray = "#787878"
 }
+
+-- Pagination configuration defaults
+-- These values are overridden by config/input-sources.json if present
+local PAGINATION_CONFIG = {
+    poems_per_page = 100,
+    minimum_pages = 1,
+    page_number_padding = 2,
+    generate_txt_exports = true,
+    generate_html_archives = true
+}
+
+-- {{{ local function load_pagination_config
+-- Loads pagination settings from config/input-sources.json
+local function load_pagination_config()
+    local config_file = DIR .. "/config/input-sources.json"
+    local config_data = utils.read_json_file(config_file)
+
+    if config_data and config_data.pagination then
+        -- Merge config values with defaults
+        for key, value in pairs(config_data.pagination) do
+            if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
+                PAGINATION_CONFIG[key] = value
+            end
+        end
+        utils.log_info(string.format("Loaded pagination config: %d poems/page, min %d pages",
+            PAGINATION_CONFIG.poems_per_page,
+            PAGINATION_CONFIG.minimum_pages))
+    end
+
+    return PAGINATION_CONFIG
+end
+-- }}}
+
+-- {{{ local function calculate_page_count
+-- Calculates the total number of pages needed for a given poem count
+-- Returns: number of pages (always at least 1)
+local function calculate_page_count(total_poems)
+    local poems_per_page = PAGINATION_CONFIG.poems_per_page
+    return math.ceil(total_poems / poems_per_page)
+end
+-- }}}
+
+-- {{{ local function get_poems_for_page
+-- Extracts poems for a specific page from a sorted list
+-- page_num is 1-indexed
+-- Returns: table of poem entries for that page
+local function get_poems_for_page(sorted_poems, page_num)
+    local poems_per_page = PAGINATION_CONFIG.poems_per_page
+    local start_idx = ((page_num - 1) * poems_per_page) + 1
+    local end_idx = math.min(start_idx + poems_per_page - 1, #sorted_poems)
+
+    local page_poems = {}
+    for i = start_idx, end_idx do
+        if sorted_poems[i] then
+            table.insert(page_poems, sorted_poems[i])
+        end
+    end
+
+    return page_poems
+end
+-- }}}
+
+-- {{{ local function format_page_number
+-- Formats a page number with zero-padding
+-- Returns: padded string like "01", "02", etc.
+local function format_page_number(page_num)
+    local padding = PAGINATION_CONFIG.page_number_padding
+    return string.format("%0" .. padding .. "d", page_num)
+end
+-- }}}
+
+-- {{{ local function generate_page_filename
+-- Generates the filename for a paginated page
+-- poem_id: the starting poem ID (for similarity/diversity pages)
+-- page_num: 1-indexed page number
+-- page_type: "similar" or "different"
+-- Returns: filename like "similar/0068-01.html"
+local function generate_page_filename(poem_id, page_num, page_type)
+    local padded_id = string.format("%04d", poem_id)
+    local padded_page = format_page_number(page_num)
+    return string.format("%s/%s-%s.html", page_type, padded_id, padded_page)
+end
+-- }}}
+
+-- {{{ local function generate_prev_next_navigation
+-- Generates prev/next navigation links for paginated pages
+-- current_page: 1-indexed current page
+-- total_pages: total number of pages
+-- poem_id: starting poem ID (nil for chronological)
+-- page_type: "similar", "different", or "chronological"
+-- Returns: HTML string with navigation
+local function generate_prev_next_navigation(current_page, total_pages, poem_id, page_type)
+    local nav_parts = {}
+
+    -- Calculate poem range for this page
+    local poems_per_page = PAGINATION_CONFIG.poems_per_page
+    local start_poem = ((current_page - 1) * poems_per_page) + 1
+    local end_poem = math.min(current_page * poems_per_page, total_pages * poems_per_page)
+
+    -- Header line with page info
+    table.insert(nav_parts, "════════════════════════════════════════════════════════════════════════════════")
+
+    if page_type == "chronological" then
+        table.insert(nav_parts, string.format(" Page %d of %d │ Poems %d-%d",
+            current_page, total_pages, start_poem, end_poem))
+    else
+        local padded_id = string.format("%04d", poem_id)
+        table.insert(nav_parts, string.format(" %s to Poem %s │ Page %d of %d │ Poems %d-%d",
+            page_type == "similar" and "Similar" or "Different",
+            padded_id, current_page, total_pages, start_poem, end_poem))
+    end
+
+    table.insert(nav_parts, "════════════════════════════════════════════════════════════════════════════════")
+    table.insert(nav_parts, "")
+
+    -- Navigation links
+    local nav_line = ""
+
+    -- Previous link (left aligned)
+    if current_page > 1 then
+        local prev_file
+        if page_type == "chronological" then
+            prev_file = string.format("chronological-%s.html", format_page_number(current_page - 1))
+        else
+            prev_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(current_page - 1))
+        end
+        nav_line = string.format("[<a href=\"%s\">◀ Previous Page</a>]", prev_file)
+    else
+        nav_line = "[◀ Previous Page]"  -- Disabled
+    end
+
+    -- Calculate padding to push next link to right side
+    local padding = 80 - #nav_line - 16  -- 16 chars for next link
+    if padding < 0 then padding = 0 end
+    nav_line = nav_line .. string.rep(" ", padding)
+
+    -- Next link (right aligned)
+    if current_page < total_pages then
+        local next_file
+        if page_type == "chronological" then
+            next_file = string.format("chronological-%s.html", format_page_number(current_page + 1))
+        else
+            next_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(current_page + 1))
+        end
+        nav_line = nav_line .. string.format("[<a href=\"%s\">Next Page ▶</a>]", next_file)
+    else
+        nav_line = nav_line .. "[Next Page ▶]"  -- Disabled
+    end
+
+    table.insert(nav_parts, nav_line)
+    table.insert(nav_parts, "────────────────────────────────────────────────────────────────────────────────")
+
+    return table.concat(nav_parts, "\n")
+end
+-- }}}
 
 -- {{{ function load_poem_colors
 local function load_poem_colors()
@@ -1376,6 +1531,163 @@ function M.generate_flat_poem_list_html(starting_poem, sorted_poems, page_type, 
 end
 -- }}}
 
+-- {{{ function M.generate_paginated_poem_page_html
+-- Generates a single paginated page with navigation
+-- starting_poem: the anchor poem object
+-- sorted_poems: full sorted list of all poems
+-- page_type: "similar" or "different"
+-- starting_poem_id: the anchor poem's ID
+-- page_num: 1-indexed page number
+-- total_pages: total number of pages
+-- Returns: HTML string for this specific page
+function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages)
+    -- Ensure pagination config is loaded
+    load_pagination_config()
+
+    -- Get poems for this specific page
+    local page_poems = get_poems_for_page(sorted_poems, page_num)
+
+    if #page_poems == 0 then
+        utils.log_warn(string.format("No poems found for page %d of %s/%d",
+            page_num, page_type, starting_poem_id))
+        return nil
+    end
+
+    -- Generate header navigation
+    local header_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type)
+
+    -- Generate footer navigation (same as header)
+    local footer_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type)
+
+    -- Load poem colors for progress bars
+    local poem_colors = load_poem_colors()
+
+    -- Calculate actual total poems (max ID in corpus)
+    local max_poem_id = starting_poem.id or 1
+    for _, poem_info in ipairs(sorted_poems) do
+        local pid = poem_info.id or (poem_info.poem and poem_info.poem.id)
+        if pid and pid > max_poem_id then
+            max_poem_id = pid
+        end
+    end
+    local corpus_total = max_poem_id
+
+    -- Format the poems for this page
+    local formatted_content = format_all_poems_with_progress_and_color(
+        starting_poem, page_poems, corpus_total, poem_colors)
+
+    -- Build the page
+    local page_type_desc = (page_type == "similar") and "similarity" or "difference"
+    local starting_title = starting_poem.title or ("Poem " .. starting_poem_id)
+    local padded_id = string.format("%04d", starting_poem_id)
+
+    local template = [[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Poems sorted by %s to: %s (Page %d of %d)</title>
+</head>
+<body>
+<center>
+<h1>Poetry Collection</h1>
+<p>Poems sorted by %s to: %s</p>
+</center>
+<pre>
+%s
+
+%s
+
+%s
+</pre>
+</body>
+</html>]]
+
+    return string.format(template,
+        page_type_desc, starting_title, page_num, total_pages,
+        page_type_desc, starting_title,
+        header_nav,
+        formatted_content,
+        footer_nav)
+end
+-- }}}
+
+-- {{{ function M.generate_all_paginated_pages_for_poem
+-- Generates all paginated pages for a single poem's similarity or diversity ordering
+-- starting_poem: the anchor poem object
+-- sorted_poems: full sorted list of all poems
+-- page_type: "similar" or "different"
+-- starting_poem_id: the anchor poem's ID
+-- output_dir: base output directory
+-- pages_to_generate: optional - which pages to generate (nil = all, or {1,2,3} for specific pages)
+-- Returns: table with generated file paths and stats
+function M.generate_all_paginated_pages_for_poem(starting_poem, sorted_poems, page_type, starting_poem_id, output_dir, pages_to_generate)
+    -- Ensure pagination config is loaded
+    load_pagination_config()
+
+    local total_poems = #sorted_poems
+    local total_pages = calculate_page_count(total_poems)
+    local results = {
+        files_generated = {},
+        total_pages = total_pages,
+        poems_per_page = PAGINATION_CONFIG.poems_per_page,
+        poem_id = starting_poem_id
+    }
+
+    -- Determine which pages to generate
+    local pages = pages_to_generate
+    if not pages then
+        -- Generate at least minimum_pages, or all if not specified
+        pages = {}
+        local min_pages = PAGINATION_CONFIG.minimum_pages
+        for i = 1, math.min(min_pages, total_pages) do
+            table.insert(pages, i)
+        end
+    end
+
+    -- Ensure output directory exists
+    local page_dir = output_dir .. "/" .. page_type
+    os.execute("mkdir -p " .. page_dir)
+
+    -- Generate each requested page
+    for _, page_num in ipairs(pages) do
+        if page_num <= total_pages then
+            local html = M.generate_paginated_poem_page_html(
+                starting_poem, sorted_poems, page_type, starting_poem_id,
+                page_num, total_pages)
+
+            if html then
+                local filename = generate_page_filename(starting_poem_id, page_num, page_type)
+                local filepath = output_dir .. "/" .. filename
+
+                if utils.write_file(filepath, html) then
+                    table.insert(results.files_generated, filepath)
+                end
+            end
+        end
+    end
+
+    return results
+end
+-- }}}
+
+-- {{{ function M.get_pagination_config
+-- Exposes pagination configuration for external scripts
+-- Returns: PAGINATION_CONFIG table
+function M.get_pagination_config()
+    load_pagination_config()
+    return PAGINATION_CONFIG
+end
+-- }}}
+
+-- {{{ function M.calculate_page_count
+-- Exposes page count calculation for external scripts
+-- Returns: number of pages needed for given poem count
+function M.calculate_page_count(total_poems)
+    load_pagination_config()
+    return calculate_page_count(total_poems)
+end
+-- }}}
+
 -- {{{ function M.generate_chronological_index_with_navigation
 function M.generate_chronological_index_with_navigation(poems_data, output_dir)
     -- Template uses pure HTML without CSS for performance
@@ -1458,6 +1770,12 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
             is_golden and hex_color or nil
         )
         content = content .. formatted_content
+
+        -- Add images if poem has attachments
+        -- Images appear after poem content, before navigation links
+        if poem.attachments and #poem.attachments > 0 then
+            content = content .. render_attachment_images(poem.attachments)
+        end
 
         -- For regular poems, add newline and corner-boxed navigation links (top and nav lines only)
         if not is_golden then

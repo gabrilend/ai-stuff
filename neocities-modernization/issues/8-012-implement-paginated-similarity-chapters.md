@@ -4,18 +4,20 @@
 - **Phase**: 8
 - **Priority**: High
 - **Type**: Enhancement / Architecture
-- **Blocked By**: 8-013 (TXT Export Functionality)
+- **Status**: In Progress (unblocked 2025-12-23)
+- **Previously Blocked By**: 8-013 (now completed)
 
-## Blocking Dependency
+## Previous Blocking Dependency (RESOLVED)
 
-This issue **cannot be completed** until issue 8-013 (TXT Export Functionality) is resolved.
+~~This issue **cannot be completed** until issue 8-013 (TXT Export Functionality) is resolved.~~
+
+**Update (2025-12-23):** Issue 8-013 is now complete. Core TXT export functionality works.
+Download link integration is now part of this issue's scope (Phase C).
 
 The pagination system requires:
-1. `.txt` export for each page (images → alt-text only)
-2. `.html` export for each page (preserves images)
-3. Future: `.pdf` export
-
-Until .txt generation is working correctly, this issue remains blocked.
+1. `.txt` export for each page (images → alt-text only) ✅ 8-013 complete
+2. `.html` export for each page (preserves images) ✅ to be implemented here
+3. Future: `.pdf` export (deferred)
 
 ---
 
@@ -176,22 +178,22 @@ Grand total: ~947,000 HTML + ~947,000 TXT = ~1.9 million files
 
 ## Suggested Implementation Steps
 
-### Phase A: Core Pagination Logic
-1. [ ] Add `POEMS_PER_PAGE = 100` constant
-2. [ ] Create `calculate_page_count(total_poems)` utility
-3. [ ] Create `get_poems_for_page(sorted_poems, page_num)` slicer
-4. [ ] Update filename generation: `{id}-{page}.html`
+### Phase A: Core Pagination Logic ✅ COMPLETE
+1. [x] Add `POEMS_PER_PAGE = 100` constant (in PAGINATION_CONFIG)
+2. [x] Create `calculate_page_count(total_poems)` utility
+3. [x] Create `get_poems_for_page(sorted_poems, page_num)` slicer
+4. [x] Update filename generation: `{id}-{page}.html`
 
-### Phase B: Navigation Generation
-5. [ ] Create `generate_prev_next_nav(current_page, total_pages)` function
-6. [ ] Add page info display: "Page X of Y │ Showing poems A-B"
-7. [ ] Implement edge case handling (no prev on page 1, no next on last page)
-8. [ ] Add download links header (.txt, .html)
+### Phase B: Navigation Generation ✅ COMPLETE
+5. [x] Create `generate_prev_next_nav(current_page, total_pages)` function
+6. [x] Add page info display: "Page X of Y │ Showing poems A-B"
+7. [x] Implement edge case handling (no prev on page 1, no next on last page)
+8. [ ] Add download links header (.txt, .html) - moved to Phase C
 
-### Phase C: Export Formats
-9. [ ] **BLOCKED**: Implement .txt export (depends on 8-013)
-10. [ ] Implement .html downloadable version (with images)
-11. [ ] Generate both formats for each page
+### Phase C: Export Formats (8-013 completed, no longer blocked)
+9. [ ] Add download links to paginated page headers
+10. [ ] Implement .html archive version (full corpus, with images)
+11. [ ] Link to existing .txt exports from 8-013
 
 ### Phase D: Generation Strategy
 12. [ ] Add `--pages` flag: `--pages=1` (default) or `--pages=all` or `--pages=1-10`
@@ -234,12 +236,95 @@ This means:
 
 ---
 
+## Configuration Requirements
+
+### Pagination Settings (to be added to config/input-sources.json)
+
+```json
+"pagination": {
+    "poems_per_page": 100,
+    "minimum_pages": 1,
+    "page_number_padding": 2,
+    "generate_txt_exports": true,
+    "generate_html_archives": true
+}
+```
+
+**Key settings:**
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `poems_per_page` | 100 | Number of poems on each paginated page |
+| `minimum_pages` | 1 | Minimum number of pages to generate per poem index |
+| `page_number_padding` | 2 | Zero-padding for page numbers (01-99) |
+| `generate_txt_exports` | true | Generate full-corpus .txt exports |
+| `generate_html_archives` | true | Generate full-corpus .html archives |
+
+**Note:** The `minimum_pages` setting ensures every poem index gets at least N pages
+generated, regardless of generation strategy. This is useful for:
+- Ensuring at least page 1 exists for all poems (default)
+- Pre-generating more pages for frequently accessed content
+- Validation that all poems are represented (see related issue 8-016)
+
+---
+
 ## Related Documents
 
 - `/src/flat-html-generator.lua` - Main HTML generation
 - `/scripts/generate-html-parallel` - Multi-threaded generation
+- `/config/input-sources.json` - Pagination configuration
 - `/issues/8-001-integrate-complete-html-generation-into-pipeline.md`
 - `/issues/8-002-implement-multithreaded-html-generation.md`
-- `/issues/8-013-implement-txt-export-functionality.md` - **BLOCKING DEPENDENCY**
+- `/issues/8-013-implement-txt-export-functionality.md` - (completed, unblocked this issue)
+- `/issues/8-016-validate-poem-representation-in-pagination.md` - Depends on this issue
 
 ---
+
+## Implementation Log
+
+### Session: 2025-12-23
+
+**Circular Dependency Resolved:**
+- Issue 8-013 (TXT Export) was marked as blocking 8-012
+- 8-013's only remaining work (download links) actually depends on 8-012
+- Marked 8-013 as complete, unblocking this issue
+- Download link integration moved to Phase C of this issue
+
+**Configuration Added:**
+- Added `pagination` section to `config/input-sources.json`:
+  - `poems_per_page: 100`
+  - `minimum_pages: 1`
+  - `page_number_padding: 2`
+  - `generate_txt_exports: true`
+  - `generate_html_archives: true`
+
+**Core Functions Implemented in `src/flat-html-generator.lua`:**
+
+| Function | Purpose |
+|----------|---------|
+| `load_pagination_config()` | Loads config from input-sources.json |
+| `calculate_page_count(total)` | Returns pages needed for poem count |
+| `get_poems_for_page(sorted, page_num)` | Extracts poems for specific page |
+| `format_page_number(num)` | Zero-pads page numbers (01, 02, etc.) |
+| `generate_page_filename(id, page, type)` | Creates filenames like `similar/0068-01.html` |
+| `generate_prev_next_navigation(...)` | Creates header/footer navigation bars |
+| `M.generate_paginated_poem_page_html(...)` | Generates single paginated page |
+| `M.generate_all_paginated_pages_for_poem(...)` | Generates all pages for one poem |
+| `M.get_pagination_config()` | Exposes config for external scripts |
+| `M.calculate_page_count(total)` | Exposes calculation for external scripts |
+
+**Test Results:**
+```
+Loaded pagination config: 100 poems/page, min 1 pages
+Pages for 6860 poems: 69
+Test page generated: 134KB for 100 poems
+Navigation: [◀ Previous Page] ... [Next Page ▶]
+```
+
+**Remaining Work:**
+- [ ] Phase C: Add download links for .txt/.html exports
+- [ ] Phase D: Integration with generate-html-parallel
+- [ ] Phase E: Paginate chronological.html
+
+**Created Related Issue:**
+- 8-016: Validate poem representation in pagination (depends on this issue)

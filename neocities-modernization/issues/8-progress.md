@@ -28,11 +28,9 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-001 | Integrate complete HTML generation into pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-005 | Integrate images into HTML output | Open | Medium |
-| 8-008 | Implement configurable centroid embedding system | Completed | Medium |
-| 8-010 | Fix note filenames in generated HTML | Completed | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
-| 8-012 | Implement paginated similarity chapters | **Blocked** | High |
-| 8-013 | Implement TXT export functionality | **Near Complete** | High |
+| 8-012 | Implement paginated similarity chapters | **In Progress** | High |
+| 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
 
 ### Completed Issues
 
@@ -42,10 +40,11 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-004 | Implement embedding validation and empty poem handling | Completed | 2025-12-14 |
 | 8-006 | Fix golden poem box-drawing format | Completed | 2025-12-15 |
 | 8-007 | Add box-drawing borders around navigation links | Completed | 2025-12-15 |
-| 8-009 | Project cleanup and organization | Completed | 2025-12-17 |
-| 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
 | 8-008 | Implement configurable centroid embedding system | Completed | 2025-12-23 |
+| 8-009 | Project cleanup and organization | Completed | 2025-12-17 |
 | 8-010 | Fix note filenames in generated HTML | Completed | 2025-12-23 |
+| 8-013 | Implement TXT export functionality | Completed | 2025-12-23 |
+| 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
 
 ### Issue Details
 
@@ -112,7 +111,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Regular (non-golden) poems now have corner boxes connecting to progress bar
 - ✅ Corner characters: `╘` (left) and `┘` (right) close regular poem corner boxes
 
-**8-013: Implement TXT Export Functionality** - NEAR COMPLETE
+**8-013: Implement TXT Export Functionality** - COMPLETED (2025-12-23)
 - ✅ `render_attachment_images_txt()` for `[Image: alt-text]` format
 - ✅ `strip_html_tags()` for removing HTML and decoding entities
 - ✅ `generate_txt_file_header()` for consistent file headers
@@ -120,7 +119,25 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ `generate_diversity_txt_file()` with headers
 - ✅ `M.generate_chronological_txt_file()` created and integrated
 - ✅ Pipeline integration (regenerate-clean-site.lua, main.lua)
-- Pending: Download links in HTML pages (depends on 8-012 pagination)
+- Note: Download links in HTML pages moved to 8-012 scope
+
+**8-012: Implement Paginated Similarity Chapters** - IN PROGRESS (Phases A+B complete)
+- ✅ Circular dependency with 8-013 resolved
+- ✅ Added pagination config to `config/input-sources.json`
+- ✅ Documented `minimum_pages` setting requirement
+- ✅ Phase A: Core pagination logic implemented (10 new functions)
+- ✅ Phase B: Prev/next navigation implemented
+- ✅ Test: 134KB page with 100 poems, proper navigation
+- Pending: Phase C - Export Format Integration (download links)
+- Pending: Phase D - Pipeline integration
+- Pending: Phase E - Paginate chronological.html
+- Related: 8-016 (validator) depends on this issue
+
+**8-016: Validate Poem Representation in Pagination** - OPEN
+- Depends on 8-012 completion
+- Post-generation validator to ensure all poems appear in output
+- Optional `--fix` flag to regenerate missing pages
+- Pipeline integration for deployment confidence
 
 **8-008: Implement Configurable Centroid Embedding System** - COMPLETED
 - ✅ Created `assets/centroids.json` config with 5 example moods (melancholy, wonder, rage, tenderness, absurdity)

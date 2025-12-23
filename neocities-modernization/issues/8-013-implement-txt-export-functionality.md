@@ -4,13 +4,15 @@
 - **Phase**: 8
 - **Priority**: High
 - **Type**: Feature Implementation
-- **Blocks**: 8-012 (Paginated Similarity Chapters)
+- **Status**: Completed (2025-12-23)
+- **Previously Blocked**: 8-012 (now unblocked)
 
-## Blocking Relationship
+## Blocking Relationship (RESOLVED)
 
-Issue 8-012 (Paginated Similarity Chapters) **cannot be completed** until this issue is resolved.
+~~Issue 8-012 (Paginated Similarity Chapters) **cannot be completed** until this issue is resolved.~~
 
-The pagination system requires working .txt exports before it can be finalized.
+**Update (2025-12-23):** Core TXT export functionality is complete. Issue 8-012 is now unblocked.
+The remaining work (download links in HTML pages) has been moved to 8-012's scope.
 
 ---
 
@@ -191,7 +193,11 @@ Grand total: ~34GB of .txt exports
 - [x] Images converted to `[Image: alt-text]` format
 - [x] No HTML tags in .txt output
 - [x] 80-character line width enforced
-- [ ] Download links work from HTML pages
+- [x] Core TXT export functionality complete (download links moved to 8-012)
+
+**Note (2025-12-23):** Download links in HTML pages moved to issue 8-012 scope, as that's
+where pagination and page structure are implemented. This issue covers the core TXT
+generation logic, which is now complete.
 
 ---
 
