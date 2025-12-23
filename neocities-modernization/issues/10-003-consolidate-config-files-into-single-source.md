@@ -9,19 +9,24 @@
 
 ## Current Behavior
 
-Configuration is scattered across five separate files in `/config/`:
+Configuration is scattered across six separate files:
 
 | File | Format | Purpose |
 |------|--------|---------|
-| `asset-paths.lua` | Lua | Generated asset storage locations |
-| `golden-poem-settings.json` | JSON | Golden poem prioritization settings |
-| `input-sources.json` | JSON | Input paths, extraction, privacy, image settings |
-| `semantic-colors.json` | JSON | Color definitions for semantic clustering |
-| `similarity-calculator-settings.json` | JSON | Similarity algorithm configurations |
+| `/config/asset-paths.lua` | Lua | Generated asset storage locations |
+| `/config/golden-poem-settings.json` | JSON | Golden poem prioritization settings |
+| `/config/input-sources.json` | JSON | Input paths, extraction, privacy, image settings |
+| `/config/semantic-colors.json` | JSON | Color definitions for semantic clustering |
+| `/config/similarity-calculator-settings.json` | JSON | Similarity algorithm configurations |
+| `/assets/centroids.json` | JSON | Mood-based centroid definitions for exploration pages |
 
 Each script that needs configuration imports one or more of these files independently.
 There is no single place to see "all the knobs" at once, and no guarantee that
 related settings across files remain consistent.
+
+**Note**: `centroids.json` lives in `/assets/` rather than `/config/` because it's
+considered user-generated content (moods are customizable). However, it's still
+configuration that could benefit from consolidation.
 
 ---
 
@@ -157,6 +162,65 @@ return {
         max_file_size_mb = 10,
         output_path = "assets/images",
         catalog_file = "assets/image-catalog.json"
+    },
+
+    -- Mood-based centroids (from assets/centroids.json)
+    -- Each centroid defines a semantic anchor for exploration pages
+    centroids = {
+        {
+            name = "melancholy",
+            description = "Sad, reflective, introspective moods - winter feelings and quiet grief",
+            source_files = {},
+            keywords = {
+                "loneliness", "grief", "winter", "rain on windows",
+                "empty rooms", "quiet sadness", "memory of someone gone",
+                "the weight of silence"
+            },
+            output_slug = "melancholy"
+        },
+        {
+            name = "wonder",
+            description = "Awe, curiosity, the vastness of existence",
+            source_files = {},
+            keywords = {
+                "stars", "infinity", "childhood wonder", "discovery",
+                "the unknown", "first time seeing the ocean",
+                "questions without answers", "the size of the universe"
+            },
+            output_slug = "wonder"
+        },
+        {
+            name = "rage",
+            description = "Anger, frustration, righteous fury",
+            source_files = {},
+            keywords = {
+                "injustice", "betrayal", "fire", "screaming into the void",
+                "broken promises", "systemic failure", "enough is enough"
+            },
+            output_slug = "rage"
+        },
+        {
+            name = "tenderness",
+            description = "Gentle love, care, softness between beings",
+            source_files = {},
+            keywords = {
+                "holding hands", "soft voice", "caring for someone sick",
+                "pet sleeping on your lap", "forgiveness", "vulnerability",
+                "being seen"
+            },
+            output_slug = "tenderness"
+        },
+        {
+            name = "absurdity",
+            description = "The strange, surreal, and darkly comic",
+            source_files = {},
+            keywords = {
+                "kafka", "bureaucracy", "meaninglessness that becomes funny",
+                "the universe as joke", "recursive paradox",
+                "waiting for something that never comes"
+            },
+            output_slug = "absurd"
+        }
     }
 }
 ```
@@ -181,7 +245,10 @@ return {
 - `/config/input-sources.json` - Current input/extraction config
 - `/config/semantic-colors.json` - Current color definitions
 - `/config/similarity-calculator-settings.json` - Current similarity settings
+- `/assets/centroids.json` - Current mood-based centroid definitions
 - `/docs/data-flow-architecture.md` - References config files in Configuration section
+- `/src/centroid-generator.lua` - Consumes centroids.json
+- `/src/centroid-html-generator.lua` - Consumes generated centroid embeddings
 
 ---
 
@@ -191,3 +258,7 @@ return {
 - Lua format preferred over JSON since the codebase is Lua-native
 - The config-loader utility could cache the parsed config to avoid re-reading
 - Consider adding a `--config` CLI flag to override the default config path
+- **Centroids special case**: Unlike other configs which are "set and forget," centroids
+  are expected to be frequently edited by users adding new moods. Two options:
+  1. Keep centroids in a separate file but load it through the config-loader
+  2. Include default centroids in main config, allow user overrides via separate file
