@@ -884,6 +884,27 @@ local function is_golden_poem(poem)
 end
 -- }}}
 
+-- {{{ function get_poem_display_filename
+local function get_poem_display_filename(poem)
+    -- Returns the display filename for a poem (without extension)
+    -- For notes: uses metadata.source_file (the original filename)
+    -- For fediverse/messages: uses the numeric ID
+    -- All categories: no .txt extension (cleaner display)
+    local category = poem.category or "unknown"
+    local filename
+
+    if category == "notes" and poem.metadata and poem.metadata.source_file then
+        -- Notes preserve their original descriptive filenames
+        filename = poem.metadata.source_file
+    else
+        -- Fediverse and messages use numeric ID
+        filename = tostring(poem.id or "unknown")
+    end
+
+    return category .. "/" .. filename
+end
+-- }}}
+
 -- {{{ function generate_corner_box_separator
 local function generate_corner_box_separator(hex_color)
     -- Generate the separator line with corner box tops for GOLDEN poems
@@ -1127,10 +1148,8 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     local similar_link = string.format("<a href='similar/%03d.html'>similar</a>", poem.id)
     local different_link = string.format("<a href='different/%03d.html'>different</a>", poem.id)
 
-    -- Add file header
-    formatted = formatted .. string.format(" -> file: %s/%s.txt\n",
-                                          poem.category or "unknown",
-                                          poem.id or "unknown")
+    -- Add file header (notes show original filename, others show numeric ID)
+    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
 
     -- Generate top progress bar separator (with golden corners if applicable)
     local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
@@ -1192,10 +1211,8 @@ end
 local function format_single_poem_with_warnings(poem)
     local formatted = ""
 
-    -- Add file header (matching compiled.txt format)
-    formatted = formatted .. string.format(" -> file: %s/%s.txt\n",
-                                          poem.category or "unknown",
-                                          poem.id or "unknown")
+    -- Add file header (notes show original filename, others show numeric ID)
+    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
     formatted = formatted .. string.rep("-", 80) .. "\n"
 
     -- Format poem content with content warning handling and whitespace preservation
@@ -1216,10 +1233,8 @@ local function format_single_poem_80_width(poem)
     -- Uses strip_html_tags() to remove HTML and render_attachment_images_txt() for images
     local formatted = ""
 
-    -- Add file header (matching compiled.txt format)
-    formatted = formatted .. string.format(" -> file: %s/%s\n",
-                                          poem.category or "unknown",
-                                          poem.id or "unknown")
+    -- Add file header (notes show original filename, others show numeric ID)
+    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
     formatted = formatted .. string.rep("-", 80) .. "\n"
 
     -- Strip HTML tags and format poem content to 80-character width
@@ -1413,10 +1428,8 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
         -- Check if this is a golden poem (exactly 1024 characters)
         local is_golden = is_golden_poem(poem)
 
-        -- Add file header without timestamps (user requested removal)
-        content = content .. string.format(" -> file: %s/%s.txt\n",
-                                          poem.category or "unknown",
-                                          poem_id or "unknown")
+        -- Add file header (notes show original filename, others show numeric ID)
+        content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
 
         -- Build navigation links
         local similar_link = string.format("<a href='similar/%03d.html'>similar</a>", poem_id)
