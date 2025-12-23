@@ -29,7 +29,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-005 | Integrate images into HTML output | Open | Medium |
 | 8-008 | Implement configurable centroid embedding system | Completed | Medium |
-| 8-010 | Fix note filenames in generated HTML | Open | Medium |
+| 8-010 | Fix note filenames in generated HTML | Completed | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | **Blocked** | High |
 | 8-013 | Implement TXT export functionality | **Near Complete** | High |
@@ -45,6 +45,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-009 | Project cleanup and organization | Completed | 2025-12-17 |
 | 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
 | 8-008 | Implement configurable centroid embedding system | Completed | 2025-12-23 |
+| 8-010 | Fix note filenames in generated HTML | Completed | 2025-12-23 |
 
 ### Issue Details
 
@@ -129,6 +130,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Generated 11 files: index.html + 5 similar + 5 different pages in `output/centroid/`
 - ✅ Similarity scores verified working (0.72-0.78 range for top matches)
 - Use cases: themed entry points, mood-based exploration, curated collections
+
+**8-010: Fix Note Filenames in Generated HTML** - COMPLETED
+- ✅ Created `get_poem_display_filename()` helper function
+- ✅ Notes now display original descriptive filenames (e.g., `notes/what-a-lame-movie`)
+- ✅ Fediverse/messages display numeric ID without `.txt` extension
+- ✅ Updated all 4 file header generation locations
+- ✅ Verified: notes show `source_file`, no `.txt` extensions anywhere
 
 ## Completion Criteria
 
