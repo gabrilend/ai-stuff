@@ -30,16 +30,17 @@ option selection.
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
 | 10-003 | Consolidate config files into single source | Open | Low |
-| 10-004 | Implement built-up command preview system | Open | Medium |
+| 10-004 | Implement built-up command preview system | **Completed** | Medium |
 | 10-005 | Implement CLI flag support for all functionality | **Completed** | High |
 | 10-006 | Identify checkbox conversion opportunities | Open | Low |
-| 10-007 | Fix text-entry field display bug | Open | High |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 10-004 | Implement built-up command preview system | Completed | 2025-12-23 |
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2025-12-23 |
+| 10-007 | Fix text-entry field display bug | Completed | 2025-12-23 |
 
 ## TUI Library Location
 
@@ -80,11 +81,13 @@ Documentation:
 
 ### Issue Details
 
-**10-004: Implement Built-Up Command Preview System** - OPEN
-- Implement real-time command preview panel (shows exact command that will execute)
-- Pattern from `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
-- Press `~` to copy command to clipboard
-- Depends on: 10-005 (CLI flag support)
+**10-004: Implement Built-Up Command Preview System** - COMPLETED (2025-12-23)
+- ✅ Full TUI integration with real-time command preview
+- ✅ 7 pipeline stage checkboxes, each mapped to CLI flag
+- ✅ Configuration section with threads/force/dry-run/verbose
+- ✅ Command preview updates as options are toggled
+- ✅ Press `~` to copy command to clipboard
+- ✅ Fallback to Lua TUI if bash TUI unavailable
 
 **10-005: Implement CLI Flag Support for All Functionality** - COMPLETED (2025-12-23)
 - ✅ Added comprehensive CLI flags to run.sh for all 7 pipeline stages
@@ -101,10 +104,12 @@ Documentation:
 - Actions → remain as actions (immediate execution)
 - Numeric inputs → flag type with value:width format
 
-**10-007: Fix Text-Entry Field Display Bug** - OPEN
-- Bug: Fields display `[value:width]` instead of just `[value]`
-- Example: `Test poem ID: [       1:5]` shows the `:5` width metadata
-- Fix needed in TUI library or implementation
+**10-007: Fix Text-Entry Field Display Bug** - COMPLETED (2025-12-23)
+- ✅ Bug identified: `render_item()` in menu.lua displayed raw value including `:width`
+- ✅ Added `parse_flag_value()` helper function to extract value and width
+- ✅ Updated 3 locations: render_item(), build_command_text(), command rebuild
+- ✅ Created test suite: `/home/ritz/programming/ai-stuff/scripts/libs/test-menu-lib.lua`
+- ✅ All 19 test cases pass
 
 ## Related Documents
 
