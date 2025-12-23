@@ -25,6 +25,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 
 **Purpose**: Extract raw content from ZIP archives and legacy files into structured JSON.
 
+**How Data Transforms**: Imagine unpacking suitcases after returning from three different trips. Each suitcase was packed by a different person using their own system — one folded everything neatly, another just stuffed things in, a third used vacuum bags. The extraction stage opens each suitcase and sorts the contents into labeled boxes based on where they came from: "things from the beach trip," "things from the mountain trip," "things from the city trip." The items themselves aren't changed — they're just organized so that the next person can find them without needing to know the original packing method.
+
 ```
 ┌──────────────────┐    ┌──────────────┐    ┌────────────────────────┐
 │ ZIP Archives     │    │              │    │ input/fediverse/       │
@@ -50,6 +52,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 ### Stage 2: Parsing
 
 **Purpose**: Unify all input sources into a single normalized dataset.
+
+**How Data Transforms**: Think of a translator receiving letters written in three different languages. Each letter uses different conventions — some have dates at the top, some at the bottom, some use formal greetings, others are casual. The translator rewrites every letter into a single common language using a consistent format: sender's name here, date there, body text in this section. Each letter also receives a sequential filing number so it can be referenced later. The meaning of each letter is preserved exactly, but now anyone can read them all without needing to know the original languages or conventions.
 
 ```
 ┌────────────────────┐         ┌─────────────────────────────────┐
@@ -92,6 +96,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 
 **Purpose**: Ensure data quality and detect anomalies.
 
+**How Data Transforms**: A quality inspector walks through the warehouse with a clipboard. They don't move or change anything — they simply observe and take notes. "Item 247 has no label." "Item 1,892 appears to be an empty box." "Items 3,400 through 3,450 all arrived on the same day, which seems unusual." The inspector's report doesn't fix problems; it documents them so that someone can decide what to do. The original items remain untouched. This stage produces a companion document — a health report that travels alongside the main dataset.
+
 ```
 ┌────────────────────┐         ┌─────────────────────────────────┐
 │ poem-validator.lua │ ──────→ │ assets/validation-report.json   │
@@ -112,6 +118,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 ### Stage 4: Embedding Generation
 
 **Purpose**: Transform poem text into 768-dimensional semantic vectors.
+
+**How Data Transforms**: Imagine a master perfumer who can smell any flower and describe its essence using a standardized palette of 768 distinct scent notes — "three parts citrus, half part musk, two parts rain-on-pavement, zero parts vanilla," and so on. The perfumer reads each poem and distills it into this scent profile. Two poems about loneliness might have very similar profiles even if they use completely different words, while two poems that happen to share the word "blue" might smell nothing alike if one is about sadness and the other about the ocean. The original poems are not changed; each one simply receives a companion "scent card" that captures what it's *about* rather than what words it *uses*.
 
 ```
 ┌────────────────────┐         ┌─────────────────────────────────┐
@@ -137,7 +145,10 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 **Processing features**:
 - Incremental: Only processes new/changed poems
 - Per-model storage: Each model gets its own subdirectory
-- Graceful failure: Continues on individual poem failures
+- Fail-fast: Stops immediately on any error with detailed diagnostics
+  - Rationale: Silent failures lead to corrupt data. Better to fail hard with
+    actionable error messages so issues can be identified and fixed at the source.
+  - Error output includes: poem ID, context, and specific remediation steps
 
 **Output**: `/assets/embeddings/{model_name}/embeddings.json`
 
@@ -146,6 +157,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 ### Stage 5: Similarity Calculation
 
 **Purpose**: Calculate pairwise similarity between all poems.
+
+**How Data Transforms**: Now that every poem has a scent card, we can hold any two cards up and ask "how similar do these smell?" A sommelier comparing wines doesn't need to see the grapes — they compare the tasting notes. This stage compares every poem's scent card against every other poem's scent card, producing a massive web of relationships: "Poem 42 and Poem 1,337 smell almost identical; Poem 42 and Poem 500 share nothing in common." Additionally, poems are sorted into broad "neighborhoods" based on their overall character — all the citrus-heavy poems might be tagged yellow, all the earthy ones brown. The scent cards themselves don't change; this stage produces a relationship map and a set of neighborhood assignments that sit alongside everything else.
 
 ```
 ┌────────────────────┐         ┌─────────────────────────────────┐
@@ -176,6 +189,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 
 **Purpose**: Pre-compute "maximally different" poem sequences for diversity exploration.
 
+**How Data Transforms**: A travel agent is asked to plan a road trip that visits the most varied landscapes possible. If you start at a beach, the next stop should be mountains; after mountains, perhaps desert; after desert, a dense forest. The agent consults the relationship map and, for each possible starting point, charts a journey that maximizes contrast at every step. "If you begin at Poem 42 and want to experience maximum variety, visit Poem 3,201 next, then Poem 789, then Poem 4,455..." These itineraries are written down and filed away so that travelers don't have to wait for route planning — the journeys are pre-charted for every possible starting point.
+
 ```
 ┌────────────────────┐         ┌─────────────────────────────────┐
 │ diversity-chaining │         │ diversity_temp/                 │
@@ -198,6 +213,8 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 ### Stage 7: HTML Generation
 
 **Purpose**: Transform all computed data into static HTML pages.
+
+**How Data Transforms**: A printing press takes everything assembled so far — the unified collection, the relationship map, the neighborhood colors, the pre-charted journeys — and stamps out thousands of interconnected pages. Each page is a doorway: step through one door and you see everything arranged by similarity; step through another and you're on the pre-charted diversity journey. The press works in parallel, running multiple print heads simultaneously to produce pages faster. Nothing new is computed here; the press simply renders all the previously-gathered knowledge into a format that humans can navigate with nothing more than a web browser and the ability to click links.
 
 ```
 ┌────────────────────────┐     ┌─────────────────────────────────┐
@@ -333,4 +350,5 @@ The dual discovery modes serve different reading strategies:
 ## Document History
 
 - **Created**: December 23, 2025
+- **Updated**: December 23, 2025 — Added "How Data Transforms" sections with analogies to each pipeline stage
 - **Purpose**: Document the complete data flow architecture for project understanding and onboarding
