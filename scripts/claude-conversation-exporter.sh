@@ -21,6 +21,7 @@ declare -A PROJECT_OUTPUT_PATHS
 # This section stores per-project output file paths and gets updated dynamically
 # Format: PROJECT_NAME|OUTPUT_PATH
 # Format: PROJECT_NAME|OUTPUT_PATH
+# handheld-office|/home/ritz/programming/ai-stuff/handheld-office/handheld-office-context.txt
 # delta-version|/home/ritz/programming/ai-stuff/README.md
 # progress-ii|/home/ritz/programming/ai-stuff/progress-ii-progress.md
 # STORED_PROJECT_PATHS_END

@@ -4,7 +4,7 @@
 - **Phase**: 10
 - **Priority**: High
 - **Type**: Bug Fix
-- **Status**: Open
+- **Status**: Completed (2025-12-23)
 - **Created**: 2025-12-23
 
 ## Current Behavior
@@ -127,5 +127,63 @@ Check git history of menu.tui and issue-splitter.sh for recent fixes related to 
 - Issue 10-004: Command preview (consumes flag values)
 - Issue 10-005: CLI flag support (flags should match displayed values)
 - Issue 10-006: Checkbox conversions (related UI element types)
+
+---
+
+## Implementation Log
+
+### Session: 2025-12-23
+
+**Bug Located:**
+- File: `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua`
+- Location: `render_item()` function, lines 1321-1327
+- Cause: Flag values were displayed raw without parsing the `value:width` format
+
+**Root Cause:**
+The value stored for flag items (e.g., `"3:2"`) was passed directly to the display format
+string without extracting just the value portion. The width suffix was metadata for field
+sizing but was being shown to users.
+
+**Fix Implemented:**
+
+1. **Added `parse_flag_value()` helper function** (lines 179-199)
+   ```lua
+   local function parse_flag_value(flag_str)
+       if not flag_str or flag_str == "" then
+           return "", nil
+       end
+       local value, width_str = string.match(flag_str, "^(.+):(%d+)$")
+       if value and width_str then
+           return value, tonumber(width_str)
+       end
+       return flag_str, nil
+   end
+   ```
+
+2. **Updated `render_item()` to use parsed value** (lines 1321-1327)
+   - Now displays only the value portion (before the colon)
+   - Width from `data.config` takes precedence, then parsed width, then default 10
+
+3. **Updated command generation** (2 locations)
+   - `build_command_text()` at line 481
+   - Command rebuild at line 894
+   - Both now use `parse_flag_value()` to strip width from command output
+
+**Test Suite Created:**
+- File: `/home/ritz/programming/ai-stuff/scripts/libs/test-menu-lib.lua`
+- 19 test cases covering value:width parsing edge cases
+- All tests pass
+
+**Before Fix:**
+```
+├─ Test poem ID: [       1:5]     <- Shows ":5" (the field width)
+├─ Thread count: [       8:3]     <- Shows ":3" (the field width)
+```
+
+**After Fix:**
+```
+├─ Test poem ID: [       1]       <- Just the value
+├─ Thread count: [       8]       <- Just the value
+```
 
 ---

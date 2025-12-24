@@ -33,6 +33,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-001f | Remove effil dependency | Open | Low |
 | 9-002 | Port similarity matrix generation to Vulkan | Open | Medium |
 | 9-002a | Design similarity matrix compute shader | Open | High |
+| 9-003 | Optimize centroid calculation and parallelization | Open | High |
 
 ### Completed Issues
 
@@ -52,11 +53,16 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 ## Performance Targets
 
-| Operation | CPU (current) | GPU (target) | Speedup |
-|-----------|---------------|--------------|---------|
-| Diversity sequence (per) | 25s | 4-8s | 3-6x |
-| Diversity total (6,641) | 46h | 8-15h | 3-6x |
-| Similarity matrix | Hours | Minutes | 10x+ |
+| Operation | CPU (current) | CPU optimized (9-003) | GPU (target) | Speedup |
+|-----------|---------------|----------------------|--------------|---------|
+| Diversity sequence (per) | 25s | 3-5s | 0.5-1s | 25-50x |
+| Diversity total (7,793) | 54h | 6-10h | 1-2h | 27-54x |
+| Similarity matrix | Hours | Hours (no change) | Minutes | 10x+ |
+
+**Issue 9-003 Optimizations:**
+- Incremental centroid (no recalculation): ~4,000× faster centroid maintenance
+- Parallel distance comparisons (8 threads): ~8× faster distance finding
+- RAM-only storage: Eliminates disk I/O overhead
 
 ## Dependencies
 
@@ -83,3 +89,4 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 - `docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis
 - Issue 8-002 - Original multi-threading issue that led to GPU decision
+- Issue 9-003 - CPU optimizations that can be implemented before GPU work
