@@ -382,18 +382,63 @@ end
 -- }}}
 
 -- {{{ function calculate_poem_similarities
+-- FAIL-FAST: This function will error() on any issue, not return false
+-- Rationale: Silent failures lead to corrupt data. Better to fail hard and fix the root cause.
 local function calculate_poem_similarities(poem_data, all_embeddings, output_file, sleep_duration)
+    -- FAIL-FAST: Validate input poem data
+    if not poem_data then
+        error(string.format(
+            "SIMILARITY CALCULATION FAILED: poem_data is nil\n" ..
+            "  Context: Attempted to calculate similarities for nil poem\n" ..
+            "  Output file: %s\n" ..
+            "  Remedy: Check embedding loading - poem data may be missing from embeddings.json",
+            output_file or "nil"
+        ))
+    end
+
+    if not poem_data.embedding then
+        error(string.format(
+            "SIMILARITY CALCULATION FAILED: Missing embedding for poem %s (index %s)\n" ..
+            "  Context: Poem exists but has no embedding vector\n" ..
+            "  Output file: %s\n" ..
+            "  Remedy: Regenerate embeddings with 'lua src/similarity-engine.lua -I' (option 1)",
+            tostring(poem_data.id or "nil"), tostring(poem_data.index or "nil"), output_file or "nil"
+        ))
+    end
+
+    if type(poem_data.embedding) ~= "table" or #poem_data.embedding == 0 then
+        error(string.format(
+            "SIMILARITY CALCULATION FAILED: Invalid embedding for poem %s (index %s)\n" ..
+            "  Context: Embedding is not a valid vector (type=%s, length=%s)\n" ..
+            "  Output file: %s\n" ..
+            "  Remedy: Regenerate embeddings - this poem has corrupted embedding data",
+            tostring(poem_data.id or "nil"), tostring(poem_data.index or "nil"),
+            type(poem_data.embedding), tostring(#poem_data.embedding or 0), output_file or "nil"
+        ))
+    end
+
     local similarities = {}
-    
+
     utils.log_info("Calculating similarities for poem " .. (poem_data.id or poem_data.index) .. " against " .. #all_embeddings .. " poems")
-    
+
     for j = 1, #all_embeddings do
         local other_poem = all_embeddings[j]
-        
+
+        -- FAIL-FAST: Validate each comparison target
+        if not other_poem.embedding then
+            error(string.format(
+                "SIMILARITY CALCULATION FAILED: Missing embedding for comparison poem %s (index %s)\n" ..
+                "  Context: Source poem %s, comparison index %d of %d\n" ..
+                "  Remedy: All poems must have embeddings. Regenerate embeddings.json",
+                tostring(other_poem.id or "nil"), tostring(other_poem.index or "nil"),
+                tostring(poem_data.id or poem_data.index), j, #all_embeddings
+            ))
+        end
+
         -- Skip self-comparison
         if poem_data.index ~= other_poem.index then
             local similarity = cosine_similarity(poem_data.embedding, other_poem.embedding)
-            
+
             table.insert(similarities, {
                 id = other_poem.id,
                 index = other_poem.index,
@@ -401,10 +446,10 @@ local function calculate_poem_similarities(poem_data, all_embeddings, output_fil
             })
         end
     end
-    
+
     -- Sort by similarity (highest first) - ALL similarities, not just top N
     table.sort(similarities, function(a, b) return a.similarity > b.similarity end)
-    
+
     -- Create comprehensive similarity data for this poem
     local poem_similarity_data = {
         metadata = {
@@ -416,13 +461,20 @@ local function calculate_poem_similarities(poem_data, all_embeddings, output_fil
         },
         similarities = similarities
     }
-    
-    -- Write individual poem similarity file
+
+    -- FAIL-FAST: File write must succeed
     if not utils.write_json_file(output_file, poem_similarity_data) then
-        utils.log_error("Failed to write similarity file: " .. output_file)
-        return false
+        error(string.format(
+            "SIMILARITY CALCULATION FAILED: Could not write output file\n" ..
+            "  File: %s\n" ..
+            "  Poem: %s (index %s)\n" ..
+            "  Comparisons: %d\n" ..
+            "  Remedy: Check disk space, permissions, and path validity",
+            output_file, tostring(poem_data.id or "nil"), tostring(poem_data.index or "nil"),
+            #similarities
+        ))
     end
-    
+
     -- Temperature control - sleep to prevent overheating
     -- Uses native FFI sleep to allow Ctrl+C to work properly
     if sleep_duration > 0 then
@@ -434,28 +486,36 @@ end
 -- }}}
 
 -- {{{ function process_poem_batch
+-- FAIL-FAST: Any error in calculate_poem_similarities will propagate up
+-- This ensures we never continue with corrupt or incomplete data
 local function process_poem_batch(batch_poems, all_embeddings, output_dir, sleep_duration, thread_id)
     local processed = 0
-    local errors = 0
-    
-    utils.log_info("Thread " .. thread_id .. ": Processing " .. #batch_poems .. " poems")
-    
-    for _, poem_data in ipairs(batch_poems) do
+
+    utils.log_info("Thread " .. thread_id .. ": Processing " .. #batch_poems .. " poems (fail-fast mode)")
+
+    for i, poem_data in ipairs(batch_poems) do
         local output_file = get_poem_similarity_file(output_dir, poem_data.id, poem_data.index)
-        
-        local success = calculate_poem_similarities(poem_data, all_embeddings, output_file, sleep_duration)
-        
-        if success then
-            processed = processed + 1
-            utils.log_info("Thread " .. thread_id .. ": Completed poem " .. (poem_data.id or poem_data.index) .. " (" .. processed .. "/" .. #batch_poems .. ")")
-        else
-            errors = errors + 1
-            utils.log_error("Thread " .. thread_id .. ": Failed to process poem " .. (poem_data.id or poem_data.index))
+
+        -- calculate_poem_similarities will error() on any failure
+        -- We wrap in pcall to add thread context to the error message, then re-raise
+        local success, err = pcall(function()
+            calculate_poem_similarities(poem_data, all_embeddings, output_file, sleep_duration)
+        end)
+
+        if not success then
+            -- Add thread context and re-raise the error
+            error(string.format(
+                "Thread %d FATAL ERROR at poem %d/%d:\n%s",
+                thread_id, i, #batch_poems, tostring(err)
+            ))
         end
+
+        processed = processed + 1
+        utils.log_info("Thread " .. thread_id .. ": Completed poem " .. (poem_data.id or poem_data.index) .. " (" .. processed .. "/" .. #batch_poems .. ")")
     end
-    
-    utils.log_info("Thread " .. thread_id .. ": Completed batch - " .. processed .. " processed, " .. errors .. " errors")
-    return processed, errors
+
+    utils.log_info("Thread " .. thread_id .. ": Completed batch - " .. processed .. " processed, 0 errors")
+    return processed, 0
 end
 -- }}}
 
@@ -625,23 +685,47 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                 local STATE_RESTING = -1
                 local STATE_PROCESSING = -2
 
-                -- Process poems in this thread
+                -- FAIL-FAST: Process poems in this thread with strict error checking
+                -- Any failure will immediately error() and stop the thread
                 local processed = 0
-                local errors = 0
 
-                for _, poem_data in ipairs(batch_data) do
+                for poem_idx, poem_data in ipairs(batch_data) do
                     -- Signal that we're now processing
                     prog_channel:push(thread_id, STATE_PROCESSING)
 
+                    -- FAIL-FAST: Validate poem data has embedding
+                    if not poem_data.embedding then
+                        error(string.format(
+                            "Thread %d FAILED: Poem %s (index %s) has no embedding\n" ..
+                            "  Batch position: %d/%d\n" ..
+                            "  Remedy: Regenerate embeddings - this poem is missing embedding data",
+                            thread_id, tostring(poem_data.id or "nil"), tostring(poem_data.index or "nil"),
+                            poem_idx, #batch_data
+                        ))
+                    end
+
                     local similarities = {}
-                    
+
                     -- Calculate similarities to all other poems
                     for j = 1, #all_embeddings_data do
                         local other_poem = all_embeddings_data[j]
-                        
+
+                        -- FAIL-FAST: Validate comparison target has embedding
+                        if not other_poem.embedding then
+                            error(string.format(
+                                "Thread %d FAILED: Comparison poem %s (index %s) has no embedding\n" ..
+                                "  Source poem: %s (index %s)\n" ..
+                                "  Comparison index: %d/%d\n" ..
+                                "  Remedy: All poems must have embeddings. Regenerate embeddings.json",
+                                thread_id, tostring(other_poem.id or "nil"), tostring(other_poem.index or "nil"),
+                                tostring(poem_data.id or "nil"), tostring(poem_data.index or "nil"),
+                                j, #all_embeddings_data
+                            ))
+                        end
+
                         if poem_data.index ~= other_poem.index then
                             local similarity = cosine_similarity(poem_data.embedding, other_poem.embedding)
-                            
+
                             table.insert(similarities, {
                                 id = other_poem.id,
                                 index = other_poem.index,
@@ -649,10 +733,10 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                             })
                         end
                     end
-                    
+
                     -- Sort by similarity (highest first)
                     table.sort(similarities, function(a, b) return a.similarity > b.similarity end)
-                    
+
                     -- Create similarity data
                     local poem_similarity_data = {
                         metadata = {
@@ -664,37 +748,57 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                         },
                         similarities = similarities
                     }
-                    
+
                     -- Atomic write: use temporary file + rename to prevent partial files
                     local filename = poem_data.id and ("poem_" .. poem_data.id .. ".json") or ("poem_index_" .. poem_data.index .. ".json")
                     local output_file = output_dir .. filename
                     local temp_file = output_dir .. filename .. ".tmp"
-                    
+
+                    -- FAIL-FAST: JSON encoding must succeed
                     local json_string = dkjson.encode(poem_similarity_data, { indent = true })
-                    if json_string then
-                        -- Write to temporary file first
-                        local file = io.open(temp_file, "w")
-                        if file then
-                            file:write(json_string)
-                            file:close()
-                            
-                            -- Atomic rename: only after complete write
-                            local rename_success = os.rename(temp_file, output_file)
-                            if rename_success then
-                                processed = processed + 1
-                                -- Send progress update through channel
-                                prog_channel:push(thread_id, processed)
-                            else
-                                errors = errors + 1
-                                os.remove(temp_file) -- cleanup failed temp file
-                            end
-                        else
-                            errors = errors + 1
-                        end
-                    else
-                        errors = errors + 1
+                    if not json_string then
+                        error(string.format(
+                            "Thread %d FAILED: JSON encoding failed for poem %s\n" ..
+                            "  Output file: %s\n" ..
+                            "  Comparisons: %d\n" ..
+                            "  Remedy: Check poem data structure - dkjson.encode returned nil",
+                            thread_id, tostring(poem_data.id or poem_data.index), output_file, #similarities
+                        ))
                     end
-                    
+
+                    -- FAIL-FAST: File write must succeed
+                    local file = io.open(temp_file, "w")
+                    if not file then
+                        error(string.format(
+                            "Thread %d FAILED: Could not open temp file for writing\n" ..
+                            "  Temp file: %s\n" ..
+                            "  Poem: %s\n" ..
+                            "  Remedy: Check disk space, permissions, and path validity",
+                            thread_id, temp_file, tostring(poem_data.id or poem_data.index)
+                        ))
+                    end
+
+                    file:write(json_string)
+                    file:close()
+
+                    -- FAIL-FAST: Atomic rename must succeed
+                    local rename_success = os.rename(temp_file, output_file)
+                    if not rename_success then
+                        os.remove(temp_file) -- cleanup temp file
+                        error(string.format(
+                            "Thread %d FAILED: Could not rename temp file to final destination\n" ..
+                            "  Temp file: %s\n" ..
+                            "  Output file: %s\n" ..
+                            "  Poem: %s\n" ..
+                            "  Remedy: Check filesystem permissions and disk space",
+                            thread_id, temp_file, output_file, tostring(poem_data.id or poem_data.index)
+                        ))
+                    end
+
+                    processed = processed + 1
+                    -- Send progress update through channel
+                    prog_channel:push(thread_id, processed)
+
                     -- Temperature control: signal resting state before sleep
                     if sleep_duration > 0 then
                         prog_channel:push(thread_id, STATE_RESTING)
@@ -702,7 +806,7 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                     end
                 end
 
-                return processed, errors
+                return processed, 0  -- 0 errors because we fail-fast on any error
             end)
             
             -- Start thread (progress reported via channel)
