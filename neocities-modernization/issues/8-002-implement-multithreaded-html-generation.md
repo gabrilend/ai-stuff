@@ -362,3 +362,45 @@ The main menu now uses the `/home/ritz/programming/ai-stuff/scripts/libs/menu.lu
 - Fallback: If TUI unavailable, uses `main_text_mode()` text-based menu
 
 **Usage**: Run with `-I` flag as before - TUI will launch automatically if available.
+
+---
+
+## Fail-Fast Error Handling (2025-12-23)
+
+**Change**: Replaced graceful failure (error counting + continue) with fail-fast error handling.
+
+**Rationale**: Per project CLAUDE.md guidelines:
+> "prefer error messages and breaking functionality over fallbacks. Be sure to notify the
+> user every time a fallback is used, and create a new issue file to resolve any fallbacks"
+
+Silent failures lead to corrupt data. If a poem fails to process, continuing to the next one
+means the final dataset will be incomplete without the user realizing it. Better to fail hard
+with actionable diagnostics so the root cause can be identified and fixed.
+
+**Implementation**:
+
+1. **`calculate_poem_similarities()`**: Now validates all inputs before processing:
+   - Checks poem_data is not nil
+   - Checks embedding exists and is a valid vector
+   - Checks all comparison targets have embeddings
+   - Error messages include poem ID, context, and remediation steps
+
+2. **`process_poem_batch()`**: Wraps calculation in pcall to add thread context, then re-raises:
+   - Adds thread ID and batch progress to error messages
+   - Returns (processed, 0) because errors cause immediate failure
+
+3. **Inline thread worker**: Same validation and fail-fast pattern:
+   - Validates embedding exists for each poem
+   - Validates each comparison target
+   - Validates JSON encoding, file write, and rename operations
+   - All failures include specific remediation steps
+
+**Error Message Format**:
+```
+Thread X FAILED: [specific failure type]
+  Context: [what was being attempted]
+  [relevant data: poem ID, file paths, etc.]
+  Remedy: [specific action to fix the issue]
+```
+
+**Related**: Updated `docs/data-flow-architecture.md` to reflect fail-fast philosophy.

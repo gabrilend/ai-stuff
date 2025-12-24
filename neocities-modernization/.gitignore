@@ -2,7 +2,8 @@
 temp/
 
 # Build products (regenerated each run)
-output/numeric-index.html
+output/
+assets/
 
 # Editor files
 *.swp

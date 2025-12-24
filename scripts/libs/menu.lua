@@ -176,6 +176,28 @@ local function get_current_section_type()
     return state.section_data[sid].type
 end
 
+-- {{{ parse_flag_value
+-- Parses a flag value that may be in "value:width" format
+-- Returns: display_value, width (or nil if no width specified)
+-- Examples:
+--   "3:2" -> "3", 2
+--   "100:4" -> "100", 4
+--   "hello" -> "hello", nil
+--   "" -> "", nil
+local function parse_flag_value(flag_str)
+    if not flag_str or flag_str == "" then
+        return "", nil
+    end
+    -- Match pattern: everything before the last colon, followed by digits
+    local value, width_str = string.match(flag_str, "^(.+):(%d+)$")
+    if value and width_str then
+        return value, tonumber(width_str)
+    end
+    -- No width suffix found, return original value
+    return flag_str, nil
+end
+-- }}}
+
 -- {{{ read_file_lines
 -- Read first N lines from a file, returns array of lines
 -- Returns empty array if file doesn't exist or can't be read
@@ -455,8 +477,10 @@ local function compute_command_preview()
                         end
                     elseif item.type == "flag" then
                         -- Add flag with value if not default/empty
-                        if value and value ~= "" and value ~= "0" then
-                            table.insert(parts, flag .. " " .. value)
+                        -- Parse value:width format to extract just the value
+                        local display_value = parse_flag_value(value)
+                        if display_value and display_value ~= "" and display_value ~= "0" then
+                            table.insert(parts, flag .. " " .. display_value)
                         end
                     elseif item.type == "multistate" then
                         -- Add flag with current state value
@@ -866,8 +890,10 @@ local function collapse_files_in_command()
                         new_text = new_text .. " " .. item.flag
                     elseif item.type == "flag" then
                         local val = state.values[iid]
-                        if val and val ~= "" and val ~= "0" then
-                            new_text = new_text .. " " .. item.flag .. " " .. val
+                        -- Parse value:width format to extract just the value
+                        local display_val = parse_flag_value(val)
+                        if display_val and display_val ~= "" and display_val ~= "0" then
+                            new_text = new_text .. " " .. item.flag .. " " .. display_val
                         end
                     end
                 end
@@ -1297,8 +1323,11 @@ local function render_item(row, item_id, highlight, item_num, section_type)
     -- Type-specific suffix
     tui.reset_style()
     if item_type == "flag" then
-        local width = tonumber(data.config) or 10
-        local suffix = string.format(": [%" .. width .. "s]", value)
+        -- Parse value:width format - display only the value part
+        -- Width from data.config takes precedence, then parsed width, then default 10
+        local display_value, parsed_width = parse_flag_value(value)
+        local width = tonumber(data.config) or parsed_width or 10
+        local suffix = string.format(": [%" .. width .. "s]", display_value)
         tui.write_str(row, col, suffix)
     elseif item_type == "multistate" then
         tui.set_attrs(highlight and tui.ATTR_NONE or tui.ATTR_DIM)

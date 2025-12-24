@@ -30,9 +30,7 @@ option selection.
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
 | 10-003 | Consolidate config files into single source | Open | Low |
-| 10-004 | Implement built-up command preview system | **Completed** | Medium |
-| 10-005 | Implement CLI flag support for all functionality | **Completed** | High |
-| 10-006 | Identify checkbox conversion opportunities | **Completed** | Low |
+| 10-008 | Implement multi-line command wrapping | Open | Medium |
 
 ### Completed Issues
 
@@ -112,6 +110,13 @@ Documentation:
 - ✅ Updated 3 locations: render_item(), build_command_text(), command rebuild
 - ✅ Created test suite: `/home/ritz/programming/ai-stuff/scripts/libs/test-menu-lib.lua`
 - ✅ All 19 test cases pass
+
+**10-008: Implement Multi-Line Command Wrapping** - OPEN
+- Long commands currently truncate at terminal width
+- Should wrap with backslash `\` continuation characters
+- Wrapped lines align to first flag (not script name)
+- Enhances usability for complex multi-flag pipelines
+- Related: Uses existing `parse_command_tokens()` for word-aware wrapping
 
 ## Related Documents
 

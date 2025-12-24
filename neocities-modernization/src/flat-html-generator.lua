@@ -1716,12 +1716,28 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
     -- Load poem colors for progress bars
     local poem_colors = load_poem_colors()
     local total_poems = #sorted_poems_with_timestamps
-    
+
+    utils.log_info(string.format("Generating HTML for %d poems...", total_poems))
+    local generation_start = os.time()
+
     -- Generate content with timeline progress and navigation links
     local content = ""
     for i, poem_info in ipairs(sorted_poems_with_timestamps) do
         local poem = poem_info.poem
         local poem_id = poem.id
+
+        -- Progress output every 100 poems (in-place update with carriage return)
+        if i % 100 == 0 or i == total_poems then
+            local elapsed = os.time() - generation_start
+            local rate = i / math.max(elapsed, 1)
+            local eta = (total_poems - i) / math.max(rate, 1)
+            -- Use \r to return to line start, pad with spaces to clear previous content
+            local progress_msg = string.format("\r   Processing poem %d/%d (%.1f%%) - %.1f poems/sec, ETA: %ds",
+                i, total_poems, (i / total_poems) * 100, rate, eta)
+            -- Pad to 80 chars to ensure previous longer output is overwritten
+            io.write(progress_msg .. string.rep(" ", math.max(0, 80 - #progress_msg)))
+            io.flush()
+        end
         
         -- Calculate chronological progress based on temporal position (not ID)
         local temporal_progress = (i / total_poems) * 100
@@ -1795,21 +1811,34 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
                                           bottom_dashes.accessibility,
                                           bottom_dashes.visual)
     end
-    
+
+    -- End the in-place progress line with a newline
+    io.write("\n")
+
+    local total_elapsed = os.time() - generation_start
+    utils.log_info(string.format("HTML generation complete: %d poems in %d seconds (%.1f poems/sec)",
+        total_poems, total_elapsed, total_poems / math.max(total_elapsed, 1)))
+
     local final_html = string.format(template, content)
     local output_file = output_dir .. "/chronological.html"
     os.execute("mkdir -p " .. output_dir)
-    
+
+    utils.log_info(string.format("Writing chronological.html (%.1f MB)...",
+        #final_html / 1024 / 1024))
+
     -- Write chronological.html
     local success = utils.write_file(output_file, final_html)
-    
+
     if success then
+        utils.log_info("✓ chronological.html written successfully")
         -- Create index.html as a copy of chronological.html (main entry point)
         local index_file = output_dir .. "/index.html"
         os.execute(string.format("cp '%s' '%s'", output_file, index_file))
-        utils.log_info("Created index.html as main entry point (copy of chronological.html)")
+        utils.log_info("✓ index.html created (copy of chronological.html)")
+    else
+        utils.log_error("Failed to write chronological.html")
     end
-    
+
     return success and output_file or nil
 end
 -- }}}
