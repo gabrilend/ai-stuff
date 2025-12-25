@@ -190,7 +190,7 @@ local function main()
     end
 
     print("[INFO] Loading poem colors...")
-    local poem_colors_data = utils.read_json_file(DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json")
+    local poem_colors_data = utils.read_json_file(DIR .. "/assets/embeddings/embeddinggemma_latest/poem_colors.json")
     local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
 
     print("[INFO] Generating corner box demo page...")

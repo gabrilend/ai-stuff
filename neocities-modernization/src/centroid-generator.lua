@@ -33,12 +33,12 @@ utils.init_assets_root(arg)
 local M = {}
 
 -- {{{ Configuration
--- Note: model_storage_name must match the existing embeddings directory casing (EmbeddingGemma_latest)
--- while model_name is what Ollama expects (embeddinggemma:latest)
+-- Note: model_storage_name matches the sanitized form of the Ollama model name
+-- model_name is what Ollama expects (embeddinggemma:latest)
 local CONFIG = {
     centroids_config_file = DIR .. "/assets/centroids.json",
     model_name = "embeddinggemma:latest",
-    model_storage_name = "EmbeddingGemma_latest",
+    model_storage_name = "embeddinggemma_latest",
     embedding_dimensions = 768,
     -- Approximate max characters before chunking is needed
     -- embeddinggemma handles ~8k tokens, roughly 32k chars, but we stay conservative

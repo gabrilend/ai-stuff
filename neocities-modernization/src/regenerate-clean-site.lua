@@ -44,11 +44,11 @@ poems_data.poems = filtered_poems
 
 -- Load similarity data
 print("Loading similarity matrix...")
-local similarity_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json")
+local similarity_data = utils.read_json_file(utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json")
 
 -- Load embeddings data
 print("Loading embeddings...")
-local embeddings_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json")
+local embeddings_data = utils.read_json_file(utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json")
 
 if not similarity_data or not embeddings_data then
     print("WARNING: Could not load similarity/embedding data. Generating chronological index only...")

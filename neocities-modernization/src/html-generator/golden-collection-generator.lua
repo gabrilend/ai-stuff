@@ -64,7 +64,7 @@ end
 
 -- {{{ function load_poem_colors
 local function load_poem_colors()
-    local poem_colors_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/poem_colors.json"
+    local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
     
     if poem_colors_data and poem_colors_data.poem_colors then

@@ -89,8 +89,8 @@ echo ""
 
 echo "📈 PHASE 2 RESULTS SUMMARY"
 echo "========================="
-if [ -f "assets/embeddings/EmbeddingGemma_latest/embeddings.json" ]; then
-    embedding_count=$(jq 'length' assets/embeddings/EmbeddingGemma_latest/embeddings.json 2>/dev/null || echo "Unknown")
+if [ -f "assets/embeddings/embeddinggemma_latest/embeddings.json" ]; then
+    embedding_count=$(jq 'length' assets/embeddings/embeddinggemma_latest/embeddings.json 2>/dev/null || echo "Unknown")
     echo "✅ Embeddings Generated: $embedding_count poems processed"
 else
     echo "✅ Embedding System: Ready for processing (run ./generate-embeddings.sh)"

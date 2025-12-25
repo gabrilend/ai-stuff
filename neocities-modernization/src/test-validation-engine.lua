@@ -107,8 +107,8 @@ function test_validation_with_real_data()
     print("============================================")
     
     -- Check if real data files exist
-    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
-    local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+    local embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
     
     local similarity_exists = utils.file_exists(similarity_file)
     local embeddings_exists = utils.file_exists(embeddings_file)
