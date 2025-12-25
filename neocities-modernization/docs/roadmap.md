@@ -364,6 +364,37 @@ ls output/different/ | wc -l  # Should be 7,793
 - `9-001-implement-vulkan-compute-infrastructure.md` (with sub-issues a-f)
 - `9-002-port-similarity-matrix-to-vulkan.md` (with sub-issues)
 
+## Phase 11: Advanced Exploration 📋 **PLANNED**
+**Duration**: TBD
+**Goal**: Innovative navigation systems with user agency
+
+### Deliverables:
+- Journey-style similar navigation (chain-based, not origin-based)
+- k-nearest-neighbors graph infrastructure
+- Maze-based exploration with user choice at intersections
+- Four complementary navigation modes
+
+### Key Milestones:
+1. Implement journey-style algorithm (closest to previous, not origin)
+2. Build k-NN graph (each poem → 6 nearest neighbors)
+3. Generate spanning tree mazes from k-NN graph
+4. Create maze HTML pages with intersection choices
+5. Integrate all four modes into poem headers
+
+### Navigation Mode Comparison:
+| Mode | Algorithm | User Agency |
+|------|-----------|-------------|
+| Similar | Closest to origin | None |
+| Journey | Closest to previous | None |
+| Different | Farthest from centroid | None |
+| **Maze** | k-NN graph + spanning tree | **Choose at intersections** |
+
+**Issues:**
+- `11-001-implement-journey-style-similar-navigation.md`
+- `11-002-implement-maze-based-exploration-system.md`
+
+---
+
 ## Future Phases (Planned)
 
 ### Visual Content Enhancement
