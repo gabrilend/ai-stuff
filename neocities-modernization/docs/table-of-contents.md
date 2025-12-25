@@ -68,7 +68,12 @@ This document provides a hierarchical view of all project documentation.
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
   - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)
-  - `/issues/11-002-implement-maze-based-exploration-system.md` - k-NN graph maze with user choice at intersections
+  - `/issues/11-002-implement-maze-based-exploration-system.md` - Dimension-extreme maze with user choice at intersections
+  - `/issues/11-002a-build-dimension-extreme-index.md` - Pre-compute 768 dimension extremes per poem
+  - `/issues/11-002b-implement-similarity-filtered-choice-selection.md` - Filter to 6 most similar exits
+  - `/issues/11-002c-generate-maze-html-pages.md` - Generate maze/XXX.html pages
+  - `/issues/11-002d-add-special-room-features.md` - Golden poems, landmarks, easter eggs
+  - `/issues/11-003-maze-pipeline-integration.md` - Integrate maze into run.sh pipeline
 
 ### 🎯 Source Documentation
 - `/src/main.lua` - Interactive project management interface

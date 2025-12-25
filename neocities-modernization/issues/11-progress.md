@@ -26,12 +26,33 @@ Phase 11 focuses on innovative navigation systems that give users agency in how 
 |-------|-------------|--------|----------|
 | 11-001 | Implement journey-style similar navigation | Open | Medium |
 | 11-002 | Implement maze-based exploration system | Open | Medium |
+| 11-002a | Build dimension-extreme index | Open | High |
+| 11-002b | Implement similarity-filtered choice selection | Open | High |
+| 11-002c | Generate maze HTML pages | Open | Medium |
+| 11-002d | Add special room features | Open | Low |
+| 11-003 | Maze pipeline integration | Open | Low |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
 | (none yet) | - | - | - |
+
+### Issue Dependencies
+
+```
+11-002 (Overview)
+    │
+    ├── 11-002a (Dimension Extremes)
+    │       │
+    │       └── 11-002b (Similarity Filtering)
+    │               │
+    │               └── 11-002c (HTML Generation)
+    │                       │
+    │                       └── 11-002d (Special Rooms)
+    │
+    └── 11-003 (Pipeline Integration) ← depends on all above
+```
 
 ## Conceptual Overview
 
@@ -82,10 +103,21 @@ Spanning Tree from k-NN:
 
 | Milestone | Estimated Time | Dependencies |
 |-----------|----------------|--------------|
-| k-NN graph construction | 30 min - 5 hours | Embeddings complete |
-| Journey pre-computation | ~20 hours | Same as diversity cache |
-| Maze structure generation | ~1 hour | k-NN graph complete |
-| HTML generation | ~30 min | All caches complete |
+| Dimension-extreme index (11-002a) | ~1 minute | Embeddings complete |
+| Similarity filtering (11-002b) | ~3 minutes | 11-002a complete |
+| Maze HTML generation (11-002c) | ~10 minutes | 11-002b complete |
+| Special room features (11-002d) | ~5 minutes | 11-002c complete |
+| Journey pre-computation (11-001) | ~20 hours | Embeddings complete |
+| Pipeline integration (11-003) | ~2 hours | All above complete |
+
+### Algorithm Summary (Dimension-Extreme + Similarity Filter)
+
+The maze algorithm uses a two-stage selection:
+
+1. **Stage 1**: For each poem, find 768 "dimension-extreme" poems (one per embedding dimension, maximally different at that index)
+2. **Stage 2**: From those 768, select the 6 most similar overall to the original poem
+
+This creates "variations on a theme" - poems that are almost identical except for ONE semantic aspect.
 
 ## Completion Criteria
 

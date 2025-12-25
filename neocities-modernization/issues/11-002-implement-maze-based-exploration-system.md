@@ -2,278 +2,244 @@
 
 ## Current Behavior
 
-All three navigation modes (similar, different, journey) present poems in a **fixed linear order**. The user has no agency—they scroll through a predetermined sequence without making choices.
-
-```
-Current Navigation Model:
-
-    User clicks poem A
-           │
-           ▼
-    ┌─────────────────────────────┐
-    │  Similar Page for A         │
-    │  ─────────────────────────  │
-    │  1. Poem B (most similar)   │  ← No choice
-    │  2. Poem C                  │  ← No choice
-    │  3. Poem D                  │  ← No choice
-    │  ... 7,790 more poems ...   │  ← No choice
-    └─────────────────────────────┘
-```
+All navigation modes (similar, different, chronological) present poems in a **fixed linear order**. The user scrolls through a predetermined sequence without making choices about which direction to explore.
 
 ## Intended Behavior
 
-Create a **maze-based exploration system** where poems are nodes in a graph, and users navigate by choosing between 3-6 semantically similar options at each "intersection."
+Create a **maze-based exploration system** where users navigate through the poetry corpus by choosing between 3-6 thematically related but subtly different poems at each step.
 
-### Conceptual Model
+### Core Algorithm: Dimension-Extreme with Similarity Filter
 
-```
-Maze Navigation Model:
-
-    User at Poem A
-           │
-    ┌──────┴──────┐
-    │ INTERSECTION │
-    │─────────────│
-    │ Go to B? ──→│  (0.92 similar)
-    │ Go to C? ──→│  (0.89 similar)
-    │ Go to D? ──→│  (0.87 similar)
-    │ Go to E? ──→│  (0.85 similar)
-    └─────────────┘
-           │
-    User chooses C
-           │
-           ▼
-    ┌──────┴──────┐
-    │ INTERSECTION │
-    │─────────────│
-    │ Go to F? ──→│  (new options based on C)
-    │ Go to G? ──→│
-    │ Go to H? ──→│
-    │ ← Back to A │  (backtracking allowed)
-    └─────────────┘
-```
-
-### Mathematical Foundation
-
-**Step 1: Build k-Nearest-Neighbors Graph**
-
-Treat the 768-dimensional embedding space as a graph:
-- Each poem is a **node**
-- Each node connects to its **k nearest neighbors** (e.g., k=6)
-- Edges are weighted by cosine similarity
+The algorithm uses a two-stage selection process:
 
 ```
-k-NN Graph (k=5):
-
-    poem_42 ────── poem_847 (0.94)
-       │ ╲
-       │  ╲─── poem_123 (0.91)
-       │   ╲
-       │    ╲─ poem_2891 (0.88)
-       │
-       ├───── poem_1547 (0.86)
-       │
-       └───── poem_3102 (0.84)
+┌─────────────────────────────────────────────────────────────────┐
+│ STAGE 1: Generate 768 Dimension-Extreme Candidates              │
+│ ─────────────────────────────────────────────────────────────── │
+│                                                                 │
+│ For each dimension i in [0, 767]:                               │
+│     Find the poem whose embedding[i] value is most different    │
+│     from current_poem.embedding[i]                              │
+│                                                                 │
+│ Result: 768 poems, each "opposite" along one semantic axis      │
+│                                                                 │
+│ Example:                                                        │
+│   current_poem.embedding = [0.82, -0.31, 0.67, ...]            │
+│   dim_0_extreme = poem with embedding[0] ≈ -0.95               │
+│   dim_1_extreme = poem with embedding[1] ≈ +0.88               │
+│   ...                                                           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ STAGE 2: Filter to Most Similar Overall                        │
+│ ─────────────────────────────────────────────────────────────── │
+│                                                                 │
+│ From the 768 candidates:                                        │
+│     Compute full cosine similarity to original poem             │
+│     Select top 3-6 poems with highest similarity                │
+│                                                                 │
+│ Result: Poems that are "almost the same, except for ONE thing"  │
+│                                                                 │
+│ These become the user's exit choices from this "room"           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Step 2: Generate Spanning Tree Maze**
+### Why This Works
 
-Use a maze generation algorithm (Prim's, Kruskal's, or recursive backtracker) to extract a spanning tree from the k-NN graph:
+The algorithm creates a "variations on a theme" exploration pattern:
 
-- **Spanning tree** = connected graph touching all nodes with no cycles
-- **Guarantees**: Every poem reachable, no forced backtracking
-- **Edges kept**: 7,792 (one less than node count)
-- **Branching factor**: Variable (some nodes have 1 exit, some have 4+)
+| Property | Effect |
+|----------|--------|
+| **Dimension-extreme selection** | Ensures each candidate differs in ONE specific learned feature |
+| **Similarity filtering** | Keeps choices feeling coherent and related |
+| **Combined effect** | "Near-clones with a twist" - familiar but subtly different |
+
+The user experiences a journey where each step feels related to the last, but has some ineffable quality that's shifted. Like walking through alternate universe versions of the same poem.
+
+### Mathematical Interpretation
+
+In 768-dimensional embedding space:
+- The 768 dimension-extreme candidates form a "shell" around the current poem
+- Each candidate lies in a different "octant" (extreme along one axis)
+- The similarity filter selects candidates that are still CLOSE despite being extreme
+- These are points that are geometrically nearby but lie across dimensional boundaries
+
+### User Experience
+
+1. **No state preservation**: Forward-only navigation. Users can use browser back button if desired.
+2. **Pure mystery**: No hints about dimensions or selection criteria. Just poems.
+3. **3-6 choices per step**: Enough variety without overwhelming
+4. **Deep thematic exploration**: Stay in a "mood neighborhood" while exploring its edges
+
+### Example Navigation Session
 
 ```
-Spanning Tree Maze:
+Room 1: "the autumn leaves fall silently to earth"
+        ┌─────────────────────────────────────────┐
+        │ Where would you like to go?             │
+        │                                         │
+        │ → "the autumn leaves drift to ground"   │
+        │ → "the maple leaves fall to soil"       │
+        │ → "the october leaves fall to earth"    │
+        │ → "autumn petals descend silently"      │
+        └─────────────────────────────────────────┘
 
-              poem_42 (START)
-             /   |   \
-        poem_847  poem_123  poem_2891
-           |         |
-       poem_501   poem_999
-          / \        |
-     poem_X poem_Y  poem_Z
-        ...        ...
+User picks: "autumn petals descend silently"
+
+Room 2: "autumn petals descend silently"
+        ┌─────────────────────────────────────────┐
+        │ Where would you like to go?             │
+        │                                         │
+        │ → "spring petals descend gently"        │
+        │ → "autumn blossoms fall quietly"        │
+        │ → "fading petals drift silently"        │
+        │ → "crimson petals sink slowly"          │
+        └─────────────────────────────────────────┘
+
+Each choice feels related but offers a subtle shift in one semantic aspect.
 ```
 
-**Step 3: Add Extra Edges for Choice**
+## Suggested Implementation Steps
 
-Keep additional k-NN edges beyond the spanning tree to give users multiple options at each intersection:
+See sub-issues for detailed implementation:
+
+- **11-002a**: Build dimension-extreme index (pre-computation)
+- **11-002b**: Implement similarity-filtered choice selection
+- **11-002c**: Generate maze HTML pages
+- **11-002d**: Add special room features (golden poems, landmarks)
+
+## Computational Analysis
+
+### Stage 1: Dimension-Extreme Computation
 
 ```
-Maze with Extra Edges:
+For each poem (7,793):
+    For each dimension (768):
+        Scan all poems to find extreme → O(7,793)
 
-    At poem_42, user sees:
-    - poem_847 (main path + similar)
-    - poem_123 (main path + similar)
-    - poem_2891 (main path + similar)
-    - poem_1547 (extra edge - shortcut!)
+Total: O(7,793 × 768 × 7,793) = O(46 billion) comparisons
 
-    User chooses any, maze adapts
+OPTIMIZATION: Pre-sort poems by each dimension value
+    Sort once: O(768 × 7,793 × log(7,793)) = O(75 million)
+    Lookup: O(768) per poem
+    Total with optimization: O(75 million + 7,793 × 768) = O(81 million)
 ```
 
-### Key Properties
+### Stage 2: Similarity Filtering
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| Nodes | 7,793 | All poems reachable |
-| Spanning tree edges | 7,792 | Minimum connectivity |
-| Extra choice edges | ~31,000 | From k-NN graph |
-| Choices per intersection | 2-6 | Based on local k-NN density |
-| Backtracking | Optional | User can return to previous poem |
-| Cycles | Prevented | Unless user explicitly backtracks |
+```
+For each poem (7,793):
+    Compute cosine similarity for 768 candidates: O(768 × 768)
+    Sort and take top 6: O(768 log 768)
 
-### Maze Generation Algorithms
+Total: O(7,793 × 768 × 768) = O(4.6 billion) operations
+Time: ~1-2 minutes
+```
 
-**Option A: Randomized Prim's Algorithm**
-- Start at random node, grow tree by adding random adjacent edges
-- Creates organic, winding paths
-- Good for "discovery" feeling
+### Cache Structure
 
-**Option B: Randomized Kruskal's Algorithm**
-- Sort all edges, add if they don't create cycle
-- Creates more uniform branching
-- Good for "fair" distribution of poems
+```
+Precomputed cache (dimension_maze_cache.json):
+{
+    "metadata": {
+        "algorithm": "dimension-extreme-similarity-filtered",
+        "dimensions": 768,
+        "choices_per_poem": 6,
+        "generated_at": "2025-12-25 ..."
+    },
+    "exits": {
+        "1": [423, 1847, 3291, 892, 5521, 2103],   // poem 1's 6 exit choices
+        "2": [1502, 847, 4421, 3892, 721, 6103],   // poem 2's 6 exit choices
+        ...
+    }
+}
 
-**Option C: Recursive Backtracker (DFS)**
-- Depth-first exploration with backtracking
-- Creates long corridors with occasional branches
-- Good for "journey" feeling
+Size: 7,793 × 6 × ~4 bytes = ~187 KB
+```
 
-**Recommendation**: Randomized Prim's with seed based on starting poem ID (reproducible but varied per poem).
+## Design Decisions
 
-### User Interface Design
+### Decision 1: Navigation State
+**Choice**: No state preservation. Forward-only with browser back.
+**Rationale**: Keeps implementation simple. HTML is truly static. Users can map it themselves if curious.
+
+### Decision 2: User Hints
+**Choice**: Pure mystery. Just show poems, no dimension/similarity info.
+**Rationale**: Let users discover their own patterns. "good luck lmao"
+
+### Decision 3: Cache Strategy
+**Choice**: Full precomputation of all 768 dimension-extremes, then filter to 6.
+**Rationale**: Different starting poems have different extremes. One-time compute cost (~10 min) for instant HTML generation.
+
+### Decision 4: Number of Choices
+**Choice**: 6 exits per room (configurable).
+**Rationale**: Enough variety for meaningful choice, few enough to not overwhelm.
+
+## HTML Page Structure
 
 ```html
 <!-- maze/42.html -->
 <html>
-<head><title>Poetry Maze - Room 42</title></head>
+<head>
+    <meta charset="UTF-8">
+    <title>Poetry Maze - Room 42</title>
+</head>
 <body>
 <pre>
-╔════════════════════════════════════════════════════════════════════╗
-║                          POETRY MAZE                                ║
-║                         Room 42 of 7793                             ║
-╠════════════════════════════════════════════════════════════════════╣
-║                                                                     ║
-║  [Current Poem Content Here]                                        ║
-║                                                                     ║
-║  the quick brown fox jumped over the lazy dog                       ║
-║  and then sat down to contemplate existence                         ║
-║                                                                     ║
-╠════════════════════════════════════════════════════════════════════╣
-║  WHERE WOULD YOU LIKE TO GO?                                        ║
-║                                                                     ║
-║  ┌─────────────────────────────────────────────────────────────┐   ║
-║  │ → [A] Poem 847: "the slow grey wolf..."        (0.94 match) │   ║
-║  │ → [B] Poem 123: "contemplating the void..."    (0.91 match) │   ║
-║  │ → [C] Poem 2891: "existence is a funny..."     (0.88 match) │   ║
-║  │ → [D] Poem 1547: "brown leaves falling..."     (0.86 match) │   ║
-║  └─────────────────────────────────────────────────────────────┘   ║
-║                                                                     ║
-║  ← [BACK] Return to previous room                                   ║
-║                                                                     ║
-╚════════════════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                               POETRY MAZE                                       ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                 ║
+║  the autumn leaves fall silently to earth                                       ║
+║  covering the ground in golden memories                                         ║
+║  while birds prepare their journey south                                        ║
+║                                                                                 ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║  WHERE WOULD YOU LIKE TO GO?                                                    ║
+║                                                                                 ║
+║  ┌─────────────────────────────────────────────────────────────────────────┐   ║
+║  │ → [1] "the autumn leaves drift quietly to ground..."                    │   ║
+║  │ → [2] "the maple leaves fall silently to soil..."                       │   ║
+║  │ → [3] "october leaves descend gently to earth..."                       │   ║
+║  │ → [4] "autumn petals sink slowly to grass..."                           │   ║
+║  │ → [5] "the falling leaves whisper to ground..."                         │   ║
+║  │ → [6] "crimson leaves drift silently earthward..."                      │   ║
+║  └─────────────────────────────────────────────────────────────────────────┘   ║
+║                                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝
 </pre>
 <p>
-  <a href="maze/847.html">[A] Poem 847</a> |
-  <a href="maze/123.html">[B] Poem 123</a> |
-  <a href="maze/2891.html">[C] Poem 2891</a> |
-  <a href="maze/1547.html">[D] Poem 1547</a>
+<a href="423.html">[1]</a> |
+<a href="1847.html">[2]</a> |
+<a href="3291.html">[3]</a> |
+<a href="892.html">[4]</a> |
+<a href="5521.html">[5]</a> |
+<a href="2103.html">[6]</a>
 </p>
 </body>
 </html>
 ```
 
-### Information Hiding Potential
-
-The user mentioned hiding information within the maze:
-
-> "we could easily hide information within that the user would have to navigate through and toward"
-
-Ideas for hidden content:
-- **Golden poems** appear as "rare rooms" with special border treatment
-- **Secret areas** reachable only through specific poem chains
-- **Centroid rooms** (melancholy, wonder, rage, etc.) as "boss rooms"
-- **Easter eggs** at poems with specific ID patterns (e.g., poem 777)
-
-## Suggested Implementation Steps
-
-### Step 1: Build k-NN Graph
-- [ ] Add `build_knn_graph(embeddings, k)` function
-- [ ] For each poem, compute and store k nearest neighbors with similarities
-- [ ] Output: `assets/knn_graph.json` (~50MB estimated)
-
-### Step 2: Implement Maze Generator
-- [ ] Add `generate_maze_tree(knn_graph, start_poem_id, seed)` function
-- [ ] Implement randomized Prim's algorithm
-- [ ] Seed with poem ID for reproducible but varied mazes
-- [ ] Output: maze structure (spanning tree + extra edges)
-
-### Step 3: Pre-compute All Mazes
-- [ ] Create `scripts/precompute-maze-structures`
-- [ ] Generate maze adjacency lists for each starting poem
-- [ ] Cache to `assets/maze_cache.json`
-
-### Step 4: Create Maze HTML Generator
-- [ ] Add `generate_maze_page(poem_id, maze_cache)` function
-- [ ] Render current poem with intersection choices
-- [ ] Include back-link to previous room
-
-### Step 5: Integrate into Pipeline
-- [ ] Add `maze/` output directory
-- [ ] Update `run.sh` to include maze generation step
-- [ ] Add maze link to poem headers
-
-### Step 6: Add Special Features
-- [ ] Mark golden poems as "treasure rooms"
-- [ ] Add centroid poems as "landmark rooms"
-- [ ] Consider "fog of war" - hide unvisited poem previews?
-
-## Computational Analysis
-
-### k-NN Graph Construction
-- **Comparisons**: O(n²) = 60.7 million
-- **Time**: ~30 minutes (single-threaded), ~5 minutes (8 threads)
-- **Storage**: 7,793 × 6 × (poem_id + similarity) ≈ 1.5 MB
-
-### Maze Generation
-- **Per poem**: O(n log n) for Prim's with priority queue
-- **Total**: O(n² log n) for all starting poems
-- **Time**: Negligible compared to k-NN construction
-
-### HTML Generation
-- **Pages**: 7,793 maze pages
-- **Per page**: ~10KB (poem content + 4-6 choices)
-- **Total**: ~78 MB (modest compared to similar/different)
-
 ## Related Issues
 
-- **Issue 11-001**: Journey-style similar navigation (complementary)
-- **Issue 9-003**: Incremental centroid optimization (reusable for k-NN)
-- **Issue 8-002**: Multi-threaded generation (parallel maze pages)
+- **Issue 11-001**: Journey-style similar navigation (complementary exploration mode)
+- **Issue 9-003**: Centroid optimization patterns (reusable for similarity computation)
+- **Issue 8-002**: Multi-threaded HTML generation (parallel maze page generation)
+
+## Sub-Issues
+
+- **11-002a**: Build dimension-extreme index infrastructure
+- **11-002b**: Implement similarity-filtered choice selection
+- **11-002c**: Generate maze HTML pages
+- **11-002d**: Add special room features (golden poems, landmarks, easter eggs)
 
 ## Files to Create
 
-- `src/knn-graph-builder.lua` (k-NN graph construction)
-- `src/maze-generator.lua` (Prim's algorithm implementation)
-- `scripts/precompute-maze-structures` (pre-computation script)
+- `src/dimension-extreme-builder.lua` (Stage 1 computation)
+- `src/maze-choice-selector.lua` (Stage 2 filtering)
+- `scripts/precompute-maze-exits` (pre-computation script)
 - `src/maze-html-generator.lua` (HTML page generation)
-
-## Open Questions
-
-1. **Should maze replace an existing mode or be additive?**
-   - Recommendation: Additive (fourth navigation mode)
-
-2. **Should back-links preserve history or just go to previous page?**
-   - Recommendation: Preserve history (like browser back button)
-
-3. **Should unvisited poems show previews or be hidden?**
-   - Recommendation: Show first line as teaser
-
-4. **Should mazes be deterministic per starting poem or truly random?**
-   - Recommendation: Deterministic (seeded by poem ID) for cache-ability
 
 ---
 
@@ -283,52 +249,6 @@ Ideas for hidden content:
 
 **Created**: 2025-12-25
 
+**Updated**: 2025-12-25 (refined algorithm: dimension-extreme + similarity filter)
+
 **Status**: Open
-
----
-
-## Appendix: Maze Algorithm Pseudocode
-
-### Randomized Prim's Algorithm
-
-```lua
-function generate_maze(knn_graph, start_id)
-    local in_maze = {[start_id] = true}
-    local maze_edges = {}
-    local frontier = {}  -- Edges from maze to non-maze
-
-    -- Initialize frontier with start node's edges
-    for _, neighbor in ipairs(knn_graph[start_id]) do
-        table.insert(frontier, {from = start_id, to = neighbor.id, sim = neighbor.similarity})
-    end
-
-    while #frontier > 0 do
-        -- Pick random edge from frontier
-        local idx = math.random(#frontier)
-        local edge = frontier[idx]
-        table.remove(frontier, idx)
-
-        -- Skip if target already in maze (would create cycle)
-        if in_maze[edge.to] then
-            goto continue
-        end
-
-        -- Add edge to maze
-        table.insert(maze_edges, edge)
-        in_maze[edge.to] = true
-
-        -- Add new node's edges to frontier
-        for _, neighbor in ipairs(knn_graph[edge.to]) do
-            if not in_maze[neighbor.id] then
-                table.insert(frontier, {from = edge.to, to = neighbor.id, sim = neighbor.similarity})
-            end
-        end
-
-        ::continue::
-    end
-
-    return maze_edges
-end
-```
-
-This creates a spanning tree where every poem is reachable with no cycles, but the path taken is randomized (seeded for reproducibility).
