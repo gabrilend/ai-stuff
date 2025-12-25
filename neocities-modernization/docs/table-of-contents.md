@@ -61,8 +61,14 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/phase-6/021-implement-html-template-image-rendering.md` - HTML template image integration
   - `/issues/phase-6/022-implement-screen-reader-accessibility-for-separators.md` - Screen reader accessibility for 80-character separators
   - `/issues/phase-6/024-implement-visual-timeline-progress-with-semantic-colors.md` - Visual timeline progress indicators with semantic color coding
-- `/issues/7-progress.md` - Phase 7 progress tracking (stabilization & polish) - CURRENT
+- `/issues/7-progress.md` - Phase 7 progress tracking (stabilization & polish) - COMPLETED
   - `/issues/7-001-fix-run-sh-warnings-and-errors.md` - Fix pipeline warnings, errors, and fallbacks
+- `/issues/8-progress.md` - Phase 8 progress tracking (website completion) - CURRENT
+- `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - PLANNED
+- `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
+- `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
+  - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)
+  - `/issues/11-002-implement-maze-based-exploration-system.md` - k-NN graph maze with user choice at intersections
 
 ### 🎯 Source Documentation
 - `/src/main.lua` - Interactive project management interface
@@ -93,7 +99,7 @@ This document provides a hierarchical view of all project documentation.
 
 ## Document Maintenance
 
-**Last Updated**: December 23, 2025  
+**Last Updated**: December 25, 2025  
 **Maintained By**: Project development team  
 **Update Policy**: All new documents must be added to this table of contents
 
