@@ -246,19 +246,16 @@ local function calculate_ultra_centroid(chunk_embeddings)
     end
 
     -- Sum all chunk embeddings
+    -- Note: Division by count before normalization is unnecessary because
+    -- normalization rescales to unit length regardless of input magnitude.
+    -- See Issue 9-003 for mathematical proof of cosine scale-invariance.
     for _, embedding in ipairs(chunk_embeddings) do
         for i = 1, dim do
             centroid[i] = centroid[i] + embedding[i]
         end
     end
 
-    -- Divide by count (mean)
-    local count = #chunk_embeddings
-    for i = 1, dim do
-        centroid[i] = centroid[i] / count
-    end
-
-    -- Normalize to unit length
+    -- Normalize to unit length (makes any prior scaling irrelevant)
     local magnitude = 0
     for i = 1, dim do
         magnitude = magnitude + centroid[i] * centroid[i]

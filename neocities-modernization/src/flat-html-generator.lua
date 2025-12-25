@@ -624,30 +624,29 @@ end
 
 -- {{{ function calculate_embedding_centroid
 local function calculate_embedding_centroid(embeddings_list)
+    -- Returns the sum of all embeddings (not averaged).
+    -- Division by count is unnecessary because cosine distance is scale-invariant:
+    -- cos(kA, B) = k(A·B) / (k||A|| × ||B||) = cos(A, B)
+    -- See Issue 9-003 for mathematical proof.
     if #embeddings_list == 0 then
         return nil
     end
-    
+
     local embedding_dim = #embeddings_list[1]
     local centroid = {}
-    
+
     -- Initialize centroid with zeros
     for i = 1, embedding_dim do
         centroid[i] = 0
     end
-    
-    -- Sum all embeddings
+
+    -- Sum all embeddings (no averaging needed for cosine distance)
     for _, embedding in ipairs(embeddings_list) do
         for i = 1, embedding_dim do
             centroid[i] = centroid[i] + embedding[i]
         end
     end
-    
-    -- Average (divide by count)
-    for i = 1, embedding_dim do
-        centroid[i] = centroid[i] / #embeddings_list
-    end
-    
+
     return centroid
 end
 -- }}}
