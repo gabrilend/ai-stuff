@@ -33,13 +33,13 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-001f | Remove effil dependency | Open | Low |
 | 9-002 | Port similarity matrix generation to Vulkan | Open | Medium |
 | 9-002a | Design similarity matrix compute shader | Open | High |
-| 9-003 | Optimize centroid calculation and parallelization | Open | High |
+| 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
-| (none yet) | - | - | - |
+| 9-003a | Remove unnecessary centroid division from source files | Completed | 2025-12-25 |
 
 ## Target Hardware
 
