@@ -510,7 +510,7 @@ function M.is_html_fresh()
     end
 
     -- Check against similarity matrix (affects similarity/different pages)
-    local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+    local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
     if utils.file_exists(similarity_file) then
         local similarity_mtime = utils.get_file_mtime(similarity_file)
         if similarity_mtime and similarity_mtime > output_mtime then
@@ -539,13 +539,13 @@ function M.generate_website_html(force)
         return false
     end
 
-    local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
     if not utils.file_exists(embeddings_file) then
         utils.log_error("Embeddings file not found. Run generate-embeddings.sh first.")
         return false
     end
 
-    local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+    local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
     if not utils.file_exists(similarity_file) then
         utils.log_error("Similarity matrix not found. Run generate-embeddings.sh first.")
         return false
@@ -722,7 +722,7 @@ function M.handle_tui_action(values)
         utils.log_info("Running parallel similarity calculation...")
         local sim_engine = require("similarity-engine-parallel")
         local thread_count = tonumber(values.thread_count) or 8
-        local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+        local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
         sim_engine.calculate_similarity_matrix_parallel(embeddings_file, "embeddinggemma:latest", 0.2, false, thread_count)
         executed = true
     end
@@ -788,7 +788,7 @@ end
 function M.test_single_similarity_page(poem_id)
     utils.log_info("Testing similarity page for poem " .. poem_id .. "...")
     local poems_file = utils.asset_path("poems.json")
-    local similarity_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json"
+    local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
     local output_dir = DIR .. "/output"
 
     local poems_data = utils.read_json_file(poems_file)
@@ -824,7 +824,7 @@ end
 function M.test_single_difference_page(poem_id)
     utils.log_info("Testing difference page for poem " .. poem_id .. "...")
     local poems_file = utils.asset_path("poems.json")
-    local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
     local output_dir = DIR .. "/output"
 
     local poems_data = utils.read_json_file(poems_file)

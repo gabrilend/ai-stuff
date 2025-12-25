@@ -572,13 +572,9 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     embeddings_data.metadata.new_embeddings = completed - skipped_count
     embeddings_data.metadata.reused_embeddings = skipped_count
     embeddings_data.metadata.processing_mode = incremental and "incremental" or "full_regeneration"
-    
-    -- Add timing data for progress bar calculations using rolling average algorithm
-    embeddings_data.metadata.timing = {
-        average_generation_time = timing_data.average_generation_time,
-        processed_count = timing_data.processed_count
-    }
-    
+    -- Note: timing_data feature was planned but never implemented.
+    -- Removed reference to undefined timing_data variable (Issue 8-018).
+
     utils.log_info("Embedding generation complete!")
     if incremental then
         utils.log_info("Incremental processing results:")

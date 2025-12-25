@@ -57,7 +57,7 @@ end
 -- {{{ function M.load_centroids
 -- Loads generated centroid embeddings from the embeddings directory
 function M.load_centroids(model_name)
-    model_name = model_name or "EmbeddingGemma_latest"
+    model_name = model_name or "embeddinggemma_latest"
     local centroids_file = utils.embeddings_dir(model_name) .. "/centroids.json"
 
     local content, err = utils.read_file(centroids_file)
@@ -372,7 +372,7 @@ end
 -- {{{ function M.generate_all_centroid_pages
 -- Main function to generate all centroid-based HTML pages
 function M.generate_all_centroid_pages(poems_data, embeddings_data, output_dir)
-    local model_name = "EmbeddingGemma_latest"
+    local model_name = "embeddinggemma_latest"
 
     -- Load centroids
     local centroids_data = M.load_centroids(model_name)
@@ -459,7 +459,7 @@ if arg and arg[0] and arg[0]:match("centroid%-html%-generator%.lua$") then
     local poems_data = dkjson.decode(poems_content)
 
     -- Load embeddings data
-    local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
+    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
     local embeddings_content = utils.read_file(embeddings_file)
     if not embeddings_content then
         utils.log_error("Could not load embeddings.json")

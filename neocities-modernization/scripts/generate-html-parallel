@@ -575,10 +575,10 @@ print(string.format("Mode: %s", mode_desc))
 -- Load data files
 print("\n🔄 Loading data files...")
 local poems_file = DIR .. "/assets/poems.json"
-local similarities_dir = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarities/"
-local poem_colors_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/poem_colors.json"
-local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
-local diversity_cache_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/diversity_cache.json"
+local similarities_dir = DIR .. "/assets/embeddings/embeddinggemma_latest/similarities/"
+local poem_colors_file = DIR .. "/assets/embeddings/embeddinggemma_latest/poem_colors.json"
+local embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
+local diversity_cache_file = DIR .. "/assets/embeddings/embeddinggemma_latest/diversity_cache.json"
 
 local poems_data = utils.read_json_file(poems_file)
 local poem_colors_data = utils.read_json_file(poem_colors_file)
@@ -971,7 +971,7 @@ if not DIFFERENCE_ONLY then
                 print(string.format("   Completed before failure: %d/%d", sim_completed, #valid_poem_ids))
                 print("")
                 print("   Remedy: Check similarity data for this poem:")
-                print(string.format("   - Similarity file: %s/assets/embeddings/EmbeddingGemma_latest/similarities/poem_%d.json", DIR, poem_id))
+                print(string.format("   - Similarity file: %s/assets/embeddings/embeddinggemma_latest/similarities/poem_%d.json", DIR, poem_id))
                 print("   - Regenerate similarity data: lua src/similarity-engine-parallel.lua -I")
                 os.exit(1)
             end
@@ -1099,7 +1099,7 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
                 print(string.format("   Completed before failure: %d/%d", diff_completed, #valid_poem_ids))
                 print("")
                 print("   Remedy: Check diversity data for this poem:")
-                print(string.format("   - Diversity cache: %s/assets/embeddings/EmbeddingGemma_latest/diversity_cache.json", DIR))
+                print(string.format("   - Diversity cache: %s/assets/embeddings/embeddinggemma_latest/diversity_cache.json", DIR))
                 print("   - Regenerate diversity data: scripts/precompute-diversity-sequences")
                 os.exit(1)
             end

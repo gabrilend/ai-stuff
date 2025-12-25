@@ -34,6 +34,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-002 | Port similarity matrix generation to Vulkan | Open | Medium |
 | 9-002a | Design similarity matrix compute shader | Open | High |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
+| 9-004 | GPU-accelerate maze algorithm | Open | Low |
 
 ### Completed Issues
 
@@ -85,8 +86,31 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 **Started**: 2025-12-14
 
+## Cross-Phase Dependencies
+
+Issue 9-004 (GPU-accelerate maze algorithm) depends on:
+- **Phase 9**: 9-001b (Vulkan wrapper), 9-001c (cosine shader)
+- **Phase 11**: 11-002 (maze design), 11-002a (dimension extremes), 11-002b (similarity filter)
+
+This creates a bridge between GPU infrastructure and advanced exploration features.
+
+```
+Phase 9                          Phase 11
+   │                                │
+   └── 9-001c (cosine shader) ──┐   │
+                                │   │
+   └── 9-001b (vulkan wrap) ────┼───┼── 11-002 (maze design)
+                                │   │
+                                ▼   ▼
+                           ┌─────────────┐
+                           │   9-004     │
+                           │  GPU Maze   │
+                           └─────────────┘
+```
+
 ## Related Documents
 
 - `docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis
 - Issue 8-002 - Original multi-threading issue that led to GPU decision
 - Issue 9-003 - CPU optimizations that can be implemented before GPU work
+- Issue 11-002 - Maze algorithm design (blocked by this phase)

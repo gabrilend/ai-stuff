@@ -34,8 +34,8 @@ end
 -- {{{ function generate_test_pages
 local function generate_test_pages(poem_ids)
     local poems_file = DIR .. "/assets/poems.json"
-    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
-    local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+    local embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
     local output_dir = DIR .. "/output/test"
 
     print("🔄 Loading data files...")

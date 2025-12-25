@@ -200,7 +200,7 @@ run_phase_demo() {
             echo ""
             echo "📊 CURRENT STATUS:"
             cache_exists="No"
-            if [ -f "assets/embeddings/EmbeddingGemma_latest/diversity_cache.json" ]; then
+            if [ -f "assets/embeddings/embeddinggemma_latest/diversity_cache.json" ]; then
                 cache_exists="Yes"
             fi
             similar_count=$(find output/similar -name "*.html" 2>/dev/null | wc -l)
@@ -295,7 +295,7 @@ run_phase_demo() {
             echo "════════════════════════════════════════════════════════════════════════════"
             echo ""
             cache_exists="No"
-            if [ -f "assets/embeddings/EmbeddingGemma_latest/diversity_cache.json" ]; then
+            if [ -f "assets/embeddings/embeddinggemma_latest/diversity_cache.json" ]; then
                 cache_exists="Yes (fast mode available)"
             fi
             echo "Diversity cache: $cache_exists"

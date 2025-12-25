@@ -162,8 +162,8 @@ function interactive_mode()
         io.write("Embeddings file: ")
         embeddings_file = io.read()
     else
-        similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
-        embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+        similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+        embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
     end
     
     return {
