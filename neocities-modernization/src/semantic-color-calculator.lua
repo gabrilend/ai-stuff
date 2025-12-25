@@ -221,9 +221,9 @@ function M.main(interactive_mode)
         
         local color_config_file = DIR .. "/config/semantic-colors.json"
         local poems_file = utils.asset_path("poems.json")
-        local embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/embeddings.json"
-        local color_embeddings_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/color_embeddings.json"
-        local poem_colors_file = utils.embeddings_dir("EmbeddingGemma_latest") .. "/poem_colors.json"
+        local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
+        local color_embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/color_embeddings.json"
+        local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
         
         -- Load color configuration
         local color_config = utils.read_json_file(color_config_file)

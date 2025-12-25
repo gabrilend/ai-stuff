@@ -347,7 +347,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("  " .. cli_dir .. "/\n")
             io.stderr:write("    poems.json\n")
             io.stderr:write("    embeddings/\n")
-            io.stderr:write("      EmbeddingGemma_latest/\n")
+            io.stderr:write("      embeddinggemma_latest/\n")
             io.stderr:write("        embeddings.json\n")
             io.stderr:write("\n")
             return nil
@@ -371,7 +371,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("  " .. config.assets_root .. "/\n")
             io.stderr:write("    poems.json\n")
             io.stderr:write("    embeddings/\n")
-            io.stderr:write("      EmbeddingGemma_latest/\n")
+            io.stderr:write("      embeddinggemma_latest/\n")
             io.stderr:write("        embeddings.json\n")
             io.stderr:write("\n")
             return nil
@@ -399,7 +399,7 @@ function M.init_assets_root(cli_args)
     io.stderr:write("  ~/your/assets/path/\n")
     io.stderr:write("    poems.json\n")
     io.stderr:write("    embeddings/\n")
-    io.stderr:write("      EmbeddingGemma_latest/\n")
+    io.stderr:write("      embeddinggemma_latest/\n")
     io.stderr:write("        embeddings.json\n")
     io.stderr:write("\n")
     return nil
@@ -433,10 +433,10 @@ end
 
 -- {{{ function M.embeddings_dir
 -- Get path to embeddings directory for a specific model
--- @param model_name: optional model name (default: "EmbeddingGemma_latest")
+-- @param model_name: optional model name (default: "embeddinggemma_latest")
 -- @return: full path to model's embeddings directory
 function M.embeddings_dir(model_name)
-    model_name = model_name or "EmbeddingGemma_latest"
+    model_name = model_name or "embeddinggemma_latest"
     -- Sanitize model name for filesystem safety
     local safe_name = model_name:gsub("[^%w%-_.]", "_")
     return M.asset_path("embeddings/" .. safe_name)

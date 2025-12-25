@@ -65,6 +65,7 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/7-001-fix-run-sh-warnings-and-errors.md` - Fix pipeline warnings, errors, and fallbacks
 - `/issues/8-progress.md` - Phase 8 progress tracking (website completion) - CURRENT
 - `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - PLANNED
+  - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
   - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)

@@ -83,7 +83,7 @@ local function demo_flat_html_generation()
     -- Load required data (use configured assets path)
     print("📁 Loading data files...")
     local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
-    local similarity_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json")
+    local similarity_data = utils.read_json_file(utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json")
     
     if not poems_data or not similarity_data then
         print("❌ Error: Could not load required data files")
@@ -135,7 +135,7 @@ local function demo_timeline_progress()
     print("🎯 Generating sample similarity page with timeline progress...")
     
     local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
-    local similarity_data = utils.read_json_file(utils.embeddings_dir("EmbeddingGemma_latest") .. "/similarity_matrix.json")
+    local similarity_data = utils.read_json_file(utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json")
 
     if poems_data and similarity_data then
         -- Find a poem with an ID for testing

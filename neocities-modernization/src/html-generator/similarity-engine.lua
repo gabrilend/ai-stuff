@@ -13,7 +13,7 @@ local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
 -- Default configuration
 M.config = {
-    default_model = "EmbeddingGemma_latest",
+    default_model = "embeddinggemma_latest",
     default_recommendations = 10,
     min_similarity_threshold = 0.1,
     enable_golden_prioritization = true,

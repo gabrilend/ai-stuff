@@ -2,7 +2,7 @@
 
 -- Pre-computes diversity sequences for all poems and caches to disk
 -- Uses centroid-based O(n^2) algorithm with thermal management (sleep between batches)
--- Output: assets/embeddings/EmbeddingGemma_latest/diversity_cache.json
+-- Output: assets/embeddings/embeddinggemma_latest/diversity_cache.json
 --
 -- OPTIMIZATIONS (Issue 9-003):
 -- 1. Incremental running sum: O(768) per iteration instead of O(N × 768)
@@ -215,7 +215,7 @@ print(string.format("Test mode: %s", TEST_MODE and "yes (first " .. MAX_TEST_SEQ
 -- Load data files
 print("\n🔄 Loading data files (single-threaded phase)...")
 local poems_file = DIR .. "/assets/poems.json"
-local embeddings_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+local embeddings_file = DIR .. "/assets/embeddings/embeddinggemma_latest/embeddings.json"
 
 io.write("   Loading poems.json... ")
 io.flush()
@@ -455,7 +455,7 @@ local cache = {
         total_sequences = completed,
         algorithm = "centroid-based-diversity-incremental",  -- Issue 9-003 optimized
         embedding_dimension = embedding_dim,
-        source_embeddings = "EmbeddingGemma_latest",
+        source_embeddings = "embeddinggemma_latest",
         optimization_notes = "Incremental running sum, no division, RAM-only storage"
     },
     sequences = {}
@@ -476,7 +476,7 @@ end
 print(string.format("   Converted %d sequences to poem IDs", completed))
 
 -- Write cache file
-local cache_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/diversity_cache.json"
+local cache_file = DIR .. "/assets/embeddings/embeddinggemma_latest/diversity_cache.json"
 local cache_json = dkjson.encode(cache, {indent = false})
 local f = io.open(cache_file, "w")
 if f then

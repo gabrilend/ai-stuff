@@ -16,7 +16,7 @@ function M.test_embedding_list_generation()
     utils.log_info("Testing embedding list generation...")
     
     local embeddings_dir = DIR .. "/assets/embeddings"
-    local model_name = "EmbeddingGemma_latest"
+    local model_name = "embeddinggemma_latest"
     
     -- Test generation
     local success = embedding_generator.generate_all_embedding_lists(embeddings_dir, model_name, {

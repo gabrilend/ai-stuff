@@ -156,8 +156,8 @@ demo_similarity_integration() {
     
     # Check for similarity data
     local similarity_files=(
-        "assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
-        "assets/embeddings/EmbeddingGemma_latest/embeddings.json"
+        "assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
+        "assets/embeddings/embeddinggemma_latest/embeddings.json"
     )
     
     for file in "${similarity_files[@]}"; do

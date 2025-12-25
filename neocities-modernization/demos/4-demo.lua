@@ -97,7 +97,7 @@ local function gather_statistics()
     end
     
     -- Check similarity matrices (use configured assets path)
-    local embeddings_dir = utils.embeddings_dir("EmbeddingGemma_latest")
+    local embeddings_dir = utils.embeddings_dir("embeddinggemma_latest")
     local matrix_file = io.open(embeddings_dir .. "/similarity_matrix.json", "r")
     if matrix_file then
         matrix_file:close()

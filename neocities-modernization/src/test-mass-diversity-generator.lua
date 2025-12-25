@@ -26,7 +26,7 @@ end
 local function run_basic_generation_tests()
     utils.log_info("🧪 Running basic mass generation tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     local test_output_dir = "/tmp/diversity_test_output"
     
@@ -82,7 +82,7 @@ end
 local function run_performance_tests()
     utils.log_info("⚡ Running performance tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     local test_output_dir = "/tmp/diversity_perf_test"
     
@@ -118,7 +118,7 @@ end
 local function run_html_validation_tests()
     utils.log_info("📄 Running HTML validation tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     local test_output_dir = "/tmp/diversity_html_test"
     
@@ -179,7 +179,7 @@ end
 local function run_batch_processing_tests()
     utils.log_info("🔄 Running batch processing tests...")
     
-    local similarity_file = DIR .. "/assets/embeddings/EmbeddingGemma_latest/similarity_matrix.json"
+    local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
     
     -- Load data for batch testing
