@@ -1,6 +1,11 @@
 #!/bin/bash
 # Neocities Modernization Project - Interactive Phase Demonstration
 # Production-ready deliverable showcasing all project achievements
+#
+# Uses the TUI library for vim-style navigation when available.
+# Fallback to simple menu if TUI unavailable.
+#
+# Usage: ./phase-demo.sh [DIRECTORY]
 
 # {{{ setup_dir_path
 setup_dir_path() {
@@ -14,6 +19,187 @@ setup_dir_path() {
 
 DIR=$(setup_dir_path "$1")
 cd "$DIR" || exit 1
+
+# {{{ TUI Library
+# Source TUI library for interactive mode with vim-style navigation
+LIBS_DIR="/home/ritz/programming/ai-stuff/scripts/libs"
+TUI_AVAILABLE=false
+if [[ -f "${LIBS_DIR}/lua-menu.sh" ]] && command -v luajit &>/dev/null; then
+    source "${LIBS_DIR}/lua-menu.sh"
+    TUI_AVAILABLE=true
+fi
+# }}}
+
+# {{{ setup_tui_menu
+# Configure the TUI menu with all phase demonstrations and utilities
+setup_tui_menu() {
+    if ! $TUI_AVAILABLE; then
+        return 1
+    fi
+
+    # Initialize TUI
+    if ! tui_init; then
+        return 1
+    fi
+
+    # Build the menu
+    menu_init
+    menu_set_title "Phase Demo" "Neocities Poetry Modernization - j/k:nav space:toggle Enter:run"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 1: Phase Demonstrations (checkboxes)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "phases" "multi" "Phase Demonstrations"
+    menu_add_item "phases" "phase1" "Phase 1: Foundation & Data" "checkbox" "0" \
+        "Data extraction and validation pipeline" "1" ""
+    menu_add_item "phases" "phase2" "Phase 2: Similarity Engine" "checkbox" "0" \
+        "Embeddings and similarity matrix" "2" ""
+    menu_add_item "phases" "phase3" "Phase 3: HTML Generation" "checkbox" "0" \
+        "Core HTML page generation" "3" ""
+    menu_add_item "phases" "phase4" "Phase 4: Data Quality" "checkbox" "0" \
+        "Golden poem fixes and validation" "4" ""
+    menu_add_item "phases" "phase5" "Phase 5: Flat HTML Design" "checkbox" "0" \
+        "CSS-free HTML implementation" "5" ""
+    menu_add_item "phases" "phase6" "Phase 6: Image Integration" "checkbox" "0" \
+        "Images and chronological sorting" "6" ""
+    menu_add_item "phases" "phase7" "Phase 7: Stabilization" "checkbox" "0" \
+        "Pipeline polish and error handling" "7" ""
+    menu_add_item "phases" "phase8" "Phase 8: Website Completion" "checkbox" "0" \
+        "Full website generation" "8" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2: Utilities
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "utils" "multi" "Utilities"
+    menu_add_item "utils" "stats" "Project Statistics" "checkbox" "0" \
+        "Show comprehensive project metrics" "s" ""
+    menu_add_item "utils" "pipeline" "Run Complete Pipeline" "checkbox" "0" \
+        "Extract → Process → Generate" "p" ""
+    menu_add_item "utils" "browser" "View in Browser" "checkbox" "0" \
+        "Open generated HTML in browser" "v" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 3: HTML Generation Options
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "html" "multi" "HTML Generation"
+    menu_add_item "html" "html_similar" "Generate Similar Pages" "checkbox" "0" \
+        "Generate similarity-sorted pages" "h" ""
+    menu_add_item "html" "html_different" "Generate Different Pages" "checkbox" "0" \
+        "Generate diversity-sorted pages" "d" ""
+    menu_add_item "html" "html_threads" "Thread Count" "flag" "4:2" \
+        "Parallel threads (1-16)" "t" "--threads"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 4: Diversity Pre-computation
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "diversity" "multi" "Diversity Pre-computation ⚠️"
+    menu_add_item "diversity" "div_compute" "Pre-compute Cache" "checkbox" "0" \
+        "~42 hours - one-time cost" "c" ""
+    menu_add_item "diversity" "div_threads" "Thread Count" "flag" "4:2" \
+        "Parallel threads for diversity" "" ""
+    menu_add_item "diversity" "div_sleep" "Sleep (seconds)" "flag" "5:2" \
+        "Thermal throttling between batches" "" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 5: Actions
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "actions" "single" "Actions"
+    menu_add_item "actions" "run" "Run Selected" "action" "" \
+        "Execute selected phases and utilities" "r"
+
+    return 0
+}
+# }}}
+
+# {{{ run_tui_selections
+# Execute the selected items from the TUI menu
+run_tui_selections() {
+    local ran_something=false
+
+    # Phase demonstrations
+    [[ "$(menu_get_value "phase1")" == "1" ]] && { run_phase_demo 1; ran_something=true; }
+    [[ "$(menu_get_value "phase2")" == "1" ]] && { run_phase_demo 2; ran_something=true; }
+    [[ "$(menu_get_value "phase3")" == "1" ]] && { run_phase_demo 3; ran_something=true; }
+    [[ "$(menu_get_value "phase4")" == "1" ]] && { run_phase_demo 4; ran_something=true; }
+    [[ "$(menu_get_value "phase5")" == "1" ]] && { run_phase_demo 5; ran_something=true; }
+    [[ "$(menu_get_value "phase6")" == "1" ]] && { run_phase_demo 6; ran_something=true; }
+    [[ "$(menu_get_value "phase7")" == "1" ]] && { run_phase_demo 7; ran_something=true; }
+    [[ "$(menu_get_value "phase8")" == "1" ]] && { run_phase_demo 8; ran_something=true; }
+
+    # Utilities
+    [[ "$(menu_get_value "stats")" == "1" ]] && { run_phase_demo S; ran_something=true; }
+    [[ "$(menu_get_value "pipeline")" == "1" ]] && { run_phase_demo P; ran_something=true; }
+    [[ "$(menu_get_value "browser")" == "1" ]] && { run_phase_demo V; ran_something=true; }
+
+    # HTML Generation
+    local html_threads=$(menu_get_value "html_threads")
+    html_threads=${html_threads:-4}
+
+    if [[ "$(menu_get_value "html_similar")" == "1" ]] && [[ "$(menu_get_value "html_different")" == "1" ]]; then
+        echo ""
+        echo "Generating all HTML pages with $html_threads threads..."
+        luajit scripts/generate-html-parallel "$DIR" "$html_threads"
+        ran_something=true
+    elif [[ "$(menu_get_value "html_similar")" == "1" ]]; then
+        echo ""
+        echo "Generating similarity pages with $html_threads threads..."
+        luajit scripts/generate-html-parallel "$DIR" "$html_threads" --similar-only
+        ran_something=true
+    elif [[ "$(menu_get_value "html_different")" == "1" ]]; then
+        echo ""
+        echo "Generating difference pages with $html_threads threads..."
+        luajit scripts/generate-html-parallel "$DIR" "$html_threads" --different-only
+        ran_something=true
+    fi
+
+    # Diversity pre-computation
+    if [[ "$(menu_get_value "div_compute")" == "1" ]]; then
+        local div_threads=$(menu_get_value "div_threads")
+        local div_sleep=$(menu_get_value "div_sleep")
+        div_threads=${div_threads:-4}
+        div_sleep=${div_sleep:-5}
+
+        echo ""
+        echo "Starting diversity pre-computation..."
+        echo "Threads: $div_threads, Sleep: ${div_sleep}s"
+        luajit scripts/precompute-diversity-sequences "$DIR" "$div_threads" "$div_sleep"
+        ran_something=true
+    fi
+
+    if ! $ran_something; then
+        echo ""
+        echo "No items selected. Use SPACE to toggle items, then press Enter."
+    fi
+}
+# }}}
+
+# {{{ run_tui_mode
+# Run the TUI-based interactive menu
+run_tui_mode() {
+    while true; do
+        if ! setup_tui_menu; then
+            echo "TUI initialization failed, falling back to simple menu..."
+            return 1
+        fi
+
+        if menu_run; then
+            # User selected "Run" - execute selections
+            menu_cleanup
+            run_tui_selections
+            echo ""
+            echo -n "Press Enter to continue..."
+            read -r
+        else
+            # User quit
+            menu_cleanup
+            echo ""
+            echo "Thank you for exploring the Neocities Poetry Modernization Project!"
+            echo ""
+            exit 0
+        fi
+    done
+}
+# }}}
 
 # {{{ show_main_menu
 show_main_menu() {
@@ -406,39 +592,52 @@ run_phase_demo() {
 }
 # }}}
 
-# Main loop
-while true; do
-    show_main_menu
-    read -r choice
+# {{{ simple_menu_loop
+# Fallback simple menu loop (used when TUI unavailable)
+simple_menu_loop() {
+    while true; do
+        show_main_menu
+        read -r choice
 
-    case $choice in
-        [1-8])
-            run_phase_demo "$choice"
-            ;;
-        [Ss])
-            run_phase_demo "S"
-            ;;
-        [Pp])
-            run_phase_demo "P"
-            ;;
-        [Hh])
-            run_phase_demo "H"
-            ;;
-        [Dd])
-            run_phase_demo "D"
-            ;;
-        [Vv])
-            run_phase_demo "V"
-            ;;
-        0)
-            echo ""
-            echo "Thank you for exploring the Neocities Poetry Modernization Project!"
-            echo ""
-            exit 0
-            ;;
-        *)
-            echo "Invalid selection. Please choose 0-8 or S/P/H/D/V."
-            sleep 2
-            ;;
-    esac
-done
+        case $choice in
+            [1-8])
+                run_phase_demo "$choice"
+                ;;
+            [Ss])
+                run_phase_demo "S"
+                ;;
+            [Pp])
+                run_phase_demo "P"
+                ;;
+            [Hh])
+                run_phase_demo "H"
+                ;;
+            [Dd])
+                run_phase_demo "D"
+                ;;
+            [Vv])
+                run_phase_demo "V"
+                ;;
+            0)
+                echo ""
+                echo "Thank you for exploring the Neocities Poetry Modernization Project!"
+                echo ""
+                exit 0
+                ;;
+            *)
+                echo "Invalid selection. Please choose 0-8 or S/P/H/D/V."
+                sleep 2
+                ;;
+        esac
+    done
+}
+# }}}
+
+# {{{ Main entry point
+# Try TUI mode first, fall back to simple menu if unavailable
+if $TUI_AVAILABLE; then
+    run_tui_mode || simple_menu_loop
+else
+    simple_menu_loop
+fi
+# }}}

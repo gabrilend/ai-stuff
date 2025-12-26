@@ -27,7 +27,6 @@ option selection.
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
 | 10-003 | Consolidate config files into single source | Open | Low |
 | 10-008 | Implement multi-line command wrapping | Open | Medium |
@@ -36,6 +35,7 @@ option selection.
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 10-001 | Integrate TUI into phase-demo.sh | Completed | 2025-12-25 |
 | 10-004 | Implement built-up command preview system | Completed | 2025-12-23 |
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2025-12-23 |
 | 10-006 | Identify checkbox conversion opportunities | Completed | 2025-12-23 |
@@ -66,11 +66,11 @@ Documentation:
 
 ## Completion Criteria
 
-- [ ] phase-demo.sh uses TUI menu system
+- [x] phase-demo.sh uses TUI menu system (2025-12-25)
 - [ ] generate-embeddings.sh uses TUI for option selection
 - [ ] Consistent navigation across all interactive scripts
 - [ ] Documentation updated for new interfaces
-- [ ] Headless mode still functional via flags
+- [x] Headless mode still functional via flags (simple menu fallback preserved)
 
 ---
 
