@@ -1,4 +1,21 @@
 #!/bin/bash
+# Embedding Generation Manager for Neocities Poetry Modernization
+#
+# Generates vector embeddings for poems using Ollama embedding models.
+# Supports incremental processing, cache management, and multiple models.
+#
+# Uses TUI library for vim-style interactive mode when available.
+#
+# Usage: ./generate-embeddings.sh [OPTIONS] [DIRECTORY]
+
+# {{{ TUI Library
+LIBS_DIR="/home/ritz/programming/ai-stuff/scripts/libs"
+TUI_AVAILABLE=false
+if [[ -f "${LIBS_DIR}/lua-menu.sh" ]] && command -v luajit &>/dev/null; then
+    source "${LIBS_DIR}/lua-menu.sh"
+    TUI_AVAILABLE=true
+fi
+# }}}
 
 # {{{ setup_dir_path
 setup_dir_path() {
@@ -111,8 +128,152 @@ for arg in "$@"; do
     esac
 done
 
-# Interactive mode handling
-if [ "$INTERACTIVE_MODE" = true ]; then
+# {{{ setup_embedding_tui_menu
+# Configure the TUI menu for embedding generation options
+setup_embedding_tui_menu() {
+    if ! $TUI_AVAILABLE; then
+        return 1
+    fi
+
+    # Initialize TUI
+    if ! tui_init; then
+        return 1
+    fi
+
+    # Build the menu
+    menu_init
+    menu_set_title "Embedding Manager" "neocities-modernization - j/k:nav space:toggle Enter:run"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 1: Processing Mode (radio buttons - single selection)
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "mode" "single" "Processing Mode (select one)"
+    menu_add_item "mode" "incremental" "Incremental" "checkbox" "1" \
+        "Process only new/changed poems (fastest)" "1" ""
+    menu_add_item "mode" "full_regen" "Full Regeneration" "checkbox" "0" \
+        "Regenerate all embeddings from scratch" "2" ""
+    menu_add_item "mode" "status_only" "Status Check" "checkbox" "0" \
+        "Show current progress without processing" "3" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2: Cache Management
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "cache" "multi" "Cache Management"
+    menu_add_item "cache" "flush_all" "Flush All Embeddings ⚠️" "checkbox" "0" \
+        "WARNING: Removes entire cache" "f" ""
+    menu_add_item "cache" "flush_errors" "Flush Errors Only" "checkbox" "0" \
+        "Remove failed entries, keep valid ones" "e" ""
+    menu_add_item "cache" "validate" "Validate Cache" "checkbox" "0" \
+        "Check integrity without changes" "v" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 3: Cache Options
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "cache_opts" "multi" "Cache Options"
+    menu_add_item "cache_opts" "backup" "Backup Before Flush" "checkbox" "1" \
+        "Create timestamped backup" "b" ""
+    menu_add_item "cache_opts" "force" "Skip Confirmations" "checkbox" "0" \
+        "Don't prompt for dangerous operations" "s" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 4: Model Selection
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "model" "multi" "Model Selection"
+    menu_add_item "model" "model_name" "Embedding Model" "multistate" "embeddinggemma" \
+        "embeddinggemma,text-embedding-ada-002,all-MiniLM-L6-v2" "m" ""
+    menu_add_item "model" "model_status" "Show Model Status" "checkbox" "0" \
+        "Display cache stats for each model" "t" ""
+    menu_add_item "model" "list_models" "List Available Models" "checkbox" "0" \
+        "Show all configured models" "l" ""
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 5: Actions
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "actions" "single" "Actions"
+    menu_add_item "actions" "run" "Run" "action" "" \
+        "Execute with selected options" "r"
+
+    return 0
+}
+# }}}
+
+# {{{ apply_tui_selections
+# Map TUI menu values to the script's flag variables
+apply_tui_selections() {
+    # Processing mode (radio - only one should be set)
+    if [[ "$(menu_get_value "incremental")" == "1" ]]; then
+        INCREMENTAL=true
+        FORCE_REGEN=false
+        SHOW_STATUS=false
+    elif [[ "$(menu_get_value "full_regen")" == "1" ]]; then
+        INCREMENTAL=false
+        FORCE_REGEN=true
+        SHOW_STATUS=false
+    elif [[ "$(menu_get_value "status_only")" == "1" ]]; then
+        SHOW_STATUS=true
+        INCREMENTAL=true
+        FORCE_REGEN=false
+    fi
+
+    # Cache management
+    [[ "$(menu_get_value "flush_all")" == "1" ]] && FLUSH_ALL=true
+    [[ "$(menu_get_value "flush_errors")" == "1" ]] && FLUSH_ERRORS=true
+    [[ "$(menu_get_value "validate")" == "1" ]] && VALIDATE_CACHE=true
+
+    # Cache options
+    [[ "$(menu_get_value "backup")" == "1" ]] && BACKUP_BEFORE_FLUSH=true || BACKUP_BEFORE_FLUSH=false
+    [[ "$(menu_get_value "force")" == "1" ]] && FORCE_OPERATION=true
+
+    # Model selection
+    local model=$(menu_get_value "model_name")
+    case "$model" in
+        "embeddinggemma") MODEL_NAME="embeddinggemma:latest" ;;
+        "text-embedding-ada-002") MODEL_NAME="text-embedding-ada-002" ;;
+        "all-MiniLM-L6-v2") MODEL_NAME="all-MiniLM-L6-v2" ;;
+        *) MODEL_NAME="embeddinggemma:latest" ;;
+    esac
+
+    [[ "$(menu_get_value "model_status")" == "1" ]] && MODEL_STATUS=true
+    [[ "$(menu_get_value "list_models")" == "1" ]] && LIST_MODELS=true
+
+    # Validation: flush_all takes precedence over flush_errors
+    if [[ "$FLUSH_ALL" == "true" ]] && [[ "$FLUSH_ERRORS" == "true" ]]; then
+        FLUSH_ERRORS=false
+    fi
+}
+# }}}
+
+# {{{ run_tui_interactive_mode
+# Run the TUI-based interactive mode
+run_tui_interactive_mode() {
+    if ! setup_embedding_tui_menu; then
+        return 1
+    fi
+
+    if menu_run; then
+        menu_cleanup
+        apply_tui_selections
+
+        # Show selected configuration
+        echo ""
+        echo "Selected configuration:"
+        echo "- Model: $MODEL_NAME"
+        echo "- Mode: $([ "$FORCE_REGEN" = true ] && echo "Full regeneration" || echo "Incremental")"
+        echo "- Status check: $([ "$SHOW_STATUS" = true ] && echo "Yes" || echo "No")"
+        echo "- Cache operations: $([ "$FLUSH_ALL" = true ] && echo "Flush all" || [ "$FLUSH_ERRORS" = true ] && echo "Flush errors" || [ "$VALIDATE_CACHE" = true ] && echo "Validate" || echo "None")"
+        echo ""
+        return 0
+    else
+        menu_cleanup
+        echo "Operation cancelled."
+        exit 0
+    fi
+}
+# }}}
+
+# {{{ run_simple_interactive_mode
+# Fallback simple interactive mode (original implementation)
+run_simple_interactive_mode() {
     echo "=== Embedding Generation Interactive Mode ==="
     echo ""
     echo "Select processing mode:"
@@ -122,7 +283,7 @@ if [ "$INTERACTIVE_MODE" = true ]; then
     echo "4. Status check - Show current progress"
     echo ""
     read -p "Choose option (1-4): " mode_choice
-    
+
     case $mode_choice in
         1)
             INCREMENTAL=true
@@ -148,20 +309,20 @@ if [ "$INTERACTIVE_MODE" = true ]; then
             SHOW_STATUS=true
             ;;
     esac
-    
+
     echo ""
     echo "Available embedding models:"
     echo "1. embeddinggemma:latest (default)"
     echo "2. text-embedding-ada-002"
     echo "3. all-MiniLM-L6-v2"
     read -p "Choose model (1-3, or press enter for default): " model_choice
-    
+
     case $model_choice in
         2) MODEL_NAME="text-embedding-ada-002" ;;
         3) MODEL_NAME="all-MiniLM-L6-v2" ;;
         *) MODEL_NAME="embeddinggemma:latest" ;;
     esac
-    
+
     echo ""
     echo "Selected configuration:"
     echo "- Model: $MODEL_NAME"
@@ -175,6 +336,16 @@ if [ "$INTERACTIVE_MODE" = true ]; then
         exit 0
     fi
     echo ""
+}
+# }}}
+
+# Interactive mode handling - try TUI first, fall back to simple mode
+if [ "$INTERACTIVE_MODE" = true ]; then
+    if $TUI_AVAILABLE; then
+        run_tui_interactive_mode || run_simple_interactive_mode
+    else
+        run_simple_interactive_mode
+    fi
 fi
 
 # Set up directory after parsing arguments
