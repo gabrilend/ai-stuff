@@ -5,7 +5,17 @@
 - **Priority**: Medium
 - **Type**: Validation / Quality Assurance
 - **Depends On**: 8-012 (Paginated Similarity Chapters)
+- **Modified By**: 8-020 (Hybrid Pagination Strategy)
 - **Created**: 2025-12-23
+
+---
+
+## Design Constraints (from 8-020)
+
+**Hybrid pagination strategy** changes validation scope:
+- **chronological.html**: Single file with all poems (NOT paginated) - validate completeness
+- **similar/different**: Paginated up to `max_pages_per_poem` (default: 15) - validate page 1 exists
+- **Storage limit**: 45 GB - cannot validate "all pages" since pages are capped
 
 ---
 
@@ -17,6 +27,7 @@ generated pages due to:
 2. Partial generation runs being interrupted
 3. Configuration errors in `minimum_pages` setting
 4. Edge cases in pagination calculation
+5. Storage-based page limits cutting off generation
 
 Without validation, users may browse the site without ever encountering certain poems.
 
@@ -41,15 +52,20 @@ lua scripts/validate-poem-representation.lua
 === Poem Representation Validator ===
 
 Checking generated pages...
-  Similarity pages: 6,860 poem indices found
-  Diversity pages:  6,860 poem indices found
-  Chronological:    69 pages, 6,860 poems listed
+  Similarity pages: 7,793 poem indices found (max 15 pages each)
+  Diversity pages:  7,793 poem indices found (max 15 pages each)
+  Chronological:    1 file, 7,793 poems listed (full corpus)
 
 Checking poem coverage...
-  Total poems in corpus: 6,860
-  Poems with similarity index: 6,860 (100%)
-  Poems with diversity index: 6,860 (100%)
-  Poems in chronological index: 6,860 (100%)
+  Total poems in corpus: 7,793
+  Poems with similarity page-1: 7,793 (100%)
+  Poems with diversity page-1: 7,793 (100%)
+  Poems in chronological.html: 7,793 (100%)
+
+Page budget usage:
+  Similar: 116,895 pages (15 × 7,793)
+  Different: 116,895 pages (15 × 7,793)
+  Total: ~38.3 GB of 45 GB budget (85%)
 
 Coverage gaps found: 0
 
@@ -124,26 +140,35 @@ local pattern = "similar/%04d-01.html"
 local pattern = "different/%04d-01.html"
 ```
 
-### Chronological Pages
+### Chronological Page (Single File - per 8-020)
 ```lua
--- All poems should appear somewhere in chronological-NN.html files
--- Parse each page and extract poem IDs
--- Build coverage set
+-- All 7,793 poems should appear in chronological.html (NOT paginated)
+-- Parse single file and extract poem IDs
+-- Verify count matches corpus
+local pattern = "chronological.html"
 ```
 
 ---
 
 ## Configuration Integration
 
-Uses `minimum_pages` from `config/input-sources.json`:
+Uses settings from `config/input-sources.json`:
 
 ```json
 "pagination": {
-    "minimum_pages": 1
+    "minimum_pages": 1,
+    "max_pages_per_poem": 15,
+    "chronological_paginated": false
+},
+"storage": {
+    "limit_gb": 45
 }
 ```
 
-Validator checks that each poem has at least `minimum_pages` worth of index pages generated.
+Validator checks:
+- Each poem has at least `minimum_pages` worth of index pages generated
+- No poem has more than `max_pages_per_poem` pages (storage constraint)
+- chronological.html contains all poems (since `chronological_paginated: false`)
 
 ---
 
@@ -171,7 +196,8 @@ Validator checks that each poem has at least `minimum_pages` worth of index page
 ## Related Documents
 
 - `/issues/8-012-implement-paginated-similarity-chapters.md` - Parent issue
-- `/config/input-sources.json` - `pagination.minimum_pages` config
+- `/issues/8-020-hybrid-pagination-strategy.md` - Hybrid strategy (modifies this issue)
+- `/config/input-sources.json` - Pagination and storage config
 - `/scripts/generate-html-parallel` - Page generation script
 - `/assets/poems.json` - Source of truth for poem corpus
 

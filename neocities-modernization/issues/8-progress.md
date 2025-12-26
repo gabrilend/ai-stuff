@@ -25,11 +25,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 8-001 | Integrate complete HTML generation into pipeline | In Progress | High |
+| 8-001 | Unified website generation pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | **In Progress** | High |
 | 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
+| 8-020 | Hybrid pagination strategy (45GB constraint) | **Open** | High |
 
 ### Completed Issues
 
@@ -50,17 +51,19 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 ### Issue Details
 
-**8-001: Integrate Complete HTML Generation into Pipeline** - IN PROGRESS (Steps 1-3 complete)
-- ✅ Renamed "unique" to "different" in navigation
-- ✅ Added `<meta charset="UTF-8">` to all HTML templates
-- ✅ Integrated `flat-html-generator.lua` into `src/main.lua`
-- ✅ Added "Generate website HTML" menu option (option 6)
-- ✅ Implemented `M.is_html_fresh()` freshness check function
-- ✅ Implemented `M.generate_website_html(force)` with dependency validation
-- ✅ Updated `run.sh` to trigger full website generation with progress messages
-- ✅ Tested chronological index generation (12.1MB, 99,970 lines)
-- Pending: Step 4 performance optimization (see Issue 8-002)
-- Note: Cross-category ID overlap needs addressing for full generation
+**8-001: Unified Website Generation Pipeline** - IN PROGRESS (Phases 1-2 complete)
+- ✅ Phase 1: HTML Integration - complete
+  - Renamed "unique" to "different" in navigation
+  - Integrated `flat-html-generator.lua` into `src/main.lua`
+  - Implemented freshness checking and dependency validation
+- ✅ Phase 2: Parallel HTML Generation - complete
+  - Created `scripts/generate-html-parallel` with multi-threading
+  - Incremental mode and configurable thread count
+- 🔲 Phase 3: Embedding Integration - pending
+- 🔲 Phase 4: Similarity Matrix Integration - pending
+- 🔲 Phase 5: Diversity Cache Integration - pending
+- 🔲 Phase 6: Pipeline Orchestration - pending
+- Note: Issue scope expanded 2025-12-25 to cover full 10-stage pipeline
 
 **8-002: Implement Multi-threaded HTML Generation** - IN PROGRESS
 - ✅ Created `scripts/generate-html-parallel` using effil library
@@ -132,8 +135,17 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Test: 134KB page with 100 poems, proper navigation
 - Pending: Phase C - Export Format Integration (download links)
 - Pending: Phase D - Pipeline integration
-- Pending: Phase E - Paginate chronological.html
+- ✅ Phase E - Chronological stays as single file (per 8-020)
 - Related: 8-016 (validator) depends on this issue
+- **Modified by 8-020**: Hybrid pagination strategy
+
+**8-020: Hybrid Pagination Strategy** - OPEN
+- **Storage constraint**: 45 GB Neocities limit
+- **Full chronological.html**: All 7,793 poems (~12 MB) - NOT paginated
+- **Paginated similar/different**: Max 15 pages per poem = 1,500 poems per direction
+- **Storage budget**: ~38 GB used of 45 GB available
+- **Reserved**: ~31 MB for Phase 11 maze pages
+- Modifies 8-012, 8-016 validation scope
 
 **8-016: Validate Poem Representation in Pagination** - OPEN
 - Depends on 8-012 completion

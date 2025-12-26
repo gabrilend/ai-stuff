@@ -6,6 +6,15 @@
 - **Type**: Enhancement / Architecture
 - **Status**: In Progress (unblocked 2025-12-23)
 - **Previously Blocked By**: 8-013 (now completed)
+- **Modified By**: 8-020 (Hybrid Pagination Strategy)
+
+## Design Constraint (from 8-020)
+
+**Storage limit: 45 GB** requires hybrid approach:
+- **chronological.html**: Full corpus (~12 MB) - NOT paginated
+- **similar/different**: Paginated with `max_pages_per_poem` limit (default: 15)
+
+This preserves the archive's integrity while respecting storage constraints.
 
 ## Previous Blocking Dependency (RESOLVED)
 
@@ -73,7 +82,7 @@ No numbered page links, no jump-to-page. Simple prev/next only.
 **Answer**: Exactly **100 poems per page**. Images count as poems. Final page may have fewer.
 
 ### Q4: Should chronological.html also be paginated?
-**Answer**: **Yes**. Same structure: `chronological-01.html`, `chronological-02.html`, etc.
+**Answer**: **No** (updated by 8-020). Chronological.html remains a single ~12MB file containing all 7,793 poems. This preserves the "complete archive" design requirement while similar/different pages use pagination to fit the 45GB storage limit.
 
 ---
 
@@ -202,10 +211,11 @@ Grand total: ~947,000 HTML + ~947,000 TXT = ~1.9 million files
 15. [ ] Progress reporting per-page
 
 ### Phase E: Integration
-16. [ ] Paginate chronological.html → chronological-NN.html
-17. [ ] Update index.html entry points to -01.html pages
+16. [x] ~~Paginate chronological.html~~ → Keep as single file (per 8-020)
+17. [ ] Update index.html entry points to -01.html pages for similar/different
 18. [ ] Test prev/next navigation flow
 19. [ ] Update documentation
+20. [ ] Add `max_pages_per_poem` limit enforcement
 
 ---
 
@@ -277,6 +287,7 @@ generated, regardless of generation strategy. This is useful for:
 - `/issues/8-002-implement-multithreaded-html-generation.md`
 - `/issues/8-013-implement-txt-export-functionality.md` - (completed, unblocked this issue)
 - `/issues/8-016-validate-poem-representation-in-pagination.md` - Depends on this issue
+- `/issues/8-020-hybrid-pagination-strategy.md` - **Modifies this issue** (hybrid pagination strategy)
 
 ---
 
@@ -324,7 +335,21 @@ Navigation: [◀ Previous Page] ... [Next Page ▶]
 **Remaining Work:**
 - [ ] Phase C: Add download links for .txt/.html exports
 - [ ] Phase D: Integration with generate-html-parallel
-- [ ] Phase E: Paginate chronological.html
+- [ ] Phase E: Integration (chronological kept as single file per 8-020)
 
 **Created Related Issue:**
 - 8-016: Validate poem representation in pagination (depends on this issue)
+
+### Session: 2025-12-25
+
+**Hybrid Pagination Strategy (Issue 8-020):**
+- Chronological.html: Remains single file with all 7,793 poems (~12 MB)
+- Similar/different: Paginated with max 15 pages per poem (storage constraint)
+- Storage budget: 45 GB total, ~37 GB for paginated pages
+- Reserved: ~31 MB for Phase 11 maze pages
+
+**Key Changes:**
+- Q4 answer updated: chronological NOT paginated
+- Phase E Step 16 marked complete (no chrono pagination)
+- Added `max_pages_per_poem` enforcement requirement
+- Added reference to 8-019 in related documents
