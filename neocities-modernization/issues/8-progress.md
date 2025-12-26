@@ -51,19 +51,20 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 ### Issue Details
 
-**8-001: Unified Website Generation Pipeline** - IN PROGRESS (Phases 1-2 complete)
+**8-001: Unified Website Generation Pipeline** - IN PROGRESS (Phases 1-6 complete)
 - ✅ Phase 1: HTML Integration - complete
-  - Renamed "unique" to "different" in navigation
-  - Integrated `flat-html-generator.lua` into `src/main.lua`
-  - Implemented freshness checking and dependency validation
 - ✅ Phase 2: Parallel HTML Generation - complete
-  - Created `scripts/generate-html-parallel` with multi-threading
-  - Incremental mode and configurable thread count
-- 🔲 Phase 3: Embedding Integration - pending
-- 🔲 Phase 4: Similarity Matrix Integration - pending
-- 🔲 Phase 5: Diversity Cache Integration - pending
-- 🔲 Phase 6: Pipeline Orchestration - pending
-- Note: Issue scope expanded 2025-12-25 to cover full 10-stage pipeline
+- ✅ Phase 3: Embedding Integration - complete (2025-12-25)
+  - `--generate-embeddings` flag with freshness checks
+  - `--model` option for model selection
+- ✅ Phase 4: Similarity Matrix Integration - complete (2025-12-25)
+  - `--generate-similarity` flag with dependency validation
+- ✅ Phase 5: Diversity Cache Integration - complete (2025-12-25)
+  - `--generate-diversity` flag with freshness checks
+- ✅ Phase 6: Pipeline Orchestration - complete (2025-12-25)
+  - `--full` runs all 10 stages, `--all` runs fast stages (1-5, 9-10)
+  - TUI updated with new stages (marked ⚠️ for expensive ones)
+- Pending: Full HTML generation test with all poems
 
 **8-002: Implement Multi-threaded HTML Generation** - IN PROGRESS
 - ✅ Created `scripts/generate-html-parallel` using effil library
