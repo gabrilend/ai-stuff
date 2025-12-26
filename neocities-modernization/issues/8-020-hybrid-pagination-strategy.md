@@ -151,26 +151,26 @@ Last page shows:
 
 ### Step 1: Update Configuration
 - [x] Document hybrid approach (this issue)
-- [ ] Add `max_pages_per_poem` to config/input-sources.json
-- [ ] Add `chronological_paginated: false` setting
-- [ ] Add `storage` section with budget info
+- [x] Add `max_pages_per_poem` to config/input-sources.json
+- [x] Add `chronological_paginated: false` setting
+- [x] Add `storage` section with budget info
 
 ### Step 2: Modify flat-html-generator.lua
-- [ ] Respect `max_pages_per_poem` limit in `generate_all_paginated_pages_for_poem()`
-- [ ] Skip chronological pagination when `chronological_paginated: false`
-- [ ] Update page navigation to show storage context
+- [x] Respect `max_pages_per_poem` limit in `generate_all_paginated_pages_for_poem()`
+- [x] Skip chronological pagination when `chronological_paginated: false` (already default)
+- [x] Update page navigation to show storage context on last page
 
 ### Step 3: Update generate-html-parallel
-- [ ] Add page limit logic
+- [ ] Add page limit logic (future: when switching to paginated output)
 - [ ] Progress reporting shows "Page X of max Y"
 
 ### Step 4: Preserve Full Chronological
-- [ ] Ensure chronological.html generates as single file
-- [ ] Verify it contains all 7,793 poems
+- [x] Ensure chronological.html generates as single file (verified: already default)
+- [ ] Verify it contains all 7,793 poems (pending full generation)
 
 ### Step 5: Update Related Issues
-- [ ] Update 8-012 to reference this issue's constraints
-- [ ] Update 8-016 validation scope (validate up to max_pages only)
+- [x] Update 8-012 to reference this issue's constraints
+- [x] Update 8-016 validation scope (validate up to max_pages only)
 
 ---
 
@@ -207,6 +207,17 @@ Truncation would mean similar/0068.html only shows 500 poems, period. Pagination
 - Paginated similar/different (practical storage constraint)
 - Reserved budget for Phase 11 maze features
 
+**2025-12-25 (Implementation)**: Core implementation completed:
+- Updated `config/input-sources.json` with new settings
+- Updated `src/flat-html-generator.lua`:
+  - Added `STORAGE_CONFIG` for budget tracking
+  - Updated `load_pagination_config()` to load storage settings
+  - Modified `generate_prev_next_navigation()` to show storage context on last page
+  - Modified `generate_all_paginated_pages_for_poem()` to respect `max_pages_per_poem` limit
+  - Modified `generate_paginated_poem_page_html()` to pass corpus size for context
+  - Added `M.get_storage_config()` for external access
+- Test verified: Config loads correctly with 15 max pages, 45GB limit
+
 ---
 
 ## Affected Files
@@ -234,6 +245,6 @@ Truncation would mean similar/0068.html only shows 500 poems, period. Pagination
 
 **Created**: 2025-12-25
 
-**Status**: Open
+**Status**: In Progress (core implementation complete, pending full generation test)
 
 **Modifies**: 8-012
