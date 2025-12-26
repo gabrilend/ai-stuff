@@ -31,6 +31,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-012 | Implement paginated similarity chapters | **In Progress** | High |
 | 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **Open** | High |
+| 8-021 | Fix embedding progress counter overcounting | Open | Low |
 
 ### Completed Issues
 
