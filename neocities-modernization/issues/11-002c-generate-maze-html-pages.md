@@ -116,6 +116,20 @@ end
 
 Much smaller than similar/different pages (which include all poems).
 
+### Storage Budget (from Issue 8-020)
+
+The 45 GB Neocities storage limit has ~31 MB reserved for maze pages in `config/input-sources.json`:
+
+```json
+"storage": {
+    "limit_gb": 45,
+    "reserved_for_maze_gb": 0.031,
+    "reserved_headroom_gb": 5
+}
+```
+
+This ensures maze pages are accounted for in the storage budget calculation.
+
 ## Output Structure
 
 ```
@@ -155,6 +169,7 @@ output/
 - **11-002b**: Provides exits data
 - **11-002d**: Adds special room features (called after basic generation)
 - **8-002**: Pattern for multi-threaded HTML generation
+- **8-020**: Storage budget allocation (reserves 31 MB for maze pages)
 
 ---
 
