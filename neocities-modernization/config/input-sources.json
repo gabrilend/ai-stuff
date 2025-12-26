@@ -36,11 +36,19 @@
     "catalog_file": "assets/image-catalog.json"
   },
   "pagination": {
-    "_comment": "Settings for paginated similarity/diversity/chronological pages",
+    "_comment": "Settings for paginated similarity/diversity pages (chronological stays full)",
     "poems_per_page": 100,
+    "max_pages_per_poem": 15,
     "minimum_pages": 1,
     "page_number_padding": 2,
     "generate_txt_exports": true,
-    "generate_html_archives": true
+    "generate_html_archives": false,
+    "chronological_paginated": false
+  },
+  "storage": {
+    "_comment": "Budget constraints for 45GB Neocities limit",
+    "limit_gb": 45,
+    "reserved_for_maze_gb": 0.031,
+    "reserved_headroom_gb": 5
   }
 }
