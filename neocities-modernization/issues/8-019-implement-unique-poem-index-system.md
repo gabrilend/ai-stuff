@@ -57,65 +57,78 @@ Add a new `poem_index` field that provides a **unique, stable, array-aligned ide
 | Stability | Depends on extraction order | Stable once assigned |
 | Display | Used for filenames | Keep `id` for display, `poem_index` for internals |
 
-## Suggested Implementation Steps
+## Implementation Steps (Completed 2025-12-25)
 
-### Phase A: Add poem_index to Extraction
+### Phase A: Add poem_index to Extraction ✅
 
 **File: `src/poem-extractor.lua`**
 
-1. [ ] During poem extraction, assign `poem_index = array_position`
-2. [ ] Ensure poem_index is 1-indexed (Lua convention)
-3. [ ] Add poem_index to each poem's metadata
-4. [ ] Update poems.json schema documentation
+1. [x] During poem extraction, assign `poem_index = array_position`
+2. [x] Ensure poem_index is 1-indexed (Lua convention)
+3. [x] Add poem_index to each poem's metadata
+4. [x] Bumped extraction_version to 2.1
 
-```lua
--- In extraction loop:
-for i, poem in ipairs(extracted_poems) do
-    poem.poem_index = i  -- Unique, array-aligned identifier
-end
-```
+Implementation: Added loop after sorting to assign `poem_index = i` for each poem.
 
-### Phase B: Update Embedding System
+### Phase B: Update Embedding System ✅
 
 **File: `src/similarity-engine.lua`**
 
-1. [ ] Update `generate_all_embeddings()` to store by `poem_index` if available, fallback to array index
-2. [ ] Update incremental loading (lines 334-346) to store by `poem_index`
-3. [ ] Update lookup (line 368) to use `poem.poem_index`
-4. [ ] Ensure backward compatibility with existing embeddings (migration path)
+1. [x] Update `generate_all_embeddings()` to store by `poem_index` if available, fallback to array index
+2. [x] Update incremental loading to store by `poem_index`
+3. [x] Update lookup to use `poem.poem_index`
+4. [x] Add `poem_index` field to each embedding record for future incremental loads
+5. [x] Backward compatibility maintained via `poem.poem_index or i` fallback
 
-```lua
--- Incremental loading fix:
-for i, emb in ipairs(existing_data.embeddings) do
-    local key = emb.poem_index or i  -- Use poem_index if available
-    existing_embeddings[key] = emb
-end
+### Phase C: Update HTML Generation ✅
 
--- Lookup fix:
-local lookup_key = poem.poem_index or i
-if incremental and existing_embeddings[lookup_key] and ...
+**Files: `src/flat-html-generator.lua`, `scripts/generate-html-parallel`, `src/centroid-html-generator.lua`**
+
+1. [x] Use category prefix for output filenames: `similar/{category}-{id}.html` (e.g., `fediverse-0002.html`)
+2. [x] Update navigation links to use category prefix
+3. [x] Keep `id` + `category` for display (e.g., "fediverse #2")
+4. [x] Update all file existence checks in incremental mode
+5. [x] Fix embedding lookup in parallel generator to use `poem.poem_index`
+
+**Note**: User preferred category prefix over poem_index for file naming (more readable URLs).
+
+### Phase D: Update Similarity Matrix ✅
+
+**Files: `src/similarity-engine-parallel.lua`, `src/html-generator/similarity-engine.lua`**
+
+1. [x] Update `get_poem_similarity_file()` to use `poem_index` for file naming
+2. [x] Files now named `poem_index_{N}.json` instead of `poem_{id}.json`
+3. [x] Add backward compatibility loading for old `poem_{id}.json` files
+4. [x] Update similarity data to include both `poem_id` and `poem_index` in metadata
+
+### Phase E: Migration ✅
+
+1. [x] Regenerated poems.json with `poem_index` field
+2. [x] Existing embeddings will work via fallback mechanism
+3. [x] Full regeneration recommended for clean state
+
+### Verification
+
+```bash
+$ jq '.poems[] | select(.id == 2) | {poem_index, id, category}' assets/poems.json
+{
+  "poem_index": 2,
+  "id": 2,
+  "category": "fediverse"
+}
+{
+  "poem_index": 6437,
+  "id": 2,
+  "category": "messages"
+}
+{
+  "poem_index": 7518,
+  "id": 2,
+  "category": "notes"
+}
 ```
 
-### Phase C: Update HTML Generation
-
-**Files: `src/flat-html-generator.lua`, `scripts/generate-html-parallel`**
-
-1. [ ] Use `poem_index` for output filenames: `similar/{poem_index}.html`
-2. [ ] Update navigation links to use `poem_index`
-3. [ ] Consider keeping `id` + `category` for display (e.g., "fediverse #2")
-
-### Phase D: Update Similarity Matrix
-
-**Files: `src/similarity-engine.lua`, `src/similarity-engine-parallel.lua`**
-
-1. [ ] Ensure similarity matrix uses `poem_index` as keys
-2. [ ] Update similarity file naming: `similarities/poem_{poem_index}.json`
-
-### Phase E: Migration Path
-
-1. [ ] Create migration script to add `poem_index` to existing poems.json
-2. [ ] Handle existing embeddings gracefully (regenerate or migrate)
-3. [ ] Document breaking changes for any external consumers
+Three poems with `id: 2` now have unique `poem_index` values, preventing collisions.
 
 ## Technical Notes
 
@@ -183,6 +196,17 @@ We could patch `similarity-engine.lua` to store/lookup by array index consistent
 
 **Created**: 2025-12-25
 
-**Status**: Open
+**Completed**: 2025-12-25
+
+**Status**: Complete
 
 **Estimated Effort**: Medium (touches multiple files but straightforward logic)
+
+**Files Modified**:
+- `src/poem-extractor.lua` - Assign poem_index after sorting
+- `src/similarity-engine.lua` - Use poem_index for embedding storage/lookup
+- `src/similarity-engine-parallel.lua` - Use poem_index for similarity file naming
+- `src/flat-html-generator.lua` - Use category prefix for HTML file naming
+- `src/centroid-html-generator.lua` - Use category prefix for navigation links
+- `src/html-generator/similarity-engine.lua` - Load similarities by poem_index
+- `scripts/generate-html-parallel` - Update workers and file checks for category prefix

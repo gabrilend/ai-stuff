@@ -116,6 +116,19 @@ local function get_poems_for_page(sorted_poems, page_num)
 end
 -- }}}
 
+-- {{{ local function get_unique_poem_filename_id
+-- Generates a unique identifier for poem filenames using category prefix
+-- Solves cross-category ID collisions: fediverse/0002.txt and messages/0002.txt
+-- both have id=2 but become "fediverse-0002" and "messages-0002". See Issue 8-019.
+-- poem: poem object with id and category fields
+-- Returns: unique filename identifier like "fediverse-0002" or "messages-0767"
+local function get_unique_poem_filename_id(poem)
+    local category = poem.category or "unknown"
+    local id = poem.id or 0
+    return string.format("%s-%04d", category, id)
+end
+-- }}}
+
 -- {{{ local function format_page_number
 -- Formats a page number with zero-padding
 -- Returns: padded string like "01", "02", etc.
@@ -1298,9 +1311,10 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     -- Check if this is a golden poem (exactly 1024 characters)
     local is_golden = is_golden_poem(poem)
 
-    -- Build navigation links for this poem
-    local similar_link = string.format("<a href='similar/%03d.html'>similar</a>", poem.id)
-    local different_link = string.format("<a href='different/%03d.html'>different</a>", poem.id)
+    -- Build navigation links for this poem (using category prefix for unique filenames)
+    local unique_id = get_unique_poem_filename_id(poem)
+    local similar_link = string.format("<a href='similar/%s.html'>similar</a>", unique_id)
+    local different_link = string.format("<a href='different/%s.html'>different</a>", unique_id)
 
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
@@ -1758,9 +1772,10 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
         -- Add file header (notes show original filename, others show numeric ID)
         content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
 
-        -- Build navigation links
-        local similar_link = string.format("<a href='similar/%03d.html'>similar</a>", poem_id)
-        local different_link = string.format("<a href='different/%03d.html'>different</a>", poem_id)
+        -- Build navigation links (using category prefix for unique filenames)
+        local unique_id = get_unique_poem_filename_id(poem)
+        local similar_link = string.format("<a href='similar/%s.html'>similar</a>", unique_id)
+        local different_link = string.format("<a href='different/%s.html'>different</a>", unique_id)
 
         -- Generate top progress bar separator (with golden corners if applicable)
         local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
@@ -1988,42 +2003,45 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     local progress_count = 0
     for poem_id, poem_data in pairs(valid_poems) do
         progress_count = progress_count + 1
-        
+
         if progress_count % 100 == 0 then
-            utils.log_info(string.format("Progress: %d/%d poems processed (%.1f%%)", 
-                                        progress_count, total_poems, 
+            utils.log_info(string.format("Progress: %d/%d poems processed (%.1f%%)",
+                                        progress_count, total_poems,
                                         (progress_count / total_poems) * 100))
         end
-        
+
+        -- Generate unique filename identifier (category prefix for cross-category uniqueness)
+        local unique_id = get_unique_poem_filename_id(poem_data)
+
         -- Generate similarity page (all poems sorted by similarity to this one)
         local similar_ranking = M.generate_similarity_ranked_list(poem_id, poems_data, similarity_data)
         local similar_html = M.generate_flat_poem_list_html(poem_data, similar_ranking, "similar", poem_id)
-        local similar_file = string.format("%s/similar/%03d.html", output_dir, poem_id)
+        local similar_file = string.format("%s/similar/%s.html", output_dir, unique_id)
         os.execute("mkdir -p " .. output_dir .. "/similar")
-        
+
         if utils.write_file(similar_file, similar_html) then
             table.insert(results.similarity_pages, similar_file)
-            
+
             -- Generate TXT version
-            local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking, 
-                                                           string.format("%s/similar/%03d.txt", output_dir, poem_id))
+            local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
+                                                           string.format("%s/similar/%s.txt", output_dir, unique_id))
             if similar_txt then
                 table.insert(results.txt_files, similar_txt)
             end
         end
-        
-        -- Generate diversity page (all poems sorted by diversity from this one) 
+
+        -- Generate diversity page (all poems sorted by diversity from this one)
         local diverse_sequence = M.generate_maximum_diversity_sequence(poem_id, poems_data, embeddings_data)
         local diverse_html = M.generate_flat_poem_list_html(poem_data, diverse_sequence, "different", poem_id)
-        local diverse_file = string.format("%s/different/%03d.html", output_dir, poem_id)
+        local diverse_file = string.format("%s/different/%s.html", output_dir, unique_id)
         os.execute("mkdir -p " .. output_dir .. "/different")
-        
+
         if utils.write_file(diverse_file, diverse_html) then
             table.insert(results.diversity_pages, diverse_file)
-            
+
             -- Generate TXT version
             local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
-                                                          string.format("%s/different/%03d.txt", output_dir, poem_id))
+                                                          string.format("%s/different/%s.txt", output_dir, unique_id))
             if diverse_txt then
                 table.insert(results.txt_files, diverse_txt)
             end

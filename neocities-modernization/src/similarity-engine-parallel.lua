@@ -151,8 +151,11 @@ end
 -- }}}
 
 -- {{{ function get_poem_similarity_file
+-- Uses poem_index for unique file naming (Issue 8-019: cross-category ID collision fix)
+-- poem_id is kept in metadata for display, but poem_index ensures unique filenames
 local function get_poem_similarity_file(output_dir, poem_id, poem_index)
-    local filename = poem_id and ("poem_" .. poem_id .. ".json") or ("poem_index_" .. poem_index .. ".json")
+    -- Use poem_index for file naming - guaranteed unique across categories
+    local filename = "poem_index_" .. (poem_index or poem_id) .. ".json"
     return output_dir .. filename
 end
 -- }}}
@@ -542,12 +545,16 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
     end
 
     -- Filter valid embeddings
+    -- Use poem_index as the unique identifier (Issue 8-019)
     local valid_embeddings = {}
-    for i, item in pairs(embeddings_data.embeddings) do
+    for key, item in pairs(embeddings_data.embeddings) do
         if item.embedding and #item.embedding > 0 then
+            -- Prefer item.poem_index if available, fallback to storage key
+            local poem_index = item.poem_index or tonumber(key)
             table.insert(valid_embeddings, {
-                index = i,
+                index = poem_index,
                 id = item.id,
+                poem_index = poem_index,
                 embedding = item.embedding
             })
         end

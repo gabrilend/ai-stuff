@@ -35,6 +35,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-019 | Implement unique poem_index system | Completed | 2025-12-25 |
 | 8-018 | Fix embedding directory case inconsistency | Completed | 2025-12-25 |
 | 8-003 | Remove remaining CSS from HTML generation | Completed | 2025-12-23 (reopened, re-completed) |
 | 8-004 | Implement embedding validation and empty poem handling | Completed | 2025-12-14 |

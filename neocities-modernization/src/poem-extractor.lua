@@ -260,13 +260,20 @@ function M.extract_poems_auto(base_directory, output_file)
     print("Found " .. #poems .. " poems")
     
     -- Sort poems by category, then by ID for consistent ordering
-    table.sort(poems, function(a, b) 
+    table.sort(poems, function(a, b)
         if a.category ~= b.category then
             return (a.category or "") < (b.category or "")
         end
-        return (a.id or 0) < (b.id or 0) 
+        return (a.id or 0) < (b.id or 0)
     end)
-    
+
+    -- Assign poem_index after sorting (unique, array-aligned identifier)
+    -- This solves cross-category ID collisions: fediverse/0002.txt and messages/0002.txt
+    -- both have id=2 but different poem_index values. See Issue 8-019.
+    for i, poem in ipairs(poems) do
+        poem.poem_index = i
+    end
+
     -- Create output structure
     local output_data = {
         metadata = {
@@ -274,7 +281,7 @@ function M.extract_poems_auto(base_directory, output_file)
             source_path = source_path,
             extracted_at = os.date("%Y-%m-%d %H:%M:%S"),
             total_poems = #poems,
-            extraction_version = "2.0"
+            extraction_version = "2.1"  -- Bumped for poem_index addition
         },
         poems = poems
     }
@@ -307,20 +314,26 @@ function M.extract_poems(input_file, output_file)
     print("Found " .. #poems .. " poems")
     
     -- Sort poems by category, then by ID for consistent ordering
-    table.sort(poems, function(a, b) 
+    table.sort(poems, function(a, b)
         if a.category ~= b.category then
             return (a.category or "") < (b.category or "")
         end
-        return (a.id or 0) < (b.id or 0) 
+        return (a.id or 0) < (b.id or 0)
     end)
-    
+
+    -- Assign poem_index after sorting (unique, array-aligned identifier)
+    -- See Issue 8-019 for rationale.
+    for i, poem in ipairs(poems) do
+        poem.poem_index = i
+    end
+
     -- Create output structure
     local output_data = {
         metadata = {
             source_file = input_file,
             extracted_at = os.date("%Y-%m-%d %H:%M:%S"),
             total_poems = #poems,
-            extraction_version = "1.0"
+            extraction_version = "1.1"  -- Bumped for poem_index addition
         },
         poems = poems
     }
