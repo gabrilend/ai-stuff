@@ -57,30 +57,56 @@ local COLOR_CONFIG = {
 
 -- Pagination configuration defaults
 -- These values are overridden by config/input-sources.json if present
+-- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
 local PAGINATION_CONFIG = {
     poems_per_page = 100,
     minimum_pages = 1,
+    max_pages_per_poem = 15,        -- Storage constraint: limits pages to fit 45GB (Issue 8-020)
     page_number_padding = 2,
     generate_txt_exports = true,
-    generate_html_archives = true
+    generate_html_archives = false,  -- Disabled: redundant with paginated pages
+    chronological_paginated = false  -- Keep chronological.html as single full file (Issue 8-020)
+}
+
+-- Storage configuration (for display purposes)
+-- Loaded from config/input-sources.json if present
+local STORAGE_CONFIG = {
+    limit_gb = 45,
+    reserved_for_maze_gb = 0.031,
+    reserved_headroom_gb = 5
 }
 
 -- {{{ local function load_pagination_config
--- Loads pagination settings from config/input-sources.json
+-- Loads pagination and storage settings from config/input-sources.json
+-- Updated for Issue 8-020: Hybrid pagination strategy with storage constraints
 local function load_pagination_config()
     local config_file = DIR .. "/config/input-sources.json"
     local config_data = utils.read_json_file(config_file)
 
-    if config_data and config_data.pagination then
-        -- Merge config values with defaults
-        for key, value in pairs(config_data.pagination) do
-            if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
-                PAGINATION_CONFIG[key] = value
+    if config_data then
+        -- Load pagination settings
+        if config_data.pagination then
+            -- Merge config values with defaults (only update known keys)
+            for key, value in pairs(config_data.pagination) do
+                if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
+                    PAGINATION_CONFIG[key] = value
+                end
             end
         end
-        utils.log_info(string.format("Loaded pagination config: %d poems/page, min %d pages",
+
+        -- Load storage settings (Issue 8-020)
+        if config_data.storage then
+            for key, value in pairs(config_data.storage) do
+                if key ~= "_comment" and STORAGE_CONFIG[key] ~= nil then
+                    STORAGE_CONFIG[key] = value
+                end
+            end
+        end
+
+        utils.log_info(string.format("Loaded pagination config: %d poems/page, max %d pages (storage: %dGB limit)",
             PAGINATION_CONFIG.poems_per_page,
-            PAGINATION_CONFIG.minimum_pages))
+            PAGINATION_CONFIG.max_pages_per_poem,
+            STORAGE_CONFIG.limit_gb))
     end
 
     return PAGINATION_CONFIG
@@ -154,17 +180,25 @@ end
 -- {{{ local function generate_prev_next_navigation
 -- Generates prev/next navigation links for paginated pages
 -- current_page: 1-indexed current page
--- total_pages: total number of pages
+-- total_pages: total number of pages (may be capped by max_pages_per_poem)
 -- poem_id: starting poem ID (nil for chronological)
 -- page_type: "similar", "different", or "chronological"
+-- total_corpus: optional - total poems in corpus (for storage context display)
 -- Returns: HTML string with navigation
-local function generate_prev_next_navigation(current_page, total_pages, poem_id, page_type)
+-- Updated for Issue 8-020: Shows storage constraint message on last page
+local function generate_prev_next_navigation(current_page, total_pages, poem_id, page_type, total_corpus)
     local nav_parts = {}
 
     -- Calculate poem range for this page
     local poems_per_page = PAGINATION_CONFIG.poems_per_page
+    local max_pages = PAGINATION_CONFIG.max_pages_per_poem
     local start_poem = ((current_page - 1) * poems_per_page) + 1
     local end_poem = math.min(current_page * poems_per_page, total_pages * poems_per_page)
+
+    -- Check if this is a storage-constrained last page
+    local is_storage_limited = (total_pages == max_pages) and (total_corpus and total_corpus > end_poem)
+    local poems_shown = end_poem
+    local poems_omitted = total_corpus and (total_corpus - poems_shown) or 0
 
     -- Header line with page info
     table.insert(nav_parts, "════════════════════════════════════════════════════════════════════════════════")
@@ -174,12 +208,26 @@ local function generate_prev_next_navigation(current_page, total_pages, poem_id,
             current_page, total_pages, start_poem, end_poem))
     else
         local padded_id = string.format("%04d", poem_id)
-        table.insert(nav_parts, string.format(" %s to Poem %s │ Page %d of %d │ Poems %d-%d",
-            page_type == "similar" and "Similar" or "Different",
-            padded_id, current_page, total_pages, start_poem, end_poem))
+        if is_storage_limited then
+            -- Show storage context on capped pages (Issue 8-020)
+            table.insert(nav_parts, string.format(" %s to Poem %s │ Page %d of %d │ Showing top %d poems",
+                page_type == "similar" and "Similar" or "Different",
+                padded_id, current_page, total_pages, poems_shown))
+        else
+            table.insert(nav_parts, string.format(" %s to Poem %s │ Page %d of %d │ Poems %d-%d",
+                page_type == "similar" and "Similar" or "Different",
+                padded_id, current_page, total_pages, start_poem, end_poem))
+        end
     end
 
     table.insert(nav_parts, "════════════════════════════════════════════════════════════════════════════════")
+
+    -- Storage constraint notice on last page (Issue 8-020)
+    if is_storage_limited and current_page == total_pages and poems_omitted > 0 then
+        table.insert(nav_parts, string.format(" (%d additional poems omitted for storage constraints)",
+            poems_omitted))
+    end
+
     table.insert(nav_parts, "")
 
     -- Navigation links
@@ -1551,9 +1599,11 @@ end
 -- page_type: "similar" or "different"
 -- starting_poem_id: the anchor poem's ID
 -- page_num: 1-indexed page number
--- total_pages: total number of pages
+-- total_pages: total number of pages (may be capped by max_pages_per_poem)
+-- total_corpus: optional - total poems in full corpus (for storage context display)
 -- Returns: HTML string for this specific page
-function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages)
+-- Updated for Issue 8-020: Passes total_corpus to navigation for storage constraint messaging
+function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages, total_corpus)
     -- Ensure pagination config is loaded
     load_pagination_config()
 
@@ -1566,11 +1616,14 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
         return nil
     end
 
-    -- Generate header navigation
-    local header_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type)
+    -- Use provided total_corpus or calculate from sorted_poems
+    local corpus_size = total_corpus or #sorted_poems
+
+    -- Generate header navigation (with storage context)
+    local header_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size)
 
     -- Generate footer navigation (same as header)
-    local footer_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type)
+    local footer_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size)
 
     -- Load poem colors for progress bars
     local poem_colors = load_poem_colors()
@@ -1631,28 +1684,35 @@ end
 -- page_type: "similar" or "different"
 -- starting_poem_id: the anchor poem's ID
 -- output_dir: base output directory
--- pages_to_generate: optional - which pages to generate (nil = all, or {1,2,3} for specific pages)
+-- pages_to_generate: optional - which pages to generate (nil = use config limits, or {1,2,3} for specific pages)
 -- Returns: table with generated file paths and stats
+-- Updated for Issue 8-020: Respects max_pages_per_poem storage constraint
 function M.generate_all_paginated_pages_for_poem(starting_poem, sorted_poems, page_type, starting_poem_id, output_dir, pages_to_generate)
     -- Ensure pagination config is loaded
     load_pagination_config()
 
     local total_poems = #sorted_poems
-    local total_pages = calculate_page_count(total_poems)
+    local total_pages_possible = calculate_page_count(total_poems)
+
+    -- Apply max_pages_per_poem limit (Issue 8-020: 45GB storage constraint)
+    local max_pages = PAGINATION_CONFIG.max_pages_per_poem
+    local total_pages = math.min(total_pages_possible, max_pages)
+
     local results = {
         files_generated = {},
         total_pages = total_pages,
+        total_pages_possible = total_pages_possible,  -- Before storage limit
         poems_per_page = PAGINATION_CONFIG.poems_per_page,
-        poem_id = starting_poem_id
+        poem_id = starting_poem_id,
+        storage_limited = (total_pages < total_pages_possible)  -- Indicates if pages were capped
     }
 
     -- Determine which pages to generate
     local pages = pages_to_generate
     if not pages then
-        -- Generate at least minimum_pages, or all if not specified
+        -- Generate pages 1 through max_pages (respecting storage limit)
         pages = {}
-        local min_pages = PAGINATION_CONFIG.minimum_pages
-        for i = 1, math.min(min_pages, total_pages) do
+        for i = 1, total_pages do
             table.insert(pages, i)
         end
     end
@@ -1661,12 +1721,12 @@ function M.generate_all_paginated_pages_for_poem(starting_poem, sorted_poems, pa
     local page_dir = output_dir .. "/" .. page_type
     os.execute("mkdir -p " .. page_dir)
 
-    -- Generate each requested page
+    -- Generate each requested page (respecting max_pages limit)
     for _, page_num in ipairs(pages) do
         if page_num <= total_pages then
             local html = M.generate_paginated_poem_page_html(
                 starting_poem, sorted_poems, page_type, starting_poem_id,
-                page_num, total_pages)
+                page_num, total_pages, total_poems)  -- Pass total_poems for storage context
 
             if html then
                 local filename = generate_page_filename(starting_poem_id, page_num, page_type)
@@ -1689,6 +1749,15 @@ end
 function M.get_pagination_config()
     load_pagination_config()
     return PAGINATION_CONFIG
+end
+-- }}}
+
+-- {{{ function M.get_storage_config
+-- Exposes storage configuration for external scripts (Issue 8-020)
+-- Returns: STORAGE_CONFIG table
+function M.get_storage_config()
+    load_pagination_config()  -- This also loads storage config
+    return STORAGE_CONFIG
 end
 -- }}}
 
