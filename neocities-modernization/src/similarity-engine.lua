@@ -330,29 +330,32 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
         local existing_data = utils.read_json_file(output_file)
         if existing_data and existing_data.embeddings then
             -- Handle both array and object formats for existing embeddings
+            -- Key insight (Issue 8-019): We store by poem_index, not by id, because
+            -- the same id can exist in multiple categories (e.g., fediverse/0002.txt
+            -- and messages/0002.txt both have id=2 but different poem_index values).
             if type(existing_data.embeddings) == "table" then
                 if existing_data.embeddings[1] then
-                    -- Array format (old format)
+                    -- Array format (legacy format before poem_index)
+                    -- Use poem_index from embedding if available, else use array position
                     for i, emb in ipairs(existing_data.embeddings) do
-                        if emb.id then
-                            existing_embeddings[emb.id] = emb
-                        end
+                        local key = emb.poem_index or i
+                        existing_embeddings[key] = emb
                     end
                 else
-                    -- Object format (current format) - key-value pairs by index
+                    -- Object format (current format) - key-value pairs by poem_index
                     for poem_index, emb in pairs(existing_data.embeddings) do
-                        -- Store by poem index for efficient lookup
+                        -- Store by poem_index for correct lookup
                         existing_embeddings[tonumber(poem_index)] = emb
                     end
                 end
             end
-            
+
             -- Preserve existing metadata
             if existing_data.metadata then
                 embeddings_data.metadata.original_generated_at = existing_data.metadata.generated_at
                 embeddings_data.metadata.previous_total = existing_data.metadata.total_poems
             end
-            
+
             utils.log_info("Found " .. table_length(existing_embeddings) .. " existing embeddings")
         end
     end
@@ -362,27 +365,31 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     local skipped_count = 0
     local retry_count = 0
     local retry_reasons = {}
-    
+
     for i, poem in ipairs(poems) do
+        -- Use poem_index if available, fallback to array index for legacy poems.json
+        -- This ensures correct matching even when the same id appears in multiple categories.
+        local lookup_key = poem.poem_index or i
+
         -- Only skip if embedding is valid AND dimensions are correct
-        if incremental and existing_embeddings[i] and 
-           existing_embeddings[i].embedding and
-           type(existing_embeddings[i].embedding) == "table" and 
-           #existing_embeddings[i].embedding == model_config.dimensions then
+        if incremental and existing_embeddings[lookup_key] and
+           existing_embeddings[lookup_key].embedding and
+           type(existing_embeddings[lookup_key].embedding) == "table" and
+           #existing_embeddings[lookup_key].embedding == model_config.dimensions then
             -- Skip: valid embedding found
-            embeddings_data.embeddings[i] = existing_embeddings[i]
+            embeddings_data.embeddings[lookup_key] = existing_embeddings[lookup_key]
             skipped_count = skipped_count + 1
         else
             -- Re-process: no embedding, invalid embedding, or error state
-            table.insert(poems_to_process, {index = i, poem = poem})
-            
+            table.insert(poems_to_process, {index = lookup_key, poem = poem})
+
             -- Track retry reasons for reporting
-            if incremental and existing_embeddings[i] then
-                if existing_embeddings[i].error then
+            if incremental and existing_embeddings[lookup_key] then
+                if existing_embeddings[lookup_key].error then
                     retry_count = retry_count + 1
-                    local error_type = existing_embeddings[i].error
+                    local error_type = existing_embeddings[lookup_key].error
                     retry_reasons[error_type] = (retry_reasons[error_type] or 0) + 1
-                elseif existing_embeddings[i].embedding then
+                elseif existing_embeddings[lookup_key].embedding then
                     -- Invalid embedding dimensions
                     retry_count = retry_count + 1
                     retry_reasons["invalid_dimensions"] = (retry_reasons["invalid_dimensions"] or 0) + 1
@@ -461,7 +468,8 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                 utils.log_info("Empty poem content for ID: " .. (poem.id or "unknown") .. " - generating random embedding")
                 local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
                 embeddings_data.embeddings[poem_index] = {
-                    id = poem.id,
+                    poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
+                    id = poem.id,             -- Original source file ID (for display)
                     embedding = random_embedding,
                     content_length = 0,
                     is_random = true,  -- Flag indicating this is a synthetic embedding
@@ -471,13 +479,14 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                 completed = completed + 1
             else
                 utils.log_info("Generating embedding for poem " .. poem_index .. " (ID: " .. (poem.id or "unknown") .. ")")
-                
+
                 local embedding, error_type = generate_embedding(poem_text, endpoint)
-                
+
                 if embedding then
                     -- Success: save valid embedding and reset error counters
                     embeddings_data.embeddings[poem_index] = {
-                        id = poem.id,
+                        poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
+                        id = poem.id,             -- Original source file ID (for display)
                         embedding = embedding,
                         content_length = #poem_text,
                         generated_at = os.date("%Y-%m-%d %H:%M:%S"),
@@ -543,7 +552,8 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                 else
                     -- Non-critical errors: save error record to prevent retrying
                     embeddings_data.embeddings[poem_index] = {
-                        id = poem.id,
+                        poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
+                        id = poem.id,             -- Original source file ID (for display)
                         embedding = nil,
                         error = error_type,
                         updated_at = os.date("%Y-%m-%d %H:%M:%S")

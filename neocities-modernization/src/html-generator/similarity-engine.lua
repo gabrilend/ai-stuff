@@ -30,25 +30,43 @@ end
 -- }}}
 
 -- {{{ function M.load_poem_similarities
-function M.load_poem_similarities(poem_id, model_name)
+-- poem_index: unique identifier from poems.json (Issue 8-019)
+-- Falls back to poem_id for backward compatibility with old similarity files
+function M.load_poem_similarities(poem_index, model_name, poem_id)
     model_name = model_name or M.config.default_model
-    
-    -- Try individual similarity file first (more efficient)
-    local individual_file = string.format(
-        "%s/assets/embeddings/%s/similarities/poem_%d.json",
-        DIR, model_name, poem_id
+
+    -- Try individual similarity file by poem_index first (new naming convention)
+    local index_file = string.format(
+        "%s/assets/embeddings/%s/similarities/poem_index_%d.json",
+        DIR, model_name, poem_index
     )
-    
-    if utils.file_exists(individual_file) then
-        utils.log_info(string.format("Loading individual similarities for poem %d", poem_id))
-        local content = utils.read_file(individual_file)
+
+    if utils.file_exists(index_file) then
+        utils.log_info(string.format("Loading similarities for poem_index %d", poem_index))
+        local content = utils.read_file(index_file)
         if content then
             return json.decode(content)
         end
     end
-    
-    -- Fallback to full similarity matrix
-    return M.load_from_similarity_matrix(poem_id, model_name)
+
+    -- Fallback: try old naming convention (poem_id) for backward compatibility
+    if poem_id then
+        local id_file = string.format(
+            "%s/assets/embeddings/%s/similarities/poem_%d.json",
+            DIR, model_name, poem_id
+        )
+
+        if utils.file_exists(id_file) then
+            utils.log_info(string.format("Loading similarities for poem %d (legacy format)", poem_id))
+            local content = utils.read_file(id_file)
+            if content then
+                return json.decode(content)
+            end
+        end
+    end
+
+    -- Final fallback to full similarity matrix
+    return M.load_from_similarity_matrix(poem_index, model_name)
 end
 -- }}}
 

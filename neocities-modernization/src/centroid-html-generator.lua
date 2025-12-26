@@ -238,6 +238,16 @@ local function generate_centroid_footer()
 end
 -- }}}
 
+-- {{{ local function get_unique_poem_filename_id
+-- Generates a unique identifier for poem filenames using category prefix
+-- See Issue 8-019 for rationale on cross-category ID collision prevention.
+local function get_unique_poem_filename_id(poem)
+    local category = poem.category or "unknown"
+    local id = poem.id or 0
+    return string.format("%s-%04d", category, id)
+end
+-- }}}
+
 -- {{{ local function format_poem_for_centroid_page
 -- Formats a single poem entry for the centroid page
 local function format_poem_for_centroid_page(poem_info, page_type)
@@ -250,11 +260,14 @@ local function format_poem_for_centroid_page(poem_info, page_type)
     local score_label = page_type == "similar" and "similarity" or "diversity"
     local score = page_type == "similar" and poem_info.similarity or poem_info.diversity
 
+    -- Use category prefix for unique filenames
+    local unique_id = get_unique_poem_filename_id(poem)
+
     local entry = string.format([[
 --------------------------------------------------------------------------------
 #%d | Poem %s | %s: %.4f
 --------------------------------------------------------------------------------
-<a href="../similar/%03d.html">[similar]</a> <a href="../different/%03d.html">[different]</a>
+<a href="../similar/%s.html">[similar]</a> <a href="../different/%s.html">[different]</a>
 
 %s
 
@@ -263,8 +276,8 @@ local function format_poem_for_centroid_page(poem_info, page_type)
         poem.id,
         score_label,
         score or 0,
-        poem.id,
-        poem.id,
+        unique_id,
+        unique_id,
         content
     )
 

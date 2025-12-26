@@ -233,26 +233,29 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
 
     local html_content = table.concat(content_parts)
 
+    -- Generate unique filename ID (category prefix for cross-category uniqueness)
+    local unique_id = string.format("%s-%04d", poem_category, poem_id)
+
     -- Generate HTML
     local html = string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Poems sorted by similarity to: Poem %d</title>
+<title>Poems sorted by similarity to: %s #%d</title>
 </head>
 <body>
 <center>
 <h1>Poetry Collection</h1>
-<p>All poems sorted by similarity to: Poem %d</p>
+<p>All poems sorted by similarity to: %s #%d</p>
 <pre>
 %s
 </pre>
 </center>
 </body>
-</html>]], poem_id, poem_id, html_content)
+</html>]], poem_category, poem_id, poem_category, poem_id, html_content)
 
-    -- Write file
-    local filename = string.format("%s/similar/%03d.html", output_dir, poem_id)
+    -- Write file (using category prefix for unique filename - Issue 8-019)
+    local filename = string.format("%s/similar/%s.html", output_dir, unique_id)
     local f = io.open(filename, "w")
     if f then
         f:write(html)
@@ -444,25 +447,28 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
     local html_content = table.concat(content_parts)
 
     -- Generate HTML
+    -- Generate unique filename ID (category prefix for cross-category uniqueness)
+    local unique_id = string.format("%s-%04d", poem_category, poem_id)
+
     local html = string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Poems sorted by difference from: Poem %d</title>
+<title>Poems sorted by difference from: %s #%d</title>
 </head>
 <body>
 <center>
 <h1>Poetry Collection</h1>
-<p>All poems sorted by difference from: Poem %d</p>
+<p>All poems sorted by difference from: %s #%d</p>
 <pre>
 %s
 </pre>
 </center>
 </body>
-</html>]], poem_id, poem_id, html_content)
+</html>]], poem_category, poem_id, poem_category, poem_id, html_content)
 
-    -- Write file
-    local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
+    -- Write file (using category prefix for unique filename - Issue 8-019)
+    local filename = string.format("%s/different/%s.html", output_dir, unique_id)
     local f = io.open(filename, "w")
     if f then
         f:write(html)
@@ -531,26 +537,31 @@ local function cached_diversity_worker(poem_id, diversity_sequence, all_poems_lo
 
     local html_content = table.concat(content_parts)
 
+    -- Get starting poem's category for unique filename
+    local starting_poem_data = local_poems_lookup[tostring(poem_id)]
+    local poem_category = (starting_poem_data and starting_poem_data.category) or "unknown"
+    local unique_id = string.format("%s-%04d", poem_category, poem_id)
+
     -- Generate HTML
     local html = string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Poems sorted by difference from: Poem %d</title>
+<title>Poems sorted by difference from: %s #%d</title>
 </head>
 <body>
 <center>
 <h1>Poetry Collection</h1>
-<p>All poems sorted by difference from: Poem %d</p>
+<p>All poems sorted by difference from: %s #%d</p>
 <pre>
 %s
 </pre>
 </center>
 </body>
-</html>]], poem_id, poem_id, html_content)
+</html>]], poem_category, poem_id, poem_category, poem_id, html_content)
 
-    -- Write file
-    local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
+    -- Write file (using category prefix for unique filename - Issue 8-019)
+    local filename = string.format("%s/different/%s.html", output_dir, unique_id)
     local f = io.open(filename, "w")
     if f then
         f:write(html)
@@ -757,8 +768,11 @@ for i, poem in ipairs(poems_data.poems) do
         table.insert(all_poems_array, poem.category or "unknown")
 
         -- Store embedding as flat values if available
-        if embeddings_data and embeddings_data.embeddings[i] and embeddings_data.embeddings[i].embedding then
-            for _, val in ipairs(embeddings_data.embeddings[i].embedding) do
+        -- Use poem_index for lookup (Issue 8-019: cross-category ID collision fix)
+        local lookup_key = poem.poem_index or i
+        local emb_data = embeddings_data and embeddings_data.embeddings[lookup_key]
+        if emb_data and emb_data.embedding then
+            for _, val in ipairs(emb_data.embedding) do
                 table.insert(all_embeddings_flat, val)
             end
         else
@@ -827,13 +841,18 @@ local diff_needed_set = {}
 if INCREMENTAL_MODE then
     local output_dir = DIR .. "/output"
 
-    -- Check each poem for existing files
+    -- Check each poem for existing files (using category prefix for unique filenames)
     local sim_needed_count = 0
     local diff_needed_count = 0
 
     for _, poem_id in ipairs(valid_poem_ids) do
-        local sim_file = string.format("%s/similar/%03d.html", output_dir, poem_id)
-        local diff_file = string.format("%s/different/%03d.html", output_dir, poem_id)
+        -- Get poem's category for unique filename (Issue 8-019)
+        local poem = poem_lookup[poem_id]
+        local category = poem and poem.category or "unknown"
+        local unique_id = string.format("%s-%04d", category, poem_id)
+
+        local sim_file = string.format("%s/similar/%s.html", output_dir, unique_id)
+        local diff_file = string.format("%s/different/%s.html", output_dir, unique_id)
 
         if not file_exists(sim_file) then
             sim_needed_set[poem_id] = true
@@ -958,7 +977,11 @@ if not DIFFERENCE_ONLY then
             local status = batch_threads[i]:wait()
             -- effil doesn't return function values directly, check file existence instead
             local poem_id = batch_poem_ids[i]
-            local filename = string.format("%s/similar/%03d.html", output_dir, poem_id)
+            -- Get poem's category for unique filename (Issue 8-019)
+            local poem = poem_lookup[poem_id]
+            local category = poem and poem.category or "unknown"
+            local unique_id = string.format("%s-%04d", category, poem_id)
+            local filename = string.format("%s/similar/%s.html", output_dir, unique_id)
             local f = io.open(filename, "r")
             if f then
                 f:close()
@@ -966,7 +989,7 @@ if not DIFFERENCE_ONLY then
             else
                 -- FAIL-FAST: Stop immediately on any page generation failure
                 print(string.format("\n❌ SIMILARITY PAGE GENERATION FAILED"))
-                print(string.format("   Poem ID: %d", poem_id))
+                print(string.format("   Poem ID: %s #%d", category, poem_id))
                 print(string.format("   Expected file: %s", filename))
                 print(string.format("   Completed before failure: %d/%d", sim_completed, #valid_poem_ids))
                 print("")
@@ -1086,7 +1109,11 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
             end
             -- Check file existence to verify success
             local poem_id = batch_poem_ids[i]
-            local filename = string.format("%s/different/%03d.html", output_dir, poem_id)
+            -- Get poem's category for unique filename (Issue 8-019)
+            local poem = poem_lookup[poem_id]
+            local category = poem and poem.category or "unknown"
+            local unique_id = string.format("%s-%04d", category, poem_id)
+            local filename = string.format("%s/different/%s.html", output_dir, unique_id)
             local f = io.open(filename, "r")
             if f then
                 f:close()
@@ -1094,7 +1121,7 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
             else
                 -- FAIL-FAST: Stop immediately on any page generation failure
                 print(string.format("\n❌ DIFFERENCE PAGE GENERATION FAILED"))
-                print(string.format("   Poem ID: %d", poem_id))
+                print(string.format("   Poem ID: %s #%d", category, poem_id))
                 print(string.format("   Expected file: %s", filename))
                 print(string.format("   Completed before failure: %d/%d", diff_completed, #valid_poem_ids))
                 print("")
@@ -1141,9 +1168,9 @@ print(string.format("   Total time: %d seconds", total_elapsed))
 
 print("\n📖 Output directory: " .. relative_path(output_dir))
 if not DIFFERENCE_ONLY then
-    print("   Similar: firefox " .. relative_path(output_dir) .. "/similar/001.html")
+    print("   Similar: firefox " .. relative_path(output_dir) .. "/similar/fediverse-0001.html")
 end
 if not SIMILARITY_ONLY then
-    print("   Different: firefox " .. relative_path(output_dir) .. "/different/001.html")
+    print("   Different: firefox " .. relative_path(output_dir) .. "/different/fediverse-0001.html")
 end
 -- }}}
