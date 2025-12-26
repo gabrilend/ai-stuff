@@ -6,6 +6,21 @@
 # Supports selective stage execution via CLI flags, with stages running in
 # pipeline order regardless of argument order.
 #
+# The full pipeline has 10 stages:
+#   1. Update Words     - Sync input files from words repository
+#   2. Extract          - Extract content from backup archives
+#   3. Parse            - Generate poems.json from sources
+#   4. Validate         - Validate poem data
+#   5. Catalog Images   - Generate image-catalog.json
+#   6. Embeddings       - Generate poem embeddings via Ollama (~2-3 hours)
+#   7. Similarity       - Build similarity matrix (~30 min)
+#   8. Diversity        - Pre-compute diversity cache (~42 hours)
+#   9. Generate HTML    - Generate website HTML pages
+#  10. Generate Index   - Generate numeric similarity index
+#
+# By default (--all), runs stages 1-5 and 9-10 (skips expensive embedding stages).
+# Use --full to run all 10 stages including embedding generation.
+#
 # Usage: ./run.sh [FLAGS] [PROJECT_DIR]
 
 # {{{ setup_dir_path
@@ -33,22 +48,29 @@ show_help() {
     cat << 'EOF'
 Usage: ./run.sh [FLAGS] [PROJECT_DIR]
 
-Runs the poem processing pipeline. Without stage flags, runs all stages.
+Runs the poem processing pipeline. Without stage flags, runs fast stages only.
 With stage flags, runs only the specified stages in pipeline order.
 
 Pipeline Stages (run in order, multiple can be specified):
-  --update-words      Sync input files from words repository
-  --extract           Extract content from backup archives
-  --parse             Parse poems from JSON sources into poems.json
-  --validate          Run poem validation
-  --catalog-images    Catalog images from input directories
-  --generate-html     Generate website HTML (chronological + similarity pages)
-  --generate-index    Generate numeric similarity index
-  --all               Run all stages (default when no stages specified)
+  --update-words        Stage 1:  Sync input files from words repository
+  --extract             Stage 2:  Extract content from backup archives
+  --parse               Stage 3:  Parse poems from JSON sources into poems.json
+  --validate            Stage 4:  Run poem validation
+  --catalog-images      Stage 5:  Catalog images from input directories
+  --generate-embeddings Stage 6:  Generate embeddings via Ollama (~2-3 hours)
+  --generate-similarity Stage 7:  Build similarity matrix (~30 min)
+  --generate-diversity  Stage 8:  Pre-compute diversity cache (~42 hours)
+  --generate-html       Stage 9:  Generate website HTML pages
+  --generate-index      Stage 10: Generate numeric similarity index
+
+Stage Groups:
+  --all               Run stages 1-5, 9-10 (default - skips expensive stages)
+  --full              Run ALL stages 1-10 including embeddings (~45 hours total)
 
 Stage Configuration:
-  --threads N         Thread count for parallel HTML generation (default: 4)
+  --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
+  --model NAME        Embedding model name (default: embeddinggemma:latest)
 
 Output Control:
   --quiet             Suppress progress messages
@@ -66,12 +88,20 @@ Other:
   -h, --help          Show this help message
 
 Examples:
-  ./run.sh                           # Run all stages
-  ./run.sh --generate-html           # Only regenerate HTML
-  ./run.sh --validate --generate-html  # Validate then generate HTML
-  ./run.sh --generate-html --threads 8 --force  # Force HTML with 8 threads
-  ./run.sh --all --dry-run           # Preview what would run
-  ./run.sh -I                        # Interactive TUI mode with command preview
+  ./run.sh                              # Run fast stages (1-5, 9-10)
+  ./run.sh --full                       # Run ALL stages including embeddings
+  ./run.sh --generate-html              # Only regenerate HTML
+  ./run.sh --generate-embeddings        # Only generate embeddings
+  ./run.sh --parse --generate-html      # Parse then generate HTML
+  ./run.sh --generate-html --threads 8  # HTML with 8 threads
+  ./run.sh --all --dry-run              # Preview what would run
+  ./run.sh -I                           # Interactive TUI mode
+
+Notes:
+  - Stages 6-8 are expensive and excluded from --all by default
+  - Stage 6 (embeddings) requires Ollama running with embedding model
+  - Stage 8 (diversity) takes ~42 hours but is a one-time cost
+  - Once stages 6-8 complete, subsequent runs use cached data
 EOF
 }
 # }}}
@@ -88,6 +118,9 @@ EXTRACT=false
 PARSE=false
 VALIDATE=false
 CATALOG_IMAGES=false
+GENERATE_EMBEDDINGS=false
+GENERATE_SIMILARITY=false
+GENERATE_DIVERSITY=false
 GENERATE_HTML=false
 GENERATE_INDEX=false
 
@@ -97,6 +130,7 @@ FORCE=false
 QUIET=false
 VERBOSE=false
 DRY_RUN=false
+MODEL_NAME="embeddinggemma:latest"
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -151,6 +185,14 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --model)
+            MODEL_NAME="$2"
+            shift 2
+            ;;
+        --model=*)
+            MODEL_NAME="${1#*=}"
+            shift
+            ;;
         # Stage flags
         --update-words)
             UPDATE_WORDS=true
@@ -177,6 +219,21 @@ while [[ $# -gt 0 ]]; do
             STAGE_FLAG_SET=true
             shift
             ;;
+        --generate-embeddings)
+            GENERATE_EMBEDDINGS=true
+            STAGE_FLAG_SET=true
+            shift
+            ;;
+        --generate-similarity)
+            GENERATE_SIMILARITY=true
+            STAGE_FLAG_SET=true
+            shift
+            ;;
+        --generate-diversity)
+            GENERATE_DIVERSITY=true
+            STAGE_FLAG_SET=true
+            shift
+            ;;
         --generate-html)
             GENERATE_HTML=true
             STAGE_FLAG_SET=true
@@ -188,11 +245,27 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --all)
+            # Fast stages only (1-5, 9-10) - skips expensive embedding stages
             UPDATE_WORDS=true
             EXTRACT=true
             PARSE=true
             VALIDATE=true
             CATALOG_IMAGES=true
+            GENERATE_HTML=true
+            GENERATE_INDEX=true
+            STAGE_FLAG_SET=true
+            shift
+            ;;
+        --full)
+            # ALL stages including expensive embedding generation (1-10)
+            UPDATE_WORDS=true
+            EXTRACT=true
+            PARSE=true
+            VALIDATE=true
+            CATALOG_IMAGES=true
+            GENERATE_EMBEDDINGS=true
+            GENERATE_SIMILARITY=true
+            GENERATE_DIVERSITY=true
             GENERATE_HTML=true
             GENERATE_INDEX=true
             STAGE_FLAG_SET=true
@@ -210,13 +283,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# If no stage flags were specified, run all stages (backward compatible)
+# If no stage flags were specified, run fast stages only (backward compatible)
+# This is equivalent to --all (stages 1-5, 9-10)
 if ! $STAGE_FLAG_SET; then
     UPDATE_WORDS=true
     EXTRACT=true
     PARSE=true
     VALIDATE=true
     CATALOG_IMAGES=true
+    # Skipping expensive stages 6-8 by default (use --full for all)
     GENERATE_HTML=true
     GENERATE_INDEX=true
 fi
@@ -269,7 +344,7 @@ log_dry_run() {
 
 # {{{ run_update_words
 run_update_words() {
-    log_stage "📁 Stage 1/7: Updating input files from words repository"
+    log_stage "📁 Stage 1/10: Updating input files from words repository"
 
     if $DRY_RUN; then
         log_dry_run "$DIR/scripts/update-words"
@@ -284,7 +359,7 @@ run_update_words() {
 
 # {{{ run_extract
 run_extract() {
-    log_stage "🔄 Stage 2/7: Extracting content from backup archives"
+    log_stage "🔄 Stage 2/10: Extracting content from backup archives"
 
     if $DRY_RUN; then
         log_dry_run "$DIR/scripts/update $DIR"
@@ -300,7 +375,7 @@ run_extract() {
 
 # {{{ run_parse
 run_parse() {
-    log_stage "📝 Stage 3/7: Parsing poems from JSON sources"
+    log_stage "📝 Stage 3/10: Parsing poems from JSON sources"
 
     local force_arg=""
     if $FORCE; then
@@ -321,7 +396,7 @@ run_parse() {
 
 # {{{ run_validate
 run_validate() {
-    log_stage "✓ Stage 4/7: Validating poem data"
+    log_stage "✓ Stage 4/10: Validating poem data"
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --validate-only $ASSETS_ARG"
@@ -337,7 +412,7 @@ run_validate() {
 
 # {{{ run_catalog_images
 run_catalog_images() {
-    log_stage "🖼️ Stage 5/7: Cataloging images"
+    log_stage "🖼️ Stage 5/10: Cataloging images"
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --catalog-only $ASSETS_ARG"
@@ -351,9 +426,148 @@ run_catalog_images() {
 }
 # }}}
 
+# {{{ run_generate_embeddings
+run_generate_embeddings() {
+    log_stage "🧠 Stage 6/10: Generating embeddings via Ollama (~2-3 hours)"
+
+    # Convert model name for directory (embeddinggemma:latest -> embeddinggemma_latest)
+    local model_dir_name="${MODEL_NAME//:/_}"
+    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    local poems_file="$DIR/assets/poems.json"
+
+    # Freshness check: skip if embeddings.json newer than poems.json
+    if ! $FORCE && [ -f "$embeddings_file" ] && [ -f "$poems_file" ]; then
+        if [ "$embeddings_file" -nt "$poems_file" ]; then
+            log_info "   ⏭️  Embeddings are fresh (newer than poems.json), skipping..."
+            log_verbose "   embeddings: $(stat -c %Y "$embeddings_file" 2>/dev/null || echo 'N/A')"
+            log_verbose "   poems.json: $(stat -c %Y "$poems_file" 2>/dev/null || echo 'N/A')"
+            return 0
+        fi
+    fi
+
+    local force_arg=""
+    if $FORCE; then
+        force_arg="--full-regen"
+    else
+        force_arg="--incremental"
+    fi
+
+    if $DRY_RUN; then
+        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $DIR"
+        return 0
+    fi
+
+    log_info "   Model: $MODEL_NAME"
+    log_info "   Output: assets/embeddings/$model_dir_name/embeddings.json"
+    log_info "   Mode: $(if $FORCE; then echo 'full regeneration'; else echo 'incremental (skip existing)'; fi)"
+
+    "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" "$DIR" || {
+        echo "Error: Embedding generation failed" >&2
+        echo "Make sure Ollama is running with the $MODEL_NAME model" >&2
+        exit 1
+    }
+}
+# }}}
+
+# {{{ run_generate_similarity
+run_generate_similarity() {
+    log_stage "📊 Stage 7/10: Building similarity matrix (~30 min)"
+
+    # Convert model name for directory
+    local model_dir_name="${MODEL_NAME//:/_}"
+    local matrix_file="$DIR/assets/embeddings/$model_dir_name/similarity_matrix.json"
+    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+
+    # Check if embeddings exist
+    if [ ! -f "$embeddings_file" ]; then
+        echo "Error: Embeddings file not found: $embeddings_file" >&2
+        echo "Run --generate-embeddings first" >&2
+        exit 1
+    fi
+
+    # Freshness check: skip if matrix newer than embeddings
+    if ! $FORCE && [ -f "$matrix_file" ]; then
+        if [ "$matrix_file" -nt "$embeddings_file" ]; then
+            log_info "   ⏭️  Similarity matrix is fresh (newer than embeddings), skipping..."
+            return 0
+        fi
+    fi
+
+    local threads_arg=""
+    if [ -n "$THREADS" ]; then
+        threads_arg="--threads=$THREADS"
+    fi
+
+    if $DRY_RUN; then
+        log_dry_run "luajit $DIR/src/similarity-engine.lua --generate-matrix $threads_arg $DIR"
+        return 0
+    fi
+
+    log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
+    log_info "   Output: assets/embeddings/$model_dir_name/similarity_matrix.json"
+
+    # Use similarity-engine.lua to generate matrix
+    # The generate_similarity_matrix function is in similarity-engine.lua
+    luajit -e "
+        package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
+        local sim = require('src.similarity-engine')
+        sim.generate_similarity_matrix('$DIR/assets/poems.json', '$DIR/assets/embeddings/$model_dir_name')
+    " || {
+        echo "Error: Similarity matrix generation failed" >&2
+        exit 1
+    }
+}
+# }}}
+
+# {{{ run_generate_diversity
+run_generate_diversity() {
+    log_stage "🎲 Stage 8/10: Pre-computing diversity cache (~42 hours)"
+
+    # Convert model name for directory
+    local model_dir_name="${MODEL_NAME//:/_}"
+    local cache_file="$DIR/assets/embeddings/$model_dir_name/diversity_cache.json"
+    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+
+    # Check if embeddings exist
+    if [ ! -f "$embeddings_file" ]; then
+        echo "Error: Embeddings file not found: $embeddings_file" >&2
+        echo "Run --generate-embeddings first" >&2
+        exit 1
+    fi
+
+    # Freshness check: skip if cache newer than embeddings
+    if ! $FORCE && [ -f "$cache_file" ]; then
+        if [ "$cache_file" -nt "$embeddings_file" ]; then
+            log_info "   ⏭️  Diversity cache is fresh (newer than embeddings), skipping..."
+            return 0
+        fi
+    fi
+
+    local threads_arg=""
+    if [ -n "$THREADS" ]; then
+        # Export for the Lua script to pick up
+        export DIVERSITY_THREADS="$THREADS"
+    fi
+
+    if $DRY_RUN; then
+        log_dry_run "luajit $DIR/scripts/precompute-diversity-sequences $DIR"
+        return 0
+    fi
+
+    log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
+    log_info "   Output: assets/embeddings/$model_dir_name/diversity_cache.json"
+    log_info "   ⚠️  This is a one-time cost (~42 hours). Results will be cached."
+
+    luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" || {
+        echo "Error: Diversity cache generation failed" >&2
+        exit 1
+    }
+}
+# }}}
+
 # {{{ run_generate_html
 run_generate_html() {
-    log_stage "🌐 Stage 6/7: Generating website HTML"
+    log_stage "🌐 Stage 9/10: Generating website HTML"
 
     local force_arg=""
     if $FORCE; then
@@ -379,7 +593,7 @@ run_generate_html() {
 
 # {{{ run_generate_index
 run_generate_index() {
-    log_stage "🔢 Stage 7/7: Generating numeric similarity index"
+    log_stage "🔢 Stage 10/10: Generating numeric similarity index"
 
     if $DRY_RUN; then
         log_dry_run "lua $DIR/scripts/generate-numeric-index $DIR $ASSETS_ARG"
@@ -433,10 +647,16 @@ interactive_mode_tui() {
         "Run poem validation" "4" "--validate"
     menu_add_item "stages" "catalog_images" "5. Catalog Images" "checkbox" "1" \
         "Catalog images from input directories" "5" "--catalog-images"
-    menu_add_item "stages" "generate_html" "6. Generate HTML" "checkbox" "1" \
-        "Generate website HTML (chronological + similarity pages)" "6" "--generate-html"
-    menu_add_item "stages" "generate_index" "7. Generate Index" "checkbox" "1" \
-        "Generate numeric similarity index" "7" "--generate-index"
+    menu_add_item "stages" "generate_embeddings" "6. Embeddings ⚠️" "checkbox" "0" \
+        "Generate embeddings via Ollama (~2-3 hours)" "6" "--generate-embeddings"
+    menu_add_item "stages" "generate_similarity" "7. Similarity ⚠️" "checkbox" "0" \
+        "Build similarity matrix (~30 min)" "7" "--generate-similarity"
+    menu_add_item "stages" "generate_diversity" "8. Diversity ⚠️" "checkbox" "0" \
+        "Pre-compute diversity cache (~42 hours)" "8" "--generate-diversity"
+    menu_add_item "stages" "generate_html" "9. Generate HTML" "checkbox" "1" \
+        "Generate website HTML (chronological + similarity pages)" "9" "--generate-html"
+    menu_add_item "stages" "generate_index" "10. Generate Index" "checkbox" "1" \
+        "Generate numeric similarity index" "0" "--generate-index"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 2: Configuration Options
@@ -477,6 +697,9 @@ interactive_mode_tui() {
             local parse_val=$(menu_get_value "parse")
             local validate_val=$(menu_get_value "validate")
             local catalog_val=$(menu_get_value "catalog_images")
+            local embeddings_val=$(menu_get_value "generate_embeddings")
+            local similarity_val=$(menu_get_value "generate_similarity")
+            local diversity_val=$(menu_get_value "generate_diversity")
             local html_val=$(menu_get_value "generate_html")
             local index_val=$(menu_get_value "generate_index")
             local threads_val=$(menu_get_value "threads")
@@ -490,6 +713,9 @@ interactive_mode_tui() {
             [[ "$parse_val" == "1" ]] && PARSE=true || PARSE=false
             [[ "$validate_val" == "1" ]] && VALIDATE=true || VALIDATE=false
             [[ "$catalog_val" == "1" ]] && CATALOG_IMAGES=true || CATALOG_IMAGES=false
+            [[ "$embeddings_val" == "1" ]] && GENERATE_EMBEDDINGS=true || GENERATE_EMBEDDINGS=false
+            [[ "$similarity_val" == "1" ]] && GENERATE_SIMILARITY=true || GENERATE_SIMILARITY=false
+            [[ "$diversity_val" == "1" ]] && GENERATE_DIVERSITY=true || GENERATE_DIVERSITY=false
             [[ "$html_val" == "1" ]] && GENERATE_HTML=true || GENERATE_HTML=false
             [[ "$index_val" == "1" ]] && GENERATE_INDEX=true || GENERATE_INDEX=false
 
@@ -501,7 +727,8 @@ interactive_mode_tui() {
 
             # Check if at least one stage is selected
             if ! $UPDATE_WORDS && ! $EXTRACT && ! $PARSE && ! $VALIDATE && \
-               ! $CATALOG_IMAGES && ! $GENERATE_HTML && ! $GENERATE_INDEX; then
+               ! $CATALOG_IMAGES && ! $GENERATE_EMBEDDINGS && ! $GENERATE_SIMILARITY && \
+               ! $GENERATE_DIVERSITY && ! $GENERATE_HTML && ! $GENERATE_INDEX; then
                 echo ""
                 echo "No stages selected. Please select at least one stage to run."
                 echo "Press Enter to continue..."
@@ -534,13 +761,16 @@ fi
 # Show what will be executed (in non-interactive or after TUI selection)
 if $DRY_RUN || $VERBOSE; then
     echo "Pipeline stages to execute:"
-    $UPDATE_WORDS && echo "  1. update-words"
-    $EXTRACT && echo "  2. extract"
-    $PARSE && echo "  3. parse"
-    $VALIDATE && echo "  4. validate"
-    $CATALOG_IMAGES && echo "  5. catalog-images"
-    $GENERATE_HTML && echo "  6. generate-html"
-    $GENERATE_INDEX && echo "  7. generate-index"
+    $UPDATE_WORDS && echo "  1.  update-words"
+    $EXTRACT && echo "  2.  extract"
+    $PARSE && echo "  3.  parse"
+    $VALIDATE && echo "  4.  validate"
+    $CATALOG_IMAGES && echo "  5.  catalog-images"
+    $GENERATE_EMBEDDINGS && echo "  6.  generate-embeddings ⚠️ (~2-3 hours)"
+    $GENERATE_SIMILARITY && echo "  7.  generate-similarity ⚠️ (~30 min)"
+    $GENERATE_DIVERSITY && echo "  8.  generate-diversity ⚠️ (~42 hours)"
+    $GENERATE_HTML && echo "  9.  generate-html"
+    $GENERATE_INDEX && echo "  10. generate-index"
     echo ""
 fi
 
@@ -550,6 +780,9 @@ $EXTRACT && run_extract
 $PARSE && run_parse
 $VALIDATE && run_validate
 $CATALOG_IMAGES && run_catalog_images
+$GENERATE_EMBEDDINGS && run_generate_embeddings
+$GENERATE_SIMILARITY && run_generate_similarity
+$GENERATE_DIVERSITY && run_generate_diversity
 $GENERATE_HTML && run_generate_html
 $GENERATE_INDEX && run_generate_index
 
