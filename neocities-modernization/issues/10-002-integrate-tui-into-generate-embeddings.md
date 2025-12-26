@@ -240,16 +240,48 @@ validate_selections() {
 
 ## Acceptance Criteria
 
-- [ ] TUI menu displays all option categories
-- [ ] Processing mode section acts as radio buttons (single selection)
-- [ ] Cache management options can be multi-selected where appropriate
-- [ ] Model selection cycles through available models
-- [ ] Backup option defaults to checked
-- [ ] Menu values correctly map to existing flag variables
-- [ ] Existing flag-based operation unchanged
-- [ ] Dangerous operations (flush) show appropriate warnings
-- [ ] q/ESC cancels without executing
-- [ ] Run action executes with selected configuration
+- [x] TUI menu displays all option categories
+- [x] Processing mode section acts as radio buttons (single selection)
+- [x] Cache management options can be multi-selected where appropriate
+- [x] Model selection cycles through available models
+- [x] Backup option defaults to checked
+- [x] Menu values correctly map to existing flag variables
+- [x] Existing flag-based operation unchanged
+- [x] Dangerous operations (flush) show appropriate warnings (⚠️ marker)
+- [x] q/ESC cancels without executing
+- [x] Run action executes with selected configuration
+
+## Implementation (2025-12-25)
+
+### Changes Made
+
+1. **Added TUI library sourcing** (lines 11-18)
+   - Sources `/home/ritz/programming/ai-stuff/scripts/libs/lua-menu.sh`
+   - Sets `TUI_AVAILABLE=true` if library and luajit available
+
+2. **Created `setup_embedding_tui_menu()` function** (lines 131-197)
+   - 5 sections: Processing Mode, Cache Management, Cache Options, Model Selection, Actions
+   - Processing mode as radio buttons (single selection)
+   - Cache operations with ⚠️ warning for flush_all
+   - Model multistate cycling through 3 models
+   - Keyboard shortcuts: 1/2/3 for modes, f/e/v for cache, b/s for options, m/t/l for model
+
+3. **Created `apply_tui_selections()` function** (lines 200-243)
+   - Maps checkbox values to existing flag variables
+   - Handles radio button exclusivity for processing mode
+   - Converts model short names to full model names
+   - Validates mutually exclusive options (flush_all vs flush_errors)
+
+4. **Created `run_tui_interactive_mode()` function** (lines 246-271)
+   - Initializes and runs TUI menu
+   - Applies selections on confirm
+   - Shows configuration summary before execution
+   - Clean exit on cancel (q/ESC)
+
+5. **Refactored interactive mode** (lines 274-349)
+   - Original code moved to `run_simple_interactive_mode()`
+   - Main handler tries TUI first, falls back to simple mode
+   - Preserves all original functionality
 
 ---
 

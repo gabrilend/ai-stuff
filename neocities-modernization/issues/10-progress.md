@@ -27,7 +27,6 @@ option selection.
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 10-002 | Integrate TUI into generate-embeddings.sh | Open | Medium |
 | 10-003 | Consolidate config files into single source | Open | Low |
 | 10-008 | Implement multi-line command wrapping | Open | Medium |
 
@@ -35,6 +34,7 @@ option selection.
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 10-002 | Integrate TUI into generate-embeddings.sh | Completed | 2025-12-25 |
 | 10-001 | Integrate TUI into phase-demo.sh | Completed | 2025-12-25 |
 | 10-004 | Implement built-up command preview system | Completed | 2025-12-23 |
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2025-12-23 |
