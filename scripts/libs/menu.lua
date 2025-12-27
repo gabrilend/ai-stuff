@@ -2074,7 +2074,11 @@ function menu.toggle()
     if not item_id then return nil end
 
     local data = state.item_data[item_id]
-    if data.disabled then return nil end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return nil
+    end
 
     local sid = state.sections[state.current_section]
     local section_type = state.section_data[sid].type
@@ -2131,7 +2135,11 @@ function menu.set_checkbox()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
-    if data.disabled then return false end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return false
+    end
 
     local sid = state.sections[state.current_section]
     local section_type = state.section_data[sid].type
@@ -2164,7 +2172,11 @@ function menu.unset_checkbox()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
-    if data.disabled then return false end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return false
+    end
 
     -- Prevent unchecking radio buttons (single-select sections)
     local section_type = get_current_section_type()
@@ -2269,7 +2281,12 @@ function menu.handle_flag_left()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
-    if data.type ~= "flag" or data.disabled then return false end
+    if data.type ~= "flag" then return false end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return false
+    end
 
     state.values[item_id] = "0"
     state.flag_edit_started[item_id] = nil  -- Reset so next digit overwrites
@@ -2286,7 +2303,12 @@ function menu.handle_flag_right()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
-    if data.type ~= "flag" or data.disabled then return false end
+    if data.type ~= "flag" then return false end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return false
+    end
 
     state.values[item_id] = data.default_value or "0"
     state.flag_edit_started[item_id] = nil  -- Reset so next digit overwrites
@@ -2304,7 +2326,12 @@ function menu.handle_flag_digit(digit)
     if not item_id then return false end
 
     local data = state.item_data[item_id]
-    if data.type ~= "flag" or data.disabled then return false end
+    if data.type ~= "flag" then return false end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return false
+    end
 
     -- Validate digit (0-9) or period (.)
     local is_digit = digit:match("^%d$")
@@ -2347,7 +2374,12 @@ function menu.handle_flag_backspace()
     if not item_id then return false end
 
     local data = state.item_data[item_id]
-    if data.type ~= "flag" or data.disabled then return false end
+    if data.type ~= "flag" then return false end
+    if data.disabled then
+        -- Flash red to indicate rejected interaction
+        menu.flash_item(item_id, 2, "red", 100)
+        return false
+    end
 
     local current = state.values[item_id] or ""
     if #current > 0 then
