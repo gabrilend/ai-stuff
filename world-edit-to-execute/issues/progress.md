@@ -14,7 +14,7 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | In Progress | 1/9 |
+| 3 | Logic Layer - Triggers and JASS | In Progress | 2/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
@@ -194,7 +194,12 @@ Phase 1 Complete (102 MPQ Parser)
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 301 | Parse war3map.wtg (trigger definitions) | Pending | 102 |
+| 301 | Parse war3map.wtg (trigger definitions) | **Completed** | 102 |
+| 301a | Parse WTG header and categories | **Completed** | 102 |
+| 301b | Parse WTG variables | **Completed** | 301a |
+| 301c | Parse WTG trigger metadata | **Completed** | 301b |
+| 301d | Parse WTG ECA functions | **Completed** | 301c |
+| 301e | Parse WTG parameters | **Completed** | 301d |
 | 302 | Parse war3map.wct (custom text triggers) | Pending | 102, 301 |
 | 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
 | 304 | Build JASS lexer | Pending | 303 |
@@ -457,6 +462,10 @@ Phase 2 & 3 Complete
   - Uses `claude --continue` for sequential processing
   - Added --expert (-E) for explicit fresh context per issue (default behavior)
   - Session mode auto-disabled when using --stream (parallel incompatible)
+  - **[2025-12-27] DEPRECATED:** `--continue` shares context system-wide, not per-process
+    - Causes cross-contamination with user's other Claude Code sessions
+    - Issue 012 created to remove all `--continue` usage
+    - See: issues/012-remove-context-continuation.md (scripts project)
 - **Issue 201 completed:** Parse war3map.doo (doodads/trees)
   - Created src/parsers/doo.lua (DoodadTable class with spatial queries)
   - Created src/tests/test_doo.lua (9 synthetic + 16 map tests)
@@ -601,6 +610,20 @@ Phase 2 & 3 Complete
   - Validates structure (balanced blocks, entry points)
   - Note: Test maps lack war3map.j (minimal maps) - used synthetic data
   - Key finding: Lua `%w` doesn't match underscores, use `[%w_]+` for JASS identifiers
+- **Issue 301 completed:** Parse war3map.wtg (trigger definitions)
+  - Created src/parsers/wtg.lua (1148 lines, full WTG parser)
+  - Created 5 test files with 59 total tests, all pass:
+    - test_wtg_header.lua (11 tests): header, categories
+    - test_wtg_variables.lua (9 tests): variable definitions
+    - test_wtg_triggers.lua (9 tests): trigger metadata
+    - test_wtg_eca.lua (13 tests): ECA function trees
+    - test_wtg_params.lua (17 tests): parameter parsing
+  - Parses: header, categories, variables, triggers, ECA trees, parameters
+  - Two-pass parsing: metadata-only (fast) or full ECA parsing
+  - Helper functions: format_parameter(), validate_parameter()
+  - Constants exported: ECA_TYPE, PARAM_TYPE, CATEGORY_TYPE, VARIABLE_TYPES
+  - Note: All 16 test maps are protected (no war3map.wtg) - used synthetic data
+  - Sub-issues 301a-301e all completed
 
 ---
 
@@ -620,11 +643,13 @@ Capabilities established:
 
 ### Phase 3 - Logic Layer: Triggers and JASS
 
-Ready to begin Phase 3 (9 issues):
+Phase 3 in progress (2/9 issues complete):
 
-1. **301 - Parse war3map.wtg** (trigger definitions)
-2. **302 - Parse war3map.wct** (custom text triggers)
-3. **303 - Parse war3map.j** (JASS script extraction)
+1. **301 - Parse war3map.wtg** (trigger definitions) - **COMPLETED**
+   - Full WTG parser with 5 test files (59 tests)
+   - Parses header, categories, variables, triggers, ECAs, parameters
+2. **302 - Parse war3map.wct** (custom text triggers) - Next up
+3. **303 - Parse war3map.j** (JASS script extraction) - **COMPLETED**
 4. **304 - Build JASS lexer** (tokenization)
 5. **305 - Build JASS parser** (AST generation)
 6. **306 - Create JASS-to-Lua transpiler**
