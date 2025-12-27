@@ -14,7 +14,7 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | In Progress | 2/9 |
+| 3 | Logic Layer - Triggers and JASS | In Progress | 3/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
@@ -200,7 +200,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 301c | Parse WTG trigger metadata | **Completed** | 301b |
 | 301d | Parse WTG ECA functions | **Completed** | 301c |
 | 301e | Parse WTG parameters | **Completed** | 301d |
-| 302 | Parse war3map.wct (custom text triggers) | Pending | 102, 301 |
+| 302 | Parse war3map.wct (custom text triggers) | **Completed** | 102, 301 |
 | 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
 | 304 | Build JASS lexer | Pending | 303 |
 | 305 | Build JASS parser | Pending | 304 |
@@ -624,6 +624,14 @@ Phase 2 & 3 Complete
   - Constants exported: ECA_TYPE, PARAM_TYPE, CATEGORY_TYPE, VARIABLE_TYPES
   - Note: All 16 test maps are protected (no war3map.wtg) - used synthetic data
   - Sub-issues 301a-301e all completed
+- **Issue 302 completed:** Parse war3map.wct (custom text triggers)
+  - Created src/parsers/wct.lua (~270 lines, WCT parser)
+  - Created src/tests/test_wct.lua (17 tests, all pass)
+  - Parses: version (0=RoC, 1=TFT), header comment, per-trigger custom text
+  - Uses length-prefixed strings (NOT null-terminated)
+  - Provides merge_with_wtg() to associate custom JASS with wtg triggers
+  - Helper functions: get_custom_trigger_count(), format()
+  - Note: All 16 test maps are protected (no war3map.wct) - used synthetic data
 
 ---
 
@@ -643,14 +651,15 @@ Capabilities established:
 
 ### Phase 3 - Logic Layer: Triggers and JASS
 
-Phase 3 in progress (2/9 issues complete):
+Phase 3 in progress (3/9 issues complete):
 
 1. **301 - Parse war3map.wtg** (trigger definitions) - **COMPLETED**
    - Full WTG parser with 5 test files (59 tests)
    - Parses header, categories, variables, triggers, ECAs, parameters
-2. **302 - Parse war3map.wct** (custom text triggers) - Next up
+2. **302 - Parse war3map.wct** (custom text triggers) - **COMPLETED**
+   - WCT parser with 17 tests, merge_with_wtg helper
 3. **303 - Parse war3map.j** (JASS script extraction) - **COMPLETED**
-4. **304 - Build JASS lexer** (tokenization)
+4. **304 - Build JASS lexer** (tokenization) - Next up
 5. **305 - Build JASS parser** (AST generation)
 6. **306 - Create JASS-to-Lua transpiler**
 7. **307 - Implement trigger framework** (conditions/actions)
