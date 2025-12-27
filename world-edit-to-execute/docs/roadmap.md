@@ -6,26 +6,22 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 ## Current Focus
 
-### Phase 1 Progress: 8/12 complete
+### Phase 3 In Progress: 1/9 complete (36 total with sub-issues)
 
 **Completed:**
-- ✓ **101** - Research WC3 file formats
-- ✓ **102** - MPQ archive parser (102a-d sub-issues)
-- ✓ **103** - Parse war3map.w3i (map metadata)
-- ✓ **104** - Parse war3map.wts (trigger strings)
+- ✓ **303** - Parse war3map.j (JASS script extraction)
 
 **Next Priority Issues:**
 
-1. **105 - Parse war3map.w3e** (terrain)
-   - Tilepoints, height maps, textures
-   - Foundation for rendering
+1. **301 - Parse war3map.wtg** (trigger definitions)
+   - GUI trigger structure, events, conditions, actions
+   - 1 sub-issue: 301e (parameter parsing)
 
-2. **106 - Design internal data structures**
-   - Map class integrating all parsed data
-   - Coordinate systems and lookups
+2. **302 - Parse war3map.wct** (custom text triggers)
+   - Custom JASS code embedded in triggers
 
-3. **107 - Build CLI metadata dump tool**
-   - Command-line tool to inspect map contents
+3. **304 - Build JASS lexer** (4 sub-issues)
+   - Tokenization of JASS source code
 
 **Available Tools:**
 ```bash
@@ -38,8 +34,8 @@ A phased approach to building a WC3-compatible game engine with visual independe
 # Interactive mode with TUI
 ./src/cli/issue-splitter.sh -I
 
-# Run Phase 1 validation tests
-./issues/completed/demos/run_phase1.sh
+# Run Phase demos
+./run-demo.sh
 ```
 
 ---
@@ -78,51 +74,11 @@ All 18 issues completed. Development tools now available:
 | **Implement Mode** | `-A` | Auto-implement issues via Claude CLI |
 | **Review Mode** | `-r` | Review root issues with sub-issues |
 
-### Completed Features
-
-- ✓ Issue splitter tool for automated analysis
-- ✓ Direct output handling (no intermediate files)
-- ✓ Execute mode for auto-generating sub-issues
-- ✓ Streaming queue for parallel processing
-- ✓ Checkbox-style TUI with vim keybindings
-- ✓ Shared TUI library for cross-project reuse
-- ✓ Analysis section renaming for promoted roots
-- ✓ Auto-implement via Claude CLI
-
-### Final Dependency Graph (All Complete)
-
-```
-001 ✓ ──┬──▶ 002 ✓ Streaming Queue
-        │     ├── 002a ✓ Infrastructure ──┬──▶ 002b ✓ Producer
-        │     │                           └──▶ 002c ✓ Streamer
-        │     │                                │
-        │     │         ┌──────────────────────┘
-        │     │         ▼
-        │     └── 002d ✓ Parallel Loop ──▶ 002e ✓ Config Flags
-        │
-        └──▶ 003 ✓ Execute Recommendations ──▶ 006 ✓ Rename Sections
-
-004 ✓ TUI Redesign ──▶ 005 ✓ Migrate TUI Library
-
-007 ✓ Auto-implement via Claude CLI
-```
-
 ---
 
-## Phase 1: Foundation - File Format Parsing (8/12 Complete)
+## Phase 1: Foundation - File Format Parsing ✓ COMPLETED
 
-Establish the core ability to read and parse WC3 map archives.
-
-| Task | Status |
-|------|--------|
-| Parse MPQ archive structure (.w3m/.w3x containers) | ✓ Complete |
-| Extract embedded files from archive | ✓ Complete |
-| Parse war3map.w3i (map info) | ✓ Complete |
-| Parse war3map.wts (trigger strings) | ✓ Complete |
-| Parse war3map.w3e (terrain data) | Pending |
-| Create internal data structures for parsed content | Pending |
-| Build CLI tool to dump map metadata | Pending |
-| Integration test | Pending |
+All 12 issues completed. Core parsing infrastructure established.
 
 ### Module Structure
 
@@ -130,62 +86,256 @@ Establish the core ability to read and parse WC3 map archives.
 src/
 ├── compat.lua           # Lua 5.1/LuaJIT ↔ Lua 5.3+ compatibility
 ├── mpq/                 # MPQ archive system
-│   ├── init.lua         # Unified API
-│   ├── header.lua       # Header parsing (HM3W wrapper)
-│   ├── hash.lua         # Hash algorithm
+│   ├── init.lua         # Unified API: mpq.open(), archive:extract()
+│   ├── header.lua       # Header parsing (HM3W wrapper support)
+│   ├── hash.lua         # Hash algorithm and crypto table
 │   ├── hashtable.lua    # File lookup
-│   ├── blocktable.lua   # Block table
-│   └── extract.lua      # File extraction
-├── parsers/             # Content parsers
-│   ├── w3i.lua          # Map info parser
-│   └── wts.lua          # Trigger strings parser
-└── tests/               # Test suite
+│   ├── blocktable.lua   # Block table parsing
+│   ├── extract.lua      # File extraction (zlib)
+│   └── pkware.lua       # PKWARE DCL decompression
+├── parsers/
+│   ├── w3i.lua          # Map info (name, players, forces, fog)
+│   ├── wts.lua          # Trigger strings (TRIGSTR_xxx)
+│   └── w3e.lua          # Terrain (tilepoints, heights, textures)
+├── data/
+│   └── init.lua         # Map class integrating all parsers
+├── cli/
+│   └── mapdump.lua      # CLI metadata dump tool
+└── tests/
     ├── test_mpq.lua
     ├── test_w3i.lua
-    └── test_wts.lua
+    ├── test_wts.lua
+    ├── test_w3e.lua
+    ├── test_data.lua
+    └── phase1_test.lua
+```
+
+### Completed Issues
+
+| ID | Name | Sub-Issues |
+|----|------|------------|
+| 101 | Research WC3 file formats | - |
+| 102 | Implement MPQ archive parser | 102a-d (4) |
+| 103 | Parse war3map.w3i (map info) | - |
+| 104 | Parse war3map.wts (trigger strings) | - |
+| 105 | Parse war3map.w3e (terrain) | - |
+| 106 | Design internal data structures | - |
+| 107 | Build CLI metadata dump tool | - |
+| 108 | Phase 1 integration test | - |
+| 109 | Implement PKWARE DCL decompression | - |
+
+---
+
+## Phase 2: Data Model - Game Objects ✓ COMPLETED
+
+All 30 issues completed. Game object system fully implemented.
+
+### Module Structure
+
+```
+src/
+├── parsers/
+│   ├── doo.lua          # Doodads/trees (DoodadTable class)
+│   ├── unitsdoo.lua     # Units/buildings (UnitTable class)
+│   ├── w3r.lua          # Regions (RegionTable class)
+│   ├── w3c.lua          # Cameras (CameraTable class)
+│   └── w3s.lua          # Sounds (SoundTable class)
+├── gameobjects/
+│   ├── init.lua         # Module documentation and exports
+│   ├── doodad.lua       # Doodad class
+│   ├── unit.lua         # Unit class (heroes, buildings, items)
+│   ├── region.lua       # Region class
+│   ├── camera.lua       # Camera class (eye position calculation)
+│   └── sound.lua        # Sound class (3D audio, channels)
+├── registry/
+│   ├── init.lua         # ObjectRegistry class
+│   └── spatial.lua      # SpatialIndex (grid-based queries)
+└── tests/
+    ├── test_doo.lua
+    ├── test_unitsdoo.lua
+    ├── test_w3r.lua
+    ├── test_w3c.lua
+    ├── test_w3s.lua
+    ├── test_gameobjects.lua
+    ├── test_registry.lua
+    ├── test_spatial.lua
+    ├── test_spatial_integration.lua
+    └── test_phase2_integration.lua
+```
+
+### Completed Issues
+
+| ID | Name | Sub-Issues |
+|----|------|------------|
+| 201 | Parse war3map.doo (doodads) | - |
+| 202 | Parse war3mapUnits.doo (units) | 202a-e (5) |
+| 203 | Parse war3map.w3r (regions) | - |
+| 204 | Parse war3map.w3c (cameras) | - |
+| 205 | Parse war3map.w3s (sounds) | - |
+| 206 | Design game object types | 206a-g (7) |
+| 207 | Build object registry system | 207a-f (6) |
+| 208 | Phase 2 integration test | 208a-d (4) |
+
+### Statistics
+- 226,237 total objects parsed from 16 test maps
+- 259 game object tests
+- 190+ registry tests
+- 41 integration tests
+
+---
+
+## Phase 3: Logic Layer - Triggers and JASS (In Progress)
+
+Implement the scripting and trigger system.
+
+### Issue Breakdown
+
+| ID | Name | Sub-Issues | Status |
+|----|------|------------|--------|
+| 301 | Parse war3map.wtg (trigger definitions) | 1 (301e) | Pending |
+| 302 | Parse war3map.wct (custom text triggers) | - | Pending |
+| 303 | Parse war3map.j (JASS script) | - | **Completed** |
+| 304 | Build JASS lexer | 4 (304a-d) | Pending |
+| 305 | Build JASS parser | 5 (305a-e) | Pending |
+| 306 | Create JASS-to-Lua transpiler | 6 (306a-f) | Pending |
+| 307 | Implement trigger framework | 4 (307a-d) | Pending |
+| 308 | Build event dispatch system | - | Pending |
+| 309 | Phase 3 integration test | 7 (309a-g) | Pending |
+
+### Sub-Issue Details
+
+**304 - JASS Lexer (4 sub-issues):**
+- 304a: Core infrastructure (token types, lexer state)
+- 304b: Keywords, identifiers, operators
+- 304c: Literals (strings, numbers, rawcodes)
+- 304d: Tests and validation
+
+**305 - JASS Parser (5 sub-issues):**
+- 305a: Parser infrastructure (AST nodes, parser state)
+- 305b: Parse declarations (globals, functions, types)
+- 305c: Parse expressions
+- 305d: Parse statements
+- 305e: Parser tests
+
+**306 - JASS-to-Lua Transpiler (6 sub-issues):**
+- 306a: Transpiler infrastructure
+- 306b: Transpile declarations
+- 306c: Transpile statements
+- 306d: Transpile expressions
+- 306e: Native function handling
+- 306f: Transpiler tests
+
+**307 - Trigger Framework (4 sub-issues):**
+- 307a: Trigger data structure
+- 307b: Trigger lifecycle API
+- 307c: Condition/action system
+- 307d: Trigger context system
+
+**309 - Integration Test (7 sub-issues):**
+- 309a: Test trigger file parsing
+- 309b: Test JASS lexer
+- 309c: Test JASS parser
+- 309d: Test transpiler
+- 309e: Test trigger runtime
+- 309f: Test event dispatch
+- 309g: Phase demo
+
+### Dependency Graph
+
+```
+301 wtg Parser ──▶ 302 wct Parser
+                         │
+303 j Extractor ✓ ───────┴──▶ 304 Lexer ──▶ 305 Parser ──▶ 306 Transpiler
+                                                                 │
+                                        307 Trigger Framework ◀──┘
+                                                 │
+                                        308 Event Dispatch
+                                                 │
+                                        309 Integration Test
 ```
 
 ---
 
-## Phase 2: Data Model - Game Objects (0/8 - Issues Created)
+## Phase 4: Runtime - Basic Engine Loop (Issues Created)
 
-Build the abstract representation layer for game entities.
+Create the game execution environment. 8 root issues with 36 sub-issues.
 
-- Parse war3map.doo (doodads/destructibles placement)
-- Parse war3mapUnits.doo (unit/building placement)
-- Parse war3map.w3r (regions)
-- Parse war3map.w3c (cameras)
-- Parse war3map.w3s (sounds)
-- Create abstract Unit, Doodad, Region, Camera types
-- Build object registry system
+### Issue Breakdown
 
----
+| ID | Name | Sub-Issues |
+|----|------|------------|
+| 401 | Implement game tick/update loop | 2 (401a-b) |
+| 402 | Build entity component system | 6 (402a-f) |
+| 403 | Implement basic pathfinding | 5 (403a-e) |
+| 404 | Create unit movement system | 4 (404a-d) |
+| 405 | Implement basic collision detection | 5 (405a-e) |
+| 406 | Build resource management system | 3 (406a-c) |
+| 407 | Create player state management | 6 (407a-f) |
+| 408 | Phase 4 integration test | 5 (408a-e) |
 
-## Phase 3: Logic Layer - Triggers and JASS
+### Sub-Issue Details
 
-Implement the scripting and trigger system.
+**401 - Game Loop (2 sub-issues):**
+- 401a: Core fixed-timestep loop (62.5 ticks/sec)
+- 401b: Timer subsystem
 
-- Parse war3map.wtg (trigger definitions)
-- Parse war3map.wct (custom text triggers)
-- Parse war3map.j (JASS script)
-- Build JASS lexer/parser
-- Create JASS-to-Lua transpiler
-- Implement trigger condition/action framework
-- Build event dispatch system
+**402 - Entity Component System (6 sub-issues):**
+- 402a: Entity manager
+- 402b: Component registry
+- 402c: Component queries
+- 402d: System registration
+- 402e: Core WC3 components
+- 402f: Entity handles (optional)
 
----
+**403 - Pathfinding (5 sub-issues):**
+- 403a: Build pathing grid
+- 403b: Implement A* algorithm
+- 403c: Coordinate conversion
+- 403d: Movement type support
+- 403e: Path smoothing
 
-## Phase 4: Runtime - Basic Engine Loop
+**404 - Unit Movement (4 sub-issues):**
+- 404a: Core movement system
+- 404b: Path following logic
+- 404c: Movement orders
+- 404d: Advanced movement behaviors
 
-Create the game execution environment.
+**405 - Collision Detection (5 sub-issues):**
+- 405a: Collision primitives and shapes
+- 405b: Spatial hash grid
+- 405c: Collision queries
+- 405d: Movement collision integration
+- 405e: Projectile and picking
 
-- Implement game tick/update loop
-- Build entity component system
-- Implement basic pathfinding (terrain-aware)
-- Create unit movement system
-- Implement basic collision detection
-- Build resource management (gold/lumber abstraction)
-- Create player state management
+**406 - Resource Management (3 sub-issues):**
+- 406a: Core resource storage
+- 406b: Spending validation
+- 406c: Food and harvesting
+
+**407 - Player State (6 sub-issues):**
+- 407a: Player data structure
+- 407b: Player queries
+- 407c: Alliance management
+- 407d: Player state transitions
+- 407e: Victory conditions
+- 407f: Local player support
+
+**408 - Integration Test (5 sub-issues):**
+- 408a: Unit tests - core systems
+- 408b: Unit tests - entity systems
+- 408c: Unit tests - player systems
+- 408d: Integration scenario
+- 408e: Visual demo
+
+### Dependency Graph
+
+```
+401 Game Loop ──▶ 402 ECS ──┬──▶ 403 Pathfinding ──▶ 404 Movement ──▶ 405 Collision
+                            │
+                            └──▶ 407 Player State ──▶ 406 Resources
+                                         │
+                                         └──▶ 408 Integration Test
+```
 
 ---
 
