@@ -576,6 +576,19 @@ Phase 2 & 3 Complete
   - Updated run-demo.sh with Phase 2 option (COMPLETED_PHASES=2)
   - Both interactive and non-interactive modes work
   - 16/16 maps load, 226,237 total objects displayed
+- **Issue 208b completed:** Gameobject creation tests
+  - Created src/tests/test_208b_gameobject_creation.lua
+  - Tests all 5 game object types (Doodad, Unit, Region, Camera, Sound)
+  - Parser-like data structure validation and method testing
+  - Real map data integration (22,133 doodads created from test map)
+  - 66,492/66,492 assertions pass
+- **Issue 208c completed:** Registry integration tests
+  - Created src/tests/test_208c_registry_integration.lua
+  - Tests complete registry workflow: population, lookup, filtering, spatial queries
+  - Cross-reference validation (waygate→region, region→sound)
+  - Real map integration with Map.load()
+  - 69/69 assertions pass
+  - Note: Unit is_building() heuristic has false positives (hfoo matches farm pattern)
 
 ---
 
