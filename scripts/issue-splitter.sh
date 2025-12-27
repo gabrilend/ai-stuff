@@ -1466,13 +1466,13 @@ generate_complete_issues() {
     log "  Generating complete issue files via Claude..."
     echo "  ─────────────────────────────────────────────────────────────"
 
-    # ALWAYS use fresh context for generation - do NOT use --continue
-    # Reason: --continue brings in previous session context which may include
-    # implementation work, causing Claude to continue implementing instead of
-    # just creating issue documentation files. Fresh context ensures Claude
-    # focuses only on the task at hand: creating markdown issue files.
-    # Use --allowedTools to restrict Claude to only Write tool.
+    # Use --continue in session mode for efficiency (avoids re-reading project context)
+    # The prompt includes explicit SCOPE RESTRICTION to prevent implementation bleed
+    # --allowedTools Write restricts to only file creation
     local claude_opts=("--allowedTools" "Write" "-p" "$prompt")
+    if [[ "$SESSION_MODE" == true ]] && [[ "$SESSION_STARTED" == true ]]; then
+        claude_opts=("--continue" "--allowedTools" "Write" "-p" "$prompt")
+    fi
 
     # Run Claude with real-time output visible to user
     # No timeout - let Claude complete naturally. Timeouts waste tokens since
