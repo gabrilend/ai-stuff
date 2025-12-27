@@ -746,7 +746,13 @@ interactive_mode_tui() {
         elif has_subissues "$root_id"; then
             local sub_count
             sub_count=$(get_subissues_for_root "$root_id" | wc -l)
-            desc="[ROOT+${sub_count}] Has ${sub_count} sub-issue(s) - will review"
+            # Check if this root has already been structure-reviewed
+            if has_structure_review "$issue"; then
+                desc="[ROOT+${sub_count} REVIEWED] Already structure-reviewed"
+                default="0"  # Already reviewed = unchecked by default
+            else
+                desc="[ROOT+${sub_count}] Has ${sub_count} sub-issue(s) - ready for review"
+            fi
         elif has_subissue_analysis "$issue" || has_initial_analysis "$issue"; then
             # Check the verdict from analysis
             local verdict
