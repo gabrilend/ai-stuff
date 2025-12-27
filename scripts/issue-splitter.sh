@@ -22,6 +22,7 @@
 #   -I, --interactive     Interactive mode for selecting options
 #   -a, --archive         Save copies of analyses to issues/analysis/ directory
 #   -x, --execute         Execute recommendations (create sub-issue files)
+#   -G, --generate-complete  Generate complete issue files (not skeletons) via Claude
 #   -X, --execute-all     Execute all recommendations without confirmation
 #   -A, --auto-implement  Auto-implement issues via Claude CLI
 #   -C, --clear           Clear analysis sections from issue files (no Claude)
@@ -409,6 +410,10 @@ parse_args() {
                 SESSION_MODE=true
                 shift
                 ;;
+            -G|--generate-complete)
+                GENERATE_COMPLETE=true
+                shift
+                ;;
             -E|--expert)
                 EXPERT_MODE=true
                 shift
@@ -704,7 +709,7 @@ interactive_mode_tui() {
     menu_add_item "processing" "session" "Session Mode" "checkbox" "0" \
         "Share context across issues (cross-issue awareness, less per-issue depth)" "e" "-S"
     menu_add_item "processing" "generate_complete" "Generate Complete Issues" "checkbox" "0" \
-        "Claude writes full issue files via tool calls (enables Session Mode)" "g" ""
+        "Claude writes full issue files via tool calls (enables Session Mode)" "g" "-G"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Streaming Settings (inline editable flag values)
