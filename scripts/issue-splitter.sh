@@ -1465,8 +1465,9 @@ generate_complete_issues() {
     fi
 
     # Run Claude with real-time output visible to user
-    # No output capture - let it stream directly to terminal
-    if timeout 600 claude "${claude_opts[@]}"; then
+    # No timeout - let Claude complete naturally. Timeouts waste tokens since
+    # partial Write tool calls may have already succeeded. User can Ctrl+C if needed.
+    if claude "${claude_opts[@]}"; then
         # Mark session as started if using session mode
         if [[ "$SESSION_MODE" == true ]]; then
             SESSION_STARTED=true
@@ -1475,8 +1476,10 @@ generate_complete_issues() {
         log "  Generation complete"
         return 0
     else
+        local exit_code=$?
         echo "  ─────────────────────────────────────────────────────────────"
-        log "  [ERROR] Generation failed or timed out"
+        log "  [ERROR] Generation failed (exit code: $exit_code)"
+        log "  Note: Some files may have been created before failure - check issues directory"
         return 1
     fi
 }
@@ -2183,13 +2186,45 @@ execute_recommendations() {
                 done
             fi
         else
-            generation_failed=true
-            log "  Falling back to skeleton generation..."
+            # Generation command failed, but files may have been created via Write tool
+            # before the failure. Check which files exist and validate them.
+            log "  Checking for partially created files..."
+            local partial_valid=0
+            local partial_missing=0
+            for f in "${subissue_files[@]}"; do
+                if [[ -f "$f" ]]; then
+                    if validate_issue_file "$f"; then
+                        ((++partial_valid))
+                        ((++created))
+                    fi
+                else
+                    ((++partial_missing))
+                fi
+            done
+
+            if [[ $partial_valid -gt 0 ]]; then
+                log "  Found $partial_valid files created before failure"
+            fi
+
+            if [[ $partial_missing -gt 0 ]]; then
+                log "  Generating skeletons for $partial_missing missing files..."
+                for rec in "${valid_recommendations[@]}"; do
+                    IFS='|' read -r id name deps desc <<< "$rec"
+                    local clean_name
+                    clean_name=$(echo "$name" | sed 's/^[- ]*//' | sed 's/[- ]*$//' | tr ' ' '-')
+                    local filepath="${ISSUES_DIR}/${id}-${clean_name}.md"
+                    if [[ ! -f "$filepath" ]]; then
+                        if generate_subissue "$issue_path" "$id" "$name" "$desc" "$deps"; then
+                            ((++created))
+                        fi
+                    fi
+                done
+            fi
         fi
     fi
 
-    # Fallback: generate skeletons (either GENERATE_COMPLETE=false or generation failed)
-    if [[ "$GENERATE_COMPLETE" != true ]] || [[ "$generation_failed" == true ]]; then
+    # Fallback: generate skeletons (only when GENERATE_COMPLETE=false)
+    if [[ "$GENERATE_COMPLETE" != true ]]; then
         for rec in "${valid_recommendations[@]}"; do
             IFS='|' read -r id name deps desc <<< "$rec"
             if generate_subissue "$issue_path" "$id" "$name" "$desc" "$deps"; then
