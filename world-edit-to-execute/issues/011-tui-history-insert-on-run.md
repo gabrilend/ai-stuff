@@ -106,8 +106,25 @@ history, not the parent shell. Solutions:
 
 ### Recommended Approach
 
-Implement option 4 (output command) as default, with option 2 (history file)
-as `--append-history` flag for users who want automatic recall.
+**Primary behavior change:** When user selects "Run" in TUI mode, instead of
+executing the command immediately:
+
+1. Print the built command to stdout
+2. Display a friendly message: `Press UP arrow to run this command!`
+3. Exit cleanly back to terminal
+
+This gives the user full control to:
+- Edit the command before running
+- Chain it with other commands (`&& ./other-script.sh`)
+- Have it in their terminal's scrollback for easy recall
+- Copy it elsewhere
+
+**Optional enhancement:** Add `--append-history` flag that also writes to
+`~/.bash_history` so the command appears in history on next terminal.
+
+The key insight: **printing the command IS the feature**. Users don't need
+automatic execution when they can just press up and enter. The TUI becomes
+a command-builder that hands off to the user's workflow.
 
 ---
 
