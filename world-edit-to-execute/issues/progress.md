@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 6/8 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 7/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -253,15 +253,15 @@ Phase 1 Complete (102 MPQ Parser)
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 401 | Implement game tick/update loop | In Progress | Phase 2, Phase 3 |
+| 401 | Implement game tick/update loop | **Completed** | Phase 2, Phase 3 |
 | 401a | Core fixed timestep loop | **Completed** | None |
 | 401b | Timer subsystem | **Completed** | 401a |
-| 402 | Build entity component system | In Progress | 401 |
+| 402 | Build entity component system | **Completed** | 401 |
 | 402a | Entity manager | **Completed** | 401a |
 | 402b | Component registry | **Completed** | 402a |
 | 402c | Component queries | **Completed** | 402a, 402b |
 | 402d | System registration | **Completed** | 402a |
-| 402e | Define core WC3 components | Pending | 402a-d |
+| 402e | Define core WC3 components | **Completed** | 402a-d |
 | 403 | Implement basic pathfinding | Pending | 401, 402, 105 |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
@@ -719,6 +719,15 @@ Phase 2 & 3 Complete
   - Enable/disable individual systems or globally
   - Performance stats tracking (update_count, total_time, entity_count)
   - Total ECS tests: 357 (64 entity + 99 component + 62 query + 132 system)
+- **Issue 402e completed:** Define core WC3 components
+  - Created src/runtime/ecs/wc3_components.lua (~350 lines)
+  - Created src/tests/test_wc3_components.lua (207 tests, all pass)
+  - 14 components: position, stats, movement, owner, unit_type, selectable,
+    abilities, buffs, hero, building, item, projectile, destructible, doodad
+  - 7 helper functions: create_unit, create_hero, create_building, create_item,
+    create_destructible, create_doodad, create_projectile
+  - Total ECS + WC3 tests: 564
+  - **402 ECS Complete!** All 5 sub-issues done
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -779,17 +788,18 @@ Phase 3 in progress (4/9 root issues complete):
 
 ### Phase 4 - Runtime: Basic Engine Loop
 
-Phase 4 in progress (6/8 root issues complete):
+Phase 4 in progress (7/8 root issues complete):
 
-1. **401 - Game tick/update loop** - In Progress
+1. **401 - Game tick/update loop** - **COMPLETED**
    - 401a: Core fixed timestep loop - **COMPLETED**
    - 401b: Timer subsystem - **COMPLETED**
-2. **402 - Entity component system** - In Progress
+2. **402 - Entity component system** - **COMPLETED**
    - 402a: Entity manager - **COMPLETED**
    - 402b: Component registry - **COMPLETED**
    - 402c: Component queries - **COMPLETED**
    - 402d: System registration - **COMPLETED**
-   - 402e: Define core WC3 components - Next up
+   - 402e: Define core WC3 components - **COMPLETED**
+   - Total: 564 tests (entity, component, query, system, wc3_components)
 3. **403-408** - Pending (pathfinding, movement, collision, resources, player state, tests)
 
 ### Previous Phases
