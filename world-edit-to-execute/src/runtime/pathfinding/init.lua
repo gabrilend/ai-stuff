@@ -24,6 +24,7 @@ local pathfinding = {}
 
 -- {{{ Load sub-modules
 local grid_mod = require("runtime.pathfinding.grid")
+local astar_mod = require("runtime.pathfinding.astar")
 -- }}}
 
 -- {{{ Grid construction exports
@@ -49,6 +50,20 @@ pathfinding.grid_stats = grid_mod.stats
 pathfinding.TILE_SIZE = grid_mod.TILE_SIZE
 pathfinding.WADE_DEPTH = grid_mod.WADE_DEPTH
 pathfinding.CLIFF_BLOCK_THRESHOLD = grid_mod.CLIFF_BLOCK_THRESHOLD
+-- }}}
+
+-- {{{ A* pathfinding exports
+pathfinding.find_path = astar_mod.find_path
+pathfinding.find_path_simple = astar_mod.find_path_simple
+pathfinding.path_length = astar_mod.path_length
+pathfinding.path_to_string = astar_mod.path_to_string
+-- }}}
+
+-- {{{ A* internals export (for testing/advanced use)
+pathfinding.PriorityQueue = astar_mod.PriorityQueue
+pathfinding.manhattan_distance = astar_mod.manhattan_distance
+pathfinding.euclidean_distance = astar_mod.euclidean_distance
+pathfinding.chebyshev_distance = astar_mod.chebyshev_distance
 -- }}}
 
 return pathfinding
