@@ -47,6 +47,7 @@ local TOKEN = {
     TRUE = "TRUE",
     FALSE = "FALSE",
     NULL = "NULL",
+    DEBUG = "DEBUG",
 
     -- Literals (recognized by 304c)
     INTEGER = "INTEGER",
@@ -120,6 +121,7 @@ local KEYWORDS = {
     ["true"] = TOKEN.TRUE,
     ["false"] = TOKEN.FALSE,
     ["null"] = TOKEN.NULL,
+    ["debug"] = TOKEN.DEBUG,
 }
 -- }}}
 
