@@ -154,13 +154,13 @@ function Class:method(name)
 
 ## Acceptance Criteria
 
-- [ ] init.lua exports all 5 classes
-- [ ] All classes have consistent metatable pattern
-- [ ] All classes have __tostring metamethod
-- [ ] All public methods have documentation comments
-- [ ] Integration test passes
-- [ ] Real parser output test passes
-- [ ] docs/table-of-contents.md updated
+- [x] init.lua exports all 5 classes
+- [x] All classes have consistent metatable pattern
+- [x] All classes have __tostring metamethod
+- [x] All public methods have documentation comments
+- [x] Integration test passes
+- [x] Real parser output test passes
+- [x] docs/table-of-contents.md updated
 
 ---
 
@@ -169,3 +169,50 @@ function Class:method(name)
 This finalization issue ensures the gameobjects module is production-ready
 before moving to the registry system (207). Quality checks here prevent
 issues downstream.
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-26*
+
+### Verification Results
+
+**init.lua exports:**
+- All 5 classes properly exported: Doodad, Unit, Region, Camera, Sound
+- Enhanced module documentation with class descriptions and usage examples
+- Added type checking pattern documentation
+
+**Metatable consistency:**
+All classes follow the same pattern:
+```lua
+local Class = {}
+Class.__index = Class
+function Class.new(data) ... end
+function Class:__tostring() ... end
+return Class
+```
+
+**__tostring metamethods:**
+- Doodad: `Doodad<LTlt @ 100,200 [invisible]>`
+- Unit: `Unit<hfoo [HERO] P0 at (100,200)>`
+- Region: `Region<spawn_area 100x200 [weather+sound]>`
+- Camera: `Camera<intro_cam dist=1650 fov=70 [1.31+]>`
+- Sound: `Sound<battle_music vol=75 [loop,3D,music]>`
+
+**Documentation comments:**
+All public methods have LuaDoc-style comments with @param and @return tags.
+
+**Test results:**
+259/259 tests pass in test_gameobjects.lua covering all classes.
+
+### docs/table-of-contents.md Updates
+
+Added complete src/ directory tree:
+- mpq/ module with all submodules
+- parsers/ with all Phase 1 and Phase 2 parsers
+- gameobjects/ module structure
+- registry/ module structure
+- data/ unified Map class
+
+Updated Phase 2 issue statuses to reflect all 206 sub-issues complete.
