@@ -186,6 +186,31 @@ local function is_local(ctx, name)
 end
 -- }}}
 
+-- {{{ default_value
+-- Return the default Lua value for a JASS type.
+-- JASS variables have defined default values when not explicitly initialized.
+-- @param var_type JASS type name
+-- @return Lua literal string for the default value
+local function default_value(var_type)
+    local defaults = {
+        integer = "0",
+        real = "0.0",
+        boolean = "false",
+        string = '""',
+        code = "nil",
+        nothing = "nil",
+    }
+
+    -- Primitive types have specific defaults
+    if defaults[var_type] then
+        return defaults[var_type]
+    else
+        -- Handle types (unit, player, etc.) default to nil (null)
+        return "nil"
+    end
+end
+-- }}}
+
 -- {{{ collect_declarations
 -- First pass: scan all declarations to build symbol tables.
 -- This allows forward references to work correctly in the generation pass.
@@ -226,32 +251,123 @@ collect_declarations = function(ctx, ast)
 end
 -- }}}
 
--- {{{ transpile_globals (stub)
--- Transpile a globals block to Lua.
--- Stub implementation - full version in 306b.
+-- {{{ transpile_globals
+-- Transpile a globals block to Lua local variables.
+-- Global variables become module-level locals in Lua.
 -- @param ctx Transpiler context
 -- @param node GLOBAL_BLOCK AST node
 transpile_globals = function(ctx, node)
-    emit_comment(ctx, "globals block")
+    emit_comment(ctx, "Globals")
+
     for _, var in ipairs(node.declarations or {}) do
-        local array_str = var.is_array and " array" or ""
-        local const_str = var.is_constant and "constant " or ""
-        emit_comment(ctx, string.format("  %s%s%s %s",
-            const_str, var.var_type or "?", array_str, var.name or "?"))
+        local decl
+
+        if var.is_array then
+            -- Arrays become empty tables
+            decl = string.format("local %s = {}", var.name)
+
+        elseif var.initializer then
+            -- Variable with explicit initializer
+            local init_value = transpile_expr(ctx, var.initializer)
+            decl = string.format("local %s = %s", var.name, init_value)
+
+        else
+            -- Variable without initializer - use type default
+            local def = default_value(var.var_type)
+            decl = string.format("local %s = %s", var.name, def)
+        end
+
+        -- Add constant annotation if applicable
+        if var.is_constant then
+            decl = decl .. "  -- constant"
+        end
+
+        emit(ctx, decl)
     end
 end
 -- }}}
 
--- {{{ transpile_function (stub)
+-- {{{ transpile_local_decl
+-- Transpile a local variable declaration inside a function.
+-- @param ctx Transpiler context
+-- @param node LOCAL_DECL AST node
+local function transpile_local_decl(ctx, node)
+    local decl
+
+    if node.is_array then
+        -- Local arrays become empty tables
+        decl = string.format("local %s = {}", node.name)
+
+    elseif node.initializer then
+        -- Local with explicit initializer
+        local init_value = transpile_expr(ctx, node.initializer)
+        decl = string.format("local %s = %s", node.name, init_value)
+
+    else
+        -- Local without initializer - use type default
+        local def = default_value(node.var_type)
+        decl = string.format("local %s = %s", node.name, def)
+    end
+
+    emit(ctx, decl)
+
+    -- Track local for scoping
+    ctx.current_locals[node.name] = true
+end
+-- }}}
+
+-- {{{ transpile_function
 -- Transpile a function definition to Lua.
--- Stub implementation - full version in 306b.
 -- @param ctx Transpiler context
 -- @param node FUNCTION_DEF AST node
 transpile_function = function(ctx, node)
-    emit_comment(ctx, string.format("function %s takes %s returns %s",
-        node.name or "?",
-        format_params(node.params),
-        node.return_type or "nothing"))
+    -- Track current function for context
+    ctx.current_func = node.name
+    ctx.current_locals = {}
+
+    -- Build parameter list (skip 'nothing' type parameters)
+    local params = {}
+    if node.params then
+        for _, p in ipairs(node.params) do
+            if p.type ~= "nothing" then
+                params[#params + 1] = p.name
+                -- Parameters are also locals
+                ctx.current_locals[p.name] = true
+            end
+        end
+    end
+
+    local param_str = table.concat(params, ", ")
+
+    -- Emit function signature
+    emit(ctx, string.format("local function %s(%s)", node.name, param_str))
+    indent(ctx)
+
+    -- Emit local declarations first (JASS requires locals before statements)
+    if node.locals and #node.locals > 0 then
+        for _, local_var in ipairs(node.locals) do
+            transpile_local_decl(ctx, local_var)
+        end
+        -- Blank line between locals and statements if both exist
+        if node.body and #node.body > 0 then
+            emit_blank(ctx)
+        end
+    end
+
+    -- Emit function body statements
+    if node.body then
+        for _, stmt in ipairs(node.body) do
+            transpile_statement(ctx, stmt)
+        end
+    end
+
+    -- Close function
+    dedent(ctx)
+    emit(ctx, "end")
+
+    -- Clear current function context
+    ctx.current_func = nil
+    ctx.current_locals = {}
 end
 -- }}}
 
@@ -372,10 +488,14 @@ transpiler._is_global = is_global
 transpiler._is_local = is_local
 transpiler._collect_declarations = collect_declarations
 
--- Stub functions that will be replaced by sub-issues
+-- Declaration transpilation (306b)
+transpiler._default_value = default_value
 transpiler._transpile_declaration = transpile_declaration
 transpiler._transpile_globals = transpile_globals
 transpiler._transpile_function = transpile_function
+transpiler._transpile_local_decl = transpile_local_decl
+
+-- Stub functions for sub-issues
 transpiler._transpile_statement = transpile_statement
 transpiler._transpile_expr = transpile_expr
 
