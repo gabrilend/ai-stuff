@@ -262,7 +262,12 @@ Phase 1 Complete (102 MPQ Parser)
 | 402c | Component queries | **Completed** | 402a, 402b |
 | 402d | System registration | **Completed** | 402a |
 | 402e | Define core WC3 components | **Completed** | 402a-d |
-| 403 | Implement basic pathfinding | Pending | 401, 402, 105 |
+| 403 | Implement basic pathfinding | In Progress | 401, 402, 105 |
+| 403a | Build pathing grid | **Completed** | 105 |
+| 403b | Implement A* algorithm | Pending | None |
+| 403c | Coordinate conversion | Pending | 403a |
+| 403d | Movement type support | Pending | 403a, 403b |
+| 403e | Path smoothing | Pending | 403b |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
 | 406 | Build resource management system | Pending | 401, 402, 407 |
@@ -728,6 +733,13 @@ Phase 2 & 3 Complete
     create_destructible, create_doodad, create_projectile
   - Total ECS + WC3 tests: 564
   - **402 ECS Complete!** All 5 sub-issues done
+- **Issue 403a completed:** Build pathing grid
+  - Created src/runtime/pathfinding/grid.lua (~300 lines)
+  - Created src/runtime/pathfinding/init.lua (~50 lines)
+  - Created src/tests/test_pathing_grid.lua (93 tests, all pass)
+  - Converts w3e terrain data to pathing grid
+  - Handles deep water, cliff edges, ramps, boundaries
+  - Grid caching for performance
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -788,7 +800,7 @@ Phase 3 in progress (4/9 root issues complete):
 
 ### Phase 4 - Runtime: Basic Engine Loop
 
-Phase 4 in progress (7/8 root issues complete):
+Phase 4 in progress (7/8 root issues complete, 403 starting):
 
 1. **401 - Game tick/update loop** - **COMPLETED**
    - 401a: Core fixed timestep loop - **COMPLETED**
@@ -800,7 +812,13 @@ Phase 4 in progress (7/8 root issues complete):
    - 402d: System registration - **COMPLETED**
    - 402e: Define core WC3 components - **COMPLETED**
    - Total: 564 tests (entity, component, query, system, wc3_components)
-3. **403-408** - Pending (pathfinding, movement, collision, resources, player state, tests)
+3. **403 - Basic pathfinding** - In Progress
+   - 403a: Build pathing grid - **COMPLETED** (93 tests)
+   - 403b: Implement A* algorithm - Next up
+   - 403c: Coordinate conversion
+   - 403d: Movement type support
+   - 403e: Path smoothing
+4. **404-408** - Pending (movement, collision, resources, player state, tests)
 
 ### Previous Phases
 
