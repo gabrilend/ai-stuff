@@ -207,22 +207,22 @@ Recommend Option A for lists where items are sorted (keeps related items visuall
 ## Acceptance Criteria
 
 ### Issue List
-- [ ] List displays in multiple columns when screen width permits
-- [ ] Column count adapts to terminal width
-- [ ] No item is truncated (column width ≥ longest item)
-- [ ] Scrollbar appears when items exceed visible area
-- [ ] Scrollbar accurately represents position and proportion
-- [ ] Position indicator shows current range (e.g., "[1-6 of 12]")
-- [ ] Keyboard navigation works across columns and scroll positions
-- [ ] Terminal resize triggers reflow without losing selection
+- [ ] List displays in multiple columns when screen width permits (deferred)
+- [ ] Column count adapts to terminal width (deferred)
+- [ ] No item is truncated (column width ≥ longest item) (deferred)
+- [ ] Scrollbar appears when items exceed visible area (deferred)
+- [ ] Scrollbar accurately represents position and proportion (deferred)
+- [ ] Position indicator shows current range (e.g., "[1-6 of 12]") (deferred)
+- [ ] Keyboard navigation works across columns and scroll positions (deferred)
+- [ ] Terminal resize triggers reflow without losing selection (deferred)
 
 ### Content Preview Panel
-- [ ] Scrollbar appears automatically when content exceeds panel height
-- [ ] Scrollbar hidden when content fits (no wasted space)
-- [ ] Line range indicator shows position (e.g., "[lines 1-10 of 87]")
-- [ ] User can scroll through full file content during selection
-- [ ] Scroll position resets when different item is selected
-- [ ] Focus model allows navigating both list and preview
+- [x] Scrollbar appears automatically when content exceeds panel height
+- [x] Scrollbar hidden when content fits (no wasted space)
+- [x] Line range indicator shows position (e.g., "[lines 1-10 of 87]")
+- [x] User can scroll through full file content during selection
+- [x] Scroll position resets when different item is selected
+- [x] Focus model allows navigating both list and preview (Shift+J/K scrolls content)
 
 ---
 
@@ -233,3 +233,52 @@ Recommend Option A for lists where items are sorted (keeps related items visuall
 *Open questions:*
 - *Preferred column fill order (newspaper vs reading)*
 - *Whether scrollbar should also appear in multi-column mode when total items exceed (visible rows × columns)*
+
+---
+
+## Implementation Notes
+
+*Partially completed 2025-12-26*
+
+### Content Panel Scrolling (Implemented)
+
+Modified `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua`:
+
+1. **New state fields**:
+   - `content_scroll_offset` - Current scroll position
+   - `content_total_lines` - Total lines in cached file
+   - `content_cached_lines` - Cached file content array
+   - `content_cached_filepath` - Path of cached file
+   - `content_visible_lines` - Number of visible content lines
+
+2. **New functions**:
+   - `get_cached_file_content(filepath)` - Read and cache file, return lines
+   - `render_scrollbar(start_row, height, total_items, visible_start, visible_count)` - Draw scrollbar
+   - `menu.content_scroll_down(lines)` - Scroll down by N lines
+   - `menu.content_scroll_up(lines)` - Scroll up by N lines
+   - `menu.content_scroll_page_down()` - Scroll down by page
+   - `menu.content_scroll_page_up()` - Scroll up by page
+   - `menu.content_scroll_top()` - Jump to top
+   - `menu.content_scroll_bottom()` - Jump to bottom
+
+3. **Modified `render_content_source()`**:
+   - Uses caching for `item_file` type content
+   - Applies scroll offset when rendering
+   - Shows line range indicator: `[1-10 of 87]`
+   - Renders scrollbar when content exceeds visible area
+
+4. **Key bindings** (in `menu.run()`):
+   - `J` (Shift+J): Scroll content down
+   - `K` (Shift+K): Scroll content up
+   - `PAGE_DOWN` / `CTRL_D`: Page down
+   - `PAGE_UP` / `CTRL_U`: Page up
+
+### Multi-Column List Display (Deferred)
+
+The multi-column layout for list sections requires more substantial changes:
+- Column calculation based on item widths
+- Modified rendering to fill columns
+- Cross-column keyboard navigation
+- Terminal resize handling
+
+This is deferred to a future issue to allow focus on core functionality.
