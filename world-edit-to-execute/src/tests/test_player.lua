@@ -866,6 +866,357 @@ test("no event for unchanged alliance", function()
 end)
 -- }}}
 
+-- {{{ State Transition Tests (407d)
+print("\n-- State Transition Tests --")
+
+test("set_state changes state correctly", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok = player.set_state(0, player.PLAYER_STATE.DEFEATED)
+    assert_true(ok, "set_state returns true")
+    assert_eq("defeated", player.get(0).state, "state changed")
+end)
+
+test("set_state fires player_state_changed event", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local events = {}
+    player.on("player_state_changed", function(slot, old_state, new_state)
+        events[#events + 1] = { slot = slot, old = old_state, new = new_state }
+    end)
+
+    player.set_state(0, player.PLAYER_STATE.DEFEATED)
+
+    assert_eq(1, #events, "one event fired")
+    assert_eq(0, events[1].slot, "correct slot")
+    assert_eq("active", events[1].old, "old state")
+    assert_eq("defeated", events[1].new, "new state")
+end)
+
+test("set_state prevents transition from terminal states", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.set_state(0, player.PLAYER_STATE.DEFEATED)
+
+    local ok, err = player.set_state(0, player.PLAYER_STATE.ACTIVE)
+    assert_false(ok, "returns false")
+    assert_true(err:find("terminal state"), "error mentions terminal")
+end)
+
+test("set_state no change for same state", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local event_count = 0
+    player.on("player_state_changed", function()
+        event_count = event_count + 1
+    end)
+
+    local ok = player.set_state(0, player.PLAYER_STATE.ACTIVE)
+    assert_true(ok, "returns true for no-op")
+    assert_eq(0, event_count, "no event for same state")
+end)
+
+test("set_state rejects invalid state", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok, err = player.set_state(0, "invalid")
+    assert_false(ok, "returns false")
+    assert_true(err:find("Invalid state"), "error mentions invalid")
+end)
+-- }}}
+
+-- {{{ Defeat Function Tests
+print("\n-- Defeat Function Tests --")
+
+test("defeat marks player as defeated", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok = player.defeat(0)
+    assert_true(ok, "defeat returns true")
+    assert_eq("defeated", player.get(0).state, "state is defeated")
+end)
+
+test("defeat fires player_defeated event", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local defeated_slot = nil
+    player.on("player_defeated", function(slot)
+        defeated_slot = slot
+    end)
+
+    player.defeat(0)
+    assert_eq(0, defeated_slot, "correct slot in event")
+end)
+
+test("defeat fails for non-active player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.defeat(0)  -- First defeat succeeds
+    local ok, err = player.defeat(0)  -- Second fails
+    assert_false(ok, "returns false")
+    assert_true(err:find("not active"), "error mentions not active")
+end)
+
+test("defeat calls victory condition check", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local check_called = false
+    player._check_victory_conditions = function()
+        check_called = true
+    end
+
+    player.defeat(0)
+    assert_true(check_called, "victory check called")
+end)
+
+test("defeat handles units hook", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local handle_called = false
+    local handle_slot = nil
+    local handle_options = nil
+    player._handle_defeated_units = function(slot, options)
+        handle_called = true
+        handle_slot = slot
+        handle_options = options
+    end
+
+    player.defeat(0, { destroy_units = true })
+
+    assert_true(handle_called, "handle called")
+    assert_eq(0, handle_slot, "correct slot")
+    assert_true(handle_options.destroy_units, "options passed")
+end)
+-- }}}
+
+-- {{{ Victory Function Tests
+print("\n-- Victory Function Tests --")
+
+test("set_victorious marks player as victorious", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok = player.set_victorious(0)
+    assert_true(ok, "returns true")
+    assert_eq("victorious", player.get(0).state, "state is victorious")
+end)
+
+test("set_victorious fires player_victorious event", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local victorious_slot = nil
+    player.on("player_victorious", function(slot)
+        victorious_slot = slot
+    end)
+
+    player.set_victorious(0)
+    assert_eq(0, victorious_slot, "correct slot in event")
+end)
+
+test("set_victorious fails for defeated player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.defeat(0)
+    local ok, err = player.set_victorious(0)
+    assert_false(ok, "returns false")
+    assert_true(err:find("defeated"), "error mentions defeated")
+end)
+
+test("set_victorious idempotent", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.set_victorious(0)
+    local ok = player.set_victorious(0)  -- Already victorious
+    assert_true(ok, "returns true for already victorious")
+end)
+-- }}}
+
+-- {{{ Leave Function Tests
+print("\n-- Leave Function Tests --")
+
+test("leave marks player as left", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok = player.leave(0)
+    assert_true(ok, "returns true")
+    assert_eq("left", player.get(0).state, "state is left")
+end)
+
+test("leave fires player_left event", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local left_slot = nil
+    player.on("player_left", function(slot)
+        left_slot = slot
+    end)
+
+    player.leave(0)
+    assert_eq(0, left_slot, "correct slot in event")
+end)
+
+test("leave fails for non-active player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.defeat(0)
+    local ok, err = player.leave(0)
+    assert_false(ok, "returns false")
+    assert_true(err:find("not active"), "error mentions not active")
+end)
+
+test("leave handles units hook", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local handle_called = false
+    player._handle_left_units = function(slot, options)
+        handle_called = true
+    end
+
+    player.leave(0)
+    assert_true(handle_called, "handle called")
+end)
+-- }}}
+
+-- {{{ Convenience State Check Tests
+print("\n-- Convenience State Check Tests --")
+
+test("is_active returns true for active player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    assert_true(player.is_active(0), "active player")
+end)
+
+test("is_active returns false for defeated player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.defeat(0)
+    assert_false(player.is_active(0), "defeated player not active")
+end)
+
+test("is_active returns false for missing player", function()
+    player.init_manual({})
+
+    assert_false(player.is_active(5), "missing player not active")
+end)
+
+test("is_playing returns true for active player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    assert_true(player.is_playing(0), "active player playing")
+end)
+
+test("is_playing returns true for victorious player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.set_victorious(0)
+    assert_true(player.is_playing(0), "victorious player playing")
+end)
+
+test("is_playing returns false for defeated player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.defeat(0)
+    assert_false(player.is_playing(0), "defeated player not playing")
+end)
+
+test("is_playing returns false for left player", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    player.leave(0)
+    assert_false(player.is_playing(0), "left player not playing")
+end)
+-- }}}
+
+-- {{{ Event System Tests
+print("\n-- Event System Tests --")
+
+test("on registers multiple callbacks", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local count = 0
+    player.on("player_defeated", function() count = count + 1 end)
+    player.on("player_defeated", function() count = count + 1 end)
+
+    player.defeat(0)
+    assert_eq(2, count, "both callbacks called")
+end)
+
+test("clear_events removes callbacks", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local count = 0
+    player.on("player_defeated", function() count = count + 1 end)
+    player.clear_events()
+    player.defeat(0)
+
+    assert_eq(0, count, "callback not called after clear")
+end)
+
+test("reset clears events", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local count = 0
+    player.on("player_defeated", function() count = count + 1 end)
+    player.reset()
+    player.init_manual({ { slot = 0 } })
+    player.defeat(0)
+
+    assert_eq(0, count, "callback not called after reset")
+end)
+-- }}}
+
 -- {{{ Summary
 print(string.format("\n=== Results: %d/%d tests passed ===", tests_passed, tests_run))
 

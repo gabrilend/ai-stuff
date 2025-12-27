@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 11/15 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 12/16 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -275,7 +275,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 407a | Player data structure | **Completed** | 103 (w3i) |
 | 407b | Player queries | **Completed** | 407a |
 | 407c | Alliance management | **Completed** | 407a |
-| 407d | Player state transitions | Pending | 407a |
+| 407d | Player state transitions | **Completed** | 407a |
 | 407e | Victory conditions | Pending | 407c, 407d |
 | 407f | Local player support | **Completed** | 407a |
 | 408 | Phase 4 integration test | Pending | 401-407 |
@@ -792,7 +792,14 @@ Phase 2 & 3 Complete
     - init_from_w3i applies force alliance flags
     - _on_alliance_changed event hook
     - 24 new tests (63 total player tests)
-  - Remaining: 407d (state transitions), 407e (victory)
+  - 407d: Player state transitions - **COMPLETED**
+    - Event system (on, clear_events, fire_event)
+    - set_state, defeat, set_victorious, leave functions
+    - is_active, is_playing convenience functions
+    - ECS integration hooks (_handle_defeated_units, _handle_left_units)
+    - Victory condition hook (_check_victory_conditions)
+    - 28 new tests (91 total player tests)
+  - Remaining: 407e (victory conditions)
 
 ---
 
@@ -863,7 +870,7 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 407b: Player queries - **COMPLETED**
    - 407f: Local player support - **COMPLETED**
    - 407c: Alliance management - **COMPLETED** (63 tests total)
-   - 407d: Player state transitions - Pending
+   - 407d: Player state transitions - **COMPLETED** (91 tests total)
    - 407e: Victory conditions - Pending
 5. **404-406, 408** - Pending (movement, collision, resources, integration tests)
 
