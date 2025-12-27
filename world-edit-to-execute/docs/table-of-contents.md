@@ -20,6 +20,35 @@ docs/
 src/
 ├── cli/
 │   └── issue-splitter.sh → /home/ritz/programming/ai-stuff/scripts/issue-splitter.sh
+├── mpq/                        MPQ archive parsing
+│   ├── init.lua                Unified API (mpq.open, archive:extract)
+│   ├── header.lua              Header parsing (incl. HM3W wrapper)
+│   ├── hash.lua                Hash function and crypto table
+│   ├── hashtable.lua           Hash table parsing and lookup
+│   ├── blocktable.lua          Block table parsing
+│   ├── extract.lua             File extraction with decompression
+│   └── pkware.lua              PKWARE DCL decompressor
+├── parsers/                    File format parsers
+│   ├── w3i.lua                 Map info (name, players, forces)
+│   ├── wts.lua                 Trigger strings (TRIGSTR resolution)
+│   ├── w3e.lua                 Terrain (heights, textures, water)
+│   ├── doo.lua                 Doodads/trees
+│   ├── unitsdoo.lua            Units/buildings/heroes/items
+│   ├── w3r.lua                 Regions
+│   ├── w3c.lua                 Cameras
+│   └── w3s.lua                 Sounds
+├── gameobjects/                Game object type system (Issue 206)
+│   ├── init.lua                Module exports
+│   ├── doodad.lua              Doodad class
+│   ├── unit.lua                Unit class (with hero/building detection)
+│   ├── region.lua              Region class (with containment checks)
+│   ├── camera.lua              Camera class (with eye position calc)
+│   └── sound.lua               Sound class (with flag accessors)
+├── registry/                   Object registry system (Issue 207)
+│   ├── init.lua                ObjectRegistry class
+│   └── spatial.lua             SpatialIndex for spatial queries
+├── data/                       Unified Map class
+│   └── init.lua                Map.load() integrates all parsers
 │
 notes/
 ├── vision                      Core project vision and philosophy
@@ -125,17 +154,30 @@ issues/
 | Issue | Description | Status |
 |-------|-------------|--------|
 | 201 | Parse war3map.doo (doodads/trees) | **Completed** |
-| 202 | Parse war3mapUnits.doo (units/buildings) | In Progress |
-| 202a | Parse unitsdoo header and basic fields | Pending |
-| 202b | Parse unitsdoo item drops | Pending |
-| 202c | Parse unitsdoo abilities | Pending |
-| 202d | Parse unitsdoo hero data | Pending |
-| 202e | Parse unitsdoo random/waygate | Pending |
+| 202 | Parse war3mapUnits.doo (units/buildings) | **Completed** |
+| 202a | Parse unitsdoo header and basic fields | **Completed** |
+| 202b | Parse unitsdoo item drops | **Completed** |
+| 202c | Parse unitsdoo abilities | **Completed** |
+| 202d | Parse unitsdoo hero data | **Completed** |
+| 202e | Parse unitsdoo random/waygate | **Completed** |
 | 203 | Parse war3map.w3r (regions) | **Completed** |
 | 204 | Parse war3map.w3c (cameras) | **Completed** |
 | 205 | Parse war3map.w3s (sounds) | **Completed** |
-| 206 | Design game object types | Pending |
-| 207 | Build object registry system | Pending |
+| 206 | Design game object types | **Completed** |
+| 206a | Create gameobjects module structure | **Completed** |
+| 206b | Implement Doodad class | **Completed** |
+| 206c | Implement Unit class | **Completed** |
+| 206d | Implement Region class | **Completed** |
+| 206e | Implement Camera class | **Completed** |
+| 206f | Implement Sound class | **Completed** |
+| 206g | Finalize module and documentation | **Completed** |
+| 207 | Build object registry system | In Progress |
+| 207a | Core registry class | **Completed** |
+| 207b | Filtering and iteration | **Completed** |
+| 207c | Spatial index | **Completed** |
+| 207d | Spatial integration | **Completed** |
+| 207e | Map integration | **Completed** |
+| 207f | Registry tests | Pending |
 | 208 | Phase 2 integration test | Pending |
 
 ### Technical Documentation
