@@ -1965,11 +1965,13 @@ extract_recommendations() {
 
     # Parse header format: #### 304a-name followed by **Description:** on next line
     # This format is used when Claude creates detailed sub-issue specs with headers
+    # Supports both "#### 304a-name" and "#### 304a - name" (with spaces around dash)
     local current_id=""
     local current_name=""
     while IFS= read -r line; do
-        # Match header: #### 304a-lexer-core-infrastructure
-        if [[ "$line" =~ ^#{1,4}[[:space:]]+([0-9]+[a-z]+)-(.+)$ ]]; then
+        # Match header: #### 304a-lexer-core-infrastructure OR #### 308a - implement-event-registry
+        # Allow optional spaces around the dash separator
+        if [[ "$line" =~ ^#{1,4}[[:space:]]+([0-9]+[a-z]+)[[:space:]]*-[[:space:]]*(.+)$ ]]; then
             current_id="${BASH_REMATCH[1]}"
             current_name="${BASH_REMATCH[2]}"
             # Trim trailing whitespace from name
