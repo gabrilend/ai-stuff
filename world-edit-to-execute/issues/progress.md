@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 12/16 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 19/23 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -271,12 +271,12 @@ Phase 1 Complete (102 MPQ Parser)
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
 | 406 | Build resource management system | Pending | 401, 402, 407 |
-| 407 | Create player state management | In Progress | 401, 402 |
+| 407 | Create player state management | **Completed** | 401, 402 |
 | 407a | Player data structure | **Completed** | 103 (w3i) |
 | 407b | Player queries | **Completed** | 407a |
 | 407c | Alliance management | **Completed** | 407a |
 | 407d | Player state transitions | **Completed** | 407a |
-| 407e | Victory conditions | Pending | 407c, 407d |
+| 407e | Victory conditions | **Completed** | 407c, 407d |
 | 407f | Local player support | **Completed** | 407a |
 | 408 | Phase 4 integration test | Pending | 401-407 |
 
@@ -807,7 +807,14 @@ Phase 2 & 3 Complete
     - ECS integration hooks (_handle_defeated_units, _handle_left_units)
     - Victory condition hook (_check_victory_conditions)
     - 28 new tests (91 total player tests)
-  - Remaining: 407e (victory conditions)
+  - 407e: Victory conditions - **COMPLETED**
+    - Game state tracking (started, ended, winning_team, end_reason)
+    - check_victory_conditions() - team elimination detection
+    - force_victory(), force_defeat(), defeat_team() for custom triggers
+    - get_winning_players(), get_game_result() queries
+    - game_over event with winner and reason
+    - 21 new tests (112 total player tests)
+  - **407 Complete!** All 6 sub-issues done
 
 ---
 
@@ -873,13 +880,13 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 403c: Coordinate conversion - **COMPLETED** (99 tests)
    - 403d: Movement type support - Next up
    - 403e: Path smoothing
-4. **407 - Player state management** - In Progress
+4. **407 - Player state management** - **COMPLETED**
    - 407a: Player data structure - **COMPLETED** (39 tests)
    - 407b: Player queries - **COMPLETED**
    - 407f: Local player support - **COMPLETED**
    - 407c: Alliance management - **COMPLETED** (63 tests total)
    - 407d: Player state transitions - **COMPLETED** (91 tests total)
-   - 407e: Victory conditions - Pending
+   - 407e: Victory conditions - **COMPLETED** (112 tests total)
 5. **404-406, 408** - Pending (movement, collision, resources, integration tests)
 
 ### Previous Phases
