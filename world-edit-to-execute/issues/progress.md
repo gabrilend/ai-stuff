@@ -2,7 +2,7 @@
 
 ## Current Phase: 2 - Data Model (Game Objects)
 
-**Status:** In Progress (7/8 Complete)
+**Status:** In Progress (8/8 Issues Complete - Pending Integration Test)
 
 ---
 
@@ -13,7 +13,7 @@
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 7/8 |
+| 2 | Data Model - Game Objects | In Progress | 8/8 (208 pending) |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -154,13 +154,13 @@ No dependencies (all independent except A07)
 | 206e | Implement Camera class | **Completed** | 206a, 204 |
 | 206f | Implement Sound class | **Completed** | 206a, 205 |
 | 206g | Finalize module and documentation | **Completed** | 206b-f |
-| 207 | Build object registry system | In Progress | 206 |
+| 207 | Build object registry system | **Completed** | 206 |
 | 207a | Core registry class | **Completed** | 206 |
 | 207b | Filtering and iteration | **Completed** | 207a |
 | 207c | Spatial index | **Completed** | None |
 | 207d | Spatial integration | **Completed** | 207a, 207c |
 | 207e | Map integration | **Completed** | 207a |
-| 207f | Registry tests | Pending | 207a-207e |
+| 207f | Registry tests | **Completed** | 207a-207e |
 | 208 | Phase 2 integration test | Pending | 201-207 |
 
 ### Dependency Graph
@@ -553,6 +553,15 @@ Phase 2 & 3 Complete
   - Updated Phase 2 issue status list (all 206 sub-issues complete)
   - 259/259 tests pass
 - **Issue 206 completed:** Design game object types (all sub-issues done)
+- **Issue 207f completed:** Registry tests
+  - Verified all existing tests cover 207 acceptance criteria
+  - test_registry.lua: 71 tests (core ObjectRegistry)
+  - test_spatial.lua: 75 tests (SpatialIndex)
+  - test_spatial_integration.lua: 31 tests (registry-spatial integration)
+  - test_data.lua: Map integration tests (16 maps pass)
+  - Total: 190+ test assertions covering all registry functionality
+  - Edge cases: empty registry, duplicate IDs, negative coords, cell boundaries
+- **Issue 207 completed:** Build object registry system (all sub-issues done)
 
 ---
 
