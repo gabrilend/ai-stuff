@@ -1,8 +1,8 @@
 # Project Progress
 
-## Current Phase: 2 - Data Model (Game Objects)
+## Current Phase: 3 - Logic Layer (Triggers and JASS)
 
-**Status:** In Progress (8/8 Issues Complete - Pending Integration Test)
+**Status:** Ready to begin (Phase 2 Complete)
 
 ---
 
@@ -13,7 +13,7 @@
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
-| 2 | Data Model - Game Objects | In Progress | 8/8 (208 pending) |
+| 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
@@ -161,7 +161,7 @@ No dependencies (all independent except A07)
 | 207d | Spatial integration | **Completed** | 207a, 207c |
 | 207e | Map integration | **Completed** | 207a |
 | 207f | Registry tests | **Completed** | 207a-207e |
-| 208 | Phase 2 integration test | In Progress | 201-207 |
+| 208 | Phase 2 integration test | **Completed** | 201-207 |
 | 208a | Parser integration tests | **Completed** | 201-205 |
 | 208b | Gameobject creation tests | **Completed** | 206, 208a |
 | 208c | Registry integration tests | **Completed** | 207, 208b |
@@ -589,34 +589,43 @@ Phase 2 & 3 Complete
   - Real map integration with Map.load()
   - 69/69 assertions pass
   - Note: Unit is_building() heuristic has false positives (hfoo matches farm pattern)
+- **Phase 2 Complete!** All 30 issues completed and moved to issues/completed/
+  - Moved root issues 206, 207, 208 to completed directory
+  - Updated acceptance criteria on all root issues
+  - Added implementation notes summarizing work done
+  - Phase 2 demo available via `./run-demo.sh 2`
 
 ---
 
 ## Next Steps
 
-### Phase 1 Complete!
+### Phase 2 Complete!
 
-All Phase 1 (Foundation - File Format Parsing) issues are now complete.
+All Phase 2 (Data Model - Game Objects) issues are now complete.
 
 Capabilities established:
-- MPQ archive parsing with file extraction
-- Map info (w3i), string table (wts), terrain (w3e) parsing
-- Unified Map data structure
-- CLI tool for map inspection
+- 5 additional parsers: doo (doodads), unitsdoo (units), w3r (regions), w3c (cameras), w3s (sounds)
+- 5 game object classes: Doodad, Unit, Region, Camera, Sound
+- ObjectRegistry with spatial indexing for efficient queries
+- Map.load() populates registry from all parser outputs
+- 226,237 total objects parsed from 16 test maps
+- 41 integration tests, 259 game object tests, 190+ registry tests
 
-### Phase 2 - Data Model: Game Objects
+### Phase 3 - Logic Layer: Triggers and JASS
 
-1. ~~**201 - Parse war3map.doo** (doodads/trees)~~ ✓
-2. ~~**202 - Parse war3mapUnits.doo** (units/buildings)~~ ✓
-   - 202a-202e all complete (header, items, abilities, hero data, random/waygate)
-3. ~~**203 - Parse war3map.w3r** (regions)~~ ✓
-4. ~~**204 - Parse war3map.w3c** (cameras)~~ ✓
-5. ~~**205 - Parse war3map.w3s** (sounds)~~ ✓
-6. **206 - Design game object types**
-7. **207 - Build object registry system**
-8. **208 - Phase 2 integration test**
+Ready to begin Phase 3 (9 issues):
 
-### Phase 0 Complete
+1. **301 - Parse war3map.wtg** (trigger definitions)
+2. **302 - Parse war3map.wct** (custom text triggers)
+3. **303 - Parse war3map.j** (JASS script extraction)
+4. **304 - Build JASS lexer** (tokenization)
+5. **305 - Build JASS parser** (AST generation)
+6. **306 - Create JASS-to-Lua transpiler**
+7. **307 - Implement trigger framework** (conditions/actions)
+8. **308 - Build event dispatch system**
+9. **309 - Phase 3 integration test**
 
-All Phase 0 (Tooling/Infrastructure) issues are now complete.
-The streaming queue system is available via `--stream` flag.
+### Previous Phases
+
+**Phase 0 Complete** - Tooling/Infrastructure (streaming queue via `--stream` flag)
+**Phase 1 Complete** - Foundation: MPQ parsing, w3i/wts/w3e parsers, Map data structure
