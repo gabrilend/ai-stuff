@@ -161,7 +161,11 @@ No dependencies (all independent except A07)
 | 207d | Spatial integration | **Completed** | 207a, 207c |
 | 207e | Map integration | **Completed** | 207a |
 | 207f | Registry tests | **Completed** | 207a-207e |
-| 208 | Phase 2 integration test | Pending | 201-207 |
+| 208 | Phase 2 integration test | In Progress | 201-207 |
+| 208a | Parser integration tests | **Completed** | 201-205 |
+| 208b | Gameobject creation tests | **Completed** | 206, 208a |
+| 208c | Registry integration tests | **Completed** | 207, 208b |
+| 208d | Phase 2 demo script | **Completed** | 208a-c |
 
 ### Dependency Graph
 
@@ -562,6 +566,16 @@ Phase 2 & 3 Complete
   - Total: 190+ test assertions covering all registry functionality
   - Edge cases: empty registry, duplicate IDs, negative coords, cell boundaries
 - **Issue 207 completed:** Build object registry system (all sub-issues done)
+- **Issue 208a completed:** Parser integration tests
+  - Created src/tests/test_phase2_integration.lua with 41 tests
+  - All 5 parsers load from 16 test maps (226,232 doodads, 5 units)
+  - Includes performance benchmarks (load < 0.3s, queries < 0.01s)
+- **Issue 208d completed:** Phase 2 demo script
+  - Demo script at issues/completed/demos/phase2_demo.lua
+  - Bash runner at issues/completed/demos/run_phase2.sh
+  - Updated run-demo.sh with Phase 2 option (COMPLETED_PHASES=2)
+  - Both interactive and non-interactive modes work
+  - 16/16 maps load, 226,237 total objects displayed
 
 ---
 
