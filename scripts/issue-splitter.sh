@@ -1904,6 +1904,10 @@ parse_analysis() {
 #    - **103a-parse-header**: Description of the sub-issue
 #    - **103b-parse-body**: Another description here
 #
+# 4. Header format (with Description on next line):
+#    #### 103a-parse-header
+#    **Description:** Description of the sub-issue
+#
 # Output format: id|name|dependencies|description
 # Dependencies will be "None" if not specified.
 #
@@ -1946,6 +1950,32 @@ extract_recommendations() {
             local name="${BASH_REMATCH[2]}"
             local desc="${BASH_REMATCH[3]}"
             recommendations+=("$id|$name|None|$desc")
+        fi
+    done <<< "$analysis"
+
+    # Parse header format: #### 304a-name followed by **Description:** on next line
+    # This format is used when Claude creates detailed sub-issue specs with headers
+    local current_id=""
+    local current_name=""
+    while IFS= read -r line; do
+        # Match header: #### 304a-lexer-core-infrastructure
+        if [[ "$line" =~ ^#{1,4}[[:space:]]+([0-9]+[a-z]+)-(.+)$ ]]; then
+            current_id="${BASH_REMATCH[1]}"
+            current_name="${BASH_REMATCH[2]}"
+            # Trim trailing whitespace from name
+            current_name=$(echo "$current_name" | sed 's/[[:space:]]*$//')
+        # Match description line after header: **Description:** text
+        elif [[ -n "$current_id" ]] && [[ "$line" =~ ^\*\*Description:\*\*[[:space:]]*(.+) ]]; then
+            local desc="${BASH_REMATCH[1]}"
+            recommendations+=("$current_id|$current_name|None|$desc")
+            current_id=""
+            current_name=""
+        # Also match "**Covers:**" or similar if Description not found
+        elif [[ -n "$current_id" ]] && [[ "$line" =~ ^\*\*Covers:\*\* ]]; then
+            # Use the header name as description if no explicit Description
+            recommendations+=("$current_id|$current_name|None|$current_name")
+            current_id=""
+            current_name=""
         fi
     done <<< "$analysis"
 
