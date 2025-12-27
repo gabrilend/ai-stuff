@@ -2209,6 +2209,26 @@ function menu.handle_shortcut(key)
 end
 -- }}}
 
+-- {{{ trigger_prerequisites
+-- Internal function: called when an item is selected to trigger its prerequisites
+-- Moved here from later in file because Lua requires functions to be defined before use
+local function trigger_prerequisites(item_id)
+    if not state.prerequisites or not state.prerequisites[item_id] then
+        return
+    end
+
+    for _, prereq_id in ipairs(state.prerequisites[item_id]) do
+        local prereq_data = state.item_data[prereq_id]
+        if prereq_data and prereq_data.type == "checkbox" then
+            -- Only enable if not already enabled
+            if state.values[prereq_id] ~= "1" then
+                menu.force_enable(prereq_id, 3, "red")
+            end
+        end
+    end
+end
+-- }}}
+
 -- {{{ menu.toggle
 -- Returns "action" if an action item was activated, nil otherwise
 function menu.toggle()
@@ -3613,24 +3633,7 @@ function menu.add_prerequisite(item_id, prerequisite_id)
 end
 -- }}}
 
--- {{{ trigger_prerequisites
--- Internal function: called when an item is selected to trigger its prerequisites
-local function trigger_prerequisites(item_id)
-    if not state.prerequisites or not state.prerequisites[item_id] then
-        return
-    end
-
-    for _, prereq_id in ipairs(state.prerequisites[item_id]) do
-        local prereq_data = state.item_data[prereq_id]
-        if prereq_data and prereq_data.type == "checkbox" then
-            -- Only enable if not already enabled
-            if state.values[prereq_id] ~= "1" then
-                menu.force_enable(prereq_id, 3, "red")
-            end
-        end
-    end
-end
--- }}}
+-- trigger_prerequisites moved earlier in file (before menu.toggle where it's first called)
 
 -- {{{ menu.add_dependency_suggest
 -- Add a "suggested" dependency: item is highlighted yellow when trigger condition is met
