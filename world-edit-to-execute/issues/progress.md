@@ -264,7 +264,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 402e | Define core WC3 components | **Completed** | 402a-d |
 | 403 | Implement basic pathfinding | In Progress | 401, 402, 105 |
 | 403a | Build pathing grid | **Completed** | 105 |
-| 403b | Implement A* algorithm | Pending | None |
+| 403b | Implement A* algorithm | **Completed** | None |
 | 403c | Coordinate conversion | Pending | 403a |
 | 403d | Movement type support | Pending | 403a, 403b |
 | 403e | Path smoothing | Pending | 403b |
@@ -746,6 +746,14 @@ Phase 2 & 3 Complete
   - Converts w3e terrain data to pathing grid
   - Handles deep water, cliff edges, ramps, boundaries
   - Grid caching for performance
+- **Issue 403b completed:** Implement A* algorithm
+  - Created src/runtime/pathfinding/astar.lua (~300 lines)
+  - Created src/tests/test_astar.lua (90 tests, all pass)
+  - Priority queue (min-heap) for efficient open set operations
+  - Three heuristics: Manhattan, Euclidean, Chebyshev
+  - Optional diagonal movement with sqrt(2) cost
+  - Custom can_pass callback for movement-type-specific logic
+  - Performance: < 100ms for 128x128 grid with obstacles
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -846,8 +854,8 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - Total: 564 tests (entity, component, query, system, wc3_components)
 3. **403 - Basic pathfinding** - In Progress
    - 403a: Build pathing grid - **COMPLETED** (93 tests)
-   - 403b: Implement A* algorithm - Next up
-   - 403c: Coordinate conversion
+   - 403b: Implement A* algorithm - **COMPLETED** (90 tests)
+   - 403c: Coordinate conversion - Next up
    - 403d: Movement type support
    - 403e: Path smoothing
 4. **407 - Player state management** - In Progress
