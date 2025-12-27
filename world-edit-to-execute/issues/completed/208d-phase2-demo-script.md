@@ -136,16 +136,16 @@ what Phase 2 has achieved.
 
 ## Acceptance Criteria
 
-- [ ] Demo script created at issues/completed/demos/phase2_demo.lua
-- [ ] Bash runner created at issues/completed/demos/run_phase2.sh
-- [ ] Demo displays map name and author
-- [ ] Demo displays object counts for all 5 types
-- [ ] Demo displays unit type breakdown (heroes, buildings, waygates)
-- [ ] Demo displays units by player
-- [ ] Demo displays ambient regions with effects
-- [ ] Demo shows spatial query results
-- [ ] Demo runs in < 5 seconds
-- [ ] run-demo.sh updated with Phase 2 option
+- [x] Demo script created at issues/completed/demos/phase2_demo.lua
+- [x] Bash runner created at issues/completed/demos/run_phase2.sh
+- [x] Demo displays map name and author
+- [x] Demo displays object counts for all 5 types
+- [x] Demo displays unit type breakdown (heroes, buildings, waygates)
+- [x] Demo displays units by player
+- [x] Demo displays ambient regions with effects
+- [x] Demo shows spatial query results
+- [x] Demo runs in < 5 seconds
+- [x] run-demo.sh updated with Phase 2 option
 
 ---
 
@@ -182,15 +182,16 @@ Optional enhancements:
    - Non-interactive mode support (`-n` flag)
    - Uses all Phase 2 parsers and modules
 
-### Work Remaining
+### Work Completed (Final)
 
-1. **Test the demo script** - Run and verify output is correct
-2. **Create run_phase2.sh** - Bash runner script
-3. **Update run-demo.sh** - Add Phase 2 option to selector
-4. **Debug any issues** - Fix runtime errors if present
+1. **Demo script tested** - All 16 maps load, 226,237 objects total
+2. **run_phase2.sh created** - Runs integration tests then demo
+3. **run-demo.sh updated** - Phase 2 option added, COMPLETED_PHASES=2
+4. **All demos functional** - Both interactive and non-interactive modes work
 
 ### Notes
 
 - Test maps have doodads (16/16) and some units (5/16)
-- No regions/cameras/sounds files exist in test maps - spatial/registry demos will show empty results for those types
+- No regions/cameras/sounds files exist in test maps - demos show 0 for those types
 - Demo follows Phase 1 pattern: show statistics/data, not just describe functionality
+- Non-interactive mode (`-n` flag) for CI/automated testing

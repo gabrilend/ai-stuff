@@ -28,7 +28,7 @@ else
     DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 fi
 
-COMPLETED_PHASES=1
+COMPLETED_PHASES=2
 NON_INTERACTIVE=false
 PHASE=""
 
@@ -103,7 +103,7 @@ show_main_menu() {
     echo "├─────────────────────────────────────────────────────────────────────────┤"
     echo -e "│ [0] Phase 0: Tooling & Infrastructure               ${GREEN}✅ 100% Complete${NC}   │"
     echo -e "│ [1] Phase 1: Foundation - File Format Parsing       ${GREEN}✅ 100% Complete${NC}   │"
-    echo -e "│ [2] Phase 2: Data Model - Game Objects              ${YELLOW}⏳ Pending${NC}         │"
+    echo -e "│ [2] Phase 2: Data Model - Game Objects              ${GREEN}✅ 100% Complete${NC}   │"
     echo -e "│ [3] Phase 3: Logic Layer - Triggers and JASS        ${YELLOW}⏳ Pending${NC}         │"
     echo -e "│ [4] Phase 4: Runtime - Basic Engine Loop            ${YELLOW}⏳ Pending${NC}         │"
     echo -e "│ [5] Phase 5: Rendering - Visual Abstraction         ${YELLOW}⏳ Pending${NC}         │"
@@ -192,6 +192,42 @@ run_phase1_demo() {
 }
 # }}}
 
+# {{{ run_phase2_demo
+run_phase2_demo() {
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}PHASE 2: DATA MODEL - GAME OBJECTS${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    local demo_script="${DIR}/issues/completed/demos/phase2_demo.lua"
+
+    if [[ ! -f "$demo_script" ]]; then
+        echo -e "${RED}Error: Demo script not found: $demo_script${NC}"
+        return 1
+    fi
+
+    # Find lua interpreter (prefer luajit for Phase 2)
+    local lua_cmd=""
+    if command -v luajit &>/dev/null; then
+        lua_cmd="luajit"
+    elif command -v lua5.4 &>/dev/null; then
+        lua_cmd="lua5.4"
+    elif command -v lua &>/dev/null; then
+        lua_cmd="lua"
+    else
+        echo -e "${RED}ERROR: No lua interpreter found${NC}"
+        return 1
+    fi
+
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        $lua_cmd "$demo_script" -n
+    else
+        $lua_cmd "$demo_script"
+    fi
+}
+# }}}
+
 # {{{ run_tests
 run_tests() {
     echo ""
@@ -246,7 +282,7 @@ show_statistics() {
     echo -e "${BOLD}Phase Status:${NC}"
     echo -e "  ${GREEN}[DONE]${NC} Phase 0: Tooling & Infrastructure"
     echo -e "  ${GREEN}[DONE]${NC} Phase 1: File Format Parsing"
-    echo -e "  ${YELLOW}[TODO]${NC} Phase 2: Data Model - Game Objects"
+    echo -e "  ${GREEN}[DONE]${NC} Phase 2: Data Model - Game Objects"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 3: Logic Layer - Triggers and JASS"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 4: Runtime - Basic Engine Loop"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 5: Rendering - Visual Abstraction"
@@ -271,7 +307,10 @@ run_phase_demo() {
         1)
             run_phase1_demo
             ;;
-        [2-9])
+        2)
+            run_phase2_demo
+            ;;
+        [3-9])
             echo ""
             echo -e "${YELLOW}Phase $phase demo not yet available.${NC}"
             echo "This phase is pending implementation."
