@@ -265,7 +265,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 403 | Implement basic pathfinding | In Progress | 401, 402, 105 |
 | 403a | Build pathing grid | **Completed** | 105 |
 | 403b | Implement A* algorithm | **Completed** | None |
-| 403c | Coordinate conversion | Pending | 403a |
+| 403c | Coordinate conversion | **Completed** | 403a |
 | 403d | Movement type support | Pending | 403a, 403b |
 | 403e | Path smoothing | Pending | 403b |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
@@ -754,6 +754,14 @@ Phase 2 & 3 Complete
   - Optional diagonal movement with sqrt(2) cost
   - Custom can_pass callback for movement-type-specific logic
   - Performance: < 100ms for 128x128 grid with obstacles
+- **Issue 403c completed:** Coordinate conversion
+  - Created src/runtime/pathfinding/coords.lua (~270 lines)
+  - Created src/tests/test_pathing_coords.lua (99 tests, all pass)
+  - World-to-grid and grid-to-world conversion with tile center returns
+  - Handles negative offsets (centered maps) correctly
+  - Clamped conversion for finding nearest valid tile
+  - Path conversion (path_to_world, path_to_grid)
+  - Distance utilities (world, grid, tile conversion)
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -862,8 +870,8 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
 3. **403 - Basic pathfinding** - In Progress
    - 403a: Build pathing grid - **COMPLETED** (93 tests)
    - 403b: Implement A* algorithm - **COMPLETED** (90 tests)
-   - 403c: Coordinate conversion - Next up
-   - 403d: Movement type support
+   - 403c: Coordinate conversion - **COMPLETED** (99 tests)
+   - 403d: Movement type support - Next up
    - 403e: Path smoothing
 4. **407 - Player state management** - In Progress
    - 407a: Player data structure - **COMPLETED** (39 tests)

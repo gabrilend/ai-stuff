@@ -25,6 +25,7 @@ local pathfinding = {}
 -- {{{ Load sub-modules
 local grid_mod = require("runtime.pathfinding.grid")
 local astar_mod = require("runtime.pathfinding.astar")
+local coords_mod = require("runtime.pathfinding.coords")
 -- }}}
 
 -- {{{ Grid construction exports
@@ -64,6 +65,30 @@ pathfinding.PriorityQueue = astar_mod.PriorityQueue
 pathfinding.manhattan_distance = astar_mod.manhattan_distance
 pathfinding.euclidean_distance = astar_mod.euclidean_distance
 pathfinding.chebyshev_distance = astar_mod.chebyshev_distance
+-- }}}
+
+-- {{{ Coordinate conversion exports
+pathfinding.set_grid = coords_mod.set_grid
+pathfinding.get_grid = coords_mod.get_grid
+pathfinding.clear_grid = coords_mod.clear_grid
+pathfinding.world_to_grid = coords_mod.world_to_grid
+pathfinding.grid_to_world = coords_mod.grid_to_world
+pathfinding.grid_to_world_corner = coords_mod.grid_to_world_corner
+pathfinding.is_in_bounds = coords_mod.is_in_bounds
+pathfinding.is_tile_in_bounds = coords_mod.is_tile_in_bounds
+pathfinding.get_grid_bounds = coords_mod.get_grid_bounds
+pathfinding.world_to_grid_clamped = coords_mod.world_to_grid_clamped
+pathfinding.path_to_world = coords_mod.path_to_world
+pathfinding.path_to_grid = coords_mod.path_to_grid
+-- }}}
+
+-- {{{ Distance calculation exports
+pathfinding.world_distance = coords_mod.world_distance
+pathfinding.world_distance_squared = coords_mod.world_distance_squared
+pathfinding.grid_distance_manhattan = coords_mod.grid_distance_manhattan
+pathfinding.grid_distance_chebyshev = coords_mod.grid_distance_chebyshev
+pathfinding.tiles_to_world_distance = coords_mod.tiles_to_world_distance
+pathfinding.world_to_tiles_distance = coords_mod.world_to_tiles_distance
 -- }}}
 
 return pathfinding
