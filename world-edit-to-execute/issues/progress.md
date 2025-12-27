@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 5/8 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 6/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -260,8 +260,8 @@ Phase 1 Complete (102 MPQ Parser)
 | 402a | Entity manager | **Completed** | 401a |
 | 402b | Component registry | **Completed** | 402a |
 | 402c | Component queries | **Completed** | 402a, 402b |
-| 402d | System registration | Pending | 402a |
-| 402e | Define core WC3 components | Pending | 402a |
+| 402d | System registration | **Completed** | 402a |
+| 402e | Define core WC3 components | Pending | 402a-d |
 | 403 | Implement basic pathfinding | Pending | 401, 402, 105 |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
@@ -711,6 +711,14 @@ Phase 2 & 3 Complete
   - Iterator-based queries for memory efficiency
   - Multi-component queries with smallest-storage optimization
   - Filtering: with_value, with_predicate, without (exclusion)
+- **Issue 402d completed:** System registration
+  - Created src/runtime/ecs/system.lua (~294 lines)
+  - Updated src/runtime/ecs/init.lua with 12 system exports
+  - Created src/tests/test_ecs_system.lua (132 tests, all pass)
+  - Priority-based execution (stable sort for same-priority)
+  - Enable/disable individual systems or globally
+  - Performance stats tracking (update_count, total_time, entity_count)
+  - Total ECS tests: 357 (64 entity + 99 component + 62 query + 132 system)
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -766,7 +774,7 @@ Phase 3 in progress (4/9 root issues complete):
 
 ### Phase 4 - Runtime: Basic Engine Loop
 
-Phase 4 in progress (5/8 root issues complete):
+Phase 4 in progress (6/8 root issues complete):
 
 1. **401 - Game tick/update loop** - In Progress
    - 401a: Core fixed timestep loop - **COMPLETED**
@@ -775,8 +783,8 @@ Phase 4 in progress (5/8 root issues complete):
    - 402a: Entity manager - **COMPLETED**
    - 402b: Component registry - **COMPLETED**
    - 402c: Component queries - **COMPLETED**
-   - 402d: System registration - Next up
-   - 402e: Define core WC3 components
+   - 402d: System registration - **COMPLETED**
+   - 402e: Define core WC3 components - Next up
 3. **403-408** - Pending (pathfinding, movement, collision, resources, player state, tests)
 
 ### Previous Phases
