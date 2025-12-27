@@ -325,10 +325,12 @@ do
 end
 -- }}}
 
--- {{{ test: is_native false when empty
+-- {{{ test: is_native false for unknown function
+-- Note: Context now has builtin natives by default (306e), so we test with
+-- a made-up function name that's definitely not in the builtin list
 do
     local ctx = transpiler._create_context()
-    assert_false(transpiler._is_native(ctx, "GetUnitX"), "not native when empty")
+    assert_false(transpiler._is_native(ctx, "NotARealNativeFunction"), "not native for unknown")
 end
 -- }}}
 
