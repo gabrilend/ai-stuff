@@ -1,7 +1,7 @@
 # Phase 0: Tooling/Infrastructure Progress
 
 **Started:** 2025-12-25
-**Last Updated:** 2025-12-26
+**Last Updated:** 2025-12-27
 
 ---
 
@@ -11,7 +11,7 @@ Establish robust tooling for the issue-driven development workflow:
 1. TUI-based interactive issue management
 2. Claude-powered analysis and splitting
 3. Complete issue file generation (not just skeletons)
-4. Session context management for cross-issue awareness
+4. ~~Session context management for cross-issue awareness~~ (Cancelled - see Issue 012)
 5. Visual feedback for disabled/suggested items
 
 ---
@@ -47,18 +47,44 @@ Establish robust tooling for the issue-driven development workflow:
 
 ## In Progress
 
+### 012: Remove Context Continuation
+- Created 2025-12-27
+- Remove all `--continue` flag usage from issue-splitter.sh
+- Each Claude invocation must start with fresh context
+
+---
+
+## Cancelled Issues
+
 ### 001: Resume Previous Analysis Context
-- Pending implementation
-- Will allow resuming Claude session from previous analysis
+- **Status:** CANCELLED
+- **Superseded By:** 012-remove-context-continuation.md
+- **Reason:** Claude CLI's `--continue` flag shares context across ALL active Claude sessions system-wide, not per-project. This causes cross-contamination between automated issue-splitter sessions and user's interactive Claude Code sessions.
+- **Discovery:** Observed implementation bleed during "Generate Complete Issues" - Claude was continuing implementation work from unrelated sessions instead of creating documentation.
 
 ---
 
 ## Remaining Work
 
-- Issue 001 implementation
+- Issue 012 implementation (remove --continue usage)
 - End-to-end testing of complete generation pipeline
 - Mid-process pause feature (optional enhancement)
 - Multi-column list display (deferred from 004)
+
+---
+
+## Critical Lessons Learned
+
+### Claude CLI Session Sharing (2025-12-27)
+
+**The `--continue` flag is system-wide, not per-process.**
+
+When issue-splitter used `--continue` to preserve context across Claude invocations:
+- It picked up context from user's OTHER Claude Code sessions
+- Implementation work from unrelated projects bled into issue generation
+- Claude tried to continue code implementation instead of creating documentation
+
+**Resolution:** Remove all `--continue` usage. Accept higher token costs for stateless invocations. Correctness > Efficiency.
 
 ---
 
@@ -68,4 +94,5 @@ Establish robust tooling for the issue-driven development workflow:
 |----------|-------|
 | Issues Completed | 4 |
 | Issues In Progress | 1 |
-| Commits This Phase | 5 |
+| Issues Cancelled | 1 |
+| Commits This Phase | 6 |
