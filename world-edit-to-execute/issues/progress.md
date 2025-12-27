@@ -146,14 +146,14 @@ No dependencies (all independent except A07)
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |
-| 206 | Design game object types | In Progress | 201-205 |
+| 206 | Design game object types | **Completed** | 201-205 |
 | 206a | Create gameobjects module structure | **Completed** | None |
 | 206b | Implement Doodad class | **Completed** | 206a, 201 |
 | 206c | Implement Unit class | **Completed** | 206a, 202 |
 | 206d | Implement Region class | **Completed** | 206a, 203 |
 | 206e | Implement Camera class | **Completed** | 206a, 204 |
 | 206f | Implement Sound class | **Completed** | 206a, 205 |
-| 206g | Finalize module and documentation | Pending | 206b-f |
+| 206g | Finalize module and documentation | **Completed** | 206b-f |
 | 207 | Build object registry system | In Progress | 206 |
 | 207a | Core registry class | **Completed** | 206 |
 | 207b | Filtering and iteration | **Completed** | 207a |
@@ -544,6 +544,15 @@ Phase 2 & 3 Complete
   - Supports both table and numeric (legacy bitmask) flag formats
   - 22 Sound tests added to test_gameobjects.lua
   - 259/259 tests pass
+- **Issue 206g completed:** Finalize module and documentation
+  - Enhanced init.lua with comprehensive module documentation
+  - Verified all 5 classes use consistent metatable pattern
+  - Verified all classes have __tostring metamethod
+  - Updated docs/table-of-contents.md with full src/ tree structure
+  - Added gameobjects module, parsers, registry, and data modules to docs
+  - Updated Phase 2 issue status list (all 206 sub-issues complete)
+  - 259/259 tests pass
+- **Issue 206 completed:** Design game object types (all sub-issues done)
 
 ---
 
