@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 7/8 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 10/14 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -271,7 +271,13 @@ Phase 1 Complete (102 MPQ Parser)
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
 | 406 | Build resource management system | Pending | 401, 402, 407 |
-| 407 | Create player state management | Pending | 401, 402 |
+| 407 | Create player state management | In Progress | 401, 402 |
+| 407a | Player data structure | **Completed** | 103 (w3i) |
+| 407b | Player queries | **Completed** | 407a |
+| 407c | Alliance management | Pending | 407a |
+| 407d | Player state transitions | Pending | 407a |
+| 407e | Victory conditions | Pending | 407c, 407d |
+| 407f | Local player support | **Completed** | 407a |
 | 408 | Phase 4 integration test | Pending | 401-407 |
 
 ### Dependency Graph
@@ -753,6 +759,23 @@ Phase 2 & 3 Complete
     - is_native() checks registry, map declarations, and builtins
     - Created src/tests/test_transpiler_native.lua (20 tests, all pass)
   - Remaining: 306f (transpiler tests)
+- **Issue 407 in progress:** Create player state management
+  - 407a: Player data structure - **COMPLETED**
+    - Created src/runtime/player.lua (~350 lines)
+    - Created src/tests/test_player.lua (39 tests, all pass)
+    - PLAYER_TYPE, PLAYER_STATE, RACE constants
+    - init_from_w3i() initializes from parsed w3i data
+    - map_player_type(), map_race() for w3i value mapping
+    - Teams assigned from force definitions
+    - Neutral player (slot 15) always ensured
+  - 407b: Player queries - **COMPLETED**
+    - get_all(), get_active(), get_by_type(), get_by_team()
+    - get_humans(), get_computers(), get_neutral()
+    - iter() for player iteration
+  - 407f: Local player support - **COMPLETED**
+    - set_local(), get_local(), get_local_slot()
+    - Foundation for UI/camera perspective
+  - Remaining: 407c (alliances), 407d (state transitions), 407e (victory)
 
 ---
 
@@ -818,7 +841,14 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 403c: Coordinate conversion
    - 403d: Movement type support
    - 403e: Path smoothing
-4. **404-408** - Pending (movement, collision, resources, player state, tests)
+4. **407 - Player state management** - In Progress
+   - 407a: Player data structure - **COMPLETED** (39 tests)
+   - 407b: Player queries - **COMPLETED**
+   - 407f: Local player support - **COMPLETED**
+   - 407c: Alliance management - Pending
+   - 407d: Player state transitions - Pending
+   - 407e: Victory conditions - Pending
+5. **404-406, 408** - Pending (movement, collision, resources, integration tests)
 
 ### Previous Phases
 
