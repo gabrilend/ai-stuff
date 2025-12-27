@@ -724,6 +724,9 @@ interactive_mode_tui() {
     # Section 4: Issue Selection (list - scrollable checkbox list)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "files" "list" "Issues to Process (use 'a' for all, 'n' for none)"
+    # Limit visible items to 10 to preserve space for description and command preview
+    # When there are more items, a scrollbar appears and viewport scrolls with selection
+    menu_set_section_max_visible "files" 10
     local i=0
     for issue in "${issues[@]}"; do
         local basename

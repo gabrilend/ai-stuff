@@ -19,6 +19,7 @@ declare -A MENU_ITEM_DISABLED=()
 declare -A MENU_ITEM_SHORTCUTS=()
 declare -A MENU_ITEM_FLAGS=()
 declare -A MENU_ITEM_FILEPATHS=()  # Optional file path for preview
+declare -A MENU_SECTION_MAX_VISIBLE=()  # Max visible items per section (for viewport scrolling)
 declare -a MENU_DEPENDENCIES=()    # Dependencies: "item_id|depends_on|required_values|invert|multi"
 declare -a MENU_PREREQUISITES=()   # Prerequisites: "item_id|prerequisite_id" - auto-enable prereq when item selected
 declare -a MENU_SUGGESTED_DEPS=()  # Suggested deps: "item_id|depends_on|required_values|reason" - yellow highlight
@@ -240,6 +241,24 @@ menu_set_item_filepath() {
 }
 # }}}
 
+# {{{ menu_set_section_max_visible
+# Set maximum visible items for a section (enables viewport scrolling with scrollbar)
+# When a section has more items than max_visible, it will show a scrollbar and
+# automatically scroll to keep the selected item visible.
+#
+# Arguments:
+#   section_id: The section ID
+#   max_visible: Number of items to show (remaining items accessible via scrolling)
+#
+# Example:
+#   menu_set_section_max_visible "files" 10  # Show 10 items at a time
+menu_set_section_max_visible() {
+    local section_id="$1"
+    local max_visible="$2"
+    MENU_SECTION_MAX_VISIBLE["$section_id"]="$max_visible"
+}
+# }}}
+
 # {{{ menu_add_content_source
 # Add a content source to the preview panel
 # Sources are shown in order, separated by dashed box-drawing lines
@@ -406,6 +425,11 @@ _menu_build_json() {
         json+='{"id":"'"$section_id"'"'
         json+=',"title":"'"$(_menu_escape_json "${MENU_SECTION_TITLES[$section_id]}")"'"'
         json+=',"type":"'"${MENU_SECTION_TYPES[$section_id]}"'"'
+        # Add max_visible for viewport scrolling if set
+        local max_visible="${MENU_SECTION_MAX_VISIBLE[$section_id]:-}"
+        if [[ -n "$max_visible" ]]; then
+            json+=',"max_visible":'"$max_visible"
+        fi
         json+=',"items":['
 
         local items="${MENU_SECTION_ITEMS[$section_id]}"

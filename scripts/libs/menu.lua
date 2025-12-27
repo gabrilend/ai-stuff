@@ -11,6 +11,9 @@ local menu = {}
 -- Forward declaration for dependency update function
 local update_disabled_states
 
+-- Forward declaration for viewport scrolling function
+local ensure_item_visible
+
 -- Menu state
 local state = {
     title = "",
@@ -59,6 +62,10 @@ local state = {
     content_cached_lines = nil,
     content_cached_filepath = nil,
     content_visible_lines = 0,
+    -- Section viewport scrolling state (for list sections with many items)
+    -- Allows sections to have a max visible height with scrollbar
+    section_scroll_offset = {},   -- section_id -> scroll offset within section
+    section_max_visible = {},     -- section_id -> max visible items (nil = unlimited)
 }
 -- }}}
 
@@ -104,6 +111,9 @@ function menu.init(config)
     state.content_cached_lines = nil  -- Cache file content to avoid re-reading
     state.content_cached_filepath = nil  -- Track which file is cached
     state.content_visible_lines = 0  -- How many lines are visible
+    -- Section viewport scrolling state
+    state.section_scroll_offset = {}
+    state.section_max_visible = {}
 
     -- Process sections
     for _, section in ipairs(config.sections or {}) do
@@ -114,6 +124,12 @@ function menu.init(config)
             type = section.type or "single",  -- single or multi
             items = {}
         }
+
+        -- Set up viewport scrolling if max_visible is specified
+        if section.max_visible then
+            state.section_max_visible[sid] = section.max_visible
+            state.section_scroll_offset[sid] = 0
+        end
 
         -- Process items
         for _, item in ipairs(section.items or {}) do
@@ -313,6 +329,7 @@ end
 -- {{{ render_scrollbar
 -- Render a vertical scrollbar in the rightmost column
 -- Returns nothing, draws directly to framebuffer
+-- Uses UTF-8 byte sequences for compatibility with set_cell
 local function render_scrollbar(start_row, height, total_items, visible_start, visible_count)
     if total_items <= visible_count then return end  -- No scrollbar needed
 
@@ -331,15 +348,21 @@ local function render_scrollbar(start_row, height, total_items, visible_start, v
     tui.set_fg(tui.FG_WHITE)
     tui.set_attrs(tui.ATTR_DIM)
 
+    -- UTF-8 byte sequences for scrollbar characters
+    -- █ (full block) = E2 96 88 = \226\150\136
+    -- ░ (light shade) = E2 96 91 = \226\150\145
+    local thumb_char = "\226\150\136"  -- █
+    local track_char = "\226\150\145"  -- ░
+
     for i = 0, height - 1 do
         local row = start_row + i
         local char
         if i >= thumb_pos and i < thumb_pos + thumb_size then
-            char = "█"  -- Thumb (filled)
+            char = thumb_char
         else
-            char = "░"  -- Track (empty)
+            char = track_char
         end
-        tui.write_str(row, scroll_col, char)
+        tui.set_cell(row, scroll_col, char)
     end
 
     tui.reset_style()
@@ -1701,10 +1724,23 @@ local function render_section(section_idx, start_row, checkbox_idx_start)
     local is_current = (section_idx == state.current_section)
     local checkbox_idx = checkbox_idx_start or 0
 
-    -- Section title
+    -- Check for viewport configuration
+    local max_visible = state.section_max_visible[sid]
+    local scroll_offset = state.section_scroll_offset[sid] or 0
+    local total_items = #data.items
+    local has_viewport = max_visible and total_items > max_visible
+
+    -- Section title (with scroll indicator if viewport active)
     tui.clear_row(row)
     tui.set_attrs(tui.ATTR_BOLD)
-    tui.write_str(row, 3, data.title)
+    local title_text = data.title
+    if has_viewport then
+        -- Add scroll indicator showing visible range
+        local visible_start = scroll_offset + 1
+        local visible_end = math.min(scroll_offset + max_visible, total_items)
+        title_text = string.format("%s [%d-%d of %d]", data.title, visible_start, visible_end, total_items)
+    end
+    tui.write_str(row, 3, title_text)
     row = row + 1
 
     -- Underline
@@ -1713,20 +1749,44 @@ local function render_section(section_idx, start_row, checkbox_idx_start)
     tui.draw_hline(row, 3, 3 + #data.title - 1)
     row = row + 1
 
-    -- Items
+    -- Calculate visible item range
+    local visible_start = 1
+    local visible_end = total_items
+    if has_viewport then
+        visible_start = scroll_offset + 1
+        visible_end = math.min(scroll_offset + max_visible, total_items)
+    end
+
+    -- Track row where items start (for scrollbar positioning)
+    local items_start_row = row
+
+    -- Items - render only visible items if viewport is active
     local section_type = data.type
     for i, item_id in ipairs(data.items) do
         local item_type = state.item_data[item_id].type
-        local highlight = is_current and (i == state.current_item)
 
-        -- Only increment and pass checkbox index for checkbox items
-        if item_type == "checkbox" then
+        -- Skip items outside visible range if viewport is active
+        if i >= visible_start and i <= visible_end then
+            local highlight = is_current and (i == state.current_item)
+
+            -- Only increment and pass checkbox index for checkbox items
+            if item_type == "checkbox" then
+                checkbox_idx = checkbox_idx + 1
+                render_item(row, item_id, highlight, checkbox_idx, section_type)
+            else
+                render_item(row, item_id, highlight, nil, section_type)
+            end
+            row = row + 1
+        elseif item_type == "checkbox" then
+            -- Still count checkboxes even if not visible (for index navigation)
             checkbox_idx = checkbox_idx + 1
-            render_item(row, item_id, highlight, checkbox_idx, section_type)
-        else
-            render_item(row, item_id, highlight, nil, section_type)
         end
-        row = row + 1
+    end
+
+    -- Render scrollbar if viewport is active
+    if has_viewport then
+        local viewport_height = visible_end - visible_start + 1
+        render_scrollbar(items_start_row, viewport_height, total_items, scroll_offset, max_visible)
     end
 
     return row, checkbox_idx
@@ -2093,6 +2153,7 @@ function menu.nav_up()
         state.current_section = state.current_section - 1
         state.current_item = get_section_item_count(state.current_section)
     end
+    ensure_item_visible()
     menu.render()
 end
 
@@ -2107,6 +2168,7 @@ function menu.nav_down()
         state.current_section = state.current_section + 1
         state.current_item = 1
     end
+    ensure_item_visible()
     menu.render()
 end
 
@@ -2115,6 +2177,7 @@ function menu.nav_top()
     reset_digit_input_state()
     state.current_section = 1
     state.current_item = 1
+    ensure_item_visible()
     menu.render()
 end
 
@@ -2123,6 +2186,7 @@ function menu.nav_bottom()
     reset_digit_input_state()
     state.current_section = #state.sections
     state.current_item = get_section_item_count(state.current_section)
+    ensure_item_visible()
     menu.render()
 end
 
@@ -2136,6 +2200,7 @@ function menu.nav_to_index(target)
             if current == target then
                 state.current_section = si
                 state.current_item = ii
+                ensure_item_visible()
                 menu.render()
                 return true
             end
@@ -2154,6 +2219,7 @@ function menu.nav_to_action()
             if state.item_data[item_id].type == "action" then
                 state.current_section = si
                 state.current_item = ii
+                ensure_item_visible()
                 menu.render()
                 return true
             end
@@ -2170,6 +2236,7 @@ function menu.nav_to_checkbox(target_idx)
     if si and ii then
         state.current_section = si
         state.current_item = ii
+        ensure_item_visible()
         menu.render()
         return true
     end
@@ -2184,6 +2251,7 @@ function menu.nav_to_item(item_id)
     if si and ii then
         state.current_section = si
         state.current_item = ii
+        ensure_item_visible()
         menu.render()
         return true
     end
@@ -3794,6 +3862,45 @@ function menu.content_scroll_bottom()
         return true
     end
     return false
+end
+-- }}}
+
+-- {{{ menu.set_section_max_visible
+-- Set the maximum visible items for a section (enables viewport scrolling)
+-- section_id: the section ID
+-- max_visible: number of items to show (nil to disable viewport/show all)
+function menu.set_section_max_visible(section_id, max_visible)
+    if not state.section_data[section_id] then
+        return false
+    end
+    state.section_max_visible[section_id] = max_visible
+    state.section_scroll_offset[section_id] = 0
+    return true
+end
+-- }}}
+
+-- {{{ ensure_item_visible
+-- Ensure the current item is visible within its section's viewport
+-- Called after navigation to adjust scroll offset if needed
+ensure_item_visible = function()
+    local sid = state.sections[state.current_section]
+    if not sid then return end
+
+    local max_visible = state.section_max_visible[sid]
+    if not max_visible then return end  -- No viewport, nothing to do
+
+    local scroll_offset = state.section_scroll_offset[sid] or 0
+    local item_idx = state.current_item
+
+    -- If item is above visible range, scroll up
+    if item_idx <= scroll_offset then
+        state.section_scroll_offset[sid] = math.max(0, item_idx - 1)
+    -- If item is below visible range, scroll down
+    elseif item_idx > scroll_offset + max_visible then
+        local total_items = #state.section_data[sid].items
+        local max_offset = math.max(0, total_items - max_visible)
+        state.section_scroll_offset[sid] = math.min(max_offset, item_idx - max_visible)
+    end
 end
 -- }}}
 
