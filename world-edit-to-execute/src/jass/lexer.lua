@@ -86,6 +86,43 @@ local TOKEN = {
 
 lexer.TOKEN = TOKEN
 
+-- {{{ KEYWORDS
+-- Maps lowercase keyword strings to their token types.
+-- JASS is case-sensitive: "function" is a keyword, "Function" is an identifier.
+local KEYWORDS = {
+    ["function"] = TOKEN.FUNCTION,
+    ["endfunction"] = TOKEN.ENDFUNCTION,
+    ["takes"] = TOKEN.TAKES,
+    ["returns"] = TOKEN.RETURNS,
+    ["nothing"] = TOKEN.NOTHING,
+    ["globals"] = TOKEN.GLOBALS,
+    ["endglobals"] = TOKEN.ENDGLOBALS,
+    ["local"] = TOKEN.LOCAL,
+    ["set"] = TOKEN.SET,
+    ["call"] = TOKEN.CALL,
+    ["if"] = TOKEN.IF,
+    ["then"] = TOKEN.THEN,
+    ["else"] = TOKEN.ELSE,
+    ["elseif"] = TOKEN.ELSEIF,
+    ["endif"] = TOKEN.ENDIF,
+    ["loop"] = TOKEN.LOOP,
+    ["endloop"] = TOKEN.ENDLOOP,
+    ["exitwhen"] = TOKEN.EXITWHEN,
+    ["return"] = TOKEN.RETURN,
+    ["constant"] = TOKEN.CONSTANT,
+    ["native"] = TOKEN.NATIVE,
+    ["type"] = TOKEN.TYPE,
+    ["extends"] = TOKEN.EXTENDS,
+    ["array"] = TOKEN.ARRAY,
+    ["and"] = TOKEN.AND,
+    ["or"] = TOKEN.OR,
+    ["not"] = TOKEN.NOT,
+    ["true"] = TOKEN.TRUE,
+    ["false"] = TOKEN.FALSE,
+    ["null"] = TOKEN.NULL,
+}
+-- }}}
+
 -- {{{ create_state
 -- Creates a new lexer state for tokenizing source code.
 -- The state tracks position, line/column numbers, and accumulated tokens.
@@ -133,6 +170,35 @@ end
 -- Returns true if we've consumed all source characters.
 local function is_at_end(state)
     return state.pos > #state.source
+end
+-- }}}
+
+-- {{{ is_alpha
+-- Returns true if character is a letter (A-Z, a-z) or underscore.
+-- Used for identifying the start of identifiers and keywords.
+local function is_alpha(char)
+    if not char then return false end
+    local b = string.byte(char)
+    return (b >= 65 and b <= 90)   -- A-Z
+        or (b >= 97 and b <= 122)  -- a-z
+        or char == "_"
+end
+-- }}}
+
+-- {{{ is_digit
+-- Returns true if character is a decimal digit (0-9).
+local function is_digit(char)
+    if not char then return false end
+    local b = string.byte(char)
+    return b >= 48 and b <= 57  -- 0-9
+end
+-- }}}
+
+-- {{{ is_alnum
+-- Returns true if character is alphanumeric (letter, digit, or underscore).
+-- Used for continuing identifiers after the first character.
+local function is_alnum(char)
+    return is_alpha(char) or is_digit(char)
 end
 -- }}}
 
@@ -207,17 +273,147 @@ local function scan_newline(state)
 end
 -- }}}
 
+-- {{{ scan_identifier_or_keyword
+-- Scans an identifier or keyword starting at the current position.
+-- Called when first character is a letter or underscore.
+-- JASS is case-sensitive: "function" is a keyword, "Function" is an identifier.
+local function scan_identifier_or_keyword(state, start_line, start_col)
+    local chars = {}
+
+    -- Collect all alphanumeric characters
+    while not is_at_end(state) and is_alnum(peek(state)) do
+        chars[#chars + 1] = advance(state)
+    end
+
+    local value = table.concat(chars)
+
+    -- Check if it's a keyword (exact match, case-sensitive)
+    local keyword_type = KEYWORDS[value]
+    if keyword_type then
+        add_token(state, keyword_type, value, start_line, start_col)
+    else
+        add_token(state, TOKEN.IDENTIFIER, value, start_line, start_col)
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ scan_operator
+-- Scans operators at the current position.
+-- Two-character operators (==, !=, <=, >=) are checked before single-character.
+-- Returns true if an operator was recognized, false otherwise.
+local function scan_operator(state, start_line, start_col)
+    local char = peek(state)
+    local next_char = peek(state, 1)
+
+    -- Two-character operators first (must check before single-char)
+    if char == "=" and next_char == "=" then
+        advance(state)
+        advance(state)
+        add_token(state, TOKEN.EQUALS, "==", start_line, start_col)
+        return true
+    end
+
+    if char == "!" and next_char == "=" then
+        advance(state)
+        advance(state)
+        add_token(state, TOKEN.NOT_EQUALS, "!=", start_line, start_col)
+        return true
+    end
+
+    if char == "<" and next_char == "=" then
+        advance(state)
+        advance(state)
+        add_token(state, TOKEN.LESS_EQUALS, "<=", start_line, start_col)
+        return true
+    end
+
+    if char == ">" and next_char == "=" then
+        advance(state)
+        advance(state)
+        add_token(state, TOKEN.GREATER_EQUALS, ">=", start_line, start_col)
+        return true
+    end
+
+    -- Single-character operators
+    -- Note: // is handled as comment in the main loop before scan_token is called
+    local SINGLE_CHAR_OPS = {
+        ["+"] = TOKEN.PLUS,
+        ["-"] = TOKEN.MINUS,
+        ["*"] = TOKEN.STAR,
+        ["/"] = TOKEN.SLASH,
+        ["="] = TOKEN.ASSIGN,
+        ["<"] = TOKEN.LESS,
+        [">"] = TOKEN.GREATER,
+    }
+
+    local op_type = SINGLE_CHAR_OPS[char]
+    if op_type then
+        advance(state)
+        add_token(state, op_type, char, start_line, start_col)
+        return true
+    end
+
+    return false
+end
+-- }}}
+
+-- {{{ scan_punctuation
+-- Scans punctuation at the current position.
+-- Returns true if punctuation was recognized, false otherwise.
+local function scan_punctuation(state, start_line, start_col)
+    local char = peek(state)
+
+    local PUNCTUATION = {
+        ["("] = TOKEN.LPAREN,
+        [")"] = TOKEN.RPAREN,
+        ["["] = TOKEN.LBRACKET,
+        ["]"] = TOKEN.RBRACKET,
+        [","] = TOKEN.COMMA,
+    }
+
+    local punc_type = PUNCTUATION[char]
+    if punc_type then
+        advance(state)
+        add_token(state, punc_type, char, start_line, start_col)
+        return true
+    end
+
+    return false
+end
+-- }}}
+
 -- {{{ scan_token
 -- Dispatch function for recognizing tokens.
--- This is a stub that will be extended by 304b (keywords, identifiers, operators)
--- and 304c (literals: numbers, strings, rawcodes).
---
--- Returns true if a token was recognized, false otherwise.
--- The main loop will error on unrecognized characters.
+-- Delegates to specialized scanners for identifiers, operators, punctuation,
+-- and literals (304c). Returns true if a token was recognized.
 local function scan_token(state, start_line, start_col)
-    -- Placeholder: to be implemented by 304b and 304c
-    -- Currently returns nil to indicate no token was recognized
-    return nil
+    local char = peek(state)
+
+    -- Identifier or keyword (starts with letter or underscore)
+    if is_alpha(char) then
+        return scan_identifier_or_keyword(state, start_line, start_col)
+    end
+
+    -- Operators
+    if scan_operator(state, start_line, start_col) then
+        return true
+    end
+
+    -- Punctuation
+    if scan_punctuation(state, start_line, start_col) then
+        return true
+    end
+
+    -- Literals will be handled by 304c (numbers, strings, rawcodes)
+    -- For now, these characters will fall through and trigger an error:
+    -- - Digits (0-9) - integer/real literals
+    -- - Double quote (") - string literals
+    -- - Single quote (') - rawcode literals
+    -- - Dollar sign ($) - hex literals
+
+    return false
 end
 -- }}}
 
@@ -268,9 +464,10 @@ end
 -- }}}
 
 -- {{{ module export
--- Export internal helpers for use by 304b and 304c.
--- These sub-issues will extend scan_token functionality.
+-- Export internal helpers for use by 304c (literals).
+-- Character classification helpers are used for number parsing.
 lexer._internal = {
+    -- Core state functions
     peek = peek,
     advance = advance,
     is_at_end = is_at_end,
@@ -278,6 +475,10 @@ lexer._internal = {
     add_token = add_token,
     create_state = create_state,
     skip_whitespace = skip_whitespace,
+    -- Character classification (for 304c literal parsing)
+    is_alpha = is_alpha,
+    is_digit = is_digit,
+    is_alnum = is_alnum,
 }
 
 return lexer
