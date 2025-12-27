@@ -1821,15 +1821,20 @@ parse_analysis() {
     local issue_path="$1"
 
     # Extract Sub-Issue Analysis section (or Initial Analysis if renamed)
-    # Must continue through sub-headings like "## Recommended Sub-Issues"
-    # until we hit a section separator "---" or end of file
+    # IMPORTANT: Analysis often uses "---" as internal separators, so we
+    # must NOT stop at "---". Instead, stop at:
+    # - A new top-level ## section that's NOT part of analysis
+    # - End of file
+    #
+    # Analysis sections include sub-headings like "### Suggested Sub-Issues"
+    # which we must capture. "---" separators within analysis are kept.
     #
     # Strategy: Find the LAST "## Sub-Issue Analysis" section (most recent)
-    # and extract everything from there to the next "---" or EOF
+    # and extract everything until a non-analysis ## section or EOF
     local section=""
 
-    # Use awk to find the LAST Sub-Issue Analysis section and extract to --- or EOF
-    # If multiple sections exist (from multiple analysis runs), only use the most recent
+    # Sections that indicate END of analysis content
+    # (these are post-analysis sections, not part of the analysis itself)
     section=$(awk '
         /^## Sub-Issue Analysis/ {
             # Start capturing from this line (resets any previous section)
@@ -1837,12 +1842,14 @@ parse_analysis() {
             buffer = ""
         }
         capturing {
-            if (/^---$/) {
-                # End of section - save but do not print yet (might not be last)
+            # Stop at sections that are clearly NOT part of analysis
+            if (/^## (Implementation Notes|Notes|Related Documents|Acceptance Criteria|Generated Sub-Issues|Structure Review)/) {
+                # End of analysis section - save what we have
                 last_section = buffer
                 capturing = 0
                 buffer = ""
             } else {
+                # Include everything else (including --- separators and ### sub-headings)
                 buffer = buffer $0 "\n"
             }
         }
@@ -1865,7 +1872,7 @@ parse_analysis() {
                 buffer = ""
             }
             capturing {
-                if (/^---$/) {
+                if (/^## (Implementation Notes|Notes|Related Documents|Acceptance Criteria|Generated Sub-Issues|Structure Review)/) {
                     last_section = buffer
                     capturing = 0
                     buffer = ""
