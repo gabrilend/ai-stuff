@@ -513,6 +513,359 @@ test("empty forces array handled", function()
 end)
 -- }}}
 
+-- {{{ Alliance Constants Tests
+print("\n-- Alliance Constants Tests --")
+
+test("ALLIANCE_FLAG constants defined", function()
+    assert_eq("passive", player.ALLIANCE_FLAG.PASSIVE, "PASSIVE")
+    assert_eq("shared_vision", player.ALLIANCE_FLAG.SHARED_VISION, "SHARED_VISION")
+    assert_eq("shared_control", player.ALLIANCE_FLAG.SHARED_CONTROL, "SHARED_CONTROL")
+    assert_eq("shared_victory", player.ALLIANCE_FLAG.SHARED_VICTORY, "SHARED_VICTORY")
+    assert_eq("shared_xp", player.ALLIANCE_FLAG.SHARED_XP, "SHARED_XP")
+end)
+-- }}}
+
+-- {{{ Alliance Set/Get Tests
+print("\n-- Alliance Set/Get Tests --")
+
+test("set_alliance correctly sets flag", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    local ok = player.set_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_true(ok, "set_alliance returns true")
+    assert_true(player.get_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE), "flag is set")
+end)
+
+test("get_alliance returns false for unset flags", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    assert_false(player.get_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE), "unset flag")
+end)
+
+test("set_alliance returns false for missing source", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok, err = player.set_alliance(5, 0, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_false(ok, "returns false")
+    assert_eq("Source player not found", err, "error message")
+end)
+
+test("set_alliance returns false for missing target", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok, err = player.set_alliance(0, 5, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_false(ok, "returns false")
+    assert_eq("Target player not found", err, "error message")
+end)
+
+test("alliances are asymmetric by default", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    player.set_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+
+    assert_true(player.get_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE), "0->1 set")
+    assert_false(player.get_alliance(1, 0, player.ALLIANCE_FLAG.PASSIVE), "1->0 not set")
+end)
+
+test("set_mutual_alliance sets both directions", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    player.set_mutual_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+
+    assert_true(player.get_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE), "0->1 set")
+    assert_true(player.get_alliance(1, 0, player.ALLIANCE_FLAG.PASSIVE), "1->0 set")
+end)
+
+test("set_team_alliance sets all pairs", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+        { slot = 2 },
+    })
+
+    player.set_team_alliance({0, 1, 2}, player.ALLIANCE_FLAG.SHARED_VISION, true)
+
+    assert_true(player.get_alliance(0, 1, player.ALLIANCE_FLAG.SHARED_VISION), "0->1")
+    assert_true(player.get_alliance(0, 2, player.ALLIANCE_FLAG.SHARED_VISION), "0->2")
+    assert_true(player.get_alliance(1, 0, player.ALLIANCE_FLAG.SHARED_VISION), "1->0")
+    assert_true(player.get_alliance(1, 2, player.ALLIANCE_FLAG.SHARED_VISION), "1->2")
+    assert_true(player.get_alliance(2, 0, player.ALLIANCE_FLAG.SHARED_VISION), "2->0")
+    assert_true(player.get_alliance(2, 1, player.ALLIANCE_FLAG.SHARED_VISION), "2->1")
+end)
+-- }}}
+
+-- {{{ Alliance Convenience Tests
+print("\n-- Alliance Convenience Tests --")
+
+test("is_ally returns true for mutual passive", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    player.set_mutual_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_true(player.is_ally(0, 1), "0 ally of 1")
+    assert_true(player.is_ally(1, 0), "1 ally of 0")
+end)
+
+test("is_ally returns false if only one direction", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    player.set_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    -- Only 0->1, not 1->0
+    assert_false(player.is_ally(0, 1), "not mutual")
+    assert_false(player.is_ally(1, 0), "not mutual (reverse)")
+end)
+
+test("is_ally returns true for same slot", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    assert_true(player.is_ally(0, 0), "self is always ally")
+end)
+
+test("is_enemy is inverse of is_ally", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    -- No alliances set - enemies
+    assert_true(player.is_enemy(0, 1), "enemies by default")
+
+    -- Set mutual alliance
+    player.set_mutual_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_false(player.is_enemy(0, 1), "not enemies after alliance")
+end)
+
+test("has_vision checks correct direction", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    -- Player 1 shares vision with player 0 (so 0 can see 1's units)
+    player.set_alliance(1, 0, player.ALLIANCE_FLAG.SHARED_VISION, true)
+
+    assert_true(player.has_vision(0, 1), "0 can see 1")
+    assert_false(player.has_vision(1, 0), "1 cannot see 0")
+end)
+
+test("has_vision true for same slot", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    assert_true(player.has_vision(0, 0), "can see own units")
+end)
+
+test("can_control checks correct direction", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    -- Player 1 shares control with player 0 (so 0 can control 1's units)
+    player.set_alliance(1, 0, player.ALLIANCE_FLAG.SHARED_CONTROL, true)
+
+    assert_true(player.can_control(0, 1), "0 can control 1")
+    assert_false(player.can_control(1, 0), "1 cannot control 0")
+end)
+
+test("can_control true for same slot", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    assert_true(player.can_control(0, 0), "can control own units")
+end)
+-- }}}
+
+-- {{{ Alliance Query Tests
+print("\n-- Alliance Query Tests --")
+
+test("get_allies returns correct list", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+        { slot = 2 },
+    })
+
+    player.set_mutual_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    -- Slot 2 not allied with 0
+
+    local allies = player.get_allies(0)
+    -- Should include: 0 (self), 1 (ally)
+    assert_eq(2, #allies, "2 allies (self + 1)")
+end)
+
+test("get_enemies excludes neutrals", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    -- No alliances - everyone is enemy except neutral
+    local enemies = player.get_enemies(0)
+    -- Should include slot 1 but not neutral (15)
+    local found_1 = false
+    local found_15 = false
+    for _, p in ipairs(enemies) do
+        if p.slot == 1 then found_1 = true end
+        if p.slot == 15 then found_15 = true end
+    end
+    assert_true(found_1, "slot 1 is enemy")
+    assert_false(found_15, "neutral excluded")
+end)
+-- }}}
+
+-- {{{ Alliance from W3I Tests
+print("\n-- Alliance from W3I Tests --")
+
+test("init_from_w3i applies allied flag", function()
+    local w3i = {
+        players = {
+            { number = 0, name = "P1", type = "human", race = "human" },
+            { number = 1, name = "P2", type = "human", race = "orc" },
+        },
+        forces = {
+            { number = 1, name = "Team", players = {0, 1}, flags = { allied = true } },
+        }
+    }
+    player.init_from_w3i(w3i)
+
+    assert_true(player.is_ally(0, 1), "0 and 1 are allies")
+    assert_true(player.get_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE), "0->1 passive")
+    assert_true(player.get_alliance(1, 0, player.ALLIANCE_FLAG.PASSIVE), "1->0 passive")
+end)
+
+test("init_from_w3i applies shared_vision flag", function()
+    local w3i = {
+        players = {
+            { number = 0, name = "P1", type = "human", race = "human" },
+            { number = 1, name = "P2", type = "human", race = "orc" },
+        },
+        forces = {
+            { number = 1, name = "Team", players = {0, 1}, flags = { share_vision = true } },
+        }
+    }
+    player.init_from_w3i(w3i)
+
+    assert_true(player.has_vision(0, 1), "0 sees 1")
+    assert_true(player.has_vision(1, 0), "1 sees 0")
+end)
+
+test("init_from_w3i applies allied_victory flag", function()
+    local w3i = {
+        players = {
+            { number = 0, name = "P1", type = "human", race = "human" },
+            { number = 1, name = "P2", type = "human", race = "orc" },
+        },
+        forces = {
+            { number = 1, name = "Team", players = {0, 1}, flags = { allied_victory = true } },
+        }
+    }
+    player.init_from_w3i(w3i)
+
+    assert_true(player.get_alliance(0, 1, player.ALLIANCE_FLAG.SHARED_VICTORY), "0->1 victory")
+    assert_true(player.get_alliance(1, 0, player.ALLIANCE_FLAG.SHARED_VICTORY), "1->0 victory")
+end)
+
+test("init_from_w3i multiple forces independent", function()
+    local w3i = {
+        players = {
+            { number = 0, name = "P1", type = "human", race = "human" },
+            { number = 1, name = "P2", type = "human", race = "orc" },
+            { number = 2, name = "P3", type = "human", race = "undead" },
+            { number = 3, name = "P4", type = "human", race = "nightelf" },
+        },
+        forces = {
+            { number = 1, name = "Team A", players = {0, 1}, flags = { allied = true } },
+            { number = 2, name = "Team B", players = {2, 3}, flags = { allied = true } },
+        }
+    }
+    player.init_from_w3i(w3i)
+
+    -- Team A allies
+    assert_true(player.is_ally(0, 1), "0 ally with 1")
+    -- Team B allies
+    assert_true(player.is_ally(2, 3), "2 ally with 3")
+    -- Cross-team enemies
+    assert_true(player.is_enemy(0, 2), "0 enemy of 2")
+    assert_true(player.is_enemy(1, 3), "1 enemy of 3")
+end)
+-- }}}
+
+-- {{{ Alliance Event Hook Tests
+print("\n-- Alliance Event Hook Tests --")
+
+test("alliance change fires event hook", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    local events = {}
+    player._on_alliance_changed = function(from, to, flag, value)
+        events[#events + 1] = { from = from, to = to, flag = flag, value = value }
+    end
+
+    player.set_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+
+    assert_eq(1, #events, "one event fired")
+    assert_eq(0, events[1].from, "from slot")
+    assert_eq(1, events[1].to, "to slot")
+    assert_eq(player.ALLIANCE_FLAG.PASSIVE, events[1].flag, "flag")
+    assert_true(events[1].value, "value")
+
+    -- Cleanup
+    player._on_alliance_changed = nil
+end)
+
+test("no event for unchanged alliance", function()
+    player.init_manual({
+        { slot = 0 },
+        { slot = 1 },
+    })
+
+    local event_count = 0
+    player._on_alliance_changed = function(from, to, flag, value)
+        event_count = event_count + 1
+    end
+
+    -- Set to true
+    player.set_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_eq(1, event_count, "first set fires")
+
+    -- Set to true again (no change)
+    player.set_alliance(0, 1, player.ALLIANCE_FLAG.PASSIVE, true)
+    assert_eq(1, event_count, "no event for unchanged")
+
+    -- Cleanup
+    player._on_alliance_changed = nil
+end)
+-- }}}
+
 -- {{{ Summary
 print(string.format("\n=== Results: %d/%d tests passed ===", tests_passed, tests_run))
 
