@@ -1408,21 +1408,30 @@ build_generation_prompt() {
     parent_content=$(cat "$parent_path")
 
     cat <<'EOF'
-You analyzed this issue and recommended sub-issue splits.
-Now use the Write tool to create complete issue files.
+TASK: Create issue documentation files (markdown only).
 
-For each file, include these sections:
+SCOPE RESTRICTION - READ CAREFULLY:
+- You are ONLY creating issue DOCUMENTATION files (.md files in issues/ directory)
+- Do NOT implement any code, tests, or functionality
+- Do NOT modify any source files (src/, tests/, libs/, etc.)
+- Do NOT continue any previous implementation work
+- IGNORE any previous context about implementing issues
+- Your ONLY job is to write markdown issue specification files
+
+For each issue file, include these sections:
 - **Current Behavior** - What exists now (infer from parent issue context)
 - **Intended Behavior** - Detailed specification of what should happen
 - **Suggested Implementation Steps** - Concrete, numbered, actionable steps
 - **Related Documents** - Parent issue, siblings, relevant code paths
 - **Acceptance Criteria** - Testable checkbox items (use markdown checkboxes)
 
-IMPORTANT:
-- Use the Write tool directly to create each file with complete, implementation-ready content
-- Do NOT use placeholders like "(To be filled in)" - provide real content based on context
-- Each step should be specific enough for a developer to implement without further clarification
-- Reference specific files, functions, or code patterns when known
+REQUIREMENTS:
+- Use the Write tool to create each .md file listed below
+- Do NOT use placeholders like "(To be filled in)" - provide real content
+- Each step should be specific enough for a developer to implement later
+- Reference specific files, functions, or code patterns when describing the work
+
+REMEMBER: Only create markdown issue files. No code implementation.
 
 EOF
 
@@ -1457,12 +1466,13 @@ generate_complete_issues() {
     log "  Generating complete issue files via Claude..."
     echo "  ─────────────────────────────────────────────────────────────"
 
-    # Use --continue to maintain session context if in session mode
-    # Use --allowedTools to restrict Claude to only Write tool
+    # ALWAYS use fresh context for generation - do NOT use --continue
+    # Reason: --continue brings in previous session context which may include
+    # implementation work, causing Claude to continue implementing instead of
+    # just creating issue documentation files. Fresh context ensures Claude
+    # focuses only on the task at hand: creating markdown issue files.
+    # Use --allowedTools to restrict Claude to only Write tool.
     local claude_opts=("--allowedTools" "Write" "-p" "$prompt")
-    if [[ "$SESSION_MODE" == true ]] && [[ "$SESSION_STARTED" == true ]]; then
-        claude_opts=("--continue" "--allowedTools" "Write" "-p" "$prompt")
-    fi
 
     # Run Claude with real-time output visible to user
     # No timeout - let Claude complete naturally. Timeouts waste tokens since
