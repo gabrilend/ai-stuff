@@ -1455,6 +1455,7 @@ generate_complete_issues() {
     prompt=$(build_generation_prompt "$parent_path" "${subissues[@]}")
 
     log "  Generating complete issue files via Claude..."
+    echo "  ─────────────────────────────────────────────────────────────"
 
     # Use --continue to maintain session context if in session mode
     # Use --allowedTools to restrict Claude to only Write tool
@@ -1463,14 +1464,18 @@ generate_complete_issues() {
         claude_opts=("--continue" "--allowedTools" "Write" "-p" "$prompt")
     fi
 
-    if timeout 600 claude "${claude_opts[@]}" 2>&1; then
+    # Run Claude with real-time output visible to user
+    # No output capture - let it stream directly to terminal
+    if timeout 600 claude "${claude_opts[@]}"; then
         # Mark session as started if using session mode
         if [[ "$SESSION_MODE" == true ]]; then
             SESSION_STARTED=true
         fi
+        echo "  ─────────────────────────────────────────────────────────────"
         log "  Generation complete"
         return 0
     else
+        echo "  ─────────────────────────────────────────────────────────────"
         log "  [ERROR] Generation failed or timed out"
         return 1
     fi
