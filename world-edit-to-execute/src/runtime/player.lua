@@ -65,6 +65,14 @@ local ALLIANCE_FLAG = {
 -- {{{ Internal state
 local players = {}  -- slot_id -> player data table
 local local_player_slot = 0  -- For UI/camera (407f)
+
+-- Event callbacks for state changes (407d)
+local event_callbacks = {
+    player_defeated = {},
+    player_victorious = {},
+    player_left = {},
+    player_state_changed = {},
+}
 -- }}}
 
 -- {{{ local function create_player
@@ -91,6 +99,20 @@ local function create_player(slot, name, player_type, race)
         -- Team name from force (optional)
         team_name = nil,
     }
+end
+-- }}}
+
+-- {{{ local function fire_event
+-- Fire event callbacks with arguments.
+-- @param event_name Event name (player_defeated, player_victorious, etc.)
+-- @param ... Arguments to pass to callbacks
+local function fire_event(event_name, ...)
+    local callbacks = event_callbacks[event_name]
+    if callbacks then
+        for _, cb in ipairs(callbacks) do
+            cb(...)
+        end
+    end
 end
 -- }}}
 
@@ -543,6 +565,196 @@ end
 -- }}}
 
 -- ============================================================================
+-- State Transitions (407d)
+-- ============================================================================
+
+-- {{{ function player.on
+-- Register a callback for a player event.
+-- @param event_name Event name (player_defeated, player_victorious, player_left, player_state_changed)
+-- @param callback Function to call when event fires
+function player.on(event_name, callback)
+    if event_callbacks[event_name] then
+        table.insert(event_callbacks[event_name], callback)
+    end
+end
+-- }}}
+
+-- {{{ function player.clear_events
+-- Clear all event callbacks (for testing).
+function player.clear_events()
+    for event_name, _ in pairs(event_callbacks) do
+        event_callbacks[event_name] = {}
+    end
+end
+-- }}}
+
+-- {{{ function player.set_state
+-- Change player state with validation.
+-- @param slot Player slot
+-- @param new_state New state to set
+-- @return success, error_message
+function player.set_state(slot, new_state)
+    local p = players[slot]
+    if not p then
+        return false, "Player not found"
+    end
+
+    local old_state = p.state
+
+    -- No change needed
+    if old_state == new_state then
+        return true
+    end
+
+    -- Prevent transitions from terminal states
+    if old_state == PLAYER_STATE.DEFEATED or
+       old_state == PLAYER_STATE.VICTORIOUS or
+       old_state == PLAYER_STATE.LEFT then
+        return false, "Cannot transition from terminal state: " .. old_state
+    end
+
+    -- Validate new state
+    if new_state ~= PLAYER_STATE.ACTIVE and
+       new_state ~= PLAYER_STATE.DEFEATED and
+       new_state ~= PLAYER_STATE.VICTORIOUS and
+       new_state ~= PLAYER_STATE.LEFT then
+        return false, "Invalid state: " .. tostring(new_state)
+    end
+
+    p.state = new_state
+    fire_event("player_state_changed", slot, old_state, new_state)
+
+    return true
+end
+-- }}}
+
+-- {{{ function player.defeat
+-- Mark a player as defeated and handle their units.
+-- @param slot Player slot
+-- @param options Table with destroy_units (bool) and transfer_to (slot or nil)
+-- @return success, error_message
+function player.defeat(slot, options)
+    options = options or {}
+
+    local p = players[slot]
+    if not p then
+        return false, "Player not found"
+    end
+
+    if p.state ~= PLAYER_STATE.ACTIVE then
+        return false, "Player is not active"
+    end
+
+    local old_state = p.state
+    p.state = PLAYER_STATE.DEFEATED
+
+    -- Handle owned entities (ECS integration)
+    if player._handle_defeated_units then
+        player._handle_defeated_units(slot, options)
+    end
+
+    -- Fire events
+    fire_event("player_defeated", slot)
+    fire_event("player_state_changed", slot, old_state, PLAYER_STATE.DEFEATED)
+
+    -- Check victory conditions (set by 407e)
+    if player._check_victory_conditions then
+        player._check_victory_conditions()
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ function player.set_victorious
+-- Mark a player as victorious.
+-- @param slot Player slot
+-- @return success, error_message
+function player.set_victorious(slot)
+    local p = players[slot]
+    if not p then
+        return false, "Player not found"
+    end
+
+    -- Already victorious
+    if p.state == PLAYER_STATE.VICTORIOUS then
+        return true
+    end
+
+    -- Cannot make defeated/left player victorious
+    if p.state == PLAYER_STATE.DEFEATED or p.state == PLAYER_STATE.LEFT then
+        return false, "Cannot set defeated/left player as victorious"
+    end
+
+    local old_state = p.state
+    p.state = PLAYER_STATE.VICTORIOUS
+
+    fire_event("player_victorious", slot)
+    fire_event("player_state_changed", slot, old_state, PLAYER_STATE.VICTORIOUS)
+
+    return true
+end
+-- }}}
+
+-- {{{ function player.leave
+-- Handle player leaving (disconnection).
+-- @param slot Player slot
+-- @param options Table with destroy_units (bool), transfer_to (slot, "ally", or "neutral")
+-- @return success, error_message
+function player.leave(slot, options)
+    options = options or {}
+
+    local p = players[slot]
+    if not p then
+        return false, "Player not found"
+    end
+
+    if p.state ~= PLAYER_STATE.ACTIVE then
+        return false, "Player is not active"
+    end
+
+    local old_state = p.state
+    p.state = PLAYER_STATE.LEFT
+
+    -- Handle owned entities (ECS integration)
+    if player._handle_left_units then
+        player._handle_left_units(slot, options)
+    end
+
+    fire_event("player_left", slot)
+    fire_event("player_state_changed", slot, old_state, PLAYER_STATE.LEFT)
+
+    -- Check victory conditions (set by 407e)
+    if player._check_victory_conditions then
+        player._check_victory_conditions()
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ function player.is_active
+-- Check if player is active.
+-- @param slot Player slot
+-- @return true if player exists and is active
+function player.is_active(slot)
+    local p = players[slot]
+    return p and p.state == PLAYER_STATE.ACTIVE
+end
+-- }}}
+
+-- {{{ function player.is_playing
+-- Check if player is still in game (active or victorious).
+-- @param slot Player slot
+-- @return true if player is active or victorious
+function player.is_playing(slot)
+    local p = players[slot]
+    if not p then return false end
+    return p.state == PLAYER_STATE.ACTIVE or p.state == PLAYER_STATE.VICTORIOUS
+end
+-- }}}
+
+-- ============================================================================
 -- Local Player (407f)
 -- ============================================================================
 
@@ -571,10 +783,16 @@ end
 -- }}}
 
 -- {{{ function player.reset
--- Clear all player data (for testing).
+-- Clear all player data and event callbacks (for testing).
 function player.reset()
     players = {}
     local_player_slot = 0
+    player.clear_events()
+    -- Clear ECS and victory hooks
+    player._ecs = nil
+    player._handle_defeated_units = nil
+    player._handle_left_units = nil
+    player._check_victory_conditions = nil
 end
 -- }}}
 
