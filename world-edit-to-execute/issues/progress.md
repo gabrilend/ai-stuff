@@ -218,7 +218,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 306b | Transpile declarations | **Completed** | 306a |
 | 306c | Transpile statements | **Completed** | 306a, 306d |
 | 306d | Transpile expressions | **Completed** | 306a |
-| 306e | Native function handling | Pending | 306a |
+| 306e | Native function handling | **Completed** | 306a |
 | 306f | Transpiler tests | Pending | 306a-e |
 | 307 | Implement trigger framework | Pending | 306 |
 | 308 | Build event dispatch system | Pending | 307 |
@@ -724,9 +724,14 @@ Phase 2 & 3 Complete
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
   - 306c: Transpile statements - SET, CALL, IF, LOOP, EXITWHEN, RETURN - **COMPLETED**
   - 306d: Transpile expressions - literals, binary/unary, calls, arrays - **COMPLETED**
-  - Created src/jass/transpiler.lua (~960 lines)
+  - Created src/jass/transpiler.lua (~1200 lines)
   - Created src/tests/test_transpiler_stmt.lua (27 tests, all pass)
-  - Remaining: 306e (native function handling), 306f (transpiler tests)
+  - 306e: Native function handling - **COMPLETED**
+    - BUILTIN_NATIVES list with ~170 common natives
+    - load_natives() public API for common.j parsing
+    - is_native() checks registry, map declarations, and builtins
+    - Created src/tests/test_transpiler_native.lua (20 tests, all pass)
+  - Remaining: 306f (transpiler tests)
 
 ---
 

@@ -28,10 +28,250 @@ local transpile_function
 local transpile_statement
 local transpile_expr
 
+-- {{{ BUILTIN_NATIVES
+-- Built-in list of common native functions as fallback when common.j is not available.
+-- These are functions defined with 'native' keyword in common.j that require runtime. prefix.
+-- BJ functions (from blizzard.j) are NOT included - they're regular JASS functions.
+local BUILTIN_NATIVES = {
+    -- Player functions
+    "Player", "GetLocalPlayer", "GetTriggerPlayer", "GetOwningPlayer",
+    "SetPlayerState", "GetPlayerState", "GetPlayerName", "GetPlayerId",
+    "GetPlayerRace", "GetPlayerController", "GetPlayerSlotState",
+
+    -- Unit creation and management
+    "CreateUnit", "CreateUnitAtLoc", "CreateUnitAtLocByName",
+    "RemoveUnit", "KillUnit", "ShowUnit",
+    "GetTriggerUnit", "GetSpellAbilityUnit", "GetAttacker", "GetKillingUnit",
+    "GetDyingUnit", "GetDecayingUnit", "GetLevelingUnit",
+    "GetFilterUnit", "GetEnumUnit",
+    "SetUnitX", "SetUnitY", "SetUnitPosition", "SetUnitPositionLoc",
+    "GetUnitX", "GetUnitY", "GetUnitLoc",
+    "SetUnitFacing", "GetUnitFacing",
+    "GetUnitTypeId", "GetUnitName", "GetUnitRace",
+    "IsUnitType", "IsUnitAlly", "IsUnitEnemy",
+    "UnitAddAbility", "UnitRemoveAbility", "UnitHasBuffBJ",
+    "SetUnitState", "GetUnitState",
+    "SetUnitOwner", "SetUnitColor",
+    "UnitAddItem", "UnitRemoveItem", "UnitHasItem",
+    "IssueImmediateOrder", "IssuePointOrder", "IssueTargetOrder",
+
+    -- Triggers
+    "CreateTrigger", "DestroyTrigger", "EnableTrigger", "DisableTrigger",
+    "TriggerAddCondition", "TriggerAddAction", "TriggerRemoveAction",
+    "TriggerRegisterTimerEvent", "TriggerRegisterTimerExpireEvent",
+    "TriggerRegisterUnitEvent", "TriggerRegisterPlayerEvent",
+    "TriggerRegisterPlayerUnitEvent", "TriggerRegisterEnterRegion",
+    "TriggerRegisterLeaveRegion", "TriggerEvaluate", "TriggerExecute",
+    "GetTriggeringTrigger", "GetTriggerEventId",
+    "Condition", "Filter", "And", "Or", "Not", "DestroyCondition",
+    "DestroyBoolExpr",
+
+    -- Groups
+    "CreateGroup", "DestroyGroup", "GroupClear",
+    "GroupAddUnit", "GroupRemoveUnit",
+    "ForGroup", "FirstOfGroup", "CountUnitsInGroup",
+    "GroupEnumUnitsInRange", "GroupEnumUnitsInRect",
+    "GroupEnumUnitsOfPlayer", "GroupEnumUnitsOfType",
+    "IsUnitInGroup",
+
+    -- Forces (player groups)
+    "CreateForce", "DestroyForce", "ForceClear",
+    "ForceAddPlayer", "ForceRemovePlayer",
+    "ForForce", "IsPlayerInForce",
+
+    -- Regions/Rects
+    "Rect", "RectFromLoc", "RemoveRect",
+    "GetRectCenterX", "GetRectCenterY",
+    "GetRectMinX", "GetRectMinY", "GetRectMaxX", "GetRectMaxY",
+    "SetRect", "MoveRectTo",
+    "CreateRegion", "RemoveRegion", "RegionAddRect", "RegionClearRect",
+    "IsPointInRegion", "IsUnitInRegion",
+
+    -- Locations
+    "Location", "RemoveLocation", "GetLocationX", "GetLocationY",
+    "GetLocationZ",
+
+    -- Math
+    "Cos", "Sin", "Tan", "Acos", "Asin", "Atan", "Atan2",
+    "SquareRoot", "Pow", "Deg2Rad", "Rad2Deg",
+    "GetRandomInt", "GetRandomReal", "SetRandomSeed",
+    "RMinBJ", "RMaxBJ", "IMinBJ", "IMaxBJ", "RAbsBJ", "IAbsBJ",
+    "SignReal", "SignInteger",
+
+    -- String functions
+    "I2S", "R2S", "R2SW", "S2I", "S2R",
+    "I2H", "SubString", "StringLength", "StringCase", "StringHash",
+    "GetLocalizedString", "GetLocalizedHotkey",
+
+    -- Display/UI
+    "DisplayTextToPlayer", "DisplayTimedTextToPlayer",
+    "DisplayTimedTextFromPlayer", "ClearTextMessages",
+    "SetTextTagText", "SetTextTagPos", "SetTextTagColor",
+    "SetTextTagVelocity", "SetTextTagVisibility", "SetTextTagPermanent",
+    "SetTextTagAge", "SetTextTagLifespan", "SetTextTagFadepoint",
+    "CreateTextTag", "DestroyTextTag",
+    "CreateLeaderboard", "DestroyLeaderboard",
+    "CreateMultiboard", "DestroyMultiboard",
+
+    -- Effects
+    "AddSpecialEffect", "AddSpecialEffectLoc", "AddSpecialEffectTarget",
+    "DestroyEffect", "GetSpellAbilityId",
+    "AddSpellEffect", "AddSpellEffectLoc", "AddSpellEffectTarget",
+    "AddLightning", "MoveLightning", "DestroyLightning",
+
+    -- Timers
+    "CreateTimer", "DestroyTimer", "TimerStart", "PauseTimer", "ResumeTimer",
+    "GetExpiredTimer", "TimerGetElapsed", "TimerGetRemaining", "TimerGetTimeout",
+
+    -- Sound
+    "CreateSound", "CreateSoundFilenameWithLabel", "CreateMIDISound",
+    "SetSoundDuration", "SetSoundVolume", "SetSoundPitch",
+    "SetSoundPosition", "SetSoundDistances", "SetSoundConeAngles",
+    "StartSound", "StopSound", "KillSoundWhenDone",
+    "PlaySoundBJ", "PlaySoundOnUnitBJ",
+
+    -- Camera
+    "SetCameraPosition", "SetCameraTargetController",
+    "PanCameraTo", "PanCameraToTimed", "PanCameraToWithZ",
+    "SetCameraField", "GetCameraField", "AdjustCameraField",
+    "GetCameraTargetPositionX", "GetCameraTargetPositionY", "GetCameraTargetPositionZ",
+    "GetCameraEyePositionX", "GetCameraEyePositionY", "GetCameraEyePositionZ",
+    "SetCinematicCamera", "ResetToGameCamera", "CameraSetupApply",
+
+    -- Fog of war
+    "CreateFogModifierRect", "CreateFogModifierRadius",
+    "FogModifierStart", "FogModifierStop", "DestroyFogModifier",
+    "SetFogStateRect", "SetFogStateRadius",
+
+    -- Item
+    "CreateItem", "RemoveItem", "GetItemTypeId", "GetItemX", "GetItemY",
+    "SetItemPosition", "SetItemDropOnDeath", "SetItemDroppable",
+    "SetItemPlayer", "GetItemPlayer",
+
+    -- Destructable
+    "CreateDestructable", "CreateDestructableZ", "RemoveDestructable",
+    "KillDestructable", "SetDestructableLife", "GetDestructableLife",
+    "GetDestructableMaxLife", "GetDestructableX", "GetDestructableY",
+    "GetDestructableTypeId",
+
+    -- Game state
+    "PauseGame", "SetGameSpeed", "SetMapFlag", "SetCreepCampFilterState",
+    "SetAllyColorFilterState", "GetGamePlaying",
+
+    -- Handles
+    "GetHandleId",
+
+    -- ExecuteFunc (special - calls function by string name)
+    "ExecuteFunc",
+
+    -- Ability-related
+    "GetSpellAbility", "GetSpellTargetUnit", "GetSpellTargetItem",
+    "GetSpellTargetLoc", "GetSpellTargetX", "GetSpellTargetY",
+    "GetSpellTargetDestructable",
+}
+
+-- Convert BUILTIN_NATIVES list to a lookup table for O(1) access
+local builtin_natives_set = {}
+for _, name in ipairs(BUILTIN_NATIVES) do
+    builtin_natives_set[name] = true
+end
+-- }}}
+
+-- {{{ init_builtin_natives
+-- Initialize the built-in native registry as a fallback.
+-- Returns a table mapping function names to minimal signature info.
+-- @return Native registry table
+local function init_builtin_natives()
+    local registry = {}
+    for _, name in ipairs(BUILTIN_NATIVES) do
+        registry[name] = {
+            params = {},           -- Unknown params for builtins
+            return_type = "unknown",
+            is_constant = false,
+            is_builtin = true,     -- Mark as builtin (not from parsed common.j)
+        }
+    end
+    return registry
+end
+-- }}}
+
+-- {{{ load_natives_from_ast
+-- Extract native function declarations from a parsed AST.
+-- Used to load natives from common.j or similar files.
+-- @param ast PROGRAM AST node containing NATIVE_DECL nodes
+-- @return Native registry table mapping names to signatures
+local function load_natives_from_ast(ast)
+    local registry = {}
+
+    if not ast or not ast.declarations then
+        return registry
+    end
+
+    for _, decl in ipairs(ast.declarations) do
+        if decl.type == "NATIVE_DECL" then
+            registry[decl.name] = {
+                params = decl.params or {},
+                return_type = decl.return_type or "nothing",
+                is_constant = decl.is_constant or false,
+                is_builtin = false,
+            }
+        end
+    end
+
+    return registry
+end
+-- }}}
+
+-- {{{ load_common_j_natives
+-- Parse a common.j source string and extract native signatures.
+-- @param common_j_source Source code string of common.j
+-- @return Native registry table, errors array
+local function load_common_j_natives(common_j_source)
+    local lexer = require("jass.lexer")
+    local parser = require("jass.parser")
+
+    local tokens, lex_err = lexer.tokenize(common_j_source)
+    if lex_err then
+        return {}, {{message = "Lexer error: " .. lex_err}}
+    end
+
+    local ast, parse_errors = parser.parse(tokens)
+
+    -- Parse errors are warnings - we may still have extracted some natives
+    local registry = load_natives_from_ast(ast)
+
+    return registry, parse_errors
+end
+-- }}}
+
+-- {{{ merge_native_registries
+-- Merge multiple native registries into one.
+-- Later registries override earlier ones for duplicate names.
+-- @param ... Variable number of registry tables
+-- @return Merged registry table
+local function merge_native_registries(...)
+    local merged = {}
+    for i = 1, select("#", ...) do
+        local registry = select(i, ...)
+        if registry then
+            for name, info in pairs(registry) do
+                merged[name] = info
+            end
+        end
+    end
+    return merged
+end
+-- }}}
+
 -- {{{ create_context
 -- Creates a new transpilation context for tracking state during code generation.
+-- @param options Optional configuration table:
+--   - native_registry: Pre-loaded native function registry (default: builtin natives)
+--   - use_runtime_prefix: Whether to prefix native calls with runtime. (default: true)
 -- @return Context table with output, symbol tables, and state tracking
-local function create_context()
+local function create_context(options)
+    options = options or {}
+
     return {
         -- Output management
         indent = 0,           -- Current indentation level (4 spaces per level)
@@ -40,8 +280,12 @@ local function create_context()
         -- Declaration tracking (populated in first pass)
         globals = {},         -- Global variable declarations {name -> {var_type, is_array, is_constant}}
         functions = {},       -- Function signatures {name -> {params, return_type}}
-        natives = {},         -- Native function declarations {name -> {params, return_type, is_constant}}
+        natives = {},         -- Native function declarations from map script {name -> {params, return_type, is_constant}}
         types = {},           -- Type definitions {name -> base_type}
+
+        -- Native function handling
+        native_registry = options.native_registry or init_builtin_natives(),
+        use_runtime_prefix = options.use_runtime_prefix ~= false,  -- Default true
 
         -- Current state during generation
         current_func = nil,   -- Name of function being transpiled (for local scoping)
@@ -158,11 +402,28 @@ end
 
 -- {{{ is_native
 -- Check if a function name refers to a native function.
+-- Checks both the pre-loaded native registry (from common.j or builtins)
+-- and natives declared in the map script itself.
 -- @param ctx Transpiler context
 -- @param name Function name to check
 -- @return true if name is a native function
 is_native = function(ctx, name)
-    return ctx.natives[name] ~= nil
+    -- Check native registry first (from common.j or builtins)
+    if ctx.native_registry and ctx.native_registry[name] then
+        return true
+    end
+
+    -- Check declarations collected from map script (native declarations in war3map.j)
+    if ctx.natives[name] then
+        return true
+    end
+
+    -- Check builtin natives set as final fallback
+    if builtin_natives_set[name] then
+        return true
+    end
+
+    return false
 end
 -- }}}
 
@@ -868,9 +1129,12 @@ end
 -- Main entry point: transpile JASS AST to Lua code.
 -- Uses two-pass architecture: collect declarations, then generate code.
 -- @param ast PROGRAM AST node from parser
+-- @param options Optional configuration table:
+--   - native_registry: Pre-loaded native function registry
+--   - use_runtime_prefix: Whether to prefix native calls with runtime. (default: true)
 -- @return lua_code string, errors array
-local function transpile(ast)
-    local ctx = create_context()
+local function transpile(ast, options)
+    local ctx = create_context(options)
 
     -- Validate input
     if not ast then
@@ -954,6 +1218,14 @@ transpiler._transpile_if = transpile_if
 transpiler._transpile_loop = transpile_loop
 transpiler._transpile_exitwhen = transpile_exitwhen
 transpiler._transpile_return = transpile_return
+
+-- Native function handling (306e)
+transpiler.load_natives = load_common_j_natives        -- Public API: parse common.j source
+transpiler._BUILTIN_NATIVES = BUILTIN_NATIVES          -- List of built-in native names
+transpiler._builtin_natives_set = builtin_natives_set  -- Lookup set for O(1) checks
+transpiler._init_builtin_natives = init_builtin_natives
+transpiler._load_natives_from_ast = load_natives_from_ast
+transpiler._merge_native_registries = merge_native_registries
 
 return transpiler
 -- }}}
