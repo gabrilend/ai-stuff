@@ -14,7 +14,7 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | Issues Created | 0/9 |
+| 3 | Logic Layer - Triggers and JASS | In Progress | 1/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
@@ -196,7 +196,7 @@ Phase 1 Complete (102 MPQ Parser)
 |----|------|--------|--------------|
 | 301 | Parse war3map.wtg (trigger definitions) | Pending | 102 |
 | 302 | Parse war3map.wct (custom text triggers) | Pending | 102, 301 |
-| 303 | Parse war3map.j (JASS script) | Pending | 102 |
+| 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
 | 304 | Build JASS lexer | Pending | 303 |
 | 305 | Build JASS parser | Pending | 304 |
 | 306 | Create JASS-to-Lua transpiler | Pending | 305 |
@@ -594,6 +594,13 @@ Phase 2 & 3 Complete
   - Updated acceptance criteria on all root issues
   - Added implementation notes summarizing work done
   - Phase 2 demo available via `./run-demo.sh 2`
+- **Issue 303 completed:** Parse war3map.j (JASS script)
+  - Created src/parsers/j.lua (JASS script extractor/analyzer)
+  - Created src/tests/test_j.lua (64 tests, all pass)
+  - Extracts JASS text, identifies sections (globals, functions)
+  - Validates structure (balanced blocks, entry points)
+  - Note: Test maps lack war3map.j (minimal maps) - used synthetic data
+  - Key finding: Lua `%w` doesn't match underscores, use `[%w_]+` for JASS identifiers
 
 ---
 
