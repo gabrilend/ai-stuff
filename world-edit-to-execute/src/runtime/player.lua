@@ -8,7 +8,10 @@ Provides:
 - Player data structure (slot, name, type, race, team, state)
 - Initialization from w3i parsed data
 - Basic accessors (get, exists, count)
-- Constants for player types, states, and races
+- Query functions (get_all, get_active, get_by_type, get_by_team)
+- Alliance management (set_alliance, get_alliance, is_ally, is_enemy)
+- Local player tracking for UI/camera perspective
+- Constants for player types, states, races, and alliance flags
 ]]
 
 local player = {}
@@ -42,6 +45,21 @@ local NEUTRAL_SLOT = 15
 
 -- Maximum player slots (0-15 = 16 slots)
 local MAX_PLAYERS = 16
+
+-- Alliance flags (407c)
+-- Note: Alliances are asymmetric - A->B can differ from B->A
+local ALLIANCE_FLAG = {
+    PASSIVE = "passive",                        -- Don't auto-attack this player's units
+    HELP_REQUEST = "help_request",              -- Show help requests from this player
+    HELP_RESPONSE = "help_response",            -- Respond to help requests from this player
+    SHARED_XP = "shared_xp",                    -- Share experience with this player
+    SHARED_SPELLS = "shared_spells",            -- Can target with beneficial spells
+    SHARED_VISION = "shared_vision",            -- See what this player sees
+    SHARED_CONTROL = "shared_control",          -- Can control this player's units
+    SHARED_ADVANCED_CONTROL = "shared_advanced_control",  -- Full control including sell/destroy
+    RESCUABLE = "rescuable",                    -- This player's units can be rescued
+    SHARED_VICTORY = "shared_victory",          -- Share victory/defeat with this player
+}
 -- }}}
 
 -- {{{ Internal state
@@ -157,7 +175,7 @@ function player.init_from_w3i(w3i_data)
         end
     end
 
-    -- Set teams from forces
+    -- Set teams from forces and apply alliance flags
     if w3i_data.forces then
         for force_idx, force in ipairs(w3i_data.forces) do
             local force_num = force.number or force.id or force_idx
@@ -174,6 +192,42 @@ function player.init_from_w3i(w3i_data)
                         players[slot].team_name = force.name
                     end
                 end
+            end
+
+            -- Apply alliance flags from force settings
+            -- Only apply to existing players in this force
+            local valid_slots = {}
+            for _, slot in ipairs(player_slots) do
+                if players[slot] then
+                    valid_slots[#valid_slots + 1] = slot
+                end
+            end
+
+            local flags = force.flags or {}
+
+            -- Allied forces share passive alliance (don't auto-attack)
+            if flags.allied then
+                player.set_team_alliance(valid_slots, ALLIANCE_FLAG.PASSIVE, true)
+            end
+
+            -- Allied victory means shared victory
+            if flags.allied_victory then
+                player.set_team_alliance(valid_slots, ALLIANCE_FLAG.SHARED_VICTORY, true)
+            end
+
+            -- Shared vision
+            if flags.share_vision then
+                player.set_team_alliance(valid_slots, ALLIANCE_FLAG.SHARED_VISION, true)
+            end
+
+            -- Shared unit control (rarely used in forces)
+            if flags.share_unit_control then
+                player.set_team_alliance(valid_slots, ALLIANCE_FLAG.SHARED_CONTROL, true)
+            end
+
+            -- Shared advanced control
+            if flags.share_adv_control then
+                player.set_team_alliance(valid_slots, ALLIANCE_FLAG.SHARED_ADVANCED_CONTROL, true)
             end
         end
     end
@@ -327,6 +381,171 @@ function player.get_neutral()
 end
 -- }}}
 
+-- ============================================================================
+-- Alliance Management (407c)
+-- ============================================================================
+
+-- {{{ function player.set_alliance
+-- Set an alliance flag from one player to another.
+-- Note: Alliances are NOT symmetric - A->B can differ from B->A.
+-- @param from_slot Source player slot
+-- @param to_slot Target player slot
+-- @param flag ALLIANCE_FLAG constant
+-- @param value Boolean value for the flag
+-- @return true on success, false and error message on failure
+function player.set_alliance(from_slot, to_slot, flag, value)
+    local p = players[from_slot]
+    if not p then
+        return false, "Source player not found"
+    end
+
+    if not players[to_slot] then
+        return false, "Target player not found"
+    end
+
+    -- Initialize alliance table for target if needed
+    if not p.alliances[to_slot] then
+        p.alliances[to_slot] = {}
+    end
+
+    local old_value = p.alliances[to_slot][flag]
+    p.alliances[to_slot][flag] = value
+
+    -- Fire event if changed (hook for event system)
+    if old_value ~= value and player._on_alliance_changed then
+        player._on_alliance_changed(from_slot, to_slot, flag, value)
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ function player.get_alliance
+-- Get an alliance flag from one player to another.
+-- @param from_slot Source player slot
+-- @param to_slot Target player slot
+-- @param flag ALLIANCE_FLAG constant
+-- @return Boolean value of the flag (false if not set or players don't exist)
+function player.get_alliance(from_slot, to_slot, flag)
+    local p = players[from_slot]
+    if not p then return false end
+    if not p.alliances[to_slot] then return false end
+    return p.alliances[to_slot][flag] or false
+end
+-- }}}
+
+-- {{{ function player.set_mutual_alliance
+-- Set an alliance flag in both directions (symmetric).
+-- @param slot_a First player slot
+-- @param slot_b Second player slot
+-- @param flag ALLIANCE_FLAG constant
+-- @param value Boolean value for the flag
+function player.set_mutual_alliance(slot_a, slot_b, flag, value)
+    player.set_alliance(slot_a, slot_b, flag, value)
+    player.set_alliance(slot_b, slot_a, flag, value)
+end
+-- }}}
+
+-- {{{ function player.set_team_alliance
+-- Set an alliance flag for all players in a list (mutual between all pairs).
+-- @param slots Array of player slots
+-- @param flag ALLIANCE_FLAG constant
+-- @param value Boolean value for the flag
+function player.set_team_alliance(slots, flag, value)
+    for i = 1, #slots do
+        for j = 1, #slots do
+            if slots[i] ~= slots[j] then
+                player.set_alliance(slots[i], slots[j], flag, value)
+            end
+        end
+    end
+end
+-- }}}
+
+-- {{{ function player.is_ally
+-- Check if two players are mutually allied (both have passive flag).
+-- A player is always allied with themselves.
+-- @param slot_a First player slot
+-- @param slot_b Second player slot
+-- @return true if mutually allied
+function player.is_ally(slot_a, slot_b)
+    if slot_a == slot_b then return true end
+
+    -- Both must have passive flag set toward each other
+    return player.get_alliance(slot_a, slot_b, ALLIANCE_FLAG.PASSIVE) and
+           player.get_alliance(slot_b, slot_a, ALLIANCE_FLAG.PASSIVE)
+end
+-- }}}
+
+-- {{{ function player.is_enemy
+-- Check if two players are enemies (not mutually allied).
+-- @param slot_a First player slot
+-- @param slot_b Second player slot
+-- @return true if enemies
+function player.is_enemy(slot_a, slot_b)
+    return not player.is_ally(slot_a, slot_b)
+end
+-- }}}
+
+-- {{{ function player.has_vision
+-- Check if player A can see player B's units.
+-- @param slot_a Viewer player slot
+-- @param slot_b Target player slot
+-- @return true if slot_a can see slot_b's units
+function player.has_vision(slot_a, slot_b)
+    if slot_a == slot_b then return true end
+    -- A sees B if B shares vision with A
+    return player.get_alliance(slot_b, slot_a, ALLIANCE_FLAG.SHARED_VISION)
+end
+-- }}}
+
+-- {{{ function player.can_control
+-- Check if player A can control player B's units.
+-- @param slot_a Controller player slot
+-- @param slot_b Target player slot
+-- @return true if slot_a can control slot_b's units
+function player.can_control(slot_a, slot_b)
+    if slot_a == slot_b then return true end
+    -- A controls B if B shares control with A
+    return player.get_alliance(slot_b, slot_a, ALLIANCE_FLAG.SHARED_CONTROL)
+end
+-- }}}
+
+-- {{{ function player.get_allies
+-- Get array of all players allied to the given player.
+-- @param slot Player slot
+-- @return Array of allied player data tables
+function player.get_allies(slot)
+    local result = {}
+    for other_slot, p in pairs(players) do
+        if player.is_ally(slot, other_slot) then
+            result[#result + 1] = p
+        end
+    end
+    return result
+end
+-- }}}
+
+-- {{{ function player.get_enemies
+-- Get array of all players hostile to the given player.
+-- Excludes neutral player (slot 15).
+-- @param slot Player slot
+-- @return Array of enemy player data tables
+function player.get_enemies(slot)
+    local result = {}
+    for other_slot, p in pairs(players) do
+        if player.is_enemy(slot, other_slot) and p.type ~= PLAYER_TYPE.NEUTRAL then
+            result[#result + 1] = p
+        end
+    end
+    return result
+end
+-- }}}
+
+-- ============================================================================
+-- Local Player (407f)
+-- ============================================================================
+
 -- {{{ function player.set_local
 -- Set the local player slot (for UI/camera purposes).
 -- @param slot Local player slot
@@ -374,6 +593,7 @@ player.PLAYER_STATE = PLAYER_STATE
 player.RACE = RACE
 player.NEUTRAL_SLOT = NEUTRAL_SLOT
 player.MAX_PLAYERS = MAX_PLAYERS
+player.ALLIANCE_FLAG = ALLIANCE_FLAG
 
 -- Internal for testing
 player._create_player = create_player
