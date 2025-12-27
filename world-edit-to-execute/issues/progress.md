@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 10/14 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 11/15 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -274,7 +274,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 407 | Create player state management | In Progress | 401, 402 |
 | 407a | Player data structure | **Completed** | 103 (w3i) |
 | 407b | Player queries | **Completed** | 407a |
-| 407c | Alliance management | Pending | 407a |
+| 407c | Alliance management | **Completed** | 407a |
 | 407d | Player state transitions | Pending | 407a |
 | 407e | Victory conditions | Pending | 407c, 407d |
 | 407f | Local player support | **Completed** | 407a |
@@ -775,7 +775,16 @@ Phase 2 & 3 Complete
   - 407f: Local player support - **COMPLETED**
     - set_local(), get_local(), get_local_slot()
     - Foundation for UI/camera perspective
-  - Remaining: 407c (alliances), 407d (state transitions), 407e (victory)
+  - 407c: Alliance management - **COMPLETED**
+    - ALLIANCE_FLAG constants (10 flags)
+    - set_alliance(), get_alliance() for asymmetric alliances
+    - set_mutual_alliance(), set_team_alliance() helpers
+    - is_ally(), is_enemy(), has_vision(), can_control()
+    - get_allies(), get_enemies() query functions
+    - init_from_w3i applies force alliance flags
+    - _on_alliance_changed event hook
+    - 24 new tests (63 total player tests)
+  - Remaining: 407d (state transitions), 407e (victory)
 
 ---
 
@@ -845,7 +854,7 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 407a: Player data structure - **COMPLETED** (39 tests)
    - 407b: Player queries - **COMPLETED**
    - 407f: Local player support - **COMPLETED**
-   - 407c: Alliance management - Pending
+   - 407c: Alliance management - **COMPLETED** (63 tests total)
    - 407d: Player state transitions - Pending
    - 407e: Victory conditions - Pending
 5. **404-406, 408** - Pending (movement, collision, resources, integration tests)
