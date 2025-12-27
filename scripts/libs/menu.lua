@@ -53,6 +53,12 @@ local state = {
     -- Types: "text" (static), "file" (read from path), "item_file" (use current item's filepath)
     -- The last source gets remaining available space
     content_sources = {},
+    -- Content panel scrolling state
+    content_scroll_offset = 0,
+    content_total_lines = 0,
+    content_cached_lines = nil,
+    content_cached_filepath = nil,
+    content_visible_lines = 0,
 }
 -- }}}
 
@@ -92,6 +98,12 @@ function menu.init(config)
     state.cmd_files_expanded = false  -- Track when files are expanded in command preview
     -- Content sources for preview panel
     state.content_sources = config.content_sources or {}
+    -- Content panel scrolling state
+    state.content_scroll_offset = 0
+    state.content_total_lines = 0
+    state.content_cached_lines = nil  -- Cache file content to avoid re-reading
+    state.content_cached_filepath = nil  -- Track which file is cached
+    state.content_visible_lines = 0  -- How many lines are visible
 
     -- Process sections
     for _, section in ipairs(config.sections or {}) do
@@ -251,6 +263,86 @@ local function read_file_lines(filepath, max_lines)
     end
     file:close()
     return lines
+end
+-- }}}
+
+-- {{{ get_cached_file_content
+-- Read all lines from a file with caching for scrolling
+-- Returns cached lines if same filepath, otherwise reads and caches
+-- Caps at 1000 lines to avoid memory issues
+local function get_cached_file_content(filepath)
+    local max_lines = 1000
+
+    -- Return cached if same file
+    if state.content_cached_filepath == filepath and state.content_cached_lines then
+        return state.content_cached_lines
+    end
+
+    -- Read new file
+    local lines = {}
+    local file = io.open(filepath, "r")
+    if not file then
+        state.content_cached_lines = lines
+        state.content_cached_filepath = filepath
+        state.content_total_lines = 0
+        return lines
+    end
+
+    local count = 0
+    for line in file:lines() do
+        count = count + 1
+        if count > max_lines then break end
+        -- Truncate very long lines
+        if #line > 200 then
+            line = line:sub(1, 197) .. "..."
+        end
+        table.insert(lines, line)
+    end
+    file:close()
+
+    -- Cache and update state
+    state.content_cached_lines = lines
+    state.content_cached_filepath = filepath
+    state.content_total_lines = #lines
+    state.content_scroll_offset = 0  -- Reset scroll when file changes
+
+    return lines
+end
+-- }}}
+
+-- {{{ render_scrollbar
+-- Render a vertical scrollbar in the rightmost column
+-- Returns nothing, draws directly to framebuffer
+local function render_scrollbar(start_row, height, total_items, visible_start, visible_count)
+    if total_items <= visible_count then return end  -- No scrollbar needed
+
+    local scroll_col = state.cols - 1
+
+    -- Calculate scrollbar thumb position and size
+    local thumb_size = math.max(1, math.floor(visible_count / total_items * height))
+    local thumb_pos = math.floor(visible_start / total_items * height)
+
+    -- Ensure thumb doesn't go past end
+    if thumb_pos + thumb_size > height then
+        thumb_pos = height - thumb_size
+    end
+
+    tui.reset_style()
+    tui.set_fg(tui.FG_WHITE)
+    tui.set_attrs(tui.ATTR_DIM)
+
+    for i = 0, height - 1 do
+        local row = start_row + i
+        local char
+        if i >= thumb_pos and i < thumb_pos + thumb_size then
+            char = "█"  -- Thumb (filled)
+        else
+            char = "░"  -- Track (empty)
+        end
+        tui.write_str(row, scroll_col, char)
+    end
+
+    tui.reset_style()
 end
 -- }}}
 
@@ -1659,18 +1751,22 @@ end
 -- {{{ render_content_source
 -- Render a single content source, returns next row
 -- available_lines: max lines this source can use
+-- Supports scrolling for item_file type content
 local function render_content_source(row, source, available_lines)
     if available_lines <= 0 then return row end
 
     local content_lines = {}
     local label = source.label or ""
+    local use_scrolling = false  -- Only enable scrolling for item_file type
+    local filepath = nil
 
     -- Get content based on source type
     if source.type == "item_file" then
-        -- Use current item's filepath
-        local filepath = get_current_item_filepath()
+        -- Use current item's filepath - with caching and scrolling support
+        filepath = get_current_item_filepath()
         if filepath then
-            content_lines = read_file_lines(filepath, available_lines)
+            content_lines = get_cached_file_content(filepath)
+            use_scrolling = true
             if label == "" then
                 -- Default label: filename
                 label = filepath:match("([^/]+)$") or ""
@@ -1695,28 +1791,68 @@ local function render_content_source(row, source, available_lines)
     if #content_lines == 0 then return row end
 
     -- Render label if present (uses 1 line)
+    -- For scrolling content, include line range indicator
     local content_start = row
     if label ~= "" then
         tui.clear_row(row)
         tui.set_fg(tui.FG_CYAN)
         tui.set_attrs(tui.ATTR_DIM)
-        local max_label = state.cols - 4
-        if #label > max_label then
-            label = label:sub(1, max_label - 3) .. "..."
+
+        local range_indicator = ""
+        if use_scrolling and #content_lines > available_lines - 1 then
+            local start_line = state.content_scroll_offset + 1
+            local end_line = math.min(state.content_scroll_offset + available_lines - 1, #content_lines)
+            range_indicator = string.format(" [%d-%d of %d]", start_line, end_line, #content_lines)
         end
-        tui.write_str(row, 2, label)
+
+        local max_label = state.cols - 4 - #range_indicator
+        local display_label = label
+        if #display_label > max_label then
+            display_label = display_label:sub(1, max_label - 3) .. "..."
+        end
+        tui.write_str(row, 2, display_label)
+
+        -- Show range indicator on the right
+        if range_indicator ~= "" then
+            tui.write_str(row, state.cols - #range_indicator - 1, range_indicator)
+        end
+
         tui.reset_style()
         row = row + 1
         content_start = row
     end
 
+    -- Calculate how many lines we can show
+    local lines_available = available_lines - (row - content_start + 1) + 1
+    local lines_to_show = math.min(#content_lines, lines_available)
+
+    -- Apply scroll offset for scrollable content
+    local scroll_offset = 0
+    if use_scrolling then
+        scroll_offset = state.content_scroll_offset
+        -- Clamp scroll offset to valid range
+        if scroll_offset > #content_lines - lines_to_show then
+            scroll_offset = math.max(0, #content_lines - lines_to_show)
+            state.content_scroll_offset = scroll_offset
+        end
+        -- Store visible lines count for scrollbar and navigation
+        state.content_visible_lines = lines_to_show
+    end
+
+    -- Reserve space for scrollbar if needed
+    local has_scrollbar = use_scrolling and #content_lines > lines_to_show
+    local max_len = state.cols - 4
+    if has_scrollbar then
+        max_len = max_len - 2  -- Leave space for scrollbar
+    end
+
     -- Render content lines
-    local lines_to_show = math.min(#content_lines, available_lines - (row - content_start + 1) + 1)
+    local content_row_start = row
     for i = 1, lines_to_show do
         if row > state.rows - 3 then break end  -- Leave room for footer
         tui.clear_row(row)
-        local line = content_lines[i] or ""
-        local max_len = state.cols - 4
+        local line_idx = i + scroll_offset
+        local line = content_lines[line_idx] or ""
         if #line > max_len then
             line = line:sub(1, max_len - 3) .. "..."
         end
@@ -1724,6 +1860,12 @@ local function render_content_source(row, source, available_lines)
         tui.write_str(row, 3, line)
         tui.reset_style()
         row = row + 1
+    end
+
+    -- Render scrollbar if content is scrollable
+    if has_scrollbar then
+        local scrollbar_height = row - content_row_start
+        render_scrollbar(content_row_start, scrollbar_height, #content_lines, scroll_offset, lines_to_show)
     end
 
     return row
@@ -3170,9 +3312,21 @@ function menu.run()
             -- Go to top
             elseif key == "g" then
                 menu.nav_top()
-            -- Go to bottom
+            -- Go to bottom (uppercase G)
             elseif key == "G" then
                 menu.nav_bottom()
+            -- Shift+J: Scroll content panel down
+            elseif key == "J" then
+                menu.content_scroll_down()
+            -- Shift+K: Scroll content panel up
+            elseif key == "K" then
+                menu.content_scroll_up()
+            -- Page Down: Scroll content panel down by page
+            elseif key == "PAGE_DOWN" or key == "CTRL_D" then
+                menu.content_scroll_page_down()
+            -- Page Up: Scroll content panel up by page
+            elseif key == "PAGE_UP" or key == "CTRL_U" then
+                menu.content_scroll_page_up()
             -- Jump to action item: `
             elseif key == "`" then
                 menu.nav_to_action()
@@ -3553,6 +3707,90 @@ function menu.batch_pause(options)
             return nil
         end
     end
+end
+-- }}}
+
+-- {{{ menu.content_scroll_down
+-- Scroll content panel down by specified number of lines
+-- Used with Shift+J or other scroll key bindings
+function menu.content_scroll_down(lines)
+    lines = lines or 1
+    if state.content_total_lines == 0 then return false end
+
+    local max_offset = math.max(0, state.content_total_lines - state.content_visible_lines)
+    local new_offset = math.min(state.content_scroll_offset + lines, max_offset)
+
+    if new_offset ~= state.content_scroll_offset then
+        state.content_scroll_offset = new_offset
+        menu.render()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ menu.content_scroll_up
+-- Scroll content panel up by specified number of lines
+-- Used with Shift+K or other scroll key bindings
+function menu.content_scroll_up(lines)
+    lines = lines or 1
+    if state.content_total_lines == 0 then return false end
+
+    local new_offset = math.max(0, state.content_scroll_offset - lines)
+
+    if new_offset ~= state.content_scroll_offset then
+        state.content_scroll_offset = new_offset
+        menu.render()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ menu.content_scroll_page_down
+-- Scroll content panel down by one page (visible lines)
+function menu.content_scroll_page_down()
+    if state.content_visible_lines > 0 then
+        return menu.content_scroll_down(state.content_visible_lines - 1)
+    end
+    return false
+end
+-- }}}
+
+-- {{{ menu.content_scroll_page_up
+-- Scroll content panel up by one page (visible lines)
+function menu.content_scroll_page_up()
+    if state.content_visible_lines > 0 then
+        return menu.content_scroll_up(state.content_visible_lines - 1)
+    end
+    return false
+end
+-- }}}
+
+-- {{{ menu.content_scroll_top
+-- Scroll content panel to the top
+function menu.content_scroll_top()
+    if state.content_scroll_offset ~= 0 then
+        state.content_scroll_offset = 0
+        menu.render()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ menu.content_scroll_bottom
+-- Scroll content panel to the bottom
+function menu.content_scroll_bottom()
+    if state.content_total_lines == 0 then return false end
+
+    local max_offset = math.max(0, state.content_total_lines - state.content_visible_lines)
+    if state.content_scroll_offset ~= max_offset then
+        state.content_scroll_offset = max_offset
+        menu.render()
+        return true
+    end
+    return false
 end
 -- }}}
 
