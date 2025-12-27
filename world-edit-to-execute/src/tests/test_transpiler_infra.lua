@@ -502,7 +502,7 @@ endglobals
 ]])
     local output, errors = transpiler.transpile(ast)
     assert_eq(#errors, 0, "no errors")
-    assert_contains(output, "globals", "globals mentioned in output")
+    assert_contains(output, "Globals", "globals mentioned in output")
 end
 -- }}}
 
@@ -533,7 +533,7 @@ endfunction
     assert_eq(#errors, 0, "no errors for multiple declarations")
     assert_contains(output, "type mytype", "type in output")
     assert_contains(output, "native Foo", "native in output")
-    assert_contains(output, "globals", "globals in output")
+    assert_contains(output, "Globals", "globals in output")
     assert_contains(output, "function Bar", "function in output")
 end
 -- }}}
