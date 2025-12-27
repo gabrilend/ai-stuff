@@ -14,8 +14,8 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | In Progress | 4/9 |
-| 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
+| 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 4/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -207,7 +207,12 @@ Phase 1 Complete (102 MPQ Parser)
 | 304b | Lexer keywords/identifiers/operators | **Completed** | 304a |
 | 304c | Lexer literals | **Completed** | 304a |
 | 304d | Lexer tests and validation | **Completed** | 304a-c |
-| 305 | Build JASS parser | Pending | 304 |
+| 305 | Build JASS parser | **Completed** | 304 |
+| 305a | Parser infrastructure | **Completed** | 304 |
+| 305b | Parse declarations | **Completed** | 305a |
+| 305c | Parse expressions | **Completed** | 305a |
+| 305d | Parse statements | **Completed** | 305a, 305c |
+| 305e | Parser tests | **Completed** | 305a-d |
 | 306 | Create JASS-to-Lua transpiler | Pending | 305 |
 | 307 | Implement trigger framework | Pending | 306 |
 | 308 | Build event dispatch system | Pending | 307 |
@@ -242,8 +247,15 @@ Phase 1 Complete (102 MPQ Parser)
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 401 | Implement game tick/update loop | Pending | Phase 2, Phase 3 |
-| 402 | Build entity component system | Pending | 401 |
+| 401 | Implement game tick/update loop | In Progress | Phase 2, Phase 3 |
+| 401a | Core fixed timestep loop | **Completed** | None |
+| 401b | Timer subsystem | **Completed** | 401a |
+| 402 | Build entity component system | In Progress | 401 |
+| 402a | Entity manager | **Completed** | 401a |
+| 402b | Component registry | **Completed** | 402a |
+| 402c | Component queries | Pending | 402a, 402b |
+| 402d | System registration | Pending | 402a |
+| 402e | Define core WC3 components | Pending | 402a |
 | 403 | Implement basic pathfinding | Pending | 401, 402, 105 |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
@@ -654,6 +666,38 @@ Phase 2 & 3 Complete
   - Performance tests (50k lines in 1.3s, well under 5s threshold)
   - All 195 lexer tests pass (58 comprehensive + 28 core + 56 keywords + 53 literals)
 - **Issue 304 completed:** Build JASS lexer (all sub-issues done)
+- **Issue 401a completed:** Core fixed timestep loop
+  - Created src/runtime/gameloop.lua (~250 lines)
+  - Created src/tests/test_gameloop.lua (69 tests, all pass)
+  - 62.5 Hz tick rate (16ms), accumulator pattern
+  - Functions: tick(), update(dt), pause/resume, set_speed, tick callbacks
+- **Issue 401b completed:** Timer subsystem
+  - Created src/runtime/timers.lua (~350 lines)
+  - Created src/tests/test_timers.lua (73 tests, all pass)
+  - Min-heap priority queue for O(log n) operations
+  - WC3-compatible API: CreateTimer, TimerStart, Pause/Resume, Get queries
+- **Issue 402a completed:** Entity manager (ECS core)
+  - Created src/runtime/ecs/entity.lua (~180 lines)
+  - Created src/runtime/ecs/init.lua (~45 lines)
+  - Created src/tests/test_ecs_entity.lua (64 tests, all pass)
+  - Entity creation/destruction with ID recycling (LIFO)
+  - Lifecycle hooks for component integration
+- **Issue 402b completed:** Component registry
+  - Created src/runtime/ecs/component.lua (~240 lines)
+  - Updated src/runtime/ecs/init.lua with component exports
+  - Created src/tests/test_ecs_component.lua (99 tests, all pass)
+  - Metatable inheritance for efficient defaults
+  - Dual indexing for fast queries (by type and by entity)
+  - Automatic cleanup on entity destruction via lifecycle hooks
+- **Issue 305 completed:** Build JASS parser (all sub-issues done)
+  - 305a: Parser infrastructure - tokenization wrapper, error recovery, AST builder
+  - 305b: Parse declarations - type, globals, natives, functions
+  - 305c: Parse expressions - literals, identifiers, binary/unary, function calls, array access
+  - 305d: Parse statements - set, call, if/then/else, loop/exitwhen, return, local
+  - 305e: Parser tests - unified test_parser.lua (57 tests), 305 total parser tests
+  - Created src/jass/parser.lua (~800 lines, recursive descent parser)
+  - Created src/jass/ast.lua (AST node types and constructor functions)
+  - All parser tests pass: 57+56+19+64+109 = 305 tests
 
 ---
 
@@ -687,11 +731,32 @@ Phase 3 in progress (4/9 root issues complete):
    - 304c: Literals (integers, reals, strings, rawcodes) - **COMPLETED**
    - 304d: Tests and validation - **COMPLETED**
    - Total: 195 lexer tests pass
-5. **305 - Build JASS parser** (AST generation) - Next up
-6. **306 - Create JASS-to-Lua transpiler**
+5. **305 - Build JASS parser** (AST generation) - **COMPLETED**
+   - 305a: Parser infrastructure - **COMPLETED**
+   - 305b: Parse declarations - **COMPLETED**
+   - 305c: Parse expressions - **COMPLETED**
+   - 305d: Parse statements - **COMPLETED**
+   - 305e: Parser tests - **COMPLETED**
+   - Total: 305 parser tests pass
+6. **306 - Create JASS-to-Lua transpiler** - Next up
 7. **307 - Implement trigger framework** (conditions/actions)
 8. **308 - Build event dispatch system**
 9. **309 - Phase 3 integration test**
+
+### Phase 4 - Runtime: Basic Engine Loop
+
+Phase 4 in progress (4/8 root issues complete):
+
+1. **401 - Game tick/update loop** - In Progress
+   - 401a: Core fixed timestep loop - **COMPLETED**
+   - 401b: Timer subsystem - **COMPLETED**
+2. **402 - Entity component system** - In Progress
+   - 402a: Entity manager - **COMPLETED**
+   - 402b: Component registry - **COMPLETED**
+   - 402c: Component queries - Next up
+   - 402d: System registration
+   - 402e: Define core WC3 components
+3. **403-408** - Pending (pathfinding, movement, collision, resources, player state, tests)
 
 ### Previous Phases
 
