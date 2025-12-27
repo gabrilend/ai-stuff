@@ -22,6 +22,9 @@ local state = {
     shortcuts = {},         -- key -> item_id (custom shortcut keys)
     dependencies = {},      -- item_id -> {depends_on, required_values, invert, reason, color}
     disabled_reasons = {},  -- item_id -> {reason=string, color=string} when disabled by dependency
+    prerequisites = {},     -- item_id -> {prerequisite_id, ...} - auto-enable prereqs when selected
+    suggested_deps = {},    -- item_id -> {depends_on, required_values, reason} - yellow highlight
+    flash_items = {},       -- item_id -> color - currently flashing items
     current_section = 1,
     current_item = 1,
     rows = 24,
@@ -65,6 +68,9 @@ function menu.init(config)
     state.shortcuts = {}
     state.dependencies = {}
     state.disabled_reasons = {}
+    state.prerequisites = {}
+    state.suggested_deps = {}
+    state.flash_items = {}
     state.current_section = 1
     state.current_item = 1
     state.flag_edit_started = {}
@@ -145,6 +151,32 @@ function menu.init(config)
                     color = dep.color or "yellow"
                 }
             end
+        end
+    end
+
+    -- Process prerequisites from config
+    -- Prerequisites: when item_id is selected, prerequisite_id auto-enables with flash
+    for _, prereq in ipairs(config.prerequisites or {}) do
+        local item_id = prereq.item_id
+        local prereq_id = prereq.prerequisite_id
+        if state.item_data[item_id] and state.item_data[prereq_id] then
+            state.prerequisites = state.prerequisites or {}
+            state.prerequisites[item_id] = state.prerequisites[item_id] or {}
+            table.insert(state.prerequisites[item_id], prereq_id)
+        end
+    end
+
+    -- Process suggested dependencies from config
+    -- Suggested deps: show yellow highlight when trigger is active but item not selected
+    for _, suggest in ipairs(config.suggested_deps or {}) do
+        local item_id = suggest.item_id
+        if state.item_data[item_id] then
+            state.suggested_deps = state.suggested_deps or {}
+            state.suggested_deps[item_id] = {
+                depends_on = suggest.depends_on,
+                required_values = suggest.required_values or {"1"},
+                reason = suggest.reason or nil
+            }
         end
     end
 
@@ -293,6 +325,31 @@ update_disabled_states = function()
             end
         end
     end
+end
+-- }}}
+
+-- {{{ get_suggested_state
+-- Check if an item is in "suggested" state (yellow highlight when not yet selected)
+-- Returns true if the item should be highlighted yellow as a suggestion
+local function get_suggested_state(item_id)
+    if not state.suggested_deps or not state.suggested_deps[item_id] then
+        return false
+    end
+
+    local dep = state.suggested_deps[item_id]
+    local dep_value = state.values[dep.depends_on]
+
+    -- Check if trigger condition is met
+    local triggered = false
+    for _, req_val in ipairs(dep.required_values) do
+        if dep_value == req_val then
+            triggered = true
+            break
+        end
+    end
+
+    -- Only suggest if triggered AND item is not yet selected
+    return triggered and state.values[item_id] ~= "1"
 end
 -- }}}
 
@@ -1286,15 +1343,36 @@ local function render_item(row, item_id, highlight, item_num, section_type)
     -- Label
     tui.reset_style()
 
+    -- Check if this item is being flashed
+    local flash_color = state.flash_items and state.flash_items[item_id]
+
+    -- Check if this item is in "suggested" state (yellow highlight when not selected)
+    local is_suggested = get_suggested_state and get_suggested_state(item_id)
+
     -- Check if this item is blocking the currently selected disabled item
     local blocker_color = get_blocker_color_for_item(item_id)
 
-    if is_invalid then
+    if flash_color then
+        -- Flash overrides all other coloring
+        if flash_color == "red" then
+            tui.set_fg(tui.FG_RED)
+        elseif flash_color == "green" then
+            tui.set_fg(tui.FG_GREEN)
+        elseif flash_color == "yellow" then
+            tui.set_fg(tui.FG_YELLOW)
+        elseif flash_color == "cyan" then
+            tui.set_fg(tui.FG_CYAN)
+        end
+        tui.set_attrs(tui.ATTR_BOLD)
+    elseif is_invalid then
         -- Conflicting/invalid state - show label in red
         tui.set_fg(tui.FG_RED)
         if highlight then
             tui.set_attrs(tui.ATTR_INVERSE)
         end
+    elseif is_suggested and not highlight then
+        -- Suggested state - yellow highlight to indicate "you probably want this"
+        tui.set_fg(tui.FG_YELLOW)
     elseif blocker_color and not highlight then
         -- This item is blocking the selected disabled item - highlight in the dependency's color
         if blocker_color == "red" then
@@ -2013,9 +2091,15 @@ function menu.toggle()
                 end
             end
             state.values[item_id] = "1"
+            -- Trigger any prerequisites when item is selected
+            trigger_prerequisites(item_id)
         else
             -- Toggle
             state.values[item_id] = state.values[item_id] == "1" and "0" or "1"
+            -- Trigger prerequisites when item becomes enabled
+            if state.values[item_id] == "1" then
+                trigger_prerequisites(item_id)
+            end
         end
     elseif data.type == "multistate" then
         -- Cycle through states (stored as comma-separated in config)
@@ -2062,6 +2146,8 @@ function menu.set_checkbox()
             end
         end
         state.values[item_id] = "1"
+        -- Trigger any prerequisites when item is selected
+        trigger_prerequisites(item_id)
         update_disabled_states()
         menu.render()
         return true
@@ -3229,6 +3315,212 @@ function menu.add_dependency_multi(item_id, depends_on_list, invert, reason, col
 
     update_disabled_states()
     return true
+end
+-- }}}
+
+-- {{{ menu.flash_item
+-- Flash an item's color for visual feedback
+-- Used for rejection feedback (red), auto-enable feedback (red), success (green)
+--
+-- Parameters:
+--   item_id: The item to flash
+--   count: Number of flashes (default 2)
+--   color: Flash color - "red", "yellow", "green", "cyan" (default "red")
+--   interval_ms: Milliseconds per flash pulse (default 100)
+--
+-- Example:
+--   menu.flash_item("session", 3, "red", 100)
+function menu.flash_item(item_id, count, color, interval_ms)
+    count = count or 2
+    color = color or "red"
+    interval_ms = interval_ms or 100
+
+    local data = state.item_data[item_id]
+    if not data then return false end
+
+    -- Store original flash state
+    local original_flash = state.flash_items and state.flash_items[item_id]
+
+    -- Initialize flash_items table if needed
+    state.flash_items = state.flash_items or {}
+
+    -- Convert interval to seconds for os.execute sleep
+    local sleep_sec = interval_ms / 1000
+
+    for i = 1, count do
+        -- Flash on
+        state.flash_items[item_id] = color
+        menu.render()
+        tui.present()
+        os.execute(string.format("sleep %.3f", sleep_sec))
+
+        -- Flash off
+        state.flash_items[item_id] = nil
+        menu.render()
+        tui.present()
+        os.execute(string.format("sleep %.3f", sleep_sec))
+    end
+
+    -- Restore original flash state
+    if original_flash then
+        state.flash_items[item_id] = original_flash
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ menu.force_enable
+-- Programmatically enable an item and flash it to draw attention
+-- Used when selecting one option requires enabling another (e.g., prerequisites)
+--
+-- Parameters:
+--   item_id: The item to enable
+--   flash_count: Number of flashes (default 3)
+--   flash_color: Color of flash (default "red")
+--
+-- Example:
+--   menu.force_enable("session", 3, "red")
+function menu.force_enable(item_id, flash_count, flash_color)
+    flash_count = flash_count or 3
+    flash_color = flash_color or "red"
+
+    local data = state.item_data[item_id]
+    if not data then return false end
+
+    -- Enable the item (set checkbox to 1)
+    if data.type == "checkbox" then
+        state.values[item_id] = "1"
+        update_disabled_states()
+    end
+
+    -- Flash to draw attention
+    menu.flash_item(item_id, flash_count, flash_color)
+
+    return true
+end
+-- }}}
+
+-- {{{ menu.add_prerequisite
+-- Add a prerequisite relationship: when item_id is selected, prerequisite_id is auto-enabled
+-- Prerequisite will flash red when auto-enabled
+--
+-- Parameters:
+--   item_id: The item that triggers the prerequisite
+--   prerequisite_id: The item that will be auto-enabled
+--
+-- Example:
+--   menu.add_prerequisite("generate_complete", "session")
+--   -- When "generate_complete" is selected, "session" is auto-enabled with flash
+function menu.add_prerequisite(item_id, prerequisite_id)
+    local data = state.item_data[item_id]
+    if not data then return false end
+
+    -- Initialize prerequisites table for this item
+    state.prerequisites = state.prerequisites or {}
+    state.prerequisites[item_id] = state.prerequisites[item_id] or {}
+
+    -- Add prerequisite
+    table.insert(state.prerequisites[item_id], prerequisite_id)
+
+    return true
+end
+-- }}}
+
+-- {{{ trigger_prerequisites
+-- Internal function: called when an item is selected to trigger its prerequisites
+local function trigger_prerequisites(item_id)
+    if not state.prerequisites or not state.prerequisites[item_id] then
+        return
+    end
+
+    for _, prereq_id in ipairs(state.prerequisites[item_id]) do
+        local prereq_data = state.item_data[prereq_id]
+        if prereq_data and prereq_data.type == "checkbox" then
+            -- Only enable if not already enabled
+            if state.values[prereq_id] ~= "1" then
+                menu.force_enable(prereq_id, 3, "red")
+            end
+        end
+    end
+end
+-- }}}
+
+-- {{{ menu.add_dependency_suggest
+-- Add a "suggested" dependency: item is highlighted yellow when trigger condition is met
+-- but item is not yet selected. Indicates "you probably want this" without forcing.
+--
+-- Parameters:
+--   item_id: The item to highlight as suggested
+--   depends_on: The item whose value triggers the suggestion
+--   required_values: Values of depends_on that trigger suggestion (default {"1"})
+--   reason: Optional message shown in description
+--
+-- Example:
+--   menu.add_dependency_suggest("elaborate", "execute", {"1"}, "Recommended for complete specs")
+function menu.add_dependency_suggest(item_id, depends_on, required_values, reason)
+    if not state.item_data[item_id] then return false end
+
+    state.suggested_deps = state.suggested_deps or {}
+    state.suggested_deps[item_id] = {
+        depends_on = depends_on,
+        required_values = required_values or {"1"},
+        reason = reason
+    }
+
+    return true
+end
+-- }}}
+
+-- {{{ menu.batch_pause
+-- Display a mid-process prompt during batch operations
+-- Returns the key pressed by the user
+--
+-- Parameters:
+--   options: Table mapping keys to labels, e.g., {c = "continue", r = "read file", s = "skip"}
+--
+-- Example:
+--   local choice = menu.batch_pause({c = "continue", r = "read file", s = "skip"})
+--   if choice == "r" then ... end
+function menu.batch_pause(options)
+    if not options or next(options) == nil then
+        return nil
+    end
+
+    -- Build prompt string: "[c]ontinue | [r]ead file | [s]kip"
+    local parts = {}
+    local valid_keys = {}
+    for key, label in pairs(options) do
+        table.insert(parts, string.format("[%s]%s", key, label))
+        valid_keys[key] = true
+    end
+    local prompt = table.concat(parts, " | ")
+
+    -- Clear a row and display the prompt
+    local prompt_row = state.rows - 1
+    tui.reset_style()
+    tui.clear_row(prompt_row)
+    tui.set_fg(tui.FG_YELLOW)
+    tui.set_attrs(tui.ATTR_BOLD)
+    tui.write_str(prompt_row, 2, prompt)
+    tui.present()
+
+    -- Wait for valid key
+    while true do
+        local key = tui.read_key()
+        if key and valid_keys[key] then
+            -- Clear the prompt
+            tui.clear_row(prompt_row)
+            tui.present()
+            return key
+        end
+        -- ESC or q to cancel
+        if key == "ESCAPE" or key == "q" then
+            tui.clear_row(prompt_row)
+            tui.present()
+            return nil
+        end
+    end
 end
 -- }}}
 
