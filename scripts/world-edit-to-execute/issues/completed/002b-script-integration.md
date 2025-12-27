@@ -304,3 +304,31 @@ log "  Validation: $valid_count valid, $invalid_count with warnings"
 
 - **Mid-process pause** (Step 7): Deferred as optional feature for future enhancement
 - Requires TUI batch pause component not yet implemented
+
+---
+
+## Post-Implementation Lessons Learned
+
+*Added 2025-12-27*
+
+### Critical Bug Discovered: `--continue` Flag Context Sharing
+
+**Problem:** The implementation used `--continue` flag to preserve context across Claude invocations. This was intended to let Claude remember analysis context when generating sub-issues.
+
+**Discovery:** Claude CLI's `--continue` flag shares context across ALL active Claude sessions system-wide, not per-project or per-script-invocation.
+
+**Symptoms Observed:**
+- Claude outputting "It seems my Bash command needs approval" during generation
+- Claude summarizing implementation progress from unrelated sessions
+- Claude attempting to write source code instead of markdown issue files
+- Cross-project context contamination
+
+**Resolution:** Issue 012 ("Remove Context Continuation") was created to remove all uses of `--continue`. The implementation in this issue must be updated accordingly.
+
+### Lesson for Future Implementations
+
+When using external tools that support "session" or "continue" features:
+1. Verify the SCOPE of session sharing (per-process? per-user? system-wide?)
+2. Test with concurrent sessions from different projects
+3. Prefer stateless invocations unless isolation is guaranteed
+4. Document session behavior in issue files before implementation
