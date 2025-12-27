@@ -770,6 +770,11 @@ parse_var_decl = function(state, allow_constant)
     node.initializer = nil
     if not node.is_array and match(state, TOKEN.ASSIGN) then
         node.initializer = parse_expression(state)
+    elseif node.is_array and check(state, TOKEN.ASSIGN) then
+        -- Error: arrays cannot have initializers, but parse it anyway
+        error_at_current(state, "Array variables cannot have initializers")
+        advance(state)  -- Skip the = sign
+        parse_expression(state)  -- Consume the invalid initializer
     end
 
     return node
@@ -795,13 +800,28 @@ parse_local_decl = function(state)
 end
 -- }}}
 
--- {{{ parse_statement (placeholder)
--- Placeholder for statement parsing (implemented in 305d).
--- For now, skips tokens until newline.
+-- {{{ parse_statement
+-- Parse a single statement within a function body.
+-- Dispatches to specific statement parsers based on leading keyword.
 -- @param state Parser state
 -- @return Statement AST node or nil
 parse_statement = function(state)
     local token = peek(state)
+
+    -- Handle debug keyword: skip it and parse the following statement
+    -- The debug flag indicates statement should only execute in debug mode
+    if match(state, TOKEN.DEBUG) then
+        -- Skip newlines/comments that might follow debug keyword
+        while check_any(state, TOKEN.NEWLINE, TOKEN.COMMENT) do
+            advance(state)
+        end
+        -- Parse the statement that follows debug
+        local stmt = parse_statement(state)
+        if stmt then
+            stmt.is_debug = true  -- Mark as debug-only statement
+        end
+        return stmt
+    end
 
     -- Handle set statement
     if match(state, TOKEN.SET) then
@@ -1054,6 +1074,15 @@ parse_function_def = function(state)
     while not check(state, TOKEN.ENDFUNCTION) and not at_end(state) do
         if check_any(state, TOKEN.NEWLINE, TOKEN.COMMENT) then
             advance(state)
+        elseif check(state, TOKEN.LOCAL) then
+            -- Error: locals must come before statements, but still parse
+            error_at_current(state, "Local declarations must appear at the beginning of the function")
+            local local_decl = parse_local_decl(state)
+            if local_decl then
+                -- Add to locals list to preserve AST structure
+                node.locals[#node.locals + 1] = local_decl
+            end
+            skip_newlines(state)
         else
             local stmt = parse_statement(state)
             if stmt then
