@@ -920,10 +920,10 @@ interactive_mode_tui() {
         # ═══════════════════════════════════════════════════════════════════════
         echo
         echo "╔══════════════════════════════════════════════════════════════╗"
-        echo "║                    Configuration Summary                      ║"
+        echo "║                    Configuration Summary                     ║"
         echo "╠══════════════════════════════════════════════════════════════╣"
-        echo "║ Directory: $(printf '%-49s' "$DIR")║"
-        echo "║ Issues selected: $(printf '%-43s' "${#SELECTED_ISSUES[@]}")║"
+        echo "║ Directory: $(printf '%-49s' "$DIR") ║"
+        echo "║ Issues selected: $(printf '%-43s' "${#SELECTED_ISSUES[@]}") ║"
         echo "╠══════════════════════════════════════════════════════════════╣"
 
         # Mode
@@ -933,7 +933,7 @@ interactive_mode_tui() {
         [[ "$EXECUTE_MODE" == true ]] && mode_str="Execute"
         [[ "$AUTO_IMPLEMENT" == true ]] && mode_str="Implement"
         [[ "$CLEAR_MODE" == true ]] && mode_str="Clear Analysis"
-        echo "║ Mode: $(printf '%-54s' "$mode_str")║"
+        echo "║ Mode: $(printf '%-54s' "$mode_str") ║"
 
         # Options
         local opts=""
@@ -945,7 +945,7 @@ interactive_mode_tui() {
         [[ "$SESSION_MODE" == true ]] && opts+="session, "
         [[ -z "$opts" ]] && opts="(none)"
         opts="${opts%, }"  # Remove trailing comma
-        echo "║ Options: $(printf '%-51s' "$opts")║"
+        echo "║ Options: $(printf '%-51s' "$opts") ║"
 
         # Streaming settings
         if [[ "$STREAMING_MODE" == true ]]; then
@@ -2383,7 +2383,22 @@ main() {
         echo
         log "Clear complete: $processed processed, $skipped skipped"
 
-    elif [[ "$REVIEW_ONLY" != true ]]; then
+    elif [[ "$EXECUTE_MODE" == true ]]; then
+        # Execute mode: skip analysis, go straight to executing recommendations
+        # (Phase 3 will run below)
+        log "Skipping analysis phase (Execute mode works with existing analysis)"
+
+    elif [[ "$AUTO_IMPLEMENT" == true ]]; then
+        # Auto-implement mode: skip analysis, go straight to implementation
+        # (Phase 4 will run below)
+        log "Skipping analysis phase (Auto-implement mode)"
+
+    elif [[ "$REVIEW_ONLY" == true ]]; then
+        # In review-only mode, just find roots with sub-issues
+        find_roots_with_subissues
+
+    else
+        # Analysis modes: Analyze, Feedback
         echo "════════════════════════════════════════════════════════════════"
         if [[ "$FEEDBACK_MODE" == true ]]; then
             log "PHASE 1: Analyzing issues with interactive feedback loop"
@@ -2423,9 +2438,6 @@ main() {
             echo
             log "Phase 1 complete: $processed processed, $skipped skipped"
         fi
-    else
-        # In review-only mode, just find roots with sub-issues
-        find_roots_with_subissues
     fi
 
     # Skip remaining phases for clear mode (it's a standalone operation)
