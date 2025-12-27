@@ -75,6 +75,7 @@ MAX_FEEDBACK_ROUNDS=10   # Safety limit on conversation rounds
 SESSION_MODE=false       # Reuse Claude context across issues (--continue)
 EXPERT_MODE=false        # Fresh context per issue (explicit default)
 SESSION_STARTED=false    # Track if first call has been made in session mode
+GENERATE_COMPLETE=false  # Use Claude tool calls to generate complete issue files
 
 # Track root issues that have sub-issues (for final review)
 declare -a ROOTS_WITH_SUBS=()
@@ -242,11 +243,18 @@ process_issue_parallel() {
             echo "$response"
         } >> "$issue_path"
 
-        # Archive if enabled
+        # Archive if enabled (append to preserve history)
         if [[ "$ARCHIVE_MODE" == true ]]; then
             mkdir -p "$ARCHIVE_DIR"
             local archive_file="${ARCHIVE_DIR}/${basename%.md}-analysis.md"
-            echo "$response" > "$archive_file"
+            {
+                echo ""
+                echo "═══════════════════════════════════════════════════════════════"
+                echo "Analysis: $(date '+%Y-%m-%d %H:%M:%S')"
+                echo "═══════════════════════════════════════════════════════════════"
+                echo ""
+                echo "$response"
+            } >> "$archive_file"
         fi
     else
         echo "failed" >> "$meta_file"
@@ -694,7 +702,9 @@ interactive_mode_tui() {
     menu_add_item "processing" "dry_run" "Dry Run" "checkbox" "0" \
         "Show what would happen without actually doing it" "d" "-n"
     menu_add_item "processing" "session" "Session Mode" "checkbox" "0" \
-        "Reuse Claude context across issues (faster, sequential only)" "e" "-S"
+        "Share context across issues (cross-issue awareness, less per-issue depth)" "e" "-S"
+    menu_add_item "processing" "generate_complete" "Generate Complete Issues" "checkbox" "0" \
+        "Claude writes full issue files via tool calls (enables Session Mode)" "g" ""
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Streaming Settings (inline editable flag values)
@@ -820,6 +830,17 @@ interactive_mode_tui() {
     menu_add_dependency "skip_existing" "execute" "1" "true" \
         "Execute mode requires analysis (would skip processable issues)" "yellow"
 
+    # "Generate Complete Issues" only available in Execute Recommendations mode
+    menu_add_dependency "generate_complete" "execute" "0" "true" \
+        "Only applies to Execute Recommendations mode" "yellow"
+
+    # Suggest "Generate Complete Issues" when Execute mode is selected (yellow highlight)
+    menu_add_dependency_suggest "generate_complete" "execute" "1" \
+        "Recommended for complete specifications"
+
+    # Auto-enable Session Mode when Generate Complete is selected
+    menu_add_prerequisite "generate_complete" "session"
+
     # Run the menu
     if menu_run; then
         tui_cleanup
@@ -862,6 +883,7 @@ interactive_mode_tui() {
         [[ "$(menu_get_value "execute_all")" == "1" ]] && EXECUTE_ALL=true
         [[ "$(menu_get_value "dry_run")" == "1" ]] && DRY_RUN=true
         [[ "$(menu_get_value "session")" == "1" ]] && SESSION_MODE=true
+        [[ "$(menu_get_value "generate_complete")" == "1" ]] && GENERATE_COMPLETE=true
 
         # ═══════════════════════════════════════════════════════════════════════
         # Extract streaming settings (0 = use default)
@@ -981,19 +1003,37 @@ build_prompt() {
     cat <<'EOF'
 Hello computer, all is well. Can you analyze this issue and suggest how it could be split into sub-issues?
 
-If you recommend splitting, format your suggestions as a markdown table with these exact columns:
+If you recommend splitting, provide:
 
-| ID | Name | Description |
-|----|------|-------------|
-| 103a | parse-header | Parse the header structure and validate magic bytes |
-| 103b | parse-body | Parse the main body content |
+### 1. Recommendation Table
+
+Format your suggestions as a markdown table with these exact columns:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 103a | parse-header | None | Parse the header structure and validate magic bytes |
+| 103b | parse-body | 103a | Parse the main body content (depends on header) |
 
 FORMAT REQUIREMENTS (for automatic parsing):
 - ID: parent issue number + lowercase letter (e.g., 103a, 103b, 103c)
 - Name: dash-separated lowercase words (e.g., parse-header, validate-input)
+- Dependencies: "None" or comma-separated IDs of sub-issues this depends on
 - Description: brief explanation of what this sub-issue covers
 - Each row must have pipes | separating the columns
-- Do NOT include a header row separator in data rows
+
+### 2. Rationale
+
+Explain WHY splitting makes sense for this issue:
+- What distinct work streams exist?
+- Why can't this be done as a single issue?
+- What benefits does splitting provide?
+
+### 3. Execution Order
+
+Show the dependency graph and recommended implementation order:
+```
+103a (foundation) → 103b (depends on 103a) → 103c (parallel with 103b)
+```
 
 If the issue is already small enough or doesn't benefit from splitting, explain why
 and do not include a recommendations table.
@@ -1037,12 +1077,16 @@ fully understand the requirements before finalizing your analysis.
    - A summary of understanding based on our conversation
    - Suggested sub-issues as a markdown table:
 
-     | ID | Name | Description |
-     |----|------|-------------|
-     | 103a | setup-foundation | Initial setup and scaffolding |
-     | 103b | implement-core | Core implementation logic |
+     | ID | Name | Dependencies | Description |
+     |----|------|--------------|-------------|
+     | 103a | setup-foundation | None | Initial setup and scaffolding |
+     | 103b | implement-core | 103a | Core implementation logic |
+
+   - A rationale section explaining why splitting makes sense
+   - An execution order showing the dependency graph
 
    FORMAT: ID must be parent number + letter (103a), Name must be dash-separated.
+   Dependencies: "None" or comma-separated IDs this sub-issue depends on.
 
 ## Types of Good Questions
 
@@ -1280,20 +1324,19 @@ $response" "$user_response")
 
     log "  Analysis appended to issue"
 
-    # Archive if enabled
+    # Archive if enabled (append to preserve history)
     if [[ "$ARCHIVE_MODE" == true ]]; then
         mkdir -p "$ARCHIVE_DIR"
         local archive_file="${ARCHIVE_DIR}/${basename%.md}-feedback-analysis.md"
         {
-            echo "# Feedback Analysis: $basename"
             echo ""
-            echo "Generated: $(date '+%Y-%m-%d %H:%M')"
+            echo "═══════════════════════════════════════════════════════════════"
+            echo "Feedback Analysis: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "Rounds: $round"
-            echo ""
-            echo "---"
+            echo "═══════════════════════════════════════════════════════════════"
             echo ""
             echo "$final_analysis"
-        } > "$archive_file"
+        } >> "$archive_file"
         log "  Archived to: $archive_file"
     fi
 
@@ -1346,6 +1389,115 @@ $(cat "$subissue")
     done < <(get_subissues_for_root "$root_id")
 
     echo "$prompt"
+}
+# }}}
+
+# {{{ build_generation_prompt
+# Build a prompt that instructs Claude to generate complete issue files using Write tool
+# Takes parent issue path and list of sub-issue file paths to generate
+build_generation_prompt() {
+    local parent_path="$1"
+    shift
+    local subissues=("$@")
+    local parent_content
+    parent_content=$(cat "$parent_path")
+
+    cat <<'EOF'
+You analyzed this issue and recommended sub-issue splits.
+Now use the Write tool to create complete issue files.
+
+For each file, include these sections:
+- **Current Behavior** - What exists now (infer from parent issue context)
+- **Intended Behavior** - Detailed specification of what should happen
+- **Suggested Implementation Steps** - Concrete, numbered, actionable steps
+- **Related Documents** - Parent issue, siblings, relevant code paths
+- **Acceptance Criteria** - Testable checkbox items (use markdown checkboxes)
+
+IMPORTANT:
+- Use the Write tool directly to create each file with complete, implementation-ready content
+- Do NOT use placeholders like "(To be filled in)" - provide real content based on context
+- Each step should be specific enough for a developer to implement without further clarification
+- Reference specific files, functions, or code patterns when known
+
+EOF
+
+    echo "Parent issue context:"
+    echo ""
+    echo "---"
+    echo ""
+    echo "$parent_content"
+    echo ""
+    echo "---"
+    echo ""
+    echo "Files to generate (use Write tool for each):"
+    echo ""
+
+    for f in "${subissues[@]}"; do
+        echo "- $f"
+    done
+}
+# }}}
+
+# {{{ generate_complete_issues
+# Invoke Claude with Write tool permissions to generate complete issue files
+# Falls back to skeleton generation on failure
+generate_complete_issues() {
+    local parent_path="$1"
+    shift
+    local subissues=("$@")
+
+    local prompt
+    prompt=$(build_generation_prompt "$parent_path" "${subissues[@]}")
+
+    log "  Generating complete issue files via Claude..."
+
+    # Use --continue to maintain session context if in session mode
+    # Use --allowedTools to restrict Claude to only Write tool
+    local claude_opts=("--allowedTools" "Write" "-p" "$prompt")
+    if [[ "$SESSION_MODE" == true ]] && [[ "$SESSION_STARTED" == true ]]; then
+        claude_opts=("--continue" "--allowedTools" "Write" "-p" "$prompt")
+    fi
+
+    if timeout 600 claude "${claude_opts[@]}" 2>&1; then
+        # Mark session as started if using session mode
+        if [[ "$SESSION_MODE" == true ]]; then
+            SESSION_STARTED=true
+        fi
+        log "  Generation complete"
+        return 0
+    else
+        log "  [ERROR] Generation failed or timed out"
+        return 1
+    fi
+}
+# }}}
+
+# {{{ validate_issue_file
+# Check that a generated issue file has all required sections
+# Returns 0 if valid, 1 if missing sections (with warnings logged)
+validate_issue_file() {
+    local file="$1"
+    local missing=()
+
+    # Check file exists
+    if [[ ! -f "$file" ]]; then
+        log "  WARNING: File not created: $file"
+        return 1
+    fi
+
+    # Check for required sections (using flexible pattern matching)
+    grep -qE "^## Current Behavior" "$file" || missing+=("Current Behavior")
+    grep -qE "^## Intended Behavior" "$file" || missing+=("Intended Behavior")
+    grep -qE "^## (Suggested )?Implementation" "$file" || missing+=("Implementation Steps")
+    grep -qE "^## Acceptance Criteria" "$file" || missing+=("Acceptance Criteria")
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log "  WARNING: $(basename "$file") missing sections: ${missing[*]}"
+        return 1
+    fi
+
+    log "  Validated: $(basename "$file")"
+    return 0
 }
 # }}}
 
@@ -1504,11 +1656,18 @@ process_issue() {
 
         log "  Analysis appended to issue"
 
-        # Optionally save to archive
+        # Optionally save to archive (append to preserve history)
         if [[ "$ARCHIVE_MODE" == true ]]; then
             mkdir -p "$ARCHIVE_DIR"
             local archive_file="${ARCHIVE_DIR}/${basename%.md}-analysis.md"
-            echo "$response" > "$archive_file"
+            {
+                echo ""
+                echo "═══════════════════════════════════════════════════════════════"
+                echo "Analysis: $(date '+%Y-%m-%d %H:%M:%S')"
+                echo "═══════════════════════════════════════════════════════════════"
+                echo ""
+                echo "$response"
+            } >> "$archive_file"
             log "  Archived to: $archive_file"
         fi
     else
@@ -1597,11 +1756,18 @@ review_root_issue() {
 
         log "  Review appended to issue"
 
-        # Optionally save to archive
+        # Optionally save to archive (append to preserve history)
         if [[ "$ARCHIVE_MODE" == true ]]; then
             mkdir -p "$ARCHIVE_DIR"
             local archive_file="${ARCHIVE_DIR}/${basename%.md}-structure-review.md"
-            echo "$response" > "$archive_file"
+            {
+                echo ""
+                echo "═══════════════════════════════════════════════════════════════"
+                echo "Structure Review: $(date '+%Y-%m-%d %H:%M:%S')"
+                echo "═══════════════════════════════════════════════════════════════"
+                echo ""
+                echo "$response"
+            } >> "$archive_file"
             log "  Archived to: $archive_file"
         fi
     else
@@ -1716,16 +1882,20 @@ parse_analysis() {
 #
 # SUPPORTED FORMATS (Claude must use one of these):
 #
-# 1. Markdown table (preferred):
+# 1. Markdown table with dependencies (preferred):
+#    | 103a | parse-header | None | Description of the sub-issue |
+#    | 103b | parse-body   | 103a | Another description here     |
+#
+# 2. Markdown table without dependencies (legacy):
 #    | 103a | parse-header | Description of the sub-issue |
 #    | 103b | parse-body   | Another description here     |
 #
-# 2. Bold list format:
+# 3. Bold list format:
 #    - **103a-parse-header**: Description of the sub-issue
 #    - **103b-parse-body**: Another description here
 #
-# 3. Bold ID with backtick name:
-#    | **103a** | `parse-header` | Description of the sub-issue |
+# Output format: id|name|dependencies|description
+# Dependencies will be "None" if not specified.
 #
 # The ID must match pattern: {digits}{letter(s)} (e.g., 103a, 201b, 42abc)
 # The name should be dash-separated lowercase words.
@@ -1734,30 +1904,38 @@ extract_recommendations() {
     local analysis="$1"
     local -a recommendations=()
 
-    # Parse markdown table format: | 103a | parse-header | description |
-    while IFS='|' read -r _ id name desc _; do
-        id=$(echo "$id" | tr -d ' ')
-        name=$(echo "$name" | tr -d ' ' | sed 's/^-//' | sed 's/-$//')
-        if [[ "$id" =~ ^[0-9]+[a-z]+$ ]]; then
-            recommendations+=("$id|$name|$desc")
+    # Parse markdown table format
+    # Try 4-column first: | 103a | parse-header | deps | description |
+    # Fall back to 3-column: | 103a | parse-header | description |
+    while IFS='|' read -r _ col1 col2 col3 col4 _; do
+        col1=$(echo "$col1" | tr -d ' ')
+        col2=$(echo "$col2" | tr -d ' ' | sed 's/^-//' | sed 's/-$//')
+        col3=$(echo "$col3" | xargs)  # trim whitespace
+        col4=$(echo "$col4" | xargs)  # trim whitespace
+
+        if [[ "$col1" =~ ^[0-9]+[a-z]+$ ]]; then
+            # Check if col3 looks like dependencies (None, or IDs like 103a, 103b)
+            if [[ "$col3" =~ ^(None|[0-9]+[a-z]+(,[[:space:]]*[0-9]+[a-z]+)*)$ ]]; then
+                # 4-column format: id | name | deps | description
+                local deps="$col3"
+                local desc="$col4"
+                recommendations+=("$col1|$col2|$deps|$desc")
+            else
+                # 3-column format: id | name | description (no deps)
+                local desc="$col3"
+                recommendations+=("$col1|$col2|None|$desc")
+            fi
         fi
     done <<< "$analysis"
 
     # Parse bold list format: - **103a-parse-header**: description
-    # Or bold ID with backtick name: | **103a** | `parse-header` | description
     while IFS= read -r line; do
         # Format: **103a-name**: description
         if [[ "$line" =~ \*\*([0-9]+[a-z]+)-([^*]+)\*\*:?[[:space:]]*(.+) ]]; then
             local id="${BASH_REMATCH[1]}"
             local name="${BASH_REMATCH[2]}"
             local desc="${BASH_REMATCH[3]}"
-            recommendations+=("$id|$name|$desc")
-        # Format: **103a** | `name` | description
-        elif [[ "$line" =~ \*\*([0-9]+[a-z]+)\*\*[[:space:]]*\|[[:space:]]*\`([^\`]+)\`[[:space:]]*\|[[:space:]]*(.+) ]]; then
-            local id="${BASH_REMATCH[1]}"
-            local name="${BASH_REMATCH[2]}"
-            local desc="${BASH_REMATCH[3]}"
-            recommendations+=("$id|$name|$desc")
+            recommendations+=("$id|$name|None|$desc")
         fi
     done <<< "$analysis"
 
@@ -1893,8 +2071,10 @@ execute_recommendations() {
         echo ""
         echo "  Recommended sub-issues:"
         for rec in "${valid_recommendations[@]}"; do
-            IFS='|' read -r id name desc <<< "$rec"
-            echo "    - ${id}-${name}: ${desc:0:60}..."
+            IFS='|' read -r id name deps desc <<< "$rec"
+            local dep_info=""
+            [[ "$deps" != "None" ]] && dep_info=" [depends: $deps]"
+            echo "    - ${id}-${name}${dep_info}: ${desc:0:50}..."
         done
         echo ""
         read -p "  Create these sub-issues? [y/N]: " confirm
@@ -1906,17 +2086,70 @@ execute_recommendations() {
 
     if [[ "$DRY_RUN" == true ]]; then
         log "  [DRY RUN] Would create ${#valid_recommendations[@]} sub-issue file(s)"
+        if [[ "$GENERATE_COMPLETE" == true ]]; then
+            log "  [DRY RUN] Would use Claude to generate complete files"
+        fi
         return 0
     fi
 
-    # Generate sub-issue files
-    local created=0
+    # Build list of file paths to generate
+    local -a subissue_files=()
     for rec in "${valid_recommendations[@]}"; do
-        IFS='|' read -r id name desc <<< "$rec"
-        if generate_subissue "$issue_path" "$id" "$name" "$desc"; then
-            ((++created))
-        fi
+        IFS='|' read -r id name deps desc <<< "$rec"
+        name=$(echo "$name" | sed 's/^[- ]*//' | sed 's/[- ]*$//' | tr ' ' '-')
+        subissue_files+=("${ISSUES_DIR}/${id}-${name}.md")
     done
+
+    # Generate sub-issue files - complete or skeleton
+    local created=0
+    local generation_failed=false
+
+    if [[ "$GENERATE_COMPLETE" == true ]]; then
+        # Use Claude with Write tool to generate complete issue files
+        if generate_complete_issues "$issue_path" "${subissue_files[@]}"; then
+            # Validate generated files
+            local valid_count=0
+            local invalid_count=0
+            for f in "${subissue_files[@]}"; do
+                if validate_issue_file "$f"; then
+                    ((++valid_count))
+                    ((++created))
+                else
+                    ((++invalid_count))
+                fi
+            done
+            log "  Validation: $valid_count valid, $invalid_count with warnings"
+
+            # If any files are missing entirely, fall back to skeletons for those
+            if [[ $invalid_count -gt 0 ]]; then
+                log "  Generating skeletons for missing/invalid files..."
+                for rec in "${valid_recommendations[@]}"; do
+                    IFS='|' read -r id name deps desc <<< "$rec"
+                    local clean_name
+                    clean_name=$(echo "$name" | sed 's/^[- ]*//' | sed 's/[- ]*$//' | tr ' ' '-')
+                    local filepath="${ISSUES_DIR}/${id}-${clean_name}.md"
+                    if [[ ! -f "$filepath" ]]; then
+                        if generate_subissue "$issue_path" "$id" "$name" "$desc" "$deps"; then
+                            ((++created))
+                        fi
+                    fi
+                done
+            fi
+        else
+            generation_failed=true
+            log "  Falling back to skeleton generation..."
+        fi
+    fi
+
+    # Fallback: generate skeletons (either GENERATE_COMPLETE=false or generation failed)
+    if [[ "$GENERATE_COMPLETE" != true ]] || [[ "$generation_failed" == true ]]; then
+        for rec in "${valid_recommendations[@]}"; do
+            IFS='|' read -r id name deps desc <<< "$rec"
+            if generate_subissue "$issue_path" "$id" "$name" "$desc" "$deps"; then
+                ((++created))
+            fi
+        done
+    fi
 
     log "  Created $created sub-issue file(s)"
 
@@ -1931,7 +2164,7 @@ execute_recommendations() {
             echo "*Auto-generated on $(date '+%Y-%m-%d %H:%M')*"
             echo ""
             for rec in "${valid_recommendations[@]}"; do
-                IFS='|' read -r id name desc <<< "$rec"
+                IFS='|' read -r id name deps desc <<< "$rec"
                 name=$(echo "$name" | sed 's/^[- ]*//' | sed 's/[- ]*$//' | tr ' ' '-')
                 echo "- ${id}-${name}.md"
             done

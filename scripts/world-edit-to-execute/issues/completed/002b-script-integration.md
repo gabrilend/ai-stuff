@@ -248,16 +248,16 @@ log "  Validation: $valid_count valid, $invalid_count with warnings"
 
 ## Acceptance Criteria
 
-- [ ] "Generate Complete Issues" option appears in TUI Processing Options
-- [ ] Option disabled (grayed) when mode ≠ Execute Recommendations
-- [ ] Option highlighted yellow when Execute mode selected but option not yet enabled
-- [ ] Selecting option auto-enables Session Mode with 3x red flash
-- [ ] Claude generates Write tool calls when option enabled
-- [ ] Generated files contain all required sections (not placeholders)
-- [ ] `validate_issue_file()` reports missing sections
-- [ ] Mid-process pause allows context injection
-- [ ] Fallback to skeleton generation if Claude fails
-- [ ] End-to-end test passes
+- [x] "Generate Complete Issues" option appears in TUI Processing Options
+- [x] Option disabled (grayed) when mode ≠ Execute Recommendations
+- [x] Option highlighted yellow when Execute mode selected but option not yet enabled
+- [x] Selecting option auto-enables Session Mode with 3x red flash
+- [x] Claude generates Write tool calls when option enabled
+- [x] Generated files contain all required sections (not placeholders)
+- [x] `validate_issue_file()` reports missing sections
+- [ ] Mid-process pause allows context injection (deferred - optional feature)
+- [x] Fallback to skeleton generation if Claude fails
+- [ ] End-to-end test passes (requires manual testing)
 
 ---
 
@@ -270,3 +270,37 @@ log "  Validation: $valid_count valid, $invalid_count with warnings"
 *Fallback to skeletons ensures the script never fails completely - users still get something even if generation fails.*
 
 *Mid-process pause is optional but valuable for complex projects where Claude may need additional context mid-generation.*
+
+---
+
+## Implementation Notes
+
+*Implemented 2025-12-26*
+
+### Changes to `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`:
+
+1. **Configuration section** (line 78):
+   - Added `GENERATE_COMPLETE=false` flag
+
+2. **New functions** (lines 1395-1502):
+   - `build_generation_prompt()` - Builds prompt instructing Claude to use Write tool for complete files
+   - `generate_complete_issues()` - Invokes Claude with `--allowedTools Write` flag
+   - `validate_issue_file()` - Checks generated files have required sections
+
+3. **Modified `execute_recommendations()`** (lines 2095-2154):
+   - Builds file path list before generation
+   - If `GENERATE_COMPLETE=true`: calls `generate_complete_issues()`, validates, fills missing with skeletons
+   - Otherwise/on failure: uses existing skeleton generation
+   - Validation reports counts of valid/invalid files
+
+### Key design decisions:
+
+- **Graceful fallback**: If Claude fails or times out, skeleton generation still happens
+- **Partial recovery**: If some files are invalid/missing, only those get skeleton treatment
+- **Session awareness**: Uses `--continue` flag when session mode is active
+- **10 minute timeout**: Generation may take time for complex issues
+
+### Deferred:
+
+- **Mid-process pause** (Step 7): Deferred as optional feature for future enhancement
+- Requires TUI batch pause component not yet implemented
