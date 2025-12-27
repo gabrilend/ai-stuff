@@ -371,24 +371,463 @@ transpile_function = function(ctx, node)
 end
 -- }}}
 
--- {{{ transpile_statement (stub)
--- Transpile a statement to Lua.
--- Stub implementation - full version in 306c.
+-- Forward declarations for statement transpilation
+local transpile_set
+local transpile_call
+local transpile_if
+local transpile_loop
+local transpile_exitwhen
+local transpile_return
+
+-- {{{ transpile_set
+-- Transpile SET statement: set x = expr / set arr[i] = expr
 -- @param ctx Transpiler context
--- @param node Statement AST node
-transpile_statement = function(ctx, node)
-    emit_comment(ctx, "statement: " .. (node.type or "?"))
+-- @param node SET_STMT AST node
+transpile_set = function(ctx, node)
+    local target = node.name  -- Variable name
+
+    if node.index then
+        -- Array assignment: set arr[i] = value
+        local index_expr = transpile_expr(ctx, node.index)
+        local value_expr = transpile_expr(ctx, node.value)
+        emit(ctx, string.format("%s[%s] = %s", target, index_expr, value_expr))
+    else
+        -- Simple assignment: set x = value
+        local value_expr = transpile_expr(ctx, node.value)
+        emit(ctx, string.format("%s = %s", target, value_expr))
+    end
 end
 -- }}}
 
--- {{{ transpile_expr (stub)
--- Transpile an expression to Lua and return the code string.
--- Stub implementation - full version in 306d.
+-- {{{ transpile_call
+-- Transpile CALL statement: call foo(args)
+-- Native functions are prefixed with runtime.
+-- @param ctx Transpiler context
+-- @param node CALL_STMT AST node
+transpile_call = function(ctx, node)
+    local func_name = node.name
+    local args = {}
+
+    -- Transpile each argument
+    for _, arg in ipairs(node.arguments or {}) do
+        args[#args + 1] = transpile_expr(ctx, arg)
+    end
+
+    local args_str = table.concat(args, ", ")
+
+    -- Check if this is a native function call
+    if is_native(ctx, func_name) then
+        -- Native calls go through runtime
+        emit(ctx, string.format("runtime.%s(%s)", func_name, args_str))
+    else
+        -- User-defined function call
+        emit(ctx, string.format("%s(%s)", func_name, args_str))
+    end
+end
+-- }}}
+
+-- {{{ transpile_if
+-- Transpile IF statement: if...then...elseif...else...endif
+-- @param ctx Transpiler context
+-- @param node IF_STMT AST node
+transpile_if = function(ctx, node)
+    -- Main condition
+    local cond_expr = transpile_expr(ctx, node.condition)
+    emit(ctx, string.format("if %s then", cond_expr))
+
+    -- Then branch
+    ctx.indent = ctx.indent + 1
+    for _, stmt in ipairs(node.then_branch or {}) do
+        transpile_statement(ctx, stmt)
+    end
+    ctx.indent = ctx.indent - 1
+
+    -- Elseif branches
+    for _, elseif_clause in ipairs(node.elseif_branches or {}) do
+        local elseif_cond = transpile_expr(ctx, elseif_clause.condition)
+        emit(ctx, string.format("elseif %s then", elseif_cond))
+
+        ctx.indent = ctx.indent + 1
+        for _, stmt in ipairs(elseif_clause.body or {}) do
+            transpile_statement(ctx, stmt)
+        end
+        ctx.indent = ctx.indent - 1
+    end
+
+    -- Else branch
+    if node.else_branch and #node.else_branch > 0 then
+        emit(ctx, "else")
+
+        ctx.indent = ctx.indent + 1
+        for _, stmt in ipairs(node.else_branch) do
+            transpile_statement(ctx, stmt)
+        end
+        ctx.indent = ctx.indent - 1
+    end
+
+    emit(ctx, "end")
+end
+-- }}}
+
+-- {{{ transpile_loop
+-- Transpile LOOP statement: loop...endloop → while true do...end
+-- @param ctx Transpiler context
+-- @param node LOOP_STMT AST node
+transpile_loop = function(ctx, node)
+    -- JASS loop becomes Lua while true do
+    emit(ctx, "while true do")
+
+    -- Track that we're in a loop (for exitwhen validation)
+    local was_in_loop = ctx.in_loop
+    ctx.in_loop = true
+    ctx.loop_depth = (ctx.loop_depth or 0) + 1
+
+    ctx.indent = ctx.indent + 1
+    for _, stmt in ipairs(node.body or {}) do
+        transpile_statement(ctx, stmt)
+    end
+    ctx.indent = ctx.indent - 1
+
+    -- Restore loop context
+    ctx.in_loop = was_in_loop
+    ctx.loop_depth = ctx.loop_depth - 1
+
+    emit(ctx, "end")
+end
+-- }}}
+
+-- {{{ transpile_exitwhen
+-- Transpile EXITWHEN statement: exitwhen cond → if cond then break end
+-- @param ctx Transpiler context
+-- @param node EXITWHEN_STMT AST node
+transpile_exitwhen = function(ctx, node)
+    -- Validate we're inside a loop
+    if not ctx.in_loop then
+        add_error(ctx, "exitwhen outside of loop", node)
+    end
+
+    -- exitwhen condition → if condition then break end
+    local cond_expr = transpile_expr(ctx, node.condition)
+    emit(ctx, string.format("if %s then break end", cond_expr))
+end
+-- }}}
+
+-- {{{ transpile_return
+-- Transpile RETURN statement: return / return expr
+-- @param ctx Transpiler context
+-- @param node RETURN_STMT AST node
+transpile_return = function(ctx, node)
+    if node.value then
+        -- Return with value
+        local value_expr = transpile_expr(ctx, node.value)
+        emit(ctx, string.format("return %s", value_expr))
+    else
+        -- Return without value (from "returns nothing" function)
+        emit(ctx, "return")
+    end
+end
+-- }}}
+
+-- {{{ transpile_statement
+-- Main statement transpilation dispatcher.
+-- @param ctx Transpiler context
+-- @param node Statement AST node
+transpile_statement = function(ctx, node)
+    if not node then
+        add_error(ctx, "Nil statement node")
+        return
+    end
+
+    -- Handle debug-marked statements (optional debug prefix in JASS)
+    if node.is_debug then
+        emit_comment(ctx, "debug statement")
+    end
+
+    if node.type == "SET_STMT" then
+        transpile_set(ctx, node)
+
+    elseif node.type == "CALL_STMT" then
+        transpile_call(ctx, node)
+
+    elseif node.type == "IF_STMT" then
+        transpile_if(ctx, node)
+
+    elseif node.type == "LOOP_STMT" then
+        transpile_loop(ctx, node)
+
+    elseif node.type == "EXITWHEN_STMT" then
+        transpile_exitwhen(ctx, node)
+
+    elseif node.type == "RETURN_STMT" then
+        transpile_return(ctx, node)
+
+    else
+        add_error(ctx, "Unknown statement type: " .. tostring(node.type), node)
+    end
+end
+-- }}}
+
+-- {{{ operator_map
+-- Maps JASS operators to Lua operators.
+-- Most are identical, but != becomes ~= in Lua.
+local operator_map = {
+    -- Comparison operators
+    ["=="] = "==",
+    ["!="] = "~=",   -- JASS != becomes Lua ~=
+    ["<"]  = "<",
+    ["<="] = "<=",
+    [">"]  = ">",
+    [">="] = ">=",
+
+    -- Arithmetic operators
+    ["+"]  = "+",
+    ["-"]  = "-",
+    ["*"]  = "*",
+    ["/"]  = "/",
+
+    -- Logical operators
+    ["and"] = "and",
+    ["or"]  = "or",
+    ["not"] = "not",
+}
+-- }}}
+
+-- {{{ escape_string
+-- Escape special characters in a string for Lua literal.
+-- @param str Raw string value
+-- @return Lua string literal with quotes
+local function escape_string(str)
+    if not str then return '""' end
+
+    local escaped = str:gsub("\\", "\\\\")  -- Backslash first
+                       :gsub("\n", "\\n")
+                       :gsub("\r", "\\r")
+                       :gsub("\t", "\\t")
+                       :gsub("\"", "\\\"")
+
+    return '"' .. escaped .. '"'
+end
+-- }}}
+
+-- {{{ fourcc_to_int
+-- Convert a 4-character FourCC code to its integer value.
+-- WC3 uses big-endian byte order: 'hfoo' = (h << 24) | (f << 16) | (o << 8) | o
+-- @param str 4-character string
+-- @return Integer value
+local function fourcc_to_int(str)
+    if not str or #str ~= 4 then
+        return 0
+    end
+
+    local b1 = str:byte(1)
+    local b2 = str:byte(2)
+    local b3 = str:byte(3)
+    local b4 = str:byte(4)
+
+    -- Manual bit shift using multiplication (works in all Lua versions)
+    return b1 * 16777216 + b2 * 65536 + b3 * 256 + b4
+end
+-- }}}
+
+-- {{{ is_string_context
+-- Determine if a binary + should be string concatenation.
+-- Uses heuristics: if either operand is a string literal, use ..
+-- @param ctx Transpiler context
+-- @param node BINARY_EXPR node
+-- @return true if string concatenation should be used
+local function is_string_context(ctx, node)
+    if node.left and node.left.type == "LITERAL" and node.left.literal_type == "string" then
+        return true
+    end
+    if node.right and node.right.type == "LITERAL" and node.right.literal_type == "string" then
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- Forward declarations for expression transpilation
+local transpile_literal
+local transpile_binary
+local transpile_unary
+local transpile_call_expr
+local transpile_array_access
+
+-- {{{ transpile_literal
+-- Transpile a literal value to Lua.
+-- @param ctx Transpiler context
+-- @param node LITERAL AST node
+-- @return Lua literal string
+transpile_literal = function(ctx, node)
+    local lit_type = node.literal_type or "unknown"
+    local value = node.value
+
+    if lit_type == "integer" then
+        return tostring(value)
+
+    elseif lit_type == "real" then
+        -- Ensure real numbers have decimal point
+        local str = tostring(value)
+        if not str:find("%.") and not str:find("e") then
+            str = str .. ".0"
+        end
+        return str
+
+    elseif lit_type == "boolean" then
+        return value and "true" or "false"
+
+    elseif lit_type == "string" then
+        return escape_string(value)
+
+    elseif lit_type == "null" then
+        return "nil"
+
+    elseif lit_type == "rawcode" or lit_type == "fourcc" then
+        -- FourCC like 'hfoo' → integer value
+        return tostring(fourcc_to_int(value))
+
+    else
+        add_error(ctx, "Unknown literal type: " .. lit_type, node)
+        return "nil"
+    end
+end
+-- }}}
+
+-- {{{ transpile_binary
+-- Transpile a binary expression to Lua.
+-- @param ctx Transpiler context
+-- @param node BINARY_EXPR AST node
+-- @return Lua expression string
+transpile_binary = function(ctx, node)
+    local left = transpile_expr(ctx, node.left)
+    local right = transpile_expr(ctx, node.right)
+    local op = node.operator
+
+    -- Map operator
+    local lua_op = operator_map[op]
+    if not lua_op then
+        add_error(ctx, "Unknown operator: " .. tostring(op), node)
+        lua_op = op  -- Use as-is
+    end
+
+    -- Handle string concatenation special case
+    if op == "+" and is_string_context(ctx, node) then
+        lua_op = ".."
+    end
+
+    return string.format("(%s %s %s)", left, lua_op, right)
+end
+-- }}}
+
+-- {{{ transpile_unary
+-- Transpile a unary expression to Lua.
+-- @param ctx Transpiler context
+-- @param node UNARY_EXPR AST node
+-- @return Lua expression string
+transpile_unary = function(ctx, node)
+    local operand = transpile_expr(ctx, node.operand)
+    local op = node.operator
+
+    if op == "-" then
+        return string.format("(-%s)", operand)
+    elseif op == "not" then
+        return string.format("(not %s)", operand)
+    else
+        add_error(ctx, "Unknown unary operator: " .. tostring(op), node)
+        return operand
+    end
+end
+-- }}}
+
+-- {{{ transpile_call_expr
+-- Transpile a function call expression to Lua.
+-- Native functions are prefixed with "runtime." for runtime dispatch.
+-- @param ctx Transpiler context
+-- @param node CALL_EXPR AST node
+-- @return Lua expression string
+transpile_call_expr = function(ctx, node)
+    -- Get function name from callee (which is an IDENTIFIER node)
+    local func_name
+    if node.callee and node.callee.type == "IDENTIFIER" then
+        func_name = node.callee.name
+    else
+        func_name = "unknown"
+    end
+
+    -- Transpile each argument
+    local args = {}
+    for _, arg in ipairs(node.arguments or {}) do
+        args[#args + 1] = transpile_expr(ctx, arg)
+    end
+
+    local args_str = table.concat(args, ", ")
+
+    -- Check if native function (prefix with runtime.)
+    if is_native(ctx, func_name) then
+        return string.format("runtime.%s(%s)", func_name, args_str)
+    else
+        return string.format("%s(%s)", func_name, args_str)
+    end
+end
+-- }}}
+
+-- {{{ transpile_array_access
+-- Transpile an array access expression to Lua.
+-- @param ctx Transpiler context
+-- @param node ARRAY_ACCESS AST node
+-- @return Lua expression string
+transpile_array_access = function(ctx, node)
+    -- Array is an expression (usually IDENTIFIER)
+    local array
+    if node.array and node.array.type == "IDENTIFIER" then
+        array = node.array.name
+    else
+        array = transpile_expr(ctx, node.array)
+    end
+
+    local index = transpile_expr(ctx, node.index)
+
+    return string.format("%s[%s]", array, index)
+end
+-- }}}
+
+-- {{{ transpile_expr
+-- Main expression transpilation dispatcher.
 -- @param ctx Transpiler context
 -- @param node Expression AST node
 -- @return Lua expression string
 transpile_expr = function(ctx, node)
-    return "nil --[[expr: " .. (node and node.type or "?") .. "]]"
+    if not node then
+        add_error(ctx, "Nil expression node")
+        return "nil"
+    end
+
+    if node.type == "LITERAL" then
+        return transpile_literal(ctx, node)
+
+    elseif node.type == "IDENTIFIER" then
+        return node.name
+
+    elseif node.type == "BINARY_EXPR" then
+        return transpile_binary(ctx, node)
+
+    elseif node.type == "UNARY_EXPR" then
+        return transpile_unary(ctx, node)
+
+    elseif node.type == "CALL_EXPR" then
+        return transpile_call_expr(ctx, node)
+
+    elseif node.type == "ARRAY_ACCESS" then
+        return transpile_array_access(ctx, node)
+
+    elseif node.type == "FUNCTION_REF" then
+        -- Function reference: just the function name (first-class function)
+        return node.name
+
+    else
+        add_error(ctx, "Unknown expression type: " .. tostring(node.type), node)
+        return "nil"
+    end
 end
 -- }}}
 
@@ -495,9 +934,26 @@ transpiler._transpile_globals = transpile_globals
 transpiler._transpile_function = transpile_function
 transpiler._transpile_local_decl = transpile_local_decl
 
--- Stub functions for sub-issues
-transpiler._transpile_statement = transpile_statement
+-- Expression transpilation (306d)
+transpiler._operator_map = operator_map
+transpiler._escape_string = escape_string
+transpiler._fourcc_to_int = fourcc_to_int
+transpiler._is_string_context = is_string_context
 transpiler._transpile_expr = transpile_expr
+transpiler._transpile_literal = transpile_literal
+transpiler._transpile_binary = transpile_binary
+transpiler._transpile_unary = transpile_unary
+transpiler._transpile_call_expr = transpile_call_expr
+transpiler._transpile_array_access = transpile_array_access
+
+-- Statement transpilation (306c)
+transpiler._transpile_statement = transpile_statement
+transpiler._transpile_set = transpile_set
+transpiler._transpile_call = transpile_call
+transpiler._transpile_if = transpile_if
+transpiler._transpile_loop = transpile_loop
+transpiler._transpile_exitwhen = transpile_exitwhen
+transpiler._transpile_return = transpile_return
 
 return transpiler
 -- }}}
