@@ -20,6 +20,8 @@ declare -A MENU_ITEM_SHORTCUTS=()
 declare -A MENU_ITEM_FLAGS=()
 declare -A MENU_ITEM_FILEPATHS=()  # Optional file path for preview
 declare -a MENU_DEPENDENCIES=()    # Dependencies: "item_id|depends_on|required_values|invert|multi"
+declare -a MENU_PREREQUISITES=()   # Prerequisites: "item_id|prerequisite_id" - auto-enable prereq when item selected
+declare -a MENU_SUGGESTED_DEPS=()  # Suggested deps: "item_id|depends_on|required_values|reason" - yellow highlight
 
 MENU_TITLE=""
 MENU_SUBTITLE=""
@@ -55,6 +57,8 @@ menu_init() {
     MENU_ITEM_FLAGS=()
     MENU_ITEM_FILEPATHS=()
     MENU_DEPENDENCIES=()
+    MENU_PREREQUISITES=()
+    MENU_SUGGESTED_DEPS=()
     MENU_TITLE=""
     MENU_SUBTITLE=""
     MENU_RESULT_ACTION=""
@@ -315,6 +319,49 @@ menu_add_dependency_multi() {
 }
 # }}}
 
+# {{{ menu_add_prerequisite
+# Add a prerequisite that auto-enables (with visual flash) when item is selected
+# When item_id is selected, prerequisite_id will be auto-enabled with a 3x red flash
+#
+# Arguments:
+#   item_id: The item that triggers the prerequisite
+#   prerequisite_id: The item that will be auto-enabled
+#
+# Example:
+#   # When "generate_complete" is selected, "session" auto-enables with flash
+#   menu_add_prerequisite "generate_complete" "session"
+menu_add_prerequisite() {
+    local item_id="$1"
+    local prerequisite_id="$2"
+
+    MENU_PREREQUISITES+=("${item_id}|${prerequisite_id}")
+}
+# }}}
+
+# {{{ menu_add_dependency_suggest
+# Add a "suggested" dependency - item shows yellow highlight when trigger is active
+# but item is not yet selected. Unlike regular dependencies, this doesn't disable.
+#
+# Arguments:
+#   item_id: The item to highlight as suggested
+#   depends_on: The trigger item
+#   required_values: Comma-separated values that trigger suggestion (default "1")
+#   reason: Optional message explaining why it's suggested
+#
+# Example:
+#   # Highlight "generate_complete" yellow when "execute" is selected
+#   menu_add_dependency_suggest "generate_complete" "execute" "1" \
+#       "Recommended for complete specifications"
+menu_add_dependency_suggest() {
+    local item_id="$1"
+    local depends_on="$2"
+    local required_values="${3:-1}"
+    local reason="${4:-}"
+
+    MENU_SUGGESTED_DEPS+=("${item_id}|${depends_on}|${required_values}|${reason}")
+}
+# }}}
+
 # {{{ _menu_escape_json
 # Escape a string for JSON
 _menu_escape_json() {
@@ -491,6 +538,60 @@ _menu_build_json() {
             fi
             if [[ -n "$dep_color" ]]; then
                 json+=',"color":"'"$dep_color"'"'
+            fi
+            json+='}'
+        done
+        json+=']'
+    fi
+
+    # Add prerequisites if any
+    if [[ ${#MENU_PREREQUISITES[@]} -gt 0 ]]; then
+        json+=',"prerequisites":['
+        local first_prereq=1
+        for prereq in "${MENU_PREREQUISITES[@]}"; do
+            [[ $first_prereq -eq 0 ]] && json+=','
+            first_prereq=0
+
+            # Parse: item_id|prerequisite_id
+            local prereq_item="${prereq%%|*}"
+            local prereq_target="${prereq#*|}"
+
+            json+='{"item_id":"'"$prereq_item"'"'
+            json+=',"prerequisite_id":"'"$prereq_target"'"}'
+        done
+        json+=']'
+    fi
+
+    # Add suggested dependencies if any
+    if [[ ${#MENU_SUGGESTED_DEPS[@]} -gt 0 ]]; then
+        json+=',"suggested_deps":['
+        local first_suggest=1
+        for suggest in "${MENU_SUGGESTED_DEPS[@]}"; do
+            [[ $first_suggest -eq 0 ]] && json+=','
+            first_suggest=0
+
+            # Parse: item_id|depends_on|required_values|reason
+            local suggest_item="${suggest%%|*}"
+            local rest="${suggest#*|}"
+            local suggest_depends="${rest%%|*}"
+            rest="${rest#*|}"
+            local suggest_values="${rest%%|*}"
+            local suggest_reason="${rest#*|}"
+
+            json+='{"item_id":"'"$suggest_item"'"'
+            json+=',"depends_on":"'"$suggest_depends"'"'
+            # Split comma-separated values into array
+            json+=',"required_values":['
+            local first_val=1
+            IFS=',' read -ra vals <<< "$suggest_values"
+            for val in "${vals[@]}"; do
+                [[ $first_val -eq 0 ]] && json+=','
+                first_val=0
+                json+='"'"$val"'"'
+            done
+            json+=']'
+            if [[ -n "$suggest_reason" ]]; then
+                json+=',"reason":"'"$(_menu_escape_json "$suggest_reason")"'"'
             fi
             json+='}'
         done
