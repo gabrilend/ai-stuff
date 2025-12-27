@@ -10,6 +10,8 @@ Provides:
 - Basic accessors (get, exists, count)
 - Query functions (get_all, get_active, get_by_type, get_by_team)
 - Alliance management (set_alliance, get_alliance, is_ally, is_enemy)
+- State transitions (defeat, victory, leave) with event callbacks
+- Victory conditions (team elimination, custom triggers, draw detection)
 - Local player tracking for UI/camera perspective
 - Constants for player types, states, races, and alliance flags
 ]]
@@ -72,6 +74,16 @@ local event_callbacks = {
     player_victorious = {},
     player_left = {},
     player_state_changed = {},
+    game_over = {},  -- Added for 407e
+}
+
+-- Game state tracking (407e)
+-- Victory conditions only checked when started and not ended
+local game_state = {
+    started = false,
+    ended = false,
+    winning_team = nil,
+    end_reason = nil,  -- "elimination", "custom", "draw"
 }
 -- }}}
 
@@ -755,6 +767,252 @@ end
 -- }}}
 
 -- ============================================================================
+-- Victory Conditions (407e)
+-- ============================================================================
+
+-- {{{ local function count_active_teams
+-- Count how many distinct teams have active players.
+-- Excludes neutral players from team counting.
+-- @return team_count, active_teams table (team_id -> true)
+local function count_active_teams()
+    local active_teams = {}
+
+    for _, p in pairs(players) do
+        if p.state == PLAYER_STATE.ACTIVE and
+           p.type ~= PLAYER_TYPE.NEUTRAL then
+            active_teams[p.team] = true
+        end
+    end
+
+    local count = 0
+    for _ in pairs(active_teams) do
+        count = count + 1
+    end
+
+    return count, active_teams
+end
+-- }}}
+
+-- {{{ function player.start_game
+-- Mark the game as started (enables victory checking).
+function player.start_game()
+    game_state.started = true
+    game_state.ended = false
+    game_state.winning_team = nil
+    game_state.end_reason = nil
+end
+-- }}}
+
+-- {{{ function player.is_game_started
+-- Check if the game has started.
+-- @return true if game has started
+function player.is_game_started()
+    return game_state.started
+end
+-- }}}
+
+-- {{{ function player.is_game_ended
+-- Check if the game has ended.
+-- @return true if game has ended
+function player.is_game_ended()
+    return game_state.ended
+end
+-- }}}
+
+-- {{{ function player.get_game_result
+-- Get the game result information.
+-- @return Table with ended, winning_team, end_reason
+function player.get_game_result()
+    return {
+        ended = game_state.ended,
+        winning_team = game_state.winning_team,
+        end_reason = game_state.end_reason,
+    }
+end
+-- }}}
+
+-- {{{ local function declare_winner
+-- Mark game as ended with a winning team.
+-- Sets all active players on winning team to victorious.
+-- @param team Winning team number
+local function declare_winner(team)
+    game_state.ended = true
+    game_state.winning_team = team
+    game_state.end_reason = "elimination"
+
+    -- Mark all active players on winning team as victorious
+    for slot, p in pairs(players) do
+        if p.team == team and p.state == PLAYER_STATE.ACTIVE then
+            p.state = PLAYER_STATE.VICTORIOUS
+            fire_event("player_victorious", slot)
+        end
+    end
+
+    fire_event("game_over", {
+        winner = team,
+        reason = "elimination",
+    })
+end
+-- }}}
+
+-- {{{ local function declare_draw
+-- Mark game as ended with no winner.
+local function declare_draw()
+    game_state.ended = true
+    game_state.winning_team = nil
+    game_state.end_reason = "draw"
+
+    fire_event("game_over", {
+        winner = nil,
+        reason = "draw",
+    })
+end
+-- }}}
+
+-- {{{ function player.check_victory_conditions
+-- Check if victory conditions are met.
+-- Called automatically after player defeat/leave.
+-- @return true if game ended, false if game continues
+function player.check_victory_conditions()
+    -- Don't check if game hasn't started or has already ended
+    if not game_state.started or game_state.ended then
+        return false
+    end
+
+    local team_count, active_teams = count_active_teams()
+
+    if team_count == 1 then
+        -- One team remaining - they win
+        local winning_team = nil
+        for team, _ in pairs(active_teams) do
+            winning_team = team
+            break
+        end
+
+        declare_winner(winning_team)
+        return true
+
+    elseif team_count == 0 then
+        -- No teams remaining - draw
+        declare_draw()
+        return true
+    end
+
+    -- Game continues
+    return false
+end
+
+-- Hook this function to be called by 407d
+player._check_victory_conditions = player.check_victory_conditions
+-- }}}
+
+-- {{{ function player.force_victory
+-- Force a specific player or team to win (for custom victory conditions).
+-- @param slot_or_team Player slot or team number
+-- @param is_team Boolean, true if slot_or_team is a team number
+-- @return success, error_message
+function player.force_victory(slot_or_team, is_team)
+    if game_state.ended then
+        return false, "Game already ended"
+    end
+
+    game_state.ended = true
+    game_state.end_reason = "custom"
+
+    if is_team then
+        -- Team victory
+        local team = slot_or_team
+        game_state.winning_team = team
+
+        for slot, p in pairs(players) do
+            if p.team == team and p.state == PLAYER_STATE.ACTIVE then
+                p.state = PLAYER_STATE.VICTORIOUS
+                fire_event("player_victorious", slot)
+            elseif p.state == PLAYER_STATE.ACTIVE then
+                p.state = PLAYER_STATE.DEFEATED
+                fire_event("player_defeated", slot)
+            end
+        end
+    else
+        -- Single player victory
+        local slot = slot_or_team
+        local p = players[slot]
+        if not p then
+            return false, "Player not found"
+        end
+
+        game_state.winning_team = p.team
+        p.state = PLAYER_STATE.VICTORIOUS
+        fire_event("player_victorious", slot)
+
+        -- Defeat all other active players
+        for other_slot, other_p in pairs(players) do
+            if other_slot ~= slot and other_p.state == PLAYER_STATE.ACTIVE then
+                other_p.state = PLAYER_STATE.DEFEATED
+                fire_event("player_defeated", other_slot)
+            end
+        end
+    end
+
+    fire_event("game_over", {
+        winner = game_state.winning_team,
+        reason = "custom",
+    })
+
+    return true
+end
+-- }}}
+
+-- {{{ function player.force_defeat
+-- Force a specific player to lose (triggers normal defeat flow).
+-- @param slot Player slot
+-- @return success, error_message
+function player.force_defeat(slot)
+    return player.defeat(slot)
+end
+-- }}}
+
+-- {{{ function player.defeat_team
+-- Defeat all active players on a team.
+-- @param team Team number
+-- @return Number of players defeated
+function player.defeat_team(team)
+    local defeated_count = 0
+
+    for slot, p in pairs(players) do
+        if p.team == team and p.state == PLAYER_STATE.ACTIVE then
+            p.state = PLAYER_STATE.DEFEATED
+            fire_event("player_defeated", slot)
+            defeated_count = defeated_count + 1
+        end
+    end
+
+    -- Victory check after all defeats
+    player.check_victory_conditions()
+
+    return defeated_count
+end
+-- }}}
+
+-- {{{ function player.get_winning_players
+-- Get array of victorious players (after game end).
+-- @return Array of victorious player data tables (empty if game not ended)
+function player.get_winning_players()
+    if not game_state.ended then
+        return {}
+    end
+
+    local result = {}
+    for _, p in pairs(players) do
+        if p.state == PLAYER_STATE.VICTORIOUS then
+            result[#result + 1] = p
+        end
+    end
+    return result
+end
+-- }}}
+
+-- ============================================================================
 -- Local Player (407f)
 -- ============================================================================
 
@@ -783,7 +1041,7 @@ end
 -- }}}
 
 -- {{{ function player.reset
--- Clear all player data and event callbacks (for testing).
+-- Clear all player data, event callbacks, and game state (for testing).
 function player.reset()
     players = {}
     local_player_slot = 0
@@ -792,7 +1050,15 @@ function player.reset()
     player._ecs = nil
     player._handle_defeated_units = nil
     player._handle_left_units = nil
-    player._check_victory_conditions = nil
+    -- Reset game state (407e)
+    game_state = {
+        started = false,
+        ended = false,
+        winning_team = nil,
+        end_reason = nil,
+    }
+    -- Re-hook victory check
+    player._check_victory_conditions = player.check_victory_conditions
 end
 -- }}}
 

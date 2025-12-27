@@ -1,7 +1,8 @@
 --[[
 Test suite for Player State Management (Issue 407)
 
-Tests player initialization, queries, and state management.
+Tests player initialization, queries, state management, alliances,
+state transitions, and victory conditions.
 ]]
 
 -- {{{ Setup paths
@@ -1214,6 +1215,320 @@ test("reset clears events", function()
     player.defeat(0)
 
     assert_eq(0, count, "callback not called after reset")
+end)
+-- }}}
+
+-- {{{ Victory Conditions Tests (407e)
+print("\n-- Victory Conditions Tests --")
+
+test("check_victory_conditions does nothing before game start", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    -- Defeat player 1, leaving only team 1
+    player.get(1).state = "defeated"
+
+    -- Game not started, so no victory should be declared
+    local ended = player.check_victory_conditions()
+    assert_false(ended, "game not ended")
+    assert_false(player.is_game_ended(), "is_game_ended false")
+end)
+
+test("check_victory_conditions does nothing after game end", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    player.start_game()
+    player.get(1).state = "defeated"
+    player.check_victory_conditions()  -- This ends the game
+
+    -- Try to check again
+    local event_count = 0
+    player.on("game_over", function() event_count = event_count + 1 end)
+
+    local ended = player.check_victory_conditions()
+    assert_false(ended, "check returns false")
+    assert_eq(0, event_count, "no duplicate event")
+end)
+
+test("single team remaining triggers victory", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    player.start_game()
+    player.get(1).state = "defeated"  -- Team 2 eliminated
+
+    local ended = player.check_victory_conditions()
+
+    assert_true(ended, "game ended")
+    assert_true(player.is_game_ended(), "is_game_ended true")
+    local result = player.get_game_result()
+    assert_eq(1, result.winning_team, "team 1 wins")
+    assert_eq("elimination", result.end_reason, "elimination reason")
+end)
+
+test("victorious players marked correctly", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 1 },  -- Same team
+        { slot = 2, team = 2 },
+    })
+
+    player.start_game()
+    player.get(2).state = "defeated"  -- Team 2 eliminated
+
+    player.check_victory_conditions()
+
+    assert_eq("victorious", player.get(0).state, "p0 victorious")
+    assert_eq("victorious", player.get(1).state, "p1 victorious")
+end)
+
+test("no teams remaining triggers draw", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    player.start_game()
+    player.get(0).state = "defeated"
+    player.get(1).state = "defeated"
+
+    local ended = player.check_victory_conditions()
+
+    assert_true(ended, "game ended")
+    local result = player.get_game_result()
+    assert_nil(result.winning_team, "no winner")
+    assert_eq("draw", result.end_reason, "draw reason")
+end)
+
+test("force_victory ends game immediately", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    local ok = player.force_victory(0, false)
+
+    assert_true(ok, "force_victory returns true")
+    assert_true(player.is_game_ended(), "game ended")
+    assert_eq("victorious", player.get(0).state, "winner victorious")
+end)
+
+test("force_victory marks losers as defeated", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    player.force_victory(0, false)
+
+    assert_eq("defeated", player.get(1).state, "loser defeated")
+end)
+
+test("force_victory team mode", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 1 },
+        { slot = 2, team = 2 },
+    })
+
+    player.force_victory(1, true)  -- Team 1 wins
+
+    assert_eq("victorious", player.get(0).state, "team member victorious")
+    assert_eq("victorious", player.get(1).state, "team member victorious")
+    assert_eq("defeated", player.get(2).state, "other team defeated")
+end)
+
+test("force_victory fails if game ended", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+
+    player.force_victory(0, false)
+    local ok, err = player.force_victory(0, false)
+
+    assert_false(ok, "returns false")
+    assert_true(err:find("already ended"), "error message")
+end)
+
+test("force_defeat triggers normal defeat flow", function()
+    player.init_manual({
+        { slot = 0 },
+    })
+
+    local ok = player.force_defeat(0)
+
+    assert_true(ok, "returns true")
+    assert_eq("defeated", player.get(0).state, "player defeated")
+end)
+
+test("defeat_team defeats all players on team", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 1 },
+        { slot = 2, team = 2 },
+    })
+
+    local count = player.defeat_team(1)
+
+    assert_eq(2, count, "2 players defeated")
+    assert_eq("defeated", player.get(0).state, "p0 defeated")
+    assert_eq("defeated", player.get(1).state, "p1 defeated")
+    assert_eq("active", player.get(2).state, "p2 still active")
+end)
+
+test("defeat_team triggers victory check", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    player.start_game()
+    player.defeat_team(1)
+
+    assert_true(player.is_game_ended(), "game ended")
+    assert_eq("victorious", player.get(1).state, "remaining player wins")
+end)
+
+test("game_over event fires with correct info", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    local event_data = nil
+    player.on("game_over", function(data)
+        event_data = data
+    end)
+
+    player.start_game()
+    player.get(1).state = "defeated"
+    player.check_victory_conditions()
+
+    assert_not_nil(event_data, "event fired")
+    assert_eq(1, event_data.winner, "correct winner")
+    assert_eq("elimination", event_data.reason, "correct reason")
+end)
+
+test("game_over event fires on force_victory", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+
+    local event_data = nil
+    player.on("game_over", function(data)
+        event_data = data
+    end)
+
+    player.force_victory(0, false)
+
+    assert_not_nil(event_data, "event fired")
+    assert_eq("custom", event_data.reason, "custom reason")
+end)
+
+test("get_winning_players returns victorious list", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 1 },
+        { slot = 2, team = 2 },
+    })
+
+    player.start_game()
+    player.get(2).state = "defeated"
+    player.check_victory_conditions()
+
+    local winners = player.get_winning_players()
+    assert_eq(2, #winners, "2 winners")
+end)
+
+test("get_winning_players empty before game end", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+
+    local winners = player.get_winning_players()
+    assert_eq(0, #winners, "no winners before end")
+end)
+
+test("get_game_result returns correct state", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+
+    local result = player.get_game_result()
+    assert_false(result.ended, "not ended initially")
+    assert_nil(result.winning_team, "no winner")
+    assert_nil(result.end_reason, "no reason")
+
+    player.force_victory(0, false)
+
+    result = player.get_game_result()
+    assert_true(result.ended, "ended")
+    assert_eq(1, result.winning_team, "winner team")
+    assert_eq("custom", result.end_reason, "reason")
+end)
+
+test("start_game enables victory checking", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+
+    assert_false(player.is_game_started(), "not started initially")
+    player.start_game()
+    assert_true(player.is_game_started(), "started after call")
+end)
+
+test("reset clears game state", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+
+    player.start_game()
+    player.force_victory(0, false)
+
+    player.reset()
+
+    assert_false(player.is_game_started(), "started reset")
+    assert_false(player.is_game_ended(), "ended reset")
+    local result = player.get_game_result()
+    assert_nil(result.winning_team, "no winner after reset")
+end)
+
+test("victory check integrates with player.defeat", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+        { slot = 1, team = 2 },
+    })
+
+    player.start_game()
+
+    -- Defeat should trigger victory check automatically
+    player.defeat(1)
+
+    assert_true(player.is_game_ended(), "game ended via defeat")
+    assert_eq("victorious", player.get(0).state, "winner via defeat integration")
+end)
+
+test("neutral players excluded from team counting", function()
+    player.init_manual({
+        { slot = 0, team = 1 },
+    })
+    -- Neutral is slot 15, type "neutral"
+
+    player.start_game()
+
+    -- Only team 1 active (neutral doesn't count)
+    local ended = player.check_victory_conditions()
+
+    -- With only one team, should trigger victory
+    assert_true(ended, "game ends")
+    assert_eq("victorious", player.get(0).state, "player victorious")
 end)
 -- }}}
 
