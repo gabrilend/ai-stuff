@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 19/23 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 20/23 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -266,7 +266,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 403a | Build pathing grid | **Completed** | 105 |
 | 403b | Implement A* algorithm | **Completed** | None |
 | 403c | Coordinate conversion | **Completed** | 403a |
-| 403d | Movement type support | Pending | 403a, 403b |
+| 403d | Movement type support | **Completed** | 403a, 403b |
 | 403e | Path smoothing | Pending | 403b |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
@@ -762,6 +762,15 @@ Phase 2 & 3 Complete
   - Clamped conversion for finding nearest valid tile
   - Path conversion (path_to_world, path_to_grid)
   - Distance utilities (world, grid, tile conversion)
+- **Issue 403d completed:** Movement type support
+  - Created src/runtime/pathfinding/movement.lua (~300 lines)
+  - Created src/tests/test_movement_types.lua (106 tests, all pass)
+  - Six WC3 movement types: foot, horse, fly, float, hover, amphibious
+  - Passability rules per type (flying bypasses all, ships need deep water, etc.)
+  - make_can_pass() factory for A* integration
+  - Custom type registration/unregistration
+  - Added pathfinding.is_passable() and pathfinding.find_path_for_type()
+  - Total pathfinding tests: 388 (93 grid + 90 A* + 99 coords + 106 movement)
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -878,8 +887,8 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 403a: Build pathing grid - **COMPLETED** (93 tests)
    - 403b: Implement A* algorithm - **COMPLETED** (90 tests)
    - 403c: Coordinate conversion - **COMPLETED** (99 tests)
-   - 403d: Movement type support - Next up
-   - 403e: Path smoothing
+   - 403d: Movement type support - **COMPLETED** (106 tests)
+   - 403e: Path smoothing - Next up
 4. **407 - Player state management** - **COMPLETED**
    - 407a: Player data structure - **COMPLETED** (39 tests)
    - 407b: Player queries - **COMPLETED**
