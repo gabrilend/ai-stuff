@@ -14,7 +14,7 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | In Progress | 3/9 |
+| 3 | Logic Layer - Triggers and JASS | In Progress | 4/9 |
 | 4 | Runtime - Basic Engine Loop | Issues Created | 0/8 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
@@ -202,11 +202,11 @@ Phase 1 Complete (102 MPQ Parser)
 | 301e | Parse WTG parameters | **Completed** | 301d |
 | 302 | Parse war3map.wct (custom text triggers) | **Completed** | 102, 301 |
 | 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
-| 304 | Build JASS lexer | In Progress | 303 |
+| 304 | Build JASS lexer | **Completed** | 303 |
 | 304a | Lexer core infrastructure | **Completed** | 303 |
 | 304b | Lexer keywords/identifiers/operators | **Completed** | 304a |
 | 304c | Lexer literals | **Completed** | 304a |
-| 304d | Lexer tests and validation | Pending | 304a-c |
+| 304d | Lexer tests and validation | **Completed** | 304a-c |
 | 305 | Build JASS parser | Pending | 304 |
 | 306 | Create JASS-to-Lua transpiler | Pending | 305 |
 | 307 | Implement trigger framework | Pending | 306 |
@@ -645,6 +645,15 @@ Phase 2 & 3 Complete
   - Rawcode literals ('hfoo') - exactly 4 characters
   - is_hex_digit helper exported for reuse
   - All 137 lexer tests pass (28 core + 56 keywords + 53 literals)
+- **Issue 304d completed:** Lexer tests and validation
+  - Created src/tests/test_jass_lexer.lua (58 tests)
+  - Created src/tests/fixtures/jass/ with 6 fixture files:
+    - keywords.j, operators.j, literals.j, comments.j, edge_cases.j, real_script.j
+  - Edge case tests, error message tests, position tracking tests
+  - Integration tests with real JASS patterns
+  - Performance tests (50k lines in 1.3s, well under 5s threshold)
+  - All 195 lexer tests pass (58 comprehensive + 28 core + 56 keywords + 53 literals)
+- **Issue 304 completed:** Build JASS lexer (all sub-issues done)
 
 ---
 
@@ -664,7 +673,7 @@ Capabilities established:
 
 ### Phase 3 - Logic Layer: Triggers and JASS
 
-Phase 3 in progress (3/9 root issues, 304 in progress with 3/4 sub-issues):
+Phase 3 in progress (4/9 root issues complete):
 
 1. **301 - Parse war3map.wtg** (trigger definitions) - **COMPLETED**
    - Full WTG parser with 5 test files (59 tests)
@@ -672,12 +681,13 @@ Phase 3 in progress (3/9 root issues, 304 in progress with 3/4 sub-issues):
 2. **302 - Parse war3map.wct** (custom text triggers) - **COMPLETED**
    - WCT parser with 17 tests, merge_with_wtg helper
 3. **303 - Parse war3map.j** (JASS script extraction) - **COMPLETED**
-4. **304 - Build JASS lexer** (tokenization) - In Progress
+4. **304 - Build JASS lexer** (tokenization) - **COMPLETED**
    - 304a: Core infrastructure - **COMPLETED**
    - 304b: Keywords/identifiers/operators - **COMPLETED**
    - 304c: Literals (integers, reals, strings, rawcodes) - **COMPLETED**
-   - 304d: Tests and validation - Next up
-5. **305 - Build JASS parser** (AST generation)
+   - 304d: Tests and validation - **COMPLETED**
+   - Total: 195 lexer tests pass
+5. **305 - Build JASS parser** (AST generation) - Next up
 6. **306 - Create JASS-to-Lua transpiler**
 7. **307 - Implement trigger framework** (conditions/actions)
 8. **308 - Build event dispatch system**
