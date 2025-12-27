@@ -2,8 +2,43 @@
 
 **Phase:** 0 - Tooling/Infrastructure
 **Type:** Enhancement
-**Priority:** Medium
+**Priority:** ~~Medium~~ N/A
 **Dependencies:** None
+**Status:** CANCELLED
+**Superseded By:** 012-remove-context-continuation.md
+
+---
+
+## Cancellation Notice
+
+*Added 2025-12-27*
+
+**This issue has been cancelled.** The underlying assumption that Claude CLI sessions could be isolated per-issue was incorrect.
+
+### Discovery
+
+Claude CLI's `--continue` flag shares context across ALL active Claude sessions system-wide, not per-project or per-script-invocation. This means:
+
+- User's interactive Claude Code sessions contaminate automated issue-splitter sessions
+- Implementation context from unrelated work bleeds into issue file generation
+- Cross-project contamination occurs between completely separate workstreams
+
+### Impact
+
+The proposed "session ID per issue" approach cannot work because:
+1. There is no mechanism to create isolated/named sessions
+2. `--continue` always continues the user's most recent global session
+3. Session state is shared across all Claude CLI invocations system-wide
+
+### Resolution
+
+Issue 012 ("Remove Context Continuation") documents the correct approach: **remove all uses of `--continue`** and accept the higher token costs of stateless invocations.
+
+If Claude CLI adds isolated/named session support in the future, this issue could be revisited.
+
+---
+
+## Original Issue Content (Preserved for Reference)
 
 ---
 
