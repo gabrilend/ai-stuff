@@ -1,0 +1,505 @@
+# Issue 301: Parse war3map.wtg (Trigger Definitions)
+
+**Phase:** 3 - Logic Layer
+**Type:** Feature
+**Priority:** High
+**Dependencies:** 102-implement-mpq-archive-parser
+
+---
+
+## Current Behavior
+
+Cannot read trigger definitions. GUI-created triggers from World Editor are
+inaccessible, preventing trigger-based gameplay from functioning.
+
+---
+
+## Intended Behavior
+
+A parser that extracts all trigger definitions from war3map.wtg:
+- Trigger categories (folders in the editor)
+- Trigger names and descriptions
+- Trigger events (what activates the trigger)
+- Trigger conditions (when it should fire)
+- Trigger actions (what it does)
+- Variable definitions
+- Trigger enable/disable state
+
+---
+
+## Suggested Implementation Steps
+
+1. **Create parser module**
+   ```
+   src/parsers/
+   └── wtg.lua          (this issue)
+   ```
+
+2. **Implement header parsing**
+   ```lua
+   -- war3map.wtg header structure:
+   -- Offset  Type      Description
+   -- 0x00    char[4]   File ID "WTG!"
+   -- 0x04    int32     File format version (7 for TFT)
+   -- 0x08    int32     Number of trigger categories
+   -- 0x0C    Category[] Category definitions
+   ```
+
+3. **Parse trigger categories**
+   ```lua
+   -- Each category:
+   -- int32:  Category index
+   -- string: Category name (null-terminated)
+   -- int32:  Category type (0=normal, 1=comment)
+   ```
+
+4. **Parse variable definitions**
+   ```lua
+   -- int32:  Number of variables
+   -- For each variable:
+   --   string: Variable name
+   --   string: Variable type (e.g., "unit", "integer", "real")
+   --   int32:  Unknown (always 1?)
+   --   int32:  Is array (0/1)
+   --   int32:  Array size (if array)
+   --   int32:  Is initialized (0/1)
+   --   string: Initial value (if initialized)
+   ```
+
+5. **Parse triggers**
+   ```lua
+   -- int32:  Number of triggers
+   -- For each trigger:
+   --   string: Trigger name
+   --   string: Trigger description
+   --   int32:  Is comment (0/1)
+   --   int32:  Is enabled (0/1)
+   --   int32:  Is custom text (0/1)
+   --   int32:  Is initially on (0/1)
+   --   int32:  Run on map init (0/1)
+   --   int32:  Category index
+   --   int32:  Number of ECA functions
+   --   ECA[]:  Event/Condition/Action functions
+   ```
+
+6. **Parse ECA (Event/Condition/Action) functions**
+   ```lua
+   -- Each ECA function:
+   -- int32:  Function type (0=event, 1=condition, 2=action)
+   -- string: Function name (e.g., "TriggerRegisterTimerEvent")
+   -- int32:  Is enabled (0/1)
+   -- int32:  Number of parameters
+   -- Param[]: Parameter values
+   -- int32:  Number of nested ECAs (for if/then/else, loops)
+   -- ECA[]:  Nested ECA functions (recursive)
+   ```
+
+7. **Parse parameters**
+   ```lua
+   -- Each parameter:
+   -- int32:  Parameter type
+   --         0 = preset
+   --         1 = variable
+   --         2 = function call
+   --         3 = string literal
+   --         -1 = invalid/disabled
+   -- string: Parameter value
+   -- int32:  Has sub-parameters (0/1)
+   -- Param[]: Sub-parameters (if function call)
+   -- int32:  Is array index (0/1)
+   -- Param:  Array index parameter (if array)
+   ```
+
+8. **Return structured data**
+   ```lua
+   return {
+       version = 7,
+       categories = {
+           { index = 0, name = "Initialization", type = "normal" },
+           { index = 1, name = "Combat", type = "normal" },
+       },
+       variables = {
+           {
+               name = "udg_Hero",
+               type = "unit",
+               is_array = false,
+               is_initialized = true,
+               initial_value = nil,
+           },
+       },
+       triggers = {
+           {
+               name = "Init_Trigger",
+               description = "Runs on map start",
+               category = 0,
+               is_enabled = true,
+               is_initially_on = true,
+               run_on_init = true,
+               events = { ... },
+               conditions = { ... },
+               actions = { ... },
+           },
+       },
+   }
+   ```
+
+---
+
+## Technical Notes
+
+### ECA Function Types
+
+The function type determines trigger behavior:
+- **Events (0):** What causes the trigger to evaluate (e.g., unit enters region)
+- **Conditions (1):** Boolean checks that must pass (e.g., unit is hero)
+- **Actions (2):** What happens when trigger fires (e.g., create unit)
+
+### Common Function Names
+
+```lua
+-- Events
+"TriggerRegisterTimerEvent"       -- Periodic timer
+"TriggerRegisterEnterRegion"      -- Unit enters rect
+"TriggerRegisterPlayerEvent"      -- Player-based events
+"TriggerRegisterUnitEvent"        -- Unit-based events
+
+-- Conditions
+"GetTriggerUnit"                  -- Get the triggering unit
+"IsUnitType"                      -- Check unit classification
+"CompareInteger"                  -- Numeric comparison
+
+-- Actions
+"CreateUnit"                      -- Spawn a unit
+"DisplayTextToPlayer"             -- Show message
+"SetUnitPosition"                 -- Move unit
+"PauseTimer"                      -- Timer control
+```
+
+### Variable Naming Convention
+
+Editor-generated variables have `udg_` prefix:
+- `udg_` = User-Defined Global
+- Example: `udg_SpawnCount`, `udg_HeroUnit`
+
+### Nested ECA Structures
+
+Control flow actions contain nested ECAs:
+- `IfThenElse` - Contains conditions + actions
+- `ForLoop` - Contains loop body actions
+- `AndMultiple` / `OrMultiple` - Contains condition children
+
+---
+
+## Related Documents
+
+- docs/formats/wtg-triggers.md (to be created)
+- issues/102-implement-mpq-archive-parser.md (provides file access)
+- issues/302-parse-war3map-wct.md (custom trigger text)
+- issues/307-implement-trigger-framework.md (runtime execution)
+
+---
+
+## Acceptance Criteria
+
+- [x] Can parse war3map.wtg from test archives (synthetic data - maps protected)
+- [x] Correctly extracts trigger categories
+- [x] Correctly extracts variable definitions
+- [x] Correctly extracts trigger metadata
+- [x] Correctly extracts events, conditions, actions
+- [x] Handles nested ECA structures (if/then/else, loops)
+- [x] Handles parameter types (presets, variables, function calls)
+- [x] Returns structured Lua table
+- [x] Unit tests for parser (59 tests across 5 files)
+
+---
+
+## Notes
+
+The wtg format is the most complex of the trigger files. It represents the
+GUI trigger editor's internal representation. Understanding this format
+enables:
+
+1. Displaying triggers in a custom editor
+2. Converting GUI triggers to JASS/Lua
+3. Analyzing map logic without decompilation
+
+The format is recursive due to nested control flow structures. Care must
+be taken to handle arbitrarily deep nesting.
+
+Reference: [WC3MapSpecification](https://github.com/ChiefOfGxBxL/WC3MapSpecification)
+Reference: [Wurst WTG Parser](https://github.com/wurstscript/WurstScript)
+
+---
+
+## Initial Analysis
+
+*Generated by Claude Code on 2025-12-19 03:10*
+
+Looking at this issue, it's a substantial parsing task with clear logical divisions. The WTG format has several distinct components that would benefit from separation.
+
+## Sub-Issue Analysis
+
+**Recommendation: Split into 5 sub-issues**
+
+The issue covers header parsing, categories, variables, triggers, and the recursive ECA structure. Each is a distinct concern with clear boundaries.
+
+---
+
+### 301a-parse-wtg-header-and-categories
+
+**Description:** Parse the WTG file header (magic bytes, version) and trigger category definitions. Categories are simple structures that provide organizational context for triggers.
+
+**Covers:**
+- File ID validation ("WTG!")
+- Format version detection
+- Category array parsing (index, name, type)
+
+**Dependencies:** None (entry point)
+
+---
+
+### 301b-parse-wtg-variables
+
+**Description:** Parse the variable definitions section. These are user-defined globals (udg_*) that triggers reference.
+
+**Covers:**
+- Variable count and iteration
+- Variable properties (name, type, array status)
+- Initialization state and default values
+- Array size handling
+
+**Dependencies:** 301a (needs header parsed first to reach variable section)
+
+---
+
+### 301c-parse-wtg-trigger-metadata
+
+**Description:** Parse trigger definitions excluding their ECA content. This includes names, descriptions, flags, and category assignments.
+
+**Covers:**
+- Trigger count and iteration
+- Name and description strings
+- Boolean flags (enabled, initially_on, run_on_init, is_comment, is_custom_text)
+- Category index linking
+
+**Dependencies:** 301a (needs categories parsed for validation)
+
+---
+
+### 301d-parse-wtg-eca-functions
+
+**Description:** Parse the recursive ECA (Event/Condition/Action) function structures. This is the most complex component due to arbitrary nesting depth.
+
+**Covers:**
+- Function type discrimination (event=0, condition=1, action=2)
+- Function name and enabled state
+- Nested ECA handling (IfThenElse, ForLoop, AndMultiple, OrMultiple)
+- Recursive descent parsing
+
+**Dependencies:** 301c (ECA arrays are part of trigger structures)
+
+---
+
+### 301e-parse-wtg-parameters
+
+**Description:** Parse function parameters with their various types and potential sub-parameters.
+
+**Covers:**
+- Parameter type handling (preset=0, variable=1, function_call=2, string=3, invalid=-1)
+- Parameter value extraction
+- Sub-parameter recursion (function calls have parameter children)
+- Array index parameter handling
+
+**Dependencies:** 301d (parameters are components of ECA functions)
+
+---
+
+## Dependency Graph
+
+```
+301a (header/categories)
+  │
+  ├──▶ 301b (variables)
+  │
+  └──▶ 301c (trigger metadata)
+          │
+          └──▶ 301d (ECA functions)
+                  │
+                  └──▶ 301e (parameters)
+```
+
+---
+
+## Rationale for Splitting
+
+1. **Recursive complexity isolation** - The ECA and parameter parsing (301d, 301e) involve recursive structures that deserve focused attention and testing.
+
+2. **Incremental testability** - Each sub-issue can have focused unit tests. Header/category parsing can be validated before tackling the more complex structures.
+
+3. **Clear data flow** - The sequential nature (header → variables → triggers → ECAs → parameters) maps naturally to sub-issues.
+
+4. **Risk management** - If the ECA recursion proves problematic, it won't block progress on simpler components.
+
+The issue is complex enough that splitting provides real value - each sub-issue represents roughly one focused implementation session.
+
+---
+
+## Structure Review
+
+*Generated by Claude Code on 2025-12-27 00:13*
+
+Based on my reading of the issue file, I can see it already contains a `## Sub-Issue Analysis` section that was generated previously. Let me provide my analysis of whether this existing split is appropriate and if any adjustments should be made.
+
+## Analysis of Existing Split
+
+The current analysis recommends 5 sub-issues, but I notice the format doesn't match the required table format for automatic parsing. Let me provide a properly formatted recommendation.
+
+### 1. Recommendation Table
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 301a | parse-wtg-header-categories | None | Parse WTG file header (magic bytes, version) and category definitions |
+| 301b | parse-wtg-variables | 301a | Parse variable definitions section (udg_* globals, types, arrays, initialization) |
+| 301c | parse-wtg-trigger-metadata | 301a | Parse trigger definitions excluding ECA content (names, flags, category links) |
+| 301d | parse-wtg-eca-functions | 301c | Parse recursive ECA structures (events, conditions, actions, nested control flow) |
+| 301e | parse-wtg-parameters | 301d | Parse function parameters with type discrimination and sub-parameter recursion |
+
+### 2. Rationale
+
+The existing analysis is sound. Splitting makes sense because:
+
+**Distinct work streams:**
+- **Header/Categories (301a):** Simple sequential parsing, establishes file validity
+- **Variables (301b):** Self-contained section with its own data structures
+- **Trigger Metadata (301c):** Straightforward string/flag extraction
+- **ECA Functions (301d):** Recursive tree structure requiring careful stack management
+- **Parameters (301e):** Nested recursion with 5 different type discriminants
+
+**Why not a single issue:**
+- The recursive ECA/parameter parsing is algorithmically complex and deserves isolated testing
+- Total scope covers ~200 lines of format specification across 5 distinct data structures
+- Failure in one component (e.g., parameter parsing) shouldn't block testing of simpler components
+
+**Benefits of splitting:**
+- Each sub-issue produces a testable unit
+- Clear checkpoints for incremental progress
+- Easier to identify where parsing fails on malformed files
+- Natural code organization (one function per sub-issue)
+
+### 3. Execution Order
+
+```
+301a (header/categories) ─┬─▶ 301b (variables)     [parallel possible]
+                          │
+                          └─▶ 301c (trigger metadata)
+                                      │
+                                      └─▶ 301d (ECA functions)
+                                                  │
+                                                  └─▶ 301e (parameters)
+```
+
+**Note:** 301b and 301c could theoretically run in parallel since they parse independent sections, but practically 301b should complete first since variables appear earlier in the file format.
+
+**Recommended implementation order:** 301a → 301b → 301c → 301d → 301e (strict sequential due to file offset dependencies)
+
+---
+
+## Verdict: Split
+
+The existing analysis is well-reasoned. The 5-way split appropriately isolates:
+1. The simple sequential components (a, b, c)
+2. The recursive complex components (d, e)
+
+This allows the easier ~60% of the work to complete quickly while giving proper attention to the trickier recursive parsing.
+
+---
+
+## Generated Sub-Issues
+
+*Generated by Claude Code on 2025-12-27*
+
+The following sub-issue files have been created:
+
+| File | Description |
+|------|-------------|
+| `301a-parse-wtg-header-categories.md` | Header validation and category parsing |
+| `301b-parse-wtg-variables.md` | Variable definitions section |
+| `301c-parse-wtg-trigger-metadata.md` | Trigger metadata excluding ECA |
+| `301d-parse-wtg-eca-functions.md` | Recursive ECA function structures |
+| `301e-parse-wtg-parameters.md` | Parameter type handling and sub-parameters |
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-27 00:23*
+
+- 301a-parse-wtg-header-categories.md
+- 301b-parse-wtg-variables.md
+- 301c-parse-wtg-trigger-metadata.md
+- 301d-parse-wtg-eca-functions.md
+- 301e-parse-wtg-parameters.md
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-27*
+
+All 5 sub-issues completed. The WTG parser is fully implemented.
+
+**Files Created:**
+- `src/parsers/wtg.lua` (1148 lines) - Full WTG parser
+- `src/tests/test_wtg_header.lua` (11 tests)
+- `src/tests/test_wtg_variables.lua` (9 tests)
+- `src/tests/test_wtg_triggers.lua` (9 tests)
+- `src/tests/test_wtg_eca.lua` (13 tests)
+- `src/tests/test_wtg_params.lua` (17 tests)
+
+**Parser Capabilities:**
+- Parse header and validate magic bytes/version (v4/v7 supported)
+- Parse trigger categories with type (normal/comment)
+- Parse variable definitions (name, type, array, initialization)
+- Parse trigger metadata (name, description, flags, category)
+- Parse ECA function trees with recursive children
+- Parse parameters with sub-parameters and array indices
+
+**API:**
+```lua
+local wtg = require("parsers.wtg")
+
+-- Full parsing (includes ECA)
+local result = wtg.parse(data)
+
+-- Metadata only (faster)
+local result = wtg.parse(data, { parse_eca = false })
+
+-- Deferred ECA parsing
+local result = wtg.parse(data, { parse_eca = false })
+result = wtg.parse_eca_pass(data, result)
+
+-- Helpers
+local formatted = wtg.format_parameter(param)
+local valid, issues = wtg.validate_parameter(param)
+local valid, errors = wtg.validate_categories(result)
+```
+
+**Constants Exported:**
+- `wtg.ECA_TYPE` / `wtg.ECA_TYPE_NAMES`
+- `wtg.PARAM_TYPE` / `wtg.PARAM_TYPE_NAMES`
+- `wtg.CATEGORY_TYPE` / `wtg.CATEGORY_TYPE_NAMES`
+- `wtg.VARIABLE_TYPES`
+
+**Test Statistics:**
+- 59 tests across 5 test files
+- All tests use synthetic data (test maps are protected)
+- Tests cover: valid parsing, error handling, edge cases
+
+**Run all tests:**
+```bash
+luajit src/tests/test_wtg_header.lua
+luajit src/tests/test_wtg_variables.lua
+luajit src/tests/test_wtg_triggers.lua
+luajit src/tests/test_wtg_eca.lua
+luajit src/tests/test_wtg_params.lua
+```
