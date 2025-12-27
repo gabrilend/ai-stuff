@@ -359,6 +359,216 @@ local function scan_operator(state, start_line, start_col)
 end
 -- }}}
 
+-- {{{ is_hex_digit
+-- Returns true if character is a hexadecimal digit (0-9, A-F, a-f).
+local function is_hex_digit(char)
+    if not char then return false end
+    local b = string.byte(char)
+    return (b >= 48 and b <= 57)   -- 0-9
+        or (b >= 65 and b <= 70)   -- A-F
+        or (b >= 97 and b <= 102)  -- a-f
+end
+-- }}}
+
+-- {{{ scan_integer
+-- Scans integer literals: decimal, hexadecimal (0x or $), and octal (leading 0).
+-- Also handles transition to real numbers when '.' is encountered.
+-- Returns true if a number was recognized.
+local function scan_integer(state, start_line, start_col)
+    local chars = {}
+    local char = peek(state)
+
+    -- Check for hex prefix: 0x or 0X
+    if char == "0" and (peek(state, 1) == "x" or peek(state, 1) == "X") then
+        chars[#chars + 1] = advance(state)  -- '0'
+        chars[#chars + 1] = advance(state)  -- 'x' or 'X'
+        -- Collect hex digits
+        while not is_at_end(state) and is_hex_digit(peek(state)) do
+            chars[#chars + 1] = advance(state)
+        end
+        if #chars == 2 then
+            error(string.format(
+                "Invalid hex literal at line %d, column %d: expected digits after '0x'",
+                start_line, start_col
+            ))
+        end
+        add_token(state, TOKEN.INTEGER, table.concat(chars), start_line, start_col)
+        return true
+    end
+
+    -- Check for $ hex prefix (alternate syntax)
+    if char == "$" then
+        chars[#chars + 1] = advance(state)  -- '$'
+        while not is_at_end(state) and is_hex_digit(peek(state)) do
+            chars[#chars + 1] = advance(state)
+        end
+        if #chars == 1 then
+            error(string.format(
+                "Invalid hex literal at line %d, column %d: expected digits after '$'",
+                start_line, start_col
+            ))
+        end
+        add_token(state, TOKEN.INTEGER, table.concat(chars), start_line, start_col)
+        return true
+    end
+
+    -- Decimal or octal (leading zero)
+    -- Note: We don't distinguish at lexer level - parser/evaluator handles octal
+    while not is_at_end(state) and is_digit(peek(state)) do
+        chars[#chars + 1] = advance(state)
+    end
+
+    -- Check if this is actually a real number (has fractional part)
+    if peek(state) == "." and is_digit(peek(state, 1)) then
+        chars[#chars + 1] = advance(state)  -- '.'
+        while not is_at_end(state) and is_digit(peek(state)) do
+            chars[#chars + 1] = advance(state)
+        end
+        add_token(state, TOKEN.REAL, table.concat(chars), start_line, start_col)
+        return true
+    end
+
+    -- Check for trailing dot (real without fractional part, e.g., "1.")
+    if peek(state) == "." and not is_digit(peek(state, 1)) then
+        chars[#chars + 1] = advance(state)  -- '.'
+        add_token(state, TOKEN.REAL, table.concat(chars), start_line, start_col)
+        return true
+    end
+
+    add_token(state, TOKEN.INTEGER, table.concat(chars), start_line, start_col)
+    return true
+end
+-- }}}
+
+-- {{{ scan_real_from_dot
+-- Scans real numbers that start with a dot (e.g., ".5", ".123").
+-- Called when we see a '.' that might start a number.
+local function scan_real_from_dot(state, start_line, start_col)
+    local chars = {}
+    chars[#chars + 1] = advance(state)  -- '.'
+
+    if not is_digit(peek(state)) then
+        -- Lone '.' is not valid in JASS (no member access operator)
+        error(string.format(
+            "Unexpected '.' at line %d, column %d",
+            start_line, start_col
+        ))
+    end
+
+    while not is_at_end(state) and is_digit(peek(state)) do
+        chars[#chars + 1] = advance(state)
+    end
+
+    add_token(state, TOKEN.REAL, table.concat(chars), start_line, start_col)
+    return true
+end
+-- }}}
+
+-- {{{ scan_string
+-- Scans string literals enclosed in double quotes.
+-- Handles escape sequences: \n, \r, \t, \\, \".
+-- Unknown escapes are preserved literally (JASS behavior).
+local function scan_string(state, start_line, start_col)
+    advance(state)  -- consume opening quote
+    local chars = {}
+
+    local ESCAPES = {
+        ["n"] = "\n",
+        ["r"] = "\r",
+        ["t"] = "\t",
+        ["\\"] = "\\",
+        ['"'] = '"',
+    }
+
+    while not is_at_end(state) do
+        local char = peek(state)
+
+        if char == '"' then
+            advance(state)  -- consume closing quote
+            add_token(state, TOKEN.STRING, table.concat(chars), start_line, start_col)
+            return true
+        end
+
+        if char == "\n" then
+            error(string.format(
+                "Unterminated string at line %d, column %d",
+                start_line, start_col
+            ))
+        end
+
+        if char == "\\" then
+            advance(state)  -- consume backslash
+            local escape_char = advance(state)
+            if not escape_char then
+                error(string.format(
+                    "Unterminated escape sequence at line %d",
+                    state.line
+                ))
+            end
+            local escaped = ESCAPES[escape_char]
+            if escaped then
+                chars[#chars + 1] = escaped
+            else
+                -- Unknown escape - preserve literally (JASS behavior)
+                chars[#chars + 1] = "\\"
+                chars[#chars + 1] = escape_char
+            end
+        else
+            chars[#chars + 1] = advance(state)
+        end
+    end
+
+    error(string.format(
+        "Unterminated string at line %d, column %d",
+        start_line, start_col
+    ))
+end
+-- }}}
+
+-- {{{ scan_rawcode
+-- Scans rawcode literals (single-quoted 4-character codes).
+-- Rawcodes like 'hfoo' represent 4-byte integers used for unit/ability IDs.
+local function scan_rawcode(state, start_line, start_col)
+    advance(state)  -- consume opening quote
+    local chars = {}
+
+    for i = 1, 4 do
+        if is_at_end(state) then
+            error(string.format(
+                "Unterminated rawcode at line %d, column %d: expected 4 characters",
+                start_line, start_col
+            ))
+        end
+        local char = peek(state)
+        if char == "'" then
+            error(string.format(
+                "Invalid rawcode at line %d, column %d: expected 4 characters, got %d",
+                start_line, start_col, i - 1
+            ))
+        end
+        if char == "\n" then
+            error(string.format(
+                "Unterminated rawcode at line %d, column %d",
+                start_line, start_col
+            ))
+        end
+        chars[#chars + 1] = advance(state)
+    end
+
+    -- Expect closing quote
+    if is_at_end(state) or peek(state) ~= "'" then
+        error(string.format(
+            "Unterminated rawcode at line %d, column %d: expected closing quote",
+            start_line, start_col
+        ))
+    end
+    advance(state)  -- consume closing quote
+
+    add_token(state, TOKEN.RAWCODE, table.concat(chars), start_line, start_col)
+    return true
+end
+-- }}}
+
 -- {{{ scan_punctuation
 -- Scans punctuation at the current position.
 -- Returns true if punctuation was recognized, false otherwise.
@@ -387,9 +597,31 @@ end
 -- {{{ scan_token
 -- Dispatch function for recognizing tokens.
 -- Delegates to specialized scanners for identifiers, operators, punctuation,
--- and literals (304c). Returns true if a token was recognized.
+-- and literals. Returns true if a token was recognized.
 local function scan_token(state, start_line, start_col)
     local char = peek(state)
+
+    -- String literal (double quote)
+    if char == '"' then
+        return scan_string(state, start_line, start_col)
+    end
+
+    -- Rawcode literal (single quote)
+    if char == "'" then
+        return scan_rawcode(state, start_line, start_col)
+    end
+
+    -- Number literals (integer, hex, or real)
+    -- - Digits start decimal/hex/octal integers
+    -- - '.' followed by digit starts a real number (.5)
+    -- - '$' starts a hex literal ($1F)
+    if is_digit(char) or char == "$" then
+        return scan_integer(state, start_line, start_col)
+    end
+
+    if char == "." and is_digit(peek(state, 1)) then
+        return scan_real_from_dot(state, start_line, start_col)
+    end
 
     -- Identifier or keyword (starts with letter or underscore)
     if is_alpha(char) then
@@ -405,13 +637,6 @@ local function scan_token(state, start_line, start_col)
     if scan_punctuation(state, start_line, start_col) then
         return true
     end
-
-    -- Literals will be handled by 304c (numbers, strings, rawcodes)
-    -- For now, these characters will fall through and trigger an error:
-    -- - Digits (0-9) - integer/real literals
-    -- - Double quote (") - string literals
-    -- - Single quote (') - rawcode literals
-    -- - Dollar sign ($) - hex literals
 
     return false
 end
@@ -464,7 +689,7 @@ end
 -- }}}
 
 -- {{{ module export
--- Export internal helpers for use by 304c (literals).
+-- Export internal helpers for testing and extension.
 -- Character classification helpers are used for number parsing.
 lexer._internal = {
     -- Core state functions
@@ -475,10 +700,11 @@ lexer._internal = {
     add_token = add_token,
     create_state = create_state,
     skip_whitespace = skip_whitespace,
-    -- Character classification (for 304c literal parsing)
+    -- Character classification
     is_alpha = is_alpha,
     is_digit = is_digit,
     is_alnum = is_alnum,
+    is_hex_digit = is_hex_digit,
 }
 
 return lexer

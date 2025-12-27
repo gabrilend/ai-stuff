@@ -202,7 +202,11 @@ Phase 1 Complete (102 MPQ Parser)
 | 301e | Parse WTG parameters | **Completed** | 301d |
 | 302 | Parse war3map.wct (custom text triggers) | **Completed** | 102, 301 |
 | 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
-| 304 | Build JASS lexer | Pending | 303 |
+| 304 | Build JASS lexer | In Progress | 303 |
+| 304a | Lexer core infrastructure | **Completed** | 303 |
+| 304b | Lexer keywords/identifiers/operators | **Completed** | 304a |
+| 304c | Lexer literals | **Completed** | 304a |
+| 304d | Lexer tests and validation | Pending | 304a-c |
 | 305 | Build JASS parser | Pending | 304 |
 | 306 | Create JASS-to-Lua transpiler | Pending | 305 |
 | 307 | Implement trigger framework | Pending | 306 |
@@ -632,6 +636,15 @@ Phase 2 & 3 Complete
   - Provides merge_with_wtg() to associate custom JASS with wtg triggers
   - Helper functions: get_custom_trigger_count(), format()
   - Note: All 16 test maps are protected (no war3map.wct) - used synthetic data
+- **Issue 304c completed:** Lexer literals
+  - Added ~210 lines to src/jass/lexer.lua
+  - Created src/tests/test_lexer_literals.lua (53 tests)
+  - Integer literals: decimal, hex (0x and $), octal
+  - Real literals: standard (1.5), leading dot (.5), trailing dot (1.)
+  - String literals with escape sequences (\n, \r, \t, \\, \")
+  - Rawcode literals ('hfoo') - exactly 4 characters
+  - is_hex_digit helper exported for reuse
+  - All 137 lexer tests pass (28 core + 56 keywords + 53 literals)
 
 ---
 
@@ -651,7 +664,7 @@ Capabilities established:
 
 ### Phase 3 - Logic Layer: Triggers and JASS
 
-Phase 3 in progress (3/9 issues complete):
+Phase 3 in progress (3/9 root issues, 304 in progress with 3/4 sub-issues):
 
 1. **301 - Parse war3map.wtg** (trigger definitions) - **COMPLETED**
    - Full WTG parser with 5 test files (59 tests)
@@ -659,7 +672,11 @@ Phase 3 in progress (3/9 issues complete):
 2. **302 - Parse war3map.wct** (custom text triggers) - **COMPLETED**
    - WCT parser with 17 tests, merge_with_wtg helper
 3. **303 - Parse war3map.j** (JASS script extraction) - **COMPLETED**
-4. **304 - Build JASS lexer** (tokenization) - Next up
+4. **304 - Build JASS lexer** (tokenization) - In Progress
+   - 304a: Core infrastructure - **COMPLETED**
+   - 304b: Keywords/identifiers/operators - **COMPLETED**
+   - 304c: Literals (integers, reals, strings, rawcodes) - **COMPLETED**
+   - 304d: Tests and validation - Next up
 5. **305 - Build JASS parser** (AST generation)
 6. **306 - Create JASS-to-Lua transpiler**
 7. **307 - Implement trigger framework** (conditions/actions)
