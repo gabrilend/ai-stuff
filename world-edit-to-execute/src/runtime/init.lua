@@ -30,13 +30,18 @@ local runtime = {}
 local handles = require("runtime.handles")
 local triggers = require("runtime.triggers")
 local context = require("runtime.context")
+local events = require("runtime.events")
 -- }}}
 
 -- {{{ Export internal modules (for testing/debugging)
 runtime._handles = handles
 runtime._triggers = triggers
 runtime._context = context
+runtime._events = events
 runtime._Trigger = triggers.Trigger
+
+-- Export EVENT constants at top level for convenience
+runtime.EVENT = events.EVENT
 -- }}}
 
 -- {{{ Utility: is_trigger
@@ -537,6 +542,288 @@ function runtime.GetExpiredTimer()
 end
 -- }}}
 
+-- ============================================================================
+-- 308b: Timer Events
+-- ============================================================================
+
+-- {{{ Timer storage
+-- Timers are stored in runtime._timers by their unique ID.
+-- Each timer tracks timeout, elapsed time, periodic flag, and associated trigger.
+runtime._timers = {}
+runtime._next_timer_id = 1
+-- }}}
+
+-- {{{ TriggerRegisterTimerEvent
+-- Register a trigger to fire on a timer.
+-- @param trigger The trigger to fire
+-- @param timeout Time in seconds until fire
+-- @param periodic If true, fires repeatedly; if false, fires once
+-- @return Timer object for control (pause/resume/destroy)
+function runtime.TriggerRegisterTimerEvent(trigger, timeout, periodic)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if type(timeout) ~= "number" or timeout <= 0 then
+        return nil
+    end
+
+    local timer_id = runtime._next_timer_id
+    runtime._next_timer_id = runtime._next_timer_id + 1
+
+    local timer = {
+        id = timer_id,
+        trigger = trigger,
+        timeout = timeout,
+        periodic = periodic or false,
+        elapsed = 0,
+        enabled = true,
+        _handle_type = "timer",
+    }
+
+    -- Register with handle system
+    handles.register(timer, "timer")
+
+    -- Determine event type based on periodic flag
+    local event_type = periodic and
+        events.EVENT.TIMER_PERIODIC or
+        events.EVENT.TIMER_EXPIRE
+
+    -- Register with event system, filter for this specific timer
+    local listener = events.register(
+        event_type,
+        trigger,
+        function(ctx) return ctx.timer_id == timer_id end
+    )
+
+    timer.listener = listener
+    timer.event_type = event_type
+    runtime._timers[timer_id] = timer
+
+    return timer
+end
+-- }}}
+
+-- {{{ CreateTimer
+-- native CreateTimer takes nothing returns timer
+-- Creates a standalone timer (not attached to a trigger).
+-- Use TimerStart to begin it.
+function runtime.CreateTimer()
+    local timer_id = runtime._next_timer_id
+    runtime._next_timer_id = runtime._next_timer_id + 1
+
+    local timer = {
+        id = timer_id,
+        trigger = nil,
+        timeout = 0,
+        periodic = false,
+        elapsed = 0,
+        enabled = false,  -- Not started yet
+        callback = nil,
+        _handle_type = "timer",
+    }
+
+    -- Register with handle system
+    handles.register(timer, "timer")
+    runtime._timers[timer_id] = timer
+
+    return timer
+end
+-- }}}
+
+-- {{{ TimerStart
+-- native TimerStart takes timer t, real timeout, boolean periodic, code handlerFunc returns nothing
+-- Starts a timer with specified timeout and callback.
+function runtime.TimerStart(timer, timeout, periodic, handlerFunc)
+    if not timer or not runtime._timers[timer.id] then
+        return
+    end
+    if type(timeout) ~= "number" or timeout <= 0 then
+        return
+    end
+
+    timer.timeout = timeout
+    timer.periodic = periodic or false
+    timer.elapsed = 0
+    timer.enabled = true
+    timer.callback = handlerFunc
+
+    -- Determine event type based on periodic flag
+    local event_type = periodic and
+        events.EVENT.TIMER_PERIODIC or
+        events.EVENT.TIMER_EXPIRE
+
+    timer.event_type = event_type
+end
+-- }}}
+
+-- {{{ PauseTimer
+-- native PauseTimer takes timer t returns nothing
+-- Pauses a timer, stopping time accumulation.
+function runtime.PauseTimer(timer)
+    if timer and runtime._timers[timer.id] then
+        timer.enabled = false
+    end
+end
+-- }}}
+
+-- {{{ ResumeTimer
+-- native ResumeTimer takes timer t returns nothing
+-- Resumes a paused timer.
+function runtime.ResumeTimer(timer)
+    if timer and runtime._timers[timer.id] then
+        timer.enabled = true
+    end
+end
+-- }}}
+
+-- {{{ DestroyTimer
+-- native DestroyTimer takes timer t returns nothing
+-- Destroys a timer, removing it completely.
+function runtime.DestroyTimer(timer)
+    if not timer then return end
+
+    local stored = runtime._timers[timer.id]
+    if not stored then return end
+
+    -- Unregister from event system if listener exists
+    if stored.listener then
+        events.unregister(stored.listener)
+    end
+
+    -- Remove from timer registry
+    runtime._timers[timer.id] = nil
+
+    -- Remove from handle system
+    handles.destroy(timer)
+end
+-- }}}
+
+-- {{{ TimerGetElapsed
+-- native TimerGetElapsed takes timer t returns real
+-- Returns accumulated time since last fire (or start).
+function runtime.TimerGetElapsed(timer)
+    if timer and runtime._timers[timer.id] then
+        return timer.elapsed
+    end
+    return 0
+end
+-- }}}
+
+-- {{{ TimerGetRemaining
+-- native TimerGetRemaining takes timer t returns real
+-- Returns time remaining until next fire.
+function runtime.TimerGetRemaining(timer)
+    if timer and runtime._timers[timer.id] then
+        return math.max(0, timer.timeout - timer.elapsed)
+    end
+    return 0
+end
+-- }}}
+
+-- {{{ TimerGetTimeout
+-- native TimerGetTimeout takes timer t returns real
+-- Returns the timer's timeout period.
+function runtime.TimerGetTimeout(timer)
+    if timer and runtime._timers[timer.id] then
+        return timer.timeout
+    end
+    return 0
+end
+-- }}}
+
+-- {{{ IsTimerPeriodic
+-- Returns true if the timer is periodic (repeating).
+function runtime.IsTimerPeriodic(timer)
+    if timer and runtime._timers[timer.id] then
+        return timer.periodic
+    end
+    return false
+end
+-- }}}
+
+-- ============================================================================
+-- 308c: Region Events
+-- ============================================================================
+
+-- {{{ TriggerRegisterEnterRegion
+-- Register a trigger to fire when a unit enters a region.
+-- @param trigger The trigger to fire
+-- @param region The region to watch
+-- @param filter Optional function(unit) to filter which units trigger event
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterEnterRegion(trigger, region, filter)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if region == nil then
+        return nil
+    end
+
+    return events.register(
+        events.EVENT.UNIT_ENTER_REGION,
+        trigger,
+        function(ctx)
+            -- Must match the registered region
+            if ctx.region ~= region then return false end
+            -- Apply optional unit filter
+            if filter and not filter(ctx.unit) then return false end
+            return true
+        end
+    )
+end
+-- }}}
+
+-- {{{ TriggerRegisterLeaveRegion
+-- Register a trigger to fire when a unit leaves a region.
+-- @param trigger The trigger to fire
+-- @param region The region to watch
+-- @param filter Optional function(unit) to filter which units trigger event
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterLeaveRegion(trigger, region, filter)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if region == nil then
+        return nil
+    end
+
+    return events.register(
+        events.EVENT.UNIT_LEAVE_REGION,
+        trigger,
+        function(ctx)
+            -- Must match the registered region
+            if ctx.region ~= region then return false end
+            -- Apply optional unit filter
+            if filter and not filter(ctx.unit) then return false end
+            return true
+        end
+    )
+end
+-- }}}
+
+-- {{{ GetEnteringUnit
+-- native GetEnteringUnit takes nothing returns unit
+-- Returns the unit that entered a region.
+function runtime.GetEnteringUnit()
+    return context.get("entering_unit") or context.get("unit")
+end
+-- }}}
+
+-- {{{ GetLeavingUnit
+-- native GetLeavingUnit takes nothing returns unit
+-- Returns the unit that left a region.
+function runtime.GetLeavingUnit()
+    return context.get("leaving_unit") or context.get("unit")
+end
+-- }}}
+
+-- {{{ GetTriggerRegion
+-- Returns the region that triggered the enter/leave event.
+function runtime.GetTriggerRegion()
+    return context.get("region")
+end
+-- }}}
+
 -- {{{ runtime.reset
 -- Reset all runtime state.
 -- Called when loading a new map or restarting.
@@ -544,18 +831,30 @@ function runtime.reset()
     handles.reset()
     triggers.reset()
     context.reset()
+    events.reset()
+    -- Reset timer state
+    runtime._timers = {}
+    runtime._next_timer_id = 1
 end
 -- }}}
 
 -- {{{ runtime.get_stats
 -- Get runtime statistics for debugging.
--- @return Table with handle_count, trigger_count, etc.
+-- @return Table with handle_count, trigger_count, event_listeners, timer_count, etc.
 function runtime.get_stats()
     local handle_stats = handles.get_stats()
+    local event_stats = events.get_stats()
+    -- Count active timers
+    local timer_count = 0
+    for _ in pairs(runtime._timers) do
+        timer_count = timer_count + 1
+    end
     return {
         handle_count = handle_stats.count,
         next_handle_id = handle_stats.next_id,
         trigger_count = triggers.get_count(),
+        event_listeners = event_stats.total_listeners,
+        timer_count = timer_count,
     }
 end
 -- }}}
