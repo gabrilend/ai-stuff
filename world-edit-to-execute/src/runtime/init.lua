@@ -824,6 +824,237 @@ function runtime.GetTriggerRegion()
 end
 -- }}}
 
+-- ============================================================================
+-- 308d: Unit Events
+-- ============================================================================
+
+-- {{{ TriggerRegisterUnitEvent
+-- Register a trigger to fire for a specific unit's events.
+-- @param trigger The trigger to fire
+-- @param unit The specific unit to watch
+-- @param event_type The unit event type (e.g., EVENT.UNIT_DEATH)
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterUnitEvent(trigger, unit, event_type)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if unit == nil then
+        return nil
+    end
+    if event_type == nil then
+        return nil
+    end
+
+    return events.register(
+        event_type,
+        trigger,
+        function(ctx)
+            -- Only fire for the specific registered unit
+            return ctx.unit == unit
+        end
+    )
+end
+-- }}}
+
+-- {{{ TriggerRegisterAnyUnitEventBJ
+-- Register a trigger to fire for any unit matching the event type.
+-- @param trigger The trigger to fire
+-- @param event_type The unit event type (e.g., EVENT.UNIT_DEATH)
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterAnyUnitEventBJ(trigger, event_type)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if event_type == nil then
+        return nil
+    end
+
+    -- No filter = fires for all units
+    return events.register(event_type, trigger)
+end
+-- }}}
+
+-- {{{ TriggerRegisterPlayerUnitEvent
+-- Register a trigger to fire for a specific player's units.
+-- @param trigger The trigger to fire
+-- @param player The player whose units to watch
+-- @param event_type The unit event type (e.g., EVENT.UNIT_DEATH)
+-- @param filter Optional function(unit) to further filter
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterPlayerUnitEvent(trigger, player, event_type, filter)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if player == nil then
+        return nil
+    end
+    if event_type == nil then
+        return nil
+    end
+
+    return events.register(
+        event_type,
+        trigger,
+        function(ctx)
+            -- Unit must belong to specified player
+            local unit = ctx.unit
+            if not unit or unit.owner ~= player then
+                return false
+            end
+            -- Apply optional additional filter
+            if filter and not filter(unit) then
+                return false
+            end
+            return true
+        end
+    )
+end
+-- }}}
+
+-- ============================================================================
+-- 308e: Player Events
+-- ============================================================================
+
+-- {{{ TriggerRegisterPlayerEvent
+-- Register a trigger to fire for a specific player's events.
+-- @param trigger The trigger to fire
+-- @param player The player to watch
+-- @param event_type The player event type (e.g., EVENT.PLAYER_LEAVE)
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterPlayerEvent(trigger, player, event_type)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if player == nil then
+        return nil
+    end
+    if event_type == nil then
+        return nil
+    end
+
+    return events.register(
+        event_type,
+        trigger,
+        function(ctx)
+            return ctx.player == player
+        end
+    )
+end
+-- }}}
+
+-- {{{ TriggerRegisterPlayerChatEvent
+-- Register a trigger to fire when a player chats.
+-- @param trigger The trigger to fire
+-- @param player The player to watch (nil for any player)
+-- @param message String to match (empty string for any message)
+-- @param exact_match True for exact match, false for substring match
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterPlayerChatEvent(trigger, player, message, exact_match)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+
+    return events.register(
+        events.EVENT.PLAYER_CHAT,
+        trigger,
+        function(ctx)
+            -- Filter by player if specified
+            if player and ctx.player ~= player then
+                return false
+            end
+
+            -- Filter by message if specified
+            if message and message ~= "" then
+                if exact_match then
+                    if ctx.message ~= message then
+                        return false
+                    end
+                    ctx.matched_string = message
+                else
+                    -- Substring match (case-sensitive, plain string)
+                    local start_pos = ctx.message:find(message, 1, true)
+                    if not start_pos then
+                        return false
+                    end
+                    ctx.matched_string = message
+                end
+            else
+                -- No message filter - match everything
+                ctx.matched_string = ctx.message
+            end
+
+            return true
+        end
+    )
+end
+-- }}}
+
+-- {{{ TriggerRegisterPlayerAllianceChange
+-- Register a trigger to fire when a player's alliance changes.
+-- @param trigger The trigger to fire
+-- @param player The player to watch (fires if they are either side of change)
+-- @return Listener handle for unregistration
+function runtime.TriggerRegisterPlayerAllianceChange(trigger, player)
+    if not triggers.is_trigger(trigger) then
+        return nil
+    end
+    if player == nil then
+        return nil
+    end
+
+    return events.register(
+        events.EVENT.PLAYER_ALLIANCE_CHANGE,
+        trigger,
+        function(ctx)
+            -- Fire if player is either side of the alliance change
+            return ctx.player == player or ctx.other_player == player
+        end
+    )
+end
+-- }}}
+
+-- {{{ GetEventPlayerChatString
+-- native GetEventPlayerChatString takes nothing returns string
+-- Returns the full chat message from a chat event.
+function runtime.GetEventPlayerChatString()
+    return context.get("chat_string") or context.get("message") or ""
+end
+-- }}}
+
+-- {{{ GetEventPlayerChatStringMatched
+-- native GetEventPlayerChatStringMatched takes nothing returns string
+-- Returns the matched portion of a chat message.
+function runtime.GetEventPlayerChatStringMatched()
+    return context.get("matched_string") or ""
+end
+-- }}}
+
+-- {{{ GetPlayerLeaveReason
+-- Returns the reason a player left the game.
+-- Possible values: "disconnect", "defeat", "victory", "kicked"
+function runtime.GetPlayerLeaveReason()
+    return context.get("leave_reason")
+end
+-- }}}
+
+-- {{{ SubString (BJ compatibility)
+-- native SubString takes string s, integer start, integer end returns string
+-- WC3 SubString is 0-indexed, Lua string.sub is 1-indexed.
+function runtime.SubString(s, start_index, end_index)
+    if not s then return "" end
+    -- Convert from 0-indexed to 1-indexed
+    return s:sub(start_index + 1, end_index + 1)
+end
+-- }}}
+
+-- {{{ StringLength
+-- native StringLength takes string s returns integer
+-- Returns the length of a string.
+function runtime.StringLength(s)
+    return s and #s or 0
+end
+-- }}}
+
 -- {{{ runtime.reset
 -- Reset all runtime state.
 -- Called when loading a new map or restarting.

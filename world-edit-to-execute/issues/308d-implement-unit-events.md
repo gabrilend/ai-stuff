@@ -337,25 +337,25 @@ A unit event subsystem that provides:
 
 ## Acceptance Criteria
 
-- [ ] TriggerRegisterUnitEvent fires only for specified unit
-- [ ] TriggerRegisterAnyUnitEventBJ fires for any unit
-- [ ] TriggerRegisterPlayerUnitEvent filters by unit owner
-- [ ] Unit events (death, damage, attack, spawn, order) fire correctly
-- [ ] Spell events (channel, cast, effect, finish, endcast) fire correctly
-- [ ] events.unit_died(unit, killer) fires UNIT_DEATH
-- [ ] events.unit_damaged(unit, source, amount) fires UNIT_DAMAGED
-- [ ] events.unit_attacked(target, attacker) fires UNIT_ATTACKED
-- [ ] GetDyingUnit returns dying unit from death event
-- [ ] GetKillingUnit returns killer from death event
-- [ ] GetEventDamage returns damage amount from damage event
-- [ ] GetEventDamageSource returns source unit from damage event
-- [ ] GetAttacker returns attacking unit from attack event
-- [ ] GetOrderedUnit returns ordered unit from order event
-- [ ] GetIssuedOrderId returns order ID from order event
-- [ ] GetSpellAbilityId returns ability ID from spell events
-- [ ] GetSpellTargetUnit returns target from spell events
-- [ ] Context accessors return nil/0 outside event execution
-- [ ] Unit tests pass for all unit event operations
+- [x] TriggerRegisterUnitEvent fires only for specified unit
+- [x] TriggerRegisterAnyUnitEventBJ fires for any unit
+- [x] TriggerRegisterPlayerUnitEvent filters by unit owner
+- [x] Unit events (death, damage, attack, spawn, order) fire correctly
+- [x] Spell events (channel, cast, effect, finish, endcast) fire correctly
+- [x] events.unit_died(unit, killer) fires UNIT_DEATH
+- [x] events.unit_damaged(unit, source, amount) fires UNIT_DAMAGED
+- [x] events.unit_attacked(target, attacker) fires UNIT_ATTACKED
+- [x] GetDyingUnit returns dying unit from death event
+- [x] GetKillingUnit returns killer from death event
+- [x] GetEventDamage returns damage amount from damage event
+- [x] GetEventDamageSource returns source unit from damage event
+- [x] GetAttacker returns attacking unit from attack event
+- [x] GetOrderedUnit returns ordered unit from order event
+- [x] GetIssuedOrderId returns order ID from order event
+- [x] GetSpellAbilityId returns ability ID from spell events
+- [x] GetSpellTargetUnit returns target from spell events
+- [x] Context accessors return nil/0 outside event execution
+- [x] Unit tests pass for all unit event operations
 
 ---
 
@@ -383,3 +383,66 @@ Phase 4.
 Event contexts include multiple aliases for the same data (e.g., unit,
 triggering_unit, dying_unit for UNIT_DEATH) to support different accessor
 functions and maintain WC3 API compatibility.
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-27
+
+### Files Modified
+
+| File | Description |
+|------|-------------|
+| `src/runtime/init.lua` | Added TriggerRegisterUnitEvent, TriggerRegisterAnyUnitEventBJ, TriggerRegisterPlayerUnitEvent |
+| `src/runtime/events.lua` | Added 13 fire hooks for unit and spell events |
+| `src/tests/test_events_308d.lua` | Test suite with 45 tests |
+
+### Functions Implemented
+
+**Registration Functions (runtime):**
+| Function | Description |
+|----------|-------------|
+| `TriggerRegisterUnitEvent(trigger, unit, event_type)` | Register for specific unit's events |
+| `TriggerRegisterAnyUnitEventBJ(trigger, event_type)` | Register for any unit's events |
+| `TriggerRegisterPlayerUnitEvent(trigger, player, event_type, filter)` | Register for player's units |
+
+**Fire Hooks (events):**
+| Function | Description |
+|----------|-------------|
+| `unit_died(unit, killer)` | Fire UNIT_DEATH |
+| `unit_damaged(unit, source, amount, attack_type)` | Fire UNIT_DAMAGED |
+| `unit_attacked(target, attacker)` | Fire UNIT_ATTACKED |
+| `unit_spawned(unit)` | Fire UNIT_SPAWN |
+| `unit_acquired_target(unit, target)` | Fire UNIT_ACQUIRED_TARGET |
+| `unit_issued_order(unit, order_id, target, x, y)` | Fire UNIT_ISSUED_ORDER |
+| `unit_selected(unit, player)` | Fire UNIT_SELECTED |
+| `unit_deselected(unit, player)` | Fire UNIT_DESELECTED |
+| `unit_spell_channel(unit, ability_id, target, x, y)` | Fire UNIT_SPELL_CHANNEL |
+| `unit_spell_cast(unit, ability_id, target, x, y)` | Fire UNIT_SPELL_CAST |
+| `unit_spell_effect(unit, ability_id, target, x, y)` | Fire UNIT_SPELL_EFFECT |
+| `unit_spell_finish(unit, ability_id)` | Fire UNIT_SPELL_FINISH |
+| `unit_spell_endcast(unit, ability_id)` | Fire UNIT_SPELL_ENDCAST |
+
+### Design Notes
+
+- Event contexts include multiple aliases (e.g., `unit`, `dying_unit`, `triggering_unit`) for accessor compatibility
+- TriggerRegisterPlayerUnitEvent checks `unit.owner` field (to be populated by Phase 4 entity system)
+- Spell events fire in WC3-standard sequence: channel → cast → effect → finish → endcast
+- Context accessors already existed in init.lua from 307d; fire hooks provide the context data
+
+### Test Coverage
+
+45 tests covering:
+- TriggerRegisterUnitEvent: 6 tests
+- TriggerRegisterAnyUnitEventBJ: 4 tests
+- TriggerRegisterPlayerUnitEvent: 5 tests
+- Unit death events: 4 tests
+- Unit damaged events: 4 tests
+- Unit attacked events: 3 tests
+- Unit spawn events: 2 tests
+- Unit order events: 5 tests
+- Spell events: 5 tests
+- Other unit events: 3 tests
+- Context accessor edge cases: 2 tests
+- Multiple triggers: 2 tests

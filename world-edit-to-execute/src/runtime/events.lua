@@ -363,6 +363,316 @@ function events.unit_left_region(unit, region)
 end
 -- }}}
 
+-- ============================================================================
+-- Unit Events (308d)
+-- ============================================================================
+
+-- {{{ unit_died
+-- Called by combat system when unit health reaches 0.
+-- @param unit The dying unit
+-- @param killer The unit that dealt the killing blow (may be nil)
+function events.unit_died(unit, killer)
+    events.fire(events.EVENT.UNIT_DEATH, {
+        event_id = events.EVENT.UNIT_DEATH,
+        unit = unit,
+        triggering_unit = unit,
+        dying_unit = unit,
+        killing_unit = killer,
+    })
+end
+-- }}}
+
+-- {{{ unit_damaged
+-- Called by combat system when unit takes damage.
+-- @param unit The damaged unit
+-- @param source The unit that dealt the damage
+-- @param amount The damage amount
+-- @param attack_type Optional attack type constant
+function events.unit_damaged(unit, source, amount, attack_type)
+    events.fire(events.EVENT.UNIT_DAMAGED, {
+        event_id = events.EVENT.UNIT_DAMAGED,
+        unit = unit,
+        triggering_unit = unit,
+        damaged_unit = unit,
+        source = source,
+        damage_source = source,
+        damage = amount,
+        event_damage = amount,
+        attack_type = attack_type,
+    })
+end
+-- }}}
+
+-- {{{ unit_attacked
+-- Called when unit is attacked by another unit.
+-- Note: The 'target' is the unit being attacked and receives the event.
+-- @param target The unit being attacked
+-- @param attacker The attacking unit
+function events.unit_attacked(target, attacker)
+    events.fire(events.EVENT.UNIT_ATTACKED, {
+        event_id = events.EVENT.UNIT_ATTACKED,
+        unit = target,
+        triggering_unit = target,
+        attacked_unit = target,
+        attacker = attacker,
+        attacking_unit = attacker,
+    })
+end
+-- }}}
+
+-- {{{ unit_spawned
+-- Called when unit is created/spawned into game.
+-- @param unit The newly spawned unit
+function events.unit_spawned(unit)
+    events.fire(events.EVENT.UNIT_SPAWN, {
+        event_id = events.EVENT.UNIT_SPAWN,
+        unit = unit,
+        triggering_unit = unit,
+        spawned_unit = unit,
+    })
+end
+-- }}}
+
+-- {{{ unit_acquired_target
+-- Called when unit acquires a new attack target.
+-- @param unit The unit that acquired target
+-- @param target The target acquired
+function events.unit_acquired_target(unit, target)
+    events.fire(events.EVENT.UNIT_ACQUIRED_TARGET, {
+        event_id = events.EVENT.UNIT_ACQUIRED_TARGET,
+        unit = unit,
+        triggering_unit = unit,
+        target = target,
+    })
+end
+-- }}}
+
+-- {{{ unit_issued_order
+-- Called when unit receives an order.
+-- @param unit The unit receiving order
+-- @param order_id The order ID
+-- @param target Target unit (may be nil for point orders)
+-- @param target_x Target X coordinate (for point orders)
+-- @param target_y Target Y coordinate (for point orders)
+function events.unit_issued_order(unit, order_id, target, target_x, target_y)
+    events.fire(events.EVENT.UNIT_ISSUED_ORDER, {
+        event_id = events.EVENT.UNIT_ISSUED_ORDER,
+        unit = unit,
+        triggering_unit = unit,
+        ordered_unit = unit,
+        order_id = order_id,
+        target = target,
+        order_target_unit = target,
+        order_point_x = target_x,
+        order_point_y = target_y,
+    })
+end
+-- }}}
+
+-- {{{ unit_selected
+-- Called when unit is selected by player.
+-- @param unit The selected unit
+-- @param player The player who selected
+function events.unit_selected(unit, player)
+    events.fire(events.EVENT.UNIT_SELECTED, {
+        event_id = events.EVENT.UNIT_SELECTED,
+        unit = unit,
+        triggering_unit = unit,
+        player = player,
+    })
+end
+-- }}}
+
+-- {{{ unit_deselected
+-- Called when unit is deselected by player.
+-- @param unit The deselected unit
+-- @param player The player who deselected
+function events.unit_deselected(unit, player)
+    events.fire(events.EVENT.UNIT_DESELECTED, {
+        event_id = events.EVENT.UNIT_DESELECTED,
+        unit = unit,
+        triggering_unit = unit,
+        player = player,
+    })
+end
+-- }}}
+
+-- ============================================================================
+-- Spell Events (308d)
+-- ============================================================================
+
+-- {{{ unit_spell_channel
+-- Called when unit begins channeling a spell.
+-- @param unit The casting unit
+-- @param ability_id The spell ability ID
+-- @param target Target unit (may be nil for point spells)
+-- @param target_x Target X coordinate
+-- @param target_y Target Y coordinate
+function events.unit_spell_channel(unit, ability_id, target, target_x, target_y)
+    events.fire(events.EVENT.UNIT_SPELL_CHANNEL, {
+        event_id = events.EVENT.UNIT_SPELL_CHANNEL,
+        unit = unit,
+        triggering_unit = unit,
+        ability_id = ability_id,
+        spell_ability_id = ability_id,
+        target = target,
+        spell_target_unit = target,
+        spell_target_x = target_x,
+        spell_target_y = target_y,
+    })
+end
+-- }}}
+
+-- {{{ unit_spell_cast
+-- Called when unit reaches cast point and mana is spent.
+-- @param unit The casting unit
+-- @param ability_id The spell ability ID
+-- @param target Target unit (may be nil)
+-- @param target_x Target X coordinate
+-- @param target_y Target Y coordinate
+function events.unit_spell_cast(unit, ability_id, target, target_x, target_y)
+    events.fire(events.EVENT.UNIT_SPELL_CAST, {
+        event_id = events.EVENT.UNIT_SPELL_CAST,
+        unit = unit,
+        triggering_unit = unit,
+        ability_id = ability_id,
+        spell_ability_id = ability_id,
+        target = target,
+        spell_target_unit = target,
+        spell_target_x = target_x,
+        spell_target_y = target_y,
+    })
+end
+-- }}}
+
+-- {{{ unit_spell_effect
+-- Called when spell effect actually executes.
+-- @param unit The casting unit
+-- @param ability_id The spell ability ID
+-- @param target Target unit (may be nil)
+-- @param target_x Target X coordinate
+-- @param target_y Target Y coordinate
+function events.unit_spell_effect(unit, ability_id, target, target_x, target_y)
+    events.fire(events.EVENT.UNIT_SPELL_EFFECT, {
+        event_id = events.EVENT.UNIT_SPELL_EFFECT,
+        unit = unit,
+        triggering_unit = unit,
+        ability_id = ability_id,
+        spell_ability_id = ability_id,
+        target = target,
+        spell_target_unit = target,
+        spell_target_x = target_x,
+        spell_target_y = target_y,
+    })
+end
+-- }}}
+
+-- {{{ unit_spell_finish
+-- Called when spell completes successfully.
+-- @param unit The casting unit
+-- @param ability_id The spell ability ID
+function events.unit_spell_finish(unit, ability_id)
+    events.fire(events.EVENT.UNIT_SPELL_FINISH, {
+        event_id = events.EVENT.UNIT_SPELL_FINISH,
+        unit = unit,
+        triggering_unit = unit,
+        ability_id = ability_id,
+        spell_ability_id = ability_id,
+    })
+end
+-- }}}
+
+-- {{{ unit_spell_endcast
+-- Called when spell ends (even if interrupted).
+-- @param unit The casting unit
+-- @param ability_id The spell ability ID
+function events.unit_spell_endcast(unit, ability_id)
+    events.fire(events.EVENT.UNIT_SPELL_ENDCAST, {
+        event_id = events.EVENT.UNIT_SPELL_ENDCAST,
+        unit = unit,
+        triggering_unit = unit,
+        ability_id = ability_id,
+        spell_ability_id = ability_id,
+    })
+end
+-- }}}
+
+-- ============================================================================
+-- Player Events (308e)
+-- ============================================================================
+
+-- {{{ player_chat
+-- Called by chat system when player sends a message.
+-- @param player The chatting player
+-- @param message The chat message
+function events.player_chat(player, message)
+    events.fire(events.EVENT.PLAYER_CHAT, {
+        event_id = events.EVENT.PLAYER_CHAT,
+        player = player,
+        triggering_player = player,
+        message = message,
+        chat_string = message,
+        matched_string = nil,  -- Set by filter if matching
+    })
+end
+-- }}}
+
+-- {{{ player_left
+-- Called when player disconnects or leaves the game.
+-- @param player The leaving player
+-- @param reason Leave reason: "disconnect", "defeat", "victory", "kicked"
+function events.player_left(player, reason)
+    events.fire(events.EVENT.PLAYER_LEAVE, {
+        event_id = events.EVENT.PLAYER_LEAVE,
+        player = player,
+        triggering_player = player,
+        leave_reason = reason or "disconnect",
+    })
+end
+-- }}}
+
+-- {{{ player_alliance_changed
+-- Called when alliance between players changes.
+-- @param player The player initiating the change
+-- @param other_player The other player involved
+-- @param old_alliance Previous alliance type
+-- @param new_alliance New alliance type
+function events.player_alliance_changed(player, other_player, old_alliance, new_alliance)
+    events.fire(events.EVENT.PLAYER_ALLIANCE_CHANGE, {
+        event_id = events.EVENT.PLAYER_ALLIANCE_CHANGE,
+        player = player,
+        triggering_player = player,
+        other_player = other_player,
+        old_alliance = old_alliance,
+        new_alliance = new_alliance,
+    })
+end
+-- }}}
+
+-- {{{ player_defeated
+-- Called when player is defeated in game.
+-- @param player The defeated player
+function events.player_defeated(player)
+    events.fire(events.EVENT.PLAYER_DEFEAT, {
+        event_id = events.EVENT.PLAYER_DEFEAT,
+        player = player,
+        triggering_player = player,
+    })
+end
+-- }}}
+
+-- {{{ player_victorious
+-- Called when player achieves victory.
+-- @param player The victorious player
+function events.player_victorious(player)
+    events.fire(events.EVENT.PLAYER_VICTORY, {
+        event_id = events.EVENT.PLAYER_VICTORY,
+        player = player,
+        triggering_player = player,
+    })
+end
+-- }}}
+
 -- {{{ get_stats
 -- Get event registry statistics for debugging.
 -- @return Table with listener counts by event type
