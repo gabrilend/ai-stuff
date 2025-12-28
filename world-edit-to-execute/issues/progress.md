@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 20/23 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 24/27 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -270,7 +270,10 @@ Phase 1 Complete (102 MPQ Parser)
 | 403e | Path smoothing | Pending | 403b |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
-| 406 | Build resource management system | Pending | 401, 402, 407 |
+| 406 | Build resource management system | **Completed** | 401, 402, 407 |
+| 406a | Core resource storage | **Completed** | None |
+| 406b | Spending validation | **Completed** | 406a |
+| 406c | Food and harvesting | **Completed** | 406a, 402 |
 | 407 | Create player state management | **Completed** | 401, 402 |
 | 407a | Player data structure | **Completed** | 103 (w3i) |
 | 407b | Player queries | **Completed** | 407a |
@@ -824,6 +827,28 @@ Phase 2 & 3 Complete
     - game_over event with winner and reason
     - 21 new tests (112 total player tests)
   - **407 Complete!** All 6 sub-issues done
+- **Issue 406a completed:** Core resource storage
+  - Created src/runtime/resources.lua (~340 lines)
+  - RESOURCE_TYPES: gold, lumber, food_used, food_cap
+  - API: init_player, get, set, add, subtract, register_type
+  - Event system: on, clear_events, resource_changed event
+  - 37 tests pass
+- **Issue 406b completed:** Spending validation
+  - can_afford(player_id, cost) - validates affordability
+  - spend(player_id, cost) - atomic spending (all-or-nothing)
+  - refund(player_id, cost) - inverse of spend
+  - Cost helpers: validate_cost, add_costs, multiply_cost
+  - Food handled specially (spending increases food_used)
+  - 25 new tests (62 total)
+- **Issue 406c completed:** Food and harvesting
+  - Food supply: add_food_supply, remove_food_supply
+  - Food consumption: add_food_used, remove_food_used
+  - Upkeep system: none (0-50), low (51-80), high (81+)
+  - Harvesting: deposit_harvest with upkeep modifier for gold
+  - Gold mine: deplete_gold_mine, get_mine_status (ECS integration)
+  - Periodic income: set_income_rate, process_income
+  - 27 new tests (89 total resource tests)
+  - **406 Complete!** All 3 sub-issues done
 
 ---
 
@@ -888,15 +913,19 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 403b: Implement A* algorithm - **COMPLETED** (90 tests)
    - 403c: Coordinate conversion - **COMPLETED** (99 tests)
    - 403d: Movement type support - **COMPLETED** (106 tests)
-   - 403e: Path smoothing - Next up
-4. **407 - Player state management** - **COMPLETED**
+   - 403e: Path smoothing - Pending
+4. **406 - Resource management** - **COMPLETED**
+   - 406a: Core resource storage - **COMPLETED** (37 tests)
+   - 406b: Spending validation - **COMPLETED** (62 tests total)
+   - 406c: Food and harvesting - **COMPLETED** (89 tests total)
+5. **407 - Player state management** - **COMPLETED**
    - 407a: Player data structure - **COMPLETED** (39 tests)
    - 407b: Player queries - **COMPLETED**
    - 407f: Local player support - **COMPLETED**
    - 407c: Alliance management - **COMPLETED** (63 tests total)
    - 407d: Player state transitions - **COMPLETED** (91 tests total)
    - 407e: Victory conditions - **COMPLETED** (112 tests total)
-5. **404-406, 408** - Pending (movement, collision, resources, integration tests)
+6. **404, 405, 408** - Pending (movement, collision, integration tests)
 
 ### Previous Phases
 
