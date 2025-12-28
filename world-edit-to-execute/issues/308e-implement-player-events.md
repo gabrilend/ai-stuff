@@ -283,23 +283,23 @@ A player event subsystem that provides:
 
 ## Acceptance Criteria
 
-- [ ] TriggerRegisterPlayerEvent fires for specified player
-- [ ] TriggerRegisterPlayerChatEvent fires on matching chat
-- [ ] Chat exact match mode works (full message equality)
-- [ ] Chat substring match mode works (contains string)
-- [ ] Chat filter nil player matches any player
-- [ ] Chat filter empty message matches any message
-- [ ] Player events (chat, leave, alliance) fire correctly
-- [ ] events.player_chat(player, message) fires PLAYER_CHAT
-- [ ] events.player_left(player, reason) fires PLAYER_LEAVE
-- [ ] events.player_alliance_changed fires PLAYER_ALLIANCE_CHANGE
-- [ ] GetTriggerPlayer returns triggering player
-- [ ] GetEventPlayerChatString returns full chat message
-- [ ] GetEventPlayerChatStringMatched returns matched portion
-- [ ] GetPlayerLeaveReason returns leave reason
-- [ ] Context data available during trigger execution
-- [ ] SubString uses 0-indexed WC3 convention
-- [ ] Unit tests pass for all player event operations
+- [x] TriggerRegisterPlayerEvent fires for specified player
+- [x] TriggerRegisterPlayerChatEvent fires on matching chat
+- [x] Chat exact match mode works (full message equality)
+- [x] Chat substring match mode works (contains string)
+- [x] Chat filter nil player matches any player
+- [x] Chat filter empty message matches any message
+- [x] Player events (chat, leave, alliance) fire correctly
+- [x] events.player_chat(player, message) fires PLAYER_CHAT
+- [x] events.player_left(player, reason) fires PLAYER_LEAVE
+- [x] events.player_alliance_changed fires PLAYER_ALLIANCE_CHANGE
+- [x] GetTriggerPlayer returns triggering player
+- [x] GetEventPlayerChatString returns full chat message
+- [x] GetEventPlayerChatStringMatched returns matched portion
+- [x] GetPlayerLeaveReason returns leave reason
+- [x] Context data available during trigger execution
+- [x] SubString uses 0-indexed WC3 convention
+- [x] Unit tests pass for all player event operations
 
 ---
 
@@ -336,3 +336,70 @@ Leave reasons in WC3:
 - PLAYER_GAME_RESULT_VICTORY (won the game)
 
 We simplify to string constants: "disconnect", "defeat", "victory", "kicked"
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-27
+
+### Files Modified
+
+| File | Description |
+|------|-------------|
+| `src/runtime/init.lua` | Added player event registration and context accessors |
+| `src/runtime/events.lua` | Added 5 player event fire hooks |
+| `src/tests/test_events_308e.lua` | Test suite with 33 tests |
+
+### Functions Implemented
+
+**Registration Functions (runtime):**
+| Function | Description |
+|----------|-------------|
+| `TriggerRegisterPlayerEvent(trigger, player, event_type)` | Register for player events |
+| `TriggerRegisterPlayerChatEvent(trigger, player, message, exact_match)` | Register for chat with filtering |
+| `TriggerRegisterPlayerAllianceChange(trigger, player)` | Register for alliance changes |
+
+**Fire Hooks (events):**
+| Function | Description |
+|----------|-------------|
+| `player_chat(player, message)` | Fire PLAYER_CHAT |
+| `player_left(player, reason)` | Fire PLAYER_LEAVE |
+| `player_alliance_changed(player, other, old, new)` | Fire PLAYER_ALLIANCE_CHANGE |
+| `player_defeated(player)` | Fire PLAYER_DEFEAT |
+| `player_victorious(player)` | Fire PLAYER_VICTORY |
+
+**Context Accessors (runtime):**
+| Function | Description |
+|----------|-------------|
+| `GetEventPlayerChatString()` | Get full chat message |
+| `GetEventPlayerChatStringMatched()` | Get matched portion |
+| `GetPlayerLeaveReason()` | Get leave reason |
+
+**String Utilities (runtime):**
+| Function | Description |
+|----------|-------------|
+| `SubString(s, start, end)` | 0-indexed WC3 substring |
+| `StringLength(s)` | String length |
+
+### Design Notes
+
+- Chat filters modify context to set `matched_string` - slight deviation from pure functional filters but required for accessor
+- Player can be nil in TriggerRegisterPlayerChatEvent to match any player
+- Empty message string matches any chat message
+- Substring matching uses plain string find (not patterns) to match WC3 behavior
+- Alliance change fires for either participant (initiator or other_player)
+- Added player_defeated/player_victorious fire hooks beyond original spec
+
+### Test Coverage
+
+33 tests covering:
+- TriggerRegisterPlayerEvent: 6 tests
+- TriggerRegisterPlayerChatEvent: 8 tests
+- Chat context accessors: 5 tests
+- Player leave events: 3 tests
+- Player alliance events: 3 tests
+- Player defeat/victory: 2 tests
+- String utilities: 3 tests
+- Multiple triggers: 2 tests
+- Chat command pattern: 1 test
