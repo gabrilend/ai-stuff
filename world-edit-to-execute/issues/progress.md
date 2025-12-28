@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 24/27 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 25/27 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -262,12 +262,12 @@ Phase 1 Complete (102 MPQ Parser)
 | 402c | Component queries | **Completed** | 402a, 402b |
 | 402d | System registration | **Completed** | 402a |
 | 402e | Define core WC3 components | **Completed** | 402a-d |
-| 403 | Implement basic pathfinding | In Progress | 401, 402, 105 |
+| 403 | Implement basic pathfinding | **Completed** | 401, 402, 105 |
 | 403a | Build pathing grid | **Completed** | 105 |
 | 403b | Implement A* algorithm | **Completed** | None |
 | 403c | Coordinate conversion | **Completed** | 403a |
 | 403d | Movement type support | **Completed** | 403a, 403b |
-| 403e | Path smoothing | Pending | 403b |
+| 403e | Path smoothing | **Completed** | 403b |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
 | 405 | Implement basic collision detection | Pending | 401, 402, 404 |
 | 406 | Build resource management system | **Completed** | 401, 402, 407 |
@@ -773,7 +773,14 @@ Phase 2 & 3 Complete
   - make_can_pass() factory for A* integration
   - Custom type registration/unregistration
   - Added pathfinding.is_passable() and pathfinding.find_path_for_type()
-  - Total pathfinding tests: 388 (93 grid + 90 A* + 99 coords + 106 movement)
+- **Issue 403e completed:** Path smoothing
+  - Created src/runtime/pathfinding/smooth.lua (~280 lines)
+  - Created src/tests/test_path_smoothing.lua (64 tests, all pass)
+  - Line-of-sight check using Bresenham's algorithm
+  - Three smoothing methods: remove_collinear, smooth_path, smooth_greedy
+  - Integrated into find_path_for_type() via smooth option
+  - Total pathfinding tests: 452 (93 grid + 90 A* + 99 coords + 106 movement + 64 smoothing)
+- **Issue 403 completed:** Implement basic pathfinding (all 5 sub-issues done)
 - **Issue 306 in progress:** Create JASS-to-Lua transpiler
   - 306a: Transpiler infrastructure - context, emit, symbol tables - **COMPLETED**
   - 306b: Transpile declarations - globals, functions, natives - **COMPLETED**
@@ -908,12 +915,13 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 402d: System registration - **COMPLETED**
    - 402e: Define core WC3 components - **COMPLETED**
    - Total: 564 tests (entity, component, query, system, wc3_components)
-3. **403 - Basic pathfinding** - In Progress
+3. **403 - Basic pathfinding** - **COMPLETED**
    - 403a: Build pathing grid - **COMPLETED** (93 tests)
    - 403b: Implement A* algorithm - **COMPLETED** (90 tests)
    - 403c: Coordinate conversion - **COMPLETED** (99 tests)
    - 403d: Movement type support - **COMPLETED** (106 tests)
-   - 403e: Path smoothing - Pending
+   - 403e: Path smoothing - **COMPLETED** (64 tests)
+   - Total: 452 pathfinding tests
 4. **406 - Resource management** - **COMPLETED**
    - 406a: Core resource storage - **COMPLETED** (37 tests)
    - 406b: Spending validation - **COMPLETED** (62 tests total)
