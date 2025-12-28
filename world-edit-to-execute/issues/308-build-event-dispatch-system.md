@@ -352,8 +352,8 @@ Events fire in registration order. No explicit priority system
 - [x] Timer events fire at correct intervals
 - [x] Periodic timers repeat correctly
 - [x] Region enter/leave events work
-- [ ] Unit events (death, damage, etc.) work
-- [ ] Player events (chat, leave) work
+- [x] Unit events (death, damage, etc.) work
+- [x] Player events (chat, leave) work
 - [x] Context data available during trigger execution
 - [x] Triggers can unregister from events
 - [x] Unit tests for event system
@@ -522,8 +522,8 @@ This issue is well-suited for splitting. It covers multiple distinct subsystems 
 | [308a-implement-event-registry-core.md](308a-implement-event-registry-core.md) | EVENT constants, register/unregister/fire | **Completed** |
 | [308b-implement-timer-events.md](308b-implement-timer-events.md) | Timer registration, update_timers, Pause/Resume/Destroy | **Completed** |
 | [308c-implement-region-events.md](308c-implement-region-events.md) | Region enter/leave registration and fire hooks | **Completed** |
-| [308d-implement-unit-events.md](308d-implement-unit-events.md) | Unit event registration and fire hooks | Pending |
-| [308e-implement-player-events.md](308e-implement-player-events.md) | Player/chat event registration and fire hooks | Pending |
+| [308d-implement-unit-events.md](308d-implement-unit-events.md) | Unit event registration and fire hooks | **Completed** |
+| [308e-implement-player-events.md](308e-implement-player-events.md) | Player/chat event registration and fire hooks | **Completed** |
 
 ---
 
@@ -531,19 +531,23 @@ This issue is well-suited for splitting. It covers multiple distinct subsystems 
 
 **Updated:** 2025-12-27
 
-### Completed (3/5 sub-issues)
+### Completed (5/5 sub-issues) ✓
 
 - **308a:** Event registry core with 30 EVENT constants, register/unregister/fire operations (41 tests)
 - **308b:** Timer events with TriggerRegisterTimerEvent, CreateTimer/TimerStart, Pause/Resume/Destroy (38 tests)
 - **308c:** Region events with enter/leave registration and fire hooks (24 tests)
+- **308d:** Unit events with 13 fire hooks, 3 registration functions (45 tests)
+- **308e:** Player events with chat filtering, alliance tracking, 5 fire hooks (33 tests)
 
 ### Files Created
 
 | File | Description |
 |------|-------------|
-| `src/runtime/events.lua` | Event registry, EVENT constants, update_timers, region hooks |
+| `src/runtime/events.lua` | Event registry, EVENT constants, all fire hooks |
 | `src/tests/test_events_308a.lua` | Core registry tests |
 | `src/tests/test_events_308b.lua` | Timer event tests |
 | `src/tests/test_events_308c.lua` | Region event tests |
+| `src/tests/test_events_308d.lua` | Unit event tests |
+| `src/tests/test_events_308e.lua` | Player event tests |
 
-### Total Test Count: 103 tests passing
+### Total Test Count: 181 tests passing
