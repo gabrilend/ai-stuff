@@ -738,22 +738,33 @@ interactive_mode_tui() {
         local label="$basename"
         local desc=""
         local default="1"
+        local item_id="file_$i"
 
-        # Build description based on issue status
+        # Track file properties for dependency rules
+        local is_sub=false
+        local is_root_with_subs=false
+        local has_analysis=false
+        local has_struct_review=false
+
+        # Determine file properties and build description
         if is_subissue "$basename"; then
+            is_sub=true
             desc="[SUB] Part of issue ${root_id}"
             default="0"  # Sub-issues off by default
         elif has_subissues "$root_id"; then
+            is_root_with_subs=true
             local sub_count
             sub_count=$(get_subissues_for_root "$root_id" | wc -l)
             # Check if this root has already been structure-reviewed
             if has_structure_review "$issue"; then
+                has_struct_review=true
                 desc="[ROOT+${sub_count} REVIEWED] Already structure-reviewed"
                 default="0"  # Already reviewed = unchecked by default
             else
                 desc="[ROOT+${sub_count}] Has ${sub_count} sub-issue(s) - ready for review"
             fi
         elif has_subissue_analysis "$issue" || has_initial_analysis "$issue"; then
+            has_analysis=true
             # Check the verdict from analysis
             local verdict
             verdict=$(get_analysis_verdict "$issue")
@@ -770,14 +781,56 @@ interactive_mode_tui() {
                     ;;
             esac
         elif has_generated_subissues "$issue"; then
+            has_analysis=true  # Has generated = had analysis
             desc="[EXECUTED] Sub-issues already generated"
         else
             desc="[NEW] Ready for analysis"
         fi
 
-        menu_add_item "files" "file_$i" "$label" "checkbox" "$default" "$desc"
+        menu_add_item "files" "$item_id" "$label" "checkbox" "$default" "$desc"
         # Set file path for preview when this item is selected
-        menu_set_item_filepath "file_$i" "$issue"
+        menu_set_item_filepath "$item_id" "$issue"
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # Add dynamic dependencies based on file properties and mode compatibility
+        # ═══════════════════════════════════════════════════════════════════════
+
+        # Rule 1: Review Structures mode only works on root issues with sub-issues
+        # Disable non-roots when review mode is selected
+        if [[ "$is_root_with_subs" == false ]]; then
+            menu_add_dependency "$item_id" "review" "1" "true" \
+                "Review mode: only root issues with sub-issues (enable Analyze)" "yellow"
+        fi
+
+        # Rule 2: Execute Recommendations requires existing analysis
+        # Disable issues without analysis when execute mode is selected
+        if [[ "$has_analysis" == false ]] && [[ "$is_root_with_subs" == false ]]; then
+            menu_add_dependency "$item_id" "execute" "1" "true" \
+                "Execute mode: no analysis to execute (run Analyze first)" "yellow"
+        fi
+
+        # Rule 3: Clear Analysis requires existing analysis
+        # Disable issues without analysis when clear mode is selected
+        if [[ "$has_analysis" == false ]] && [[ "$is_root_with_subs" == false ]]; then
+            menu_add_dependency "$item_id" "clear" "1" "true" \
+                "Clear mode: no analysis to clear" "yellow"
+        fi
+
+        # Rule 4: Skip Analyzed disables issues that have analysis (in analyze mode)
+        # This only applies when NOT in review/execute/clear modes
+        if [[ "$has_analysis" == true ]]; then
+            # Disable when skip_existing=1 AND we're in analyze mode (not execute/clear/review)
+            # Since analyze is the default, we check that none of the other modes are on
+            menu_add_dependency "$item_id" "skip_existing" "1" "true" \
+                "Skipped: has existing analysis (disable Skip Analyzed)" "yellow"
+        fi
+
+        # Rule 5: Skip Analyzed in Review mode disables structure-reviewed roots
+        if [[ "$has_struct_review" == true ]]; then
+            menu_add_dependency "$item_id" "skip_existing" "1" "true" \
+                "Skipped: already structure-reviewed (disable Skip Analyzed)" "yellow"
+        fi
+
         ((++i))  # Pre-increment to avoid exit code 1 when i=0
     done
 
