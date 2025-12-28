@@ -27,6 +27,7 @@ local grid_mod = require("runtime.pathfinding.grid")
 local astar_mod = require("runtime.pathfinding.astar")
 local coords_mod = require("runtime.pathfinding.coords")
 local movement_mod = require("runtime.pathfinding.movement")
+local smooth_mod = require("runtime.pathfinding.smooth")
 -- }}}
 
 -- {{{ Grid construction exports
@@ -96,6 +97,16 @@ pathfinding.world_to_tiles_distance = coords_mod.world_to_tiles_distance
 pathfinding.movement = movement_mod
 -- }}}
 
+-- {{{ Path smoothing exports
+pathfinding.smooth_path = smooth_mod.smooth_path
+pathfinding.smooth_greedy = smooth_mod.smooth_greedy
+pathfinding.remove_collinear = smooth_mod.remove_collinear
+pathfinding.smooth_path_for_movement = smooth_mod.smooth_path_for_movement
+pathfinding.has_line_of_sight = smooth_mod.has_line_of_sight
+pathfinding.path_stats = smooth_mod.path_stats
+pathfinding.get_line_tiles = smooth_mod.get_line_tiles
+-- }}}
+
 -- {{{ Movement-aware pathfinding
 
 -- {{{ pathfinding.is_passable
@@ -127,7 +138,12 @@ end
 -- @param start Table with x, y world coordinates
 -- @param goal Table with x, y world coordinates
 -- @param move_type Movement type string (default: "foot")
--- @param options Optional A* settings (heuristic, diagonal, max_iterations)
+-- @param options Optional settings:
+--   - heuristic: A* heuristic ("manhattan", "euclidean", "chebyshev")
+--   - diagonal: Allow diagonal movement (default: false)
+--   - max_iterations: Limit A* iterations
+--   - smooth: Apply path smoothing (default: false)
+--   - smooth_method: "default", "greedy", "collinear" (default: "default")
 -- @return Array of {x, y} world waypoints, cost, or nil and error message
 function pathfinding.find_path_for_type(start, goal, move_type, options)
     move_type = move_type or "foot"
@@ -167,6 +183,19 @@ function pathfinding.find_path_for_type(start, goal, move_type, options)
 
     if not path then
         return nil, nil, err or "No path found"
+    end
+
+    -- Apply smoothing if requested
+    if options.smooth then
+        local method = options.smooth_method or "default"
+        if method == "greedy" then
+            path = smooth_mod.smooth_greedy(path, grid, can_pass)
+        elseif method == "collinear" then
+            path = smooth_mod.remove_collinear(path)
+        else
+            -- Default: combined smoothing for best results
+            path = smooth_mod.smooth_path_for_movement(path, grid, can_pass)
+        end
     end
 
     -- Convert path back to world coordinates
