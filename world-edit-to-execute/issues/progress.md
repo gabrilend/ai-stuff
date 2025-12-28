@@ -14,7 +14,7 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | In Progress | 5/9 |
+| 3 | Logic Layer - Triggers and JASS | In Progress | 7/9 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 25/27 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
@@ -220,8 +220,17 @@ Phase 1 Complete (102 MPQ Parser)
 | 306d | Transpile expressions | **Completed** | 306a |
 | 306e | Native function handling | **Completed** | 306a |
 | 306f | Transpiler tests | Pending | 306a-e |
-| 307 | Implement trigger framework | Pending | 306 |
-| 308 | Build event dispatch system | Pending | 307 |
+| 307 | Implement trigger framework | **Completed** | 306 |
+| 307a | Trigger data structures | **Completed** | 306 |
+| 307b | Trigger lifecycle API | **Completed** | 307a |
+| 307c | Condition action system | **Completed** | 307a |
+| 307d | Trigger context system | **Completed** | 307b, 307c |
+| 308 | Build event dispatch system | **Completed** | 307 |
+| 308a | Event registry core | **Completed** | 307 |
+| 308b | Timer events | **Completed** | 308a |
+| 308c | Region events | **Completed** | 308a |
+| 308d | Unit events | **Completed** | 308a |
+| 308e | Player events | **Completed** | 308a |
 | 309 | Phase 3 integration test | Pending | 301-308 |
 
 ### Dependency Graph
@@ -794,6 +803,24 @@ Phase 2 & 3 Complete
     - is_native() checks registry, map declarations, and builtins
     - Created src/tests/test_transpiler_native.lua (20 tests, all pass)
   - Remaining: 306f (transpiler tests)
+- **Issue 307 completed:** Implement trigger framework (all sub-issues done)
+  - 307a: Trigger data structures - Handle system, Trigger class
+  - 307b: Trigger lifecycle - CreateTrigger, DestroyTrigger, Enable/Disable
+  - 307c: Condition action system - TriggerAddCondition/Action, Evaluate, Execute
+  - 307d: Trigger context system - Context stack, GetTriggeringTrigger, accessors
+  - Created src/runtime/handles.lua (~120 lines)
+  - Created src/runtime/triggers.lua (~180 lines)
+  - Created src/runtime/context.lua (~130 lines)
+  - 154 tests pass across 4 test files
+- **Issue 308 completed:** Build event dispatch system (all 5 sub-issues done)
+  - 308a: Event registry core - 30 EVENT constants, register/unregister/fire
+  - 308b: Timer events - TriggerRegisterTimerEvent, CreateTimer, update_timers
+  - 308c: Region events - enter/leave registration, GetEnteringUnit/GetLeavingUnit
+  - 308d: Unit events - 13 fire hooks (death, damage, attack, spell, order, etc.)
+  - 308e: Player events - chat filtering, alliance, SubString utility
+  - Created src/runtime/events.lua (~700 lines)
+  - 181 tests pass across 5 test files (308a-308e)
+  - Complete WC3-compatible trigger→event binding system
 - **Issue 407 in progress:** Create player state management
   - 407a: Player data structure - **COMPLETED**
     - Created src/runtime/player.lua (~350 lines)
@@ -875,7 +902,7 @@ Capabilities established:
 
 ### Phase 3 - Logic Layer: Triggers and JASS
 
-Phase 3 in progress (4/9 root issues complete):
+Phase 3 in progress (7/9 root issues complete):
 
 1. **301 - Parse war3map.wtg** (trigger definitions) - **COMPLETED**
    - Full WTG parser with 5 test files (59 tests)
@@ -884,22 +911,20 @@ Phase 3 in progress (4/9 root issues complete):
    - WCT parser with 17 tests, merge_with_wtg helper
 3. **303 - Parse war3map.j** (JASS script extraction) - **COMPLETED**
 4. **304 - Build JASS lexer** (tokenization) - **COMPLETED**
-   - 304a: Core infrastructure - **COMPLETED**
-   - 304b: Keywords/identifiers/operators - **COMPLETED**
-   - 304c: Literals (integers, reals, strings, rawcodes) - **COMPLETED**
-   - 304d: Tests and validation - **COMPLETED**
+   - 304a-304d: All sub-issues complete
    - Total: 195 lexer tests pass
 5. **305 - Build JASS parser** (AST generation) - **COMPLETED**
-   - 305a: Parser infrastructure - **COMPLETED**
-   - 305b: Parse declarations - **COMPLETED**
-   - 305c: Parse expressions - **COMPLETED**
-   - 305d: Parse statements - **COMPLETED**
-   - 305e: Parser tests - **COMPLETED**
+   - 305a-305e: All sub-issues complete
    - Total: 305 parser tests pass
-6. **306 - Create JASS-to-Lua transpiler** - Next up
-7. **307 - Implement trigger framework** (conditions/actions)
-8. **308 - Build event dispatch system**
-9. **309 - Phase 3 integration test**
+6. **306 - Create JASS-to-Lua transpiler** - In Progress (306f remaining)
+   - 306a-306e: All core sub-issues complete
+7. **307 - Implement trigger framework** (conditions/actions) - **COMPLETED**
+   - 307a-307d: All sub-issues complete
+   - Total: 154 tests (handles, triggers, context)
+8. **308 - Build event dispatch system** - **COMPLETED**
+   - 308a-308e: All sub-issues complete
+   - Total: 181 tests (registry, timer, region, unit, player events)
+9. **309 - Phase 3 integration test** - Next up
 
 ### Phase 4 - Runtime: Basic Engine Loop
 
