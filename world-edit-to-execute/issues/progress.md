@@ -287,6 +287,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 404 | Create unit movement system | In Progress | 401, 402, 403 |
 | 404a | Core movement system | **Completed** | 401, 402 |
 | 404b | Path following logic | **Completed** | 404a, 403 |
+| 404c | Movement orders | **Completed** | 404b, 403 |
 | 405 | Implement basic collision detection | In Progress | 401, 402, 404 |
 | 405a | Collision primitives and shapes | **Completed** | None |
 | 405b | Spatial hash grid | **Completed** | 405a |
@@ -903,6 +904,14 @@ Phase 2 & 3 Complete
   - Entity picking: pick_at_point(), pick_in_rect(), pick_all_at_point()
   - Selection filtering (units/buildings selectable, projectiles not)
   - Total: 255 collision tests across 4 test files
+- **Issue 404c completed:** Movement orders
+  - Created src/runtime/orders/init.lua (~450 lines)
+  - Created src/tests/test_orders.lua (74 tests)
+  - orders.move(), orders.stop(), orders.hold() for movement commands
+  - Order queuing for shift-click behavior
+  - Order completion callbacks with success/failure detection
+  - Order system runs after movement to detect completion
+  - Lazy table initialization to prevent shared reference bugs
 - **Issue 406a completed:** Core resource storage
   - Created src/runtime/resources.lua (~340 lines)
   - RESOURCE_TYPES: gold, lumber, food_used, food_cap
@@ -1023,7 +1032,12 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 405e: Projectile and picking - **COMPLETED** (45 tests)
    - 405d: Movement collision integration - Pending (blocked by 404)
    - Total: 255 collision tests
-7. **404, 408** - Pending (movement, integration tests)
+7. **404 - Unit movement system** - In Progress (3/4 sub-issues complete)
+   - 404a: Core movement system - **COMPLETED** (90 tests)
+   - 404b: Path following logic - **COMPLETED** (49 tests)
+   - 404c: Movement orders - **COMPLETED** (74 tests)
+   - 404d: Advanced movement behaviors - Pending
+8. **408** - Pending (integration tests)
 
 ### Previous Phases
 
