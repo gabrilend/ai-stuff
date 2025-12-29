@@ -70,6 +70,10 @@ movement.SPEED = {
 -- MAX prevents absurd speeds from stacking buffs.
 movement.MIN_SPEED_MODIFIER = 0.1
 movement.MAX_SPEED_MODIFIER = 4.0
+
+-- Arrival threshold - minimum distance to consider "arrived" at waypoint.
+-- Prevents oscillation around waypoints due to floating-point precision.
+movement.ARRIVAL_THRESHOLD = 4.0
 -- }}}
 
 -- {{{ Pathing type constants
@@ -95,10 +99,102 @@ if not existing then
 end
 -- }}}
 
+-- {{{ update_facing (local helper for system update)
+-- Rotates entity toward the current waypoint based on turn_rate.
+-- Called each tick by the movement system.
+--
+-- @param pos position component
+-- @param mov movement component
+-- @param waypoint current target waypoint {x, y}
+-- @param dt delta time in seconds
+-- @param movement_module reference to movement table for constants
+local function update_facing(pos, mov, waypoint, dt, movement_module)
+    -- Calculate angle to waypoint
+    local dx = waypoint.x - pos.x
+    local dy = waypoint.y - pos.y
+    local target_facing = math.atan2(dy, dx)
+
+    -- Calculate shortest rotation direction
+    local diff = target_facing - pos.facing
+
+    -- Normalize to -pi..pi
+    while diff > math.pi do diff = diff - 2 * math.pi end
+    while diff < -math.pi do diff = diff + 2 * math.pi end
+
+    -- Apply turn rate limit
+    local max_turn = mov.turn_rate * dt
+    if math.abs(diff) <= max_turn then
+        pos.facing = target_facing
+    elseif diff > 0 then
+        pos.facing = pos.facing + max_turn
+    else
+        pos.facing = pos.facing - max_turn
+    end
+
+    -- Normalize facing to 0..2pi
+    while pos.facing < 0 do pos.facing = pos.facing + 2 * math.pi end
+    while pos.facing >= 2 * math.pi do pos.facing = pos.facing - 2 * math.pi end
+end
+-- }}}
+
+-- {{{ update_movement (local helper for system update)
+-- Moves entity along path toward current waypoint.
+-- Advances to next waypoint when close enough.
+-- Called each tick by the movement system.
+--
+-- @param pos position component
+-- @param mov movement component
+-- @param dt delta time in seconds
+-- @param movement_module reference to movement table for constants
+-- @return boolean true if still moving, false if path complete
+local function update_movement(pos, mov, dt, movement_module)
+    -- Not moving if no path or past end
+    if not mov.path or mov.path_index > #mov.path then
+        return false
+    end
+
+    local waypoint = mov.path[mov.path_index]
+    local dx = waypoint.x - pos.x
+    local dy = waypoint.y - pos.y
+    local dist = math.sqrt(dx * dx + dy * dy)
+
+    -- Check if arrived at waypoint
+    if dist <= movement_module.ARRIVAL_THRESHOLD then
+        mov.path_index = mov.path_index + 1
+        -- Check if path complete
+        if mov.path_index > #mov.path then
+            mov.path = nil
+            mov.target = nil
+            return false
+        end
+        -- Recurse to handle next waypoint in same tick
+        return update_movement(pos, mov, dt, movement_module)
+    end
+
+    -- Calculate movement this tick
+    local speed = mov.speed * math.max(movement_module.MIN_SPEED_MODIFIER,
+                                        math.min(movement_module.MAX_SPEED_MODIFIER, mov.speed_modifier))
+    speed = math.min(speed, movement_module.SPEED.MAX)
+    local move_dist = speed * dt
+
+    -- Don't overshoot waypoint
+    if move_dist > dist then
+        move_dist = dist
+    end
+
+    -- Move toward waypoint
+    local ratio = move_dist / dist
+    pos.x = pos.x + dx * ratio
+    pos.y = pos.y + dy * ratio
+
+    return true
+end
+-- }}}
+
 -- {{{ Movement system update
 -- Runs each tick on entities with both position and movement components.
--- Currently only updates interpolation data (last_x/last_y).
--- Actual movement logic is added in 404b.
+-- Updates interpolation data (last_x/last_y), rotates toward waypoints,
+-- and moves entities along their paths.
 local function movement_system_update(iter, dt)
     for entity, pos, mov in iter do
         -- Store position at tick start for interpolation.
@@ -106,8 +202,16 @@ local function movement_system_update(iter, dt)
         mov.last_x = pos.x
         mov.last_y = pos.y
 
-        -- Path following logic will be added in 404b.
-        -- The system skeleton is here to ensure interpolation data is always updated.
+        -- Path following logic (404b)
+        if mov.path and mov.path_index <= #mov.path then
+            local waypoint = mov.path[mov.path_index]
+
+            -- Rotate toward waypoint (pass movement table for constants access)
+            update_facing(pos, mov, waypoint, dt, movement)
+
+            -- Move toward waypoint (pass movement table for constants access)
+            update_movement(pos, mov, dt, movement)
+        end
     end
 end
 -- }}}
@@ -284,6 +388,94 @@ function movement.clear_path(entity)
     mov.path_index = 1
     mov.target = nil
     return true
+end
+-- }}}
+
+-- {{{ movement.set_path
+-- Sets a new movement path for the entity.
+-- Overwrites any existing path. Sets target to final waypoint.
+--
+-- @param entity entity ID
+-- @param path array of {x, y} waypoints
+-- @return boolean true if path was set, false if entity lacks movement or path empty
+function movement.set_path(entity, path)
+    local mov = ecs.get_component(entity, "movement")
+    if not mov then
+        return false
+    end
+    if not path or #path == 0 then
+        return false
+    end
+
+    mov.path = path
+    mov.path_index = 1
+    mov.target = path[#path]  -- Final destination
+    return true
+end
+-- }}}
+
+-- {{{ movement.distance_to_point
+-- Calculates distance from entity's current position to a point.
+--
+-- @param entity entity ID
+-- @param x target x coordinate
+-- @param y target y coordinate
+-- @return number distance, or nil if entity lacks position
+function movement.distance_to_point(entity, x, y)
+    local pos = ecs.get_component(entity, "position")
+    if not pos then
+        return nil
+    end
+    local dx = x - pos.x
+    local dy = y - pos.y
+    return math.sqrt(dx * dx + dy * dy)
+end
+-- }}}
+
+-- {{{ movement.distance_to_next_waypoint
+-- Returns distance to the current waypoint being moved towards.
+--
+-- @param entity entity ID
+-- @return number distance, or nil if not moving
+function movement.distance_to_next_waypoint(entity)
+    local waypoint = movement.get_current_waypoint(entity)
+    if not waypoint then
+        return nil
+    end
+    return movement.distance_to_point(entity, waypoint.x, waypoint.y)
+end
+-- }}}
+
+-- {{{ movement.distance_to_target
+-- Returns distance to the final movement destination.
+--
+-- @param entity entity ID
+-- @return number distance, or nil if not moving
+function movement.distance_to_target(entity)
+    local target = movement.get_target(entity)
+    if not target then
+        return nil
+    end
+    return movement.distance_to_point(entity, target.x, target.y)
+end
+-- }}}
+
+-- {{{ movement.time_to_destination
+-- Estimates time to reach final destination at current speed.
+-- Uses straight-line distance (actual path may take longer).
+--
+-- @param entity entity ID
+-- @return number estimated seconds, or nil if not moving
+function movement.time_to_destination(entity)
+    local dist = movement.distance_to_target(entity)
+    if not dist then
+        return nil
+    end
+    local speed = movement.get_effective_speed(entity)
+    if speed <= 0 then
+        return nil
+    end
+    return dist / speed
 end
 -- }}}
 
