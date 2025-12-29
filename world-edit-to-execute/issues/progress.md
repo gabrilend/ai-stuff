@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 25/27 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 27/29 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -284,7 +284,9 @@ Phase 1 Complete (102 MPQ Parser)
 | 403c | Coordinate conversion | **Completed** | 403a |
 | 403d | Movement type support | **Completed** | 403a, 403b |
 | 403e | Path smoothing | **Completed** | 403b |
-| 404 | Create unit movement system | Pending | 401, 402, 403 |
+| 404 | Create unit movement system | In Progress | 401, 402, 403 |
+| 404a | Core movement system | **Completed** | 401, 402 |
+| 404b | Path following logic | **Completed** | 404a, 403 |
 | 405 | Implement basic collision detection | In Progress | 401, 402, 404 |
 | 405a | Collision primitives and shapes | **Completed** | None |
 | 405b | Spatial hash grid | **Completed** | 405a |
@@ -923,6 +925,22 @@ Phase 2 & 3 Complete
   - Periodic income: set_income_rate, process_income
   - 27 new tests (89 total resource tests)
   - **406 Complete!** All 3 sub-issues done
+- **Issue 404a completed:** Core movement system
+  - Created src/runtime/systems/movement.lua (~300 lines)
+  - SPEED constants (VERY_SLOW to MAX), PATHING_TYPE constants
+  - Movement component with speed, path, turn_rate, interpolation fields
+  - ECS system registration at priority 10
+  - is_moving(), get_target(), get_effective_speed() queries
+  - get_interpolated_position() for smooth rendering
+  - 90 tests pass
+- **Issue 404b completed:** Path following logic
+  - Added update_facing() - rotates toward waypoint at turn_rate
+  - Added update_movement() - moves along path, handles waypoint progression
+  - Added movement.set_path() - sets path and target
+  - Added distance helpers: distance_to_point, distance_to_next_waypoint, distance_to_target
+  - Added time_to_destination() for ETA estimation
+  - 49 tests in test_movement_path.lua, all pass
+  - Total: 139 movement tests (90 core + 49 path)
 
 ---
 
