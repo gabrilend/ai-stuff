@@ -28,7 +28,7 @@ else
     DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 fi
 
-COMPLETED_PHASES=2
+COMPLETED_PHASES=3
 NON_INTERACTIVE=false
 PHASE=""
 
