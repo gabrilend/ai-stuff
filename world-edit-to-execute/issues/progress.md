@@ -285,7 +285,12 @@ Phase 1 Complete (102 MPQ Parser)
 | 403d | Movement type support | **Completed** | 403a, 403b |
 | 403e | Path smoothing | **Completed** | 403b |
 | 404 | Create unit movement system | Pending | 401, 402, 403 |
-| 405 | Implement basic collision detection | Pending | 401, 402, 404 |
+| 405 | Implement basic collision detection | In Progress | 401, 402, 404 |
+| 405a | Collision primitives and shapes | **Completed** | None |
+| 405b | Spatial hash grid | **Completed** | 405a |
+| 405c | Collision queries | **Completed** | 405a, 405b |
+| 405d | Movement collision integration | Pending | 404 |
+| 405e | Projectile and picking | **Completed** | 405a, 405b |
 | 406 | Build resource management system | **Completed** | 401, 402, 407 |
 | 406a | Core resource storage | **Completed** | None |
 | 406b | Spending validation | **Completed** | 406a |
@@ -868,6 +873,34 @@ Phase 2 & 3 Complete
     - game_over event with winner and reason
     - 21 new tests (112 total player tests)
   - **407 Complete!** All 6 sub-issues done
+- **Issue 405a completed:** Collision primitives and shapes
+  - Created src/runtime/collision/shapes.lua (~95 lines)
+  - Created src/tests/test_collision_shapes.lua (99 tests)
+  - Circle-circle, rect-rect, circle-rect, point-in-shape collision
+  - Penetration depth and direction calculation
+  - AABB overlap tests for broad-phase optimization
+- **Issue 405b completed:** Spatial hash grid
+  - Created src/runtime/collision/spatial.lua (~230 lines)
+  - Created src/tests/test_spatial_hash.lua (61 tests)
+  - O(1) broad-phase collision detection
+  - Configurable cell size (default 256 world units)
+  - Entity insertion, removal, movement tracking
+  - get_nearby() and get_in_rect() queries
+- **Issue 405c completed:** Collision queries
+  - Created src/runtime/collision/init.lua (~820 lines)
+  - Created src/tests/test_collision_queries.lua (50 tests)
+  - query_radius(), query_rect(), query_point(), query_colliding()
+  - Layer/mask filtering for collision groups
+  - Priority sorting (units > buildings > projectiles)
+  - ECS integration with position/collision components
+- **Issue 405e completed:** Projectile hit detection and picking
+  - Created src/tests/test_projectile_picking.lua (45 tests)
+  - Projectile hit tracking for piercing projectiles
+  - check_projectile_hit(), check_projectile_hits_all()
+  - is_valid_target() with team/dead filtering
+  - Entity picking: pick_at_point(), pick_in_rect(), pick_all_at_point()
+  - Selection filtering (units/buildings selectable, projectiles not)
+  - Total: 255 collision tests across 4 test files
 - **Issue 406a completed:** Core resource storage
   - Created src/runtime/resources.lua (~340 lines)
   - RESOURCE_TYPES: gold, lumber, food_used, food_cap
@@ -965,7 +998,14 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 407c: Alliance management - **COMPLETED** (63 tests total)
    - 407d: Player state transitions - **COMPLETED** (91 tests total)
    - 407e: Victory conditions - **COMPLETED** (112 tests total)
-6. **404, 405, 408** - Pending (movement, collision, integration tests)
+6. **405 - Collision detection** - In Progress (4/5 sub-issues complete)
+   - 405a: Collision primitives and shapes - **COMPLETED** (99 tests)
+   - 405b: Spatial hash grid - **COMPLETED** (61 tests)
+   - 405c: Collision queries - **COMPLETED** (50 tests)
+   - 405e: Projectile and picking - **COMPLETED** (45 tests)
+   - 405d: Movement collision integration - Pending (blocked by 404)
+   - Total: 255 collision tests
+7. **404, 408** - Pending (movement, integration tests)
 
 ### Previous Phases
 
