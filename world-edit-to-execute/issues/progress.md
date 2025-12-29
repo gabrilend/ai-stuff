@@ -1,8 +1,8 @@
 # Project Progress
 
-## Current Phase: 3 - Logic Layer (Triggers and JASS)
+## Current Phase: 4 - Runtime (Basic Engine Loop)
 
-**Status:** Ready to begin (Phase 2 Complete)
+**Status:** In Progress (Phase 3 Complete)
 
 ---
 
@@ -14,7 +14,7 @@
 | 0 | Tooling/Infrastructure | In Progress | 18/19 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | In Progress | 7/9 |
+| 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 25/27 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
@@ -213,13 +213,13 @@ Phase 1 Complete (102 MPQ Parser)
 | 305c | Parse expressions | **Completed** | 305a |
 | 305d | Parse statements | **Completed** | 305a, 305c |
 | 305e | Parser tests | **Completed** | 305a-d |
-| 306 | Create JASS-to-Lua transpiler | In Progress | 305 |
+| 306 | Create JASS-to-Lua transpiler | **Completed** | 305 |
 | 306a | Transpiler infrastructure | **Completed** | 305 |
 | 306b | Transpile declarations | **Completed** | 306a |
 | 306c | Transpile statements | **Completed** | 306a, 306d |
 | 306d | Transpile expressions | **Completed** | 306a |
 | 306e | Native function handling | **Completed** | 306a |
-| 306f | Transpiler tests | Pending | 306a-e |
+| 306f | Transpiler tests | **Completed** | 306a-e |
 | 307 | Implement trigger framework | **Completed** | 306 |
 | 307a | Trigger data structures | **Completed** | 306 |
 | 307b | Trigger lifecycle API | **Completed** | 307a |
@@ -231,7 +231,14 @@ Phase 1 Complete (102 MPQ Parser)
 | 308c | Region events | **Completed** | 308a |
 | 308d | Unit events | **Completed** | 308a |
 | 308e | Player events | **Completed** | 308a |
-| 309 | Phase 3 integration test | Pending | 301-308 |
+| 309 | Phase 3 integration test | **Completed** | 301-308 |
+| 309a | Test trigger file parsing | **Completed** | 301-303 |
+| 309b | Test JASS lexer | **Completed** | 304 |
+| 309c | Test JASS parser | **Completed** | 305 |
+| 309d | Test transpiler | **Completed** | 306 |
+| 309e | Test trigger runtime | **Completed** | 307 |
+| 309f | Test event dispatch | **Completed** | 308 |
+| 309g | Phase demo | **Completed** | 309a-f |
 
 ### Dependency Graph
 
