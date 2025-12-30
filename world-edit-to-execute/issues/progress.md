@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
-| 0 | Tooling/Infrastructure | In Progress | 18/19 |
+| 0 | Tooling/Infrastructure | In Progress | 19/20 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
@@ -85,6 +85,7 @@ No dependencies (all independent except A07)
 | 010 | Debug TUI integration analysis | Pending | 004 |
 | 011 | TUI history insert on run | Pending | 004 |
 | 012 | Interactive verdict review mode | Pending | 003, 004 |
+| 013 | Quest & bounty template system | **Completed** | None |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -284,10 +285,11 @@ Phase 1 Complete (102 MPQ Parser)
 | 403c | Coordinate conversion | **Completed** | 403a |
 | 403d | Movement type support | **Completed** | 403a, 403b |
 | 403e | Path smoothing | **Completed** | 403b |
-| 404 | Create unit movement system | In Progress | 401, 402, 403 |
+| 404 | Create unit movement system | **Completed** | 401, 402, 403 |
 | 404a | Core movement system | **Completed** | 401, 402 |
 | 404b | Path following logic | **Completed** | 404a, 403 |
 | 404c | Movement orders | **Completed** | 404b, 403 |
+| 404d | Advanced movement behaviors | **Completed** | 404b, 404c |
 | 405 | Implement basic collision detection | In Progress | 401, 402, 404 |
 | 405a | Collision primitives and shapes | **Completed** | None |
 | 405b | Spatial hash grid | **Completed** | 405a |
@@ -950,6 +952,23 @@ Phase 2 & 3 Complete
   - Added time_to_destination() for ETA estimation
   - 49 tests in test_movement_path.lua, all pass
   - Total: 139 movement tests (90 core + 49 path)
+- **Issue 013 completed:** Quest & Bounty Template System
+  - Created docs/templates/ directory with 5 templates:
+    - bounty-template.md (boss monster bounty board format)
+    - quest-template.md (individual quest entry format)
+    - quest-log-template.md (full quest log container)
+    - guild-roster-template.md (progress tracking roster)
+    - example-spec.lua (spec file for generator)
+  - Created src/cli/quest-generator.lua (~550 lines):
+    - bounty command: Generate boss monster bounty boards
+    - quest command: Generate individual quest entries
+    - from-spec command: Generate quest logs from Lua specs
+    - scan command: Find TODOs/FIXMEs and suggest quest candidates
+  - Existing gamified artifacts:
+    - issues/Q00-adventurer-quest-log.md (8 quests in 4 tiers)
+    - issues/B01-B03 (3 boss monster bounties)
+    - issues/GUILD-ROSTER.md (capability tracking)
+  - Pattern designed for cross-project replication
 
 ---
 
