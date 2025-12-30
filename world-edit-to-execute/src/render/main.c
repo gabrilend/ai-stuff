@@ -350,33 +350,66 @@ MeshData* create_cube_mesh(float size, float chunk_size) {
 }
 /* }}} */
 
+/* {{{ rotate_around_axis
+ * Rodrigues' rotation formula: rotate point around arbitrary axis.
+ * axis must be normalized. angle in radians. */
+void rotate_around_axis(float px, float py, float pz,
+                        float ax, float ay, float az,
+                        float angle,
+                        float* ox, float* oy, float* oz) {
+    float c = cosf(angle);
+    float s = sinf(angle);
+    float t = 1.0f - c;
+
+    /* Rodrigues: v' = v*cos + (k×v)*sin + k*(k·v)*(1-cos) */
+    /* Cross product k × v */
+    float cx = ay * pz - az * py;
+    float cy = az * px - ax * pz;
+    float cz = ax * py - ay * px;
+
+    /* Dot product k · v */
+    float dot = ax * px + ay * py + az * pz;
+
+    *ox = px * c + cx * s + ax * dot * t;
+    *oy = py * c + cy * s + ay * dot * t;
+    *oz = pz * c + cz * s + az * dot * t;
+}
+/* }}} */
+
 /* {{{ transform_chunk_to_world
- * Transform chunk local position to world position given slot transforms */
+ * Transform chunk local position to world position given slot transforms.
+ * Must match the order in render_cube_at_slot:
+ *   1. Spin around Y (applied first to local coords)
+ *   2. Clock rotation around (0.577, 0.577, 0.577)
+ *   3. Scale
+ *   4. Translate to world position */
 void transform_chunk_to_world(ChunkData* c, RenderSlot* slot, float* wx, float* wy, float* wz) {
-    /* Apply scale */
-    float lx = c->x * slot->scale;
-    float ly = c->y * slot->scale;
-    float lz = c->z * slot->scale;
+    float px = c->x;
+    float py = c->y;
+    float pz = c->z;
 
-    /* Simplified rotation (just estimate for picking) */
+    /* 1. Spin around Y axis (counter-clockwise per OpenGL convention) */
     float rad_spin = slot->spin * 3.14159f / 180.0f;
-    float rad_clock = slot->rotation * 3.14159f / 180.0f;
-
-    /* Spin around Y */
     float cos_s = cosf(rad_spin);
     float sin_s = sinf(rad_spin);
-    float rx = lx * cos_s - lz * sin_s;
-    float ry = ly;
-    float rz = lx * sin_s + lz * cos_s;
+    float rx = px * cos_s - pz * sin_s;
+    float ry = py;
+    float rz = px * sin_s + pz * cos_s;
 
-    /* Approximate clock rotation (simplified) */
-    float cos_c = cosf(rad_clock * 0.577f);
-    float sin_c = sinf(rad_clock * 0.577f);
-    float fx = rx * cos_c - ry * sin_c;
-    float fy = rx * sin_c + ry * cos_c;
-    float fz = rz;
+    /* 2. Clock rotation around diagonal axis (0.577, 0.577, 0.577) */
+    float rad_clock = slot->rotation * 3.14159f / 180.0f;
+    float fx, fy, fz;
+    rotate_around_axis(rx, ry, rz,
+                       0.577f, 0.577f, 0.577f,
+                       rad_clock,
+                       &fx, &fy, &fz);
 
-    /* Translate to world position */
+    /* 3. Scale */
+    fx *= slot->scale;
+    fy *= slot->scale;
+    fz *= slot->scale;
+
+    /* 4. Translate to world position */
     *wx = fx + slot->x;
     *wy = fy + slot->y;
     *wz = fz + slot->z;
@@ -427,7 +460,7 @@ void process_chunk_input(RenderSlot* slot, MeshData* mesh, Camera3D* camera) {
 
     if (!left_click && !right_click) return;
 
-    Ray ray = GetScreenToWorldRay(mouse, *camera);
+    Ray ray = GetMouseRay(mouse, *camera);
     int chunk_idx = find_chunk_at_ray(ray, slot, mesh);
 
     if (chunk_idx >= 0 && chunk_idx < MAX_CHUNKS) {
