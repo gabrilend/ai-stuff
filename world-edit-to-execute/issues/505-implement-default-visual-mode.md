@@ -120,6 +120,12 @@ Minimap:  Scaled-down terrain view with unit dots
 
 This is the "moment of truth" - where the engine becomes visually real. Everything before this was infrastructure; this is where users can see the game.
 
+**Architecture Reference:** See `docs/render-architecture.md` for the implementation model:
+- Threading: Updater → Workers → Sync → Draw (workers always busy, sync/draw minimal work)
+- ComponentSlot: Self-cleaning setters (mise en place pattern)
+- Numeric encoding: Directional bitfields, no division/zero
+- Memory: Workers allocate+free, render thread reads only
+
 **May need successor issues for:**
 - Terminal-only mode (for servers/CI)
 - GPU-accelerated mode
