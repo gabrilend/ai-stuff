@@ -395,7 +395,7 @@ Phase 2 & 3 Complete
 | 507f | Ping system | Pending | 507a |
 | **508** | **Vertical slice testing room** | **Priority** | 501a |
 | 508a | Threading infrastructure | **Completed** | 501a |
-| 508b | Entity render slots | Pending | 508a |
+| 508b | Entity render slots | **Completed** | 508a |
 | 508c | Lua-C bridge | Pending | 508b |
 | 508d | Map integration | Pending | 508c |
 | 508e | Input and selection | Pending | 508d |
