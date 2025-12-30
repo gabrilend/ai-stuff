@@ -1,8 +1,30 @@
-=== WC3 Engine - Rotating Cube Demo ===
-Data-driven: mesh vertices + material pointer
+=== WC3 Engine - Interactive Threaded Demo ===
+Architecture: Updater -> Workers -> Sync -> Draw
+Workers: 2  Slot System: 508b  Lua Bridge: 508c
 
-[main] Spawning threads...
-[render] Initializing window...
+Controls:
+  Left-click chunk:  Cycle color (blue/green/red)
+  Right-click chunk: Destroy with sparks
+  Sliders: Adjust speeds and orbit radius
+
+[main] Created mesh with 1331 chunks
+[main] Created slot array with 1024 max slots
+[main] Allocated demo slot at index 0
+[lua] Lua state created and render module registered
+[lua] render module loaded, MAX_SLOTS = 1024
+[lua] Created entity 100 at slot 1
+[lua] Created entity 101 at slot 2
+[lua] Created entity 102 at slot 3
+[lua] Created entity 103 at slot 4
+[lua] Slots: 5/1024 active
+[lua] Bridge test complete: 4 entities created via Lua
+[threading] Creating pool with 2 workers
+[threading] Worker 0 spawned
+[threading] Worker 1 spawned
+[worker 0] Starting
+[worker 1] Starting
+[sync] Starting custom sync loop
+[main] Initializing window...
 INFO: Initializing raylib 5.1-dev
 INFO: Platform backend: DESKTOP (GLFW)
 INFO: Supported raylib modules:
@@ -13,7 +35,7 @@ INFO:     > rtextures:. loaded (optional)
 INFO:     > rtext:..... loaded (optional)
 INFO:     > rmodels:... loaded (optional)
 INFO:     > raudio:.... loaded (optional)
-[game] Starting game logic thread...
+[updater] Starting custom updater loop
 INFO: DISPLAY: Device initialized successfully
 INFO:     > Display size: 2560 x 1440
 INFO:     > Screen size:  800 x 600
@@ -43,11 +65,17 @@ INFO: RLGL: Default OpenGL state initialized successfully
 INFO: TEXTURE: [ID 2] Texture loaded successfully (128x128 | GRAY_ALPHA | 1 mipmaps)
 INFO: FONT: Default font loaded successfully (224 glyphs)
 INFO: TIMER: Target time per frame: 16.667 milliseconds
-[render] Entering render loop...
-[render] Closing window...
+[main] Entering render loop...
+
+
+[main] Shutting down...
+[updater] Exiting
+[sync] Exiting
+[lua] Lua state closed
+[threading] Destroying pool...
+[worker 1] Exiting
+[worker 0] Exiting
+[threading] Worker 0 joined
+[threading] Worker 1 joined
+[threading] Pool destroyed
 INFO: TEXTURE: [ID 2] Unloaded texture data from VRAM (GPU)
-INFO: SHADER: [ID 3] Default shader unloaded successfully
-INFO: TEXTURE: [ID 1] Default texture unloaded successfully
-[game] Exiting game logic thread...
-INFO: Window closed successfully
-[main] Shutdown complete.

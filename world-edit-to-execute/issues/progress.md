@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 30/34 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
 | 5 | Rendering - Visual Abstraction | Issues Created | 0/49 |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Issues Created | 0/7 |
@@ -321,7 +321,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 407f | Local player support | **Completed** | 407a |
 | 408 | Phase 4 integration test | In Progress | 401-407 |
 | 408a | Unit tests - core systems | **Completed** | 401, 402, 403 |
-| 408b | Unit tests - entity systems | Pending | 408a |
+| 408b | Unit tests - entity systems | **Completed** | 408a |
 | 408c | Unit tests - player systems | Pending | 408a |
 | 408d | Integration scenario | **Completed** | 408a-c |
 | 408e | Visual demo | Pending | 408a-d |

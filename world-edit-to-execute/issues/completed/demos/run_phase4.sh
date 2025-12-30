@@ -66,6 +66,10 @@ run_core_tests() {
     run_test "Phase 4 Core (gameloop, ECS, pathfinding)" "$DIR/src/tests/test_phase4_core.lua" && ((passed++))
     ((total++))
 
+    # Entity systems (408b)
+    run_test "Phase 4 Entity (movement, collision)" "$DIR/src/tests/test_phase4_entity.lua" && ((passed++))
+    ((total++))
+
     # Game loop
     run_test "Game Loop" "$DIR/src/tests/test_gameloop.lua" && ((passed++))
     ((total++))

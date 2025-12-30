@@ -1,0 +1,24 @@
+hi can you make a script that does two things: first it analyzes the various
+programming projects located in ai-stuff, and creates a report on it. then it
+analyzes the various programming projects located in /home/ritz/programming/ in
+general. the stuff I made myself. Also ~/scripts/. Keep in mind some of them are
+automated, and you should be able to tell which is which. Pay attention to the
+patterns, focus on the programming styles I favor, and then create a notebook or
+reference to explain how each of them is important, useful, or related.
+
+errr, actually just use it as the guidance metric for an LLM. doh.
+
+dispatch tables, thread pools, data based design, code shaped data, (created and
+resembling), function pointers, bitflags, (frames is a bitflag compass, useful
+for fourier coordinates)
+
+side note, but a fourier signal generator with configurable arguments could be
+one of the most useful data compression tactics. Why store the data if you can
+store the algorithm and procedure that generated it?
+
+select one of many algorithms with an index into a list, and then provide it
+with ingredients... (arguments for the algorithm)
+
+"hello youtube video 53, can you explain how this program was created?"
+
+

@@ -35,13 +35,17 @@ echo ""
 cd "${PROJECT_PATH}"
 
 # Source files
-SOURCES="main.c threading.c slots.c"
+SOURCES="main.c threading.c slots.c bridge.c"
 
-# Compile with raylib and pthread
+# LuaJIT flags
+LUAJIT_CFLAGS=$(pkg-config --cflags luajit 2>/dev/null || echo "-I/usr/include/luajit-2.1")
+LUAJIT_LIBS=$(pkg-config --libs luajit 2>/dev/null || echo "-lluajit-5.1")
+
+# Compile with raylib, pthread, and LuaJIT
 gcc -pthread -Wall -g -Og \
     -o "${PROJECT_NAME}" ${SOURCES} \
-    -I"${RAYLIB_PATH}" \
-    -L"${RAYLIB_PATH}" -lraylib \
+    -I"${RAYLIB_PATH}" ${LUAJIT_CFLAGS} \
+    -L"${RAYLIB_PATH}" -lraylib ${LUAJIT_LIBS} \
     -lGL -lm -lpthread -ldl -lrt -lX11 \
     2>&1 | tee "${COMPILER_LOG}"
 
