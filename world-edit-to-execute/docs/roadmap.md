@@ -6,33 +6,28 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 ## Current Focus
 
-### Phase 3 In Progress: 1/9 complete (36 total with sub-issues)
+### Phase 4 Nearly Complete: 28/30 issues done
 
-**Completed:**
-- ✓ **303** - Parse war3map.j (JASS script extraction)
+**Remaining:**
+- **405d** - Movement collision integration
+- **408a-c, 408e** - Integration test sub-issues
 
-**Next Priority Issues:**
+**Phase 5 Ready:** 49 issues created, design decisions made
 
-1. **301 - Parse war3map.wtg** (trigger definitions)
-   - GUI trigger structure, events, conditions, actions
-   - 1 sub-issue: 301e (parameter parsing)
+### Design Decisions Made (2025-12-29)
 
-2. **302 - Parse war3map.wct** (custom text triggers)
-   - Custom JASS code embedded in triggers
-
-3. **304 - Build JASS lexer** (4 sub-issues)
-   - Tokenization of JASS source code
+See `issues/CRITICAL-PATH.md` for full details:
+- **Renderer:** Raylib
+- **Coordinates:** WC3-style (Y-up, isometric)
+- **Integration:** API-driven (shared data layer for WC3 + AzerothCore)
 
 **Available Tools:**
 ```bash
-# Analyze issues with parallel processing
-./src/cli/issue-splitter.sh --stream --parallel 3
+# Interactive mode with TUI
+./src/cli/issue-splitter.sh -I
 
 # Auto-implement an issue
 ./src/cli/issue-splitter.sh -A -I
-
-# Interactive mode with TUI
-./src/cli/issue-splitter.sh -I
 
 # Run Phase demos
 ./run-demo.sh
@@ -184,23 +179,51 @@ src/
 
 ---
 
-## Phase 3: Logic Layer - Triggers and JASS (In Progress)
+## Phase 3: Logic Layer - Triggers and JASS ✓ COMPLETED
 
-Implement the scripting and trigger system.
+All 36 issues completed. Full scripting and trigger system operational.
 
-### Issue Breakdown
+### Module Structure
 
-| ID | Name | Sub-Issues | Status |
-|----|------|------------|--------|
-| 301 | Parse war3map.wtg (trigger definitions) | 1 (301e) | Pending |
-| 302 | Parse war3map.wct (custom text triggers) | - | Pending |
-| 303 | Parse war3map.j (JASS script) | - | **Completed** |
-| 304 | Build JASS lexer | 4 (304a-d) | Pending |
-| 305 | Build JASS parser | 5 (305a-e) | Pending |
-| 306 | Create JASS-to-Lua transpiler | 6 (306a-f) | Pending |
-| 307 | Implement trigger framework | 4 (307a-d) | Pending |
-| 308 | Build event dispatch system | - | Pending |
-| 309 | Phase 3 integration test | 7 (309a-g) | Pending |
+```
+src/
+├── parsers/
+│   ├── wtg.lua          # Trigger definitions (GUI triggers)
+│   ├── wct.lua          # Custom text triggers
+│   └── j.lua            # JASS script extraction
+├── jass/
+│   ├── lexer.lua        # JASS tokenization
+│   ├── parser.lua       # JASS AST generation
+│   └── transpiler.lua   # JASS-to-Lua transpilation
+├── runtime/
+│   ├── triggers/        # Trigger framework
+│   │   ├── init.lua     # Trigger API
+│   │   ├── handles.lua  # Handle management
+│   │   └── context.lua  # Trigger context
+│   └── events/          # Event dispatch
+│       ├── init.lua     # Event registry
+│       ├── timer.lua    # Timer events
+│       ├── region.lua   # Region events
+│       └── unit.lua     # Unit events
+```
+
+### Completed Issues
+
+| ID | Name | Sub-Issues |
+|----|------|------------|
+| 301 | Parse war3map.wtg (trigger definitions) | 1 |
+| 302 | Parse war3map.wct (custom text triggers) | - |
+| 303 | Parse war3map.j (JASS script) | - |
+| 304 | Build JASS lexer | 4 (304a-d) |
+| 305 | Build JASS parser | 5 (305a-e) |
+| 306 | Create JASS-to-Lua transpiler | 6 (306a-f) |
+| 307 | Implement trigger framework | 4 (307a-d) |
+| 308 | Build event dispatch system | 5 (308a-e) |
+| 309 | Phase 3 integration test | 7 (309a-g) |
+
+### Statistics
+- 195 lexer tests, 305 parser tests
+- 154 trigger tests, 181 event tests
 
 ### Sub-Issue Details
 
@@ -339,17 +362,45 @@ Create the game execution environment. 8 root issues with 36 sub-issues.
 
 ---
 
-## Phase 5: Rendering - Visual Abstraction
+## Phase 5: Rendering - Visual Abstraction (Issues Created)
 
-Build the rendering system with pluggable visuals.
+49 issues created. Design decisions made (see CRITICAL-PATH.md).
 
-- Create abstract render interface
-- Implement terrain mesh generation from w3e data
-- Build sprite/model placeholder system
-- Create asset pack loader specification
-- Implement default "wireframe/geometric" visual mode
-- Build UI framework for game interface
-- Create minimap renderer
+### Issue Breakdown
+
+| ID | Name | Sub-Issues | Status |
+|----|------|------------|--------|
+| 500 | Dual interface rendering considerations | - | Created |
+| 501 | Create abstract render interface | 5 (501a-e) | Created |
+| 502 | Implement terrain rendering | 5 (502a-e) | Created |
+| 503 | Build sprite/placeholder system | 5 (503a-e) | Created |
+| 504 | Create asset pack specification | - | Planned |
+| 505 | Implement default visual mode | 6 (505a-f) | Created |
+| 506 | Build UI framework | 6 (506a-f) | Created |
+| 507 | Create minimap renderer | 6 (507a-f) | Created |
+| 510 | Dual perspective UI system | 5 (510a-e) | Created |
+
+### Key Decisions (OQ-001 through OQ-004)
+
+- **Renderer:** Raylib (simple, modern, Lua bindings)
+- **Coordinates:** WC3-style (Y-up, isometric projection)
+- **Integration:** API-driven (shared data layer for WC3 visuals + AzerothCore)
+
+### Dual Perspective UI (Issue 510)
+
+```
+WARLORD MODE (RTS)              HERO MODE (RPG)
+┌─────────────────┐             ┌─────────────────┐
+│ Command armies  │◀──F5 key──▶│ Control hero    │
+│ Bird's eye view │             │ Third-person    │
+│ QWER hotkeys    │             │ WASD movement   │
+│ Click-select    │             │ Action bars 1-0 │
+└─────────────────┘             └─────────────────┘
+```
+
+Same character, different experience:
+- Thrall the Warchief (commanding the Horde)
+- Thrall the Shaman (throwing lightning)
 
 ---
 
@@ -366,17 +417,54 @@ Enable community visual packs and modding.
 
 ---
 
-## Phase 7: Gameplay - Core Mechanics
+## Phase 7: Gameplay - Core Mechanics (Issues Created)
 
-Implement essential WC3 gameplay systems.
+7 root issues created with dual WC3/WoW mode support.
 
-- Unit stats and attributes
-- Combat system (attack, damage, armor)
-- Ability system framework
-- Buff/debuff system
-- Build queue and training
-- Resource harvesting
-- Fog of war
+### Issue Breakdown
+
+| ID | Name | Sub-Issues | Status |
+|----|------|------------|--------|
+| 701 | Death and resurrection system | 5 (701a-e) | Created |
+| 702 | Profession system | 7 (702a-g) | Created |
+| 703 | Combat system | - | Planned |
+| 704 | Ability system framework | - | Planned |
+| 705 | Buff/debuff system | - | Planned |
+| 706 | Build queue and training | - | Planned |
+| 707 | Fog of war | - | Planned |
+
+### Dual Mode Philosophy
+
+Each system supports both WC3 and WoW paradigms:
+
+| System | WC3 Mode | WoW Mode |
+|--------|----------|----------|
+| Death | Altar revival, corpse decay | Graveyard run, spirit healer |
+| Professions | Ability-based (5 levels) | Skill 1-300, trainers |
+| Combat | Attack/armor types | Stats/ratings |
+
+### Death System (701)
+
+```
+[Living Unit] ──death──▶ [Corpse] ──decay──▶ ∅
+      ▲                      │
+      │                      │ soul
+ resurrect                   ▼
+      │              ┌─────────────┐
+      └──────────────│ SPIRIT WORLD│
+                     │   [Ghost]   │
+                     └─────────────┘
+```
+
+### Profession System (702)
+
+| Profession | Input | Output |
+|------------|-------|--------|
+| Mining | Nodes | Ore, gems |
+| Herbalism | Plants | Herbs |
+| Blacksmithing | Bars | Weapons, armor |
+| Alchemy | Herbs | Potions |
+| Engineering | Parts | Gadgets |
 
 ---
 
