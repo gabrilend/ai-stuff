@@ -103,6 +103,67 @@ the next iteration's priorities.
 | `## Generated Sub-Issues` | After execution | List of created sub-issue files |
 | `## Implementation Notes` | After coding | Documentation of changes made |
 
+### Issue Document Types
+
+The project uses two distinct document formats:
+
+**1. Implementation Issues** (Standard format)
+For concrete, implementable tasks with clear acceptance criteria.
+
+```
+# Issue {PHASE}{ID}: {Title}
+
+**Phase:** {number}
+**Type:** Implementation
+**Priority:** {Critical|High|Medium|Low}
+**Dependencies:** {list}
+
+---
+
+## Current Behavior
+{What exists now}
+
+## Intended Behavior
+{What should exist after implementation}
+
+## Suggested Implementation Steps
+{Numbered steps}
+
+## Acceptance Criteria
+- [ ] {Testable criterion}
+
+## Notes
+{Additional context}
+```
+
+**2. Design Research Documents** (Alternate format)
+For long-term conceptual exploration without immediate implementation targets.
+
+```
+# Issue {ID}: {Topic} Design
+
+**Phase:** None (Long-term Research)
+**Type:** Design Research
+**Priority:** High
+**Parent:** {link to compendium}
+
+---
+
+## Purpose
+{What this document explores}
+
+{Design sections with prose, diagrams, code blocks}
+
+## Open Questions
+{Unresolved design decisions}
+
+## Revision History
+| Date | Change |
+|------|--------|
+```
+
+**Current Design Research documents:** 000-005 (Warlord Mode concept exploration)
+
 ---
 
 ## Project Tools
