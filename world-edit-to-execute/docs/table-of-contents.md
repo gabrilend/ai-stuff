@@ -19,7 +19,9 @@ docs/
 │
 src/
 ├── cli/
-│   └── issue-splitter.sh → /home/ritz/programming/ai-stuff/scripts/issue-splitter.sh
+│   ├── issue-splitter.sh → /home/ritz/programming/ai-stuff/scripts/issue-splitter.sh
+│   ├── quest-generator.lua    Quest/bounty documentation generator
+│   └── guild-cli.lua          Hero & shop management CLI
 ├── mpq/                        MPQ archive parsing
 │   ├── init.lua                Unified API (mpq.open, archive:extract)
 │   ├── header.lua              Header parsing (incl. HM3W wrapper)
@@ -49,6 +51,11 @@ src/
 │   └── spatial.lua             SpatialIndex for spatial queries
 ├── data/                       Unified Map class
 │   └── init.lua                Map.load() integrates all parsers
+├── guild/                      Hero & Shop System (Issue 014)
+│   ├── init.lua                Module exports, persistence, JSON utils
+│   ├── hero.lua                Hero class (stats, inventory, equipment)
+│   ├── items.lua               Item system (types, rarity, effects)
+│   └── shop.lua                Shop system (stock, transactions)
 │
 docs/templates/                 Quest & Bounty Templates
 ├── README.md                   Template system documentation
