@@ -817,4 +817,285 @@ function collision.pick_all_at_point(world_x, world_y)
 end
 -- }}}
 
+-- ============================================================================
+-- Movement Collision Integration (405d)
+-- Functions for checking movement validity and resolving overlaps
+-- ============================================================================
+
+-- {{{ collision.can_move_to
+-- Check if entity can move to a new position without collision.
+-- Returns: boolean success, entity that blocked (or nil)
+function collision.can_move_to(entity, new_x, new_y)
+    if not initialized then
+        return true, nil
+    end
+
+    local col = ecs.get_component(entity, "collision")
+
+    -- Non-solid entities can always move
+    if not col or not col.solid then
+        return true, nil
+    end
+
+    -- Get effective radius for broad-phase query
+    local radius = collision.get_entity_radius(col)
+
+    -- Broad phase: query for nearby entities at new position
+    -- Use double radius to catch all potential colliders
+    local candidates = spatial.get_nearby(new_x, new_y, radius * 2)
+
+    for _, other in ipairs(candidates) do
+        if other ~= entity then
+            local other_pos = ecs.get_component(other, "position")
+            local other_col = ecs.get_component(other, "collision")
+
+            if other_pos and other_col and other_col.solid then
+                -- Check if entity's mask includes other's layer
+                if collision.layer_matches_mask(other_col.layer, col.mask) then
+                    -- Create temporary position for collision test
+                    local temp_pos = {x = new_x, y = new_y}
+
+                    if collision.shapes_collide(temp_pos, col, other_pos, other_col) then
+                        return false, other
+                    end
+                end
+            end
+        end
+    end
+
+    return true, nil
+end
+-- }}}
+
+-- {{{ collision.resolve_overlap
+-- Push two overlapping entities apart using minimum separation vector.
+-- Entities are pushed equally in opposite directions.
+function collision.resolve_overlap(entity1, entity2)
+    if not initialized then
+        return
+    end
+
+    local pos1 = ecs.get_component(entity1, "position")
+    local pos2 = ecs.get_component(entity2, "position")
+    local col1 = ecs.get_component(entity1, "collision")
+    local col2 = ecs.get_component(entity2, "collision")
+
+    if not (pos1 and pos2 and col1 and col2) then
+        return
+    end
+
+    -- Calculate separation vector (pointing from entity2 to entity1)
+    local dx = pos1.x - pos2.x
+    local dy = pos1.y - pos2.y
+    local dist = math.sqrt(dx * dx + dy * dy)
+
+    -- Avoid division by zero - push apart on arbitrary axis
+    if dist < 0.001 then
+        dx, dy = 1, 0
+        dist = 1
+    end
+
+    -- Calculate overlap amount based on shape types
+    local r1 = collision.get_entity_radius(col1)
+    local r2 = collision.get_entity_radius(col2)
+    local overlap = (r1 + r2) - dist
+
+    if overlap <= 0 then
+        return  -- No overlap
+    end
+
+    -- Normalize direction
+    local nx = dx / dist
+    local ny = dy / dist
+
+    -- Push apart equally with small extra margin to prevent re-collision
+    local push = overlap / 2 + 0.1
+
+    pos1.x = pos1.x + nx * push
+    pos1.y = pos1.y + ny * push
+    pos2.x = pos2.x - nx * push
+    pos2.y = pos2.y - ny * push
+
+    -- Note: Spatial hash is rebuilt each frame in collision.update()
+    -- No need to update individual entities here
+end
+-- }}}
+
+-- {{{ collision.slide_move
+-- Attempt to move entity, sliding along obstacles if blocked.
+-- Returns the actual position achieved (may be different from desired).
+function collision.slide_move(entity, desired_x, desired_y)
+    if not initialized then
+        return desired_x, desired_y
+    end
+
+    local pos = ecs.get_component(entity, "position")
+    if not pos then
+        return desired_x, desired_y
+    end
+
+    -- Try direct move first
+    local can_move, _ = collision.can_move_to(entity, desired_x, desired_y)
+    if can_move then
+        return desired_x, desired_y
+    end
+
+    -- Try sliding along X axis only
+    local can_x, _ = collision.can_move_to(entity, desired_x, pos.y)
+    if can_x then
+        return desired_x, pos.y
+    end
+
+    -- Try sliding along Y axis only
+    local can_y, _ = collision.can_move_to(entity, pos.x, desired_y)
+    if can_y then
+        return pos.x, desired_y
+    end
+
+    -- Completely blocked - stay in place
+    return pos.x, pos.y
+end
+-- }}}
+
+-- {{{ collision.resolve_all_overlaps
+-- Find and resolve all current overlaps between solid entities.
+-- Call after movement update to fix any penetrations that occurred.
+function collision.resolve_all_overlaps()
+    if not initialized then
+        return
+    end
+
+    -- Collect all entities with solid collision
+    local entities = {}
+    for entity in ecs.query_single("collision") do
+        local col = ecs.get_component(entity, "collision")
+        if col and col.solid then
+            entities[#entities + 1] = entity
+        end
+    end
+
+    -- Check all pairs for overlap
+    -- This uses spatial hash internally via shapes_collide setup
+    for i = 1, #entities do
+        for j = i + 1, #entities do
+            local e1, e2 = entities[i], entities[j]
+            local col1 = ecs.get_component(e1, "collision")
+            local col2 = ecs.get_component(e2, "collision")
+
+            -- Check layer compatibility
+            if collision.layer_matches_mask(col2.layer, col1.mask) then
+                local pos1 = ecs.get_component(e1, "position")
+                local pos2 = ecs.get_component(e2, "position")
+
+                if pos1 and pos2 and collision.shapes_collide(pos1, col1, pos2, col2) then
+                    collision.resolve_overlap(e1, e2)
+                end
+            end
+        end
+    end
+end
+-- }}}
+
+-- {{{ Trigger zone tracking state
+-- Maps trigger entity to table of entities currently inside
+local trigger_inside = {}
+-- }}}
+
+-- {{{ collision.check_trigger_collisions
+-- Check trigger zones and fire enter/leave events.
+-- Tracks which entities are inside each trigger and fires events on changes.
+-- event_callback: function(event_type, trigger_entity, other_entity)
+--   event_type is "trigger_enter" or "trigger_leave"
+function collision.check_trigger_collisions(event_callback)
+    if not initialized then
+        return
+    end
+
+    -- Find all trigger entities
+    for trigger_entity in ecs.query_single("collision") do
+        local col = ecs.get_component(trigger_entity, "collision")
+
+        if col and col.trigger then
+            local pos = ecs.get_component(trigger_entity, "position")
+            if not pos then
+                goto continue
+            end
+
+            -- Query for entities currently inside this trigger
+            local radius = collision.get_entity_radius(col)
+            local candidates = spatial.get_nearby(pos.x, pos.y, radius)
+
+            -- Build current inside set
+            local current_inside = {}
+            for _, entity in ipairs(candidates) do
+                if entity ~= trigger_entity then
+                    local other_pos = ecs.get_component(entity, "position")
+                    local other_col = ecs.get_component(entity, "collision")
+
+                    if other_pos and other_col then
+                        -- Check layer filter
+                        if collision.layer_matches_mask(other_col.layer, col.mask) then
+                            if collision.shapes_collide(pos, col, other_pos, other_col) then
+                                current_inside[entity] = true
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- Get previous inside set
+            local prev_inside = trigger_inside[trigger_entity] or {}
+
+            -- Fire enter events for newly inside entities
+            for entity in pairs(current_inside) do
+                if not prev_inside[entity] then
+                    if event_callback then
+                        event_callback("trigger_enter", trigger_entity, entity)
+                    end
+                end
+            end
+
+            -- Fire leave events for entities that left
+            for entity in pairs(prev_inside) do
+                if not current_inside[entity] then
+                    if event_callback then
+                        event_callback("trigger_leave", trigger_entity, entity)
+                    end
+                end
+            end
+
+            -- Update tracking
+            trigger_inside[trigger_entity] = current_inside
+
+            ::continue::
+        end
+    end
+end
+-- }}}
+
+-- {{{ collision.clear_trigger_tracking
+-- Clear trigger tracking state (for reset/testing).
+function collision.clear_trigger_tracking()
+    for k in pairs(trigger_inside) do
+        trigger_inside[k] = nil
+    end
+end
+-- }}}
+
+-- {{{ collision.get_trigger_contents
+-- Get list of entities currently inside a trigger zone.
+function collision.get_trigger_contents(trigger_entity)
+    local inside = trigger_inside[trigger_entity]
+    if not inside then
+        return {}
+    end
+
+    local result = {}
+    for entity in pairs(inside) do
+        result[#result + 1] = entity
+    end
+    return result
+end
+-- }}}
+
 return collision
