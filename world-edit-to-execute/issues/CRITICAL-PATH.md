@@ -45,7 +45,7 @@ Items move through states: `OPEN` → `DECIDED` → `IMPLEMENTED` → `ARCHIVED`
 ### OQ-001: Primary Renderer Target
 **Priority:** 🟠 HIGH
 **Affects:** Phase 5 (all rendering issues)
-**Status:** OPEN
+**Status:** DECIDED
 **Source:** Issue 501
 
 What rendering backend should be the primary target?
@@ -55,37 +55,37 @@ What rendering backend should be the primary target?
 | Terminal/TUI | No dependencies, works everywhere | Limited visuals |
 | LÖVE2D | Batteries-included, Lua-native | Requires installation |
 | SDL2 | Lower level, more control | More code to write |
-| Raylib | Simple, modern | Less Lua ecosystem |
+| **Raylib** | Simple, modern | Less Lua ecosystem |
 
-**Decision:** _pending_
-**Decided by:** _pending_
-**Date:** _pending_
+**Decision:** Raylib - simple, modern C library with Lua bindings
+**Decided by:** User
+**Date:** 2025-12-29
 
 ---
 
 ### OQ-002: Coordinate System
 **Priority:** 🟠 HIGH
 **Affects:** Phase 5, pathfinding display, camera
-**Status:** OPEN
+**Status:** DECIDED
 **Source:** Issue 501
 
 Which coordinate system for rendering?
 
 | Option | Description |
 |--------|-------------|
-| WC3-style | Y increases upward, isometric projection |
+| **WC3-style** | Y increases upward, isometric projection |
 | Screen-style | Y increases downward, top-down orthographic |
 
-**Decision:** _pending_
-**Decided by:** _pending_
-**Date:** _pending_
+**Decision:** WC3-style (Y-up) - matches game data, authentic feel
+**Decided by:** User
+**Date:** 2025-12-29
 
 ---
 
 ### OQ-003: Dual Interface Mode Strategy
 **Priority:** 🟡 MEDIUM
 **Affects:** Phase 5, overall architecture
-**Status:** OPEN
+**Status:** DECIDED
 **Source:** Issue 500
 
 How should Warcraft RTS mode and WoW-Chat mode coexist?
@@ -96,17 +96,20 @@ How should Warcraft RTS mode and WoW-Chat mode coexist?
 | Startup selection | Choose before launch |
 | Separate builds | Different executables |
 | Parallel views | Both visible simultaneously |
+| **API-driven** | Data-driven integration layer |
 
-**Decision:** _pending_
-**Decided by:** _pending_
-**Date:** _pending_
+**Decision:** API-style data-driven approach. WoW-chat integration is integral
+to the process. AzerothCore integrates with world-edit-to-execute via shared
+data APIs. Both systems consume the same underlying game state.
+**Decided by:** User
+**Date:** 2025-12-29
 
 ---
 
 ### OQ-004: Development Priority (WC3 vs WoW-Chat)
 **Priority:** 🟡 MEDIUM
 **Affects:** Feature prioritization, Phase 5-7
-**Status:** OPEN
+**Status:** DECIDED
 **Source:** Issue 500
 
 Which interface gets primary development focus?
@@ -117,10 +120,13 @@ Which interface gets primary development focus?
 | Chat first | Social/text features before visual game |
 | Parallel | Both developed simultaneously |
 | Equal | Features alternate between modes |
+| **Integrated** | Single data layer, multiple consumers |
 
-**Decision:** _pending_
-**Decided by:** _pending_
-**Date:** _pending_
+**Decision:** Integrated approach - WoW-chat is not a separate mode but an
+integral part of the system. Build the data/API layer that both WC3 visuals
+and AzerothCore can consume. The engine becomes the shared truth.
+**Decided by:** User
+**Date:** 2025-12-29
 
 ---
 
@@ -374,4 +380,5 @@ _Move fully implemented decisions here for historical record._
 | Date | Change | Author |
 |------|--------|--------|
 | 2025-12-29 | Initial creation from issue review | Claude |
+| 2025-12-29 | Decided OQ-001 (Raylib), OQ-002 (WC3 Y-up), OQ-003/004 (API-driven integration) | User |
 
