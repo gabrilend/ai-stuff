@@ -287,6 +287,28 @@ These issues provide foundational utilities and can be implemented independently
   - *Features*: Interactive and headless modes, auto-ID generation, validation
   - *Status*: Completed 2024-12-15
 
+### Phase 4: Meta-Infrastructure (NEW)
+- **Issue 040**: Dynamic CLAUDE.md Revision System 📝
+  - *Purpose*: Create a living instruction set that evolves based on usage patterns and natural events
+  - *Features*: Event detection, API layer for script integration, revision engine, history audit trail, conflict validation, TUI review interface
+  - *Philosophy*: "The system learns from doing, not just from being told"
+  - *Architecture*: Event Collector → API Server → Revision Engine → CLAUDE.md (with full audit trail)
+  - *Dependencies*: Issue 023 (Project Listing Utility)
+  - *Sub-issues*:
+    - **040a** 📝: Design Event Taxonomy and Pattern Detection (foundation)
+    - **040b** 📝: Build API Layer for Project/Script Integration (Lua client + Bash CLI)
+    - **040c** 📝: Implement Revision Engine with Rollback Support (parse, insert, update, rollback)
+    - **040d** 📝: Create History and Audit Trail System (append-only logs, immutable history)
+    - **040e** 📝: Build Validation and Conflict Detection System (semantic similarity, conflict resolution)
+    - **040f** 📝: Create Interactive TUI Review Interface (proposal review, health checks)
+    - **040g** 📝: Transcript Analysis and Reasoning Memory ("tough questions" oracle)
+    - **040h** 📝: Worldbuilding and Game Design Oracle (Elentalus, creative projects)
+    - **040i** 📝: Continual Co-operation Bridge (cross-project key block data sharing)
+  - *Access Model*: READ-ONLY to transcripts/mods/design-docs, WRITE-ONLY (append) to analysis logs
+  - *Creative Sources*: Elentalus mod files, game-design documents, lore directories
+  - *Bridge Partner*: continual-co-operation project (issues 006, 007)
+  - *Status*: Ready for implementation
+
 ## Pending
 
 ### Phase 2 Remaining (Gitignore)
@@ -301,12 +323,13 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~49 (including sub-issues)
+- **Total Issues**: ~57 (including sub-issues)
 - **Completed**: 24 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 029, 030, 031, 035 w/ all sub-issues, 037)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~23
+- **Pending**: ~31 (including 040 series)
 - **High Priority**: None
+- **New (Phase 4)**: 10 (040, 040a-i)
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation

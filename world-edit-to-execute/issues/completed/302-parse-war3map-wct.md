@@ -213,7 +213,7 @@ Implement as a single issue. The acceptance criteria are well-defined and the im
 | File | Description |
 |------|-------------|
 | `src/parsers/wct.lua` | WCT parser module (~270 lines) |
-| `src/tests/test_wct.lua` | Unit tests with synthetic data (17 tests) |
+| `src/tests/test_wct.lua` | Unit tests with synthetic data (25 tests: 9 synthetic + 16 map tests) |
 
 ### Implementation Details
 

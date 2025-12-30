@@ -1,0 +1,45 @@
+# ao3-source-code-import
+
+## Purpose
+
+Convert source code from local git repositories (starting with world-edit-to-execute) into a format suitable for programmatic upload to Archive of Our Own (AO3). Use AO3 as a preservation layer for code - treating source as literary artifact.
+
+## Core Philosophy
+
+- Source code is text. Text belongs in archives.
+- Version control through replacement: old versions deprecated, new versions uploaded.
+- Nature's demand: preserve the work, make it findable, let it exist beyond local machines.
+
+## Primary Workflow
+
+1. Read source repository (world-edit-to-execute as initial target)
+2. Transform code files into AO3-compatible HTML format
+   - Preserve syntax structure
+   - Include metadata (commit history, file structure, purpose)
+   - Format as readable "chapters" or sections
+3. Authenticate with AO3
+4. Upload as a "work" with appropriate tags
+5. On subsequent runs: update existing work, mark previous as deprecated or replace
+
+## Key Considerations
+
+- AO3 rate limits and terms of service
+- Code formatting that survives AO3's HTML sanitization
+- Meaningful tagging (Original Work, Software, etc.)
+- Chapter organization (by file? by module? by phase?)
+- Commit message as author's notes
+- README as summary
+
+## Target Repository
+
+Primary: /home/ritz/programming/ai-stuff/world-edit-to-execute/
+Future: Any git repository with a compatible structure
+
+## Output Format
+
+A single AO3 "work" containing:
+- Summary derived from project vision/README
+- Chapters organized by logical code sections
+- Code formatted with <pre> blocks or similar
+- Issue history as supplementary material
+- Git log as historical record
