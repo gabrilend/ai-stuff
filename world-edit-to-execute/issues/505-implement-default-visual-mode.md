@@ -128,8 +128,62 @@ This is the "moment of truth" - where the engine becomes visually real. Everythi
 
 ---
 
+## Initial Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: SPLIT
+
+This is the integration issue that brings together 501-504. It has distinct subsystems:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 505a | default-renderer-backend | 501 | Concrete renderer implementation (LÖVE2D/SDL/terminal) |
+| 505b | wire-render-systems | 505a, 502, 503 | Connect terrain, sprites, ECS, player systems |
+| 505c | game-view-camera | 505b, 501d | Main viewport, pan/zoom controls, unit rendering |
+| 505d | minimal-ui | 505b, 506 | Resource display, unit info panel, game time |
+| 505e | input-commands | 505c | Click select, right-click move, box select, hotkeys |
+| 505f | debug-overlays | 505b | Pathing grid, collision shapes, entity IDs, FPS counter |
+
+### Rationale
+
+1. **Backend choice critical**: The specific renderer backend affects all other sub-issues
+2. **Input handling complex**: Selection, movement, drag-select - significant interaction logic
+3. **Debug overlays optional**: Can ship without, add for developer convenience
+4. **Testable progression**: Each stage is visually verifiable
+
+### Execution Order
+
+```
+505a (backend) → 505b (wiring) → 505c (game view) → 505e (input)
+                            └─→ 505d (UI)
+                            └─→ 505f (debug)
+```
+
+### Note
+
+This issue depends heavily on 501-504. Several sub-issues here require those foundations:
+- 505a requires 501a-c to implement against the interface
+- 505d requires 506 (UI framework) - consider ordering
+- 505b requires 502 and 503 to have functional renderers
+
+---
+
 ## Related Documents
 
 - issues/501-507 (all Phase 5 issues)
 - issues/408e (Phase 4 visual demo - simpler version)
 - docs/roadmap.md
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-29 19:39*
+
+- 505a-default-renderer-backend.md
+- 505b-wire-render-systems.md
+- 505c-game-view-camera.md
+- 505d-minimal-ui.md
+- 505e-input-commands.md
+- 505f-debug-overlays.md

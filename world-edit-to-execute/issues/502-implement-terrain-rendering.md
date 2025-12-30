@@ -117,8 +117,53 @@ Terrain is the foundation of the visual scene. Everything else (units, buildings
 
 ---
 
+## Initial Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: SPLIT
+
+This issue contains 5 distinct rendering subsystems with clear technical boundaries:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 502a | core-terrain-renderer | 501 | Basic terrain module, tile grid display, coordinate mapping |
+| 502b | height-visualization | 502a | Height shading, cliff indicators, contour lines |
+| 502c | water-rendering | 502a | Water tiles, transparency, optional wave effects |
+| 502d | fog-of-war-integration | 502a | Explored/unexplored/visible states, darkening overlays |
+| 502e | terrain-optimization | 502a-d | View frustum culling, tile caching, performance tuning |
+
+### Rationale
+
+1. **Distinct rendering techniques**: Height, water, and fog each use different visual approaches
+2. **Fog of war complexity**: Integrates with player visibility system from Phase 4 - significant scope
+3. **Optimization separate from features**: Culling and caching should come after features work
+4. **Progressive enhancement**: Can ship basic terrain first, add polish later
+
+### Execution Order
+
+```
+502a (core) → 502b (height) ─────────────────┐
+          └─→ 502c (water) ──────────────────┼→ 502e (optimization)
+          └─→ 502d (fog of war) ─────────────┘
+```
+
+---
+
 ## Related Documents
 
 - src/parsers/w3e.lua (terrain data parser)
 - issues/501-*.md (render interface dependency)
 - issues/503-*.md (sprites render on terrain)
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-29 19:39*
+
+- 502a-core-terrain-renderer.md
+- 502b-height-visualization.md
+- 502c-water-rendering.md
+- 502d-fog-of-war-integration.md
+- 502e-terrain-optimization.md

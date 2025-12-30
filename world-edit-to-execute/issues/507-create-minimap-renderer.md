@@ -127,8 +127,55 @@ The minimap is essential for strategic gameplay. Players need to quickly assess 
 
 ---
 
+## Initial Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: SPLIT
+
+This issue has 6 steps with distinct rendering and interaction concerns:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 507a | minimap-module | 506 | Core module, init from terrain data, basic draw function |
+| 507b | terrain-texture | 507a, 502 | Pre-render terrain to small texture, color-code by tile type |
+| 507c | unit-dots | 507a, 503 | Scale positions to minimap, team colors, size by unit type |
+| 507d | camera-viewport | 507a, 501d | Rectangle showing visible area, updates with camera |
+| 507e | minimap-interaction | 507a-d | Left-click to move camera, right-click for commands, drag pan |
+| 507f | ping-system | 507e | Player pings, visual + audio feedback, temporary markers |
+
+### Rationale
+
+1. **Terrain texture is cached**: Pre-rendering logic is distinct from real-time updates
+2. **Interaction is complex**: Three input types (left-click, right-click, drag) with different behaviors
+3. **Ping system optional**: Social feature, can ship without initially
+4. **Unit dots update frequently**: Different update cadence than terrain
+
+### Execution Order
+
+```
+507a (module) → 507b (terrain) ──────────────────┐
+           └─→ 507c (units) ─────────────────────┼→ 507e (interaction) → 507f (pings)
+           └─→ 507d (viewport) ──────────────────┘
+```
+
+---
+
 ## Related Documents
 
 - issues/502-*.md (terrain data)
 - issues/506-*.md (UI framework)
 - src/parsers/w3e.lua (terrain source)
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-29 19:39*
+
+- 507a-minimap-module.md
+- 507b-terrain-texture.md
+- 507c-unit-dots.md
+- 507d-camera-viewport.md
+- 507e-minimap-interaction.md
+- 507f-ping-system.md

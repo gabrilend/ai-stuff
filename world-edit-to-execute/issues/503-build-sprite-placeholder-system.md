@@ -131,8 +131,53 @@ This is the primary visual feedback for gameplay. Even with placeholder graphics
 
 ---
 
+## Initial Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: SPLIT
+
+This issue has 6 implementation steps with logically distinct visual systems:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 503a | core-sprite-system | 501 | Sprite module, type registration, basic draw_entity function |
+| 503b | unit-visual-mappings | 503a | Map WC3 unit IDs to placeholder shapes, size categories, race colors |
+| 503c | team-colors-selection | 503a | 12 player colors, neutral colors, selection ring visuals |
+| 503d | health-bars-indicators | 503a | Health/mana bars, status icons, positioning above units |
+| 503e | facing-direction | 503a | Arrow/line showing unit direction, updates with movement |
+
+### Rationale
+
+1. **Separable visual features**: Health bars and selection rings are independent systems
+2. **Team colors shared**: The color system is used by both sprites and health bars - extract early
+3. **Facing is optional**: Can ship without facing indicator, add it for polish
+4. **Testable in isolation**: Each visual element can be verified independently
+
+### Execution Order
+
+```
+503a (core) → 503b (mappings) → 503c (colors + selection)
+          └─→ 503d (health bars)
+          └─→ 503e (facing)
+```
+
+---
+
 ## Related Documents
 
 - issues/501-*.md (render interface)
 - issues/504-*.md (asset loading)
 - src/runtime/ecs/wc3_components.lua (unit data)
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-29 19:39*
+
+- 503a-core-sprite-system.md
+- 503b-unit-visual-mappings.md
+- 503c-team-colors-selection.md
+- 503d-health-bars-indicators.md
+- 503e-facing-direction.md
