@@ -132,8 +132,53 @@ This is the foundation for all visual output. Getting the abstraction right is c
 
 ---
 
+## Initial Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: SPLIT
+
+This issue contains 5 distinct work streams that are independently testable and have clear boundaries:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 501a | define-renderer-interface | None | Define the abstract renderer interface contract with all required/optional methods |
+| 501b | create-renderer-registry | 501a | Implement registry for registering, getting, and switching renderer backends |
+| 501c | implement-null-renderer | 501a | Create no-op renderer for headless/testing mode |
+| 501d | implement-camera-system | 501a | World-to-screen conversion, zoom, bounds, smooth movement |
+| 501e | create-render-events | 501a, 501b | Define pre_render, post_render, viewport_changed events |
+
+### Rationale
+
+1. **Distinct work streams**: The interface definition, registry system, and camera are fundamentally different concerns
+2. **Testability**: Each sub-issue can be unit tested independently
+3. **Camera complexity**: The camera system alone has 4 aspects (coordinate conversion, zoom levels, bounds, smooth movement)
+4. **Foundation importance**: This is critical infrastructure - getting each piece right matters
+
+### Execution Order
+
+```
+501a (interface) → 501b (registry) ──────────────────┐
+                └─→ 501c (null renderer) ─────────────┼→ 501e (events)
+                └─→ 501d (camera) ────────────────────┘
+```
+
+---
+
 ## Related Documents
 
 - docs/roadmap.md (Phase 5 overview)
 - issues/502-*.md (terrain rendering depends on this)
 - issues/506-*.md (UI framework depends on this)
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-29 19:39*
+
+- 501a-define-renderer-interface.md
+- 501b-create-renderer-registry.md
+- 501c-implement-null-renderer.md
+- 501d-implement-camera-system.md
+- 501e-create-render-events.md

@@ -289,8 +289,27 @@ The "consideration matching" process:
 
 ---
 
+## Sub-Issue Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: Keep as Single Issue (Thinking Document)
+
+This issue explicitly states it is a **thinking document** - not an implementation issue. Its purpose is to:
+- Capture considerations before implementation
+- Inform all other Phase 5 issues
+- Document the dual-interface philosophy
+
+**No implementation work** is expected from this issue. It should be referenced by 501-507 during their design phases but does not produce code.
+
+If concrete work emerges from this document, it should be captured as:
+- 500a-c: Mode abstraction layer design (mentioned in Successor Issues)
+- Updates to 501-507 to incorporate dual-mode considerations
+
+---
+
 ## Related Documents
 
 - issues/501-507 (Phase 5 issues this informs)
 - notes/vision (project philosophy)
-- (link to wow-chat project if separate)
+- notes/consideration-matching.md (methodology)
