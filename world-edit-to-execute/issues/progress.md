@@ -402,6 +402,7 @@ Phase 2 & 3 Complete
 | 508f | Movement orders | Pending | 508e |
 | 508g | Minimal UI | Pending | 508d |
 | 508h | Integration test | Pending | 508a-g |
+| 508i | Fix chunk ray picking | Pending | 508b |
 | 510 | Dual perspective UI system | Issues Created | 506 |
 | 510a | Warlord mode UI (RTS) | Pending | 506 |
 | 510b | Hero mode UI (RPG) | Pending | 506 |
@@ -1209,6 +1210,18 @@ Both systems support dual WC3/WoW modes:
   - 510c: Perspective switching - camera lerp, UI morph
   - 510d: Shared UI components - minimap, chat, tooltips, alerts
   - 510e: UI state persistence - save/load layouts, keybinds
+- **508b extended with interactive demo:**
+  - Added UI slider system (Clock, Spin, Orbit R controls)
+  - Added chunk state tracking (per-chunk color_index, destroyed flag)
+  - Added particle system for destruction sparks
+  - Added mouse ray picking for chunk selection (partial - 508i bug)
+  - Left-click cycles chunk color (blue → green → red)
+  - Right-click destroys chunk with colored spark particles
+  - Orbit radius slider updates ground circle in real-time
+- **Issue 508i created:** Fix chunk ray picking
+  - Picking works on some cube faces but not others
+  - Root cause: transform_chunk_to_world() doesn't match OpenGL pipeline
+  - Suggested fixes: use raylib Matrix functions, or inverse-transform the ray
 
 ---
 
