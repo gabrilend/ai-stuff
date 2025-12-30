@@ -286,18 +286,37 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 ---
 
 ### IF-003: Phase 4 Integration (408)
-**Status:** 1/5 complete
+**Status:** 3/5 complete
 **Blocking:** Phase 4 demo
 
 | Sub-Issue | Status |
 |-----------|--------|
-| 408a (unit tests core) | ✗ Pending |
-| 408b (unit tests entity) | ✗ Pending |
+| 408a (unit tests core) | ✓ Complete (2025-12-30) |
+| 408b (unit tests entity) | ✓ Complete (2025-12-30) |
 | 408c (unit tests player) | ✗ Pending |
 | 408d (integration scenario) | ✓ Complete |
 | 408e (visual demo) | ✗ Pending |
 
-**Action:** Complete 408a-c, 408e for Phase 4 closure
+**Action:** Complete 408c, 408e for Phase 4 closure
+
+---
+
+### IF-004: Vertical Slice (508) - CRITICAL PATH
+**Status:** 3/8 complete
+**Blocking:** Playable demo
+
+| Sub-Issue | Status |
+|-----------|--------|
+| 508a (threading infrastructure) | ✓ Complete |
+| 508b (entity render slots) | ✓ Complete (2025-12-30) |
+| 508c (Lua-C bridge) | ✓ Complete (2025-12-30) |
+| 508d (map integration) | ✗ Pending |
+| 508e (input and selection) | ✗ Pending |
+| 508f (movement orders) | ✗ Pending |
+| 508g (minimal UI) | ✗ Pending |
+| 508h (integration test) | ✗ Pending |
+
+**Action:** Complete 508d to load map terrain data into renderer
 
 ---
 
@@ -382,4 +401,6 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-29 | Initial creation from issue review | Claude |
 | 2025-12-29 | Decided OQ-001 (Raylib), OQ-002 (WC3 Y-up), OQ-003/004 (API-driven integration) | User |
 | 2025-12-30 | Completed 405d (movement collision integration), 508b (entity render slots) | Claude |
+| 2025-12-30 | Completed 408a (unit tests core), 408b (unit tests entity) | Claude |
+| 2025-12-30 | Completed 508c (Lua-C bridge) - LuaJIT compatible | Claude |
 

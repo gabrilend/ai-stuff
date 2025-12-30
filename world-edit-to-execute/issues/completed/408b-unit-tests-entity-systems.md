@@ -368,15 +368,15 @@ Tests should verify correct integration with ECS and pathfinding.
 
 ## Acceptance Criteria
 
-- [ ] Movement initialization test passes
-- [ ] Movement order test passes (order issued, path calculated)
-- [ ] Movement execution test passes (unit reaches destination)
-- [ ] Movement facing calculation test passes (correct angles)
-- [ ] Circle collision test passes (overlap/no-overlap/touching)
-- [ ] Rectangle collision test passes (overlap/no-overlap/adjacent)
-- [ ] Spatial query test passes (radius and rect queries)
-- [ ] Movement-collision integration test passes (units don't pass through)
-- [ ] All tests complete in under 2 seconds
+- [x] Movement initialization test passes
+- [x] Movement order test passes (order issued, path calculated)
+- [x] Movement execution test passes (unit reaches destination)
+- [x] Movement facing calculation test passes (correct angles)
+- [x] Circle collision test passes (overlap/no-overlap/touching)
+- [x] Rectangle collision test passes (overlap/no-overlap/adjacent)
+- [x] Spatial query test passes (radius and rect queries)
+- [x] Movement-collision integration test passes (units don't pass through)
+- [x] All tests complete in under 2 seconds
 
 ---
 
@@ -390,3 +390,48 @@ WC3-specific considerations:
 - Unit collision radii vary by unit type (typically 16-48 game units)
 - Flying units use separate collision layer
 - Buildings have rectangular collision
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-30
+
+### Test File Created
+
+Created `src/tests/test_phase4_entity.lua` with 26 tests validating all acceptance criteria:
+
+| Section | Tests | Description |
+|---------|-------|-------------|
+| AC1: Movement Initialization | 5 | Position/movement component attachment |
+| AC2: Movement Orders | 4 | Path setting, waypoints, is_moving state |
+| AC3: Movement Execution | 3 | Unit reaches destination after ECS updates |
+| AC4: Facing Calculation | 2 | Facing right=0, facing up=π/2 |
+| AC5: Circle Collision | 4 | Overlap, separate, touching, same center |
+| AC6: Rectangle Collision | 3 | Overlap, separate, adjacent |
+| AC7: Spatial Queries | 2 | query_radius, query_rect find entities |
+| AC8: Movement-Collision | 2 | can_move_to blocks/allows movement |
+| AC9: Timing | 1 | Completes under 2 seconds |
+
+### Existing Test Coverage
+
+The detailed test suites already implemented in previous issues provide extensive coverage:
+
+- `test_movement_core.lua`: 90 tests - speeds, component creation, interpolation
+- `test_movement_path.lua`: 49 tests - path following, waypoint progression, facing
+- `test_orders.lua`: Order types, queuing, callbacks
+- `test_collision_shapes.lua`: 99 tests - circle, rect, circle-rect, point-in-shape
+- `test_collision_queries.lua`: Spatial hash queries, layer filtering
+- `test_movement_collision.lua`: can_move_to, resolve_overlap, trigger zones
+
+### Usage
+
+```bash
+# Run acceptance criteria validation
+lua src/tests/test_phase4_entity.lua
+
+# Run comprehensive Phase 4 tests
+./issues/completed/demos/run_phase4.sh -a
+```
+
+All 26 acceptance tests pass.

@@ -1,0 +1,25 @@
+bridge.c: In function 'l_set_color':
+bridge.c:138:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  138 |     if (r < 0) r = 0; if (r > 255) r = 255;
+      |     ^~
+bridge.c:138:23: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  138 |     if (r < 0) r = 0; if (r > 255) r = 255;
+      |                       ^~
+bridge.c:139:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  139 |     if (g < 0) g = 0; if (g > 255) g = 255;
+      |     ^~
+bridge.c:139:23: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  139 |     if (g < 0) g = 0; if (g > 255) g = 255;
+      |                       ^~
+bridge.c:140:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  140 |     if (b < 0) b = 0; if (b > 255) b = 255;
+      |     ^~
+bridge.c:140:23: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  140 |     if (b < 0) b = 0; if (b > 255) b = 255;
+      |                       ^~
+bridge.c:141:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  141 |     if (a < 0) a = 0; if (a > 255) a = 255;
+      |     ^~
+bridge.c:141:23: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  141 |     if (a < 0) a = 0; if (a > 255) a = 255;
+      |                       ^~

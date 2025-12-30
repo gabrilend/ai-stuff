@@ -33,7 +33,17 @@ Convert source code from local git repositories (starting with world-edit-to-exe
 ## Target Repository
 
 Primary: /home/ritz/programming/ai-stuff/world-edit-to-execute/
+Secondary: /home/ritz/programming/ai-stuff/ao3-source-code-import/ (self-archive)
 Future: Any git repository with a compatible structure
+
+## Self-Referential Archiving
+
+This tool archives itself. The ao3-source-code-import project is preserved on AO3, including:
+- Its own source code
+- The transcript of the conversation that created it
+- Its issue history and documentation
+
+The snake eats its tail. The archive contains the archiver.
 
 ## Output Format
 
