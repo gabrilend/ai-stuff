@@ -1,0 +1,45 @@
+imagine a spreadsheet was your ide, and imagine it saved it's files to text
+that's formatted in my style
+
+example:
+
+```bash
+mkdir -p      "${DIR}/recomp/build"
+   cd         "${DIR}/recomp/build"
+cmake         "${DIR}/recomp"
+cmake --build "${DIR}/recomp/build"
+```
+
+notice how there's columns built in? 
+notice how the file-paths are lined up, to
+better guide the player through the process?
+
+here's a visual guide:
+
+.---------.---------.-----------------------.
+| command |  flags  |         paths         |
+.---------.---------.-----------------------.
+|  mkdir  | -p      | "${DIR}/recomp/build" |
+|     cd  |         | "${DIR}/recomp/build" |
+|  cmake  |         | "${DIR}/recomp"       |
+|  cmake  | --build | "${DIR}/recomp/build" |
+'---------'---------'-----------------------'
+
+doesn't it start to feel like a spreadsheet?
+it could output as plain text, to be better read 
+in an editor and for source control and such.
+
+But, by presenting it in a format that's more familiar to the typical office
+worker, they might be more empowered to create their own scripts.
+
+A lot of people have anti AI sentiment. They don't trust AI generated code.
+I get it. You have to know a lot about computer science to build something with
+AI generated code.
+
+Something like this might empower people to create their own scripts and
+programs without requiring them to divest responsibility for it's output.
+
+Plus, I'm sure there's potential for importing some of the functionality from
+excel or other spreadsheet programs, but I am not familiar with the most
+radical tech ideas present in such programs.
+

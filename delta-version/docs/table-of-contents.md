@@ -81,6 +81,18 @@
 - [Issue 024: External Project Directory Configuration](../issues/024-external-project-directory-configuration.md) 📝
 - [Issue 032: Project Donation/Support Links](../issues/032-project-donation-support-links.md) 📝
 
+### Dynamic CLAUDE.md System Issues
+- [Issue 040: Dynamic CLAUDE.md Revision System](../issues/040-dynamic-claudemd-revision-system.md) 📝
+  - [Issue 040a: Design Event Taxonomy](../issues/040a-design-event-taxonomy.md) 📝
+  - [Issue 040b: Build API Layer](../issues/040b-build-api-layer.md) 📝
+  - [Issue 040c: Implement Revision Engine](../issues/040c-implement-revision-engine.md) 📝
+  - [Issue 040d: Create History Audit System](../issues/040d-create-history-audit-system.md) 📝
+  - [Issue 040e: Build Validation System](../issues/040e-build-validation-system.md) 📝
+  - [Issue 040f: Create Interactive Interface](../issues/040f-create-interactive-interface.md) 📝
+  - [Issue 040g: Transcript Analysis Memory](../issues/040g-transcript-analysis-memory.md) 📝
+  - [Issue 040h: Worldbuilding Design Oracle](../issues/040h-worldbuilding-design-oracle.md) 📝
+  - [Issue 040i: Continual Co-operation Bridge](../issues/040i-continual-cooperation-bridge.md) 📝
+
 ### Master Reference Issues
 - [Issue 001: Comprehensive Git Repository Setup](../issues/001-comprehensive-git-repository-setup.md) - Master reference
 - [Issue 002: Gitignore Unification Script](../issues/002-gitignore-unification-script.md) - Master reference
