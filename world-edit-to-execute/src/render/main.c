@@ -1,5 +1,5 @@
 /*
- * WC3 Engine - Threaded Renderer Demo
+ * WC3 Engine - Interactive Threaded Renderer Demo
  *
  * Demonstrates the staged threading architecture from docs/render-architecture.md:
  * - Updater thread: populates worker inputs from game state
@@ -7,7 +7,10 @@
  * - Sync thread: swaps worker outputs to primary buffer (minimal work)
  * - Draw thread: renders from primary buffer (minimal work)
  *
- * The rotating cube demo validates this architecture before adding real entities.
+ * Interactive features:
+ * - UI sliders for speed controls (orbit, spin, clock)
+ * - Left-click on chunk: cycle color (blue -> green -> red)
+ * - Right-click on chunk: destroy with spark particles
  *
  * Based on template at: /home/ritz/programming/c/games/template/
  */
@@ -22,35 +25,64 @@
 #include "raylib.h"
 #include "rlgl.h"
 #include "threading.h"
+#include "slots.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define TARGET_FPS 60
-#define ROTATION_SPEED 1.0f
 #define NUM_WORKERS 2
+#define DEMO_MAX_SLOTS 64
+#define MAX_PARTICLES 256
+#define MAX_CHUNKS 1024
 /* }}} */
 
-/* {{{ RenderSlot - GPU-ready data for one entity (508b preview)
- * This is the output workers produce. Draw thread reads this directly. */
-typedef struct render_slot {
-    float x, y, z;           /* world position */
-    float rotation;          /* Y-axis rotation in degrees */
-    float scale;             /* uniform scale */
-    unsigned char r, g, b, a; /* color */
-    bool visible;            /* culling result */
-    int mesh_id;             /* which mesh to draw (0 = cube) */
-} RenderSlot;
+/* {{{ Speed Parameters - adjustable via sliders */
+typedef struct speed_params {
+    float clock_speed;    /* clock rotation speed */
+    float spin_speed;     /* in-place spin speed */
+    float orbit_radius;   /* distance from center pillar */
+} SpeedParams;
+
+static SpeedParams g_speeds = {
+    .clock_speed = 0.15f,
+    .spin_speed = 0.5f,
+    .orbit_radius = 3.0f
+};
 /* }}} */
 
-/* {{{ PrimaryBuffer - what the draw thread reads from
- * Sync thread writes here; draw thread reads here. */
-#define MAX_RENDER_SLOTS 64
+/* {{{ UISlider - simple horizontal slider */
+typedef struct ui_slider {
+    float x, y;           /* position */
+    float width, height;  /* size */
+    float min, max;       /* value range */
+    float* value;         /* pointer to value being controlled */
+    const char* label;    /* display name */
+    bool dragging;        /* currently being dragged */
+} UISlider;
+/* }}} */
 
+/* {{{ ChunkState - mutable state per chunk */
+typedef struct chunk_state {
+    int color_index;      /* 0=blue, 1=green, 2=red */
+    bool destroyed;       /* right-click destroys */
+} ChunkState;
+/* }}} */
+
+/* {{{ Particle - spark effect */
+typedef struct particle {
+    float x, y, z;        /* position */
+    float vx, vy, vz;     /* velocity */
+    float life;           /* remaining lifetime (0-1) */
+    unsigned char r, g, b;
+    bool active;
+} Particle;
+/* }}} */
+
+/* {{{ PrimaryBuffer - what the draw thread reads from */
 typedef struct primary_buffer {
-    RenderSlot slots[MAX_RENDER_SLOTS];
-    int slot_count;
-    pthread_mutex_t lock;  /* Protect during swap */
+    SlotArray* slots;
+    pthread_mutex_t lock;
 } PrimaryBuffer;
 /* }}} */
 
@@ -77,6 +109,195 @@ static PrimaryBuffer g_primary;
 static atomic_bool g_running = true;
 static unsigned int g_tick = 0;
 static float g_game_time = 0.0f;
+static int g_demo_slot_index = -1;
+
+/* Interactive state */
+static ChunkState g_chunk_states[MAX_CHUNKS];
+static Particle g_particles[MAX_PARTICLES];
+static UISlider g_sliders[3];
+static int g_slider_count = 3;
+/* }}} */
+
+/* {{{ Color Palette - for chunk color cycling */
+static const unsigned char COLOR_PALETTE[3][3] = {
+    { 40, 90, 200 },   /* 0: blue */
+    { 40, 180, 60 },   /* 1: green */
+    { 200, 60, 40 }    /* 2: red */
+};
+/* }}} */
+
+/* {{{ init_sliders
+ * Creates UI sliders for speed controls */
+void init_sliders(void) {
+    float y_start = WINDOW_HEIGHT - 100;
+    float x = 20;
+    float w = 150;
+    float h = 16;
+    float spacing = 26;
+
+    g_sliders[0] = (UISlider){
+        .x = x, .y = y_start,
+        .width = w, .height = h,
+        .min = 0.01f, .max = 1.0f,
+        .value = &g_speeds.clock_speed,
+        .label = "Clock",
+        .dragging = false
+    };
+
+    g_sliders[1] = (UISlider){
+        .x = x, .y = y_start + spacing,
+        .width = w, .height = h,
+        .min = 0.0f, .max = 2.0f,
+        .value = &g_speeds.spin_speed,
+        .label = "Spin",
+        .dragging = false
+    };
+
+    g_sliders[2] = (UISlider){
+        .x = x, .y = y_start + spacing * 2,
+        .width = w, .height = h,
+        .min = 1.0f, .max = 6.0f,
+        .value = &g_speeds.orbit_radius,
+        .label = "Orbit R",
+        .dragging = false
+    };
+}
+/* }}} */
+
+/* {{{ update_sliders
+ * Process mouse input for sliders.
+ * Returns true if any slider is being interacted with */
+bool update_sliders(void) {
+    Vector2 mouse = GetMousePosition();
+    bool left_down = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+    bool left_pressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+    bool any_active = false;
+
+    for (int i = 0; i < g_slider_count; i++) {
+        UISlider* s = &g_sliders[i];
+
+        /* Check if mouse is over slider track */
+        bool over = (mouse.x >= s->x && mouse.x <= s->x + s->width &&
+                     mouse.y >= s->y && mouse.y <= s->y + s->height);
+
+        if (left_pressed && over) {
+            s->dragging = true;
+        }
+
+        if (!left_down) {
+            s->dragging = false;
+        }
+
+        if (s->dragging) {
+            any_active = true;
+            /* Compute normalized position */
+            float t = (mouse.x - s->x) / s->width;
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+            /* Map to value range */
+            *s->value = s->min + t * (s->max - s->min);
+        }
+    }
+
+    return any_active;
+}
+/* }}} */
+
+/* {{{ draw_sliders
+ * Render sliders with labels and current values */
+void draw_sliders(void) {
+    for (int i = 0; i < g_slider_count; i++) {
+        UISlider* s = &g_sliders[i];
+
+        /* Track background */
+        DrawRectangle((int)s->x, (int)s->y, (int)s->width, (int)s->height, DARKGRAY);
+
+        /* Fill based on value */
+        float t = (*s->value - s->min) / (s->max - s->min);
+        int fill_w = (int)(s->width * t);
+        DrawRectangle((int)s->x, (int)s->y, fill_w, (int)s->height, GRAY);
+
+        /* Handle */
+        int handle_x = (int)(s->x + fill_w - 3);
+        DrawRectangle(handle_x, (int)s->y - 2, 6, (int)s->height + 4, WHITE);
+
+        /* Label and value */
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%s: %.2f", s->label, *s->value);
+        DrawText(buf, (int)s->x + (int)s->width + 10, (int)s->y, 14, LIGHTGRAY);
+    }
+}
+/* }}} */
+
+/* {{{ init_chunk_states
+ * Initialize chunk states (all blue, not destroyed) */
+void init_chunk_states(int chunk_count) {
+    for (int i = 0; i < chunk_count && i < MAX_CHUNKS; i++) {
+        g_chunk_states[i].color_index = 0;
+        g_chunk_states[i].destroyed = false;
+    }
+}
+/* }}} */
+
+/* {{{ spawn_particles
+ * Create spark particles at given world position */
+void spawn_particles(float wx, float wy, float wz, unsigned char r, unsigned char g, unsigned char b) {
+    int spawned = 0;
+    for (int i = 0; i < MAX_PARTICLES && spawned < 12; i++) {
+        if (!g_particles[i].active) {
+            Particle* p = &g_particles[i];
+            p->x = wx;
+            p->y = wy;
+            p->z = wz;
+            /* Random velocity in all directions */
+            p->vx = ((float)(rand() % 200 - 100) / 100.0f) * 2.0f;
+            p->vy = ((float)(rand() % 100) / 100.0f) * 3.0f;
+            p->vz = ((float)(rand() % 200 - 100) / 100.0f) * 2.0f;
+            p->life = 1.0f;
+            p->r = r;
+            p->g = g;
+            p->b = b;
+            p->active = true;
+            spawned++;
+        }
+    }
+}
+/* }}} */
+
+/* {{{ update_particles
+ * Simulate particle physics */
+void update_particles(float dt) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (g_particles[i].active) {
+            Particle* p = &g_particles[i];
+            /* Gravity */
+            p->vy -= 9.8f * dt;
+            /* Movement */
+            p->x += p->vx * dt;
+            p->y += p->vy * dt;
+            p->z += p->vz * dt;
+            /* Decay */
+            p->life -= dt * 2.0f;
+            if (p->life <= 0) {
+                p->active = false;
+            }
+        }
+    }
+}
+/* }}} */
+
+/* {{{ draw_particles
+ * Render active particles as small cubes */
+void draw_particles(void) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (g_particles[i].active) {
+            Particle* p = &g_particles[i];
+            unsigned char alpha = (unsigned char)(p->life * 255);
+            Color col = { p->r, p->g, p->b, alpha };
+            DrawCube((Vector3){ p->x, p->y, p->z }, 0.05f, 0.05f, 0.05f, col);
+        }
+    }
+}
 /* }}} */
 
 /* {{{ create_cube_mesh */
@@ -111,12 +332,10 @@ MeshData* create_cube_mesh(float size, float chunk_size) {
                 c->z = z + chunk / 2.0f;
                 c->size = chunk * (0.9f + 0.1f * sinf(x + y + z));
 
-                int r = 40 + ((int)(y * z * 20) % 20) - 10;
-                int g = 90 + ((int)(z * x * 30) % 30) - 15;
-                int b = 200 + ((int)(x * y * 50) % 40) - 20;
-                c->r = (unsigned char)(r < 0 ? 0 : (r > 255 ? 255 : r));
-                c->g = (unsigned char)(g < 0 ? 0 : (g > 255 ? 255 : g));
-                c->b = (unsigned char)(b < 0 ? 0 : (b > 255 ? 255 : b));
+                /* Base color (will be overridden by chunk state) */
+                c->r = 40;
+                c->g = 90;
+                c->b = 200;
 
                 bool surface = (x <= -half + chunk || x >= half - chunk ||
                                 y <= -half + chunk || y >= half - chunk ||
@@ -131,8 +350,114 @@ MeshData* create_cube_mesh(float size, float chunk_size) {
 }
 /* }}} */
 
+/* {{{ transform_chunk_to_world
+ * Transform chunk local position to world position given slot transforms */
+void transform_chunk_to_world(ChunkData* c, RenderSlot* slot, float* wx, float* wy, float* wz) {
+    /* Apply scale */
+    float lx = c->x * slot->scale;
+    float ly = c->y * slot->scale;
+    float lz = c->z * slot->scale;
+
+    /* Simplified rotation (just estimate for picking) */
+    float rad_spin = slot->spin * 3.14159f / 180.0f;
+    float rad_clock = slot->rotation * 3.14159f / 180.0f;
+
+    /* Spin around Y */
+    float cos_s = cosf(rad_spin);
+    float sin_s = sinf(rad_spin);
+    float rx = lx * cos_s - lz * sin_s;
+    float ry = ly;
+    float rz = lx * sin_s + lz * cos_s;
+
+    /* Approximate clock rotation (simplified) */
+    float cos_c = cosf(rad_clock * 0.577f);
+    float sin_c = sinf(rad_clock * 0.577f);
+    float fx = rx * cos_c - ry * sin_c;
+    float fy = rx * sin_c + ry * cos_c;
+    float fz = rz;
+
+    /* Translate to world position */
+    *wx = fx + slot->x;
+    *wy = fy + slot->y;
+    *wz = fz + slot->z;
+}
+/* }}} */
+
+/* {{{ find_chunk_at_ray
+ * Returns chunk index at ray hit, or -1 if none.
+ * Uses simple distance-based picking. */
+int find_chunk_at_ray(Ray ray, RenderSlot* slot, MeshData* mesh) {
+    int closest = -1;
+    float closest_dist = 1000.0f;
+
+    for (int i = 0; i < mesh->chunk_count; i++) {
+        if (!mesh->chunks[i].is_solid) continue;
+        if (g_chunk_states[i].destroyed) continue;
+
+        ChunkData* c = &mesh->chunks[i];
+        float wx, wy, wz;
+        transform_chunk_to_world(c, slot, &wx, &wy, &wz);
+
+        /* Simple sphere test for picking */
+        float radius = c->size * slot->scale * 0.5f;
+        Vector3 center = { wx, wy, wz };
+        RayCollision col = GetRayCollisionSphere(ray, center, radius);
+
+        if (col.hit && col.distance < closest_dist) {
+            closest_dist = col.distance;
+            closest = i;
+        }
+    }
+
+    return closest;
+}
+/* }}} */
+
+/* {{{ process_chunk_input
+ * Handle mouse clicks on chunks */
+void process_chunk_input(RenderSlot* slot, MeshData* mesh, Camera3D* camera) {
+    if (!slot || !slot->visible) return;
+
+    /* Check if clicking on slider area */
+    Vector2 mouse = GetMousePosition();
+    if (mouse.y > WINDOW_HEIGHT - 120) return;
+
+    bool left_click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+    bool right_click = IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
+
+    if (!left_click && !right_click) return;
+
+    Ray ray = GetScreenToWorldRay(mouse, *camera);
+    int chunk_idx = find_chunk_at_ray(ray, slot, mesh);
+
+    if (chunk_idx >= 0 && chunk_idx < MAX_CHUNKS) {
+        ChunkState* state = &g_chunk_states[chunk_idx];
+        ChunkData* c = &mesh->chunks[chunk_idx];
+
+        if (left_click) {
+            /* Cycle color: blue -> green -> red -> blue */
+            state->color_index = (state->color_index + 1) % 3;
+        } else if (right_click) {
+            /* Destroy with particles */
+            state->destroyed = true;
+
+            /* Get world position for particles */
+            float wx, wy, wz;
+            transform_chunk_to_world(c, slot, &wx, &wy, &wz);
+
+            /* Spawn sparks using chunk color */
+            int ci = state->color_index;
+            spawn_particles(wx, wy, wz,
+                            COLOR_PALETTE[ci][0],
+                            COLOR_PALETTE[ci][1],
+                            COLOR_PALETTE[ci][2]);
+        }
+    }
+}
+/* }}} */
+
 /* {{{ render_cube_at_slot
- * Renders a cube using the render slot data. */
+ * Renders cube with per-chunk state (color, destroyed) */
 void render_cube_at_slot(RenderSlot* slot, MeshData* mesh) {
     if (!slot->visible) return;
 
@@ -140,46 +465,58 @@ void render_cube_at_slot(RenderSlot* slot, MeshData* mesh) {
         rlTranslatef(slot->x, slot->y, slot->z);
         rlScalef(slot->scale, slot->scale, slot->scale);
         rlRotatef(slot->rotation, 0.577f, 0.577f, 0.577f);
+        rlRotatef(slot->spin, 0.0f, 1.0f, 0.0f);
 
-        for (int i = 0; i < mesh->chunk_count; i++) {
+        for (int i = 0; i < mesh->chunk_count && i < MAX_CHUNKS; i++) {
             ChunkData* c = &mesh->chunks[i];
-            if (c->is_solid) {
-                Color col = { c->r, c->g, c->b, 255 };
-                DrawCube((Vector3){ c->x, c->y, c->z }, c->size, c->size, c->size, col);
-            }
+            if (!c->is_solid) continue;
+            if (g_chunk_states[i].destroyed) continue;
+
+            /* Get color from palette based on chunk state */
+            int ci = g_chunk_states[i].color_index;
+            Color col = {
+                COLOR_PALETTE[ci][0],
+                COLOR_PALETTE[ci][1],
+                COLOR_PALETTE[ci][2],
+                255
+            };
+
+            DrawCube((Vector3){ c->x, c->y, c->z }, c->size, c->size, c->size, col);
         }
     rlPopMatrix();
 }
 /* }}} */
 
 /* {{{ worker_process_fn
- * Called by worker threads to compute render-ready data.
- * Heavy work happens here: transforms, culling, etc.
- *
- * For demo: just updates rotation based on game time. */
+ * Worker computes orbital position and rotations from game time */
 void worker_process_fn(WorkerContext* ctx, void* input_ptr, void* output_ptr) {
     WorkerInput* input = (WorkerInput*)input_ptr;
     WorkerOutput* output = (WorkerOutput*)output_ptr;
 
-    /* Compute rotation from game time
-     * In full implementation: would transform entity positions,
-     * apply culling, compute final screen coords, etc. */
-    float rotation = fmodf(input->game_time * ROTATION_SPEED * 60.0f, 360.0f);
+    /* Read current speed params (safe: main thread only writes between frames) */
+    float clock_speed = g_speeds.clock_speed;
+    float spin_speed = g_speeds.spin_speed;
+    float orbit_radius = g_speeds.orbit_radius;
 
-    /* For demo: we only have one entity (the cube)
-     * Worker 0 handles slot 0, others idle */
+    float orbit_angle = input->game_time * clock_speed * 2.0f * 3.14159f;
+    float clock_rotation = fmodf(input->game_time * clock_speed * 360.0f, 360.0f);
+    float spin = fmodf(input->game_time * spin_speed * 360.0f, 360.0f);
+
+    float orbit_x = orbit_radius * cosf(orbit_angle);
+    float orbit_z = orbit_radius * sinf(orbit_angle);
+
     if (ctx->worker_id == 0) {
-        /* Allocate output slot data (or reuse) */
         RenderSlot* slot = (RenderSlot*)output->slot_data;
         if (!slot) {
             slot = (RenderSlot*)malloc(sizeof(RenderSlot));
             output->slot_data = slot;
         }
 
-        slot->x = 0.0f;
+        slot->x = orbit_x;
         slot->y = 0.0f;
-        slot->z = 0.0f;
-        slot->rotation = rotation;
+        slot->z = orbit_z;
+        slot->rotation = clock_rotation;
+        slot->spin = spin;
         slot->scale = 1.0f;
         slot->r = 40;
         slot->g = 90;
@@ -195,22 +532,19 @@ void worker_process_fn(WorkerContext* ctx, void* input_ptr, void* output_ptr) {
 }
 /* }}} */
 
-/* {{{ get_game_input
- * Callback for updater thread. Returns true if there's new input.
- * Increments tick and game time. */
+/* {{{ get_game_input */
 bool get_game_input(WorkerInput* out) {
     static unsigned int last_tick = 0;
 
-    /* Generate new input every frame (16ms) */
     unsigned int current_tick = g_tick;
     if (current_tick == last_tick) {
-        return false;  /* No new tick yet */
+        return false;
     }
 
     last_tick = current_tick;
     out->tick = current_tick;
     out->game_time = g_game_time;
-    out->entity_count = 1;  /* Just the cube */
+    out->entity_count = 1;
     out->camera_x = 5.0f;
     out->camera_y = 5.0f;
     out->camera_z = 5.0f;
@@ -219,9 +553,7 @@ bool get_game_input(WorkerInput* out) {
 }
 /* }}} */
 
-/* {{{ sync_to_primary
- * Called by sync loop to copy worker output to primary buffer.
- * This is the "mise en place" moment - old data freed, new data in place. */
+/* {{{ sync_to_primary */
 void sync_to_primary(WorkerPool* pool) {
     pthread_mutex_lock(&g_primary.lock);
 
@@ -232,12 +564,17 @@ void sync_to_primary(WorkerPool* pool) {
             pthread_mutex_lock(&buf->output_lock);
 
             if (buf->output.slot_data && buf->output.slot_count > 0) {
-                /* Copy slot data to primary buffer */
                 RenderSlot* src = (RenderSlot*)buf->output.slot_data;
-                /* For demo: only one slot from worker 0 */
-                if (i == 0) {
-                    g_primary.slots[0] = *src;
-                    g_primary.slot_count = 1;
+
+                if (i == 0 && g_demo_slot_index >= 0) {
+                    ComponentSlot* slot = slot_get(g_primary.slots, g_demo_slot_index);
+                    if (slot && slot->in_use) {
+                        RenderSlot* new_data = (RenderSlot*)malloc(sizeof(RenderSlot));
+                        if (new_data) {
+                            *new_data = *src;
+                            slot_set(slot, new_data);
+                        }
+                    }
                 }
             }
 
@@ -250,16 +587,14 @@ void sync_to_primary(WorkerPool* pool) {
 }
 /* }}} */
 
-/* {{{ custom_sync_loop
- * Sync thread that handles our specific primary buffer. */
+/* {{{ custom_sync_loop */
 void* custom_sync_loop(void* arg) {
     WorkerPool* pool = (WorkerPool*)arg;
-
     printf("[sync] Starting custom sync loop\n");
 
     while (atomic_load(&g_running)) {
         sync_to_primary(pool);
-        usleep(1000);  /* 1ms */
+        usleep(1000);
     }
 
     printf("[sync] Exiting\n");
@@ -267,11 +602,9 @@ void* custom_sync_loop(void* arg) {
 }
 /* }}} */
 
-/* {{{ custom_updater_loop
- * Updater thread that feeds game state to workers. */
+/* {{{ custom_updater_loop */
 void* custom_updater_loop(void* arg) {
     WorkerPool* pool = (WorkerPool*)arg;
-
     printf("[updater] Starting custom updater loop\n");
 
     WorkerInput input;
@@ -281,7 +614,7 @@ void* custom_updater_loop(void* arg) {
         if (get_game_input(&input)) {
             distribute_input_to_workers(pool, &input);
         } else {
-            usleep(1000);  /* 1ms */
+            usleep(1000);
         }
     }
 
@@ -290,27 +623,42 @@ void* custom_updater_loop(void* arg) {
 }
 /* }}} */
 
-/* {{{ tick_loop
- * Runs on main thread between frames. Updates game time and tick counter. */
+/* {{{ tick_loop */
 void tick_loop(float dt) {
     g_game_time += dt;
     g_tick++;
 }
 /* }}} */
 
+/* {{{ count_active_chunks
+ * Count non-destroyed chunks */
+int count_active_chunks(MeshData* mesh) {
+    int count = 0;
+    for (int i = 0; i < mesh->chunk_count && i < MAX_CHUNKS; i++) {
+        if (mesh->chunks[i].is_solid && !g_chunk_states[i].destroyed) {
+            count++;
+        }
+    }
+    return count;
+}
+/* }}} */
+
 /* {{{ cleanup */
 void cleanup(WorkerPool* pool) {
-    /* Free worker output slot data */
     for (int i = 0; i < pool->count; i++) {
         if (pool->buffers[i].output.slot_data) {
             free(pool->buffers[i].output.slot_data);
         }
     }
 
-    /* Free mesh */
     if (g_cube_mesh) {
         if (g_cube_mesh->chunks) free(g_cube_mesh->chunks);
         free(g_cube_mesh);
+    }
+
+    if (g_primary.slots) {
+        slot_array_destroy(g_primary.slots);
+        g_primary.slots = NULL;
     }
 
     pthread_mutex_destroy(&g_primary.lock);
@@ -319,36 +667,63 @@ void cleanup(WorkerPool* pool) {
 
 /* {{{ main */
 int main(void) {
-    printf("=== WC3 Engine - Threaded Renderer Demo ===\n");
+    printf("=== WC3 Engine - Interactive Threaded Demo ===\n");
     printf("Architecture: Updater -> Workers -> Sync -> Draw\n");
-    printf("Workers: %d\n\n", NUM_WORKERS);
+    printf("Workers: %d  Slot System: 508b\n", NUM_WORKERS);
+    printf("\nControls:\n");
+    printf("  Left-click chunk:  Cycle color (blue/green/red)\n");
+    printf("  Right-click chunk: Destroy with sparks\n");
+    printf("  Sliders: Adjust speeds and orbit radius\n\n");
 
     /* Create cube mesh */
     g_cube_mesh = create_cube_mesh(2.0f, 0.2f);
     printf("[main] Created mesh with %d chunks\n", g_cube_mesh->chunk_count);
 
+    /* Initialize chunk states */
+    init_chunk_states(g_cube_mesh->chunk_count);
+
+    /* Initialize particles */
+    memset(g_particles, 0, sizeof(g_particles));
+
     /* Initialize primary buffer */
     memset(&g_primary, 0, sizeof(g_primary));
     pthread_mutex_init(&g_primary.lock, NULL);
-    g_primary.slots[0].visible = false;  /* Will be set by worker */
+
+    g_primary.slots = slot_array_create();
+    if (!g_primary.slots) {
+        fprintf(stderr, "[main] Failed to create slot array\n");
+        return 1;
+    }
+    printf("[main] Created slot array with %d max slots\n", MAX_SLOTS);
+
+    g_demo_slot_index = slot_allocate_for_entity(g_primary.slots, 0);
+    if (g_demo_slot_index < 0) {
+        fprintf(stderr, "[main] Failed to allocate demo slot\n");
+        slot_array_destroy(g_primary.slots);
+        return 1;
+    }
+    printf("[main] Allocated demo slot at index %d\n", g_demo_slot_index);
 
     /* Create worker pool */
     WorkerPool* pool = pool_create(NUM_WORKERS);
     pool_set_process_fn(pool, worker_process_fn);
     pool_set_primary_buffer(pool, &g_primary);
 
-    /* Spawn sync and updater threads */
+    /* Spawn threads */
     pthread_t sync_thread, updater_thread;
     pthread_create(&sync_thread, NULL, custom_sync_loop, pool);
     pthread_create(&updater_thread, NULL, custom_updater_loop, pool);
 
-    /* Initialize raylib (must be on main thread for some platforms) */
+    /* Initialize raylib */
     printf("[main] Initializing window...\n");
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "WC3 Engine - Threaded Demo");
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "WC3 Engine - Interactive Demo");
     SetTargetFPS(TARGET_FPS);
 
+    /* Initialize sliders */
+    init_sliders();
+
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 5.0f, 5.0f, 5.0f };
+    camera.position = (Vector3){ 8.0f, 6.0f, 8.0f };
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
@@ -356,39 +731,72 @@ int main(void) {
 
     printf("[main] Entering render loop...\n\n");
 
-    /* Main loop - draw thread runs here */
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
-        /* Update game tick */
         tick_loop(dt);
+        update_particles(dt);
 
-        /* Read from primary buffer (with lock) */
+        /* Handle slider input first */
+        bool slider_active = update_sliders();
+
+        /* Read slot from primary buffer */
+        RenderSlot slot_copy = {0};
+        bool have_slot = false;
+
         pthread_mutex_lock(&g_primary.lock);
-        RenderSlot slot_copy = g_primary.slots[0];
-        int slot_count = g_primary.slot_count;
+        if (g_demo_slot_index >= 0) {
+            ComponentSlot* slot = slot_get(g_primary.slots, g_demo_slot_index);
+            if (slot && slot->in_use && slot->data) {
+                slot_copy = *(slot->data);
+                have_slot = true;
+            }
+        }
         pthread_mutex_unlock(&g_primary.lock);
+
+        /* Handle chunk clicks (if not using slider) */
+        if (!slider_active && have_slot) {
+            process_chunk_input(&slot_copy, g_cube_mesh, &camera);
+        }
 
         /* Render */
         BeginDrawing();
             ClearBackground(BLACK);
 
             BeginMode3D(camera);
-                if (slot_count > 0 && slot_copy.visible) {
+                /* Central pillar */
+                DrawCylinder((Vector3){0, -2, 0}, 0.3f, 0.3f, 4.0f, 12, DARKGRAY);
+                DrawCylinderWires((Vector3){0, -2, 0}, 0.3f, 0.3f, 4.0f, 12, GRAY);
+
+                /* Clock hand and cube */
+                if (have_slot && slot_copy.visible) {
+                    DrawLine3D((Vector3){0, 0, 0},
+                               (Vector3){slot_copy.x, slot_copy.y, slot_copy.z},
+                               GRAY);
                     render_cube_at_slot(&slot_copy, g_cube_mesh);
                 }
+
+                /* Ground reference circle */
+                DrawCircle3D((Vector3){0, -0.01f, 0}, g_speeds.orbit_radius,
+                             (Vector3){1, 0, 0}, 90.0f, DARKGRAY);
+
+                /* Particles */
+                draw_particles();
             EndMode3D();
 
             /* HUD */
             DrawFPS(10, 10);
-            DrawText("Threaded Architecture Demo", 10, 35, 16, DARKGRAY);
+            DrawText("Interactive Demo (508b Slots)", 10, 35, 16, DARKGRAY);
 
-            char buf[64];
-            snprintf(buf, sizeof(buf), "Tick: %u  Workers: %d", g_tick, NUM_WORKERS);
+            char buf[80];
+            snprintf(buf, sizeof(buf), "Chunks: %d/%d  Particles: active",
+                     count_active_chunks(g_cube_mesh), g_cube_mesh->chunk_count);
             DrawText(buf, 10, 55, 14, GRAY);
 
-            snprintf(buf, sizeof(buf), "Rotation: %.1f", slot_copy.rotation);
-            DrawText(buf, 10, 75, 14, GRAY);
+            DrawText("LMB: cycle color | RMB: destroy", 10, 75, 12, DARKGRAY);
+
+            /* Sliders */
+            draw_sliders();
 
         EndDrawing();
     }
@@ -397,14 +805,9 @@ int main(void) {
     printf("\n[main] Shutting down...\n");
     atomic_store(&g_running, false);
 
-    /* Join threads */
     pthread_join(sync_thread, NULL);
     pthread_join(updater_thread, NULL);
-
-    /* Destroy pool (joins worker threads) */
     pool_destroy(pool);
-
-    /* Cleanup */
     cleanup(pool);
     CloseWindow();
 
