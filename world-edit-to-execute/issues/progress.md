@@ -14,11 +14,11 @@
 | 0 | Tooling/Infrastructure | In Progress | 20/32 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
-| 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
+| 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 28/30 |
-| 5 | Rendering - Visual Abstraction | Issues Created | 0/7 |
+| 5 | Rendering - Visual Abstraction | Issues Created | 0/49 |
 | 6 | Asset System - Community Content | Planned | - |
-| 7 | Gameplay - Core Mechanics | Planned | - |
+| 7 | Gameplay - Core Mechanics | Issues Created | 0/7 |
 | 8 | Multiplayer - Network Layer | Planned | - |
 | 9 | Polish - Tools and UX | Planned | - |
 
@@ -344,18 +344,58 @@ Phase 2 & 3 Complete
 
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
-| 501 | Create abstract render interface | Planned | Phase 4 |
-| 502 | Implement terrain rendering | Planned | 501, 105 |
-| 503 | Build sprite/placeholder system | Planned | 501 |
+| 500 | Dual interface rendering considerations | Issues Created | None |
+| 501 | Create abstract render interface | Issues Created | Phase 4 |
+| 501a | Define renderer interface | Pending | None |
+| 501b | Create renderer registry | Pending | 501a |
+| 501c | Implement null renderer | Pending | 501a |
+| 501d | Implement camera system | Pending | 501a |
+| 501e | Create render events | Pending | 501a |
+| 502 | Implement terrain rendering | Issues Created | 501, 105 |
+| 502a | Core terrain renderer | Pending | 501 |
+| 502b | Height visualization | Pending | 502a |
+| 502c | Water rendering | Pending | 502a |
+| 502d | Fog of war integration | Pending | 502a |
+| 502e | Terrain optimization | Pending | 502a |
+| 503 | Build sprite/placeholder system | Issues Created | 501 |
+| 503a | Core sprite system | Pending | 501 |
+| 503b | Unit visual mappings | Pending | 503a |
+| 503c | Team colors selection | Pending | 503a |
+| 503d | Health bars indicators | Pending | 503a |
+| 503e | Facing direction | Pending | 503a |
 | 504 | Create asset pack specification | Planned | 501 |
-| 505 | Implement default visual mode | Planned | 501, 502, 503 |
-| 506 | Build UI framework | Planned | 501 |
-| 507 | Create minimap renderer | Planned | 501, 502, 506 |
+| 505 | Implement default visual mode | Issues Created | 501, 502, 503 |
+| 505a | Default renderer backend | Pending | 501 |
+| 505b | Wire render systems | Pending | 505a |
+| 505c | Game view camera | Pending | 505a |
+| 505d | Minimal UI | Pending | 505a, 506 |
+| 505e | Input commands | Pending | 505a |
+| 505f | Debug overlays | Pending | 505a |
+| 506 | Build UI framework | Issues Created | 501 |
+| 506a | UI component system | Pending | 501 |
+| 506b | Layout system | Pending | 506a |
+| 506c | Input handling | Pending | 506a |
+| 506d | Core UI elements | Pending | 506a-c |
+| 506e | Command button grid | Pending | 506c, 506d |
+| 506f | Tooltip system | Pending | 506a, 506c |
+| 507 | Create minimap renderer | Issues Created | 501, 502, 506 |
+| 507a | Minimap module | Pending | 501 |
+| 507b | Terrain texture | Pending | 507a |
+| 507c | Unit dots | Pending | 507a |
+| 507d | Camera viewport | Pending | 507a |
+| 507e | Minimap interaction | Pending | 507a |
+| 507f | Ping system | Pending | 507a |
+| 510 | Dual perspective UI system | Issues Created | 506 |
+| 510a | Warlord mode UI (RTS) | Pending | 506 |
+| 510b | Hero mode UI (RPG) | Pending | 506 |
+| 510c | Perspective switching | Pending | 510a, 510b |
+| 510d | Shared UI components | Pending | 506 |
+| 510e | UI state persistence | Pending | 510a-d |
 
 ### Dependency Graph
 
 ```
-501 Render Interface
+501 Render Interface (Raylib)
  │
  ├──▶ 502 Terrain ──────────────┐
  │                              │
@@ -364,17 +404,66 @@ Phase 2 & 3 Complete
  ├──▶ 504 Asset Pack Spec       │
  │                              │
  └──▶ 506 UI Framework ─────────┼──▶ 507 Minimap
+           │                    │
+           └──▶ 510 Dual Perspective UI
+                ├── 510a Warlord (RTS)
+                └── 510b Hero (RPG)
                                 │
                                 └──▶ Phase 6 (Asset System)
 ```
 
-### Design Decisions Needed
+### Design Decisions Made (2025-12-29)
 
-Before implementation, user feedback required on:
-- Renderer backend (LÖVE2D vs SDL vs Terminal)
-- Visual style (geometric vs realistic)
-- Coordinate system (WC3 isometric vs top-down)
-- UI layout preferences
+Recorded in CRITICAL-PATH.md:
+- **OQ-001:** Renderer backend = **Raylib**
+- **OQ-002:** Coordinate system = **WC3-style (Y-up, isometric)**
+- **OQ-003/004:** Integration = **API-driven** (shared data layer for WC3 + AzerothCore)
+
+---
+
+## Phase 7 Issues
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 701 | Death and resurrection system | Issues Created | 402 (ECS) |
+| 701a | Death state and events | Pending | 402 |
+| 701b | Spirit world layer | Pending | 701a |
+| 701c | Ghost form component | Pending | 701a |
+| 701d | Resurrection mechanics | Pending | 701a |
+| 701e | Corpse system | Pending | 701a |
+| 702 | Profession system | Issues Created | 402, 406 |
+| 702a | Profession core component | Pending | 402 |
+| 702b | Gathering professions | Pending | 702a |
+| 702c | Crafting professions | Pending | 702a |
+| 702d | Recipe system | Pending | 702a |
+| 702e | WoW-mode configuration | Pending | 702a |
+| 702f | WC3-mode configuration | Pending | 702a |
+| 702g | Profession UI abstraction | Pending | 702a, 506 |
+
+### Dependency Graph
+
+```
+701 Death System
+ │
+ ├──▶ 701a Death State ──▶ 701b Spirit World
+ │                    └──▶ 701c Ghost Form
+ │                    └──▶ 701d Resurrection
+ │                    └──▶ 701e Corpses
+
+702 Profession System
+ │
+ └──▶ 702a Core ──▶ 702b Gathering
+              └──▶ 702c Crafting ──▶ 702d Recipes
+              └──▶ 702e WoW Mode
+              └──▶ 702f WC3 Mode
+              └──▶ 702g UI (depends on 506)
+```
+
+### Design Philosophy
+
+Both systems support dual WC3/WoW modes:
+- **Death**: WC3 altar revival vs WoW graveyard run
+- **Professions**: WC3 ability-based vs WoW skill 1-300
 
 ---
 
@@ -1069,6 +1158,39 @@ Before implementation, user feedback required on:
     - 016i: Integration tests (comprehensive test suite)
   - Designed for system-agnostic library usage across WC3 and WoW contexts
   - Supports equipment, buffs, auras, talents, and other modifier sources
+- **Issue 501a completed:** Raylib rotating cube demo
+  - Created src/render/main.c with pthread thread-pool architecture
+  - Separate draw() and game() threads with mutex-protected shared state
+  - Blue cube with Y rotation and X wobble, ground grid, HUD overlay
+  - Based on template at /home/ritz/programming/c/games/template/
+  - Build script: src/render/run
+- **Issue 011 completed:** TUI history insert on run
+  - Added -P/--print-command flag to issue-splitter.sh
+  - Config file support: ~/.config/issue-splitter/config
+  - Optional clipboard copy via COPY_TO_CLIPBOARD variable
+- **CRITICAL-PATH.md created:** Decision points and open questions tracking
+  - 6 open questions (OQ-001 through OQ-006)
+  - 5 technical debt items (TD-001 through TD-005)
+  - 3 incomplete issue families tracked
+  - Symlinked to docs/critical-path.md
+- **Phase 5 design decisions recorded:**
+  - OQ-001: Raylib as primary renderer
+  - OQ-002: WC3-style coordinates (Y-up, isometric)
+  - OQ-003/004: API-driven integration (shared data layer)
+- **Issue 701 created:** Death and resurrection system
+  - Spirit world model, ghost form, altar revival
+  - WC3 and WoW mode support
+- **Issue 702 created:** Profession system (702, 702a-702c)
+  - Core profession component and skill system
+  - Gathering professions (mining, herbalism, skinning, lumber, fishing)
+  - Crafting professions (blacksmithing, alchemy, engineering, etc.)
+  - 702d-702g pending creation
+- **Issue 510 created:** Dual perspective UI system
+  - 510a: Warlord mode UI (RTS) - command grid, multi-select, control groups
+  - 510b: Hero mode UI (RPG) - action bars, character panel, WASD
+  - 510c: Perspective switching - camera lerp, UI morph
+  - 510d: Shared UI components - minimap, chat, tooltips, alerts
+  - 510e: UI state persistence - save/load layouts, keybinds
 
 ---
 
