@@ -10,7 +10,7 @@
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
-**Last Updated:** 2025-12-29
+**Last Updated:** 2025-12-30
 **Maintainer:** Project contributors
 **Location:** `issues/CRITICAL-PATH.md` (symlinked to `docs/critical-path.md`)
 
@@ -270,18 +270,18 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 ---
 
 ### IF-002: Collision System (405)
-**Status:** 4/5 complete
-**Blocking:** Phase 4 completion
+**Status:** 5/5 complete ✓
+**Blocking:** None (completed)
 
 | Sub-Issue | Status |
 |-----------|--------|
 | 405a (primitives) | ✓ Complete |
 | 405b (spatial hash) | ✓ Complete |
 | 405c (queries) | ✓ Complete |
-| 405d (movement integration) | ✗ Pending |
+| 405d (movement integration) | ✓ Complete (2025-12-30) |
 | 405e (projectile/picking) | ✓ Complete |
 
-**Action:** Complete 405d to finish Phase 4
+**Action:** None - system complete with 277 collision tests
 
 ---
 
@@ -381,4 +381,5 @@ _Move fully implemented decisions here for historical record._
 |------|--------|--------|
 | 2025-12-29 | Initial creation from issue review | Claude |
 | 2025-12-29 | Decided OQ-001 (Raylib), OQ-002 (WC3 Y-up), OQ-003/004 (API-driven integration) | User |
+| 2025-12-30 | Completed 405d (movement collision integration), 508b (entity render slots) | Claude |
 
