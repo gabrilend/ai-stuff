@@ -10,6 +10,7 @@ docs/
 ├── table-of-contents.md       (this file)
 ├── roadmap.md                  Project phases and milestones
 ├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
+├── render-architecture.md      Threading model, component slots, numeric encoding
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
@@ -57,6 +58,9 @@ src/
 │   ├── hero.lua                Hero class (stats, inventory, equipment)
 │   ├── items.lua               Item system (types, rarity, effects)
 │   └── shop.lua                Shop system (stock, transactions)
+├── render/                     Rendering system (Phase 5)
+│   ├── main.c                  Raylib demo - threaded cube renderer
+│   └── run                     Build and run script
 ├── libs/attributes/            Attribute System (Issue 016) [planned]
 │   ├── schema.lua              Attribute types, flags, validation
 │   ├── registry.lua            Schema storage, dependency graph
@@ -128,6 +132,7 @@ issues/
 | Roadmap | docs/roadmap.md | Phased development plan |
 | Progress | issues/progress.md | Current phase status |
 | Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
+| Render Architecture | docs/render-architecture.md | Threading model, component slots, numeric encoding |
 
 ### Tools
 

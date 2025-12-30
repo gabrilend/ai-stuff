@@ -125,6 +125,12 @@ These should be discussed before implementation:
 
 This is the foundation for all visual output. Getting the abstraction right is critical - it affects every subsequent rendering issue.
 
+**Architecture Reference:** See `docs/render-architecture.md` for the threading model:
+- Worker threads compute GPU-ready data (transforms, culling done here)
+- Sync thread swaps pointers (near-zero work)
+- Draw thread iterates and dispatches (near-zero work)
+- ComponentSlot pattern with mise en place (setter owns cleanup)
+
 **May need successor issues for:**
 - Each renderer backend (terminal, SDL, LÖVE2D)
 - Advanced camera features (smooth follow, shake)

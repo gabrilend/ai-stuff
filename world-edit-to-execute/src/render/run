@@ -1,11 +1,13 @@
 #!/bin/bash
 
-# Rotating Blue Cube Demo - Build and Run Script
+# WC3 Engine - Threaded Renderer Demo
 #
-# Compiles the raylib-based 3D demo and executes it.
+# Compiles the multi-threaded raylib renderer and executes it.
+# Architecture: Updater -> Workers -> Sync -> Draw
+#
 # Based on template: /home/ritz/programming/c/games/template/run
 
-PROJECT_NAME="cube_demo"
+PROJECT_NAME="threaded_demo"
 
 # Allow running from any directory
 DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
@@ -32,9 +34,12 @@ echo ""
 
 cd "${PROJECT_PATH}"
 
+# Source files
+SOURCES="main.c threading.c"
+
 # Compile with raylib and pthread
-gcc -pthread -Wall -g -Og -lm \
-    -o "${PROJECT_NAME}" main.c \
+gcc -pthread -Wall -g -Og \
+    -o "${PROJECT_NAME}" ${SOURCES} \
     -I"${RAYLIB_PATH}" \
     -L"${RAYLIB_PATH}" -lraylib \
     -lGL -lm -lpthread -ldl -lrt -lX11 \

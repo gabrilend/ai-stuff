@@ -364,21 +364,43 @@ Create the game execution environment. 8 root issues with 36 sub-issues.
 
 ## Phase 5: Rendering - Visual Abstraction (Issues Created)
 
-49 issues created. Design decisions made (see CRITICAL-PATH.md).
+49+ issues created. Design decisions made (see CRITICAL-PATH.md).
+
+**Architecture:** See `docs/render-architecture.md` for:
+- Threading model (Updater → Workers → Sync → Draw)
+- ComponentSlot with mise en place setters (swap + free old in one motion)
+- Directional bitfield numeric encoding (no division, no zero)
+- Memory ownership (workers create/clean, render reads only)
 
 ### Issue Breakdown
 
 | ID | Name | Sub-Issues | Status |
 |----|------|------------|--------|
-| 500 | Dual interface rendering considerations | - | Created |
-| 501 | Create abstract render interface | 5 (501a-e) | Created |
+| 500 | Dual interface rendering considerations | - | Design doc |
+| 501 | Create abstract render interface | 5 (501a-e) | 501a complete |
 | 502 | Implement terrain rendering | 5 (502a-e) | Created |
 | 503 | Build sprite/placeholder system | 5 (503a-e) | Created |
 | 504 | Create asset pack specification | - | Planned |
 | 505 | Implement default visual mode | 6 (505a-f) | Created |
 | 506 | Build UI framework | 6 (506a-f) | Created |
 | 507 | Create minimap renderer | 6 (507a-f) | Created |
+| **508** | **Vertical slice testing room** | **8 (508a-h)** | **Priority** |
 | 510 | Dual perspective UI system | 5 (510a-e) | Created |
+
+### Priority Path: 508 Vertical Slice
+
+Fast-track to playable demo:
+1. **508a** Threading infrastructure (C worker pool, sync thread)
+2. **508b** Entity render slots (ComponentSlot, mise en place pattern)
+3. **508c** Lua-C bridge (ECS ↔ render connection)
+4. **508d** Map integration (terrain grid, doodads, units)
+5. **508e** Input and selection (click, drag, Shift+click)
+6. **508f** Movement orders (right-click to move)
+7. **508g** Minimal UI (resources, selection panel)
+8. **508h** Integration test (complete vertical slice)
+
+This validates the architecture before completing 501-507 infrastructure.
+A working demo proves the system; refinement comes after
 
 ### Key Decisions (OQ-001 through OQ-004)
 
