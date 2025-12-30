@@ -329,15 +329,40 @@ Tests should be isolated (not require other Phase 4 systems) and fast (< 2 secon
 
 ## Acceptance Criteria
 
-- [ ] Game loop timing test passes (62.5 ticks/sec within ±2)
-- [ ] Game loop pause/resume test passes
-- [ ] ECS entity lifecycle test passes (create/destroy)
-- [ ] ECS component operations test passes (add/get/remove)
-- [ ] ECS query test passes (multi-component queries)
-- [ ] Pathfinding grid construction test passes
-- [ ] A* pathfinding with obstacle avoidance test passes
-- [ ] Pathfinding edge cases test passes (same point, blocked dest)
-- [ ] All tests complete in under 2 seconds
+- [x] Game loop timing test passes (62.5 ticks/sec within ±2)
+- [x] Game loop pause/resume test passes
+- [x] ECS entity lifecycle test passes (create/destroy)
+- [x] ECS component operations test passes (add/get/remove)
+- [x] ECS query test passes (multi-component queries)
+- [x] Pathfinding grid construction test passes
+- [x] A* pathfinding with obstacle avoidance test passes
+- [x] Pathfinding edge cases test passes (same point, blocked dest)
+- [x] All tests complete in under 2 seconds
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-30
+
+**Test file:** `src/tests/test_phase4_core.lua`
+
+**Test summary:** 26 tests total
+- Game Loop: 7 tests (timing, pause/resume, speed, callbacks, delta capping)
+- ECS: 11 tests (lifecycle, components, queries, cleanup)
+- Pathfinding: 8 tests (grid construction, walkability, A* routing, edge cases)
+
+**Key implementation details:**
+
+1. **Package path setup** - Robust path detection for running from project root or tests directory
+
+2. **ECS test isolation** - Use `ecs.reset()` instead of `clear_all() + clear_hooks()` to preserve the component cleanup hook registered on module load
+
+3. **Mock terrain for pathfinding** - Uses deep water (`water_level > 64`) to simulate blocked tiles, matching WC3's blocking semantics
+
+4. **Pathfinding blocked goal handling** - A* correctly returns nil with error message for unreachable goals
+
+**Run with:** `lua src/tests/test_phase4_core.lua`
 
 ---
 
