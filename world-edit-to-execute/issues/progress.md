@@ -11,12 +11,12 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
-| 0 | Tooling/Infrastructure | In Progress | 20/22 |
+| 0 | Tooling/Infrastructure | In Progress | 20/32 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 28/30 |
-| 5 | Rendering - Visual Abstraction | Planned | - |
+| 5 | Rendering - Visual Abstraction | Issues Created | 0/7 |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
 | 8 | Multiplayer - Network Layer | Planned | - |
@@ -88,6 +88,16 @@ No dependencies (all independent except A07)
 | 013 | Quest & bounty template system | **Completed** | None |
 | 014 | Guild hero & shop system | **Completed** | 013 |
 | 015 | WoW-style combat system | Pending | 014 |
+| 016 | Attribute getter/setter system | Issues Created | 015, 014 |
+| 016a | Core attribute registry | Pending | None |
+| 016b | Dispatch table getters | Pending | 016a |
+| 016c | Dispatch table setters | Pending | 016a |
+| 016d | Modifier stack system | Pending | 016a, 016b, 016c |
+| 016e | Derived attribute engine | Pending | 016a |
+| 016f | WC3 attribute config | Pending | 016a, 016e |
+| 016g | WoW attribute config | Pending | 016a, 016e |
+| 016h | Cross-system mapping | Pending | 016f, 016g |
+| 016i | Integration tests | Pending | 016a-016h |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -327,6 +337,44 @@ Phase 2 & 3 Complete
                 │
                 └──▶ 408 Integration Test
 ```
+
+---
+
+## Phase 5 Issues
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 501 | Create abstract render interface | Planned | Phase 4 |
+| 502 | Implement terrain rendering | Planned | 501, 105 |
+| 503 | Build sprite/placeholder system | Planned | 501 |
+| 504 | Create asset pack specification | Planned | 501 |
+| 505 | Implement default visual mode | Planned | 501, 502, 503 |
+| 506 | Build UI framework | Planned | 501 |
+| 507 | Create minimap renderer | Planned | 501, 502, 506 |
+
+### Dependency Graph
+
+```
+501 Render Interface
+ │
+ ├──▶ 502 Terrain ──────────────┐
+ │                              │
+ ├──▶ 503 Sprites ──────────────┼──▶ 505 Default Visual Mode
+ │                              │
+ ├──▶ 504 Asset Pack Spec       │
+ │                              │
+ └──▶ 506 UI Framework ─────────┼──▶ 507 Minimap
+                                │
+                                └──▶ Phase 6 (Asset System)
+```
+
+### Design Decisions Needed
+
+Before implementation, user feedback required on:
+- Renderer backend (LÖVE2D vs SDL vs Terminal)
+- Visual style (geometric vs realistic)
+- Coordinate system (WC3 isometric vs top-down)
+- UI layout preferences
 
 ---
 
@@ -1007,6 +1055,20 @@ Phase 2 & 3 Complete
   - Updated movement simulation to use ECS-based systems
   - 51 integration tests, all pass
   - Identified remaining gaps: 404c (order_move), 405d (collision update)
+- **Issue 016 created:** Attribute getter/setter system
+  - Root issue with architecture overview (dispatch tables, array indexes, config blocks)
+  - 9 sub-issues covering full attribute system:
+    - 016a: Core attribute registry (schemas, types, constraints)
+    - 016b: Dispatch table getters (O(1) lookup, modifier application)
+    - 016c: Dispatch table setters (validation, events, transactions)
+    - 016d: Modifier stack system (flat/percent/multiplier types, source tracking)
+    - 016e: Derived attribute engine (dependency graphs, lazy evaluation)
+    - 016f: WC3 attribute config (STR/AGI/INT, hero classes, formulas)
+    - 016g: WoW attribute config (primary/secondary stats, ratings, classes)
+    - 016h: Cross-system mapping (parallel attributes, conversion formulas)
+    - 016i: Integration tests (comprehensive test suite)
+  - Designed for system-agnostic library usage across WC3 and WoW contexts
+  - Supports equipment, buffs, auras, talents, and other modifier sources
 
 ---
 
