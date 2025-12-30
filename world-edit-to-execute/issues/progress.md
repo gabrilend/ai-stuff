@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 28/30 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 29/30 |
 | 5 | Rendering - Visual Abstraction | Issues Created | 0/49 |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Issues Created | 0/7 |
@@ -302,11 +302,11 @@ Phase 1 Complete (102 MPQ Parser)
 | 404b | Path following logic | **Completed** | 404a, 403 |
 | 404c | Movement orders | **Completed** | 404b, 403 |
 | 404d | Advanced movement behaviors | **Completed** | 404b, 404c |
-| 405 | Implement basic collision detection | In Progress | 401, 402, 404 |
+| 405 | Implement basic collision detection | **Completed** | 401, 402, 404 |
 | 405a | Collision primitives and shapes | **Completed** | None |
 | 405b | Spatial hash grid | **Completed** | 405a |
 | 405c | Collision queries | **Completed** | 405a, 405b |
-| 405d | Movement collision integration | Pending | 404 |
+| 405d | Movement collision integration | **Completed** | 404 |
 | 405e | Projectile and picking | **Completed** | 405a, 405b |
 | 406 | Build resource management system | **Completed** | 401, 402, 407 |
 | 406a | Core resource storage | **Completed** | None |
@@ -1156,7 +1156,8 @@ Both systems support dual WC3/WoW modes:
   - Fixed init_manual array format (uses ipairs, needs {slot = n})
   - Updated movement simulation to use ECS-based systems
   - 51 integration tests, all pass
-  - Identified remaining gaps: 404c (order_move), 405d (collision update)
+  - Identified remaining gaps: 404c (order_move) - now completed
+  - 405d collision update: **Completed** (see below)
 - **Issue 016 created:** Attribute getter/setter system
   - Root issue with architecture overview (dispatch tables, array indexes, config blocks)
   - 9 sub-issues covering full attribute system:
@@ -1285,13 +1286,13 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 404c: Movement orders - **COMPLETED** (74 tests)
    - 404d: Advanced movement behaviors - **COMPLETED** (56 tests)
    - Total: 269 movement tests
-7. **405 - Collision detection** - In Progress (4/5 sub-issues complete)
+7. **405 - Collision detection** - **COMPLETED** (5/5 sub-issues complete)
    - 405a: Collision primitives and shapes - **COMPLETED** (99 tests)
    - 405b: Spatial hash grid - **COMPLETED** (61 tests)
    - 405c: Collision queries - **COMPLETED** (50 tests)
    - 405e: Projectile and picking - **COMPLETED** (45 tests)
-   - 405d: Movement collision integration - Ready (unblocked by 404)
-   - Total: 255 collision tests
+   - 405d: Movement collision integration - **COMPLETED** (22 tests)
+   - Total: 277 collision tests
 8. **408** - Pending (integration tests)
 
 ### Previous Phases

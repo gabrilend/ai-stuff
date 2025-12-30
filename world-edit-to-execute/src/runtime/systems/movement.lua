@@ -28,6 +28,25 @@ Usage:
 
 local ecs = require("runtime.ecs")
 
+-- Collision module reference (set during integration check)
+-- The movement system can optionally use collision for slide movement.
+-- If collision is not initialized, movement proceeds without collision checks.
+local collision = nil
+
+-- {{{ try_load_collision
+-- Attempt to load collision module. Called lazily to avoid circular deps.
+local function try_load_collision()
+    if collision then
+        return collision
+    end
+    local ok, col = pcall(require, "runtime.collision")
+    if ok and col and col.is_initialized and col.is_initialized() then
+        collision = col
+    end
+    return collision
+end
+-- }}}
+
 local movement = {}
 
 -- {{{ Movement component defaults
@@ -41,6 +60,7 @@ local movement = {}
 -- turn_rate: Rotation speed in radians per second
 -- last_x, last_y: Position at start of tick for interpolation
 -- collision_radius: Radius for unit collision/avoidance (404d)
+-- blocked: True if movement was blocked by collision this tick (405d)
 local MOVEMENT_DEFAULTS = {
     speed = 270,
     speed_modifier = 1.0,
@@ -52,6 +72,7 @@ local MOVEMENT_DEFAULTS = {
     last_x = 0,
     last_y = 0,
     collision_radius = 32,
+    blocked = false,
 }
 -- }}}
 
@@ -143,13 +164,15 @@ end
 -- Moves entity along path toward current waypoint.
 -- Advances to next waypoint when close enough.
 -- Called each tick by the movement system.
+-- If collision system is active, uses slide_move to respect solid entities.
 --
+-- @param entity entity ID (needed for collision checks)
 -- @param pos position component
 -- @param mov movement component
 -- @param dt delta time in seconds
 -- @param movement_module reference to movement table for constants
 -- @return boolean true if still moving, false if path complete
-local function update_movement(pos, mov, dt, movement_module)
+local function update_movement(entity, pos, mov, dt, movement_module)
     -- Not moving if no path or past end
     if not mov.path or mov.path_index > #mov.path then
         return false
@@ -170,7 +193,7 @@ local function update_movement(pos, mov, dt, movement_module)
             return false
         end
         -- Recurse to handle next waypoint in same tick
-        return update_movement(pos, mov, dt, movement_module)
+        return update_movement(entity, pos, mov, dt, movement_module)
     end
 
     -- Calculate movement this tick
@@ -184,10 +207,33 @@ local function update_movement(pos, mov, dt, movement_module)
         move_dist = dist
     end
 
-    -- Move toward waypoint
+    -- Calculate desired position
     local ratio = move_dist / dist
-    pos.x = pos.x + dx * ratio
-    pos.y = pos.y + dy * ratio
+    local desired_x = pos.x + dx * ratio
+    local desired_y = pos.y + dy * ratio
+
+    -- Attempt to use collision system for slide movement (405d integration)
+    -- If collision is available and initialized, use slide_move
+    -- Otherwise fall back to direct movement
+    local col = try_load_collision()
+    if col and col.slide_move then
+        local actual_x, actual_y = col.slide_move(entity, desired_x, desired_y)
+        pos.x = actual_x
+        pos.y = actual_y
+
+        -- If completely blocked (no movement), consider stopping at this waypoint
+        -- This prevents infinite looping when blocked
+        if actual_x == mov.last_x and actual_y == mov.last_y then
+            -- Store blocked flag for external systems to detect
+            mov.blocked = true
+        else
+            mov.blocked = false
+        end
+    else
+        -- Direct movement (no collision checking)
+        pos.x = desired_x
+        pos.y = desired_y
+    end
 
     return true
 end
@@ -197,6 +243,7 @@ end
 -- Runs each tick on entities with both position and movement components.
 -- Updates interpolation data (last_x/last_y), rotates toward waypoints,
 -- and moves entities along their paths.
+-- Collision integration (405d): Uses slide_move when collision system is active.
 local function movement_system_update(iter, dt)
     for entity, pos, mov in iter do
         -- Store position at tick start for interpolation.
@@ -204,15 +251,15 @@ local function movement_system_update(iter, dt)
         mov.last_x = pos.x
         mov.last_y = pos.y
 
-        -- Path following logic (404b)
+        -- Path following logic (404b) with collision integration (405d)
         if mov.path and mov.path_index <= #mov.path then
             local waypoint = mov.path[mov.path_index]
 
             -- Rotate toward waypoint (pass movement table for constants access)
             update_facing(pos, mov, waypoint, dt, movement)
 
-            -- Move toward waypoint (pass movement table for constants access)
-            update_movement(pos, mov, dt, movement)
+            -- Move toward waypoint with collision checking (pass entity for slide_move)
+            update_movement(entity, pos, mov, dt, movement)
         end
     end
 end
@@ -478,6 +525,21 @@ function movement.time_to_destination(entity)
         return nil
     end
     return dist / speed
+end
+-- }}}
+
+-- {{{ movement.is_blocked
+-- Returns true if entity's movement was blocked by collision this tick.
+-- (405d integration) This is set when slide_move cannot find any valid position.
+--
+-- @param entity entity ID
+-- @return boolean true if blocked, false otherwise
+function movement.is_blocked(entity)
+    local mov = ecs.get_component(entity, "movement")
+    if not mov then
+        return false
+    end
+    return mov.blocked == true
 end
 -- }}}
 

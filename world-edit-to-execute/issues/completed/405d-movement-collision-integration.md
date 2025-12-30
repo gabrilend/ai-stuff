@@ -298,16 +298,41 @@ collision.slide_move(entity, desired_x, desired_y) -> actual_x, actual_y
 
 ## Acceptance Criteria
 
-- [ ] `can_move_to()` correctly detects blocked movement
-- [ ] `can_move_to()` returns blocking entity reference
-- [ ] `resolve_overlap()` pushes overlapping entities apart
-- [ ] `slide_move()` slides along obstacles when direct path blocked
-- [ ] Movement system uses collision checks before moving
-- [ ] Non-solid entities can overlap freely
-- [ ] Layer/mask filtering respected in movement checks
-- [ ] Trigger zones fire enter/leave events
-- [ ] `resolve_all_overlaps()` fixes all penetrations
-- [ ] Unit tests pass for all movement collision cases
+- [x] `can_move_to()` correctly detects blocked movement
+- [x] `can_move_to()` returns blocking entity reference
+- [x] `resolve_overlap()` pushes overlapping entities apart
+- [x] `slide_move()` slides along obstacles when direct path blocked
+- [x] Movement system uses collision checks before moving
+- [x] Non-solid entities can overlap freely
+- [x] Layer/mask filtering respected in movement checks
+- [x] Trigger zones fire enter/leave events
+- [x] `resolve_all_overlaps()` fixes all penetrations
+- [x] Unit tests pass for all movement collision cases
+
+---
+
+## Implementation Notes
+
+**Completed 2025-12-30**
+
+Added to `src/runtime/collision/init.lua`:
+- `collision.can_move_to(entity, new_x, new_y)` - Checks if movement is blocked by solid entities
+- `collision.resolve_overlap(entity1, entity2)` - Pushes overlapping entities apart using minimum separation
+- `collision.slide_move(entity, desired_x, desired_y)` - Attempts movement with X/Y axis fallback
+- `collision.resolve_all_overlaps()` - Fixes all current penetrations between solid entities
+- `collision.check_trigger_collisions(callback)` - Fires enter/leave events for trigger zones
+- `collision.get_trigger_contents(trigger)` - Returns entities inside a trigger
+- `collision.clear_trigger_tracking()` - Resets trigger state for testing
+
+Modified `src/runtime/systems/movement.lua`:
+- Added lazy-loading of collision module via `try_load_collision()`
+- Modified `update_movement()` to use `slide_move()` when collision is available
+- Added `blocked` field to movement component defaults
+- Added `movement.is_blocked(entity)` helper function
+
+Created `src/tests/test_movement_collision.lua`:
+- 22 tests covering all acceptance criteria
+- All tests pass
 
 ---
 
