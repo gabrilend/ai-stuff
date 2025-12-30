@@ -54,6 +54,7 @@ local wc3_components = safe_require("runtime.ecs.wc3_components", "wc3_component
 -- Optional modules (may not exist yet)
 local collision = safe_require("runtime.collision", "collision")
 local timers = safe_require("runtime.timers", "timers")
+local orders = safe_require("runtime.orders", "orders")
 -- }}}
 
 -- {{{ Test utilities
@@ -372,14 +373,18 @@ if movement then
     test("Movement has is_moving query", type(movement.is_moving) == "function")
     test("Movement has get_interpolated_position",
         type(movement.get_interpolated_position) == "function")
+end
 
-    -- Check for order functions (may not exist yet - 404b/404c)
-    local has_order_move = type(movement.order_move) == "function"
-    if has_order_move then
-        test("Movement has order_move", true)
-    else
-        print("  [INFO] movement.order_move not yet implemented (Issue 404c)")
-    end
+-- {{{ Orders System Tests
+test_section("Orders System")
+
+if orders then
+    test("Orders module loaded", true)
+    test("orders.move exists", type(orders.move) == "function")
+    test("orders.stop exists", type(orders.stop) == "function")
+    test("orders.get_current exists", type(orders.get_current) == "function")
+else
+    print("  [INFO] Orders module not yet implemented (Issue 404c)")
 end
 -- }}}
 
@@ -724,6 +729,7 @@ if player then table.insert(available, "Player") end
 if resources then table.insert(available, "Resources") end
 if pathfinding then table.insert(available, "Pathfinding") end
 if movement then table.insert(available, "Movement") end
+if orders then table.insert(available, "Orders") end
 if collision then table.insert(available, "Collision") end
 print("    " .. table.concat(available, ", "))
 
@@ -739,9 +745,9 @@ end
 print("\n  Implementation gaps identified:")
 local gaps = {}
 
--- 404c: order_move is for issuing move commands (not implemented yet)
-if not movement or type(movement.order_move) ~= "function" then
-    table.insert(gaps, "movement.order_move (Issue 404c) - move order API")
+-- 404c: Check for orders module (move order API)
+if not orders or type(orders.move) ~= "function" then
+    table.insert(gaps, "orders.move (Issue 404c) - move order API")
 end
 
 -- 405d: Movement-collision integration
