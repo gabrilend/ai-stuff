@@ -1,0 +1,71 @@
+#!/usr/bin/env luajit
+
+-- Run similarity calculation directly, bypassing interactive menu
+-- Usage: luajit scripts/run-similarity-calculation [threads] [sleep]
+-- Example: luajit scripts/run-similarity-calculation 8 0.5
+
+-- {{{ local function setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path()
+
+-- Setup paths before requiring modules
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+package.path = package.path .. ";/home/ritz/programming/ai-stuff/libs/lua/?.lua"
+package.cpath = package.cpath .. ";/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so"
+
+local utils = require("utils")
+
+-- Initialize assets root
+utils.init_assets_root(arg)
+
+-- Load the parallel similarity engine
+local sim_engine = require("similarity-engine-parallel")
+
+-- Parse arguments
+local thread_count = tonumber(arg and arg[1]) or 8
+local sleep_duration = tonumber(arg and arg[2]) or 0.5
+local force_regenerate = arg and arg[3] == "--force"
+
+-- Configuration
+local model = "embeddinggemma:latest"
+local safe_model = model:gsub("[^%w._-]", "_")
+local embeddings_file = utils.get_assets_root() .. "/embeddings/" .. safe_model .. "/embeddings.json"
+
+print("=" .. string.rep("=", 60))
+print("Parallel Similarity Calculation")
+print("=" .. string.rep("=", 60))
+print(string.format("Embeddings file: %s", embeddings_file))
+print(string.format("Thread count: %d", thread_count))
+print(string.format("Sleep duration: %.1f seconds", sleep_duration))
+print(string.format("Force regenerate: %s", force_regenerate and "yes" or "no"))
+print("")
+
+-- Verify embeddings file exists
+if not utils.file_exists(embeddings_file) then
+    print("❌ Error: Embeddings file not found: " .. embeddings_file)
+    os.exit(1)
+end
+
+-- Run the calculation
+local success = sim_engine.calculate_similarity_matrix_parallel(
+    embeddings_file,
+    model,
+    sleep_duration,
+    force_regenerate,
+    thread_count
+)
+
+if success then
+    print("\n✅ Similarity calculation completed successfully!")
+    os.exit(0)
+else
+    print("\n❌ Similarity calculation failed or was interrupted")
+    os.exit(1)
+end
