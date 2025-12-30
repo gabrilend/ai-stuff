@@ -77,6 +77,22 @@ SESSION_MODE=false       # Reuse Claude context across issues (--continue)
 EXPERT_MODE=false        # Fresh context per issue (explicit default)
 SESSION_STARTED=false    # Track if first call has been made in session mode
 GENERATE_COMPLETE=false  # Use Claude tool calls to generate complete issue files
+PRINT_COMMAND=false      # Print command instead of executing (Issue 011)
+
+# {{{ User Config (can be overridden in ~/.config/issue-splitter/config)
+# Copy command to clipboard when using --print-command
+COPY_TO_CLIPBOARD=false
+
+# Example config file (~/.config/issue-splitter/config):
+#   COPY_TO_CLIPBOARD=true
+# }}}
+
+# Load config file for optional settings
+CONFIG_FILE="${HOME}/.config/issue-splitter/config"
+if [[ -f "$CONFIG_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONFIG_FILE"
+fi
 
 # Track root issues that have sub-issues (for final review)
 declare -a ROOTS_WITH_SUBS=()
@@ -433,6 +449,10 @@ parse_args() {
             --delay)
                 STREAM_DELAY="$2"
                 shift 2
+                ;;
+            -P|--print-command)
+                PRINT_COMMAND=true
+                shift
                 ;;
             -h|--help)
                 print_help
@@ -1016,6 +1036,37 @@ interactive_mode_tui() {
 
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo
+
+        # If --print-command, show command and exit (Issue 011)
+        if [[ "$PRINT_COMMAND" == true ]]; then
+            local cmd
+            cmd=$(menu_get_value "cmd_preview")
+
+            echo "╔══════════════════════════════════════════════════════════════╗"
+            echo "║                      Command Ready                           ║"
+            echo "╚══════════════════════════════════════════════════════════════╝"
+            echo
+            echo "  $cmd"
+            echo
+
+            # Copy to clipboard if enabled in config
+            if [[ "$COPY_TO_CLIPBOARD" == true ]]; then
+                if command -v xclip &>/dev/null; then
+                    echo -n "$cmd" | xclip -selection clipboard
+                    echo "(Copied to clipboard)"
+                elif command -v xsel &>/dev/null; then
+                    echo -n "$cmd" | xsel --clipboard
+                    echo "(Copied to clipboard)"
+                elif command -v pbcopy &>/dev/null; then
+                    echo -n "$cmd" | pbcopy
+                    echo "(Copied to clipboard)"
+                else
+                    echo "(Clipboard copy requested but no clipboard tool found)"
+                fi
+            fi
+
+            exit 0
+        fi
     else
         tui_cleanup
         echo
