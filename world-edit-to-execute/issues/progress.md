@@ -342,6 +342,10 @@ Phase 2 & 3 Complete
 
 ## Phase 5 Issues
 
+**Architecture:** See `docs/render-architecture.md` for threading model and component slots.
+
+**Priority Path:** Issue 508 (Vertical Slice) provides fast-track to playable demo.
+
 | ID | Name | Status | Dependencies |
 |----|------|--------|--------------|
 | 500 | Dual interface rendering considerations | Issues Created | None |
@@ -385,6 +389,15 @@ Phase 2 & 3 Complete
 | 507d | Camera viewport | Pending | 507a |
 | 507e | Minimap interaction | Pending | 507a |
 | 507f | Ping system | Pending | 507a |
+| **508** | **Vertical slice testing room** | **Priority** | 501a |
+| 508a | Threading infrastructure | **Completed** | 501a |
+| 508b | Entity render slots | Pending | 508a |
+| 508c | Lua-C bridge | Pending | 508b |
+| 508d | Map integration | Pending | 508c |
+| 508e | Input and selection | Pending | 508d |
+| 508f | Movement orders | Pending | 508e |
+| 508g | Minimal UI | Pending | 508d |
+| 508h | Integration test | Pending | 508a-g |
 | 510 | Dual perspective UI system | Issues Created | 506 |
 | 510a | Warlord mode UI (RTS) | Pending | 506 |
 | 510b | Hero mode UI (RPG) | Pending | 506 |
