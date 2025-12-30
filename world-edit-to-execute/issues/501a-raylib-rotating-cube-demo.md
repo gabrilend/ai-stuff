@@ -54,15 +54,72 @@ Based on template's run script:
 
 ## Acceptance Criteria
 
-- [ ] Blue cube renders in 3D perspective
-- [ ] Cube rotates continuously
-- [ ] Render thread separated from game thread
-- [ ] Build script compiles and runs successfully
-- [ ] Window closes cleanly on exit
+- [x] Blue cube renders in 3D perspective
+- [x] Cube rotates continuously
+- [x] Render thread separated from game thread
+- [x] Build script compiles and runs successfully
+- [x] Window closes cleanly on exit
 
 ---
 
-**Status:** In Progress
+**Status:** Completed
 **Dependencies:** None (Phase 5 starter)
 **Priority:** High
+
+---
+
+## Implementation Notes
+
+*Completed 2025-12-29*
+
+### Files Created
+
+1. **src/render/main.c** (~280 lines)
+   - Thread-pool architecture with pthread
+   - `draw()` thread handles raylib rendering
+   - `game()` thread updates rotation state
+   - Mutex-protected shared GameState struct
+   - Camera3D for perspective view
+   - rlgl transformations for rotation
+
+2. **src/render/run** - Build script
+   - Based on template pattern
+   - Links raylib, pthread, GL, X11
+   - Accepts DIR as argument for portability
+
+### Key Design Decisions
+
+- **Data-driven architecture**: Cube defined only by mesh data + material pointer
+- **Minimal mesh storage**: Just `float size` + optional EdgeMod array
+  - EdgeMod allows storing modified edges between vertices (indices 0-7)
+  - NULL edge_mods = perfect cube, no vertex array needed
+- Used `rlPushMatrix()/rlRotatef()/rlPopMatrix()` for cube rotation
+- Added gentle X-axis wobble using sine wave for visual interest
+- Pure black background for contrast
+- Chunky/fuzzy voxel-like appearance (not smooth blender-render)
+- Color variation per chunk for textured effect
+- Renamed `Material` to `ChunkMaterial` to avoid raylib conflict
+
+### Data Structures
+
+```c
+MeshData:    float size, EdgeMod* edge_mods, int edge_mod_count
+EdgeMod:     int v1, int v2, float offset
+ChunkMaterial: Color base_color, edge_color, float chunk_size, bool wireframe
+Entity:      MeshData*, ChunkMaterial*, Vector3 position, Vector3 rotation
+```
+
+### To Run
+
+```bash
+./src/render/run
+# or with custom directory:
+./src/render/run /path/to/project
+```
+
+### Dependencies
+
+- raylib (at /home/ritz/programming/c/libs/raylib/src/)
+- pthread
+- X11, GL, dl, rt (standard Linux libs)
 
