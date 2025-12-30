@@ -40,6 +40,7 @@ local movement = {}
 -- pathing_type: Movement type for pathfinding (foot, fly, etc)
 -- turn_rate: Rotation speed in radians per second
 -- last_x, last_y: Position at start of tick for interpolation
+-- collision_radius: Radius for unit collision/avoidance (404d)
 local MOVEMENT_DEFAULTS = {
     speed = 270,
     speed_modifier = 1.0,
@@ -50,6 +51,7 @@ local MOVEMENT_DEFAULTS = {
     turn_rate = 0.6,
     last_x = 0,
     last_y = 0,
+    collision_radius = 32,
 }
 -- }}}
 
