@@ -28,7 +28,7 @@ else
     DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 fi
 
-COMPLETED_PHASES=3
+COMPLETED_PHASES=4
 NON_INTERACTIVE=false
 PHASE=""
 
@@ -104,8 +104,8 @@ show_main_menu() {
     echo -e "│ [0] Phase 0: Tooling & Infrastructure               ${GREEN}✅ 100% Complete${NC}   │"
     echo -e "│ [1] Phase 1: Foundation - File Format Parsing       ${GREEN}✅ 100% Complete${NC}   │"
     echo -e "│ [2] Phase 2: Data Model - Game Objects              ${GREEN}✅ 100% Complete${NC}   │"
-    echo -e "│ [3] Phase 3: Logic Layer - Triggers and JASS        ${YELLOW}⏳ Pending${NC}         │"
-    echo -e "│ [4] Phase 4: Runtime - Basic Engine Loop            ${YELLOW}⏳ Pending${NC}         │"
+    echo -e "│ [3] Phase 3: Logic Layer - Triggers and JASS        ${GREEN}✅ 100% Complete${NC}   │"
+    echo -e "│ [4] Phase 4: Runtime - Basic Engine Loop            ${GREEN}✅  88% Complete${NC}   │"
     echo -e "│ [5] Phase 5: Rendering - Visual Abstraction         ${YELLOW}⏳ Pending${NC}         │"
     echo -e "│ [6] Phase 6: Asset System - Community Content       ${YELLOW}⏳ Pending${NC}         │"
     echo -e "│ [7] Phase 7: Gameplay - Core Mechanics              ${YELLOW}⏳ Pending${NC}         │"
@@ -228,22 +228,100 @@ run_phase2_demo() {
 }
 # }}}
 
+# {{{ run_phase3_demo
+run_phase3_demo() {
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}PHASE 3: LOGIC LAYER - TRIGGERS AND JASS${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    local demo_script="${DIR}/issues/completed/demos/run_phase3.sh"
+
+    if [[ ! -f "$demo_script" ]]; then
+        echo -e "${RED}Error: Demo script not found: $demo_script${NC}"
+        return 1
+    fi
+
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        bash "$demo_script" -n
+    else
+        bash "$demo_script"
+    fi
+}
+# }}}
+
+# {{{ run_phase4_demo
+run_phase4_demo() {
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}PHASE 4: RUNTIME - BASIC ENGINE LOOP${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    local demo_script="${DIR}/issues/completed/demos/run_phase4.sh"
+
+    if [[ ! -f "$demo_script" ]]; then
+        echo -e "${RED}Error: Demo script not found: $demo_script${NC}"
+        return 1
+    fi
+
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        bash "$demo_script" -n
+    else
+        bash "$demo_script"
+    fi
+}
+# }}}
+
 # {{{ run_tests
 run_tests() {
     echo ""
     echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
-    echo -e "${BOLD}PHASE 1 VALIDATION TESTS${NC}"
+    echo -e "${BOLD}ALL PHASE VALIDATION TESTS${NC}"
     echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
     echo ""
 
-    local test_script="${DIR}/issues/completed/demos/run_phase1.sh"
+    local total_passed=0
+    local total_failed=0
 
-    if [[ -f "$test_script" ]]; then
-        bash "$test_script"
+    # Phase 1 tests
+    echo -e "${BLUE}--- Phase 1: File Parsing ---${NC}"
+    if bash "${DIR}/issues/completed/demos/run_phase1.sh" > /dev/null 2>&1; then
+        echo -e "  ${GREEN}[PASS]${NC} Phase 1 tests"
+        ((total_passed++))
     else
-        echo -e "${RED}Error: Test script not found: $test_script${NC}"
-        return 1
+        echo -e "  ${RED}[FAIL]${NC} Phase 1 tests"
+        ((total_failed++))
     fi
+
+    # Phase 3 tests
+    echo -e "${BLUE}--- Phase 3: Triggers and JASS ---${NC}"
+    if bash "${DIR}/issues/completed/demos/run_phase3.sh" -t > /dev/null 2>&1; then
+        echo -e "  ${GREEN}[PASS]${NC} Phase 3 tests"
+        ((total_passed++))
+    else
+        echo -e "  ${RED}[FAIL]${NC} Phase 3 tests"
+        ((total_failed++))
+    fi
+
+    # Phase 4 tests
+    echo -e "${BLUE}--- Phase 4: Runtime ---${NC}"
+    if lua "${DIR}/src/tests/test_phase4_core.lua" > /dev/null 2>&1; then
+        echo -e "  ${GREEN}[PASS]${NC} Phase 4 core tests"
+        ((total_passed++))
+    else
+        echo -e "  ${RED}[FAIL]${NC} Phase 4 core tests"
+        ((total_failed++))
+    fi
+
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "Results: ${GREEN}${total_passed} passed${NC}, ${RED}${total_failed} failed${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    return $total_failed
 }
 # }}}
 
@@ -283,8 +361,8 @@ show_statistics() {
     echo -e "  ${GREEN}[DONE]${NC} Phase 0: Tooling & Infrastructure"
     echo -e "  ${GREEN}[DONE]${NC} Phase 1: File Format Parsing"
     echo -e "  ${GREEN}[DONE]${NC} Phase 2: Data Model - Game Objects"
-    echo -e "  ${YELLOW}[TODO]${NC} Phase 3: Logic Layer - Triggers and JASS"
-    echo -e "  ${YELLOW}[TODO]${NC} Phase 4: Runtime - Basic Engine Loop"
+    echo -e "  ${GREEN}[DONE]${NC} Phase 3: Logic Layer - Triggers and JASS"
+    echo -e "  ${GREEN}[88%]${NC}  Phase 4: Runtime - Basic Engine Loop"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 5: Rendering - Visual Abstraction"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 6: Asset System - Community Content"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 7: Gameplay - Core Mechanics"
@@ -310,7 +388,13 @@ run_phase_demo() {
         2)
             run_phase2_demo
             ;;
-        [3-9])
+        3)
+            run_phase3_demo
+            ;;
+        4)
+            run_phase4_demo
+            ;;
+        [5-9])
             echo ""
             echo -e "${YELLOW}Phase $phase demo not yet available.${NC}"
             echo "This phase is pending implementation."
