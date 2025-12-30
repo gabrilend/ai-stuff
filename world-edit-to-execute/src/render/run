@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Rotating Blue Cube Demo - Build and Run Script
+#
+# Compiles the raylib-based 3D demo and executes it.
+# Based on template: /home/ritz/programming/c/games/template/run
+
+PROJECT_NAME="cube_demo"
+
+# Allow running from any directory
+DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+
+# Can override with argument
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+PROJECT_PATH="${DIR}/src/render"
+RAYLIB_PATH="/home/ritz/programming/c/libs/raylib/src"
+
+# Output files
+OUTPUT_BIN="${PROJECT_PATH}/${PROJECT_NAME}"
+COMPILER_LOG="${PROJECT_PATH}/compiler-log"
+OUTPUT_LOG="${PROJECT_PATH}/output"
+
+clear
+
+echo "=== Building ${PROJECT_NAME} ==="
+echo "Project: ${PROJECT_PATH}"
+echo "Raylib:  ${RAYLIB_PATH}"
+echo ""
+
+cd "${PROJECT_PATH}"
+
+# Compile with raylib and pthread
+gcc -pthread -Wall -g -Og -lm \
+    -o "${PROJECT_NAME}" main.c \
+    -I"${RAYLIB_PATH}" \
+    -L"${RAYLIB_PATH}" -lraylib \
+    -lGL -lm -lpthread -ldl -lrt -lX11 \
+    2>&1 | tee "${COMPILER_LOG}"
+
+# Check compilation result
+if [ "$?" = 0 ]; then
+    echo ""
+    echo "=== Compilation successful, running... ==="
+    echo ""
+    ./"${PROJECT_NAME}" 2>&1 | tee "${OUTPUT_LOG}"
+
+    # Cleanup binary
+    rm -f "${PROJECT_NAME}"
+else
+    echo ""
+    echo "=== Compilation failed ==="
+    echo "See ${COMPILER_LOG} for details"
+fi
+
+cd - > /dev/null
