@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
-| 0 | Tooling/Infrastructure | In Progress | 19/20 |
+| 0 | Tooling/Infrastructure | In Progress | 20/22 |
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
@@ -86,6 +86,8 @@ No dependencies (all independent except A07)
 | 011 | TUI history insert on run | Pending | 004 |
 | 012 | Interactive verdict review mode | Pending | 003, 004 |
 | 013 | Quest & bounty template system | **Completed** | None |
+| 014 | Guild hero & shop system | **Completed** | 013 |
+| 015 | WoW-style combat system | Pending | 014 |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -981,6 +983,23 @@ Phase 2 & 3 Complete
     - issues/B01-B03 (3 boss monster bounties)
     - issues/GUILD-ROSTER.md (capability tracking)
   - Pattern designed for cross-project replication
+- **Issue 014 completed:** Guild Hero & Shop System
+  - Created src/guild/ module with 4 files:
+    - hero.lua: Hero class (stats, inventory, equipment, capabilities)
+    - items.lua: Item system (types, rarity, effects, registry)
+    - shop.lua: Shop system (stock, transactions, discounts)
+    - init.lua: Module exports, JSON persistence
+  - Created src/cli/guild-cli.lua CLI tool:
+    - Hero management: create, status, switch, list
+    - Quest/bounty completion with XP/gold rewards
+    - Shop browsing and item purchases
+    - Inventory and equipment management
+  - WC3-inspired mechanics:
+    - 25-level progression with XP thresholds
+    - 6-slot inventory, 3 equipment slots
+    - 15+ predefined items with programming themes
+    - 4 shops: merchant, armory, arcane, guild hall
+  - Issue 015 created for WoW-style combat system (pending)
 - **Issue 408d completed:** Phase 4 integration scenario
   - Updated test_phase4_integration.lua with correct API detection
   - Fixed function names: check_victory_conditions, shapes_collide, init_manual
