@@ -9,6 +9,7 @@
 docs/
 ├── table-of-contents.md       (this file)
 ├── roadmap.md                  Project phases and milestones
+├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
@@ -56,6 +57,18 @@ src/
 │   ├── hero.lua                Hero class (stats, inventory, equipment)
 │   ├── items.lua               Item system (types, rarity, effects)
 │   └── shop.lua                Shop system (stock, transactions)
+├── libs/attributes/            Attribute System (Issue 016) [planned]
+│   ├── schema.lua              Attribute types, flags, validation
+│   ├── registry.lua            Schema storage, dependency graph
+│   ├── getters.lua             Dispatch table getters
+│   ├── setters.lua             Dispatch table setters
+│   ├── modifiers.lua           Modifier stack system
+│   ├── derived.lua             Derived attribute engine
+│   ├── events.lua              Change event system
+│   ├── mapping.lua             Cross-system attribute mapping
+│   └── configs/
+│       ├── wc3.lua             WC3 attribute definitions
+│       └── wow.lua             WoW attribute definitions
 │
 docs/templates/                 Quest & Bounty Templates
 ├── README.md                   Template system documentation
@@ -70,6 +83,7 @@ notes/
 │
 issues/
 ├── progress.md                 Overall phase progress tracking
+├── CRITICAL-PATH.md            Decision points, open questions, tech debt
 ├── 001-fix-issue-splitter-output-handling.md
 ├── 002-add-streaming-queue-to-issue-splitter.md
 ├── 003-execute-analysis-recommendations.md
@@ -113,6 +127,7 @@ issues/
 | Vision | notes/vision | Project philosophy, legal basis, and goals |
 | Roadmap | docs/roadmap.md | Phased development plan |
 | Progress | issues/progress.md | Current phase status |
+| Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
 
 ### Tools
 
@@ -147,6 +162,19 @@ issues/
 | 010 | Debug TUI integration analysis | Pending |
 | 011 | TUI history insert on run | Pending |
 | 012 | Interactive verdict review mode | Pending |
+| 013 | Quest & bounty template system | **Completed** |
+| 014 | Guild hero & shop system | **Completed** |
+| 015 | WoW-style combat system | Pending |
+| 016 | Attribute getter/setter system | Issues Created |
+| 016a | Core attribute registry | Pending |
+| 016b | Dispatch table getters | Pending |
+| 016c | Dispatch table setters | Pending |
+| 016d | Modifier stack system | Pending |
+| 016e | Derived attribute engine | Pending |
+| 016f | WC3 attribute config | Pending |
+| 016g | WoW attribute config | Pending |
+| 016h | Cross-system mapping | Pending |
+| 016i | Integration tests | Pending |
 
 ### Phase 1 Issues (File Format Parsing) - **COMPLETED**
 
