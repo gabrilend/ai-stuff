@@ -50,6 +50,14 @@ src/
 ├── data/                       Unified Map class
 │   └── init.lua                Map.load() integrates all parsers
 │
+docs/templates/                 Quest & Bounty Templates
+├── README.md                   Template system documentation
+├── bounty-template.md          Boss monster bounty board template
+├── quest-template.md           Individual quest entry template
+├── quest-log-template.md       Full quest log template
+├── guild-roster-template.md    Progress tracking roster template
+└── example-spec.lua            Example specification for generator
+│
 notes/
 ├── vision                      Core project vision and philosophy
 │
@@ -104,6 +112,7 @@ issues/
 | Tool | Location | Description |
 |------|----------|-------------|
 | issue-splitter.sh | src/cli/issue-splitter.sh (symlink) | Issue analysis, sub-issue creation, auto-implementation |
+| quest-generator.lua | src/cli/quest-generator.lua | Gamified task documentation generator |
 | TUI library | /home/ritz/.../scripts/libs/ | Shared terminal UI (checkbox, menu, input) |
 
 ### Phase 0 Issues (Tooling)
