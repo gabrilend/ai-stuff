@@ -151,6 +151,30 @@ This is critical for the project's legal strategy - community supplies visuals, 
 
 ---
 
+## Sub-Issue Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: Keep as Single Issue
+
+This issue does not benefit from splitting. While it has multiple steps, they are tightly coupled:
+
+1. **Documentation-driven**: The manifest schema design (step 1) drives everything else
+2. **Linear dependency**: Asset loader (step 3) requires schema (step 1) and categories (step 2)
+3. **Small code scope**: The actual code (loader + fallback) is relatively straightforward
+4. **Coherent deliverable**: A spec without example packs or docs is incomplete
+
+**Alternative structure if scope grows:**
+
+If implementation reveals complexity, consider:
+- 504a: Design manifest schema and document categories
+- 504b: Implement asset loader and fallback system
+- 504c: Create example pack and asset creation guide
+
+For now, keep as single issue and split only if implementation exceeds expected scope.
+
+---
+
 ## Related Documents
 
 - notes/vision (legal philosophy)

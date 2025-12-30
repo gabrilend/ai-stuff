@@ -136,8 +136,63 @@ UI is half of the player experience. A good UI makes the game playable; a bad UI
 
 ---
 
+## Initial Analysis
+
+**Analysis Date:** 2025-12-29
+
+### Recommendation: SPLIT
+
+This is a substantial issue with 6 distinct subsystems. Each is a complete feature:
+
+| ID | Name | Dependencies | Description |
+|----|------|--------------|-------------|
+| 506a | ui-component-system | 501 | Base component class, panel/button/label/icon/bar primitives |
+| 506b | layout-system | 506a | Anchoring, relative/absolute positioning, responsive scaling |
+| 506c | input-handling | 506a | Mouse hover, click, keyboard focus, hotkey system |
+| 506d | core-ui-elements | 506a-c | Resource bar, minimap panel, unit info, command panel |
+| 506e | command-button-grid | 506c, 506d | 12-button grid, hotkey labels, cooldown display |
+| 506f | tooltip-system | 506a, 506c | Hover tooltips, hotkey display, unit/ability info |
+
+### Rationale
+
+1. **Each subsystem is substantial**: Layout alone has 4 features (anchoring, relative, absolute, responsive)
+2. **Clear dependencies**: Input handling needs components; core elements need layout
+3. **WC3-faithful UI is complex**: The command panel with hotkeys and context-switching is significant
+4. **Reusable foundation**: UI framework will be used by both Warcraft and WoW-chat modes
+
+### Execution Order
+
+```
+506a (components) → 506b (layout) → 506d (core elements) → 506e (command grid)
+               └─→ 506c (input) ────────────────────────┘
+                                                     └─→ 506f (tooltips)
+```
+
+### Dual Interface Note (ref: Issue 500)
+
+This framework must support both Warcraft RTS and WoW-chat modes:
+- **Shared**: Component system, layout engine, input handling
+- **Mode-specific**: Visual themes, element arrangement, information density
+
+Consider Mode A (Warcraft) as primary, with hooks for Mode B (WoW-chat) theming.
+
+---
+
 ## Related Documents
 
 - issues/501-*.md (render interface)
 - issues/505-*.md (default visual mode uses this)
 - issues/507-*.md (minimap specific)
+
+---
+
+## Generated Sub-Issues
+
+*Auto-generated on 2025-12-29 19:39*
+
+- 506a-ui-component-system.md
+- 506b-layout-system.md
+- 506c-input-handling.md
+- 506d-core-ui-elements.md
+- 506e-command-button-grid.md
+- 506f-tooltip-system.md
