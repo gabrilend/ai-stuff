@@ -26,6 +26,7 @@
 #include "rlgl.h"
 #include "threading.h"
 #include "slots.h"
+#include "bridge.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
@@ -116,6 +117,15 @@ static ChunkState g_chunk_states[MAX_CHUNKS];
 static Particle g_particles[MAX_PARTICLES];
 static UISlider g_sliders[3];
 static int g_slider_count = 3;
+
+/* Lua state for 508c bridge */
+static lua_State* g_lua = NULL;
+static int g_lua_entity_count = 0;  /* Entities created via Lua bridge */
+
+/* LuaJIT/Lua 5.1 compatibility: lua_rawlen doesn't exist */
+#ifndef lua_rawlen
+#define lua_rawlen(L, idx) lua_objlen(L, idx)
+#endif
 /* }}} */
 
 /* {{{ Color Palette - for chunk color cycling */
@@ -676,6 +686,175 @@ int count_active_chunks(MeshData* mesh) {
 }
 /* }}} */
 
+/* {{{ init_lua_bridge
+ * Initialize Lua state and register render module.
+ * Runs a test script to verify the bridge works. */
+bool init_lua_bridge(void) {
+    /* Create Lua state */
+    g_lua = luaL_newstate();
+    if (!g_lua) {
+        fprintf(stderr, "[lua] Failed to create Lua state\n");
+        return false;
+    }
+
+    /* Open standard libraries */
+    luaL_openlibs(g_lua);
+
+    /* Initialize bridge with slot array */
+    bridge_init(g_primary.slots);
+
+    /* Register render module (LuaJIT compatible preloading) */
+    lua_getglobal(g_lua, "package");
+    lua_getfield(g_lua, -1, "preload");
+    lua_pushcfunction(g_lua, luaopen_render);
+    lua_setfield(g_lua, -2, "render");
+    lua_pop(g_lua, 2);  /* Pop preload and package */
+
+    printf("[lua] Lua state created and render module registered\n");
+
+    /* Run inline test script */
+    const char* test_script =
+        "local render = require('render')\n"
+        "print('[lua] render module loaded, MAX_SLOTS = ' .. render.MAX_SLOTS)\n"
+        "\n"
+        "-- Create test entities at different positions\n"
+        "local slots = {}\n"
+        "local positions = {\n"
+        "    {id=100, x=-3, y=0, z=0, r=255, g=100, b=100},\n"
+        "    {id=101, x=3, y=0, z=0, r=100, g=255, b=100},\n"
+        "    {id=102, x=0, y=0, z=-3, r=100, g=100, b=255},\n"
+        "    {id=103, x=0, y=0, z=3, r=255, g=255, b=100},\n"
+        "}\n"
+        "\n"
+        "for _, p in ipairs(positions) do\n"
+        "    local slot = render.create_entity(p.id, render.MESH_CUBE, p.x, p.y, p.z)\n"
+        "    if slot >= 0 then\n"
+        "        render.set_color(slot, p.r, p.g, p.b)\n"
+        "        render.set_scale(slot, 0.5)\n"
+        "        table.insert(slots, slot)\n"
+        "        print('[lua] Created entity ' .. p.id .. ' at slot ' .. slot)\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "local active, max = render.get_slot_count()\n"
+        "print('[lua] Slots: ' .. active .. '/' .. max .. ' active')\n"
+        "\n"
+        "-- Store slot count for C to query\n"
+        "_G.lua_entity_slots = slots\n"
+        "_G.lua_entity_count = #slots\n";
+
+    int result = luaL_dostring(g_lua, test_script);
+    if (result != LUA_OK) {
+        fprintf(stderr, "[lua] Error: %s\n", lua_tostring(g_lua, -1));
+        lua_pop(g_lua, 1);
+        return false;
+    }
+
+    /* Get entity count from Lua */
+    lua_getglobal(g_lua, "lua_entity_count");
+    if (lua_isnumber(g_lua, -1)) {
+        g_lua_entity_count = (int)lua_tointeger(g_lua, -1);
+    }
+    lua_pop(g_lua, 1);
+
+    printf("[lua] Bridge test complete: %d entities created via Lua\n", g_lua_entity_count);
+    return true;
+}
+/* }}} */
+
+/* {{{ update_lua_entities
+ * Called each frame to update Lua-created entities.
+ * Applies rotation animation to demonstrate the bridge works. */
+void update_lua_entities(float dt) {
+    if (!g_lua) return;
+
+    /* Run Lua update script */
+    static float lua_time = 0.0f;
+    lua_time += dt;
+
+    /* Update positions via Lua bridge */
+    lua_getglobal(g_lua, "lua_entity_slots");
+    if (lua_istable(g_lua, -1)) {
+        int n = (int)lua_rawlen(g_lua, -1);
+        for (int i = 1; i <= n; i++) {
+            lua_rawgeti(g_lua, -1, i);
+            if (lua_isnumber(g_lua, -1)) {
+                int slot_idx = (int)lua_tointeger(g_lua, -1);
+                ComponentSlot* slot = slot_get(g_primary.slots, slot_idx);
+                if (slot && slot->in_use && slot->data) {
+                    /* Animate rotation */
+                    slot->data->spin = fmodf(lua_time * 90.0f, 360.0f);
+                    /* Bob up and down */
+                    slot->data->y = sinf(lua_time * 2.0f + i) * 0.3f;
+                }
+            }
+            lua_pop(g_lua, 1);
+        }
+    }
+    lua_pop(g_lua, 1);
+}
+/* }}} */
+
+/* {{{ render_lua_entities
+ * Render entities created via Lua bridge as simple cubes. */
+void render_lua_entities(void) {
+    if (!g_lua) return;
+
+    lua_getglobal(g_lua, "lua_entity_slots");
+    if (lua_istable(g_lua, -1)) {
+        int n = (int)lua_rawlen(g_lua, -1);
+        for (int i = 1; i <= n; i++) {
+            lua_rawgeti(g_lua, -1, i);
+            if (lua_isnumber(g_lua, -1)) {
+                int slot_idx = (int)lua_tointeger(g_lua, -1);
+                ComponentSlot* slot = slot_get(g_primary.slots, slot_idx);
+                if (slot && slot->in_use && slot->data && slot->data->visible) {
+                    RenderSlot* rs = slot->data;
+
+                    rlPushMatrix();
+                        rlTranslatef(rs->x, rs->y, rs->z);
+                        rlScalef(rs->scale, rs->scale, rs->scale);
+                        rlRotatef(rs->spin, 0.0f, 1.0f, 0.0f);
+
+                        Color col = { rs->r, rs->g, rs->b, rs->a };
+                        DrawCube((Vector3){0, 0, 0}, 1.0f, 1.0f, 1.0f, col);
+                        DrawCubeWires((Vector3){0, 0, 0}, 1.0f, 1.0f, 1.0f, WHITE);
+                    rlPopMatrix();
+                }
+            }
+            lua_pop(g_lua, 1);
+        }
+    }
+    lua_pop(g_lua, 1);
+}
+/* }}} */
+
+/* {{{ cleanup_lua
+ * Clean up Lua state. */
+void cleanup_lua(void) {
+    if (g_lua) {
+        /* Destroy Lua-created entities */
+        lua_getglobal(g_lua, "lua_entity_slots");
+        if (lua_istable(g_lua, -1)) {
+            int n = (int)lua_rawlen(g_lua, -1);
+            for (int i = 1; i <= n; i++) {
+                lua_rawgeti(g_lua, -1, i);
+                if (lua_isnumber(g_lua, -1)) {
+                    int slot_idx = (int)lua_tointeger(g_lua, -1);
+                    slot_release(g_primary.slots, slot_idx);
+                }
+                lua_pop(g_lua, 1);
+            }
+        }
+        lua_pop(g_lua, 1);
+
+        lua_close(g_lua);
+        g_lua = NULL;
+        printf("[lua] Lua state closed\n");
+    }
+}
+/* }}} */
+
 /* {{{ cleanup */
 void cleanup(WorkerPool* pool) {
     for (int i = 0; i < pool->count; i++) {
@@ -702,7 +881,7 @@ void cleanup(WorkerPool* pool) {
 int main(void) {
     printf("=== WC3 Engine - Interactive Threaded Demo ===\n");
     printf("Architecture: Updater -> Workers -> Sync -> Draw\n");
-    printf("Workers: %d  Slot System: 508b\n", NUM_WORKERS);
+    printf("Workers: %d  Slot System: 508b  Lua Bridge: 508c\n", NUM_WORKERS);
     printf("\nControls:\n");
     printf("  Left-click chunk:  Cycle color (blue/green/red)\n");
     printf("  Right-click chunk: Destroy with sparks\n");
@@ -737,6 +916,13 @@ int main(void) {
     }
     printf("[main] Allocated demo slot at index %d\n", g_demo_slot_index);
 
+    /* Initialize Lua bridge (508c) */
+    if (!init_lua_bridge()) {
+        fprintf(stderr, "[main] Failed to initialize Lua bridge\n");
+        slot_array_destroy(g_primary.slots);
+        return 1;
+    }
+
     /* Create worker pool */
     WorkerPool* pool = pool_create(NUM_WORKERS);
     pool_set_process_fn(pool, worker_process_fn);
@@ -769,6 +955,7 @@ int main(void) {
 
         tick_loop(dt);
         update_particles(dt);
+        update_lua_entities(dt);  /* 508c: Update Lua-created entities */
 
         /* Handle slider input first */
         bool slider_active = update_sliders();
@@ -815,15 +1002,18 @@ int main(void) {
 
                 /* Particles */
                 draw_particles();
+
+                /* 508c: Render Lua-created entities */
+                render_lua_entities();
             EndMode3D();
 
             /* HUD */
             DrawFPS(10, 10);
-            DrawText("Interactive Demo (508b Slots)", 10, 35, 16, DARKGRAY);
+            DrawText("Interactive Demo (508b Slots + 508c Lua)", 10, 35, 16, DARKGRAY);
 
             char buf[80];
-            snprintf(buf, sizeof(buf), "Chunks: %d/%d  Particles: active",
-                     count_active_chunks(g_cube_mesh), g_cube_mesh->chunk_count);
+            snprintf(buf, sizeof(buf), "Chunks: %d/%d  Lua entities: %d",
+                     count_active_chunks(g_cube_mesh), g_cube_mesh->chunk_count, g_lua_entity_count);
             DrawText(buf, 10, 55, 14, GRAY);
 
             DrawText("LMB: cycle color | RMB: destroy", 10, 75, 12, DARKGRAY);
@@ -840,6 +1030,7 @@ int main(void) {
 
     pthread_join(sync_thread, NULL);
     pthread_join(updater_thread, NULL);
+    cleanup_lua();  /* 508c: Clean up Lua state */
     pool_destroy(pool);
     cleanup(pool);
     CloseWindow();

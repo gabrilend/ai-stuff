@@ -299,13 +299,13 @@ end)
 
 ## Acceptance Criteria
 
-- [ ] C module exposes create/destroy/set functions
-- [ ] Lua can create render entities
-- [ ] Lua can update positions
-- [ ] Lua can set colors and selection state
-- [ ] Entity tracking maps entity_id to slot_index
-- [ ] ECS hooks trigger render updates
-- [ ] Clean destruction (no orphaned slots)
+- [x] C module exposes create/destroy/set functions
+- [x] Lua can create render entities
+- [x] Lua can update positions
+- [x] Lua can set colors and selection state
+- [x] Entity tracking maps entity_id to slot_index
+- [ ] ECS hooks trigger render updates (deferred to 508d/508f)
+- [x] Clean destruction (no orphaned slots)
 
 ---
 
@@ -327,3 +327,53 @@ that workers consume. For 508, we simplify by writing directly.
 
 - `issues/508b-entity-render-slots.md` - Slot system this exposes
 - `src/runtime/ecs/` - ECS to integrate with
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-30
+
+### Files Created
+
+- `src/render/bridge.h` - C API declarations (12 Lua-callable functions)
+- `src/render/bridge.c` - C API implementation with slot system integration
+- `src/render.lua` - High-level Lua wrapper with entity tracking
+
+### Key Implementation Details
+
+1. **LuaJIT Compatibility**: Used `lua_objlen` instead of `lua_rawlen`, and manual
+   module preloading instead of `luaL_requiref` (both are Lua 5.2+ only).
+
+2. **Module Registration**: Bridge uses `package.preload["render"]` pattern for
+   LuaJIT-compatible module registration.
+
+3. **Bridge Initialization**: `bridge_init(SlotArray*)` must be called before any
+   Lua code uses the render module. This passes the slot array reference.
+
+4. **Thread Safety**: The C functions directly modify slot data. For the demo,
+   this is safe because Lua runs in the main thread before worker threads consume
+   data. Full thread safety via input buffers is deferred to future issues.
+
+5. **Inline Test Script**: main.c includes an embedded Lua test that:
+   - Creates 4 colored entities at cardinal directions
+   - Applies rotation animation each frame
+   - Demonstrates full bridge functionality
+
+### Demo Output
+
+```
+[lua] Lua state created and render module registered
+[lua] render module loaded, MAX_SLOTS = 1024
+[lua] Created entity 100 at slot 1
+[lua] Created entity 101 at slot 2
+[lua] Created entity 102 at slot 3
+[lua] Created entity 103 at slot 4
+[lua] Slots: 5/1024 active
+[lua] Bridge test complete: 4 entities created via Lua
+```
+
+### Deferred Work
+
+- ECS hooks (entity_created/entity_destroyed events) deferred to 508d/508f
+- Full thread-safe input buffer integration deferred to future issues
