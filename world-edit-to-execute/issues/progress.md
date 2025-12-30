@@ -15,7 +15,7 @@
 | 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 9/9 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 27/29 |
+| 4 | Runtime - Basic Engine Loop | In Progress | 28/30 |
 | 5 | Rendering - Visual Abstraction | Planned | - |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Planned | - |
@@ -952,6 +952,17 @@ Phase 2 & 3 Complete
   - Added time_to_destination() for ETA estimation
   - 49 tests in test_movement_path.lua, all pass
   - Total: 139 movement tests (90 core + 49 path)
+- **Issue 404d completed:** Advanced movement behaviors
+  - Created src/runtime/systems/avoidance.lua (~150 lines)
+  - Created src/runtime/systems/formation.lua (~200 lines)
+  - Created src/runtime/systems/prediction.lua (~200 lines)
+  - Created src/tests/test_advanced_movement.lua (56 tests)
+  - Local avoidance: separation-based steering for collision prevention
+  - Formation movement: line, box, wedge, column formations
+  - Movement prediction: predict_position, time_to_arrival, get_intercept_point
+  - Added collision_radius to movement component defaults
+  - Total: 269 movement tests (90 core + 49 path + 74 orders + 56 advanced)
+  - **404 Unit Movement Complete!** All 4 sub-issues done
 - **Issue 013 completed:** Quest & Bounty Template System
   - Created docs/templates/ directory with 5 templates:
     - bounty-template.md (boss monster bounty board format)
@@ -1044,18 +1055,19 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
    - 407c: Alliance management - **COMPLETED** (63 tests total)
    - 407d: Player state transitions - **COMPLETED** (91 tests total)
    - 407e: Victory conditions - **COMPLETED** (112 tests total)
-6. **405 - Collision detection** - In Progress (4/5 sub-issues complete)
+6. **404 - Unit movement system** - **COMPLETED**
+   - 404a: Core movement system - **COMPLETED** (90 tests)
+   - 404b: Path following logic - **COMPLETED** (49 tests)
+   - 404c: Movement orders - **COMPLETED** (74 tests)
+   - 404d: Advanced movement behaviors - **COMPLETED** (56 tests)
+   - Total: 269 movement tests
+7. **405 - Collision detection** - In Progress (4/5 sub-issues complete)
    - 405a: Collision primitives and shapes - **COMPLETED** (99 tests)
    - 405b: Spatial hash grid - **COMPLETED** (61 tests)
    - 405c: Collision queries - **COMPLETED** (50 tests)
    - 405e: Projectile and picking - **COMPLETED** (45 tests)
-   - 405d: Movement collision integration - Pending (blocked by 404)
+   - 405d: Movement collision integration - Ready (unblocked by 404)
    - Total: 255 collision tests
-7. **404 - Unit movement system** - In Progress (3/4 sub-issues complete)
-   - 404a: Core movement system - **COMPLETED** (90 tests)
-   - 404b: Path following logic - **COMPLETED** (49 tests)
-   - 404c: Movement orders - **COMPLETED** (74 tests)
-   - 404d: Advanced movement behaviors - Pending
 8. **408** - Pending (integration tests)
 
 ### Previous Phases
