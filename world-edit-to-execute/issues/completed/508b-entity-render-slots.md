@@ -184,15 +184,51 @@ void draw_slots(SlotArray* arr) {
 
 ## Acceptance Criteria
 
-- [ ] RenderSlot holds all GPU-ready data
-- [ ] ComponentSlot wraps with self-cleaning setter
-- [ ] SlotArray manages fixed pool with free list
-- [ ] Allocation returns valid index or -1 if full
-- [ ] Freeing returns slot to pool
-- [ ] Setter atomically swaps and frees old data
-- [ ] Draw thread iterates and renders visible slots
-- [ ] Workers can update slots via setter
-- [ ] No memory leaks (old data always freed)
+- [x] RenderSlot holds all GPU-ready data
+- [x] ComponentSlot wraps with self-cleaning setter
+- [x] SlotArray manages fixed pool with free list
+- [x] Allocation returns valid index or -1 if full
+- [x] Freeing returns slot to pool
+- [x] Setter atomically swaps and frees old data
+- [x] Draw thread iterates and renders visible slots
+- [x] Workers can update slots via setter
+- [x] No memory leaks (old data always freed)
+
+---
+
+## Implementation Notes
+
+**Completed 2025-12-30**
+
+Created `src/render/slots.h`:
+- `RenderSlot` - GPU-ready data with position, orientation, color, visibility, mesh_id, team_id
+- `ComponentSlot` - Wrapper with self-cleaning setter (mise en place pattern)
+- `SlotArray` - Fixed-size pool with free list stack for O(1) alloc/free
+
+Created `src/render/slots.c`:
+- `slot_array_create()` / `slot_array_destroy()` - Lifecycle management
+- `slot_allocate()` / `slot_release()` - Thread-safe allocation with mutex
+- `slot_set()` - Atomic swap + immediate old data cleanup
+- `slot_get()` - Direct slot access by index
+- `slot_find_by_entity()` - O(n) lookup by entity_id
+- `slot_allocate_for_entity()` / `slot_release_by_entity()` - Convenience functions
+- `slot_foreach_active()` - Iteration over active slots
+
+Updated `src/render/main.c`:
+- Replaced inline RenderSlot with slots.h import
+- Changed PrimaryBuffer to use SlotArray
+- Updated sync_to_primary to use slot_set() for mise en place
+- Updated main() to create slot array and allocate demo slot
+- Updated draw loop to use slot_get()
+- Updated HUD to show slot system info
+
+Updated `src/render/run`:
+- Added slots.c to SOURCES
+
+Demo output confirms working:
+- "Workers: 2  Slot System: 508b"
+- "Created slot array with 1024 max slots"
+- "Allocated demo slot at index 0"
 
 ---
 
