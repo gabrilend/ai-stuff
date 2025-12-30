@@ -307,7 +307,8 @@ Phase 1 Complete (102 MPQ Parser)
 | 407d | Player state transitions | **Completed** | 407a |
 | 407e | Victory conditions | **Completed** | 407c, 407d |
 | 407f | Local player support | **Completed** | 407a |
-| 408 | Phase 4 integration test | Pending | 401-407 |
+| 408 | Phase 4 integration test | In Progress | 401-407 |
+| 408d | Integration scenario | **Completed** | 408a-c |
 
 ### Dependency Graph
 
@@ -980,6 +981,13 @@ Phase 2 & 3 Complete
     - issues/B01-B03 (3 boss monster bounties)
     - issues/GUILD-ROSTER.md (capability tracking)
   - Pattern designed for cross-project replication
+- **Issue 408d completed:** Phase 4 integration scenario
+  - Updated test_phase4_integration.lua with correct API detection
+  - Fixed function names: check_victory_conditions, shapes_collide, init_manual
+  - Fixed init_manual array format (uses ipairs, needs {slot = n})
+  - Updated movement simulation to use ECS-based systems
+  - 51 integration tests, all pass
+  - Identified remaining gaps: 404c (order_move), 405d (collision update)
 
 ---
 
