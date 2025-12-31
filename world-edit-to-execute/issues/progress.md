@@ -1284,6 +1284,10 @@ Both systems support dual WC3/WoW modes:
   - WoW-Chat profile integration for preference synchronization
   - Sub-issues: 509a (appearance model), 509b (effect colors), 509c (viewport prefs),
     509d (WoW-Chat integration), 509e (render pipeline integration)
+- **Issue 306 verified and moved to completed:**
+  - All 6 sub-issues complete (306a-306f)
+  - 226 transpiler tests passing
+  - JASS-to-Lua transpilation fully functional
 
 ---
 
