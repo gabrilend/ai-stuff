@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include "pthread.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "rlgl.h"
 #include "threading.h"
 #include "slots.h"
@@ -363,69 +364,47 @@ MeshData* create_cube_mesh(float size, float chunk_size) {
 }
 /* }}} */
 
-/* {{{ rotate_around_axis
- * Rodrigues' rotation formula: rotate point around arbitrary axis.
- * axis must be normalized. angle in radians. */
-void rotate_around_axis(float px, float py, float pz,
-                        float ax, float ay, float az,
-                        float angle,
-                        float* ox, float* oy, float* oz) {
-    float c = cosf(angle);
-    float s = sinf(angle);
-    float t = 1.0f - c;
-
-    /* Rodrigues: v' = v*cos + (k×v)*sin + k*(k·v)*(1-cos) */
-    /* Cross product k × v */
-    float cx = ay * pz - az * py;
-    float cy = az * px - ax * pz;
-    float cz = ax * py - ay * px;
-
-    /* Dot product k · v */
-    float dot = ax * px + ay * py + az * pz;
-
-    *ox = px * c + cx * s + ax * dot * t;
-    *oy = py * c + cy * s + ay * dot * t;
-    *oz = pz * c + cz * s + az * dot * t;
-}
-/* }}} */
-
 /* {{{ transform_chunk_to_world
  * Transform chunk local position to world position given slot transforms.
- * Must match the order in render_cube_at_slot:
- *   1. Spin around Y (applied first to local coords)
- *   2. Clock rotation around (0.577, 0.577, 0.577)
- *   3. Scale
- *   4. Translate to world position */
+ * Uses Raylib matrix functions to ensure consistency with rendering.
+ *
+ * Matches the transform order in render_cube_at_slot:
+ *   rlTranslatef(slot->x, slot->y, slot->z);
+ *   rlScalef(slot->scale, slot->scale, slot->scale);
+ *   rlRotatef(slot->rotation, 0.577f, 0.577f, 0.577f);  // clock
+ *   rlRotatef(slot->spin, 0.0f, 1.0f, 0.0f);            // spin
+ *
+ * OpenGL applies in reverse order: spin -> clock -> scale -> translate
+ * So we build: M = Translate * Scale * RotateClock * RotateSpin
+ */
 void transform_chunk_to_world(ChunkData* c, RenderSlot* slot, float* wx, float* wy, float* wz) {
-    float px = c->x;
-    float py = c->y;
-    float pz = c->z;
+    /* Convert degrees to radians */
+    float spin_rad = slot->spin * DEG2RAD;
+    float clock_rad = slot->rotation * DEG2RAD;
 
-    /* 1. Spin around Y axis (counter-clockwise per OpenGL convention) */
-    float rad_spin = slot->spin * 3.14159f / 180.0f;
-    float cos_s = cosf(rad_spin);
-    float sin_s = sinf(rad_spin);
-    float rx = px * cos_s - pz * sin_s;
-    float ry = py;
-    float rz = px * sin_s + pz * cos_s;
+    /* Diagonal axis (1,1,1) normalized = (1/√3, 1/√3, 1/√3) ≈ (0.57735, 0.57735, 0.57735) */
+    Vector3 clock_axis = { 0.57735026919f, 0.57735026919f, 0.57735026919f };
 
-    /* 2. Clock rotation around diagonal axis (0.577, 0.577, 0.577) */
-    float rad_clock = slot->rotation * 3.14159f / 180.0f;
-    float fx, fy, fz;
-    rotate_around_axis(rx, ry, rz,
-                       0.577f, 0.577f, 0.577f,
-                       rad_clock,
-                       &fx, &fy, &fz);
+    /* Build transform matrix in order: spin -> clock -> scale -> translate
+     * For v' = T * S * C * Sp * v, we build M = T * S * C * Sp */
+    Matrix spin_mat = MatrixRotateY(spin_rad);
+    Matrix clock_mat = MatrixRotate(clock_axis, clock_rad);
+    Matrix scale_mat = MatrixScale(slot->scale, slot->scale, slot->scale);
+    Matrix trans_mat = MatrixTranslate(slot->x, slot->y, slot->z);
 
-    /* 3. Scale */
-    fx *= slot->scale;
-    fy *= slot->scale;
-    fz *= slot->scale;
+    /* Compose: M = T * S * C * Sp */
+    Matrix m = spin_mat;
+    m = MatrixMultiply(clock_mat, m);   /* C * Sp */
+    m = MatrixMultiply(scale_mat, m);   /* S * (C * Sp) */
+    m = MatrixMultiply(trans_mat, m);   /* T * (S * C * Sp) */
 
-    /* 4. Translate to world position */
-    *wx = fx + slot->x;
-    *wy = fy + slot->y;
-    *wz = fz + slot->z;
+    /* Transform the chunk position */
+    Vector3 local = { c->x, c->y, c->z };
+    Vector3 world = Vector3Transform(local, m);
+
+    *wx = world.x;
+    *wy = world.y;
+    *wz = world.z;
 }
 /* }}} */
 
