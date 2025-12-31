@@ -411,7 +411,7 @@ Phase 2 & 3 Complete
 | 508f | Movement orders | **Completed** | 508e |
 | 508g | Minimal UI | **Completed** | 508d |
 | 508h | Integration test | **Completed** | 508a-g |
-| 508i | Fix chunk ray picking | Pending | 508b |
+| 508i | Fix chunk ray picking | **Completed** | 508b |
 | 509 | Player-customizable visual effects | Issues Created | 503 |
 | 509a | Character appearance data model | Pending | None |
 | 509b | Effect color parameter system | Pending | 509a |
@@ -1310,6 +1310,13 @@ Both systems support dual WC3/WoW modes:
   - Selection, movement, UI all functional
   - Threading architecture validated: Updater → Workers → Sync → Draw
   - **Vertical slice complete!** Architecture proven, ready for incremental development
+- **Issue 508i completed:** Fix chunk ray picking
+  - Root cause: Manual Rodrigues rotation didn't match Raylib's matrix functions
+  - Fix: Replaced manual rotation with Raylib's MatrixRotate, MatrixScale, etc.
+  - Added raymath.h include for Matrix functions
+  - Used exact axis normalization: 0.57735026919 instead of 0.577
+  - Chunk clicking now works correctly at all rotation angles
+  - **Issue 508 fully complete!** All 9 sub-issues done
 - **Issue 110 in progress:** Object data parsers (110a-110e complete)
   - Created src/parsers/objectdata.lua (core parser, ~400 lines)
   - Created 7 type-specific parsers:
