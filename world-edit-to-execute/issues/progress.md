@@ -16,7 +16,7 @@
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
-| 5 | Rendering - Visual Abstraction | Issues Created | 0/49 |
+| 5 | Rendering - Visual Abstraction | Issues Created | 0/55 |
 | 6 | Asset System - Community Content | Planned | - |
 | 7 | Gameplay - Core Mechanics | Issues Created | 0/7 |
 | 8 | Multiplayer - Network Layer | Planned | - |
@@ -98,6 +98,14 @@ No dependencies (all independent except A07)
 | 016g | WoW attribute config | Pending | 016a, 016e |
 | 016h | Cross-system mapping | Pending | 016f, 016g |
 | 016i | Integration tests | Pending | 016a-016h |
+| 017 | Unified currency/resource system | **Completed** | None |
+| 017a | Currency registry and dispatch | **Completed** | None |
+| 017b | Money bag component | **Completed** | 017a |
+| 017c | Currency container component | **Completed** | 017a |
+| 017d | Reputation system | **Completed** | 017a |
+| 017f | Vendor transaction flow | **Completed** | 017a, 017b |
+| 017g | WC3-WoW conversion | **Completed** | 017a, 017b |
+| 017i | Tests and integration | **Completed** | 017a-017g |
 
 **Tool Location:** `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh`
 (Symlinked from `src/cli/issue-splitter.sh`)
@@ -325,6 +333,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 408c | Unit tests - player systems | Pending | 408a |
 | 408d | Integration scenario | **Completed** | 408a-c |
 | 408e | Visual demo | Pending | 408a-d |
+| 409 | Frame-based pathfinding storage | **Completed** | 403, render-architecture |
 
 ### Dependency Graph
 
@@ -403,6 +412,12 @@ Phase 2 & 3 Complete
 | 508g | Minimal UI | Pending | 508d |
 | 508h | Integration test | Pending | 508a-g |
 | 508i | Fix chunk ray picking | Pending | 508b |
+| 509 | Player-customizable visual effects | Issues Created | 503 |
+| 509a | Character appearance data model | Pending | None |
+| 509b | Effect color parameter system | Pending | 509a |
+| 509c | Viewport preference system | Pending | 509a |
+| 509d | WoW-Chat profile integration | Pending | 509c |
+| 509e | Render pipeline integration | Pending | 509a |
 | 510 | Dual perspective UI system | Issues Created | 506 |
 | 510a | Warlord mode UI (RTS) | Pending | 506 |
 | 510b | Hero mode UI (RPG) | Pending | 506 |
@@ -1222,6 +1237,53 @@ Both systems support dual WC3/WoW modes:
   - Picking works on some cube faces but not others
   - Root cause: transform_chunk_to_world() doesn't match OpenGL pipeline
   - Suggested fixes: use raylib Matrix functions, or inverse-transform the ray
+- **Issue 409 created:** Frame-based pathfinding storage
+  - Integrates frame encoding from render-architecture.md into A* pathfinding
+  - Paths stored as direction frame sequences (1 byte/step vs 16+ bytes)
+  - ~14x compression for path storage
+  - Curve analysis: decompose paths into directional spectra
+  - Metaphor: A* exploration = riding roller coaster through idea-space
+  - Probing outward, hitting boundaries, reversing with dampened momentum
+- **Issue 017 completed:** Unified currency/resource system
+  - Created src/runtime/currency/ module with 6 files:
+    - registry.lua: Currency schema, dispatch tables, standing thresholds
+    - init.lua: Unified API (get/set/add/spend/can_afford)
+    - money_bag.lua: Physical coin storage (copper/silver/gold in bag slots)
+    - currency_container.lua: Abstract currencies (honor, arena, justice, valor)
+    - reputation.lua: Faction standings (Hated to Exalted)
+    - conversion.lua: WC3↔WoW currency bridge (1 WC3 gold = 100 WoW copper)
+    - vendor.lua: Coin-based shop transactions
+  - 94 tests pass covering all currency modules
+  - Sub-issues: 017a (registry), 017b (money_bag), 017c (container),
+    017d (reputation), 017f (vendor), 017g (conversion), 017i (tests)
+  - Enables cross-play between WC3 and WoW economies
+  - Classic/Vanilla WoW baseline with 8 standing tiers and 14 honor ranks
+- **Issue 409 completed:** Frame-based pathfinding storage
+  - Created src/runtime/pathfinding/frames.lua (~340 lines):
+    - Cardinal frames: NORTH=0x0F, SOUTH=0xF0, EAST=0xCC, WEST=0x33
+    - Ordinal frames: NE=0x4C, NW=0x1C, SE=0xC4, SW=0xC1
+    - Boundary frames: ORIGIN=0xFF (arrived), OVERSHOOT=0x00 (reverse)
+    - frame_to_vector, vector_to_frame, path_to_frames, frames_to_path
+    - Momentum structure with direction + count separation
+    - ASCII visualization (↑↓←→↗↖↘↙○×)
+  - Updated src/runtime/pathfinding/astar.lua:
+    - find_path_frames() returns frame path directly from A*
+    - path_to_frames() / frames_to_path() wrappers
+    - path_to_ascii() for visualization
+    - compare_paths() similarity metric
+  - Updated src/runtime/orders/init.lua:
+    - orders.move_frames() for frame choreography movement
+    - orders.get_path_shape() returns ASCII art of current movement
+    - orders.shapes table with preset patterns (CIRCLE, ZIGZAG, RETREAT)
+  - Created src/tests/test_frames.lua: 67 tests, all pass
+  - Key concept: Frame paths describe movement SHAPE not coordinates
+    (position-independent, enables pattern matching and gesture recognition)
+- **Issue 509 created:** Player-customizable visual effects
+  - Character appearance (hair, skin, tattoos, jewelry) influences spell effects
+  - Per-player viewport customization (self vs others effect appearance)
+  - WoW-Chat profile integration for preference synchronization
+  - Sub-issues: 509a (appearance model), 509b (effect colors), 509c (viewport prefs),
+    509d (WoW-Chat integration), 509e (render pipeline integration)
 
 ---
 
