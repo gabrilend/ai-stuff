@@ -187,6 +187,47 @@ void draw_selection_circles(SlotArray* slots);
 
 /* }}} */
 
+/* {{{ Move Marker (508f) */
+
+/* MoveMarker - visual feedback for movement target
+ * Shows a pulsing circle at the target location that fades out. */
+typedef struct move_marker {
+    float x, z;           /* World position (Y=0 ground plane) */
+    float lifetime;       /* Remaining time (0-1, starts at 1.0) */
+    float max_lifetime;   /* Initial lifetime for fade calculation */
+    bool active;          /* Whether marker should be drawn */
+} MoveMarker;
+
+/* move_marker_show
+ * Display move marker at world position. */
+void move_marker_show(float x, float z);
+
+/* move_marker_update
+ * Update marker lifetime. Call each frame with delta time. */
+void move_marker_update(float dt);
+
+/* move_marker_draw
+ * Render the move marker. Call during 3D drawing phase. */
+void move_marker_draw(void);
+
+/* move_marker_is_active
+ * Check if marker is currently visible. */
+bool move_marker_is_active(void);
+
+/* }}} */
+
+/* {{{ Movement Orders (508f) */
+
+/* process_movement_input
+ * Handle right-click for movement orders.
+ * Calls Lua on_move_order(x, z) when right-clicked with selection. */
+void process_movement_input(SlotArray* slots, struct lua_State* L);
+
+/* Lua bridge for move marker */
+int l_show_move_marker(lua_State* L);
+
+/* }}} */
+
 /* {{{ Lua Bridge Functions */
 #include <lua.h>
 

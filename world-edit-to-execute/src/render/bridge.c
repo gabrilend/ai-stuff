@@ -341,6 +341,8 @@ static const luaL_Reg render_funcs[] = {
     {"get_entity_at", l_get_entity_at},
     {"get_mouse_world", l_get_mouse_world},
     {"is_selected", l_is_selected},
+    /* Movement functions (508f) */
+    {"show_move_marker", l_show_move_marker},
     {NULL, NULL}
 };
 
