@@ -265,12 +265,12 @@ return testing_room
 
 ## Acceptance Criteria
 
-- [ ] Terrain grid renders as colored tiles
-- [ ] Tile colors reflect terrain type (grass=green, water=blue, etc.)
-- [ ] Doodads render as static shapes
-- [ ] Units render as dynamic shapes linked to ECS
-- [ ] Demo script loads and displays a test map
-- [ ] Camera positioned to see map overview
+- [x] Terrain grid renders as colored tiles
+- [x] Tile colors reflect terrain type (grass=green, water=blue, etc.)
+- [x] Doodads render as static shapes
+- [ ] Units render as dynamic shapes linked to ECS (deferred - test map had 0 units)
+- [x] Demo script loads and displays a test map
+- [ ] Camera positioned to see map overview (deferred - camera is fixed)
 
 ---
 
@@ -289,3 +289,79 @@ cliff rendering, and proper textures come later.
 - `issues/508c-lua-c-bridge.md` - Bridge this uses
 - `src/parsers/w3e.lua` - Terrain data source
 - `src/registry/` - Registry for doodads/units
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-30
+
+### Files Created
+
+- `src/render/terrain.h` - Terrain grid struct and function declarations
+- `src/render/terrain.c` - Terrain grid implementation with Lua bindings
+- `src/demo/map_renderer.lua` - High-level map-to-render conversion
+- `src/demo/testing_room.lua` - Demo entry point script
+
+### Files Modified
+
+- `src/render/bridge.h` - Added terrain.h include
+- `src/render/bridge.c` - Registered terrain_* functions (6 new Lua bindings)
+- `src/render/main.c` - Added terrain rendering, updated test script for real map loading
+- `src/render/run` - Added terrain.c to SOURCES
+
+### Key Implementation Details
+
+1. **Terrain Grid System (terrain.c)**:
+   - Fixed-size RGB color array (3 bytes per tile)
+   - Maximum dimensions: 512x512 tiles
+   - Renders as thin cubes (DrawCube) for 3D effect
+   - Supports configurable tile size and world offset
+
+2. **Lua Bridge Extensions**:
+   - `render.terrain_create(width, height, tile_size)` - Create grid
+   - `render.terrain_destroy()` - Free grid
+   - `render.terrain_set_tile(x, y, r, g, b)` - Set single tile
+   - `render.terrain_set_tiles({{x, y, r, g, b}, ...})` - Bulk set (efficient)
+   - `render.terrain_set_offset(x, z)` - Center terrain in world
+   - `render.terrain_info()` - Query grid dimensions
+
+3. **Map Renderer (map_renderer.lua)**:
+   - Tile color mapping for 25+ WC3 terrain types (Lordaeron, Ashenvale, Barrens, etc.)
+   - Player color support for 16 players
+   - Water/boundary detection with distinct colors
+   - Doodad rendering as green cubes with scale support
+
+4. **Integration Test Results**:
+   - Loaded: "Dark Ages of Warcraft v5.4" (DAoW-5.4b-PUBLIC-TEST.w3x)
+   - Terrain: 481x481 tiles (~694KB color data)
+   - Doodads: 1,023 objects rendered
+   - Frame rate: Stable 60 FPS
+
+### Deferred Work
+
+- **Unit rendering via ECS**: Test map contained 0 pre-placed units. Unit rendering code
+  exists in map_renderer.lua but is untested with real data. Deferred to 508f (movement).
+
+- **Camera positioning**: Camera is fixed at (8, 6, 8) looking at origin. For large maps
+  like the 481x481 test, the view only shows a small portion. Dynamic camera positioning
+  deferred to 508e (input and selection).
+
+- **Terrain height**: Current implementation renders all tiles at Y=0. Height variation
+  from w3e parser is available but not used. Deferred to future terrain enhancement.
+
+### Demo Output
+
+```
+[lua] Found test map: .../assets/DAoW-5.4b-PUBLIC-TEST.w3x
+[lua] Loading map...
+[lua] Map: TRIGSTR_001
+[lua] Size: 480x480
+[lua] Terrain: 481x481
+[map_renderer] Loading map: Dark Ages of Warcraft v5.4
+[terrain] Created 481x481 grid, tile_size=1.00, 694083 bytes
+[map_renderer] Loaded terrain: 481x481 tiles
+[map_renderer] Loaded 1023 doodads
+[map_renderer] Map load complete: 481x481 terrain, 1023 doodads, 0 units
+[lua] Map rendered successfully!
+```
