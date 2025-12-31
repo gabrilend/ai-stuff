@@ -27,6 +27,7 @@
 #include "threading.h"
 #include "slots.h"
 #include "bridge.h"
+#include "terrain.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
@@ -712,18 +713,102 @@ bool init_lua_bridge(void) {
 
     printf("[lua] Lua state created and render module registered\n");
 
-    /* Run inline test script */
+    /* Run inline test script - attempts to load real map, falls back to demo */
     const char* test_script =
+        "-- 508d: Map Integration Test Script\n"
         "local render = require('render')\n"
         "print('[lua] render module loaded, MAX_SLOTS = ' .. render.MAX_SLOTS)\n"
         "\n"
-        "-- Create test entities at different positions\n"
+        "-- Set up package path for map loading\n"
+        "local PROJECT_ROOT = '/mnt/mtwo/programming/ai-stuff/world-edit-to-execute'\n"
+        "package.path = PROJECT_ROOT .. '/src/?.lua;' ..\n"
+        "              PROJECT_ROOT .. '/src/?/init.lua;' ..\n"
+        "              package.path\n"
+        "package.cpath = '/usr/lib/lua/5.1/?.so;' .. package.cpath\n"
+        "\n"
+        "-- Try to load a real map\n"
+        "local map_loaded = false\n"
+        "local test_map = PROJECT_ROOT .. '/assets/DAoW-5.4b-PUBLIC-TEST.w3x'\n"
+        "\n"
+        "local f = io.open(test_map, 'rb')\n"
+        "if f then\n"
+        "    f:close()\n"
+        "    print('[lua] Found test map: ' .. test_map)\n"
+        "    \n"
+        "    -- Try to load data and map_renderer modules\n"
+        "    local ok1, Map = pcall(require, 'data')\n"
+        "    local ok2, map_renderer = pcall(require, 'demo.map_renderer')\n"
+        "    \n"
+        "    if ok1 and ok2 then\n"
+        "        print('[lua] Loading map...')\n"
+        "        local load_ok, map = pcall(Map.load, test_map)\n"
+        "        if load_ok and map then\n"
+        "            print('[lua] Map: ' .. (map.name or 'unnamed'))\n"
+        "            print('[lua] Size: ' .. (map.width or 0) .. 'x' .. (map.height or 0))\n"
+        "            if map.terrain then\n"
+        "                print('[lua] Terrain: ' .. map.terrain.width .. 'x' .. map.terrain.height)\n"
+        "            end\n"
+        "            \n"
+        "            -- Render the map\n"
+        "            local render_ok = map_renderer.load(map)\n"
+        "            if render_ok then\n"
+        "                map_loaded = true\n"
+        "                print('[lua] Map rendered successfully!')\n"
+        "            else\n"
+        "                print('[lua] Failed to render map, using fallback')\n"
+        "            end\n"
+        "        else\n"
+        "            print('[lua] Failed to load map: ' .. tostring(map))\n"
+        "        end\n"
+        "    else\n"
+        "        if not ok1 then print('[lua] Cannot load data module: ' .. tostring(Map)) end\n"
+        "        if not ok2 then print('[lua] Cannot load map_renderer: ' .. tostring(map_renderer)) end\n"
+        "    end\n"
+        "else\n"
+        "    print('[lua] No test map found at: ' .. test_map)\n"
+        "end\n"
+        "\n"
+        "-- Fallback: create demo terrain if map didn't load\n"
+        "if not map_loaded then\n"
+        "    print('[lua] Using demo terrain fallback')\n"
+        "    local size = 32\n"
+        "    local tile_size = 1.0\n"
+        "    local ok = render.terrain_create(size, size, tile_size)\n"
+        "    if ok then\n"
+        "        render.terrain_set_offset(-size * tile_size / 2, -size * tile_size / 2)\n"
+        "        \n"
+        "        -- Create terrain pattern (island with water)\n"
+        "        local tiles = {}\n"
+        "        for y = 0, size - 1 do\n"
+        "            for x = 0, size - 1 do\n"
+        "                local cx, cy = size / 2, size / 2\n"
+        "                local dx, dy = x - cx, y - cy\n"
+        "                local dist = math.sqrt(dx * dx + dy * dy)\n"
+        "                local r, g, b\n"
+        "                if dist < 4 then\n"
+        "                    r, g, b = 30, 100, 180  -- Water\n"
+        "                elseif dist < 7 then\n"
+        "                    r, g, b = 194, 145, 87  -- Beach\n"
+        "                elseif dist < 14 then\n"
+        "                    r, g, b = 34, 139, 34   -- Grass\n"
+        "                else\n"
+        "                    r, g, b = 100, 80, 60   -- Dirt edge\n"
+        "                end\n"
+        "                table.insert(tiles, {x, y, r, g, b})\n"
+        "            end\n"
+        "        end\n"
+        "        render.terrain_set_tiles(tiles)\n"
+        "        print('[lua] Demo terrain created: ' .. size .. 'x' .. size)\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "-- Create demo entities\n"
         "local slots = {}\n"
         "local positions = {\n"
-        "    {id=100, x=-3, y=0, z=0, r=255, g=100, b=100},\n"
-        "    {id=101, x=3, y=0, z=0, r=100, g=255, b=100},\n"
-        "    {id=102, x=0, y=0, z=-3, r=100, g=100, b=255},\n"
-        "    {id=103, x=0, y=0, z=3, r=255, g=255, b=100},\n"
+        "    {id=100, x=-5, y=0.5, z=0, r=255, g=50, b=50},   -- Red\n"
+        "    {id=101, x=5, y=0.5, z=0, r=50, g=50, b=255},    -- Blue\n"
+        "    {id=102, x=0, y=0.5, z=-5, r=50, g=200, b=50},   -- Green\n"
+        "    {id=103, x=0, y=0.5, z=5, r=255, g=255, b=50},   -- Yellow\n"
         "}\n"
         "\n"
         "for _, p in ipairs(positions) do\n"
@@ -732,14 +817,10 @@ bool init_lua_bridge(void) {
         "        render.set_color(slot, p.r, p.g, p.b)\n"
         "        render.set_scale(slot, 0.5)\n"
         "        table.insert(slots, slot)\n"
-        "        print('[lua] Created entity ' .. p.id .. ' at slot ' .. slot)\n"
         "    end\n"
         "end\n"
+        "print('[lua] Created ' .. #slots .. ' demo entities')\n"
         "\n"
-        "local active, max = render.get_slot_count()\n"
-        "print('[lua] Slots: ' .. active .. '/' .. max .. ' active')\n"
-        "\n"
-        "-- Store slot count for C to query\n"
         "_G.lua_entity_slots = slots\n"
         "_G.lua_entity_count = #slots\n";
 
@@ -851,6 +932,13 @@ void cleanup_lua(void) {
         lua_close(g_lua);
         g_lua = NULL;
         printf("[lua] Lua state closed\n");
+    }
+
+    /* Destroy terrain (508d) */
+    TerrainGrid* terrain = terrain_get_global();
+    if (terrain) {
+        terrain_destroy(terrain);
+        terrain_set_global(NULL);
     }
 }
 /* }}} */
@@ -984,6 +1072,12 @@ int main(void) {
             ClearBackground(BLACK);
 
             BeginMode3D(camera);
+                /* Terrain grid (508d) */
+                TerrainGrid* terrain = terrain_get_global();
+                if (terrain && terrain->initialized) {
+                    terrain_draw(terrain);
+                }
+
                 /* Central pillar */
                 DrawCylinder((Vector3){0, -2, 0}, 0.3f, 0.3f, 4.0f, 12, DARKGRAY);
                 DrawCylinderWires((Vector3){0, -2, 0}, 0.3f, 0.3f, 4.0f, 12, GRAY);
