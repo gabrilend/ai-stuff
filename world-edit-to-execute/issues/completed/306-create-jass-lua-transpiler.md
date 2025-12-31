@@ -303,16 +303,16 @@ This is covered in issues 307-308.
 
 ## Acceptance Criteria
 
-- [ ] Transpiles global variable declarations
-- [ ] Transpiles function definitions
-- [ ] Transpiles all statement types
-- [ ] Transpiles expressions with correct operators
-- [ ] Handles native function calls
-- [ ] Handles function references
-- [ ] Handles array operations
-- [ ] Produces syntactically valid Lua
-- [ ] Output is human-readable (proper indentation)
-- [ ] Unit tests for all constructs
+- [x] Transpiles global variable declarations
+- [x] Transpiles function definitions
+- [x] Transpiles all statement types
+- [x] Transpiles expressions with correct operators
+- [x] Handles native function calls
+- [x] Handles function references
+- [x] Handles array operations
+- [x] Produces syntactically valid Lua
+- [x] Output is human-readable (proper indentation)
+- [x] Unit tests for all constructs
 
 ---
 
@@ -481,3 +481,49 @@ This structure allows iterative development where each piece can be tested in is
 - 306d-transpile-expressions.md
 - 306e-native-function-handling.md
 - 306f-transpiler-tests.md
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-31 (verified)
+
+### Summary
+
+All 6 sub-issues completed, implementing a full JASS-to-Lua transpiler:
+
+| Sub-Issue | Description | Tests |
+|-----------|-------------|-------|
+| 306a | Transpiler infrastructure (context, emit, visitor) | 87 |
+| 306b | Declaration transpilation (globals, functions, locals) | 43 |
+| 306c | Statement transpilation (SET, CALL, IF, LOOP, RETURN) | 27 |
+| 306d | Expression transpilation (literals, operators, arrays) | 69 |
+| 306e | Native function handling (runtime prefix, ~170 builtins) | 20 |
+| 306f | Comprehensive test suite (meta-runner) | - |
+| **Total** | | **226** |
+
+### Files Created
+
+```
+src/jass/
+├── lexer.lua       (from 304)
+├── parser.lua      (from 305)
+└── transpiler.lua  (~1200 lines)
+
+src/tests/
+├── test_transpiler.lua        (meta-runner)
+├── test_transpiler_infra.lua  (306a tests)
+├── test_transpiler_decl.lua   (306b tests)
+├── test_transpiler_expr.lua   (306d tests)
+├── test_transpiler_stmt.lua   (306c tests)
+└── test_transpiler_native.lua (306e tests)
+```
+
+### Key Features
+
+- **Two-pass transpilation:** Collect declarations, then generate code
+- **Runtime prefix:** Native functions call `runtime.X()` for WC3 API
+- **Operator mapping:** JASS `!=` → Lua `~=`, JASS `null` → Lua `nil`
+- **Builtin registry:** ~170 common natives recognized without declaration
+- **Readable output:** Proper indentation, comments preserved
+- **loadstring validation:** All output verified as syntactically valid Lua
