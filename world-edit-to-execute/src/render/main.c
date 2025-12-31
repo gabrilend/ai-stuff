@@ -28,6 +28,7 @@
 #include "slots.h"
 #include "bridge.h"
 #include "terrain.h"
+#include "input.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
@@ -1036,6 +1037,9 @@ int main(void) {
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
+    /* Initialize input system (508e) */
+    input_init(&camera);
+
     printf("[main] Entering render loop...\n\n");
 
     while (!WindowShouldClose()) {
@@ -1045,8 +1049,16 @@ int main(void) {
         update_particles(dt);
         update_lua_entities(dt);  /* 508c: Update Lua-created entities */
 
+        /* Update input system (508e) */
+        input_update();
+
         /* Handle slider input first */
         bool slider_active = update_sliders();
+
+        /* Process selection input if not using sliders (508e) */
+        if (!slider_active) {
+            process_selection_input(g_primary.slots);
+        }
 
         /* Read slot from primary buffer */
         RenderSlot slot_copy = {0};
@@ -1099,6 +1111,9 @@ int main(void) {
 
                 /* 508c: Render Lua-created entities */
                 render_lua_entities();
+
+                /* 508e: Selection circles under selected entities */
+                draw_selection_circles(g_primary.slots);
             EndMode3D();
 
             /* HUD */
@@ -1114,6 +1129,17 @@ int main(void) {
 
             /* Sliders */
             draw_sliders();
+
+            /* 508e: Selection box during drag */
+            draw_selection_box();
+
+            /* 508e: Selection count in HUD */
+            int sel_count = selection_get_count();
+            if (sel_count > 0) {
+                char sel_buf[40];
+                snprintf(sel_buf, sizeof(sel_buf), "Selected: %d", sel_count);
+                DrawText(sel_buf, 10, 95, 14, GREEN);
+            }
 
         EndDrawing();
     }
