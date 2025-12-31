@@ -19,6 +19,15 @@
 static InputState g_input = {0};
 static SelectionState g_selection = {0};
 static SlotArray* g_input_slots = NULL;  /* Reference for Lua bridge */
+
+/* 508f: Move marker for visual feedback */
+static MoveMarker g_move_marker = {
+    .x = 0.0f,
+    .z = 0.0f,
+    .lifetime = 0.0f,
+    .max_lifetime = 1.0f,
+    .active = false
+};
 /* }}} */
 
 /* {{{ Global State Access */
@@ -547,6 +556,150 @@ int l_is_selected(lua_State* L) {
 
     lua_pushboolean(L, selection_contains(slot) ? 1 : 0);
     return 1;
+}
+/* }}} */
+
+/* }}} */
+
+/* {{{ Move Marker Implementation (508f) */
+
+/* {{{ move_marker_show */
+void move_marker_show(float x, float z) {
+    g_move_marker.x = x;
+    g_move_marker.z = z;
+    g_move_marker.lifetime = 1.0f;
+    g_move_marker.max_lifetime = 1.0f;
+    g_move_marker.active = true;
+}
+/* }}} */
+
+/* {{{ move_marker_update */
+void move_marker_update(float dt) {
+    if (!g_move_marker.active) return;
+
+    g_move_marker.lifetime -= dt;
+    if (g_move_marker.lifetime <= 0.0f) {
+        g_move_marker.lifetime = 0.0f;
+        g_move_marker.active = false;
+    }
+}
+/* }}} */
+
+/* {{{ move_marker_draw */
+void move_marker_draw(void) {
+    if (!g_move_marker.active) return;
+
+    /* Calculate fade based on remaining lifetime */
+    float alpha = g_move_marker.lifetime / g_move_marker.max_lifetime;
+
+    /* Pulsing radius effect: starts small, expands as it fades */
+    float base_radius = 0.3f;
+    float max_expand = 0.4f;
+    float radius = base_radius + max_expand * (1.0f - alpha);
+
+    /* Draw outer expanding ring (fades out) */
+    DrawCircle3D(
+        (Vector3){g_move_marker.x, 0.05f, g_move_marker.z},
+        radius,
+        (Vector3){1.0f, 0.0f, 0.0f},
+        90.0f,
+        (Color){0, 255, 0, (unsigned char)(alpha * 180)}
+    );
+
+    /* Draw inner solid circle (fades faster) */
+    float inner_alpha = alpha * alpha;  /* Quadratic fade for inner */
+    DrawCircle3D(
+        (Vector3){g_move_marker.x, 0.06f, g_move_marker.z},
+        base_radius * 0.5f,
+        (Vector3){1.0f, 0.0f, 0.0f},
+        90.0f,
+        (Color){100, 255, 100, (unsigned char)(inner_alpha * 255)}
+    );
+
+    /* Draw crosshair lines */
+    float line_len = 0.2f;
+    float y = 0.07f;
+    Color line_color = {0, 255, 0, (unsigned char)(alpha * 200)};
+
+    DrawLine3D(
+        (Vector3){g_move_marker.x - line_len, y, g_move_marker.z},
+        (Vector3){g_move_marker.x + line_len, y, g_move_marker.z},
+        line_color
+    );
+    DrawLine3D(
+        (Vector3){g_move_marker.x, y, g_move_marker.z - line_len},
+        (Vector3){g_move_marker.x, y, g_move_marker.z + line_len},
+        line_color
+    );
+}
+/* }}} */
+
+/* {{{ move_marker_is_active */
+bool move_marker_is_active(void) {
+    return g_move_marker.active;
+}
+/* }}} */
+
+/* }}} */
+
+/* {{{ Movement Orders Implementation (508f) */
+
+/* {{{ process_movement_input */
+void process_movement_input(SlotArray* slots, lua_State* L) {
+    if (!slots || !L) return;
+
+    /* Only process right-click release */
+    if (!g_input.right_pressed) return;
+
+    /* Need selection to issue orders */
+    if (g_selection.count == 0) return;
+
+    /* Get world position of click */
+    float target_x = g_input.world_x;
+    float target_z = g_input.world_z;
+
+    printf("[input] Move order: (%.2f, %.2f) for %d units\n",
+           target_x, target_z, g_selection.count);
+
+    /* Show visual feedback */
+    move_marker_show(target_x, target_z);
+
+    /* Call Lua handler: on_move_order(x, z, {entity_ids...}) */
+    lua_getglobal(L, "on_move_order");
+    if (lua_isfunction(L, -1)) {
+        lua_pushnumber(L, target_x);
+        lua_pushnumber(L, target_z);
+
+        /* Create table of selected entity IDs */
+        lua_newtable(L);
+        for (int i = 0; i < g_selection.count; i++) {
+            int slot_index = g_selection.slots[i];
+            ComponentSlot* cs = slot_get(slots, slot_index);
+            if (cs) {
+                lua_pushinteger(L, cs->entity_id);
+                lua_rawseti(L, -2, i + 1);
+            }
+        }
+
+        /* Call: on_move_order(x, z, {entity_ids}) */
+        if (lua_pcall(L, 3, 0, 0) != LUA_OK) {
+            fprintf(stderr, "[input] Lua error in on_move_order: %s\n",
+                    lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+    } else {
+        lua_pop(L, 1);
+        /* No Lua handler registered - just show marker */
+    }
+}
+/* }}} */
+
+/* {{{ l_show_move_marker */
+int l_show_move_marker(lua_State* L) {
+    float x = (float)luaL_checknumber(L, 1);
+    float z = (float)luaL_checknumber(L, 2);
+    move_marker_show(x, z);
+    return 0;
 }
 /* }}} */
 
