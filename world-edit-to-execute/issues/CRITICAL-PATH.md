@@ -302,7 +302,7 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 ---
 
 ### IF-004: Vertical Slice (508) - CRITICAL PATH
-**Status:** 5/9 complete
+**Status:** 6/9 complete
 **Blocking:** Playable demo
 
 | Sub-Issue | Status |
@@ -312,12 +312,12 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 | 508c (Lua-C bridge) | ✓ Complete (2025-12-30) |
 | 508d (map integration) | ✓ Complete (2025-12-30) |
 | 508e (input and selection) | ✓ Complete (2025-12-30) |
-| 508f (movement orders) | ✗ Pending |
+| 508f (movement orders) | ✓ Complete (2025-12-31) |
 | 508g (minimal UI) | ✗ Pending |
 | 508h (integration test) | ✗ Pending |
 | 508i (fix chunk ray picking) | ✗ Pending (bug fix) |
 
-**Action:** Complete 508f to issue movement orders to selected entities
+**Action:** Complete 508g (minimal UI) for basic HUD display
 
 ---
 
@@ -365,7 +365,7 @@ Phase 5 (Rendering)
     ├── Requires: OQ-003 (dual interface strategy) ✓ DECIDED
     │
     ├── 508 (Vertical Slice) - CRITICAL PATH
-    │   └── 5/9 complete, next: 508f movement orders
+    │   └── 6/9 complete, next: 508g minimal UI
     │
     └── 509 (Visual Customization)
         ├── Requires: 503 (sprite system)
@@ -434,4 +434,6 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-31 | Added IF-005 for issue 509 (player visual customization) | Claude |
 | 2025-12-31 | Updated IF-004 to include 508i bug fix issue (5/9 complete) | Claude |
 | 2025-12-31 | Updated cross-phase dependencies with completion status markers | Claude |
+| 2025-12-31 | Completed 508f (movement orders) - right-click move, green marker | Claude |
+| 2025-12-31 | Issue audit: moved 51 completed issues to issues/completed/ | Claude |
 
