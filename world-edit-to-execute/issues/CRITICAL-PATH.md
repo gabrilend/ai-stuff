@@ -302,7 +302,7 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 ---
 
 ### IF-004: Vertical Slice (508) - CRITICAL PATH
-**Status:** 3/8 complete
+**Status:** 4/8 complete
 **Blocking:** Playable demo
 
 | Sub-Issue | Status |
@@ -310,13 +310,13 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 | 508a (threading infrastructure) | ✓ Complete |
 | 508b (entity render slots) | ✓ Complete (2025-12-30) |
 | 508c (Lua-C bridge) | ✓ Complete (2025-12-30) |
-| 508d (map integration) | ✗ Pending |
+| 508d (map integration) | ✓ Complete (2025-12-30) |
 | 508e (input and selection) | ✗ Pending |
 | 508f (movement orders) | ✗ Pending |
 | 508g (minimal UI) | ✗ Pending |
 | 508h (integration test) | ✗ Pending |
 
-**Action:** Complete 508d to load map terrain data into renderer
+**Action:** Complete 508e to enable mouse-based entity selection
 
 ---
 
@@ -403,4 +403,5 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-30 | Completed 405d (movement collision integration), 508b (entity render slots) | Claude |
 | 2025-12-30 | Completed 408a (unit tests core), 408b (unit tests entity) | Claude |
 | 2025-12-30 | Completed 508c (Lua-C bridge) - LuaJIT compatible | Claude |
+| 2025-12-30 | Completed 508d (map integration) - terrain grid, doodads, real map loading | Claude |
 

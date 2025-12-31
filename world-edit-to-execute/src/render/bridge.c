@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "bridge.h"
+#include "terrain.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -312,6 +313,7 @@ int l_find_by_entity(lua_State* L) {
 /* {{{ luaopen_render
  * Module registration function. Called when Lua requires "render". */
 static const luaL_Reg render_funcs[] = {
+    /* Entity functions (508c) */
     {"create_entity", l_create_entity},
     {"destroy_entity", l_destroy_entity},
     {"set_position", l_set_position},
@@ -324,6 +326,13 @@ static const luaL_Reg render_funcs[] = {
     {"set_mesh", l_set_mesh},
     {"get_slot_count", l_get_slot_count},
     {"find_by_entity", l_find_by_entity},
+    /* Terrain functions (508d) */
+    {"terrain_create", l_terrain_create},
+    {"terrain_destroy", l_terrain_destroy},
+    {"terrain_set_tile", l_terrain_set_tile},
+    {"terrain_set_offset", l_terrain_set_offset},
+    {"terrain_set_tiles", l_terrain_set_tiles},
+    {"terrain_info", l_terrain_info},
     {NULL, NULL}
 };
 
