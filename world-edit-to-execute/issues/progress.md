@@ -424,6 +424,12 @@ Phase 2 & 3 Complete
 | 510c | Perspective switching | Pending | 510a, 510b |
 | 510d | Shared UI components | Pending | 506 |
 | 510e | UI state persistence | Pending | 510a-d |
+| **511** | **Render system profiler** | **Issue Created** | 508a |
+| 511a | Core timing infrastructure | Pending | 508a |
+| 511b | Thread-safe recording | Pending | 511a |
+| 511c | Overlay rendering | Pending | 511a |
+| 511d | History buffer and graphs | Pending | 511c |
+| 511e | File export | Pending | 511a |
 
 ### Dependency Graph
 
@@ -1317,6 +1323,13 @@ Both systems support dual WC3/WoW modes:
   - Used exact axis normalization: 0.57735026919 instead of 0.577
   - Chunk clicking now works correctly at all rotation angles
   - **Issue 508 fully complete!** All 9 sub-issues done
+- **Issue 511 created:** Render system profiler
+  - High-resolution per-thread timing (Updater, Workers, Sync, Draw, Lua)
+  - Thread-safe sample recording with TLS buffers
+  - Visual overlay with bar graphs and statistics
+  - Rolling 2-second history for spike detection
+  - F3 toggle, F4 file export
+  - Sub-issues: 511a (timing), 511b (recording), 511c (overlay), 511d (history), 511e (export)
 - **Issue 110 in progress:** Object data parsers (110a-110e complete)
   - Created src/parsers/objectdata.lua (core parser, ~400 lines)
   - Created 7 type-specific parsers:
