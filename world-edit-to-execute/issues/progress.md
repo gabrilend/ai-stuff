@@ -405,9 +405,9 @@ Phase 2 & 3 Complete
 | **508** | **Vertical slice testing room** | **Priority** | 501a |
 | 508a | Threading infrastructure | **Completed** | 501a |
 | 508b | Entity render slots | **Completed** | 508a |
-| 508c | Lua-C bridge | Pending | 508b |
-| 508d | Map integration | Pending | 508c |
-| 508e | Input and selection | Pending | 508d |
+| 508c | Lua-C bridge | **Completed** | 508b |
+| 508d | Map integration | **Completed** | 508c |
+| 508e | Input and selection | **Completed** | 508d |
 | 508f | Movement orders | Pending | 508e |
 | 508g | Minimal UI | Pending | 508d |
 | 508h | Integration test | Pending | 508a-g |
