@@ -214,15 +214,15 @@ end
 
 ## Acceptance Criteria
 
-- [ ] Resource bar displays at top
-- [ ] Gold, Lumber, Food values shown
-- [ ] Game time displayed
-- [ ] Selection panel shows when units selected
-- [ ] Selected unit name and count displayed
-- [ ] Selected unit HP displayed
-- [ ] UI updates when resources change
-- [ ] UI updates when selection changes
-- [ ] FPS counter visible (debug)
+- [x] Resource bar displays at top
+- [x] Gold, Lumber, Food values shown
+- [x] Game time displayed
+- [x] Selection panel shows when units selected
+- [x] Selected unit name and count displayed
+- [x] Selected unit HP displayed
+- [x] UI updates when resources change
+- [x] UI updates when selection changes
+- [x] FPS counter visible (debug)
 
 ---
 
@@ -240,3 +240,74 @@ More UI features (buttons, minimap) come in later issues.
 - `issues/508d-map-integration.md` - Map must be loaded
 - `src/runtime/resources.lua` - Resource data source
 - `src/runtime/ecs/` - Entity data source
+
+---
+
+## Implementation Notes
+
+**Completed: 2025-12-31**
+
+### Files Created
+
+1. **`src/render/ui.h`** (~95 lines)
+   - `UIState` struct with resources, game time, selection info
+   - Configuration constants for bar heights and font sizes
+   - Function declarations for init, draw, setters
+   - Lua bridge function declarations
+
+2. **`src/render/ui.c`** (~230 lines)
+   - Global `g_ui` state with default values
+   - `draw_resource_bar()` - semi-transparent bar at top with Gold/Lumber/Food/Time
+   - `draw_selection_panel()` - bottom bar with unit name, count, HP bar
+   - Color-coded HP bar (green > 60%, yellow > 30%, red < 30%)
+   - Color-coded food display (red at cap, yellow almost full)
+   - `format_time()` helper for MM:SS display
+   - All 5 Lua bridge functions implemented
+
+### Files Modified
+
+1. **`src/render/bridge.c`**
+   - Added `#include "ui.h"`
+   - Registered 5 UI functions in render_funcs array
+
+2. **`src/render/main.c`**
+   - Added `#include "ui.h"`
+   - Added `ui_init()` call after input_init()
+   - Added `ui_draw()` call in 2D drawing phase
+   - Added game time update via Lua update_game_time(dt)
+   - Added selection change detection to call Lua on_selection_changed()
+   - Updated debug HUD positions to offset below resource bar
+   - Updated control hints for current functionality
+   - Added Lua entity_info table with demo entity stats
+   - Added on_selection_changed() Lua function for UI updates
+   - Added update_game_time() Lua function for time display
+
+3. **`src/render/run`**
+   - Added ui.c to SOURCES list
+
+### Demo Features
+
+- **Resource Bar** (top, 30px height):
+  - Gold: 500 (gold color)
+  - Lumber: 150 (brown color)
+  - Food: 0/12 (white, yellow at cap-2, red at cap)
+  - Time: MM:SS format (right side)
+
+- **Selection Panel** (bottom, 50px height):
+  - Appears only when units selected
+  - Shows unit name (e.g., "Red Warrior")
+  - Shows count if multiple selected
+  - Visual HP bar with color gradient
+
+- **Demo Entity Stats**:
+  - Red Warrior: 100/100 HP
+  - Blue Mage: 80/80 HP
+  - Green Scout: 60/60 HP
+  - Yellow Guard: 120/120 HP
+
+### Technical Notes
+
+- UI state is global singleton (g_ui) for simplicity
+- Lua updates flow through bridge functions to C state
+- Selection change detection uses frame-to-frame count comparison
+- Resource values are initialized with demo defaults, updatable via Lua

@@ -29,6 +29,7 @@
 #include "bridge.h"
 #include "terrain.h"
 #include "input.h"
+#include "ui.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
@@ -766,6 +767,44 @@ bool init_lua_bridge(void) {
         "    end\n"
         "end\n"
         "\n"
+        "-- 508g: Entity info for UI (demo entities have simple stats)\n"
+        "_G.entity_info = {\n"
+        "    [100] = {name = 'Red Warrior', hp = 100, hp_max = 100},\n"
+        "    [101] = {name = 'Blue Mage', hp = 80, hp_max = 80},\n"
+        "    [102] = {name = 'Green Scout', hp = 60, hp_max = 60},\n"
+        "    [103] = {name = 'Yellow Guard', hp = 120, hp_max = 120},\n"
+        "}\n"
+        "\n"
+        "-- 508g: Game time tracking\n"
+        "_G.game_time = 0\n"
+        "\n"
+        "-- 508g: Called when selection changes to update UI\n"
+        "function on_selection_changed()\n"
+        "    local selected = render.get_selection()\n"
+        "    local count = #selected\n"
+        "    \n"
+        "    if count == 0 then\n"
+        "        render.ui_clear_selection()\n"
+        "        return\n"
+        "    end\n"
+        "    \n"
+        "    -- Get info from first selected entity\n"
+        "    local first_id = _G.slot_to_entity and _G.slot_to_entity[selected[1]]\n"
+        "    local info = first_id and _G.entity_info[first_id]\n"
+        "    \n"
+        "    if info then\n"
+        "        render.ui_set_selection(info.name, count, info.hp, info.hp_max)\n"
+        "    else\n"
+        "        render.ui_set_selection('Unit', count, 100, 100)\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "-- 508g: Called each frame to update game time UI\n"
+        "function update_game_time(dt)\n"
+        "    _G.game_time = _G.game_time + dt\n"
+        "    render.ui_set_game_time(_G.game_time)\n"
+        "end\n"
+        "\n"
         "-- Try to load a real map (doodads will use remaining slots)\n"
         "local map_loaded = false\n"
         "local test_map = PROJECT_ROOT .. '/assets/DAoW-5.4b-PUBLIC-TEST.w3x'\n"
@@ -1125,6 +1164,9 @@ int main(void) {
     /* Initialize input system (508e) */
     input_init(&camera);
 
+    /* Initialize UI system (508g) */
+    ui_init();
+
     printf("[main] Entering render loop...\n\n");
 
     while (!WindowShouldClose()) {
@@ -1134,15 +1176,42 @@ int main(void) {
         update_particles(dt);
         update_lua_entities(dt);  /* 508c: Update Lua-created entities */
 
+        /* 508g: Update game time in Lua */
+        if (g_lua) {
+            lua_getglobal(g_lua, "update_game_time");
+            if (lua_isfunction(g_lua, -1)) {
+                lua_pushnumber(g_lua, dt);
+                lua_pcall(g_lua, 1, 0, 0);
+            } else {
+                lua_pop(g_lua, 1);
+            }
+        }
+
         /* Update input system (508e) */
         input_update();
 
         /* Handle slider input first */
         bool slider_active = update_sliders();
 
+        /* Track selection for UI updates (508g) */
+        static int prev_sel_count = 0;
+        int cur_sel_count = selection_get_count();
+
         /* Process selection input if not using sliders (508e) */
         if (!slider_active) {
             process_selection_input(g_primary.slots);
+        }
+
+        /* 508g: Notify Lua when selection changes */
+        cur_sel_count = selection_get_count();
+        if (cur_sel_count != prev_sel_count && g_lua) {
+            lua_getglobal(g_lua, "on_selection_changed");
+            if (lua_isfunction(g_lua, -1)) {
+                lua_pcall(g_lua, 0, 0, 0);
+            } else {
+                lua_pop(g_lua, 1);
+            }
+            prev_sel_count = cur_sel_count;
         }
 
         /* 508f: Process movement orders (right-click) */
@@ -1212,30 +1281,25 @@ int main(void) {
                 move_marker_draw();
             EndMode3D();
 
-            /* HUD */
-            DrawFPS(10, 10);
-            DrawText("Interactive Demo (508b Slots + 508c Lua)", 10, 35, 16, DARKGRAY);
+            /* 508g: Draw UI (resource bar at top, selection panel at bottom) */
+            ui_draw();
+
+            /* Debug HUD (offset below resource bar) */
+            DrawFPS(10, 40);
+            DrawText("Interactive Demo (508b Slots + 508c Lua)", 10, 60, 16, DARKGRAY);
 
             char buf[80];
             snprintf(buf, sizeof(buf), "Chunks: %d/%d  Lua entities: %d",
                      count_active_chunks(g_cube_mesh), g_cube_mesh->chunk_count, g_lua_entity_count);
-            DrawText(buf, 10, 55, 14, GRAY);
+            DrawText(buf, 10, 80, 14, GRAY);
 
-            DrawText("LMB: cycle color | RMB: destroy", 10, 75, 12, DARKGRAY);
+            DrawText("LMB: select | RMB: move | Shift+LMB: add", 10, 100, 12, DARKGRAY);
 
             /* Sliders */
             draw_sliders();
 
             /* 508e: Selection box during drag */
             draw_selection_box();
-
-            /* 508e: Selection count in HUD */
-            int sel_count = selection_get_count();
-            if (sel_count > 0) {
-                char sel_buf[40];
-                snprintf(sel_buf, sizeof(sel_buf), "Selected: %d", sel_count);
-                DrawText(sel_buf, 10, 95, 14, GREEN);
-            }
 
         EndDrawing();
     }

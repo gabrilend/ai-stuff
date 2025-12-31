@@ -11,6 +11,7 @@
 #include "bridge.h"
 #include "terrain.h"
 #include "input.h"
+#include "ui.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -343,6 +344,12 @@ static const luaL_Reg render_funcs[] = {
     {"is_selected", l_is_selected},
     /* Movement functions (508f) */
     {"show_move_marker", l_show_move_marker},
+    /* UI functions (508g) */
+    {"ui_set_resources", l_ui_set_resources},
+    {"ui_set_selection", l_ui_set_selection},
+    {"ui_set_game_time", l_ui_set_game_time},
+    {"ui_clear_selection", l_ui_clear_selection},
+    {"ui_show", l_ui_show},
     {NULL, NULL}
 };
 
