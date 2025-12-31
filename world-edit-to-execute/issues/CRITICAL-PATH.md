@@ -10,7 +10,7 @@
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
-**Last Updated:** 2025-12-30
+**Last Updated:** 2025-12-31
 **Maintainer:** Project contributors
 **Location:** `issues/CRITICAL-PATH.md` (symlinked to `docs/critical-path.md`)
 
@@ -302,7 +302,7 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 ---
 
 ### IF-004: Vertical Slice (508) - CRITICAL PATH
-**Status:** 5/8 complete
+**Status:** 5/9 complete
 **Blocking:** Playable demo
 
 | Sub-Issue | Status |
@@ -315,8 +315,27 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 | 508f (movement orders) | ✗ Pending |
 | 508g (minimal UI) | ✗ Pending |
 | 508h (integration test) | ✗ Pending |
+| 508i (fix chunk ray picking) | ✗ Pending (bug fix) |
 
 **Action:** Complete 508f to issue movement orders to selected entities
+
+---
+
+### IF-005: Player Visual Customization (509)
+**Status:** 0/5 complete
+**Blocking:** Nothing currently (enhancement feature)
+
+| Sub-Issue | Status |
+|-----------|--------|
+| 509 (root) | ✓ Created (2025-12-31) |
+| 509a (character appearance data model) | ✗ Pending |
+| 509b (effect color parameter system) | ✗ Pending |
+| 509c (viewport preference system) | ✗ Pending |
+| 509d (WoW-Chat profile integration) | ✗ Pending |
+| 509e (render pipeline integration) | ✗ Pending |
+
+**Dependencies:** 503 (sprite system), WoW-Chat integration (OQ-003/004)
+**Action:** Create sub-issue files when beginning implementation
 
 ---
 
@@ -341,9 +360,16 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 ```
 Phase 5 (Rendering)
     │
-    ├── Requires: OQ-001 (renderer target)
-    ├── Requires: OQ-002 (coordinate system)
-    └── Requires: OQ-003 (dual interface strategy)
+    ├── Requires: OQ-001 (renderer target) ✓ DECIDED
+    ├── Requires: OQ-002 (coordinate system) ✓ DECIDED
+    ├── Requires: OQ-003 (dual interface strategy) ✓ DECIDED
+    │
+    ├── 508 (Vertical Slice) - CRITICAL PATH
+    │   └── 5/9 complete, next: 508f movement orders
+    │
+    └── 509 (Visual Customization)
+        ├── Requires: 503 (sprite system)
+        └── Requires: OQ-003/004 (WoW-Chat integration)
 
 Phase 7 (Gameplay)
     │
@@ -352,8 +378,8 @@ Phase 7 (Gameplay)
 
 Phase 4 Completion
     │
-    ├── Requires: IF-002 (405d collision)
-    └── Requires: IF-003 (408 integration tests)
+    ├── IF-002 (405 collision) ✓ COMPLETE
+    └── IF-003 (408 integration tests) - 3/5 complete
 ```
 
 ---
@@ -405,4 +431,7 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-30 | Completed 508c (Lua-C bridge) - LuaJIT compatible | Claude |
 | 2025-12-30 | Completed 508d (map integration) - terrain grid, doodads, real map loading | Claude |
 | 2025-12-30 | Completed 508e (input and selection) - mouse tracking, ray picking, box select | Claude |
+| 2025-12-31 | Added IF-005 for issue 509 (player visual customization) | Claude |
+| 2025-12-31 | Updated IF-004 to include 508i bug fix issue (5/9 complete) | Claude |
+| 2025-12-31 | Updated cross-phase dependencies with completion status markers | Claude |
 
