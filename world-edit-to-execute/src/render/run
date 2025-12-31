@@ -35,7 +35,7 @@ echo ""
 cd "${PROJECT_PATH}"
 
 # Source files
-SOURCES="main.c threading.c slots.c bridge.c terrain.c input.c"
+SOURCES="main.c threading.c slots.c bridge.c terrain.c input.c ui.c"
 
 # LuaJIT flags
 LUAJIT_CFLAGS=$(pkg-config --cflags luajit 2>/dev/null || echo "-I/usr/include/luajit-2.1")

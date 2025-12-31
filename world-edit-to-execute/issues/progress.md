@@ -409,7 +409,7 @@ Phase 2 & 3 Complete
 | 508d | Map integration | **Completed** | 508c |
 | 508e | Input and selection | **Completed** | 508d |
 | 508f | Movement orders | **Completed** | 508e |
-| 508g | Minimal UI | Pending | 508d |
+| 508g | Minimal UI | **Completed** | 508d |
 | 508h | Integration test | Pending | 508a-g |
 | 508i | Fix chunk ray picking | Pending | 508b |
 | 509 | Player-customizable visual effects | Issues Created | 503 |
@@ -1295,6 +1295,13 @@ Both systems support dual WC3/WoW modes:
   - Increased MAX_SLOTS from 1024 to 4096 (maps load 2000+ doodads)
   - Key fix: Create demo entities BEFORE map loading to avoid slot exhaustion
   - Demo: 4 colored cubes (Red/Blue/Green/Yellow), left-click select, right-click move
+- **Issue 508g completed:** Minimal UI
+  - Created ui.h/ui.c with UIState struct and rendering functions
+  - Resource bar at top: Gold (gold), Lumber (brown), Food (color-coded), Time (MM:SS)
+  - Selection panel at bottom: Unit name, count, HP bar with color gradient
+  - 5 Lua bridge functions: ui_set_resources, ui_set_selection, ui_set_game_time, etc.
+  - Lua on_selection_changed() updates UI when selection changes
+  - Demo entities have named stats (Red Warrior 100HP, Blue Mage 80HP, etc.)
 
 ---
 
