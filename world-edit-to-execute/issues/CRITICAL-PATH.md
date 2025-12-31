@@ -98,11 +98,14 @@ How should Warcraft RTS mode and WoW-Chat mode coexist?
 | Parallel views | Both visible simultaneously |
 | **API-driven** | Data-driven integration layer |
 
-**Decision:** API-style data-driven approach. WoW-chat integration is integral
-to the process. AzerothCore integrates with world-edit-to-execute via shared
-data APIs. Both systems consume the same underlying game state.
+**Decision:** Full emulation with unified architecture. Single server hosts all
+WC3 games. Unified client switches on-the-fly between top-down WC3 view and
+over-the-shoulder WoW view. Both perspectives fully comprehensive, same graphical
+scaling. AzerothCore and world-edit-to-execute are translation layers rendering
+the same underlying data. Player can play WC3 in WoW style and vice versa.
 **Decided by:** User
-**Date:** 2025-12-29
+**Date:** 2025-12-29 (expanded 2025-12-31)
+**Details:** See issue 500 "Decided Answers" section (D1, D4)
 
 ---
 
@@ -124,9 +127,43 @@ Which interface gets primary development focus?
 
 **Decision:** Integrated approach - WoW-chat is not a separate mode but an
 integral part of the system. Build the data/API layer that both WC3 visuals
-and AzerothCore can consume. The engine becomes the shared truth.
+and AzerothCore can consume. The engine becomes the shared truth. Both systems
+run in parallel, rendering the same underlying state. WC3 hero IS the WoW
+character - same entity viewed through different perspectives.
 **Decided by:** User
-**Date:** 2025-12-29
+**Date:** 2025-12-29 (expanded 2025-12-31)
+**Details:** See issue 500 "Decided Answers" section (D3, D4, D5)
+
+---
+
+### OQ-007: Window Management Strategy
+**Priority:** 🟡 MEDIUM
+**Affects:** Phase 5 (UI framework), Phase 6 (user experience)
+**Status:** DECIDED
+**Source:** Issue 500
+
+How should UI panels and views be managed?
+
+| Option | Description |
+|--------|-------------|
+| Fixed layout | Permanent panel positions |
+| Dockable | Snap to edges, user arrangeable |
+| **Breakout windows** | OS-managed or client-managed floating windows |
+| Multi-monitor | Separate windows per display |
+
+**Decision:** User-configurable with all options available:
+- Picture-in-picture (overlay views)
+- Split screen (side by side)
+- Separate windows (multi-monitor support)
+
+UI panels (chat, professions, inventory) can be:
+- OS-managed: Window decorations, standard OS window behavior
+- Client-managed: Software window management, drag within client
+
+WC3 default: Permanent top/bottom panels, overlay menus (pause in single-player).
+**Decided by:** User
+**Date:** 2025-12-31
+**Details:** See issue 500 "Decided Answers" section (D2)
 
 ---
 
@@ -436,4 +473,6 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-31 | Updated cross-phase dependencies with completion status markers | Claude |
 | 2025-12-31 | Completed 508f (movement orders) - right-click move, green marker | Claude |
 | 2025-12-31 | Issue audit: moved 51 completed issues to issues/completed/ | Claude |
+| 2025-12-31 | Expanded OQ-003/004 with full emulation architecture details | User/Claude |
+| 2025-12-31 | Added OQ-007 (window management strategy) - breakout windows decided | User/Claude |
 
