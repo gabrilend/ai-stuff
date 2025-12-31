@@ -408,7 +408,7 @@ Phase 2 & 3 Complete
 | 508c | Lua-C bridge | **Completed** | 508b |
 | 508d | Map integration | **Completed** | 508c |
 | 508e | Input and selection | **Completed** | 508d |
-| 508f | Movement orders | Pending | 508e |
+| 508f | Movement orders | **Completed** | 508e |
 | 508g | Minimal UI | Pending | 508d |
 | 508h | Integration test | Pending | 508a-g |
 | 508i | Fix chunk ray picking | Pending | 508b |
@@ -1288,6 +1288,13 @@ Both systems support dual WC3/WoW modes:
   - All 6 sub-issues complete (306a-306f)
   - 226 transpiler tests passing
   - JASS-to-Lua transpilation fully functional
+- **Issue 508f completed:** Movement orders
+  - Right-click handler in input.c calls Lua on_move_order(x, z, entity_ids)
+  - Move marker visualization: expanding green circle with crosshair, 1s fade
+  - Lua movement system: stores targets in _G.entity_targets, interpolates positions
+  - Increased MAX_SLOTS from 1024 to 4096 (maps load 2000+ doodads)
+  - Key fix: Create demo entities BEFORE map loading to avoid slot exhaustion
+  - Demo: 4 colored cubes (Red/Blue/Green/Yellow), left-click select, right-click move
 
 ---
 

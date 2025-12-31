@@ -16,7 +16,7 @@
 #include <stdbool.h>
 
 /* {{{ Configuration */
-#define MAX_SLOTS 1024   /* Fixed array size - adjust at compile time if needed */
+#define MAX_SLOTS 4096   /* Fixed array size - maps can have 2000+ doodads */
 /* }}} */
 
 /* {{{ RenderSlot - GPU-ready data for one entity

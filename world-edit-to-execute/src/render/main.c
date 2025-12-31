@@ -716,7 +716,7 @@ bool init_lua_bridge(void) {
 
     /* Run inline test script - attempts to load real map, falls back to demo */
     const char* test_script =
-        "-- 508d: Map Integration Test Script\n"
+        "-- 508d/508f: Map Integration and Movement Test Script\n"
         "local render = require('render')\n"
         "print('[lua] render module loaded, MAX_SLOTS = ' .. render.MAX_SLOTS)\n"
         "\n"
@@ -727,7 +727,46 @@ bool init_lua_bridge(void) {
         "              package.path\n"
         "package.cpath = '/usr/lib/lua/5.1/?.so;' .. package.cpath\n"
         "\n"
-        "-- Try to load a real map\n"
+        "-- 508f: Create demo entities FIRST (before map loading takes up slots)\n"
+        "local slots = {}\n"
+        "local positions = {\n"
+        "    {id=100, x=-5, y=0.5, z=0, r=255, g=50, b=50},   -- Red\n"
+        "    {id=101, x=5, y=0.5, z=0, r=50, g=50, b=255},    -- Blue\n"
+        "    {id=102, x=0, y=0.5, z=-5, r=50, g=200, b=50},   -- Green\n"
+        "    {id=103, x=0, y=0.5, z=5, r=255, g=255, b=50},   -- Yellow\n"
+        "}\n"
+        "\n"
+        "for _, p in ipairs(positions) do\n"
+        "    local slot = render.create_entity(p.id, render.MESH_CUBE, p.x, p.y, p.z)\n"
+        "    if slot >= 0 then\n"
+        "        render.set_color(slot, p.r, p.g, p.b)\n"
+        "        render.set_scale(slot, 0.5)\n"
+        "        table.insert(slots, slot)\n"
+        "    end\n"
+        "end\n"
+        "print('[lua] Created ' .. #slots .. ' demo entities')\n"
+        "\n"
+        "_G.lua_entity_slots = slots\n"
+        "_G.lua_entity_count = #slots\n"
+        "\n"
+        "-- Slot to entity ID mapping for movement\n"
+        "_G.slot_to_entity = {}\n"
+        "for i, slot in ipairs(slots) do\n"
+        "    _G.slot_to_entity[slot] = positions[i].id\n"
+        "end\n"
+        "\n"
+        "-- 508f: Movement order handling\n"
+        "_G.entity_targets = {}\n"
+        "_G.move_speed = 3.0\n"
+        "\n"
+        "function on_move_order(x, z, entity_ids)\n"
+        "    print('[lua] Move order: (' .. string.format('%.1f', x) .. ', ' .. string.format('%.1f', z) .. ') for ' .. #entity_ids .. ' units')\n"
+        "    for _, entity_id in ipairs(entity_ids) do\n"
+        "        _G.entity_targets[entity_id] = {x = x, z = z}\n"
+        "    end\n"
+        "end\n"
+        "\n"
+        "-- Try to load a real map (doodads will use remaining slots)\n"
         "local map_loaded = false\n"
         "local test_map = PROJECT_ROOT .. '/assets/DAoW-5.4b-PUBLIC-TEST.w3x'\n"
         "\n"
@@ -803,27 +842,7 @@ bool init_lua_bridge(void) {
         "    end\n"
         "end\n"
         "\n"
-        "-- Create demo entities\n"
-        "local slots = {}\n"
-        "local positions = {\n"
-        "    {id=100, x=-5, y=0.5, z=0, r=255, g=50, b=50},   -- Red\n"
-        "    {id=101, x=5, y=0.5, z=0, r=50, g=50, b=255},    -- Blue\n"
-        "    {id=102, x=0, y=0.5, z=-5, r=50, g=200, b=50},   -- Green\n"
-        "    {id=103, x=0, y=0.5, z=5, r=255, g=255, b=50},   -- Yellow\n"
-        "}\n"
-        "\n"
-        "for _, p in ipairs(positions) do\n"
-        "    local slot = render.create_entity(p.id, render.MESH_CUBE, p.x, p.y, p.z)\n"
-        "    if slot >= 0 then\n"
-        "        render.set_color(slot, p.r, p.g, p.b)\n"
-        "        render.set_scale(slot, 0.5)\n"
-        "        table.insert(slots, slot)\n"
-        "    end\n"
-        "end\n"
-        "print('[lua] Created ' .. #slots .. ' demo entities')\n"
-        "\n"
-        "_G.lua_entity_slots = slots\n"
-        "_G.lua_entity_count = #slots\n";
+        "-- Demo entities and movement order handling already set up at script start\n";
 
     int result = luaL_dostring(g_lua, test_script);
     if (result != LUA_OK) {
@@ -846,13 +865,20 @@ bool init_lua_bridge(void) {
 
 /* {{{ update_lua_entities
  * Called each frame to update Lua-created entities.
- * Applies rotation animation to demonstrate the bridge works. */
+ * 508f: Moves entities toward targets set by on_move_order. */
 void update_lua_entities(float dt) {
     if (!g_lua) return;
 
-    /* Run Lua update script */
     static float lua_time = 0.0f;
     lua_time += dt;
+
+    /* Get movement speed from Lua */
+    float move_speed = 3.0f;
+    lua_getglobal(g_lua, "move_speed");
+    if (lua_isnumber(g_lua, -1)) {
+        move_speed = (float)lua_tonumber(g_lua, -1);
+    }
+    lua_pop(g_lua, 1);
 
     /* Update positions via Lua bridge */
     lua_getglobal(g_lua, "lua_entity_slots");
@@ -864,10 +890,69 @@ void update_lua_entities(float dt) {
                 int slot_idx = (int)lua_tointeger(g_lua, -1);
                 ComponentSlot* slot = slot_get(g_primary.slots, slot_idx);
                 if (slot && slot->in_use && slot->data) {
-                    /* Animate rotation */
-                    slot->data->spin = fmodf(lua_time * 90.0f, 360.0f);
-                    /* Bob up and down */
-                    slot->data->y = sinf(lua_time * 2.0f + i) * 0.3f;
+                    RenderSlot* rs = slot->data;
+
+                    /* Get entity ID for this slot */
+                    lua_getglobal(g_lua, "slot_to_entity");
+                    lua_pushinteger(g_lua, slot_idx);
+                    lua_gettable(g_lua, -2);
+                    int entity_id = lua_isnumber(g_lua, -1) ? (int)lua_tointeger(g_lua, -1) : -1;
+                    lua_pop(g_lua, 2);  /* pop entity_id and slot_to_entity */
+
+                    /* Check if entity has movement target */
+                    bool has_target = false;
+                    float target_x = 0, target_z = 0;
+
+                    if (entity_id >= 0) {
+                        lua_getglobal(g_lua, "entity_targets");
+                        lua_pushinteger(g_lua, entity_id);
+                        lua_gettable(g_lua, -2);
+                        if (lua_istable(g_lua, -1)) {
+                            lua_getfield(g_lua, -1, "x");
+                            lua_getfield(g_lua, -2, "z");
+                            target_x = (float)lua_tonumber(g_lua, -2);
+                            target_z = (float)lua_tonumber(g_lua, -1);
+                            lua_pop(g_lua, 2);
+                            has_target = true;
+                        }
+                        lua_pop(g_lua, 2);  /* pop target table and entity_targets */
+                    }
+
+                    if (has_target) {
+                        /* Calculate direction to target */
+                        float dx = target_x - rs->x;
+                        float dz = target_z - rs->z;
+                        float dist = sqrtf(dx * dx + dz * dz);
+
+                        if (dist > 0.1f) {
+                            /* Move toward target */
+                            float step = move_speed * dt;
+                            if (step > dist) step = dist;
+
+                            rs->x += (dx / dist) * step;
+                            rs->z += (dz / dist) * step;
+
+                            /* Face movement direction */
+                            rs->facing = atan2f(dx, dz) * (180.0f / 3.14159f);
+                        } else {
+                            /* Arrived - clear target */
+                            lua_getglobal(g_lua, "entity_targets");
+                            lua_pushinteger(g_lua, entity_id);
+                            lua_pushnil(g_lua);
+                            lua_settable(g_lua, -3);
+                            lua_pop(g_lua, 1);
+                        }
+                    }
+
+                    /* Light spin animation */
+                    rs->spin = fmodf(lua_time * 45.0f, 360.0f);
+
+                    /* Slight bob when moving */
+                    if (has_target) {
+                        rs->y = 0.5f + sinf(lua_time * 8.0f) * 0.05f;
+                    } else {
+                        rs->y = 0.5f;
+                    }
                 }
             }
             lua_pop(g_lua, 1);
@@ -1060,6 +1145,14 @@ int main(void) {
             process_selection_input(g_primary.slots);
         }
 
+        /* 508f: Process movement orders (right-click) */
+        if (!slider_active) {
+            process_movement_input(g_primary.slots, g_lua);
+        }
+
+        /* 508f: Update move marker animation */
+        move_marker_update(dt);
+
         /* Read slot from primary buffer */
         RenderSlot slot_copy = {0};
         bool have_slot = false;
@@ -1114,6 +1207,9 @@ int main(void) {
 
                 /* 508e: Selection circles under selected entities */
                 draw_selection_circles(g_primary.slots);
+
+                /* 508f: Move target marker */
+                move_marker_draw();
             EndMode3D();
 
             /* HUD */
