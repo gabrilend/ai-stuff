@@ -421,6 +421,121 @@ end
 -- }}}
 -- }}}
 
+-- {{{ Frame-based path functions
+-- Paths as choreography - the shape of movement, not just locations
+
+local frames_module = nil
+local function get_frames()
+    if not frames_module then
+        frames_module = require("runtime.pathfinding.frames")
+    end
+    return frames_module
+end
+
+-- {{{ astar.find_path_frames
+-- Find path and return as frame sequence (choreography)
+-- @param grid Pathing grid
+-- @param start_x, start_y Starting position
+-- @param goal_x, goal_y Goal position
+-- @param options Same as find_path
+-- @return frame_path { start = {x,y}, frames = {...}, goal = {x,y} }
+-- @return cost Total path cost
+-- @return error Error message if no path
+function astar.find_path_frames(grid, start_x, start_y, goal_x, goal_y, options)
+    local path, cost, err = astar.find_path(grid, start_x, start_y, goal_x, goal_y, options)
+
+    if not path then
+        return nil, nil, err
+    end
+
+    local frames = get_frames()
+    local frame_path = frames.path_to_frames(path)
+    frame_path.goal = { x = goal_x, y = goal_y }
+
+    return frame_path, cost
+end
+-- }}}
+
+-- {{{ astar.path_to_frames
+-- Convert existing coordinate path to frame choreography
+-- @param path Array of {x, y} waypoints
+-- @return frame_path { start = {x,y}, frames = {...} }
+function astar.path_to_frames(path)
+    local frames = get_frames()
+    return frames.path_to_frames(path)
+end
+-- }}}
+
+-- {{{ astar.frames_to_path
+-- Convert frame choreography back to coordinate path
+-- @param frame_path { start = {x,y}, frames = {...} }
+-- @return path Array of {x, y} waypoints
+function astar.frames_to_path(frame_path)
+    local frames = get_frames()
+    return frames.frames_to_path(frame_path)
+end
+-- }}}
+
+-- {{{ astar.path_to_ascii
+-- Convert path to ASCII art direction string
+-- @param path Array of {x, y} waypoints OR frame_path
+-- @return string like "→→↗↗↑↑←○"
+function astar.path_to_ascii(path)
+    local frames = get_frames()
+
+    -- If it's already a frame path
+    if path.frames then
+        return frames.path_to_ascii(path)
+    end
+
+    -- Convert coordinate path first
+    local frame_path = frames.path_to_frames(path)
+    return frames.path_to_ascii(frame_path)
+end
+-- }}}
+
+-- {{{ astar.compare_paths
+-- Compare two paths by their shape (frame similarity)
+-- @param path_a First path (coordinates or frames)
+-- @param path_b Second path (coordinates or frames)
+-- @return similarity 0.0 (completely different) to 1.0 (identical shape)
+function astar.compare_paths(path_a, path_b)
+    local frames = get_frames()
+
+    -- Convert to frame paths if needed
+    local fa = path_a.frames and path_a or frames.path_to_frames(path_a)
+    local fb = path_b.frames and path_b or frames.path_to_frames(path_b)
+
+    -- Different lengths = different shapes
+    if #fa.frames ~= #fb.frames then
+        local len_ratio = math.min(#fa.frames, #fb.frames) / math.max(#fa.frames, #fb.frames)
+        -- Continue comparing common prefix, weighted by length ratio
+    end
+
+    -- Compare frame by frame
+    local total_diff = 0
+    local compare_len = math.min(#fa.frames, #fb.frames)
+
+    if compare_len == 0 then
+        return 1.0  -- Both empty = identical
+    end
+
+    for i = 1, compare_len do
+        local diff = frames.frame_difference(fa.frames[i], fb.frames[i])
+        total_diff = total_diff + diff
+    end
+
+    -- Normalize: 0 diff = 1.0 similarity, 255*len diff = 0.0 similarity
+    local max_diff = 255 * compare_len
+    local similarity = 1.0 - (total_diff / max_diff)
+
+    -- Adjust for length difference
+    local len_ratio = math.min(#fa.frames, #fb.frames) / math.max(#fa.frames, #fb.frames, 1)
+    return similarity * len_ratio
+end
+-- }}}
+-- }}}
+
 -- {{{ Exports
 -- Export internal components for testing and advanced usage
 astar.PriorityQueue = PriorityQueue

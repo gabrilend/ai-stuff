@@ -453,4 +453,267 @@ ecs.register_system(
 )
 -- }}}
 
+-- {{{ Frame-based movement orders
+-- Movement stored as choreography - the shape of the path, not just destinations.
+
+local frames_module = nil
+local function get_frames()
+    if not frames_module then
+        frames_module = require("runtime.pathfinding.frames")
+    end
+    return frames_module
+end
+
+-- Forward declaration for execute_move_frames
+local execute_move_frames
+
+-- {{{ orders.move_frames
+-- Issue a move order using a frame path (choreography).
+-- The entity follows the shape of movement, not just the destination.
+--
+-- @param entity entity ID
+-- @param frame_path { start = {x,y}, frames = {...}, goal = {x,y} }
+-- @param options optional table with:
+--   queue: boolean - if true, add to queue instead of replacing current
+-- @return boolean success, string error message
+function orders.move_frames(entity, frame_path, options)
+    options = options or {}
+
+    local ord = ecs.get_component(entity, "orders")
+    if not ord then
+        return false, "Entity has no orders component"
+    end
+
+    local pos = ecs.get_component(entity, "position")
+    if not pos then
+        return false, "Entity has no position component"
+    end
+
+    local mov = ecs.get_component(entity, "movement")
+    if not mov then
+        return false, "Entity has no movement component"
+    end
+
+    ensure_tables(ord)
+
+    -- Create frame-based order
+    local order = {
+        type = orders.TYPE.MOVE,
+        frame_path = frame_path,  -- The choreography
+        target = frame_path.goal or { x = 0, y = 0 },
+        status = orders.STATUS.PENDING,
+        issued_at = get_time(),
+        frame_index = 1,  -- Current step in choreography
+    }
+
+    if options.queue and ord.current then
+        ord.queue[#ord.queue + 1] = order
+    else
+        if ord.current then
+            cancel_current(entity, ord)
+        end
+        ord.current = order
+        execute_move_frames(entity, order)
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ execute_move_frames
+-- Internal: Starts executing a frame-based move order.
+-- Converts frame path to coordinate path for movement system.
+--
+-- @param entity entity ID
+-- @param order the move order with frame_path
+-- @return boolean success
+local function execute_move_frames(entity, order)
+    local pos = ecs.get_component(entity, "position")
+    local mov = ecs.get_component(entity, "movement")
+
+    if not pos or not mov then
+        order.status = orders.STATUS.FAILED
+        order.error = "Missing position or movement component"
+        fire_callbacks(entity, order, false)
+        return false
+    end
+
+    local frames = get_frames()
+
+    -- Adjust frame_path start to current position (apply choreography from here)
+    local adjusted_path = {
+        start = { x = pos.x, y = pos.y },
+        frames = order.frame_path.frames,
+    }
+
+    -- Convert frames to coordinate path
+    local path = frames.frames_to_path(adjusted_path)
+
+    -- Set path on movement component
+    local success = movement.set_path(entity, path)
+    if not success then
+        order.status = orders.STATUS.FAILED
+        order.error = "Failed to set movement path"
+        fire_callbacks(entity, order, false)
+        return false
+    end
+
+    order.status = orders.STATUS.EXECUTING
+    return true
+end
+-- }}}
+
+-- {{{ orders.get_path_shape
+-- Get the current movement path as a frame sequence (ASCII art).
+--
+-- @param entity entity ID
+-- @return string ASCII representation of path shape (e.g., "→→↗↗↑↑")
+function orders.get_path_shape(entity)
+    local mov = ecs.get_component(entity, "movement")
+    if not mov or not mov.path or #mov.path < 2 then
+        return "○"  -- Stationary
+    end
+
+    local frames = get_frames()
+    local frame_path = frames.path_to_frames(mov.path)
+    return frames.path_to_ascii(frame_path)
+end
+-- }}}
+
+-- {{{ orders.get_momentum
+-- Get entity's current movement as momentum (direction + magnitude).
+--
+-- @param entity entity ID
+-- @return Momentum object or nil
+function orders.get_momentum(entity)
+    local pos = ecs.get_component(entity, "position")
+    local mov = ecs.get_component(entity, "movement")
+
+    if not pos or not mov then
+        return nil
+    end
+
+    local frames = get_frames()
+
+    if not movement.is_moving(entity) then
+        return frames.Momentum.new(frames.ORIGIN, 0)
+    end
+
+    -- Get direction from current movement
+    local target = movement.get_target(entity)
+    if not target then
+        return frames.Momentum.new(frames.ORIGIN, 0)
+    end
+
+    local direction = frames.points_to_frame(pos.x, pos.y, target.x, target.y)
+    local speed = movement.get_effective_speed(entity) or 0
+
+    -- Magnitude is based on speed (normalized to reasonable range)
+    local magnitude = math.floor(speed / 50)  -- ~1 per 50 speed
+
+    return frames.Momentum.new(direction, magnitude)
+end
+-- }}}
+
+-- {{{ orders.apply_force
+-- Apply a directional force to entity's momentum.
+-- Combines with current movement direction and adds to magnitude.
+--
+-- @param entity entity ID
+-- @param force_frame Direction frame of applied force
+-- @param strength Magnitude of force (default 1)
+-- @return boolean success
+function orders.apply_force(entity, force_frame, strength)
+    strength = strength or 1
+
+    local momentum = orders.get_momentum(entity)
+    if not momentum then
+        return false
+    end
+
+    local frames = get_frames()
+
+    -- Apply force to momentum
+    for i = 1, strength do
+        momentum:apply_force(force_frame)
+    end
+
+    -- Convert momentum to movement order
+    if not momentum:is_stationary() then
+        local pos = ecs.get_component(entity, "position")
+        if pos then
+            local dx, dy = momentum:get_vector()
+            local target = {
+                x = pos.x + dx * 32,  -- Scale to world units
+                y = pos.y + dy * 32,
+            }
+            orders.move(entity, target)
+        end
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ orders.shapes
+-- Predefined movement shapes (choreography templates)
+orders.shapes = {
+    -- Straight lines
+    EAST_LINE = function(steps)
+        local f = get_frames()
+        local frames_list = {}
+        for i = 1, steps do frames_list[i] = f.EAST end
+        return { start = {x=0, y=0}, frames = frames_list }
+    end,
+
+    -- Circle (approximation)
+    CIRCLE = function(radius)
+        local f = get_frames()
+        -- 8-step circle: E, NE, N, NW, W, SW, S, SE
+        local pattern = {f.EAST, f.NORTHEAST, f.NORTH, f.NORTHWEST,
+                        f.WEST, f.SOUTHWEST, f.SOUTH, f.SOUTHEAST}
+        local frames_list = {}
+        for r = 1, radius do
+            for _, dir in ipairs(pattern) do
+                frames_list[#frames_list + 1] = dir
+            end
+        end
+        return { start = {x=0, y=0}, frames = frames_list }
+    end,
+
+    -- Zigzag patrol
+    ZIGZAG = function(width, count)
+        local f = get_frames()
+        local frames_list = {}
+        for i = 1, count do
+            -- Right
+            for j = 1, width do frames_list[#frames_list + 1] = f.EAST end
+            -- Up-right
+            frames_list[#frames_list + 1] = f.NORTHEAST
+            -- Left
+            for j = 1, width do frames_list[#frames_list + 1] = f.WEST end
+            -- Up-left
+            frames_list[#frames_list + 1] = f.NORTHWEST
+        end
+        return { start = {x=0, y=0}, frames = frames_list }
+    end,
+
+    -- Retreat (away from point)
+    RETREAT = function(from_x, from_y, to_x, to_y, steps)
+        local f = get_frames()
+        -- Direction away from threat
+        local dir = f.vector_to_frame(to_x - from_x, to_y - from_y)
+        -- Invert (combine with itself until it wraps)
+        local retreat_dir = f.combine_frames(f.ORIGIN, dir)
+        -- Actually, just use opposite
+        retreat_dir = f.vector_to_frame(from_x - to_x, from_y - to_y)
+
+        local frames_list = {}
+        for i = 1, steps do frames_list[i] = retreat_dir end
+        return { start = {x=from_x, y=from_y}, frames = frames_list }
+    end,
+}
+-- }}}
+-- }}}
+
 return orders
