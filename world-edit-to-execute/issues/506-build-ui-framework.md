@@ -168,13 +168,29 @@ This is a substantial issue with 6 distinct subsystems. Each is a complete featu
                                                      └─→ 506f (tooltips)
 ```
 
-### Dual Interface Note (ref: Issue 500)
+### Dual Interface Note (ref: Issue 500, CRITICAL-PATH OQ-007)
 
 This framework must support both Warcraft RTS and WoW-chat modes:
 - **Shared**: Component system, layout engine, input handling
 - **Mode-specific**: Visual themes, element arrangement, information density
 
-Consider Mode A (Warcraft) as primary, with hooks for Mode B (WoW-chat) theming.
+**Window Management (decided 2025-12-31):**
+UI panels can be "breakout windows" that are either:
+- **OS-managed**: Standard window decorations, moved via OS window manager
+- **Client-managed**: Software window management, drag within client
+
+**WC3 Default Layout:**
+- Permanent panels along top and bottom limit viewport
+- Overlay menus (ESC menu, etc.) appear on top of all elements
+- Single-player: overlays pause the game
+- Multiplayer: overlays do not pause
+
+**View Modes:**
+- Picture-in-picture (small overlay views)
+- Split screen (side by side)
+- Separate windows (multi-monitor support)
+
+See Issue 500 "Decided Answers" section D2 for full details.
 
 ---
 

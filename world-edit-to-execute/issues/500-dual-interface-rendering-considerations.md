@@ -244,6 +244,92 @@ These questions help match considerations to design decisions:
 
 ---
 
+## Decided Answers (2025-12-31)
+
+### D1: AzerothCore Integration Depth
+
+**Decision:** Full emulation (Option D)
+
+Create a single, unified server architecture that hosts all WC3 games. Develop a
+unified client that switches on-the-fly between:
+- **Top-down tactical view** (WC3 style)
+- **Over-the-shoulder 3rd person view** (WoW style)
+
+Both perspectives are fully comprehensive and use the same graphical scaling and
+visualization elements. A player can play WC3 in WoW style, and WoW in WC3 style.
+
+### D2: Simultaneous Views / Window Management
+
+**Decision:** User-configurable (Options B, C, D all available)
+
+- **Picture-in-picture** - Small chat overlay on RTS, or small RTS preview in chat
+- **Split screen** - Both views side by side
+- **Separate windows** - Multi-monitor support, each view in its own window
+
+**Breakout windows:** UI panels (chat, professions, inventory) can be:
+- Managed by the OS (window decorations, standard window behavior)
+- Managed by the client (software window management, drag within client)
+
+**WC3 default layout:**
+- Permanent panels along top and bottom limiting viewport
+- Overlay menus (e.g., ESC menu) appear on top of all elements
+- Single-player: overlays pause the game
+- Multiplayer: overlays do not pause
+
+**Note:** wow-chat is a custom WoW addon (user's project) that provides the chat
+interface model. Users can switch between WC3 mode and WoW mode at runtime.
+
+### D3: Chat Message Sources
+
+**Decision:** All sources (Option E)
+
+Chat panel is separate and can be OS-managed or client-managed in both modes.
+
+Message sources:
+- **Player-to-player communication** (multiplayer chat)
+- **NPC dialogue** (hardcoded trigger strings or Ollama-generated)
+- **System messages** ("+50 gold", "Unit X attacked Unit Y for Z damage")
+
+**Technical detail:** Messages are parsed from server packets. As packets they are
+compressed; when expanded to text they become readable by:
+- Players (chat display)
+- Addons (data processing)
+- Ollama (AI interpretation)
+
+Future potential: Data stream (translated to English) could feed playerbot
+personalities for AI-controlled units.
+
+### D4: Character Persistence / Hero Identity
+
+**Decision:** WC3 hero IS the WoW character (Option A)
+
+When playing WoW, the player moves their character through zones, fights foes,
+completes quests. This same gameplay can be performed in the WC3 interface by
+guiding the hero through maps representing the unit's state in Azeroth.
+
+**Architecture:**
+- Both systems share maps and visuals
+- Translation layer between AzerothCore (WoW functionality) and
+  world-edit-to-execute (WC3 parser/renderer/engine)
+- Both share the same data
+- Both run in parallel, rendering the same underlying state
+
+### D5: Visual Style / Theming
+
+**Decision:** Unified theme (Option A) + Content-driven overrides (Option D)
+
+**Base:** Unified visual theme across both modes (same fonts, colors, UI elements)
+
+**Overrides:** When loading a WC3 custom map (playable in either WC3 or WoW style),
+graphics are determined by models embedded in the map file. This allows:
+- Map creators to define custom visuals
+- Users to replace graphics with their own choices
+- ROM-style interpretation of assets (maps are free to distribute)
+
+**Future:** In-game mod browser for discovering and loading custom content (later phase)
+
+---
+
 ## Consideration Matrix Template
 
 For each Phase 5 issue, evaluate against both modes:
