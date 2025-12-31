@@ -10,6 +10,7 @@
 #include <string.h>
 #include "bridge.h"
 #include "terrain.h"
+#include "input.h"
 
 /* {{{ Module State
  * Stores the slot array reference. Set by bridge_init(). */
@@ -333,6 +334,13 @@ static const luaL_Reg render_funcs[] = {
     {"terrain_set_offset", l_terrain_set_offset},
     {"terrain_set_tiles", l_terrain_set_tiles},
     {"terrain_info", l_terrain_info},
+    /* Selection functions (508e) */
+    {"get_selection", l_get_selection},
+    {"set_selection", l_set_selection},
+    {"clear_selection", l_clear_selection},
+    {"get_entity_at", l_get_entity_at},
+    {"get_mouse_world", l_get_mouse_world},
+    {"is_selected", l_is_selected},
     {NULL, NULL}
 };
 

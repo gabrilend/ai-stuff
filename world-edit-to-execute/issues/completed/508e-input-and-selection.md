@@ -296,14 +296,14 @@ static int l_get_selection(lua_State* L) {
 
 ## Acceptance Criteria
 
-- [ ] Mouse position tracked in screen and world coords
-- [ ] Click selects entity under cursor
-- [ ] Shift+click adds to selection
-- [ ] Drag creates selection box
-- [ ] Box release selects all entities in box
-- [ ] Selected entities show visual feedback
-- [ ] Lua can query current selection
-- [ ] Selection limited to max (24)
+- [x] Mouse position tracked in screen and world coords
+- [x] Click selects entity under cursor
+- [x] Shift+click adds to selection
+- [x] Drag creates selection box
+- [x] Box release selects all entities in box
+- [x] Selected entities show visual feedback
+- [x] Lua can query current selection
+- [x] Selection limited to max (24)
 
 ---
 
@@ -320,3 +320,68 @@ Start simple (top-down), add perspective later.
 
 - `issues/508d-map-integration.md` - Map must be loaded first
 - `issues/508f-movement-orders.md` - Selection used for movement
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-30
+
+### Files Created
+
+- `src/render/input.h` - InputState, SelectionState structs and function declarations
+- `src/render/input.c` - Mouse tracking, ray casting, picking, selection management
+
+### Files Modified
+
+- `src/render/bridge.c` - Added 6 selection Lua functions
+- `src/render/main.c` - Integrated input system, selection visuals
+- `src/render/run` - Added input.c to SOURCES
+
+### Key Implementation Details
+
+1. **InputState Structure**:
+   - Screen coordinates (mouse_x, mouse_y)
+   - World coordinates (world_x, world_z) via ground plane intersection
+   - Mouse ray for 3D picking
+   - Button states with edge detection (pressed/released)
+   - Drag tracking with 5-pixel threshold
+   - Keyboard modifiers (Shift, Ctrl, Alt)
+
+2. **Entity Picking**:
+   - `pick_entity_at_screen()`: Ray-sphere collision for accurate 3D picking
+   - `pick_entity_at_world()`: Distance-based picking on ground plane
+   - `pick_entities_in_rect()`: Box selection via world-to-screen projection
+
+3. **Selection Management**:
+   - Maximum 24 entities (MAX_SELECTION)
+   - RenderSlot.selected flag synchronized with selection state
+   - Shift+click adds/removes from selection
+   - Click without shift clears and selects new
+
+4. **Visual Feedback**:
+   - Green circles drawn under selected entities (DrawCircle3D)
+   - Green selection box during drag (DrawRectangle + DrawRectangleLines)
+   - "Selected: N" text in HUD
+
+5. **New Lua API**:
+   - `render.get_selection()` → table of entity IDs
+   - `render.set_selection({entity_id, ...})`
+   - `render.clear_selection()`
+   - `render.get_entity_at(screen_x, screen_y)` → entity_id or nil
+   - `render.get_mouse_world()` → x, y, z
+   - `render.is_selected(entity_id)` → bool
+
+### Screen-to-World Conversion
+
+Uses ray-plane intersection with ground plane (Y=0):
+```
+t = -ray.origin.y / ray.direction.y
+world_x = ray.origin.x + t * ray.direction.x
+world_z = ray.origin.z + t * ray.direction.z
+```
+
+### Integration with Slider UI
+
+Selection input is disabled when slider_active is true to prevent
+accidental selections while adjusting speed controls.
