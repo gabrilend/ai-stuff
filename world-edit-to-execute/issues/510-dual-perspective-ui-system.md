@@ -109,31 +109,43 @@ The perspective can be:
 
 ## Integration with AzerothCore
 
-Per OQ-003/004 decision (API-driven integration):
+Per OQ-003/004 decision (expanded 2025-12-31):
+
+**Full emulation architecture:** Single unified server hosts all WC3 games. Unified
+client switches **on-the-fly** between top-down WC3 view and over-the-shoulder WoW
+view. Both perspectives are fully comprehensive, using the same graphical scaling.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              world-edit-to-execute                      │
-│                   (game state)                          │
+│        UNIFIED SERVER (world-edit-to-execute)           │
 │                                                         │
-│  ┌─────────────┐           ┌─────────────────────────┐  │
-│  │ Unit/Army   │           │ Character/Inventory     │  │
-│  │ State       │           │ State                   │  │
-│  └──────┬──────┘           └───────────┬─────────────┘  │
-│         │                              │                │
-└─────────┼──────────────────────────────┼────────────────┘
-          │                              │
-          ▼                              ▼
-   ┌─────────────┐              ┌─────────────────┐
-   │ Warlord UI  │              │ Hero UI         │
-   │ (Raylib)    │              │ (Raylib or      │
-   │             │              │  AzerothCore)   │
-   └─────────────┘              └─────────────────┘
+│  ┌──────────────────────────────────────────────────┐   │
+│  │           SHARED GAME STATE                      │   │
+│  │   (Unit/Army + Character/Inventory = SAME DATA)  │   │
+│  └──────────────────────┬───────────────────────────┘   │
+│                         │                               │
+└─────────────────────────┼───────────────────────────────┘
+                          │
+         ┌────────────────┴────────────────┐
+         │     UNIFIED CLIENT (Raylib)      │
+         │                                  │
+         │  ┌────────────┐  ┌────────────┐  │
+         │  │ Warlord UI │←→│ Hero UI    │  │
+         │  │ (top-down) │  │ (3rd pers) │  │
+         │  └────────────┘  └────────────┘  │
+         │         ON-THE-FLY SWITCH        │
+         └──────────────────────────────────┘
 ```
 
-The same character data can be rendered as:
+**Key principle:** WC3 hero IS the WoW character. Same entity, different perspective.
 - A unit portrait in Warlord mode (Thrall commanding the Horde)
 - A character sheet in Hero mode (Thrall the player character)
+
+AzerothCore and world-edit-to-execute are translation layers rendering the same
+underlying data. Player can play WC3 in WoW style and vice versa.
+
+**Visual theming (D5):** Unified base theme across both modes, with map-defined
+overrides when loading custom WC3 maps.
 
 ---
 
