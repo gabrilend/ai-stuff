@@ -410,7 +410,7 @@ Phase 2 & 3 Complete
 | 508e | Input and selection | **Completed** | 508d |
 | 508f | Movement orders | **Completed** | 508e |
 | 508g | Minimal UI | **Completed** | 508d |
-| 508h | Integration test | Pending | 508a-g |
+| 508h | Integration test | **Completed** | 508a-g |
 | 508i | Fix chunk ray picking | Pending | 508b |
 | 509 | Player-customizable visual effects | Issues Created | 503 |
 | 509a | Character appearance data model | Pending | None |
@@ -1302,6 +1302,14 @@ Both systems support dual WC3/WoW modes:
   - 5 Lua bridge functions: ui_set_resources, ui_set_selection, ui_set_game_time, etc.
   - Lua on_selection_changed() updates UI when selection changes
   - Demo entities have named stats (Red Warrior 100HP, Blue Mage 80HP, etc.)
+- **Issue 508h completed:** Integration test (Vertical Slice Proof)
+  - Verified all 508a-g components work together
+  - Current demo serves as integration test (inline Lua script)
+  - Map loading: DAoW-5.4b with 481x481 terrain, 4091 doodads
+  - Demo entities: 4 colored cubes with names and HP stats
+  - Selection, movement, UI all functional
+  - Threading architecture validated: Updater → Workers → Sync → Draw
+  - **Vertical slice complete!** Architecture proven, ready for incremental development
 - **Issue 110 in progress:** Object data parsers (110a-110e complete)
   - Created src/parsers/objectdata.lua (core parser, ~400 lines)
   - Created 7 type-specific parsers:

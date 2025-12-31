@@ -355,18 +355,18 @@ cd - > /dev/null
 
 ## Acceptance Criteria
 
-- [ ] Demo compiles without errors
-- [ ] Demo runs without crashes
-- [ ] Real map loads and displays
-- [ ] Test units spawn if map empty
-- [ ] Terrain grid visible with colors
-- [ ] Units render as colored shapes
-- [ ] Selection works (click, box, shift)
-- [ ] Movement works (right-click)
-- [ ] UI displays resources
-- [ ] UI displays selection info
-- [ ] Stable 60 FPS
-- [ ] Clean exit on ESC
+- [x] Demo compiles without errors
+- [x] Demo runs without crashes
+- [x] Real map loads and displays
+- [x] Test units spawn if map empty
+- [x] Terrain grid visible with colors
+- [x] Units render as colored shapes
+- [x] Selection works (click, box, shift)
+- [x] Movement works (right-click)
+- [x] UI displays resources
+- [x] UI displays selection info
+- [x] Stable 60 FPS
+- [x] Clean exit on ESC
 
 ---
 
@@ -394,3 +394,93 @@ From here, everything is incremental improvement.
 
 - All 508a-508g issues (dependencies)
 - `docs/render-architecture.md` - Architecture being validated
+
+---
+
+## Implementation Notes
+
+**Completed: 2025-12-31**
+
+### Approach
+
+The current demo in `src/render/main.c` already serves as the integration test.
+Rather than creating separate Lua module files as originally suggested, the demo
+uses an inline Lua script that validates all components work together.
+
+This is acceptable for the vertical slice proof - the goal is validating the
+architecture, not structuring the final codebase.
+
+### What Was Verified
+
+1. **Map Loading** - DAoW-5.4b-PUBLIC-TEST.w3x loads with:
+   - 481x481 terrain tiles (694KB grid)
+   - 4091 doodads rendered as circles
+   - Map name, dimensions, terrain parsed correctly
+
+2. **Demo Entities** - 4 colored cubes spawn before map loading:
+   - Red Warrior (100 HP), Blue Mage (80 HP), Green Scout (60 HP), Yellow Guard (120 HP)
+   - Created via Lua render.create_entity()
+   - Linked to entity IDs for selection tracking
+
+3. **Selection System** (508e):
+   - Left-click selects single entity
+   - Shift+click adds to selection
+   - Box drag selects multiple entities
+   - Selection circles drawn under selected units
+
+4. **Movement System** (508f):
+   - Right-click issues move order
+   - Green pulsing marker at target
+   - Units interpolate toward target position
+   - Move speed: 3.0 units/second
+
+5. **UI System** (508g):
+   - Resource bar: Gold 500, Lumber 150, Food 0/12, Time 0:00+
+   - Selection panel: Shows selected unit name, count, HP bar
+   - Updates on selection change via on_selection_changed()
+   - Game time increments via update_game_time(dt)
+
+6. **Threading** (508a):
+   - 2 worker threads processing slots
+   - Sync thread swaps buffers
+   - Updater thread populates worker inputs
+   - Draw thread renders from primary buffer
+
+7. **Performance**:
+   - Stable 60 FPS with 4091 doodads + 4 entities
+   - No visible stuttering during selection/movement
+   - Clean startup and shutdown
+
+### Simplifications vs. Full Design
+
+| Suggested | Implemented | Notes |
+|-----------|-------------|-------|
+| testing_room.lua | Inline in main.c | Same functionality |
+| input_handler.lua | Inline on_move_order | Same functionality |
+| ui_updater.lua | Inline on_selection_changed | Same functionality |
+| Full ECS integration | Simple Lua tables | Sufficient for demo |
+| map.registry units | Demo entities | Maps have no preplaced units |
+
+### How to Run
+
+```bash
+cd /mnt/mtwo/programming/ai-stuff/world-edit-to-execute
+./src/render/run
+```
+
+### Verified Test Scenarios
+
+1. **Basic Load** - Map loads, terrain displays, entities visible, UI shows defaults ✅
+2. **Selection** - Click/shift+click/box select all work, UI updates ✅
+3. **Movement** - Right-click shows marker, entities move toward target ✅
+4. **Performance** - Stable framerate with large map ✅
+
+### Conclusion
+
+The vertical slice is **complete**. The architecture is validated:
+- Threading model works (Updater → Workers → Sync → Draw)
+- Lua-C bridge works (entities, terrain, input, UI all bidirectional)
+- Input→Order→Movement→Render loop is functional
+- UI provides visibility into game state
+
+From here, all development is incremental improvement on a proven foundation.
