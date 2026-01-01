@@ -10,6 +10,7 @@
 #   ./run_phase4.sh -n      # Non-interactive (stats only)
 #   ./run_phase4.sh -t      # Run tests only
 #   ./run_phase4.sh -a      # Run all tests (comprehensive)
+#   ./run_phase4.sh -v      # Visual demo (LÖVE2D)
 
 DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 
@@ -261,6 +262,27 @@ run_quick_tests() {
 }
 # }}}
 
+# {{{ run_visual_demo
+run_visual_demo() {
+    print_banner
+    echo "Launching LÖVE2D visual demo..."
+    echo ""
+    echo "Controls:"
+    echo "  Left Click  - Move red units to position"
+    echo "  Space       - Pause/Resume"
+    echo "  R           - Reset simulation"
+    echo "  Escape      - Quit"
+    echo ""
+
+    if command -v love &>/dev/null; then
+        love "$DIR/issues/completed/demos/phase4_love"
+    else
+        echo -e "${RED}Error: LÖVE2D not found. Install with: sudo apt install love${NC}"
+        return 1
+    fi
+}
+# }}}
+
 # {{{ main
 main() {
     case "${1:-}" in
@@ -272,6 +294,9 @@ main() {
             ;;
         -n|--non-interactive)
             lua "$DIR/issues/completed/demos/phase4_demo.lua" -n
+            ;;
+        -v|--visual)
+            run_visual_demo
             ;;
         *)
             lua "$DIR/issues/completed/demos/phase4_demo.lua"
