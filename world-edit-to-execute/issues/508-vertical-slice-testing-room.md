@@ -244,6 +244,7 @@ architecture; refinement comes after.
 ## Related Documents
 
 - `docs/render-architecture.md` - Threading model and component slots
+- `docs/render-system-multithreading.md` - Detailed pipeline stages and task submission
 - `issues/501a-raylib-rotating-cube-demo.md` - Foundation this builds on
 - `src/render/main.c` - Existing raylib demo code
 - Phase 4 systems (ECS, movement, orders) - Integration targets

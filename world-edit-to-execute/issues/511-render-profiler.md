@@ -276,5 +276,6 @@ if (IsKeyPressed(KEY_F4)) {
 ## Related Documents
 
 - `docs/render-architecture.md` - Threading model being profiled
+- `docs/render-system-multithreading.md` - Detailed pipeline stages, task submission, current limitations
 - `issues/508a-threading-infrastructure.md` - What we're measuring
 - `src/render/threading.h` - Current statistics tracking
