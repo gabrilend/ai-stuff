@@ -152,14 +152,14 @@ PROFESSION_CONFIG_CUSTOM = {
 
 ## Acceptance Criteria
 
-- [ ] Profession component stores skill data correctly
-- [ ] Skill levels can increase via try_skillup()
-- [ ] Skill caps limit progression until raised
-- [ ] Primary profession slots enforced (WoW mode)
-- [ ] Recipe tracking per profession
-- [ ] Events fire on skill changes
-- [ ] Configuration switches between WoW/WC3 modes
-- [ ] Unit tests for skill calculations
+- [x] Profession component stores skill data correctly
+- [x] Skill levels can increase via try_skillup()
+- [x] Skill caps limit progression until raised
+- [x] Primary profession slots enforced (WoW mode)
+- [x] Recipe tracking per profession
+- [x] Events fire on skill changes
+- [x] Configuration switches between WoW/WC3 modes
+- [x] Unit tests for skill calculations
 
 ---
 
@@ -171,3 +171,69 @@ The skill system is intentionally generic. "Skill" could mean:
 - Custom game mastery levels
 
 The same engine, different numbers.
+
+---
+
+**Status:** Completed
+**Dependencies:** 402 (ECS)
+
+---
+
+## Implementation Notes
+
+**Completed 2026-01-01**
+
+### Files Created
+
+1. **src/runtime/systems/professions.lua** (~830 lines)
+   - Configuration modes: WoW (2 primary slots, 1-300 skill), WC3 (unlimited, 1-5 levels, XP-based), Custom
+   - `PROFESSIONS_DEFAULTS` component with primary/secondary profession tables
+   - `create_skill_data()` - creates skill structure with mode-aware initial cap
+   - `ensure_fresh_tables()` - fixes ECS metatable inheritance issue for per-entity state
+   - Query functions: `get_skill()`, `get_max_skill()`, `has_profession()`, `can_learn_profession()`,
+     `get_known_recipes()`, `knows_recipe()`, `get_specialization()`, `get_experience()`, `get_all_professions()`
+   - Modification functions: `learn_profession()`, `forget_profession()`, `add_skill()`, `set_skill_cap()`,
+     `learn_recipe()`, `set_specialization()`, `add_experience()`
+   - Progression functions: `try_skillup()`, `get_skillup_chance()`, `get_difficulty()`
+   - Active profession: `set_active()`, `get_active()`
+   - Event constants for PROFESSION_LEARNED, SKILL_UP, etc.
+
+2. **src/tests/test_professions.lua** (~620 lines)
+   - 42 comprehensive unit tests covering all acceptance criteria
+   - Tests configuration modes (WoW/WC3/Custom)
+   - Tests learn/forget professions with slot limits
+   - Tests skill levels, caps, clamping
+   - Tests skillup chance calculations (orange/yellow/green/gray)
+   - Tests try_skillup with random roll
+   - Tests recipes and specializations
+   - Tests XP-based leveling (WC3 mode)
+   - Tests active profession tracking
+
+### Key Design Decisions
+
+1. **ECS Metatable Inheritance Fix**: The ECS uses `setmetatable(instance, {__index = defaults})`
+   for component instances. This means table fields like `primary` and `secondary` are shared
+   by reference across all entities. Fixed with `ensure_fresh_tables()` which uses `rawset()`
+   to create per-entity copies on first access.
+
+2. **Mode-Aware Initial Caps**: WoW mode starts at skill_caps[1] (75) requiring training to progress.
+   WC3 mode starts at skill_max (5) since progression is XP-based not training-based.
+
+3. **Skill Difficulty Colors**: Based on skill - recipe_skill difference:
+   - Orange (diff < 0-9): 100% skillup chance
+   - Yellow (diff 10-24): 75% skillup chance
+   - Green (diff 25-49): 25% skillup chance
+   - Gray (diff 50+): 0% skillup chance
+
+4. **Modifier Order**: Formula is `(base + flat) * (1 + percent/100) * multiplier`
+   matching WoW's standard modifier stacking.
+
+### Test Results
+
+```
+=== Test Summary ===
+Passed: 42
+Failed: 0
+Total: 42
+All tests PASSED!
+```
