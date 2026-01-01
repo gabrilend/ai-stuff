@@ -1,12 +1,12 @@
 --[[
 Phase 4 Visual Demo - LÖVE2D Version
-Demonstrates A* pathfinding with obstacles
+Demonstrates A* pathfinding with obstacles AND collision detection
 
-The demo visualizes the engine's pathfinding system:
+The demo visualizes the engine's pathfinding and collision systems:
 - Creates a pathing grid with obstacles
 - Units use A* to find paths around obstacles
-- Paths are recalculated when units are commanded to move
-- The grid and paths are rendered to show the algorithm working
+- Collision system prevents units from overlapping
+- Units push each other apart when they collide
 
 Run with: love issues/completed/demos/phase4_love/
 Or:       ./issues/completed/demos/run_phase4.sh -v
@@ -19,6 +19,7 @@ package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 local ecs = require("runtime.ecs")
 local gameloop = require("runtime.gameloop")
 local pathfinding = require("runtime.pathfinding")
+local collision = require("runtime.collision")
 -- }}}
 
 -- {{{ Constants
@@ -43,10 +44,12 @@ local stats = {
     elapsed = 0,
     moving = 0,
     paths_calculated = 0,
+    collisions_resolved = 0,
 }
 
 local paused = false
 local show_grid = true    -- Toggle grid visualization
+local show_collision = true  -- Toggle collision radius visualization
 -- }}}
 
 -- {{{ create_pathing_grid
@@ -185,7 +188,14 @@ local function create_unit(owner, start_gx, start_gy, target_gx, target_gy)
         type_id = owner == 0 and "hfoo" or "ogru",
         name = owner == 0 and "Footman" or "Grunt",
     })
-    ecs.add_component(entity, "collision", {radius = UNIT_RADIUS, solid = true})
+    -- Collision component with proper layer/mask for unit-unit collision
+    ecs.add_component(entity, "collision", {
+        shape = "circle",
+        radius = UNIT_RADIUS,
+        layer = "unit",
+        mask = {"unit"},  -- Collide with other units
+        solid = true,
+    })
 
     -- Calculate initial path using A*
     local path = find_path_for_unit(start_gx, start_gy, target_gx, target_gy)
@@ -206,13 +216,15 @@ end
 
 -- {{{ love.load
 function love.load()
-    love.window.setTitle("Phase 4 - A* Pathfinding Demo")
+    love.window.setTitle("Phase 4 - A* Pathfinding + Collision Demo")
     love.window.setMode(world.width, world.height)
 
     -- Reset systems
     gameloop.reset()
     ecs.reset()
+    collision.reset()
     stats.paths_calculated = 0
+    stats.collisions_resolved = 0
 
     -- Register components (only if not already registered)
     local function safe_register(name, defaults)
@@ -236,9 +248,15 @@ function love.load()
         name = "Unit",
     })
     safe_register("collision", {
+        shape = "circle",
         radius = UNIT_RADIUS,
+        layer = "unit",
+        mask = {"unit"},
         solid = true,
     })
+
+    -- Initialize collision system with ECS
+    collision.init(ecs)
 
     -- Create pathing grid with obstacles
     pathing_grid = create_pathing_grid()
@@ -260,6 +278,7 @@ end
 
 -- {{{ update_movement
 -- Updates unit movement along their A* calculated paths.
+-- Uses collision system to prevent overlapping.
 local function update_movement(dt)
     stats.moving = 0
 
@@ -281,18 +300,80 @@ local function update_movement(dt)
                     mov.path = nil
                 end
             else
-                -- Move toward waypoint
+                -- Calculate desired position
                 local speed = mov.speed * mov.speed_modifier
                 local move_dist = speed * dt
                 if move_dist > dist then move_dist = dist end
 
                 local ratio = move_dist / dist
-                pos.x = pos.x + dx * ratio
-                pos.y = pos.y + dy * ratio
+                local desired_x = pos.x + dx * ratio
+                local desired_y = pos.y + dy * ratio
+
+                -- Use collision system to check if move is valid
+                -- slide_move returns actual position (may be blocked)
+                local actual_x, actual_y = collision.slide_move(entity, desired_x, desired_y)
+
+                pos.x = actual_x
+                pos.y = actual_y
                 pos.facing = math.atan2(dy, dx)
             end
         end
     end
+end
+-- }}}
+
+-- {{{ resolve_collisions
+-- Resolves any overlapping units after movement.
+local function resolve_collisions()
+    -- Update spatial hash for collision queries
+    collision.update()
+
+    -- Get all entities with collision
+    local entities = {}
+    for entity in ecs.query_single("collision") do
+        local col = ecs.get_component(entity, "collision")
+        if col and col.solid then
+            entities[#entities + 1] = entity
+        end
+    end
+
+    -- Check all pairs for overlap and resolve
+    local resolved = 0
+    for i = 1, #entities do
+        for j = i + 1, #entities do
+            local e1, e2 = entities[i], entities[j]
+            local pos1 = ecs.get_component(e1, "position")
+            local pos2 = ecs.get_component(e2, "position")
+            local col1 = ecs.get_component(e1, "collision")
+            local col2 = ecs.get_component(e2, "collision")
+
+            if pos1 and pos2 and col1 and col2 then
+                -- Check if circles overlap
+                local dx = pos2.x - pos1.x
+                local dy = pos2.y - pos1.y
+                local dist = math.sqrt(dx * dx + dy * dy)
+                local min_dist = col1.radius + col2.radius
+
+                if dist < min_dist and dist > 0.001 then
+                    -- Push apart
+                    local overlap = min_dist - dist
+                    local push = overlap / 2 + 0.5  -- Extra margin
+
+                    local nx = dx / dist
+                    local ny = dy / dist
+
+                    pos1.x = pos1.x - nx * push
+                    pos1.y = pos1.y - ny * push
+                    pos2.x = pos2.x + nx * push
+                    pos2.y = pos2.y + ny * push
+
+                    resolved = resolved + 1
+                end
+            end
+        end
+    end
+
+    stats.collisions_resolved = stats.collisions_resolved + resolved
 end
 -- }}}
 
@@ -305,8 +386,14 @@ function love.update(dt)
     stats.tick = gameloop.get_tick()
     stats.elapsed = gameloop.get_time()
 
-    -- Update movement
+    -- Update collision spatial hash first
+    collision.update()
+
+    -- Update movement (uses collision.slide_move internally)
     update_movement(dt)
+
+    -- Resolve any remaining overlaps
+    resolve_collisions()
 end
 -- }}}
 
@@ -378,29 +465,38 @@ end
 -- }}}
 
 -- {{{ draw_units
--- Draws all units with their facing direction.
+-- Draws all units with their facing direction and collision radius.
 local function draw_units()
     for entity, pos, unit in ecs.query("position", "unit") do
         local coll = ecs.get_component(entity, "collision")
         local radius = coll and coll.radius or UNIT_RADIUS
 
-        -- Color by owner
+        -- Draw collision circle first (if enabled)
+        if show_collision then
+            if unit.owner == 0 then
+                love.graphics.setColor(1, 0.5, 0.5, 0.3)  -- Red tint
+            else
+                love.graphics.setColor(0.5, 0.7, 1, 0.3)  -- Blue tint
+            end
+            love.graphics.circle("fill", pos.x, pos.y, radius)
+        end
+
+        -- Draw unit core (smaller inner circle)
+        local core_radius = radius * 0.6
         if unit.owner == 0 then
             love.graphics.setColor(0.9, 0.2, 0.2)  -- Red
         else
             love.graphics.setColor(0.2, 0.4, 0.9)  -- Blue
         end
+        love.graphics.circle("fill", pos.x, pos.y, core_radius)
 
-        -- Draw unit circle
-        love.graphics.circle("fill", pos.x, pos.y, radius)
-
-        -- White border
-        love.graphics.setColor(1, 1, 1)
+        -- Collision boundary circle
+        love.graphics.setColor(1, 1, 1, 0.8)
         love.graphics.circle("line", pos.x, pos.y, radius)
 
         -- Draw facing direction
-        local fx = pos.x + math.cos(pos.facing) * radius * 1.5
-        local fy = pos.y + math.sin(pos.facing) * radius * 1.5
+        local fx = pos.x + math.cos(pos.facing) * radius * 1.3
+        local fy = pos.y + math.sin(pos.facing) * radius * 1.3
         love.graphics.line(pos.x, pos.y, fx, fy)
     end
 end
@@ -411,18 +507,20 @@ end
 local function draw_hud()
     -- Stats panel
     love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle("fill", 5, 5, 200, 110)
+    love.graphics.rectangle("fill", 5, 5, 210, 128)
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Phase 4: A* Pathfinding", 10, 10)
+    love.graphics.print("Phase 4: Pathfinding + Collision", 10, 10)
     love.graphics.print(string.format("Tick: %d", stats.tick), 10, 28)
     love.graphics.print(string.format("Time: %.1fs", stats.elapsed), 10, 44)
     love.graphics.print(string.format("Units: %d (%d moving)", #units, stats.moving), 10, 60)
     love.graphics.print(string.format("Paths calculated: %d", stats.paths_calculated), 10, 76)
+    love.graphics.setColor(1, 0.8, 0.4)
+    love.graphics.print(string.format("Collisions resolved: %d", stats.collisions_resolved), 10, 92)
 
     if paused then
         love.graphics.setColor(1, 1, 0)
-        love.graphics.print("PAUSED", 10, 94)
+        love.graphics.print("PAUSED", 10, 110)
     end
 
     -- Legend panel
@@ -446,7 +544,7 @@ local function draw_hud()
 
     -- Controls hint
     love.graphics.setColor(0.7, 0.7, 0.7)
-    love.graphics.print("Space=Pause  R=Reset  G=Grid  Click=Move Red  Esc=Quit", 10, world.height - 18)
+    love.graphics.print("Space=Pause R=Reset G=Grid C=Collision Click=Move Esc=Quit", 10, world.height - 18)
 end
 -- }}}
 
@@ -481,6 +579,8 @@ function love.keypressed(key)
         love.load()  -- Reset
     elseif key == "g" then
         show_grid = not show_grid
+    elseif key == "c" then
+        show_collision = not show_collision
     end
 end
 -- }}}
