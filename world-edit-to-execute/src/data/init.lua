@@ -14,8 +14,11 @@ local w3r = require("parsers.w3r")
 local w3c = require("parsers.w3c")
 local w3s = require("parsers.w3s")
 
--- Object registry
+-- Object registry (instances/placements)
 local ObjectRegistry = require("registry")
+
+-- Object database (definitions/stats)
+local objectdb = require("parsers.objectdb")
 
 -- {{{ Player colors
 local PLAYER_COLORS = {
@@ -71,6 +74,7 @@ function Map.new()
     self.forces = {}        -- Force definitions from w3i
     self.flags = {}         -- Map flags from w3i
     self.registry = nil     -- ObjectRegistry for game objects (doodads, units, etc.)
+    self.object_data = nil  -- ObjectDatabase for object definitions (stats, abilities, etc.)
 
     -- Additional data
     self.fog = nil          -- Fog settings from w3i
@@ -218,6 +222,10 @@ function Map.load(path)
             end
         end
     end
+
+    -- Load object data (w3u, w3a, w3t, w3b, w3d, w3h, w3q)
+    -- Contains object definitions: stats, abilities, costs, etc.
+    map.object_data = objectdb.load_from_archive(archive)
 
     archive:close()
     return map
@@ -419,6 +427,59 @@ end
 -- }}}
 -- }}}
 
+-- {{{ Object data accessors
+-- {{{ get_object_definition
+-- Get object definition by ID (stats, abilities, costs).
+-- Works for any object type (unit, ability, item, etc.)
+-- @param id Object ID (e.g., "hfoo", "AHhb", "phea")
+-- @return Object definition or nil
+function Map:get_object_definition(id)
+    if self.object_data then
+        return self.object_data:get(id)
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ get_object_stat
+-- Get a specific stat for an object.
+-- @param id Object ID
+-- @param stat_name Stat name (friendly or raw)
+-- @param level Optional level for abilities/upgrades
+-- @return Stat value or nil
+function Map:get_object_stat(id, stat_name, level)
+    if self.object_data then
+        return self.object_data:get_stat(id, stat_name, level)
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ get_object_type
+-- Get the type of an object (unit, ability, item, etc.)
+-- @param id Object ID
+-- @return Type string or nil
+function Map:get_object_type(id)
+    if self.object_data then
+        return self.object_data:get_type(id)
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ has_object_definition
+-- Check if an object definition exists.
+-- @param id Object ID
+-- @return boolean
+function Map:has_object_definition(id)
+    if self.object_data then
+        return self.object_data:has(id)
+    end
+    return false
+end
+-- }}}
+-- }}}
+
 -- {{{ Info/Stats
 -- {{{ info
 -- Get map info summary.
@@ -436,8 +497,9 @@ function Map:info()
         has_terrain = self.terrain ~= nil,
         has_strings = self.strings ~= nil,
         has_registry = self.registry ~= nil,
+        has_object_data = self.object_data ~= nil,
     }
-    -- Include registry counts if available
+    -- Include registry counts if available (object instances/placements)
     if self.registry then
         result.object_counts = {
             doodads = self.registry.counts.doodads,
@@ -446,6 +508,19 @@ function Map:info()
             cameras = self.registry.counts.cameras,
             sounds = self.registry.counts.sounds,
             total = self.registry:get_total_count(),
+        }
+    end
+    -- Include object definition counts if available (stats/abilities)
+    if self.object_data then
+        result.object_definition_counts = {
+            units = self.object_data.counts.units,
+            abilities = self.object_data.counts.abilities,
+            items = self.object_data.counts.items,
+            destructibles = self.object_data.counts.destructibles,
+            doodads = self.object_data.counts.doodads,
+            buffs = self.object_data.counts.buffs,
+            upgrades = self.object_data.counts.upgrades,
+            total = self.object_data:count(),
         }
     end
     return result
@@ -528,18 +603,52 @@ local function format(map)
     end
     lines[#lines + 1] = ""
 
-    -- Game Objects (registry)
+    -- Game Objects (registry - instances/placements)
     if map.registry then
         local counts = map.registry.counts
         local total = map.registry:get_total_count()
-        lines[#lines + 1] = string.format("Game Objects (%d total):", total)
+        lines[#lines + 1] = string.format("Game Object Instances (%d total):", total)
         lines[#lines + 1] = string.format("  Doodads: %d", counts.doodads)
         lines[#lines + 1] = string.format("  Units: %d", counts.units)
         lines[#lines + 1] = string.format("  Regions: %d", counts.regions)
         lines[#lines + 1] = string.format("  Cameras: %d", counts.cameras)
         lines[#lines + 1] = string.format("  Sounds: %d", counts.sounds)
     else
-        lines[#lines + 1] = "Game Objects: Not loaded"
+        lines[#lines + 1] = "Game Object Instances: Not loaded"
+    end
+    lines[#lines + 1] = ""
+
+    -- Object Definitions (objectdb - stats/abilities/costs)
+    if map.object_data then
+        local counts = map.object_data.counts
+        local total = map.object_data:count()
+        lines[#lines + 1] = string.format("Object Definitions (%d modified):", total)
+        if counts.units > 0 then
+            lines[#lines + 1] = string.format("  Units: %d", counts.units)
+        end
+        if counts.abilities > 0 then
+            lines[#lines + 1] = string.format("  Abilities: %d", counts.abilities)
+        end
+        if counts.items > 0 then
+            lines[#lines + 1] = string.format("  Items: %d", counts.items)
+        end
+        if counts.destructibles > 0 then
+            lines[#lines + 1] = string.format("  Destructibles: %d", counts.destructibles)
+        end
+        if counts.doodads > 0 then
+            lines[#lines + 1] = string.format("  Doodads: %d", counts.doodads)
+        end
+        if counts.buffs > 0 then
+            lines[#lines + 1] = string.format("  Buffs: %d", counts.buffs)
+        end
+        if counts.upgrades > 0 then
+            lines[#lines + 1] = string.format("  Upgrades: %d", counts.upgrades)
+        end
+        if total == 0 then
+            lines[#lines + 1] = "  (No custom modifications)"
+        end
+    else
+        lines[#lines + 1] = "Object Definitions: Not loaded"
     end
 
     return table.concat(lines, "\n")
