@@ -88,8 +88,8 @@ No dependencies (all independent except A07)
 | 013 | Quest & bounty template system | **Completed** | None |
 | 014 | Guild hero & shop system | **Completed** | 013 |
 | 015 | WoW-style combat system | Pending | 014 |
-| 016 | Attribute getter/setter system | Issues Created | 015, 014 |
-| 016a | Core attribute registry | Pending | None |
+| 016 | Attribute getter/setter system | In Progress | 015, 014 |
+| 016a | Core attribute registry | **Completed** | None |
 | 016b | Dispatch table getters | Pending | 016a |
 | 016c | Dispatch table setters | Pending | 016a |
 | 016d | Modifier stack system | Pending | 016a, 016b, 016c |
@@ -1356,6 +1356,13 @@ Both systems support dual WC3/WoW modes:
   - Distinguishes warnings (base game IDs) from errors (custom IDs)
   - Added Map:validate() method for convenient access
   - **Phase 1 Complete!** All 13 issues finished
+- **Issue 016a completed:** Core attribute registry
+  - Created src/libs/attributes/ module (schema.lua, registry.lua, init.lua)
+  - AttributeSchema class: type validation, range constraints, flag accessors
+  - AttributeRegistry: dual lookup (id/index), dependency graph, topological order
+  - Bulk registration, container creation with defaults, filtered listing
+  - Updated src/compat.lua with pure Lua 5.1/5.2 bitwise fallbacks
+  - 55 tests pass (test_attributes.lua)
 
 ---
 

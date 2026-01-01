@@ -64,18 +64,19 @@ src/
 ├── render/                     Rendering system (Phase 5)
 │   ├── main.c                  Raylib demo - threaded cube renderer
 │   └── run                     Build and run script
-├── libs/attributes/            Attribute System (Issue 016) [planned]
-│   ├── schema.lua              Attribute types, flags, validation
-│   ├── registry.lua            Schema storage, dependency graph
-│   ├── getters.lua             Dispatch table getters
-│   ├── setters.lua             Dispatch table setters
-│   ├── modifiers.lua           Modifier stack system
-│   ├── derived.lua             Derived attribute engine
-│   ├── events.lua              Change event system
-│   ├── mapping.lua             Cross-system attribute mapping
+├── libs/attributes/            Attribute System (Issue 016)
+│   ├── init.lua                Module exports (016a complete)
+│   ├── schema.lua              Attribute types, flags, validation (016a complete)
+│   ├── registry.lua            Schema storage, dependency graph (016a complete)
+│   ├── getters.lua             Dispatch table getters [pending 016b]
+│   ├── setters.lua             Dispatch table setters [pending 016c]
+│   ├── modifiers.lua           Modifier stack system [pending 016d]
+│   ├── derived.lua             Derived attribute engine [pending 016e]
+│   ├── events.lua              Change event system [pending]
+│   ├── mapping.lua             Cross-system attribute mapping [pending 016h]
 │   └── configs/
-│       ├── wc3.lua             WC3 attribute definitions
-│       └── wow.lua             WoW attribute definitions
+│       ├── wc3.lua             WC3 attribute definitions [pending 016f]
+│       └── wow.lua             WoW attribute definitions [pending 016g]
 │
 docs/templates/                 Quest & Bounty Templates
 ├── README.md                   Template system documentation
@@ -173,8 +174,8 @@ issues/
 | 013 | Quest & bounty template system | **Completed** |
 | 014 | Guild hero & shop system | **Completed** |
 | 015 | WoW-style combat system | Pending |
-| 016 | Attribute getter/setter system | Issues Created |
-| 016a | Core attribute registry | Pending |
+| 016 | Attribute getter/setter system | In Progress |
+| 016a | Core attribute registry | **Completed** |
 | 016b | Dispatch table getters | Pending |
 | 016c | Dispatch table setters | Pending |
 | 016d | Modifier stack system | Pending |

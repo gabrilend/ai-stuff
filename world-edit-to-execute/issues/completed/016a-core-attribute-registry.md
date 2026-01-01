@@ -266,15 +266,79 @@ AttributeRegistry.register_bulk({
 
 ## Acceptance Criteria
 
-- [ ] AttributeSchema class with type/range validation
-- [ ] AttributeRegistry with dual lookup (id and index)
-- [ ] Automatic index assignment
-- [ ] Dependency graph tracking
-- [ ] Bulk registration from config blocks
-- [ ] Container creation with defaults
-- [ ] Unit tests for validation
+- [x] AttributeSchema class with type/range validation
+- [x] AttributeRegistry with dual lookup (id and index)
+- [x] Automatic index assignment
+- [x] Dependency graph tracking
+- [x] Bulk registration from config blocks
+- [x] Container creation with defaults
+- [x] Unit tests for validation
 
 ---
 
-**Status:** Pending
+**Status:** Completed
 **Dependencies:** None (first in chain)
+
+---
+
+## Implementation Notes
+
+**Completed 2025-12-31**
+
+### Files Created
+
+1. **src/libs/attributes/schema.lua** (~273 lines)
+   - `ATTR_TYPE` constants: INTEGER, FLOAT, PERCENT, BOOLEAN, ENUM
+   - `ATTR_FLAGS` bitfield: NONE, PERSISTED, MODIFIABLE, DERIVED, HIDDEN, READONLY, CLAMPED
+   - `AttributeSchema` class with:
+     - `new(spec)` - constructor from specification table
+     - `validate(value)` - type and range validation
+     - `clamp(value)` - clamp to min/max range
+     - Flag accessors: `is_derived()`, `is_modifiable()`, `is_persisted()`, `is_hidden()`, `is_readonly()`, `is_clamped()`
+     - `has_dependencies()` - check if derived from other attributes
+     - `__tostring()` - debug representation
+
+2. **src/libs/attributes/registry.lua** (~343 lines)
+   - Dual lookup: `schemas` (id → schema), `by_index` (index → schema)
+   - Automatic index assignment with collision detection
+   - Dependency graph: `dependency_graph` (id → dependents), `reverse_deps` (id → dependencies)
+   - Functions:
+     - `register(spec)` - register single attribute
+     - `register_bulk(definitions)` - register multiple from table
+     - `get(id_or_index)` - lookup by id or index
+     - `has(id_or_index)` - check if registered
+     - `get_index(id)` / `get_id(index)` - conversion helpers
+     - `get_dependents(id)` / `get_dependencies(id)` - dependency queries
+     - `list(filter)` - filtered listing (by type, derived, modifiable, persisted)
+     - `count()` - total registered count
+     - `create_container()` - create attribute storage with defaults
+     - `reset()` - clear all (for testing)
+     - `validate_all_dependencies()` - check for missing dependencies
+     - `get_topological_order()` - dependency-ordered list
+
+3. **src/libs/attributes/init.lua** (~71 lines)
+   - Module exports combining schema and registry
+   - Re-exports: ATTR_TYPE, ATTR_FLAGS, AttributeSchema, all registry functions
+
+4. **src/tests/test_attributes.lua** (~600 lines)
+   - 55 comprehensive tests covering all acceptance criteria
+   - Tests: schema creation, type validation, range validation, enum support
+   - Tests: registry operations, dual lookup, dependency graph
+   - Tests: filtering, container creation, topological order
+
+### Compatibility Fix
+
+Updated **src/compat.lua** with pure Lua 5.1/5.2 bitwise fallbacks:
+- The system runs Lua 5.2 which lacks both native bitwise operators (5.3+) and the bit library (LuaJIT)
+- Added arithmetic-based implementations of `band`, `bor`, `bnot`, `bxor`, `lshift`, `rshift`
+- Works for 32-bit unsigned integers
+
+### Test Results
+
+```
+=== Test Summary ===
+Passed: 55
+Failed: 0
+Total: 55
+All tests PASSED!
+```
