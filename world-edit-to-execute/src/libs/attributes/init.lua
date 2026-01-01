@@ -9,6 +9,7 @@
 --   - AttributeSchema: Defines structure/constraints for one attribute
 --   - Registry: Stores all schemas with dual lookup (ID and index)
 --   - Container: Per-entity attribute storage with defaults
+--   - Getters: Dispatch table getters with modifier application
 --
 -- Usage:
 --   local attributes = require("libs.attributes")
@@ -32,6 +33,9 @@
 --   local str_index = attributes.get_index("strength")
 --   stats.values[str_index] = 50
 --
+--   -- Get computed value (with modifiers)
+--   local value = attributes.get_value(stats, "strength")
+--
 --   -- Validate values
 --   local schema = attributes.get("strength")
 --   local valid, err = schema:validate(50)
@@ -39,6 +43,7 @@
 -- Load submodules
 local schema_module = require("libs.attributes.schema")
 local registry = require("libs.attributes.registry")
+local getters_module = require("libs.attributes.getters")
 
 -- {{{ Module exports
 local attributes = {
@@ -64,6 +69,21 @@ local attributes = {
     reset = registry.reset,
     validate_all_dependencies = registry.validate_all_dependencies,
     get_topological_order = registry.get_topological_order,
+
+    -- Getter functions (016b)
+    get_value = getters_module.get,
+    get_raw = getters_module.get_raw,
+    get_base = getters_module.get_base,
+    get_many = getters_module.get_many,
+    get_all_values = getters_module.get_all,
+    get_all_raw = getters_module.get_all_raw,
+    get_modifier_breakdown = getters_module.get_modifier_breakdown,
+    get_getter = getters_module.get_getter,
+    get_raw_getter = getters_module.get_raw_getter,
+    has_getter = getters_module.has,
+    rebuild_getters = getters_module.rebuild,
+    mark_dirty = getters_module.mark_dirty,
+    invalidate_all_derived = getters_module.invalidate_all_derived,
 }
 -- }}}
 
