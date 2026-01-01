@@ -12,7 +12,7 @@
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 20/32 |
-| 1 | Foundation - File Format Parsing | **Completed** | 12/12 |
+| 1 | Foundation - File Format Parsing | In Progress | 12/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
@@ -128,6 +128,9 @@ No dependencies (all independent except A07)
 | 106 | Design internal data structures | **Completed** | 103, 104, 105 |
 | 107 | Build CLI metadata dump tool | **Completed** | 106 |
 | 108 | Phase 1 integration test | **Completed** | 101-107 |
+| 109 | Implement PKWARE DCL decompression | **Completed** | 102d |
+| 110 | Object data parsers | **Completed** | 102 |
+| 111 | Cross-reference validation | Pending | 110, 202, 201 |
 
 ### Dependency Graph
 
