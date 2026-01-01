@@ -337,259 +337,37 @@ end
 local function demo_visual_animation()
     clear_screen()
     print_header()
-    print_section("Live Movement Animation")
+    print_section("Visual Demo (LÖVE2D)")
 
-    print("This demo shows units moving in real-time on a grid.")
-    print("Two groups of units march toward each other and collide.")
+    print("The visual demo uses LÖVE2D for graphical rendering.")
+    print("It shows units moving in real-time with mouse interaction.")
     print()
-    print("\027[90mInitializing systems...\027[0m")
+    print("\027[1mFeatures:\027[0m")
+    print("  - 10 units (5 red Footmen, 5 blue Grunts)")
+    print("  - Real-time movement at 62.5 ticks/sec")
+    print("  - Click to move red units")
+    print("  - Pause/resume with Space")
+    print()
+    print("\027[1mControls:\027[0m")
+    print("  Left Click  - Move red units to position")
+    print("  Space       - Pause/Resume")
+    print("  R           - Reset simulation")
+    print("  Escape      - Quit")
     print()
 
-    -- Reset all systems
-    gameloop.reset()
-    ecs.reset()
-
-    -- Register required components
-    ecs.register_component("position", {x = 0, y = 0, z = 0, facing = 0})
-    ecs.register_component("velocity", {vx = 0, vy = 0, vz = 0})
-    ecs.register_component("unit", {
-        owner = 0,
-        type_id = "unit",
-        name = "Unit",
-    })
-    ecs.register_component("collision", {
-        radius = 32,
-        solid = true,
-    })
-    ecs.register_component("movement", {
-        speed = 270,
-        path = nil,
-        path_index = 1,
-        target = nil,
-        speed_modifier = 1.0,
-        last_x = 0,
-        last_y = 0,
-    })
-
-    -- Grid parameters
-    local grid_width = 60
-    local grid_height = 20
-    local world_width = 2400  -- 60 * 40
-    local world_height = 800   -- 20 * 40
-    local scale = 40  -- world units per grid cell
-
-    -- Create player 0 units (left side, moving right)
-    local p0_units = {}
-    for i = 1, 5 do
-        local entity = ecs.create_entity()
-        local start_x = 200
-        local start_y = 200 + (i - 1) * 100
-        local target_x = world_width - 200
-        local target_y = start_y
-
-        ecs.add_component(entity, "position", {x = start_x, y = start_y, facing = 0})
-        ecs.add_component(entity, "unit", {owner = 0, type_id = "hfoo", name = "Footman"})
-        ecs.add_component(entity, "collision", {radius = 30, solid = true})
-        ecs.add_component(entity, "movement", {
-            speed = 200 + i * 20,  -- Slightly different speeds
-            path = {{x = target_x, y = target_y}},
-            path_index = 1,
-            target = {x = target_x, y = target_y},
-            last_x = start_x,
-            last_y = start_y,
-        })
-        p0_units[i] = entity
-    end
-
-    -- Create player 1 units (right side, moving left)
-    local p1_units = {}
-    for i = 1, 5 do
-        local entity = ecs.create_entity()
-        local start_x = world_width - 200
-        local start_y = 200 + (i - 1) * 100
-        local target_x = 200
-        local target_y = start_y
-
-        ecs.add_component(entity, "position", {x = start_x, y = start_y, facing = math.pi})
-        ecs.add_component(entity, "unit", {owner = 1, type_id = "ogru", name = "Grunt"})
-        ecs.add_component(entity, "collision", {radius = 35, solid = true})
-        ecs.add_component(entity, "movement", {
-            speed = 180 + i * 15,  -- Different speeds
-            path = {{x = target_x, y = target_y}},
-            path_index = 1,
-            target = {x = target_x, y = target_y},
-            last_x = start_x,
-            last_y = start_y,
-        })
-        p1_units[i] = entity
-    end
-
-    print_ok(string.format("Created %d units (5 per team)", #p0_units + #p1_units))
-    print_info("Player 0 (Red): Moving right →")
-    print_info("Player 1 (Blue): Moving left ←")
-    print()
-    print("Running 10-second simulation at 62.5 ticks/sec...")
-    print()
-    io.write("Press ENTER to start: ")
+    io.write("Press ENTER to launch LÖVE2D demo...")
     io.read()
 
-    -- Animation parameters
-    local max_ticks = 625  -- 10 seconds at 62.5 Hz
-    local frame_delay = 0.05  -- 20 FPS display
-    local tick_duration = 1 / 62.5
+    -- Launch LÖVE2D
+    local love_dir = DIR .. "/issues/completed/demos/phase4_love"
+    local result = os.execute("love " .. love_dir)
 
-    -- Custom movement update function (simplified, no collision for demo)
-    local function update_movement_simple(dt)
-        for entity, pos, mov in ecs.query("position", "movement") do
-            mov.last_x = pos.x
-            mov.last_y = pos.y
-
-            if mov.path and mov.path_index <= #mov.path then
-                local wp = mov.path[mov.path_index]
-                local dx = wp.x - pos.x
-                local dy = wp.y - pos.y
-                local dist = math.sqrt(dx * dx + dy * dy)
-
-                if dist < 4 then
-                    mov.path_index = mov.path_index + 1
-                    if mov.path_index > #mov.path then
-                        mov.path = nil
-                    end
-                else
-                    local speed = mov.speed * mov.speed_modifier
-                    local move_dist = speed * dt
-                    if move_dist > dist then move_dist = dist end
-
-                    local ratio = move_dist / dist
-                    pos.x = pos.x + dx * ratio
-                    pos.y = pos.y + dy * ratio
-                end
-            end
-        end
+    if result ~= 0 and result ~= true then
+        print()
+        print("\027[31m[ERROR]\027[0m Failed to launch LÖVE2D.")
+        print("Make sure LÖVE2D is installed: sudo apt install love")
     end
 
-    -- Draw the grid with units
-    local function draw_frame(tick, elapsed)
-        -- Move cursor to top-left and clear screen
-        io.write("\027[H\027[J")
-
-        -- Header
-        io.write("\027[1;36m")
-        io.write(string.rep("═", grid_width + 4))
-        io.write("\027[0m\n")
-        io.write(string.format("\027[1;33m  Tick: %-6d  │  Time: %5.1fs  │  Units: %d\027[0m\n",
-            tick, elapsed, #p0_units + #p1_units))
-        io.write("\027[1;36m")
-        io.write(string.rep("═", grid_width + 4))
-        io.write("\027[0m\n")
-
-        -- Create grid buffer
-        local grid = {}
-        for y = 1, grid_height do
-            grid[y] = {}
-            for x = 1, grid_width do
-                grid[y][x] = {char = "·", color = "\027[90m"}
-            end
-        end
-
-        -- Place units on grid
-        for entity, pos, unit in ecs.query("position", "unit") do
-            local gx = math.floor(pos.x / scale) + 1
-            local gy = math.floor(pos.y / scale) + 1
-
-            -- Clamp to grid bounds
-            gx = math.max(1, math.min(grid_width, gx))
-            gy = math.max(1, math.min(grid_height, gy))
-
-            -- Color by owner
-            if unit.owner == 0 then
-                grid[gy][gx] = {char = "●", color = "\027[1;31m"}  -- Red
-            else
-                grid[gy][gx] = {char = "●", color = "\027[1;34m"}  -- Blue
-            end
-        end
-
-        -- Draw grid
-        io.write("┌")
-        io.write(string.rep("─", grid_width))
-        io.write("┐\n")
-
-        for y = 1, grid_height do
-            io.write("│")
-            for x = 1, grid_width do
-                local cell = grid[y][x]
-                io.write(cell.color .. cell.char .. "\027[0m")
-            end
-            io.write("│\n")
-        end
-
-        io.write("└")
-        io.write(string.rep("─", grid_width))
-        io.write("┘\n")
-
-        -- Footer with legend
-        io.write("\027[1;31m● Red Team\027[0m   \027[1;34m● Blue Team\027[0m   ")
-        io.write("\027[90m· Empty\027[0m\n")
-
-        -- Count moving units
-        local moving = 0
-        for entity, pos, mov in ecs.query("position", "movement") do
-            if mov.path and mov.path_index <= #mov.path then
-                moving = moving + 1
-            end
-        end
-        io.write(string.format("Units moving: %d/%d\n", moving, #p0_units + #p1_units))
-
-        io.flush()
-    end
-
-    -- Main animation loop
-    local tick = 0
-    local elapsed = 0
-    local last_draw = os.clock()
-    local start_time = os.clock()
-
-    -- Hide cursor
-    io.write("\027[?25l")
-
-    while tick < max_ticks do
-        -- Update game state
-        gameloop.update(tick_duration)
-        update_movement_simple(tick_duration)
-        tick = tick + 1
-        elapsed = tick * tick_duration
-
-        -- Draw at limited framerate
-        local now = os.clock()
-        if now - last_draw >= frame_delay then
-            draw_frame(tick, elapsed)
-            last_draw = now
-        end
-
-        -- Check if all units stopped
-        local any_moving = false
-        for entity, pos, mov in ecs.query("position", "movement") do
-            if mov.path and mov.path_index <= #mov.path then
-                any_moving = true
-                break
-            end
-        end
-        if not any_moving and tick > 100 then
-            break  -- All units reached destination
-        end
-    end
-
-    -- Show cursor
-    io.write("\027[?25h")
-
-    -- Final frame
-    draw_frame(tick, elapsed)
-
-    print()
-    print_ok("Animation complete!")
-    print_stat("Total Ticks", tick)
-    print_stat("Elapsed Time", string.format("%.2f", elapsed), "seconds")
-    print_stat("Real Time", string.format("%.2f", os.clock() - start_time), "seconds")
     print()
 end
 -- }}}
