@@ -12,7 +12,7 @@
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 20/32 |
-| 1 | Foundation - File Format Parsing | In Progress | 12/13 |
+| 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
@@ -130,7 +130,7 @@ No dependencies (all independent except A07)
 | 108 | Phase 1 integration test | **Completed** | 101-107 |
 | 109 | Implement PKWARE DCL decompression | **Completed** | 102d |
 | 110 | Object data parsers | **Completed** | 102 |
-| 111 | Cross-reference validation | Pending | 110, 202, 201 |
+| 111 | Cross-reference validation | **Completed** | 110, 202, 201 |
 
 ### Dependency Graph
 
@@ -1348,6 +1348,14 @@ Both systems support dual WC3/WoW modes:
   - 117 tests pass: 23 core + 50 type-specific + 31 ObjectDatabase + 13 real map
   - 43,435 objects validated across 16 real map files
   - All 7 file types parse correctly (w3u/w3a/w3t/w3b/w3d/w3h/w3q)
+- **Issue 111 completed:** Cross-reference validation
+  - Created src/validation/init.lua (~440 lines)
+  - Created src/tests/test_validation.lua (32 tests)
+  - Validates: unit placements, doodad placements, item drops, abilities, waygates, sounds
+  - Type classification: detects misplaced object types (e.g., ability ID used for unit)
+  - Distinguishes warnings (base game IDs) from errors (custom IDs)
+  - Added Map:validate() method for convenient access
+  - **Phase 1 Complete!** All 13 issues finished
 
 ---
 
