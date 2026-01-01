@@ -236,7 +236,7 @@ function love.update(dt)
 
     -- Run engine ECS systems (includes movement system)
     -- The movement system handles: path following, speed, turning, collision slide
-    ecs.update(dt)
+    ecs.update_systems(dt)
 
     -- Resolve overlaps using engine collision system
     local before = stats.collisions_resolved
