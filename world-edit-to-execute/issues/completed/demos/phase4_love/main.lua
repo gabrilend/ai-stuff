@@ -1,6 +1,12 @@
 --[[
 Phase 4 Visual Demo - LÖVE2D Version
-Demonstrates runtime systems: ECS, movement, game loop
+Demonstrates A* pathfinding with obstacles
+
+The demo visualizes the engine's pathfinding system:
+- Creates a pathing grid with obstacles
+- Units use A* to find paths around obstacles
+- Paths are recalculated when units are commanded to move
+- The grid and paths are rendered to show the algorithm working
 
 Run with: love issues/completed/demos/phase4_love/
 Or:       ./issues/completed/demos/run_phase4.sh -v
@@ -12,31 +18,201 @@ package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 -- {{{ Module loading
 local ecs = require("runtime.ecs")
 local gameloop = require("runtime.gameloop")
+local pathfinding = require("runtime.pathfinding")
+-- }}}
+
+-- {{{ Constants
+local GRID_WIDTH = 40    -- Grid cells horizontal
+local GRID_HEIGHT = 30   -- Grid cells vertical
+local CELL_SIZE = 20     -- Pixels per cell
+local UNIT_RADIUS = 8    -- Unit display radius in pixels
 -- }}}
 
 -- {{{ Game state
+local pathing_grid = nil  -- The pathfinding grid
 local units = {}
+local obstacles = {}      -- Track obstacle positions for visualization
+
 local world = {
-    width = 800,
-    height = 600,
-    scale = 0.1,  -- world units to pixels
+    width = GRID_WIDTH * CELL_SIZE,
+    height = GRID_HEIGHT * CELL_SIZE,
 }
+
 local stats = {
     tick = 0,
     elapsed = 0,
     moving = 0,
+    paths_calculated = 0,
 }
+
 local paused = false
+local show_grid = true    -- Toggle grid visualization
+-- }}}
+
+-- {{{ create_pathing_grid
+-- Creates a synthetic pathing grid with obstacles for demonstration.
+-- This simulates what would normally come from terrain data.
+local function create_pathing_grid()
+    local grid = {
+        width = GRID_WIDTH,
+        height = GRID_HEIGHT,
+        tile_size = CELL_SIZE,
+        offset_x = 0,
+        offset_y = 0,
+        cells = {},
+    }
+
+    -- Initialize all cells as walkable
+    for y = 0, GRID_HEIGHT - 1 do
+        grid.cells[y] = {}
+        for x = 0, GRID_WIDTH - 1 do
+            grid.cells[y][x] = {
+                walkable = true,
+                flyable = true,
+                buildable = true,
+                water = false,
+                cliff_level = 0,
+            }
+        end
+    end
+
+    -- Add obstacles (walls)
+    obstacles = {}
+
+    -- Vertical wall in the middle with gaps
+    local wall_x = 20
+    for y = 0, GRID_HEIGHT - 1 do
+        -- Leave gaps at y=5, y=15, y=25
+        if y ~= 5 and y ~= 15 and y ~= 25 then
+            grid.cells[y][wall_x].walkable = false
+            obstacles[#obstacles + 1] = {x = wall_x, y = y}
+        end
+    end
+
+    -- Horizontal wall near top
+    for x = 5, 15 do
+        grid.cells[8][x].walkable = false
+        obstacles[#obstacles + 1] = {x = x, y = 8}
+    end
+
+    -- Horizontal wall near bottom
+    for x = 25, 35 do
+        grid.cells[22][x].walkable = false
+        obstacles[#obstacles + 1] = {x = x, y = 22}
+    end
+
+    -- L-shaped obstacle bottom-left
+    for x = 3, 8 do
+        grid.cells[20][x].walkable = false
+        obstacles[#obstacles + 1] = {x = x, y = 20}
+    end
+    for y = 16, 20 do
+        grid.cells[y][8].walkable = false
+        obstacles[#obstacles + 1] = {x = 8, y = y}
+    end
+
+    -- Box obstacle top-right
+    for x = 30, 35 do
+        grid.cells[3][x].walkable = false
+        grid.cells[7][x].walkable = false
+        obstacles[#obstacles + 1] = {x = x, y = 3}
+        obstacles[#obstacles + 1] = {x = x, y = 7}
+    end
+    for y = 3, 7 do
+        grid.cells[y][30].walkable = false
+        grid.cells[y][35].walkable = false
+        obstacles[#obstacles + 1] = {x = 30, y = y}
+        obstacles[#obstacles + 1] = {x = 35, y = y}
+    end
+
+    return grid
+end
+-- }}}
+
+-- {{{ grid_to_world
+-- Converts grid coordinates to world (pixel) coordinates.
+local function grid_to_world(gx, gy)
+    return gx * CELL_SIZE + CELL_SIZE / 2, gy * CELL_SIZE + CELL_SIZE / 2
+end
+-- }}}
+
+-- {{{ world_to_grid
+-- Converts world (pixel) coordinates to grid coordinates.
+local function world_to_grid(wx, wy)
+    return math.floor(wx / CELL_SIZE), math.floor(wy / CELL_SIZE)
+end
+-- }}}
+
+-- {{{ find_path_for_unit
+-- Uses the engine's A* pathfinding to find a path from unit position to target.
+-- Returns an array of world-coordinate waypoints.
+local function find_path_for_unit(start_gx, start_gy, goal_gx, goal_gy)
+    -- Use the engine's A* algorithm
+    local path, cost = pathfinding.find_path(
+        pathing_grid,
+        start_gx, start_gy,
+        goal_gx, goal_gy,
+        {
+            diagonal = true,  -- Allow diagonal movement
+        }
+    )
+
+    if not path then
+        return nil
+    end
+
+    -- Convert grid path to world coordinates
+    local world_path = {}
+    for i, node in ipairs(path) do
+        local wx, wy = grid_to_world(node.x, node.y)
+        world_path[i] = {x = wx, y = wy}
+    end
+
+    stats.paths_calculated = stats.paths_calculated + 1
+    return world_path
+end
+-- }}}
+
+-- {{{ create_unit
+-- Creates a unit entity at the given grid position with a target.
+local function create_unit(owner, start_gx, start_gy, target_gx, target_gy)
+    local entity = ecs.create_entity()
+    local start_wx, start_wy = grid_to_world(start_gx, start_gy)
+
+    ecs.add_component(entity, "position", {x = start_wx, y = start_wy, facing = 0})
+    ecs.add_component(entity, "unit", {
+        owner = owner,
+        type_id = owner == 0 and "hfoo" or "ogru",
+        name = owner == 0 and "Footman" or "Grunt",
+    })
+    ecs.add_component(entity, "collision", {radius = UNIT_RADIUS, solid = true})
+
+    -- Calculate initial path using A*
+    local path = find_path_for_unit(start_gx, start_gy, target_gx, target_gy)
+
+    ecs.add_component(entity, "movement", {
+        speed = 60 + owner * 10,  -- pixels per second
+        path = path,
+        path_index = 1,
+        target_gx = target_gx,
+        target_gy = target_gy,
+        speed_modifier = 1.0,
+    })
+
+    units[#units + 1] = {entity = entity, owner = owner}
+    return entity
+end
 -- }}}
 
 -- {{{ love.load
 function love.load()
-    love.window.setTitle("Phase 4 - Runtime Visual Demo")
+    love.window.setTitle("Phase 4 - A* Pathfinding Demo")
     love.window.setMode(world.width, world.height)
 
     -- Reset systems
     gameloop.reset()
     ecs.reset()
+    stats.paths_calculated = 0
 
     -- Register components (only if not already registered)
     local function safe_register(name, defaults)
@@ -47,13 +223,12 @@ function love.load()
 
     safe_register("position", {x = 0, y = 0, z = 0, facing = 0})
     safe_register("movement", {
-        speed = 270,
+        speed = 60,
         path = nil,
         path_index = 1,
-        target = nil,
+        target_gx = nil,
+        target_gy = nil,
         speed_modifier = 1.0,
-        last_x = 0,
-        last_y = 0,
     })
     safe_register("unit", {
         owner = 0,
@@ -61,67 +236,34 @@ function love.load()
         name = "Unit",
     })
     safe_register("collision", {
-        radius = 32,
+        radius = UNIT_RADIUS,
         solid = true,
     })
 
-    -- Create player 0 units (left side, red)
-    for i = 1, 5 do
-        local entity = ecs.create_entity()
-        local start_x = 1000
-        local start_y = 1500 + (i - 1) * 800
-        local target_x = 7000
-        local target_y = start_y
+    -- Create pathing grid with obstacles
+    pathing_grid = create_pathing_grid()
 
-        ecs.add_component(entity, "position", {x = start_x, y = start_y, facing = 0})
-        ecs.add_component(entity, "unit", {owner = 0, type_id = "hfoo", name = "Footman"})
-        ecs.add_component(entity, "collision", {radius = 150, solid = true})
-        ecs.add_component(entity, "movement", {
-            speed = 200 + i * 30,
-            path = {{x = target_x, y = target_y}},
-            path_index = 1,
-            target = {x = target_x, y = target_y},
-            last_x = start_x,
-            last_y = start_y,
-        })
+    -- Clear units
+    units = {}
 
-        units[#units + 1] = {entity = entity, owner = 0}
-    end
+    -- Create player 0 units (left side, red) - target right side
+    create_unit(0, 3, 3, 36, 26)
+    create_unit(0, 3, 10, 36, 20)
+    create_unit(0, 3, 26, 36, 5)
 
-    -- Create player 1 units (right side, blue)
-    for i = 1, 5 do
-        local entity = ecs.create_entity()
-        local start_x = 7000
-        local start_y = 1500 + (i - 1) * 800
-        local target_x = 1000
-        local target_y = start_y
-
-        ecs.add_component(entity, "position", {x = start_x, y = start_y, facing = math.pi})
-        ecs.add_component(entity, "unit", {owner = 1, type_id = "ogru", name = "Grunt"})
-        ecs.add_component(entity, "collision", {radius = 180, solid = true})
-        ecs.add_component(entity, "movement", {
-            speed = 180 + i * 25,
-            path = {{x = target_x, y = target_y}},
-            path_index = 1,
-            target = {x = target_x, y = target_y},
-            last_x = start_x,
-            last_y = start_y,
-        })
-
-        units[#units + 1] = {entity = entity, owner = 1}
-    end
+    -- Create player 1 units (right side, blue) - target left side
+    create_unit(1, 36, 5, 3, 26)
+    create_unit(1, 36, 15, 3, 15)
+    create_unit(1, 36, 26, 3, 3)
 end
 -- }}}
 
 -- {{{ update_movement
--- Simplified movement update (from demo)
+-- Updates unit movement along their A* calculated paths.
 local function update_movement(dt)
     stats.moving = 0
 
     for entity, pos, mov in ecs.query("position", "movement") do
-        mov.last_x = pos.x
-        mov.last_y = pos.y
-
         if mov.path and mov.path_index <= #mov.path then
             stats.moving = stats.moving + 1
 
@@ -130,12 +272,16 @@ local function update_movement(dt)
             local dy = wp.y - pos.y
             local dist = math.sqrt(dx * dx + dy * dy)
 
-            if dist < 10 then
+            -- Reached waypoint? Move to next
+            local arrival_dist = CELL_SIZE * 0.3
+            if dist < arrival_dist then
                 mov.path_index = mov.path_index + 1
                 if mov.path_index > #mov.path then
+                    -- Reached destination
                     mov.path = nil
                 end
             else
+                -- Move toward waypoint
                 local speed = mov.speed * mov.speed_modifier
                 local move_dist = speed * dt
                 if move_dist > dist then move_dist = dist end
@@ -164,30 +310,79 @@ function love.update(dt)
 end
 -- }}}
 
--- {{{ love.draw
-function love.draw()
-    -- Background
-    love.graphics.setBackgroundColor(0.1, 0.15, 0.1)
-    love.graphics.clear()
+-- {{{ draw_grid
+-- Draws the pathing grid showing walkable and blocked cells.
+local function draw_grid()
+    for y = 0, GRID_HEIGHT - 1 do
+        for x = 0, GRID_WIDTH - 1 do
+            local cell = pathing_grid.cells[y][x]
+            local px = x * CELL_SIZE
+            local py = y * CELL_SIZE
 
-    -- Draw grid lines
-    love.graphics.setColor(0.2, 0.25, 0.2)
-    for x = 0, world.width, 50 do
-        love.graphics.line(x, 0, x, world.height)
+            if cell.walkable then
+                -- Walkable cells - subtle grid
+                love.graphics.setColor(0.15, 0.2, 0.15, 1)
+                love.graphics.rectangle("fill", px, py, CELL_SIZE, CELL_SIZE)
+                love.graphics.setColor(0.2, 0.25, 0.2, 1)
+                love.graphics.rectangle("line", px, py, CELL_SIZE, CELL_SIZE)
+            else
+                -- Obstacles - solid color
+                love.graphics.setColor(0.4, 0.25, 0.2, 1)
+                love.graphics.rectangle("fill", px, py, CELL_SIZE, CELL_SIZE)
+                love.graphics.setColor(0.5, 0.3, 0.25, 1)
+                love.graphics.rectangle("line", px, py, CELL_SIZE, CELL_SIZE)
+            end
+        end
     end
-    for y = 0, world.height, 50 do
-        love.graphics.line(0, y, world.width, y)
-    end
+end
+-- }}}
 
-    -- Draw units
+-- {{{ draw_paths
+-- Draws the full A* calculated paths for all units.
+local function draw_paths()
+    for entity, pos, mov, unit in ecs.query("position", "movement", "unit") do
+        if mov.path and #mov.path > 0 then
+            -- Path color based on owner
+            if unit.owner == 0 then
+                love.graphics.setColor(1, 0.4, 0.4, 0.6)  -- Red path
+            else
+                love.graphics.setColor(0.4, 0.6, 1, 0.6)  -- Blue path
+            end
+
+            -- Draw line from unit to first waypoint
+            local start_idx = mov.path_index
+            if start_idx <= #mov.path then
+                love.graphics.line(pos.x, pos.y, mov.path[start_idx].x, mov.path[start_idx].y)
+            end
+
+            -- Draw remaining path segments
+            for i = start_idx, #mov.path - 1 do
+                local wp1 = mov.path[i]
+                local wp2 = mov.path[i + 1]
+                love.graphics.line(wp1.x, wp1.y, wp2.x, wp2.y)
+            end
+
+            -- Draw waypoint dots
+            if unit.owner == 0 then
+                love.graphics.setColor(1, 0.6, 0.6, 0.8)
+            else
+                love.graphics.setColor(0.6, 0.8, 1, 0.8)
+            end
+            for i = start_idx, #mov.path do
+                local wp = mov.path[i]
+                love.graphics.circle("fill", wp.x, wp.y, 3)
+            end
+        end
+    end
+end
+-- }}}
+
+-- {{{ draw_units
+-- Draws all units with their facing direction.
+local function draw_units()
     for entity, pos, unit in ecs.query("position", "unit") do
         local coll = ecs.get_component(entity, "collision")
-        local mov = ecs.get_component(entity, "movement")
-
-        -- Convert world coords to screen
-        local sx = pos.x * world.scale
-        local sy = pos.y * world.scale
-        local radius = (coll and coll.radius or 100) * world.scale
+        local radius = coll and coll.radius or UNIT_RADIUS
 
         -- Color by owner
         if unit.owner == 0 then
@@ -197,57 +392,82 @@ function love.draw()
         end
 
         -- Draw unit circle
-        love.graphics.circle("fill", sx, sy, radius)
+        love.graphics.circle("fill", pos.x, pos.y, radius)
 
         -- White border
         love.graphics.setColor(1, 1, 1)
-        love.graphics.circle("line", sx, sy, radius)
+        love.graphics.circle("line", pos.x, pos.y, radius)
 
         -- Draw facing direction
-        local fx = sx + math.cos(pos.facing) * radius * 1.5
-        local fy = sy + math.sin(pos.facing) * radius * 1.5
-        love.graphics.line(sx, sy, fx, fy)
-
-        -- Draw path line if moving
-        if mov and mov.path and mov.path_index <= #mov.path then
-            love.graphics.setColor(1, 1, 0, 0.5)
-            local wp = mov.path[mov.path_index]
-            love.graphics.line(sx, sy, wp.x * world.scale, wp.y * world.scale)
-        end
+        local fx = pos.x + math.cos(pos.facing) * radius * 1.5
+        local fy = pos.y + math.sin(pos.facing) * radius * 1.5
+        love.graphics.line(pos.x, pos.y, fx, fy)
     end
+end
+-- }}}
 
-    -- Draw HUD
-    love.graphics.setColor(0, 0, 0, 0.7)
-    love.graphics.rectangle("fill", 5, 5, 250, 100)
+-- {{{ draw_hud
+-- Draws the heads-up display with stats and legend.
+local function draw_hud()
+    -- Stats panel
+    love.graphics.setColor(0, 0, 0, 0.8)
+    love.graphics.rectangle("fill", 5, 5, 200, 110)
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print(string.format("Phase 4: Runtime Demo"), 10, 10)
-    love.graphics.print(string.format("Tick: %d", stats.tick), 10, 30)
-    love.graphics.print(string.format("Time: %.1fs", stats.elapsed), 10, 50)
-    love.graphics.print(string.format("Units: %d (%d moving)", #units, stats.moving), 10, 70)
+    love.graphics.print("Phase 4: A* Pathfinding", 10, 10)
+    love.graphics.print(string.format("Tick: %d", stats.tick), 10, 28)
+    love.graphics.print(string.format("Time: %.1fs", stats.elapsed), 10, 44)
+    love.graphics.print(string.format("Units: %d (%d moving)", #units, stats.moving), 10, 60)
+    love.graphics.print(string.format("Paths calculated: %d", stats.paths_calculated), 10, 76)
 
     if paused then
         love.graphics.setColor(1, 1, 0)
-        love.graphics.print("PAUSED (Space to resume)", 10, 90)
+        love.graphics.print("PAUSED", 10, 94)
     end
 
-    -- Draw legend
-    love.graphics.setColor(0, 0, 0, 0.7)
-    love.graphics.rectangle("fill", world.width - 155, 5, 150, 60)
+    -- Legend panel
+    love.graphics.setColor(0, 0, 0, 0.8)
+    love.graphics.rectangle("fill", world.width - 145, 5, 140, 75)
 
     love.graphics.setColor(0.9, 0.2, 0.2)
-    love.graphics.circle("fill", world.width - 140, 20, 8)
+    love.graphics.circle("fill", world.width - 130, 20, 6)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Player 0 (Footmen)", world.width - 125, 12)
+    love.graphics.print("Footmen", world.width - 118, 13)
 
     love.graphics.setColor(0.2, 0.4, 0.9)
-    love.graphics.circle("fill", world.width - 140, 45, 8)
+    love.graphics.circle("fill", world.width - 130, 40, 6)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Player 1 (Grunts)", world.width - 125, 37)
+    love.graphics.print("Grunts", world.width - 118, 33)
+
+    love.graphics.setColor(0.4, 0.25, 0.2)
+    love.graphics.rectangle("fill", world.width - 136, 54, 12, 12)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print("Obstacle", world.width - 118, 53)
 
     -- Controls hint
     love.graphics.setColor(0.7, 0.7, 0.7)
-    love.graphics.print("Space=Pause  R=Reset  Click=Move Red  Esc=Quit", 10, world.height - 20)
+    love.graphics.print("Space=Pause  R=Reset  G=Grid  Click=Move Red  Esc=Quit", 10, world.height - 18)
+end
+-- }}}
+
+-- {{{ love.draw
+function love.draw()
+    love.graphics.setBackgroundColor(0.1, 0.15, 0.1)
+    love.graphics.clear()
+
+    -- Draw pathing grid
+    if show_grid then
+        draw_grid()
+    end
+
+    -- Draw paths before units (so units appear on top)
+    draw_paths()
+
+    -- Draw units
+    draw_units()
+
+    -- Draw HUD
+    draw_hud()
 end
 -- }}}
 
@@ -259,6 +479,8 @@ function love.keypressed(key)
         paused = not paused
     elseif key == "r" then
         love.load()  -- Reset
+    elseif key == "g" then
+        show_grid = not show_grid
     end
 end
 -- }}}
@@ -266,17 +488,48 @@ end
 -- {{{ love.mousepressed
 function love.mousepressed(x, y, button)
     if button == 1 then  -- Left click
-        -- Move player 0 units to clicked position
-        local world_x = x / world.scale
-        local world_y = y / world.scale
+        -- Calculate target grid position
+        local target_gx, target_gy = world_to_grid(x, y)
 
+        -- Clamp to grid bounds
+        target_gx = math.max(0, math.min(GRID_WIDTH - 1, target_gx))
+        target_gy = math.max(0, math.min(GRID_HEIGHT - 1, target_gy))
+
+        -- Check if target is walkable
+        local cell = pathing_grid.cells[target_gy][target_gx]
+        if not cell or not cell.walkable then
+            -- Find nearest walkable cell
+            for r = 1, 5 do
+                for dy = -r, r do
+                    for dx = -r, r do
+                        local nx, ny = target_gx + dx, target_gy + dy
+                        if nx >= 0 and nx < GRID_WIDTH and ny >= 0 and ny < GRID_HEIGHT then
+                            local nc = pathing_grid.cells[ny][nx]
+                            if nc and nc.walkable then
+                                target_gx, target_gy = nx, ny
+                                goto found
+                            end
+                        end
+                    end
+                end
+            end
+            ::found::
+        end
+
+        -- Order player 0 units to move to clicked position
         for entity, pos, unit in ecs.query("position", "unit") do
             if unit.owner == 0 then
                 local mov = ecs.get_component(entity, "movement")
                 if mov then
-                    mov.path = {{x = world_x, y = world_y}}
-                    mov.path_index = 1
-                    mov.target = {x = world_x, y = world_y}
+                    local start_gx, start_gy = world_to_grid(pos.x, pos.y)
+                    local path = find_path_for_unit(start_gx, start_gy, target_gx, target_gy)
+
+                    if path then
+                        mov.path = path
+                        mov.path_index = 1
+                        mov.target_gx = target_gx
+                        mov.target_gy = target_gy
+                    end
                 end
             end
         end
