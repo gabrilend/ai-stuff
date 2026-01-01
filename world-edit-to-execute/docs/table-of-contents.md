@@ -11,6 +11,7 @@ docs/
 ├── roadmap.md                  Project phases and milestones
 ├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
 ├── render-architecture.md      Threading model, component slots, numeric encoding
+├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
