@@ -54,6 +54,11 @@ parse_args() {
                 NON_INTERACTIVE=true
                 shift
                 ;;
+            -t|--tests)
+                # Run tests and exit
+                run_tests
+                exit $?
+                ;;
             -h|--help)
                 echo "Usage: $0 [DIR] [OPTIONS] [PHASE]"
                 echo ""
@@ -62,6 +67,7 @@ parse_args() {
                 echo "Options:"
                 echo "  -I, --interactive      Interactive mode (default)"
                 echo "  -n, --non-interactive  Headless mode (for testing)"
+                echo "  -t, --tests            Run all tests with streaming output"
                 echo "  -h, --help             Show this help"
                 echo ""
                 echo "Arguments:"
@@ -73,6 +79,7 @@ parse_args() {
                 echo "  $0 0                   # Run Phase 0 demo (tooling)"
                 echo "  $0 1                   # Run Phase 1 demo (file parsing)"
                 echo "  $0 -n 1               # Run Phase 1 non-interactively"
+                echo "  $0 -t                 # Run all tests"
                 exit 0
                 ;;
             [0-9]*)
@@ -274,54 +281,129 @@ run_phase4_demo() {
 }
 # }}}
 
+# {{{ run_test_file
+# Run a test file and stream output with colorization
+# Writes pass/fail counts to temp file
+run_test_file() {
+    local test_file="$1"
+    local test_name
+    test_name=$(basename "$test_file" .lua)
+
+    if [[ ! -f "$test_file" ]]; then
+        echo -e "  ${YELLOW}[SKIP]${NC} ${test_name} (not found)"
+        return
+    fi
+
+    echo -e "  ${CYAN}▶${NC} ${test_name}"
+
+    # Prefer luajit for bitwise operations (Phase 1 needs it)
+    local lua_cmd="lua"
+    if command -v luajit &>/dev/null; then
+        lua_cmd="luajit"
+    elif command -v lua5.4 &>/dev/null; then
+        lua_cmd="lua5.4"
+    fi
+
+    # Run and stream output, colorizing PASS/FAIL
+    # Handle both "PASS" and "PASS: description" formats
+    $lua_cmd "$test_file" 2>&1 | while IFS= read -r line; do
+        if [[ "$line" =~ PASS:\ (.+) ]]; then
+            # "PASS: description" format
+            echo -e "    ${GREEN}✓${NC} ${BASH_REMATCH[1]}"
+            printf "P" >> "$TEMP_COUNTS"
+        elif [[ "$line" =~ \.\.\.\ *PASS$ ]]; then
+            # "Testing name... PASS" format
+            local desc="${line%...*}"
+            desc="${desc#Testing }"
+            echo -e "    ${GREEN}✓${NC} ${desc}"
+            printf "P" >> "$TEMP_COUNTS"
+        elif [[ "$line" =~ FAIL:\ (.+) ]]; then
+            # "FAIL: description" format
+            echo -e "    ${RED}✗${NC} ${BASH_REMATCH[1]}"
+            printf "F" >> "$TEMP_COUNTS"
+        elif [[ "$line" =~ \.\.\.\ *FAIL$ ]]; then
+            # "Testing name... FAIL" format (unlikely)
+            local desc="${line%...*}"
+            desc="${desc#Testing }"
+            echo -e "    ${RED}✗${NC} ${desc}"
+            printf "F" >> "$TEMP_COUNTS"
+        elif [[ "$line" == "==="* ]]; then
+            # Section header - show abbreviated
+            local section="${line//=/}"
+            section="${section## }"
+            section="${section%% }"
+            if [[ -n "$section" ]]; then
+                echo -e "    ${BLUE}─${NC} ${section}"
+            fi
+        fi
+    done
+}
+# }}}
+
 # {{{ run_tests
 run_tests() {
     echo ""
     echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
     echo -e "${BOLD}ALL PHASE VALIDATION TESTS${NC}"
     echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
-    echo ""
 
+    # Create temp file for counting pass/fail
+    TEMP_COUNTS=$(mktemp)
+    export TEMP_COUNTS
+    trap "rm -f $TEMP_COUNTS" EXIT
+
+    # Phase 1: File Parsing (MPQ, W3I, WTS, W3E)
+    echo ""
+    echo -e "${BOLD}${BLUE}┌─ Phase 1: File Parsing ─────────────────────────────────────────────────┐${NC}"
+    for test in test_mpq test_w3i test_wts test_w3e test_data; do
+        run_test_file "${DIR}/src/tests/${test}.lua"
+    done
+
+    # Phase 2: Data Model (Doodads, Units, Regions, Registry)
+    echo ""
+    echo -e "${BOLD}${BLUE}┌─ Phase 2: Data Model ───────────────────────────────────────────────────┐${NC}"
+    for test in test_doo test_unitsdoo test_w3r test_gameobjects test_registry; do
+        run_test_file "${DIR}/src/tests/${test}.lua"
+    done
+
+    # Phase 3: Triggers and JASS
+    echo ""
+    echo -e "${BOLD}${BLUE}┌─ Phase 3: Triggers and JASS ────────────────────────────────────────────┐${NC}"
+    for test in test_jass_lexer test_parser test_transpiler test_triggers; do
+        run_test_file "${DIR}/src/tests/${test}.lua"
+    done
+
+    # Phase 4: Runtime
+    echo ""
+    echo -e "${BOLD}${BLUE}┌─ Phase 4: Runtime ──────────────────────────────────────────────────────┐${NC}"
+    for test in test_phase4_core test_phase4_player test_gameloop test_resources; do
+        run_test_file "${DIR}/src/tests/${test}.lua"
+    done
+
+    # Count results from temp file (counts P and F characters)
     local total_passed=0
     local total_failed=0
-
-    # Phase 1 tests
-    echo -e "${BLUE}--- Phase 1: File Parsing ---${NC}"
-    if bash "${DIR}/issues/completed/demos/run_phase1.sh" > /dev/null 2>&1; then
-        echo -e "  ${GREEN}[PASS]${NC} Phase 1 tests"
-        ((total_passed++))
-    else
-        echo -e "  ${RED}[FAIL]${NC} Phase 1 tests"
-        ((total_failed++))
+    if [[ -f "$TEMP_COUNTS" ]]; then
+        local counts
+        counts=$(cat "$TEMP_COUNTS")
+        # Count P and F characters
+        total_passed=$(echo -n "$counts" | tr -cd 'P' | wc -c)
+        total_failed=$(echo -n "$counts" | tr -cd 'F' | wc -c)
     fi
 
-    # Phase 3 tests
-    echo -e "${BLUE}--- Phase 3: Triggers and JASS ---${NC}"
-    if bash "${DIR}/issues/completed/demos/run_phase3.sh" -t > /dev/null 2>&1; then
-        echo -e "  ${GREEN}[PASS]${NC} Phase 3 tests"
-        ((total_passed++))
-    else
-        echo -e "  ${RED}[FAIL]${NC} Phase 3 tests"
-        ((total_failed++))
-    fi
-
-    # Phase 4 tests
-    echo -e "${BLUE}--- Phase 4: Runtime ---${NC}"
-    if lua "${DIR}/src/tests/test_phase4_core.lua" > /dev/null 2>&1; then
-        echo -e "  ${GREEN}[PASS]${NC} Phase 4 core tests"
-        ((total_passed++))
-    else
-        echo -e "  ${RED}[FAIL]${NC} Phase 4 core tests"
-        ((total_failed++))
-    fi
-
+    # Summary
     echo ""
     echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
-    echo -e "Results: ${GREEN}${total_passed} passed${NC}, ${RED}${total_failed} failed${NC}"
+    if [[ $total_failed -eq 0 ]]; then
+        echo -e "${GREEN}${BOLD}All tests passed!${NC} ${GREEN}${total_passed}${NC} tests"
+    else
+        echo -e "Results: ${GREEN}${total_passed} passed${NC}, ${RED}${total_failed} failed${NC}"
+    fi
     echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
     echo ""
 
-    return $total_failed
+    rm -f "$TEMP_COUNTS"
+    [[ $total_failed -eq 0 ]]
 }
 # }}}
 
