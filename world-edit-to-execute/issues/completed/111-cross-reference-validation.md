@@ -30,27 +30,27 @@ A validation system that checks cross-references between parsed files:
 
 ## Suggested Implementation Steps
 
-1. [ ] Create `src/validation/init.lua` module
-2. [ ] Implement unit placement validation (unitsdoo → w3u/objectdb)
-3. [ ] Implement doodad placement validation (doo → w3d/objectdb)
-4. [ ] Implement item drop validation (unitsdoo item_drops → w3t)
-5. [ ] Implement ability reference validation (unitsdoo abilities → w3a)
-6. [ ] Implement waygate destination validation (unitsdoo waygate → w3r)
-7. [ ] Implement region sound validation (w3r ambient_sound → w3s)
-8. [ ] Add type classification checks (detect misplaced object types)
-9. [ ] Create validation report format
-10. [ ] Add Map:validate() method
-11. [ ] Add tests
+1. [x] Create `src/validation/init.lua` module
+2. [x] Implement unit placement validation (unitsdoo → w3u/objectdb)
+3. [x] Implement doodad placement validation (doo → w3d/objectdb)
+4. [x] Implement item drop validation (unitsdoo item_drops → w3t)
+5. [x] Implement ability reference validation (unitsdoo abilities → w3a)
+6. [x] Implement waygate destination validation (unitsdoo waygate → w3r)
+7. [x] Implement region sound validation (w3r ambient_sound → w3s)
+8. [x] Add type classification checks (detect misplaced object types)
+9. [x] Create validation report format
+10. [x] Add Map:validate() method
+11. [x] Add tests
 
 ## Acceptance Criteria
 
-- [ ] Detects unit placements with invalid type IDs
-- [ ] Detects doodads placed with unit/item/ability IDs
-- [ ] Detects item drops referencing non-item IDs
-- [ ] Detects waygate destinations pointing to non-existent regions
-- [ ] Distinguishes warnings (base game IDs) from errors (custom IDs)
-- [ ] Provides clear report of all validation issues
-- [ ] All tests pass
+- [x] Detects unit placements with invalid type IDs
+- [x] Detects doodads placed with unit/item/ability IDs
+- [x] Detects item drops referencing non-item IDs
+- [x] Detects waygate destinations pointing to non-existent regions
+- [x] Distinguishes warnings (base game IDs) from errors (custom IDs)
+- [x] Provides clear report of all validation issues
+- [x] All tests pass
 
 ## Cross-Reference Map
 
@@ -130,3 +130,49 @@ We don't currently parse the base game SLK files (UnitData.slk, AbilityData.slk,
 ### Future Enhancement
 
 Once we have SLK parsing (Phase 6 asset system), we can upgrade warnings to errors for base game IDs too.
+
+---
+
+## Implementation Notes
+
+**Completed:** 2025-12-31
+
+### Files Created
+
+- `src/validation/init.lua` - Main validation module (437 lines)
+- `src/tests/test_validation.lua` - Comprehensive test suite (32 tests)
+
+### Files Modified
+
+- `src/data/init.lua` - Added `require("validation")` and `Map:validate()` method
+
+### Design Decisions
+
+1. **ValidationReport class** - Encapsulates errors, warnings, and statistics. Errors affect
+   validity, warnings do not.
+
+2. **Custom vs Base Game ID detection** - Uses pattern matching (`X###` = custom). Custom IDs
+   not in objectdb are errors; base game IDs not in objectdb are warnings (we lack SLK data).
+
+3. **Type classification heuristics** - `classify_id()` attempts to guess object type from ID
+   format (e.g., `A###` = ability, `H###` = unit). Used for better error messages.
+
+4. **Type mismatch detection** - When an ID exists in objectdb but is wrong type (e.g., using
+   an ability ID for a unit placement), reports as `type_mismatch` error.
+
+5. **Region sound validation** - Missing sounds are warnings, not errors, since sounds may
+   reference external files.
+
+### Test Coverage
+
+All 32 unit tests pass, covering:
+- Helper functions (`is_custom_id`, `classify_id`)
+- ValidationReport class
+- Unit placement validation (4 tests)
+- Doodad placement validation (2 tests)
+- Item drop validation (3 tests)
+- Ability reference validation (2 tests)
+- Waygate destination validation (3 tests)
+- Region sound validation (3 tests)
+- Integration tests (3 tests)
+- Report formatting (2 tests)

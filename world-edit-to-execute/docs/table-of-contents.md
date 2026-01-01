@@ -52,6 +52,8 @@ src/
 ├── registry/                   Object registry system (Issue 207)
 │   ├── init.lua                ObjectRegistry class
 │   └── spatial.lua             SpatialIndex for spatial queries
+├── validation/                 Cross-reference validation (Issue 111)
+│   └── init.lua                Validates references between map files
 ├── data/                       Unified Map class
 │   └── init.lua                Map.load() integrates all parsers
 ├── guild/                      Hero & Shop System (Issue 014)
@@ -198,6 +200,8 @@ issues/
 | 106 | Design internal data structures | **Completed** |
 | 107 | Build CLI metadata dump tool | **Completed** |
 | 108 | Phase 1 integration test | **Completed** |
+| 110 | Object data parsers (w3u/w3a/w3t/etc.) | **Completed** |
+| 111 | Cross-reference validation | **Completed** |
 
 ### Phase 2 Issues (Data Model - Game Objects)
 

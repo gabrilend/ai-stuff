@@ -20,6 +20,9 @@ local ObjectRegistry = require("registry")
 -- Object database (definitions/stats)
 local objectdb = require("parsers.objectdb")
 
+-- Validation (cross-reference checking)
+local validation = require("validation")
+
 -- {{{ Player colors
 local PLAYER_COLORS = {
     [0] = { r = 255, g = 3, b = 3, name = "Red" },
@@ -476,6 +479,18 @@ function Map:has_object_definition(id)
         return self.object_data:has(id)
     end
     return false
+end
+-- }}}
+-- }}}
+
+-- {{{ Validation
+-- {{{ validate
+-- Run cross-reference validation on the map.
+-- Checks that all object placements reference valid definitions,
+-- waygates point to existing regions, etc.
+-- @return ValidationReport with errors and warnings
+function Map:validate()
+    return validation.validate_map(self)
 end
 -- }}}
 -- }}}
