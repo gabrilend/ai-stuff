@@ -43,7 +43,77 @@ else
         compat.lshift = ops.lshift
         compat.rshift = ops.rshift
     else
-        error("No bitwise operations available (need Lua 5.3+ or LuaJIT): " .. tostring(err))
+        -- Pure Lua 5.1/5.2 fallback using arithmetic
+        -- These work for 32-bit unsigned integers
+        local floor = math.floor
+
+        -- {{{ band - bitwise AND using arithmetic
+        compat.band = function(a, b)
+            local result = 0
+            local bit = 1
+            while a > 0 and b > 0 do
+                if a % 2 == 1 and b % 2 == 1 then
+                    result = result + bit
+                end
+                a = floor(a / 2)
+                b = floor(b / 2)
+                bit = bit * 2
+            end
+            return result
+        end
+        -- }}}
+
+        -- {{{ bor - bitwise OR using arithmetic
+        compat.bor = function(a, b)
+            local result = 0
+            local bit = 1
+            while a > 0 or b > 0 do
+                if a % 2 == 1 or b % 2 == 1 then
+                    result = result + bit
+                end
+                a = floor(a / 2)
+                b = floor(b / 2)
+                bit = bit * 2
+            end
+            return result
+        end
+        -- }}}
+
+        -- {{{ bnot - bitwise NOT (32-bit)
+        compat.bnot = function(a)
+            return 4294967295 - a
+        end
+        -- }}}
+
+        -- {{{ bxor - bitwise XOR using arithmetic
+        compat.bxor = function(a, b)
+            local result = 0
+            local bit = 1
+            while a > 0 or b > 0 do
+                local a_bit = a % 2
+                local b_bit = b % 2
+                if a_bit ~= b_bit then
+                    result = result + bit
+                end
+                a = floor(a / 2)
+                b = floor(b / 2)
+                bit = bit * 2
+            end
+            return result
+        end
+        -- }}}
+
+        -- {{{ lshift - left shift
+        compat.lshift = function(a, n)
+            return a * (2 ^ n)
+        end
+        -- }}}
+
+        -- {{{ rshift - right shift
+        compat.rshift = function(a, n)
+            return floor(a / (2 ^ n))
+        end
+        -- }}}
     end
 end
 -- }}}
