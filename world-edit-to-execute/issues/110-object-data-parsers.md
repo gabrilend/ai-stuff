@@ -39,9 +39,9 @@ Objects should be queryable by ID with full stat access.
 3. [x] Implement ability parser (w3a) (110c)
 4. [x] Implement item parser (w3t) (110d)
 5. [x] Implement remaining parsers (w3b, w3d, w3h, w3q) (110e)
-6. [ ] Create ObjectDatabase for lookup by ID (110f)
-7. [ ] Integrate with gameobjects module (110g)
-8. [ ] Add comprehensive tests (110h)
+6. [x] Create ObjectDatabase for lookup by ID (110f)
+7. [x] Integrate with gameobjects module (110g)
+8. [x] Add comprehensive tests (110h)
 
 ## Sub-Issues
 
@@ -58,13 +58,13 @@ Objects should be queryable by ID with full stat access.
 
 ## Acceptance Criteria
 
-- [ ] All 7 object file types parseable
-- [ ] Object modifications correctly applied to base objects
-- [ ] Custom objects inherit from parents
-- [ ] Level-based modifications work for abilities/upgrades
-- [ ] ObjectDatabase provides O(1) lookup by ID
-- [ ] Gameobjects have access to their full definitions
-- [ ] All tests pass
+- [x] All 7 object file types parseable
+- [x] Object modifications correctly applied to base objects
+- [x] Custom objects inherit from parents
+- [x] Level-based modifications work for abilities/upgrades
+- [x] ObjectDatabase provides O(1) lookup by ID
+- [x] Gameobjects have access to their full definitions
+- [x] All tests pass
 
 ## Technical Notes
 
@@ -148,7 +148,30 @@ Each parser provides:
 - Tests use synthetic binary data generators
 - All tests pass with LuaJIT
 
-**Remaining Work:**
-- 110f: ObjectDatabase for unified lookup across all types
-- 110g: Integration with gameobjects module
-- 110h: Real map file validation tests
+**ObjectDatabase (110f):**
+- `src/parsers/objectdb.lua` - Unified database aggregating all parsers
+- O(1) lookup by ID across all object types
+- Provides: get, has, get_stat, get_type, get_all_stats, is_custom, get_parent_id
+- load_from_archive() loads all available object files from MPQ
+- 31 tests in `src/tests/test_objectdb.lua`
+
+**Map Integration (110g):**
+- Added objectdb require and object_data field to Map class
+- objectdb.load_from_archive() called during Map.load()
+- Map accessor methods: get_object_definition, get_object_stat, get_object_type, has_object_definition
+- Updated info() to include object_definition_counts
+- Updated format() to display Object Definitions section
+- Integration test added to `src/tests/test_data.lua`
+
+**Real Map Validation (110h):**
+- `src/tests/test_110h_real_maps.lua` - Tests against 16 real map files
+- Validates all 7 object file types load correctly
+- Statistics across all test maps:
+  - 43,435 total modified objects
+  - 14,579 units, 12,171 abilities, 8,328 doodads
+  - 4,231 destructibles, 1,735 upgrades, 1,198 buffs, 1,193 items
+  - 18,024 custom objects (all have parent IDs)
+  - All 43,195 object IDs validated as 4-char strings
+- 13 tests covering: archive loading, map integration, stat access, type classification
+
+**ISSUE COMPLETE** - All 8 sub-tasks implemented and tested
