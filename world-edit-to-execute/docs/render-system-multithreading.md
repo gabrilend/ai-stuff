@@ -86,6 +86,142 @@ The render system uses a 4-stage producer-consumer pipeline designed to minimize
 
 **Why main thread:** OpenGL/DirectX context is typically bound to the thread that created the window. Raylib requires main-thread rendering.
 
+## Task Submission System
+
+### Task Structure
+
+A task consists of:
+- **Function pointer** (C) or anonymous function (Lua) - the work to execute
+- **Weighted cost** - profiler-determined estimate of execution time for load balancing
+
+```c
+typedef struct {
+    void (*execute)(void* context);  // Function to run
+    void* context;                   // Task-specific data
+    uint16_t weight;                 // Load balancing cost
+} WorkerTask;
+```
+
+### Task List Structure (Ring Buffer with Sentinel)
+
+Each worker owns a ring buffer of task slots. The **sleep function pointer** acts as a sentinel terminator, similar to null-terminated strings in C:
+
+```
+Task List (ring buffer):
++--------+--------+--------+--------+--------+--------+
+| task_A | task_B | task_C | SLEEP  |  ...   |  ...   |
++--------+--------+--------+--------+--------+--------+
+    ^                         ^
+    |                         |
+  start_ptr               sentinel (end of work)
+```
+
+- **start_ptr**: Where worker is currently executing
+- **Sentinel**: Sleep function pointer marks end of pending tasks
+- Workers process tasks sequentially until hitting the sentinel
+
+### How Updater Writes Tasks
+
+The updater appends tasks by finding the sentinel and replacing it:
+
+1. Find the sleep function pointer in the task list
+2. Write the sleep function to the *next* slot (new sentinel)
+3. Write the new task to the current slot (overwrites old sentinel)
+
+```c
+// Pseudocode for task append
+void append_task(Worker* w, WorkerTask* task) {
+    // Find current sentinel (sleep function)
+    size_t pos = find_sentinel(w->task_list);
+
+    // Move sentinel forward
+    w->task_list[pos + 1].execute = sleep_function;
+
+    // Write task where sentinel was
+    w->task_list[pos] = *task;
+}
+```
+
+### Lock-Free Validation (Optimistic Concurrency)
+
+Multiple updater threads may attempt to write to the same worker's task list. Instead of locks, the system uses **optimistic validation**:
+
+1. Write the task to the slot
+2. Read back the slot value (twice, with compiler barriers to prevent optimization)
+3. If the read value matches what was written, success
+4. If corrupted by another thread, recurse and append further down the list
+
+```c
+// Write task
+w->task_list[pos] = *task;
+
+// Validate (compiler barrier prevents optimizing away)
+volatile WorkerTask* check = &w->task_list[pos];
+if (check->execute != task->execute) {
+    // Another thread overwrote us - try again further down
+    append_task(w, task);
+    return;
+}
+// Second validation check
+if (check->execute != task->execute) {
+    append_task(w, task);
+    return;
+}
+```
+
+This works because:
+- Tasks are only written to slots containing the sleep function (sentinel)
+- If our write was overwritten, another valid task is there (not corruption)
+- We simply append further down; the worker will process both tasks
+
+### How Workers Discover New Tasks
+
+Workers don't receive notifications. They poll:
+
+1. Attempt to execute the task at current position
+2. If the task is the sleep function (sentinel), sleep for 10ms
+3. After sleeping, check again from the same position
+4. If the task is real work, execute it and advance position
+
+```c
+void worker_loop(Worker* w) {
+    while (running) {
+        WorkerTask* task = &w->task_list[w->start_ptr];
+
+        if (task->execute == sleep_function) {
+            // No work available - sleep one game tick
+            usleep(10000);  // 10ms = one 100Hz update cycle
+        } else {
+            // Execute the task
+            task->execute(task->context);
+
+            // Advance (with ring wrap)
+            w->start_ptr = (w->start_ptr + 1) % w->task_list_size;
+        }
+    }
+}
+```
+
+### Ring Buffer Wraparound
+
+As workers process tasks, they leave a "history" of completed task slots behind. When start_ptr approaches the end of the allocated buffer, it wraps back to the beginning:
+
+```
+Before wrap:
++------+------+------+------+------+------+
+| done | done | done | taskX| SLEEP|      |
++------+------+------+------+------+------+
+                        ^
+                    start_ptr (near end)
+
+After wrap:
++------+------+------+------+------+------+
+| taskY| SLEEP|      |      |      |      |
++------+------+------+------+------+------+
+    ^
+start_ptr (wrapped to beginning)
+```
+
 ## Data Flow Diagram
 
 ```
@@ -95,10 +231,10 @@ The render system uses a 4-stage producer-consumer pipeline designed to minimize
 +-------------+     +-------------+     +-------------+     +-------------+
       |                   |                   |                   |
       v                   v                   v                   v
- +---------+        +----------+        +----------+        +----------+
+ +---------+        +-----------+        +----------+        +----------+
  |  Game   |        | Transform |        |  Buffer  |        |   GPU    |
  |  State  |        |  Matrices |        |   Swap   |        |  Calls   |
- +---------+        +----------+        +----------+        +----------+
+ +---------+        +-----------+        +----------+        +----------+
 ```
 
 ## Synchronization Mechanisms
