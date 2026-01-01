@@ -18,7 +18,7 @@
 | 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
 | 5 | Rendering - Visual Abstraction | Issues Created | 0/55 |
 | 6 | Asset System - Community Content | Planned | - |
-| 7 | Gameplay - Core Mechanics | Issues Created | 0/7 |
+| 7 | Gameplay - Core Mechanics | In Progress | 1/7 |
 | 8 | Multiplayer - Network Layer | Planned | - |
 | 9 | Polish - Tools and UX | Planned | - |
 
@@ -473,8 +473,8 @@ Recorded in CRITICAL-PATH.md:
 | 701c | Ghost form component | Pending | 701a |
 | 701d | Resurrection mechanics | Pending | 701a |
 | 701e | Corpse system | Pending | 701a |
-| 702 | Profession system | Issues Created | 402, 406 |
-| 702a | Profession core component | Pending | 402 |
+| 702 | Profession system | In Progress | 402, 406 |
+| 702a | Profession core component | **Completed** | 402 |
 | 702b | Gathering professions | Pending | 702a |
 | 702c | Crafting professions | Pending | 702a |
 | 702d | Recipe system | Pending | 702a |
@@ -1371,6 +1371,16 @@ Both systems support dual WC3/WoW modes:
   - get(), get_raw(), get_base(), get_many(), get_all(), get_modifier_breakdown()
   - mark_dirty() for cache invalidation, rebuild() for dynamic registration
   - 44 tests pass (test_getters.lua) - 99 total attribute tests
+- **Issue 702a completed:** Profession core component
+  - Created src/runtime/systems/professions.lua (~830 lines)
+  - Configuration modes: WoW (2 primary slots, 1-300 skill), WC3 (unlimited, 1-5 levels, XP-based)
+  - Skill difficulty colors: orange (100%), yellow (75%), green (25%), gray (0%)
+  - Query functions: get_skill, get_max_skill, has_profession, get_known_recipes
+  - Modification: learn_profession, forget_profession, add_skill, learn_recipe
+  - Progression: try_skillup with difficulty-based chance
+  - XP-based leveling for WC3 mode with automatic level-ups
+  - Key fix: ECS metatable inheritance causes shared table references; fixed with ensure_fresh_tables()
+  - 42 tests pass (test_professions.lua)
 
 ---
 
