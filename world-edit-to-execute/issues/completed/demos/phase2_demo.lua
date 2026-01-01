@@ -383,7 +383,7 @@ local function demo_gameobjects()
         id = "Hamg",  -- Archmage (hero)
         position = {x = 500, y = 600, z = 0},
         player = 0,
-        hero_level = 5,
+        hero_data = {level = 5},  -- Hero data structure as parser would provide
     })
     print(string.format("    %s", tostring(unit)))
     print(string.format("    is_hero() = %s, get_hero_level() = %d",
