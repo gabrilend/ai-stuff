@@ -1330,7 +1330,7 @@ Both systems support dual WC3/WoW modes:
   - Rolling 2-second history for spike detection
   - F3 toggle, F4 file export
   - Sub-issues: 511a (timing), 511b (recording), 511c (overlay), 511d (history), 511e (export)
-- **Issue 110 in progress:** Object data parsers (110a-110e complete)
+- **Issue 110 completed:** Object data parsers (all 8 sub-issues complete)
   - Created src/parsers/objectdata.lua (core parser, ~400 lines)
   - Created 7 type-specific parsers:
     - src/parsers/w3u.lua (units)
@@ -1340,10 +1340,11 @@ Both systems support dual WC3/WoW modes:
     - src/parsers/w3d.lua (doodads, uses level/column)
     - src/parsers/w3h.lua (buffs)
     - src/parsers/w3q.lua (upgrades, uses level/column)
-  - 73 tests pass (23 core + 50 type-specific)
-  - Field ID mappings and reverse lookups for all types
-  - Type-specific helpers: get_combat_stats, get_costs, get_abilities, etc.
-  - Remaining: 110f (ObjectDatabase), 110g (gameobjects integration), 110h (real map tests)
+  - Created src/parsers/objectdb.lua (unified lookup, O(1) by ID)
+  - Integrated with Map class (object_data field, accessor methods)
+  - 117 tests pass: 23 core + 50 type-specific + 31 ObjectDatabase + 13 real map
+  - 43,435 objects validated across 16 real map files
+  - All 7 file types parse correctly (w3u/w3a/w3t/w3b/w3d/w3h/w3q)
 
 ---
 

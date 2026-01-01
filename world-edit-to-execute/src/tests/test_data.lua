@@ -451,8 +451,8 @@ local function test_registry_format_output()
     local map = data.load(map_files[1])
     local formatted = data.format(map)
 
-    -- Check Game Objects section exists
-    assert(formatted:find("Game Objects"), "Should have Game Objects section")
+    -- Check Game Object Instances section exists (registry = placements)
+    assert(formatted:find("Game Object Instances"), "Should have Game Object Instances section")
     assert(formatted:find("Doodads:"), "Should have Doodads count")
     assert(formatted:find("Units:"), "Should have Units count")
     assert(formatted:find("Regions:"), "Should have Regions count")
@@ -466,6 +466,40 @@ local function test_registry_format_output()
     end
 
     print("  PASS: Registry format output works")
+end
+-- }}}
+
+-- {{{ test_object_data_integration
+local function test_object_data_integration()
+    print("Testing object data integration...")
+
+    local map_files = get_map_files()
+    if #map_files == 0 then
+        print("  SKIP: No test maps")
+        return
+    end
+
+    local map = data.load(map_files[1])
+
+    -- Check object_data was created
+    assert(map.object_data, "Should have object_data")
+
+    -- Check info includes object data
+    local info = map:info()
+    assert(info.has_object_data ~= nil, "Should have has_object_data field")
+
+    -- Check format includes Object Definitions section
+    local formatted = data.format(map)
+    assert(formatted:find("Object Definitions"), "Should have Object Definitions section")
+
+    if VERBOSE then
+        print("  Object data count: " .. map.object_data:count())
+        print("  --- Object data ---")
+        print(map.object_data:format())
+        print("  ---")
+    end
+
+    print("  PASS: Object data integration works")
 end
 -- }}}
 -- }}}
@@ -489,6 +523,9 @@ local function main()
     test_registry_convenience_methods()
     test_registry_info_output()
     test_registry_format_output()
+
+    -- Object data integration tests (110g)
+    test_object_data_integration()
 
     print("\n=== All tests completed ===")
 end
