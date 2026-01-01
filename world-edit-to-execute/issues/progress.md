@@ -90,7 +90,7 @@ No dependencies (all independent except A07)
 | 015 | WoW-style combat system | Pending | 014 |
 | 016 | Attribute getter/setter system | In Progress | 015, 014 |
 | 016a | Core attribute registry | **Completed** | None |
-| 016b | Dispatch table getters | Pending | 016a |
+| 016b | Dispatch table getters | **Completed** | 016a |
 | 016c | Dispatch table setters | Pending | 016a |
 | 016d | Modifier stack system | Pending | 016a, 016b, 016c |
 | 016e | Derived attribute engine | Pending | 016a |
@@ -1363,6 +1363,14 @@ Both systems support dual WC3/WoW modes:
   - Bulk registration, container creation with defaults, filtered listing
   - Updated src/compat.lua with pure Lua 5.1/5.2 bitwise fallbacks
   - 55 tests pass (test_attributes.lua)
+- **Issue 016b completed:** Dispatch table getters
+  - Created src/libs/attributes/getters.lua (~300 lines)
+  - GETTERS/GETTERS_RAW dispatch tables built from registry
+  - Modifier application: (base + flat) * (1 + percent/100) * multiplier
+  - Derived attribute computation with dirty flag caching
+  - get(), get_raw(), get_base(), get_many(), get_all(), get_modifier_breakdown()
+  - mark_dirty() for cache invalidation, rebuild() for dynamic registration
+  - 44 tests pass (test_getters.lua) - 99 total attribute tests
 
 ---
 

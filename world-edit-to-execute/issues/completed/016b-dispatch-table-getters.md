@@ -274,16 +274,71 @@ end
 
 ## Acceptance Criteria
 
-- [ ] GETTERS dispatch table populated from registry
-- [ ] get() applies modifiers correctly
-- [ ] get_raw() returns base value only
-- [ ] Derived attributes computed on access
-- [ ] Dirty flag system for cache invalidation
-- [ ] get_many() for batch reads
-- [ ] get_modifier_breakdown() for debugging
-- [ ] Unit tests for modifier application
+- [x] GETTERS dispatch table populated from registry
+- [x] get() applies modifiers correctly
+- [x] get_raw() returns base value only
+- [x] Derived attributes computed on access
+- [x] Dirty flag system for cache invalidation
+- [x] get_many() for batch reads
+- [x] get_modifier_breakdown() for debugging
+- [x] Unit tests for modifier application
 
 ---
 
-**Status:** Pending
+**Status:** Completed
 **Dependencies:** 016a (Core Attribute Registry)
+
+---
+
+## Implementation Notes
+
+**Completed 2025-12-31**
+
+### Files Created
+
+1. **src/libs/attributes/getters.lua** (~300 lines)
+   - `GETTERS` and `GETTERS_RAW` dispatch tables built from registry
+   - `apply_modifiers()` - applies flat/percent/multiplier in correct order
+   - `recalculate_derived()` - computes derived attributes from formula
+   - `get()` - computed value with modifiers applied
+   - `get_raw()` - base value only, no modifiers
+   - `get_base()` - base + flat modifiers only
+   - `get_many()` - batch read multiple attributes
+   - `get_all()` - all non-hidden attributes
+   - `get_all_raw()` - all raw values
+   - `get_modifier_breakdown()` - detailed computation breakdown for debugging
+   - `get_getter()` / `get_raw_getter()` - direct getter access for hot paths
+   - `has()` - check if getter exists
+   - `rebuild()` - rebuild dispatch tables after registry changes
+   - `mark_dirty()` - mark derived attributes for recalculation
+   - `invalidate_all_derived()` - mark all derived dirty
+
+2. **src/tests/test_getters.lua** (~450 lines)
+   - 44 comprehensive tests covering all acceptance criteria
+   - Tests: basic get/get_raw, modifier application (flat/percent/multiplier)
+   - Tests: derived computation, dirty flag propagation
+   - Tests: batch operations, modifier breakdown, edge cases
+
+### Files Modified
+
+- **src/libs/attributes/init.lua** - Added getters exports
+
+### Modifier Application Order
+
+Modifiers are applied in this order: `(base + flat) * (1 + percent/100) * multiplier`
+
+- **flat**: Added to base value (stacks additively)
+- **percent**: Percentage increase (stacks additively with other percents)
+- **multiplier**: Multiplicative factor (stacks multiplicatively)
+
+### Test Results
+
+```
+=== Test Summary ===
+Passed: 44
+Failed: 0
+Total: 44
+All tests PASSED!
+```
+
+Combined with 016a tests: 99 tests total for attribute system.
