@@ -167,6 +167,81 @@ WC3 default: Permanent top/bottom panels, overlay menus (pause in single-player)
 
 ---
 
+### OQ-008: Camera Transition Architecture
+**Priority:** 🟡 MEDIUM
+**Affects:** Phase 5 (rendering), perspective switching
+**Status:** DECIDED
+**Source:** Issue 500, Issue 409
+
+How should camera transitions between perspectives be implemented?
+
+| Option | Description |
+|--------|-------------|
+| Interpolated | Smooth lerp between camera states |
+| **Frame-based** | Binary vector arrays with timer-driven playback |
+| Instant | Immediate cut between perspectives |
+
+**Decision:** Frame-based binary vectors with mise en place threading.
+- Transitions use frame arrays (per issue 409 encoding)
+- Timer in thread pool drives playback
+- Mise en place: duplicate data, parallel compute, rhythmic sync
+- No mutexes - each thread owns its data copy
+**Decided by:** User
+**Date:** 2025-12-31
+**Details:** See issue 500 "Decided Answers" section (D6)
+
+---
+
+### OQ-009: Chat System Architecture
+**Priority:** 🟡 MEDIUM
+**Affects:** Phase 5 (UI), both interface modes
+**Status:** DECIDED
+**Source:** Issue 500
+
+How should chat be integrated across both perspectives?
+
+| Option | Description |
+|--------|-------------|
+| WC3-style | Minimal chat, RTS-focused |
+| **WoW-centric** | Full chat as primary interface |
+| Hybrid | Different chat per mode |
+
+**Decision:** WoW-centric first, minimal friction with game state.
+- Native WoW protocol patterns
+- Separate subsystem, not tied to game ticks
+- Same chat panel works in both Warlord/Hero perspectives
+- UI events, not gameplay events
+**Decided by:** User
+**Date:** 2025-12-31
+**Details:** See issue 500 "Decided Answers" section (D7)
+
+---
+
+### OQ-010: Entity Spawning Architecture
+**Priority:** 🟡 MEDIUM
+**Affects:** Phase 5 (rendering), Phase 7 (gameplay)
+**Status:** DECIDED
+**Source:** Issue 500, libs/wow-chat
+
+How should entities spawn in the world?
+
+| Option | Description |
+|--------|-------------|
+| Static | Pre-placed entities on map load |
+| **Player-centric** | Procedural spawning around each player |
+| Hybrid | Static base + dynamic additions |
+
+**Decision:** Player-centric spawning with periodic events.
+- Empty base world (all static creatures removed)
+- Periodic spawn systems: Mordaunts (21s), Travellers (210s), Treasure (120s)
+- Same underlying events, different visual presentation per perspective
+- Reference implementation: libs/wow-chat/
+**Decided by:** User
+**Date:** 2025-12-31
+**Details:** See issue 500 "Decided Answers" section (D8)
+
+---
+
 ### OQ-005: Ghost/Spirit World Mechanics
 **Priority:** 🟢 LOW
 **Affects:** Issue 701 (Death System)
@@ -322,25 +397,29 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 
 ---
 
-### IF-003: Phase 4 Integration (408)
-**Status:** 3/5 complete
-**Blocking:** Phase 4 demo
+### IF-003: Phase 4 Integration (408) ✓ COMPLETE
+**Status:** 5/5 complete
+**Blocking:** None (completed)
 
 | Sub-Issue | Status |
 |-----------|--------|
 | 408a (unit tests core) | ✓ Complete (2025-12-30) |
 | 408b (unit tests entity) | ✓ Complete (2025-12-30) |
-| 408c (unit tests player) | ✗ Pending |
+| 408c (unit tests player) | ✓ Complete (2025-12-31) |
 | 408d (integration scenario) | ✓ Complete |
-| 408e (visual demo) | ✗ Pending |
+| 408e (visual demo) | ✓ Complete (2025-12-31) |
 
-**Action:** Complete 408c, 408e for Phase 4 closure
+**Visual Demo Features:**
+- Terminal-based animation with 60x20 grid display
+- Units as colored circles (red/blue teams)
+- Real-time movement at 62.5 ticks/sec
+- Status bar with tick count and game time
 
 ---
 
-### IF-004: Vertical Slice (508) - CRITICAL PATH
-**Status:** 6/9 complete
-**Blocking:** Playable demo
+### IF-004: Vertical Slice (508) ✓ COMPLETE
+**Status:** 9/9 complete
+**Blocking:** None (completed)
 
 | Sub-Issue | Status |
 |-----------|--------|
@@ -350,11 +429,11 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 | 508d (map integration) | ✓ Complete (2025-12-30) |
 | 508e (input and selection) | ✓ Complete (2025-12-30) |
 | 508f (movement orders) | ✓ Complete (2025-12-31) |
-| 508g (minimal UI) | ✗ Pending |
-| 508h (integration test) | ✗ Pending |
-| 508i (fix chunk ray picking) | ✗ Pending (bug fix) |
+| 508g (minimal UI) | ✓ Complete (2025-12-31) |
+| 508h (integration test) | ✓ Complete (2025-12-31) |
+| 508i (fix chunk ray picking) | ✓ Complete (2025-12-31) |
 
-**Action:** Complete 508g (minimal UI) for basic HUD display
+**Action:** None - vertical slice complete, architecture validated
 
 ---
 
@@ -373,6 +452,34 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 
 **Dependencies:** 503 (sprite system), WoW-Chat integration (OQ-003/004)
 **Action:** Create sub-issue files when beginning implementation
+
+---
+
+### IF-006: Threading Architecture Rewrite (512)
+**Status:** 0/5 complete
+**Blocking:** Scalable render performance
+**Priority:** CRITICAL
+
+| Sub-Issue | Status |
+|-----------|--------|
+| 512 (root) | ✓ Created (2025-12-31) |
+| 512a (worker ring buffer) | ✗ Pending |
+| 512b (updater load balancing) | ✗ Pending |
+| 512c (self-evaluating updaters) | ✗ Pending |
+| 512d (sync parallel scan) | ✗ Pending |
+| 512e (integration testing) | ✗ Pending |
+
+**Key Changes:**
+- Workers scale to CPU core count (not fixed 2-4)
+- Ring buffer task-lists instead of fixed slots
+- Least-busy worker selection for load balancing
+- Helper updaters are worker tasks with self-evaluation (50% threshold)
+- Sync thread runs in parallel (never blocks)
+- Target: 100Hz (10ms) tick rate
+
+**Dependencies:** 508a (current prototype to replace)
+**Documentation:** `docs/render-threading-v2.md`
+**Action:** Create sub-issue files, begin 512a implementation
 
 ---
 
@@ -400,13 +507,26 @@ Phase 5 (Rendering)
     ├── Requires: OQ-001 (renderer target) ✓ DECIDED
     ├── Requires: OQ-002 (coordinate system) ✓ DECIDED
     ├── Requires: OQ-003 (dual interface strategy) ✓ DECIDED
+    ├── Requires: OQ-007 (window management) ✓ DECIDED
+    ├── Requires: OQ-008 (camera transitions) ✓ DECIDED
+    ├── Requires: OQ-009 (chat system) ✓ DECIDED
+    ├── Requires: OQ-010 (entity spawning) ✓ DECIDED
     │
-    ├── 508 (Vertical Slice) - CRITICAL PATH
-    │   └── 6/9 complete, next: 508g minimal UI
+    ├── 508 (Vertical Slice) ✓ COMPLETE
+    │   └── 9/9 complete, architecture validated
     │
-    └── 509 (Visual Customization)
-        ├── Requires: 503 (sprite system)
-        └── Requires: OQ-003/004 (WoW-Chat integration)
+    ├── 509 (Visual Customization)
+    │   ├── Requires: 503 (sprite system)
+    │   └── Requires: OQ-003/004 (WoW-Chat integration)
+    │
+    ├── 510 (Dual Perspective UI)
+    │   ├── Requires: 506 (UI Framework)
+    │   └── Informs: OQ-008/009 implementation
+    │
+    └── 512 (Threading Architecture Rewrite) - CRITICAL
+        ├── Replaces: 508a (prototype threading)
+        ├── Target: 100Hz (10ms) tick rate
+        └── See: docs/render-threading-v2.md
 
 Phase 7 (Gameplay)
     │
@@ -416,7 +536,7 @@ Phase 7 (Gameplay)
 Phase 4 Completion
     │
     ├── IF-002 (405 collision) ✓ COMPLETE
-    └── IF-003 (408 integration tests) - 3/5 complete
+    └── IF-003 (408 integration tests) ✓ COMPLETE
 ```
 
 ---
@@ -475,4 +595,11 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-31 | Issue audit: moved 51 completed issues to issues/completed/ | Claude |
 | 2025-12-31 | Expanded OQ-003/004 with full emulation architecture details | User/Claude |
 | 2025-12-31 | Added OQ-007 (window management strategy) - breakout windows decided | User/Claude |
+| 2025-12-31 | Added OQ-008 (camera transitions) - frame-based with mise en place | User/Claude |
+| 2025-12-31 | Added OQ-009 (chat system) - WoW-centric, minimal friction | User/Claude |
+| 2025-12-31 | Added OQ-010 (entity spawning) - player-centric periodic events | User/Claude |
+| 2025-12-31 | Cloned libs/wow-chat as reference implementation | Claude |
+| 2025-12-31 | Created issue 512 (threading architecture rewrite) | Claude |
+| 2025-12-31 | Created docs/render-threading-v2.md (target architecture spec) | Claude |
+| 2025-12-31 | Added IF-006 for threading rewrite, updated cross-phase deps | Claude |
 
