@@ -466,3 +466,11 @@ The demo is intentionally simple - just units moving toward each other. Combat a
 
 Performance target: Demo should run smoothly at 30 FPS display update while maintaining 62.5 game ticks per second internally.
 
+---
+
+## Known Issues
+
+| Bug | Description | Severity | Notes |
+|-----|-------------|----------|-------|
+| Units stuck on collision | When multiple units converge on the same path through a gap, they can get stuck pushing against each other instead of finding alternate routes | Low | The collision resolution pushes units apart but doesn't trigger path recalculation. Units eventually free themselves but movement is not optimal. Future fix: implement local avoidance steering or repath on blocked detection. |
+
