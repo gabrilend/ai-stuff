@@ -12,6 +12,7 @@
 --   - Getters: Dispatch table getters with modifier application
 --   - Setters: Dispatch table setters with validation, events, and transactions
 --   - Modifiers: Buff/equipment bonus management with stacking and expiry
+--   - Configs: Predefined attribute sets for WC3 and WoW systems
 --
 -- Usage:
 --   local attributes = require("libs.attributes")
@@ -156,6 +157,13 @@ local attributes = {
 
     -- Formula helpers
     create_formula = derived_module.create_formula,
+
+    -- Config loaders (016f, 016g)
+    -- Usage: local wc3 = attributes.load_config("wc3")
+    --        wc3.register_all()
+    load_config = function(name)
+        return require("libs.attributes.configs." .. name)
+    end,
 }
 -- }}}
 
