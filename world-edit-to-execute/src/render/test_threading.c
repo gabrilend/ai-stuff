@@ -1,5 +1,5 @@
 /*
- * Threading Infrastructure v2 Tests
+ * Threading Infrastructure Tests
  *
  * Tests ring buffer task lists, load balancing, and sync.
  * Run with: gcc -o test_threading test_threading.c threading.c -lpthread && ./test_threading
