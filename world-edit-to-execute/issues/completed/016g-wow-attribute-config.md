@@ -591,16 +591,55 @@ local CLASS_BASE_STATS = {
 
 ## Acceptance Criteria
 
-- [ ] All WoW primary stats registered
-- [ ] All secondary/rating stats registered
-- [ ] Rating conversion constants defined
-- [ ] Derived stats with proper formulas
-- [ ] Class base stats defined
-- [ ] Resource types (mana/rage/energy) supported
-- [ ] Unit tests for stat calculations
+- [x] All WoW primary stats registered
+- [x] All secondary/rating stats registered
+- [x] Rating conversion constants defined
+- [x] Derived stats with proper formulas
+- [x] Class base stats defined
+- [x] Resource types (mana/rage/energy) supported
+- [x] Unit tests for stat calculations
 
 ---
 
-**Status:** Pending
+**Status:** Complete
 **Dependencies:** 016a, 016e
+
+---
+
+## Implementation Notes
+
+**Completed:** 2026-01-02
+
+### Files Created
+
+- `src/libs/attributes/configs/wow.lua` - Complete WoW TBC-era attribute system
+- `src/tests/test_wow_config.lua` - 43 passing tests
+
+### Features Implemented
+
+1. **Primary Stats**: Strength, Agility, Stamina, Intellect, Spirit with proper scaling
+2. **Secondary Stats**: All rating types (crit, hit, haste, expertise, defense, resilience, armor pen)
+3. **Rating Conversions**: Level 70 baseline values with level scaling
+4. **Class System**: All 9 TBC classes with base stats and per-level growth
+5. **Experience Table**: Full 1-70 XP requirements with TBC scaling at 60+
+6. **Derived Formulas**:
+   - max_health (stamina threshold at 20)
+   - max_mana (intellect threshold at 20)
+   - attack_power (class-specific: rogues/hunters get agi bonus)
+   - crit_chance (rating + class-specific agi conversion)
+   - spell_crit_chance, hit_chance, haste_percent
+   - armor (base + 2*agi), armor_reduction (capped at 75%)
+   - block_value, mana_regen (5-second rule formula)
+   - DPS calculation from attack_power
+
+### Test Coverage
+
+All 43 tests pass:
+- Registration (6 tests)
+- Derived formulas (12 tests)
+- Class configuration (9 tests)
+- Experience table (5 tests)
+- Level up mechanics (3 tests)
+- Rating conversions (3 tests)
+- Integration (5 tests)
 
