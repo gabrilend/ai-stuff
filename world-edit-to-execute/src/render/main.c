@@ -31,6 +31,7 @@
 #include "terrain.h"
 #include "input.h"
 #include "ui.h"
+#include "profiler.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
@@ -1146,11 +1147,18 @@ int main(void) {
     /* Initialize UI system (508g) */
     ui_init();
 
+    /* Initialize profiler (511) */
+    profile_init();
+
     printf("[main] Entering render loop...\n\n");
 
     while (!WindowShouldClose()) {
+        /* Profiler: begin frame timing */
+        profile_begin_frame();
+
         float dt = GetFrameTime();
 
+        PROFILE_BEGIN(update);
         tick_loop(dt);
         update_particles(dt);
         update_lua_entities(dt);  /* 508c: Update Lua-created entities */
@@ -1165,7 +1173,9 @@ int main(void) {
                 lua_pop(g_lua, 1);
             }
         }
+        PROFILE_END(update);
 
+        PROFILE_BEGIN(input);
         /* Update input system (508e) */
         input_update();
 
@@ -1219,8 +1229,20 @@ int main(void) {
         if (!slider_active && have_slot) {
             process_chunk_input(&slot_copy, g_cube_mesh, &camera);
         }
+        PROFILE_END(input);
+
+        /* F3: Toggle profiler overlay */
+        if (IsKeyPressed(KEY_F3)) {
+            profile_toggle();
+        }
+
+        /* F4: Dump profiler to file */
+        if (IsKeyPressed(KEY_F4)) {
+            profile_dump_to_file("profile_dump.txt");
+        }
 
         /* Render */
+        PROFILE_BEGIN(draw);
         BeginDrawing();
             ClearBackground(BLACK);
 
@@ -1280,7 +1302,14 @@ int main(void) {
             /* 508e: Selection box during drag */
             draw_selection_box();
 
+            /* 511: Profiler overlay (F3 to toggle) */
+            profile_draw_overlay();
+
         EndDrawing();
+        PROFILE_END(draw);
+
+        /* Profiler: end frame timing */
+        profile_end_frame();
     }
 
     /* Shutdown */
@@ -1292,6 +1321,7 @@ int main(void) {
     cleanup_lua();  /* 508c: Clean up Lua state */
     pool_destroy(pool);
     cleanup(pool);
+    profile_shutdown();  /* 511: Cleanup profiler */
     CloseWindow();
 
     printf("[main] Shutdown complete.\n");
