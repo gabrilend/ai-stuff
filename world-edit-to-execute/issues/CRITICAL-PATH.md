@@ -455,31 +455,58 @@ Direct `== 0` comparison for cross product. Should use epsilon threshold.
 
 ---
 
-### IF-006: Threading Architecture Rewrite (512)
-**Status:** 0/5 complete
-**Blocking:** Scalable render performance
-**Priority:** CRITICAL
+### IF-006: Threading Architecture Rewrite (512) ⚠️ PARTIAL
+**Status:** 5/6 complete (unit tests pass, main.c integration pending)
+**Blocking:** 512f blocks full completion
 
 | Sub-Issue | Status |
 |-----------|--------|
-| 512 (root) | ✓ Created (2025-12-31) |
-| 512a (worker ring buffer) | ✗ Pending |
-| 512b (updater load balancing) | ✗ Pending |
-| 512c (self-evaluating updaters) | ✗ Pending |
-| 512d (sync parallel scan) | ✗ Pending |
-| 512e (integration testing) | ✗ Pending |
+| 512 (root) | ✓ Complete (2026-01-01) |
+| 512a (worker ring buffer) | ✓ Complete |
+| 512b (updater load balancing) | ✓ Complete |
+| 512c (self-evaluating updaters) | ✓ Complete |
+| 512d (sync parallel scan) | ✓ Complete |
+| 512e (integration testing) | ✓ Complete |
+| 512f (main.c integration) | ✗ Pending |
 
-**Key Changes:**
-- Workers scale to CPU core count (not fixed 2-4)
-- Ring buffer task-lists instead of fixed slots
-- Least-busy worker selection for load balancing
-- Helper updaters are worker tasks with self-evaluation (50% threshold)
-- Sync thread runs in parallel (never blocks)
-- Target: 100Hz (10ms) tick rate
+**Implementation Summary:**
+- Workers scale to CPU core count via sysconf(_SC_NPROCESSORS_ONLN)
+- Ring buffer task-lists with WorkerTask function pointers
+- Least-busy worker selection (O(N) scan)
+- Helper updaters self-evaluate at 50% threshold (5ms)
+- Sync thread uses watch list for parallel pointer swaps
+- All 14 unit tests pass
 
-**Dependencies:** 508a (current prototype to replace)
+**⚠️ Integration Gap:** main.c still uses old threading API. Old threading.h/c
+temporarily restored. New API preserved in test_threading_v2.c.
+
 **Documentation:** `docs/render-threading-v2.md`
-**Action:** Create sub-issue files, begin 512a implementation
+**Action:** Create compatibility layer or migrate main.c (512f)
+
+---
+
+### IF-007: Render System Profiler (511) ✓ COMPLETE
+**Status:** 5/5 complete
+**Blocking:** None (completed)
+
+| Sub-Issue | Status |
+|-----------|--------|
+| 511 (root) | ✓ Complete (2026-01-01) |
+| 511a (core timing) | ✓ Complete |
+| 511b (thread-safe recording) | ✓ Complete |
+| 511c (overlay rendering) | ✓ Complete |
+| 511d (history buffer/graphs) | ✓ Complete |
+| 511e (file export) | ✓ Complete |
+
+**Implementation Summary:**
+- High-resolution timer via CLOCK_MONOTONIC
+- Thread-local sample buffers (16 samples/thread)
+- 120-frame rolling history (2 seconds)
+- Overlay with timing bars and timeline graph
+- F3 toggles overlay, F4 dumps to file
+
+**Files:** `src/render/profiler.h`, `src/render/profiler.c`
+**Action:** None - profiler complete
 
 ---
 
@@ -602,4 +629,9 @@ _Move fully implemented decisions here for historical record._
 | 2025-12-31 | Created issue 512 (threading architecture rewrite) | Claude |
 | 2025-12-31 | Created docs/render-threading-v2.md (target architecture spec) | Claude |
 | 2025-12-31 | Added IF-006 for threading rewrite, updated cross-phase deps | Claude |
+| 2026-01-01 | Completed 512a-512e (threading v2), discovered main.c integration gap | Claude |
+| 2026-01-01 | Created 512f to track main.c threading migration | Claude |
+| 2026-01-01 | Restored old threading API temporarily for render demo | Claude |
+| 2026-01-01 | Completed 511 (render profiler) - full implementation | Claude |
+| 2026-01-01 | Added IF-007 for profiler, updated IF-006 status to PARTIAL | Claude |
 
