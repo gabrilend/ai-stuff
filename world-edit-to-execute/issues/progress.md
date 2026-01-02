@@ -438,6 +438,8 @@ Phase 2 & 3 Complete
 | 512b | Render system integration | Pending | 512a |
 | 512c | Dynamic precision scaling | Pending | 512a |
 | 512d | Convergence detection | Pending | 512a |
+| 512f | v2 threading migration | **Completed** | 508a |
+| **513** | **Threading architecture demo** | **Completed** | 512f |
 
 ### Dependency Graph
 
