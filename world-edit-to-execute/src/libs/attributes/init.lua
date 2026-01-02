@@ -10,6 +10,7 @@
 --   - Registry: Stores all schemas with dual lookup (ID and index)
 --   - Container: Per-entity attribute storage with defaults
 --   - Getters: Dispatch table getters with modifier application
+--   - Setters: Dispatch table setters with validation, events, and transactions
 --
 -- Usage:
 --   local attributes = require("libs.attributes")
@@ -44,6 +45,7 @@
 local schema_module = require("libs.attributes.schema")
 local registry = require("libs.attributes.registry")
 local getters_module = require("libs.attributes.getters")
+local setters_module = require("libs.attributes.setters")
 
 -- {{{ Module exports
 local attributes = {
@@ -84,6 +86,21 @@ local attributes = {
     rebuild_getters = getters_module.rebuild,
     mark_dirty = getters_module.mark_dirty,
     invalidate_all_derived = getters_module.invalidate_all_derived,
+
+    -- Setter functions (016c)
+    set_value = setters_module.set,
+    set_raw = setters_module.set_raw,
+    set_many = setters_module.set_many,
+    adjust = setters_module.adjust,
+    reset_value = setters_module.reset,
+    reset_all = setters_module.reset_all,
+    has_setter = setters_module.has,
+    get_setter = setters_module.get_setter,
+    rebuild_setters = setters_module.rebuild,
+    begin_transaction = setters_module.begin_transaction,
+    on_attribute_change = setters_module.on,
+    off_attribute_change = setters_module.off,
+    clear_attribute_listeners = setters_module.clear_listeners,
 }
 -- }}}
 

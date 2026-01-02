@@ -315,17 +315,83 @@ adjust(entity.attrs, "health", -50, { source = "damage:fire" })
 
 ## Acceptance Criteria
 
-- [ ] SETTERS dispatch table populated from registry
-- [ ] set() validates against schema
-- [ ] Derived attributes reject direct set
-- [ ] Dependent attributes marked dirty on change
-- [ ] Events fired on value change
-- [ ] set_many() for batch updates
-- [ ] adjust() for delta operations
-- [ ] Transaction support for rollback
-- [ ] Unit tests for all paths
+- [x] SETTERS dispatch table populated from registry
+- [x] set() validates against schema
+- [x] Derived attributes reject direct set
+- [x] Dependent attributes marked dirty on change
+- [x] Events fired on value change
+- [x] set_many() for batch updates
+- [x] adjust() for delta operations
+- [x] Transaction support for rollback
+- [x] Unit tests for all paths
 
 ---
 
-**Status:** Pending
+**Status:** Completed
 **Dependencies:** 016a (Core Attribute Registry)
+
+---
+
+## Implementation Notes
+
+**Completed 2026-01-01**
+
+### Files Created
+
+1. **src/libs/attributes/setters.lua** (~400 lines)
+   - `SETTERS` dispatch table built from registry
+   - `build_setters()` - creates setters for each attribute type
+   - `invalidate_dependents()` - recursively marks derived attributes dirty
+   - `fire_event()` - fires events to registered listeners
+   - `set()` - primary setter with validation, clamping, events
+   - `set_raw()` - bypass validation (for loading saved data)
+   - `set_many()` - batch update with single event
+   - `adjust()` - add/subtract from current value
+   - `reset()` - reset single attribute to default
+   - `reset_all()` - reset all attributes, clear modifiers
+   - `on()` / `off()` / `clear_listeners()` - event listener management
+   - `Transaction` class with `set()`, `commit()`, `rollback()`
+   - `begin_transaction()` - create transaction for batch updates
+
+2. **src/tests/test_setters.lua** (~650 lines)
+   - 49 comprehensive unit tests covering all acceptance criteria
+   - Tests: basic set, validation (min/max/clamp), type validation
+   - Tests: derived/readonly protection, dependent invalidation
+   - Tests: events (attribute_changed, attributes_changed, silent mode)
+   - Tests: set_raw, set_many, adjust, reset, reset_all
+   - Tests: transactions (queue, commit, rollback)
+   - Tests: utility functions (has, get_setter, rebuild)
+
+### Files Modified
+
+- **src/libs/attributes/init.lua** - Added setters exports
+
+### Key Design Decisions
+
+1. **Built-in Event System**: Rather than depending on an external events module,
+   setters.lua includes its own lightweight event system with `on()`, `off()`,
+   and `clear_listeners()`. Events: `attribute_changed`, `attributes_changed`,
+   `attributes_reset`.
+
+2. **CLAMPED Flag Support**: Attributes with `ATTR_FLAGS.CLAMPED` auto-clamp to
+   min/max instead of rejecting invalid values. Can also pass `{ clamp = true }`
+   option to set() for explicit clamping.
+
+3. **Lua Pattern Gotcha**: The hyphen `-` is a special character in Lua patterns
+   (non-greedy modifier). Tests use `%%-` to escape or `string.find(s, pat, 1, true)`
+   for plain text search.
+
+### Test Results
+
+```
+=== Test Summary ===
+Passed: 49
+Failed: 0
+Total: 49
+All tests PASSED!
+```
+
+Combined with 016a and 016b: 148 tests total for attribute system.
+- test_attributes.lua: 55 tests (registry, schema, container)
+- test_getters.lua: 44 tests (computed values, modifiers, derived)
+- test_setters.lua: 49 tests (validation, events, transactions)
