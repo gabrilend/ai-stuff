@@ -5,23 +5,39 @@ Frames encode direction as quadrant votes, not array indices. Each frame byte
 describes the SHAPE of movement - which way the path curves, where momentum
 points. The bit pattern IS the direction, visually.
 
-Quadrant layout:
-       (-1,+1)         (+1,+1)
-          ╲    FAR    ╱
-           ╲   │    ╱
-    Q1      ╲ │ ╱      Q2
-  (top-left) ╲│╱  (top-right)
-  ────────────(0,0)────────────  ← NEAR (11) = toward here
-              ╱│╲
-    Q3      ╱ │ ╲      Q4
- (btm-left) ╱   ╲ (btm-right)
-          ╱   FAR  ╲
-       (-1,-1)         (+1,-1)
+Quadrant layout (Cartesian plane):
+       Q1 (top-left)     Q2 (top-right)
+       corner: NW        corner: NE
+       (-1,+1)           (+1,+1)
+              \   +Y    /
+               \   |   /
+                \  |  /
+       -X ───────(0,0)─────── +X  ← NEAR (00) = toward origin
+                /  |  \
+               /   |   \
+              /   -Y    \
+       Q4 (bottom-left)  Q3 (bottom-right)
+       corner: SW        corner: SE
+       (-1,-1)           (+1,-1)
 
-Bit values: 00=Far, 01=Right, 10=Left, 11=Near
+Bit values per quadrant (2 bits each):
+  00 = Near  : toward origin (no directional contribution)
+  01 = Right : 45° clockwise from Far (axis-aligned)
+  10 = Left  : 45° counter-clockwise from Far (axis-aligned)
+  11 = Far   : toward corner (diagonal)
 
-A frame is a sentence: "Q1 votes far, Q2 votes near, Q3 votes left, Q4 votes right"
-The combination describes a direction through space.
+Byte layout: [Q1:2bits][Q2:2bits][Q3:2bits][Q4:2bits]
+             bits 7-6   bits 5-4   bits 3-2   bits 1-0
+
+Per-quadrant angle mapping:
+  Q2: Right=0°(+X), Far=45°(NE), Left=90°(+Y)
+  Q1: Right=90°(+Y), Far=135°(NW), Left=180°(-X)
+  Q4: Right=180°(-X), Far=225°(SW), Left=270°(-Y)
+  Q3: Right=270°(-Y), Far=315°(SE), Left=0°(+X)
+
+Adjacent quadrants share axis boundaries continuously (no gaps).
+
+See docs/binary-vector-frames.md for full specification.
 ]]
 
 -- {{{ Compatibility layer for bitwise operations
@@ -37,25 +53,27 @@ local rshift = compat.rshift
 local frames = {}
 
 -- {{{ Cardinal directions
--- Pure axis-aligned movement. Opposing sides vote together.
-frames.NORTH = 0x0F  -- 00 00 11 11 : top far, bottom near → up
-frames.SOUTH = 0xF0  -- 11 11 00 00 : top near, bottom far → down
-frames.EAST  = 0xCC  -- 11 00 11 00 : left near, right far → right
-frames.WEST  = 0x33  -- 00 11 00 11 : left far, right near → left
+-- Pure axis-aligned movement using Left/Right pairs from adjacent quadrants.
+-- Cardinals use axis-projections (Left/Right), not corner-projections (Far).
+frames.NORTH = 0x60  -- 01 10 00 00 : Q1 Right (+Y), Q2 Left (+Y)
+frames.SOUTH = 0x06  -- 00 00 01 10 : Q3 Right (-Y), Q4 Left (-Y)
+frames.EAST  = 0x18  -- 00 01 10 00 : Q2 Right (+X), Q3 Left (+X)
+frames.WEST  = 0x81  -- 10 00 00 01 : Q1 Left (-X), Q4 Right (-X)
 -- }}}
 
 -- {{{ Ordinal directions
--- Diagonal movement. One quadrant dominates (far), adjacent support.
-frames.NORTHEAST = 0x4C  -- 01 00 11 00 : Q2 far, Q1 right-ish, Q3 near
-frames.NORTHWEST = 0x1C  -- 00 01 11 00 : Q1 far, Q2 right-ish, Q4 near
-frames.SOUTHEAST = 0xC4  -- 11 00 01 00 : Q4 far, Q3 near, Q1 supports
-frames.SOUTHWEST = 0xC1  -- 11 00 00 01 : Q3 far, Q4 right-ish, others near
+-- Diagonal movement. One quadrant votes Far toward its corner.
+frames.NORTHEAST = 0x30  -- 00 11 00 00 : Q2 Far (NE corner)
+frames.NORTHWEST = 0xC0  -- 11 00 00 00 : Q1 Far (NW corner)
+frames.SOUTHEAST = 0x0C  -- 00 00 11 00 : Q3 Far (SE corner)
+frames.SOUTHWEST = 0x03  -- 00 00 00 11 : Q4 Far (SW corner)
 -- }}}
 
 -- {{{ Special frames
-frames.ORIGIN   = 0xFF  -- 11 11 11 11 : all near → at target, arrived
-frames.OVERSHOOT = 0x00 -- 00 00 00 00 : all far → passed target, reverse
-frames.STATIONARY = 0xFF -- same as origin, no movement
+-- Boundary signals for curve convergence
+frames.ORIGIN    = 0x00  -- 00 00 00 00 : all Near → at target, arrived
+frames.OVERSHOOT = 0xFF  -- 11 11 11 11 : all Far → passed target, reverse & halve momentum
+frames.STATIONARY = 0x00 -- same as origin, no movement
 -- }}}
 
 -- {{{ Direction vectors (dx, dy) for each cardinal/ordinal
@@ -89,23 +107,32 @@ function frames.frame_to_vector(frame)
     local q3 = band(rshift(frame, 2), 0x03)  -- bits 3-2
     local q4 = band(frame, 0x03)              -- bits 1-0
 
-    -- Quadrant contributions (Far=0 means pointing to corner)
-    -- Q1 corner: (-1, +1), Q2: (+1, +1), Q3: (-1, -1), Q4: (+1, -1)
+    -- Quadrant corner contributions:
+    -- Q1: (-1, +1) = NW, Q2: (+1, +1) = NE, Q3: (+1, -1) = SE, Q4: (-1, -1) = SW
     local dx, dy = 0, 0
 
-    -- Far (00) = contributes corner direction, Near (11) = contributes nothing
-    -- Intermediate values = partial contribution
-    local weight = { [0] = 1.0, [1] = 0.33, [2] = 0.33, [3] = 0.0 }
+    -- Bit value weights:
+    -- Near (00) = no contribution (toward origin)
+    -- Right (01) = partial contribution (axis-aligned, clockwise from Far)
+    -- Left (10) = partial contribution (axis-aligned, counter-clockwise from Far)
+    -- Far (11) = full corner contribution
+    local weight = { [0] = 0.0, [1] = 0.5, [2] = 0.5, [3] = 1.0 }
 
-    dx = dx + (-1) * weight[q1]  -- Q1 contributes -X
-    dx = dx + ( 1) * weight[q2]  -- Q2 contributes +X
-    dx = dx + (-1) * weight[q3]  -- Q3 contributes -X
-    dx = dx + ( 1) * weight[q4]  -- Q4 contributes +X
+    -- Q1 at (-1, +1) = NW corner
+    dx = dx + (-1) * weight[q1]
+    dy = dy + ( 1) * weight[q1]
 
-    dy = dy + ( 1) * weight[q1]  -- Q1 contributes +Y
-    dy = dy + ( 1) * weight[q2]  -- Q2 contributes +Y
-    dy = dy + (-1) * weight[q3]  -- Q3 contributes -Y
-    dy = dy + (-1) * weight[q4]  -- Q4 contributes -Y
+    -- Q2 at (+1, +1) = NE corner
+    dx = dx + ( 1) * weight[q2]
+    dy = dy + ( 1) * weight[q2]
+
+    -- Q3 at (+1, -1) = SE corner
+    dx = dx + ( 1) * weight[q3]
+    dy = dy + (-1) * weight[q3]
+
+    -- Q4 at (-1, -1) = SW corner
+    dx = dx + (-1) * weight[q4]
+    dy = dy + (-1) * weight[q4]
 
     -- Normalize to -1, 0, 1
     if dx > 0.3 then dx = 1 elseif dx < -0.3 then dx = -1 else dx = 0 end
@@ -334,6 +361,72 @@ function frames.Momentum:get_vector()
     local dx, dy = frames.frame_to_vector(self.direction)
     return dx * self.count, dy * self.count
 end
+-- }}}
+
+-- {{{ Convergence detection
+-- Detect when figure-eight convergence has found the target
+
+-- {{{ frame_complement
+-- Get the complement of a frame (swap Far<->Near, Left<->Right)
+-- @param frame Input frame
+-- @return complemented frame
+function frames.frame_complement(frame)
+    -- For each quadrant: 00<->11, 01<->10
+    -- This is equivalent to XOR with 0xFF for Far<->Near swap
+    -- But we need Left<->Right swap too (01<->10)
+    local q1 = band(rshift(frame, 6), 0x03)
+    local q2 = band(rshift(frame, 4), 0x03)
+    local q3 = band(rshift(frame, 2), 0x03)
+    local q4 = band(frame, 0x03)
+
+    -- Complement table: 00->11, 01->10, 10->01, 11->00
+    local comp = { [0] = 3, [1] = 2, [2] = 1, [3] = 0 }
+
+    return bor(
+        lshift(comp[q1], 6),
+        lshift(comp[q2], 4),
+        lshift(comp[q3], 2),
+        comp[q4]
+    )
+end
+-- }}}
+
+-- {{{ is_complement_pair
+-- Check if two frames are complements (oscillation detection)
+-- @param frame_a First frame
+-- @param frame_b Second frame
+-- @return true if frames are complements
+function frames.is_complement_pair(frame_a, frame_b)
+    return frames.frame_complement(frame_a) == frame_b
+end
+-- }}}
+
+-- {{{ detect_convergence
+-- Detect convergence from a sequence of recent frames
+-- Convergence = repeated complement oscillation (e.g., FF 00 FF 00)
+-- @param frame_history Array of recent frames (newest first)
+-- @param min_oscillations Minimum oscillation count to trigger (default 2)
+-- @return true if converged, false otherwise
+function frames.detect_convergence(frame_history, min_oscillations)
+    min_oscillations = min_oscillations or 2
+
+    if #frame_history < min_oscillations * 2 then
+        return false
+    end
+
+    -- Check for alternating complement pairs
+    local oscillations = 0
+    for i = 1, #frame_history - 1 do
+        if frames.is_complement_pair(frame_history[i], frame_history[i + 1]) then
+            oscillations = oscillations + 1
+        else
+            break  -- Pattern broken
+        end
+    end
+
+    return oscillations >= min_oscillations
+end
+-- }}}
 -- }}}
 
 return frames

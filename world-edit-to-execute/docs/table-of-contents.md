@@ -12,6 +12,7 @@ docs/
 ├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
 ├── render-architecture.md      Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
+├── binary-vector-frames.md     Quadrant voting, curve approximation, 3D rotations
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
@@ -137,6 +138,7 @@ issues/
 | Progress | issues/progress.md | Current phase status |
 | Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
 | Render Architecture | docs/render-architecture.md | Threading model, component slots, numeric encoding |
+| Binary Vector Frames | docs/binary-vector-frames.md | Quadrant voting, curve approximation, 3D rotations |
 
 ### Tools
 
