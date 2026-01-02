@@ -91,7 +91,7 @@ No dependencies (all independent except A07)
 | 016 | Attribute getter/setter system | In Progress | 015, 014 |
 | 016a | Core attribute registry | **Completed** | None |
 | 016b | Dispatch table getters | **Completed** | 016a |
-| 016c | Dispatch table setters | Pending | 016a |
+| 016c | Dispatch table setters | **Completed** | 016a |
 | 016d | Modifier stack system | Pending | 016a, 016b, 016c |
 | 016e | Derived attribute engine | Pending | 016a |
 | 016f | WC3 attribute config | Pending | 016a, 016e |
@@ -1381,6 +1381,16 @@ Both systems support dual WC3/WoW modes:
   - XP-based leveling for WC3 mode with automatic level-ups
   - Key fix: ECS metatable inheritance causes shared table references; fixed with ensure_fresh_tables()
   - 42 tests pass (test_professions.lua)
+- **Issue 016c completed:** Dispatch table setters
+  - Created src/libs/attributes/setters.lua (~400 lines)
+  - SETTERS dispatch table with validation, events, dependent invalidation
+  - set() with schema validation, clamp option, silent mode
+  - set_raw() for bypassing validation (loading saved data)
+  - set_many() for batch updates with single event
+  - adjust() for delta operations, reset() for defaults
+  - Transaction support with commit/rollback
+  - Built-in event system: attribute_changed, attributes_changed, attributes_reset
+  - 49 tests pass (test_setters.lua) - 148 total attribute tests
 
 ---
 
