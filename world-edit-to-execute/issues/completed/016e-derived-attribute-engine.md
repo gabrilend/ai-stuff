@@ -359,17 +359,57 @@ end
 
 ## Acceptance Criteria
 
-- [ ] Dependency graph built from schemas
-- [ ] Topological sort for evaluation order
-- [ ] Circular dependency detection with error
-- [ ] Lazy evaluation on access
-- [ ] Cache invalidation cascades to dependents
-- [ ] Multi-level derivation works correctly
-- [ ] explain_derivation() for debugging
-- [ ] Unit tests for dependency chains
+- [x] Dependency graph built from schemas
+- [x] Topological sort for evaluation order
+- [x] Circular dependency detection with error
+- [x] Lazy evaluation on access
+- [x] Cache invalidation cascades to dependents
+- [x] Multi-level derivation works correctly
+- [x] explain_derivation() for debugging
+- [x] Unit tests for dependency chains
 
 ---
 
-**Status:** Pending
+**Status:** Complete
 **Dependencies:** 016a (Core Attribute Registry)
+
+## Implementation Notes
+
+Created `src/libs/attributes/derived.lua` as a centralized orchestration layer for derived attributes. The module provides:
+
+### Design Decision: Orchestration Layer
+The core functionality (lazy evaluation, dirty flagging, dependency graph) already exists in registry.lua, getters.lua, and setters.lua. Rather than duplicating this, derived.lua acts as a centralized API that:
+- Delegates to existing implementations
+- Adds debug/introspection utilities not present elsewhere
+- Provides formula helpers for common patterns
+
+### Module Structure
+1. **Dependency Graph Utilities** - get_dependencies(), get_dependents(), get_all_dependents(), get_all_dependencies(), get_evaluation_order()
+2. **Circular Dependency Detection** - detect_cycle(), validate_no_cycles() with DFS-based cycle detection
+3. **Cache Management** - is_dirty(), mark_dirty(), invalidate_all(), recompute(), recompute_all(), get_dirty_count()
+4. **Debug/Introspection** - explain(), get_dependency_tree(), format_dependency_tree(), get_reverse_tree(), list_derived(), get_stats()
+5. **Formula Helpers** - create_formula() supporting "sum", "weighted_sum", "max", "min", "product" patterns
+
+### Key Implementation Details
+- Dirty flag propagation uses recursive invalidation through the dependency graph
+- recompute() ensures dependencies are computed before dependents (respects topological order)
+- format_dependency_tree() produces ASCII tree visualization with [D]/[B] markers for derived/base
+- Formula helpers return closures that capture the dependency list
+
+### Test Coverage
+42 tests covering:
+- Dependency graph traversal (7 tests)
+- Circular dependency detection (4 tests)
+- Cache management (12 tests)
+- Debug/introspection (11 tests)
+- Formula helpers (6 tests)
+- Edge cases (5 tests)
+
+### Integration
+Updated init.lua with 21 new exports from the derived module, bringing total attribute system tests to 238 (55 + 44 + 49 + 48 + 42).
+
+### Files Changed
+- Created: `src/libs/attributes/derived.lua` (~675 lines)
+- Created: `src/tests/test_derived.lua` (42 tests)
+- Modified: `src/libs/attributes/init.lua` (added derived exports)
 

@@ -48,6 +48,7 @@ local registry = require("libs.attributes.registry")
 local getters_module = require("libs.attributes.getters")
 local setters_module = require("libs.attributes.setters")
 local modifiers_module = require("libs.attributes.modifiers")
+local derived_module = require("libs.attributes.derived")
 
 -- {{{ Module exports
 local attributes = {
@@ -126,6 +127,35 @@ local attributes = {
     set_modifier_stacks = modifiers_module.set_stacks,
     apply_modifiers = modifiers_module.apply,
     get_modifiers_breakdown = modifiers_module.get_breakdown,
+
+    -- Derived attribute functions (016e)
+    -- Dependency graph utilities
+    get_all_dependents = derived_module.get_all_dependents,
+    get_all_dependencies = derived_module.get_all_dependencies,
+    get_evaluation_order = derived_module.get_evaluation_order,
+
+    -- Circular dependency detection
+    detect_cycle = derived_module.detect_cycle,
+    validate_no_cycles = derived_module.validate_no_cycles,
+
+    -- Cache management
+    is_dirty = derived_module.is_dirty,
+    mark_derived_dirty = derived_module.mark_dirty,  -- Note: mark_dirty already exists from getters
+    invalidate_all = derived_module.invalidate_all,
+    recompute = derived_module.recompute,
+    recompute_all = derived_module.recompute_all,
+    get_dirty_count = derived_module.get_dirty_count,
+
+    -- Debug and introspection
+    explain_derivation = derived_module.explain,
+    get_dependency_tree = derived_module.get_dependency_tree,
+    format_dependency_tree = derived_module.format_dependency_tree,
+    get_reverse_tree = derived_module.get_reverse_tree,
+    list_derived = derived_module.list_derived,
+    get_derived_stats = derived_module.get_stats,
+
+    -- Formula helpers
+    create_formula = derived_module.create_formula,
 }
 -- }}}
 
