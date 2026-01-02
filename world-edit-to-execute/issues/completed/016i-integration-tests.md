@@ -663,18 +663,48 @@ end
 
 ## Acceptance Criteria
 
-- [ ] Registry tests: registration, lookup, container creation
-- [ ] Getter tests: get, get_raw, get_many
-- [ ] Setter tests: set, adjust, validate, clamp
-- [ ] Modifier tests: flat, percent, multiplier, stacking, removal
-- [ ] Derived tests: simple, multi-level, with modifiers
-- [ ] WC3 tests: formulas match expected values
-- [ ] WoW tests: formulas match expected values
-- [ ] Mapping tests: conversion accuracy both directions
-- [ ] All tests pass with 0 failures
+- [x] Registry tests: registration, lookup, container creation
+- [x] Getter tests: get, get_raw, get_many
+- [x] Setter tests: set, adjust, validate, clamp
+- [x] Modifier tests: flat, percent, multiplier, stacking, removal
+- [x] Derived tests: simple, multi-level, with modifiers
+- [x] WC3 tests: formulas match expected values
+- [x] WoW tests: formulas match expected values
+- [x] Mapping tests: conversion accuracy both directions
+- [x] All tests pass with 0 failures
 
 ---
 
-**Status:** Pending
+**Status:** Complete
 **Dependencies:** 016a-016h (all components)
+
+---
+
+## Implementation Notes
+
+**Completed:** 2026-01-02
+
+### Test Files
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| test_attributes.lua | 55 | Registry, schema, validation, containers |
+| test_getters.lua | 44 | get, get_raw, get_many, get_all, dirty tracking |
+| test_setters.lua | 49 | set, adjust, set_many, validation, clamping |
+| test_modifiers.lua | 48 | flat, percent, multiplier, stacking, removal |
+| test_derived.lua | 42 | Simple, multi-level, with modifiers |
+| test_wc3_config.lua | 42 | Hero classes, XP table, WC3 formulas |
+| test_wow_config.lua | 43 | Class system, ratings, WoW formulas |
+| test_mapping.lua | 29 | Parallels, semantic, profiles |
+
+**Total: 352 tests, 0 failures**
+
+### Coverage Summary
+
+- **Core infrastructure**: Schema, registry, containers (55 tests)
+- **Access patterns**: Getters and setters with validation (93 tests)
+- **Modifier system**: All modifier types and stacking (48 tests)
+- **Derived attributes**: Formula evaluation and caching (42 tests)
+- **Game configs**: Both WC3 and WoW attribute systems (85 tests)
+- **Cross-system**: Bidirectional mapping and profiles (29 tests)
 
