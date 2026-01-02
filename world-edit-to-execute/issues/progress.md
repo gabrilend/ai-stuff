@@ -94,7 +94,7 @@ No dependencies (all independent except A07)
 | 016c | Dispatch table setters | **Completed** | 016a |
 | 016d | Modifier stack system | **Completed** | 016a, 016b, 016c |
 | 016e | Derived attribute engine | **Completed** | 016a |
-| 016f | WC3 attribute config | Pending | 016a, 016e |
+| 016f | WC3 attribute config | **Completed** | 016a, 016e |
 | 016g | WoW attribute config | Pending | 016a, 016e |
 | 016h | Cross-system mapping | Pending | 016f, 016g |
 | 016i | Integration tests | Pending | 016a-016h |
@@ -1416,6 +1416,14 @@ Both systems support dual WC3/WoW modes:
   - Debug/introspection: explain, get_dependency_tree, format_dependency_tree (ASCII art)
   - Formula helpers: create_formula for "sum", "weighted_sum", "max", "min", "product" patterns
   - 42 tests pass (test_derived.lua) - 238 total attribute tests
+- **Issue 016f completed:** WC3 attribute config
+  - Created src/libs/attributes/configs/wc3.lua (~580 lines)
+  - Complete WC3 attribute system: primary stats, resources, combat, 12 derived stats
+  - WC3-accurate formulas: 25 HP/str, 15 mana/int, armor = agi/3, etc.
+  - 14 hero classes (Paladin, Archmage, Blademaster, etc.) with stat gains
+  - XP table for levels 1-25 with progress queries
+  - apply_hero_class(), level_up(), calculate_stats_at_level() APIs
+  - 42 tests pass (test_wc3_config.lua) - 280 total attribute tests
 
 ---
 
