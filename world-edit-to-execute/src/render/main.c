@@ -569,12 +569,14 @@ void render_task_execute(void* arg) {
     ctx->result.visible = true;
     ctx->result.mesh_id = 0;
 
-    /* Register with sync thread for pointer swap.
-     * When ready flag is set, sync will copy result to primary buffer. */
-    if (g_sync && ctx->target_ptr) {
-        sync_add_watch(g_sync, &ctx->ready, ctx->target_ptr, &ctx->result);
-        atomic_store(&ctx->ready, true);
-    }
+    /* NOTE: We do NOT use sync_add_watch here because ctx->result is in the
+     * static task pool, not malloc'd memory. The sync thread would swap this
+     * pointer into slot->data, and later slot_set would try to free it.
+     *
+     * Instead, render_task_on_complete handles the slot update properly by
+     * allocating new memory and calling slot_set. The ready flag is still
+     * set to allow demo visualization to observe task completion. */
+    atomic_store(&ctx->ready, true);
 }
 /* }}} */
 
