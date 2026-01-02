@@ -93,7 +93,7 @@ No dependencies (all independent except A07)
 | 016b | Dispatch table getters | **Completed** | 016a |
 | 016c | Dispatch table setters | **Completed** | 016a |
 | 016d | Modifier stack system | **Completed** | 016a, 016b, 016c |
-| 016e | Derived attribute engine | Pending | 016a |
+| 016e | Derived attribute engine | **Completed** | 016a |
 | 016f | WC3 attribute config | Pending | 016a, 016e |
 | 016g | WoW attribute config | Pending | 016a, 016e |
 | 016h | Cross-system mapping | Pending | 016f, 016g |
@@ -1402,6 +1402,15 @@ Both systems support dual WC3/WoW modes:
   - Application order: (base + flat) * (1 + percent/100) * multiplier
   - Integration with getters: modifiers auto-invalidate derived attributes
   - 48 tests pass (test_modifiers.lua) - 196 total attribute tests
+- **Issue 016e completed:** Derived attribute engine
+  - Created src/libs/attributes/derived.lua (~675 lines)
+  - Centralized orchestration layer for derived attribute management
+  - Dependency graph utilities: get_all_dependents, get_all_dependencies, get_evaluation_order
+  - Circular dependency detection: detect_cycle, validate_no_cycles (DFS-based)
+  - Cache management: is_dirty, mark_dirty, invalidate_all, recompute, recompute_all
+  - Debug/introspection: explain, get_dependency_tree, format_dependency_tree (ASCII art)
+  - Formula helpers: create_formula for "sum", "weighted_sum", "max", "min", "product" patterns
+  - 42 tests pass (test_derived.lua) - 238 total attribute tests
 
 ---
 
