@@ -11,6 +11,7 @@
 --   - Container: Per-entity attribute storage with defaults
 --   - Getters: Dispatch table getters with modifier application
 --   - Setters: Dispatch table setters with validation, events, and transactions
+--   - Modifiers: Buff/equipment bonus management with stacking and expiry
 --
 -- Usage:
 --   local attributes = require("libs.attributes")
@@ -46,6 +47,7 @@ local schema_module = require("libs.attributes.schema")
 local registry = require("libs.attributes.registry")
 local getters_module = require("libs.attributes.getters")
 local setters_module = require("libs.attributes.setters")
+local modifiers_module = require("libs.attributes.modifiers")
 
 -- {{{ Module exports
 local attributes = {
@@ -101,6 +103,29 @@ local attributes = {
     on_attribute_change = setters_module.on,
     off_attribute_change = setters_module.off,
     clear_attribute_listeners = setters_module.clear_listeners,
+
+    -- Modifier functions (016d)
+    MOD_TYPE = modifiers_module.MOD_TYPE,
+    MOD_PRIORITY = modifiers_module.MOD_PRIORITY,
+    SOURCE_CATEGORY = modifiers_module.SOURCE_CATEGORY,
+    Modifier = modifiers_module.Modifier,
+    add_modifier = modifiers_module.add,
+    remove_modifier = modifiers_module.remove,
+    remove_modifier_stack = modifiers_module.remove_stack,
+    remove_modifiers_by_source = modifiers_module.remove_by_source,
+    remove_modifiers_by_category = modifiers_module.remove_by_category,
+    clean_expired_modifiers = modifiers_module.clean_expired,
+    get_modifier = modifiers_module.get,
+    get_modifiers = modifiers_module.get_all,
+    count_modifiers = modifiers_module.count,
+    has_modifier = modifiers_module.has,
+    list_modifier_sources = modifiers_module.list_sources,
+    clear_modifiers = modifiers_module.clear,
+    clear_all_modifiers = modifiers_module.clear_all,
+    refresh_modifier = modifiers_module.refresh,
+    set_modifier_stacks = modifiers_module.set_stacks,
+    apply_modifiers = modifiers_module.apply,
+    get_modifiers_breakdown = modifiers_module.get_breakdown,
 }
 -- }}}
 

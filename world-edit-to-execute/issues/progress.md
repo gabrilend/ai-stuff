@@ -92,7 +92,7 @@ No dependencies (all independent except A07)
 | 016a | Core attribute registry | **Completed** | None |
 | 016b | Dispatch table getters | **Completed** | 016a |
 | 016c | Dispatch table setters | **Completed** | 016a |
-| 016d | Modifier stack system | Pending | 016a, 016b, 016c |
+| 016d | Modifier stack system | **Completed** | 016a, 016b, 016c |
 | 016e | Derived attribute engine | Pending | 016a |
 | 016f | WC3 attribute config | Pending | 016a, 016e |
 | 016g | WoW attribute config | Pending | 016a, 016e |
@@ -1391,6 +1391,17 @@ Both systems support dual WC3/WoW modes:
   - Transaction support with commit/rollback
   - Built-in event system: attribute_changed, attributes_changed, attributes_reset
   - 49 tests pass (test_setters.lua) - 148 total attribute tests
+- **Issue 016d completed:** Modifier stack system
+  - Created src/libs/attributes/modifiers.lua (~650 lines)
+  - MOD_TYPE constants: FLAT, PERCENT, MULTIPLIER, OVERRIDE
+  - Modifier class with source tracking, stacking, duration, conditions
+  - add() with stacking logic, remove operations (by source/category)
+  - clean_expired() for duration-based auto-removal
+  - Query functions: get, get_all (with filters), count, has, list_sources
+  - get_breakdown() for detailed tooltip info
+  - Application order: (base + flat) * (1 + percent/100) * multiplier
+  - Integration with getters: modifiers auto-invalidate derived attributes
+  - 48 tests pass (test_modifiers.lua) - 196 total attribute tests
 
 ---
 

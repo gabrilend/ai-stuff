@@ -361,16 +361,89 @@ ModifierManager.remove_by_source(entity.attrs, "equipment:" .. item.id)
 
 ## Acceptance Criteria
 
-- [ ] Modifier types: flat, percent, multiplier, override
-- [ ] Source tracking for easy removal
-- [ ] Category grouping for bulk operations
-- [ ] Stacking support with max stacks
-- [ ] Duration-based auto-expiry
-- [ ] Conditional modifiers
-- [ ] Correct application order
-- [ ] Unit tests for all operations
+- [x] Modifier types: flat, percent, multiplier, override
+- [x] Source tracking for easy removal
+- [x] Category grouping for bulk operations
+- [x] Stacking support with max stacks
+- [x] Duration-based auto-expiry
+- [x] Conditional modifiers
+- [x] Correct application order
+- [x] Unit tests for all operations
 
 ---
 
-**Status:** Pending
+**Status:** Completed
 **Dependencies:** 016a, 016b, 016c
+
+---
+
+## Implementation Notes
+
+**Completed 2026-01-01**
+
+### Files Created
+
+1. **src/libs/attributes/modifiers.lua** (~650 lines)
+   - `MOD_TYPE` constants: FLAT, PERCENT, MULTIPLIER, OVERRIDE
+   - `MOD_PRIORITY` for application order
+   - `SOURCE_CATEGORY` for grouping: EQUIPMENT, BUFF, DEBUFF, AURA, etc.
+   - `Modifier` class with stacking, duration, conditions
+   - `add()` - adds modifier, stacks or replaces existing
+   - `remove()` / `remove_stack()` - remove by source
+   - `remove_by_source()` - remove from all attributes (unequip)
+   - `remove_by_category()` - remove all of category (dispel debuffs)
+   - `clean_expired()` - remove expired modifiers
+   - `get()` / `get_all()` / `count()` / `has()` - query functions
+   - `list_sources()` - list unique sources
+   - `clear()` / `clear_all()` - bulk removal
+   - `refresh()` / `set_stacks()` - duration and stack management
+   - `apply()` - calculate final value with modifiers
+   - `get_breakdown()` - detailed tooltip info
+
+2. **src/tests/test_modifiers.lua** (~700 lines)
+   - 48 comprehensive unit tests covering all acceptance criteria
+   - Tests: Modifier class (create, stacks, expiry, conditions, clone)
+   - Tests: add/remove operations (stacking, replace, by source/category)
+   - Tests: expiry system (clean_expired, refresh)
+   - Tests: query functions (get, get_all, filters, list_sources)
+   - Tests: application (flat/percent/multiplier/override, order, stacks)
+   - Tests: breakdown for tooltips
+   - Tests: integration with getters (derived attributes update)
+
+### Files Modified
+
+- **src/libs/attributes/init.lua** - Added modifiers exports
+
+### Key Design Decisions
+
+1. **Modifier Class**: Each modifier is an object with source, type, value,
+   stacks, expiry, and optional condition function. This allows rich behavior
+   like "only active in combat" or "stacks up to 5 times".
+
+2. **Source Tracking**: Every modifier has a unique source ID (e.g.,
+   "equipment:sword_of_might", "buff:blessing_of_might"). This makes removal
+   trivial when unequipping items or dispelling buffs.
+
+3. **Application Order**: Modifiers are sorted by priority (flat → percent →
+   multiplier → override) to ensure deterministic results. Formula:
+   `(base + flat) * (1 + percent/100) * multiplier`, or override replaces.
+
+4. **Integration**: The modifiers module manages `container.modifiers[attr_id]`
+   which getters already know how to apply. Adding/removing modifiers
+   automatically invalidates dependent derived attributes.
+
+### Test Results
+
+```
+=== Test Summary ===
+Passed: 48
+Failed: 0
+Total: 48
+All tests PASSED!
+```
+
+Combined attribute system totals: 196 tests
+- test_attributes.lua: 55 tests (registry, schema, container)
+- test_getters.lua: 44 tests (computed values, derived)
+- test_setters.lua: 49 tests (validation, events, transactions)
+- test_modifiers.lua: 48 tests (stacks, expiry, conditions, application)
