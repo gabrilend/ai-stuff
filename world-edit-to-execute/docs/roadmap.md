@@ -6,13 +6,23 @@ A phased approach to building a WC3-compatible game engine with visual independe
 
 ## Current Focus
 
-### Phase 4 Nearly Complete: 28/30 issues done
+### Phase 4 Nearly Complete: 31/34 issues done
 
 **Remaining:**
 - **405d** - Movement collision integration
-- **408a-c, 408e** - Integration test sub-issues
+- **408a-c** - Integration test sub-issues
 
-**Phase 5 Ready:** 49 issues created, design decisions made
+**Phase 5 Ready:** 55 issues created, design decisions made
+
+### Recently Completed (2026-01-02)
+
+**Issue 016: Attribute System** - Complete attribute getter/setter system with:
+- Dispatch-based getters/setters with O(1) access
+- Modifier stacks (flat, percent, multiplier)
+- Derived attributes with formula-based calculation
+- WC3 and WoW attribute configurations
+- Cross-system mapping (WC3 ↔ WoW conversion)
+- 352 passing tests across 8 test files
 
 ### Design Decisions Made (2025-12-29)
 
@@ -57,9 +67,11 @@ Designed to be project-abstract and usable as both CLI tools and libraries.
 
 ---
 
-## Phase 0: Tooling/Infrastructure ✓ COMPLETED
+## Phase 0: Tooling/Infrastructure (23/32 Complete)
 
-All 18 issues completed. Development tools now available:
+Development infrastructure and shared systems.
+
+### Issue Splitter Tools
 
 | Tool | Command | Description |
 |------|---------|-------------|
@@ -68,6 +80,39 @@ All 18 issues completed. Development tools now available:
 | **Execute Mode** | `-x` | Auto-create sub-issue files from analyses |
 | **Implement Mode** | `-A` | Auto-implement issues via Claude CLI |
 | **Review Mode** | `-r` | Review root issues with sub-issues |
+
+### Attribute System (Issue 016) ✓ COMPLETE
+
+```
+src/libs/attributes/
+├── schema.lua       # Attribute type definitions
+├── registry.lua     # Central attribute registry
+├── getters.lua      # O(1) dispatch-based access
+├── setters.lua      # Validated modification with events
+├── modifiers.lua    # Buff/equipment modifier stacking
+├── derived.lua      # Formula-based stat calculation
+├── mapping.lua      # WC3 ↔ WoW conversion
+└── configs/
+    ├── wc3.lua      # WC3 attributes (STR/AGI/INT, heroes)
+    └── wow.lua      # WoW attributes (TBC-era, ratings)
+```
+
+**Sub-issues:** 016a-016i (9 complete)
+**Tests:** 352 passing across 8 test files
+
+### Currency System (Issue 017) ✓ COMPLETE
+
+```
+src/runtime/currency/
+├── init.lua         # Currency registry
+├── money_bag.lua    # Gold/lumber container
+├── container.lua    # Generic currency container
+├── reputation.lua   # Faction reputation
+├── vendor.lua       # Transaction flows
+└── conversion.lua   # WC3 ↔ WoW currency mapping
+```
+
+**Sub-issues:** 017a-017i (8 complete)
 
 ---
 
@@ -279,9 +324,9 @@ src/
 
 ---
 
-## Phase 4: Runtime - Basic Engine Loop (Issues Created)
+## Phase 4: Runtime - Basic Engine Loop (31/34 Complete)
 
-Create the game execution environment. 8 root issues with 36 sub-issues.
+Core game execution environment. 8 root issues with 34 sub-issues total.
 
 ### Issue Breakdown
 
