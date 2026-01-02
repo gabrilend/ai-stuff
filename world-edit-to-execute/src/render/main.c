@@ -32,6 +32,7 @@
 #include "input.h"
 #include "ui.h"
 #include "profiler.h"
+#include "demo_threading.h"
 
 /* {{{ Constants */
 #define WINDOW_WIDTH 800
@@ -1176,7 +1177,12 @@ int main(void) {
     /* Initialize profiler (511) */
     profile_init();
 
+    /* Initialize threading demo (513) */
+    demo_threading_init(g_pool, g_sync);
+    demo_threading_set_updater(g_updater);
+
     printf("[main] Entering render loop...\n\n");
+    printf("  F5: Toggle threading demo\n");
 
     while (!WindowShouldClose()) {
         /* Profiler: begin frame timing */
@@ -1199,6 +1205,9 @@ int main(void) {
                 lua_pop(g_lua, 1);
             }
         }
+
+        /* 513: Update threading demo */
+        demo_threading_update(dt);
         PROFILE_END(update);
 
         PROFILE_BEGIN(input);
@@ -1267,6 +1276,9 @@ int main(void) {
             profile_dump_to_file("profile_dump.txt");
         }
 
+        /* 513: Handle threading demo input (F5 toggles) */
+        demo_threading_handle_input();
+
         /* Render */
         PROFILE_BEGIN(draw);
         BeginDrawing();
@@ -1328,6 +1340,9 @@ int main(void) {
             /* 508e: Selection box during drag */
             draw_selection_box();
 
+            /* 513: Threading demo overlay (F5 to toggle) */
+            demo_threading_draw(10, 120, 780, 420);
+
             /* 511: Profiler overlay (F3 to toggle) */
             profile_draw_overlay();
 
@@ -1354,6 +1369,7 @@ int main(void) {
     /* Clean up Lua and rendering resources */
     cleanup_lua();  /* 508c: Clean up Lua state */
     cleanup(g_pool);
+    demo_threading_shutdown();  /* 513: Cleanup threading demo */
     profile_shutdown();  /* 511: Cleanup profiler */
     CloseWindow();
 
