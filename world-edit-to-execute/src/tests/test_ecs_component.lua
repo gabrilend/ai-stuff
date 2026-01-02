@@ -444,6 +444,71 @@ local types = ecs.get_registered_component_types()
 test("ECS get_registered_component_types works", #types == 2)
 -- }}}
 
+-- {{{ B03 Hivemind Bug Regression Test
+-- Ensures nested table defaults are independent per entity.
+-- B03: Without deep copy, modifying one entity's nested table affects all entities.
+test_section("B03: Hivemind Bug Regression")
+reset_all()
+
+component.register("position", {
+    x = 0,
+    y = 0,
+    velocity = { vx = 0, vy = 0 }  -- Nested table default
+})
+
+local e1 = entity.create()
+local e2 = entity.create()
+component.add(e1, "position")
+component.add(e2, "position")
+
+-- Modify e1's nested table
+local pos1 = component.get(e1, "position")
+pos1.velocity.vx = 10
+pos1.velocity.vy = 20
+
+-- e2 should be unaffected
+local pos2 = component.get(e2, "position")
+test("Nested table independent (vx)", pos2.velocity.vx == 0)
+test("Nested table independent (vy)", pos2.velocity.vy == 0)
+test("e1 modification persists (vx)", pos1.velocity.vx == 10)
+test("e1 modification persists (vy)", pos1.velocity.vy == 20)
+
+-- Test deeply nested tables
+component.register("nested_test", {
+    level1 = {
+        level2 = {
+            level3 = { value = 42 }
+        }
+    }
+})
+
+local e3 = entity.create()
+local e4 = entity.create()
+component.add(e3, "nested_test")
+component.add(e4, "nested_test")
+
+-- Modify deep value on e3
+component.get(e3, "nested_test").level1.level2.level3.value = 999
+
+-- e4 should still have original value
+test("Deep nested independent", component.get(e4, "nested_test").level1.level2.level3.value == 42)
+test("Deep nested e3 modified", component.get(e3, "nested_test").level1.level2.level3.value == 999)
+
+-- Test with initial data containing tables
+component.register("init_data_test", { a = 0 })
+local shared_data = { nested = { x = 100 } }
+local e5 = entity.create()
+local e6 = entity.create()
+component.add(e5, "init_data_test", shared_data)
+component.add(e6, "init_data_test", shared_data)
+
+-- Modify e5's data
+component.get(e5, "init_data_test").nested.x = 500
+
+-- e6 should be unaffected (shared_data was deep-copied for each entity)
+test("Initial data deep copied", component.get(e6, "init_data_test").nested.x == 100)
+-- }}}
+
 -- {{{ Multiple Entities Stress Test
 test_section("Stress Test")
 reset_all()

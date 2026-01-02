@@ -15,6 +15,22 @@ local component = {}
 
 local entity_mod = require("runtime.ecs.entity")
 
+-- {{{ deep_copy
+-- Recursively copies tables to prevent shared references.
+-- Used to ensure each entity gets its own copy of table-valued defaults.
+-- B03 fix: Without this, nested table defaults are shared across entities.
+local function deep_copy(obj)
+    if type(obj) ~= "table" then
+        return obj
+    end
+    local copy = {}
+    for k, v in pairs(obj) do
+        copy[k] = deep_copy(v)
+    end
+    return copy
+end
+-- }}}
+
 -- {{{ State
 -- Component type registry: name -> default values table
 local component_types = {}
@@ -115,7 +131,16 @@ function component.add(entity_id, name, data)
     local instance = {}
     if data then
         for k, v in pairs(data) do
-            instance[k] = v
+            -- B03 fix: deep copy provided data tables to prevent shared refs
+            instance[k] = deep_copy(v)
+        end
+    end
+    -- B03 fix: Copy table-valued defaults directly into instance.
+    -- Without this, metatable inheritance shares nested tables across
+    -- all entities, causing one entity's modifications to affect others.
+    for k, v in pairs(defaults) do
+        if type(v) == "table" and instance[k] == nil then
+            instance[k] = deep_copy(v)
         end
     end
     setmetatable(instance, {__index = defaults})
