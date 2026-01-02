@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
-| 0 | Tooling/Infrastructure | In Progress | 20/32 |
+| 0 | Tooling/Infrastructure | In Progress | 21/32 |
 | 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
@@ -95,7 +95,7 @@ No dependencies (all independent except A07)
 | 016d | Modifier stack system | **Completed** | 016a, 016b, 016c |
 | 016e | Derived attribute engine | **Completed** | 016a |
 | 016f | WC3 attribute config | **Completed** | 016a, 016e |
-| 016g | WoW attribute config | Pending | 016a, 016e |
+| 016g | WoW attribute config | **Completed** | 016a, 016e |
 | 016h | Cross-system mapping | Pending | 016f, 016g |
 | 016i | Integration tests | Pending | 016a-016h |
 | 017 | Unified currency/resource system | **Completed** | None |
