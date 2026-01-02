@@ -240,7 +240,7 @@ static void draw_worker_panel(Worker* w, int x, int y, int width, bool selected)
     }
 
     if (used > 4) {
-        char more[32];
+        char more[48];
         snprintf(more, sizeof(more), "  ... +%zu more", used - 4);
         DrawText(more, tx + 8, ty, 10, DARKGRAY);
     }
@@ -269,10 +269,14 @@ static void draw_sync_panel(int x, int y, int width) {
         DrawText(header, tx, ty, 12, WHITE);
         ty += line_height;
 
-        /* Show entries */
+        /* Show entries - snapshot count to avoid race conditions */
         size_t shown = 0;
         for (size_t i = 0; i < count && shown < 4; i++) {
             WatchEntry* entry = &g_demo.sync->watch_list[i];
+
+            /* Safety check: ready_flag may be NULL if entry was just compacted */
+            if (!entry->ready_flag) continue;
+
             bool ready = atomic_load(entry->ready_flag);
 
             char entry_str[80];
@@ -287,7 +291,7 @@ static void draw_sync_panel(int x, int y, int width) {
         }
 
         if (count > 4) {
-            char more[32];
+            char more[48];
             snprintf(more, sizeof(more), "  ... +%zu more", count - 4);
             DrawText(more, tx + 8, ty, 10, DARKGRAY);
         }
