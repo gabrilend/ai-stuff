@@ -433,6 +433,11 @@ Phase 2 & 3 Complete
 | 511c | Overlay rendering | Pending | 511a |
 | 511d | History buffer and graphs | Pending | 511c |
 | 511e | File export | Pending | 511a |
+| **512** | **3D rotation frames** | **Issue Created** | 409 |
+| 512a | Core 3D frame encoding | Pending | 409 |
+| 512b | Render system integration | Pending | 512a |
+| 512c | Dynamic precision scaling | Pending | 512a |
+| 512d | Convergence detection | Pending | 512a |
 
 ### Dependency Graph
 
