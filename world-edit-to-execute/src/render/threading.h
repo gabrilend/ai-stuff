@@ -1,13 +1,14 @@
 /*
- * Threading Infrastructure for Render System
+ * Threading Infrastructure v2
  *
- * Implements the staged threading model from docs/render-architecture.md:
- * - Updater thread populates worker input buffers
- * - Worker threads compute GPU-ready data (always busy)
- * - Sync thread swaps outputs to primary buffer (near-zero work)
- * - Draw thread reads primary buffer (near-zero work)
+ * General-purpose thread pool with ring buffer task lists.
+ * See docs/render-threading-v2.md for architecture specification.
  *
- * Workers do heavy computation; sync/draw do pointer operations only.
+ * Key changes from v1:
+ * - Workers execute function pointers from ring buffers (not fixed slots)
+ * - Worker count scales to CPU cores
+ * - Load balancing via weighted task counts
+ * - Sync uses watch list (no blocking)
  */
 
 #ifndef THREADING_H
@@ -16,143 +17,226 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <stdint.h>
 
 /* {{{ Configuration */
-#define MAX_WORKERS 4
-#define DEFAULT_WORKERS 2
+#define TASK_LIST_SIZE 1024     /* Ring buffer capacity per worker */
+#define WATCH_LIST_SIZE 2048    /* Sync watch list capacity */
+#define TARGET_TICK_US 10000    /* 10ms = 100Hz */
+#define CONTINUATION_THRESHOLD_US 5000  /* 50% of target */
 /* }}} */
 
-/* {{{ WorkerInput - data fed to workers by updater
- * Contains game state snapshot for workers to process.
- * Workers read this, never write to it. */
-typedef struct worker_input {
-    /* Game tick number (for sync detection) */
-    unsigned int tick;
-
-    /* Number of entities to process */
-    int entity_count;
-
-    /* Entity data array (positions, states, etc.)
-     * This is a snapshot - workers can read freely */
-    void* entity_data;
-
-    /* Additional context (camera, time, etc.) */
-    float game_time;
-    float camera_x, camera_y, camera_z;
-} WorkerInput;
+/* {{{ Task Weight Constants
+ * Used for load balancing. Higher weight = more expensive task. */
+#define WEIGHT_SLEEP   0        /* No-op task */
+#define WEIGHT_LIGHT   1        /* Simple operations */
+#define WEIGHT_MEDIUM  5        /* Standard render slot */
+#define WEIGHT_HEAVY   20       /* Complex physics/AI */
+#define WEIGHT_UPDATER 10       /* Updater task */
 /* }}} */
 
-/* {{{ WorkerOutput - computed results from workers
- * Contains GPU-ready render data.
- * Workers write this, sync thread reads it. */
-typedef struct worker_output {
-    /* Tick this output corresponds to */
-    unsigned int tick;
+/* Forward declarations */
+struct worker;
+struct worker_pool;
 
-    /* Number of render slots updated */
-    int slot_count;
+/* {{{ WorkerTask
+ * A task is a function pointer with context and metadata.
+ * Workers execute these from their ring buffer. */
+typedef struct worker_task {
+    /* Function to execute */
+    void (*execute)(void* context);
 
-    /* Pointer to computed slot data
-     * This gets swapped into primary buffer by sync */
-    void* slot_data;
-} WorkerOutput;
+    /* Optional callback when repeat_count reaches 0 */
+    void (*on_complete)(void* context);
+
+    /* Task-specific data passed to execute/on_complete */
+    void* context;
+
+    /* Cost estimate for load balancing (higher = heavier) */
+    uint16_t weight;
+
+    /* Repeat behavior:
+     * -1 = run forever
+     *  0 = already completed (becomes sleep_task)
+     *  N = run N more times then call on_complete */
+    int16_t repeat_count;
+} WorkerTask;
 /* }}} */
 
-/* {{{ WorkerBuffers - per-worker input/output pair */
-typedef struct worker_buffers {
-    WorkerInput input;
-    WorkerOutput output;
-
-    /* Flag set by worker when output is ready */
-    atomic_bool output_ready;
-
-    /* Lock for input updates (updater writes, worker reads) */
-    pthread_mutex_t input_lock;
-
-    /* Lock for output swaps (worker writes, sync reads) */
-    pthread_mutex_t output_lock;
-} WorkerBuffers;
-/* }}} */
-
-/* {{{ WorkerContext - passed to each worker thread */
-typedef struct worker_context {
+/* {{{ Worker
+ * A worker thread with a ring buffer of tasks. */
+typedef struct worker {
+    pthread_t thread;
     int worker_id;
-    WorkerBuffers* buffers;
-    struct worker_pool* pool;
 
-    /* Slot range this worker is responsible for */
-    int slot_start;
-    int slot_end;
-} WorkerContext;
-/* }}} */
+    /* Task ring buffer */
+    WorkerTask* task_list;
+    size_t task_list_size;
+    size_t start_ptr;           /* Current execution position */
+    size_t end_ptr;             /* Next write position */
 
-/* {{{ WorkerPool - manages all worker threads */
-typedef struct worker_pool {
-    pthread_t threads[MAX_WORKERS];
-    WorkerContext contexts[MAX_WORKERS];
-    WorkerBuffers buffers[MAX_WORKERS];
-    int count;
+    /* Load balancing: weighted sum of pending task weights */
+    atomic_uint num_tasks;
 
-    /* Running flag - set false to shutdown */
+    /* Shutdown flag */
     atomic_bool running;
 
-    /* Pointer to primary buffer (owned by main/draw) */
-    void* primary_buffer;
+    /* Back-reference to pool */
+    struct worker_pool* pool;
+} Worker;
+/* }}} */
 
-    /* Processing function pointer
-     * Signature: void process(WorkerContext* ctx, void* input, void* output) */
-    void (*process_fn)(WorkerContext*, void*, void*);
+/* {{{ WorkerPool
+ * Manages all worker threads. */
+typedef struct worker_pool {
+    Worker* workers;
+    int count;
+
+    /* Global shutdown flag */
+    atomic_bool running;
 } WorkerPool;
 /* }}} */
 
-/* {{{ SyncContext - passed to sync thread */
+/* {{{ WatchEntry
+ * An entry in the sync thread's watch list.
+ * When ready_flag becomes true, target_ptr is set to source_ptr. */
+typedef struct watch_entry {
+    atomic_bool* ready_flag;    /* Worker sets true when output ready */
+    void** target_ptr;          /* Primary buffer slot to update */
+    void* source_ptr;           /* New pointer value */
+} WatchEntry;
+/* }}} */
+
+/* {{{ SyncContext
+ * State for the sync thread. */
 typedef struct sync_context {
-    WorkerPool* pool;
-    void* primary_buffer;
-    atomic_bool* running;
+    WatchEntry* watch_list;
+    size_t watch_capacity;
+    atomic_size_t watch_count;
+
+    atomic_bool running;
+
+    /* Lock for adding entries */
+    pthread_spinlock_t watch_lock;
 
     /* Stats */
-    unsigned int swaps_performed;
-    unsigned int idle_cycles;
+    uint64_t swaps_performed;
+    uint64_t idle_cycles;
 } SyncContext;
 /* }}} */
 
-/* {{{ UpdaterContext - passed to updater thread */
+/* {{{ Function Declarations - Pool Lifecycle */
+
+/* Create a worker pool with specified count (0 = auto-detect CPU cores) */
+WorkerPool* pool_create(int worker_count);
+
+/* Destroy pool, join all threads, free resources */
+void pool_destroy(WorkerPool* pool);
+
+/* Get total weighted load across all workers */
+unsigned int pool_get_total_load(WorkerPool* pool);
+/* }}} */
+
+/* {{{ Function Declarations - Task Management */
+
+/* Append a task to a worker's ring buffer
+ * Returns false if buffer is full */
+bool task_append(Worker* w, WorkerTask* task);
+
+/* Find the worker with lowest num_tasks */
+Worker* find_least_busy_worker(WorkerPool* pool);
+
+/* Default task that sleeps for one tick */
+void sleep_task(void* context);
+
+/* Task that compacts the ring buffer (internal use) */
+void relocate_task(void* context);
+/* }}} */
+
+/* {{{ Function Declarations - Sync Thread */
+
+/* Create sync context with specified watch list capacity */
+SyncContext* sync_create(size_t capacity);
+
+/* Destroy sync context */
+void sync_destroy(SyncContext* ctx);
+
+/* Add an entry to the watch list (thread-safe) */
+bool sync_add_watch(SyncContext* ctx,
+                    atomic_bool* ready_flag,
+                    void** target_ptr,
+                    void* source_ptr);
+
+/* Spawn the sync thread */
+pthread_t spawn_sync_thread(SyncContext* ctx);
+
+/* Sync thread entry point */
+void* sync_loop(void* arg);
+/* }}} */
+
+/* {{{ UpdaterContext
+ * Context for self-evaluating updater tasks.
+ * Updaters distribute tasks to workers and monitor timing. */
 typedef struct updater_context {
     WorkerPool* pool;
-    atomic_bool* running;
 
-    /* Input source callback
-     * Returns true if new input was provided */
-    bool (*get_input)(WorkerInput* out);
+    /* Task source callback
+     * Returns true if new tasks are available, populates out and count */
+    bool (*get_pending_tasks)(struct updater_context* ctx,
+                              WorkerTask** out,
+                              size_t* count);
 
-    /* Stats */
-    unsigned int updates_sent;
-    unsigned int idle_cycles;
+    /* User-defined data for the callback */
+    void* user_data;
+
+    /* Partition this updater handles (for helper splitting) */
+    size_t partition_start;
+    size_t partition_end;
+
+    /* Timing measurement */
+    uint64_t last_tick_duration_us;
+
+    /* Is this the primary updater (runs forever) or a helper (runs once)? */
+    bool is_primary;
+
+    /* For helper cleanup: was this context dynamically allocated? */
+    bool is_allocated;
 } UpdaterContext;
 /* }}} */
 
-/* {{{ Function Declarations */
+/* {{{ Function Declarations - Updater */
 
-/* Pool lifecycle */
-WorkerPool* pool_create(int worker_count);
-void pool_destroy(WorkerPool* pool);
-void pool_set_process_fn(WorkerPool* pool, void (*fn)(WorkerContext*, void*, void*));
-void pool_set_primary_buffer(WorkerPool* pool, void* buffer);
+/* Create an updater context (primary updater) */
+UpdaterContext* updater_create(WorkerPool* pool,
+                               bool (*get_pending_tasks)(UpdaterContext*, WorkerTask**, size_t*),
+                               void* user_data);
 
-/* Thread entry points (used internally, exposed for testing) */
+/* Destroy an updater context */
+void updater_destroy(UpdaterContext* ctx);
+
+/* Start the primary updater as a worker task */
+void updater_start(UpdaterContext* ctx);
+
+/* Primary updater execute function (runs forever, spawns helpers) */
+void primary_updater_execute(void* arg);
+
+/* Helper updater execute function (runs once, distributes partition) */
+void helper_updater_execute(void* arg);
+
+/* Helper self-evaluation callback (decides whether to continue) */
+void helper_updater_on_complete(void* arg);
+
+/* Spawns a helper updater to handle part of the workload */
+void spawn_helper_updater(UpdaterContext* primary, size_t partition_start, size_t partition_end);
+/* }}} */
+
+/* {{{ Function Declarations - Utilities */
+
+/* Get current timestamp in microseconds */
+uint64_t get_timestamp_us(void);
+
+/* Worker thread entry point */
 void* worker_loop(void* arg);
-void* sync_loop(void* arg);
-void* updater_loop(void* arg);
-
-/* Thread spawning */
-pthread_t spawn_sync_thread(SyncContext* ctx);
-pthread_t spawn_updater_thread(UpdaterContext* ctx);
-
-/* Utility */
-void distribute_input_to_workers(WorkerPool* pool, WorkerInput* input);
-bool has_any_output_ready(WorkerPool* pool);
-
 /* }}} */
 
 #endif /* THREADING_H */
