@@ -494,16 +494,76 @@ end
 
 ## Acceptance Criteria
 
-- [ ] All WC3 primary stats registered
-- [ ] All derived stats with formulas
-- [ ] Hero class definitions with stat gains
-- [ ] Experience table for levels 1-25
-- [ ] apply_hero_class() sets up container
-- [ ] Formulas match WC3 mechanics
-- [ ] Unit tests for stat calculations
+- [x] All WC3 primary stats registered
+- [x] All derived stats with formulas
+- [x] Hero class definitions with stat gains
+- [x] Experience table for levels 1-25
+- [x] apply_hero_class() sets up container
+- [x] Formulas match WC3 mechanics
+- [x] Unit tests for stat calculations
 
 ---
 
-**Status:** Pending
+**Status:** Complete
 **Dependencies:** 016a, 016e
+
+## Implementation Notes
+
+Created `src/libs/attributes/configs/wc3.lua` (~580 lines) with complete WC3 attribute configuration.
+
+### Attribute Categories
+1. **WC3_CORE** - Primary stats (strength, agility, intelligence) and identity (level, experience, primary_stat)
+2. **WC3_RESOURCES** - Health, mana, and regeneration (base values and current values)
+3. **WC3_COMBAT** - Damage, armor, attack speed, movement speed, attack range
+4. **WC3_DERIVED** - 12 computed attributes with WC3-accurate formulas
+
+### Derived Attribute Formulas
+- `max_health = base_health + (strength * 25)` (25 HP per strength)
+- `max_mana = base_mana + (intelligence * 15)` (15 mana per intelligence)
+- `health_regen = base_health_regen + (strength * 0.05)` (0.05 HP/sec per strength)
+- `mana_regen = base_mana_regen + (intelligence * 0.05)` (0.05 mana/sec per intelligence)
+- `armor = base_armor + (agility / 3)` (0.333 armor per agility)
+- `armor_reduction = (armor * 0.06 / (1 + 0.06 * |armor|)) * 100` (WC3 damage reduction formula)
+- `attack_damage_bonus` - Primary stat value (selected by primary_stat enum)
+- `damage_min/max = base_damage_min/max + attack_damage_bonus`
+- `attack_speed_bonus = agility` (1% IAS per agility)
+- `attack_cooldown = base_attack_cooldown / (1 + attack_speed_bonus / 100)`
+- `dps = avg_damage / attack_cooldown`
+
+### Hero Classes (14 total)
+- **Strength**: paladin, mountain_king, tauren_chieftain, death_knight, pit_lord
+- **Agility**: demon_hunter, blademaster, warden, dark_ranger
+- **Intelligence**: archmage, blood_mage, lich, keeper_of_the_grove, naga_sea_witch
+
+Each hero class defines:
+- Base stats (str/agi/int)
+- Per-level stat gains (with fractional values)
+- Primary stat type
+- Base health/mana
+
+### Experience Table
+WC3-standard XP thresholds for levels 1-10, extended to level 25 with consistent progression.
+
+### API Functions
+- `register_all()` - Register all WC3 attributes
+- `apply_hero_class(container, class_name, level)` - Apply hero class to container
+- `calculate_stats_at_level(class_name, level)` - Preview stats without container
+- `level_up(container, class_name)` - Apply stat gains for level-up
+- `get_xp_for_level(level)` / `get_level_for_xp(xp)` - XP conversions
+- `get_xp_to_next_level(xp)` / `get_xp_progress(xp)` - Progress queries
+- `list_hero_classes()` / `get_hero_class(name)` / `get_hero_classes_by_primary()` - Class queries
+
+### Test Coverage
+42 tests covering:
+- Registration (6 tests)
+- Derived formulas (14 tests)
+- Hero classes (10 tests)
+- Experience table (5 tests)
+- Level-up (3 tests)
+- Integration (4 tests)
+
+### Files Changed
+- Created: `src/libs/attributes/configs/wc3.lua` (~580 lines)
+- Created: `src/tests/test_wc3_config.lua` (42 tests)
+- Modified: `src/libs/attributes/init.lua` (added load_config helper)
 
