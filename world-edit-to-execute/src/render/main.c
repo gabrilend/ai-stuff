@@ -109,13 +109,34 @@ typedef struct mesh_data {
 } MeshData;
 /* }}} */
 
+/* {{{ RenderTaskContext - context for render computation tasks
+ * Pre-allocated in a pool to avoid malloc in hot path.
+ * Each task computes orbital position and registers with sync. */
+#define MAX_RENDER_TASKS 64
+typedef struct render_task_context {
+    float game_time;           /* snapshot of game time for computation */
+    int slot_index;            /* which slot to update */
+    atomic_bool ready;         /* set true when result is ready for sync */
+    RenderSlot result;         /* computed render data */
+    void** target_ptr;         /* pointer to slot data in primary buffer */
+} RenderTaskContext;
+/* }}} */
+
 /* {{{ Global State */
 static MeshData* g_cube_mesh = NULL;
 static PrimaryBuffer g_primary;
 static atomic_bool g_running = true;
 static unsigned int g_tick = 0;
+static unsigned int g_last_processed_tick = 0;  /* for updater to detect new ticks */
 static float g_game_time = 0.0f;
 static int g_demo_slot_index = -1;
+
+/* Threading v2 state */
+static WorkerPool* g_pool = NULL;
+static SyncContext* g_sync = NULL;
+static UpdaterContext* g_updater = NULL;
+static RenderTaskContext g_task_pool[MAX_RENDER_TASKS];
+static atomic_uint g_task_pool_head = 0;
 
 /* Interactive state */
 static ChunkState g_chunk_states[MAX_CHUNKS];
@@ -131,6 +152,7 @@ static int g_lua_entity_count = 0;  /* Entities created via Lua bridge */
 #ifndef lua_rawlen
 #define lua_rawlen(L, idx) lua_objlen(L, idx)
 #endif
+
 /* }}} */
 
 /* {{{ Color Palette - for chunk color cycling */
@@ -513,141 +535,122 @@ void render_cube_at_slot(RenderSlot* slot, MeshData* mesh) {
 }
 /* }}} */
 
-/* {{{ worker_process_fn
- * Worker computes orbital position and rotations from game time */
-void worker_process_fn(WorkerContext* ctx, void* input_ptr, void* output_ptr) {
-    WorkerInput* input = (WorkerInput*)input_ptr;
-    WorkerOutput* output = (WorkerOutput*)output_ptr;
+/* {{{ render_task_execute
+ * Task function for computing orbital position and rotations.
+ * Called by worker threads from their ring buffer.
+ * Registers result with sync thread via watch list. */
+void render_task_execute(void* arg) {
+    RenderTaskContext* ctx = (RenderTaskContext*)arg;
 
     /* Read current speed params (safe: main thread only writes between frames) */
     float clock_speed = g_speeds.clock_speed;
     float spin_speed = g_speeds.spin_speed;
     float orbit_radius = g_speeds.orbit_radius;
 
-    float orbit_angle = input->game_time * clock_speed * 2.0f * 3.14159f;
-    float clock_rotation = fmodf(input->game_time * clock_speed * 360.0f, 360.0f);
-    float spin = fmodf(input->game_time * spin_speed * 360.0f, 360.0f);
+    float orbit_angle = ctx->game_time * clock_speed * 2.0f * 3.14159f;
+    float clock_rotation = fmodf(ctx->game_time * clock_speed * 360.0f, 360.0f);
+    float spin = fmodf(ctx->game_time * spin_speed * 360.0f, 360.0f);
 
     float orbit_x = orbit_radius * cosf(orbit_angle);
     float orbit_z = orbit_radius * sinf(orbit_angle);
 
-    if (ctx->worker_id == 0) {
-        RenderSlot* slot = (RenderSlot*)output->slot_data;
-        if (!slot) {
-            slot = (RenderSlot*)malloc(sizeof(RenderSlot));
-            output->slot_data = slot;
-        }
+    /* Compute result into task context */
+    ctx->result.x = orbit_x;
+    ctx->result.y = 0.0f;
+    ctx->result.z = orbit_z;
+    ctx->result.rotation = clock_rotation;
+    ctx->result.spin = spin;
+    ctx->result.scale = 1.0f;
+    ctx->result.r = 40;
+    ctx->result.g = 90;
+    ctx->result.b = 200;
+    ctx->result.a = 255;
+    ctx->result.visible = true;
+    ctx->result.mesh_id = 0;
 
-        slot->x = orbit_x;
-        slot->y = 0.0f;
-        slot->z = orbit_z;
-        slot->rotation = clock_rotation;
-        slot->spin = spin;
-        slot->scale = 1.0f;
-        slot->r = 40;
-        slot->g = 90;
-        slot->b = 200;
-        slot->a = 255;
-        slot->visible = true;
-        slot->mesh_id = 0;
-
-        output->slot_count = 1;
-    } else {
-        output->slot_count = 0;
+    /* Register with sync thread for pointer swap.
+     * When ready flag is set, sync will copy result to primary buffer. */
+    if (g_sync && ctx->target_ptr) {
+        sync_add_watch(g_sync, &ctx->ready, ctx->target_ptr, &ctx->result);
+        atomic_store(&ctx->ready, true);
     }
 }
 /* }}} */
 
-/* {{{ get_game_input */
-bool get_game_input(WorkerInput* out) {
-    static unsigned int last_tick = 0;
+/* {{{ render_task_on_complete
+ * Called when a render task finishes (repeat_count reaches 0).
+ * Allocates new slot data and updates primary buffer. */
+void render_task_on_complete(void* arg) {
+    RenderTaskContext* ctx = (RenderTaskContext*)arg;
 
+    /* Copy result to persistent slot data */
+    if (ctx->slot_index >= 0 && g_primary.slots) {
+        ComponentSlot* slot = slot_get(g_primary.slots, ctx->slot_index);
+        if (slot && slot->in_use) {
+            RenderSlot* new_data = (RenderSlot*)malloc(sizeof(RenderSlot));
+            if (new_data) {
+                *new_data = ctx->result;
+                slot_set(slot, new_data);
+            }
+        }
+    }
+}
+/* }}} */
+
+/* {{{ get_render_tasks
+ * Callback for v2 updater - generates render tasks for pending work.
+ * Uses pre-allocated task pool to avoid malloc in hot path. */
+bool get_render_tasks(UpdaterContext* updater_ctx, WorkerTask** out, size_t* count) {
+    (void)updater_ctx;  /* unused for now */
+
+    /* Check if new tick available */
     unsigned int current_tick = g_tick;
-    if (current_tick == last_tick) {
+    if (current_tick == g_last_processed_tick) {
+        *count = 0;
+        return false;
+    }
+    g_last_processed_tick = current_tick;
+
+    /* Only generate task if we have a valid demo slot */
+    if (g_demo_slot_index < 0) {
+        *count = 0;
         return false;
     }
 
-    last_tick = current_tick;
-    out->tick = current_tick;
-    out->game_time = g_game_time;
-    out->entity_count = 1;
-    out->camera_x = 5.0f;
-    out->camera_y = 5.0f;
-    out->camera_z = 5.0f;
+    /* Get next task context from pool (circular) */
+    unsigned int idx = atomic_fetch_add(&g_task_pool_head, 1) % MAX_RENDER_TASKS;
+    RenderTaskContext* task_ctx = &g_task_pool[idx];
 
+    /* Populate task context with current game state */
+    task_ctx->game_time = g_game_time;
+    task_ctx->slot_index = g_demo_slot_index;
+    atomic_store(&task_ctx->ready, false);
+
+    /* Get pointer to slot data for sync update */
+    ComponentSlot* slot = slot_get(g_primary.slots, g_demo_slot_index);
+    if (slot && slot->in_use) {
+        task_ctx->target_ptr = (void**)&slot->data;
+    } else {
+        task_ctx->target_ptr = NULL;
+    }
+
+    /* Create WorkerTask pointing to our context */
+    static WorkerTask pending[1];
+    pending[0] = (WorkerTask){
+        .execute = render_task_execute,
+        .on_complete = render_task_on_complete,
+        .context = task_ctx,
+        .weight = WEIGHT_MEDIUM,
+        .repeat_count = 1
+    };
+
+    *out = pending;
+    *count = 1;
     return true;
 }
 /* }}} */
 
-/* {{{ sync_to_primary */
-void sync_to_primary(WorkerPool* pool) {
-    pthread_mutex_lock(&g_primary.lock);
-
-    for (int i = 0; i < pool->count; i++) {
-        WorkerBuffers* buf = &pool->buffers[i];
-
-        if (atomic_load(&buf->output_ready)) {
-            pthread_mutex_lock(&buf->output_lock);
-
-            if (buf->output.slot_data && buf->output.slot_count > 0) {
-                RenderSlot* src = (RenderSlot*)buf->output.slot_data;
-
-                if (i == 0 && g_demo_slot_index >= 0) {
-                    ComponentSlot* slot = slot_get(g_primary.slots, g_demo_slot_index);
-                    if (slot && slot->in_use) {
-                        RenderSlot* new_data = (RenderSlot*)malloc(sizeof(RenderSlot));
-                        if (new_data) {
-                            *new_data = *src;
-                            slot_set(slot, new_data);
-                        }
-                    }
-                }
-            }
-
-            atomic_store(&buf->output_ready, false);
-            pthread_mutex_unlock(&buf->output_lock);
-        }
-    }
-
-    pthread_mutex_unlock(&g_primary.lock);
-}
-/* }}} */
-
-/* {{{ custom_sync_loop */
-void* custom_sync_loop(void* arg) {
-    WorkerPool* pool = (WorkerPool*)arg;
-    printf("[sync] Starting custom sync loop\n");
-
-    while (atomic_load(&g_running)) {
-        sync_to_primary(pool);
-        usleep(1000);
-    }
-
-    printf("[sync] Exiting\n");
-    return NULL;
-}
-/* }}} */
-
-/* {{{ custom_updater_loop */
-void* custom_updater_loop(void* arg) {
-    WorkerPool* pool = (WorkerPool*)arg;
-    printf("[updater] Starting custom updater loop\n");
-
-    WorkerInput input;
-    memset(&input, 0, sizeof(input));
-
-    while (atomic_load(&g_running)) {
-        if (get_game_input(&input)) {
-            distribute_input_to_workers(pool, &input);
-        } else {
-            usleep(1000);
-        }
-    }
-
-    printf("[updater] Exiting\n");
-    return NULL;
-}
-/* }}} */
+/* NOTE: custom_sync_loop and custom_updater_loop removed - using v2 threading */
 
 /* {{{ tick_loop */
 void tick_loop(float dt) {
@@ -1048,13 +1051,10 @@ void cleanup_lua(void) {
 }
 /* }}} */
 
-/* {{{ cleanup */
+/* {{{ cleanup
+ * Clean up rendering resources (v2 threading cleanup is separate) */
 void cleanup(WorkerPool* pool) {
-    for (int i = 0; i < pool->count; i++) {
-        if (pool->buffers[i].output.slot_data) {
-            free(pool->buffers[i].output.slot_data);
-        }
-    }
+    (void)pool;  /* v2 cleanup handled by pool_destroy */
 
     if (g_cube_mesh) {
         if (g_cube_mesh->chunks) free(g_cube_mesh->chunks);
@@ -1116,15 +1116,41 @@ int main(void) {
         return 1;
     }
 
-    /* Create worker pool */
-    WorkerPool* pool = pool_create(NUM_WORKERS);
-    pool_set_process_fn(pool, worker_process_fn);
-    pool_set_primary_buffer(pool, &g_primary);
+    /* Create v2 worker pool - ring buffer task model */
+    g_pool = pool_create(NUM_WORKERS);
+    if (!g_pool) {
+        fprintf(stderr, "[main] Failed to create worker pool\n");
+        cleanup_lua();
+        slot_array_destroy(g_primary.slots);
+        return 1;
+    }
 
-    /* Spawn threads */
-    pthread_t sync_thread, updater_thread;
-    pthread_create(&sync_thread, NULL, custom_sync_loop, pool);
-    pthread_create(&updater_thread, NULL, custom_updater_loop, pool);
+    /* Create sync context - watch list based sync */
+    g_sync = sync_create(WATCH_LIST_SIZE);
+    if (!g_sync) {
+        fprintf(stderr, "[main] Failed to create sync context\n");
+        pool_destroy(g_pool);
+        cleanup_lua();
+        slot_array_destroy(g_primary.slots);
+        return 1;
+    }
+
+    /* Spawn sync thread (v2) */
+    pthread_t sync_thread = spawn_sync_thread(g_sync);
+
+    /* Create and start updater (v2) - runs as worker task */
+    g_updater = updater_create(g_pool, get_render_tasks, NULL);
+    if (!g_updater) {
+        fprintf(stderr, "[main] Failed to create updater\n");
+        atomic_store(&g_sync->running, false);
+        pthread_join(sync_thread, NULL);
+        sync_destroy(g_sync);
+        pool_destroy(g_pool);
+        cleanup_lua();
+        slot_array_destroy(g_primary.slots);
+        return 1;
+    }
+    updater_start(g_updater);  /* Adds updater to worker ring buffer */
 
     /* Initialize raylib */
     printf("[main] Initializing window...\n");
@@ -1316,11 +1342,18 @@ int main(void) {
     printf("\n[main] Shutting down...\n");
     atomic_store(&g_running, false);
 
+    /* Stop sync thread (v2) */
+    atomic_store(&g_sync->running, false);
     pthread_join(sync_thread, NULL);
-    pthread_join(updater_thread, NULL);
+
+    /* Clean up v2 components */
+    updater_destroy(g_updater);
+    pool_destroy(g_pool);
+    sync_destroy(g_sync);
+
+    /* Clean up Lua and rendering resources */
     cleanup_lua();  /* 508c: Clean up Lua state */
-    pool_destroy(pool);
-    cleanup(pool);
+    cleanup(g_pool);
     profile_shutdown();  /* 511: Cleanup profiler */
     CloseWindow();
 
