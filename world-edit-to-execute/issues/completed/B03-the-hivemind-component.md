@@ -126,10 +126,10 @@ pos.velocity = { vx = 0, vy = 0 }  -- New table per entity
 
 ## Victory Conditions
 
-- [ ] Modifying one entity's component doesn't affect others
-- [ ] Deep copy handles nested tables correctly
+- [x] Modifying one entity's component doesn't affect others
+- [x] Deep copy handles nested tables correctly
 - [ ] Circular references don't cause infinite loops (if supporting them)
-- [ ] Performance: Deep copy doesn't significantly slow entity creation
+- [x] Performance: Deep copy doesn't significantly slow entity creation
 
 ---
 
@@ -193,4 +193,51 @@ The curse manifests most often in:
 
 **Bounty Posted By:** The Entity Sovereignty Movement
 **Date:** 2025-12-29
-**Status:** UNCLAIMED
+**Status:** CLAIMED AND COMPLETED
+
+---
+
+## Implementation Notes
+
+**Fixed:** 2026-01-02
+
+### Changes Made
+
+1. **Added `deep_copy` function** (`src/runtime/ecs/component.lua:22-31`)
+   - Recursively copies tables to prevent shared references
+   - Handles arbitrary nesting depth
+
+2. **Modified `component.add()`** (`src/runtime/ecs/component.lua:130-145`)
+   - Deep copies provided `data` tables to prevent shared references from caller
+   - Copies all table-valued defaults directly into instance instead of relying
+     on metatable inheritance
+   - Primitive defaults still use metatable inheritance (efficient)
+   - Table defaults get their own copy per entity (safe)
+
+3. **Added regression tests** (`src/tests/test_ecs_component.lua`)
+   - 7 new tests in "B03: Hivemind Bug Regression" section
+   - Tests nested table independence at multiple depths
+   - Tests shared initial data is properly deep-copied
+
+### Victory Condition Notes
+
+- **Circular references:** Current implementation does not handle circular
+  references (would cause infinite recursion). This is acceptable since
+  component defaults should not contain circular references. If needed in
+  the future, can add a `seen` table to track visited tables.
+
+### Tests Pass
+
+```
+=== B03: Hivemind Bug Regression ===
+  [PASS] Nested table independent (vx)
+  [PASS] Nested table independent (vy)
+  [PASS] e1 modification persists (vx)
+  [PASS] e1 modification persists (vy)
+  [PASS] Deep nested independent
+  [PASS] Deep nested e3 modified
+  [PASS] Initial data deep copied
+
+Tests: 106 passed, 0 failed
+ALL TESTS PASSED
+```
