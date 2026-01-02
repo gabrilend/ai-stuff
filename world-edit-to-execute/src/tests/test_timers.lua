@@ -417,6 +417,167 @@ timers.reset()
 test("0 timers after reset", timers.get_active_count() == 0)
 -- }}}
 
+-- {{{ B02 Eternal Timer Regression Tests
+-- Tests for timer ownership and orphan cleanup.
+-- B02: Periodic timers should be cleanable when their owners become invalid.
+test_section("B02: Timer Registry")
+reset_systems()
+
+local t1 = timers.create()
+local t2 = timers.create()
+test("Registry tracks created timers", timers.get_registry_count() == 2)
+
+timers.destroy(t1)
+test("Registry removes destroyed timer", timers.get_registry_count() == 1)
+
+timers.destroy(t2)
+test("Registry empty after all destroyed", timers.get_registry_count() == 0)
+
+test_section("B02: Timer Ownership")
+reset_systems()
+
+local t = timers.create()
+test("No owner initially", timers.get_owner(t) == nil)
+
+timers.set_owner(t, 12345)
+test("Owner set correctly", timers.get_owner(t) == 12345)
+
+timers.set_owner(t, "entity_abc")
+test("Owner can be updated", timers.get_owner(t) == "entity_abc")
+
+-- Owner cleared on destroy
+timers.destroy(t)
+test("Owner nil after destroy", timers.get_owner(t) == nil)
+
+test_section("B02: Orphan Cleanup with Validator")
+reset_systems()
+
+-- Simulate 3 entities with periodic timers
+local valid_entities = { [1] = true, [2] = true, [3] = true }
+local fire_counts = { 0, 0, 0 }
+
+for i = 1, 3 do
+    local t = timers.create()
+    timers.set_owner(t, i)  -- Owner is entity ID
+    local idx = i
+    timers.start(t, 0.05, true, function()
+        fire_counts[idx] = fire_counts[idx] + 1
+    end)
+end
+
+test("3 timers in queue", timers.get_active_count() == 3)
+test("3 timers in registry", timers.get_registry_count() == 3)
+
+-- Run a few ticks - all should fire
+for i = 1, 5 do
+    gameloop.update(0.016)
+end
+test("All timers firing", fire_counts[1] > 0 and fire_counts[2] > 0 and fire_counts[3] > 0)
+
+-- "Destroy" entity 2 (remove from valid set)
+valid_entities[2] = nil
+local old_count_2 = fire_counts[2]
+
+-- Run cleanup with validator function
+local destroyed = timers.cleanup_orphans(function(owner)
+    return valid_entities[owner] == true
+end)
+
+test("One orphan destroyed", destroyed == 1)
+test("2 timers remain in queue", timers.get_active_count() == 2)
+test("2 timers remain in registry", timers.get_registry_count() == 2)
+
+-- Run more ticks - entity 2's timer should not fire anymore
+for i = 1, 5 do
+    gameloop.update(0.016)
+end
+test("Orphaned timer stopped", fire_counts[2] == old_count_2)
+test("Other timers still firing", fire_counts[1] > old_count_2 and fire_counts[3] > old_count_2)
+
+test_section("B02: Orphan Cleanup without Validator")
+reset_systems()
+
+-- Create some timers with and without owners
+local t_owned1 = timers.create()
+local t_owned2 = timers.create()
+local t_no_owner = timers.create()
+
+timers.set_owner(t_owned1, "player1")
+timers.set_owner(t_owned2, "player2")
+-- t_no_owner has no owner
+
+timers.start(t_owned1, 1.0, false, function() end)
+timers.start(t_owned2, 1.0, false, function() end)
+timers.start(t_no_owner, 1.0, false, function() end)
+
+test("3 timers before cleanup", timers.get_active_count() == 3)
+
+-- Cleanup without validator destroys all with owners
+local destroyed = timers.cleanup_orphans(nil)
+
+test("Two owned timers destroyed", destroyed == 2)
+test("One unowned timer remains", timers.get_active_count() == 1)
+
+test_section("B02: Leak Prevention Simulation")
+reset_systems()
+
+-- Simulate the leak scenario from the bounty description
+-- Many periodic timers created, then "forgotten"
+local initial_count = timers.get_registry_count()
+
+-- Create 100 periodic timers with owners
+local owners = {}
+for i = 1, 100 do
+    owners[i] = true  -- All owners valid initially
+    local t = timers.create()
+    timers.set_owner(t, i)
+    timers.start(t, 0.1, true, function() end)
+end
+
+test("100 timers created", timers.get_registry_count() == 100)
+
+-- Run for a bit
+for i = 1, 10 do
+    gameloop.update(0.016)
+end
+
+-- "Destroy" 50 owners (simulating unit deaths)
+for i = 1, 50 do
+    owners[i] = nil
+end
+
+-- Cleanup orphans
+local destroyed = timers.cleanup_orphans(function(owner)
+    return owners[owner] == true
+end)
+
+test("50 orphans cleaned up", destroyed == 50)
+test("50 timers remain", timers.get_registry_count() == 50)
+test("50 timers still active", timers.get_active_count() == 50)
+
+-- "Destroy" remaining owners
+for i = 51, 100 do
+    owners[i] = nil
+end
+
+destroyed = timers.cleanup_orphans(function(owner)
+    return owners[owner] == true
+end)
+
+test("Remaining 50 cleaned up", destroyed == 50)
+test("No timers remain", timers.get_registry_count() == 0)
+
+test_section("B02: Runtime API Registration")
+reset_systems()
+
+local runtime = {}
+timers.register_runtime_api(runtime)
+
+test("TimerSetOwner registered", runtime.TimerSetOwner == timers.set_owner)
+test("TimerGetOwner registered", runtime.TimerGetOwner == timers.get_owner)
+test("CleanupOrphanTimers registered", runtime.CleanupOrphanTimers == timers.cleanup_orphans)
+-- }}}
+
 -- {{{ Summary
 print("\n" .. string.rep("=", 50))
 print(string.format("Tests: %d passed, %d failed", pass_count, test_count - pass_count))

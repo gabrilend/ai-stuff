@@ -23,6 +23,11 @@ local timer_id_counter = 0
 
 -- Tick callback ID for cleanup
 local tick_callback_id = nil
+
+-- B02 fix: Timer registry for orphan detection.
+-- Maps timer_id -> timer for all active timers.
+-- Allows cleanup_orphans to find all timers even if script lost reference.
+local timer_registry = {}
 -- }}}
 
 -- {{{ Priority Queue - Binary Heap Implementation
@@ -152,6 +157,7 @@ end
 -- {{{ timers.create
 -- Create a new timer handle.
 -- Returns timer object with handle integration.
+-- B02 fix: Timers are now tracked in registry for orphan detection.
 function timers.create()
     timer_id_counter = timer_id_counter + 1
 
@@ -170,7 +176,14 @@ function timers.create()
 
         -- Queue tracking
         queue_index = nil,
+
+        -- B02 fix: Owner tracking for orphan detection.
+        -- If owner handle becomes invalid, timer can be cleaned up.
+        owner = nil,
     }
+
+    -- B02 fix: Register timer for orphan detection
+    timer_registry[timer._handle_id] = timer
 
     return timer
 end
@@ -276,9 +289,15 @@ end
 
 -- {{{ timers.destroy
 -- Destroy a timer and clean up resources.
+-- B02 fix: Also removes from timer registry.
 function timers.destroy(timer)
     if not timer or timer._handle_type ~= "timer" then
         return
+    end
+
+    -- B02 fix: Remove from registry before clearing handle_id
+    if timer._handle_id then
+        timer_registry[timer._handle_id] = nil
     end
 
     -- Remove from queue if present
@@ -290,6 +309,7 @@ function timers.destroy(timer)
     timer.running = false
     timer.paused = false
     timer.callback = nil
+    timer.owner = nil
     timer._handle_id = nil
     timer._handle_type = nil
 end
@@ -357,6 +377,83 @@ function timers.get_timeout(timer)
 end
 -- }}}
 
+-- {{{ timers.set_owner
+-- B02 fix: Associate a timer with an owner handle.
+-- When cleanup_orphans is called with a validation function,
+-- timers with invalid owners will be destroyed.
+--
+-- @param timer Timer handle from create()
+-- @param owner Any value representing the owner (entity ID, handle, etc.)
+function timers.set_owner(timer, owner)
+    if not timer or timer._handle_type ~= "timer" then
+        return
+    end
+
+    timer.owner = owner
+end
+-- }}}
+
+-- {{{ timers.get_owner
+-- B02 fix: Get the owner associated with a timer.
+-- Returns nil if no owner set or timer invalid.
+function timers.get_owner(timer)
+    if not timer or timer._handle_type ~= "timer" then
+        return nil
+    end
+
+    return timer.owner
+end
+-- }}}
+
+-- {{{ timers.cleanup_orphans
+-- B02 fix: Destroy all timers whose owners are no longer valid.
+-- This prevents periodic timers from running forever when their
+-- owner (unit, trigger, etc.) is destroyed but DestroyTimer wasn't called.
+--
+-- @param is_valid_fn Function that takes an owner and returns true if valid.
+--                    If nil, destroys all timers that have an owner set.
+-- @return Number of timers destroyed
+function timers.cleanup_orphans(is_valid_fn)
+    local destroyed = 0
+    local to_destroy = {}
+
+    -- Collect orphaned timers
+    for timer_id, timer in pairs(timer_registry) do
+        if timer.owner ~= nil then
+            -- Timer has an owner - check if still valid
+            if is_valid_fn then
+                if not is_valid_fn(timer.owner) then
+                    to_destroy[#to_destroy + 1] = timer
+                end
+            else
+                -- No validation function - destroy all with owners
+                to_destroy[#to_destroy + 1] = timer
+            end
+        end
+    end
+
+    -- Destroy collected timers
+    for _, timer in ipairs(to_destroy) do
+        timers.destroy(timer)
+        destroyed = destroyed + 1
+    end
+
+    return destroyed
+end
+-- }}}
+
+-- {{{ timers.get_registry_count
+-- B02 fix: Get the number of timers in the registry.
+-- This includes both running and non-running timers that haven't been destroyed.
+function timers.get_registry_count()
+    local count = 0
+    for _ in pairs(timer_registry) do
+        count = count + 1
+    end
+    return count
+end
+-- }}}
+
 -- {{{ timers.process_tick
 -- Process timer expirations for this tick.
 -- Called by gameloop each tick via tick callback.
@@ -412,6 +509,7 @@ end
 -- {{{ timers.reset
 -- Reset timer system to initial state.
 -- Destroys all active timers.
+-- B02 fix: Also clears timer registry.
 function timers.reset()
     -- Clear queue
     for i = #timer_queue, 1, -1 do
@@ -422,6 +520,9 @@ function timers.reset()
         end
         timer_queue[i] = nil
     end
+
+    -- B02 fix: Clear registry
+    timer_registry = {}
 end
 -- }}}
 
@@ -435,6 +536,7 @@ end
 -- {{{ timers.register_runtime_api
 -- Register WC3-style runtime API functions.
 -- These match JASS native function signatures.
+-- B02 fix: Added owner and cleanup functions.
 function timers.register_runtime_api(runtime)
     -- CreateTimer() -> timer
     runtime.CreateTimer = timers.create
@@ -459,6 +561,16 @@ function timers.register_runtime_api(runtime)
 
     -- TimerGetTimeout(timer) -> real
     runtime.TimerGetTimeout = timers.get_timeout
+
+    -- B02 fix: Owner tracking for orphan cleanup
+    -- TimerSetOwner(timer, owner)
+    runtime.TimerSetOwner = timers.set_owner
+
+    -- TimerGetOwner(timer) -> owner
+    runtime.TimerGetOwner = timers.get_owner
+
+    -- CleanupOrphanTimers(is_valid_fn) -> count
+    runtime.CleanupOrphanTimers = timers.cleanup_orphans
 end
 -- }}}
 
