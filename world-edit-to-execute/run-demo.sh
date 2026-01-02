@@ -28,7 +28,7 @@ else
     DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 fi
 
-COMPLETED_PHASES=4
+COMPLETED_PHASES=5
 NON_INTERACTIVE=false
 PHASE=""
 
@@ -113,7 +113,7 @@ show_main_menu() {
     echo -e "│ [2] Phase 2: Data Model - Game Objects              ${GREEN}✅ 100% Complete${NC}   │"
     echo -e "│ [3] Phase 3: Logic Layer - Triggers and JASS        ${GREEN}✅ 100% Complete${NC}   │"
     echo -e "│ [4] Phase 4: Runtime - Basic Engine Loop            ${GREEN}✅ 100% Complete${NC}   │"
-    echo -e "│ [5] Phase 5: Rendering - Visual Abstraction         ${YELLOW}⏳ Pending${NC}         │"
+    echo -e "│ [5] Phase 5: Rendering - Threading Architecture     ${GREEN}✅ In Progress${NC}    │"
     echo -e "│ [6] Phase 6: Asset System - Community Content       ${YELLOW}⏳ Pending${NC}         │"
     echo -e "│ [7] Phase 7: Gameplay - Core Mechanics              ${YELLOW}⏳ Pending${NC}         │"
     echo -e "│ [8] Phase 8: Multiplayer - Network Layer            ${YELLOW}⏳ Pending${NC}         │"
@@ -275,6 +275,29 @@ run_phase4_demo() {
 
     if [[ "$NON_INTERACTIVE" == "true" ]]; then
         bash "$demo_script" -n
+    else
+        bash "$demo_script"
+    fi
+}
+# }}}
+
+# {{{ run_phase5_demo
+run_phase5_demo() {
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}PHASE 5: RENDERING - THREADING ARCHITECTURE${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    local demo_script="${DIR}/issues/completed/demos/run_phase5.sh"
+
+    if [[ ! -f "$demo_script" ]]; then
+        echo -e "${RED}Error: Demo script not found: $demo_script${NC}"
+        return 1
+    fi
+
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        bash "$demo_script" -t
     else
         bash "$demo_script"
     fi
@@ -445,7 +468,7 @@ show_statistics() {
     echo -e "  ${GREEN}[DONE]${NC} Phase 2: Data Model - Game Objects"
     echo -e "  ${GREEN}[DONE]${NC} Phase 3: Logic Layer - Triggers and JASS"
     echo -e "  ${GREEN}[DONE]${NC} Phase 4: Runtime - Basic Engine Loop"
-    echo -e "  ${YELLOW}[TODO]${NC} Phase 5: Rendering - Visual Abstraction"
+    echo -e "  ${CYAN}[WIP]${NC}  Phase 5: Rendering - Threading Architecture"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 6: Asset System - Community Content"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 7: Gameplay - Core Mechanics"
     echo -e "  ${YELLOW}[TODO]${NC} Phase 8: Multiplayer - Network Layer"
@@ -476,7 +499,10 @@ run_phase_demo() {
         4)
             run_phase4_demo
             ;;
-        [5-9])
+        5)
+            run_phase5_demo
+            ;;
+        [6-9])
             echo ""
             echo -e "${YELLOW}Phase $phase demo not yet available.${NC}"
             echo "This phase is pending implementation."
