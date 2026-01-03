@@ -16,6 +16,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <limits.h>
+
+/* Global active updater count - for dynamic scaling decisions */
+atomic_uint g_active_updater_count = 0;
 
 /* {{{ get_timestamp_us
  * Returns current time in microseconds (monotonic clock). */
@@ -164,9 +168,9 @@ Worker* find_least_busy_worker(WorkerPool* pool) {
  * Executes tasks from the ring buffer.
  *
  * repeat_count behavior:
- *   -1: run forever (never advance, never complete)
- *    N: run N more times, then call on_complete and advance
- *    0: already done, skip this slot
+ *   N > 0: run N more times, then call on_complete and advance
+ *   N <= 0: already done, skip this slot (-1 does NOT mean infinite)
+ *   Use INT16_MAX for "essentially infinite" execution
  */
 void* worker_loop(void* arg) {
     Worker* w = (Worker*)arg;
@@ -185,8 +189,8 @@ void* worker_loop(void* arg) {
         /* Get current task */
         WorkerTask* task = &w->task_list[w->start_ptr];
 
-        /* Handle based on repeat_count */
-        if (task->execute == NULL || task->repeat_count == 0) {
+        /* Handle based on repeat_count - treat <= 0 as completed */
+        if (task->execute == NULL || task->repeat_count <= 0) {
             /* Task is empty or already done - advance to next */
             w->start_ptr = (w->start_ptr + 1) % w->task_list_size;
             continue;
@@ -195,16 +199,10 @@ void* worker_loop(void* arg) {
         /* Execute the task */
         task->execute(task->context);
 
-        /* Update repeat_count and decide whether to advance */
-        if (task->repeat_count == -1) {
-            /* Infinite repeat - don't advance, run again next iteration */
-            continue;
-        }
-
-        /* Finite repeat - decrement */
+        /* Decrement repeat_count */
         task->repeat_count--;
 
-        if (task->repeat_count == 0) {
+        if (task->repeat_count <= 0) {
             /* Task is now complete */
             if (task->on_complete) {
                 task->on_complete(task->context);
@@ -509,25 +507,33 @@ void updater_destroy(UpdaterContext* ctx) {
 }
 /* }}} */
 
+/* Forward declaration for on_complete callback */
+static void updater_on_complete(void* arg);
+
 /* {{{ updater_start
  * Starts the primary updater as a worker task.
- * The primary updater runs forever (repeat_count = -1). */
+ * Uses INT16_MAX for essentially infinite execution, with on_complete
+ * for self-evaluation when repeat_count reaches 0. */
 void updater_start(UpdaterContext* ctx) {
     if (!ctx || !ctx->pool) return;
 
     Worker* target = find_least_busy_worker(ctx->pool);
     if (!target) return;
 
+    /* Increment active updater count */
+    atomic_fetch_add(&g_active_updater_count, 1);
+
     WorkerTask task = {
         .execute = primary_updater_execute,
-        .on_complete = NULL,  /* Primary never completes */
+        .on_complete = updater_on_complete,
         .context = ctx,
         .weight = WEIGHT_UPDATER,
-        .repeat_count = -1  /* Run forever */
+        .repeat_count = INT16_MAX  /* Run ~32K times then re-evaluate */
     };
 
     task_append(target, &task);
-    printf("[updater] Primary updater started on worker %d\n", target->worker_id);
+    printf("[updater] Primary updater started on worker %d (active: %u)\n",
+           target->worker_id, atomic_load(&g_active_updater_count));
 }
 /* }}} */
 
@@ -683,5 +689,64 @@ void spawn_helper_updater(UpdaterContext* primary, size_t partition_start, size_
     task_append(target, &task);
     printf("[updater] Helper spawned for partition [%zu, %zu) on worker %d\n",
            partition_start, partition_end, target->worker_id);
+}
+/* }}} */
+
+/* {{{ updater_on_complete
+ * Self-evaluation callback for updaters.
+ * Called when repeat_count reaches 0. Implements dynamic scaling:
+ * - If only 1 updater active: re-spawn with INT16_MAX (must keep running)
+ * - If multiple updaters and last update > 5ms: spawn replacement, terminate
+ * - Otherwise: terminate (allow pool to shrink) */
+static void updater_on_complete(void* arg) {
+    UpdaterContext* ctx = (UpdaterContext*)arg;
+    if (!ctx || !ctx->pool) return;
+
+    unsigned int active = atomic_load(&g_active_updater_count);
+
+    if (active <= 1) {
+        /* Last updater - must keep running, re-spawn with INT16_MAX */
+        Worker* target = find_least_busy_worker(ctx->pool);
+        if (target) {
+            WorkerTask task = {
+                .execute = primary_updater_execute,
+                .on_complete = updater_on_complete,
+                .context = ctx,
+                .weight = WEIGHT_UPDATER,
+                .repeat_count = INT16_MAX
+            };
+            task_append(target, &task);
+            printf("[updater] Re-spawned (only %u active, last: %lu us)\n",
+                   active, ctx->last_tick_duration_us);
+        }
+    } else if (ctx->last_tick_duration_us > UPDATER_OVERLOAD_THRESHOLD_US) {
+        /* Multiple updaters and heavy load - spawn replacement, terminate this one */
+        Worker* target = find_least_busy_worker(ctx->pool);
+        if (target) {
+            WorkerTask task = {
+                .execute = primary_updater_execute,
+                .on_complete = updater_on_complete,
+                .context = ctx,
+                .weight = WEIGHT_UPDATER,
+                .repeat_count = INT16_MAX
+            };
+            task_append(target, &task);
+            printf("[updater] Spawned replacement on worker %d (last: %lu us > %d us)\n",
+                   target->worker_id, ctx->last_tick_duration_us,
+                   UPDATER_OVERLOAD_THRESHOLD_US);
+        }
+        /* Decrement count - this updater is terminating */
+        atomic_fetch_sub(&g_active_updater_count, 1);
+    } else {
+        /* Multiple updaters and light load - terminate to shrink pool */
+        atomic_fetch_sub(&g_active_updater_count, 1);
+        printf("[updater] Terminating (active: %u, last: %lu us <= %d us)\n",
+               active - 1, ctx->last_tick_duration_us, UPDATER_OVERLOAD_THRESHOLD_US);
+
+        /* Free context if dynamically allocated */
+        if (ctx->is_allocated) {
+            free(ctx);
+        }
+    }
 }
 /* }}} */
