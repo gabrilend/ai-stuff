@@ -11,7 +11,7 @@
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
 | A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
-| 0 | Tooling/Infrastructure | In Progress | 23/32 |
+| 0 | Tooling/Infrastructure | In Progress | 24/32 |
 | 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
@@ -84,7 +84,7 @@ No dependencies (all independent except A07)
 | 007 | Add auto-implement via Claude CLI | **Completed** | None |
 | 010 | Debug TUI integration analysis | Pending | 004 |
 | 011 | TUI history insert on run | Pending | 004 |
-| 012 | Interactive verdict review mode | Pending | 003, 004 |
+| 012 | Interactive verdict review mode | **Completed** | 003, 004 |
 | 013 | Quest & bounty template system | **Completed** | None |
 | 014 | Guild hero & shop system | **Completed** | 013 |
 | 015 | WoW-style combat system | Pending | 014 |

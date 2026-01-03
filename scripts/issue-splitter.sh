@@ -98,6 +98,12 @@ fi
 declare -a ROOTS_WITH_SUBS=()
 # }}}
 
+# {{{ Verdict Review Arrays
+# Populated by run_verdict_review_loop() for interactive execute mode
+ISSUES_TO_EXECUTE=()  # Issues user approved for sub-issue creation
+ISSUES_SKIPPED=()     # Issues user chose to skip
+# }}}
+
 # {{{ Queue Configuration
 QUEUE_DIR=""
 QUEUE_COUNTER=0
@@ -593,6 +599,190 @@ get_analysis_verdict() {
     fi
 
     echo "unknown"
+}
+# }}}
+
+# {{{ get_review_content
+# Extracts displayable content for the verdict viewer
+# Priority: analysis sections > full file content
+# Returns content to stdout
+get_review_content() {
+    local file="$1"
+    local content=""
+
+    # Try to extract analysis section first (Sub-Issue Analysis or Initial Analysis)
+    content=$(awk '
+        /^## Sub-Issue Analysis$/ || /^## Initial Analysis$/ {
+            capturing = 1
+            buffer = ""
+        }
+        capturing {
+            # Stop on sections that are clearly NOT part of analysis
+            if (/^## (Implementation Notes|Notes|Related Documents|Acceptance Criteria|Generated Sub-Issues|Structure Review)/) {
+                last_section = buffer
+                capturing = 0
+                buffer = ""
+            } else {
+                buffer = buffer $0 "\n"
+            }
+        }
+        END {
+            if (capturing && buffer != "") {
+                print buffer
+            } else if (last_section != "") {
+                print last_section
+            }
+        }
+    ' "$file" 2>/dev/null)
+
+    # If no analysis found, return full file content
+    if [[ -z "$content" ]]; then
+        content=$(cat "$file" 2>/dev/null)
+    fi
+
+    echo "$content"
+}
+# }}}
+
+# {{{ show_verdict_review
+# Displays the verdict viewer for an issue and captures user decision
+# Args: issue_path, current_num, total_num
+# Returns: "execute", "skip", or "quit" via stdout
+# Exit code: 0 on success, 1 on error
+show_verdict_review() {
+    local issue_path="$1"
+    local current_num="$2"
+    local total_num="$3"
+
+    local basename
+    basename=$(basename "$issue_path")
+    local counter="Issue $current_num of $total_num"
+
+    # Create temp file for content
+    local temp_content
+    temp_content=$(mktemp)
+    get_review_content "$issue_path" > "$temp_content"
+
+    # Invoke the Lua verdict viewer
+    local decision
+    decision=$(luajit "${LIBS_DIR}/verdict-viewer.lua" "$temp_content" "$basename" "$counter" 2>/dev/null)
+    local exit_code=$?
+
+    # Cleanup temp file
+    rm -f "$temp_content"
+
+    if [[ $exit_code -eq 0 ]]; then
+        echo "$decision"
+    else
+        echo "quit"
+    fi
+}
+# }}}
+
+# {{{ run_verdict_review_loop
+# Interactive loop to review all analyzed issues before execution
+# Populates global arrays: ISSUES_TO_EXECUTE, ISSUES_SKIPPED
+# Returns: 0 if user completed review, 1 if user quit early
+run_verdict_review_loop() {
+    local -a issues_to_review=()
+
+    # Collect issues that have analysis and haven't been executed yet
+    for issue in "${SELECTED_ISSUES[@]}"; do
+        local basename
+        basename=$(basename "$issue")
+
+        # Skip sub-issues
+        if is_subissue "$basename"; then
+            continue
+        fi
+
+        # Skip if already has generated sub-issues
+        if has_generated_subissues "$issue"; then
+            continue
+        fi
+
+        # Only include if has analysis
+        if has_subissue_analysis "$issue" || has_initial_analysis "$issue"; then
+            issues_to_review+=("$issue")
+        fi
+    done
+
+    if [[ ${#issues_to_review[@]} -eq 0 ]]; then
+        log "No issues with analysis to review"
+        return 0
+    fi
+
+    ISSUES_TO_EXECUTE=()
+    ISSUES_SKIPPED=()
+
+    local total=${#issues_to_review[@]}
+    local current=0
+    local quit_early=false
+
+    for issue in "${issues_to_review[@]}"; do
+        ((++current))
+
+        local decision
+        decision=$(show_verdict_review "$issue" "$current" "$total")
+
+        case "$decision" in
+            execute)
+                ISSUES_TO_EXECUTE+=("$issue")
+                ;;
+            skip)
+                ISSUES_SKIPPED+=("$issue")
+                ;;
+            quit)
+                quit_early=true
+                break
+                ;;
+        esac
+    done
+
+    # Show summary
+    echo ""
+    echo "════════════════════════════════════════════════════════════════"
+    echo "Verdict Review Complete"
+    echo "════════════════════════════════════════════════════════════════"
+    echo ""
+
+    if [[ ${#ISSUES_TO_EXECUTE[@]} -gt 0 ]]; then
+        echo "Execute (create sub-issues): ${#ISSUES_TO_EXECUTE[@]}"
+        for issue in "${ISSUES_TO_EXECUTE[@]}"; do
+            echo "  - $(basename "$issue")"
+        done
+        echo ""
+    fi
+
+    if [[ ${#ISSUES_SKIPPED[@]} -gt 0 ]]; then
+        echo "Skip (keep as-is): ${#ISSUES_SKIPPED[@]}"
+        for issue in "${ISSUES_SKIPPED[@]}"; do
+            echo "  - $(basename "$issue")"
+        done
+        echo ""
+    fi
+
+    if [[ "$quit_early" == true ]]; then
+        echo "Review interrupted. Remaining issues not reviewed."
+        echo ""
+    fi
+
+    if [[ ${#ISSUES_TO_EXECUTE[@]} -eq 0 ]]; then
+        log "No issues selected for execution"
+        return 0
+    fi
+
+    # Confirm before execution
+    if [[ "$EXECUTE_ALL" != true ]]; then
+        read -p "Proceed with execution? [y/N]: " confirm
+        if [[ ! "$confirm" =~ ^[Yy] ]]; then
+            log "Execution cancelled by user"
+            ISSUES_TO_EXECUTE=()
+            return 1
+        fi
+    fi
+
+    return 0
 }
 # }}}
 
@@ -2490,6 +2680,9 @@ run_implement_phase() {
 # }}}
 
 # {{{ run_execute_phase
+# Execute mode has two paths:
+#   1. Interactive review (default): User reviews each analysis in TUI before deciding
+#   2. Automatic (--execute-all or -X): Skip review, process all with confirmations inline
 run_execute_phase() {
     echo
     echo "════════════════════════════════════════════════════════════════"
@@ -2500,22 +2693,57 @@ run_execute_phase() {
     local executed=0
     local skipped=0
 
-    for issue in "${SELECTED_ISSUES[@]}"; do
-        local basename
-        basename=$(basename "$issue")
+    # Check if interactive review is available (requires luajit and TUI)
+    # Use interactive review when TUI is available and not in execute-all mode
+    local use_interactive=false
+    if [[ "$EXECUTE_ALL" != true ]] && command -v luajit &> /dev/null; then
+        if [[ -f "${LIBS_DIR}/verdict-viewer.lua" ]]; then
+            use_interactive=true
+        fi
+    fi
 
-        # Skip sub-issues
-        if is_subissue "$basename"; then
-            continue
+    if [[ "$use_interactive" == true ]]; then
+        # Interactive review mode: show each analysis, let user decide
+        # run_verdict_review_loop populates ISSUES_TO_EXECUTE array
+        if ! run_verdict_review_loop; then
+            log "Execution cancelled"
+            return 0
         fi
 
-        if execute_recommendations "$issue"; then
-            ((++executed))
-        else
-            ((++skipped))
-        fi
-        echo
-    done
+        # Process only the approved issues
+        for issue in "${ISSUES_TO_EXECUTE[@]}"; do
+            # Execute without per-issue confirmation (user already approved in review)
+            local orig_execute_all="$EXECUTE_ALL"
+            EXECUTE_ALL=true
+
+            if execute_recommendations "$issue"; then
+                ((++executed))
+            else
+                ((++skipped))
+            fi
+            echo
+
+            EXECUTE_ALL="$orig_execute_all"
+        done
+    else
+        # Legacy mode: process all selected issues with inline confirmations
+        for issue in "${SELECTED_ISSUES[@]}"; do
+            local basename
+            basename=$(basename "$issue")
+
+            # Skip sub-issues
+            if is_subissue "$basename"; then
+                continue
+            fi
+
+            if execute_recommendations "$issue"; then
+                ((++executed))
+            else
+                ((++skipped))
+            fi
+            echo
+        done
+    fi
 
     log "Phase 3 complete: $executed processed, $skipped skipped"
 }
