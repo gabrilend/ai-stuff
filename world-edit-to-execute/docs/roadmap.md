@@ -590,7 +590,58 @@ Add networked play capability.
 
 ---
 
-## Phase 9: Polish - Tools and UX
+## Phase 9: World Editor (Issues Created)
+
+12 issues created. Full-featured editor with WC3 World Editor parity.
+
+### Issue Breakdown
+
+| ID | Name | Description |
+|----|------|-------------|
+| 901 | Editor core framework | Window, viewport, undo/redo, shortcuts |
+| 902 | Terrain editor | Height, textures, cliffs, water |
+| 903 | Object placer | Units, doodads, items, destructibles |
+| 904 | Region and camera editor | Regions, camera presets |
+| 905 | Trigger editor | GUI + Lua with bidirectional sync |
+| 906 | Object editor | Modify unit/ability/item stats |
+| 907 | Sound editor | 3D sounds, music, ambience |
+| 908 | Import manager | Custom asset management |
+| 909 | AI editor | Computer player behavior |
+| 910 | Campaign editor | Multi-map storylines |
+| 911 | Map format and export | Unified format, WC3 export |
+| 912 | Phase 9 integration test | Full editor workflow testing |
+
+### Key Features
+
+- **Trigger Editor:** Full GUI parity with WC3, plus Lua code editing
+  - Bidirectional conversion: edit in GUI or code, changes sync
+  - Lua is the canonical format, GUI is a view
+- **Map Format:** Unified .wex format
+  - Supports both WC3 and WoW gameplay modes
+  - Exports to standard .w3x for WC3 compatibility
+  - Mode-specific data handled gracefully
+- **Campaign Editor:** Multi-map storylines with hero persistence
+
+### Dependency Graph
+
+```
+901 Editor Core ──┬──▶ 902 Terrain
+                  ├──▶ 903 Object Placer
+                  ├──▶ 904 Regions/Cameras
+                  ├──▶ 905 Trigger Editor
+                  ├──▶ 906 Object Editor
+                  ├──▶ 907 Sound Editor
+                  ├──▶ 908 Import Manager
+                  ├──▶ 909 AI Editor
+                  ├──▶ 910 Campaign ──▶ 911 Map Format
+                  └──▶ 911 Map Format
+                             │
+All ─────────────────────────▶ 912 Integration Test
+```
+
+---
+
+## Phase 10: Polish - Tools and UX
 
 Developer and player experience improvements.
 
