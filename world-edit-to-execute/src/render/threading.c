@@ -27,11 +27,11 @@ uint64_t get_timestamp_us(void) {
 /* }}} */
 
 /* {{{ sleep_task
- * Default no-op task that yields for one tick (10ms).
- * Workers execute this when they have no real work. */
+ * Default no-op task that yields briefly.
+ * Used as a placeholder or for testing. */
 void sleep_task(void* context) {
     (void)context;  /* Unused */
-    usleep(TARGET_TICK_US);
+    usleep(1000);  /* 1ms yield */
 }
 /* }}} */
 
@@ -176,8 +176,9 @@ void* worker_loop(void* arg) {
     while (atomic_load(&w->running)) {
         /* Check if buffer is empty */
         if (w->start_ptr == w->end_ptr) {
-            /* Buffer empty - sleep and retry */
-            usleep(TARGET_TICK_US);
+            /* Buffer empty - brief yield and retry
+             * Use short sleep (100us) to reduce latency while avoiding busy-wait */
+            usleep(100);
             continue;
         }
 
@@ -543,8 +544,8 @@ void primary_updater_execute(void* arg) {
     WorkerTask* pending = NULL;
     size_t count = 0;
     if (!ctx->get_pending_tasks(ctx, &pending, &count) || count == 0) {
-        /* No tasks available - brief sleep */
-        usleep(1000);  /* 1ms */
+        /* No tasks available - very brief yield to avoid busy-wait */
+        usleep(100);  /* 0.1ms */
         return;
     }
 
