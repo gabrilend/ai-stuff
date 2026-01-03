@@ -10,6 +10,7 @@ A WC3-compatible game engine that reads Warcraft 3 map files (.w3x/.w3m) like an
 - `docs/roadmap.md` - Development phases and **current focus/next steps**
 - `docs/table-of-contents.md` - Documentation index
 - `issues/progress.md` - Current phase status and issue tracking
+- `docs/render-architecture.md` - Frame encoding, threading, numeric representation
 
 ---
 
@@ -224,13 +225,29 @@ Automated tool for analyzing issues, managing sub-issue creation, and implementi
 
 **3. Execute Mode**
 ```bash
-./src/cli/issue-splitter.sh -x              # With confirmation prompts
-./src/cli/issue-splitter.sh -X              # Execute all without prompts
+./src/cli/issue-splitter.sh -x              # Interactive review then execute
+./src/cli/issue-splitter.sh -X              # Execute all without interactive review
 ```
+- **Interactive Verdict Review** (default with `-x`):
+  - Presents each analyzed issue in a scrollable TUI viewer
+  - User reads analysis content and decides: `[e]` Execute, `[s]` Skip, `[q]` Quit
+  - Shows summary of decisions after review
+  - Confirms before creating sub-issues
 - Parses analysis recommendations from issue files
 - Auto-creates sub-issue files from recommendations
 - Renames `## Sub-Issue Analysis` to `## Initial Analysis`
 - Adds `## Generated Sub-Issues` section
+
+**Verdict Viewer Hotkeys:**
+
+| Key | Action |
+|-----|--------|
+| `e` | Execute - create sub-issues for this issue |
+| `s` | Skip - keep this issue as-is |
+| `q` | Quit - stop review, don't execute remaining |
+| `j/k` or `↓/↑` | Scroll content |
+| `g/G` | Jump to top/bottom |
+| `Space` | Page down |
 
 **4. Implement Mode**
 ```bash
@@ -455,3 +472,27 @@ Run phase completion demos to verify functionality:
 # Phase selector (interactive)
 ./run-demo.sh
 ```
+
+---
+
+## Reference Conversations
+
+Save important discussions for future reference:
+
+```bash
+# Save current conversation with topic tag
+./src/cli/save-conversation.sh "topic-name"
+
+# List saved conversations
+./src/cli/save-conversation.sh --list
+
+# Add reference entry to this file
+./src/cli/save-conversation.sh --add-to-claude "topic-name"
+```
+
+Saved discussions:
+
+- [Frame Encoding And DNA](notes/conversations/2025-12-30-frame-encoding-dna.md) - 2025-12-30
+  Discussed: Quadrant-based vector encoding, LUT operations, momentum storage,
+  frame-based Fourier, DNA analogy (4 bases = 1 frame), pathfinding as shape
+  description, the verb vs the noun of movement.
