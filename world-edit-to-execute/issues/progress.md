@@ -20,7 +20,8 @@
 | 6 | Asset System - Community Content | Issues Created | 0/8 |
 | 7 | Gameplay - Core Mechanics | In Progress | 1/7 |
 | 8 | Multiplayer - Network Layer | Planned | - |
-| 9 | Polish - Tools and UX | Planned | - |
+| 9 | World Editor | Issues Created | 0/12 |
+| 10 | Polish - Tools and UX | Planned | - |
 
 ---
 
@@ -562,6 +563,63 @@ All ─────────────────────────�
 Both systems support dual WC3/WoW modes:
 - **Death**: WC3 altar revival vs WoW graveyard run
 - **Professions**: WC3 ability-based vs WoW skill 1-300
+
+---
+
+## Phase 9 Issues (World Editor)
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 901 | Editor core framework | Pending | Phase 5, Phase 6 |
+| 902 | Terrain editor | Pending | 901, 105 |
+| 903 | Object placer | Pending | 901, 110, Phase 2 |
+| 904 | Region and camera editor | Pending | 901, 203-204 |
+| 905 | Trigger editor | Pending | 901, Phase 3 |
+| 906 | Object editor | Pending | 901, 110 |
+| 907 | Sound editor | Pending | 901, 205 |
+| 908 | Import manager | Pending | 901, Phase 6 |
+| 909 | AI editor | Pending | 901, Phase 4 |
+| 910 | Campaign editor | Pending | 901, 911 |
+| 911 | Map format and export | Pending | 901, Phase 1 |
+| 912 | Phase 9 integration test | Pending | 901-911 |
+
+### Overview
+
+Full-featured World Editor with feature parity to WC3 World Editor:
+- **Terrain Editor:** Height, textures, cliffs, water, blight
+- **Object Placer:** Units, doodads, items, destructibles
+- **Region/Camera Editor:** Regions, camera presets
+- **Trigger Editor:** GUI + Lua code with bidirectional sync
+- **Object Editor:** Modify unit/ability/item stats
+- **Sound Editor:** 3D sounds, music, ambience
+- **Import Manager:** Custom assets
+- **AI Editor:** Computer player behavior
+- **Campaign Editor:** Multi-map storylines
+- **Map Format:** Unified format exporting to both WC3 and enhanced formats
+
+### Key Design Decisions
+
+- **Trigger Editor:** Full GUI parity + Lua text editing with bidirectional conversion
+- **Map Format:** Unified .wex format supporting both WC3 and WoW modes
+- **Export:** Outputs to both standard WC3 (.w3x) and unified format
+- **Import Manager:** Depends on Asset Browser (Phase 6B)
+
+### Dependency Graph
+
+```
+901 Editor Core ──┬──▶ 902 Terrain
+                  ├──▶ 903 Object Placer
+                  ├──▶ 904 Regions/Cameras
+                  ├──▶ 905 Trigger Editor
+                  ├──▶ 906 Object Editor
+                  ├──▶ 907 Sound Editor
+                  ├──▶ 908 Import Manager ──▶ (Phase 6B)
+                  ├──▶ 909 AI Editor
+                  ├──▶ 910 Campaign Editor ──▶ 911 Map Format
+                  └──▶ 911 Map Format
+
+All ──────────────────────────────────────▶ 912 Integration Test
+```
 
 ---
 
