@@ -471,16 +471,59 @@ Same character, different experience:
 
 ---
 
-## Phase 6: Asset System - Community Content
+## Phase 6: Asset System - Community Content (Issues Created)
 
-Enable community visual packs and modding.
+8 issues created. Custom download protocol, host-distributed assets.
 
-- Define asset pack manifest format
-- Build asset resolution system (pack priority)
-- Create default community asset pack structure
-- Implement hot-reload for asset changes
-- Build asset pack validator
-- Create asset pack documentation/templates
+### Issue Breakdown
+
+| ID | Name | Description |
+|----|------|-------------|
+| 601 | Asset loader and resolution | Direct-path loading from map/server directories |
+| 602 | Wire-frame fallback renderer | Debug visuals for missing assets, blank maps |
+| 603 | Server asset download protocol | On-connect asset transfer, resumable downloads |
+| 604 | Asset deduplication system | Hash-based storage, cross-server sharing |
+| 605 | Local storage manager | Per-server size tracking, cleanup UI |
+| 606 | Hot-reload system | Development-time asset refresh |
+| 607 | File server application | Standalone server for asset distribution |
+| 608 | Phase 6 integration test | End-to-end validation |
+
+### Design Decisions
+
+- **Asset Source:** Assets embedded in maps (MPQ) or provided by server
+- **No overlay packs:** Assets come FROM content, not overlaid on top
+- **Download Protocol:** Custom protocol, hosts distribute their own assets
+- **Fallback Mode:** Wire-frame/debug rendering when assets missing
+- **Deduplication:** SHA-256 content-addressed storage, shared across servers
+- **Hot-Reload:** Development-only feature for asset iteration
+
+### Architecture
+
+```
+CLIENT                           HOST
+   │                               │
+   ├── CONNECT ───────────────────▶│
+   │◀── MANIFEST ─────────────────┤
+   ├── HAVE [hashes...] ─────────▶│
+   │◀── NEED [hashes...] ─────────┤
+   │◀── CHUNKS ───────────────────┤
+   ├── READY ─────────────────────▶│
+   │◀── GAME_START ───────────────┤
+```
+
+### Storage Structure
+
+```
+~/.world-edit-engine/
+├── blobs/                  # Deduplicated content-addressed storage
+│   └── ab/ab3def789...     # SHA-256 hash as filename
+├── servers/                # Per-server asset references
+│   └── my-server/
+│       └── assets/ → blobs/
+└── maps/                   # Per-map extracted assets
+    └── map-hash/
+        └── assets/ → blobs/
+```
 
 ---
 

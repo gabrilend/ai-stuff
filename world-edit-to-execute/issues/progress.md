@@ -17,7 +17,7 @@
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
 | 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
 | 5 | Rendering - Visual Abstraction | Issues Created | 0/55 |
-| 6 | Asset System - Community Content | Planned | - |
+| 6 | Asset System - Community Content | Issues Created | 0/8 |
 | 7 | Gameplay - Core Mechanics | In Progress | 1/7 |
 | 8 | Multiplayer - Network Layer | Planned | - |
 | 9 | Polish - Tools and UX | Planned | - |
@@ -467,6 +467,55 @@ Recorded in CRITICAL-PATH.md:
 - **OQ-001:** Renderer backend = **Raylib**
 - **OQ-002:** Coordinate system = **WC3-style (Y-up, isometric)**
 - **OQ-003/004:** Integration = **API-driven** (shared data layer for WC3 + AzerothCore)
+
+---
+
+## Phase 6 Issues (Asset System)
+
+| ID | Name | Status | Dependencies |
+|----|------|--------|--------------|
+| 601 | Asset loader and resolution | Pending | Phase 1 (MPQ), Phase 5 (render) |
+| 602 | Wire-frame fallback renderer | Pending | Phase 5, 601 |
+| 603 | Server asset download protocol | Pending | 601, 604 |
+| 604 | Asset deduplication system | Pending | 601 |
+| 605 | Local storage manager | Pending | 604 |
+| 606 | Hot-reload system | Pending | 601, Phase 5 |
+| 607 | File server application | Pending | 603, 604 |
+| 608 | Phase 6 integration test | Pending | 601-607 |
+
+### Overview
+
+Phase 6 enables community content distribution:
+- **Asset Loading:** Unified loader for textures, models, audio, UI from maps/servers
+- **Wire-frame Fallback:** Debug rendering when assets are missing
+- **Download Protocol:** Custom protocol for on-connect asset transfer
+- **Deduplication:** Hash-based storage to prevent duplicate downloads
+- **Storage Manager:** User control over per-server/map asset storage
+- **Hot-Reload:** Development feature for asset iteration
+- **File Server:** Standalone application for hosts to distribute assets
+
+### Design Decisions
+
+- **Asset Source:** Maps (MPQ) and servers (directory-based), NOT overlay packs
+- **Download:** Custom protocol, host-distributed (no centralized CDN)
+- **Fallback:** Wire-frame/debug visuals, not placeholder textures
+- **Hot-Reload:** Development-only feature
+
+### Dependency Graph
+
+```
+601 Asset Loader ──┬──▶ 602 Wire-frame Fallback
+                   │
+                   └──▶ 604 Deduplication ──▶ 603 Download Protocol
+                                          │
+                                          └──▶ 607 File Server
+
+                   └──▶ 605 Storage Manager
+
+                   └──▶ 606 Hot-Reload
+
+All ─────────────────────────────────────────▶ 608 Integration Test
+```
 
 ---
 
