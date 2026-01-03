@@ -38,7 +38,7 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define TARGET_FPS 60
-#define NUM_WORKERS 2
+#define NUM_WORKERS 4
 #define DEMO_MAX_SLOTS 64
 #define MAX_PARTICLES 256
 #define MAX_CHUNKS 1024
@@ -110,6 +110,26 @@ typedef struct mesh_data {
 } MeshData;
 /* }}} */
 
+/* {{{ ChunkTaskContext - context for per-chunk render computation
+ * Pre-allocated array matches chunk count to avoid malloc in hot path.
+ * Each task computes the world-space transform for one chunk. */
+#define MAX_CHUNK_TASKS 2048
+typedef struct chunk_task_context {
+    int chunk_index;           /* which chunk this task updates */
+    float game_time;           /* snapshot of game time */
+    atomic_bool ready;         /* set true when computation complete */
+
+    /* Computed world-space position (orbit + chunk local offset) */
+    float world_x, world_y, world_z;
+    float rotation;            /* Y-axis rotation for the whole cube */
+    float spin;                /* Additional spin */
+} ChunkTaskContext;
+
+/* Computed chunk transforms - written by workers, read by draw thread */
+static ChunkTaskContext g_chunk_tasks[MAX_CHUNK_TASKS];
+static atomic_uint g_chunks_completed = 0;  /* Count of chunks ready this frame */
+/* }}} */
+
 /* {{{ RenderTaskContext - context for render computation tasks
  * Pre-allocated in a pool to avoid malloc in hot path.
  * Each task computes orbital position and registers with sync. */
@@ -128,7 +148,6 @@ static MeshData* g_cube_mesh = NULL;
 static PrimaryBuffer g_primary;
 static atomic_bool g_running = true;
 static unsigned int g_tick = 0;
-static unsigned int g_last_processed_tick = 0;  /* for updater to detect new ticks */
 static float g_game_time = 0.0f;
 static int g_demo_slot_index = -1;
 
@@ -136,8 +155,7 @@ static int g_demo_slot_index = -1;
 static WorkerPool* g_pool = NULL;
 static SyncContext* g_sync = NULL;
 static UpdaterContext* g_updater = NULL;
-static RenderTaskContext g_task_pool[MAX_RENDER_TASKS];
-static atomic_uint g_task_pool_head = 0;
+/* g_updater_thread removed - updater now runs as worker task */
 
 /* Interactive state */
 static ChunkState g_chunk_states[MAX_CHUNKS];
@@ -506,7 +524,7 @@ void process_chunk_input(RenderSlot* slot, MeshData* mesh, Camera3D* camera) {
 /* }}} */
 
 /* {{{ render_cube_at_slot
- * Renders cube with per-chunk state (color, destroyed) */
+ * Renders cube with per-chunk state (color, destroyed) - legacy single-threaded version */
 void render_cube_at_slot(RenderSlot* slot, MeshData* mesh) {
     if (!slot->visible) return;
 
@@ -533,6 +551,40 @@ void render_cube_at_slot(RenderSlot* slot, MeshData* mesh) {
             DrawCube((Vector3){ c->x, c->y, c->z }, c->size, c->size, c->size, col);
         }
     rlPopMatrix();
+}
+/* }}} */
+
+/* {{{ render_chunks_parallel
+ * Renders chunks using parallel-computed world positions.
+ * Each chunk's transform was computed by a worker thread. */
+void render_chunks_parallel(MeshData* mesh) {
+    for (int i = 0; i < mesh->chunk_count && i < MAX_CHUNK_TASKS; i++) {
+        ChunkData* c = &mesh->chunks[i];
+        if (!c->is_solid) continue;
+        if (g_chunk_states[i].destroyed) continue;
+
+        ChunkTaskContext* ctx = &g_chunk_tasks[i];
+
+        /* Only render if this chunk's task completed */
+        if (!atomic_load(&ctx->ready)) continue;
+
+        /* Get color from palette based on chunk state */
+        int ci = g_chunk_states[i].color_index;
+        Color col = {
+            COLOR_PALETTE[ci][0],
+            COLOR_PALETTE[ci][1],
+            COLOR_PALETTE[ci][2],
+            255
+        };
+
+        /* Draw at world position computed by worker thread */
+        rlPushMatrix();
+            rlTranslatef(ctx->world_x, ctx->world_y, ctx->world_z);
+            /* Apply spin rotation */
+            rlRotatef(ctx->spin, 0.0f, 1.0f, 0.0f);
+            DrawCube((Vector3){ 0, 0, 0 }, c->size, c->size, c->size, col);
+        rlPopMatrix();
+    }
 }
 /* }}} */
 
@@ -600,56 +652,133 @@ void render_task_on_complete(void* arg) {
 }
 /* }}} */
 
-/* {{{ get_render_tasks
- * Callback for v2 updater - generates render tasks for pending work.
- * Uses pre-allocated task pool to avoid malloc in hot path. */
-bool get_render_tasks(UpdaterContext* updater_ctx, WorkerTask** out, size_t* count) {
-    (void)updater_ctx;  /* unused for now */
+/* {{{ chunk_task_execute
+ * Computes world-space position for a single chunk.
+ * Called by worker threads in parallel - one task per chunk. */
+void chunk_task_execute(void* arg) {
+    ChunkTaskContext* ctx = (ChunkTaskContext*)arg;
 
-    /* Check if new tick available */
+    /* Read current speed params */
+    float clock_speed = g_speeds.clock_speed;
+    float spin_speed = g_speeds.spin_speed;
+    float orbit_radius = g_speeds.orbit_radius;
+
+    /* Compute orbital position (same for all chunks in the cube) */
+    float orbit_angle = ctx->game_time * clock_speed * 2.0f * 3.14159f;
+    float orbit_x = orbit_radius * cosf(orbit_angle);
+    float orbit_z = orbit_radius * sinf(orbit_angle);
+
+    /* Compute rotations */
+    ctx->rotation = fmodf(ctx->game_time * clock_speed * 360.0f, 360.0f);
+    ctx->spin = fmodf(ctx->game_time * spin_speed * 360.0f, 360.0f);
+
+    /* Get chunk local position */
+    if (g_cube_mesh && ctx->chunk_index < g_cube_mesh->chunk_count) {
+        ChunkData* chunk = &g_cube_mesh->chunks[ctx->chunk_index];
+
+        /* Transform chunk local position by rotation
+         * This is a simplified Y-axis rotation */
+        float rad = ctx->rotation * 3.14159f / 180.0f;
+        float cos_r = cosf(rad);
+        float sin_r = sinf(rad);
+
+        float local_x = chunk->x;
+        float local_z = chunk->z;
+        float rotated_x = local_x * cos_r - local_z * sin_r;
+        float rotated_z = local_x * sin_r + local_z * cos_r;
+
+        /* World position = orbit + rotated local */
+        ctx->world_x = orbit_x + rotated_x;
+        ctx->world_y = chunk->y;
+        ctx->world_z = orbit_z + rotated_z;
+    }
+
+    /* Mark as ready */
+    atomic_store(&ctx->ready, true);
+    atomic_fetch_add(&g_chunks_completed, 1);
+}
+/* }}} */
+
+/* {{{ chunk_task_on_complete
+ * Called when chunk task finishes (currently no-op). */
+void chunk_task_on_complete(void* arg) {
+    (void)arg;
+    /* Nothing needed - data already in g_chunk_tasks */
+}
+/* }}} */
+
+/* {{{ Updater state for task-based updater
+ * Tracks tick state to detect when new work is available */
+static unsigned int g_updater_last_tick = 0;
+static WorkerTask* g_pending_chunk_tasks = NULL;
+static size_t g_pending_chunk_task_count = 0;
+/* }}} */
+
+/* {{{ get_chunk_tasks
+ * Callback for v2 updater - generates chunk tasks for the current frame.
+ * Called by primary_updater_execute each iteration.
+ * Returns true if new tasks were generated, false if no new tick. */
+bool get_chunk_tasks(UpdaterContext* updater_ctx, WorkerTask** out, size_t* count) {
+    (void)updater_ctx;
+
+    /* Check if new tick is available */
     unsigned int current_tick = g_tick;
-    if (current_tick == g_last_processed_tick) {
+    if (current_tick == g_updater_last_tick) {
+        *count = 0;
+        return false;  /* No new tick yet */
+    }
+    g_updater_last_tick = current_tick;
+
+    /* Reset completion counter */
+    atomic_store(&g_chunks_completed, 0);
+
+    /* Count active chunks and prepare task array */
+    if (!g_cube_mesh) {
         *count = 0;
         return false;
     }
-    g_last_processed_tick = current_tick;
 
-    /* Only generate task if we have a valid demo slot */
-    if (g_demo_slot_index < 0) {
-        *count = 0;
-        return false;
+    /* Allocate task array if needed (reuse across frames) */
+    if (!g_pending_chunk_tasks) {
+        g_pending_chunk_tasks = malloc(MAX_CHUNK_TASKS * sizeof(WorkerTask));
+        if (!g_pending_chunk_tasks) {
+            *count = 0;
+            return false;
+        }
     }
 
-    /* Get next task context from pool (circular) */
-    unsigned int idx = atomic_fetch_add(&g_task_pool_head, 1) % MAX_RENDER_TASKS;
-    RenderTaskContext* task_ctx = &g_task_pool[idx];
+    /* Generate tasks for each active chunk */
+    size_t task_idx = 0;
+    int chunk_count = g_cube_mesh->chunk_count;
+    float game_time = g_game_time;
 
-    /* Populate task context with current game state */
-    task_ctx->game_time = g_game_time;
-    task_ctx->slot_index = g_demo_slot_index;
-    atomic_store(&task_ctx->ready, false);
+    for (int i = 0; i < chunk_count && i < MAX_CHUNK_TASKS; i++) {
+        /* Skip destroyed chunks */
+        if (g_chunk_states[i].destroyed) continue;
+        if (!g_cube_mesh->chunks[i].is_solid) continue;
 
-    /* Get pointer to slot data for sync update */
-    ComponentSlot* slot = slot_get(g_primary.slots, g_demo_slot_index);
-    if (slot && slot->in_use) {
-        task_ctx->target_ptr = (void**)&slot->data;
-    } else {
-        task_ctx->target_ptr = NULL;
+        /* Initialize task context */
+        ChunkTaskContext* ctx = &g_chunk_tasks[i];
+        ctx->chunk_index = i;
+        ctx->game_time = game_time;
+        atomic_store(&ctx->ready, false);
+
+        /* Create task */
+        g_pending_chunk_tasks[task_idx] = (WorkerTask){
+            .execute = chunk_task_execute,
+            .on_complete = chunk_task_on_complete,
+            .context = ctx,
+            .weight = WEIGHT_LIGHT,
+            .repeat_count = 1
+        };
+        task_idx++;
     }
 
-    /* Create WorkerTask pointing to our context */
-    static WorkerTask pending[1];
-    pending[0] = (WorkerTask){
-        .execute = render_task_execute,
-        .on_complete = render_task_on_complete,
-        .context = task_ctx,
-        .weight = WEIGHT_MEDIUM,
-        .repeat_count = 1
-    };
+    g_pending_chunk_task_count = task_idx;
+    *out = g_pending_chunk_tasks;
+    *count = task_idx;
 
-    *out = pending;
-    *count = 1;
-    return true;
+    return task_idx > 0;
 }
 /* }}} */
 
@@ -1141,10 +1270,12 @@ int main(void) {
     /* Spawn sync thread (v2) */
     pthread_t sync_thread = spawn_sync_thread(g_sync);
 
-    /* Create and start updater (v2) - runs as worker task */
-    g_updater = updater_create(g_pool, get_render_tasks, NULL);
+    /* Create and start v2 updater task
+     * Runs as a worker task with INT16_MAX repeat_count, generates
+     * ~1331 chunk tasks per frame via get_chunk_tasks callback */
+    g_updater = updater_create(g_pool, get_chunk_tasks, NULL);
     if (!g_updater) {
-        fprintf(stderr, "[main] Failed to create updater\n");
+        fprintf(stderr, "[main] Failed to create updater context\n");
         atomic_store(&g_sync->running, false);
         pthread_join(sync_thread, NULL);
         sync_destroy(g_sync);
@@ -1153,7 +1284,8 @@ int main(void) {
         slot_array_destroy(g_primary.slots);
         return 1;
     }
-    updater_start(g_updater);  /* Adds updater to worker ring buffer */
+    updater_start(g_updater);
+    printf("[main] v2 updater task started\n");
 
     /* Initialize raylib */
     printf("[main] Initializing window...\n");
@@ -1182,6 +1314,7 @@ int main(void) {
     /* Initialize threading demo (513) */
     demo_threading_init(g_pool, g_sync);
     demo_threading_set_updater(g_updater);
+    demo_threading_set_chunk_stats(g_cube_mesh->chunk_count, &g_chunks_completed);
 
     printf("[main] Entering render loop...\n\n");
     printf("  F5: Toggle threading demo\n");
@@ -1297,13 +1430,16 @@ int main(void) {
                 DrawCylinder((Vector3){0, -2, 0}, 0.3f, 0.3f, 4.0f, 12, DARKGRAY);
                 DrawCylinderWires((Vector3){0, -2, 0}, 0.3f, 0.3f, 4.0f, 12, GRAY);
 
-                /* Clock hand and cube */
+                /* Clock hand - points to orbit center */
                 if (have_slot && slot_copy.visible) {
                     DrawLine3D((Vector3){0, 0, 0},
                                (Vector3){slot_copy.x, slot_copy.y, slot_copy.z},
                                GRAY);
-                    render_cube_at_slot(&slot_copy, g_cube_mesh);
                 }
+
+                /* Render cube chunks using parallel-computed positions
+                 * Each chunk was processed by a worker thread */
+                render_chunks_parallel(g_cube_mesh);
 
                 /* Ground reference circle */
                 DrawCircle3D((Vector3){0, -0.01f, 0}, g_speeds.orbit_radius,
@@ -1362,11 +1498,20 @@ int main(void) {
     /* Stop sync thread (v2) */
     atomic_store(&g_sync->running, false);
     pthread_join(sync_thread, NULL);
+    printf("[main] Sync thread joined\n");
 
-    /* Clean up v2 components */
-    updater_destroy(g_updater);
+    /* Clean up v2 components
+     * Note: Updater task will be stopped when pool is destroyed */
     pool_destroy(g_pool);
     sync_destroy(g_sync);
+
+    /* Clean up updater context and task array */
+    updater_destroy(g_updater);
+    if (g_pending_chunk_tasks) {
+        free(g_pending_chunk_tasks);
+        g_pending_chunk_tasks = NULL;
+    }
+    printf("[main] Updater cleaned up\n");
 
     /* Clean up Lua and rendering resources */
     cleanup_lua();  /* 508c: Clean up Lua state */

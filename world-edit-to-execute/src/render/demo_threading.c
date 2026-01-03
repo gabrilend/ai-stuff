@@ -21,6 +21,10 @@ static struct {
     bool active;
     bool initialized;
 
+    /* Chunk task tracking */
+    int total_chunks;
+    atomic_uint* chunks_completed;
+
     /* Timing */
     float update_timer;
     float update_interval;
@@ -98,6 +102,13 @@ void demo_threading_init(WorkerPool* pool, SyncContext* sync) {
 /* {{{ demo_threading_set_updater */
 void demo_threading_set_updater(UpdaterContext* updater) {
     g_demo.updater = updater;
+}
+/* }}} */
+
+/* {{{ demo_threading_set_chunk_stats */
+void demo_threading_set_chunk_stats(int total_chunks, atomic_uint* chunks_completed) {
+    g_demo.total_chunks = total_chunks;
+    g_demo.chunks_completed = chunks_completed;
 }
 /* }}} */
 
@@ -305,9 +316,75 @@ static void draw_sync_panel(int x, int y, int width) {
 }
 /* }}} */
 
+/* {{{ draw_architecture_panel
+ * Draw overview of threading architecture */
+static void draw_architecture_panel(int x, int y, int width) {
+    int line_height = 14;
+    int padding = 4;
+
+    /* Background */
+    DrawRectangle(x, y, width, line_height * 8 + padding * 2, (Color){25, 35, 45, 255});
+    DrawRectangleLines(x, y, width, line_height * 8 + padding * 2, SKYBLUE);
+
+    int tx = x + padding;
+    int ty = y + padding;
+
+    DrawText("Thread Architecture", tx, ty, 12, WHITE);
+    ty += line_height + 2;
+
+    /* Show all thread types */
+    char buf[64];
+
+    /* Updater */
+    DrawRectangle(tx, ty, 10, 10, ORANGE);
+    DrawText("Updater (dedicated)", tx + 14, ty - 1, 10, ORANGE);
+    ty += line_height;
+
+    /* Workers */
+    DrawRectangle(tx, ty, 10, 10, GREEN);
+    if (g_demo.pool) {
+        snprintf(buf, sizeof(buf), "Workers: %d", g_demo.pool->count);
+    } else {
+        snprintf(buf, sizeof(buf), "Workers: ?");
+    }
+    DrawText(buf, tx + 14, ty - 1, 10, GREEN);
+    ty += line_height;
+
+    /* Sync */
+    DrawRectangle(tx, ty, 10, 10, PURPLE);
+    DrawText("Sync (watch list)", tx + 14, ty - 1, 10, PURPLE);
+    ty += line_height;
+
+    /* Draw/Main */
+    DrawRectangle(tx, ty, 10, 10, YELLOW);
+    DrawText("Draw (main thread)", tx + 14, ty - 1, 10, YELLOW);
+    ty += line_height + 4;
+
+    /* Chunk completion status */
+    if (g_demo.chunks_completed) {
+        unsigned int completed = atomic_load(g_demo.chunks_completed);
+        snprintf(buf, sizeof(buf), "Chunks: %u / %d", completed, g_demo.total_chunks);
+        DrawText(buf, tx, ty, 10, LIGHTGRAY);
+
+        /* Progress bar */
+        ty += line_height;
+        int bar_width = width - padding * 2;
+        DrawRectangle(tx, ty, bar_width, 8, DARKGRAY);
+        if (g_demo.total_chunks > 0) {
+            float ratio = (float)completed / g_demo.total_chunks;
+            int fill = (int)(ratio * bar_width);
+            Color fill_color = (ratio > 0.95f) ? GREEN : (ratio > 0.5f) ? YELLOW : RED;
+            DrawRectangle(tx, ty, fill, 8, fill_color);
+        }
+    }
+}
+/* }}} */
+
 /* {{{ draw_updater_panel
- * Draw updater state and timing */
-static void draw_updater_panel(int x, int y, int width) {
+ * Draw updater state and timing
+ * Note: Kept for future use when detailed updater info is needed
+ * Currently architecture_panel shows simpler updater info */
+static void __attribute__((unused)) draw_updater_panel(int x, int y, int width) {
     int line_height = 14;
     int padding = 4;
 
@@ -487,7 +564,6 @@ void demo_threading_draw(int x, int y, int width, int height) {
     int panel_y = y + 25;
     int panel_width = width - 20;
     int panel_height = 95;
-    int small_panel_height = 78;
     int panel_spacing = 5;
 
     /* Draw worker panels (left column) */
@@ -505,9 +581,9 @@ void demo_threading_draw(int x, int y, int width, int height) {
     int right_y = y + 25;
     int right_width = panel_width / 2 - 5;
 
-    /* Updater panel (v2 feature: self-hosted updater) */
-    draw_updater_panel(right_x, right_y, right_width);
-    right_y += small_panel_height + panel_spacing;
+    /* Architecture overview panel (shows all thread types + chunk progress) */
+    draw_architecture_panel(right_x, right_y, right_width);
+    right_y += 120 + panel_spacing;
 
     /* Sync panel */
     draw_sync_panel(right_x, right_y, right_width);

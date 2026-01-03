@@ -50,6 +50,9 @@ void demo_threading_init(WorkerPool* pool, SyncContext* sync);
 /* Set the updater context for timing visualization */
 void demo_threading_set_updater(UpdaterContext* updater);
 
+/* Set chunk task stats for visualization */
+void demo_threading_set_chunk_stats(int total_chunks, atomic_uint* chunks_completed);
+
 /* Update demo state (call each frame or at DEMO_REFRESH_HZ) */
 void demo_threading_update(float dt);
 

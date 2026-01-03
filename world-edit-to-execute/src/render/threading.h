@@ -56,9 +56,10 @@ typedef struct worker_task {
     uint16_t weight;
 
     /* Repeat behavior:
-     * -1 = run forever
-     *  0 = already completed (becomes sleep_task)
-     *  N = run N more times then call on_complete */
+     *  N > 0 = run N more times then call on_complete
+     *  0 = already completed (skip this slot)
+     *  N < 0 = treat as 0 (completed), -1 does NOT mean infinite
+     * Use INT16_MAX (32767) for "essentially infinite" execution */
     int16_t repeat_count;
 } WorkerTask;
 /* }}} */
@@ -176,7 +177,13 @@ void* sync_loop(void* arg);
 
 /* {{{ UpdaterContext
  * Context for self-evaluating updater tasks.
- * Updaters distribute tasks to workers and monitor timing. */
+ * Updaters distribute tasks to workers and monitor timing.
+ *
+ * Dynamic scaling: When repeat_count reaches 0, updater evaluates:
+ * - If only 1 updater active: re-spawn with INT16_MAX repeat_count
+ * - If multiple updaters and last update > 5ms: spawn replacement, terminate
+ * - Otherwise: terminate (allow pool to shrink)
+ */
 typedef struct updater_context {
     WorkerPool* pool;
 
@@ -201,7 +208,17 @@ typedef struct updater_context {
 
     /* For helper cleanup: was this context dynamically allocated? */
     bool is_allocated;
+
+    /* Back-reference to the WorkerTask this context is attached to
+     * Used by on_complete to modify repeat_count for continuation */
+    WorkerTask* task_ref;
 } UpdaterContext;
+
+/* Global active updater count - for dynamic scaling decisions */
+extern atomic_uint g_active_updater_count;
+
+/* Threshold for spawning replacement updater (microseconds) */
+#define UPDATER_OVERLOAD_THRESHOLD_US 5000
 /* }}} */
 
 /* {{{ Function Declarations - Updater */
