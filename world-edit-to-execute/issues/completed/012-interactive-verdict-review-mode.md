@@ -158,16 +158,16 @@ After review loop:
 
 ## Acceptance Criteria
 
-- [ ] Viewer displays analysis section content with word-wrapping
-- [ ] Scrolling works (j/k, arrows, g/G)
-- [ ] Hotkeys e/s/q work and return correct decision
-- [ ] Issue counter shows progress (e.g., "Issue 3 of 15")
-- [ ] Summary displays after all reviews complete
-- [ ] Final confirmation prompt before execution
-- [ ] Quit option stops review early without executing
-- [ ] Falls back to full file content if no analysis section found
-- [ ] Old `get_analysis_verdict()` function removed or deprecated
-- [ ] Documentation updated
+- [x] Viewer displays analysis section content with word-wrapping
+- [x] Scrolling works (j/k, arrows, g/G)
+- [x] Hotkeys e/s/q work and return correct decision
+- [x] Issue counter shows progress (e.g., "Issue 3 of 15")
+- [x] Summary displays after all reviews complete
+- [x] Final confirmation prompt before execution
+- [x] Quit option stops review early without executing
+- [x] Falls back to full file content if no analysis section found
+- [x] Old `get_analysis_verdict()` function removed or deprecated
+- [x] Documentation updated
 
 ---
 
@@ -180,3 +180,58 @@ This approach is more robust than text parsing because:
 4. Works even when Claude phrases things unexpectedly
 
 The feedback loop input-dialog.lua already has all the TUI infrastructure needed - this is essentially the same viewer but read-only with different action buttons.
+
+---
+
+## Implementation Notes
+
+*Implemented 2026-01-02*
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `scripts/libs/verdict-viewer.lua` | Lua-based TUI viewer for analysis content |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `scripts/issue-splitter.sh` | Added `get_review_content()`, `show_verdict_review()`, `run_verdict_review_loop()`, modified `run_execute_phase()` |
+| `CLAUDE.md` | Updated Execute Mode documentation with verdict viewer hotkeys |
+
+### Implementation Approach
+
+Chose **Option B** from the suggested implementation steps - created a dedicated `verdict-viewer.lua`
+rather than extending `input-dialog.lua`. Rationale:
+- Fundamentally different behavior (read-only vs input)
+- Different action set (execute/skip/quit vs submit/cancel)
+- Cleaner separation of concerns
+- Simpler code, no conditional branches for mode
+
+### Key Design Decisions
+
+1. **Automatic fallback**: Interactive review only runs when LuaJIT is available and verdict-viewer.lua
+   exists. Falls back to legacy inline confirmation mode otherwise.
+
+2. **Content extraction**: Uses same awk logic as `parse_analysis()` but returns for display rather
+   than recommendation parsing. Falls back to full file content if no analysis section found.
+
+3. **Pre-approved execution**: After user approves issues in review loop, execute_recommendations()
+   runs with `EXECUTE_ALL=true` to skip per-issue confirmation (user already approved).
+
+4. **Preserved `get_analysis_verdict()`**: Not removed because it's still used by TUI status indicators
+   (`[ANALYZED] verdict: split/don't split`). It's effectively deprecated for the primary workflow
+   but retained for backward compatibility.
+
+### Hotkey Reference
+
+| Key | Action |
+|-----|--------|
+| `e` | Execute - create sub-issues for this issue |
+| `s` | Skip - keep this issue as-is |
+| `q` | Quit - stop review, don't execute remaining |
+| `j/k` or `↓/↑` | Scroll content |
+| `g/G` | Jump to top/bottom |
+| `Space/Ctrl-D` | Page down |
+| `Ctrl-U` | Page up |
