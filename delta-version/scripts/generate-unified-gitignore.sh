@@ -7,6 +7,7 @@ ASSETS_DIR="${DIR}/assets"
 PARENT_DIR="${DIR%/*}"
 OUTPUT_FILE="${PARENT_DIR}/.gitignore"
 CLASSIFICATION_FILE="${ASSETS_DIR}/pattern-classification.conf"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Counters for reporting
 declare -i total_patterns=0
@@ -16,7 +17,22 @@ declare -i ide_patterns=0
 declare -i build_patterns=0
 declare -i language_patterns=0
 declare -i log_patterns=0
+declare -i deps_patterns=0
+declare -i data_patterns=0
 declare -i project_patterns=0
+
+# Discovery mode settings
+DISCOVER_MODE=false
+INCLUDE_EXTERNAL=false
+VERBOSE=false
+
+# -- {{{ log_verbose
+function log_verbose() {
+    if [[ "$VERBOSE" == true ]]; then
+        echo "[INFO] $*" >&2
+    fi
+}
+# }}}
 
 # -- {{{ backup_existing_gitignore
 function backup_existing_gitignore() {
@@ -29,6 +45,108 @@ function backup_existing_gitignore() {
         return 0
     fi
     return 1
+}
+# }}}
+
+# -- {{{ discover_project_gitignores
+function discover_project_gitignores() {
+    # Discovers all .gitignore files from projects using list-projects.sh
+    # Optionally includes external project directories
+    local include_external="$1"
+
+    local list_script="$SCRIPT_DIR/list-projects.sh"
+    if [[ ! -x "$list_script" ]]; then
+        echo "Warning: list-projects.sh not found, skipping dynamic discovery" >&2
+        return
+    fi
+
+    local projects
+    if [[ "$include_external" == true ]]; then
+        projects=$("$list_script" --abs-paths --include-external 2>/dev/null)
+    else
+        projects=$("$list_script" --abs-paths --exclude-external 2>/dev/null)
+    fi
+
+    # Find .gitignore in each project
+    while IFS= read -r project_path; do
+        [[ -z "$project_path" ]] && continue
+        local gitignore_file="$project_path/.gitignore"
+        if [[ -f "$gitignore_file" ]]; then
+            log_verbose "Found: $gitignore_file"
+            echo "$gitignore_file"
+        fi
+    done <<< "$projects"
+}
+# }}}
+
+# -- {{{ parse_gitignore_patterns
+function parse_gitignore_patterns() {
+    # Parses patterns from all discovered .gitignore files
+    # Updates the classification file with newly discovered patterns
+    local include_external="$1"
+    local temp_patterns="/tmp/gitignore_patterns_$$"
+
+    log_verbose "Discovering patterns from project gitignores..."
+
+    # Collect all patterns from project gitignores
+    while IFS= read -r gitignore_file; do
+        [[ -z "$gitignore_file" ]] && continue
+        local source_project
+        source_project=$(basename "$(dirname "$gitignore_file")")
+
+        while IFS= read -r line; do
+            # Skip empty lines and comments
+            [[ -z "${line// }" ]] && continue
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+            # Trim whitespace
+            local pattern="${line#"${line%%[![:space:]]*}"}"
+            pattern="${pattern%"${pattern##*[![:space:]]}"}"
+
+            [[ -z "$pattern" ]] && continue
+
+            echo "$pattern"
+        done < "$gitignore_file"
+    done < <(discover_project_gitignores "$include_external") | sort -u > "$temp_patterns"
+
+    local pattern_count
+    pattern_count=$(wc -l < "$temp_patterns")
+    log_verbose "Discovered $pattern_count unique patterns from project gitignores"
+
+    # Return the temp file path for further processing
+    echo "$temp_patterns"
+}
+# }}}
+
+# -- {{{ update_classification_from_discovery
+function update_classification_from_discovery() {
+    # Updates the classification file with patterns discovered from project gitignores
+    # Adds new patterns to the [project_specific] section
+    local include_external="$1"
+
+    local temp_patterns
+    temp_patterns=$(parse_gitignore_patterns "$include_external")
+
+    if [[ ! -f "$temp_patterns" ]]; then
+        echo "Warning: No patterns discovered" >&2
+        return
+    fi
+
+    # Count patterns in existing classification
+    local existing_count=0
+    if [[ -f "$CLASSIFICATION_FILE" ]]; then
+        existing_count=$(grep -c '^[^#\[]' "$CLASSIFICATION_FILE" 2>/dev/null || echo 0)
+    fi
+
+    local discovered_count
+    discovered_count=$(wc -l < "$temp_patterns")
+
+    echo "Pattern Discovery Summary:"
+    echo "  Existing patterns: $existing_count"
+    echo "  Discovered patterns: $discovered_count"
+
+    # Clean up temp file
+    rm -f "$temp_patterns"
 }
 # }}}
 
@@ -310,6 +428,63 @@ function write_logs_section() {
 }
 # }}}
 
+# -- {{{ write_deps_section
+function write_deps_section() {
+    local output="$1"
+
+    write_section_header "$output" "DEPENDENCIES AND SDKS" "External dependencies that should be installed via scripts, not committed"
+
+    # Emscripten SDK
+    echo "emsdk/" >> "$output"
+    echo ".emsdk/" >> "$output"
+    ((total_patterns+=2))
+    ((deps_patterns+=2))
+
+    # Downloaded dependency archives
+    echo "downloads/" >> "$output"
+    echo "*.tar.gz" >> "$output"
+    echo "*.tar.bz2" >> "$output"
+    echo "*.tar.xz" >> "$output"
+    ((total_patterns+=4))
+    ((deps_patterns+=4))
+
+    # Wine prefixes and .NET runtime
+    echo "drive_c/" >> "$output"
+    echo ".wine/" >> "$output"
+    ((total_patterns+=2))
+    ((deps_patterns+=2))
+
+    # Source archives
+    echo "Source-develop.zip" >> "$output"
+    ((total_patterns++))
+    ((deps_patterns++))
+}
+# }}}
+
+# -- {{{ write_data_section
+function write_data_section() {
+    local output="$1"
+
+    write_section_header "$output" "LARGE DATA FILES" "Generated or downloaded data that can be recreated"
+
+    # Archive files
+    echo "*.zip" >> "$output"
+    ((total_patterns++))
+    ((data_patterns++))
+
+    # Embedding data
+    echo "**/embeddings/**/*.json" >> "$output"
+    ((total_patterns++))
+    ((data_patterns++))
+
+    # Large input directories
+    echo "**/input/media_attachments/" >> "$output"
+    echo "**/input/*.zip" >> "$output"
+    ((total_patterns+=2))
+    ((data_patterns+=2))
+}
+# }}}
+
 # -- {{{ write_project_specific_section
 function write_project_specific_section() {
     local output="$1"
@@ -466,6 +641,8 @@ function generate_report() {
     echo "  Build patterns:     $build_patterns"
     echo "  Language patterns:  $language_patterns"
     echo "  Log patterns:       $log_patterns"
+    echo "  Deps/SDK patterns:  $deps_patterns"
+    echo "  Data file patterns: $data_patterns"
     echo "  Project patterns:   $project_patterns"
     echo "  Version control:    6"
     echo "  ─────────────────────────"
@@ -503,6 +680,8 @@ function generate_gitignore() {
     write_build_section "$output_file"
     write_language_section "$output_file"
     write_logs_section "$output_file"
+    write_deps_section "$output_file"
+    write_data_section "$output_file"
     write_project_specific_section "$output_file"
     write_version_control_section "$output_file"
     write_footer "$output_file"
@@ -580,18 +759,24 @@ function show_help() {
     echo "Usage: generate-unified-gitignore.sh [OPTIONS]"
     echo ""
     echo "Generates a unified .gitignore file from pattern classification data."
+    echo "Consolidates patterns from all projects into a single organized file."
     echo ""
     echo "Options:"
-    echo "  -o, --output FILE   Output file path (default: parent dir .gitignore)"
-    echo "  --dry-run           Preview without writing file"
-    echo "  --validate          Validate existing .gitignore only"
-    echo "  -I, --interactive   Run in interactive mode"
-    echo "  --help              Show this help message"
+    echo "  -o, --output FILE      Output file path (default: parent dir .gitignore)"
+    echo "  --dry-run              Preview without writing file"
+    echo "  --validate             Validate existing .gitignore only"
+    echo "  --discover             Discover patterns from project .gitignore files"
+    echo "  --include-external     Include external project directories (Issue 024)"
+    echo "  --verbose              Show detailed processing information"
+    echo "  -I, --interactive      Run in interactive mode"
+    echo "  --help                 Show this help message"
     echo ""
     echo "Examples:"
     echo "  generate-unified-gitignore.sh                    # Generate to default location"
     echo "  generate-unified-gitignore.sh -o /path/.gitignore"
     echo "  generate-unified-gitignore.sh --dry-run"
+    echo "  generate-unified-gitignore.sh --discover --verbose"
+    echo "  generate-unified-gitignore.sh --include-external"
     echo "  generate-unified-gitignore.sh -I"
 }
 # }}}
@@ -600,6 +785,7 @@ function show_help() {
 function main() {
     local dry_run=false
     local validate_only=false
+    local discover_only=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -613,6 +799,18 @@ function main() {
                 ;;
             --validate)
                 validate_only=true
+                shift
+                ;;
+            --discover)
+                discover_only=true
+                shift
+                ;;
+            --include-external)
+                INCLUDE_EXTERNAL=true
+                shift
+                ;;
+            --verbose)
+                VERBOSE=true
                 shift
                 ;;
             -I|--interactive)
@@ -631,7 +829,13 @@ function main() {
         esac
     done
 
-    if [[ "$validate_only" == true ]]; then
+    if [[ "$discover_only" == true ]]; then
+        echo "=== Pattern Discovery Mode ==="
+        echo ""
+        update_classification_from_discovery "$INCLUDE_EXTERNAL"
+        echo ""
+        echo "Discovery complete."
+    elif [[ "$validate_only" == true ]]; then
         if [[ -f "$OUTPUT_FILE" ]]; then
             validate_gitignore "$OUTPUT_FILE"
         else
