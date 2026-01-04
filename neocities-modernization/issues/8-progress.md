@@ -31,12 +31,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-012 | Implement paginated similarity chapters | **In Progress** | High |
 | 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **Open** | High |
-| 8-022 | Add pagination CLI flags to HTML generation | Open | Medium |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-022 | Add pagination CLI flags to HTML generation | Completed | 2026-01-04 |
 | 8-021 | Fix embedding progress counter overcounting | Completed | 2026-01-04 |
 | 8-019 | Implement unique poem_index system | Completed | 2025-12-25 |
 | 8-018 | Fix embedding directory case inconsistency | Completed | 2025-12-25 |
