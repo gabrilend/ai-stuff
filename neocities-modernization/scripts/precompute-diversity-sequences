@@ -58,6 +58,8 @@ local TEST_MODE = false
 local MAX_TEST_SEQUENCES = 10
 local PAGES = nil
 local POEMS_PER_PAGE = nil
+local SEQUENCE_LIMIT = nil  -- Issue 8-027: Direct sequence limit override
+local FORCE_REGENERATE = false  -- Issue 8-027: Force full regeneration
 
 -- Parse command line arguments
 for i = 2, #arg do
@@ -70,16 +72,25 @@ for i = 2, #arg do
         PAGES = tonumber(a:match("^--pages=(%d+)"))
     elseif a:match("^--poems%-per%-page=") then
         POEMS_PER_PAGE = tonumber(a:match("^--poems%-per%-page=(%d+)"))
+    elseif a:match("^--sequence%-limit=") then
+        -- Issue 8-027: Direct sequence limit flag (highest precedence)
+        SEQUENCE_LIMIT = tonumber(a:match("^--sequence%-limit=(%d+)"))
+    elseif a == "--force" then
+        -- Issue 8-027: Force full regeneration (ignores existing cache)
+        FORCE_REGENERATE = true
     elseif a == "--test" then
         TEST_MODE = true
     end
 end
 
 -- MAX_SEQUENCE_LENGTH: Only compute top N most different poems per sequence
--- Issue 8-027: Calculate from pages × poems_per_page, or use default 1500
+-- Issue 8-027: Precedence: --sequence-limit > --pages×--poems-per-page > default(1500)
 -- Default: 15 pages × 100 poems = 1500 (Issue 8-020 storage constraint)
 local MAX_SEQUENCE_LENGTH
-if PAGES and POEMS_PER_PAGE then
+if SEQUENCE_LIMIT then
+    -- Direct override has highest precedence
+    MAX_SEQUENCE_LENGTH = SEQUENCE_LIMIT
+elseif PAGES and POEMS_PER_PAGE then
     MAX_SEQUENCE_LENGTH = PAGES * POEMS_PER_PAGE
 elseif PAGES then
     MAX_SEQUENCE_LENGTH = PAGES * 100  -- Default 100 poems per page
@@ -110,8 +121,11 @@ end
 --    - Zero parsing overhead per thread (vs ~60s JSON parsing each)
 --    - Direct array access from shared memory
 --
+-- Issue 8-027: Added existing_sequence parameter for extension mode
+-- When existing_sequence is provided, reconstruct running_sum and continue from there
 local function diversity_sequence_worker(poem_id, poem_index, shared_embeddings, embedding_dim,
-                                          num_poems, max_sequence_length, progress_table, thread_idx)
+                                          num_poems, max_sequence_length, progress_table, thread_idx,
+                                          existing_sequence)
     -- {{{ Access embeddings from shared effil.table (FAST!)
     -- The main thread parsed JSON once and converted to a flat effil.table
     -- Workers access shared memory directly - no parsing, no file I/O
@@ -173,28 +187,68 @@ local function diversity_sequence_worker(poem_id, poem_index, shared_embeddings,
     end
     -- }}}
 
-    -- Build starting embedding and initialize running sum
-    -- OPTIMIZED (Issue 9-003 Phase B): Direct flat array access
-    local start_emb_idx = emb_start_for(poem_index)
+    -- Issue 8-027: Extension mode support
+    -- If existing_sequence is provided, reconstruct running_sum and continue from there
+    local sequence
     local running_sum = {}
-    for i = 1, embedding_dim do
-        running_sum[i] = all_embeddings_flat[start_emb_idx + i - 1]
-    end
-
-    -- Build list of other poem indices with pre-computed embedding starts
-    -- OPTIMIZED: Store emb_start alongside index to avoid recomputation
     local remaining = {}
-    for i = 1, num_poems do
-        if i ~= poem_index then
-            table.insert(remaining, {idx = i, emb_start = emb_start_for(i)})
-        end
-    end
-
-    -- Generate diversity sequence using INCREMENTAL centroid-based selection
-    -- OPTIMIZED (Issue 9-003 Phase B): Direct array access, no table creation per iteration
-    -- OPTIMIZED: Limited to max_sequence_length (Issue 8-020 only needs 1,500 poems)
-    local sequence = {poem_index}  -- Start with this poem's index
     local target_length = max_sequence_length or MAX_SEQUENCE_LENGTH
+
+    if existing_sequence and #existing_sequence > 0 then
+        -- EXTENSION MODE: Continue from existing sequence
+        -- 1. Copy existing sequence as our starting point
+        sequence = {}
+        for i = 1, #existing_sequence do
+            sequence[i] = existing_sequence[i]
+        end
+
+        -- 2. Reconstruct running_sum by summing embeddings of all poems in sequence
+        -- This is O(N × 768) where N = existing sequence length
+        for i = 1, embedding_dim do
+            running_sum[i] = 0
+        end
+        for _, idx in ipairs(sequence) do
+            local emb_start = emb_start_for(idx)
+            for i = 1, embedding_dim do
+                running_sum[i] = running_sum[i] + all_embeddings_flat[emb_start + i - 1]
+            end
+        end
+
+        -- 3. Build remaining = all_poems - sequence (poems not yet selected)
+        local in_sequence = {}
+        for _, idx in ipairs(sequence) do
+            in_sequence[idx] = true
+        end
+        for i = 1, num_poems do
+            if not in_sequence[i] then
+                table.insert(remaining, {idx = i, emb_start = emb_start_for(i)})
+            end
+        end
+
+        -- Issue 8-026: Update progress to reflect starting point
+        if progress_table and thread_idx then
+            progress_table[thread_idx] = #sequence
+        end
+    else
+        -- FRESH COMPUTATION: Build from scratch (original behavior)
+        -- Build starting embedding and initialize running sum
+        -- OPTIMIZED (Issue 9-003 Phase B): Direct flat array access
+        local start_emb_idx = emb_start_for(poem_index)
+        for i = 1, embedding_dim do
+            running_sum[i] = all_embeddings_flat[start_emb_idx + i - 1]
+        end
+
+        -- Build list of other poem indices with pre-computed embedding starts
+        -- OPTIMIZED: Store emb_start alongside index to avoid recomputation
+        for i = 1, num_poems do
+            if i ~= poem_index then
+                table.insert(remaining, {idx = i, emb_start = emb_start_for(i)})
+            end
+        end
+
+        -- Start with this poem's index
+        sequence = {poem_index}
+    end
 
     while #remaining > 0 and #sequence < target_length do
         -- Find poem with maximum distance from running_sum (acts as centroid)
@@ -450,38 +504,152 @@ if TEST_MODE then
 end
 
 -- Issue 8-026: Load existing cache for incremental resume
+-- Issue 8-027: Detect extend/truncate scenarios based on sequence_limit
 local cache_file = DIR .. "/assets/embeddings/embeddinggemma_latest/diversity_cache.json"
 local existing_sequences = {}
 local existing_count = 0
+local existing_sequence_limit = 0
+local existing_embeddings_size = 0
+local needs_extension = false
+local sequences_to_extend = {}  -- poem_id -> current_length (for extension)
 
 local cache_handle = io.open(cache_file, "r")
-if cache_handle then
+if cache_handle and not FORCE_REGENERATE then
     print("   📂 Found existing cache, loading for incremental resume...")
     local cache_content = cache_handle:read("*all")
     cache_handle:close()
 
     local existing_cache = dkjson.decode(cache_content)
     if existing_cache and existing_cache.sequences then
-        -- Copy existing sequences and build skip set
-        local skip_ids = {}
-        for poem_id_str, sequence in pairs(existing_cache.sequences) do
-            existing_sequences[poem_id_str] = sequence
-            skip_ids[tonumber(poem_id_str)] = true
-            existing_count = existing_count + 1
+        -- Issue 8-027: Extract existing metadata for comparison
+        if existing_cache.metadata then
+            existing_sequence_limit = existing_cache.metadata.sequence_limit or 0
+            existing_embeddings_size = existing_cache.metadata.embeddings_file_size or 0
         end
 
-        -- Filter out already-computed poem IDs
-        local remaining_ids = {}
-        for _, poem_id in ipairs(valid_poem_ids) do
-            if not skip_ids[poem_id] then
-                table.insert(remaining_ids, poem_id)
+        -- Issue 8-027: Check for embeddings file size change (staleness warning)
+        local current_emb_size = 0
+        local size_handle = io.popen(string.format("stat -c %%s '%s' 2>/dev/null", embeddings_file))
+        if size_handle then
+            local size_str = size_handle:read("*a")
+            size_handle:close()
+            current_emb_size = tonumber(size_str:match("%d+")) or 0
+        end
+        if existing_embeddings_size > 0 and current_emb_size ~= existing_embeddings_size then
+            print(string.format("   ⚠️  WARNING: embeddings.json size changed (%d → %d bytes)",
+                existing_embeddings_size, current_emb_size))
+            print("   ⚠️  Cache may be stale. Use --force to regenerate completely.")
+        end
+
+        -- Issue 8-027: Determine operation mode based on sequence_limit comparison
+        if existing_sequence_limit > 0 then
+            if MAX_SEQUENCE_LENGTH < existing_sequence_limit then
+                -- TRUNCATION: requested < existing → instant slice operation
+                print(string.format("   ✂️  TRUNCATION mode: %d → %d (slicing arrays, no computation)",
+                    existing_sequence_limit, MAX_SEQUENCE_LENGTH))
+
+                local truncated_count = 0
+                for poem_id_str, sequence in pairs(existing_cache.sequences) do
+                    if #sequence > MAX_SEQUENCE_LENGTH then
+                        -- Slice sequence to requested length
+                        local truncated = {}
+                        for i = 1, MAX_SEQUENCE_LENGTH do
+                            truncated[i] = sequence[i]
+                        end
+                        existing_sequences[poem_id_str] = truncated
+                        truncated_count = truncated_count + 1
+                    else
+                        existing_sequences[poem_id_str] = sequence
+                    end
+                    existing_count = existing_count + 1
+                end
+
+                print(string.format("   ✅ Truncated %d sequences to length %d",
+                    truncated_count, MAX_SEQUENCE_LENGTH))
+
+                -- For truncation, we're done - skip all computation
+                valid_poem_ids = {}  -- Nothing to compute
+
+            elseif MAX_SEQUENCE_LENGTH > existing_sequence_limit then
+                -- EXTENSION: requested > existing → need to continue algorithm
+                print(string.format("   📈 EXTENSION mode: %d → %d (continuing algorithm)",
+                    existing_sequence_limit, MAX_SEQUENCE_LENGTH))
+                needs_extension = true
+
+                -- Load all existing sequences, mark those needing extension
+                for poem_id_str, sequence in pairs(existing_cache.sequences) do
+                    existing_sequences[poem_id_str] = sequence
+                    existing_count = existing_count + 1
+
+                    -- If sequence is shorter than requested, mark for extension
+                    if #sequence < MAX_SEQUENCE_LENGTH then
+                        local poem_id = tonumber(poem_id_str)
+                        if poem_id then
+                            sequences_to_extend[poem_id] = #sequence
+                        end
+                    end
+                end
+
+                -- valid_poem_ids = only poems that need extension
+                local extension_ids = {}
+                for poem_id, _ in pairs(sequences_to_extend) do
+                    table.insert(extension_ids, poem_id)
+                end
+                table.sort(extension_ids)
+                valid_poem_ids = extension_ids
+
+                print(string.format("   ✅ Loaded %d existing sequences, %d need extension to %d",
+                    existing_count, #valid_poem_ids, MAX_SEQUENCE_LENGTH))
+
+            else
+                -- SAME LIMIT: requested == existing → standard incremental resume
+                print(string.format("   ✓ Same sequence limit (%d), standard incremental mode",
+                    MAX_SEQUENCE_LENGTH))
+
+                -- Copy existing sequences and build skip set
+                local skip_ids = {}
+                for poem_id_str, sequence in pairs(existing_cache.sequences) do
+                    existing_sequences[poem_id_str] = sequence
+                    skip_ids[tonumber(poem_id_str)] = true
+                    existing_count = existing_count + 1
+                end
+
+                -- Filter out already-computed poem IDs
+                local remaining_ids = {}
+                for _, poem_id in ipairs(valid_poem_ids) do
+                    if not skip_ids[poem_id] then
+                        table.insert(remaining_ids, poem_id)
+                    end
+                end
+                valid_poem_ids = remaining_ids
+
+                print(string.format("   ✅ Loaded %d existing sequences, %d remaining to compute",
+                    existing_count, #valid_poem_ids))
             end
-        end
-        valid_poem_ids = remaining_ids
+        else
+            -- No sequence_limit in metadata (old cache format) → treat as standard resume
+            print("   ℹ️  Legacy cache format (no sequence_limit), standard incremental mode")
+            local skip_ids = {}
+            for poem_id_str, sequence in pairs(existing_cache.sequences) do
+                existing_sequences[poem_id_str] = sequence
+                skip_ids[tonumber(poem_id_str)] = true
+                existing_count = existing_count + 1
+            end
 
-        print(string.format("   ✅ Loaded %d existing sequences, %d remaining to compute",
-            existing_count, #valid_poem_ids))
+            local remaining_ids = {}
+            for _, poem_id in ipairs(valid_poem_ids) do
+                if not skip_ids[poem_id] then
+                    table.insert(remaining_ids, poem_id)
+                end
+            end
+            valid_poem_ids = remaining_ids
+
+            print(string.format("   ✅ Loaded %d existing sequences, %d remaining to compute",
+                existing_count, #valid_poem_ids))
+        end
     end
+elseif FORCE_REGENERATE then
+    print("   🔄 --force specified, ignoring existing cache")
 else
     print("   📂 No existing cache found, starting fresh")
 end
@@ -496,6 +664,23 @@ print(string.format("   🔢 Sequences to compute: %d", #valid_poem_ids))
 -- RAM-only storage: no temp files needed (Issue 9-003 optimization)
 -- Sequences are returned directly from worker threads and stored in memory
 local computed_sequences = {}  -- poem_id -> sequence (array of indices)
+
+-- Issue 8-027: Initialize timing and counters early (needed for conditional flow)
+local start_time = os.time()
+local completed = 0
+local failed = 0
+local skip_computation = false
+
+-- Issue 8-027: Early exit for truncation mode (no computation needed)
+-- Skip all expensive operations and go straight to saving
+if #valid_poem_ids == 0 and existing_count > 0 then
+    print("\n✅ No computation needed (truncation mode or all sequences exist)")
+    print("   Skipping embedding loading and thread pool setup...")
+    skip_computation = true
+end
+
+if not skip_computation then
+-- BEGIN COMPUTATION BLOCK (skipped for truncation mode)
 
 -- Verify shared embeddings are ready
 if not shared_embeddings then
@@ -531,10 +716,8 @@ print("      - Increased default threads (4 → 8)")
 print("\n🚀 Starting diversity sequence pre-computation (MULTI-THREADED)...")
 print(string.format("   Using %d threads with %d-second cooling between batches", NUM_THREADS, SLEEP_BETWEEN_BATCHES))
 print("   Note: This is a one-time cost. Results will be cached.")
-local start_time = os.time()
-
-local completed = 0
-local failed = 0
+-- Issue 8-027: start_time, completed, failed defined earlier (before goto)
+start_time = os.time()  -- Reset start time to actual computation start
 local batch_num = 0
 
 -- Process in batches with thermal management
@@ -562,6 +745,19 @@ while batch_start <= #valid_poem_ids do
         local poem_index = poem_id_to_index[poem_id]
         local thread_idx = i - batch_start + 1
 
+        -- Issue 8-027: For extension mode, get existing sequence and convert to indices
+        local existing_seq_indices = nil
+        if needs_extension and existing_sequences[tostring(poem_id)] then
+            local existing_seq = existing_sequences[tostring(poem_id)]
+            existing_seq_indices = effil.table()  -- Must use effil.table for thread safety
+            for j, pid in ipairs(existing_seq) do
+                local idx = poem_id_to_index[pid]
+                if idx then
+                    existing_seq_indices[j] = idx
+                end
+            end
+        end
+
         thread_poem_ids[thread_idx] = poem_id
         threads[thread_idx] = effil.thread(diversity_sequence_worker)(
             poem_id,
@@ -571,7 +767,8 @@ while batch_start <= #valid_poem_ids do
             num_poems,
             MAX_SEQUENCE_LENGTH,  -- Limit sequence to 1,500 poems (Issue 8-020)
             progress_table,       -- Issue 8-026: Shared progress table
-            thread_idx            -- Issue 8-026: Thread index for progress slot
+            thread_idx,           -- Issue 8-026: Thread index for progress slot
+            existing_seq_indices  -- Issue 8-027: Existing sequence for extension mode
         )
     end
 
@@ -709,19 +906,47 @@ if failed > 0 then
     print(string.format("⚠️  %d sequences failed", failed))
 end
 
+end  -- Issue 8-027: END COMPUTATION BLOCK (if not skip_computation)
+
 -- Collect all sequences into final cache file (from RAM, no temp files)
 print("\n📦 Building cache from RAM-stored sequences...")
 
 -- Issue 8-026: Merge existing sequences with newly computed ones
 local total_sequences = existing_count + completed
 
+-- Issue 8-027: Get embeddings file size for staleness detection
+local embeddings_file_size = 0
+local size_handle = io.popen(string.format("stat -c %%s '%s' 2>/dev/null", embeddings_file))
+if size_handle then
+    local size_str = size_handle:read("*a")
+    size_handle:close()
+    embeddings_file_size = tonumber(size_str:match("%d+")) or 0
+end
+
+-- Issue 8-027: Calculate min_sequence_length from all sequences
+local min_sequence_length = MAX_SEQUENCE_LENGTH
+for _, sequence in pairs(existing_sequences) do
+    if #sequence < min_sequence_length then
+        min_sequence_length = #sequence
+    end
+end
+for _, sequence in pairs(computed_sequences) do
+    if #sequence < min_sequence_length then
+        min_sequence_length = #sequence
+    end
+end
+
 local cache = {
     metadata = {
         generated_at = os.date("%Y-%m-%d %H:%M:%S"),
         total_sequences = total_sequences,
         algorithm = "centroid-based-diversity-incremental",  -- Issue 9-003 optimized
+        algorithm_version = "centroid-v1",  -- Issue 8-027: For cache invalidation
+        sequence_limit = MAX_SEQUENCE_LENGTH,  -- Issue 8-027: Target limit used
+        min_sequence_length = min_sequence_length,  -- Issue 8-027: Shortest sequence
         embedding_dimension = embedding_dim,
         source_embeddings = "embeddinggemma_latest",
+        embeddings_file_size = embeddings_file_size,  -- Issue 8-027: For staleness detection
         optimization_notes = "Incremental running sum, no division, RAM-only storage"
     },
     sequences = {}
