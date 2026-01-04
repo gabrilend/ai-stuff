@@ -17,6 +17,7 @@
 ### Tool Guides
 - [History Tools Guide](history-tools-guide.md) - reconstruct-history.sh and generate-history.sh 📝
 - [External Projects Guide](external-projects-guide.md) - Configure external project directories 📝
+- [Project Metadata Schema](project-metadata-schema.md) - project.meta.json format and manage-metadata.sh
 - [HISTORY.txt](HISTORY.txt) - Generated commit history narrative
 
 ### Design Documents

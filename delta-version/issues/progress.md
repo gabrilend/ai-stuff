@@ -189,6 +189,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 026**: Project Metadata System (2025-01-04)
+  - Per-project project.meta.json format
+  - Aggregation script: manage-metadata.sh
+  - Query/filter by status, language, tags
+  - Cache system for fast queries
+
 - **Issue 014 & 015**: Gitignore Maintenance and Workflow (2025-12-18)
   - Unified maintenance script: maintain-gitignore.sh
   - Change detection, health monitoring, project detection
@@ -324,10 +330,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~57 (including sub-issues)
-- **Completed**: 24 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 029, 030, 031, 035 w/ all sub-issues, 037)
+- **Completed**: 25 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~31 (including 040 series)
+- **Pending**: ~30 (including 040 series)
 - **High Priority**: None
 - **New (Phase 4)**: 10 (040, 040a-i)
 
