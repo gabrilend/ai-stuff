@@ -1,0 +1,25 @@
+{
+  "generated": "2026-01-04T21:04:55Z",
+  "count": 1,
+  "projects": [
+    {
+      "name": "delta-version",
+      "status": "active",
+      "description": "Meta-project for managing the ai-stuff monorepo - git infrastructure, project discovery, and cross-project coordination",
+      "language": [
+        "bash",
+        "lua"
+      ],
+      "phase": 2,
+      "tags": [
+        "infrastructure",
+        "tooling",
+        "meta"
+      ],
+      "dependencies": [],
+      "created": "2024-12-08",
+      "updated": "2025-01-04",
+      "path": "/mnt/mtwo/programming/ai-stuff/delta-version"
+    }
+  ]
+}
