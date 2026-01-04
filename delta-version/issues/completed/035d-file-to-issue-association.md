@@ -487,16 +487,58 @@ Verify dry-run shows associations correctly
 - **Complexity**: Medium
 - **Dependencies**: Issue 035a, 035b, 035c
 - **Blocks**: Issue 035e
-- **Status**: In Progress
+- **Status**: Completed
 
 ## Success Criteria
 
-- [ ] `extract_mentioned_paths()` finds file paths in issue content
-- [ ] `extract_mentioned_directories()` finds directory references
-- [ ] `calculate_name_similarity()` scores filename similarity correctly
-- [ ] `check_mtime_proximity()` respects configurable threshold
-- [ ] `associate_files_with_issues()` returns correct mappings
-- [ ] Issue commits include associated source files
-- [ ] Dry-run shows which files will be associated with which issues
-- [ ] Files without associations go to bulk commit
-- [ ] Verbose mode explains association reasoning
+- [x] `extract_mentioned_paths()` finds file paths in issue content
+- [x] `extract_mentioned_directories()` finds directory references
+- [x] `calculate_name_similarity()` scores filename similarity correctly
+- [x] `check_mtime_proximity()` respects configurable threshold
+- [x] `associate_files_with_issues()` returns correct mappings
+- [x] Issue commits include associated source files
+- [x] Dry-run shows which files will be associated with which issues
+- [x] Files without associations go to bulk commit
+- [x] Verbose mode explains association reasoning
+
+## Implementation Notes
+
+### Completed: 2026-01-04
+
+All file association heuristics have been implemented in `reconstruct-history.sh`:
+
+1. **Configuration** (lines 1746-1753):
+   - `ASSOC_MTIME_ENABLED` - Enable mtime proximity (default: false)
+   - `ASSOC_MTIME_THRESHOLD` - Mtime window in seconds (default: 3600)
+   - `ASSOC_MIN_SIMILARITY` - Minimum naming similarity score (default: 50)
+   - `ASSOC_VERBOSE` - Show association reasoning
+
+2. **CLI Flags**:
+   - `--with-file-association` - Enable file association (disabled by default for performance)
+   - `--with-mtime-association` - Enable mtime proximity heuristic (low reliability)
+   - `--verbose` - Show which files are associated with which issues
+
+3. **Heuristics implemented** (in priority order):
+   - Explicit path match (high reliability)
+   - Filename mention (high reliability)
+   - Directory mention (medium reliability)
+   - Naming convention similarity (medium reliability)
+   - Mtime proximity (low reliability, disabled by default)
+
+4. **Integration points**:
+   - `reconstruct_history()` - uses file associations
+   - `reconstruct_history_with_rebase()` - uses file associations
+   - `dry_run_report()` - shows file associations
+   - `create_issue_commit()` - includes associated files in commit
+
+### Testing Verification
+
+Tested with delta-version project:
+```
+$ ./scripts/reconstruct-history.sh --dry-run --with-file-association --force --verbose
+
+Issue 004: extract-project-histories → scripts/import-project-histories.sh
+Issue 012: generate-unified-gitignore → assets/unified-gitignore-template.txt, scripts/generate-unified-gitignore.sh
+```
+
+File associations reduce the "bulk commit" by attributing source files to their originating issues.

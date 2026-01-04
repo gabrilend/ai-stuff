@@ -48,6 +48,14 @@ PRESERVE_POST_BLOB="${PRESERVE_POST_BLOB:-true}"
 REPLACE_ORIGINAL="${REPLACE_ORIGINAL:-false}"
 POST_BLOB_COMMIT_FILE=""      # Temp file for commit list (set at runtime)
 ORIGINAL_BRANCH=""            # Store original branch name for restoration
+
+# Transcript Provenance Linking (035g)
+# Links commits to the LLM conversation sessions that produced them
+ENABLE_TRANSCRIPT_PROVENANCE="${ENABLE_TRANSCRIPT_PROVENANCE:-true}"
+PROVENANCE_METHOD="${PROVENANCE_METHOD:-git-notes}"  # git-notes | sidecar
+PROVENANCE_MIN_CONFIDENCE="${PROVENANCE_MIN_CONFIDENCE:-0.3}"
+SHOW_PROVENANCE=""            # Commit ref to show provenance for
+LIST_PROVENANCE=false         # List all commits with provenance
 # }}}
 
 # -- {{{ log
@@ -398,6 +406,475 @@ Answer with ONLY the letter A or B, nothing else."
     else
         echo "first"
     fi
+}
+# }}}
+
+# =============================================================================
+# Transcript Provenance Functions (035g)
+# Links commits to the LLM conversation sessions that produced them
+# =============================================================================
+
+# -- {{{ get_claude_project_path
+# Claude encodes project paths by replacing / with %2F in directory names
+# Returns the path to Claude's session storage for this project
+get_claude_project_path() {
+    local project_dir="$1"
+    local abs_path
+
+    abs_path=$(cd "$project_dir" 2>/dev/null && pwd) || return 1
+
+    # Claude uses URL-style encoding: / becomes %2F
+    local encoded
+    encoded=$(echo "$abs_path" | sed 's|/|%2F|g')
+
+    local claude_dir="$HOME/.claude/projects/${encoded}"
+
+    if [[ -d "$claude_dir" ]]; then
+        echo "$claude_dir"
+        return 0
+    fi
+
+    # Try without leading slash encoding (some versions differ)
+    encoded=$(echo "$abs_path" | sed 's|^/||' | sed 's|/|%2F|g')
+    claude_dir="$HOME/.claude/projects/${encoded}"
+
+    if [[ -d "$claude_dir" ]]; then
+        echo "$claude_dir"
+        return 0
+    fi
+
+    return 1
+}
+# }}}
+
+# -- {{{ parse_session_metadata
+# Extracts metadata from a transcript file (JSONL or MD format)
+# Returns JSON: {"id":"...", "date":epoch, "issues":"...", "files":"..."}
+parse_session_metadata() {
+    local session_file="$1"
+    local session_id
+    local generated_date=""
+    local issue_refs=""
+    local files_mentioned=""
+
+    # Extract session ID from filename
+    session_id=$(basename "$session_file" | sed 's/_summary\.md$//' | sed 's/\.jsonl$//' | sed 's/\.md$//')
+
+    # For JSONL files (raw Claude format)
+    if [[ "$session_file" == *.jsonl ]]; then
+        # Get file modification time as primary date source
+        generated_date=$(stat -c %Y "$session_file" 2>/dev/null || echo "0")
+
+        # Look for issue references in content
+        issue_refs=$(grep -oE '(Issue |issue |#)[0-9]{3}[a-z]?' "$session_file" 2>/dev/null | \
+            grep -oE '[0-9]{3}[a-z]?' | sort -u | tr '\n' ',' | sed 's/,$//' || echo "")
+
+        # Files mentioned (common extensions)
+        files_mentioned=$(grep -oE '[a-zA-Z0-9_/-]+\.(lua|sh|md|py|js|ts|rs|go|c|h|cpp|hpp)' "$session_file" 2>/dev/null | \
+            sort -u | head -20 | tr '\n' ',' | sed 's/,$//' || echo "")
+
+        printf '{"id":"%s","date":%s,"issues":"%s","files":"%s","type":"jsonl"}\n' \
+            "$session_id" "$generated_date" "$issue_refs" "$files_mentioned"
+        return 0
+    fi
+
+    # For markdown summary files
+    if [[ "$session_file" == *.md ]]; then
+        # Try to extract "Generated on:" date
+        local date_str
+        date_str=$(grep -i "Generated on:" "$session_file" 2>/dev/null | \
+            grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1 || echo "")
+
+        if [[ -n "$date_str" ]]; then
+            generated_date=$(date -d "$date_str" +%s 2>/dev/null || stat -c %Y "$session_file" 2>/dev/null || echo "0")
+        else
+            generated_date=$(stat -c %Y "$session_file" 2>/dev/null || echo "0")
+        fi
+
+        # Look for issue references
+        issue_refs=$(grep -oE '(Issue |issue |#)[0-9]{3}[a-z]?' "$session_file" 2>/dev/null | \
+            grep -oE '[0-9]{3}[a-z]?' | sort -u | tr '\n' ',' | sed 's/,$//' || echo "")
+
+        # Files mentioned
+        files_mentioned=$(grep -oE '[a-zA-Z0-9_/-]+\.(lua|sh|md|py|js|ts|rs|go|c|h|cpp|hpp)' "$session_file" 2>/dev/null | \
+            sort -u | head -20 | tr '\n' ',' | sed 's/,$//' || echo "")
+
+        printf '{"id":"%s","date":%s,"issues":"%s","files":"%s","type":"md"}\n' \
+            "$session_id" "$generated_date" "$issue_refs" "$files_mentioned"
+        return 0
+    fi
+
+    return 1
+}
+# }}}
+
+# -- {{{ correlate_session_to_issue
+# Calculates a correlation score between a session and an issue
+# Returns JSON: {"issue":"...", "score":0.0-1.0, "reasons":"..."}
+correlate_session_to_issue() {
+    local issue_file="$1"
+    local session_json="$2"  # JSON from parse_session_metadata
+
+    local issue_id
+    issue_id=$(basename "$issue_file" .md | grep -oE '^[0-9]{3}[a-z]?' || echo "")
+    [[ -z "$issue_id" ]] && return 1
+
+    local issue_date
+    issue_date=$(estimate_issue_date "$issue_file" 2>/dev/null || echo "0")
+
+    # Parse session metadata (simple extraction, avoid jq dependency)
+    local session_date session_issues session_files
+    session_date=$(echo "$session_json" | grep -oE '"date":[0-9]+' | grep -oE '[0-9]+' || echo "0")
+    session_issues=$(echo "$session_json" | grep -oE '"issues":"[^"]*"' | sed 's/"issues":"//;s/"$//' || echo "")
+    session_files=$(echo "$session_json" | grep -oE '"files":"[^"]*"' | sed 's/"files":"//;s/"$//' || echo "")
+
+    # Scoring algorithm
+    local score=0
+    local reasons=""
+
+    # Score 1: Issue ID mentioned in session (high value)
+    if echo ",$session_issues," | grep -q ",$issue_id,"; then
+        ((score += 40))
+        reasons="${reasons}issue-mentioned,"
+    fi
+
+    # Score 2: Timestamp proximity
+    if [[ "$session_date" != "0" ]] && [[ "$issue_date" != "0" ]]; then
+        local delta=$(( session_date - issue_date ))
+        [[ $delta -lt 0 ]] && delta=$(( -delta ))
+
+        if [[ $delta -lt 86400 ]]; then  # Same day
+            ((score += 35))
+            reasons="${reasons}same-day,"
+        elif [[ $delta -lt 604800 ]]; then  # Within week
+            ((score += 20))
+            reasons="${reasons}same-week,"
+        elif [[ $delta -lt 2592000 ]]; then  # Within month
+            ((score += 10))
+            reasons="${reasons}same-month,"
+        fi
+    fi
+
+    # Score 3: File overlap
+    # Extract files mentioned in issue
+    local issue_files_raw
+    issue_files_raw=$(grep -oE '[a-zA-Z0-9_/-]+\.(lua|sh|md|py|js|ts|rs|go|c|h|cpp|hpp)' "$issue_file" 2>/dev/null | \
+        sort -u | tr '\n' ',' | sed 's/,$//' || echo "")
+
+    # Check for overlap
+    local overlap_count=0
+    if [[ -n "$session_files" ]] && [[ -n "$issue_files_raw" ]]; then
+        for f in $(echo "$session_files" | tr ',' ' '); do
+            if echo ",$issue_files_raw," | grep -qi ",$f,"; then
+                ((overlap_count++))
+            fi
+        done
+
+        if [[ $overlap_count -gt 0 ]]; then
+            local file_score=$((overlap_count * 5))
+            [[ $file_score -gt 25 ]] && file_score=25
+            ((score += file_score))
+            reasons="${reasons}file-overlap:${overlap_count},"
+        fi
+    fi
+
+    # Normalize score to 0.0-1.0
+    local normalized
+    if [[ $score -ge 100 ]]; then
+        normalized="1.0"
+    else
+        # Simple division without bc dependency
+        normalized="0.${score}"
+        [[ $score -lt 10 ]] && normalized="0.0${score}"
+    fi
+
+    printf '{"issue":"%s","score":%s,"reasons":"%s"}\n' \
+        "$issue_id" "$normalized" "${reasons%,}"
+}
+# }}}
+
+# -- {{{ find_sessions_for_issue
+# Finds all transcript sessions that correlate with an issue
+# Returns: session_id:score pairs, one per line, sorted by score descending
+find_sessions_for_issue() {
+    local project_dir="$1"
+    local issue_file="$2"
+    local min_confidence="${3:-$PROVENANCE_MIN_CONFIDENCE}"
+
+    [[ "$ENABLE_TRANSCRIPT_PROVENANCE" != true ]] && return 0
+
+    local -a matching_sessions=()
+
+    # Collect transcript files from project-local directory
+    if [[ -d "$project_dir/llm-transcripts" ]]; then
+        while IFS= read -r -d '' f; do
+            local metadata
+            metadata=$(parse_session_metadata "$f" 2>/dev/null) || continue
+            [[ -z "$metadata" ]] && continue
+
+            local correlation
+            correlation=$(correlate_session_to_issue "$issue_file" "$metadata" 2>/dev/null) || continue
+
+            local score
+            score=$(echo "$correlation" | grep -oE '"score":[0-9.]+' | grep -oE '[0-9.]+' || echo "0")
+
+            # Compare scores (handle decimal)
+            local score_int=${score//./}
+            local min_int=${min_confidence//./}
+            # Pad to same length for comparison
+            while [[ ${#score_int} -lt 3 ]]; do score_int="${score_int}0"; done
+            while [[ ${#min_int} -lt 3 ]]; do min_int="${min_int}0"; done
+
+            if [[ $score_int -ge $min_int ]]; then
+                local session_id
+                session_id=$(echo "$metadata" | grep -oE '"id":"[^"]*"' | sed 's/"id":"//;s/"$//')
+                matching_sessions+=("$session_id:$score")
+            fi
+        done < <(find "$project_dir/llm-transcripts" \( -name "*.md" -o -name "*.jsonl" \) -print0 2>/dev/null)
+    fi
+
+    # Collect from Claude project directory
+    local claude_dir
+    if claude_dir=$(get_claude_project_path "$project_dir" 2>/dev/null); then
+        while IFS= read -r -d '' f; do
+            local metadata
+            metadata=$(parse_session_metadata "$f" 2>/dev/null) || continue
+            [[ -z "$metadata" ]] && continue
+
+            local correlation
+            correlation=$(correlate_session_to_issue "$issue_file" "$metadata" 2>/dev/null) || continue
+
+            local score
+            score=$(echo "$correlation" | grep -oE '"score":[0-9.]+' | grep -oE '[0-9.]+' || echo "0")
+
+            local score_int=${score//./}
+            local min_int=${min_confidence//./}
+            while [[ ${#score_int} -lt 3 ]]; do score_int="${score_int}0"; done
+            while [[ ${#min_int} -lt 3 ]]; do min_int="${min_int}0"; done
+
+            if [[ $score_int -ge $min_int ]]; then
+                local session_id
+                session_id=$(echo "$metadata" | grep -oE '"id":"[^"]*"' | sed 's/"id":"//;s/"$//')
+                # Avoid duplicates
+                local dup=false
+                for existing in "${matching_sessions[@]:-}"; do
+                    [[ "$existing" == "$session_id:"* ]] && dup=true && break
+                done
+                [[ "$dup" == false ]] && matching_sessions+=("$session_id:$score")
+            fi
+        done < <(find "$claude_dir" -name "*.jsonl" -print0 2>/dev/null)
+    fi
+
+    # Output sorted by score (descending)
+    if [[ ${#matching_sessions[@]} -gt 0 ]]; then
+        printf '%s\n' "${matching_sessions[@]}" | sort -t: -k2 -rn
+    fi
+}
+# }}}
+
+# -- {{{ attach_provenance_git_notes
+# Attaches transcript provenance to a commit using git notes
+attach_provenance_git_notes() {
+    local commit_hash="$1"
+    local sessions="$2"      # Comma-separated session IDs
+    local avg_confidence="$3"
+    local session_count="$4"
+
+    local note_content
+    note_content=$(cat <<EOF
+Transcript Provenance (035g):
+  Sessions: ${sessions}
+  Count: ${session_count}
+  Avg-Confidence: ${avg_confidence}
+  Generated: $(date -Iseconds)
+  Method: auto-correlation
+EOF
+)
+
+    git notes --ref=transcript-provenance add -f -m "$note_content" "$commit_hash" 2>/dev/null || {
+        log "  Warning: Could not attach provenance note to $commit_hash"
+        return 1
+    }
+    return 0
+}
+# }}}
+
+# -- {{{ attach_provenance_sidecar
+# Attaches transcript provenance as a JSON sidecar file
+attach_provenance_sidecar() {
+    local project_dir="$1"
+    local commit_hash="$2"
+    local sessions="$3"
+    local avg_confidence="$4"
+    local session_count="$5"
+
+    local sidecar_dir="$project_dir/.git/provenance"
+    mkdir -p "$sidecar_dir"
+
+    local sidecar_file="$sidecar_dir/${commit_hash}.json"
+
+    # Build JSON array of sessions
+    local sessions_json=""
+    local first=true
+    for s in $(echo "$sessions" | tr ',' ' '); do
+        [[ "$first" == true ]] && first=false || sessions_json="${sessions_json},"
+        sessions_json="${sessions_json}\"$s\""
+    done
+
+    cat > "$sidecar_file" <<EOF
+{
+    "commit": "${commit_hash}",
+    "sessions": [${sessions_json}],
+    "count": ${session_count},
+    "avg_confidence": ${avg_confidence},
+    "generated": "$(date -Iseconds)",
+    "method": "auto-correlation"
+}
+EOF
+}
+# }}}
+
+# -- {{{ attach_transcript_provenance
+# Main entry point: finds sessions and attaches provenance to a commit
+# Call this after creating each issue commit
+attach_transcript_provenance() {
+    local project_dir="$1"
+    local issue_file="$2"
+    local commit_hash="$3"
+
+    [[ "$ENABLE_TRANSCRIPT_PROVENANCE" != true ]] && return 0
+
+    log "  Finding transcript sessions for $(basename "$issue_file")..."
+
+    local sessions_raw
+    sessions_raw=$(find_sessions_for_issue "$project_dir" "$issue_file")
+
+    if [[ -z "$sessions_raw" ]]; then
+        log "    No matching sessions found"
+        return 0
+    fi
+
+    # Parse sessions and calculate average confidence
+    local -a session_ids=()
+    local total_score=0
+    local count=0
+
+    while IFS=: read -r session_id score; do
+        [[ -z "$session_id" ]] && continue
+        session_ids+=("$session_id")
+        # Accumulate score (multiply by 100 to avoid decimals)
+        local score_int=${score//./}
+        while [[ ${#score_int} -lt 3 ]]; do score_int="${score_int}0"; done
+        ((total_score += score_int))
+        ((count++))
+    done <<< "$sessions_raw"
+
+    [[ $count -eq 0 ]] && return 0
+
+    # Calculate average
+    local avg_int=$((total_score / count))
+    local avg_confidence="0.${avg_int}"
+    [[ $avg_int -ge 100 ]] && avg_confidence="1.0"
+
+    local sessions_csv
+    sessions_csv=$(IFS=,; echo "${session_ids[*]}")
+
+    log "    Found $count sessions (avg confidence: $avg_confidence)"
+
+    # Attach based on configured method
+    case "$PROVENANCE_METHOD" in
+        git-notes)
+            attach_provenance_git_notes "$commit_hash" "$sessions_csv" "$avg_confidence" "$count"
+            ;;
+        sidecar)
+            attach_provenance_sidecar "$project_dir" "$commit_hash" "$sessions_csv" "$avg_confidence" "$count"
+            ;;
+        *)
+            log "    Unknown provenance method: $PROVENANCE_METHOD, using git-notes"
+            attach_provenance_git_notes "$commit_hash" "$sessions_csv" "$avg_confidence" "$count"
+            ;;
+    esac
+}
+# }}}
+
+# -- {{{ show_commit_provenance
+# Displays provenance information for a specific commit
+show_commit_provenance() {
+    local commit="${1:-HEAD}"
+    local commit_hash
+
+    commit_hash=$(git rev-parse "$commit" 2>/dev/null) || {
+        error "Invalid commit reference: $commit"
+        return 1
+    }
+
+    echo "=== Transcript Provenance for ${commit_hash:0:7} ==="
+    echo ""
+
+    # Try git notes first
+    local notes
+    notes=$(git notes --ref=transcript-provenance show "$commit_hash" 2>/dev/null)
+
+    if [[ -n "$notes" ]]; then
+        echo "$notes"
+        echo ""
+        echo "View full commit: git show ${commit_hash:0:7}"
+        return 0
+    fi
+
+    # Try sidecar file
+    local sidecar_file=".git/provenance/${commit_hash}.json"
+    if [[ -f "$sidecar_file" ]]; then
+        echo "Provenance (from sidecar):"
+        cat "$sidecar_file"
+        return 0
+    fi
+
+    echo "No provenance data found for this commit."
+    echo ""
+    echo "Provenance is attached during history reconstruction."
+    echo "Use: reconstruct-history.sh --with-provenance <project>"
+    return 1
+}
+# }}}
+
+# -- {{{ list_provenance_commits
+# Lists all commits that have transcript provenance attached
+list_provenance_commits() {
+    echo "=== Commits with Transcript Provenance ==="
+    echo ""
+
+    local found=0
+
+    # List commits with provenance notes
+    git notes --ref=transcript-provenance list 2>/dev/null | while read -r note_hash commit_hash; do
+        local subject date
+        subject=$(git log -1 --format='%s' "$commit_hash" 2>/dev/null)
+        date=$(git log -1 --format='%ai' "$commit_hash" 2>/dev/null | cut -d' ' -f1)
+
+        echo "[${commit_hash:0:7}] $date - $subject"
+        ((found++))
+    done
+
+    # Also check sidecar directory
+    if [[ -d ".git/provenance" ]]; then
+        for f in .git/provenance/*.json; do
+            [[ -f "$f" ]] || continue
+            local commit_hash
+            commit_hash=$(basename "$f" .json)
+            # Skip if already shown via notes
+            git notes --ref=transcript-provenance show "$commit_hash" &>/dev/null && continue
+
+            local subject date
+            subject=$(git log -1 --format='%s' "$commit_hash" 2>/dev/null) || continue
+            date=$(git log -1 --format='%ai' "$commit_hash" 2>/dev/null | cut -d' ' -f1)
+
+            echo "[${commit_hash:0:7}] $date - $subject (sidecar)"
+            ((found++))
+        done
+    fi
+
+    [[ $found -eq 0 ]] && echo "No commits with provenance data found."
 }
 # }}}
 
@@ -1267,6 +1744,9 @@ format_epoch_for_git() {
 # =============================================================================
 
 # -- {{{ File Association Configuration
+# File-to-issue association heuristics (035d)
+# Associates source files with the issues that created them
+ASSOC_MTIME_ENABLED="${ASSOC_MTIME_ENABLED:-false}"      # Use mtime proximity (low reliability)
 ASSOC_MTIME_THRESHOLD="${ASSOC_MTIME_THRESHOLD:-3600}"   # 1 hour proximity threshold
 ASSOC_MIN_SIMILARITY="${ASSOC_MIN_SIMILARITY:-50}"       # Minimum name similarity (0-100)
 ASSOC_VERBOSE="${ASSOC_VERBOSE:-false}"                  # Show association reasoning
@@ -1500,13 +1980,13 @@ associate_files_with_issues() {
             fi
 
             # Heuristic 5: Mtime proximity (lowest priority, disabled by default)
-            # Uncomment to enable mtime-based association
-            # if [[ "$matched" == false ]]; then
-            #     if check_mtime_proximity "$file" "$issue_mtime"; then
-            #         matched=true
-            #         match_reason="mtime_proximity"
-            #     fi
-            # fi
+            # Enable with ASSOC_MTIME_ENABLED=true or --with-mtime-association
+            if [[ "$matched" == false ]] && [[ "$ASSOC_MTIME_ENABLED" == true ]]; then
+                if check_mtime_proximity "$file" "$issue_mtime"; then
+                    matched=true
+                    match_reason="mtime_proximity"
+                fi
+            fi
 
             # Record association
             if [[ "$matched" == true ]]; then
@@ -1609,6 +2089,7 @@ create_issue_commit() {
     local issue_file="$1"
     local commit_date="${2:-}"      # Optional: epoch timestamp
     local associated_files="${3:-}" # Optional: space-separated list of associated files
+    local project_dir="${4:-$(pwd)}" # Optional: project directory for provenance (035g)
     local issue_name
     local title
 
@@ -1673,6 +2154,16 @@ EOF
 )"
         # Unset date environment
         unset GIT_AUTHOR_DATE GIT_COMMITTER_DATE
+
+        # Attach transcript provenance (035g)
+        if [[ "$ENABLE_TRANSCRIPT_PROVENANCE" == true ]]; then
+            local commit_hash
+            commit_hash=$(git rev-parse HEAD 2>/dev/null)
+            if [[ -n "$commit_hash" ]]; then
+                attach_transcript_provenance "$project_dir" "$issue_file" "$commit_hash"
+            fi
+        fi
+
         return 0
     else
         log "Issue file already committed or empty: $issue_name"
@@ -2338,11 +2829,20 @@ LLM Options (requires ollama):
 
 Advanced Options:
     --with-file-association  Enable file-to-issue association (slower)
+    --with-mtime-association Enable mtime proximity heuristic (low reliability)
 
 Post-Blob Commit Options:
     --preserve-post-blob     Preserve commits after blob (default: true)
     --no-preserve-post-blob  Skip post-blob commit preservation
     --replace-original       Replace original branch with reconstructed (DANGEROUS)
+
+Transcript Provenance Options (035g):
+    --with-provenance        Enable transcript-to-commit linking (default: true)
+    --no-provenance          Disable transcript provenance linking
+    --provenance-method M    Method: git-notes | sidecar (default: git-notes)
+    --provenance-min-score N Minimum correlation score 0.0-1.0 (default: 0.3)
+    --show-provenance [REF]  Show provenance for a commit (default: HEAD)
+    --list-provenance        List all commits with provenance data
 
 Project States:
     external       - Outside monorepo, will be imported first
@@ -2638,6 +3138,11 @@ parse_args() {
                 SKIP_FILE_ASSOCIATION=false
                 shift
                 ;;
+            --with-mtime-association)
+                # Enable mtime proximity heuristic (low reliability, use with caution)
+                ASSOC_MTIME_ENABLED=true
+                shift
+                ;;
             --preserve-post-blob)
                 PRESERVE_POST_BLOB=true
                 shift
@@ -2648,6 +3153,32 @@ parse_args() {
                 ;;
             --replace-original)
                 REPLACE_ORIGINAL=true
+                shift
+                ;;
+            --with-provenance)
+                ENABLE_TRANSCRIPT_PROVENANCE=true
+                shift
+                ;;
+            --no-provenance)
+                ENABLE_TRANSCRIPT_PROVENANCE=false
+                shift
+                ;;
+            --provenance-method)
+                PROVENANCE_METHOD="$2"
+                shift 2
+                ;;
+            --provenance-min-score)
+                PROVENANCE_MIN_CONFIDENCE="$2"
+                shift 2
+                ;;
+            --show-provenance)
+                SHOW_PROVENANCE="${2:-HEAD}"
+                shift
+                # Handle optional argument
+                [[ "${1:-}" != -* ]] && [[ -n "${1:-}" ]] && { SHOW_PROVENANCE="$1"; shift; }
+                ;;
+            --list-provenance)
+                LIST_PROVENANCE=true
                 shift
                 ;;
             -h|--help)
@@ -2681,6 +3212,17 @@ main() {
 
     if [[ "$RESET_LLM_STATS" == true ]]; then
         reset_llm_stats
+        exit 0
+    fi
+
+    # Handle provenance commands (don't need project for some)
+    if [[ "$LIST_PROVENANCE" == true ]]; then
+        list_provenance_commits
+        exit 0
+    fi
+
+    if [[ -n "$SHOW_PROVENANCE" ]]; then
+        show_commit_provenance "$SHOW_PROVENANCE"
         exit 0
     fi
 
