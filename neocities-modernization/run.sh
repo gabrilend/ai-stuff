@@ -532,11 +532,17 @@ run_generate_similarity() {
     log_info "   Output: assets/embeddings/$model_dir_name/similarity_matrix.json"
 
     # Use similarity-engine.lua to generate matrix
-    # The generate_similarity_matrix function is in similarity-engine.lua
+    # Issue 8-023: Fixed function name and parameters (was generate_similarity_matrix with wrong args)
+    # calculate_similarity_matrix(embeddings_file, output_file, top_n, force_regenerate)
     luajit -e "
         package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
         local sim = require('src.similarity-engine')
-        sim.generate_similarity_matrix('$DIR/assets/poems.json', '$DIR/assets/embeddings/$model_dir_name')
+        sim.calculate_similarity_matrix(
+            '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
+            '$DIR/assets/embeddings/$model_dir_name/similarity_matrix.json',
+            nil,
+            false
+        )
     " || {
         echo "Error: Similarity matrix generation failed" >&2
         exit 1
