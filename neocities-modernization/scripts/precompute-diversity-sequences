@@ -49,7 +49,8 @@ end
 
 -- Configuration
 -- Issue 9-003 Phase B: Increased default threads, reduced thermal sleep
-local NUM_THREADS = tonumber(arg and arg[2]) or 8  -- Was 4, now 8 for better parallelism
+-- Issue 8-025: Also check DIVERSITY_THREADS env var (set by run.sh)
+local NUM_THREADS = tonumber(arg and arg[2]) or tonumber(os.getenv("DIVERSITY_THREADS")) or 8
 local SLEEP_BETWEEN_BATCHES = tonumber(arg and arg[3]) or 1  -- Was 5s, reduced to 1s
 local TEST_MODE = arg and arg[4] == "--test"
 local MAX_TEST_SEQUENCES = 10
@@ -372,18 +373,15 @@ if embeddings_data then
 
     print(string.format("   ✅ Shared effil.table ready: %d floats (%d poems × %d dim)",
         total_floats, num_emb, embedding_dim))
-
-    -- Release embeddings_data - effil.table now owns the data
-    embeddings_data = nil
-    collectgarbage("collect")
-    print("   🗑️  Released source data (effil.table now owns memory)")
 end
 -- }}}
 
--- Build poem index mappings (embeddings loaded per-thread now, not here)
+-- Issue 8-025: Build poem index mappings BEFORE releasing embeddings_data
+-- This loop must run while embeddings_data is still available for validation
 local poem_id_to_index = {}
 local index_to_poem_id = {}
 local valid_poem_ids = {}
+local num_poems = #poems_data.poems  -- Total poems (for worker indexing)
 
 for i, poem in ipairs(poems_data.poems) do
     if poem.id then
@@ -401,7 +399,6 @@ for i, poem in ipairs(poems_data.poems) do
     end
 end
 
-local num_poems = #poems_data.poems  -- Total poems (for worker indexing)
 table.sort(valid_poem_ids)
 
 -- Limit in test mode
@@ -412,6 +409,11 @@ if TEST_MODE then
     end
     valid_poem_ids = limited_ids
 end
+
+-- Now release embeddings_data - effil.table owns the data, valid_poem_ids is built
+embeddings_data = nil
+collectgarbage("collect")
+print("   🗑️  Released source data (effil.table now owns memory)")
 
 print(string.format("   🔢 Sequences to compute: %d", #valid_poem_ids))
 
