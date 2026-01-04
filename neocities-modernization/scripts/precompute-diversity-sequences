@@ -526,15 +526,18 @@ while batch_start <= #valid_poem_ids do
         end
 
         -- Display progress line
+        -- Issue 8-026: Use A, B, C... for thread names, clear line before writing
+        local thread_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         local progress_parts = {}
         local total_progress = 0
         for i = 1, batch_size do
             local p = tonumber(progress_table[i]) or 0
             total_progress = total_progress + p
+            local letter = thread_letters:sub(i, i)
             if threads_done[i] then
-                table.insert(progress_parts, string.format("T%d:✓", i))
+                table.insert(progress_parts, string.format("%s:✓", letter))
             else
-                table.insert(progress_parts, string.format("T%d:%d", i, p))
+                table.insert(progress_parts, string.format("%s:%d", letter, p))
             end
         end
 
@@ -544,7 +547,9 @@ while batch_start <= #valid_poem_ids do
         local filled = math.floor((avg_progress / MAX_SEQUENCE_LENGTH) * bar_width)
         local bar = string.rep("█", filled) .. string.rep("░", bar_width - filled)
 
-        io.write(string.format("\r   [%s] %d/%d avg | %s | %ds    ",
+        -- Clear line with spaces, then carriage return, then write new content
+        io.write("\r" .. string.rep(" ", 120) .. "\r")
+        io.write(string.format("   [%s] %d/%d avg | %s | %ds",
             bar, avg_progress, MAX_SEQUENCE_LENGTH,
             table.concat(progress_parts, " "), elapsed))
         io.flush()
