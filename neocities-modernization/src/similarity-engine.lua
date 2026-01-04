@@ -767,9 +767,11 @@ function M.calculate_similarity_matrix(embeddings_file, output_file, top_n, forc
     for i = 1, #valid_embeddings do
         local poem_a = valid_embeddings[i]
         local similarities_for_poem = {}
-        
-        utils.log_info(string.format("Processing poem %d/%d (ID: %s)", i, #valid_embeddings, poem_a.id or "unknown"))
-        
+
+        -- Issue 8-024: Use carriage return to overwrite line in-place
+        io.write(string.format("\r[INFO] Processing poem %d/%d (ID: %s)          ", i, #valid_embeddings, poem_a.id or "unknown"))
+        io.flush()
+
         for j = 1, #valid_embeddings do
             if i ~= j then
                 local poem_b = valid_embeddings[j]
@@ -805,6 +807,8 @@ function M.calculate_similarity_matrix(embeddings_file, output_file, top_n, forc
         -- Save progress periodically
         if i % 50 == 0 or i == #valid_embeddings then
             local progress = (completed_comparisons / total_comparisons) * 100
+            -- Issue 8-024: Newline before progress to preserve it (processing line uses \r)
+            io.write("\n")
             utils.log_info(string.format("Progress: %.1f%% (%d/%d comparisons)", progress, completed_comparisons, total_comparisons))
             
             if not utils.write_json_file(output_file, similarity_data) then
@@ -888,9 +892,11 @@ function M.calculate_full_similarity_matrix(embeddings_file, output_file, force_
         local poem_a = valid_embeddings[i]
         local poem_a_id = tostring(poem_a.id)
         similarity_data.similarities[poem_a_id] = {}
-        
-        utils.log_info(string.format("Processing poem %d/%d (ID: %s)", i, #valid_embeddings, poem_a_id))
-        
+
+        -- Issue 8-024: Use carriage return to overwrite line in-place
+        io.write(string.format("\r[INFO] Processing poem %d/%d (ID: %s)          ", i, #valid_embeddings, poem_a_id))
+        io.flush()
+
         for j = 1, #valid_embeddings do
             local poem_b = valid_embeddings[j]
             local poem_b_id = tostring(poem_b.id)
@@ -917,8 +923,10 @@ function M.calculate_full_similarity_matrix(embeddings_file, output_file, force_
             local elapsed_time = os.time() - start_time
             local rate = completed_comparisons / elapsed_time
             local estimated_remaining = (total_comparisons - completed_comparisons) / rate
-            
-            utils.log_info(string.format("Progress: %.2f%% (%d/%d comparisons)", 
+
+            -- Issue 8-024: Newline before progress to preserve it (processing line uses \r)
+            io.write("\n")
+            utils.log_info(string.format("Progress: %.2f%% (%d/%d comparisons)",
                           progress, completed_comparisons, total_comparisons))
             utils.log_info(string.format("Rate: %.0f comparisons/sec, Est. remaining: %.0f minutes", 
                           rate, estimated_remaining / 60))
