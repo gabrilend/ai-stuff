@@ -53,6 +53,14 @@ local rows, cols = 24, 80
 local front_buffer = {}   -- What's currently on screen
 local back_buffer = {}    -- What we want to draw
 
+-- Hierarchical dirty tracking (avoids cell-by-cell diffing)
+-- Levels: full > rows > cells
+-- When set_cell() is called, it marks that cell dirty automatically.
+-- present() iterates only dirty entries, no comparison needed.
+local dirty_full = false      -- If true, redraw everything
+local dirty_rows = {}         -- dirty_rows[y] = true means entire row is dirty
+local dirty_cells = {}        -- dirty_cells[y][x] = true for individual dirty cells
+
 -- ANSI codes
 tui.ESC = "\027"
 tui.CSI = "\027["
@@ -147,7 +155,7 @@ end
 -- }}}
 
 -- {{{ tui.resize
--- Handle terminal resize - recreate buffers
+-- Handle terminal resize - recreate buffers and invalidate
 function tui.resize()
     local old_rows, old_cols = rows, cols
     tui.get_size()
@@ -155,6 +163,8 @@ function tui.resize()
     if rows ~= old_rows or cols ~= old_cols then
         front_buffer = create_buffer(rows, cols)
         back_buffer = create_buffer(rows, cols)
+        -- New buffers need full redraw
+        tui.invalidate()
         return true  -- Size changed
     end
     return false
@@ -247,11 +257,71 @@ end
 
 -- {{{ tui.set_cell
 -- Set a cell in the back buffer (1-indexed row/col)
+-- Automatically marks the cell as dirty for efficient present()
 function tui.set_cell(row, col, char)
     if row < 1 or row > rows or col < 1 or col > cols then return end
     if not back_buffer[row] then return end
 
     back_buffer[row][col] = make_cell(char, current_fg, current_bg, current_attrs)
+
+    -- Auto-mark dirty (skip if row already fully dirty or full redraw pending)
+    if not dirty_full and not dirty_rows[row] then
+        dirty_cells[row] = dirty_cells[row] or {}
+        dirty_cells[row][col] = true
+    end
+end
+-- }}}
+
+-- {{{ tui.invalidate
+-- Mark entire screen for redraw (use after resize, or major content change)
+function tui.invalidate()
+    dirty_full = true
+    dirty_rows = {}
+    dirty_cells = {}
+end
+-- }}}
+
+-- {{{ tui.invalidate_row
+-- Mark an entire row as dirty (use when whole row changes, e.g., header/footer)
+function tui.invalidate_row(row)
+    if row < 1 or row > rows then return end
+    dirty_rows[row] = true
+    dirty_cells[row] = nil  -- No need for cell-level tracking when row is dirty
+end
+-- }}}
+
+-- {{{ tui.invalidate_region
+-- Mark a rectangular region as dirty (row1, col1) to (row2, col2) inclusive
+-- Optimizes by marking entire rows if region spans full width
+function tui.invalidate_region(row1, col1, row2, col2)
+    -- Clamp to valid range
+    row1 = math.max(1, math.min(rows, row1))
+    row2 = math.max(1, math.min(rows, row2))
+    col1 = math.max(1, math.min(cols, col1))
+    col2 = math.max(1, math.min(cols, col2))
+
+    for y = row1, row2 do
+        if col1 == 1 and col2 == cols then
+            -- Full row - use row-level dirty
+            dirty_rows[y] = true
+            dirty_cells[y] = nil
+        elseif not dirty_rows[y] then
+            -- Partial row - use cell-level dirty
+            dirty_cells[y] = dirty_cells[y] or {}
+            for x = col1, col2 do
+                dirty_cells[y][x] = true
+            end
+        end
+    end
+end
+-- }}}
+
+-- {{{ tui.clear_dirty
+-- Clear all dirty flags (called after present)
+local function clear_dirty()
+    dirty_full = false
+    dirty_rows = {}
+    dirty_cells = {}
 end
 -- }}}
 
@@ -270,20 +340,27 @@ end
 -- }}}
 
 -- {{{ tui.clear_row
--- Clear a row in the back buffer
+-- Clear a row in the back buffer and mark it dirty
 function tui.clear_row(row)
     if row < 1 or row > rows then return end
     tui.reset_style()
     for x = 1, cols do
         back_buffer[row][x] = make_cell(" ")
     end
+    -- Mark entire row dirty (more efficient than cell-by-cell)
+    if not dirty_full then
+        dirty_rows[row] = true
+        dirty_cells[row] = nil
+    end
 end
 -- }}}
 
 -- {{{ tui.clear_back_buffer
--- Clear entire back buffer
+-- Clear entire back buffer and mark full redraw
 function tui.clear_back_buffer()
     clear_buffer(back_buffer)
+    -- Clearing whole buffer means everything needs redraw
+    tui.invalidate()
 end
 -- }}}
 
@@ -346,7 +423,11 @@ end
 -- }}}
 
 -- {{{ tui.present
--- Blit back buffer to screen, only updating changed cells
+-- Blit back buffer to screen, using dirty tracking to skip unchanged cells.
+-- Instead of comparing every cell, we iterate only cells marked dirty:
+--   dirty_full=true -> all cells
+--   dirty_rows[y]=true -> all cells in row y
+--   dirty_cells[y][x]=true -> individual cell (y,x)
 function tui.present()
     local output = {}
     local last_row, last_col = 0, 0
@@ -355,35 +436,60 @@ function tui.present()
     -- Reset style tracking at start of each present
     reset_style_tracking()
 
-    for y = 1, rows do
-        for x = 1, cols do
-            local back = back_buffer[y] and back_buffer[y][x]
-            local front = front_buffer[y] and front_buffer[y][x]
+    -- Helper: render a single dirty cell at (y, x)
+    local function emit_cell(y, x)
+        local back = back_buffer[y] and back_buffer[y][x]
+        if not back then return end
 
-            if back and not cells_equal(back, front) then
-                -- Need to update this cell
-                -- Position cursor if not already there
-                if y ~= last_row or x ~= last_col + 1 then
-                    -- Reset terminal style before jumping if we had styling
-                    if last_rendered_has_style then
-                        table.insert(output, "\027[0m")
-                    end
-                    table.insert(output, string.format("\027[%d;%dH", y, x))
-                    -- Reset style tracking when jumping to new position
-                    reset_style_tracking()
-                end
+        -- Position cursor if not already there
+        if y ~= last_row or x ~= last_col + 1 then
+            -- Reset terminal style before jumping if we had styling
+            if last_rendered_has_style then
+                table.insert(output, "\027[0m")
+            end
+            table.insert(output, string.format("\027[%d;%dH", y, x))
+            -- Reset style tracking when jumping to new position
+            reset_style_tracking()
+        end
 
-                table.insert(output, render_cell(back))
-                needs_reset = back.attrs ~= tui.ATTR_NONE or back.fg ~= tui.FG_DEFAULT or back.bg ~= tui.BG_DEFAULT
+        table.insert(output, render_cell(back))
+        needs_reset = back.attrs ~= tui.ATTR_NONE or back.fg ~= tui.FG_DEFAULT or back.bg ~= tui.BG_DEFAULT
 
-                -- Update front buffer
-                front_buffer[y][x] = copy_cell(back)
+        -- Update front buffer
+        front_buffer[y][x] = copy_cell(back)
 
-                last_row = y
-                last_col = x
+        last_row = y
+        last_col = x
+    end
+
+    -- Iterate based on dirty tracking level
+    if dirty_full then
+        -- Full redraw: emit all cells
+        for y = 1, rows do
+            for x = 1, cols do
+                emit_cell(y, x)
             end
         end
+    else
+        -- Partial redraw: check row-level then cell-level dirty flags
+        for y = 1, rows do
+            if dirty_rows[y] then
+                -- Entire row is dirty
+                for x = 1, cols do
+                    emit_cell(y, x)
+                end
+            elseif dirty_cells[y] then
+                -- Only specific cells in this row are dirty
+                for x, _ in pairs(dirty_cells[y]) do
+                    emit_cell(y, x)
+                end
+            end
+            -- If neither, row is clean - skip entirely
+        end
     end
+
+    -- Clear dirty flags after rendering
+    clear_dirty()
 
     -- Reset attributes at end if needed
     if needs_reset then
@@ -399,15 +505,10 @@ end
 -- }}}
 
 -- {{{ tui.force_redraw
--- Force complete redraw (mark all front buffer cells as different)
+-- Force complete redraw on next present()
+-- Uses dirty tracking rather than corrupting front buffer
 function tui.force_redraw()
-    for y = 1, rows do
-        if front_buffer[y] then
-            for x = 1, cols do
-                front_buffer[y][x] = make_cell("\0")  -- Invalid char forces redraw
-            end
-        end
-    end
+    tui.invalidate()
 end
 -- }}}
 
