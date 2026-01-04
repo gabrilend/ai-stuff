@@ -50,15 +50,44 @@ end
 -- Configuration
 -- Issue 9-003 Phase B: Increased default threads, reduced thermal sleep
 -- Issue 8-025: Also check DIVERSITY_THREADS env var (set by run.sh)
-local NUM_THREADS = tonumber(arg and arg[2]) or tonumber(os.getenv("DIVERSITY_THREADS")) or 8
-local SLEEP_BETWEEN_BATCHES = tonumber(arg and arg[3]) or 1  -- Was 5s, reduced to 1s
-local TEST_MODE = arg and arg[4] == "--test"
+-- Issue 8-027: Parse named flags for pagination settings
+
+local NUM_THREADS = tonumber(os.getenv("DIVERSITY_THREADS")) or 8
+local SLEEP_BETWEEN_BATCHES = 1  -- Was 5s, reduced to 1s
+local TEST_MODE = false
 local MAX_TEST_SEQUENCES = 10
+local PAGES = nil
+local POEMS_PER_PAGE = nil
+
+-- Parse command line arguments
+for i = 2, #arg do
+    local a = arg[i]
+    if a:match("^--threads=") then
+        NUM_THREADS = tonumber(a:match("^--threads=(%d+)")) or NUM_THREADS
+    elseif a:match("^--sleep=") then
+        SLEEP_BETWEEN_BATCHES = tonumber(a:match("^--sleep=(%d+)")) or SLEEP_BETWEEN_BATCHES
+    elseif a:match("^--pages=") then
+        PAGES = tonumber(a:match("^--pages=(%d+)"))
+    elseif a:match("^--poems%-per%-page=") then
+        POEMS_PER_PAGE = tonumber(a:match("^--poems%-per%-page=(%d+)"))
+    elseif a == "--test" then
+        TEST_MODE = true
+    end
+end
 
 -- MAX_SEQUENCE_LENGTH: Only compute top N most different poems per sequence
--- Issue 8-020 only shows 1,500 poems max (15 pages × 100 poems), so no need to compute all 7,999
--- This reduces complexity from O(N²) to O(N × MAX_SEQ) per poem → ~5× speedup
-local MAX_SEQUENCE_LENGTH = 1500
+-- Issue 8-027: Calculate from pages × poems_per_page, or use default 1500
+-- Default: 15 pages × 100 poems = 1500 (Issue 8-020 storage constraint)
+local MAX_SEQUENCE_LENGTH
+if PAGES and POEMS_PER_PAGE then
+    MAX_SEQUENCE_LENGTH = PAGES * POEMS_PER_PAGE
+elseif PAGES then
+    MAX_SEQUENCE_LENGTH = PAGES * 100  -- Default 100 poems per page
+elseif POEMS_PER_PAGE then
+    MAX_SEQUENCE_LENGTH = 15 * POEMS_PER_PAGE  -- Default 15 pages
+else
+    MAX_SEQUENCE_LENGTH = 1500  -- Default: 15 × 100
+end
 
 -- {{{ Worker function for diversity sequence computation
 -- Computes full diversity sequence using INCREMENTAL CENTROID optimization
@@ -483,10 +512,14 @@ local est_time_per_seq = 4  -- seconds (with 1500 limit + optimizations)
 local est_total_time = (#valid_poem_ids * est_time_per_seq) / NUM_THREADS
 local est_hours = est_total_time / 3600
 print(string.format("\n⏱️  Estimated time: %.1f hours (%.0f seconds per sequence)", est_hours, est_time_per_seq))
-print(string.format("   Sequence limit: %d poems (Issue 8-020: 15 pages × 100)", MAX_SEQUENCE_LENGTH))
+local pages_used = PAGES or 15
+local poems_per_page_used = POEMS_PER_PAGE or 100
+print(string.format("   Sequence limit: %d poems (%d pages × %d poems/page)",
+    MAX_SEQUENCE_LENGTH, pages_used, poems_per_page_used))
 print(string.format("   With %d-second sleep every %d sequences", SLEEP_BETWEEN_BATCHES, NUM_THREADS))
 print("   ⚡ Optimizations (Issue 9-003):")
-print("      - Sequence limit 1,500 (vs 7,999): ~5× fewer iterations")
+print(string.format("      - Sequence limit %s (vs 7,999): fewer iterations",
+    MAX_SEQUENCE_LENGTH < 7999 and tostring(MAX_SEQUENCE_LENGTH) or "none"))
 print("      - Shared effil.table (JSON parsed once, shared via memory)")
 print("      - Direct array access (no table creation per iteration)")
 print("      - Pre-computed embedding start indices")

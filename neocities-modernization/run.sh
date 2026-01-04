@@ -574,14 +574,21 @@ run_generate_diversity() {
         fi
     fi
 
-    local threads_arg=""
+    # Issue 8-027: Build command with pagination flags
     if [ -n "$THREADS" ]; then
-        # Export for the Lua script to pick up
         export DIVERSITY_THREADS="$THREADS"
     fi
 
+    local pagination_args=""
+    if [ -n "$PAGES" ]; then
+        pagination_args="$pagination_args --pages=$PAGES"
+    fi
+    if [ -n "$POEMS_PER_PAGE" ]; then
+        pagination_args="$pagination_args --poems-per-page=$POEMS_PER_PAGE"
+    fi
+
     if $DRY_RUN; then
-        log_dry_run "luajit $DIR/scripts/precompute-diversity-sequences $DIR"
+        log_dry_run "luajit $DIR/scripts/precompute-diversity-sequences $DIR $pagination_args"
         return 0
     fi
 
@@ -589,7 +596,7 @@ run_generate_diversity() {
     log_info "   Output: assets/embeddings/$model_dir_name/diversity_cache.json"
     log_info "   ⚠️  This is a one-time cost (~42 hours). Results will be cached."
 
-    luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" || {
+    luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" $pagination_args || {
         echo "Error: Diversity cache generation failed" >&2
         exit 1
     }
