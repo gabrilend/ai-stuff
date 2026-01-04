@@ -189,6 +189,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 038**: Dependency Visualization Tool (2026-01-04)
+  - ASCII tree diagrams with status indicators (✓ ▶ ○)
+  - DOT/Graphviz export for visual graphs
+  - Impact queries: --blocks, --depends, --parallel, --roots
+  - Implemented: visualize-deps.sh
+
 - **Issue 026**: Project Metadata System (2025-01-04)
   - Per-project project.meta.json format
   - Aggregation script: manage-metadata.sh
@@ -230,12 +236,13 @@ These issues provide foundational utilities and can be implemented independently
     - **035f** ✅: Local LLM integration (triple-check consensus, stats tracking, graceful fallback)
 
 ### Standard Priority
-- **Issue 038**: Dependency Visualization Tool 📝
+- **Issue 038**: Dependency Visualization Tool ✅
   - *Purpose*: Visualize and analyze issue dependencies as tree diagrams
   - *Features*: ASCII trees, DOT/Graphviz export, impact queries, parallel work identification
   - *Use Cases*: Project structure understanding, debug impact analysis, branch topology
   - *Dependencies*: Issue 035b (completed)
-  - *Status*: Ready for implementation
+  - *Implemented*: `delta-version/scripts/visualize-deps.sh`
+  - *Status*: Complete (2026-01-04)
 
 - **Issue 024**: External Project Directory Configuration 📝
   - *Purpose*: Enable configuration of project directories outside main repository
@@ -330,10 +337,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~57 (including sub-issues)
-- **Completed**: 25 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037)
+- **Completed**: 26 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~30 (including 040 series)
+- **Pending**: ~29 (including 040 series)
 - **High Priority**: None
 - **New (Phase 4)**: 10 (040, 040a-i)
 
