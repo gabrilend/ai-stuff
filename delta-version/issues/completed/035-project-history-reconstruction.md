@@ -1,6 +1,26 @@
 # Issue 035: Project History Reconstruction from Issue Files
 
-## Current Behavior
+## Status: COMPLETE
+
+**Completed: 2026-01-04**
+
+All 7 sub-issues (035a-035g) have been implemented in `reconstruct-history.sh`:
+- Project detection and external import with timestamp preservation
+- Dependency graph construction and topological sort
+- Date estimation from issue content, mtimes, and interpolation
+- File-to-issue association via heuristics (mentions, mtime proximity, naming)
+- History rewriting on orphan branch with dated commits
+- Optional local LLM integration with triple-check consensus
+- Transcript-to-commit provenance linking via git notes
+
+The script now provides a complete solution for transforming flat "blob import" commits
+into story-like git histories that reflect the development narrative captured in issue files.
+
+---
+
+## Original Description
+
+### Current Behavior
 
 Projects in the delta-version repository often exist as flat "initial commit" blobs — all files added at once with no development narrative. This obscures the project's evolution and makes git log/blame useless for understanding how the project grew.
 
@@ -837,29 +857,29 @@ Target State:
 - [x] Dry-run mode shows planned commits without executing
 - [x] Both headless and interactive modes function
 
-### Phase 2 (v2)
+### Phase 2 (v2) ✅
 
 #### Project Detection & Import
-- [ ] Detect if project is inside or outside monorepo
-- [ ] Import external projects with timestamp preservation (`cp -a`)
-- [ ] Detect project state: no_git, flat_blob, sparse_history, good_history
-- [ ] Skip projects with good history (unless --force)
+- [x] Detect if project is inside or outside monorepo
+- [x] Import external projects with timestamp preservation (`cp -a`)
+- [x] Detect project state: no_git, flat_blob, sparse_history, good_history
+- [x] Skip projects with good history (unless --force)
 
 #### History Analysis
-- [ ] Script can analyze existing repository with flat blob commits
-- [ ] Dependency graph built from issue file metadata
-- [ ] Topological sort respects blocking/dependency relationships
-- [ ] File modification times used as ordering signal
+- [x] Script can analyze existing repository with flat blob commits
+- [x] Dependency graph built from issue file metadata
+- [x] Topological sort respects blocking/dependency relationships
+- [x] File modification times used as ordering signal
 
 #### Date & File Management
-- [ ] Commit dates estimated and applied correctly
-- [ ] Files associated with issues using heuristics
-- [ ] History rewritten on orphan branch (preserves original)
+- [x] Commit dates estimated and applied correctly
+- [x] Files associated with issues using heuristics
+- [x] History rewritten on orphan branch (preserves original)
 
 #### Optional LLM Integration
-- [ ] Local LLM integration for ambiguous decisions
-- [ ] Triple-check pattern for LLM consistency
-- [ ] JSON output for LLM responses (easy parsing/comparison)
+- [x] Local LLM integration for ambiguous decisions
+- [x] Triple-check pattern for LLM consistency
+- [x] JSON output for LLM responses (easy parsing/comparison)
 
 ## Risk Assessment
 - **Data Loss**: History rewriting is destructive
@@ -880,10 +900,10 @@ Target State:
 | **035a** | Project detection and external import | ✅ Complete | Detect monorepo membership, import external projects, classify project state |
 | **035b** | Dependency graph and topological sort | ✅ Complete | Parse Dependencies/Blocks fields, build graph, sort issues correctly |
 | **035c** | Date estimation and interpolation | ✅ Complete | Extract dates from issue content/mtimes, interpolate gaps, apply sanity checks |
-| **035d** | File-to-issue association heuristics | Pending | Map source files to issues via mentions, mtime proximity, naming conventions |
+| **035d** | File-to-issue association heuristics | ✅ Complete | Map source files to issues via mentions, mtime proximity, naming conventions |
 | **035e** | History rewriting on orphan branch | ✅ Complete | Create dated commits on orphan branch, preserve original history |
 | **035f** | Local LLM integration (optional) | ✅ Complete | Triple-check ambiguous decisions, JSON output, consensus validation |
-| **035g** | Transcript-to-commit provenance | Pending | Link commits to LLM sessions that produced them, git notes storage |
+| **035g** | Transcript-to-commit provenance | ✅ Complete | Link commits to LLM sessions that produced them, git notes storage |
 
 ### Implementation Order
 ```

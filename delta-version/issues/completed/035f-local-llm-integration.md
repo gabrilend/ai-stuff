@@ -179,19 +179,35 @@ systemctl stop ollama
 - **Complexity**: Medium
 - **Dependencies**: Issue 035a, 035b, 035c, 035d
 - **Blocks**: None (optional feature)
-- **Status**: In Progress
+- **Status**: COMPLETE
+- **Completed**: 2026-01-04
+
+## Completion Notes
+
+All LLM integration features implemented in `reconstruct-history.sh`:
+
+- Configuration variables at lines 37-44 with sensible defaults
+- Stats tracking with `init_llm_stats()`, `record_llm_result()`, `show_llm_stats()`, `reset_llm_stats()`
+- Core LLM functions: `query_local_llm()`, `llm_triple_check()`, `llm_get_consensus()`
+- Decision helpers: `resolve_ambiguous_ordering()`, `resolve_ambiguous_file_association()`
+- Commit message generation: `generate_commit_message_llm()`
+- CLI flags: `--llm`, `--llm-model`, `--llm-stats`, `--llm-reset-stats`
+- Graceful fallback when ollama unavailable
+- Help text fully documented
+
+Tested: `--llm-stats` displays statistics correctly.
 
 ## Success Criteria
 
-- [ ] LLM configuration variables added to script
-- [ ] `record_llm_result()` increments counters in stats file
-- [ ] `show_llm_stats()` displays statistics with percentage
-- [ ] `query_local_llm()` sends prompts to ollama
-- [ ] `llm_triple_check()` queries 3 times, returns JSON
-- [ ] `llm_get_consensus()` detects 2/3 agreement, records result
-- [ ] `resolve_ambiguous_ordering()` asks LLM for issue order
-- [ ] `--llm` flag enables LLM integration
-- [ ] `--llm-model` flag changes model
-- [ ] `--llm-stats` flag shows statistics
-- [ ] Script works normally when ollama unavailable (graceful fallback)
-- [ ] Help text documents LLM options
+- [x] LLM configuration variables added to script
+- [x] `record_llm_result()` increments counters in stats file
+- [x] `show_llm_stats()` displays statistics with percentage
+- [x] `query_local_llm()` sends prompts to ollama
+- [x] `llm_triple_check()` queries 3 times, returns JSON
+- [x] `llm_get_consensus()` detects 2/3 agreement, records result
+- [x] `resolve_ambiguous_ordering()` asks LLM for issue order
+- [x] `--llm` flag enables LLM integration
+- [x] `--llm-model` flag changes model
+- [x] `--llm-stats` flag shows statistics
+- [x] Script works normally when ollama unavailable (graceful fallback)
+- [x] Help text documents LLM options

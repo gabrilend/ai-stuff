@@ -23,6 +23,7 @@
 
 ### Design Documents
 - [Vision](../notes/vision.md) - Project vision and scope definition
+- [Keyword Markup Language Spec](keyword-markup-language-spec.md) - KML syntax for dynamic ticket templates 📝
 - [Per-Issue Transcript Generation](per-issue-transcript-generation-design.md) - Multi-level transcript caching per completed issue 📝
 
 ## Issue Tracking
@@ -71,10 +72,14 @@
 - [Issue 022: Create Integration and Workflow System](../issues/022-create-integration-and-workflow-system.md)
 
 ### History Reconstruction Issues
-- [Issue 035: Project History Reconstruction](../issues/035-project-history-reconstruction.md) 🔄
+- [Issue 035: Project History Reconstruction](../issues/completed/035-project-history-reconstruction.md) ✅
   - [Issue 035a: Project Detection and Import](../issues/completed/035a-project-detection-and-import.md) ✅
   - [Issue 035b: Dependency Graph and Topological Sort](../issues/completed/035b-dependency-graph-topological-sort.md) ✅
   - [Issue 035c: Date Estimation and Interpolation](../issues/completed/035c-date-estimation-interpolation.md) ✅
+  - [Issue 035d: File-to-Issue Association](../issues/completed/035d-file-to-issue-association.md) ✅
+  - [Issue 035e: History Rewriting on Orphan Branch](../issues/completed/035e-history-rewriting-rebase.md) ✅
+  - [Issue 035f: Local LLM Integration](../issues/completed/035f-local-llm-integration.md) ✅
+  - [Issue 035g: Transcript-to-Commit Provenance](../issues/completed/035g-transcript-to-commit-provenance.md) ✅
 - [Issue 036: Commit History Viewer](../issues/036-commit-history-viewer.md) 📋
 - [Issue 037: Project History Narrative Generator](../issues/completed/037-project-history-narrative-generator.md) ✅
 
@@ -108,7 +113,8 @@
 - [Project Progress](../issues/progress.md) - Overall progress and implementation status
 
 ## Configuration Files
-- [External Projects Configuration Template](../issues/024-external-project-directory-configuration.md#configuration-file-specification) - External directory setup
+- [External Projects Configuration](../config/external-projects.conf) - External directory setup
+- [Ticket Keywords Configuration](../config/ticket-keywords.conf) - KML keyword definitions 📝
 
 ## Templates
 - [Project CLAUDE.md Template](../assets/project-claude-md-template.md) - Source control guidelines for project CLAUDE.md files
