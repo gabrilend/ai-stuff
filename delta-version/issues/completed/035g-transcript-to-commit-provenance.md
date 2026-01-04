@@ -641,20 +641,51 @@ git notes --ref=transcript-provenance show HEAD
 - **Complexity**: Medium
 - **Dependencies**: 035a, 035c, 035e
 - **Blocks**: 040g (enhanced reasoning memory)
-- **Status**: Pending
+- **Status**: Completed (2026-01-04)
 
 ## Success Criteria
 
-- [ ] `get_claude_project_path()` correctly resolves Claude's encoded paths
-- [ ] `parse_session_metadata()` extracts timestamps and content from JSONL and MD
-- [ ] `correlate_session_to_issue()` produces sensible correlation scores
-- [ ] `find_sessions_for_issue()` returns sessions sorted by relevance
-- [ ] `attach_provenance_git_notes()` creates queryable git notes
-- [ ] `attach_provenance_sidecar()` creates valid JSON files
-- [ ] Integration with reconstruction pipeline works without errors
-- [ ] `--show-provenance` displays provenance for any commit
-- [ ] `--list-provenance` shows all commits with provenance data
-- [ ] Dry-run shows provenance preview
-- [ ] No transcripts gracefully handled (warning, continue)
-- [ ] Multiple sessions per issue correctly aggregated
-- [ ] Help text documents provenance functionality
+- [x] `get_claude_project_path()` correctly resolves Claude's encoded paths
+- [x] `parse_session_metadata()` extracts timestamps and content from JSONL and MD
+- [x] `correlate_session_to_issue()` produces sensible correlation scores
+- [x] `find_sessions_for_issue()` returns sessions sorted by relevance
+- [x] `attach_provenance_git_notes()` creates queryable git notes
+- [x] `attach_provenance_sidecar()` creates valid JSON files
+- [x] Integration with reconstruction pipeline works without errors
+- [x] `--show-provenance` displays provenance for any commit
+- [x] `--list-provenance` shows all commits with provenance data
+- [x] Dry-run shows provenance preview
+- [x] No transcripts gracefully handled (warning, continue)
+- [x] Multiple sessions per issue correctly aggregated
+- [x] Help text documents provenance functionality
+
+## Implementation Notes (2026-01-04)
+
+### Functions Added to reconstruct-history.sh
+1. `get_claude_project_path()` - Resolves URL-encoded Claude project directories
+2. `parse_session_metadata()` - Extracts session ID, timestamps, issues, files from transcripts
+3. `correlate_session_to_issue()` - Calculates correlation score using weighted factors
+4. `find_sessions_for_issue()` - Finds and ranks matching sessions above threshold
+5. `attach_provenance_git_notes()` - Stores provenance as git notes
+6. `attach_provenance_sidecar()` - Stores provenance as JSON sidecar files
+7. `attach_transcript_provenance()` - Main entry point, called after commit creation
+8. `show_commit_provenance()` - Displays provenance for a specific commit
+9. `list_provenance_commits()` - Lists all commits with provenance attached
+
+### CLI Flags Added
+- `--with-provenance` / `--no-provenance` - Enable/disable provenance linking
+- `--provenance-method` - Choose git-notes or sidecar storage
+- `--provenance-min-score` - Set minimum correlation threshold (0.0-1.0)
+- `--show-provenance [REF]` - Show provenance for a commit
+- `--list-provenance` - List all provenance-linked commits
+
+### Test Script Created
+- `scripts/test-transcript-provenance.sh` - 6-test suite validating all core functionality
+
+### Correlation Scoring Algorithm
+- Issue ID explicit mention: +40 points
+- Same day timestamp: +35 points
+- Same week: +20 points
+- Same month: +10 points
+- File overlap: +5 points per matching file (max 25)
+- Total normalized to 0.0-1.0 scale
