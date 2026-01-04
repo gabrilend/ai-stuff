@@ -578,7 +578,7 @@ while batch_start <= #valid_poem_ids do
 
         if not all_done then
             -- Use effil.sleep instead of os.execute to allow Ctrl+C interruption
-            effil.sleep(500)  -- 500ms in effil.sleep
+            effil.sleep(0.5)  -- effil.sleep takes seconds, not milliseconds
         end
     end
 
@@ -624,7 +624,7 @@ while batch_start <= #valid_poem_ids do
     -- Use effil.sleep to allow Ctrl+C interruption
     if batch_end < #valid_poem_ids then
         print(string.format("   😴 Cooling down for %d seconds...", SLEEP_BETWEEN_BATCHES))
-        effil.sleep(SLEEP_BETWEEN_BATCHES * 1000)  -- effil.sleep takes milliseconds
+        effil.sleep(SLEEP_BETWEEN_BATCHES)  -- effil.sleep takes seconds
     end
 
     batch_start = batch_end + 1
