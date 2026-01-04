@@ -189,6 +189,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 036**: Commit History Viewer (2025-01-04)
+  - TUI-based narrative browser for git history
+  - Lua implementation using framebuffer TUI library
+  - Content priority: notes → completed issues → docs → other md
+  - Vim keybindings, double-tap, position preservation
+
 - **Issue 016**: Design Keyword Markup Language (2026-01-04)
   - `][keyword[]` syntax specification for dynamic templates
   - 55+ keyword definitions across 4 categories
