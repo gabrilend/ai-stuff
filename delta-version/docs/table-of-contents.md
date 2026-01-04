@@ -11,9 +11,12 @@
 - [API Reference](api-reference.md) - Script and utility documentation
 - [Development Guide](development-guide.md) - Conventions, patterns, and best practices
 - [Issue Template](issue-template.md) - Standard template for creating issues
+- [Troubleshooting](TROUBLESHOOTING.md) - Solutions for common issues and edge cases 📝
+- [Performance Testing](performance-testing.md) - Benchmarking and optimization guide 📝
 
 ### Tool Guides
 - [History Tools Guide](history-tools-guide.md) - reconstruct-history.sh and generate-history.sh 📝
+- [External Projects Guide](external-projects-guide.md) - Configure external project directories 📝
 - [HISTORY.txt](HISTORY.txt) - Generated commit history narrative
 
 ### Design Documents
@@ -49,7 +52,7 @@
 - [Issue 005: Configure Branch Isolation](../issues/005-configure-branch-isolation.md)
 - [Issue 006: Initialize Master Branch](../issues/006-initialize-master-branch.md)
 - [Issue 007: Remote Repository Setup](../issues/007-remote-repository-setup.md)
-- [Issue 008: Validation and Documentation](../issues/008-validation-and-documentation.md)
+- [Issue 008: Validation and Documentation](../issues/completed/008-validation-and-documentation.md) ✅
 
 ### Gitignore System Issues
 - [Issue 013: Implement Validation and Testing](../issues/013-implement-validation-and-testing.md)
