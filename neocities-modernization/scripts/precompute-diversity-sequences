@@ -420,6 +420,43 @@ if TEST_MODE then
     valid_poem_ids = limited_ids
 end
 
+-- Issue 8-026: Load existing cache for incremental resume
+local cache_file = DIR .. "/assets/embeddings/embeddinggemma_latest/diversity_cache.json"
+local existing_sequences = {}
+local existing_count = 0
+
+local cache_handle = io.open(cache_file, "r")
+if cache_handle then
+    print("   📂 Found existing cache, loading for incremental resume...")
+    local cache_content = cache_handle:read("*all")
+    cache_handle:close()
+
+    local existing_cache = dkjson.decode(cache_content)
+    if existing_cache and existing_cache.sequences then
+        -- Copy existing sequences and build skip set
+        local skip_ids = {}
+        for poem_id_str, sequence in pairs(existing_cache.sequences) do
+            existing_sequences[poem_id_str] = sequence
+            skip_ids[tonumber(poem_id_str)] = true
+            existing_count = existing_count + 1
+        end
+
+        -- Filter out already-computed poem IDs
+        local remaining_ids = {}
+        for _, poem_id in ipairs(valid_poem_ids) do
+            if not skip_ids[poem_id] then
+                table.insert(remaining_ids, poem_id)
+            end
+        end
+        valid_poem_ids = remaining_ids
+
+        print(string.format("   ✅ Loaded %d existing sequences, %d remaining to compute",
+            existing_count, #valid_poem_ids))
+    end
+else
+    print("   📂 No existing cache found, starting fresh")
+end
+
 -- Now release embeddings_data - effil.table owns the data, valid_poem_ids is built
 embeddings_data = nil
 collectgarbage("collect")
@@ -641,10 +678,14 @@ end
 
 -- Collect all sequences into final cache file (from RAM, no temp files)
 print("\n📦 Building cache from RAM-stored sequences...")
+
+-- Issue 8-026: Merge existing sequences with newly computed ones
+local total_sequences = existing_count + completed
+
 local cache = {
     metadata = {
         generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-        total_sequences = completed,
+        total_sequences = total_sequences,
         algorithm = "centroid-based-diversity-incremental",  -- Issue 9-003 optimized
         embedding_dimension = embedding_dim,
         source_embeddings = "embeddinggemma_latest",
@@ -653,7 +694,13 @@ local cache = {
     sequences = {}
 }
 
--- Convert sequences from indices to poem IDs (already in RAM)
+-- First, copy existing sequences (already in poem ID format)
+for poem_id_str, sequence in pairs(existing_sequences) do
+    cache.sequences[poem_id_str] = sequence
+end
+
+-- Convert NEW sequences from indices to poem IDs and add to cache
+local newly_converted = 0
 for poem_id, sequence_indices in pairs(computed_sequences) do
     local sequence_ids = {}
     for _, idx in ipairs(sequence_indices) do
@@ -663,12 +710,13 @@ for poem_id, sequence_indices in pairs(computed_sequences) do
         end
     end
     cache.sequences[tostring(poem_id)] = sequence_ids
+    newly_converted = newly_converted + 1
 end
 
-print(string.format("   Converted %d sequences to poem IDs", completed))
+print(string.format("   Merged %d existing + %d new = %d total sequences",
+    existing_count, newly_converted, total_sequences))
 
--- Write cache file
-local cache_file = DIR .. "/assets/embeddings/embeddinggemma_latest/diversity_cache.json"
+-- Write cache file (cache_file already defined above for incremental loading)
 local cache_json = dkjson.encode(cache, {indent = false})
 local f = io.open(cache_file, "w")
 if f then
