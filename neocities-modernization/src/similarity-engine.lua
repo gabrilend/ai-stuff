@@ -436,8 +436,23 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     end
     
     local batch_size = 10
-    local completed = skipped_count -- Start with existing embeddings
-    
+    -- Issue 8-021 Fix: Track newly processed poems separately to prevent overcounting.
+    -- The bug occurred when key lookups failed due to poem_index format mismatches,
+    -- causing poems to be added to poems_to_process even though they had valid embeddings
+    -- under different keys. This led to completed = skipped_count + #poems_to_process > #poems.
+    local newly_processed = 0  -- Track only newly processed poems
+    local total_poems = #poems -- Cache for sanity checks
+
+    -- Sanity check: detect potential key mismatch (Issue 8-021)
+    -- If skipped_count + #poems_to_process > #poems, there's likely a key lookup issue
+    if skipped_count + #poems_to_process > total_poems then
+        utils.log_warn("⚠️  Potential key mismatch detected:")
+        utils.log_warn("    skipped_count (" .. skipped_count .. ") + poems_to_process (" .. #poems_to_process .. ") = " .. (skipped_count + #poems_to_process))
+        utils.log_warn("    This exceeds total poems (" .. total_poems .. ")")
+        utils.log_warn("    Some embeddings may be stored under legacy keys.")
+        utils.log_warn("    Continuing with processing - data will be correct, only counter may be affected.")
+    end
+
     -- Network error tracking
     local consecutive_errors = 0
     local total_errors = 0
@@ -446,7 +461,9 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     -- Write initial progress state (just counts, no timing)
     local user = os.getenv("USER") or "ritz"  -- fallback to ritz
     local progress_file = "/tmp/embedding_progress_" .. user .. ".txt"
-    local initial_progress = string.format("%d,%d", completed, #poems)
+    -- Issue 8-021 Fix: Use safe_completed to cap progress at total_poems
+    local safe_completed = math.min(skipped_count + newly_processed, total_poems)
+    local initial_progress = string.format("%d,%d", safe_completed, total_poems)
     local pf = io.open(progress_file, "w")
     if pf then
         pf:write(initial_progress)
@@ -476,7 +493,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                     generated_at = os.date("%Y-%m-%d %H:%M:%S"),
                     updated_at = os.date("%Y-%m-%d %H:%M:%S")
                 }
-                completed = completed + 1
+                newly_processed = newly_processed + 1  -- Issue 8-021: Track separately
             else
                 utils.log_info("Generating embedding for poem " .. poem_index .. " (ID: " .. (poem.id or "unknown") .. ")")
 
@@ -492,14 +509,16 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                         generated_at = os.date("%Y-%m-%d %H:%M:%S"),
                         updated_at = incremental and os.date("%Y-%m-%d %H:%M:%S") or nil
                     }
-                    completed = completed + 1
+                    newly_processed = newly_processed + 1  -- Issue 8-021: Track separately
                     consecutive_errors = 0  -- Reset on success
                     current_delay = network_error_config.initial_retry_delay  -- Reset delay
-                    
+
                     -- Write simple progress for bash script monitoring (just counts)
+                    -- Issue 8-021 Fix: Cap progress at total_poems to prevent overcounting
                     local user = os.getenv("USER") or "ritz"  -- fallback to ritz
                     local progress_file = "/tmp/embedding_progress_" .. user .. ".txt"
-                    local progress_data = string.format("%d,%d", completed, #poems)
+                    local safe_completed = math.min(skipped_count + newly_processed, total_poems)
+                    local progress_data = string.format("%d,%d", safe_completed, total_poems)
                     local pf = io.open(progress_file, "w")
                     if pf then
                         pf:write(progress_data)
@@ -515,20 +534,22 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                                                 poem_index, error_type))
                     
                     if consecutive_errors >= network_error_config.max_consecutive_errors then
+                        -- Issue 8-021 Fix: Use safe calculation for error reporting
+                        local safe_completed = math.min(skipped_count + newly_processed, total_poems)
                         utils.log_error("❌ NETWORK ERROR THRESHOLD EXCEEDED")
                         utils.log_error("")
                         utils.log_error("Processing terminated due to persistent network connectivity issues:")
                         utils.log_error("  • Consecutive errors: " .. consecutive_errors .. "/" .. network_error_config.max_consecutive_errors .. " (threshold exceeded)")
                         utils.log_error("  • Total session errors: " .. total_errors .. "/" .. network_error_config.max_total_errors)
-                        utils.log_error("  • Poems processed before termination: " .. completed .. "/" .. #poems)
+                        utils.log_error("  • Poems processed before termination: " .. safe_completed .. "/" .. total_poems)
                         utils.log_error("  • Last attempted poem: " .. poem_index)
                         utils.log_error("")
                         utils.log_error("The embedding cache has been preserved.")
                         utils.log_error("Restart the process when network connectivity is restored.")
-                        
+
                         -- Save progress before termination
-                        embeddings_data.metadata.completed_embeddings = completed
-                        embeddings_data.metadata.completion_rate = completed / #poems
+                        embeddings_data.metadata.completed_embeddings = safe_completed
+                        embeddings_data.metadata.completion_rate = safe_completed / total_poems
                         embeddings_data.metadata.processing_mode = "terminated_network_error"
                         embeddings_data.metadata.termination_reason = "consecutive_network_errors"
                         embeddings_data.metadata.last_error_count = consecutive_errors
@@ -568,18 +589,21 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
         
         -- Save progress periodically
         if i % 100 == 1 or batch_end == #poems_to_process then
-            local new_completed = completed - skipped_count
-            utils.log_info("Saving progress... (" .. new_completed .. " new + " .. skipped_count .. " existing = " .. completed .. " total)")
+            -- Issue 8-021 Fix: Use safe calculation for progress logging
+            local safe_completed = math.min(skipped_count + newly_processed, total_poems)
+            utils.log_info("Saving progress... (" .. newly_processed .. " new + " .. skipped_count .. " existing = " .. safe_completed .. " total)")
             if not utils.write_json_file(output_file, embeddings_data) then
                 utils.log_error("Failed to save embeddings to " .. output_file)
                 return false
             end
         end
     end
-    
-    embeddings_data.metadata.completed_embeddings = completed
-    embeddings_data.metadata.completion_rate = completed / #poems
-    embeddings_data.metadata.new_embeddings = completed - skipped_count
+
+    -- Issue 8-021 Fix: Use safe calculation for final metadata
+    local safe_completed = math.min(skipped_count + newly_processed, total_poems)
+    embeddings_data.metadata.completed_embeddings = safe_completed
+    embeddings_data.metadata.completion_rate = safe_completed / total_poems
+    embeddings_data.metadata.new_embeddings = newly_processed
     embeddings_data.metadata.reused_embeddings = skipped_count
     embeddings_data.metadata.processing_mode = incremental and "incremental" or "full_regeneration"
     -- Note: timing_data feature was planned but never implemented.
@@ -588,15 +612,15 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     utils.log_info("Embedding generation complete!")
     if incremental then
         utils.log_info("Incremental processing results:")
-        utils.log_info("  New embeddings generated: " .. (completed - skipped_count))
+        utils.log_info("  New embeddings generated: " .. newly_processed)
         utils.log_info("  Existing embeddings reused: " .. skipped_count)
-        utils.log_info("  Total embeddings: " .. completed .. " out of " .. #poems)
-        utils.log_info("  Time savings: " .. string.format("%.1f%%", (skipped_count / #poems) * 100))
+        utils.log_info("  Total embeddings: " .. safe_completed .. " out of " .. total_poems)
+        utils.log_info("  Time savings: " .. string.format("%.1f%%", (skipped_count / total_poems) * 100))
     else
         utils.log_info("Full regeneration results:")
-        utils.log_info("  Successfully generated " .. completed .. " out of " .. #poems .. " embeddings")
+        utils.log_info("  Successfully generated " .. safe_completed .. " out of " .. total_poems .. " embeddings")
     end
-    utils.log_info("Completion rate: " .. string.format("%.1f%%", (completed / #poems) * 100))
+    utils.log_info("Completion rate: " .. string.format("%.1f%%", (safe_completed / total_poems) * 100))
     
     return utils.write_json_file(output_file, embeddings_data)
 end
