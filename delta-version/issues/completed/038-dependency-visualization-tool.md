@@ -478,15 +478,22 @@ dot -Tpng deps.dot -o deps.png
 - **Complexity**: Medium
 - **Dependencies**: Issue 035b (completed)
 - **Blocks**: None
-- **Status**: Ready for implementation
+- **Status**: ✅ Complete (2026-01-04)
+
+## Implementation Notes
+
+- Script created at `delta-version/scripts/visualize-deps.sh`
+- Reuses dependency parsing logic from reconstruct-history.sh (Issue 035b)
+- Fixed bash strict mode issues with `((i++))` returning exit code 1 when i=0
+- Uses global arrays for recursive tree rendering (bash nested functions can't access parent scope associative arrays)
 
 ## Success Criteria
 
-- [ ] ASCII tree output shows correct parent-child relationships
-- [ ] DOT export produces valid Graphviz input
-- [ ] `--blocks` query shows direct and transitive blocks
-- [ ] `--depends` query shows full dependency chain
-- [ ] `--parallel` identifies concurrent work opportunities
-- [ ] `--roots` lists all issues with no dependencies
-- [ ] Help text documents all options
-- [ ] Works with both completed and pending issues (with flag)
+- [x] ASCII tree output shows correct parent-child relationships
+- [x] DOT export produces valid Graphviz input
+- [x] `--blocks` query shows direct and transitive blocks
+- [x] `--depends` query shows full dependency chain
+- [x] `--parallel` identifies concurrent work opportunities
+- [x] `--roots` lists all issues with no dependencies
+- [x] Help text documents all options
+- [x] Works with both completed and pending issues (with flag)
