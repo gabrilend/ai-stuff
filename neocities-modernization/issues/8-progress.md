@@ -36,6 +36,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-026 | Add diversity computation progress display | Completed | 2026-01-04 |
 | 8-025 | Fix diversity cache validation order bug | Completed | 2026-01-04 |
 | 8-024 | Improve similarity matrix progress display | Completed | 2026-01-04 |
 | 8-023 | Fix similarity matrix function call in run.sh | Completed | 2026-01-04 |

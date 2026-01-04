@@ -82,7 +82,7 @@ local MAX_SEQUENCE_LENGTH = 1500
 --    - Direct array access from shared memory
 --
 local function diversity_sequence_worker(poem_id, poem_index, shared_embeddings, embedding_dim,
-                                          num_poems, max_sequence_length)
+                                          num_poems, max_sequence_length, progress_table, thread_idx)
     -- {{{ Access embeddings from shared effil.table (FAST!)
     -- The main thread parsed JSON once and converted to a flat effil.table
     -- Workers access shared memory directly - no parsing, no file I/O
@@ -195,9 +195,19 @@ local function diversity_sequence_worker(poem_id, poem_index, shared_embeddings,
             local last = remaining[#remaining]
             remaining[max_remaining_idx] = last
             remaining[#remaining] = nil
+
+            -- Issue 8-026: Update progress every iteration (effil.table writes are fast)
+            if progress_table and thread_idx then
+                progress_table[thread_idx] = #sequence
+            end
         else
             break
         end
+    end
+
+    -- Issue 8-026: Mark complete
+    if progress_table and thread_idx then
+        progress_table[thread_idx] = target_length
     end
 
     -- Return sequence directly (RAM-only, no temp file)
@@ -466,6 +476,12 @@ while batch_start <= #valid_poem_ids do
 
     print(string.format("\n   Batch %d: sequences %d-%d", batch_num, batch_start, batch_end))
 
+    -- Issue 8-026: Create shared progress table for thread visualization
+    local progress_table = effil.table()
+    for i = 1, batch_size do
+        progress_table[i] = 0
+    end
+
     -- Start all threads in this batch simultaneously
     local threads = {}
     local thread_poem_ids = {}  -- Track which poem ID each thread is processing
@@ -483,13 +499,67 @@ while batch_start <= #valid_poem_ids do
             shared_embeddings,  -- Shared effil.table (JSON parsed once, instant access)
             embedding_dim,
             num_poems,
-            MAX_SEQUENCE_LENGTH  -- Limit sequence to 1,500 poems (Issue 8-020)
+            MAX_SEQUENCE_LENGTH,  -- Limit sequence to 1,500 poems (Issue 8-020)
+            progress_table,       -- Issue 8-026: Shared progress table
+            thread_idx            -- Issue 8-026: Thread index for progress slot
         )
     end
 
-    -- Wait for ALL threads in batch to complete and collect results (RAM-only)
-    -- effil.thread:get() returns the function's return values directly
-    -- Our worker returns: sequence (table) or nil, error_message (string)
+    -- Issue 8-026: Poll threads with progress display instead of blocking get()
+    local threads_done = {}
+    local all_done = false
+
+    while not all_done do
+        all_done = true
+
+        -- Check each thread's status
+        for i = 1, batch_size do
+            if not threads_done[i] then
+                -- wait(0) = non-blocking check
+                local status = threads[i]:wait(0)
+                if status == "completed" or status == true then
+                    threads_done[i] = true
+                else
+                    all_done = false
+                end
+            end
+        end
+
+        -- Display progress line
+        local progress_parts = {}
+        local total_progress = 0
+        for i = 1, batch_size do
+            local p = tonumber(progress_table[i]) or 0
+            total_progress = total_progress + p
+            if threads_done[i] then
+                table.insert(progress_parts, string.format("T%d:✓", i))
+            else
+                table.insert(progress_parts, string.format("T%d:%d", i, p))
+            end
+        end
+
+        local avg_progress = math.floor(total_progress / batch_size)
+        local elapsed = os.time() - batch_start_time
+        local bar_width = 20
+        local filled = math.floor((avg_progress / MAX_SEQUENCE_LENGTH) * bar_width)
+        local bar = string.rep("█", filled) .. string.rep("░", bar_width - filled)
+
+        io.write(string.format("\r   [%s] %d/%d avg | %s | %ds    ",
+            bar, avg_progress, MAX_SEQUENCE_LENGTH,
+            table.concat(progress_parts, " "), elapsed))
+        io.flush()
+
+        if not all_done then
+            -- Brief sleep to avoid busy-waiting
+            os.execute("sleep 0.5")
+        end
+    end
+
+    -- Clear the progress line
+    io.write("\r" .. string.rep(" ", 120) .. "\r")
+    io.flush()
+
+    -- Collect results from all threads
     for i = 1, batch_size do
         local sequence, err = threads[i]:get()
         local poem_id = thread_poem_ids[i]
