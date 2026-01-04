@@ -20,6 +20,10 @@ This document provides a hierarchical view of all project documentation.
 - `/docs/similarity-algorithm-research.md` - Comprehensive research analysis of 12 similarity algorithms for poetry embeddings
 - `/docs/similarity-matrix-generation-guide.md` - Technical documentation for similarity calculations
 
+### 🚨 Critical Path Documents
+- `/issues/CRITICAL-PATH-SIMILAR.md` - Critical path for generating similarity-based navigation pages
+- `/issues/CRITICAL-PATH-DIFFERENT.md` - Critical path for generating diversity-based navigation pages
+
 ### 📋 Issues and Progress Tracking
 - `/issues/completed/phase-1/` - Completed Phase 1 issues (foundation and data preparation)
 - `/issues/completed/phase-2/` - Completed Phase 2 issues (similarity engine development)
@@ -105,7 +109,7 @@ This document provides a hierarchical view of all project documentation.
 
 ## Document Maintenance
 
-**Last Updated**: December 25, 2025  
+**Last Updated**: January 4, 2026  
 **Maintained By**: Project development team  
 **Update Policy**: All new documents must be added to this table of contents
 
