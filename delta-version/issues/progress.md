@@ -189,6 +189,13 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 016**: Design Keyword Markup Language (2026-01-04)
+  - `][keyword[]` syntax specification for dynamic templates
+  - 55+ keyword definitions across 4 categories
+  - Parameter substitution (PARAM1-PARAM5)
+  - Specification: docs/keyword-markup-language-spec.md
+  - Config: config/ticket-keywords.conf
+
 - **Issue 038**: Dependency Visualization Tool (2026-01-04)
   - ASCII tree diagrams with status indicators (✓ ▶ ○)
   - DOT/Graphviz export for visual graphs
@@ -337,10 +344,10 @@ These issues provide foundational utilities and can be implemented independently
 
 ## Summary Statistics
 - **Total Issues**: ~57 (including sub-issues)
-- **Completed**: 26 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038)
+- **Completed**: 27 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~29 (including 040 series)
+- **Pending**: ~28 (including 040 series)
 - **High Priority**: None
 - **New (Phase 4)**: 10 (040, 040a-i)
 
