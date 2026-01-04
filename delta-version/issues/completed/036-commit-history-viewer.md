@@ -290,28 +290,54 @@ Examples:
 ## Success Criteria
 
 ### Core Functionality
-- [ ] Projects with git history can be selected from menu
-- [ ] Left/right navigation moves between commits
-- [ ] Up/down navigation scrolls within commit content
-- [ ] Content displays in priority order (notes, issues, docs, other md)
-- [ ] Commit message always visible at top
+- [x] Projects with git history can be selected from menu
+- [x] Left/right navigation moves between commits
+- [x] Up/down navigation scrolls within commit content
+- [x] Content displays in priority order (notes, issues, docs, other md)
+- [x] Commit message always visible at top
 
 ### Navigation
-- [ ] Position preserved when flipping between commits
-- [ ] Double-tap up/down jumps to top/bottom
-- [ ] Vim keybindings work (h/j/k/l)
-- [ ] Page up/down work for large content
-- [ ] g/G jump to first/last commit
+- [x] Position preserved when flipping between commits
+- [x] Double-tap up/down jumps to top/bottom
+- [x] Vim keybindings work (h/j/k/l)
+- [x] Page up/down work for large content
+- [x] g/G jump to first/last commit
 
 ### Edge Cases
-- [ ] Handles projects with single commit
-- [ ] Handles commits with no markdown content
-- [ ] Handles large files gracefully (truncation or warning)
-- [ ] Terminal resize updates layout correctly
-- [ ] Binary files are skipped with indicator
+- [x] Handles projects with single commit
+- [x] Handles commits with no markdown content
+- [x] Handles large files gracefully (truncation or warning)
+- [x] Terminal resize updates layout correctly
+- [x] Binary files are skipped with indicator
 
 ### User Experience
-- [ ] Clear visual separation between content sections
-- [ ] Navigation hints visible in footer
-- [ ] Current commit position shown (e.g., "3 of 47")
-- [ ] Loading indicator for large histories
+- [x] Clear visual separation between content sections
+- [x] Navigation hints visible in footer
+- [x] Current commit position shown (e.g., "3 of 47")
+- [ ] Loading indicator for large histories (deferred - not needed for current project sizes)
+
+## Implementation Notes (2025-01-04)
+
+### Files Created
+- `scripts/history-viewer.lua` — Main implementation in Lua
+- `scripts/history-viewer.sh` — Bash wrapper for invocation
+
+### Technology
+- Written in Lua (LuaJIT) using existing `scripts/libs/tui.lua` framebuffer library
+- Single-file implementation (no sub-issue modularization needed)
+
+### Features Implemented
+- Interactive project selection with commit counts
+- Chronological commit navigation (oldest first)
+- Content extraction with priority ordering (notes → completed issues → docs → other md)
+- Section headers with color coding (yellow/green/blue/magenta)
+- Double-tap detection for jump-to-top/bottom
+- Position preservation when navigating between commits
+- Terminal resize handling
+
+### Usage
+```bash
+./scripts/history-viewer.sh                    # Interactive project selection
+./scripts/history-viewer.sh delta-version      # View specific project
+./scripts/history-viewer.sh -p delta-version   # Same as above
+```

@@ -363,6 +363,46 @@ delta-version/scripts/visualize-deps.sh /path/to/project --parallel
 
 ---
 
+## History Viewer
+
+### history-viewer.sh
+
+Browse project git history as a readable narrative with vim-style navigation.
+
+```bash
+# Interactive project selection
+delta-version/scripts/history-viewer.sh
+
+# View specific project
+delta-version/scripts/history-viewer.sh delta-version
+
+# Start at specific commit
+delta-version/scripts/history-viewer.sh --project delta-version --commit abc123f
+```
+
+**Navigation:**
+
+| Key | Action |
+|-----|--------|
+| ←/h | Previous commit (older) |
+| →/l | Next commit (newer) |
+| ↑/k | Scroll up |
+| ↓/j | Scroll down |
+| ↑↑/kk | Jump to top (double-tap) |
+| ↓↓/jj | Jump to bottom (double-tap) |
+| PgUp/PgDn | Scroll page |
+| g/G | First/last commit |
+| q/Esc | Quit |
+
+**Content Priority:** For each commit, content is displayed in this order:
+1. Commit message
+2. Notes (`notes/` directory)
+3. Completed issues (`issues/completed/` only — not root-level plans)
+4. Documentation (`docs/` directory)
+5. Other markdown files
+
+---
+
 ## Quick Reference
 
 ### New Project Checklist
