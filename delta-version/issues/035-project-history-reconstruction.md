@@ -881,8 +881,9 @@ Target State:
 | **035b** | Dependency graph and topological sort | ✅ Complete | Parse Dependencies/Blocks fields, build graph, sort issues correctly |
 | **035c** | Date estimation and interpolation | ✅ Complete | Extract dates from issue content/mtimes, interpolate gaps, apply sanity checks |
 | **035d** | File-to-issue association heuristics | Pending | Map source files to issues via mentions, mtime proximity, naming conventions |
-| **035e** | History rewriting on orphan branch | Pending | Create dated commits on orphan branch, preserve original history |
-| **035f** | Local LLM integration (optional) | Pending | Triple-check ambiguous decisions, JSON output, consensus validation |
+| **035e** | History rewriting on orphan branch | ✅ Complete | Create dated commits on orphan branch, preserve original history |
+| **035f** | Local LLM integration (optional) | ✅ Complete | Triple-check ambiguous decisions, JSON output, consensus validation |
+| **035g** | Transcript-to-commit provenance | Pending | Link commits to LLM sessions that produced them, git notes storage |
 
 ### Implementation Order
 ```
@@ -894,5 +895,7 @@ Target State:
                                                     │
                                                     └──▶ 035e (history rewrite)
                                                                 │
-                                                                └──▶ 035f (LLM - optional)
+                                                    ┌───────────┴───────────┐
+                                                    │                       │
+                                            035f (LLM - optional)    035g (transcript provenance)
 ```
