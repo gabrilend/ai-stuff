@@ -18,6 +18,7 @@
 
 ### Design Documents
 - [Vision](../notes/vision.md) - Project vision and scope definition
+- [Per-Issue Transcript Generation](per-issue-transcript-generation-design.md) - Multi-level transcript caching per completed issue 📝
 
 ## Issue Tracking
 
