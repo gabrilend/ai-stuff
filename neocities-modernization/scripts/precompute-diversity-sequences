@@ -569,8 +569,9 @@ while batch_start <= #valid_poem_ids do
         local filled = math.floor((avg_progress / MAX_SEQUENCE_LENGTH) * bar_width)
         local bar = string.rep("█", filled) .. string.rep("░", bar_width - filled)
 
-        -- Clear line with spaces, then carriage return, then write new content
-        io.write("\r" .. string.rep(" ", 140) .. "\r")
+        -- Clear current line using ANSI escape code, then write new content
+        -- \27[2K = erase entire line, \r = carriage return to start
+        io.write("\27[2K\r")
         io.write(string.format("   [%s] %d/%d avg | %s | %ds",
             bar, avg_progress, MAX_SEQUENCE_LENGTH,
             table.concat(progress_parts, " "), elapsed))
@@ -583,7 +584,7 @@ while batch_start <= #valid_poem_ids do
     end
 
     -- Clear the progress line
-    io.write("\r" .. string.rep(" ", 120) .. "\r")
+    io.write("\27[2K\r")
     io.flush()
 
     -- Collect results from all threads
