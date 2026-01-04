@@ -702,15 +702,7 @@ local poems_per_page_used = POEMS_PER_PAGE or 100
 print(string.format("   Sequence limit: %d poems (%d pages × %d poems/page)",
     MAX_SEQUENCE_LENGTH, pages_used, poems_per_page_used))
 print(string.format("   With %d-second sleep every %d sequences", SLEEP_BETWEEN_BATCHES, NUM_THREADS))
-print("   ⚡ Optimizations (Issue 9-003):")
-print(string.format("      - Sequence limit %s (vs 7,999): fewer iterations",
-    MAX_SEQUENCE_LENGTH < 7999 and tostring(MAX_SEQUENCE_LENGTH) or "none"))
-print("      - Shared effil.table (JSON parsed once, shared via memory)")
-print("      - Direct array access (no table creation per iteration)")
-print("      - Pre-computed embedding start indices")
-print("      - Swap-and-pop O(1) removal instead of table.remove O(n)")
-print("      - Reduced thermal sleep (5s → 1s)")
-print("      - Increased default threads (4 → 8)")
+print("   📁 Progress saved after each batch (Ctrl+C safe)")
 
 -- Pre-computation (MULTI-THREADED phase)
 print("\n🚀 Starting diversity sequence pre-computation (MULTI-THREADED)...")
@@ -887,6 +879,47 @@ while batch_start <= #valid_poem_ids do
 
     print(string.format("   ✅ Batch complete: %d/%d total (%.2f seq/min, ETA: %.1f hours)",
         completed, #valid_poem_ids, rate * 60, eta_hours))
+
+    -- Issue 8-027: Incremental save after each batch (Ctrl+C safe)
+    -- Merge newly computed sequences into existing_sequences and save to disk
+    local batch_save_count = 0
+    for poem_id, sequence_indices in pairs(computed_sequences) do
+        -- Convert indices to poem IDs
+        local sequence_ids = {}
+        for _, idx in ipairs(sequence_indices) do
+            local pid = index_to_poem_id[idx]
+            if pid then
+                table.insert(sequence_ids, pid)
+            end
+        end
+        existing_sequences[tostring(poem_id)] = sequence_ids
+        batch_save_count = batch_save_count + 1
+    end
+    computed_sequences = {}  -- Clear after merging
+
+    -- Build and save cache
+    local save_cache = {
+        metadata = {
+            generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+            total_sequences = existing_count + completed,
+            algorithm = "centroid-based-diversity-incremental",
+            algorithm_version = "centroid-v1",
+            sequence_limit = MAX_SEQUENCE_LENGTH,
+            min_sequence_length = MAX_SEQUENCE_LENGTH,  -- Will be recalculated at end
+            embedding_dimension = embedding_dim,
+            source_embeddings = "embeddinggemma_latest",
+            optimization_notes = "Incremental running sum, no division, RAM-only storage"
+        },
+        sequences = existing_sequences
+    }
+    local save_json = dkjson.encode(save_cache, {indent = false})
+    local save_f = io.open(cache_file, "w")
+    if save_f then
+        save_f:write(save_json)
+        save_f:close()
+        io.write(string.format("   💾 Saved %d sequences to cache\n", existing_count + completed))
+        io.flush()
+    end
 
     -- Thermal management: sleep before next batch (unless this is the last batch)
     -- Use effil.sleep to allow Ctrl+C interruption
