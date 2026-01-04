@@ -31,12 +31,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-012 | Implement paginated similarity chapters | **In Progress** | High |
 | 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **Open** | High |
-| 8-027 | Implement extendable diversity cache | Open | Medium |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-028 | Clean output directory of test/demo files | Completed | 2026-01-04 |
+| 8-027 | Implement extendable diversity cache | Completed | 2026-01-04 |
 | 8-026 | Add diversity computation progress display | Completed | 2026-01-04 |
 | 8-025 | Fix diversity cache validation order bug | Completed | 2026-01-04 |
 | 8-024 | Improve similarity matrix progress display | Completed | 2026-01-04 |
@@ -64,10 +65,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Phase 3: Embedding Integration - complete (2025-12-25)
   - `--generate-embeddings` flag with freshness checks
   - `--model` option for model selection
+  - All 7,797 poems have embeddings (100% complete as of 2026-01-04)
 - ✅ Phase 4: Similarity Matrix Integration - complete (2025-12-25)
   - `--generate-similarity` flag with dependency validation
+  - Currently 1,671 of 7,797 files generated (21%)
 - ✅ Phase 5: Diversity Cache Integration - complete (2025-12-25)
   - `--generate-diversity` flag with freshness checks
+  - Extendable cache with incremental saves implemented (8-027)
 - ✅ Phase 6: Pipeline Orchestration - complete (2025-12-25)
   - `--full` runs all 10 stages, `--all` runs fast stages (1-5, 9-10)
   - TUI updated with new stages (marked ⚠️ for expensive ones)
