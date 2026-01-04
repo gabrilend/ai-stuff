@@ -119,31 +119,32 @@ Option C: Read from config
 
 ## Implementation Steps
 
-### Phase A: Metadata Tracking
-- [ ] Add `sequence_limit`, `min_sequence_length`, `algorithm_version` to cache metadata
-- [ ] Add `embeddings_file_size` for staleness detection
-- [ ] Update cache writing to include new fields
+### Phase A: Metadata Tracking ✅
+- [x] Add `sequence_limit`, `min_sequence_length`, `algorithm_version` to cache metadata
+- [x] Add `embeddings_file_size` for staleness detection
+- [x] Update cache writing to include new fields
 
-### Phase B: CLI Flag Support
-- [ ] Add `--sequence-limit=N` argument parsing
-- [ ] Add logic to derive from `--pages` and `--poems-per-page` if provided
-- [ ] Fall back to config file, then default
+### Phase B: CLI Flag Support ✅
+- [x] Add `--sequence-limit=N` argument parsing (highest precedence)
+- [x] Add logic to derive from `--pages` and `--poems-per-page` if provided
+- [x] Add `--force` flag for full regeneration
+- [x] Fall back to default (1500)
 
-### Phase C: Truncation Support
-- [ ] Detect when requested_limit < existing_limit
-- [ ] Implement fast array slicing (no recomputation)
-- [ ] Skip embedding loading entirely for truncation
+### Phase C: Truncation Support ✅
+- [x] Detect when requested_limit < existing_limit
+- [x] Implement fast array slicing (no recomputation)
+- [x] Skip embedding loading entirely for truncation (conditional block)
 
-### Phase D: Extension Support
-- [ ] Detect when requested_limit > existing_limit
-- [ ] Implement running_sum reconstruction from existing sequence
-- [ ] Continue algorithm from existing length to requested length
-- [ ] Preserve thread-based parallelism for extension
+### Phase D: Extension Support ✅
+- [x] Detect when requested_limit > existing_limit
+- [x] Implement running_sum reconstruction from existing sequence
+- [x] Continue algorithm from existing length to requested length
+- [x] Preserve thread-based parallelism for extension (pass effil.table)
 
-### Phase E: Edge Cases
-- [ ] Handle mixed-length sequences (some extended, some not)
-- [ ] Warn if embeddings appear modified (file size changed)
-- [ ] Handle new poems added (partial regeneration vs full)
+### Phase E: Edge Cases ✅
+- [x] Handle mixed-length sequences (extension only extends short ones)
+- [x] Warn if embeddings appear modified (file size changed)
+- [x] Handle legacy cache format (no sequence_limit metadata)
 
 ## Edge Cases
 
@@ -186,8 +187,25 @@ Option C: Read from config
 
 **Created**: 2026-01-04
 
-**Status**: Open
+**Status**: Complete
+
+**Completed**: 2026-01-04
 
 **Type**: Enhancement
 
 **Estimated Effort**: Medium (2-4 hours)
+
+## Implementation Notes
+
+Key code changes in `scripts/precompute-diversity-sequences`:
+
+1. **Metadata tracking**: Cache now stores `sequence_limit`, `min_sequence_length`, `algorithm_version`, and `embeddings_file_size`
+
+2. **Operation mode detection**: On cache load, compares `existing_sequence_limit` vs `MAX_SEQUENCE_LENGTH` to determine:
+   - TRUNCATION mode (instant slice)
+   - EXTENSION mode (continue algorithm)
+   - SAME mode (standard incremental resume)
+
+3. **Extension worker**: Modified `diversity_sequence_worker()` to accept optional `existing_sequence` parameter. Reconstructs `running_sum` from existing sequence in O(N × 768), then continues algorithm.
+
+4. **Truncation early exit**: Uses `skip_computation` flag to bypass embedding loading and thread pool when only slicing is needed
