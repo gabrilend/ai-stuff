@@ -678,6 +678,10 @@ end
 -- }}}
 
 -- {{{ function M.calculate_similarity_matrix
+-- DEPRECATED (Issue 8-029): This function generates a top-N array format that is incompatible
+-- with the HTML generator. Use calculate_full_similarity_matrix() instead, which generates
+-- the full pairwise format required by flat-html-generator.lua and other consumers.
+-- Kept for reference and potential future use cases where top-N is sufficient.
 function M.calculate_similarity_matrix(embeddings_file, output_file, top_n, force_regenerate)
     top_n = top_n or 10
     force_regenerate = force_regenerate or false

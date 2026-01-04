@@ -179,18 +179,20 @@
 - ✅ Rename "unique" to "different" for clarity
 - ✅ Image integration (532 images with lazy loading)
 - ✅ Freshness checking for extraction and generation
-- ❌ Generation of all similarity-sorted pages (6 of 7,793)
-- ❌ Generation of all diversity-sorted pages (4 of 7,793)
-- ❌ Complete embeddings for all poems (missing 1,132)
+- ✅ Complete embeddings for all poems (7,797 of 7,797)
+- 🔄 Similarity matrix generation (1,671 of 7,797 files)
+- ❌ Generation of all similarity-sorted pages (6 of 7,797)
+- ❌ Generation of all diversity-sorted pages (4 of 7,797)
 
 ### Key Milestones:
 1. ✅ Rename "unique" terminology to "different" throughout codebase
 2. ✅ Integrate `flat-html-generator.lua` into automated pipeline
 3. ✅ Implement freshness checking (skip unchanged data)
 4. ✅ Integrate images into HTML output
-5. ❌ Complete embedding generation (blocked by network error recovery)
-6. ❌ Generate ~15,590 HTML files for complete website
-7. ❌ Verify all navigation links are functional
+5. ✅ Complete embedding generation (7,797 poems)
+6. 🔄 Calculate similarity matrix for all poems
+7. ❌ Generate ~15,590 HTML files for complete website
+8. ❌ Verify all navigation links are functional
 
 **Active Issues:**
 - `8-001-integrate-complete-html-generation-into-pipeline.md` (Steps 1-3 ✅, Step 4 pending)
@@ -211,7 +213,7 @@
 
 ## Deployment Readiness Assessment 📊
 
-**Last Updated**: 2025-12-23
+**Last Updated**: 2026-01-04
 
 This section tracks progress toward deploying the complete website to Neocities.
 
@@ -219,12 +221,12 @@ This section tracks progress toward deploying the complete website to Neocities.
 
 | Component | Current | Required | % Complete | Blocker? |
 |-----------|---------|----------|------------|----------|
-| Poems corpus | 7,793 | 7,793 | ✅ 100% | No |
-| Embeddings | 6,661 | 7,793 | ❌ 85% | **YES** |
-| Similarity matrix | 71 files | 7,793 files | ❌ 1% | **YES** |
-| Diversity cache | 0 | 1 file | ❌ 0% | Optional |
-| Similar pages | 6 | 7,793 | ❌ 0.07% | Blocked |
-| Different pages | 4 | 7,793 | ❌ 0.05% | Blocked |
+| Poems corpus | 7,797 | 7,797 | ✅ 100% | No |
+| Embeddings | 7,797 | 7,797 | ✅ 100% | No |
+| Similarity matrix | 1,671 files | 7,797 files | 🔄 21% | **YES** |
+| Diversity cache | In progress | 1 file | 🔄 Partial | Optional |
+| Similar pages | 6 | 7,797 | ❌ 0.08% | Blocked |
+| Different pages | 4 | 7,797 | ❌ 0.05% | Blocked |
 | Chronological index | 1 | 1 | ✅ 100% | No |
 | Numeric index | 1 | 1 | ✅ 100% | No |
 | Explore page | 1 | 1 | ✅ 100% | No |
@@ -238,28 +240,27 @@ output/
 ├── numeric-index.html      (282 KB)    ✅ Complete
 ├── explore.html            (1 KB)      ✅ Complete
 ├── similar/
-│   ├── 001.html ... 7793.html          ❌ 6 of 7,793 (0.07%)
-│   └── (expected: ~6 MB each × 7,793 = ~47 GB)
+│   ├── 001.html ... 7797.html          ❌ 6 of 7,797 (0.08%)
+│   └── (expected: ~6 MB each × 7,797 = ~47 GB)
 ├── different/
-│   ├── 001.html ... 7793.html          ❌ 4 of 7,793 (0.05%)
-│   └── (expected: ~6 MB each × 7,793 = ~47 GB)
+│   ├── 001.html ... 7797.html          ❌ 4 of 7,797 (0.05%)
+│   └── (expected: ~6 MB each × 7,797 = ~47 GB)
 └── input/media_attachments/            ✅ 639 MB (532 images)
 
-Total HTML files expected: ~15,590
+Total HTML files expected: ~15,598
 Total output size expected: ~95 GB
 ```
 
 ### Deployment Pipeline Steps
 
-**Step 1: Complete Embeddings** ❌ BLOCKED
-- Missing: 1,132 embeddings (poems added after Nov 2025 network error)
+**Step 1: Complete Embeddings** ✅ COMPLETE
+- All 7,797 poems have embeddings (100% completion rate)
+- Last generated: 2026-01-04
 - Tool: `./generate-embeddings.sh`
-- Requires: Ollama running with EmbeddingGemma:latest
-- Est. time: ~5 minutes per 100 poems = ~1 hour
 
-**Step 2: Calculate Similarity Matrix** ❌ BLOCKED (depends on Step 1)
+**Step 2: Calculate Similarity Matrix** 🔄 IN PROGRESS (21% complete)
 - Tool: `lua src/similarity-engine-parallel.lua`
-- Generates: 7,793 individual similarity JSON files
+- Generates: 7,797 individual similarity JSON files
 - Est. time: 1-2 hours (8 threads)
 
 **Step 3: Pre-compute Diversity Cache** ⏸️ OPTIONAL (speeds up Step 4)
