@@ -11,18 +11,26 @@ for i = 1, #arg do
 Usage: generate-html-parallel [DIR] [OPTIONS]
 
 Options:
-  --test           Generate only first 10 pages (for testing)
-  --similar-only   Generate only similarity pages
-  --different-only Generate only difference pages
-  --incremental    Skip poems that already have HTML files
-  --threads=N      Number of parallel threads (default: 8)
-  -h, --help       Show this help message
+  --test             Generate only first 10 poems (for quick testing)
+  --similar-only     Generate only similarity pages
+  --different-only   Generate only difference pages
+  --incremental      Skip poems that already have HTML files
+  --threads=N        Number of parallel threads (default: 8)
+
+Pagination Options:
+  --pages=N          Number of pages worth of poems to include (default: from config)
+  --poems-per-page=N Poems per page (default: from config, 100)
+                     Total poems shown = pages × poems-per-page
+
+  -h, --help         Show this help message
 
 Examples:
-  generate-html-parallel                      # Default: 8 threads, all pages
-  generate-html-parallel . 4                  # 4 threads
+  generate-html-parallel                      # Default: 8 threads, all poems
+  generate-html-parallel . --threads=4        # 4 threads
   generate-html-parallel . --incremental      # Skip existing files
   generate-html-parallel . --similar-only     # Only similarity pages
+  generate-html-parallel . --pages=1          # Show only top 100 poems per file
+  generate-html-parallel . --pages=5 --poems-per-page=50  # Top 250 poems
 ]])
         os.exit(0)
     end
@@ -82,7 +90,10 @@ local function parse_args(args)
         similar_only = false,
         different_only = false,
         incremental = false,  -- Skip existing files
-        help = false
+        help = false,
+        -- Issue 8-022: Pagination CLI flags (nil means use config defaults)
+        pages = nil,           -- Number of pages worth of poems to show
+        poems_per_page = nil   -- Poems per page
     }
 
     local i = 1
@@ -100,6 +111,23 @@ local function parse_args(args)
             opts.help = true
         elseif a:match("^--threads=") then
             opts.threads = tonumber(a:match("^--threads=(%d+)")) or 8
+        -- Issue 8-022: Parse pagination flags
+        elseif a:match("^--pages=") then
+            local val = tonumber(a:match("^--pages=(%d+)"))
+            if val and val > 0 then
+                opts.pages = val
+            else
+                print("Error: --pages requires a positive integer")
+                os.exit(1)
+            end
+        elseif a:match("^--poems%-per%-page=") then
+            local val = tonumber(a:match("^--poems%-per%-page=(%d+)"))
+            if val and val > 0 then
+                opts.poems_per_page = val
+            else
+                print("Error: --poems-per-page requires a positive integer")
+                os.exit(1)
+            end
         elseif a:match("^%d+$") then
             opts.threads = tonumber(a)
         elseif a:sub(1, 1) ~= "-" then
@@ -122,13 +150,48 @@ local SIMILARITY_ONLY = OPTS.similar_only
 local DIFFERENCE_ONLY = OPTS.different_only
 local INCREMENTAL_MODE = OPTS.incremental
 local MAX_TEST_PAGES = 10
-local DIVERSITY_LIMIT = 0  -- 0 = all poems, or set to limit diversity sequence length
 local USE_CACHE = true  -- Use pre-computed diversity sequences if available
 
 -- Update DIR if provided in args
 if OPTS.dir then
     DIR = OPTS.dir
 end
+
+-- {{{ Issue 8-022: Load pagination config and apply CLI overrides
+local function load_pagination_config()
+    local config_file = DIR .. "/config/input-sources.json"
+    local config = utils.read_json_file(config_file)
+
+    -- Default values (fallback if config missing)
+    local pagination = {
+        poems_per_page = 100,
+        max_pages_per_poem = 15  -- 0 means all poems (no limit)
+    }
+
+    -- Load from config file
+    if config and config.pagination then
+        pagination.poems_per_page = config.pagination.poems_per_page or pagination.poems_per_page
+        pagination.max_pages_per_poem = config.pagination.max_pages_per_poem or pagination.max_pages_per_poem
+    end
+
+    -- CLI overrides (Issue 8-022)
+    if OPTS.poems_per_page then
+        pagination.poems_per_page = OPTS.poems_per_page
+    end
+    if OPTS.pages then
+        pagination.max_pages_per_poem = OPTS.pages
+    end
+
+    return pagination
+end
+
+local PAGINATION = load_pagination_config()
+
+-- Calculate max poems to include in each generated file
+-- 0 means no limit (show all poems)
+local MAX_POEMS_TO_SHOW = PAGINATION.max_pages_per_poem * PAGINATION.poems_per_page
+local DIVERSITY_LIMIT = MAX_POEMS_TO_SHOW  -- Limit diversity sequence to same amount
+-- }}}
 
 -- Color configuration (shared)
 local COLOR_CONFIG = {
@@ -143,8 +206,10 @@ local COLOR_CONFIG = {
 
 -- {{{ Worker function for similarity page generation
 -- Note: This function must not capture any upvalues - all data passed as parameters
+-- Issue 8-022: Added max_poems_to_show parameter to limit output size
 local function similarity_worker(poem_id, poem_content, poem_category, similarities_for_poem,
-                                  all_poems_array, poem_colors_table, max_poem_id, output_dir)
+                                  all_poems_array, poem_colors_table, max_poem_id, output_dir,
+                                  max_poems_to_show)
     -- CRITICAL FIX: Copy effil.tables to local Lua tables at worker start
     -- This avoids catastrophic IPC overhead (17B accesses → single O(n) copy)
     -- See issue 8-002 "Bug 2: Catastrophic effil.table Access Overhead"
@@ -197,7 +262,10 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
         return a.similarity > b.similarity
     end)
 
-    for _, p in ipairs(other_poems) do
+    -- Issue 8-022: Limit poems to max_poems_to_show (includes starting poem)
+    local poems_limit = max_poems_to_show > 0 and (max_poems_to_show - 1) or #other_poems
+    for i, p in ipairs(other_poems) do
+        if i > poems_limit then break end
         table.insert(ranked_poems, p)
     end
 
@@ -481,13 +549,17 @@ end
 
 -- {{{ Worker function for cached difference page generation (uses pre-computed sequences)
 -- Much faster than on-the-fly computation - just looks up poem data and generates HTML
+-- Issue 8-022: Added max_poems_to_show parameter to limit output size
 local function cached_diversity_worker(poem_id, diversity_sequence, all_poems_lookup,
-                                        poem_colors_table, max_poem_id, output_dir)
+                                        poem_colors_table, max_poem_id, output_dir,
+                                        max_poems_to_show)
     -- CRITICAL FIX: Copy effil.tables to local Lua tables at worker start
     -- See issue 8-002 "Bug 2: Catastrophic effil.table Access Overhead"
 
+    -- Issue 8-022: Limit sequence length based on pagination settings
+    local sequence_limit = max_poems_to_show > 0 and max_poems_to_show or #diversity_sequence
     local local_sequence = {}
-    for i = 1, #diversity_sequence do
+    for i = 1, math.min(#diversity_sequence, sequence_limit) do
         local_sequence[i] = diversity_sequence[i]
     end
 
@@ -578,10 +650,17 @@ print("Multi-threaded HTML Generation")
 print("=" .. string.rep("=", 60))
 print(string.format("Project directory: %s", relative_path(DIR)))
 print(string.format("Thread count: %d", NUM_THREADS))
-local mode_desc = TEST_MODE and "test (first " .. MAX_TEST_PAGES .. " pages)" or
+local mode_desc = TEST_MODE and "test (first " .. MAX_TEST_PAGES .. " poems)" or
                   SIMILARITY_ONLY and "similarity only" or
                   DIFFERENCE_ONLY and "difference only" or "full"
 print(string.format("Mode: %s", mode_desc))
+-- Issue 8-022: Display pagination settings
+if MAX_POEMS_TO_SHOW > 0 then
+    print(string.format("Pagination: %d pages × %d poems = %d poems per file",
+        PAGINATION.max_pages_per_poem, PAGINATION.poems_per_page, MAX_POEMS_TO_SHOW))
+else
+    print("Pagination: unlimited (all poems)")
+end
 
 -- Load data files
 print("\n🔄 Loading data files...")
@@ -959,6 +1038,7 @@ if not DIFFERENCE_ONLY then
 
                 thread_idx = thread_idx + 1
                 batch_poem_ids[thread_idx] = poem_id
+                -- Issue 8-022: Pass max_poems_to_show for pagination control
                 batch_threads[thread_idx] = effil.thread(similarity_worker)(
                     poem_id,
                     poem.content or "",
@@ -967,7 +1047,8 @@ if not DIFFERENCE_ONLY then
                     shared_poems_array,
                     shared_colors,
                     max_poem_id,
-                    output_dir
+                    output_dir,
+                    MAX_POEMS_TO_SHOW
                 )
             end
         end
@@ -1062,13 +1143,15 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
 
                     thread_idx = thread_idx + 1
                     batch_poem_ids[thread_idx] = poem_id
+                    -- Issue 8-022: Pass max_poems_to_show for pagination control
                     batch_threads[thread_idx] = effil.thread(cached_diversity_worker)(
                         poem_id,
                         shared_sequence,
                         shared_poem_content,
                         shared_colors,
                         max_poem_id,
-                        output_dir
+                        output_dir,
+                        MAX_POEMS_TO_SHOW
                     )
                 end
             else

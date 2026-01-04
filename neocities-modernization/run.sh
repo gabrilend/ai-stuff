@@ -72,6 +72,10 @@ Stage Configuration:
   --force             Force regeneration even if files are fresh
   --model NAME        Embedding model name (default: embeddinggemma:latest)
 
+Pagination (HTML Generation):
+  --pages N           Pages per poem (default: from config, 15)
+  --poems-per-page N  Poems per page (default: from config, 100)
+
 Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
@@ -94,6 +98,7 @@ Examples:
   ./run.sh --generate-embeddings        # Only generate embeddings
   ./run.sh --parse --generate-html      # Parse then generate HTML
   ./run.sh --generate-html --threads 8  # HTML with 8 threads
+  ./run.sh --generate-html --pages 5    # Generate top 500 poems per file
   ./run.sh --all --dry-run              # Preview what would run
   ./run.sh -I                           # Interactive TUI mode
 
@@ -131,6 +136,9 @@ QUIET=false
 VERBOSE=false
 DRY_RUN=false
 MODEL_NAME="embeddinggemma:latest"
+# Issue 8-022: Pagination settings for HTML generation
+PAGES=""
+POEMS_PER_PAGE=""
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -191,6 +199,23 @@ while [[ $# -gt 0 ]]; do
             ;;
         --model=*)
             MODEL_NAME="${1#*=}"
+            shift
+            ;;
+        # Issue 8-022: Pagination flags for HTML generation
+        --pages)
+            PAGES="$2"
+            shift 2
+            ;;
+        --pages=*)
+            PAGES="${1#*=}"
+            shift
+            ;;
+        --poems-per-page)
+            POEMS_PER_PAGE="$2"
+            shift 2
+            ;;
+        --poems-per-page=*)
+            POEMS_PER_PAGE="${1#*=}"
             shift
             ;;
         # Stage flags
@@ -579,12 +604,23 @@ run_generate_html() {
         threads_arg="--threads $THREADS"
     fi
 
+    # Issue 8-022: Pagination arguments
+    local pages_arg=""
+    if [ -n "$PAGES" ]; then
+        pages_arg="--pages $PAGES"
+    fi
+
+    local poems_per_page_arg=""
+    if [ -n "$POEMS_PER_PAGE" ]; then
+        poems_per_page_arg="--poems-per-page $POEMS_PER_PAGE"
+    fi
+
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $ASSETS_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $ASSETS_ARG || {
+    luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $ASSETS_ARG || {
         echo "Error: HTML generation failed" >&2
         exit 1
     }
@@ -664,6 +700,11 @@ interactive_mode_tui() {
     menu_add_section "config" "multi" "Configuration"
     menu_add_item "config" "threads" "Thread Count" "flag" "4:2" \
         "Thread count for parallel HTML generation (type 1-16)" "t" "--threads"
+    # Issue 8-022: Pagination options for HTML generation
+    menu_add_item "config" "pages" "Pages per Poem" "flag" ":2" \
+        "Pages to generate per poem (default: from config, 15)" "p" "--pages"
+    menu_add_item "config" "poems_per_page" "Poems per Page" "flag" ":3" \
+        "Poems per page (default: from config, 100)" "y" "--poems-per-page"
     menu_add_item "config" "force" "Force Regeneration" "checkbox" "0" \
         "Force regeneration even if files are fresh" "f" "--force"
     menu_add_item "config" "dry_run" "Dry Run" "checkbox" "0" \
@@ -703,6 +744,9 @@ interactive_mode_tui() {
             local html_val=$(menu_get_value "generate_html")
             local index_val=$(menu_get_value "generate_index")
             local threads_val=$(menu_get_value "threads")
+            # Issue 8-022: Get pagination values from TUI
+            local pages_val=$(menu_get_value "pages")
+            local poems_per_page_val=$(menu_get_value "poems_per_page")
             local force_val=$(menu_get_value "force")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
@@ -721,6 +765,9 @@ interactive_mode_tui() {
 
             # Config flags
             [[ -n "$threads_val" && "$threads_val" != "0" ]] && THREADS="$threads_val"
+            # Issue 8-022: Set pagination values from TUI
+            [[ -n "$pages_val" && "$pages_val" != "0" ]] && PAGES="$pages_val"
+            [[ -n "$poems_per_page_val" && "$poems_per_page_val" != "0" ]] && POEMS_PER_PAGE="$poems_per_page_val"
             [[ "$force_val" == "1" ]] && FORCE=true || FORCE=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
