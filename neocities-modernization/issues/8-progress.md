@@ -36,6 +36,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-023 | Fix similarity matrix function call in run.sh | Completed | 2026-01-04 |
 | 8-022 | Add pagination CLI flags to HTML generation | Completed | 2026-01-04 |
 | 8-021 | Fix embedding progress counter overcounting | Completed | 2026-01-04 |
 | 8-019 | Implement unique poem_index system | Completed | 2025-12-25 |
