@@ -4,6 +4,7 @@
 
 ### Core Documentation
 - [README](../README.md) - Project overview and quick reference 📝
+- [Delta Guide](delta-guide.md) - Comprehensive maintainer guide (symlinked to all projects)
 - [Quick Start](QUICK-START.md) - Get up and running in 5 minutes 📝
 - [Project Structure](project-structure.md) - Delta-Version directory organization and scope
 - [Development Roadmap](roadmap.md) - Sequential development phases and feature planning
