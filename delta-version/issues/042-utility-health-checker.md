@@ -1,4 +1,14 @@
-# Issue 042: Utility Health Checker and Auto-Remediation System
+# Issue 042: Project Integration Checker and Auto-Remediation System
+
+## Vision
+
+Delta-version should serve as the **connective tissue** that brings all monorepo projects together. This tool audits projects for integration opportunities, missing metadata, and shared utility adoption - then either fixes issues programmatically or creates issue files for project maintainers.
+
+**Current adoption stats:**
+- 21 projects discovered
+- 20 have delta-guide.md symlinks (95%)
+- 1 has project.meta.json (5%)
+- 11 have llm-transcripts directories
 
 ## Current Behavior
 
@@ -318,3 +328,304 @@ This tool embodies the principle from CLAUDE.md:
 > fallbacks if they are present"
 
 Rather than silently degrading, this tool makes problems visible and actionable.
+
+---
+
+## Part 2: Project Integration Checks
+
+Beyond checking delta-version's own utilities, this tool audits **all projects** in the monorepo for integration opportunities.
+
+### Integration Check Categories
+
+#### 1. Delta-Version Registration
+
+What delta-version needs from each project to function:
+
+| Check | Detection | Auto-Fix | Prompt |
+|-------|-----------|----------|--------|
+| `project.meta.json` missing | `[[ ! -f "$proj/project.meta.json" ]]` | Create template | Ask for status, language, description |
+| `delta-guide.md` symlink missing | `[[ ! -L "$proj/docs/delta-guide.md" ]]` | Create symlink | Confirm docs/ exists |
+| `docs/` directory missing | `[[ ! -d "$proj/docs" ]]` | `mkdir -p` | Auto-create |
+| `issues/` directory missing | `[[ ! -d "$proj/issues" ]]` | `mkdir -p` | Auto-create |
+| `notes/vision.md` missing | `[[ ! -f "$proj/notes/vision.md" ]]` | Create template | Ask for project vision |
+
+#### 2. Shared Utility Symlinks
+
+Useful monorepo utilities that projects can link to:
+
+```bash
+SHARED_UTILITIES=(
+    # Format: name|source|target_in_project|description
+    "issue-splitter|scripts/issue-splitter.sh|scripts/issue-splitter.sh|Split large issues into sub-issues"
+    "git-history|scripts/git-history.sh|scripts/git-history.sh|Git history visualization"
+    "sync-visions|scripts/sync-visions.sh|scripts/sync-visions.sh|Sync vision docs across projects"
+)
+```
+
+**Interactive prompt:**
+```
+Project: world-edit-to-execute
+
+The following shared utilities are available but not linked:
+  • issue-splitter.sh - Split large issues into sub-issues
+
+  1) Create symlink to shared utility
+  2) Create issue file for maintainer
+  3) Skip (not relevant for this project)
+  Choice: _
+```
+
+#### 3. TUI Library Integration
+
+Check if projects have TUI scripts that could use the shared menu library:
+
+```bash
+# -- {{{ check_tui_integration
+check_tui_integration() {
+    local project_dir="$1"
+
+    # Find scripts that use terminal manipulation but don't source menu library
+    find "$project_dir" -name "*.sh" -type f | while read -r script; do
+        # Check if script uses TUI patterns (tput, escape codes, read -s)
+        if grep -qE 'tput|\\033\[|\\e\[|read -s' "$script"; then
+            # Check if it sources the shared menu library
+            if ! grep -qE 'source.*menu\.sh|source.*tui\.sh' "$script"; then
+                echo "$script"
+            fi
+        fi
+    done
+}
+# }}}
+```
+
+**Prompt for TUI scripts without library:**
+```
+Found TUI script not using shared menu library:
+  world-edit-to-execute/src/cli/interactive-menu.sh
+
+  1) Create issue to migrate to menu library
+  2) Add comment noting intentional non-use
+  3) Skip
+  Choice: _
+```
+
+#### 4. LLM Transcript Cataloguing
+
+Check if projects have LLM transcripts and if they're registered:
+
+```bash
+# -- {{{ check_transcript_integration
+check_transcript_integration() {
+    local project_dir="$1"
+    local project_name=$(basename "$project_dir")
+
+    # Check if project has transcripts
+    if [[ -d "$project_dir/llm-transcripts" ]]; then
+        local count=$(find "$project_dir/llm-transcripts" -name "*.md" -o -name "*.jsonl" | wc -l)
+
+        # Check if registered in delta-version's transcript index
+        if ! grep -q "$project_name" "$DELTA_DIR/config/transcript-index.json" 2>/dev/null; then
+            echo "unregistered|$project_name|$count"
+        fi
+    fi
+}
+# }}}
+```
+
+#### 5. Issue File Standards
+
+Check if project issues follow delta-version conventions:
+
+| Check | Detection | Auto-Fix | Prompt |
+|-------|-----------|----------|--------|
+| Missing `## Current Behavior` | grep check | ❌ | Create issue for maintainer |
+| Missing `## Intended Behavior` | grep check | ❌ | Create issue for maintainer |
+| No issue numbering | filename pattern | ❌ | Create issue for maintainer |
+| No `issues/completed/` directory | `[[ ! -d ]]` | ✅ mkdir | Auto-create |
+
+### Project Integration Registry
+
+Track what's been checked and when:
+
+```bash
+# config/project-integration.json
+{
+  "projects": {
+    "world-edit-to-execute": {
+      "last_checked": "2026-01-04",
+      "delta_guide": true,
+      "metadata": true,
+      "tui_audit": "2026-01-04",
+      "transcripts_indexed": true,
+      "issues_created": ["042a-migrate-tui-scripts"]
+    }
+  }
+}
+```
+
+### CLI Interface (Expanded)
+
+```bash
+Usage: check-utilities.sh [OPTIONS] [PROJECT...]
+
+MODES:
+    (default)              Check delta-version utilities only
+    --all-projects         Check all discovered projects
+    --project NAME         Check specific project(s)
+
+DELTA-VERSION CHECKS:
+    --utilities            Check delta-version script health
+    --dependencies         Check external dependencies (jq, git, etc.)
+    --structure            Check directory structure
+
+PROJECT INTEGRATION CHECKS:
+    --metadata             Check for project.meta.json
+    --symlinks             Check for shared utility symlinks
+    --tui-audit            Find TUI scripts not using menu library
+    --transcripts          Check LLM transcript registration
+    --issue-standards      Check issue file format compliance
+
+ACTIONS:
+    -i, --interactive      Prompt for each issue (default)
+    -q, --quiet            Report only, no prompts
+    --fix-all              Auto-fix everything possible
+    --create-issues        Create issues for all problems
+    --dry-run              Show what would be done
+
+EXAMPLES:
+    check-utilities.sh                              # Check delta-version only
+    check-utilities.sh --all-projects --metadata    # Check all projects for metadata
+    check-utilities.sh --project world-edit-to-execute --tui-audit
+    check-utilities.sh --all-projects --fix-all --symlinks
+```
+
+### Integration Workflow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    check-utilities.sh                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│ Delta-Version │    │   Project     │    │    Shared     │
+│   Utilities   │    │  Integration  │    │   Resources   │
+└───────────────┘    └───────────────┘    └───────────────┘
+        │                     │                     │
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│ - Permissions │    │ - Metadata    │    │ - TUI libs    │
+│ - Syntax      │    │ - Symlinks    │    │ - Transcripts │
+│ - Dependencies│    │ - Issue fmt   │    │ - Utilities   │
+└───────────────┘    └───────────────┘    └───────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ▼
+                    ┌───────────────┐
+                    │  Interactive  │
+                    │    Prompt     │
+                    └───────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        ┌──────────┐   ┌──────────┐   ┌──────────┐
+        │ Auto-Fix │   │  Create  │   │   Skip   │
+        │          │   │  Issue   │   │          │
+        └──────────┘   └──────────┘   └──────────┘
+```
+
+### Sample Interactive Session
+
+```
+$ check-utilities.sh --all-projects --metadata --symlinks
+
+╔══════════════════════════════════════════════════════════════╗
+║           Project Integration Checker v1.0                    ║
+║           Scanning 21 projects...                             ║
+╚══════════════════════════════════════════════════════════════╝
+
+Checking: world-edit-to-execute
+──────────────────────────────────────────────────────────────
+
+[!] Missing: project.meta.json
+
+    This file helps delta-version track project status, language,
+    and other metadata for reporting and filtering.
+
+    1) Create template (I'll fill in the details)
+    2) Create issue for maintainer
+    3) Skip
+
+    Choice [1/2/3]: 1
+
+    Project status? [active/maintenance/experimental/archived]: active
+    Primary language? [lua/bash/c/other]: lua
+    Brief description: Real-time strategy game with Lua scripting
+
+    ✓ Created: world-edit-to-execute/project.meta.json
+
+[!] Missing symlink: scripts/issue-splitter.sh
+
+    1) Create symlink to ../../scripts/issue-splitter.sh
+    2) Create issue for maintainer
+    3) Skip (not relevant)
+
+    Choice [1/2/3]: 1
+
+    ✓ Created symlink: scripts/issue-splitter.sh
+
+Checking: factory-war
+──────────────────────────────────────────────────────────────
+
+[✓] project.meta.json exists
+[✓] delta-guide.md symlink exists
+[!] Missing symlink: scripts/issue-splitter.sh
+
+    Choice [1/2/3]: 3 (skip)
+
+... (continues for all projects) ...
+
+══════════════════════════════════════════════════════════════
+Summary:
+  Projects checked:     21
+  Metadata created:     15
+  Symlinks created:      8
+  Issues created:        3
+  Skipped:              12
+══════════════════════════════════════════════════════════════
+```
+
+## Expanded Acceptance Criteria
+
+### Delta-Version Utility Checks
+- [ ] Script audits all registered utilities
+- [ ] Detects missing scripts, permission issues, syntax errors
+- [ ] Auto-fix works for permission and directory issues
+- [ ] External dependency checks included
+
+### Project Integration Checks
+- [ ] Scans all projects for delta-guide.md symlink
+- [ ] Scans all projects for project.meta.json
+- [ ] Interactive prompts for missing metadata fields
+- [ ] Creates proper symlinks to shared utilities
+- [ ] Detects TUI scripts not using shared library
+- [ ] Catalogs LLM transcript directories
+
+### Issue Creation
+- [ ] Creates well-formatted issue files in target project
+- [ ] Uses next available issue number
+- [ ] Includes current behavior and intended behavior sections
+- [ ] Tags as "auto-generated by check-utilities.sh"
+
+### Reporting
+- [ ] Non-interactive mode produces summary report
+- [ ] Tracks integration status in config file
+- [ ] Help text documents all options
+
+## Files to Create
+
+- `delta-version/scripts/check-utilities.sh` - Main checker script
+- `delta-version/config/project-integration.json` - Integration status tracking
+- `delta-version/config/shared-utilities.conf` - Registry of shared utilities
+- `delta-version/assets/project-meta-template.json` - Template for project.meta.json
