@@ -54,3 +54,11 @@ Frame-by-frame logging added to `libs/menu.sh`:
 - Test scripts work correctly with identical row calculation logic
 - Suggests the issue may be environmental or related to how menu.sh integrates with the larger system
 - User hypothesis: "the issue is not a matter of technology, but of logic"
+
+## Related Work
+
+- **delta-version Issue 037**: TUI Dirty Tracking Optimization (2025-01-05)
+  - The Lua TUI library (`scripts/libs/tui.lua`) now has hierarchical dirty tracking
+  - `set_cell()` auto-marks dirty, `present()` iterates only dirty entries
+  - New APIs: `invalidate()`, `invalidate_row()`, `invalidate_region()`
+  - This may simplify any future Lua-based reimplementation of menu functionality
