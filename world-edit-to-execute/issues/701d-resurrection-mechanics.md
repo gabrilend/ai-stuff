@@ -231,18 +231,18 @@ end)
 
 ## Acceptance Criteria
 
-- [ ] `reviving` component registered with ECS
-- [ ] `begin_altar_revival()` starts revival with timer
-- [ ] `cancel_altar_revival()` refunds gold
-- [ ] Revival timer counts down each tick
-- [ ] Hero revives when timer reaches 0
-- [ ] `EVENT_HERO_REVIVE_START` fires when revival begins
-- [ ] `EVENT_HERO_REVIVED` fires on completion
-- [ ] `revive()` for instant spell-based resurrection
-- [ ] Revival time/cost formulas match WC3
-- [ ] Ghost and corpse cleaned up on revival
-- [ ] Unit tests for revival flow
-- [ ] Unit tests for cancellation and refund
+- [x] `reviving` component registered with ECS
+- [x] `begin_altar_revival()` starts revival with timer
+- [x] `cancel_altar_revival()` refunds gold
+- [x] Revival timer counts down each tick
+- [x] Hero revives when timer reaches 0
+- [x] `EVENT_HERO_REVIVE_START` fires when revival begins
+- [x] `EVENT_HERO_REVIVED` fires on completion
+- [x] `revive()` for instant spell-based resurrection
+- [x] Revival time/cost formulas match WC3
+- [x] Ghost and corpse cleaned up on revival
+- [x] Unit tests for revival flow
+- [x] Unit tests for cancellation and refund
 
 ---
 
@@ -260,3 +260,68 @@ WC3's Ankh works - the hero appears to die but immediately returns.
 
 Spell-based resurrection (Paladin's Resurrection, etc.) uses the instant
 revive path without altar involvement.
+
+---
+
+## Implementation Notes
+
+**Implemented:** 2026-01-07
+
+### Integration with death.lua
+
+The resurrection mechanics were integrated directly into `src/runtime/systems/death.lua`
+alongside death, corpse, and ghost systems for unified access.
+
+### Components Added
+
+- `reviving` - Tracks altar revival state (altar, time_remaining, time_total, gold_cost, hero_level)
+
+### API Implemented
+
+**Formula Functions:**
+- `get_revival_time(hero_level)` - Base 55 + (level-1) * 5 seconds
+- `get_revival_cost(hero_level)` - Level * 100 gold
+
+**Altar Functions:**
+- `is_altar(entity)` - Check if entity can revive heroes
+- `can_revive_at(altar, ghost)` - Validate revival prerequisites
+- `get_altar_queue(altar)` - Get ghosts being revived at altar
+
+**Revival Functions:**
+- `begin_altar_revival(altar, ghost, gold_paid)` - Start timed revival
+- `cancel_altar_revival(ghost)` - Cancel and get gold refund
+- `get_revival_progress(ghost)` - Progress 0.0-1.0
+- `get_revival_time_remaining(ghost)` - Seconds until complete
+- `is_reviving(ghost)` - Check if reviving
+- `get_reviving_altar(ghost)` - Get altar ghost is at
+
+**Hero Revival:**
+- `revive_hero(hero, x, y, hp_percent)` - Instant spell-based revival
+- `revive_at_corpse(hero, hp_percent)` - Revive at corpse location
+
+### Systems Registered
+
+- `revival` (priority 65) - Decrements revival timers, completes revival when timer hits 0
+
+### Test Coverage
+
+32 new tests for resurrection mechanics:
+- Component registration
+- Revival formula tests (level 1, 5, 10)
+- Altar identification and validation
+- Ownership checks (same player requirement)
+- Begin altar revival (adds component, fires event, sets timer)
+- Cancel revival (gold refund, queue cleanup)
+- Revival progress queries
+- Hero revival (position, HP, ghost/corpse cleanup)
+- Revive at corpse position
+
+### Design Decisions
+
+- Altar detection via `is_altar` flag in unit_type or explicit altar component
+- Revival uses ghost's preserved data for hero level
+- Gold tracking passed in for validation (deduction handled by economy system)
+- Revival queue per altar supports multiple heroes (WC3 behavior)
+- `revive_hero()` cancels any in-progress altar revival
+- Corpse and ghost both destroyed on successful revival
+- Revival system priority 65 runs after corpse decay (60)
