@@ -1,8 +1,8 @@
 --[[
-Death System (Issues 701a, 701e)
+Death System (Issues 701a, 701b, 701c, 701d, 701e)
 
-Provides death state management, corpse system, death events, and query functions.
-This is the foundation for the complete death/resurrection system.
+Provides death state management, corpse system, ghost system, resurrection
+mechanics, and death events. This is the complete death/resurrection system.
 
 Usage:
     local death = require("runtime.systems.death")
@@ -18,23 +18,28 @@ Usage:
     -- Create corpse for dead unit
     local corpse = death.create_corpse(dead_entity)
 
+    -- Create ghost for dead hero
+    local ghost = death.create_ghost(dead_hero, corpse)
+
+    -- Begin altar revival
+    death.begin_altar_revival(altar, ghost)
+
     -- Query corpses
     local corpses = death.find_corpses_in_range(x, y, 500)
 
 The death system:
 - Registers the "dead" component
 - Registers the "corpse" component (701e)
+- Registers the "ghost" component (701c)
+- Registers the "reviving" component (701d)
 - Provides kill() API to mark entities as dead
 - Provides corpse creation and decay system (701e)
+- Provides ghost creation for heroes (701c)
+- Provides altar revival with timer (701d)
 - Fires EVENT_UNIT_DEATH and EVENT_HERO_DEATH events
-- Registers a system to auto-kill entities when hp <= 0
-- Provides query functions for dead state and corpses
-
-Related issues:
-- 701b: Spirit world layer
-- 701c: Ghost form component
-- 701d: Resurrection mechanics
-- 701e: Corpse system (integrated)
+- Fires EVENT_HERO_REVIVE_START and EVENT_HERO_REVIVED events (701d)
+- Registers systems for death check, corpse decay, and revival
+- Provides query functions for dead state, corpses, ghosts, and revival
 ]]
 
 -- {{{ Configuration
@@ -203,11 +208,34 @@ local function ensure_ghost_component()
 end
 -- }}}
 
+-- {{{ Register reviving component (701d)
+-- Tracks altar revival state, attached to ghost during revival.
+local reviving_registered = false
+local function ensure_reviving_component()
+    if reviving_registered then return end
+
+    if ecs.get_component_defaults("reviving") then
+        reviving_registered = true
+        return
+    end
+
+    ecs.register_component("reviving", {
+        altar = nil,              -- Entity ID of altar handling revival
+        time_remaining = 0,       -- Seconds until revival completes
+        time_total = 0,           -- Total revival time (for progress bar)
+        gold_cost = 0,            -- Gold locked for this revival
+        hero_level = 1,           -- Hero level at death (for formula)
+    })
+    reviving_registered = true
+end
+-- }}}
+
 -- Initialize components on module load
 ensure_dead_component()
 ensure_layer_component()
 ensure_corpse_component()
 ensure_ghost_component()
+ensure_reviving_component()
 
 -- ============================================================================
 -- Event Type Extensions
@@ -1564,6 +1592,571 @@ function death.count_ghosts()
     end
     return count
 end
+-- }}}
+
+-- ============================================================================
+-- Resurrection Mechanics (Issue 701d)
+-- ============================================================================
+
+-- {{{ Revival tracking tables
+-- Maps altar entities to their revival queues
+local altar_revival_queue = {}  -- altar -> {ghost1, ghost2, ...}
+local ghost_to_altar = {}       -- ghost -> altar being revived at
+
+-- Extend reset_tracking for revival tables
+local ghost_reset = death.reset_tracking
+function death.reset_tracking()
+    ghost_reset()
+    altar_revival_queue = {}
+    ghost_to_altar = {}
+end
+-- }}}
+
+-- {{{ Revival formula constants (match WC3 behavior)
+-- Base revival time in seconds: 55 + (level-1) * 5
+-- Level 1: 55s, Level 5: 75s, Level 10: 100s
+death.REVIVAL_BASE_TIME = 55
+death.REVIVAL_TIME_PER_LEVEL = 5
+
+-- Revival gold cost: level * 100
+-- Level 1: 100g, Level 5: 500g, Level 10: 1000g
+death.REVIVAL_GOLD_PER_LEVEL = 100
+-- }}}
+
+-- {{{ death.get_revival_time
+-- Calculate revival time for a hero level.
+-- @param hero_level Hero level (1-10+)
+-- @return number seconds to revive
+function death.get_revival_time(hero_level)
+    hero_level = hero_level or 1
+    hero_level = math.max(1, hero_level)  -- Minimum level 1
+    return death.REVIVAL_BASE_TIME + (hero_level - 1) * death.REVIVAL_TIME_PER_LEVEL
+end
+-- }}}
+
+-- {{{ death.get_revival_cost
+-- Calculate revival gold cost for a hero level.
+-- @param hero_level Hero level (1-10+)
+-- @return number gold cost
+function death.get_revival_cost(hero_level)
+    hero_level = hero_level or 1
+    hero_level = math.max(1, hero_level)  -- Minimum level 1
+    return hero_level * death.REVIVAL_GOLD_PER_LEVEL
+end
+-- }}}
+
+-- {{{ death.is_altar
+-- Check if an entity is an altar (can revive heroes).
+-- Looks for altar component or unit_type with is_altar flag.
+-- @param entity Entity ID
+-- @return boolean true if entity is an altar
+function death.is_altar(entity)
+    if not ecs.entity_exists(entity) then
+        return false
+    end
+
+    -- Check for explicit altar component
+    if ecs.has_component(entity, "altar") then
+        return true
+    end
+
+    -- Check unit_type for is_altar flag
+    local unit_type = ecs.get_component(entity, "unit_type")
+    if unit_type and unit_type.is_altar then
+        return true
+    end
+
+    return false
+end
+-- }}}
+
+-- {{{ death.can_revive_at
+-- Check if a ghost can be revived at an altar.
+-- @param altar Entity ID of altar
+-- @param ghost Entity ID of ghost
+-- @return boolean success, string error_message
+function death.can_revive_at(altar, ghost)
+    -- Validate altar
+    if not death.is_altar(altar) then
+        return false, "not an altar"
+    end
+
+    -- Altar must be alive
+    if death.is_dead(altar) then
+        return false, "altar is dead"
+    end
+
+    -- Validate ghost
+    if not death.is_ghost(ghost) then
+        return false, "not a ghost"
+    end
+
+    -- Ghost must not already be reviving
+    if ecs.has_component(ghost, "reviving") then
+        return false, "already reviving"
+    end
+
+    -- Check ownership (altar and ghost must belong to same player)
+    local altar_owner = ecs.get_component(altar, "owner")
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+
+    if altar_owner and ghost_comp then
+        if altar_owner.player_id ~= ghost_comp.owner_player then
+            return false, "altar belongs to different player"
+        end
+    end
+
+    return true, nil
+end
+-- }}}
+
+-- {{{ death.get_altar_queue
+-- Get the revival queue for an altar.
+-- @param altar Entity ID of altar
+-- @return array of ghost entity IDs being revived at this altar
+function death.get_altar_queue(altar)
+    return altar_revival_queue[altar] or {}
+end
+-- }}}
+
+-- {{{ death.begin_altar_revival
+-- Start revival process for a ghost at an altar.
+-- @param altar Entity ID of altar
+-- @param ghost Entity ID of ghost
+-- @param gold_paid Gold already deducted (optional, for validation)
+-- @return boolean success, string error_message
+function death.begin_altar_revival(altar, ghost, gold_paid)
+    -- Validate can revive
+    local can_revive, err = death.can_revive_at(altar, ghost)
+    if not can_revive then
+        return false, err
+    end
+
+    -- Get ghost data for level info
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    local original_data = ghost_comp.original_data or {}
+    local hero_level = original_data.level or 1
+
+    -- Calculate time and cost
+    local revival_time = death.get_revival_time(hero_level)
+    local revival_cost = death.get_revival_cost(hero_level)
+
+    -- Add reviving component to ghost
+    ecs.add_component(ghost, "reviving", {
+        altar = altar,
+        time_remaining = revival_time,
+        time_total = revival_time,
+        gold_cost = gold_paid or revival_cost,
+        hero_level = hero_level,
+    })
+
+    -- Mark ghost as revival started
+    ghost_comp.revival_started = true
+
+    -- Add to altar queue
+    if not altar_revival_queue[altar] then
+        altar_revival_queue[altar] = {}
+    end
+    altar_revival_queue[altar][#altar_revival_queue[altar] + 1] = ghost
+
+    -- Track ghost->altar mapping
+    ghost_to_altar[ghost] = altar
+
+    -- Get altar position for event
+    local altar_pos = ecs.get_component(altar, "position")
+    local altar_x = altar_pos and altar_pos.x or 0
+    local altar_y = altar_pos and altar_pos.y or 0
+
+    -- Fire HERO_REVIVE_START event
+    events.fire(events.EVENT.HERO_REVIVE_START, {
+        event_id = events.EVENT.HERO_REVIVE_START,
+        unit = ghost_comp.original_entity,
+        ghost = ghost,
+        altar = altar,
+        time = revival_time,
+        gold = revival_cost,
+        altar_x = altar_x,
+        altar_y = altar_y,
+    })
+
+    return true, nil
+end
+-- }}}
+
+-- {{{ death.cancel_altar_revival
+-- Cancel an in-progress altar revival.
+-- @param ghost Entity ID of ghost being revived
+-- @return boolean success, number gold_refund
+function death.cancel_altar_revival(ghost)
+    -- Must have reviving component
+    local reviving = ecs.get_component(ghost, "reviving")
+    if not reviving then
+        return false, 0
+    end
+
+    local gold_refund = reviving.gold_cost
+    local altar = reviving.altar
+
+    -- Remove from altar queue
+    if altar and altar_revival_queue[altar] then
+        local queue = altar_revival_queue[altar]
+        for i, g in ipairs(queue) do
+            if g == ghost then
+                table.remove(queue, i)
+                break
+            end
+        end
+        -- Clean up empty queue
+        if #altar_revival_queue[altar] == 0 then
+            altar_revival_queue[altar] = nil
+        end
+    end
+
+    -- Clear tracking
+    ghost_to_altar[ghost] = nil
+
+    -- Remove reviving component
+    ecs.remove_component(ghost, "reviving")
+
+    -- Reset ghost state
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if ghost_comp then
+        ghost_comp.revival_started = false
+    end
+
+    return true, gold_refund
+end
+-- }}}
+
+-- {{{ death.get_revival_progress
+-- Get revival progress as fraction (0.0 = started, 1.0 = complete).
+-- @param ghost Entity ID of ghost
+-- @return number 0.0-1.0 progress, or nil if not reviving
+function death.get_revival_progress(ghost)
+    local reviving = ecs.get_component(ghost, "reviving")
+    if not reviving then
+        return nil
+    end
+
+    if reviving.time_total <= 0 then
+        return 1.0
+    end
+
+    local elapsed = reviving.time_total - reviving.time_remaining
+    return math.min(1.0, math.max(0.0, elapsed / reviving.time_total))
+end
+-- }}}
+
+-- {{{ death.get_revival_time_remaining
+-- Get seconds remaining until revival completes.
+-- @param ghost Entity ID of ghost
+-- @return number seconds remaining, or nil if not reviving
+function death.get_revival_time_remaining(ghost)
+    local reviving = ecs.get_component(ghost, "reviving")
+    if not reviving then
+        return nil
+    end
+    return reviving.time_remaining
+end
+-- }}}
+
+-- {{{ death.is_reviving
+-- Check if a ghost is currently being revived.
+-- @param ghost Entity ID
+-- @return boolean true if reviving
+function death.is_reviving(ghost)
+    return ecs.has_component(ghost, "reviving")
+end
+-- }}}
+
+-- {{{ death.get_reviving_altar
+-- Get the altar a ghost is being revived at.
+-- @param ghost Entity ID of ghost
+-- @return altar entity ID, or nil if not reviving
+function death.get_reviving_altar(ghost)
+    return ghost_to_altar[ghost]
+end
+-- }}}
+
+-- {{{ death.complete_revival (internal)
+-- Complete a revival, restoring the hero to life.
+-- @param ghost Entity ID of ghost being revived
+-- @return boolean success
+local function complete_revival(ghost)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return false
+    end
+
+    local reviving = ecs.get_component(ghost, "reviving")
+    local altar = reviving and reviving.altar
+
+    -- Get original hero entity
+    local hero = ghost_comp.original_entity
+    if not hero or not ecs.entity_exists(hero) then
+        -- Hero entity was destroyed, can't revive
+        death.destroy_ghost(ghost)
+        return false
+    end
+
+    -- Get altar position for revival location
+    local revive_x, revive_y
+    if altar and ecs.entity_exists(altar) then
+        local altar_pos = ecs.get_component(altar, "position")
+        if altar_pos then
+            revive_x = altar_pos.x
+            revive_y = altar_pos.y
+        end
+    end
+
+    -- Fallback to death position from original data
+    local original_data = ghost_comp.original_data or {}
+    if not revive_x then
+        revive_x = original_data.death_x or 0
+        revive_y = original_data.death_y or 0
+    end
+
+    -- Remove dead component from hero
+    ecs.remove_component(hero, "dead")
+
+    -- Return hero to mortal world
+    death.return_to_mortal_world(hero)
+
+    -- Update hero position
+    local pos = ecs.get_component(hero, "position")
+    if pos then
+        pos.x = revive_x
+        pos.y = revive_y
+    end
+
+    -- Restore hero stats from original data
+    local stats = ecs.get_component(hero, "stats")
+    if stats then
+        -- Restore to full HP (can be customized with hp_percent in revive())
+        stats.hp = stats.hp_max or original_data.hp_max or 100
+        -- Restore mana to full as well
+        stats.mp = stats.mp_max or original_data.mp_max or 0
+    end
+
+    -- Restore hero component data
+    local hero_comp = ecs.get_component(hero, "hero")
+    if hero_comp and original_data then
+        -- Level and experience preserved through death
+        -- Ability cooldowns may have ticked down during revival
+        if original_data.inventory then
+            hero_comp.inventory = original_data.inventory
+        end
+    end
+
+    -- Clean up revival tracking
+    if altar then
+        if altar_revival_queue[altar] then
+            local queue = altar_revival_queue[altar]
+            for i, g in ipairs(queue) do
+                if g == ghost then
+                    table.remove(queue, i)
+                    break
+                end
+            end
+            if #altar_revival_queue[altar] == 0 then
+                altar_revival_queue[altar] = nil
+            end
+        end
+    end
+    ghost_to_altar[ghost] = nil
+
+    -- Fire HERO_REVIVED event
+    events.fire(events.EVENT.HERO_REVIVED, {
+        event_id = events.EVENT.HERO_REVIVED,
+        unit = hero,
+        altar = altar,
+        revive_x = revive_x,
+        revive_y = revive_y,
+        ghost = ghost,
+    })
+
+    -- Clean up corpse if linked
+    local linked_corpse = ghost_comp.linked_corpse
+    if linked_corpse and ecs.entity_exists(linked_corpse) then
+        death.destroy_corpse(linked_corpse)
+    end
+
+    -- Destroy ghost entity
+    death.destroy_ghost(ghost)
+
+    return true
+end
+-- }}}
+
+-- {{{ death.revive_hero
+-- Revive a dead hero instantly (spell-based resurrection).
+-- Uses preserved data from ghost if available.
+-- @param hero Entity ID of dead hero
+-- @param x Revival X position (optional)
+-- @param y Revival Y position (optional)
+-- @param hp_percent HP to restore (0.0-1.0, default 1.0)
+-- @return boolean success
+function death.revive_hero(hero, x, y, hp_percent)
+    if not ecs.entity_exists(hero) then
+        return false
+    end
+
+    if not death.is_dead(hero) then
+        return false
+    end
+
+    -- Check if there's a ghost for this hero
+    local ghost = death.get_ghost(hero)
+
+    -- If reviving at altar, cancel the altar revival
+    if ghost and death.is_reviving(ghost) then
+        death.cancel_altar_revival(ghost)
+    end
+
+    -- Get original data from ghost if available
+    local original_data = nil
+    if ghost then
+        original_data = death.get_original_data(ghost)
+    end
+
+    -- Determine revival position
+    local revive_x = x
+    local revive_y = y
+    if not revive_x and original_data then
+        revive_x = original_data.death_x
+        revive_y = original_data.death_y
+    end
+    if not revive_x then
+        local pos = ecs.get_component(hero, "position")
+        if pos then
+            revive_x = pos.x
+            revive_y = pos.y
+        end
+    end
+
+    -- Remove dead component
+    ecs.remove_component(hero, "dead")
+
+    -- Return to mortal world
+    death.return_to_mortal_world(hero)
+
+    -- Update position
+    local pos = ecs.get_component(hero, "position")
+    if pos then
+        if revive_x then pos.x = revive_x end
+        if revive_y then pos.y = revive_y end
+    end
+
+    -- Restore HP
+    local stats = ecs.get_component(hero, "stats")
+    if stats then
+        hp_percent = hp_percent or 1.0
+        hp_percent = math.max(0.01, math.min(1.0, hp_percent))
+        stats.hp = stats.hp_max * hp_percent
+    end
+
+    -- Get linked corpse before destroying ghost
+    local linked_corpse = nil
+    if ghost then
+        linked_corpse = death.get_linked_corpse(ghost)
+    end
+
+    -- Fire resurrection event
+    events.fire(events.EVENT.UNIT_RESURRECTED, {
+        event_id = events.EVENT.UNIT_RESURRECTED,
+        unit = hero,
+        resurrected_unit = hero,
+        revive_x = revive_x or 0,
+        revive_y = revive_y or 0,
+        hp_percent = hp_percent,
+    })
+
+    -- Clean up ghost if exists
+    if ghost then
+        death.destroy_ghost(ghost)
+    end
+
+    -- Clean up corpse if linked
+    if linked_corpse and ecs.entity_exists(linked_corpse) then
+        death.destroy_corpse(linked_corpse)
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ death.revive_at_corpse
+-- Revive a dead hero at their corpse location.
+-- @param hero Entity ID of dead hero
+-- @param hp_percent HP to restore (0.0-1.0, default 1.0)
+-- @return boolean success
+function death.revive_at_corpse(hero, hp_percent)
+    if not death.is_dead(hero) then
+        return false
+    end
+
+    -- Find corpse position
+    local corpse = death.get_corpse(hero)
+    local x, y
+
+    if corpse then
+        local pos = ecs.get_component(corpse, "position")
+        if pos then
+            x = pos.x
+            y = pos.y
+        end
+    end
+
+    -- Fall back to ghost's original data
+    if not x then
+        local ghost = death.get_ghost(hero)
+        if ghost then
+            local data = death.get_original_data(ghost)
+            if data then
+                x = data.death_x
+                y = data.death_y
+            end
+        end
+    end
+
+    return death.revive_hero(hero, x, y, hp_percent)
+end
+-- }}}
+
+-- ============================================================================
+-- Revival System (701d)
+-- ============================================================================
+
+-- {{{ Revival countdown system
+-- Runs each tick to update revival timers.
+-- When timer hits 0, completes the revival.
+local function revival_system(iter, dt)
+    local to_complete = {}
+
+    for entity, reviving in iter do
+        -- Decrement timer
+        reviving.time_remaining = reviving.time_remaining - dt
+
+        -- Check for completion
+        if reviving.time_remaining <= 0 then
+            to_complete[#to_complete + 1] = entity
+        end
+    end
+
+    -- Complete revivals (can't modify during iteration)
+    for _, ghost in ipairs(to_complete) do
+        complete_revival(ghost)
+    end
+end
+
+-- Register revival system
+-- Priority 65 = runs after corpse decay, handles revival completion
+ecs.register_system(
+    "revival",
+    {"reviving"},
+    revival_system,
+    {priority = 65}
+)
 -- }}}
 
 return death
