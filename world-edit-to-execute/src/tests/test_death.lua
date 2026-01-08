@@ -70,6 +70,7 @@ end
 local function setup()
     ecs.reset()
     events.reset()
+    death.reset_tracking()  -- Clear corpse tracking tables
 end
 
 local function create_test_unit(hp)
@@ -461,6 +462,236 @@ test("count_living excludes dead entities", function()
         count = count + 1
     end
     assert_eq(count, 2, "should count 2 living entities")
+end)
+
+-- ============================================================================
+-- Corpse System Tests (701e)
+-- ============================================================================
+
+print("\n=== Corpse Component ===")
+
+test("corpse component is registered", function()
+    setup()
+    local defaults = ecs.get_component_defaults("corpse")
+    assert_not_nil(defaults, "corpse component not registered")
+    assert_eq(defaults.decay_timer, 88.0, "decay_timer default")
+    assert_eq(defaults.raiseable, true, "raiseable default")
+    assert_eq(defaults.flesh_remaining, true, "flesh_remaining default")
+end)
+
+print("\n=== Corpse Creation ===")
+
+test("create_corpse returns corpse entity for dead unit", function()
+    setup()
+    local unit = create_test_unit()
+    death.kill(unit)
+    local corpse = death.create_corpse(unit)
+    assert_not_nil(corpse, "corpse should be created")
+    assert_true(death.is_corpse(corpse), "should be identified as corpse")
+end)
+
+test("create_corpse returns nil for living unit", function()
+    setup()
+    local unit = create_test_unit()
+    local corpse = death.create_corpse(unit)
+    assert_nil(corpse, "living unit should not create corpse")
+end)
+
+test("create_corpse uses unit position", function()
+    setup()
+    local unit = create_test_unit()
+    local pos = ecs.get_component(unit, "position")
+    pos.x = 500
+    pos.y = 600
+    death.kill(unit)
+    local corpse = death.create_corpse(unit)
+    local corpse_pos = ecs.get_component(corpse, "position")
+    assert_eq(corpse_pos.x, 500, "corpse X should match")
+    assert_eq(corpse_pos.y, 600, "corpse Y should match")
+end)
+
+test("create_corpse returns existing corpse if called twice", function()
+    setup()
+    local unit = create_test_unit()
+    death.kill(unit)
+    local corpse1 = death.create_corpse(unit)
+    local corpse2 = death.create_corpse(unit)
+    assert_eq(corpse1, corpse2, "should return same corpse")
+end)
+
+test("create_corpse uses hero decay time for heroes", function()
+    setup()
+    local hero = create_test_hero()
+    death.kill(hero)
+    local corpse = death.create_corpse(hero)
+    local corpse_comp = ecs.get_component(corpse, "corpse")
+    assert_eq(corpse_comp.decay_max, death.DECAY_TIME.HERO, "hero should have 88s decay")
+end)
+
+test("create_corpse_at creates corpse at position", function()
+    setup()
+    local corpse = death.create_corpse_at(300, 400, "hfoo")
+    assert_not_nil(corpse, "corpse should be created")
+    local pos = ecs.get_component(corpse, "position")
+    assert_eq(pos.x, 300, "X should be 300")
+    assert_eq(pos.y, 400, "Y should be 400")
+end)
+
+test("should_create_corpse returns false for summoned units", function()
+    setup()
+    local unit = create_test_unit()
+    local unit_type = ecs.get_component(unit, "unit_type")
+    if not unit_type then
+        ecs.add_component(unit, "unit_type", {is_summoned = true})
+    else
+        unit_type.is_summoned = true
+    end
+    assert_false(death.should_create_corpse(unit), "summoned units shouldn't leave corpses")
+end)
+
+print("\n=== Corpse Queries ===")
+
+test("get_corpse returns corpse for dead unit", function()
+    setup()
+    local unit = create_test_unit()
+    death.kill(unit)
+    local created = death.create_corpse(unit)
+    local found = death.get_corpse(unit)
+    assert_eq(created, found, "should return same corpse")
+end)
+
+test("get_corpse_unit returns original unit", function()
+    setup()
+    local unit = create_test_unit()
+    death.kill(unit)
+    local corpse = death.create_corpse(unit)
+    local found = death.get_corpse_unit(corpse)
+    assert_eq(found, unit, "should return original unit")
+end)
+
+test("is_corpse returns true for corpse entity", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    assert_true(death.is_corpse(corpse), "should identify as corpse")
+end)
+
+test("is_corpse returns false for unit", function()
+    setup()
+    local unit = create_test_unit()
+    assert_false(death.is_corpse(unit), "unit should not be corpse")
+end)
+
+test("is_raiseable returns true for fresh corpse", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    assert_true(death.is_raiseable(corpse), "fresh corpse should be raiseable")
+end)
+
+test("is_raiseable returns false after raise_corpse", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    death.raise_corpse(corpse)
+    assert_false(death.is_raiseable(corpse), "raised corpse should not be raiseable")
+end)
+
+test("is_fresh returns true for new corpse", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    assert_true(death.is_fresh(corpse), "new corpse should be fresh")
+end)
+
+print("\n=== Corpse Decay ===")
+
+test("get_decay_remaining returns initial value", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0, nil, 60)
+    local remaining = death.get_decay_remaining(corpse)
+    assert_eq(remaining, 60, "should be 60 seconds")
+end)
+
+test("get_decay_progress returns 0 for new corpse", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0, nil, 60)
+    local progress = death.get_decay_progress(corpse)
+    assert_eq(progress, 0, "progress should be 0")
+end)
+
+test("count_corpses returns correct count", function()
+    setup()
+    death.create_corpse_at(0, 0)
+    death.create_corpse_at(100, 100)
+    death.create_corpse_at(200, 200)
+    assert_eq(death.count_corpses(), 3, "should count 3 corpses")
+end)
+
+print("\n=== Corpse Modification ===")
+
+test("raise_corpse marks corpse as raised", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    local result = death.raise_corpse(corpse)
+    assert_true(result, "raise should succeed")
+    local corpse_comp = ecs.get_component(corpse, "corpse")
+    assert_true(corpse_comp.raised, "raised flag should be true")
+end)
+
+test("raise_corpse returns false for already raised", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    death.raise_corpse(corpse)
+    local result = death.raise_corpse(corpse)
+    assert_false(result, "cannot raise twice")
+end)
+
+test("consume_corpse removes corpse", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    death.consume_corpse(corpse)
+    assert_false(ecs.entity_exists(corpse), "corpse should be destroyed")
+end)
+
+test("consume_corpse clears tracking", function()
+    setup()
+    local unit = create_test_unit()
+    death.kill(unit)
+    local corpse = death.create_corpse(unit)
+    death.consume_corpse(corpse)
+    assert_nil(death.get_corpse(unit), "tracking should be cleared")
+end)
+
+print("\n=== Corpse Spatial Query ===")
+
+test("find_corpses_in_range finds nearby corpses", function()
+    setup()
+    death.create_corpse_at(100, 100)
+    death.create_corpse_at(150, 150)
+    death.create_corpse_at(1000, 1000)  -- Far away
+    local found = death.find_corpses_in_range(100, 100, 200)
+    assert_eq(#found, 2, "should find 2 nearby corpses")
+end)
+
+test("find_corpses_in_range respects filter", function()
+    setup()
+    local c1 = death.create_corpse_at(100, 100, "hfoo")
+    death.create_corpse_at(150, 150, "ogru")
+    -- Filter for only "hfoo" type
+    local found = death.find_corpses_in_range(100, 100, 200, function(corpse)
+        local cc = ecs.get_component(corpse, "corpse")
+        return cc and cc.unit_type_id == "hfoo"
+    end)
+    assert_eq(#found, 1, "should find 1 matching corpse")
+    assert_eq(found[1], c1, "should be the hfoo corpse")
+end)
+
+print("\n=== Corpse-Ghost Link ===")
+
+test("link_corpse_to_ghost sets linked_ghost", function()
+    setup()
+    local corpse = death.create_corpse_at(0, 0)
+    local ghost_id = 999  -- Fake ghost ID
+    death.link_corpse_to_ghost(corpse, ghost_id)
+    local corpse_comp = ecs.get_component(corpse, "corpse")
+    assert_eq(corpse_comp.linked_ghost, ghost_id, "linked_ghost should be set")
 end)
 
 -- ============================================================================

@@ -255,19 +255,19 @@ The Undead faction treats corpses as a resource:
 
 ## Acceptance Criteria
 
-- [ ] `corpse` component registered with ECS
-- [ ] `create_corpse()` spawns corpse at death location
-- [ ] Corpse has decay timer that counts down
-- [ ] Corpse transitions to skeleton at 50% decay
-- [ ] Corpse removed when decay timer reaches 0
-- [ ] `EVENT_UNIT_DECAY` fires on decay complete
-- [ ] Summoned units don't leave corpses
-- [ ] Corpses targetable by necromancy spells
-- [ ] `raise_corpse()` marks corpse as raised
-- [ ] Raised corpses can't be raised again
-- [ ] Heroes' corpses link to their ghosts
-- [ ] Unit tests for corpse creation
-- [ ] Unit tests for decay system
+- [x] `corpse` component registered with ECS
+- [x] `create_corpse()` spawns corpse at death location
+- [x] Corpse has decay timer that counts down
+- [x] Corpse transitions to skeleton at 50% decay
+- [x] Corpse removed when decay timer reaches 0
+- [x] `EVENT_UNIT_DECAY` fires on decay complete
+- [x] Summoned units don't leave corpses
+- [x] Corpses targetable by necromancy spells
+- [x] `raise_corpse()` marks corpse as raised
+- [x] Raised corpses can't be raised again
+- [x] Heroes' corpses link to their ghosts
+- [x] Unit tests for corpse creation
+- [x] Unit tests for decay system
 
 ---
 
@@ -286,3 +286,67 @@ inventory" mechanic that's unique to that unit.
 
 The corpse system integrates closely with the ghost system (701c) -
 hero ghosts need to know where their corpse is for revival positioning.
+
+---
+
+## Implementation Notes
+
+**Implemented:** 2026-01-07
+
+### Integration with death.lua
+
+The corpse system was integrated directly into `src/runtime/systems/death.lua`
+rather than creating a separate module. This provides:
+- Single require for all death-related functionality
+- Shared access to event firing
+- Unified tracking between dead units and corpses
+
+### Components Added
+
+- `corpse` - Tracks decay state, targeting flags, and unit origin
+
+### API Implemented
+
+**Creation:**
+- `create_corpse(dead_entity)` - Create corpse from dead unit
+- `create_corpse_at(x, y, type_id, decay_time)` - Create corpse at position
+
+**Queries:**
+- `is_corpse(entity)` - Check if entity is a corpse
+- `is_raiseable(corpse)` - Check if can be raised
+- `is_fresh(corpse)` - Check if has flesh (not skeleton)
+- `get_corpse(dead_entity)` - Get corpse for dead unit
+- `get_corpse_unit(corpse)` - Get original unit for corpse
+- `find_corpses_in_range(x, y, radius, filter)` - Spatial query
+
+**Decay:**
+- `get_decay_remaining(corpse)` - Seconds until decay
+- `get_decay_progress(corpse)` - Progress 0.0-1.0
+
+**Modification:**
+- `raise_corpse(corpse, raiser)` - Mark as raised
+- `consume_corpse(corpse)` - Remove (Cannibalize)
+- `link_corpse_to_ghost(corpse, ghost)` - Link for revival
+
+### Systems Registered
+
+- `corpse_decay` (priority 60) - Decrements timers, transitions to skeleton, removes on complete
+
+### Test Coverage
+
+25 additional tests added for corpse system:
+- Component registration
+- Corpse creation (from unit and at position)
+- Summoned unit filtering
+- Query functions
+- Decay timer and progress
+- Raise and consume operations
+- Spatial queries with filters
+- Ghost linking
+
+### Design Decisions
+
+- Corpses are separate entities from dead units (allows independent lifetime)
+- Two-way tracking via module tables (cleared on reset_tracking())
+- Corpse decay system fires EVENT_UNIT_DECAY before removal
+- Flesh-to-skeleton transition at 50% decay for visual feedback
