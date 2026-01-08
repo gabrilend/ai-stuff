@@ -167,10 +167,47 @@ local function ensure_corpse_component()
 end
 -- }}}
 
+-- {{{ Register ghost component (701c)
+-- Tracks ghost state for hero revival.
+local ghost_registered = false
+local function ensure_ghost_component()
+    if ghost_registered then return end
+
+    if ecs.get_component_defaults("ghost") then
+        ghost_registered = true
+        return
+    end
+
+    ecs.register_component("ghost", {
+        -- Links
+        linked_corpse = nil,      -- Entity ID of corpse in mortal realm
+        original_entity = nil,    -- Original unit's entity ID (for reference)
+        original_data = {},       -- Preserved unit state for revival
+
+        -- Ownership
+        owner_player = nil,       -- Player ID who owns this ghost
+
+        -- Movement (overrides)
+        movement_speed = 400,     -- Ghosts move 50% faster than base
+
+        -- Visibility
+        visible_to_owner = true,  -- Owner can always see their ghost
+        visible_to_allies = false, -- Allies cannot see by default
+        visible_to_enemies = false, -- Enemies cannot see by default
+
+        -- State
+        at_altar = false,         -- Ghost has reached an altar
+        revival_started = false,  -- Revival is in progress
+    })
+    ghost_registered = true
+end
+-- }}}
+
 -- Initialize components on module load
 ensure_dead_component()
 ensure_layer_component()
 ensure_corpse_component()
+ensure_ghost_component()
 
 -- ============================================================================
 -- Event Type Extensions
@@ -1133,6 +1170,400 @@ ecs.register_system(
     corpse_decay_system,
     {priority = 60}
 )
+-- }}}
+
+-- ============================================================================
+-- Ghost System (Issue 701c)
+-- ============================================================================
+
+-- {{{ Ghost-to-unit tracking
+-- Maps ghost entities to their original unit entities
+local ghost_to_unit = {}
+local unit_to_ghost = {}
+
+-- Extend reset_tracking to clear ghost tables
+local original_reset = death.reset_tracking
+function death.reset_tracking()
+    original_reset()
+    ghost_to_unit = {}
+    unit_to_ghost = {}
+end
+-- }}}
+
+-- {{{ death.preserve_hero_data
+-- Capture hero state for revival.
+-- @param entity Entity ID of the hero
+-- @return table preserved data structure
+function death.preserve_hero_data(entity)
+    local data = {}
+
+    -- Get position
+    local pos = ecs.get_component(entity, "position")
+    if pos then
+        data.death_x = pos.x
+        data.death_y = pos.y
+        data.death_facing = pos.facing
+    end
+
+    -- Get unit type
+    local unit_type = ecs.get_component(entity, "unit_type")
+    if unit_type then
+        data.type_id = unit_type.type_id
+        data.is_hero = unit_type.is_hero
+    end
+
+    -- Get owner
+    local owner = ecs.get_component(entity, "owner")
+    if owner then
+        data.owner_player = owner.player_id
+    end
+
+    -- Get hero data
+    local hero = ecs.get_component(entity, "hero")
+    if hero then
+        data.level = hero.level
+        data.experience = hero.experience
+        data.strength = hero.strength
+        data.agility = hero.agility
+        data.intelligence = hero.intelligence
+        data.primary_attribute = hero.primary_attribute
+        data.str_per_level = hero.str_per_level
+        data.agi_per_level = hero.agi_per_level
+        data.int_per_level = hero.int_per_level
+
+        -- Preserve inventory (copy item entity IDs)
+        data.inventory = {}
+        if hero.inventory then
+            for i, item in ipairs(hero.inventory) do
+                data.inventory[i] = item
+            end
+        end
+    end
+
+    -- Get stats
+    local stats = ecs.get_component(entity, "stats")
+    if stats then
+        data.hp_max = stats.hp_max
+        data.mp_max = stats.mp_max
+        data.hp_regen = stats.hp_regen
+        data.mp_regen = stats.mp_regen
+    end
+
+    -- Get abilities
+    local abilities = ecs.get_component(entity, "abilities")
+    if abilities then
+        data.ability_ids = {}
+        for i, id in ipairs(abilities.ability_ids or {}) do
+            data.ability_ids[i] = id
+        end
+
+        data.ability_levels = {}
+        for id, level in pairs(abilities.levels or {}) do
+            data.ability_levels[id] = level
+        end
+
+        data.ability_cooldowns = {}
+        for id, cd in pairs(abilities.cooldowns or {}) do
+            data.ability_cooldowns[id] = cd
+        end
+    end
+
+    return data
+end
+-- }}}
+
+-- {{{ death.create_ghost
+-- Create a ghost entity for a dead hero.
+-- @param dead_entity Entity ID of the dead hero
+-- @param corpse_entity Entity ID of the corpse (optional)
+-- @return ghost entity ID, or nil if ghost shouldn't be created
+function death.create_ghost(dead_entity, corpse_entity)
+    -- Validate: entity must exist and be dead
+    if not ecs.entity_exists(dead_entity) then
+        return nil
+    end
+
+    if not death.is_dead(dead_entity) then
+        return nil
+    end
+
+    -- Only heroes get ghosts
+    local unit_type = ecs.get_component(dead_entity, "unit_type")
+    local is_hero = (unit_type and unit_type.is_hero) or ecs.has_component(dead_entity, "hero")
+    if not is_hero then
+        return nil
+    end
+
+    -- Check if ghost already exists for this unit
+    if unit_to_ghost[dead_entity] then
+        return unit_to_ghost[dead_entity]
+    end
+
+    -- Get death position
+    local pos = ecs.get_component(dead_entity, "position")
+    local ghost_x = pos and pos.x or 0
+    local ghost_y = pos and pos.y or 0
+    local ghost_facing = pos and pos.facing or 0
+
+    -- Get owner
+    local owner = ecs.get_component(dead_entity, "owner")
+    local owner_player = owner and owner.player_id or nil
+
+    -- Preserve hero data
+    local original_data = death.preserve_hero_data(dead_entity)
+
+    -- Create ghost entity
+    local ghost = ecs.create_entity()
+
+    -- Add position component (ghost starts at death location)
+    ecs.add_component(ghost, "position", {
+        x = ghost_x,
+        y = ghost_y,
+        z = 0,
+        facing = ghost_facing,
+    })
+
+    -- Add ghost component
+    ecs.add_component(ghost, "ghost", {
+        linked_corpse = corpse_entity,
+        original_entity = dead_entity,
+        original_data = original_data,
+        owner_player = owner_player,
+        movement_speed = 400,
+        visible_to_owner = true,
+        visible_to_allies = false,
+        visible_to_enemies = false,
+        at_altar = false,
+        revival_started = false,
+    })
+
+    -- Add to spirit world layer
+    ecs.add_component(ghost, "world_layer", {
+        layer = death.LAYER.SPIRIT,
+    })
+
+    -- Add movement component (ghosts can fly)
+    ecs.add_component(ghost, "movement", {
+        speed = 400,
+        speed_modifier = 1.0,
+        pathing_type = "fly",  -- Ghosts ignore terrain
+    })
+
+    -- Add selectable component (owner can select their ghost)
+    ecs.add_component(ghost, "selectable", {
+        selected = false,
+        selection_scale = 1.0,
+        selection_priority = 0,
+        show_healthbar = false,
+        show_manabar = false,
+        can_select = true,
+    })
+
+    -- Add owner component
+    ecs.add_component(ghost, "owner", {
+        player_id = owner_player or 0,
+    })
+
+    -- Track the relationship
+    ghost_to_unit[ghost] = dead_entity
+    unit_to_ghost[dead_entity] = ghost
+
+    -- Link corpse to ghost if provided
+    if corpse_entity then
+        death.link_corpse_to_ghost(corpse_entity, ghost)
+    end
+
+    return ghost
+end
+-- }}}
+
+-- {{{ death.get_ghost
+-- Get the ghost entity for a dead hero.
+-- @param dead_entity Entity ID of the dead hero
+-- @return ghost entity ID, or nil if no ghost exists
+function death.get_ghost(dead_entity)
+    return unit_to_ghost[dead_entity]
+end
+-- }}}
+
+-- {{{ death.get_ghost_unit
+-- Get the original unit entity for a ghost.
+-- @param ghost Entity ID of the ghost
+-- @return unit entity ID, or nil if unknown
+function death.get_ghost_unit(ghost)
+    return ghost_to_unit[ghost]
+end
+-- }}}
+
+-- {{{ death.is_ghost
+-- Check if an entity is a ghost.
+-- @param entity Entity ID
+-- @return boolean true if entity has ghost component
+function death.is_ghost(entity)
+    return ecs.has_component(entity, "ghost")
+end
+-- }}}
+
+-- {{{ death.get_linked_corpse
+-- Get the corpse entity linked to a ghost.
+-- @param ghost Entity ID of the ghost
+-- @return corpse entity ID, or nil if not linked
+function death.get_linked_corpse(ghost)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return nil
+    end
+    return ghost_comp.linked_corpse
+end
+-- }}}
+
+-- {{{ death.get_original_data
+-- Get the preserved hero data from a ghost.
+-- @param ghost Entity ID of the ghost
+-- @return table original data, or nil if not a ghost
+function death.get_original_data(ghost)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return nil
+    end
+    return ghost_comp.original_data
+end
+-- }}}
+
+-- {{{ death.can_see_ghost
+-- Check if a player can see a ghost.
+-- @param viewer_player Player ID viewing
+-- @param ghost Entity ID of the ghost
+-- @return boolean true if player can see ghost
+function death.can_see_ghost(viewer_player, ghost)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return false
+    end
+
+    -- Owner visibility
+    if viewer_player == ghost_comp.owner_player then
+        return ghost_comp.visible_to_owner
+    end
+
+    -- Alliance check (simplified - assumes players with same team are allies)
+    -- Full alliance system would require player module integration
+    local viewer_owner = nil -- Would get from player system
+    local ghost_owner = ghost_comp.owner_player
+
+    -- For now, treat all non-owners as potential enemies
+    -- In a full implementation, check alliance:
+    -- if is_ally(viewer_player, ghost_owner) then
+    --     return ghost_comp.visible_to_allies
+    -- end
+
+    return ghost_comp.visible_to_enemies
+end
+-- }}}
+
+-- {{{ death.set_ghost_visibility
+-- Set ghost visibility rules.
+-- @param ghost Entity ID of the ghost
+-- @param owner boolean owner can see
+-- @param allies boolean allies can see
+-- @param enemies boolean enemies can see
+-- @return boolean true if visibility was set
+function death.set_ghost_visibility(ghost, owner, allies, enemies)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return false
+    end
+
+    if owner ~= nil then
+        ghost_comp.visible_to_owner = owner
+    end
+    if allies ~= nil then
+        ghost_comp.visible_to_allies = allies
+    end
+    if enemies ~= nil then
+        ghost_comp.visible_to_enemies = enemies
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ death.ghost_at_altar
+-- Mark a ghost as having reached an altar.
+-- @param ghost Entity ID of the ghost
+-- @param altar Entity ID of the altar (optional, for future use)
+-- @return boolean true if marked successfully
+function death.ghost_at_altar(ghost, altar)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return false
+    end
+
+    ghost_comp.at_altar = true
+    return true
+end
+-- }}}
+
+-- {{{ death.is_at_altar
+-- Check if a ghost has reached an altar.
+-- @param ghost Entity ID of the ghost
+-- @return boolean true if at altar
+function death.is_at_altar(ghost)
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if not ghost_comp then
+        return false
+    end
+    return ghost_comp.at_altar
+end
+-- }}}
+
+-- {{{ death.destroy_ghost
+-- Remove a ghost entity (on revival or timeout).
+-- @param ghost Entity ID of the ghost
+-- @return boolean true if ghost was destroyed
+function death.destroy_ghost(ghost)
+    if not death.is_ghost(ghost) then
+        return false
+    end
+
+    -- Clean up tracking
+    local unit = ghost_to_unit[ghost]
+    if unit then
+        unit_to_ghost[unit] = nil
+    end
+    ghost_to_unit[ghost] = nil
+
+    -- Unlink from corpse if linked
+    local ghost_comp = ecs.get_component(ghost, "ghost")
+    if ghost_comp and ghost_comp.linked_corpse then
+        local corpse_comp = ecs.get_component(ghost_comp.linked_corpse, "corpse")
+        if corpse_comp then
+            corpse_comp.linked_ghost = nil
+        end
+    end
+
+    -- Destroy the entity
+    ecs.destroy_entity(ghost)
+
+    return true
+end
+-- }}}
+
+-- {{{ death.count_ghosts
+-- Count all ghost entities.
+-- @return number count of ghosts
+function death.count_ghosts()
+    local storage = ecs.get_component_storage("ghost")
+    if not storage then
+        return 0
+    end
+
+    local count = 0
+    for _ in pairs(storage) do
+        count = count + 1
+    end
+    return count
+end
 -- }}}
 
 return death
