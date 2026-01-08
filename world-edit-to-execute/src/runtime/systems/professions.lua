@@ -118,7 +118,142 @@ professions.EVENT = {
     SKILL_CAP_RAISED = 103,
     RECIPE_LEARNED = 104,
     SPECIALIZATION_CHOSEN = 105,
+    COOLDOWN_STARTED = 106,
+    COOLDOWN_READY = 107,
 }
+-- }}}
+
+-- ============================================================================
+-- Profession Type Registry
+-- ============================================================================
+
+-- {{{ Registry state
+-- Stores profession type definitions.
+-- Each definition contains metadata about a profession type.
+local profession_registry = {}
+-- }}}
+
+-- {{{ professions.register_type
+-- Register a profession type definition.
+-- @param definition Table with profession metadata:
+--   - id: Unique identifier (e.g., "mining", "blacksmithing")
+--   - name: Display name
+--   - type: professions.TYPE.PRIMARY or professions.TYPE.SECONDARY
+--   - description: Optional description text
+--   - icon: Optional icon identifier
+--   - skill_max_override: Optional override for max skill
+--   - exclusive_with: Array of profession IDs that cannot coexist
+--   - prerequisites: Array of profession IDs required to learn this
+--   - learn_cost: Optional table { gold = N } for learning cost
+-- @return true on success
+function professions.register_type(definition)
+    if not definition.id then
+        error("register_type: profession requires 'id' field")
+    end
+    if not definition.name then
+        error("register_type: profession requires 'name' field")
+    end
+
+    -- Apply defaults
+    definition.type = definition.type or professions.TYPE.PRIMARY
+    definition.description = definition.description or ""
+    definition.icon = definition.icon or nil
+    definition.skill_max_override = definition.skill_max_override or nil
+    definition.exclusive_with = definition.exclusive_with or {}
+    definition.prerequisites = definition.prerequisites or {}
+    definition.learn_cost = definition.learn_cost or nil
+
+    profession_registry[definition.id] = definition
+    return true
+end
+-- }}}
+
+-- {{{ professions.get_type
+-- Get a registered profession type definition.
+-- @param profession_id Profession identifier
+-- @return Definition table or nil if not registered
+function professions.get_type(profession_id)
+    return profession_registry[profession_id]
+end
+-- }}}
+
+-- {{{ professions.get_all_types
+-- Get all registered profession type definitions.
+-- @return Table of {id = definition, ...}
+function professions.get_all_types()
+    local result = {}
+    for id, def in pairs(profession_registry) do
+        result[id] = def
+    end
+    return result
+end
+-- }}}
+
+-- {{{ professions.get_types_by_category
+-- Get all professions of a specific type (primary/secondary).
+-- @param prof_type professions.TYPE.PRIMARY or professions.TYPE.SECONDARY
+-- @return Array of profession definitions
+function professions.get_types_by_category(prof_type)
+    local result = {}
+    for id, def in pairs(profession_registry) do
+        if def.type == prof_type then
+            result[#result + 1] = def
+        end
+    end
+    return result
+end
+-- }}}
+
+-- {{{ professions.is_type_registered
+-- Check if a profession type is registered.
+-- @param profession_id Profession identifier
+-- @return boolean
+function professions.is_type_registered(profession_id)
+    return profession_registry[profession_id] ~= nil
+end
+-- }}}
+
+-- {{{ professions.clear_registry
+-- Clear all registered profession types (for testing).
+function professions.clear_registry()
+    profession_registry = {}
+end
+-- }}}
+
+-- {{{ Default profession types
+-- Register standard profession types on module load.
+local DEFAULT_PROFESSIONS = {
+    -- Gathering professions
+    { id = "mining", name = "Mining", type = "primary", description = "Extract ore from mineral veins." },
+    { id = "herbalism", name = "Herbalism", type = "primary", description = "Gather plants and herbs." },
+    { id = "skinning", name = "Skinning", type = "primary", description = "Skin hides from beasts." },
+
+    -- Crafting professions
+    { id = "blacksmithing", name = "Blacksmithing", type = "primary", description = "Forge weapons and armor from metal.", prerequisites = {} },
+    { id = "leatherworking", name = "Leatherworking", type = "primary", description = "Craft leather armor and goods." },
+    { id = "tailoring", name = "Tailoring", type = "primary", description = "Create cloth armor and bags." },
+    { id = "alchemy", name = "Alchemy", type = "primary", description = "Brew potions and elixirs." },
+    { id = "engineering", name = "Engineering", type = "primary", description = "Build gadgets and explosives." },
+    { id = "enchanting", name = "Enchanting", type = "primary", description = "Enhance items with magical properties." },
+    { id = "jewelcrafting", name = "Jewelcrafting", type = "primary", description = "Cut gems and craft jewelry." },
+    { id = "inscription", name = "Inscription", type = "primary", description = "Create glyphs and scrolls." },
+
+    -- Secondary professions
+    { id = "cooking", name = "Cooking", type = "secondary", description = "Prepare food and drinks." },
+    { id = "first_aid", name = "First Aid", type = "secondary", description = "Create bandages for healing." },
+    { id = "fishing", name = "Fishing", type = "secondary", description = "Catch fish from bodies of water." },
+
+    -- WC3-style professions
+    { id = "lumber", name = "Lumberjacking", type = "secondary", description = "Harvest lumber from trees." },
+    { id = "repair", name = "Repair", type = "secondary", description = "Repair damaged equipment." },
+    { id = "construction", name = "Construction", type = "secondary", description = "Build structures." },
+}
+
+local function register_default_professions()
+    for _, def in ipairs(DEFAULT_PROFESSIONS) do
+        professions.register_type(def)
+    end
+end
 -- }}}
 
 -- ============================================================================
@@ -166,6 +301,7 @@ local function create_skill_data(initial_skill, initial_cap)
         specialization = nil,
         recipes_known = {},
         last_skillup = 0,
+        cooldowns = {},  -- {cooldown_name = expires_at_timestamp}
     }
 end
 -- }}}
@@ -811,21 +947,181 @@ end
 -- }}}
 
 -- ============================================================================
+-- Cooldown System
+-- ============================================================================
+
+-- {{{ professions.set_cooldown
+-- Set a cooldown on a profession.
+-- @param entity_id Entity ID
+-- @param profession_id Profession identifier
+-- @param cooldown_name Name of the cooldown (e.g., "transmute", "daily_craft")
+-- @param duration Duration in seconds
+-- @return true on success, false if profession not known
+function professions.set_cooldown(entity_id, profession_id, cooldown_name, duration)
+    local data = get_profession_data(entity_id, profession_id)
+    if not data then
+        return false
+    end
+
+    local expires_at = os.time() + duration
+    data.cooldowns[cooldown_name] = expires_at
+
+    -- Fire cooldown started event
+    events.fire(professions.EVENT.COOLDOWN_STARTED, {
+        entity = entity_id,
+        profession = profession_id,
+        cooldown = cooldown_name,
+        duration = duration,
+        expires_at = expires_at,
+    })
+
+    return true
+end
+-- }}}
+
+-- {{{ professions.get_cooldown_remaining
+-- Get remaining time on a cooldown.
+-- @param entity_id Entity ID
+-- @param profession_id Profession identifier
+-- @param cooldown_name Name of the cooldown
+-- @return Remaining seconds, or 0 if ready/not set
+function professions.get_cooldown_remaining(entity_id, profession_id, cooldown_name)
+    local data = get_profession_data(entity_id, profession_id)
+    if not data then
+        return 0
+    end
+
+    local expires_at = data.cooldowns[cooldown_name]
+    if not expires_at then
+        return 0
+    end
+
+    local remaining = expires_at - os.time()
+    return remaining > 0 and remaining or 0
+end
+-- }}}
+
+-- {{{ professions.is_cooldown_ready
+-- Check if a cooldown has expired.
+-- @param entity_id Entity ID
+-- @param profession_id Profession identifier
+-- @param cooldown_name Name of the cooldown
+-- @return true if ready (no cooldown or expired), false if on cooldown
+function professions.is_cooldown_ready(entity_id, profession_id, cooldown_name)
+    return professions.get_cooldown_remaining(entity_id, profession_id, cooldown_name) <= 0
+end
+-- }}}
+
+-- {{{ professions.clear_cooldown
+-- Clear a specific cooldown.
+-- @param entity_id Entity ID
+-- @param profession_id Profession identifier
+-- @param cooldown_name Name of the cooldown
+-- @return true on success, false if profession not known
+function professions.clear_cooldown(entity_id, profession_id, cooldown_name)
+    local data = get_profession_data(entity_id, profession_id)
+    if not data then
+        return false
+    end
+
+    local was_set = data.cooldowns[cooldown_name] ~= nil
+    data.cooldowns[cooldown_name] = nil
+
+    -- Fire cooldown ready event if it was actually cleared
+    if was_set then
+        events.fire(professions.EVENT.COOLDOWN_READY, {
+            entity = entity_id,
+            profession = profession_id,
+            cooldown = cooldown_name,
+        })
+    end
+
+    return true
+end
+-- }}}
+
+-- {{{ professions.get_all_cooldowns
+-- Get all active cooldowns for a profession.
+-- @param entity_id Entity ID
+-- @param profession_id Profession identifier
+-- @return Table of {cooldown_name = remaining_seconds}
+function professions.get_all_cooldowns(entity_id, profession_id)
+    local data = get_profession_data(entity_id, profession_id)
+    if not data then
+        return {}
+    end
+
+    local result = {}
+    local now = os.time()
+    for name, expires_at in pairs(data.cooldowns) do
+        local remaining = expires_at - now
+        if remaining > 0 then
+            result[name] = remaining
+        end
+    end
+    return result
+end
+-- }}}
+
+-- {{{ professions.cleanup_expired_cooldowns
+-- Remove all expired cooldowns for a profession.
+-- Called periodically or on-demand to clean up state.
+-- @param entity_id Entity ID
+-- @param profession_id Profession identifier
+-- @return Number of cooldowns cleaned up
+function professions.cleanup_expired_cooldowns(entity_id, profession_id)
+    local data = get_profession_data(entity_id, profession_id)
+    if not data then
+        return 0
+    end
+
+    local now = os.time()
+    local cleaned = 0
+    local to_remove = {}
+
+    for name, expires_at in pairs(data.cooldowns) do
+        if expires_at <= now then
+            to_remove[#to_remove + 1] = name
+        end
+    end
+
+    for _, name in ipairs(to_remove) do
+        data.cooldowns[name] = nil
+        cleaned = cleaned + 1
+
+        -- Fire cooldown ready event
+        events.fire(professions.EVENT.COOLDOWN_READY, {
+            entity = entity_id,
+            profession = profession_id,
+            cooldown = name,
+        })
+    end
+
+    return cleaned
+end
+-- }}}
+
+-- ============================================================================
 -- Initialization
 -- ============================================================================
 
 -- {{{ professions.init
 -- Initialize the profession system.
+-- Registers the component and default profession types.
 function professions.init()
     register_component()
+    register_default_professions()
 end
 -- }}}
 
 -- {{{ professions.reset
 -- Reset profession system state (for testing).
+-- Resets mode to WoW and clears/re-registers default professions.
 function professions.reset()
     active_mode = "wow"
     active_config = CONFIG.wow
+    professions.clear_registry()
+    register_default_professions()
 end
 -- }}}
 
