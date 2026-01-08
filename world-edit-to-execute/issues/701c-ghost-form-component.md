@@ -202,16 +202,16 @@ end
 
 ## Acceptance Criteria
 
-- [ ] `ghost` component registered with ECS
-- [ ] `create_ghost()` spawns ghost at death location
-- [ ] Ghost preserves original unit data
-- [ ] Ghost links to corpse entity
-- [ ] Ghost exists in spirit world layer
-- [ ] Ghost movement works (faster, ignores terrain)
-- [ ] Visibility rules implemented
-- [ ] Ghost removed when hero revives
-- [ ] Unit tests for ghost creation
-- [ ] Unit tests for ghost visibility
+- [x] `ghost` component registered with ECS
+- [x] `create_ghost()` spawns ghost at death location
+- [x] Ghost preserves original unit data
+- [x] Ghost links to corpse entity
+- [x] Ghost exists in spirit world layer
+- [x] Ghost movement works (faster, ignores terrain)
+- [x] Visibility rules implemented
+- [x] Ghost removed when hero revives
+- [x] Unit tests for ghost creation
+- [x] Unit tests for ghost visibility
 
 ---
 
@@ -228,3 +228,74 @@ must retain all their progress through death.
 
 Rendering the ghost (transparency, glow, animation) is Phase 5 territory.
 This issue only handles the data model and game logic.
+
+---
+
+## Implementation Notes
+
+**Implemented:** 2026-01-07
+
+### Integration with death.lua
+
+The ghost system was integrated directly into `src/runtime/systems/death.lua`
+alongside death and corpse systems for unified access.
+
+### Components Added
+
+- `ghost` - Tracks ghost state, links, visibility, and preserved hero data
+
+### API Implemented
+
+**Creation:**
+- `create_ghost(dead_hero, corpse)` - Create ghost for dead hero
+- `preserve_hero_data(entity)` - Capture hero state for revival
+
+**Queries:**
+- `is_ghost(entity)` - Check if entity is a ghost
+- `get_ghost(dead_hero)` - Get ghost for dead hero
+- `get_ghost_unit(ghost)` - Get original hero for ghost
+- `get_linked_corpse(ghost)` - Get linked corpse
+- `get_original_data(ghost)` - Get preserved hero data
+- `count_ghosts()` - Count active ghosts
+
+**Visibility:**
+- `can_see_ghost(player, ghost)` - Check visibility
+- `set_ghost_visibility(ghost, owner, allies, enemies)` - Set rules
+
+**Altar State:**
+- `ghost_at_altar(ghost, altar)` - Mark at altar
+- `is_at_altar(ghost)` - Check altar state
+
+**Cleanup:**
+- `destroy_ghost(ghost)` - Remove ghost, clean links
+
+### Ghost Creation Details
+
+When `create_ghost()` is called:
+1. Validates entity is dead hero
+2. Preserves all hero data (level, stats, inventory, abilities)
+3. Creates ghost entity with position/movement/selectable components
+4. Places ghost in spirit world layer
+5. Links ghost to corpse if provided
+6. Sets up owner and visibility defaults
+
+### Test Coverage
+
+24 new tests for ghost system:
+- Component registration
+- Ghost creation (hero only, dead only)
+- Position preservation
+- Hero data preservation
+- Query functions
+- Visibility rules
+- Altar state tracking
+- Cleanup and unlinking
+
+### Design Decisions
+
+- Ghosts only created for heroes (non-heroes return nil)
+- Ghost inherits owner from original hero
+- Ghosts use fly pathing (ignore terrain)
+- Movement speed 400 (faster than most units)
+- Visibility defaults: owner=true, allies=false, enemies=false
+- Two-way tracking between ghost and original hero
