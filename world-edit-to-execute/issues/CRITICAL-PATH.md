@@ -5,14 +5,28 @@
 ║                                                                  ║
 ║   📍 CRITICAL PATH - Decision Points & Open Questions            ║
 ║                                                                  ║
-║   "The relevance of this document increases with use."          ║
+║   "The relevance of this document increases with use."           ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
-**Last Updated:** 2025-12-31
+**Last Updated:** 2026-01-07 (Architectural Pivot)
 **Maintainer:** Project contributors
 **Location:** `issues/CRITICAL-PATH.md` (symlinked to `docs/critical-path.md`)
+
+---
+
+## ⚡ Architectural Pivot (2026-01-07)
+
+**Major Decision:** Abandoned AzerothCore integration in favor of pure WC3 engine.
+
+**Reason:** Complexity misalignment with core preservation mission.
+
+**Impact on This Document:**
+- OQ-003 and OQ-004 decisions superseded by pivot
+- Focus shifted to pure WC3 gameplay, LAN multiplayer, community assets
+- Dual-view camera (WC3 tactical + 3D adventure) remains valid
+- See `docs/postmortem-azerothcore-integration.md` for full analysis
 
 ---
 
@@ -82,57 +96,45 @@ Which coordinate system for rendering?
 
 ---
 
-### OQ-003: Dual Interface Mode Strategy
+### OQ-003: Dual Camera Mode Strategy
 **Priority:** 🟡 MEDIUM
 **Affects:** Phase 5, overall architecture
-**Status:** DECIDED
+**Status:** SUPERSEDED (2026-01-07 Pivot)
 **Source:** Issue 500
 
-How should Warcraft RTS mode and WoW-Chat mode coexist?
+**Original Decision (2025-12-29):** AzerothCore integration with dual-mode support.
 
-| Option | Description |
-|--------|-------------|
-| Runtime toggle | Switch during gameplay |
-| Startup selection | Choose before launch |
-| Separate builds | Different executables |
-| Parallel views | Both visible simultaneously |
-| **API-driven** | Data-driven integration layer |
+**Current Decision (2026-01-07):** Pure WC3 engine with optional dual-camera system:
+- **Default:** WC3 tactical camera (top-down RTS view)
+- **Optional:** 3D adventure camera (over-shoulder exploration)
+- **Toggle:** F5 key switches between camera modes
+- **Focus:** Pure WC3 gameplay, no server dependency
 
-**Decision:** Full emulation with unified architecture. Single server hosts all
-WC3 games. Unified client switches on-the-fly between top-down WC3 view and
-over-the-shoulder WoW view. Both perspectives fully comprehensive, same graphical
-scaling. AzerothCore and world-edit-to-execute are translation layers rendering
-the same underlying data. Player can play WC3 in WoW style and vice versa.
 **Decided by:** User
-**Date:** 2025-12-29 (expanded 2025-12-31)
-**Details:** See issue 500 "Decided Answers" section (D1, D4)
+**Date:** 2026-01-07 (pivoted from 2025-12-29 decision)
+**Architecture:** See `docs/wc3-engine-architecture.md`
 
 ---
 
-### OQ-004: Development Priority (WC3 vs WoW-Chat)
+### OQ-004: Development Priority
 **Priority:** 🟡 MEDIUM
 **Affects:** Feature prioritization, Phase 5-7
-**Status:** DECIDED
+**Status:** SUPERSEDED (2026-01-07 Pivot)
 **Source:** Issue 500
 
-Which interface gets primary development focus?
+**Original Decision (2025-12-29):** Integrated WC3/WoW dual-mode approach.
 
-| Option | Implication |
-|--------|-------------|
-| Warcraft first | RTS features before social features |
-| Chat first | Social/text features before visual game |
-| Parallel | Both developed simultaneously |
-| Equal | Features alternate between modes |
-| **Integrated** | Single data layer, multiple consumers |
+**Current Decision (2026-01-07):** Pure WC3 engine priority:
+1. **Phase 5:** Rendering (Raylib, WC3 tactical camera, basic 3D adventure camera)
+2. **Phase 6:** Asset system (community-created packs, legal Blizzard IP replacement)
+3. **Phase 7:** WC3 gameplay mechanics (death, professions, combat, abilities)
+4. **Phase 8:** LAN multiplayer (no Battle.net dependency)
 
-**Decision:** Integrated approach - WoW-chat is not a separate mode but an
-integral part of the system. Build the data/API layer that both WC3 visuals
-and AzerothCore can consume. The engine becomes the shared truth. Both systems
-run in parallel, rendering the same underlying state. WC3 hero IS the WoW
-character - same entity viewed through different perspectives.
+**Goal:** First playable Tower Defense map in 6 months.
+
 **Decided by:** User
-**Date:** 2025-12-29 (expanded 2025-12-31)
-**Details:** See issue 500 "Decided Answers" section (D3, D4, D5)
+**Date:** 2026-01-07 (pivoted from 2025-12-29 decision)
+**Architecture:** See `docs/wc3-engine-architecture.md`
 
 ---
 
