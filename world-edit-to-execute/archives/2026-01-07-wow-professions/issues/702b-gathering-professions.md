@@ -254,16 +254,88 @@ WC3_LUMBER = {
 
 ## Acceptance Criteria
 
-- [ ] Gatherable nodes can be placed in world
-- [ ] Entities with profession can gather from nodes
-- [ ] Skill requirements enforced
-- [ ] Yield calculated based on skill and node
-- [ ] Nodes deplete and respawn
-- [ ] Skill-ups occur on gather
-- [ ] Mining, Herbalism, Skinning, Lumber, Fishing all work
-- [ ] WC3 simplified mode works
-- [ ] Events fire correctly
-- [ ] Unit tests for gathering logic
+- [x] Gatherable nodes can be placed in world
+- [x] Entities with profession can gather from nodes
+- [x] Skill requirements enforced
+- [x] Yield calculated based on skill and node
+- [x] Nodes deplete and respawn
+- [x] Skill-ups occur on gather
+- [x] Mining, Herbalism, Skinning, Lumber, Fishing all work (definitions provided)
+- [x] WC3 simplified mode works (gold mine, tree templates)
+- [x] Events fire correctly
+- [x] Unit tests for gathering logic
+
+---
+
+## Implementation Notes
+
+Implementation completed 2026-01-07.
+
+### Files Created
+
+- `src/runtime/systems/gathering.lua` - Gathering profession system
+- `src/tests/test_gathering.lua` - Unit tests (31 tests, all passing)
+
+### Features Implemented
+
+1. **Gatherable Component**
+   - `gatherable` component with resource type, profession/skill requirements
+   - Yield configuration (min/max, bonus drops)
+   - Node state (remaining gathers, depletion, respawn timing)
+   - Channel time for gather actions
+
+2. **Gathering State Component**
+   - `gathering_state` component tracks current gather action
+   - States: IDLE, GATHERING, INTERRUPTED
+   - Progress tracking with timestamps
+
+3. **Node Management**
+   - `create_node(position, type, config)` - Create from template or custom
+   - `deplete_node(node)` - Mark as depleted, schedule respawn
+   - `respawn_node(node)` - Restore depleted node
+   - `check_respawns()` - Periodic respawn check
+   - `get_node_info(node)` - Query node state
+
+4. **Gathering Flow**
+   - `can_gather(entity, node)` - Validate profession, skill, availability
+   - `start_gather(entity, node)` - Begin gather action
+   - `cancel_gather(entity)` - Interrupt gather
+   - `complete_gather(entity, node)` - Finish and yield resources
+   - `update_progress(entity)` - Track gather progress
+   - `is_gather_ready(entity)` - Check completion
+
+5. **Profession Definitions**
+   - Mining: 5 tiers, requires mining pick, mineral nodes
+   - Herbalism: 5 tiers, bare hands, plant nodes
+   - Skinning: Level-based formula (mob_level * 5), requires knife
+   - Lumberjacking: WC3-focused, skill affects gather rate
+   - Fishing: Pool bonus, catch table function
+
+6. **Node Type Templates**
+   - Mining: copper_vein, iron_deposit, mithril_deposit
+   - Herbalism: peacebloom, mageroyal
+   - Skinning: wolf_corpse
+   - WC3: gold_mine (infinite gathers), tree
+
+7. **Events**
+   - `GATHER_START`, `GATHER_SUCCESS`, `GATHER_FAILED`, `GATHER_INTERRUPTED`
+   - `NODE_DEPLETED`, `NODE_RESPAWNED`, `RARE_FIND`
+
+### Test Summary
+
+| Category | Tests |
+|----------|-------|
+| Node Management | 7 |
+| Gathering Flow | 10 |
+| Integration | 5 |
+| Node Type Templates | 5 |
+| Profession Definitions | 4 |
+| **Total** | **31** |
+
+### Deferred Items
+
+- **Spatial queries**: find_nearest_node and get_nodes_in_range need spatial system
+- **Tool checks**: Requires inventory system (Issue 406)
 
 ---
 
