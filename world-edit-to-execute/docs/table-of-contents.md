@@ -10,14 +10,18 @@ docs/
 ├── table-of-contents.md       (this file)
 ├── roadmap.md                  Project phases and milestones
 ├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
+├── wc3-engine-architecture.md  Pure WC3 engine architecture (active design)
+├── postmortem-azerothcore-integration.md  AC integration pivot analysis
 ├── render-architecture.md      Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── binary-vector-frames.md     Quadrant voting, curve approximation, 3D rotations
-├── azerothcore-integration-architecture.md  AzerothCore integration overview
-├── client-architecture.md      Dual-protocol client, dual-view rendering
-├── data-conversion-pipeline.md WC3 → AC data conversion
-├── custom-ability-bridge.md    WC3 custom ability handling
-├── phase-reorganization.md     Revised phase structure proposal
+├── archive/                    Archived design documents
+│   └── azerothcore-2026-01-07/ AzerothCore integration (archived)
+│       ├── azerothcore-integration-architecture.md
+│       ├── client-architecture.md
+│       ├── data-conversion-pipeline.md
+│       ├── custom-ability-bridge.md
+│       └── phase-reorganization.md
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
@@ -140,23 +144,21 @@ issues/
 |----------|----------|-------------|
 | CLAUDE.md | ./CLAUDE.md | Project instructions for Claude Code |
 | Vision | notes/vision | Project philosophy, legal basis, and goals |
+| **WC3 Engine Architecture** | **docs/wc3-engine-architecture.md** | **Pure WC3 engine design (active)** |
 | Roadmap | docs/roadmap.md | Phased development plan |
 | Progress | issues/progress.md | Current phase status |
 | Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
 | Render Architecture | docs/render-architecture.md | Threading model, component slots, numeric encoding |
 | Binary Vector Frames | docs/binary-vector-frames.md | Quadrant voting, curve approximation, 3D rotations |
 
-### Architecture Design Documents
+### Historical Documents
 
-**Created:** 2026-01-07 - AzerothCore integration architectural clarification
+**Post-Mortem:** 2026-01-07 - AzerothCore integration pivot
 
 | Document | Location | Description |
 |----------|----------|-------------|
-| AzerothCore Integration | docs/azerothcore-integration-architecture.md | Overall system architecture, data flow, component ownership |
-| Client Architecture | docs/client-architecture.md | Dual-protocol client, dual-view rendering, Phase 5 split (5A/5B/5C) |
-| Data Conversion Pipeline | docs/data-conversion-pipeline.md | WC3 → AC conversion (terrain, units, items, triggers, etc.) |
-| Custom Ability Bridge | docs/custom-ability-bridge.md | WC3 custom ability handling (Eluna vs C++ fork approach) |
-| Phase Reorganization | docs/phase-reorganization.md | Revised phase structure, migration plan, impact analysis |
+| **AC Integration Post-Mortem** | **docs/postmortem-azerothcore-integration.md** | **Why we pivoted to pure WC3 engine** |
+| Archived AC Designs | docs/archive/azerothcore-2026-01-07/ | AzerothCore integration documents (reference only) |
 
 ### Tools
 

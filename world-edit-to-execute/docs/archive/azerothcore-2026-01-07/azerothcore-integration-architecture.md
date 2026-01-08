@@ -17,52 +17,52 @@ This project is **not a standalone game engine** - it is a **WC3 map data pipeli
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     WC3 Custom Map (.w3x)                       │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
-│  │ Terrain  │  │  Units   │  │ Triggers │  │  JASS    │       │
-│  │  (w3e)   │  │ (doo)    │  │  (wtg)   │  │   (j)    │       │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
+│  │ Terrain  │  │  Units   │  │ Triggers │  │  JASS    │         │
+│  │  (w3e)   │  │ (doo)    │  │  (wtg)   │  │   (j)    │         │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘         │
 └────────────────────────┬────────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │            world-edit-to-execute (Parser + Bridge)              │
 │                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Phase 1-3: WC3 Map Parser                               │  │
-│  │  • MPQ extraction                                        │  │
-│  │  • Format parsing (w3i, w3e, doo, wtg, j, etc.)         │  │
-│  │  • JASS transpilation (JASS → Lua)                      │  │
-│  └────────────────────────┬─────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Phase 1-3: WC3 Map Parser                               │   │
+│  │  • MPQ extraction                                        │   │
+│  │  • Format parsing (w3i, w3e, doo, wtg, j, etc.)          │   │
+│  │  • JASS transpilation (JASS → Lua)                       │   │
+│  └────────────────────────┬─────────────────────────────────┘   │
 │                           │                                     │
-│  ┌────────────────────────▼─────────────────────────────────┐  │
-│  │  Phase X: Data Conversion Pipeline (NEW)                │  │
-│  │  • Terrain → .map/.adt files (AC format)                │  │
-│  │  • Units → creature_template DB entries                 │  │
-│  │  • Items → item_template DB entries                     │  │
-│  │  • Triggers → Eluna Lua scripts                         │  │
-│  │  • Doodads → gameobject_template entries                │  │
-│  └────────────────────────┬─────────────────────────────────┘  │
+│  ┌────────────────────────▼─────────────────────────────────┐   │
+│  │  Phase X: Data Conversion Pipeline (NEW)                 │   │
+│  │  • Terrain → .map/.adt files (AC format)                 │   │
+│  │  • Units → creature_template DB entries                  │   │
+│  │  • Items → item_template DB entries                      │   │
+│  │  • Triggers → Eluna Lua scripts                          │   │
+│  │  • Doodads → gameobject_template entries                 │   │
+│  └────────────────────────┬─────────────────────────────────┘   │
 │                           │                                     │
-│  ┌────────────────────────▼─────────────────────────────────┐  │
-│  │  Phase Y: Custom Ability Bridge (NEW)                   │  │
-│  │  • Parse WC3 custom abilities (object editor data)      │  │
-│  │  • Generate Eluna hooks for custom logic                │  │
-│  │  • Runtime calculation for unsupported mechanics        │  │
-│  │  • Bidirectional AC ↔ Bridge communication              │  │
-│  └────────────────────────┬─────────────────────────────────┘  │
-└─────────────────────────────┼───────────────────────────────────┘
-                              │
-                              ▼
+│  ┌────────────────────────▼─────────────────────────────────┐   │
+│  │  Phase Y: Custom Ability Bridge (NEW)                    │   │
+│  │  • Parse WC3 custom abilities (object editor data)       │   │
+│  │  • Generate Eluna hooks for custom logic                 │   │
+│  │  • Runtime calculation for unsupported mechanics         │   │
+│  │  • Bidirectional AC ↔ Bridge communication               │   │
+│  └────────────────────────┬─────────────────────────────────┘   │
+└───────────────────────────┼─────────────────────────────────────┘
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  AzerothCore Server (WotLK)                     │
 │                  *** AUTHORITATIVE GAME STATE ***               │
 │                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │   Database   │  │   World      │  │   Eluna      │         │
-│  │  (creature,  │  │  Simulation  │  │  (custom     │         │
-│  │   item,      │  │  (movement,  │  │   scripts)   │         │
-│  │   map data)  │  │   combat)    │  │              │         │
-│  └──────────────┘  └──────────────┘  └──────────────┘         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │   Database   │  │   World      │  │   Eluna      │           │
+│  │  (creature,  │  │  Simulation  │  │  (custom     │           │
+│  │   item,      │  │  (movement,  │  │   scripts)   │           │
+│  │   map data)  │  │   combat)    │  │              │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
 └────────────────────────┬────────────────────────────────────────┘
                          │
               ┌──────────┴──────────┐
