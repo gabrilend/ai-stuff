@@ -140,14 +140,14 @@ mov.pathing_type = "ghost"  -- Always passable
 
 ## Acceptance Criteria
 
-- [ ] `world_layer` component registered with ECS
-- [ ] Layer constants defined (MORTAL, SPIRIT)
-- [ ] `send_to_spirit_world()` transitions entity to spirit layer
-- [ ] `return_to_mortal_world()` transitions back
-- [ ] Collision queries respect layer separation
-- [ ] Spirit entities can move through terrain
-- [ ] Unit tests for layer transitions
-- [ ] Unit tests for layer-aware collision
+- [x] `world_layer` component registered with ECS
+- [x] Layer constants defined (MORTAL, SPIRIT)
+- [x] `send_to_spirit_world()` transitions entity to spirit layer
+- [x] `return_to_mortal_world()` transitions back
+- [ ] Collision queries respect layer separation (deferred - collision system update)
+- [ ] Spirit entities can move through terrain (deferred - pathing enhancement)
+- [x] Unit tests for layer transitions
+- [ ] Unit tests for layer-aware collision (deferred)
 
 ---
 
@@ -164,3 +164,40 @@ ghosts) are handled in rendering, not here.
 
 Future consideration: Other layers could exist (ethereal plane, void, etc.)
 for spell effects or special mechanics.
+
+---
+
+## Implementation Notes
+
+**Implemented:** 2026-01-07 (as part of 701a)
+
+The core layer system was implemented directly in `src/runtime/systems/death.lua`
+alongside the death system, as they share the same module.
+
+### Components Added
+
+- `world_layer` - Tracks which layer entity exists on (mortal/spirit)
+
+### API Implemented
+
+- `death.LAYER.MORTAL` / `death.LAYER.SPIRIT` - Constants
+- `death.get_layer(entity)` - Get current layer
+- `death.is_in_spirit_world(entity)` - Check if in spirit
+- `death.is_in_mortal_world(entity)` - Check if in mortal
+- `death.send_to_spirit_world(entity)` - Transition to spirit
+- `death.return_to_mortal_world(entity)` - Transition to mortal
+
+### Test Coverage
+
+5 tests for layer functions (in test_death.lua):
+- get_layer returns mortal by default
+- send_to_spirit_world changes layer
+- return_to_mortal_world changes layer back
+- is_in_spirit_world works correctly
+- is_in_mortal_world works correctly
+
+### Deferred Items
+
+Collision layer separation and ghost terrain pathing require modifications
+to the collision (405) and pathfinding (403) systems. These will be addressed
+when the ghost form component (701c) is integrated with movement.
