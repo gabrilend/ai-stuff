@@ -304,17 +304,86 @@ WC3_SHOP_CRAFT = {
 
 ## Acceptance Criteria
 
-- [ ] Crafting stations can be interacted with
-- [ ] Recipes consume reagents from inventory
-- [ ] Crafted items appear in inventory
-- [ ] Skill requirements enforced
-- [ ] Skill-ups occur on successful craft
-- [ ] Station requirements enforced
-- [ ] All major professions defined
-- [ ] Quality variations (optional mode)
-- [ ] Events fire correctly
-- [ ] WC3 upgrade mapping works
-- [ ] Unit tests for crafting logic
+- [x] Crafting stations can be interacted with
+- [ ] Recipes consume reagents from inventory (requires inventory system - 406)
+- [ ] Crafted items appear in inventory (requires inventory system - 406)
+- [x] Skill requirements enforced
+- [x] Skill-ups occur on successful craft
+- [x] Station requirements enforced
+- [x] All major professions defined
+- [x] Quality variations (optional mode)
+- [x] Events fire correctly
+- [ ] WC3 upgrade mapping works (schema supports it, needs 702f)
+- [x] Unit tests for crafting logic
+
+---
+
+## Implementation Notes
+
+Implementation completed 2026-01-07.
+
+### Files Created
+
+- `src/runtime/systems/crafting.lua` - Crafting profession system
+- `src/tests/test_crafting.lua` - Unit tests (29 tests, all passing)
+
+### Features Implemented
+
+1. **Crafting Station Component**
+   - `crafting_station` component with station_type, skill/speed bonuses, fuel system
+   - `use_station(entity, station)` - Begin using a station
+   - `leave_station(entity)` - Stop using a station
+   - `is_station_available(station)` - Check availability
+   - `supports_profession(station, profession)` - Validate station type
+   - `add_fuel(station, amount)` - Manage fuel
+
+2. **Crafting State Component**
+   - `crafting_state` component tracks current craft, progress, timing
+   - States: IDLE, CRAFTING, INTERRUPTED
+
+3. **Craft Flow**
+   - `can_craft(entity, recipe, station)` - Validate all requirements
+   - `start_craft(entity, recipe, quantity)` - Begin crafting
+   - `cancel_craft(entity)` - Interrupt craft
+   - `complete_craft(entity)` - Finish and create output
+   - `update_progress(entity)` - Update craft progress
+   - `is_craft_ready(entity)` - Check if complete
+
+4. **Quality System**
+   - Optional quality variation (POOR/COMMON/UNCOMMON/RARE/EPIC)
+   - `set_quality_enabled(bool)` - Toggle quality system
+   - `calculate_quality(skill, recipe_skill, luck)` - Roll for quality
+   - Quality improves with excess skill and luck
+
+5. **Recipe Queries**
+   - `get_craftable_recipes(entity, profession)` - List craftable recipes
+   - `get_missing_reagents(entity, recipe)` - Check materials (stub)
+
+6. **Profession Definitions**
+   - Complete definitions for 10 professions
+   - Includes stations, tools, material types, output types, specializations
+   - Covers: blacksmithing, alchemy, engineering, enchanting, leatherworking,
+     tailoring, jewelcrafting, inscription, cooking, first_aid
+
+7. **Events**
+   - `CRAFT_START`, `CRAFT_SUCCESS`, `CRAFT_FAILED`, `CRAFT_INTERRUPTED`
+   - `STATION_USED`, `STATION_LEFT`, `QUALITY_BONUS`
+
+### Test Summary
+
+| Category | Tests |
+|----------|-------|
+| Station Management | 8 |
+| Crafting Flow | 8 |
+| Quality System | 4 |
+| Integration | 6 |
+| Profession Definitions | 3 |
+| **Total** | **29** |
+
+### Deferred Items
+
+- **Reagent consumption/item creation**: Requires inventory system (Issue 406)
+- **WC3 upgrade mapping**: Schema supports it; implementation in 702f
 
 ---
 
