@@ -10,7 +10,7 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
+| A | Infrastructure Tools (Shared) | In Progress | 1/7 |
 | 0 | Tooling/Infrastructure | In Progress | 24/32 |
 | 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
@@ -31,7 +31,7 @@
 |----|------|--------|--------------|
 | A01 | Git history prettifier | Pending | None |
 | A02 | Phase progress dashboard | Pending | None |
-| A03 | Unified test runner | Pending | None |
+| A03 | Unified test runner | **Completed** | None |
 | A04 | Issue validator | Pending | None |
 | A05 | Documentation index updater | Pending | None |
 | A06 | Parser coverage report | Pending | None |
