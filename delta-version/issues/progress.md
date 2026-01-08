@@ -9,6 +9,41 @@ Delta-Version is the meta-project responsible for git repository management and 
 3. **Development Workflow**: Establish standardized processes for multi-project development
 4. **Foundation Setup**: Prepare infrastructure for future development phases
 
+---
+
+## Phase A: Shared Infrastructure Tools
+
+> **Status:** 3/7 Complete (A01, A02, A03 implemented)
+>
+> Phase A tools are project-abstract utilities that live in `/home/ritz/programming/ai-stuff/scripts/`
+> and are symlinked into projects. They provide common functionality across all projects.
+
+| ID | Tool | Status | Location |
+|----|------|--------|----------|
+| **A01** | Git History Prettifier | ✅ **Completed** | `scripts/git-history.sh` |
+| **A02** | Progress Dashboard | ✅ **Completed** | `scripts/progress-dashboard.lua` |
+| **A03** | Unified Test Runner | ✅ **Completed** | `world-edit-to-execute/src/cli/run-tests.sh` → needs move to `scripts/` |
+| **A04** | Issue Validator | ⏳ Pending | TBD |
+| **A05** | TOC Updater | ⏳ Pending | TBD |
+| **A06** | Parser Coverage Report | ⏳ Pending | TBD |
+| **A07** | Phase A Integration Test | ⏳ Pending | Depends on A01-A06 |
+
+### Completed Tools
+
+**A01 - git-history.sh**: Generates prettified commit logs by phase with markdown output
+- See: `scripts/README-git-history.md`
+- Usage: `./scripts/git-history.sh -p 2` or `./scripts/git-history.sh -a`
+
+**A02 - progress-dashboard.lua**: Scans issue directories and generates progress statistics
+- See: `scripts/README-progress-dashboard.md`
+- Usage: `lua scripts/progress-dashboard.lua -t` or `-m` for markdown
+
+**A03 - run-tests.sh**: Discovers and runs Lua test files with aggregated reporting
+- See: `issues/A03-unified-test-runner.md`
+- Initial prototype in world-edit-to-execute, needs migration to shared location
+
+---
+
 ## Recommended Implementation Order
 
 ### Tier 1: Foundation (Independent, High Priority)
