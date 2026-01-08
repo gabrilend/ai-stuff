@@ -13,6 +13,11 @@ docs/
 ├── render-architecture.md      Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── binary-vector-frames.md     Quadrant voting, curve approximation, 3D rotations
+├── azerothcore-integration-architecture.md  AzerothCore integration overview
+├── client-architecture.md      Dual-protocol client, dual-view rendering
+├── data-conversion-pipeline.md WC3 → AC data conversion
+├── custom-ability-bridge.md    WC3 custom ability handling
+├── phase-reorganization.md     Revised phase structure proposal
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
@@ -120,6 +125,7 @@ issues/
 ├── 206-design-game-object-types.md
 ├── 207-build-object-registry-system.md
 ├── 208-phase-2-integration-test.md
+│   (Phase 8 issues maintained at /home/ritz/programming/ai-stuff/my-libs/issues/)
 ├── completed/                  Completed issue archive
 │   └── demos/                  Phase completion demonstrations
 ```
@@ -139,6 +145,18 @@ issues/
 | Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
 | Render Architecture | docs/render-architecture.md | Threading model, component slots, numeric encoding |
 | Binary Vector Frames | docs/binary-vector-frames.md | Quadrant voting, curve approximation, 3D rotations |
+
+### Architecture Design Documents
+
+**Created:** 2026-01-07 - AzerothCore integration architectural clarification
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| AzerothCore Integration | docs/azerothcore-integration-architecture.md | Overall system architecture, data flow, component ownership |
+| Client Architecture | docs/client-architecture.md | Dual-protocol client, dual-view rendering, Phase 5 split (5A/5B/5C) |
+| Data Conversion Pipeline | docs/data-conversion-pipeline.md | WC3 → AC conversion (terrain, units, items, triggers, etc.) |
+| Custom Ability Bridge | docs/custom-ability-bridge.md | WC3 custom ability handling (Eluna vs C++ fork approach) |
+| Phase Reorganization | docs/phase-reorganization.md | Revised phase structure, migration plan, impact analysis |
 
 ### Tools
 
@@ -186,6 +204,20 @@ issues/
 | 016g | WoW attribute config | Pending |
 | 016h | Cross-system mapping | Pending |
 | 016i | Integration tests | Pending |
+
+### Phase 8 Issues (Infrastructure Libraries)
+
+> Issues maintained externally at: `/home/ritz/programming/ai-stuff/my-libs/issues/`
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 800 | Threadpool library extraction | In Progress |
+| 800a | Core threadpool module | **Completed** |
+| 800b | Sync module (watch list) | Pending |
+| 800c | Updater module (self-evaluating) | Pending |
+| 800d | Threadpool test suite | Pending |
+| 800e | Render system migration | Pending |
+| 800f | Windows support planning | Pending |
 
 ### Phase 1 Issues (File Format Parsing) - **COMPLETED**
 
