@@ -601,6 +601,175 @@ test("get_difficulty returns correct colors", function()
 end)
 -- }}}
 
+-- {{{ Registry Tests
+test_section("Profession Type Registry")
+
+test("default professions are registered on init", function()
+    reset_all()
+    assert_true(professions.is_type_registered("mining"))
+    assert_true(professions.is_type_registered("blacksmithing"))
+    assert_true(professions.is_type_registered("cooking"))
+end)
+
+test("can get profession type definition", function()
+    reset_all()
+    local mining_def = professions.get_type("mining")
+    assert_not_nil(mining_def)
+    assert_eq(mining_def.id, "mining")
+    assert_eq(mining_def.name, "Mining")
+    assert_eq(mining_def.type, "primary")
+end)
+
+test("can register custom profession type", function()
+    reset_all()
+    professions.register_type({
+        id = "custom_craft",
+        name = "Custom Craft",
+        type = "primary",
+        description = "A custom profession",
+    })
+    assert_true(professions.is_type_registered("custom_craft"))
+    local def = professions.get_type("custom_craft")
+    assert_eq(def.description, "A custom profession")
+end)
+
+test("get_all_types returns all registered professions", function()
+    reset_all()
+    local all_types = professions.get_all_types()
+    -- Should have at least the default professions
+    local count = 0
+    for _ in pairs(all_types) do count = count + 1 end
+    assert_true(count >= 10, "Should have at least 10 default professions")
+end)
+
+test("get_types_by_category filters correctly", function()
+    reset_all()
+    local primary = professions.get_types_by_category("primary")
+    local secondary = professions.get_types_by_category("secondary")
+
+    -- All returned professions should match the category
+    for _, def in ipairs(primary) do
+        assert_eq(def.type, "primary")
+    end
+    for _, def in ipairs(secondary) do
+        assert_eq(def.type, "secondary")
+    end
+end)
+
+test("clear_registry removes all types", function()
+    reset_all()
+    professions.clear_registry()
+    assert_false(professions.is_type_registered("mining"))
+    local all = professions.get_all_types()
+    local count = 0
+    for _ in pairs(all) do count = count + 1 end
+    assert_eq(count, 0)
+end)
+
+test("reset re-registers default professions", function()
+    reset_all()
+    professions.clear_registry()
+    assert_false(professions.is_type_registered("mining"))
+    professions.reset()
+    assert_true(professions.is_type_registered("mining"))
+end)
+-- }}}
+
+-- {{{ Cooldown Tests
+test_section("Cooldown System")
+
+test("cooldown starts at 0 for new profession", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+    professions.learn_profession(ent, "alchemy")
+
+    assert_eq(professions.get_cooldown_remaining(ent, "alchemy", "transmute"), 0)
+    assert_true(professions.is_cooldown_ready(ent, "alchemy", "transmute"))
+end)
+
+test("can set cooldown", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+    professions.learn_profession(ent, "alchemy")
+
+    local ok = professions.set_cooldown(ent, "alchemy", "transmute", 3600)  -- 1 hour
+    assert_true(ok)
+    assert_false(professions.is_cooldown_ready(ent, "alchemy", "transmute"))
+end)
+
+test("get_cooldown_remaining returns correct time", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+    professions.learn_profession(ent, "alchemy")
+
+    professions.set_cooldown(ent, "alchemy", "transmute", 3600)
+    local remaining = professions.get_cooldown_remaining(ent, "alchemy", "transmute")
+    -- Should be roughly 3600 (may be slightly less due to os.time() resolution)
+    assert_true(remaining >= 3599 and remaining <= 3600, "Remaining should be ~3600")
+end)
+
+test("can clear cooldown", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+    professions.learn_profession(ent, "alchemy")
+
+    professions.set_cooldown(ent, "alchemy", "transmute", 3600)
+    assert_false(professions.is_cooldown_ready(ent, "alchemy", "transmute"))
+
+    professions.clear_cooldown(ent, "alchemy", "transmute")
+    assert_true(professions.is_cooldown_ready(ent, "alchemy", "transmute"))
+end)
+
+test("get_all_cooldowns returns active cooldowns", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+    professions.learn_profession(ent, "alchemy")
+
+    professions.set_cooldown(ent, "alchemy", "transmute", 3600)
+    professions.set_cooldown(ent, "alchemy", "daily_craft", 86400)
+
+    local cooldowns = professions.get_all_cooldowns(ent, "alchemy")
+    assert_not_nil(cooldowns.transmute)
+    assert_not_nil(cooldowns.daily_craft)
+end)
+
+test("cooldown returns 0 for unknown profession", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+
+    assert_eq(professions.get_cooldown_remaining(ent, "unknown", "test"), 0)
+    assert_true(professions.is_cooldown_ready(ent, "unknown", "test"))
+end)
+
+test("set_cooldown fails for unknown profession", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+
+    local ok = professions.set_cooldown(ent, "unknown", "test", 100)
+    assert_false(ok)
+end)
+
+test("multiple professions have independent cooldowns", function()
+    reset_all()
+    local ent = entity.create()
+    ecs.add_component(ent, "professions")
+    professions.learn_profession(ent, "alchemy")
+    professions.learn_profession(ent, "blacksmithing")
+
+    professions.set_cooldown(ent, "alchemy", "transmute", 3600)
+    -- Blacksmithing should not have this cooldown
+    assert_true(professions.is_cooldown_ready(ent, "blacksmithing", "transmute"))
+    assert_false(professions.is_cooldown_ready(ent, "alchemy", "transmute"))
+end)
+-- }}}
+
 -- {{{ Test Summary
 print("\n=== Test Summary ===")
 print(string.format("Passed: %d", pass_count))
