@@ -1,5 +1,18 @@
 # Project Progress
 
+## ⚡ Architectural Pivot (2026-01-07)
+
+**Decision:** Pivoted from AzerothCore integration to pure WC3 engine.
+
+**Why:** Complexity misalignment with core preservation mission. Focus on direct .w3x execution following ROM emulator legal precedent.
+
+**Impact:**
+- WoW-related features (attribute/currency systems) remain as extensibility demonstration
+- Focus shifted to pure WC3 gameplay, LAN multiplayer, community assets
+- See `docs/postmortem-azerothcore-integration.md` for full analysis
+
+---
+
 ## Current Phase: 5 - Rendering (Visual Abstraction)
 
 **Status:** Ready to Begin (Phase 4 Complete)
@@ -446,8 +459,8 @@ Phase 2 & 3 Complete
 
 Recorded in CRITICAL-PATH.md:
 - **OQ-001:** Renderer backend = **Raylib**
-- **OQ-002:** Coordinate system = **WC3-style (Y-up, isometric)**
-- **OQ-003/004:** Integration = **API-driven** (shared data layer for WC3 + AzerothCore)
+- **OQ-002:** Coordinate system = **WC3-style (Y-up, center origin, 128 units/tile)**
+- **OQ-003/004:** Architecture = **Pure WC3 engine** (standalone, no server dependency)
 
 ---
 
@@ -540,9 +553,9 @@ All ─────────────────────────�
 
 ### Design Philosophy
 
-Both systems support dual WC3/WoW modes:
-- **Death**: WC3 altar revival vs WoW graveyard run
-- **Professions**: WC3 ability-based vs WoW skill 1-300
+**Focus:** Pure WC3 gameplay mechanics:
+- **Death**: WC3 altar revival, corpse decay, resurrection items
+- **Professions**: WC3 ability-based (5 levels per skill)
 
 ---
 
@@ -622,8 +635,8 @@ Full-featured World Editor with feature parity to WC3 World Editor:
 ### Key Design Decisions
 
 - **Trigger Editor:** Full GUI parity + Lua text editing with bidirectional conversion
-- **Map Format:** Unified .wex format supporting both WC3 and WoW modes
-- **Export:** Outputs to both standard WC3 (.w3x) and unified format
+- **Map Format:** Standard .w3x format (WC3 compatible)
+- **Campaign Editor:** Multi-map storylines with hero persistence
 - **Import Manager:** Depends on Asset Browser (Phase 6B)
 
 ### Dependency Graph
