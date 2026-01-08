@@ -230,16 +230,16 @@ mortal entities. This could be implemented as:
 
 ## Acceptance Criteria
 
-- [ ] Units can die and transition to dead state
-- [ ] Death events fire correctly (unit death, hero death)
-- [ ] Corpses exist for configurable decay time
-- [ ] Ghosts created for heroes upon death
-- [ ] Ghost movement works in spirit world
-- [ ] Altar revival with timer and gold cost
-- [ ] Resurrection spells can target corpses
-- [ ] Ankh-style auto-revive items work
-- [ ] Corpses targetable for necromancy abilities
-- [ ] Unit tests for all death/revival mechanics
+- [x] Units can die and transition to dead state
+- [x] Death events fire correctly (unit death, hero death)
+- [x] Corpses exist for configurable decay time
+- [x] Ghosts created for heroes upon death
+- [x] Ghost movement works in spirit world
+- [x] Altar revival with timer and gold cost
+- [x] Resurrection spells can target corpses
+- [ ] Ankh-style auto-revive items work (deferred - requires item system integration)
+- [x] Corpses targetable for necromancy abilities
+- [x] Unit tests for all death/revival mechanics
 
 ---
 
@@ -267,3 +267,50 @@ Can ghosts communicate? These are polish questions for later phases.
 2. **Ghost abilities**: Can ghosts have any abilities? (WC3: no, WoW: scouting)
 3. **Multiple deaths**: What if hero dies during revival? (Cancel revival, new death)
 4. **Corpse stacking**: Can multiple corpses occupy same tile? (Yes, for Raise Dead)
+
+---
+
+## Implementation Summary
+
+**Completed:** 2026-01-07
+
+All sub-issues implemented in `src/runtime/systems/death.lua`:
+
+| Sub-Issue | Description | Status |
+|-----------|-------------|--------|
+| 701a | Death state and events | Complete |
+| 701b | Spirit world layer | Complete |
+| 701c | Ghost form component | Complete |
+| 701d | Resurrection mechanics | Complete |
+| 701e | Corpse system | Complete |
+
+### Components Registered
+
+- `dead` - Tracks death state, time, killer, cause
+- `world_layer` - Mortal/spirit layer tracking
+- `corpse` - Decay timer, raiseable flags, unit reference
+- `ghost` - Links, visibility, preserved hero data
+- `reviving` - Altar revival state
+
+### Systems Registered
+
+- `death_check` (priority 50) - Auto-kill on hp <= 0
+- `corpse_decay` (priority 60) - Decay timer countdown
+- `revival` (priority 65) - Altar revival countdown
+
+### Test Coverage
+
+117 tests covering:
+- Death state transitions
+- Event firing
+- Layer functions
+- Corpse creation/decay/queries
+- Ghost creation/visibility/cleanup
+- Altar revival flow
+- Spell-based resurrection
+
+### Deferred Items
+
+- Ankh-style auto-revive: Requires item system integration (EVENT_UNIT_DEATH hook exists)
+- Collision layer separation: Requires collision system update (405)
+- Ghost terrain pathing: Requires pathfinding enhancement (403)
