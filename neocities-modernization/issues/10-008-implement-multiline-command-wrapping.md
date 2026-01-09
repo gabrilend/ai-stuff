@@ -172,8 +172,10 @@ state.config = {
 
 - `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua` - TUI library source
 - `/home/ritz/programming/ai-stuff/scripts/libs/tui.lua` - Framebuffer renderer
-- Issue 10-004: Built-up command preview (provides the command preview feature)
-- Issue 10-007: Text-entry field display (related rendering logic)
+- Issue 10-004: Built-up command preview - **Moved to `/home/ritz/programming/ai-stuff/scripts/issues/`**
+- Issue 10-007: Text-entry field display - **Moved to `/home/ritz/programming/ai-stuff/scripts/issues/`**
+
+**Note**: Phase 10 issues related to the TUI library and issue-splitter.sh have been moved to the monorepo scripts/issues directory, as they apply to monorepo-level tools rather than being specific to the neocities-modernization project.
 
 ## Notes
 
