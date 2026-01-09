@@ -153,12 +153,13 @@ issues/
 
 ### Historical Documents
 
-**Post-Mortem:** 2026-01-07 - AzerothCore integration pivot
+**Post-Mortem:** 2026-01-07/08 - AzerothCore integration pivot and WoW-mode archive
 
 | Document | Location | Description |
 |----------|----------|-------------|
 | **AC Integration Post-Mortem** | **docs/postmortem-azerothcore-integration.md** | **Why we pivoted to pure WC3 engine** |
 | Archived AC Designs | docs/archive/azerothcore-2026-01-07/ | AzerothCore integration documents (reference only) |
+| **Archived WoW Mode Issues** | **issues/archive/wow-mode-2026-01-08/** | **Warlord Mode, professions, dual-interface (19 issues)** |
 
 ### Tools
 
@@ -195,17 +196,8 @@ issues/
 | 012 | Interactive verdict review mode | Pending |
 | 013 | Quest & bounty template system | **Completed** |
 | 014 | Guild hero & shop system | **Completed** |
-| 015 | WoW-style combat system | Pending |
-| 016 | Attribute getter/setter system | In Progress |
-| 016a | Core attribute registry | **Completed** |
-| 016b | Dispatch table getters | Pending |
-| 016c | Dispatch table setters | Pending |
-| 016d | Modifier stack system | Pending |
-| 016e | Derived attribute engine | Pending |
-| 016f | WC3 attribute config | Pending |
-| 016g | WoW attribute config | Pending |
-| 016h | Cross-system mapping | Pending |
-| 016i | Integration tests | Pending |
+
+**Note:** Issues 000-005 (Warlord Mode), 015-016 (WoW features), 500/510 series (dual-interface), and 701-702 series (WoW mechanics) have been archived to `issues/archive/wow-mode-2026-01-08/` following the pure WC3 engine pivot. See archive README for details.
 
 ### Phase 8 Issues (Infrastructure Libraries)
 
@@ -270,6 +262,19 @@ issues/
 | 207e | Map integration | **Completed** |
 | 207f | Registry tests | Pending |
 | 208 | Phase 2 integration test | Pending |
+
+### Phase 6 Issues (Asset System)
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 601 | Asset loader and resolution | Pending |
+| 603 | LAN asset download protocol | Pending |
+| 604 | Asset deduplication system | Pending |
+| 605 | Local storage manager | Pending |
+| 606 | Hot reload system | Pending |
+| 607 | File server application | Pending |
+| 608 | Phase 6 integration test | Pending |
+| **609** | **Matchmaking server** | **Pending** |
 
 ### Technical Documentation
 

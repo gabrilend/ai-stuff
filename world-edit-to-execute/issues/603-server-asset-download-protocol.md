@@ -1,4 +1,4 @@
-# Issue 603: Server Asset Download Protocol
+# Issue 603: LAN Asset Download Protocol
 
 **Phase:** 6
 **Type:** Implementation
@@ -9,20 +9,18 @@
 
 ## Current Behavior
 
-No asset download system exists. Players cannot receive assets from:
-- WC3 map hosts sharing custom maps
-- WoW-style servers with custom content
-
-AzerothCore (and WoW in general) expects clients to have pre-installed assets.
+No asset download system exists. Players cannot receive community asset packs from:
+- LAN hosts sharing custom WC3 maps with custom asset packs
+- Matchmaking servers distributing common asset collections
 
 ## Intended Behavior
 
-A custom asset download protocol that:
-1. Transfers assets from host to client on connect
+A peer-to-peer asset download protocol that:
+1. Transfers community asset packs from LAN host to clients on connect
 2. Supports resumable downloads (connection drops shouldn't restart)
 3. Integrates with deduplication (don't re-download assets already present)
 4. Shows download progress to the user
-5. Works for both WC3 map hosts and WoW-style servers
+5. Works for both direct LAN connections and matchmaking server-facilitated transfers
 
 ### Protocol Overview
 
@@ -53,10 +51,12 @@ CLIENT                              SERVER/HOST
 ### Manifest Format
 
 ```lua
--- manifest.lua (server-side)
+-- manifest.lua (host-side)
 return {
     version = 1,
-    server_id = "my-wow-server",
+    host_id = "custom-td-map-v3",
+    map_name = "Epic Tower Defense",
+    asset_pack = "community-medieval-assets-v1",
     assets = {
         {
             path = "textures/terrain/grass.png",
@@ -65,7 +65,7 @@ return {
             priority = "required",    -- required, optional, streaming
         },
         {
-            path = "models/units/custom_hero.mdx",
+            path = "models/units/knight.mdx",
             hash = "sha256:def456...",
             size = 524288,
             priority = "required",

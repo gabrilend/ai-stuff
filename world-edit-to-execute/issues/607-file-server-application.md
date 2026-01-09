@@ -13,12 +13,12 @@ No file server exists. Hosts cannot distribute assets to connecting clients.
 
 ## Intended Behavior
 
-A standalone file server application that:
-1. Serves assets to clients using the custom download protocol (Issue 603)
-2. Can run alongside game server or separately
-3. Generates and serves manifests
+A standalone asset server application that:
+1. Serves community asset packs to clients using the peer-to-peer protocol (Issue 603)
+2. Can run alongside LAN game host or separately
+3. Generates and serves asset manifests
 4. Handles multiple concurrent clients
-5. Supports both WC3 map hosting and WoW-style server hosting
+5. Supports both direct LAN hosting and matchmaking server integration
 
 ### Deployment Options
 

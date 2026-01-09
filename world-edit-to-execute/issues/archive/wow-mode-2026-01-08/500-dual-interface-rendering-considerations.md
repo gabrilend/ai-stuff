@@ -328,6 +328,63 @@ graphics are determined by models embedded in the map file. This allows:
 
 **Future:** In-game mod browser for discovering and loading custom content (later phase)
 
+### D6: Camera Transition Architecture
+
+**Decision:** Frame-based binary vectors with mise en place threading
+
+Camera transitions between perspectives (WC3 top-down ↔ WoW 3rd-person) use binary
+vector arrays ("frames") as described in issue 409. This approach enables:
+
+- **Timer in thread pool:** Transitions run as scheduled tasks in the thread pool
+- **Mise en place philosophy:** Duplicate data, compute in parallel, sync rhythmically
+  - No mutexes or locks - each thread owns its data copy
+  - Sync points at defined intervals rather than per-operation
+- **Smooth interpolation:** Frame sequences describe the camera path as a shape
+- **Interruptible:** New input can abort/modify in-progress transitions
+
+**Reference:** `notes/conversations/2025-12-30-frame-encoding-dna.md` for frame encoding details.
+
+### D7: Chat System Architecture
+
+**Decision:** WoW-centric first, minimal friction
+
+The chat system is designed around WoW conventions as the primary interface:
+
+- **Native WoW protocol:** Messages follow WoW channel/whisper patterns
+- **Minimal game state friction:** Chat is a separate subsystem, not tied to game ticks
+- **Available in both modes:** Same chat panel works in Warlord and Hero perspectives
+- **Decoupled from simulation:** Chat messages are UI events, not gameplay events
+
+This allows the chat to feel responsive regardless of game tick rate or simulation load.
+
+### D8: wow-chat Integration (Reference Implementation)
+
+**Decision:** Use libs/wow-chat as reference architecture
+
+The wow-chat addon (cloned to `libs/wow-chat/`) demonstrates the "empty world" gameplay:
+
+**Architecture:**
+- All base creatures/monsters dropped from SQL database
+- World is procedurally populated around each player via periodic events
+
+**Spawn Systems:**
+| System | Interval | Description |
+|--------|----------|-------------|
+| Mordaunts (ambush.lua) | 21s | Hostile creatures attack-move toward player |
+| Travellers (travel.lua) | 210s | Friendly NPCs walk "downhill" through the area |
+| Treasure (treasure.lua) | 120s | Loot chests spawn near player |
+
+**Key Concepts:**
+- **Mordaunts:** Level-appropriate monsters from creature_template, rank-filtered
+  (regular, rare, rare-elite based on group size)
+- **Travellers:** Vendors, trainers, innkeepers that walk paths determined by terrain
+  height (always moving "downhill" toward lower elevation)
+- **Player-centric spawning:** Content materializes around each player, supporting
+  both solo and multiplayer emergent gameplay
+
+**Integration Point:** The same periodic event architecture can drive entity spawning
+in both WC3 and WoW perspectives - same underlying events, different visual presentation.
+
 ---
 
 ## Consideration Matrix Template
