@@ -38,6 +38,7 @@
 - **ALWAYS** work in `/mnt/mtwo/programming/ai-worktrees/<project-short>/<issue>/`
 - **COMMIT FREQUENTLY** to preserve work
 - The main repo stays on `master` branch
+- **ROOT ISSUES ONLY**: Create worktrees for root issues (e.g., `041`), not sub-issues (e.g., `041a`, `041b`). Work on all sub-issues within the root issue's worktree.
 
 ## When Done
 

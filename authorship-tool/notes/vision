@@ -1,0 +1,79 @@
+this program is for writers. It better enables them to sort their work, and
+it helps generate new ideas for them to pursue.
+
+The typical workflow is as such - an author gets an idea, and describes it in
+as much detail as possible, similar to a vision document like this.
+
+next, the program will read through the generated documents and it will organize
+them as best as it can. It will generate documents which analyze each piece, and
+more importantly it asks questions for the author that it believes would be
+the most important for the progression of the story. It asks about hair color,
+it asks about how it smelled. It asks about "why did he feel that way?" and
+"where was she planning on going?" and other such things.
+
+it formats them like a txt document version of a quiz or test handed out to
+schoolchildren - fill in the blank spots of the worksheet and turn it in to the
+teacher (the AI) who then will help nudge you toward success by explaining how
+and why you're wrong.
+
+It'll also highlight parts that feel awkward or wrong, like an English teacher,
+and it'll offer insights about how to better describe it using examples of your
+other syntax or style to justify how they're phrasing it. This should help
+ensure a more cohesive feel to your work, thus improving your style points.
+However, if your style ever becomes too rigid, it can feel flat and tame, so
+the program will generate reports about that as well.
+
+It should also use local image generation capabilities to create pictures of
+the scenery, backgrounds, magic items, and particularly emphasized objects in
+the scenes or mentions. Then, it should try and generate reports for each of the
+pictures mentioned that describe the highest rating similarity scores to other
+objects that are described - this should help create a semantic web where the
+author will be like "okay so there's this amulet here, where did we last see
+it?" and "so who was she seeing at this-or-that time?" etc.
+
+Also, it should write poetry about the characters, to try and get them to fall
+in love. These poems should be included in the context window for each time the
+characters are mentioned, but it shouldn't be displayed to the author user. The
+author can read them when they like, but they should be kept classy and discrete
+by not showing them in the moment when they're applicable.
+
+Also, it should make little games related to the struggles the characters are
+going through. These games should utilize a variety of mechanics, and primarily
+be drawn with lines and geometric shapes (stick figures especially, with each
+stick of their figure animated separately but connected with shared joints) and
+text with vibrant, bright, sometimes neon colors on a black or dark teal
+background. Can also do pale brown, but black is my favorite. They should use
+simple sound effects and chiptune style music, which can be generated from an
+audio generator that uses AI LLM input to generate a song for each moment the
+player is playing that is contextualized with the context of the relevant
+characters, objects, and plot devices in the scene. In addition, it should be
+prioritizationally contextualized with the context of the scene, story, and the
+most recent files the author has written, modified, or otherwise contributed to.
+if the author specifically asks for it, the most recently viewed files may be
+added to the context menu as well. "I've recently been looking at..." or some
+other variation implies that the program should look at what the user has been
+looking at recently.
+
+each game should be related to one single closely integrated set of mechanics.
+The next game should use one, but not all, of these mechanics.
+
+When the user answers a quiz or worksheet, the program should analyze how best
+to integrate the responses into the text. It should highlight some choice
+moments when it would make sense to bring it up, and maybe offer some specific
+details about implementation phrases that would fit well. It should justify
+these choices with examples from the text that relate to the involved characters
+or plot devices somehow. These should all be hidden in successive tiers of
+vimfolds, allowing the user to learn as much as they wanted to at each step.
+Then, it would iterate to the next, and then it would iterate through the next,
+etc etc ever and beyond.
+
+I personally like the "one click / swipe / spacebar" per accepted and 
+implemented piece of feedback system. But we should play around with the
+possibilities.
+
+each of these separate modules should be build in a modular way that utilizes
+the benefits of library-style organization. They should each be their own sub-
+-project within this main, meta project. The meta-project "authorship-tool"
+should be primarily for orchestrating them, and the various administrative tasks
+about the development process. The actual development of each module should take
+place within the subdirectories.
