@@ -1,0 +1,284 @@
+# Conversation Summary: b98f3a3a-5151-47dc-8539-bbf2cca32bff
+
+Generated on: Tue Dec 30 09:35:23 PM PST 2025
+
+--------------------------------------------------------------------------------
+
+### User Request 1
+
+Hello computer, all is well. Can you analyze this issue and suggest how it could
+be split into sub-issues?
+
+For each suggested sub-issue, provide:
+1. A suggested ID following the pattern {PARENT_ID}{letter} (e.g., if parent is
+103, sub-issues are 103a, 103b, etc.)
+2. A short dash-separated name
+3. A brief description of what it covers
+4. Dependencies on other sub-issues
+
+If the issue is already small enough or doesn't benefit from splitting, say so.
+
+Here is the issue file located at:
+/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/issues/401-implement-game-tick-update-loop.md
+
+---
+
+# Issue 401: Implement Game Tick/Update Loop
+
+**Phase:** 4 - Runtime
+**Type:** Feature
+**Priority:** Critical
+**Dependencies:** Phase 2 complete (data model), Phase 3 complete (triggers/JASS)
+
+---
+
+## Current Behavior
+
+No game execution environment exists. Parsed map data sits idle with no
+mechanism
+to advance game state over time.
+
+---
+
+## Intended Behavior
+
+A deterministic game loop that:
+- Advances game state at a fixed tick rate (matching WC3's ~62.5 ticks/second)
+- Processes entity updates in consistent order
+- Fires time-based triggers and events
+- Supports pause/resume/speed adjustment
+- Maintains determinism for replay compatibility
+
+---
+
+## Suggested Implementation Steps
+
+1. **Create core game loop module**
+   ```
+   src/runtime/
+   └── gameloop.lua
+   ```
+
+2. **Define tick rate and timing**
+   ```lua
+   -- WC3 runs at approximately 62.5 ticks per second
+   local TICK_RATE = 62.5
+   local TICK_DURATION = 1.0 / TICK_RATE  -- ~0.016 seconds
+
+   -- Game time tracking
+   local game_time = 0.0      -- Total elapsed game time (seconds)
+   local tick_count = 0       -- Total ticks processed
+   local game_speed = 1.0     -- Speed multiplier (1.0 = normal)
+   local paused = false
+   ```
+
+3. **Implement fixed timestep loop**
+   ```lua
+   -- Accumulator pattern for fixed timestep
+   local accumulator = 0.0
+
+   function gameloop.update(dt)
+       if paused then return end
+
+       accumulator = accumulator + (dt * game_speed)
+
+       while accumulator >= TICK_DURATION do
+           gameloop.tick()
+           accumulator = accumulator - TICK_DURATION
+       end
+   end
+   ```
+
+4. **Implement single tick processing**
+   ```lua
+   function gameloop.tick()
+       tick_count = tick_count + 1
+       game_time = tick_count * TICK_DURATION
+
+       -- Process in deterministic order:
+       -- 1. Timer expirations
+       -- 2. Periodic triggers
+       -- 3. Entity updates (movement, abilities, etc.)
+       -- 4. Combat resolution
+       -- 5. Death/cleanup
+       -- 6. Event dispatch
+   end
+   ```
+
+5. **Add game state controls**
+   ```lua
+   function gameloop.pause()
+   function gameloop.resume()
+   function gameloop.set_speed(multiplier)
+   function gameloop.get_time()
+   function gameloop.get_tick()
+   ```
+
+6. **Implement timer system**
+   ```lua
+   -- WC3-style timer support
+   function gameloop.create_timer()
+   function gameloop.start_timer(timer, duration, periodic, callback)
+   function gameloop.destroy_timer(timer)
+   ```
+
+---
+
+## Technical Notes
+
+## WC3 Tick Rate
+
+WC3 runs at approximately 62.5 ticks per second (16ms per tick). This rate is
+critical for:
+- Deterministic replay playback
+- Multiplayer synchronization
+- Consistent trigger timing
+
+## Determinism Requirements
+
+For replay/multiplayer compatibility, the game loop must be deterministic:
+- Same inputs → same outputs, always
+- No floating point non-determinism (use fixed-point where needed)
+- Consistent entity processing order
+- No reliance on wall-clock time during simulation
+
+## Game Speed
+
+WC3 supports speed settings:
+- Slow: 0.5x
+- Normal: 1.0x
+- Fast: 1.5x (or 2.0x in some contexts)
+
+Speed affects the accumulator rate, not the tick duration.
+
+## Timer Precision
+
+WC3 timers have ~0.01 second precision. Timers should expire on the first
+tick where game_time >= expiration_time.
+
+---
+
+## Related Documents
+
+- docs/roadmap.md (Phase 4 overview)
+- issues/402-build-entity-component-system.md (entity updates per tick)
+- issues/Phase 3 issues (trigger/event system integration)
+
+---
+
+## Acceptance Criteria
+
+- [ ] Fixed timestep loop at 62.5 ticks/second
+- [ ] Deterministic tick processing
+- [ ] Game time tracking (seconds and tick count)
+- [ ] Pause/resume functionality
+- [ ] Speed adjustment (0.5x to 2.0x)
+- [ ] Timer system (create, start, periodic, destroy)
+- [ ] Timer expiration with correct precision
+- [ ] Unit tests for timing accuracy
+
+---
+
+## Notes
+
+The game loop is the heart of the runtime. It must be rock-solid before
+other runtime systems can be built on top of it.
+
+Consider using a priority queue for timer management to efficiently
+find the next timer to expire.
+
+The loop should be decoupled from rendering - it produces game state,
+the renderer consumes it at its own rate (interpolating if needed).
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 1
+
+## Sub-Issue Analysis
+
+This issue benefits from splitting. It contains two distinct subsystems with
+different concerns and testing requirements:
+
+1. **The core game loop** - timing, fixed timestep, state controls
+2. **The timer system** - WC3-compatible timer API with priority queue
+
+These are separable because the timer system is a consumer of the game loop, not
+part of its core mechanics. The loop can exist and be tested without timers, and
+timers could theoretically be swapped out or enhanced independently.
+
+---
+
+## Recommended Sub-Issues
+
+### 401a-core-fixed-timestep-loop
+
+**Description:** Implement the foundational game loop with fixed timestep accumulator pattern, game time tracking, and state controls (pause/resume/speed).
+
+**Covers:**
+- `src/runtime/gameloop.lua` module creation
+- Tick rate constants (62.5 Hz)
+- Accumulator-based fixed timestep `update(dt)` function
+- Basic `tick()` function (stub for now - just increments counters)
+- Game time tracking (`game_time`, `tick_count`)
+- State controls: `pause()`, `resume()`, `set_speed()`, `get_time()`, `get_tick()`
+- Determinism considerations documented in code comments
+
+**Acceptance Criteria:**
+- [ ] Fixed timestep loop at 62.5 ticks/second
+- [ ] Deterministic tick processing
+- [ ] Game time tracking (seconds and tick count)
+- [ ] Pause/resume functionality
+- [ ] Speed adjustment (0.5x to 2.0x)
+- [ ] Unit tests for timing accuracy
+
+**Dependencies:** None (foundational)
+
+---
+
+### 401b-timer-subsystem
+
+**Description:** Implement WC3-compatible timer system with priority queue for efficient expiration checking.
+
+**Covers:**
+- Timer handle creation and lifecycle
+- `create_timer()`, `start_timer(timer, duration, periodic, callback)`, `destroy_timer()`
+- Priority queue for timer management (efficient next-expiration lookup)
+- Timer expiration logic integrated into `tick()` processing
+- Periodic vs one-shot timer behavior
+- ~0.01 second precision matching WC3
+
+**Acceptance Criteria:**
+- [ ] Timer system (create, start, periodic, destroy)
+- [ ] Timer expiration with correct precision
+- [ ] Priority queue implementation
+- [ ] Unit tests for timer accuracy and edge cases
+
+**Dependencies:** 401a (requires game loop tick infrastructure)
+
+---
+
+## Rationale for Split
+
+| Concern | 401a | 401b |
+|---------|------|------|
+| Can be tested independently | ✓ | Needs 401a |
+| Distinct API surface | Loop lifecycle | Timer lifecycle |
+| Complexity level | Medium | Medium |
+| Clear interface boundary | `tick()` hook | Timer API |
+
+The split allows 401a to be completed and verified before timer complexity is
+added. The `tick()` function in 401a provides the hook point where 401b's timer
+expirations will be processed.
+
+---
+
+## Alternative: Keep as Single Issue
+
+If the team prefers, this issue is still manageable as a single unit (~150-200
+lines of Lua). The main argument for keeping it together is that timers are
+mentioned in the acceptance criteria and are a core part of "game tick"
+semantics in WC3.
+
+**Recommendation:** Split into 401a and 401b. The timer system deserves its own issue because priority queue implementation and timer precision testing is non-trivial.
+
+--------------------------------------------------------------------------------

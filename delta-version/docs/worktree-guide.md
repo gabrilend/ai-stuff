@@ -41,20 +41,18 @@ Worktrees solve this by giving each issue its own directory with its own branch.
 ## Branch Hierarchy
 
 ```
-master                                    ← Stable, merged at phase completion
-├── dv/dev                                ← delta-version development branch
-│   ├── dv/issue-017                      ← Issue branch (in worktree)
-│   └── dv/issue-038                      ← Issue branch (in worktree)
-├── neo/dev                               ← neocities-modernization dev branch
-│   └── neo/issue-8-030
-└── wete/dev                              ← world-edit-to-execute dev branch
-    └── wete/issue-800
+master                                    ← Main repo (locked to this branch)
+├── dv/issue-017                          ← Issue branch (in worktree)
+├── dv/issue-038                          ← Issue branch (in worktree)
+├── neo/issue-8-030                       ← Issue branch (in worktree)
+└── wete/issue-800                        ← Issue branch (in worktree)
 ```
 
 ### Merge Flow
 
-1. **Issue → Project Dev**: When an issue is complete, merge to the project's dev branch
-2. **Project Dev → Master**: When a phase is complete, merge dev branch to master
+**Simple one-step merge**: Issue branch → master
+
+When an issue is complete, merge directly to master from the main repository.
 
 ## Using the Management Script
 
@@ -77,7 +75,7 @@ The worktree management script is located at:
 ```
 
 This creates:
-- A new branch: `dv/issue-017` (branched from `dv/dev`)
+- A new branch: `dv/issue-017` (branched from `master`)
 - A new directory: `/mnt/mtwo/programming/ai-worktrees/dv/issue-017/`
 
 #### List Active Worktrees
@@ -146,10 +144,10 @@ Shows all active worktrees with uncommitted change counts.
 
 1. **Ensure all changes are committed** in the worktree
 
-2. **From the main repository**, merge issue to project dev:
+2. **From the main repository**, merge issue to master:
    ```bash
    cd /mnt/mtwo/programming/ai-stuff
-   git checkout dv/dev
+   git checkout master  # (already there, enforced by hook)
    git merge dv/issue-017
    ```
 
