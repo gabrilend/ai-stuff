@@ -625,7 +625,69 @@ Summary:
 
 ## Files to Create
 
-- `delta-version/scripts/check-utilities.sh` - Main checker script
-- `delta-version/config/project-integration.json` - Integration status tracking
-- `delta-version/config/shared-utilities.conf` - Registry of shared utilities
-- `delta-version/assets/project-meta-template.json` - Template for project.meta.json
+- `delta-version/scripts/check-utilities.sh` - Main checker script ✓
+- `delta-version/config/project-integration.json` - Integration status tracking (deferred)
+- `delta-version/config/shared-utilities.conf` - Registry of shared utilities (deferred)
+- `delta-version/assets/project-meta-template.json` - Template for project.meta.json (inline in script)
+
+---
+
+## Implementation Notes
+
+**Date**: 2026-01-07
+**Status**: COMPLETED (core functionality)
+
+### Completed Features
+
+**Part 1: Delta-Version Utility Checks** ✓
+- Implemented utility registry with all delta-version scripts
+- Check functions for: existence, executability, syntax, shebang
+- Remediation functions for auto-fixable issues (chmod, mkdir)
+- Issue file creation for non-fixable problems
+- External dependency checks (bash, git, jq, find, stat)
+- Directory structure validation
+
+**Part 2: Project Integration Audit** ✓
+- Project discovery via list-projects.sh integration
+- Metadata checking (project.meta.json)
+- Delta-guide symlink checking and creation
+- Interactive metadata template creation
+- Automatic symlink creation with proper relative paths
+- Per-project audit with detailed reporting
+
+**CLI Interface** ✓
+- Multiple operation modes (interactive, quiet, fix-all, dry-run)
+- Granular check selection (--utilities, --metadata, --symlinks, etc.)
+- Project targeting (--all-projects, --project NAME)
+- Comprehensive help documentation
+- Color-coded output with severity levels
+- Summary statistics
+
+### Key Implementation Decisions
+
+1. **Inline templates**: Rather than external config files, metadata templates are generated inline in the script for simplicity
+
+2. **Shebang validation**: Updated regex to accept `#!/usr/bin/env bash` as valid (more portable than `/bin/bash`)
+
+3. **Graceful degradation**: Script continues even if list-projects.sh is missing, with clear error messages
+
+4. **Interactive prompts**: For metadata creation, the script asks for status, language, and description interactively
+
+### Test Results
+- Delta-version checks: All passed (0 issues)
+- Project integration: Found 19 issues across monorepo (expected - most projects lack metadata/symlinks)
+- All modes tested: interactive, quiet, fix-all, dry-run, help
+
+### Deferred Features (Future Work)
+The following Part 2 features are marked as TODO for future iterations:
+- TUI audit (find scripts not using shared menu library)
+- Transcript cataloging (LLM transcript directory registration)
+- Issue file standards validation
+- Shared utility symlink suggestions beyond delta-guide.md
+- Integration status tracking (config/project-integration.json)
+- Shared utilities registry (config/shared-utilities.conf)
+
+These features have clear placeholders in the code and can be added incrementally as needed.
+
+### Files Created
+- `scripts/check-utilities.sh` (1047 lines, fully functional)
