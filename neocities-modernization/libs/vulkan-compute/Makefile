@@ -17,7 +17,7 @@ GLSLC := glslangValidator
 # }}}
 
 # {{{ Source and target files
-C_SOURCES := $(wildcard $(SRC_DIR)/*.c)
+C_SOURCES := $(SRC_DIR)/vk_compute.c $(SRC_DIR)/vk_diversity.c
 C_OBJECTS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SOURCES))
 SHADER_SOURCES := $(wildcard $(SHADER_DIR)/*.comp)
 SHADER_SPIRV := $(patsubst $(SHADER_DIR)/%.comp,$(BUILD_DIR)/%.spv,$(SHADER_SOURCES))
