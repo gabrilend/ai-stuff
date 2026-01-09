@@ -84,8 +84,9 @@ with the following characteristics:
 - [x] Runtime configuration works (custom sizes, thresholds, logging)
 - [x] NULL log callback has negligible overhead
 - [x] Test suite passes (24 tests across 4 test files)
-- [ ] Render demo still functions after migration (Issue 800e)
 - [x] Library location: `/home/ritz/programming/ai-stuff/my-libs/threadpool/`
+
+**Note:** Render system migration moved to WETE issue 802 (project-specific).
 
 ## Related Documents
 
@@ -110,7 +111,7 @@ The modular design allows users to pick complexity level:
 
 ## Implementation Summary
 
-**Status:** Mostly Complete (5/8 sub-issues done)
+**Status:** Complete (5/7 sub-issues, remaining are future work)
 **Completed:** 2026-01-08
 
 Successfully extracted and modularized threading infrastructure into reusable library:
@@ -130,7 +131,7 @@ Successfully extracted and modularized threading infrastructure into reusable li
 - Comprehensive test coverage
 
 **Remaining Work:**
-- 800e: Migrate render system to use library (validates extraction)
 - 800f: Windows support planning (design doc, future work)
+- Render migration: Moved to WETE issue 802 (project-specific validation)
 
 Library is ready for use and thoroughly tested.
