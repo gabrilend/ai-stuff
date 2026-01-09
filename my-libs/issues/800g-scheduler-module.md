@@ -37,10 +37,11 @@ updater_start(updater);
 ### Key Features
 
 1. **Flat array storage** - Updater scans all scheduled tasks each tick
-2. **Countdown-based readiness** - Each tick decrements `ticks_until_ready`, 0 = ready
+2. **Absolute time-based readiness** - Tasks store `ready_at_tick` (absolute tick number), compared against global tick counter
 3. **Sleep optimization** - If no tasks ready, sleep until earliest task
 4. **Wake on new task** - Adding task wakes sleeping updater
 5. **assigned_any flag** - Tracks whether any work was done this iteration
+6. **Independent tick counter** - Global `g_current_tick` increments via game loop or timer thread, decoupled from updater
 
 ### Updater Loop Behavior
 
@@ -48,35 +49,42 @@ updater_start(updater);
 // Updater pseudocode:
 while (running) {
     uint32_t assigned_any = 0;
+    uint64_t current_tick = atomic_load(&g_current_tick);
 
     // Scan all scheduled tasks
     for (each task in scheduler) {
-        if (task.ticks_until_ready == 0) {
+        if (current_tick >= task.ready_at_tick) {
             assign_to_worker(task);
             assigned_any = 1;
             remove_from_scheduler(task);
         }
     }
 
-    // Decrement all countdown timers
-    scheduler_tick(sched);  // ticks_until_ready--
-
     // If nothing was ready, sleep until earliest task
     if (assigned_any == 0) {
-        uint64_t sleep_until = find_earliest_ready_time(sched);
-        sleep_interruptible(sleep_until);  // Wake if new task added
+        uint64_t earliest_tick = find_earliest_ready_tick(sched);
+        uint64_t ticks_to_sleep = earliest_tick - current_tick;
+        sleep_interruptible(ticks_to_sleep);  // Wake if new task added
     }
     // Otherwise, loop immediately to check for more work
 }
 ```
 
+**Note:** Global tick counter `g_current_tick` is incremented by the game loop or a dedicated timer thread, independent of the updater. This prevents deadlock when the updater sleeps - time continues advancing without the updater needing to call `scheduler_tick()`.
+
 ### API Design
 
 ```c
+/* {{{ Global tick counter
+ * Incremented by game loop or timer thread (independent of scheduler/updater).
+ * Scheduler compares task ready times against this value. */
+extern atomic_uint64_t g_current_tick;
+/* }}} */
+
 /* {{{ Scheduler types */
 typedef struct scheduled_task {
     TpTask task;                   // The task to execute
-    uint32_t ticks_until_ready;    // 0 = ready now, N = ready in N ticks
+    uint64_t ready_at_tick;        // Absolute tick number when task becomes ready
 } ScheduledTask;
 
 typedef struct scheduler {
@@ -101,7 +109,8 @@ void scheduler_destroy(Scheduler* sched);
 
 /* {{{ Task management */
 // Add task to scheduler
-// ticks_delay: 0 = ASAP (assign next tick), N = assign in N ticks
+// ticks_delay: 0 = ASAP (ready at g_current_tick), N = ready in N ticks from now
+// Internally: ready_at_tick = g_current_tick + ticks_delay
 // Returns false if scheduler is full
 bool scheduler_add(Scheduler* sched, TpTask* task, uint32_t ticks_delay);
 
@@ -117,46 +126,49 @@ size_t scheduler_count(Scheduler* sched);
 
 /* {{{ Updater integration */
 // Callback for updater's get_pending_tasks
-// Returns tasks where ticks_until_ready == 0
+// Returns tasks where g_current_tick >= ready_at_tick
 bool scheduler_get_ready(void* context, TpTask** out, size_t* count);
 
-// Decrement all ticks_until_ready counters (call once per tick)
-void scheduler_tick(Scheduler* sched);
-
-// Find earliest ready time (for sleep optimization)
+// Find earliest ready tick (for sleep optimization)
 // Returns UINT64_MAX if no tasks scheduled
-uint64_t scheduler_earliest_ready(Scheduler* sched);
+uint64_t scheduler_earliest_ready_tick(Scheduler* sched);
 
 // Sleep until earliest task or new task arrival (interruptible)
-void scheduler_sleep_until_ready(Scheduler* sched);
+// Takes number of ticks to sleep (calculated externally: earliest_tick - g_current_tick)
+void scheduler_sleep_ticks(Scheduler* sched, uint64_t ticks_to_sleep);
 /* }}} */
 ```
 
 ## Suggested Implementation Steps
 
 1. Create `src/scheduler.h` with type definitions
-2. Implement `scheduler_create()` and `scheduler_destroy()`
-3. Implement `scheduler_add()` with wake signal
-4. Implement `scheduler_tick()` (decrement all counters)
-5. Implement `scheduler_get_ready()` (scan for ready tasks)
-6. Implement `scheduler_earliest_ready()` (find min ticks_until_ready)
-7. Implement `scheduler_sleep_until_ready()` with pthread_cond_wait
+2. Declare `extern atomic_uint64_t g_current_tick` (defined by game loop/timer)
+3. Implement `scheduler_create()` and `scheduler_destroy()`
+4. Implement `scheduler_add()`:
+   - Calculate `ready_at_tick = atomic_load(&g_current_tick) + ticks_delay`
+   - Add task to array
+   - Signal wake condition
+5. Implement `scheduler_get_ready()`:
+   - Load current tick: `current = atomic_load(&g_current_tick)`
+   - Scan for tasks where `current >= ready_at_tick`
+6. Implement `scheduler_earliest_ready_tick()` (find min ready_at_tick)
+7. Implement `scheduler_sleep_ticks()` with pthread_cond_timedwait
 8. Implement `scheduler_remove_if()` for task cancellation
 9. Add example usage to test suite (800d)
-10. Document integration with UpdaterContext
+10. Document tick counter integration requirements
 
 ## Acceptance Criteria
 
-- [ ] Scheduler stores tasks with countdown timers
-- [ ] `scheduler_add(sched, task, 0)` assigns on next tick
-- [ ] `scheduler_add(sched, task, N)` assigns after N ticks
-- [ ] `scheduler_tick()` decrements all timers correctly
-- [ ] `scheduler_get_ready()` returns only tasks where ticks == 0
-- [ ] Updater sleeps when no tasks ready
-- [ ] Adding task wakes sleeping updater
+- [ ] Scheduler stores tasks with absolute ready times (`ready_at_tick`)
+- [ ] `scheduler_add(sched, task, 0)` sets `ready_at_tick = g_current_tick` (ready immediately)
+- [ ] `scheduler_add(sched, task, N)` sets `ready_at_tick = g_current_tick + N`
+- [ ] `scheduler_get_ready()` returns only tasks where `g_current_tick >= ready_at_tick`
+- [ ] Updater can sleep while `g_current_tick` continues advancing (no deadlock)
+- [ ] Adding task wakes sleeping updater via `pthread_cond_signal`
 - [ ] assigned_any flag works (keeps looping if work was done)
-- [ ] Thread-safe: concurrent add/tick/get_ready operations
+- [ ] Thread-safe: concurrent add/get_ready operations
 - [ ] Removal works (by predicate function)
+- [ ] No dependency on updater for time advancement (decoupled from scheduler)
 
 ## Related Documents
 
@@ -168,21 +180,23 @@ void scheduler_sleep_until_ready(Scheduler* sched);
 
 ### Future Optimization: Branchless Readiness Check
 
-Currently uses: `if (ticks_until_ready == 0)` to check readiness.
+Currently uses: `if (current_tick >= ready_at_tick)` to check readiness.
 
-**Future consideration:** Branchless zero check using bit manipulation:
+**Future consideration:** Branchless comparison using arithmetic:
 ```c
-uint32_t ticks = tasks[i].ticks_until_ready;
-uint32_t is_ready = 1 - ((ticks | -ticks) >> 31);
-// Returns 1 if ticks == 0, else 0 (no branch)
+uint64_t current = g_current_tick;
+uint64_t ready = task.ready_at_tick;
+// Check if current >= ready without branching
+uint64_t is_ready = 1 - ((ready - current - 1) >> 63);
+// Returns 1 if current >= ready, else 0 (unsigned underflow sets high bit)
 ```
 
 This could enable:
-- Vectorized scanning of task array
+- Vectorized scanning of task array (SIMD parallel comparisons)
 - Better CPU pipeline utilization
 - Cache-friendly sequential access
 
-**Trade-off:** Bit manipulation may be less readable than simple comparison.
+**Trade-off:** Bit manipulation may be less readable and harder to verify.
 Defer this optimization until profiling shows the branch as a bottleneck.
 
 ### Multiplication-Based Time Gates
