@@ -139,16 +139,21 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Pipeline integration (regenerate-clean-site.lua, main.lua)
 - Note: Download links in HTML pages moved to 8-012 scope
 
-**8-012: Implement Paginated Similarity Chapters** - IN PROGRESS (Phases A+B complete)
+**8-012: Implement Paginated Similarity Chapters** - IN PROGRESS (Phases A+B+C complete)
 - ✅ Circular dependency with 8-013 resolved
 - ✅ Added pagination config to `config/input-sources.json`
 - ✅ Documented `minimum_pages` setting requirement
 - ✅ Phase A: Core pagination logic implemented (10 new functions)
 - ✅ Phase B: Prev/next navigation implemented
 - ✅ Test: 134KB page with 100 poems, proper navigation
-- Pending: Phase C - Export Format Integration (download links)
-- Pending: Phase D - Pipeline integration
-- ✅ Phase E - Chronological stays as single file (per 8-020)
+- ✅ Phase C: Export Format Integration (2026-01-09)
+  - Download links (.txt and .html archive) in every paginated page
+  - Created `generate_similarity_html_archive()` and `generate_diversity_html_archive()`
+  - Integrated into `M.generate_flat_html_with_similarity_and_diversity()`
+  - Test: All links present and correctly formatted
+- Pending: Phase D - Generation strategy (--pages flag, pipeline integration)
+- Pending: Phase E - Integration (entry points, testing, max_pages enforcement)
+- ✅ Phase E Step 16 - Chronological stays as single file (per 8-020)
 - Related: 8-016 (validator) depends on this issue
 - **Modified by 8-020**: Hybrid pagination strategy
 

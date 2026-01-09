@@ -108,7 +108,7 @@ end
 
 ## Files to Investigate
 
-- `/home/ritz/programming/ai-stuff/libs/menu.tui` - TUI library source
+- `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua` - TUI library source
 - `/home/ritz/programming/ai-stuff/neocities-modernization/run.sh` - Implementation
 - `/home/ritz/programming/ai-stuff/neocities-modernization/src/main.lua` - Interactive mode
 - `/home/ritz/programming/ai-stuff/scripts/issue-splitter.sh` - Working reference
@@ -120,7 +120,7 @@ This bug has reportedly been fixed in other systems, suggesting:
 2. The fix may need to be ported to this project's implementation
 3. Or, the menu.tui library has been updated but not all consumers updated
 
-Check git history of menu.tui and issue-splitter.sh for recent fixes related to flag display.
+Check git history of menu.lua and issue-splitter.sh for recent fixes related to flag display.
 
 ## Related Documents
 

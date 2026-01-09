@@ -178,9 +178,11 @@ This issue is marked **COMPLETED** as an analysis task. The actual conversion of
 
 ## Related Documents
 
-- Issue 10-004: Command preview (implemented in run.sh)
+- Issue 10-004: Command preview (implemented in run.sh) - **Moved to `/home/ritz/programming/ai-stuff/scripts/issues/`**
 - Issue 10-005: CLI flag support (provides flags to map)
 - `/mnt/mtwo/programming/ai-stuff/neocities-modernization/run.sh` (recommended TUI)
 - `/mnt/mtwo/programming/ai-stuff/neocities-modernization/src/main.lua` (legacy TUI)
+
+**Note**: Phase 10 issues related to the TUI library and issue-splitter.sh have been moved to the monorepo scripts/issues directory, as they apply to monorepo-level tools rather than being specific to the neocities-modernization project.
 
 ---
