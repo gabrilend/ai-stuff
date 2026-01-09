@@ -22,8 +22,8 @@
 /* {{{ Configuration */
 #define TASK_LIST_SIZE 1024     /* Ring buffer capacity per worker */
 #define WATCH_LIST_SIZE 2048    /* Sync watch list capacity */
-#define TARGET_TICK_US 10000    /* 10ms = 100Hz */
-#define CONTINUATION_THRESHOLD_US 5000  /* 50% of target */
+#define TARGET_TICK_US 16000    /* 16ms = 62.5Hz (WC3 tick rate) */
+#define CONTINUATION_THRESHOLD_US 8000  /* 50% of target */
 /* }}} */
 
 /* {{{ Task Weight Constants
@@ -218,7 +218,7 @@ typedef struct updater_context {
 extern atomic_uint g_active_updater_count;
 
 /* Threshold for spawning replacement updater (microseconds) */
-#define UPDATER_OVERLOAD_THRESHOLD_US 5000
+#define UPDATER_OVERLOAD_THRESHOLD_US 8000
 /* }}} */
 
 /* {{{ Function Declarations - Updater */
