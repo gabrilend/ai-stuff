@@ -6,7 +6,7 @@ Shared library infrastructure for reusable components across projects.
 
 | Library | Status | Issues |
 |---------|--------|--------|
-| threadpool | In Progress | 1/8 |
+| threadpool | In Progress | 4/8 |
 
 ---
 
@@ -22,12 +22,12 @@ adaptive task distribution.
 |----|------|--------|--------------|
 | 800 | Threadpool library extraction | In Progress | None |
 | 800a | Core threadpool module | **Completed** | None |
-| 800b | Sync module (watch list) | Pending | 800a |
-| 800c | Updater module (self-evaluating) | Pending | 800a |
+| 800b | Sync module (watch list) | **Completed** | 800a |
+| 800c | Updater module (self-evaluating) | **Completed** | 800a |
 | 800d | Threadpool test suite | Pending | 800a, 800b, 800c, 800g |
 | 800e | Render system migration | Pending | 800a, 800b, 800c, 800d |
 | 800f | Windows support planning | Pending | 800a |
-| 800g | Scheduler module (deferred tasks) | Pending | 800a |
+| 800g | Scheduler module (deferred tasks) | **Completed** | 800a |
 
 ### Dependency Graph
 
@@ -44,9 +44,10 @@ adaptive task distribution.
 
 ### Key Features
 
-- **Modular:** Core, sync, and updater are independently usable
+- **Modular:** Core, sync, updater, and scheduler are independently usable
 - **Self-evaluating updaters:** Helpers spawn/terminate based on measured load
 - **Ring buffer task lists:** Efficient queuing with automatic relocation
+- **Deferred task scheduling:** Absolute time-based scheduler with wake-on-add
 - **POSIX-only initially:** Windows support planned as future work
 
 ### Consumer Projects
