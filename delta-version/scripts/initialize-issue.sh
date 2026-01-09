@@ -31,7 +31,6 @@ WORKTREE_PATH=""
 ISSUE_FILE=""
 DRY_RUN=false
 NO_ANALYSIS=false
-AUTO_SPLIT=false
 SKIP_WORKTREE=false
 # }}}
 
@@ -48,13 +47,12 @@ ${BOLD}DESCRIPTION:${NC}
 ${BOLD}OPTIONS:${NC}
     --dry-run           Show what would be done without doing it
     --no-analysis       Skip issue analysis and splitting
-    --auto-split        Automatically create sub-issues without prompting
     --skip-worktree     Skip worktree creation (use existing)
     -h, --help          Show this help
 
 ${BOLD}EXAMPLES:${NC}
     initialize-issue.sh issues/043-new-feature.md
-        Full initialization with interactive prompts
+        Full initialization with automatic analysis and sub-issue generation
 
     initialize-issue.sh --dry-run issues/043-new-feature.md
         Preview what would happen
@@ -79,10 +77,6 @@ parse_args() {
                 ;;
             --no-analysis)
                 NO_ANALYSIS=true
-                shift
-                ;;
-            --auto-split)
-                AUTO_SPLIT=true
                 shift
                 ;;
             --skip-worktree)
@@ -250,65 +244,36 @@ analyze_and_split_issue() {
         return 0
     fi
 
-    # Run analysis on this specific issue file
-    # Use -s (skip-existing) and pass the issue file path
-    local analysis_output
-    analysis_output=$("$splitter_script" -s "$issue_file" 2>&1 || true)
+    # Step 1: Run analysis on this specific issue file (generates analysis if not present)
+    # Use -s (skip-existing) so it won't re-analyze if already done
+    echo -e "${CYAN}Running analysis...${NC}"
+    "$splitter_script" -s "$issue_file" 2>&1 || true
 
-    echo "$analysis_output"
+    # Step 2: Execute split to create sub-issues based on the analysis
+    # Use -x (execute) and -G (generate complete files) and -X (execute all without confirmation)
+    echo -e "${CYAN}Generating sub-issues...${NC}"
+    if "$splitter_script" -x -G -X "$issue_file" 2>&1; then
+        echo -e "${GREEN}✓ Analysis and sub-issue generation complete${NC}"
 
-    # Check if issue should be split
-    local should_split=false
-    if echo "$analysis_output" | grep -qi "RECOMMEND.*SPLIT"; then
-        should_split=true
-    elif echo "$analysis_output" | grep -qi "splittable"; then
-        should_split=true
-    fi
+        # List created sub-issues
+        local issue_dir=$(dirname "$issue_file")
+        local base_num="${ISSUE_NUM}"
+        echo
+        echo -e "${BOLD}Created sub-issues:${NC}"
 
-    if $should_split; then
-        local response="n"
-
-        if $AUTO_SPLIT; then
-            response="y"
-            echo "Auto-splitting enabled"
-        else
-            echo
-            echo -n "Create sub-issues based on analysis? [y/N]: "
-            read -r response
-        fi
-
-        if [[ "$response" =~ ^[Yy]$ ]]; then
-            echo -e "${GREEN}Executing issue split...${NC}"
-
-            # Execute with -x (execute) and -G (generate complete files)
-            if "$splitter_script" -x -G "$issue_file"; then
-                echo -e "${GREEN}✓ Sub-issues created${NC}"
-
-                # List created sub-issues
-                local issue_dir=$(dirname "$issue_file")
-                local base_num="${ISSUE_NUM}"
-                echo
-                echo -e "${BOLD}Created sub-issues:${NC}"
-
-                local count=0
-                for subissue in "${issue_dir}/${base_num}"[a-z]-*.md; do
-                    if [[ -f "$subissue" ]]; then
-                        echo "  - $(basename "$subissue")"
-                        ((count++))
-                    fi
-                done
-
-                if [[ $count -eq 0 ]]; then
-                    echo "  (No sub-issues found - check issue-splitter output)"
-                fi
-            else
-                echo -e "${RED}✗ Failed to create sub-issues${NC}" >&2
+        local count=0
+        for subissue in "${issue_dir}/${base_num}"[a-z]-*.md; do
+            if [[ -f "$subissue" ]]; then
+                echo "  - $(basename "$subissue")"
+                ((count++))
             fi
-        else
-            echo "Skipping sub-issue creation"
+        done
+
+        if [[ $count -eq 0 ]]; then
+            echo "  (none - issue does not require splitting)"
         fi
     else
-        echo -e "${CYAN}Issue does not require splitting${NC}"
+        echo -e "${YELLOW}Note: Sub-issue generation completed (check for errors above)${NC}"
     fi
 }
 # }}}
