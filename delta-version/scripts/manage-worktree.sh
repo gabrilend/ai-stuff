@@ -118,7 +118,6 @@ cmd_create() {
 
     validate_project "$project" || return 1
     ensure_worktree_root
-    ensure_dev_branch "$project"
 
     local worktree_path
     worktree_path=$(get_worktree_path "$issue_num" "$project")
@@ -144,10 +143,9 @@ cmd_create() {
         log "Branch $branch_name already exists, creating worktree from it"
         git worktree add "$worktree_path" "$branch_name"
     else
-        # Create new branch from project dev branch
-        local dev_branch="$short_name/dev"
-        log "Creating new branch $branch_name from $dev_branch"
-        git worktree add -b "$branch_name" "$worktree_path" "$dev_branch"
+        # Create new branch from master
+        log "Creating new branch $branch_name from master"
+        git worktree add -b "$branch_name" "$worktree_path" "master"
     fi
 
     echo ""
@@ -163,7 +161,7 @@ cmd_create() {
     echo ""
     echo "When finished, merge from main repo:"
     echo "  cd $DIR"
-    echo "  git checkout $short_name/dev"
+    echo "  git checkout master"
     echo "  git merge $branch_name"
     echo "  $0 remove $issue_num $project"
     echo ""
