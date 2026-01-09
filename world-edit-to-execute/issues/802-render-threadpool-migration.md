@@ -1,10 +1,10 @@
-# Issue 800e: Render System Migration to Threadpool Library
+# Issue 802: Render System Migration to Threadpool Library
 
-**Phase:** 8 (Infrastructure Libraries)
+**Phase:** 8 (Infrastructure)
 **Type:** Implementation
 **Priority:** Medium
-**Dependencies:** 800a, 800b, 800c, 800d
-**Parent:** 800-threadpool-library-extraction.md
+**Dependencies:** my-libs/800a, my-libs/800b, my-libs/800c, my-libs/800d (threadpool library)
+**Related:** my-libs/800-threadpool-library-extraction.md
 
 ---
 
