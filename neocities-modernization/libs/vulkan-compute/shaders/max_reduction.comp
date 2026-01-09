@@ -1,0 +1,78 @@
+#version 450
+
+/* max_reduction.comp - Find poem with maximum distance from centroid
+ *
+ * This shader performs parallel reduction to find the index of the poem
+ * with maximum distance, respecting a mask of already-selected poems.
+ *
+ * Algorithm:
+ *   - Each thread loads one distance value and checks mask
+ *   - Parallel reduction in shared memory finds max
+ *   - Thread 0 writes final result
+ *
+ * Shared memory usage: 256 floats + 256 uints per workgroup
+ */
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) readonly buffer Distances {
+    float distances[];  // Distance for each poem
+};
+
+layout(set = 0, binding = 1) readonly buffer Mask {
+    uint mask[];  // 1 = available, 0 = already selected
+};
+
+layout(set = 0, binding = 2) buffer Result {
+    uint max_index;     // Index of poem with maximum distance
+    float max_distance; // Maximum distance value
+};
+
+layout(push_constant) uniform Constants {
+    uint num_poems;  // Total number of poems
+} constants;
+
+/* Shared memory for parallel reduction */
+shared float s_distances[256];
+shared uint s_indices[256];
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+    uint global_id = gl_GlobalInvocationID.x;
+
+    /* Initialize shared memory with this thread's data */
+    float local_max = -1.0;  /* Start with invalid (negative) distance */
+    uint local_idx = 0;
+
+    /* Load distance value if in bounds and not masked */
+    if (global_id < constants.num_poems) {
+        if (mask[global_id] == 1) {
+            local_max = distances[global_id];
+            local_idx = global_id;
+        }
+    }
+
+    s_distances[tid] = local_max;
+    s_indices[tid] = local_idx;
+    barrier();
+
+    /* Parallel reduction: find maximum across workgroup */
+    for (uint stride = 128; stride > 0; stride >>= 1) {
+        if (tid < stride) {
+            if (s_distances[tid + stride] > s_distances[tid]) {
+                s_distances[tid] = s_distances[tid + stride];
+                s_indices[tid] = s_indices[tid + stride];
+            }
+        }
+        barrier();
+    }
+
+    /* Thread 0 writes the result for this workgroup */
+    if (tid == 0 && gl_WorkGroupID.x == 0) {
+        /* NOTE: For simplicity, we dispatch only 1 workgroup.
+         * For larger datasets, you'd need a two-stage reduction.
+         */
+        max_distance = s_distances[0];
+        max_index = s_indices[0];
+    }
+}
