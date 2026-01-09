@@ -1,9 +1,9 @@
-# Issue 609: Matchmaking Server
+# Issue 801: Matchmaking Server
 
-**Phase:** 6
+**Phase:** 8 - Multiplayer & Networking
 **Type:** Implementation
 **Priority:** High
-**Dependencies:** Issue 603 (asset download protocol), Issue 607 (file server)
+**Dependencies:** Phase 5 (Rendering - for lobby UI), Phase 6 (Asset System - for asset distribution)
 
 ---
 
@@ -203,27 +203,24 @@ Payload:
 
 ---
 
-## Suggested Implementation Steps
+## Sub-Issues
 
-1. **Design wire protocol** - Message types, encoding
-2. **Implement server** - `src/matchmaking/server.lua`
-   - Game registry (in-memory, simple)
-   - NAT traversal logic
-   - Asset mirror integration
-3. **Implement client** - `src/matchmaking/client.lua`
-   - Connect, list, join, host
-   - Lobby state management
-4. **Implement NAT punch** - `src/matchmaking/nat.lua`
-   - UDP hole punching
-   - STUN-like endpoint detection
-5. **Add asset mirror** - Integrate with Issue 607 file server
-6. **Create CLI tool** - `src/cli/matchmaking-server.lua`
-   - Run server
-   - Monitor lobbies
-   - View statistics
-7. **Test NAT scenarios**
-   - Full cone, restricted cone, symmetric NATs
-   - Success rate measurement
+This issue has been split into manageable sub-tasks:
+
+| Issue | Description | Dependencies |
+|-------|-------------|--------------|
+| **801a** | Protocol specification and message types | None (foundation) |
+| **801b** | Server core (lobby registry, message routing) | 801a |
+| **801c** | Client library (API for game integration) | 801a, 801b |
+| **801d** | NAT traversal system (UDP hole punching) | 801a, 801b |
+| **801e** | Lobby UI (game browser, lobby screen) | 801c, Phase 5 |
+| **801f** | Asset mirror integration | 801b, Phase 6 |
+| **801g** | CLI server application | 801b, 801f |
+| **801h** | Integration tests | All 701 sub-issues |
+
+## Implementation Approach
+
+See individual sub-issues (801a-801h) for detailed implementation steps, acceptance criteria, and technical specifications.
 
 ---
 
