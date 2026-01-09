@@ -205,6 +205,62 @@ When all issues in a phase are merged to the project dev branch:
 - Leave worktrees with uncommitted changes for extended periods
 - Create worktrees for the same issue multiple times (remove first)
 - Merge issue branches directly to master (go through project dev branch)
+- Create worktrees for sub-issues (see below)
+
+## Root Issues vs Sub-Issues
+
+Worktrees should only be created for **root issues**, not sub-issues.
+
+### What's the Difference?
+
+- **Root Issue**: A top-level issue like `041-git-worktree-architecture`
+- **Sub-Issue**: A breakdown of a root issue, like `041a-setup-script`, `041b-cleanup-script`, `041c-status-command`
+
+### The Rule
+
+| Issue Type | Example | Gets Worktree? |
+|------------|---------|----------------|
+| Root issue | `041` | ✓ Yes |
+| Sub-issue | `041a`, `041b`, `041c` | ✗ No |
+
+### Why This Matters
+
+1. **Avoids worktree sprawl**: A root issue with 5 sub-issues would create 5 worktrees unnecessarily
+2. **Reflects natural hierarchy**: Sub-issues are parts of the same feature, they belong together
+3. **Simplifies merging**: One branch per feature, not one per sub-task
+4. **Reduces confusion**: Agents know exactly where to find related work
+
+### Workflow for Sub-Issues
+
+When working on a feature with sub-issues:
+
+1. **Create worktree for the root issue**:
+   ```bash
+   ./scripts/manage-worktree.sh create 041 delta-version
+   cd $(./scripts/manage-worktree.sh path 041 delta-version)
+   ```
+
+2. **Work on sub-issues sequentially within that worktree**:
+   - Complete `041a`, commit: `git commit -m "Issue 041a: Add setup script"`
+   - Complete `041b`, commit: `git commit -m "Issue 041b: Add cleanup script"`
+   - Complete `041c`, commit: `git commit -m "Issue 041c: Add status command"`
+
+3. **When all sub-issues are done, complete the root issue**:
+   - Final commit for root issue if needed
+   - Merge to project dev branch
+   - Remove worktree
+
+### Commit Messages for Sub-Issues
+
+When committing sub-issue work, prefix with the sub-issue number:
+
+```bash
+git commit -m "Issue 041a: Implement worktree creation script"
+git commit -m "Issue 041b: Add cleanup and removal logic"
+git commit -m "Issue 041: Complete worktree architecture (closes 041a-c)"
+```
+
+This keeps the git history clear about which sub-issue each commit addresses.
 
 ## Troubleshooting
 
