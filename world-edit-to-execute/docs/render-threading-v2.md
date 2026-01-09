@@ -107,13 +107,16 @@ typedef struct worker_task {
 ### Task Lifecycle
 
 1. Updater writes task to end of worker's task-list
-2. Worker executes tasks sequentially (no if-checks, just call and advance)
-3. On completion:
-   - Decrement `repeat_count` (if > 0)
-   - If `repeat_count <= 0`: write `sleep_task` to slot, task is done
-   - Decrement worker's `num_tasks` by task weight
-   - Increment `start_ptr` to next slot
-4. `sleep_task` is the default endcap - worker sleeps for one tick interval then checks again
+   - Load counter incremented by **total work**: `num_tasks += (weight × repeat_count)`
+   - This ensures accurate load balancing - prevents tasks piling up behind long-running work
+2. Worker executes tasks sequentially from `start_ptr`
+3. After each iteration:
+   - Execute task function
+   - Decrement `repeat_count`
+   - Decrement `num_tasks` by single `weight` (one iteration completed)
+   - If `repeat_count > 0`: stay at same slot, execute again next loop
+   - If `repeat_count <= 0`: call `on_complete`, clear slot, advance `start_ptr`
+4. Load counter accurately reflects remaining work at all times
 
 ### Ring Buffer Management
 

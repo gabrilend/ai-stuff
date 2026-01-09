@@ -113,8 +113,8 @@ bool task_append(Worker* w, WorkerTask* task) {
     w->task_list[w->end_ptr] = *task;
     w->end_ptr = next;
 
-    /* Update load counter */
-    atomic_fetch_add(&w->num_tasks, task->weight);
+    /* Update load counter - account for total work (weight × repeat_count) */
+    atomic_fetch_add(&w->num_tasks, task->weight * task->repeat_count);
 
     /* Check if approaching end of buffer - schedule relocate
      * Trigger when less than 10% of buffer remains */
@@ -202,14 +202,14 @@ void* worker_loop(void* arg) {
         /* Decrement repeat_count */
         task->repeat_count--;
 
+        /* Decrement load counter - one iteration completed */
+        atomic_fetch_sub(&w->num_tasks, task->weight);
+
         if (task->repeat_count <= 0) {
             /* Task is now complete */
             if (task->on_complete) {
                 task->on_complete(task->context);
             }
-
-            /* Decrement load counter */
-            atomic_fetch_sub(&w->num_tasks, task->weight);
 
             /* Clear the slot */
             task->execute = NULL;

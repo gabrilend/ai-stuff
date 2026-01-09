@@ -76,7 +76,10 @@ typedef struct worker {
     size_t start_ptr;           /* Current execution position */
     size_t end_ptr;             /* Next write position */
 
-    /* Load balancing: weighted sum of pending task weights */
+    /* Load balancing: weighted sum of remaining work
+     * On append: num_tasks += (weight × repeat_count)
+     * Per iteration: num_tasks -= weight
+     * Represents accurate total work remaining */
     atomic_uint num_tasks;
 
     /* Shutdown flag */
