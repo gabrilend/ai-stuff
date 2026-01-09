@@ -1,0 +1,40 @@
+-- Authorship Tool - Sample Configuration
+-- Copy this file to config.lua and customize as needed
+
+return {
+    -- File paths
+    paths = {
+        input = "input/",           -- Where to read documents from
+        output = "output/",         -- Where to write output files
+        temp = "tmp/",              -- Temporary files and logs
+        modules = "libs/"           -- Module directory
+    },
+
+    -- Document processing settings
+    document = {
+        formats = {"txt", "md"},    -- Supported file formats
+        max_size_mb = 10,           -- Maximum file size to process
+        encoding = "utf-8",         -- Text encoding
+        recursive = true            -- Scan subdirectories
+    },
+
+    -- User interface settings
+    ui = {
+        theme = "dark",             -- dark | light
+        keybindings = "vim"         -- vim | emacs | default
+    },
+
+    -- Logging configuration
+    logging = {
+        level = "info",             -- debug | info | warn | error
+        output = "tmp/authorship-tool.log"
+    },
+
+    -- Module-specific configuration
+    modules = {
+        ["document-reader"] = {
+            recursive = true,
+            follow_symlinks = false
+        }
+    }
+}

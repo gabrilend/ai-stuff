@@ -533,14 +533,14 @@ run_generate_similarity() {
 
     # Use similarity-engine.lua to generate matrix
     # Issue 8-023: Fixed function name and parameters (was generate_similarity_matrix with wrong args)
-    # calculate_similarity_matrix(embeddings_file, output_file, top_n, force_regenerate)
+    # Issue 8-029: Changed to calculate_full_similarity_matrix for correct output format
+    # calculate_full_similarity_matrix(embeddings_file, output_file, force_regenerate)
     luajit -e "
         package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
         local sim = require('src.similarity-engine')
-        sim.calculate_similarity_matrix(
+        sim.calculate_full_similarity_matrix(
             '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
             '$DIR/assets/embeddings/$model_dir_name/similarity_matrix.json',
-            nil,
             false
         )
     " || {

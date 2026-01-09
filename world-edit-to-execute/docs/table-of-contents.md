@@ -10,9 +10,18 @@ docs/
 ├── table-of-contents.md       (this file)
 ├── roadmap.md                  Project phases and milestones
 ├── critical-path.md → ../issues/CRITICAL-PATH.md  Decision points & open questions
+├── wc3-engine-architecture.md  Pure WC3 engine architecture (active design)
+├── postmortem-azerothcore-integration.md  AC integration pivot analysis
 ├── render-architecture.md      Threading model, component slots, numeric encoding
 ├── render-system-multithreading.md  Pipeline stages, task submission, synchronization
 ├── binary-vector-frames.md     Quadrant voting, curve approximation, 3D rotations
+├── archive/                    Archived design documents
+│   └── azerothcore-2026-01-07/ AzerothCore integration (archived)
+│       ├── azerothcore-integration-architecture.md
+│       ├── client-architecture.md
+│       ├── data-conversion-pipeline.md
+│       ├── custom-ability-bridge.md
+│       └── phase-reorganization.md
 ├── formats/                    File format specifications
 │   ├── mpq-archive.md          MPQ archive format (with HM3W wrapper)
 │   ├── w3i-map-info.md         Map info file format
@@ -120,6 +129,7 @@ issues/
 ├── 206-design-game-object-types.md
 ├── 207-build-object-registry-system.md
 ├── 208-phase-2-integration-test.md
+│   (Phase 8 issues maintained at /home/ritz/programming/ai-stuff/my-libs/issues/)
 ├── completed/                  Completed issue archive
 │   └── demos/                  Phase completion demonstrations
 ```
@@ -134,11 +144,22 @@ issues/
 |----------|----------|-------------|
 | CLAUDE.md | ./CLAUDE.md | Project instructions for Claude Code |
 | Vision | notes/vision | Project philosophy, legal basis, and goals |
+| **WC3 Engine Architecture** | **docs/wc3-engine-architecture.md** | **Pure WC3 engine design (active)** |
 | Roadmap | docs/roadmap.md | Phased development plan |
 | Progress | issues/progress.md | Current phase status |
 | Critical Path | docs/critical-path.md | Decision points, open questions, tech debt |
 | Render Architecture | docs/render-architecture.md | Threading model, component slots, numeric encoding |
 | Binary Vector Frames | docs/binary-vector-frames.md | Quadrant voting, curve approximation, 3D rotations |
+
+### Historical Documents
+
+**Post-Mortem:** 2026-01-07/08 - AzerothCore integration pivot and WoW-mode archive
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| **AC Integration Post-Mortem** | **docs/postmortem-azerothcore-integration.md** | **Why we pivoted to pure WC3 engine** |
+| Archived AC Designs | docs/archive/azerothcore-2026-01-07/ | AzerothCore integration documents (reference only) |
+| **Archived WoW Mode Issues** | **issues/archive/wow-mode-2026-01-08/** | **Warlord Mode, professions, dual-interface (19 issues)** |
 
 ### Tools
 
@@ -175,17 +196,22 @@ issues/
 | 012 | Interactive verdict review mode | Pending |
 | 013 | Quest & bounty template system | **Completed** |
 | 014 | Guild hero & shop system | **Completed** |
-| 015 | WoW-style combat system | Pending |
-| 016 | Attribute getter/setter system | In Progress |
-| 016a | Core attribute registry | **Completed** |
-| 016b | Dispatch table getters | Pending |
-| 016c | Dispatch table setters | Pending |
-| 016d | Modifier stack system | Pending |
-| 016e | Derived attribute engine | Pending |
-| 016f | WC3 attribute config | Pending |
-| 016g | WoW attribute config | Pending |
-| 016h | Cross-system mapping | Pending |
-| 016i | Integration tests | Pending |
+
+**Note:** Issues 000-005 (Warlord Mode), 015-016 (WoW features), 500/510 series (dual-interface), and 701-702 series (WoW mechanics) have been archived to `issues/archive/wow-mode-2026-01-08/` following the pure WC3 engine pivot. See archive README for details.
+
+### Phase 8 Issues (Infrastructure Libraries)
+
+> Issues maintained externally at: `/home/ritz/programming/ai-stuff/my-libs/issues/`
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 800 | Threadpool library extraction | In Progress |
+| 800a | Core threadpool module | **Completed** |
+| 800b | Sync module (watch list) | Pending |
+| 800c | Updater module (self-evaluating) | Pending |
+| 800d | Threadpool test suite | Pending |
+| 800e | Render system migration | Pending |
+| 800f | Windows support planning | Pending |
 
 ### Phase 1 Issues (File Format Parsing) - **COMPLETED**
 
@@ -236,6 +262,32 @@ issues/
 | 207e | Map integration | **Completed** |
 | 207f | Registry tests | Pending |
 | 208 | Phase 2 integration test | Pending |
+
+### Phase 6 Issues (Asset System)
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 601 | Asset loader and resolution | Pending |
+| 603 | LAN asset download protocol | Pending |
+| 604 | Asset deduplication system | Pending |
+| 605 | Local storage manager | Pending |
+| 606 | Hot reload system | Pending |
+| 607 | File server application | Pending |
+| 608 | Phase 6 integration test | Pending |
+
+### Phase 8 Issues (Multiplayer & Networking)
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 801 | Matchmaking server (root) | Pending |
+| 801a | Protocol specification | Pending |
+| 801b | Server core | Pending |
+| 801c | Client library | Pending |
+| 801d | NAT traversal | Pending |
+| 801e | Lobby UI | Pending |
+| 801f | Asset mirror integration | Pending |
+| 801g | CLI server application | Pending |
+| 801h | Integration tests | Pending |
 
 ### Technical Documentation
 
