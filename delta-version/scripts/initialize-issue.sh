@@ -231,28 +231,19 @@ analyze_and_split_issue() {
         return 0
     fi
 
-    # Check if issue-splitter.sh exists
-    local splitter_script=""
-    if [[ -x "${DIR}/scripts/issue-splitter.sh" ]]; then
-        splitter_script="${DIR}/scripts/issue-splitter.sh"
-    elif [[ -x "/mnt/mtwo/programming/ai-stuff/scripts/issue-splitter.sh" ]]; then
-        splitter_script="/mnt/mtwo/programming/ai-stuff/scripts/issue-splitter.sh"
-    else
-        echo -e "${YELLOW}Warning: issue-splitter.sh not found, skipping analysis${NC}"
-        return 0
-    fi
-
+    # Note: issue-splitter.sh operates on directories, not individual files
+    # For now, skip automatic analysis and just note that it's available
     echo
-    echo -e "${BOLD}Analyzing issue for potential sub-tasks...${NC}"
+    echo -e "${BOLD}Issue analysis:${NC}"
+    echo -e "${CYAN}To analyze and split issues, use issue-splitter.sh on the issues directory${NC}"
 
     if $DRY_RUN; then
-        echo -e "${CYAN}[DRY RUN]${NC} Would analyze issue with $splitter_script"
         return 0
     fi
 
-    # Run analysis
-    local analysis_output
-    analysis_output=$("$splitter_script" --analyze "$issue_file" 2>&1 || true)
+    # Skip analysis for now - issue-splitter.sh doesn't support single-file analysis
+    # Users can manually run issue-splitter.sh on the project's issues/ directory
+    local analysis_output=""
 
     echo "$analysis_output"
 
