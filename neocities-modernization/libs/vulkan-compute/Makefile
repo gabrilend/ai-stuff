@@ -24,9 +24,9 @@ SHADER_SPIRV := $(patsubst $(SHADER_DIR)/%.comp,$(BUILD_DIR)/%.spv,$(SHADER_SOUR
 # }}}
 
 # {{{ Build targets
-.PHONY: all clean shaders library test
+.PHONY: all clean shaders library shared test
 
-all: shaders library
+all: shaders library shared
 
 # Compile GLSL shaders to SPIR-V
 shaders: $(SHADER_SPIRV)
@@ -42,6 +42,9 @@ library: $(BUILD_DIR)/libvkcompute.a
 $(BUILD_DIR)/libvkcompute.a: $(C_OBJECTS)
 	ar rcs $@ $^
 	@echo "Built library: $@"
+
+# Build shared library target
+shared: $(BUILD_DIR)/libvkcompute.so
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(BUILD_DIR)
