@@ -42,12 +42,12 @@
  *
  * NOTE: This must be defined by the user application.
  * Example initialization:
- *   atomic_uint64_t g_current_tick = 0;
+ *   _Atomic uint64_t g_current_tick = 0;
  *
  * The game loop should increment this periodically:
  *   atomic_fetch_add(&g_current_tick, 1);  // Once per frame/tick
  */
-extern atomic_uint64_t g_current_tick;
+extern _Atomic uint64_t g_current_tick;
 /* }}} */
 
 /* {{{ TpScheduledTask
