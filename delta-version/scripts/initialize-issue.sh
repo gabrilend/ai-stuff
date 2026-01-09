@@ -244,15 +244,21 @@ analyze_and_split_issue() {
         return 0
     fi
 
-    # Step 1: Run analysis on this specific issue file (generates analysis if not present)
+    # Determine project directory and issue pattern for issue-splitter.sh
+    # issue-splitter.sh expects: -d <project-dir> -p <pattern>
+    local issue_dir=$(cd "$(dirname "$issue_file")" && pwd)
+    local project_dir=$(dirname "$issue_dir")
+    local issue_pattern="${ISSUE_NUM}-*.md"
+
+    # Step 1: Run analysis on this specific issue (generates analysis if not present)
     # Use -s (skip-existing) so it won't re-analyze if already done
     echo -e "${CYAN}Running analysis...${NC}"
-    "$splitter_script" -s "$issue_file" 2>&1 || true
+    "$splitter_script" -s -d "$project_dir" -p "$issue_pattern" 2>&1 || true
 
     # Step 2: Execute split to create sub-issues based on the analysis
     # Use -x (execute) and -G (generate complete files) and -X (execute all without confirmation)
     echo -e "${CYAN}Generating sub-issues...${NC}"
-    if "$splitter_script" -x -G -X "$issue_file" 2>&1; then
+    if "$splitter_script" -x -G -X -d "$project_dir" -p "$issue_pattern" 2>&1; then
         echo -e "${GREEN}✓ Analysis and sub-issue generation complete${NC}"
 
         # List created sub-issues

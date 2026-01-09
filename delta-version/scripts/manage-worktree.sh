@@ -14,6 +14,15 @@
 
 set -euo pipefail
 
+# Color codes
+# -- {{{ COLORS
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+# }}}
+
 # -- {{{ Configuration
 DIR="${DIR:-/mnt/mtwo/programming/ai-stuff}"
 WORKTREE_ROOT="${WORKTREE_ROOT:-/mnt/mtwo/programming/ai-worktrees}"
@@ -31,7 +40,7 @@ log() {
 
 # -- {{{ error
 error() {
-    echo "[ERROR] $*" >&2
+    echo -e "${RED}[ERROR]${NC} $*" >&2
 }
 # }}}
 
