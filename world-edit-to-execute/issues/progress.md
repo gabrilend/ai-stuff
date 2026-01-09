@@ -23,15 +23,15 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| 0 | Tooling/Infrastructure | In Progress | 24/32 |
+| 0 | Tooling/Infrastructure | In Progress | 40/41 |
 | 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
 | 4 | Runtime - Basic Engine Loop | **Completed** | 34/34 |
 | 5 | Rendering - Visual Abstraction | Issues Created | 0/55 |
 | 6 | Asset System - Community Content | Issues Created | 0/8 |
-| 7 | Gameplay - Core Mechanics | In Progress | 1/7 |
-| 8 | Infrastructure Libraries | In Progress | 1/7 |
+| 7 | Gameplay - Core Mechanics | Archived | 0/0 |
+| 8 | Multiplayer & Networking | Issues Created | 0/9 |
 | 9 | World Editor | Issues Created | 0/12 |
 | 10 | Polish - Tools and UX | Planned | - |
 
@@ -77,12 +77,10 @@
 | 006 | Rename analysis sections for promoted roots | **Completed** | 003 |
 | 007 | Add auto-implement via Claude CLI | **Completed** | None |
 | 010 | Debug TUI integration analysis | Pending | 004 |
-| 011 | TUI history insert on run | Pending | 004 |
+| 011 | TUI history insert on run | **Completed** | 004 |
 | 012 | Interactive verdict review mode | **Completed** | 003, 004 |
 | 013 | Quest & bounty template system | **Completed** | None |
 | 014 | Guild hero & shop system | **Completed** | 013 |
-| 015 | WoW-style combat system | Pending | 014 |
-| 016 | Attribute getter/setter system | **Completed** | 015, 014 |
 | 016a | Core attribute registry | **Completed** | None |
 | 016b | Dispatch table getters | **Completed** | 016a |
 | 016c | Dispatch table setters | **Completed** | 016a |
@@ -1662,3 +1660,5 @@ Phase 4 in progress (7/8 root issues complete, 403 starting):
 
 **Phase 0 Complete** - Tooling/Infrastructure (streaming queue via `--stream` flag)
 **Phase 1 Complete** - Foundation: MPQ parsing, w3i/wts/w3e parsers, Map data structure
+
+**Note:** Issues 000-005 (Warlord Mode), 015 (WoW combat), and 016 root (attributes) were archived to `issues/archive/wow-mode-2026-01-08/` following the pure WC3 engine pivot. Sub-issues 016a-i remain complete as they demonstrate extensibility patterns.
