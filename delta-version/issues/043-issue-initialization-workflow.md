@@ -399,3 +399,72 @@ EXAMPLES:
 ## Notes
 
 This script embodies the DRY principle - instead of repeating the same setup steps for every issue, it encapsulates the entire workflow into a single command. It also ensures consistency across agents and developers by standardizing the initialization process.
+
+---
+
+## Implementation Notes
+
+**Date**: 2026-01-08
+**Status**: COMPLETED
+
+### Features Implemented
+
+**Core Workflow** ✓
+- Issue number parsing (handles 042, 042a, etc.)
+- Root/sub-issue detection and routing
+- Project identification from issue file path
+- Worktree creation via manage-worktree.sh integration
+- Sub-issue reuses parent worktree (no duplication)
+
+**Issue Analysis** ✓
+- Integration with issue-splitter.sh
+- Automatic detection of splitter script locations
+- Interactive prompting for sub-issue creation
+- --auto-split flag for non-interactive mode
+- Lists created sub-issues after splitting
+
+**Environment Preparation** ✓
+- Copies issue file to worktree
+- Creates directories mentioned in issue (scripts/, libs/, src/)
+- Detects dependencies and blocking relationships
+- Warns about unmet requirements
+
+**CLI Options** ✓
+- `--dry-run`: Preview without executing
+- `--no-analysis`: Skip issue splitting
+- `--auto-split`: Non-interactive splitting
+- `--skip-worktree`: Use existing worktree
+- `-h, --help`: Comprehensive help
+
+**Output** ✓
+- Color-coded status messages
+- Clear next steps with exact commands
+- Different instructions for root vs sub-issues
+- Project-aware branch naming (dv/dev, neo/dev, wete/dev)
+
+### Bug Fixes
+
+1. **Argument parsing**: Fixed help command triggering issue parsing
+   - Changed from command substitution to global variable
+   - Ensures `exit 0` properly terminates on --help
+
+2. **Skip worktree mode**: Fixed WORKTREE_PATH not being set
+   - Sets to current directory when --skip-worktree is used
+   - Prevents directory creation errors
+
+### Test Results
+
+All acceptance criteria met:
+- ✓ Parses issue numbers correctly
+- ✓ Root issues create worktrees, sub-issues reuse parent
+- ✓ Issue analysis integrates with issue-splitter.sh
+- ✓ Interactive prompts work
+- ✓ Issue file copied successfully
+- ✓ Clear next steps displayed
+- ✓ Graceful handling of missing dependencies
+- ✓ Dry-run mode functional
+- ✓ Help text complete
+
+### Files Created
+
+- `scripts/initialize-issue.sh` (455 lines)
