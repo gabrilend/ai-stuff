@@ -135,7 +135,9 @@ Running `./run.sh` without stage flags runs all stages (backward compatible).
 - `/mnt/mtwo/programming/ai-stuff/neocities-modernization/run.sh` (implemented)
 - `/mnt/mtwo/programming/ai-stuff/neocities-modernization/libs/utils.lua` (modified)
 - `/mnt/mtwo/programming/ai-stuff/neocities-modernization/src/main.lua` (modified)
-- Issue 10-004: Command preview (can now be implemented - depends on this)
+- Issue 10-004: Command preview - **Moved to `/home/ritz/programming/ai-stuff/scripts/issues/`**
 - Issue 10-006: Checkbox conversions (can now map to these flags)
+
+**Note**: Some Phase 10 issues related to the TUI library and issue-splitter.sh have been moved to the monorepo scripts/issues directory, as they apply to monorepo-level tools.
 
 ---

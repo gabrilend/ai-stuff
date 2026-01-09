@@ -1592,6 +1592,28 @@ function M.generate_flat_poem_list_html(starting_poem, sorted_poems, page_type, 
 end
 -- }}}
 
+-- {{{ local function generate_download_links
+-- Generates download links for full-corpus exports (.txt and .html archive)
+-- poem_id: the anchor poem's ID (used for unique filename)
+-- page_type: "similar" or "different"
+-- Returns: HTML string with download links
+local function generate_download_links(poem_id, page_type)
+    -- Generate unique filename ID (with category prefix)
+    local unique_id = string.format("%04d", poem_id)
+
+    -- Full-corpus export filenames (not paginated)
+    local txt_file = string.format("%s/%s.txt", page_type, unique_id)
+    local html_archive_file = string.format("%s/%s-archive.html", page_type, unique_id)
+
+    local links = {}
+    table.insert(links, "Download full collection:")
+    table.insert(links, string.format(' [<a href="%s">.txt</a>]', txt_file))
+    table.insert(links, string.format(' [<a href="%s">.html</a>]', html_archive_file))
+
+    return table.concat(links, " ")
+end
+-- }}}
+
 -- {{{ function M.generate_paginated_poem_page_html
 -- Generates a single paginated page with navigation
 -- starting_poem: the anchor poem object
@@ -1647,6 +1669,9 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local starting_title = starting_poem.title or ("Poem " .. starting_poem_id)
     local padded_id = string.format("%04d", starting_poem_id)
 
+    -- Generate download links for full-corpus exports
+    local download_links = generate_download_links(starting_poem_id, page_type)
+
     local template = [[<!DOCTYPE html>
 <html>
 <head>
@@ -1657,6 +1682,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
 <center>
 <h1>Poetry Collection</h1>
 <p>Poems sorted by %s to: %s</p>
+<p>%s</p>
 </center>
 <pre>
 %s
@@ -1671,6 +1697,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     return string.format(template,
         page_type_desc, starting_title, page_num, total_pages,
         page_type_desc, starting_title,
+        download_links,
         header_nav,
         formatted_content,
         footer_nav)
@@ -2005,6 +2032,15 @@ function generate_similarity_txt_file(starting_poem, sorted_poems, output_file)
 end
 -- }}}
 
+-- {{{ function generate_similarity_html_archive
+function generate_similarity_html_archive(starting_poem, sorted_poems, output_file)
+    -- Generate HTML archive for similarity-sorted poems (full corpus with images)
+    -- Unlike paginated pages, this is a single file with ALL poems
+    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "similar", starting_poem.id)
+    return utils.write_file(output_file, html) and output_file or nil
+end
+-- }}}
+
 -- {{{ function generate_diversity_txt_file
 function generate_diversity_txt_file(starting_poem, sorted_poems, output_file)
     -- Generate TXT export for diversity-sorted poems
@@ -2014,6 +2050,15 @@ function generate_diversity_txt_file(starting_poem, sorted_poems, output_file)
     local poems_content = format_all_poems_80_width(starting_poem, sorted_poems)
     local content = header .. poems_content
     return utils.write_file(output_file, content) and output_file or nil
+end
+-- }}}
+
+-- {{{ function generate_diversity_html_archive
+function generate_diversity_html_archive(starting_poem, sorted_poems, output_file)
+    -- Generate HTML archive for diversity-sorted poems (full corpus with images)
+    -- Unlike paginated pages, this is a single file with ALL poems
+    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "different", starting_poem.id)
+    return utils.write_file(output_file, html) and output_file or nil
 end
 -- }}}
 
@@ -2091,11 +2136,19 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         if utils.write_file(similar_file, similar_html) then
             table.insert(results.similarity_pages, similar_file)
 
-            -- Generate TXT version
+            -- Generate TXT version (full corpus export)
             local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
                                                            string.format("%s/similar/%s.txt", output_dir, unique_id))
             if similar_txt then
                 table.insert(results.txt_files, similar_txt)
+            end
+
+            -- Generate HTML archive version (full corpus export with images)
+            local similar_archive = generate_similarity_html_archive(poem_data, similar_ranking,
+                                                           string.format("%s/similar/%s-archive.html", output_dir, unique_id))
+            if similar_archive then
+                if not results.html_archives then results.html_archives = {} end
+                table.insert(results.html_archives, similar_archive)
             end
         end
 
@@ -2108,11 +2161,19 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         if utils.write_file(diverse_file, diverse_html) then
             table.insert(results.diversity_pages, diverse_file)
 
-            -- Generate TXT version
+            -- Generate TXT version (full corpus export)
             local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
                                                           string.format("%s/different/%s.txt", output_dir, unique_id))
             if diverse_txt then
                 table.insert(results.txt_files, diverse_txt)
+            end
+
+            -- Generate HTML archive version (full corpus export with images)
+            local diverse_archive = generate_diversity_html_archive(poem_data, diverse_sequence,
+                                                          string.format("%s/different/%s-archive.html", output_dir, unique_id))
+            if diverse_archive then
+                if not results.html_archives then results.html_archives = {} end
+                table.insert(results.html_archives, diverse_archive)
             end
         end
     end
@@ -2131,8 +2192,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Generate instructions page
     results.instructions_page = M.generate_simple_discovery_instructions(output_dir)
     
-    utils.log_info(string.format("Generation complete: %d similarity pages, %d diversity pages, %d txt files", 
-                                #results.similarity_pages, #results.diversity_pages, #results.txt_files))
+    local html_archive_count = results.html_archives and #results.html_archives or 0
+    utils.log_info(string.format("Generation complete: %d similarity pages, %d diversity pages, %d txt files, %d html archives",
+                                #results.similarity_pages, #results.diversity_pages, #results.txt_files, html_archive_count))
     
     return results
 end

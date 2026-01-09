@@ -4,7 +4,7 @@
 - **Phase**: 8
 - **Priority**: High
 - **Type**: Enhancement / Architecture
-- **Status**: In Progress (unblocked 2025-12-23)
+- **Status**: In Progress (Phase C complete 2026-01-09, Phase D+E pending)
 - **Previously Blocked By**: 8-013 (now completed)
 - **Modified By**: 8-020 (Hybrid Pagination Strategy)
 
@@ -199,10 +199,10 @@ Grand total: ~947,000 HTML + ~947,000 TXT = ~1.9 million files
 7. [x] Implement edge case handling (no prev on page 1, no next on last page)
 8. [ ] Add download links header (.txt, .html) - moved to Phase C
 
-### Phase C: Export Formats (8-013 completed, no longer blocked)
-9. [ ] Add download links to paginated page headers
-10. [ ] Implement .html archive version (full corpus, with images)
-11. [ ] Link to existing .txt exports from 8-013
+### Phase C: Export Formats ✅ COMPLETE (2026-01-09)
+9. [x] Add download links to paginated page headers
+10. [x] Implement .html archive version (full corpus, with images)
+11. [x] Link to existing .txt exports from 8-013
 
 ### Phase D: Generation Strategy
 12. [ ] Add `--pages` flag: `--pages=1` (default) or `--pages=all` or `--pages=1-10`
@@ -353,3 +353,43 @@ Navigation: [◀ Previous Page] ... [Next Page ▶]
 - Phase E Step 16 marked complete (no chrono pagination)
 - Added `max_pages_per_poem` enforcement requirement
 - Added reference to 8-019 in related documents
+
+### Session: 2026-01-09
+
+**Phase C: Export Format Integration - COMPLETED**
+
+Implemented download links for full-corpus exports in paginated pages:
+
+1. **Created `generate_download_links()` helper function** (lines 1595-1615)
+   - Generates HTML for .txt and .html archive download links
+   - Links format: `similar/0001.txt` and `similar/0001-archive.html`
+   - Appears in page header below title
+
+2. **Updated `M.generate_paginated_poem_page_html()`** (lines 1672-1673)
+   - Added `download_links` variable generation
+   - Integrated into HTML template in center section
+   - Links appear on every paginated page
+
+3. **Created HTML archive generation functions:**
+   - `generate_similarity_html_archive()` (lines 2035-2042)
+   - `generate_diversity_html_archive()` (lines 2056-2063)
+   - Both generate full-corpus HTML files with images (not paginated)
+
+4. **Integrated archive generation** into `M.generate_flat_html_with_similarity_and_diversity()`
+   - Added HTML archive generation after TXT export (lines 2146-2152, 2171-2177)
+   - Archives saved as `{category}/{id}-archive.html`
+   - Added `html_archives` results tracking
+   - Updated completion log (line 2196)
+
+**Test Results** (`tmp/test-pagination-8-012.lua`):
+```
+✓ Download link header present
+✓ .txt link present (.similar/0001.txt)
+✓ .html archive link present (similar/0001-archive.html)
+✓ Next Page navigation present
+✓ Generated 2 paginated pages (135KB and 141KB each)
+```
+
+**Remaining Work:**
+- [ ] Phase D: Generation strategy (--pages flag, pipeline integration)
+- [ ] Phase E: Integration (entry points, testing, max_pages enforcement)
