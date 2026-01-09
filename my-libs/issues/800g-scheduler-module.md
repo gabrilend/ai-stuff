@@ -159,16 +159,16 @@ void scheduler_sleep_ticks(Scheduler* sched, uint64_t ticks_to_sleep);
 
 ## Acceptance Criteria
 
-- [ ] Scheduler stores tasks with absolute ready times (`ready_at_tick`)
-- [ ] `scheduler_add(sched, task, 0)` sets `ready_at_tick = g_current_tick` (ready immediately)
-- [ ] `scheduler_add(sched, task, N)` sets `ready_at_tick = g_current_tick + N`
-- [ ] `scheduler_get_ready()` returns only tasks where `g_current_tick >= ready_at_tick`
-- [ ] Updater can sleep while `g_current_tick` continues advancing (no deadlock)
-- [ ] Adding task wakes sleeping updater via `pthread_cond_signal`
-- [ ] assigned_any flag works (keeps looping if work was done)
-- [ ] Thread-safe: concurrent add/get_ready operations
-- [ ] Removal works (by predicate function)
-- [ ] No dependency on updater for time advancement (decoupled from scheduler)
+- [x] Scheduler stores tasks with absolute ready times (`ready_at_tick`)
+- [x] `scheduler_add(sched, task, 0)` sets `ready_at_tick = g_current_tick` (ready immediately)
+- [x] `scheduler_add(sched, task, N)` sets `ready_at_tick = g_current_tick + N`
+- [x] `scheduler_get_ready()` returns only tasks where `g_current_tick >= ready_at_tick`
+- [x] Updater can sleep while `g_current_tick` continues advancing (no deadlock)
+- [x] Adding task wakes sleeping updater via `pthread_cond_signal`
+- [x] assigned_any flag works (keeps looping if work was done)
+- [x] Thread-safe: concurrent add/get_ready operations
+- [x] Removal works (by predicate function)
+- [x] No dependency on updater for time advancement (decoupled from scheduler)
 
 ## Related Documents
 
@@ -238,3 +238,28 @@ scheduler_add(sched, spawn_task, 1875);
 
 The scheduler provides frame-accurate timing without manual tick counting in
 game logic.
+
+## Implementation Notes
+
+**Completed:** 2026-01-08
+
+Created two files in `my-libs/threadpool/src/`:
+- `threadpool_scheduler.h` - Public API with TpScheduler, TpScheduledTask, TpSchedulerConfig
+- `threadpool_scheduler.c` - Implementation from scratch based on spec
+
+Key design decisions:
+- Uses `extern atomic_uint64_t g_current_tick` - user application must define and increment
+- Flat array storage (O(N) scan per tick, acceptable for <100 tasks)
+- pthread_mutex + pthread_cond for thread-safe operations and interruptible sleep
+- tp_scheduler_get_ready() returns tasks via static buffer (reused across calls)
+- Tasks are removed from scheduler array when returned to updater
+- tp_scheduler_sleep_ticks() uses pthread_cond_timedwait for wake-on-add
+
+Implementation differences from spec:
+- Added TpSchedulerConfig for capacity and logging configuration
+- Ready buffer uses static global (g_ready_buffer) rather than per-scheduler allocation
+- TICK_NS hardcoded to 16ms (62.5 Hz) in sleep function
+- mutex/cond used instead of spinlock (more appropriate for potentially long sleeps)
+
+The module depends only on the core threadpool module (TpTask type).
+Integration example and testing will be added in issue 800d (test suite).
