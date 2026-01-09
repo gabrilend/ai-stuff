@@ -6,7 +6,7 @@ Shared library infrastructure for reusable components across projects.
 
 | Library | Status | Issues |
 |---------|--------|--------|
-| threadpool | In Progress | 4/8 |
+| threadpool | In Progress | 5/8 |
 
 ---
 
@@ -24,7 +24,7 @@ adaptive task distribution.
 | 800a | Core threadpool module | **Completed** | None |
 | 800b | Sync module (watch list) | **Completed** | 800a |
 | 800c | Updater module (self-evaluating) | **Completed** | 800a |
-| 800d | Threadpool test suite | Pending | 800a, 800b, 800c, 800g |
+| 800d | Threadpool test suite | **Completed** | 800a, 800b, 800c, 800g |
 | 800e | Render system migration | Pending | 800a, 800b, 800c, 800d |
 | 800f | Windows support planning | Pending | 800a |
 | 800g | Scheduler module (deferred tasks) | **Completed** | 800a |
