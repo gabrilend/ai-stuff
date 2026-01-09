@@ -1,0 +1,75 @@
+#version 450
+
+/* cosine_distance.comp - Compute cosine distance between embeddings and centroid
+ *
+ * This shader calculates the cosine distance between each poem embedding
+ * and a reference centroid for diversity sequence generation.
+ *
+ * Algorithm:
+ *   For each embedding E and centroid C:
+ *     dot_product = sum(E[i] * C[i])
+ *     norm_E = sqrt(sum(E[i]^2))
+ *     norm_C = sqrt(sum(C[i]^2))
+ *     similarity = dot_product / (norm_E * norm_C)
+ *     distance = 1.0 - similarity
+ *
+ * Performance: Each thread processes one complete embedding (768 dimensions).
+ * For 7,793 poems: dispatch ~31 workgroups (256 threads each).
+ */
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) readonly buffer Embeddings {
+    float embeddings[];  // All poem embeddings: num_embeddings * embedding_dim floats
+};
+
+layout(set = 0, binding = 1) readonly buffer CentroidBuffer {
+    float data[];    // Reference centroid: embedding_dim floats
+};
+
+layout(set = 0, binding = 2) writeonly buffer Distances {
+    float distances[];   // Output distances: num_embeddings floats
+};
+
+layout(push_constant) uniform Constants {
+    uint num_embeddings;  // Number of poems (e.g., 7793)
+    uint embedding_dim;   // Embedding dimension (e.g., 768)
+} constants;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+
+    // Bounds check
+    if (idx >= constants.num_embeddings) {
+        return;
+    }
+
+    // Calculate base offset for this embedding
+    uint base = idx * constants.embedding_dim;
+
+    // Accumulate dot product and norms
+    float dot_product = 0.0;
+    float norm_embedding = 0.0;
+    float norm_centroid = 0.0;
+
+    for (uint i = 0; i < constants.embedding_dim; i++) {
+        float emb_val = embeddings[base + i];
+        float cen_val = data[i];
+
+        dot_product += emb_val * cen_val;
+        norm_embedding += emb_val * emb_val;
+        norm_centroid += cen_val * cen_val;
+    }
+
+    // Calculate cosine similarity
+    float norm_product = sqrt(norm_embedding) * sqrt(norm_centroid);
+
+    // Handle edge case: zero vectors
+    float similarity = (norm_product > 0.0) ? (dot_product / norm_product) : 0.0;
+
+    // Convert to distance (higher = more different)
+    float distance = 1.0 - similarity;
+
+    // Write result
+    distances[idx] = distance;
+}
