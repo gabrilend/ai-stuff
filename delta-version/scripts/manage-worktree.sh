@@ -20,7 +20,7 @@ WORKTREE_ROOT="${WORKTREE_ROOT:-/mnt/mtwo/programming/ai-worktrees}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Valid project names (directories in the main repo)
-VALID_PROJECTS=("delta-version" "neocities-modernization" "world-edit-to-execute")
+VALID_PROJECTS=("delta-version" "neocities-modernization" "world-edit-to-execute" "authorship-tool")
 # }}}
 
 # -- {{{ log
