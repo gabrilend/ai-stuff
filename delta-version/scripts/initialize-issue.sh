@@ -186,7 +186,8 @@ setup_worktree() {
         # Check if parent worktree exists
         if $DRY_RUN; then
             echo -e "${CYAN}[DRY RUN]${NC} Would check for worktree: $ROOT_ISSUE"
-            WORKTREE_PATH="/mnt/mtwo/programming/ai-worktrees/dv/issue-${ROOT_ISSUE}/${project}"
+            # Get the path that would be used (don't hardcode "dv")
+            WORKTREE_PATH=$("$manage_script" path "$ROOT_ISSUE" "$project" 2>/dev/null || echo "/mnt/mtwo/programming/ai-worktrees/${project}/issue-${ROOT_ISSUE}")
         else
             local parent_worktree=$("$manage_script" path "$ROOT_ISSUE" "$project" 2>/dev/null || echo "")
 
@@ -202,7 +203,8 @@ setup_worktree() {
 
         if $DRY_RUN; then
             echo -e "${CYAN}[DRY RUN]${NC} Would create worktree for issue $issue_num"
-            WORKTREE_PATH="/mnt/mtwo/programming/ai-worktrees/dv/issue-${issue_num}/${project}"
+            # Get the path that would be used (don't hardcode "dv")
+            WORKTREE_PATH=$("$manage_script" path "$issue_num" "$project" 2>/dev/null || echo "/mnt/mtwo/programming/ai-worktrees/${project}/issue-${issue_num}")
         else
             "$manage_script" create "$issue_num" "$project"
             WORKTREE_PATH=$("$manage_script" path "$issue_num" "$project")
