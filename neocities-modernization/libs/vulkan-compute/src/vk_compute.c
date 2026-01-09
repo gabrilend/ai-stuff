@@ -614,34 +614,315 @@ VkComputeResult vkc_download_buffer(VkComputeContext* ctx, VkComputeBuffer* buff
 
 /* }}} */
 
-/* {{{ Pipeline management (placeholder)
+/* {{{ Helper: Load SPIR-V shader
+ */
+
+static VkShaderModule load_shader_module(VkComputeContext* ctx, const char* path) {
+    FILE* file = fopen(path, "rb");
+    if (!file) {
+        fprintf(stderr, "[VKC ERROR] Failed to open shader file: %s\n", path);
+        return VK_NULL_HANDLE;
+    }
+
+    /* Get file size */
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    if (file_size <= 0 || file_size % 4 != 0) {
+        fprintf(stderr, "[VKC ERROR] Invalid SPIR-V file size: %ld\n", file_size);
+        fclose(file);
+        return VK_NULL_HANDLE;
+    }
+
+    /* Read shader code */
+    uint32_t* code = malloc(file_size);
+    if (!code) {
+        fclose(file);
+        return VK_NULL_HANDLE;
+    }
+
+    size_t bytes_read = fread(code, 1, file_size, file);
+    fclose(file);
+
+    if (bytes_read != (size_t)file_size) {
+        fprintf(stderr, "[VKC ERROR] Failed to read shader file\n");
+        free(code);
+        return VK_NULL_HANDLE;
+    }
+
+    /* Create shader module */
+    VkShaderModuleCreateInfo module_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = file_size,
+        .pCode = code,
+    };
+
+    VkShaderModule shader_module;
+    VkResult result = vkCreateShaderModule(ctx->device, &module_info, NULL, &shader_module);
+
+    free(code);
+
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to create shader module: %d\n", result);
+        return VK_NULL_HANDLE;
+    }
+
+    return shader_module;
+}
+
+/* }}} */
+
+/* {{{ Pipeline management
  */
 
 VkComputePipeline* vkc_create_pipeline(VkComputeContext* ctx, const char* shader_path,
                                        uint32_t push_constant_size) {
-    (void)ctx; (void)shader_path; (void)push_constant_size;
-    /* To be implemented */
-    return NULL;
+    if (!ctx || !shader_path) return NULL;
+
+    VkComputePipeline* pipeline = calloc(1, sizeof(VkComputePipeline));
+    if (!pipeline) return NULL;
+
+    pipeline->internal.push_constant_size = push_constant_size;
+    pipeline->internal.num_bindings = MAX_DESCRIPTOR_SETS;
+
+    /* Load shader module */
+    pipeline->internal.shader = load_shader_module(ctx, shader_path);
+    if (pipeline->internal.shader == VK_NULL_HANDLE) {
+        free(pipeline);
+        return NULL;
+    }
+
+    /* Create descriptor set layout (supports up to MAX_DESCRIPTOR_SETS storage buffers) */
+    VkDescriptorSetLayoutBinding bindings[MAX_DESCRIPTOR_SETS];
+    for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++) {
+        bindings[i].binding = i;
+        bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bindings[i].descriptorCount = 1;
+        bindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[i].pImmutableSamplers = NULL;
+    }
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = MAX_DESCRIPTOR_SETS,
+        .pBindings = bindings,
+    };
+
+    VkResult result = vkCreateDescriptorSetLayout(ctx->device, &layout_info, NULL,
+                                                   &pipeline->internal.desc_set_layout);
+    if (result != VK_SUCCESS) {
+        vkDestroyShaderModule(ctx->device, pipeline->internal.shader, NULL);
+        free(pipeline);
+        return NULL;
+    }
+
+    /* Create pipeline layout with push constants */
+    VkPushConstantRange push_constant_range = {
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+        .offset = 0,
+        .size = push_constant_size,
+    };
+
+    VkPipelineLayoutCreateInfo pipeline_layout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &pipeline->internal.desc_set_layout,
+        .pushConstantRangeCount = push_constant_size > 0 ? 1 : 0,
+        .pPushConstantRanges = push_constant_size > 0 ? &push_constant_range : NULL,
+    };
+
+    result = vkCreatePipelineLayout(ctx->device, &pipeline_layout_info, NULL,
+                                    &pipeline->internal.layout);
+    if (result != VK_SUCCESS) {
+        vkDestroyDescriptorSetLayout(ctx->device, pipeline->internal.desc_set_layout, NULL);
+        vkDestroyShaderModule(ctx->device, pipeline->internal.shader, NULL);
+        free(pipeline);
+        return NULL;
+    }
+
+    /* Create compute pipeline */
+    VkPipelineShaderStageCreateInfo shader_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+        .module = pipeline->internal.shader,
+        .pName = "main",
+    };
+
+    VkComputePipelineCreateInfo pipeline_info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage = shader_stage_info,
+        .layout = pipeline->internal.layout,
+    };
+
+    result = vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1, &pipeline_info,
+                                      NULL, &pipeline->internal.pipeline);
+    if (result != VK_SUCCESS) {
+        vkDestroyPipelineLayout(ctx->device, pipeline->internal.layout, NULL);
+        vkDestroyDescriptorSetLayout(ctx->device, pipeline->internal.desc_set_layout, NULL);
+        vkDestroyShaderModule(ctx->device, pipeline->internal.shader, NULL);
+        free(pipeline);
+        return NULL;
+    }
+
+    /* Create descriptor pool */
+    VkDescriptorPoolSize pool_size = {
+        .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorCount = MAX_DESCRIPTOR_SETS,
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .poolSizeCount = 1,
+        .pPoolSizes = &pool_size,
+        .maxSets = 1,
+    };
+
+    result = vkCreateDescriptorPool(ctx->device, &pool_info, NULL,
+                                    &pipeline->internal.desc_pool);
+    if (result != VK_SUCCESS) {
+        vkDestroyPipeline(ctx->device, pipeline->internal.pipeline, NULL);
+        vkDestroyPipelineLayout(ctx->device, pipeline->internal.layout, NULL);
+        vkDestroyDescriptorSetLayout(ctx->device, pipeline->internal.desc_set_layout, NULL);
+        vkDestroyShaderModule(ctx->device, pipeline->internal.shader, NULL);
+        free(pipeline);
+        return NULL;
+    }
+
+    /* Allocate descriptor set */
+    VkDescriptorSetAllocateInfo alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = pipeline->internal.desc_pool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &pipeline->internal.desc_set_layout,
+    };
+
+    result = vkAllocateDescriptorSets(ctx->device, &alloc_info,
+                                      &pipeline->internal.desc_set);
+    if (result != VK_SUCCESS) {
+        vkDestroyDescriptorPool(ctx->device, pipeline->internal.desc_pool, NULL);
+        vkDestroyPipeline(ctx->device, pipeline->internal.pipeline, NULL);
+        vkDestroyPipelineLayout(ctx->device, pipeline->internal.layout, NULL);
+        vkDestroyDescriptorSetLayout(ctx->device, pipeline->internal.desc_set_layout, NULL);
+        vkDestroyShaderModule(ctx->device, pipeline->internal.shader, NULL);
+        free(pipeline);
+        return NULL;
+    }
+
+    return pipeline;
 }
 
 void vkc_destroy_pipeline(VkComputeContext* ctx, VkComputePipeline* pipeline) {
-    (void)ctx; (void)pipeline;
-    /* To be implemented */
+    if (!ctx || !pipeline) return;
+
+    vkDestroyDescriptorPool(ctx->device, pipeline->internal.desc_pool, NULL);
+    vkDestroyPipeline(ctx->device, pipeline->internal.pipeline, NULL);
+    vkDestroyPipelineLayout(ctx->device, pipeline->internal.layout, NULL);
+    vkDestroyDescriptorSetLayout(ctx->device, pipeline->internal.desc_set_layout, NULL);
+    vkDestroyShaderModule(ctx->device, pipeline->internal.shader, NULL);
+    free(pipeline);
 }
 
 VkComputeResult vkc_bind_buffer(VkComputeContext* ctx, VkComputePipeline* pipeline,
                                 uint32_t binding, VkComputeBuffer* buffer) {
-    (void)ctx; (void)pipeline; (void)binding; (void)buffer;
-    /* To be implemented */
-    return VKC_ERROR_PIPELINE_CREATION_FAILED;
+    if (!ctx || !pipeline || !buffer) {
+        return VKC_ERROR_PIPELINE_CREATION_FAILED;
+    }
+
+    if (binding >= MAX_DESCRIPTOR_SETS) {
+        fprintf(stderr, "[VKC ERROR] Binding index %u exceeds maximum %d\n",
+                binding, MAX_DESCRIPTOR_SETS);
+        return VKC_ERROR_PIPELINE_CREATION_FAILED;
+    }
+
+    VkDescriptorBufferInfo buffer_info = {
+        .buffer = buffer->internal.buffer,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE,
+    };
+
+    VkWriteDescriptorSet descriptor_write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = pipeline->internal.desc_set,
+        .dstBinding = binding,
+        .dstArrayElement = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorCount = 1,
+        .pBufferInfo = &buffer_info,
+    };
+
+    vkUpdateDescriptorSets(ctx->device, 1, &descriptor_write, 0, NULL);
+
+    return VKC_SUCCESS;
 }
 
 VkComputeResult vkc_dispatch(VkComputeContext* ctx, VkComputePipeline* pipeline,
                              uint32_t x, uint32_t y, uint32_t z,
                              const void* push_constants) {
-    (void)ctx; (void)pipeline; (void)x; (void)y; (void)z; (void)push_constants;
-    /* To be implemented */
-    return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    if (!ctx || !pipeline) {
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    /* Begin command buffer */
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    VkResult result = vkBeginCommandBuffer(ctx->command_buffer, &begin_info);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to begin command buffer: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    /* Bind pipeline */
+    vkCmdBindPipeline(ctx->command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                      pipeline->internal.pipeline);
+
+    /* Bind descriptor sets */
+    vkCmdBindDescriptorSets(ctx->command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                           pipeline->internal.layout, 0, 1,
+                           &pipeline->internal.desc_set, 0, NULL);
+
+    /* Push constants if provided */
+    if (push_constants && pipeline->internal.push_constant_size > 0) {
+        vkCmdPushConstants(ctx->command_buffer, pipeline->internal.layout,
+                          VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                          pipeline->internal.push_constant_size, push_constants);
+    }
+
+    /* Dispatch compute shader */
+    vkCmdDispatch(ctx->command_buffer, x, y, z);
+
+    /* End command buffer */
+    result = vkEndCommandBuffer(ctx->command_buffer);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to end command buffer: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    /* Submit command buffer */
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &ctx->command_buffer,
+    };
+
+    vkResetFences(ctx->device, 1, &ctx->fence);
+    result = vkQueueSubmit(ctx->compute_queue, 1, &submit_info, ctx->fence);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to submit command buffer: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    /* Wait for completion */
+    result = vkWaitForFences(ctx->device, 1, &ctx->fence, VK_TRUE, UINT64_MAX);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to wait for fence: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    return VKC_SUCCESS;
 }
 
 VkComputeResult vkc_wait_idle(VkComputeContext* ctx) {
