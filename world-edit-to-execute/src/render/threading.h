@@ -22,8 +22,8 @@
 /* {{{ Configuration */
 #define TASK_LIST_SIZE 1024     /* Ring buffer capacity per worker */
 #define WATCH_LIST_SIZE 2048    /* Sync watch list capacity */
-#define TARGET_TICK_US 10000    /* 10ms = 100Hz */
-#define CONTINUATION_THRESHOLD_US 5000  /* 50% of target */
+#define TARGET_TICK_US 16000    /* 16ms = 62.5Hz (WC3 tick rate) */
+#define CONTINUATION_THRESHOLD_US 8000  /* 50% of target */
 /* }}} */
 
 /* {{{ Task Weight Constants
@@ -76,7 +76,10 @@ typedef struct worker {
     size_t start_ptr;           /* Current execution position */
     size_t end_ptr;             /* Next write position */
 
-    /* Load balancing: weighted sum of pending task weights */
+    /* Load balancing: weighted sum of remaining work
+     * On append: num_tasks += (weight × repeat_count)
+     * Per iteration: num_tasks -= weight
+     * Represents accurate total work remaining */
     atomic_uint num_tasks;
 
     /* Shutdown flag */
@@ -218,7 +221,7 @@ typedef struct updater_context {
 extern atomic_uint g_active_updater_count;
 
 /* Threshold for spawning replacement updater (microseconds) */
-#define UPDATER_OVERLOAD_THRESHOLD_US 5000
+#define UPDATER_OVERLOAD_THRESHOLD_US 8000
 /* }}} */
 
 /* {{{ Function Declarations - Updater */
