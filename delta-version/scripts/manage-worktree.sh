@@ -148,23 +148,8 @@ cmd_create() {
         git worktree add -b "$branch_name" "$worktree_path" "master"
     fi
 
-    echo ""
-    echo "=========================================="
-    echo "Worktree created successfully!"
-    echo "=========================================="
-    echo ""
-    echo "  Branch:    $branch_name"
-    echo "  Directory: $worktree_path"
-    echo ""
-    echo "To start working:"
-    echo "  cd $worktree_path/$project"
-    echo ""
-    echo "When finished, merge from main repo:"
-    echo "  cd $DIR"
-    echo "  git checkout master"
-    echo "  git merge $branch_name"
-    echo "  $0 remove $issue_num $project"
-    echo ""
+    # Minimal output - let calling script provide instructions
+    log "Worktree created: $worktree_path"
 }
 # }}}
 
