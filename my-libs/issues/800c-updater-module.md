@@ -79,14 +79,14 @@ uint64_t tp_updater_get_last_tick_us(UpdaterContext* ctx);
 
 ## Acceptance Criteria
 
-- [ ] Updater module compiles with only core module as dependency
-- [ ] Updater module is optional (core + sync work without it)
-- [ ] Primary updater runs forever (repeat_count = INT16_MAX pattern)
-- [ ] Helper updaters spawn when overloaded
-- [ ] Helper updaters self-terminate when load decreases (< 50% threshold)
-- [ ] Task source callback receives user_data correctly
-- [ ] Thresholds are configurable
-- [ ] Active updater count accessible globally
+- [x] Updater module compiles with only core module as dependency
+- [x] Updater module is optional (core + sync work without it)
+- [x] Primary updater runs forever (repeat_count = INT16_MAX pattern)
+- [x] Helper updaters spawn when overloaded
+- [x] Helper updaters self-terminate when load decreases (< 50% threshold)
+- [x] Task source callback receives user_data correctly
+- [x] Thresholds are configurable
+- [x] Active updater count accessible globally
 
 ## Files to Create
 
@@ -105,3 +105,23 @@ The self-evaluating pattern is the novel contribution of this threading model:
 This creates natural load-responsive scaling without explicit thread management.
 The "50% continuation threshold" is key - it's conservative enough that helpers
 stick around under moderate load but disappear quickly when truly idle.
+
+## Implementation Notes
+
+**Completed:** 2026-01-08
+
+Created two files in `my-libs/threadpool/src/`:
+- `threadpool_updater.h` - Public API with TpUpdaterContext, TpUpdaterConfig
+- `threadpool_updater.c` - Implementation extracted from threading.c
+
+Key changes from original:
+- Renamed types: UpdaterContext → TpUpdaterContext
+- Added TpUpdaterConfig for configurable timing thresholds and logging
+- Generalized task source callback to use user_data instead of context pointer
+- Static g_active_updater_count for cross-pool coordination
+- All execute functions (primary, helper) made static (internal)
+- Added tp_updater_get_active_count() and tp_updater_get_last_tick_us() for statistics
+
+The module depends only on the core threadpool module and implements the
+full self-evaluating pattern with adaptive helper spawning.
+Testing will be added in issue 800d (test suite).

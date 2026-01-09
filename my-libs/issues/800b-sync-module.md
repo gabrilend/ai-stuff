@@ -74,13 +74,13 @@ uint64_t tp_sync_get_idle_cycles(SyncContext* ctx);
 
 ## Acceptance Criteria
 
-- [ ] Sync module compiles with only core module as dependency
-- [ ] Sync module is optional (core works without it)
-- [ ] Watch list size is configurable
-- [ ] Pointer swaps occur correctly when ready flags set
-- [ ] Statistics (swaps, idle cycles) are accessible
-- [ ] Clean shutdown via tp_sync_stop()
-- [ ] Spinlock properly initialized and destroyed
+- [x] Sync module compiles with only core module as dependency
+- [x] Sync module is optional (core works without it)
+- [x] Watch list size is configurable
+- [x] Pointer swaps occur correctly when ready flags set
+- [x] Statistics (swaps, idle cycles) are accessible
+- [x] Clean shutdown via tp_sync_stop()
+- [x] Spinlock properly initialized and destroyed
 
 ## Files to Create
 
@@ -97,3 +97,21 @@ The sync pattern is useful beyond rendering:
 The watch list approach avoids blocking - the sync thread continuously polls
 ready flags, which is more responsive than condition variables for high-frequency
 updates (100Hz target).
+
+## Implementation Notes
+
+**Completed:** 2026-01-08
+
+Created two files in `my-libs/threadpool/src/`:
+- `threadpool_sync.h` - Public API with TpSyncContext, TpWatchEntry, TpSyncConfig
+- `threadpool_sync.c` - Implementation extracted from threading.c
+
+Key changes from original:
+- Renamed types: WatchEntry → TpWatchEntry, SyncContext → TpSyncContext
+- Added TpSyncConfig for configurable watch list size and logging
+- Added tp_sync_stop() for clean shutdown
+- Added tp_sync_get_swaps() and tp_sync_get_idle_cycles() for statistics
+- sync_loop() made static (internal implementation)
+
+The module is fully independent and depends only on pthread and stdatomic.
+Testing will be added in issue 800d (test suite).
