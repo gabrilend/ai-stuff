@@ -77,15 +77,15 @@ with the following characteristics:
 
 ## Acceptance Criteria
 
-- [ ] Library compiles standalone without render system dependencies
-- [ ] Core module usable without sync or updater modules
-- [ ] Sync module usable with just core (no updater required)
-- [ ] Full stack (core + sync + updater) matches current functionality
-- [ ] Runtime configuration works (custom sizes, thresholds, logging)
-- [ ] NULL log callback has negligible overhead
-- [ ] Test suite passes
-- [ ] Render demo still functions after migration
-- [ ] Library location: `/home/ritz/programming/ai-stuff/my-libs/threadpool/`
+- [x] Library compiles standalone without render system dependencies
+- [x] Core module usable without sync or updater modules
+- [x] Sync module usable with just core (no updater required)
+- [x] Full stack (core + sync + updater + scheduler) matches current functionality
+- [x] Runtime configuration works (custom sizes, thresholds, logging)
+- [x] NULL log callback has negligible overhead
+- [x] Test suite passes (24 tests across 4 test files)
+- [ ] Render demo still functions after migration (Issue 800e)
+- [x] Library location: `/home/ritz/programming/ai-stuff/my-libs/threadpool/`
 
 ## Related Documents
 
@@ -106,3 +106,31 @@ The modular design allows users to pick complexity level:
 - Just need a thread pool? Use core module only.
 - Need coordinated pointer updates? Add sync module.
 - Need adaptive task distribution? Add updater module.
+- Need deferred task scheduling? Add scheduler module.
+
+## Implementation Summary
+
+**Status:** Mostly Complete (5/8 sub-issues done)
+**Completed:** 2026-01-08
+
+Successfully extracted and modularized threading infrastructure into reusable library:
+
+**Modules Implemented:**
+1. Core module (800a) - Worker pools, ring buffers, load balancing
+2. Sync module (800b) - Watch list pattern for pointer coordination
+3. Updater module (800c) - Self-evaluating task distributors
+4. Scheduler module (800g) - Absolute time-based deferred task assignment
+5. Test suite (800d) - 24 tests covering all modules
+
+**Key Features:**
+- Runtime configuration via config structs
+- Optional logging callbacks (NULL = silent, negligible overhead)
+- Modular architecture (pick what you need)
+- Thread-safe with atomic operations
+- Comprehensive test coverage
+
+**Remaining Work:**
+- 800e: Migrate render system to use library (validates extraction)
+- 800f: Windows support planning (design doc, future work)
+
+Library is ready for use and thoroughly tested.
