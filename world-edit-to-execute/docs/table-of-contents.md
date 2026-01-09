@@ -274,7 +274,20 @@ issues/
 | 606 | Hot reload system | Pending |
 | 607 | File server application | Pending |
 | 608 | Phase 6 integration test | Pending |
-| **609** | **Matchmaking server** | **Pending** |
+
+### Phase 8 Issues (Multiplayer & Networking)
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| 801 | Matchmaking server (root) | Pending |
+| 801a | Protocol specification | Pending |
+| 801b | Server core | Pending |
+| 801c | Client library | Pending |
+| 801d | NAT traversal | Pending |
+| 801e | Lobby UI | Pending |
+| 801f | Asset mirror integration | Pending |
+| 801g | CLI server application | Pending |
+| 801h | Integration tests | Pending |
 
 ### Technical Documentation
 
