@@ -18,11 +18,11 @@ No unified asset loading system exists. The MPQ parser can extract files, but th
 ## Intended Behavior
 
 A unified asset loader that:
-1. Loads assets from direct paths within map/server directories
+1. Loads assets from direct paths within map and community asset pack directories
 2. Supports all asset types (textures, models, audio, UI, fonts)
 3. Provides a simple API: `asset_loader.get("path/to/asset.png")`
 4. Caches loaded assets in memory with configurable limits
-5. Works seamlessly with both WC3 maps (MPQ-embedded) and WoW servers (directory-based)
+5. Works seamlessly with both WC3 maps (MPQ-embedded) and community asset packs (directory-based)
 
 ### Directory Structure
 
@@ -35,8 +35,8 @@ A unified asset loader that:
 │           ├── textures/
 │           ├── models/
 │           └── sounds/
-└── servers/                       # WoW server assets
-    └── {server_id}/
+└── asset-packs/                   # Community asset packs
+    └── {pack_id}/
         ├── manifest.lua           # Asset index
         ├── textures/
         ├── models/
@@ -49,10 +49,10 @@ A unified asset loader that:
 ```lua
 local loader = require("assets.loader")
 
--- Initialize for a map or server
+-- Initialize for a map or asset pack
 loader.init({
-    source = "map",              -- or "server"
-    path = "/path/to/map.w3x",   -- or server asset directory
+    source = "map",              -- or "asset-pack"
+    path = "/path/to/map.w3x",   -- or asset pack directory
 })
 
 -- Load assets by path
