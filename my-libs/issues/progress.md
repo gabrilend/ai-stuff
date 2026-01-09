@@ -6,7 +6,7 @@ Shared library infrastructure for reusable components across projects.
 
 | Library | Status | Issues |
 |---------|--------|--------|
-| threadpool | In Progress | 5/8 |
+| threadpool | In Progress | 5/7 |
 
 ---
 
@@ -25,7 +25,6 @@ adaptive task distribution.
 | 800b | Sync module (watch list) | **Completed** | 800a |
 | 800c | Updater module (self-evaluating) | **Completed** | 800a |
 | 800d | Threadpool test suite | **Completed** | 800a, 800b, 800c, 800g |
-| 800e | Render system migration | Pending | 800a, 800b, 800c, 800d |
 | 800f | Windows support planning | Pending | 800a |
 | 800g | Scheduler module (deferred tasks) | **Completed** | 800a |
 
@@ -39,8 +38,11 @@ adaptive task distribution.
                        └──▶ 800f Windows Planning
                        └──▶ 800g Scheduler Module
          │
-         └──▶ 800d Test Suite ──▶ 800e Render Migration
+         └──▶ 800d Test Suite
 ```
+
+**Note:** Issue 800e (Render Migration) was moved to WETE as issue 802 since it's
+specific to the world-edit-to-execute project.
 
 ### Key Features
 
