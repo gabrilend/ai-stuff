@@ -34,19 +34,19 @@
 
 ## Critical Rules
 
-- **NEVER** checkout branches in `/mnt/mtwo/programming/ai-stuff/` for development
+- **NEVER** work in `/mnt/mtwo/programming/ai-stuff/` for development
 - **ALWAYS** work in `/mnt/mtwo/programming/ai-worktrees/<project-short>/<issue>/`
 - **COMMIT FREQUENTLY** to preserve work
-- The main repo stays on `master` branch
+- The main repo is locked to `master` branch (enforced by git hook)
 - **ROOT ISSUES ONLY**: Create worktrees for root issues (e.g., `041`), not sub-issues (e.g., `041a`, `041b`). Work on all sub-issues within the root issue's worktree.
 
 ## When Done
 
 1. Commit all changes in the worktree
-2. From main repo, merge to project dev branch:
+2. From main repo, merge directly to master:
    ```bash
    cd /mnt/mtwo/programming/ai-stuff
-   git checkout dv/dev
+   git checkout master  # (already there, enforced by hook)
    git merge dv/issue-017
    ```
 3. Remove worktree: `./delta-version/scripts/manage-worktree.sh remove 017 delta-version`
