@@ -18,6 +18,7 @@
 ### Tool Guides
 - [History Tools Guide](history-tools-guide.md) - reconstruct-history.sh and generate-history.sh 📝
 - [External Projects Guide](external-projects-guide.md) - Configure external project directories 📝
+- [Git Worktree Guide](worktree-guide.md) - Multi-agent parallel development with git worktrees 📝
 - [Project Metadata Schema](project-metadata-schema.md) - project.meta.json format and manage-metadata.sh
 - [HISTORY.txt](HISTORY.txt) - Generated commit history narrative
 
@@ -35,7 +36,7 @@
 - [Issue 025: Repository Structure Validation](../issues/phase-1/025-repository-structure-validation.md) 🔄
 - [Issue 026: Project Metadata System](../issues/phase-1/026-project-metadata-system.md) 🔄
 - [Issue 027: Basic Reporting Framework](../issues/phase-1/027-basic-reporting-framework.md) 📋
-- [Issue 028: Foundation Demo Script](../issues/phase-1/028-foundation-demo-script.md) 📋
+- [Issue 028: Foundation Demo Script](../issues/completed/028-foundation-demo-script.md) ✅
 
 ### Foundation Issues (Tier 1)
 
@@ -84,13 +85,18 @@
 - [Issue 037: Project History Narrative Generator](../issues/completed/037-project-history-narrative-generator.md) ✅
 
 ### Utility Issues
+- [Issue 028: Foundation Demo Script](../issues/completed/028-foundation-demo-script.md) ✅
 - [Issue 029: Demo Runner Script](../issues/completed/029-demo-runner-script.md) ✅
 - [Issue 030: Issue Management Utility](../issues/completed/030-issue-management-utility.md) ✅
 - [Issue 031: Import Project Histories](../issues/completed/031-import-project-histories.md) ✅
+- [Issue 042: Utility Health Checker](../issues/042-utility-health-checker.md) 📝
 
 ### Enhancement Issues
 - [Issue 024: External Project Directory Configuration](../issues/024-external-project-directory-configuration.md) 📝
 - [Issue 032: Project Donation/Support Links](../issues/032-project-donation-support-links.md) 📝
+
+### Multi-Agent Infrastructure Issues
+- [Issue 041: Git Worktree Multi-Agent Architecture](../issues/completed/041-git-worktree-multi-agent-architecture.md) ✅
 
 ### Dynamic CLAUDE.md System Issues
 - [Issue 040: Dynamic CLAUDE.md Revision System](../issues/040-dynamic-claudemd-revision-system.md) 📝

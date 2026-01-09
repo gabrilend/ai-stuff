@@ -1,8 +1,21 @@
 # Project Progress
 
-## Current Phase: 4 - Runtime (Basic Engine Loop)
+## ⚡ Architectural Pivot (2026-01-07)
 
-**Status:** In Progress (Phase 3 Complete)
+**Decision:** Pivoted from AzerothCore integration to pure WC3 engine.
+
+**Why:** Complexity misalignment with core preservation mission. Focus on direct .w3x execution following ROM emulator legal precedent.
+
+**Impact:**
+- WoW-related features (attribute/currency systems) remain as extensibility demonstration
+- Focus shifted to pure WC3 gameplay, LAN multiplayer, community assets
+- See `docs/postmortem-azerothcore-integration.md` for full analysis
+
+---
+
+## Current Phase: 5 - Rendering (Visual Abstraction)
+
+**Status:** Ready to Begin (Phase 4 Complete)
 
 ---
 
@@ -10,16 +23,15 @@
 
 | Phase | Name | Status | Issues |
 |-------|------|--------|--------|
-| A | Infrastructure Tools (Shared) | Issues Created | 0/7 |
 | 0 | Tooling/Infrastructure | In Progress | 24/32 |
 | 1 | Foundation - File Format Parsing | **Completed** | 13/13 |
 | 2 | Data Model - Game Objects | **Completed** | 30/30 |
 | 3 | Logic Layer - Triggers and JASS | **Completed** | 36/36 |
-| 4 | Runtime - Basic Engine Loop | In Progress | 31/34 |
+| 4 | Runtime - Basic Engine Loop | **Completed** | 34/34 |
 | 5 | Rendering - Visual Abstraction | Issues Created | 0/55 |
 | 6 | Asset System - Community Content | Issues Created | 0/8 |
 | 7 | Gameplay - Core Mechanics | In Progress | 1/7 |
-| 8 | Multiplayer - Network Layer | Planned | - |
+| 8 | Infrastructure Libraries | In Progress | 1/7 |
 | 9 | World Editor | Issues Created | 0/12 |
 | 10 | Polish - Tools and UX | Planned | - |
 
@@ -27,37 +39,18 @@
 
 ## Phase A Issues (Infrastructure Tools)
 
-| ID | Name | Status | Dependencies |
-|----|------|--------|--------------|
-| A01 | Git history prettifier | Pending | None |
-| A02 | Phase progress dashboard | Pending | None |
-| A03 | Unified test runner | Pending | None |
-| A04 | Issue validator | Pending | None |
-| A05 | Documentation index updater | Pending | None |
-| A06 | Parser coverage report | Pending | None |
-| A07 | Phase A integration test | Pending | A01-A06 |
-
-### Design Philosophy
-
-Phase A tools are **project-abstract** and live in the shared scripts directory:
-- Location: `/home/ritz/programming/ai-stuff/scripts/`
-- Symlinked into projects: `src/cli/<tool>`
-- Usable as both CLI tools and sourceable libraries
-
-### Dependency Graph
-
-```
-No dependencies (all independent except A07)
- │
- ├──▶ A01 Git History Prettifier
- ├──▶ A02 Progress Dashboard
- ├──▶ A03 Test Runner
- ├──▶ A04 Issue Validator
- ├──▶ A05 TOC Updater
- ├──▶ A06 Parser Coverage
- │
- └──▶ A07 Integration Test (depends on A01-A06)
-```
+> **NOTE:** Phase A issues have been moved to the **delta-version** project.
+>
+> These tools are project-abstract infrastructure utilities living in `/home/ritz/programming/ai-stuff/scripts/`
+> and managed by the delta-version meta-project.
+>
+> **See:** `/mnt/mtwo/programming/ai-stuff/delta-version/issues/` for Phase A tracking.
+>
+> **Existing tools:**
+> - A01 (git-history.sh) - Git history prettifier ✓
+> - A02 (progress-dashboard.lua) - Progress dashboard ✓
+> - A03 (run-tests.sh) - Unified test runner ✓
+> - A04-A07 - Tracked in delta-version
 
 ---
 
@@ -331,12 +324,12 @@ Phase 1 Complete (102 MPQ Parser)
 | 407d | Player state transitions | **Completed** | 407a |
 | 407e | Victory conditions | **Completed** | 407c, 407d |
 | 407f | Local player support | **Completed** | 407a |
-| 408 | Phase 4 integration test | In Progress | 401-407 |
+| 408 | Phase 4 integration test | **Completed** | 401-407 |
 | 408a | Unit tests - core systems | **Completed** | 401, 402, 403 |
 | 408b | Unit tests - entity systems | **Completed** | 408a |
-| 408c | Unit tests - player systems | Pending | 408a |
+| 408c | Unit tests - player systems | **Completed** | 408a |
 | 408d | Integration scenario | **Completed** | 408a-c |
-| 408e | Visual demo | Pending | 408a-d |
+| 408e | Visual demo | **Completed** | 408a-d |
 | 409 | Frame-based pathfinding storage | **Completed** | 403, render-architecture |
 
 ### Dependency Graph
@@ -466,8 +459,8 @@ Phase 2 & 3 Complete
 
 Recorded in CRITICAL-PATH.md:
 - **OQ-001:** Renderer backend = **Raylib**
-- **OQ-002:** Coordinate system = **WC3-style (Y-up, isometric)**
-- **OQ-003/004:** Integration = **API-driven** (shared data layer for WC3 + AzerothCore)
+- **OQ-002:** Coordinate system = **WC3-style (Y-up, center origin, 128 units/tile)**
+- **OQ-003/004:** Architecture = **Pure WC3 engine** (standalone, no server dependency)
 
 ---
 
@@ -560,9 +553,51 @@ All ─────────────────────────�
 
 ### Design Philosophy
 
-Both systems support dual WC3/WoW modes:
-- **Death**: WC3 altar revival vs WoW graveyard run
-- **Professions**: WC3 ability-based vs WoW skill 1-300
+**Focus:** Pure WC3 gameplay mechanics:
+- **Death**: WC3 altar revival, corpse decay, resurrection items
+- **Professions**: WC3 ability-based (5 levels per skill)
+
+---
+
+## Phase 8 Issues (Infrastructure Libraries)
+
+> **Note:** Phase 8 issues are maintained externally at:
+> `/home/ritz/programming/ai-stuff/my-libs/issues/`
+>
+> This allows the threadpool library to be self-contained and reusable across projects.
+
+| ID | Name | Status | Location |
+|----|------|--------|----------|
+| 800 | Threadpool library extraction | In Progress | my-libs/issues/ |
+| 800a | Core threadpool module | **Completed** | my-libs/issues/ |
+| 800b | Sync module (watch list) | Pending | my-libs/issues/ |
+| 800c | Updater module (self-evaluating) | Pending | my-libs/issues/ |
+| 800d | Threadpool test suite | Pending | my-libs/issues/ |
+| 800e | Render system migration | Pending | my-libs/issues/ |
+| 800f | Windows support planning | Pending | my-libs/issues/ |
+
+### Dependency Graph
+
+```
+800 Threadpool Library Extraction
+ │
+ └──▶ 800a Core Module ──▶ 800b Sync Module
+                       └──▶ 800c Updater Module
+                       └──▶ 800f Windows Planning
+         │
+         └──▶ 800d Test Suite ──▶ 800e Render Migration
+```
+
+### Design Philosophy
+
+The threadpool library extracts the threading infrastructure from `src/render/threading.*`
+into a reusable library at `/home/ritz/programming/ai-stuff/my-libs/threadpool/`.
+
+Key features:
+- **Modular architecture:** Core pool, sync, and updater are independently usable
+- **Self-evaluating updaters:** Helpers spawn/terminate based on measured load
+- **Ring buffer task lists:** Efficient task queuing with automatic relocation
+- **POSIX-only initially:** Windows support documented for future work
 
 ---
 
@@ -600,8 +635,8 @@ Full-featured World Editor with feature parity to WC3 World Editor:
 ### Key Design Decisions
 
 - **Trigger Editor:** Full GUI parity + Lua text editing with bidirectional conversion
-- **Map Format:** Unified .wex format supporting both WC3 and WoW modes
-- **Export:** Outputs to both standard WC3 (.w3x) and unified format
+- **Map Format:** Standard .w3x format (WC3 compatible)
+- **Campaign Editor:** Multi-map storylines with hero persistence
 - **Import Manager:** Depends on Asset Browser (Phase 6B)
 
 ### Dependency Graph

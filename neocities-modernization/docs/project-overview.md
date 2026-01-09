@@ -2,12 +2,12 @@
 
 ## Project Summary
 
-This project modernizes the ritzmenardi.com website by creating an intelligent poetry recommendation system. The system processes 6,860 poems from words.pdf and generates similarity-based recommendations using local LLM embeddings through a comprehensive Lua-based similarity engine.
+This project modernizes the ritzmenardi.com website by creating an intelligent poetry recommendation system. The system processes 7,797 poems from multiple sources (words.pdf, fediverse posts, messages, notes) and generates similarity-based recommendations using local LLM embeddings through a comprehensive Lua-based similarity engine.
 
-## Current Status: **Phase 5 Advanced Discovery & Optimization 🔄**
+## Current Status: **Phase 8 Website Completion 🔄**
 
 **Completed Systems:**
-- ✅ Complete poem extraction and validation (6,860 poems)
+- ✅ Complete poem extraction and validation (7,797 poems)
 - ✅ Advanced similarity engine with incremental caching
 - ✅ Per-model embedding storage system supporting multiple models
 - ✅ Robust network error handling and retry mechanisms
@@ -24,7 +24,7 @@ This project modernizes the ritzmenardi.com website by creating an intelligent p
 
 ## Key Features
 
-1. **Poem Extraction ✅**: Successfully extracted 6,860 individual poems from words.pdf
+1. **Poem Extraction ✅**: Successfully extracted 7,797 individual poems from multiple sources
 2. **Embedding Generation ✅**: Multi-model support (EmbeddingGemma:latest, text-embedding-ada-002, all-MiniLM-L6-v2)
 3. **Similarity Engine ✅**: Cosine similarity calculation with intelligent caching
 4. **Incremental Processing ✅**: Smart detection of existing embeddings for efficient updates

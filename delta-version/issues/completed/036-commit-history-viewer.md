@@ -341,3 +341,11 @@ Examples:
 ./scripts/history-viewer.sh delta-version      # View specific project
 ./scripts/history-viewer.sh -p delta-version   # Same as above
 ```
+
+### Follow-on Optimization (2025-01-05)
+- **Issue 037**: TUI Dirty Tracking Optimization
+  - Added hierarchical dirty tracking to `scripts/libs/tui.lua`
+  - `set_cell()` now auto-marks cells dirty, no explicit invalidation needed
+  - `present()` skips unchanged cells entirely (iterates dirty flags only)
+  - New APIs: `invalidate()`, `invalidate_row()`, `invalidate_region()`
+  - Benefits history-viewer scrolling performance significantly

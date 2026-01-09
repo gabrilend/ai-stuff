@@ -10,15 +10,15 @@
 ## Current Behavior
 
 No storage management exists. Users have no way to:
-- See how much space each server/map is using
-- Delete assets for servers they no longer play on
+- See how much space each asset pack/map is using
+- Delete assets for packs they no longer use
 - Understand their total engine storage footprint
 
 ## Intended Behavior
 
 A storage management system that:
-1. Tracks storage usage per server and per map
-2. Allows users to delete server/map assets at will
+1. Tracks storage usage per asset pack and per map
+2. Allows users to delete asset pack/map data at will
 3. Shows deduplication savings (actual vs naive storage)
 4. Provides both CLI and programmatic access
 
@@ -30,11 +30,11 @@ World Edit Engine Storage
 Total: 2.3 GB (would be 8.1 GB without deduplication)
 Savings: 5.8 GB (72%)
 
-SERVERS                                      SIZE    UNIQUE
+ASSET PACKS                                  SIZE    UNIQUE
 ─────────────────────────────────────────────────────────
-  my-wow-server.com                         450 MB   120 MB
-  friend-server.local                       380 MB    45 MB
-  test-server                               120 MB   120 MB
+  community-medieval-assets-v1              450 MB   120 MB
+  custom-td-assets                          380 MB    45 MB
+  fantasy-hero-pack                         120 MB   120 MB
 
 MAPS                                         SIZE    UNIQUE
 ─────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ MAPS                                         SIZE    UNIQUE
   Footmen Frenzy 5.5.w3x                     65 MB    15 MB
 
 SHARED BLOBS                                980 MB
-(assets used by multiple servers/maps)
+(assets used by multiple packs/maps)
 
 [D] Delete selected  [R] Refresh  [G] Garbage collect  [Q] Quit
 ```

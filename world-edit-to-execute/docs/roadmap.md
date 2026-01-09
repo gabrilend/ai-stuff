@@ -1,18 +1,40 @@
 # World Edit to Execute - Roadmap
 
-A phased approach to building a WC3-compatible game engine with visual independence.
+**Mission:** Build a modern game engine that executes Warcraft III custom maps (.w3x/.w3m) like an emulator reads ROMs - preserving the legacy of custom map creativity while replacing proprietary Blizzard assets with community-created alternatives.
 
 ---
 
 ## Current Focus
 
-### Phase 4 Nearly Complete: 31/34 issues done
+### ⚡ Architectural Pivot (2026-01-07)
 
-**Remaining:**
-- **405d** - Movement collision integration
-- **408a-c** - Integration test sub-issues
+**Decision:** Abandoned AzerothCore integration in favor of pure WC3 engine.
 
-**Phase 5 Ready:** 55 issues created, design decisions made
+**Reason:** Complexity misalignment with core preservation mission. See `docs/postmortem-azerothcore-integration.md` for full analysis.
+
+**Path Forward:**
+- **Pure WC3 Engine** - Direct .w3x execution, ROM emulator legal precedent
+- **Community Assets** - Replace Blizzard IP with open alternatives
+- **LAN Multiplayer** - No Battle.net dependency
+- **Target:** First playable Tower Defense map in 6 months
+
+**Architecture:** See `docs/wc3-engine-architecture.md` for complete design.
+
+---
+
+### Phase 4 Complete! 🎉 34/34 issues done
+
+All core runtime systems implemented:
+- Game loop (62.5 ticks/sec)
+- Entity Component System
+- Pathfinding (A*, movement types)
+- Unit movement and collision
+- Resource management
+- Player state and alliances
+
+**Next:** Phase 5 (Rendering) - Build visual system with Raylib
+
+---
 
 ### Recently Completed (2026-01-02)
 
@@ -20,16 +42,18 @@ A phased approach to building a WC3-compatible game engine with visual independe
 - Dispatch-based getters/setters with O(1) access
 - Modifier stacks (flat, percent, multiplier)
 - Derived attributes with formula-based calculation
-- WC3 and WoW attribute configurations
-- Cross-system mapping (WC3 ↔ WoW conversion)
+- WC3 and WoW attribute configurations (WoW support for potential future use)
+- Cross-system mapping (extensibility)
 - 352 passing tests across 8 test files
+
+---
 
 ### Design Decisions Made (2025-12-29)
 
 See `issues/CRITICAL-PATH.md` for full details:
-- **Renderer:** Raylib
-- **Coordinates:** WC3-style (Y-up, isometric)
-- **Integration:** API-driven (shared data layer for WC3 + AzerothCore)
+- **Renderer:** Raylib (simple, modern, cross-platform)
+- **Coordinates:** WC3-style (Y-up, center origin)
+- **Architecture:** Pure WC3 engine (standalone, no server dependency)
 
 **Available Tools:**
 ```bash
@@ -91,10 +115,10 @@ src/libs/attributes/
 ├── setters.lua      # Validated modification with events
 ├── modifiers.lua    # Buff/equipment modifier stacking
 ├── derived.lua      # Formula-based stat calculation
-├── mapping.lua      # WC3 ↔ WoW conversion
+├── mapping.lua      # Cross-system attribute mapping
 └── configs/
     ├── wc3.lua      # WC3 attributes (STR/AGI/INT, heroes)
-    └── wow.lua      # WoW attributes (TBC-era, ratings)
+    └── wow.lua      # WoW attributes (extensibility demonstration)
 ```
 
 **Sub-issues:** 016a-016i (9 complete)
@@ -109,7 +133,7 @@ src/runtime/currency/
 ├── container.lua    # Generic currency container
 ├── reputation.lua   # Faction reputation
 ├── vendor.lua       # Transaction flows
-└── conversion.lua   # WC3 ↔ WoW currency mapping
+└── conversion.lua   # Extensible currency mapping
 ```
 
 **Sub-issues:** 017a-017i (8 complete)
@@ -324,9 +348,9 @@ src/
 
 ---
 
-## Phase 4: Runtime - Basic Engine Loop (31/34 Complete)
+## Phase 4: Runtime - Basic Engine Loop ✓ COMPLETED
 
-Core game execution environment. 8 root issues with 34 sub-issues total.
+All 34 issues complete. Core game execution environment operational.
 
 ### Issue Breakdown
 
@@ -411,11 +435,12 @@ Core game execution environment. 8 root issues with 34 sub-issues total.
 
 49+ issues created. Design decisions made (see CRITICAL-PATH.md).
 
-**Architecture:** See `docs/render-architecture.md` for:
+**Architecture:** See `docs/render-architecture.md` and `docs/wc3-engine-architecture.md` for:
 - Threading model (Updater → Workers → Sync → Draw)
 - ComponentSlot with mise en place setters (swap + free old in one motion)
 - Directional bitfield numeric encoding (no division, no zero)
 - Memory ownership (workers create/clean, render reads only)
+- Dual-camera system (WC3 tactical + optional 3D adventure view)
 
 ### Issue Breakdown
 
@@ -430,7 +455,7 @@ Core game execution environment. 8 root issues with 34 sub-issues total.
 | 506 | Build UI framework | 6 (506a-f) | Created |
 | 507 | Create minimap renderer | 6 (507a-f) | Created |
 | **508** | **Vertical slice testing room** | **8 (508a-h)** | **Priority** |
-| 510 | Dual perspective UI system | 5 (510a-e) | Created |
+| 510 | Dual perspective camera system | 5 (510a-e) | Created |
 
 ### Priority Path: 508 Vertical Slice
 
@@ -445,113 +470,118 @@ Fast-track to playable demo:
 8. **508h** Integration test (complete vertical slice)
 
 This validates the architecture before completing 501-507 infrastructure.
-A working demo proves the system; refinement comes after
+A working demo proves the system; refinement comes after.
 
 ### Key Decisions (OQ-001 through OQ-004)
 
-- **Renderer:** Raylib (simple, modern, Lua bindings)
-- **Coordinates:** WC3-style (Y-up, isometric projection)
-- **Integration:** API-driven (shared data layer for WC3 visuals + AzerothCore)
+- **Renderer:** Raylib (simple, modern, cross-platform)
+- **Coordinates:** WC3-style (Y-up, center origin, 128 units/tile)
+- **Architecture:** Pure standalone engine (no server dependency)
 
-### Dual Perspective UI (Issue 510)
+### Dual Perspective Camera (Issue 510)
 
 ```
-WARLORD MODE (RTS)              HERO MODE (RPG)
+WC3 TACTICAL MODE (RTS)        3D ADVENTURE MODE (Optional)
 ┌─────────────────┐             ┌─────────────────┐
-│ Command armies  │◀──F5 key──▶│ Control hero    │
-│ Bird's eye view │             │ Third-person    │
+│ Command armies  │◀──F5 key──▶│ Explore maps    │
+│ Bird's eye view │             │ Over-shoulder   │
 │ QWER hotkeys    │             │ WASD movement   │
-│ Click-select    │             │ Action bars 1-0 │
+│ Click-select    │             │ Action bars     │
 └─────────────────┘             └─────────────────┘
 ```
 
-Same character, different experience:
-- Thrall the Warchief (commanding the Horde)
-- Thrall the Shaman (throwing lightning)
+Same map, different experience:
+- Classic WC3 RTS controls (default)
+- Optional immersive 3D adventure mode (F5 toggle)
 
 ---
 
 ## Phase 6: Asset System - Community Content (Issues Created)
 
-8 issues created. Custom download protocol, host-distributed assets.
+8 issues created. Community-provided assets replace Blizzard IP.
+
+**Legal Strategy:** ROM emulator precedent - engine distributed without proprietary assets, users provide community-created replacements.
 
 ### Issue Breakdown
 
 | ID | Name | Description |
 |----|------|-------------|
-| 601 | Asset loader and resolution | Direct-path loading from map/server directories |
-| 602 | Wire-frame fallback renderer | Debug visuals for missing assets, blank maps |
-| 603 | Server asset download protocol | On-connect asset transfer, resumable downloads |
-| 604 | Asset deduplication system | Hash-based storage, cross-server sharing |
-| 605 | Local storage manager | Per-server size tracking, cleanup UI |
+| 601 | Asset loader and resolution | Load models/textures from asset packs |
+| 602 | Wire-frame fallback renderer | Debug visuals for missing assets |
+| 603 | Asset pack format | Manifest-based pack structure |
+| 604 | Asset deduplication system | Content-addressed storage |
+| 605 | Local storage manager | Per-pack tracking, cleanup UI |
 | 606 | Hot-reload system | Development-time asset refresh |
-| 607 | File server application | Standalone server for asset distribution |
+| 607 | Asset browser/manager | UI for installing/managing packs |
 | 608 | Phase 6 integration test | End-to-end validation |
 
 ### Design Decisions
 
-- **Asset Source:** Assets embedded in maps (MPQ) or provided by server
-- **No overlay packs:** Assets come FROM content, not overlaid on top
-- **Download Protocol:** Custom protocol, hosts distribute their own assets
-- **Fallback Mode:** Wire-frame/debug rendering when assets missing
-- **Deduplication:** SHA-256 content-addressed storage, shared across servers
+- **Asset Source:** Community-created asset packs (legal alternative to Blizzard models)
+- **Fallback Mode:** Wire-frame/placeholder rendering when assets missing
+- **Pack Format:** Simple directory structure with manifest.json
 - **Hot-Reload:** Development-only feature for asset iteration
 
-### Architecture
+### Asset Pack Structure
 
 ```
-CLIENT                           HOST
-   │                               │
-   ├── CONNECT ───────────────────▶│
-   │◀── MANIFEST ─────────────────┤
-   ├── HAVE [hashes...] ─────────▶│
-   │◀── NEED [hashes...] ─────────┤
-   │◀── CHUNKS ───────────────────┤
-   ├── READY ─────────────────────▶│
-   │◀── GAME_START ───────────────┤
+~/.wc3-engine/assets/
+├── default-pack/               # Fallback placeholder pack
+│   ├── models/
+│   │   ├── units/
+│   │   │   ├── human_footman.obj       # Simple placeholder
+│   │   │   ├── orc_grunt.obj
+│   │   │   └── ...
+│   │   ├── buildings/
+│   │   └── doodads/
+│   ├── textures/
+│   │   ├── terrain/
+│   │   │   ├── grass.png
+│   │   │   ├── dirt.png
+│   │   │   └── ...
+│   │   └── ui/
+│   ├── sounds/
+│   │   ├── units/
+│   │   └── ambient/
+│   └── manifest.json           # Asset ID mapping
+│
+└── community-fantasy-pack/     # User-installed high-quality pack
+    ├── models/
+    ├── textures/
+    ├── sounds/
+    └── manifest.json
 ```
 
-### Storage Structure
+### Storage Architecture
 
 ```
-~/.world-edit-engine/
+~/.wc3-engine/
 ├── blobs/                  # Deduplicated content-addressed storage
 │   └── ab/ab3def789...     # SHA-256 hash as filename
-├── servers/                # Per-server asset references
-│   └── my-server/
-│       └── assets/ → blobs/
-└── maps/                   # Per-map extracted assets
-    └── map-hash/
-        └── assets/ → blobs/
+└── packs/                  # Asset pack references
+    ├── default/
+    └── community-pack-1/
 ```
 
 ---
 
 ## Phase 7: Gameplay - Core Mechanics (Issues Created)
 
-7 root issues created with dual WC3/WoW mode support.
+7 root issues created for core WC3 gameplay systems.
+
+**Focus:** Pure WC3 behavior - replicate original game mechanics faithfully.
 
 ### Issue Breakdown
 
 | ID | Name | Sub-Issues | Status |
 |----|------|------------|--------|
-| 701 | Death and resurrection system | 5 (701a-e) | Created |
+| 701 | Death and resurrection system | 5 (701a-e) | 701d complete |
 | 702 | Profession system | 7 (702a-g) | Created |
 | 703 | Combat system | - | Planned |
 | 704 | Ability system framework | - | Planned |
 | 705 | Buff/debuff system | - | Planned |
 | 706 | Build queue and training | - | Planned |
 | 707 | Fog of war | - | Planned |
-
-### Dual Mode Philosophy
-
-Each system supports both WC3 and WoW paradigms:
-
-| System | WC3 Mode | WoW Mode |
-|--------|----------|----------|
-| Death | Altar revival, corpse decay | Graveyard run, spirit healer |
-| Professions | Ability-based (5 levels) | Skill 1-300, trainers |
-| Combat | Attack/armor types | Stats/ratings |
 
 ### Death System (701)
 
@@ -561,12 +591,19 @@ Each system supports both WC3 and WoW paradigms:
       │                      │ soul
  resurrect                   ▼
       │              ┌─────────────┐
-      └──────────────│ SPIRIT WORLD│
+      └──────────────│ Spirit Realm│
                      │   [Ghost]   │
                      └─────────────┘
 ```
 
+**WC3 Behavior:**
+- Hero units → Altar of Kings/Altar of Storms revival
+- Non-hero units → Permanent death, corpse decay
+- Resurrection items (Scroll of Resurrection, etc.)
+
 ### Profession System (702)
+
+**Note:** WC3-style ability-based professions (5 levels per skill).
 
 | Profession | Input | Output |
 |------------|-------|--------|
@@ -578,21 +615,50 @@ Each system supports both WC3 and WoW paradigms:
 
 ---
 
-## Phase 8: Multiplayer - Network Layer
+## Phase 8: Multiplayer - Matchmaking & Networking (Issues Created)
 
-Add networked play capability.
+9 issues created. Matchmaking server with lobby system, NAT traversal, and asset distribution.
 
-- Define network protocol
-- Implement deterministic simulation
-- Build lobby/game creation system
-- Create replay recording
-- Implement reconnection handling
+**Focus:** Peer-to-peer connections with matchmaking server for discovery.
+
+**Key Features:**
+- Matchmaking server (game listing, lobby system)
+- NAT traversal (UDP hole punching)
+- Asset mirror (distribute community packs)
+- Lobby UI (game browser, pre-game coordination)
+- P2P game connections (not relayed)
+
+### Issue Breakdown
+
+| ID | Name | Description | Dependencies |
+|----|------|-------------|--------------|
+| 801 | Matchmaking server | Root issue with full architecture | Phase 5, 6 |
+| 801a | Protocol specification | Message types, wire format | None |
+| 801b | Server core | Lobby registry, message routing | 801a |
+| 801c | Client library | API for game integration | 801a, 801b |
+| 801d | NAT traversal | UDP hole punching | 801a, 801b |
+| 801e | Lobby UI | Game browser, lobby screen | 801c, Phase 5 |
+| 801f | Asset mirror integration | Distribute common asset packs | 801b, Phase 6 |
+| 801g | CLI server application | Run and monitor server | 801b, 801f |
+| 801h | Integration tests | End-to-end testing | All 801 sub-issues |
+
+### Implementation Notes
+
+**Network Architecture:**
+- Client discovers games via matchmaking server
+- NAT traversal establishes direct P2P connections
+- Game traffic flows peer-to-peer (not through server)
+- Asset packs downloaded from mirror or host
+
+**Future Consideration:** Deterministic simulation (Issue 802+) for actual gameplay networking comes after matchmaking infrastructure.
 
 ---
 
 ## Phase 9: World Editor (Issues Created)
 
-12 issues created. Full-featured editor with WC3 World Editor parity.
+12 issues created. Full-featured map editor with WC3 World Editor parity.
+
+**Goal:** Allow creation of new WC3-compatible maps.
 
 ### Issue Breakdown
 
@@ -608,7 +674,7 @@ Add networked play capability.
 | 908 | Import manager | Custom asset management |
 | 909 | AI editor | Computer player behavior |
 | 910 | Campaign editor | Multi-map storylines |
-| 911 | Map format and export | Unified format, WC3 export |
+| 911 | Map format and export | Standard .w3x export |
 | 912 | Phase 9 integration test | Full editor workflow testing |
 
 ### Key Features
@@ -616,10 +682,7 @@ Add networked play capability.
 - **Trigger Editor:** Full GUI parity with WC3, plus Lua code editing
   - Bidirectional conversion: edit in GUI or code, changes sync
   - Lua is the canonical format, GUI is a view
-- **Map Format:** Unified .wex format
-  - Supports both WC3 and WoW gameplay modes
-  - Exports to standard .w3x for WC3 compatibility
-  - Mode-specific data handled gracefully
+- **Map Format:** Standard .w3x format (WC3 compatible)
 - **Campaign Editor:** Multi-map storylines with hero persistence
 
 ### Dependency Graph
@@ -641,9 +704,13 @@ All ─────────────────────────�
 
 ---
 
-## Phase 10: Polish - Tools and UX
+## Phase 10: Polish - Tools and UX (Planned)
 
 Developer and player experience improvements.
+
+**Focus:** Make the engine accessible and enjoyable.
+
+### Planned Features
 
 - In-game console for Lua commands
 - Debug visualization modes
@@ -651,6 +718,46 @@ Developer and player experience improvements.
 - Map browser/launcher UI
 - Settings and configuration UI
 - Documentation and tutorials
+- Asset pack browser
+- Community integration
+
+---
+
+## Success Milestones
+
+### Minimum Viable Product (6 months)
+
+1. ✅ Can parse any .w3x map
+2. ✅ Can extract all game data (terrain, units, triggers)
+3. ✅ Can execute JASS scripts
+4. ⏳ Can render terrain with placeholder textures
+5. ⏳ Can spawn units with placeholder models
+6. ⏳ Can select units and issue move commands
+7. ⏳ Can play a simple melee map start-to-finish
+8. ⏳ Community can install custom asset packs
+
+### Vertical Slice: Tower Defense Map (6-8 months)
+
+**Goal:** Play one complete TD map (e.g., Element TD, Gem TD)
+
+**Requirements:**
+- ✅ Parse TD map successfully
+- ⏳ Execute wave spawn triggers
+- ⏳ Towers can attack creeps
+- ⏳ Damage calculations work
+- ⏳ Gold/lumber economies function
+- ⏳ Victory/defeat conditions trigger
+- ⏳ Can play from start to end
+
+### Full Engine 1.0 (12 months)
+
+1. ✅ All WC3 map formats supported
+2. ✅ JASS execution 99% compatible
+3. ✅ LAN multiplayer functional
+4. ✅ Asset pack system with 3+ community packs
+5. ✅ Runs on Windows, Linux, macOS
+6. ✅ Can play top 20 popular custom maps
+7. ✅ Map editor integration (load from World Editor)
 
 ---
 
@@ -658,6 +765,23 @@ Developer and player experience improvements.
 
 - Custom map format extensions
 - WebAssembly port for browser play
-- Mobile platform support
-- Steam Workshop integration
+- Mobile platform support (Android/iOS)
 - AI opponent framework
+- Steam integration (if legally viable)
+- Map workshop/sharing platform
+
+---
+
+## Design Documents
+
+For detailed architecture information, see:
+
+- **`docs/wc3-engine-architecture.md`** - Pure WC3 engine design (active)
+- **`docs/postmortem-azerothcore-integration.md`** - AC integration pivot analysis
+- **`docs/render-architecture.md`** - Threading model, component slots
+- **`docs/binary-vector-frames.md`** - Quadrant voting, curve approximation
+- **`notes/vision`** - Project philosophy and legal basis
+
+---
+
+*"Preserve the garden. Honor the creativity. Keep the maps alive."*

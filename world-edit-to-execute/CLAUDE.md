@@ -7,7 +7,9 @@ A WC3-compatible game engine that reads Warcraft 3 map files (.w3x/.w3m) like an
 ## Key Documents
 
 - `notes/vision` - Project philosophy and legal basis
+- **`docs/wc3-engine-architecture.md`** - **Pure WC3 engine design (active architecture)**
 - `docs/roadmap.md` - Development phases and **current focus/next steps**
+- `docs/postmortem-azerothcore-integration.md` - AC integration pivot analysis (2026-01-07)
 - `docs/table-of-contents.md` - Documentation index
 - `issues/progress.md` - Current phase status and issue tracking
 - `docs/render-architecture.md` - Frame encoding, threading, numeric representation

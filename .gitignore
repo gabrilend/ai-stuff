@@ -6,7 +6,7 @@
 # This file consolidates gitignore patterns from all projects in the repository.
 # Patterns are organized by category for easy maintenance.
 #
-# Generated: 2025-12-15 15:05:55
+# Generated: 2026-01-04 13:38:38
 # Source: Delta-Version pattern classification system
 #
 # To regenerate: scripts/generate-unified-gitignore.sh
@@ -135,21 +135,14 @@ temp/
 # =============================================================================
 # External dependencies that should be installed via scripts, not committed
 
-# Emscripten SDK
 emsdk/
 .emsdk/
-
-# Downloaded dependency archives
 downloads/
 *.tar.gz
 *.tar.bz2
 *.tar.xz
-
-# Wine prefixes and .NET runtime
 drive_c/
 .wine/
-
-# Source archives (should be downloaded separately)
 Source-develop.zip
 
 # =============================================================================
@@ -157,13 +150,8 @@ Source-develop.zip
 # =============================================================================
 # Generated or downloaded data that can be recreated
 
-# Archive files (large input/output data)
 *.zip
-
-# Embedding data (can be regenerated)
 **/embeddings/**/*.json
-
-# Large input directories (project-specific data)
 **/input/media_attachments/
 **/input/*.zip
 
@@ -193,9 +181,6 @@ simple_test
 src/video-inspiration/2024-01-12_21-04-33.mkv
 test_output/
 video-inspiration/2024-01-12_21-04-33.mkv
-
-# GBA toolchain archives
-**/gba-toolchain/*.tar.bz2
 
 # =============================================================================
 # VERSION CONTROL
