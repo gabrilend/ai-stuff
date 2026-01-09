@@ -34,7 +34,7 @@ VALID_PROJECTS=("delta-version" "neocities-modernization" "world-edit-to-execute
 
 # -- {{{ log
 log() {
-    echo "[INFO] $*" >&2
+    echo -e "${CYAN}[INFO]${NC} $*" >&2
 }
 # }}}
 
@@ -198,10 +198,10 @@ cmd_remove() {
     git worktree remove "$worktree_path"
 
     echo ""
-    echo "Worktree removed: $worktree_path"
+    echo -e "${GREEN}Worktree removed:${NC} $worktree_path"
     echo ""
-    echo "The branch '$branch_name' still exists."
-    echo "To delete it: git branch -d $branch_name"
+    echo -e "The branch '${CYAN}$branch_name${NC}' still exists."
+    echo -e "To delete it: ${YELLOW}git branch -d $branch_name${NC}"
     echo ""
 }
 # }}}
@@ -212,7 +212,7 @@ cmd_list() {
 
     cd "$DIR"
 
-    echo "Active Worktrees"
+    echo -e "${GREEN}Active Worktrees${NC}"
     echo "================"
     echo ""
 
@@ -233,7 +233,7 @@ cmd_list() {
 cmd_status() {
     cd "$DIR"
 
-    echo "Worktree Status"
+    echo -e "${GREEN}Worktree Status${NC}"
     echo "==============="
     echo ""
 
@@ -248,12 +248,12 @@ cmd_status() {
         local status
         status=$(git -C "$wt" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
-        local status_indicator="✓"
-        [[ "$status" -gt 0 ]] && status_indicator="⚠ ($status changes)"
+        local status_indicator="${GREEN}✓${NC}"
+        [[ "$status" -gt 0 ]] && status_indicator="${YELLOW}⚠ ($status changes)${NC}"
 
-        echo "  $branch"
+        echo -e "  ${CYAN}$branch${NC}"
         echo "    Path: $wt"
-        echo "    Status: $status_indicator"
+        echo -e "    Status: $status_indicator"
         echo ""
     done
 
