@@ -10,11 +10,11 @@ once implementation begins.
 
 | System | Tick Rate | Interval | Notes |
 |--------|-----------|----------|-------|
-| WC3 main game | 50 Hz | 20ms | Core simulation rate |
+| WC3 main game | 62.5 Hz | 16ms | Core simulation rate |
 | WC3 unit facing | ~33.33 Hz | 30ms | Rotation updates |
-| AzerothCore MapUpdate | 100 Hz | 10ms | Default configuration |
+| AzerothCore MapUpdate | 100 Hz | 10ms | Archived - WoW mode not in MVP |
 
-**Target:** 100 Hz (10ms) - the faster of the two systems. All timing thresholds
+**Target:** 62.5 Hz (16ms) - WC3's core simulation rate. All timing thresholds
 derive from this base rate.
 
 ---
@@ -34,7 +34,7 @@ derive from this base rate.
 │  │  - Distributes tasks   │                      │  memory watch list.        │  │
 │  │  - Monitors time       │                      │  On "ready" flag → swap    │  │
 │  │                        │                      │  pointer, remove from list │  │
-│  │  If update pass > 10ms │                      │                            │  │
+│  │  If update pass > 16ms │                      │                            │  │
 │  │  → Spawn helper        │                      │  No waiting for workers.   │  │
 │  │  → Split remaining     │                      │  Runs in parallel always.  │  │
 │  └───────────┬────────────┘                      └─────────────┬──────────────┘  │
@@ -77,7 +77,7 @@ derive from this base rate.
 
 | Thread | Work | Behavior |
 |--------|------|----------|
-| **Updaters** | Assign tasks to worker task-lists | Adaptive spawning: if pass > 10ms, spawn helpers and split work |
+| **Updaters** | Assign tasks to worker task-lists | Adaptive spawning: if pass > 16ms, spawn helpers and split work |
 | **Workers** | Execute function pointers from task-list | Persistent, N = CPU cores. No conditionals - just execute next in list |
 | **Sync** | Watch memory locations for ready flags | Parallel, continuous. On ready → swap pointer, remove from watch list |
 | **Draw** | Iterate primary buffer, issue GPU commands | Vsync-paced. Unaware of data changes. Just renders what pointers point at |
@@ -176,9 +176,9 @@ void* worker_loop(void* arg) {
 
 /* {{{ sleep_task - default endcap, yields for one tick */
 void sleep_task(void* context) {
-    // Sleep for ~10ms (one tick at 100Hz)
+    // Sleep for ~16ms (one tick at 62.5Hz)
     // This is the "nothing to do" state
-    usleep(10000);
+    usleep(16000);
 }
 /* }}} */
 ```
@@ -193,10 +193,10 @@ continue existing based on the previous tick's timing.
 
 ### Continuation Threshold
 
-- **Target tick time:** 10ms (100Hz)
-- **Continuation threshold:** 50% of target = **5ms**
-- If previous tick took > 5ms → recreate updater task (might land on different worker)
-- If previous tick took ≤ 5ms → don't recreate (helper removes itself)
+- **Target tick time:** 16ms (62.5Hz)
+- **Continuation threshold:** 50% of target = **8ms**
+- If previous tick took > 8ms → recreate updater task (might land on different worker)
+- If previous tick took ≤ 8ms → don't recreate (helper removes itself)
 
 This creates natural scaling: helpers spawn when needed and disappear when load decreases.
 
@@ -215,8 +215,8 @@ typedef struct updater_context {
     uint64_t last_tick_duration_us;
 
     // Constants
-    uint64_t target_tick_us;         // 10000 (10ms)
-    uint64_t continuation_threshold; // 5000 (50% of target)
+    uint64_t target_tick_us;         // 16000 (16ms)
+    uint64_t continuation_threshold; // 8000 (50% of target)
 } UpdaterContext;
 /* }}} */
 
@@ -267,15 +267,15 @@ void updater_task_on_complete(UpdaterContext* ctx, Worker* current_worker) {
 ### Task Lifecycle for Updaters
 
 1. Primary updater runs as persistent task (`repeat_count = -1`)
-2. When primary detects overload (> 10ms), it creates helper updater task:
+2. When primary detects overload (> 16ms), it creates helper updater task:
    - Helper assigned to least-busy worker
    - `repeat_count = 1` (evaluate after each run)
    - Gets a partition of the pending task queue
 3. Helper executes, records timing
 4. When `repeat_count` hits 0, helper calls `on_complete`:
    - Checks `last_tick_duration_us`
-   - If > 5ms: recreate as new task (possibly different worker)
-   - If ≤ 5ms: don't recreate (helper exits)
+   - If > 8ms: recreate as new task (possibly different worker)
+   - If ≤ 8ms: don't recreate (helper exits)
 5. Helpers naturally disappear when load decreases
 
 ### Load Balancing
@@ -424,8 +424,8 @@ Pointer swaps by the sync thread are atomic and invisible to draw.
 | Task model | Input/output buffers | Ring buffer of function pointers |
 | Sync behavior | Wait for all workers | Parallel continuous scan |
 | Draw notification | Receives signals | Never notified |
-| Updater spawning | Single thread | Adaptive (spawn helpers if > 10ms) |
-| Sleep behavior | Fixed times | Tick-aligned (10ms target) |
+| Updater spawning | Single thread | Adaptive (spawn helpers if > 16ms) |
+| Sleep behavior | Fixed times | Tick-aligned (16ms target) |
 | Task types | Render-specific | General-purpose (any game system) |
 
 ---
@@ -444,7 +444,7 @@ Pointer swaps by the sync thread are atomic and invisible to draw.
 
 ### Phase 3: Adaptive Updater Spawning
 - Add timing to updater pass
-- Implement helper spawning when > 10ms
+- Implement helper spawning when > 16ms
 - Test with artificially heavy workloads
 
 ### Phase 4: Sync Parallel Scan
@@ -455,7 +455,7 @@ Pointer swaps by the sync thread are atomic and invisible to draw.
 ### Phase 5: Integration
 - Wire render tasks to worker pool
 - Wire physics/AI tasks to same pool
-- Verify 100Hz target under realistic load
+- Verify 62.5Hz target under realistic load
 
 ---
 

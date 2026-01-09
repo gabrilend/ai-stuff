@@ -31,11 +31,11 @@ uint64_t get_timestamp_us(void) {
 /* }}} */
 
 /* {{{ sleep_task
- * Default no-op task that yields briefly.
- * Used as a placeholder or for testing. */
+ * Default no-op task that yields for one game tick.
+ * Used as a placeholder when no work is available. */
 void sleep_task(void* context) {
     (void)context;  /* Unused */
-    usleep(1000);  /* 1ms yield */
+    usleep(16000);  /* 16ms = one WC3 tick at 62.5Hz */
 }
 /* }}} */
 
