@@ -615,28 +615,42 @@ Same map, different experience:
 
 ---
 
-## Phase 8: Multiplayer - Network Layer (Planned)
+## Phase 8: Multiplayer - Matchmaking & Networking (Issues Created)
 
-Add networked play capability.
+9 issues created. Matchmaking server with lobby system, NAT traversal, and asset distribution.
 
-**Focus:** LAN multiplayer only (no Battle.net dependency).
+**Focus:** Peer-to-peer connections with matchmaking server for discovery.
 
-**Approach:**
-- Lockstep deterministic simulation (like StarCraft/WC3)
-- Command protocol (actions only, not state)
-- Host is authoritative for trigger execution
-- Replay recording for bug reproduction
+**Key Features:**
+- Matchmaking server (game listing, lobby system)
+- NAT traversal (UDP hole punching)
+- Asset mirror (distribute community packs)
+- Lobby UI (game browser, pre-game coordination)
+- P2P game connections (not relayed)
 
-**Future Consideration:** Optional relay server for internet play (NOT Battle.net).
+### Issue Breakdown
 
-### Planned Issues
+| ID | Name | Description | Dependencies |
+|----|------|-------------|--------------|
+| 801 | Matchmaking server | Root issue with full architecture | Phase 5, 6 |
+| 801a | Protocol specification | Message types, wire format | None |
+| 801b | Server core | Lobby registry, message routing | 801a |
+| 801c | Client library | API for game integration | 801a, 801b |
+| 801d | NAT traversal | UDP hole punching | 801a, 801b |
+| 801e | Lobby UI | Game browser, lobby screen | 801c, Phase 5 |
+| 801f | Asset mirror integration | Distribute common asset packs | 801b, Phase 6 |
+| 801g | CLI server application | Run and monitor server | 801b, 801f |
+| 801h | Integration tests | End-to-end testing | All 801 sub-issues |
 
-- Define network protocol
-- Implement deterministic simulation
-- Build lobby/game creation system
-- Create replay recording
-- Implement reconnection handling
-- LAN discovery
+### Implementation Notes
+
+**Network Architecture:**
+- Client discovers games via matchmaking server
+- NAT traversal establishes direct P2P connections
+- Game traffic flows peer-to-peer (not through server)
+- Asset packs downloaded from mirror or host
+
+**Future Consideration:** Deterministic simulation (Issue 802+) for actual gameplay networking comes after matchmaking infrastructure.
 
 ---
 
