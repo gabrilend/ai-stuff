@@ -111,7 +111,18 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
     local start_time = os.time()
     for i = 0, num_poems - 1 do
         local embedding = embeddings_data.embeddings[i + 1]
-        local poem_index = embedding.poem_index or embedding.id  -- Use poem_index, fallback to id
+
+        -- Require poem_index field (no fallback)
+        if not embedding.poem_index then
+            error(string.format(
+                "[GPU SIMILARITY ERROR] Embedding at index %d missing poem_index field.\n" ..
+                "This means embeddings.json was generated before issue 8-019.\n" ..
+                "Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force",
+                i + 1
+            ))
+        end
+
+        local poem_index = embedding.poem_index
         local poem_id = embedding.id  -- Keep for display purposes
         local output_file = string.format("%s/poem_index_%d.json", output_dir, poem_index)
 
@@ -154,9 +165,18 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
         local similarities = {}
         for j = 0, num_targets - 1 do
             local target_embedding = embeddings_data.embeddings[i + j + 2]
-            local target_poem_index = target_embedding.poem_index or target_embedding.id
+
+            -- Require poem_index field (no fallback)
+            if not target_embedding.poem_index then
+                error(string.format(
+                    "[GPU SIMILARITY ERROR] Target embedding at index %d missing poem_index field.\n" ..
+                    "Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force",
+                    i + j + 2
+                ))
+            end
+
             table.insert(similarities, {
-                id = tostring(target_poem_index),  -- Use poem_index for unique identification
+                id = tostring(target_embedding.poem_index),  -- Use poem_index for unique identification
                 similarity = output_similarities[j]
             })
         end
