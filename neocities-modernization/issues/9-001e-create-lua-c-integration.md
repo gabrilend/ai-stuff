@@ -113,11 +113,55 @@ return M
 
 - 9-001d (Diversity sequence GPU algorithm)
 
+## Implementation Notes
+
+### Completed Features
+✅ **FFI Wrapper Created** (`libs/vulkan-compute/lua/vk_compute.lua`)
+- Full LuaJIT FFI bindings to C library
+- Error handling with result code checking
+- Memory management for embeddings and sequences
+
+✅ **Batch Processing Support**
+- `compute_diversity_sequence()` - Single sequence computation
+- `compute_all_diversity_sequences()` - Full cache generation with progress tracking
+- Incremental file writing (sequences written immediately)
+- Auto-resume support (detects partial cache and continues)
+
+✅ **Integration Scripts**
+- `compute-diversity-cache.lua` - Main cache generation orchestrator
+- `generate-diversity-cache.sh` - Runner with validation
+- `check-diversity-progress.lua` - Progress monitoring tool
+
+✅ **Testing**
+- `test_ffi.lua` - Validation with 100-poem subset
+- Successfully tested with full 7,797-poem dataset
+- Verified correct diversity sequence generation
+
+### Key Design Decisions
+
+**Memory Efficiency**: Embeddings uploaded once, kept on GPU throughout computation
+**Progress Tracking**: Sequences written to disk every 10 completions (70-second chunks)
+**Resume Capability**: Cache file format allows detecting partial progress and resuming
+
+### Current Performance
+- Single sequence: ~7.8 seconds (7,797 iterations)
+- Full cache (7,797 sequences): ~16 hours
+- GPU memory usage: ~258 MB / 11 GB available
+
+### Known Limitations
+1. **No centroid updates**: Simplified algorithm compares against fixed starting embedding (line 225 in vk_diversity.c)
+2. **Sequential processing**: One sequence at a time (see issue 9-001g for batch optimization)
+3. **CPU-GPU synchronization**: 60 million sync points create bottleneck
+
+### Related Issues
+- **9-001g**: Batch optimization for 2,600× speedup (15s vs 16h)
+
 ---
 
-**ISSUE STATUS: OPEN**
+**ISSUE STATUS: COMPLETED**
 
 **Created**: 2025-12-14
+**Completed**: 2026-01-09
 
 **Phase**: 9 (GPU Acceleration)
 

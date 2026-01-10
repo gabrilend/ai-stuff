@@ -128,8 +128,9 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 │ Ollama @ :10265    │         │     embeddings.json (64 MB)     │
 │                    │         │                                 │
 │ Model:             │         │ Structure:                      │
-│ embeddinggemma     │         │ {poem_id: [768 floats], ...}    │
-│ (768 dimensions)   │         │                                 │
+│ embeddinggemma     │         │ {metadata: {...},               │
+│ (768 dimensions)   │         │  embeddings: [{poem_index, id,  │
+│                    │         │   embedding: [768 floats]}, ]}  │
 └────────────────────┘         └─────────────────────────────────┘
 ```
 
