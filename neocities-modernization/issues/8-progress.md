@@ -30,7 +30,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | **In Progress** | High |
 | 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
-| 8-020 | Hybrid pagination strategy (45GB constraint) | **Open** | High |
+| 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
 
 ### Completed Issues
 
@@ -47,6 +47,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-021 | Fix embedding progress counter overcounting | Completed | 2026-01-04 |
 | 8-019 | Implement unique poem_index system | Completed | 2025-12-25 |
 | 8-018 | Fix embedding directory case inconsistency | Completed | 2025-12-25 |
+| 8-030 | Add chronological anchor links | Completed | 2026-01-09 |
 | 8-003 | Remove remaining CSS from HTML generation | Completed | 2025-12-23 (reopened, re-completed) |
 | 8-004 | Implement embedding validation and empty poem handling | Completed | 2025-12-14 |
 | 8-006 | Fix golden poem box-drawing format | Completed | 2025-12-15 |
@@ -57,6 +58,15 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-013 | Implement TXT export functionality | Completed | 2025-12-23 |
 | 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
 | 8-005 | Integrate images into HTML output | Completed | 2025-12-23 |
+
+**8-030: Add Chronological Anchor Links** - COMPLETED (2026-01-09)
+- ✅ Created `get_poem_anchor_id()` helper function
+- ✅ Updated navigation functions for three-part layout
+- ✅ Added chronological links centered between similar/different
+- ✅ Added HTML anchor IDs to chronological.html
+- ✅ Layout: `│ similar │  chronological  │ different │`
+- ✅ Test: 100 chronological links found in generated pages
+- ✅ Format: `chronological.html#poem-{category}-{id}`
 
 ### Issue Details
 

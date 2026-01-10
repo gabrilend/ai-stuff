@@ -320,6 +320,13 @@ if ! $STAGE_FLAG_SET; then
     GENERATE_HTML=true
     GENERATE_INDEX=true
 fi
+
+# Issue 8-032: Convert FORCE to Lua boolean for passing to Lua functions
+if $FORCE; then
+    FORCE_LUA="true"
+else
+    FORCE_LUA="false"
+fi
 # }}}
 
 # {{{ Setup directories
@@ -534,6 +541,7 @@ run_generate_similarity() {
     # Use similarity-engine.lua to generate matrix
     # Issue 8-023: Fixed function name and parameters (was generate_similarity_matrix with wrong args)
     # Issue 8-029: Changed to calculate_full_similarity_matrix for correct output format
+    # Issue 8-032: Pass $FORCE_LUA to respect --force flag
     # calculate_full_similarity_matrix(embeddings_file, output_file, force_regenerate)
     luajit -e "
         package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
@@ -541,7 +549,7 @@ run_generate_similarity() {
         sim.calculate_full_similarity_matrix(
             '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
             '$DIR/assets/embeddings/$model_dir_name/similarity_matrix.json',
-            false
+            $FORCE_LUA
         )
     " || {
         echo "Error: Similarity matrix generation failed" >&2
