@@ -80,6 +80,7 @@ Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
   --dry-run           Show what would be executed without running
+  --cpu-only          Force CPU execution (disable GPU acceleration)
 
 Interactive Mode:
   -I, --interactive   Launch TUI for interactive selection (with command preview)
@@ -135,6 +136,7 @@ FORCE=false
 QUIET=false
 VERBOSE=false
 DRY_RUN=false
+CPU_ONLY=false
 MODEL_NAME="embeddinggemma:latest"
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
@@ -191,6 +193,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --cpu-only)
+            CPU_ONLY=true
             shift
             ;;
         --model)
@@ -503,7 +509,20 @@ run_generate_embeddings() {
 
 # {{{ run_generate_similarity
 run_generate_similarity() {
-    log_stage "📊 Stage 7/10: Building similarity matrix (~30 min)"
+    # Determine execution method: GPU (default) or CPU (fallback/--cpu-only)
+    local use_gpu=false
+    if ! $CPU_ONLY; then
+        # Check if GPU/Vulkan library is available
+        if [ -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
+            use_gpu=true
+            log_stage "📊 Stage 7/10: Building similarity matrix with GPU (~5-10 min)"
+        else
+            log_info "   ⚠️  GPU library not found, falling back to CPU"
+            log_stage "📊 Stage 7/10: Building similarity matrix with CPU (~30 min)"
+        fi
+    else
+        log_stage "📊 Stage 7/10: Building similarity matrix with CPU (~30 min, --cpu-only)"
+    fi
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
@@ -546,29 +565,43 @@ run_generate_similarity() {
     log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Output: assets/embeddings/$model_dir_name/similarities/*.json (individual files)"
 
-    # Issue 8-033: Use parallel engine for individual files (not monolithic matrix)
-    # Fixes table overflow error at ~68% when using calculate_full_similarity_matrix
-    # Function: calculate_similarity_matrix_parallel(embeddings_file, model_name, sleep_duration, force_regenerate, requested_threads)
-    local default_threads=8
-    local threads_to_use=${THREADS:-$default_threads}
+    if $use_gpu; then
+        # TODO: GPU similarity generation implementation
+        # Requires: Lua FFI bindings for libs/vulkan-compute/include/vk_similarity.h
+        # Expected performance: ~5-10 minutes vs ~30 minutes CPU
+        log_info "   Mode: GPU-accelerated (Vulkan)"
+        log_info "   ⚠️  GPU implementation not yet integrated, falling back to CPU"
+        log_info "   TODO: Create Lua FFI bindings for vk_similarity.h"
+        use_gpu=false  # Temporarily disable until integration complete
+    fi
 
-    luajit -e "
-        package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
-        package.cpath = '/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;' .. package.cpath
-        local sim_parallel = require('src.similarity-engine-parallel')
-        local sleep = 0.5
-        local threads = $threads_to_use
-        sim_parallel.calculate_similarity_matrix_parallel(
-            '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
-            '$MODEL_NAME',
-            sleep,
-            $FORCE_LUA,
-            threads
-        )
-    " || {
-        echo "Error: Similarity matrix generation failed" >&2
-        exit 1
-    }
+    # CPU implementation (current default until GPU integration complete)
+    if ! $use_gpu; then
+        log_info "   Mode: CPU (multithreaded)"
+        # Issue 8-033: Use parallel engine for individual files (not monolithic matrix)
+        # Fixes table overflow error at ~68% when using calculate_full_similarity_matrix
+        # Function: calculate_similarity_matrix_parallel(embeddings_file, model_name, sleep_duration, force_regenerate, requested_threads)
+        local default_threads=8
+        local threads_to_use=${THREADS:-$default_threads}
+
+        luajit -e "
+            package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
+            package.cpath = '/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;' .. package.cpath
+            local sim_parallel = require('src.similarity-engine-parallel')
+            local sleep = 0.5
+            local threads = $threads_to_use
+            sim_parallel.calculate_similarity_matrix_parallel(
+                '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
+                '$MODEL_NAME',
+                sleep,
+                $FORCE_LUA,
+                threads
+            )
+        " || {
+            echo "Error: Similarity matrix generation failed" >&2
+            exit 1
+        }
+    fi
 }
 # }}}
 
