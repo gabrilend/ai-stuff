@@ -1,0 +1,187 @@
+#version 450
+
+/* diversity_batch.comp - Batch parallel diversity sequence computation
+ *
+ * This shader computes diversity sequences for multiple poems simultaneously,
+ * with GPU-side state management to minimize CPU-GPU synchronization.
+ *
+ * Architecture:
+ *   - Each workgroup computes one complete diversity sequence
+ *   - 3,584 workgroups process 3,584 sequences in parallel
+ *   - State (centroids, masks, counts) persists on GPU between iterations
+ *   - CPU triggers each iteration, GPU updates state internally
+ *
+ * Algorithm per workgroup:
+ *   1. Compute distances from current centroid to all poems
+ *   2. Find poem with maximum distance (respecting mask)
+ *   3. Update centroid using rolling average
+ *   4. Update mask (mark selected poem as used)
+ *   5. Write selected poem index to output
+ *
+ * Performance: ~0.66ms per iteration for 3,584 sequences
+ */
+
+layout(local_size_x = 256) in;
+
+// ============================================================================
+// Buffer Bindings
+// ============================================================================
+
+// Binding 0: All poem embeddings (read-only, never changes)
+layout(set = 0, binding = 0) readonly buffer Embeddings {
+    float embeddings[];  // [7797 * 768] flattened array
+};
+
+// Binding 1: Current centroids for each sequence (read-write)
+layout(set = 0, binding = 1) buffer Centroids {
+    float centroids[];  // [3584 * 768] flattened array
+};
+
+// Binding 2: Availability masks for each sequence (read-write)
+layout(set = 0, binding = 2) buffer Masks {
+    uint masks[];  // [3584 * 7797] flattened array, 1=available, 0=used
+};
+
+// Binding 3: Poem counts for rolling average (read-write)
+layout(set = 0, binding = 3) buffer Counts {
+    uint counts[];  // [3584] - how many poems in each centroid
+};
+
+// Binding 4: Output selected poem indices (write-only)
+layout(set = 0, binding = 4) writeonly buffer Output {
+    uint output_sequences[];  // [3584 * 7797] - complete sequences
+};
+
+// ============================================================================
+// Push Constants
+// ============================================================================
+
+layout(push_constant) uniform Constants {
+    uint num_poems;      // Total poems (7797)
+    uint embedding_dim;  // Embedding dimensions (768)
+    uint iteration;      // Current iteration (0 to 7796)
+} constants;
+
+// ============================================================================
+// Shared Memory (Per Workgroup)
+// ============================================================================
+
+shared float s_distances[256];  // Local maximum distances
+shared uint s_indices[256];     // Local maximum indices
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/* {{{ float cosine_distance()
+ * Compute cosine distance between centroid and embedding
+ */
+float cosine_distance(uint centroid_base, uint embedding_base) {
+    float dot_product = 0.0;
+    float norm_centroid = 0.0;
+    float norm_embedding = 0.0;
+
+    for (uint d = 0; d < constants.embedding_dim; d++) {
+        float c_val = centroids[centroid_base + d];
+        float e_val = embeddings[embedding_base + d];
+
+        dot_product += c_val * e_val;
+        norm_centroid += c_val * c_val;
+        norm_embedding += e_val * e_val;
+    }
+
+    float norm_product = sqrt(norm_centroid) * sqrt(norm_embedding);
+    float similarity = (norm_product > 0.0) ? (dot_product / norm_product) : 0.0;
+
+    // Return distance (higher = more different)
+    return 1.0 - similarity;
+}
+/* }}} */
+
+// ============================================================================
+// Main Kernel
+// ============================================================================
+
+void main() {
+    uint workgroup_id = gl_WorkGroupID.x;  // Which sequence (0 to 3583)
+    uint thread_id = gl_LocalInvocationID.x;  // Thread within workgroup (0 to 255)
+
+    // Calculate base indices for this sequence's data
+    uint centroid_base = workgroup_id * constants.embedding_dim;
+    uint mask_base = workgroup_id * constants.num_poems;
+    uint output_base = workgroup_id * constants.num_poems;
+
+    // Each thread checks ~30 poems using stride pattern
+    // Thread 0: poems [0, 256, 512, ...]
+    // Thread 1: poems [1, 257, 513, ...]
+    // ...
+    float local_max_distance = -1e9;  // Start with very negative value
+    uint local_max_index = 0xFFFFFFFF;  // Invalid marker
+
+    for (uint poem_id = thread_id; poem_id < constants.num_poems; poem_id += gl_WorkGroupSize.x) {
+        // Check if poem is available (mask == 1)
+        if (masks[mask_base + poem_id] == 1) {
+            uint embedding_base = poem_id * constants.embedding_dim;
+            float dist = cosine_distance(centroid_base, embedding_base);
+
+            // Keep track of maximum
+            if (dist > local_max_distance) {
+                local_max_distance = dist;
+                local_max_index = poem_id;
+            }
+        }
+    }
+
+    // Store thread's local maximum in shared memory
+    s_distances[thread_id] = local_max_distance;
+    s_indices[thread_id] = local_max_index;
+    barrier();
+
+    // Parallel reduction: find global maximum across all 256 threads
+    // 256 → 128 → 64 → 32 → 16 → 8 → 4 → 2 → 1
+    for (uint stride = 128; stride > 0; stride >>= 1) {
+        if (thread_id < stride) {
+            uint other_idx = thread_id + stride;
+            if (s_distances[other_idx] > s_distances[thread_id]) {
+                s_distances[thread_id] = s_distances[other_idx];
+                s_indices[thread_id] = s_indices[other_idx];
+            }
+        }
+        barrier();
+    }
+
+    // Thread 0 updates state for this sequence
+    if (thread_id == 0) {
+        uint selected_poem = s_indices[0];
+
+        // Validate selection
+        if (selected_poem == 0xFFFFFFFF || selected_poem >= constants.num_poems) {
+            // No valid poem found - should never happen unless all masked
+            // Write invalid marker
+            output_sequences[output_base + constants.iteration] = 0xFFFFFFFF;
+            return;
+        }
+
+        // Update centroid using rolling average
+        // New centroid = (old_centroid * count + new_embedding) / (count + 1)
+        uint count = counts[workgroup_id];
+        uint selected_embedding_base = selected_poem * constants.embedding_dim;
+
+        for (uint d = 0; d < constants.embedding_dim; d++) {
+            float old_val = centroids[centroid_base + d];
+            float new_val = embeddings[selected_embedding_base + d];
+            centroids[centroid_base + d] = (old_val * float(count) + new_val) / float(count + 1);
+        }
+
+        // Update count
+        counts[workgroup_id] = count + 1;
+
+        // Update mask (mark as used)
+        masks[mask_base + selected_poem] = 0;
+
+        // Write selected poem to output
+        output_sequences[output_base + constants.iteration] = selected_poem;
+    }
+}
+
+/* vim: set foldmethod=marker: */
