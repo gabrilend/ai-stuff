@@ -110,8 +110,10 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
     -- Generate similarities for each poem
     local start_time = os.time()
     for i = 0, num_poems - 1 do
-        local poem_id = embeddings_data.embeddings[i + 1].id
-        local output_file = string.format("%s/poem_%d.json", output_dir, poem_id)
+        local embedding = embeddings_data.embeddings[i + 1]
+        local poem_index = embedding.poem_index or embedding.id  -- Use poem_index, fallback to id
+        local poem_id = embedding.id  -- Keep for display purposes
+        local output_file = string.format("%s/poem_index_%d.json", output_dir, poem_index)
 
         -- Skip if file exists and not forcing
         if not force and utils.file_exists(output_file) then
@@ -124,9 +126,9 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
             local data = {
                 metadata = {
                     poem_id = tostring(poem_id),
-                    poem_index = i,
+                    poem_index = poem_index,
                     total_comparisons = 0,
-                    range = string.format("%d-%d", poem_id + 1, poem_id),
+                    range = string.format("%d-%d", poem_index + 1, poem_index),
                     format = "triangular_upper",
                     calculated_at = os.date("%Y-%m-%d %H:%M:%S"),
                     method = "gpu_vulkan"
@@ -144,16 +146,17 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
         local result = vklib.vks_compute_similarities_for_poem(sim_ctx, i, output_similarities)
         if result ~= 0 then
             local error_str = ffi.string(vklib.vkc_get_error_string(result))
-            print(string.format("[GPU SIMILARITY ERROR] Poem %d failed: %s", poem_id, error_str))
+            print(string.format("[GPU SIMILARITY ERROR] Poem_index %d (id %d) failed: %s", poem_index, poem_id, error_str))
             goto continue
         end
 
         -- Build similarities array
         local similarities = {}
         for j = 0, num_targets - 1 do
-            local target_id = embeddings_data.embeddings[i + j + 2].id
+            local target_embedding = embeddings_data.embeddings[i + j + 2]
+            local target_poem_index = target_embedding.poem_index or target_embedding.id
             table.insert(similarities, {
-                id = tostring(target_id),
+                id = tostring(target_poem_index),  -- Use poem_index for unique identification
                 similarity = output_similarities[j]
             })
         end
@@ -162,9 +165,9 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
         local data = {
             metadata = {
                 poem_id = tostring(poem_id),
-                poem_index = i,
+                poem_index = poem_index,
                 total_comparisons = num_targets,
-                range = string.format("%d-%d", poem_id + 1, 7797),
+                range = string.format("%d-%d", poem_index + 1, num_poems),
                 format = "triangular_upper",
                 calculated_at = os.date("%Y-%m-%d %H:%M:%S"),
                 method = "gpu_vulkan"
