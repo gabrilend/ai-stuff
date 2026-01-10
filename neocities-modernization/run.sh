@@ -509,16 +509,22 @@ run_generate_embeddings() {
 
 # {{{ run_generate_similarity
 run_generate_similarity() {
-    # Determine execution method: GPU (default) or CPU (fallback/--cpu-only)
+    # Determine execution method: GPU (default) or CPU (--cpu-only only)
     local use_gpu=false
     if ! $CPU_ONLY; then
-        # Check if GPU/Vulkan library is available
+        # GPU is required unless --cpu-only is specified
         if [ -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
             use_gpu=true
             log_stage "📊 Stage 7/10: Building similarity matrix with GPU (~5-10 min)"
         else
-            log_info "   ⚠️  GPU library not found, falling back to CPU"
-            log_stage "📊 Stage 7/10: Building similarity matrix with CPU (~30 min)"
+            echo "Error: GPU library not found: libs/vulkan-compute/build/libvkcompute.so" >&2
+            echo "" >&2
+            echo "Options:" >&2
+            echo "  1. Build GPU library: cd libs/vulkan-compute && make" >&2
+            echo "  2. Use CPU instead: ./run.sh --generate-similarity --cpu-only" >&2
+            echo "" >&2
+            echo "Note: GPU acceleration is 6x faster (~5-10 min vs ~30 min)" >&2
+            exit 1
         fi
     else
         log_stage "📊 Stage 7/10: Building similarity matrix with CPU (~30 min, --cpu-only)"
@@ -578,17 +584,17 @@ run_generate_similarity() {
                 $FORCE_LUA
             )
             if not success then
-                print('[GPU SIMILARITY ERROR] GPU generation failed, falling back to CPU')
+                print('[GPU SIMILARITY ERROR] GPU generation failed')
+                print('Use --cpu-only to force CPU execution')
                 os.exit(1)
             end
         " || {
-            echo "GPU similarity generation failed, falling back to CPU" >&2
-            use_gpu=false
+            echo "Error: GPU similarity generation failed" >&2
+            echo "Use --cpu-only flag to force CPU execution instead" >&2
+            exit 1
         }
-    fi
-
-    # CPU implementation (current default until GPU integration complete)
-    if ! $use_gpu; then
+    else
+        # CPU implementation (only when --cpu-only is explicitly specified)
         log_info "   Mode: CPU (multithreaded)"
         # Issue 8-033: Use parallel engine for individual files (not monolithic matrix)
         # Fixes table overflow error at ~68% when using calculate_full_similarity_matrix
