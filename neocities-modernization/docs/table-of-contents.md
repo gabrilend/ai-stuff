@@ -74,7 +74,13 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/completed/8-032-fix-similarity-matrix-force-flag-and-filename-inconsistency.md` - Fix --force flag and filename inconsistency bugs (COMPLETED)
   - `/issues/completed/8-033-fix-run-sh-to-use-parallel-similarity-generation.md` - Fix run.sh to use parallel engine, avoid table overflow (COMPLETED)
 - `/issues/5-025-optimize-similarity-matrix-to-triangular-storage.md` - Triangular matrix for 50% storage reduction (COMPLETED)
-- `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - PLANNED
+- `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - IN PROGRESS
+  - `/issues/completed/phase-9/9-001a-setup-vulkan-development-environment.md` - Vulkan SDK and development environment setup (COMPLETED)
+  - `/issues/completed/phase-9/9-001b-implement-vulkan-compute-wrapper.md` - Core Vulkan compute wrapper with C API (COMPLETED)
+  - `/issues/completed/phase-9/9-001c-create-cosine-distance-shader.md` - Cosine distance shader with 304x speedup (COMPLETED)
+  - `/issues/completed/phase-9/9-001d-implement-diversity-sequence-gpu-algorithm.md` - GPU diversity sequence generation (COMPLETED)
+  - `/issues/completed/phase-9/9-001e-create-lua-c-integration.md` - LuaJIT FFI bindings for Vulkan compute (COMPLETED)
+  - `/issues/completed/phase-9/9-001g-batch-parallel-diversity-sequences.md` - Batch parallel diversity computation (COMPLETED)
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
