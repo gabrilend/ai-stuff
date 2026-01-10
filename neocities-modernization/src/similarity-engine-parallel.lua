@@ -713,7 +713,8 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
 
                     local similarities = {}
 
-                    -- Calculate similarities to all other poems
+                    -- Issue 8-034: Calculate ONLY upper triangle (where other_index > this_index)
+                    -- This provides 50% storage savings while maintaining symmetric lookup via access layer
                     for j = 1, #all_embeddings_data do
                         local other_poem = all_embeddings_data[j]
 
@@ -730,7 +731,8 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                             ))
                         end
 
-                        if poem_data.index ~= other_poem.index then
+                        -- Only calculate for higher indices (triangular upper)
+                        if other_poem.index > poem_data.index then
                             local similarity = cosine_similarity(poem_data.embedding, other_poem.embedding)
 
                             table.insert(similarities, {
@@ -744,12 +746,14 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
                     -- Sort by similarity (highest first)
                     table.sort(similarities, function(a, b) return a.similarity > b.similarity end)
 
-                    -- Create similarity data
+                    -- Create similarity data (Issue 8-034: triangular format)
                     local poem_similarity_data = {
                         metadata = {
                             poem_id = poem_data.id,
                             poem_index = poem_data.index,
                             total_comparisons = #similarities,
+                            format = "triangular_upper",
+                            range = string.format("%d-%d", poem_data.index + 1, #all_embeddings_data),
                             calculated_at = os.date("%Y-%m-%d %H:%M:%S"),
                             algorithm = "cosine_similarity"
                         },
