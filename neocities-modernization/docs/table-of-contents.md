@@ -72,6 +72,8 @@ This document provides a hierarchical view of all project documentation.
 - `/issues/8-progress.md` - Phase 8 progress tracking (website completion) - CURRENT
   - `/issues/8-031-convert-between-similarity-matrix-formats.md` - Convert between similarity matrix storage formats (individual/full/triangular)
   - `/issues/completed/8-032-fix-similarity-matrix-force-flag-and-filename-inconsistency.md` - Fix --force flag and filename inconsistency bugs (COMPLETED)
+  - `/issues/completed/8-033-fix-run-sh-to-use-parallel-similarity-generation.md` - Fix run.sh to use parallel engine, avoid table overflow (COMPLETED)
+- `/issues/5-025-optimize-similarity-matrix-to-triangular-storage.md` - Triangular matrix for 50% storage reduction (COMPLETED)
 - `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - PLANNED
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
