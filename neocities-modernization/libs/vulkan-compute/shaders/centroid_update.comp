@@ -1,0 +1,45 @@
+#version 450
+
+/* centroid_update.comp - Incrementally update centroid with new embedding
+ *
+ * This shader updates a running centroid by incorporating a new embedding.
+ * Uses incremental formula to avoid recalculating from scratch.
+ *
+ * Algorithm:
+ *   For each dimension i:
+ *     old_sum = centroid[i] * count
+ *     new_sum = old_sum + new_embedding[i]
+ *     centroid[i] = new_sum / (count + 1)
+ *
+ * This maintains numerical stability while allowing O(n) centroid updates
+ * instead of O(n²) recalculation.
+ */
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) buffer CentroidBuffer {
+    float data[];  // Centroid: embedding_dim floats (read-write)
+};
+
+layout(set = 0, binding = 1) readonly buffer NewEmbedding {
+    float data[];  // New embedding to incorporate: embedding_dim floats
+} new_emb;
+
+layout(push_constant) uniform Constants {
+    uint count;           // Number of embeddings already in centroid
+    uint embedding_dim;   // Dimension of embeddings (e.g., 768)
+} constants;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+
+    // Bounds check
+    if (i >= constants.embedding_dim) {
+        return;
+    }
+
+    // Incremental centroid update formula
+    float old_sum = data[i] * float(constants.count);
+    float new_sum = old_sum + new_emb.data[i];
+    data[i] = new_sum / float(constants.count + 1);
+}
