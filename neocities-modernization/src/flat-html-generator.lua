@@ -155,6 +155,16 @@ local function get_unique_poem_filename_id(poem)
 end
 -- }}}
 
+-- {{{ local function get_poem_anchor_id
+-- Generates HTML anchor ID for linking to poems in chronological.html
+-- Issue 8-030: Add chronological anchor links
+-- poem: poem object with id and category fields
+-- Returns: anchor ID like "poem-fediverse-0042" or "poem-messages-0767"
+local function get_poem_anchor_id(poem)
+    return "poem-" .. get_unique_poem_filename_id(poem)
+end
+-- }}}
+
 -- {{{ local function format_page_number
 -- Formats a page number with zero-padding
 -- Returns: padded string like "01", "02", etc.
@@ -1165,22 +1175,20 @@ end
 -- }}}
 
 -- {{{ function generate_corner_box_nav_line
-local function generate_corner_box_nav_line(similar_link, different_link, hex_color)
-    -- Generate the navigation line with corner box walls for GOLDEN poems
-    -- Format: ║ similar │                    │ different │
+local function generate_corner_box_nav_line(similar_link, different_link, chronological_link, hex_color)
+    -- Generate the navigation line with corner box walls for GOLDEN poems (Issue 8-030)
+    -- Format: ║ similar │      chronological      │ different │
     -- Left box: ║ + space + link + space + │ = 11 chars
+    -- Center text: chronological (13 chars visible)
     -- Right box: │ + space + link + space + │ = 13 chars
-    -- Gap: 60 chars (spaces)
+    -- Gaps: 2 gaps of ~23 chars each
     -- Total: 84 chars
     -- The left wall ║ is colored to match the progress bar
-
-    -- Calculate padding for link text within boxes
-    -- "similar" = 7 chars, left box content = 9 chars (11 - ║ - │)
-    -- "different" = 9 chars, right box content = 11 chars (13 - │ - │)
 
     -- The links contain HTML, so we need to measure visible text
     local similar_visible = similar_link:gsub("<[^>]+>", "")  -- "similar"
     local different_visible = different_link:gsub("<[^>]+>", "")  -- "different"
+    local chronological_visible = chronological_link:gsub("<[^>]+>", "")  -- "chronological"
 
     -- Left box: ║ (colored) + space + similar + padding + │
     local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
@@ -1193,24 +1201,29 @@ local function generate_corner_box_nav_line(similar_link, different_link, hex_co
     local different_padding = right_content_width - 1 - #different_visible  -- 1 for leading space
     local right_box = "│ " .. different_link .. string.rep(" ", different_padding) .. "│"
 
-    local gap = string.rep(" ", 60)
+    -- Calculate gaps: Total 84 - 11 (left) - 13 (center) - 13 (right) = 47 chars
+    -- Split into 2 gaps of 23 and 24 chars
+    local left_gap = string.rep(" ", 23)
+    local right_gap = string.rep(" ", 24)
 
-    return left_box .. gap .. right_box
+    return left_box .. left_gap .. chronological_link .. right_gap .. right_box
 end
 -- }}}
 
 -- {{{ function generate_regular_corner_box_nav_line
-local function generate_regular_corner_box_nav_line(similar_link, different_link)
-    -- Generate the navigation line with corner box walls for REGULAR poems
-    -- Format: │ similar │                    │ different │
+local function generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link)
+    -- Generate the navigation line with corner box walls for REGULAR poems (Issue 8-030)
+    -- Format: │ similar │      chronological      │ different │
     -- Left box: │ + space + link + space + │ = 11 chars
+    -- Center text: chronological (13 chars visible)
     -- Right box: │ + space + link + space + │ = 13 chars
-    -- Gap: 58 chars (spaces)
+    -- Gaps: 2 gaps of ~22 chars each
     -- Total: 82 chars (matching regular poem width)
     -- Add 2-space padding to align with content
 
     local similar_visible = similar_link:gsub("<[^>]+>", "")
     local different_visible = different_link:gsub("<[^>]+>", "")
+    local chronological_visible = chronological_link:gsub("<[^>]+>", "")
 
     -- Left box: │ + space + similar + padding + │
     local left_content_width = 9
@@ -1222,14 +1235,17 @@ local function generate_regular_corner_box_nav_line(similar_link, different_link
     local different_padding = right_content_width - 1 - #different_visible
     local right_box = "│ " .. different_link .. string.rep(" ", different_padding) .. "│"
 
-    local gap = string.rep(" ", 58)
+    -- Calculate gaps: Total 82 - 2 (padding) - 11 (left) - 13 (center) - 13 (right) = 43 chars
+    -- Split into 2 gaps of 21 and 22 chars
+    local left_gap = string.rep(" ", 21)
+    local right_gap = string.rep(" ", 22)
 
-    return "  " .. left_box .. gap .. right_box
+    return "  " .. left_box .. left_gap .. chronological_link .. right_gap .. right_box
 end
 -- }}}
 
 -- {{{ function apply_golden_poem_formatting
-local function apply_golden_poem_formatting(content, is_golden, similar_link, different_link, hex_color)
+local function apply_golden_poem_formatting(content, is_golden, similar_link, different_link, chronological_link, hex_color)
     -- Golden poem side borders: ║ on left (colored), │ on right
     -- Interior width: 80 characters for content (with 1 space padding on each side)
     -- Format: ║ + space + 80 chars content (padded) + space + │ = 84 total
@@ -1271,11 +1287,11 @@ local function apply_golden_poem_formatting(content, is_golden, similar_link, di
     end
 
     -- Add corner box navigation (separator + nav line) if links provided
-    if similar_link and different_link then
+    if similar_link and different_link and chronological_link then
         -- Add separator line with corner box tops: ╟─────────┐      ┌───────────┤
         table.insert(formatted_lines, generate_corner_box_separator(color))
-        -- Add navigation line with corner box walls: ║ similar │      │ different │
-        table.insert(formatted_lines, generate_corner_box_nav_line(similar_link, different_link, color))
+        -- Add navigation line with corner box walls: ║ similar │ chronological │ different │
+        table.insert(formatted_lines, generate_corner_box_nav_line(similar_link, different_link, chronological_link, color))
     end
 
     return table.concat(formatted_lines, "\n")
@@ -1283,7 +1299,7 @@ end
 -- }}}
 
 -- {{{ function format_content_with_warnings
-local function format_content_with_warnings(text, poem_category, poem, similar_link, different_link, hex_color)
+local function format_content_with_warnings(text, poem_category, poem, similar_link, different_link, chronological_link, hex_color)
     -- Apply markdown formatting first
     text = apply_markdown_formatting(text)
 
@@ -1329,7 +1345,7 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
 
     -- Apply golden poem box-drawing formatting (with corner box nav inside)
     if is_golden then
-        formatted_content = apply_golden_poem_formatting(formatted_content, true, similar_link, different_link, hex_color)
+        formatted_content = apply_golden_poem_formatting(formatted_content, true, similar_link, different_link, chronological_link, hex_color)
     else
         -- For regular poems, add 2-space left padding to each line
         -- This aligns content with where golden poem's "║ " would be
@@ -1361,8 +1377,10 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
 
     -- Build navigation links for this poem (using category prefix for unique filenames)
     local unique_id = get_unique_poem_filename_id(poem)
+    local anchor_id = get_poem_anchor_id(poem)
     local similar_link = string.format("<a href='similar/%s.html'>similar</a>", unique_id)
     local different_link = string.format("<a href='different/%s.html'>different</a>", unique_id)
+    local chronological_link = string.format("<a href='chronological.html#%s'>chronological</a>", anchor_id)
 
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
@@ -1385,6 +1403,7 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
         poem.content or "", poem.category, poem,
         is_golden and similar_link or nil,
         is_golden and different_link or nil,
+        is_golden and chronological_link or nil,
         is_golden and hex_color or nil
     )
     formatted = formatted .. content_formatted
@@ -1400,7 +1419,7 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     if not is_golden then
         formatted = formatted .. "\n"
         formatted = formatted .. generate_regular_corner_box_top() .. "\n"
-        formatted = formatted .. generate_regular_corner_box_nav_line(similar_link, different_link) .. "\n"
+        formatted = formatted .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link) .. "\n"
         -- No bottom line - corner boxes connect directly to progress bar via junctions
     else
         -- Golden poems: add newline after nav line (content_formatted doesn't end with newline)
@@ -1865,13 +1884,18 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
         -- Check if this is a golden poem (exactly 1024 characters)
         local is_golden = is_golden_poem(poem)
 
-        -- Add file header (notes show original filename, others show numeric ID)
-        content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
-
         -- Build navigation links (using category prefix for unique filenames)
         local unique_id = get_unique_poem_filename_id(poem)
+        local anchor_id = get_poem_anchor_id(poem)
+
+        -- Add HTML anchor for direct linking (Issue 8-030)
+        content = content .. string.format('<span id="%s"></span>', anchor_id)
+
+        -- Add file header (notes show original filename, others show numeric ID)
+        content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
         local similar_link = string.format("<a href='similar/%s.html'>similar</a>", unique_id)
         local different_link = string.format("<a href='different/%s.html'>different</a>", unique_id)
+        local chronological_link = string.format("<a href='chronological.html#%s'>chronological</a>", anchor_id)
 
         -- Generate top progress bar separator (with golden corners if applicable)
         local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
@@ -1893,6 +1917,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
             poem.content or "", poem.category, poem,
             is_golden and similar_link or nil,
             is_golden and different_link or nil,
+            is_golden and chronological_link or nil,
             is_golden and hex_color or nil
         )
         content = content .. formatted_content
@@ -1908,7 +1933,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
             content = content .. "\n"
             -- Add corner-boxed navigation links for regular poems
             content = content .. generate_regular_corner_box_top() .. "\n"
-            content = content .. generate_regular_corner_box_nav_line(similar_link, different_link) .. "\n"
+            content = content .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link) .. "\n"
             -- No bottom line - corner boxes connect directly to progress bar via junctions
         else
             -- Golden poems: add newline after nav line (formatted_content doesn't end with newline)

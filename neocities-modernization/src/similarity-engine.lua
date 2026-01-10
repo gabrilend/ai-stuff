@@ -1533,7 +1533,8 @@ function M.main(interactive_mode)
     else
         -- Default: run similarity analysis on existing data
         utils.log_info("Running similarity engine analysis...")
-        local similarity_file = utils.asset_path("similarity-matrix.json")
+        -- Issue 8-032: Fixed filename inconsistency (was similarity-matrix.json with hyphen)
+        local similarity_file = utils.asset_path("similarity_matrix.json")
         local poems_file = utils.asset_path("poems.json")
         local report_file = utils.asset_path("similarity-report.json")
 
@@ -1653,7 +1654,9 @@ end
 -- }}}
 
 -- Command line execution
-if arg then
+-- Issue 8-032: Only run main() when executed as script (arg[0] exists),
+-- not when required as module from luajit -e (where arg exists but arg[0] is nil)
+if arg and arg[0] then
     local interactive_mode = false
     for i, arg_val in ipairs(arg) do
         if arg_val == "-I" then
@@ -1661,7 +1664,7 @@ if arg then
             break
         end
     end
-    
+
     M.main(interactive_mode)
 end
 

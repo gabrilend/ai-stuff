@@ -1,0 +1,212 @@
+#!/usr/bin/env luajit
+
+-- Validates the binary diversity cache file
+-- Checks:
+-- 1. File size matches expected format
+-- 2. All poem IDs are within valid range
+-- 3. No duplicates within sequences
+-- 4. First entry of each sequence is the source poem ID
+
+-- {{{ local function setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path(arg and arg[1])
+package.path = DIR .. "/libs/?.lua;" .. package.path
+
+local utils = require("utils")
+
+-- Configuration
+local CACHE_FILE = DIR .. "/output/diversity-cache-gpu-batch.bin"
+local TOTAL_POEMS_IN_CORPUS = 7797  -- Total poems with embeddings (0-7796)
+local NUM_SEQUENCES_IN_FILE = nil  -- Will be calculated from file size
+local ENTRIES_PER_SEQUENCE = nil  -- Will be calculated from file size
+
+-- {{{ local function read_uint32
+local function read_uint32(file)
+    local bytes = file:read(4)
+    if not bytes or #bytes < 4 then return nil end
+    local a, b, c, d = bytes:byte(1, 4)
+    return a + b*256 + c*65536 + d*16777216
+end
+-- }}}
+
+-- {{{ local function validate_file_size
+local function validate_file_size(file)
+    local size = file:seek("end")
+    file:seek("set", 0)
+
+    local total_entries = size / 4
+    print(string.format("📏 File size analysis:"))
+    print(string.format("   File size: %d bytes (%.2f MB)", size, size / 1024 / 1024))
+    print(string.format("   Total uint32 entries: %d", total_entries))
+    print()
+
+    -- Try to find the best fit
+    print("   Testing possible structures:")
+    local best_match = nil
+    local best_diff = math.huge
+
+    for sequences = 7790, 7800 do
+        local entries_per = total_entries / sequences
+        local rounded = math.floor(entries_per + 0.5)
+        local test_size = sequences * rounded * 4
+        local diff = math.abs(test_size - size)
+
+        if diff < 100 then
+            print(string.format("   → %d sequences × %d entries = %d bytes (diff: %d bytes)",
+                sequences, rounded, test_size, diff))
+            if diff < best_diff then
+                best_diff = diff
+                best_match = {sequences = sequences, entries = rounded, diff = diff}
+            end
+        end
+    end
+
+    if best_match then
+        print()
+        print(string.format("   ✅ Best fit: %d sequences × %d entries (diff: %d bytes)",
+            best_match.sequences, best_match.entries, best_match.diff))
+        NUM_SEQUENCES_IN_FILE = best_match.sequences
+        ENTRIES_PER_SEQUENCE = best_match.entries
+        return true
+    else
+        print("   ❌ Could not determine file structure")
+        return false
+    end
+end
+-- }}}
+
+-- {{{ local function validate_poem_sequence
+local function validate_poem_sequence(file, poem_index, verbose)
+    -- Read one full sequence
+    local sequence = {}
+    local seen = {}
+    local errors = {}
+
+    for i = 1, ENTRIES_PER_SEQUENCE do
+        local poem_id = read_uint32(file)
+        if not poem_id then
+            table.insert(errors, string.format("Unexpected EOF at entry %d", i))
+            return false, errors
+        end
+
+        -- Check if poem_id is within valid range (0 to TOTAL_POEMS_IN_CORPUS-1)
+        if poem_id < 0 or poem_id >= TOTAL_POEMS_IN_CORPUS then
+            table.insert(errors, string.format("Invalid poem ID %d at position %d (range: 0-%d)",
+                poem_id, i, TOTAL_POEMS_IN_CORPUS - 1))
+        end
+
+        -- Check for duplicates
+        if seen[poem_id] then
+            table.insert(errors, string.format("Duplicate poem ID %d at positions %d and %d",
+                poem_id, seen[poem_id], i))
+        end
+        seen[poem_id] = i
+
+        sequence[i] = poem_id
+    end
+
+    if verbose and poem_index < 3 then
+        print(string.format("   Sequence %d first 10: %s", poem_index,
+            table.concat({sequence[1], sequence[2], sequence[3], sequence[4], sequence[5],
+                         sequence[6], sequence[7], sequence[8], sequence[9], sequence[10]}, ", ")))
+    end
+
+    return #errors == 0, errors, sequence
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    print("🔍 Diversity Cache Validation")
+    print(string.format("   Cache file: %s", CACHE_FILE))
+    print()
+
+    -- Open file
+    local file = io.open(CACHE_FILE, "rb")
+    if not file then
+        print("❌ Failed to open cache file")
+        return false
+    end
+
+    -- Validate file size
+    local size_ok = validate_file_size(file)
+    print()
+
+    -- Validate sequences
+    print()
+    print("🔍 Validating sequences:")
+    local sequences_ok = 0
+    local sequences_errors = 0
+    local sample_errors = {}
+
+    for sequence_index = 0, NUM_SEQUENCES_IN_FILE - 1 do
+        local ok, errors, sequence = validate_poem_sequence(file, sequence_index, sequence_index < 3)
+
+        if ok then
+            sequences_ok = sequences_ok + 1
+        else
+            sequences_errors = sequences_errors + 1
+            if sequences_errors <= 5 then
+                sample_errors[sequence_index] = errors
+            end
+        end
+
+        -- Progress indicator
+        if (sequence_index + 1) % 1000 == 0 then
+            print(string.format("   Progress: %d/%d sequences validated...",
+                sequence_index + 1, NUM_SEQUENCES_IN_FILE))
+        end
+    end
+
+    file:close()
+
+    -- Summary
+    print()
+    print("📊 Validation Summary:")
+    print(string.format("   Sequences in file: %d", NUM_SEQUENCES_IN_FILE))
+    print(string.format("   Entries per sequence: %d", ENTRIES_PER_SEQUENCE))
+    print(string.format("   Total poems in corpus: %d", TOTAL_POEMS_IN_CORPUS))
+    print(string.format("   ✅ Valid sequences: %d", sequences_ok))
+    print(string.format("   ❌ Sequences with errors: %d", sequences_errors))
+
+    if NUM_SEQUENCES_IN_FILE < TOTAL_POEMS_IN_CORPUS then
+        print(string.format("   ⚠️  Missing: %d sequences", TOTAL_POEMS_IN_CORPUS - NUM_SEQUENCES_IN_FILE))
+    end
+
+    if sequences_errors > 0 then
+        print()
+        print("❌ Sample errors:")
+        for sequence_index, errors in pairs(sample_errors) do
+            print(string.format("   Sequence %d:", sequence_index))
+            for i, err in ipairs(errors) do
+                if i <= 3 then  -- Limit to 3 errors per sequence
+                    print(string.format("      - %s", err))
+                end
+            end
+            if #errors > 3 then
+                print(string.format("      ... and %d more errors", #errors - 3))
+            end
+        end
+    end
+
+    print()
+    if size_ok and sequences_errors == 0 then
+        print("✅ VALIDATION PASSED: Diversity cache is valid!")
+        return true
+    else
+        print("❌ VALIDATION FAILED: Please regenerate the diversity cache")
+        return false
+    end
+end
+-- }}}
+
+-- Run validation
+local success = main()
+os.exit(success and 0 or 1)

@@ -16,6 +16,8 @@ This document provides a hierarchical view of all project documentation.
 ### 🔧 Technical Guides
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
 - `/docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis comparing effil threading vs GPU compute shaders for diversity pre-computation
+- `/docs/research-2d-embeddings.md` - Research analysis of dimensionality reduction (768D → 2D) for visualization
+- `/docs/research-tuple-embeddings.md` - Research analysis of tuple-based embeddings (768 × 2D coordinate pairs)
 - `/docs/similarity-algorithms-research-report.md` - Detailed similarity algorithm research with recommendations
 - `/docs/similarity-algorithm-research.md` - Comprehensive research analysis of 12 similarity algorithms for poetry embeddings
 - `/docs/similarity-matrix-generation-guide.md` - Technical documentation for similarity calculations
@@ -68,6 +70,8 @@ This document provides a hierarchical view of all project documentation.
 - `/issues/7-progress.md` - Phase 7 progress tracking (stabilization & polish) - COMPLETED
   - `/issues/7-001-fix-run-sh-warnings-and-errors.md` - Fix pipeline warnings, errors, and fallbacks
 - `/issues/8-progress.md` - Phase 8 progress tracking (website completion) - CURRENT
+  - `/issues/8-031-convert-between-similarity-matrix-formats.md` - Convert between similarity matrix storage formats (individual/full/triangular)
+  - `/issues/completed/8-032-fix-similarity-matrix-force-flag-and-filename-inconsistency.md` - Fix --force flag and filename inconsistency bugs (COMPLETED)
 - `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - PLANNED
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
@@ -109,7 +113,7 @@ This document provides a hierarchical view of all project documentation.
 
 ## Document Maintenance
 
-**Last Updated**: January 4, 2026  
+**Last Updated**: January 10, 2026  
 **Maintained By**: Project development team  
 **Update Policy**: All new documents must be added to this table of contents
 
