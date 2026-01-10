@@ -507,7 +507,6 @@ run_generate_similarity() {
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
-    local matrix_file="$DIR/assets/embeddings/$model_dir_name/similarity_matrix.json"
     local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
 
     # Check if embeddings exist
@@ -517,10 +516,19 @@ run_generate_similarity() {
         exit 1
     fi
 
-    # Freshness check: skip if matrix newer than embeddings
-    if ! $FORCE && [ -f "$matrix_file" ]; then
-        if [ "$matrix_file" -nt "$embeddings_file" ]; then
-            log_info "   ⏭️  Similarity matrix is fresh (newer than embeddings), skipping..."
+    # Issue 8-033: Check for individual similarity files instead of monolithic matrix
+    local similarities_dir="$DIR/assets/embeddings/$model_dir_name/similarities"
+    local similarity_count=0
+    if [ -d "$similarities_dir" ]; then
+        similarity_count=$(find "$similarities_dir" -name "poem_*.json" 2>/dev/null | wc -l)
+    fi
+
+    # Freshness check: skip if we have all files and they're fresh
+    if ! $FORCE && [ "$similarity_count" -ge 7797 ]; then
+        # Check if any are older than embeddings (check newest file)
+        local newest_similarity=$(find "$similarities_dir" -name "poem_*.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        if [ -n "$newest_similarity" ] && [ "$newest_similarity" -nt "$embeddings_file" ]; then
+            log_info "   ⏭️  Similarity files are fresh ($similarity_count files newer than embeddings), skipping..."
             return 0
         fi
     fi
@@ -536,20 +544,26 @@ run_generate_similarity() {
     fi
 
     log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
-    log_info "   Output: assets/embeddings/$model_dir_name/similarity_matrix.json"
+    log_info "   Output: assets/embeddings/$model_dir_name/similarities/*.json (individual files)"
 
-    # Use similarity-engine.lua to generate matrix
-    # Issue 8-023: Fixed function name and parameters (was generate_similarity_matrix with wrong args)
-    # Issue 8-029: Changed to calculate_full_similarity_matrix for correct output format
-    # Issue 8-032: Pass $FORCE_LUA to respect --force flag
-    # calculate_full_similarity_matrix(embeddings_file, output_file, force_regenerate)
+    # Issue 8-033: Use parallel engine for individual files (not monolithic matrix)
+    # Fixes table overflow error at ~68% when using calculate_full_similarity_matrix
+    # Function: calculate_similarity_matrix_parallel(embeddings_file, model_name, sleep_duration, force_regenerate, requested_threads)
+    local default_threads=8
+    local threads_to_use=${THREADS:-$default_threads}
+
     luajit -e "
         package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
-        local sim = require('src.similarity-engine')
-        sim.calculate_full_similarity_matrix(
+        package.cpath = '/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;' .. package.cpath
+        local sim_parallel = require('src.similarity-engine-parallel')
+        local sleep = 0.5
+        local threads = $threads_to_use
+        sim_parallel.calculate_similarity_matrix_parallel(
             '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
-            '$DIR/assets/embeddings/$model_dir_name/similarity_matrix.json',
-            $FORCE_LUA
+            '$MODEL_NAME',
+            sleep,
+            $FORCE_LUA,
+            threads
         )
     " || {
         echo "Error: Similarity matrix generation failed" >&2

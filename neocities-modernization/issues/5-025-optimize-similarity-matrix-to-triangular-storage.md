@@ -1,5 +1,7 @@
 # Issue 5-025: Optimize Similarity Matrix to Triangular Storage
 
+**Status**: Completed (2026-01-10)
+
 ## Current Behavior
 - Similarity matrices store sparse pre-sorted lists of similarities
 - Each poem stores only a subset of its similarities (e.g., top 100 most similar)
@@ -181,3 +183,75 @@ end
 - Embedding data must be available
 
 **Note**: This optimization provides full similarity data access while reducing storage by 50% and maintaining O(1) lookups. The 108MB memory requirement is well within modern system constraints.
+---
+
+## Implementation Results (2026-01-10)
+
+### Created: `src/triangular-similarity-matrix.lua`
+
+A complete implementation of triangular similarity matrix generation with:
+
+**Core Functions:**
+- `generate_triangular_matrix()` - Generates upper triangle only (i < j)
+- `lookup_similarity()` - Symmetric lookup function handles ordering
+- `get_all_similarities_for_poem()` - Extracts all similarities for one poem
+
+**Features:**
+- ✅ 50% storage reduction (~30.4M entries vs 60.8M)
+- ✅ Progressive saving every 100 poems
+- ✅ Progress tracking with ETA
+- ✅ Force regeneration support
+- ✅ Complete metadata tracking
+
+**Storage Comparison (7,797 poems):**
+| Format | Size | Entries | Use Case |
+|--------|------|---------|----------|
+| Full matrix | 655 MB | 60.8M | Research (causes table overflow) |
+| Triangular matrix | 326 MB | 30.4M | Optimal storage |
+| Individual files | 3.8 GB | 60.8M | HTML generation (granular access) |
+
+**Usage:**
+```bash
+# Generate triangular matrix
+luajit src/triangular-similarity-matrix.lua \
+    assets/embeddings/embeddinggemma_latest/embeddings.json \
+    assets/embeddings/embeddinggemma_latest/similarity_matrix_triangular.json
+
+# With force regeneration
+luajit src/triangular-similarity-matrix.lua \
+    assets/embeddings/embeddinggemma_latest/embeddings.json \
+    assets/embeddings/embeddinggemma_latest/similarity_matrix_triangular.json \
+    --force
+```
+
+**Programmatic Usage:**
+```lua
+local tri_matrix = require('src.triangular-similarity-matrix')
+
+-- Generate matrix
+local success, stats = tri_matrix.generate_triangular_matrix(
+    embeddings_file, output_file, force_regenerate, progress_callback)
+
+-- Lookup similarity (handles symmetry automatically)
+local score = tri_matrix.lookup_similarity(matrix, poem_id_1, poem_id_2)
+
+-- Get all similarities for a poem
+local similarities = tri_matrix.get_all_similarities_for_poem(
+    matrix, poem_id, all_poem_ids)
+```
+
+### Benefits Achieved
+
+✅ **Storage Optimization**: 50% reduction (655 MB → 326 MB)  
+✅ **No Table Overflow**: Unlike full matrix, stays within LuaJIT limits  
+✅ **Complete Data**: Every similarity available (vs sparse top-K)  
+✅ **Symmetric Lookup**: Transparent ordering handled by lookup function  
+✅ **Resume-Capable**: Progressive saves prevent data loss  
+
+### Related Issues
+
+- **Issue 8-033**: Fixed run.sh to avoid full matrix table overflow
+- **Issue 8-031**: Format conversion utilities (future enhancement)
+- **Issue 2-012**: Individual files for HTML generation (different use case)
+
+**Completed**: 2026-01-10
