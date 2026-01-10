@@ -575,8 +575,8 @@ run_generate_similarity() {
         # GPU similarity generation using Vulkan compute shaders
         log_info "   Mode: GPU-accelerated (Vulkan)"
 
-        luajit -e "
-            package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
+        DIR="$DIR" luajit -e "
+            package.path = '$DIR/?.lua;$DIR/?/init.lua;$DIR/libs/?.lua;' .. package.path
             local vk_sim = require('libs.vulkan-compute.lua.vk_similarity')
             local success = vk_sim.generate_similarity_matrix_gpu(
                 '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
