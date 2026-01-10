@@ -1,0 +1,59 @@
+#version 450
+
+// Similarity Batch Compute Shader
+// Computes cosine similarities for one poem against all higher-indexed poems
+// This generates data for triangular individual files format
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) readonly buffer Embeddings {
+    float embeddings[];  // All embeddings: num_poems * 768
+};
+
+layout(set = 0, binding = 1) readonly buffer SourceEmbedding {
+    float source_embedding[768];  // The poem we're comparing from
+};
+
+layout(set = 0, binding = 2) writeonly buffer Similarities {
+    float similarities[];  // Output: similarities to all poems > source_index
+};
+
+layout(push_constant) uniform Constants {
+    uint num_poems;
+    uint embedding_dim;
+    uint source_index;  // Index of the source poem
+    uint num_targets;   // Number of target poems (num_poems - source_index - 1)
+};
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+
+    // Each thread processes one target poem
+    if (idx >= num_targets) return;
+
+    // Target poem index (only poems with index > source_index)
+    uint target_index = source_index + 1 + idx;
+    if (target_index >= num_poems) return;
+
+    // Calculate base offset for target embedding
+    uint base_target = target_index * embedding_dim;
+
+    // Compute cosine similarity
+    float dot_product = 0.0;
+    float norm_source = 0.0;
+    float norm_target = 0.0;
+
+    for (uint i = 0; i < embedding_dim; i++) {
+        float a = source_embedding[i];
+        float b = embeddings[base_target + i];
+
+        dot_product += a * b;
+        norm_source += a * a;
+        norm_target += b * b;
+    }
+
+    float similarity = dot_product / (sqrt(norm_source) * sqrt(norm_target));
+
+    // Store result
+    similarities[idx] = similarity;
+}
