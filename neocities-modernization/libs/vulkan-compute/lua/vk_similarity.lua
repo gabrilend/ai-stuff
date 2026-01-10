@@ -45,7 +45,9 @@ VkComputeResult vks_compute_similarities_for_poem(
 -- }}}
 
 -- Load Vulkan compute library
-local lib_path = "libs/vulkan-compute/build/libvkcompute.so"
+-- Use absolute path or search in current directory
+local DIR = os.getenv("DIR") or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+local lib_path = DIR .. "/libs/vulkan-compute/build/libvkcompute.so"
 local vklib = ffi.load(lib_path)
 
 local M = {}
