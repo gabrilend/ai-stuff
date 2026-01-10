@@ -566,13 +566,25 @@ run_generate_similarity() {
     log_info "   Output: assets/embeddings/$model_dir_name/similarities/*.json (individual files)"
 
     if $use_gpu; then
-        # TODO: GPU similarity generation implementation
-        # Requires: Lua FFI bindings for libs/vulkan-compute/include/vk_similarity.h
-        # Expected performance: ~5-10 minutes vs ~30 minutes CPU
+        # GPU similarity generation using Vulkan compute shaders
         log_info "   Mode: GPU-accelerated (Vulkan)"
-        log_info "   ⚠️  GPU implementation not yet integrated, falling back to CPU"
-        log_info "   TODO: Create Lua FFI bindings for vk_similarity.h"
-        use_gpu=false  # Temporarily disable until integration complete
+
+        luajit -e "
+            package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
+            local vk_sim = require('libs.vulkan-compute.lua.vk_similarity')
+            local success = vk_sim.generate_similarity_matrix_gpu(
+                '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
+                '$MODEL_NAME',
+                $FORCE_LUA
+            )
+            if not success then
+                print('[GPU SIMILARITY ERROR] GPU generation failed, falling back to CPU')
+                os.exit(1)
+            end
+        " || {
+            echo "GPU similarity generation failed, falling back to CPU" >&2
+            use_gpu=false
+        }
     fi
 
     # CPU implementation (current default until GPU integration complete)
