@@ -1270,7 +1270,9 @@ function M.main_text_mode()
 end
 -- }}}
 
-if arg and arg[0]:match("similarity%-engine%-parallel%.lua$") then
+-- Only run main() when executed as script, not when required as module
+-- Issue 8-033: Check arg[0] exists before calling match() to avoid nil index error
+if arg and arg[0] and arg[0]:match("similarity%-engine%-parallel%.lua$") then
     M.main()
 end
 
