@@ -4,7 +4,8 @@
 - **Phase**: 8
 - **Priority**: High
 - **Type**: Enhancement / Architecture
-- **Status**: In Progress (Phase C complete 2026-01-09, Phase D+E pending)
+- **Status**: In Progress (Phases A-D complete, Phase E pending)
+- **Last Updated**: 2026-01-11 (Phase D completed)
 - **Previously Blocked By**: 8-013 (now completed)
 - **Modified By**: 8-020 (Hybrid Pagination Strategy)
 
@@ -204,11 +205,11 @@ Grand total: ~947,000 HTML + ~947,000 TXT = ~1.9 million files
 10. [x] Implement .html archive version (full corpus, with images)
 11. [x] Link to existing .txt exports from 8-013
 
-### Phase D: Generation Strategy
-12. [ ] Add `--pages` flag: `--pages=1` (default) or `--pages=all` or `--pages=1-10`
-13. [ ] Implement page-specific generation in `flat-html-generator.lua`
-14. [ ] Update `scripts/generate-html-parallel` for paginated output
-15. [ ] Progress reporting per-page
+### Phase D: Generation Strategy ✅ COMPLETE (2026-01-11)
+12. [x] Add `--pages` flag: `--pages=1` (default) or `--pages=all` or `--pages=1-10`
+13. [x] Implement page-specific generation in `flat-html-generator.lua`
+14. [x] Integrate pagination into `M.generate_complete_flat_html_collection()`
+15. [x] CLI flag parsing and passthrough from run.sh → main.lua → flat-html-generator
 
 ### Phase E: Integration
 16. [x] ~~Paginate chronological.html~~ → Keep as single file (per 8-020)
@@ -392,4 +393,72 @@ Implemented download links for full-corpus exports in paginated pages:
 
 **Remaining Work:**
 - [ ] Phase D: Generation strategy (--pages flag, pipeline integration)
+- [ ] Phase E: Integration (entry points, testing, max_pages enforcement)
+
+### Session: 2026-01-11
+
+**Phase D: Generation Strategy - COMPLETED**
+
+Implemented --pages flag parsing and integrated pagination into main generation pipeline:
+
+1. **Created `parse_pages_specification()` function** (src/flat-html-generator.lua, lines 125-179)
+   - Parses --pages flag formats: nil/"default", "all", "N", "N-M"
+   - nil/"default" → Uses minimum_pages from config (default: {1})
+   - "all" → Generates all pages up to max_pages_per_poem limit
+   - "N" (e.g., "5") → Generates single page {5}
+   - "N-M" (e.g., "1-10") → Generates page range {1,2,...,10}
+   - Returns: {pages = {...}, is_all = boolean}
+
+2. **Modified `M.generate_complete_flat_html_collection()`** (src/flat-html-generator.lua, lines 2172-2309)
+   - Added `pages_spec` parameter to function signature
+   - Replaced non-paginated `M.generate_flat_poem_list_html()` calls with paginated `M.generate_all_paginated_pages_for_poem()`
+   - Applies pagination to both similarity and diversity page generation
+   - Uses `poem_index` (numeric) for pagination filenames (e.g., similar/0001-01.html)
+   - Log messages indicate pagination mode and pages being generated
+
+3. **Updated CLI argument parsing** (libs/utils.lua, lines 122-178)
+   - Added `pages` field to options table
+   - Supports both `--pages VALUE` and `--pages=VALUE` formats
+   - VALUE stored as string for parse_pages_specification()
+
+4. **Updated `M.generate_website_html()`** (src/main.lua, lines 525-606)
+   - Added `pages_spec` parameter to function signature
+   - Passes `pages_spec` through to `flat_html_generator.generate_complete_flat_html_collection()`
+   - Updated all callers in M.main() to pass `options.pages`
+
+**Test Results** (`tmp/test-pagination-phase-d.lua`):
+```
+✓ Loaded test poem: poem_index=1, id=1
+✓ Generated 1 file(s): ./tmp/test-pagination-output/similar/0001-01.html (3387 bytes)
+✓ Paginated file exists with correct naming format (0001-01.html)
+✓ Page info present: "Page 1 of 1"
+✓ Pagination config loaded correctly
+  poems_per_page: 100
+  minimum_pages: 1
+  max_pages_per_poem: 15
+```
+
+**Key Implementation Notes:**
+- Pagination uses `poem_index` (numeric) instead of `unique_id` (string) for filenames
+- Files generated as: `similar/0001-01.html`, `different/0001-01.html`, etc.
+- Replaces old format: `similar/fediverse-0001.html`
+- Default behavior (no --pages flag): generates page 1 only (minimum_pages=1)
+- TXT/HTML archives remain non-paginated full-corpus exports
+
+**Usage Examples:**
+```bash
+# Generate only page 1 for all poems (default, fastest)
+./run.sh --generate-html --pages=1
+
+# Generate all pages up to max_pages limit (15 pages per poem)
+./run.sh --generate-html --pages=all
+
+# Generate specific page range
+./run.sh --generate-html --pages=1-5
+
+# Or use src/main.lua directly
+lua src/main.lua . --html-only --pages=1
+```
+
+**Remaining Work:**
 - [ ] Phase E: Integration (entry points, testing, max_pages enforcement)

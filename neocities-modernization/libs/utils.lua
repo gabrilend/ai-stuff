@@ -123,6 +123,7 @@ end
 -- Comprehensive CLI argument parser for main.lua
 -- Returns a table with all parsed options for selective stage execution
 -- Supports: stage flags (--parse-only, --validate-only, etc.), config (--force, --threads)
+-- Phase D (Issue 8-012): Added --pages flag for pagination control
 function M.parse_cli_args(args)
     local options = {
         interactive = false,
@@ -135,6 +136,7 @@ function M.parse_cli_args(args)
         -- Config flags
         force = false,
         threads = nil,
+        pages = nil,  -- Phase D (Issue 8-012): Pagination control ("1", "all", "1-10")
     }
 
     local i = 1
@@ -158,6 +160,11 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--threads=") then
             options.threads = tonumber(arg:match("^--threads=(%d+)"))
+        elseif arg == "--pages" and args[i + 1] then
+            options.pages = args[i + 1]  -- String value: "1", "all", "1-10"
+            i = i + 1
+        elseif arg:match("^--pages=") then
+            options.pages = arg:match("^--pages=(.+)")  -- String value: "1", "all", "1-10"
         elseif not arg:match("^%-") then
             -- Non-flag argument, treat as directory override
             options.dir_override = arg

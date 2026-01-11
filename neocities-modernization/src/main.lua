@@ -523,7 +523,8 @@ end
 -- }}}
 
 -- {{{ function M.generate_website_html
-function M.generate_website_html(force)
+-- Phase D (Issue 8-012): Added pages_spec parameter for pagination control
+function M.generate_website_html(force, pages_spec)
     -- Skip if HTML is fresh (unless forced)
     if not force and M.is_html_fresh() then
         utils.log_info("Website HTML is up to date, skipping generation")
@@ -589,9 +590,10 @@ function M.generate_website_html(force)
 
     -- Generate all similarity and diversity pages
     -- Note: This is the long operation - generates ~12,000+ files
+    -- Phase D (Issue 8-012): Pass pages_spec for pagination control
     utils.log_info("Generating similarity and diversity pages (this may take a while)...")
     local gen_success = flat_html_generator.generate_complete_flat_html_collection(
-        poems_data, similarity_data, embeddings_data, output_dir
+        poems_data, similarity_data, embeddings_data, output_dir, pages_spec
     )
 
     if gen_success then
@@ -900,14 +902,16 @@ function M.main(options)
         M.catalog_images()
     elseif options.html_only then
         -- Run only HTML generation
+        -- Phase D (Issue 8-012): Pass pages parameter
         utils.log_info("Running HTML generation only")
-        M.generate_website_html(options.force)
+        M.generate_website_html(options.force, options.pages)
     else
         -- Non-interactive mode - generate dataset and website HTML (full pipeline)
+        -- Phase D (Issue 8-012): Pass pages parameter
         utils.log_info("Running in non-interactive mode (full pipeline)")
         M.show_project_status()
         M.generate_complete_dataset()
-        M.generate_website_html(options.force)
+        M.generate_website_html(options.force, options.pages)
     end
 end
 -- }}}

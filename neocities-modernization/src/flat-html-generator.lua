@@ -122,6 +122,63 @@ local function calculate_page_count(total_poems)
 end
 -- }}}
 
+-- {{{ local function parse_pages_specification
+-- Parses the --pages flag value into a list of page numbers or special value
+-- Supports formats:
+--   nil or "default"  → Use minimum_pages from config (usually {1})
+--   "all"             → Generate all pages up to max_pages_per_poem limit
+--   "N"               → Single page number, e.g., "1" → {1}, "5" → {5}
+--   "N-M"             → Range of pages, e.g., "1-10" → {1,2,...,10}
+-- Returns: {pages = {1,2,3,...}, is_all = boolean}
+-- is_all flag indicates if we should generate all pages (respecting max_pages limit)
+local function parse_pages_specification(pages_spec, total_pages_possible)
+    -- Ensure pagination config is loaded
+    load_pagination_config()
+
+    -- Default: use minimum_pages from config
+    if not pages_spec or pages_spec == "" or pages_spec == "default" then
+        local pages = {}
+        for i = 1, PAGINATION_CONFIG.minimum_pages do
+            table.insert(pages, i)
+        end
+        return {pages = pages, is_all = false}
+    end
+
+    -- "all" means generate all pages up to max_pages_per_poem limit
+    if pages_spec == "all" then
+        return {pages = nil, is_all = true}  -- nil means "generate all" in context
+    end
+
+    -- Single page number: "5" → {5}
+    local single_num = tonumber(pages_spec)
+    if single_num then
+        return {pages = {single_num}, is_all = false}
+    end
+
+    -- Range: "1-10" → {1,2,3,...,10}
+    local start_page, end_page = pages_spec:match("^(%d+)%-(%d+)$")
+    if start_page and end_page then
+        start_page = tonumber(start_page)
+        end_page = tonumber(end_page)
+
+        if start_page and end_page and start_page <= end_page then
+            local pages = {}
+            for i = start_page, end_page do
+                table.insert(pages, i)
+            end
+            return {pages = pages, is_all = false}
+        else
+            utils.log_error(string.format("Invalid page range: %s (start must be <= end)", pages_spec))
+            return {pages = {1}, is_all = false}  -- Fallback to page 1
+        end
+    end
+
+    -- Invalid format - fallback to page 1
+    utils.log_error(string.format("Invalid --pages format: '%s'. Expected: 1, all, or 1-10", pages_spec))
+    return {pages = {1}, is_all = false}
+end
+-- }}}
+
 -- {{{ local function get_poems_for_page
 -- Extracts poems for a specific page from a sorted list
 -- page_num is 1-indexed
@@ -2113,7 +2170,13 @@ end
 -- }}}
 
 -- {{{ function M.generate_complete_flat_html_collection
-function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir)
+-- Generates all similarity and diversity pages for the entire corpus
+-- poems_data: full poems dataset
+-- similarity_data: similarity matrix
+-- embeddings_data: poem embeddings (for diversity calculation)
+-- output_dir: base output directory
+-- pages_spec: (optional) --pages flag value: nil/"default", "all", "1", "1-10" (Phase D: Issue 8-012)
+function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec)
     -- Count poems with valid IDs
     local valid_poems = {}
     for i, poem in ipairs(poems_data.poems) do
@@ -2121,23 +2184,33 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             valid_poems[poem.id] = poem
         end
     end
-    
+
     local total_poems = 0
-    for _ in pairs(valid_poems) do 
-        total_poems = total_poems + 1 
+    for _ in pairs(valid_poems) do
+        total_poems = total_poems + 1
     end
-    
-    utils.log_info(string.format("Generating complete collection: %d similarity + %d diversity pages (total: %d)", 
-                                total_poems, total_poems, total_poems * 2))
-    
+
+    -- Parse pages specification (Phase D: Issue 8-012)
+    local pages_config = parse_pages_specification(pages_spec, nil)  -- total_pages not known yet
+    local use_pagination = true  -- Always use pagination now (Phase D)
+
+    if pages_config.is_all then
+        utils.log_info(string.format("Generating complete collection with pagination (all pages up to max_pages limit): %d poems",
+                                    total_poems))
+    elseif pages_config.pages then
+        utils.log_info(string.format("Generating complete collection with pagination (pages %s): %d poems",
+                                    table.concat(pages_config.pages, ", "), total_poems))
+    end
+
     local results = {
         similarity_pages = {},
         diversity_pages = {},
         chronological_index = nil,
         txt_files = {},
+        html_archives = {},
         instructions_page = nil
     }
-    
+
     -- Generate similarity and diversity pages for each poem
     local progress_count = 0
     for poem_id, poem_data in pairs(valid_poems) do
@@ -2152,52 +2225,74 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         -- Generate unique filename identifier (category prefix for cross-category uniqueness)
         local unique_id = get_unique_poem_filename_id(poem_data)
 
-        -- Generate similarity page (all poems sorted by similarity to this one)
+        -- Generate similarity ranking
         local similar_ranking = M.generate_similarity_ranked_list(poem_id, poems_data, similarity_data)
-        local similar_html = M.generate_flat_poem_list_html(poem_data, similar_ranking, "similar", poem_id)
-        local similar_file = string.format("%s/similar/%s.html", output_dir, unique_id)
-        os.execute("mkdir -p " .. output_dir .. "/similar")
 
-        if utils.write_file(similar_file, similar_html) then
-            table.insert(results.similarity_pages, similar_file)
+        -- Phase D (Issue 8-012): Use paginated generation
+        -- Note: Pagination uses poem_index (numeric) for file naming (similar/0001-01.html)
+        local pagination_result = M.generate_all_paginated_pages_for_poem(
+            poem_data,
+            similar_ranking,
+            "similar",
+            poem_data.poem_index,  -- Use numeric poem_index for pagination filenames
+            output_dir,
+            pages_config.is_all and nil or pages_config.pages  -- nil means "all pages"
+        )
 
-            -- Generate TXT version (full corpus export)
-            local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
-                                                           string.format("%s/similar/%s.txt", output_dir, unique_id))
-            if similar_txt then
-                table.insert(results.txt_files, similar_txt)
+        if pagination_result and pagination_result.files_generated then
+            for _, file in ipairs(pagination_result.files_generated) do
+                table.insert(results.similarity_pages, file)
             end
+        end
 
-            -- Generate HTML archive version (full corpus export with images)
+        -- Generate TXT version (full corpus export - not paginated)
+        local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
+                                                       string.format("%s/similar/%s.txt", output_dir, unique_id))
+        if similar_txt then
+            table.insert(results.txt_files, similar_txt)
+        end
+
+        -- Generate HTML archive version (full corpus export with images - not paginated)
+        if PAGINATION_CONFIG.generate_html_archives then
             local similar_archive = generate_similarity_html_archive(poem_data, similar_ranking,
                                                            string.format("%s/similar/%s-archive.html", output_dir, unique_id))
             if similar_archive then
-                if not results.html_archives then results.html_archives = {} end
                 table.insert(results.html_archives, similar_archive)
             end
         end
 
-        -- Generate diversity page (all poems sorted by diversity from this one)
+        -- Generate diversity pages (all poems sorted by diversity from this one)
         local diverse_sequence = M.generate_maximum_diversity_sequence(poem_id, poems_data, embeddings_data)
-        local diverse_html = M.generate_flat_poem_list_html(poem_data, diverse_sequence, "different", poem_id)
-        local diverse_file = string.format("%s/different/%s.html", output_dir, unique_id)
-        os.execute("mkdir -p " .. output_dir .. "/different")
 
-        if utils.write_file(diverse_file, diverse_html) then
-            table.insert(results.diversity_pages, diverse_file)
+        -- Phase D (Issue 8-012): Use paginated generation for diversity pages too
+        -- Note: Pagination uses poem_index (numeric) for file naming (different/0001-01.html)
+        local diversity_pagination_result = M.generate_all_paginated_pages_for_poem(
+            poem_data,
+            diverse_sequence,
+            "different",
+            poem_data.poem_index,  -- Use numeric poem_index for pagination filenames
+            output_dir,
+            pages_config.is_all and nil or pages_config.pages  -- nil means "all pages"
+        )
 
-            -- Generate TXT version (full corpus export)
-            local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
-                                                          string.format("%s/different/%s.txt", output_dir, unique_id))
-            if diverse_txt then
-                table.insert(results.txt_files, diverse_txt)
+        if diversity_pagination_result and diversity_pagination_result.files_generated then
+            for _, file in ipairs(diversity_pagination_result.files_generated) do
+                table.insert(results.diversity_pages, file)
             end
+        end
 
-            -- Generate HTML archive version (full corpus export with images)
+        -- Generate TXT version (full corpus export - not paginated)
+        local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
+                                                      string.format("%s/different/%s.txt", output_dir, unique_id))
+        if diverse_txt then
+            table.insert(results.txt_files, diverse_txt)
+        end
+
+        -- Generate HTML archive version (full corpus export with images - not paginated)
+        if PAGINATION_CONFIG.generate_html_archives then
             local diverse_archive = generate_diversity_html_archive(poem_data, diverse_sequence,
                                                           string.format("%s/different/%s-archive.html", output_dir, unique_id))
             if diverse_archive then
-                if not results.html_archives then results.html_archives = {} end
                 table.insert(results.html_archives, diverse_archive)
             end
         end
