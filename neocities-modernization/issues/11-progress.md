@@ -22,15 +22,17 @@ Phase 11 focuses on innovative navigation systems that give users agency in how 
 
 ### Active Issues
 
-| Issue | Description | Status | Priority |
-|-------|-------------|--------|----------|
-| 11-001 | Implement journey-style similar navigation | Open | Medium |
-| 11-002 | Implement maze-based exploration system | Open | Medium |
-| 11-002a | Build dimension-extreme index | Open | High |
-| 11-002b | Implement similarity-filtered choice selection | Open | High |
-| 11-002c | Generate maze HTML pages | Open | Medium |
-| 11-002d | Add special room features | Open | Low |
-| 11-003 | Maze pipeline integration | Open | Low |
+**NOTE**: All Phase 11 issues are blocked by MVP completion. MVP = similar/different navigation functional, pipeline stable, site deployable.
+
+| Issue | Description | Status | Priority | Blocked By |
+|-------|-------------|--------|----------|------------|
+| 11-001 | Implement journey-style similar navigation | Open | Medium | MVP |
+| 11-002 | Implement maze-based exploration system | Open | Medium | MVP |
+| 11-002a | Build dimension-extreme index | Open | High | MVP |
+| 11-002b | Implement similarity-filtered choice selection | Open | High | MVP |
+| 11-002c | Generate maze HTML pages | Open | Medium | MVP |
+| 11-002d | Add special room features | Open | Low | MVP |
+| 11-003 | Maze pipeline integration | Open | Low | MVP |
 
 ### Completed Issues
 

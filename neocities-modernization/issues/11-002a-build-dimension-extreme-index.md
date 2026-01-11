@@ -158,3 +158,5 @@ Total: ~48 MB (can be compressed to ~10 MB with gzip)
 **Created**: 2025-12-25
 
 **Status**: Open
+
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
