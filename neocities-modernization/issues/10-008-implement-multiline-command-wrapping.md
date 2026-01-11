@@ -5,6 +5,8 @@
 - **Priority**: Medium
 - **Type**: Enhancement
 - **Status**: Open
+
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
 - **Created**: 2025-12-23
 - **Related To**: 10-004 (Command Preview System)
 

@@ -149,3 +149,5 @@ Recommendation: Start with Option A (replace) since the journey provides strictl
 **Created**: 2025-12-25
 
 **Status**: Open
+
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)

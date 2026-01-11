@@ -5,6 +5,10 @@
 - **Priority**: Low
 - **Type**: Enhancement
 
+**Status**: Open
+
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
+
 ## Current Behavior
 
 Fediverse boosts are displayed as simple links to the original post rather than

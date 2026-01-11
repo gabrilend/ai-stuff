@@ -182,4 +182,6 @@ Add to `config/input-sources.json`:
 
 **Status**: Open
 
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
+
 **Depends On**: 11-002a, 11-002b, 11-002c, 11-002d

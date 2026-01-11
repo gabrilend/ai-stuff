@@ -181,4 +181,6 @@ output/
 
 **Status**: Open
 
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
+
 **Depends On**: 11-002b

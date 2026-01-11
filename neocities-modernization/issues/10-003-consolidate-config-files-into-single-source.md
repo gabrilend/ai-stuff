@@ -3,6 +3,8 @@
 **Priority**: Low
 **Phase**: 10 (Developer Experience & Tooling)
 **Status**: Open
+
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
 **Created**: 2025-12-23
 
 ---

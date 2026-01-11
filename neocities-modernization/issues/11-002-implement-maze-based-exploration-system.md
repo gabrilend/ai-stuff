@@ -252,3 +252,5 @@ Size: 7,793 × 6 × ~4 bytes = ~187 KB
 **Updated**: 2025-12-25 (refined algorithm: dimension-extreme + similarity filter)
 
 **Status**: Open
+
+**Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
