@@ -322,7 +322,7 @@ process_project() {
     fi
 
     # Determine output file
-    local output_file="${transcripts_dir}/_wordcloud.md"
+    local output_file="${transcripts_dir}/wordcloud.md"
 
     # Generate output to file
     {
