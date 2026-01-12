@@ -57,16 +57,16 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/completed/phase-5/010c-generate-validation-reports.md` - Multi-format report generator with comparative analysis (COMPLETED)
   - `/issues/completed/phase-5/011a-research-similarity-algorithms.md` - Comprehensive research analysis of 12 similarity algorithms (COMPLETED)
   - `/issues/completed/phase-5/016-implement-full-similarity-matrix-storage.md` - Full similarity matrix storage for complete HTML generation support (COMPLETED)
-- `/issues/phase-6/` - Phase 6 issues (visual content & user experience enhancements) - PLANNED
-  - `/issues/phase-6/012-implement-words-pdf-styled-export-system.md` - PDF export with words-pdf styling
-  - `/issues/phase-6/016-implement-content-warning-collapsible-system.md` - Content warning hide/show functionality
-  - `/issues/phase-6/017-create-image-configuration-and-directory-management-system.md` - Image discovery and configuration
-  - `/issues/phase-6/018-implement-image-alt-text-embedding-analysis.md` - Intelligent image alt-text analysis
-  - `/issues/phase-6/019-implement-chronological-image-placement.md` - Temporal image ordering system
-  - `/issues/phase-6/020-implement-similarity-based-image-placement.md` - Similarity-based image placement for related/different pages
-  - `/issues/phase-6/021-implement-html-template-image-rendering.md` - HTML template image integration
-  - `/issues/phase-6/022-implement-screen-reader-accessibility-for-separators.md` - Screen reader accessibility for 80-character separators
-  - `/issues/phase-6/024-implement-visual-timeline-progress-with-semantic-colors.md` - Visual timeline progress indicators with semantic color coding
+- `/issues/6-progress.md` - Phase 6 progress tracking (visual content & user experience) - COMPLETED
+  - `/issues/6-012-implement-words-pdf-styled-export-system.md` - PDF export with words-pdf styling for printable hope cards
+  - `/issues/phase-6/016-implement-content-warning-collapsible-system.md` - Content warning hide/show functionality (PLANNED)
+  - `/issues/phase-6/017-create-image-configuration-and-directory-management-system.md` - Image discovery and configuration (PLANNED)
+  - `/issues/phase-6/018-implement-image-alt-text-embedding-analysis.md` - Intelligent image alt-text analysis (PLANNED)
+  - `/issues/phase-6/019-implement-chronological-image-placement.md` - Temporal image ordering system (PLANNED)
+  - `/issues/phase-6/020-implement-similarity-based-image-placement.md` - Similarity-based image placement for related/different pages (PLANNED)
+  - `/issues/phase-6/021-implement-html-template-image-rendering.md` - HTML template image integration (PLANNED)
+  - `/issues/phase-6/022-implement-screen-reader-accessibility-for-separators.md` - Screen reader accessibility for 80-character separators (PLANNED)
+  - `/issues/phase-6/024-implement-visual-timeline-progress-with-semantic-colors.md` - Visual timeline progress indicators with semantic color coding (PLANNED)
 - `/issues/7-progress.md` - Phase 7 progress tracking (stabilization & polish) - COMPLETED
   - `/issues/7-001-fix-run-sh-warnings-and-errors.md` - Fix pipeline warnings, errors, and fallbacks
 - `/issues/8-progress.md` - Phase 8 progress tracking (website completion) - CURRENT
@@ -83,6 +83,7 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/completed/phase-9/9-001g-batch-parallel-diversity-sequences.md` - Batch parallel diversity computation (COMPLETED)
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
+  - `/issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Incremental centroid updates for efficient dataset expansion
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
   - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)
   - `/issues/11-002-implement-maze-based-exploration-system.md` - Dimension-extreme maze with user choice at intersections
@@ -91,6 +92,8 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/11-002c-generate-maze-html-pages.md` - Generate maze/XXX.html pages
   - `/issues/11-002d-add-special-room-features.md` - Golden poems, landmarks, easter eggs
   - `/issues/11-003-maze-pipeline-integration.md` - Integrate maze into run.sh pipeline
+- `/issues/12-progress.md` - Phase 12 progress tracking (experimental AI features) - EXPERIMENTAL
+  - `/issues/12-001-implement-neural-navigation-llm.md` - Neural network-based poetry navigation with threshold-based routing
 
 ### 🎯 Source Documentation
 - `/src/main.lua` - Interactive project management interface
@@ -121,7 +124,7 @@ This document provides a hierarchical view of all project documentation.
 
 ## Document Maintenance
 
-**Last Updated**: January 10, 2026  
+**Last Updated**: January 12, 2026  
 **Maintained By**: Project development team  
 **Update Policy**: All new documents must be added to this table of contents
 
