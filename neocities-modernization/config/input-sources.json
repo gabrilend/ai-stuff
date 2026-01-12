@@ -37,7 +37,7 @@
   },
   "pagination": {
     "_comment": "Settings for paginated similarity/diversity pages (chronological stays full)",
-    "poems_per_page": 100,
+    "poems_per_page": 600,
     "max_pages_per_poem": 15,
     "minimum_pages": 1,
     "page_number_padding": 2,
