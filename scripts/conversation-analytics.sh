@@ -542,7 +542,7 @@ main() {
         fi
 
         # Determine output file
-        local output_file="${project_dir}/llm-transcripts/_analytics.md"
+        local output_file="${project_dir}/llm-transcripts/robot-analytics.md"
 
         # Generate based on format
         case "$OUTPUT_FORMAT" in

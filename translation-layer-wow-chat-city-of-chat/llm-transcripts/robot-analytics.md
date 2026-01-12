@@ -1,37 +1,37 @@
 ═══════════════════════════════════════════════════════════════════════
                   CONVERSATION ANALYTICS NOTEBOOK
-                        Project: handheld-office
-                     Generated: 2026-01-12 04:06:24
+                        Project: translation-layer-wow-chat-city-of-chat
+                     Generated: 2026-01-12 04:26:02
 ═══════════════════════════════════════════════════════════════════════
 
-┌─ Statistical Summary: handheld-office
+┌─ Statistical Summary: translation-layer-wow-chat-city-of-chat
 │
 │  Metric                          Value         Per Conversation
 │  ───────────────────────────────────────────────────────────────
-│  Total Conversations             9
-│  Total Lines                     10869         1207
-│  Total Words                     59145      6571
-│  Total Characters                471461    52384
-│  Code Blocks                     81           9
+│  Total Conversations             10
+│  Total Lines                     4202         420
+│  Total Words                     12811      1281
+│  Total Characters                96594    9659
+│  Code Blocks                     28           2
 │
 │  Derived Metrics:
-│  Average Words per Line          5
+│  Average Words per Line          3
 │  Characters per Word             7
-│  Code Density (blocks/1k words)  1
+│  Code Density (blocks/1k words)  2
 │
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Message Distribution
 │
-│ User Messages        ██████████████████████████████████████████████████ 188
-│ Assistant Messages   ████████████████████████████████ 121
+│ User Messages        ██████████████████████████████████████████████████ 13
+│ Assistant Messages   ██████████████████████████████████████████████████ 13
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Content Distribution
 │
-│ Total Lines          █████████ 10869
-│ Code Blocks          █ 81
-│ Text Words           ██████████████████████████████████████████████████ 59065
+│ Total Lines          ████████████████ 4202
+│ Code Blocks          █ 28
+│ Text Words           ██████████████████████████████████████████████████ 12811
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Conversation Flow Diagram
@@ -42,114 +42,66 @@
 │    │
 │    └─► Assistant Response #1
 │       │
-│    ├─► User Request #2
-│    │
-│    └─► Assistant Response #2
-│       │
-│    ├─► User Request #3
-│    │
-│    └─► Assistant Response #3
-│       │
-│    ├─► User Request #4
-│    │
-│    └─► Assistant Response #4
-│       │
-│    ├─► User Request #5
-│    │
-│    └─► Assistant Response #5
-│       │
-│    ├─► User Request #6
-│    │
-│    └─► Assistant Response #6
-│       │
-│    ├─► User Request #7
-│    │
-│    └─► Assistant Response #7
-│       │
-│    ├─► User Request #8
-│    │
-│    └─► Assistant Response #8
-│       │
-│    ├─► User Request #9
-│    │
-│    └─► Assistant Response #9
-│       │
-│    ├─► User Request #10
-│    │
-│    └─► Assistant Response #10
-│       │
-│    ├─► User Request #11
-│    │
-│    └─► Assistant Response #11
-│       │
-│    ├─► User Request #12
-│    │
-│    └─► Assistant Response #12
-│       │
-│    ├─► User Request #13
-│    │
-│    └─► Assistant Response #13
-│       │
-│       └─► [Pending: User Request #14]
 │
 │  End
 └─────────────────────────────────────────────────────────────────────
 
-┌─ Analogical Analysis: handheld-office
+┌─ Analogical Analysis: translation-layer-wow-chat-city-of-chat
 │
 │  📚 The Library Analogy:
-│  This project's conversations are like a library with 9 books.
-│  Each book (conversation) contains an average of 17 chapters
+│  This project's conversations are like a library with 10 books.
+│  Each book (conversation) contains an average of 1 chapters
 │  (exchange pairs), where the reader (user) and author (assistant)
 │  collaborate on the narrative.
 │
 │  🔧 The Workshop Analogy:
-│  Think of these conversations as 9 workshop sessions. In each
+│  Think of these conversations as 10 workshop sessions. In each
 │  session, the apprentice asks questions and the master craftsperson
-│  demonstrates techniques. The 81 code blocks are like
+│  demonstrates techniques. The 28 code blocks are like
 │  blueprints and tool demonstrations shared during the session.
 │
 │  🎼 The Musical Composition Analogy:
 │  Each conversation is a musical piece with user requests as the questions
 │  posed by the melody, and assistant responses as the harmony that resolves
-│  them. With 17 average exchanges, these pieces have a moderate
+│  them. With 1 average exchanges, these pieces have a moderate
 │  complexity - neither simple etudes nor complex symphonies.
 │
 │  🌊 The River Flow Analogy:
 │  Imagine each conversation as water flowing through a canyon. The user's
 │  messages are tributaries joining the main flow, and the assistant's
 │  responses are the river bed that shapes and guides the water's path.
-│  The 9 conversations form a entire river system.
+│  The 10 conversations form a entire river system.
 │
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Detailed Conversation Data Table
 │
-│  # Data Table: handheld-office
+│  # Data Table: translation-layer-wow-chat-city-of-chat
 │  
 │  ConversationID,Lines,UserMsgs,AssistantMsgs,CodeBlocks,Words,Characters,WordsPerMsg,CharsPerWord
-│  25c344af-0a9b-49e9-8c36-a6fe8637fbb9,,,,,,,0,0
-│  32209423-76ed-444e-bf88-901d8e221555,3103,54,29,24,16430,131136,197,7
-│  71b05723-b2ce-4d40-a5d5-025fc40120d4,,,,,,,0,0
-│  75bf94d9-205f-462d-8b84-0499b433a151,284,4,4,4,1629,12865,203,7
-│  77bfc1ce-516b-49cf-b30b-2393c0916dde,554,8,7,2,3331,26405,222,7
-│  95646665-746b-4532-9520-c823be64545d,2328,32,25,18,13664,104022,239,7
-│  b15647f2-88c1-44eb-83a3-98516d212595,3916,79,45,25,20211,165962,162,8
-│  c0567703-78b6-4ae1-91d8-f7d3200fc624,,,,,,,0,0
-│  fb7c2711-bcc7-4834-9470-25249802b7a5,684,11,11,8,3880,31071,176,8
+│  052370fb-0254-4b24-9049-834e40305eca,378,7,7,4,1342,10296,95,7
+│  05f90fdb-e262-4504-9e24-d20fed5e0941,536,1,1,6,1306,9373,653,7
+│  07468cc1-6afa-4d0f-96c0-cfb5f4769e3b,564,1,1,2,2006,14802,1003,7
+│  098a7883-86c4-41da-830a-62353c69b635,469,1,1,7,1378,10029,689,7
+│  0b66cb5d-7ded-4058-9509-463802aa96d6,572,1,1,3,2045,14709,1022,7
+│  0ec1e17a-57d6-4f75-8fa1-e9fb8a3e71ae,,,,,,,0,0
+│  343d0b59-7ffc-4424-a6ed-03d7e4abd0b6,1181,1,1,4,2993,24546,1496,8
+│  393b53a7-3925-4cb8-96d9-df02eabc6fd0,,,,,,,0,0
+│  3c14ac9e-0f35-4054-92f5-d3ac65436b2b,502,1,1,2,1741,12839,870,7
+│  3fc26be7-6fb0-414c-af40-a9a18be7a94e,,,,,,,0,0
 │
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Pattern Analysis
 │
 │  Conversation Rhythm Pattern:
-│  ·■·▪▫■■·■
+│  ▫········· 
 │
 │  Legend: · = brief (< 5 msgs)  ▪ = short (5-9)  ▫ = medium (10-19)  ■ = long (20+)
 │
-│  Complexity Score: 155/100
-│  Collaboration Index: 60% user / 39% assistant
+│  Complexity Score: 40/100
+│  Collaboration Index: 50% user / 50% assistant
 │
 └─────────────────────────────────────────────────────────────────────
 
-[0;32m[SUCCESS][0m Analytics notebook generated for handheld-office
+[0;32m[SUCCESS][0m Analytics notebook generated for translation-layer-wow-chat-city-of-chat
