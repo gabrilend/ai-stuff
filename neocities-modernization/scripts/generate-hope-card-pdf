@@ -1,0 +1,112 @@
+#!/bin/bash
+# Wrapper script to simplify words-pdf invocation from neocities-modernization
+#
+# Usage: ./scripts/generate-hope-card-pdf <input.txt> [output.pdf]
+#
+# Example:
+#   ./scripts/generate-hope-card-pdf temp/hope-cards.txt output/hope-card-123.pdf
+
+set -euo pipefail
+
+# {{{ Hard-coded directory paths
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+WORDS_PDF_DIR="/home/ritz/programming/ai-stuff/words-pdf"
+# }}}
+
+# {{{ Parse command line arguments
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <input.txt> [output.pdf]"
+    echo ""
+    echo "Generates a PDF using words-pdf styling from a text file."
+    echo ""
+    echo "Arguments:"
+    echo "  input.txt   - Text file with 80-dash separated poems"
+    echo "  output.pdf  - Output PDF path (default: output/hope-card.pdf)"
+    echo ""
+    echo "Example:"
+    echo "  $0 temp/hope-cards.txt output/hope-card-123.pdf"
+    exit 1
+fi
+
+INPUT_FILE="${1}"
+OUTPUT_FILE="${2:-output/hope-card.pdf}"
+# }}}
+
+# {{{ Convert relative paths to absolute
+if [[ ! "$INPUT_FILE" = /* ]]; then
+    INPUT_FILE="${DIR}/${INPUT_FILE}"
+fi
+
+if [[ ! "$OUTPUT_FILE" = /* ]]; then
+    OUTPUT_FILE="${DIR}/${OUTPUT_FILE}"
+fi
+# }}}
+
+# {{{ Validate input file exists
+if [ ! -f "$INPUT_FILE" ]; then
+    echo "❌ Error: Input file not found: $INPUT_FILE"
+    exit 1
+fi
+# }}}
+
+# {{{ Check words-pdf directory exists
+if [ ! -d "$WORDS_PDF_DIR" ]; then
+    echo "❌ Error: words-pdf directory not found: $WORDS_PDF_DIR"
+    exit 1
+fi
+# }}}
+
+# {{{ Create output directory if needed
+OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
+mkdir -p "$OUTPUT_DIR"
+# }}}
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Hope Card PDF Generator"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📝 Input:  $INPUT_FILE"
+echo "📄 Output: $OUTPUT_FILE"
+echo ""
+
+# {{{ Set up library path for libharu
+export LD_LIBRARY_PATH="${WORDS_PDF_DIR}/libs/libharu-RELEASE_2_3_0/build/src:${LD_LIBRARY_PATH:-}"
+# }}}
+
+# {{{ Generate PDF using words-pdf
+echo "🔧 Generating PDF with words-pdf..."
+cd "${WORDS_PDF_DIR}"
+
+lua5.2 ./compile-pdf.lua "${WORDS_PDF_DIR}" "${INPUT_FILE}" normal > /dev/null 2>&1
+
+if [ ! -f "${WORDS_PDF_DIR}/output.pdf" ]; then
+    echo "❌ Error: PDF generation failed (output.pdf not created)"
+    exit 1
+fi
+# }}}
+
+# {{{ Move to desired location
+mv "${WORDS_PDF_DIR}/output.pdf" "${OUTPUT_FILE}"
+# }}}
+
+# {{{ Success message
+echo "✅ Generated: ${OUTPUT_FILE}"
+echo ""
+
+# Show file size
+if command -v du &> /dev/null; then
+    FILE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
+    echo "📊 File size: ${FILE_SIZE}"
+fi
+
+# Count pages (if pdfinfo available)
+if command -v pdfinfo &> /dev/null; then
+    PAGES=$(pdfinfo "$OUTPUT_FILE" 2>/dev/null | grep "^Pages:" | awk '{print $2}')
+    if [ -n "$PAGES" ]; then
+        echo "📄 Pages: ${PAGES}"
+    fi
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+# }}}
