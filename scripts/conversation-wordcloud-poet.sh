@@ -311,7 +311,6 @@ process_project() {
     fi
 
     log "Processing: $project_name"
-    echo ""
 
     # Generate word frequencies
     local freq_file="/tmp/wordfreq-$$.txt"
@@ -322,57 +321,67 @@ process_project() {
         return 1
     fi
 
-    # Display word cloud
-    echo "═══════════════════════════════════════════════════════════════════════"
-    echo "                    WORD CLOUD ANALYSIS"
-    echo "                      Project: $project_name"
-    echo "═══════════════════════════════════════════════════════════════════════"
-    echo ""
+    # Determine output file
+    local output_file="${transcripts_dir}/_wordcloud.md"
 
-    display_word_cloud "$freq_file" "$project_name" "$TOP_N_WORDS"
-    echo ""
-
-    # Find rare words
-    local -a rare_words
-    mapfile -t rare_words < <(find_rare_words "$freq_file" 3 | head -20)
-
-    if [[ ${#rare_words[@]} -gt 0 ]]; then
-        echo "┌─ Rare & Unique Words (appearing 1-3 times)"
-        echo "│"
-        for word in "${rare_words[@]}"; do
-            echo "│  • $word"
-        done
-        echo "└─────────────────────────────────────────────────────────────────────"
+    # Generate output to file
+    {
+        # Display word cloud
+        echo "═══════════════════════════════════════════════════════════════════════"
+        echo "                    WORD CLOUD ANALYSIS"
+        echo "                      Project: $project_name"
+        echo "═══════════════════════════════════════════════════════════════════════"
         echo ""
 
-        # Generate poem if enabled
-        if $GENERATE_POEMS; then
-            echo "┌─ Poetry About the Unique Words"
+        display_word_cloud "$freq_file" "$project_name" "$TOP_N_WORDS"
+        echo ""
+
+        # Find rare words
+        local -a rare_words
+        mapfile -t rare_words < <(find_rare_words "$freq_file" 3 | head -20)
+
+        if [[ ${#rare_words[@]} -gt 0 ]]; then
+            echo "┌─ Rare & Unique Words (appearing 1-3 times)"
             echo "│"
-
-            local prompt
-            prompt=$(build_ollama_prompt "$project_name" "${rare_words[@]}" "$transcripts_dir")
-
-            local poem
-            if poem=$(generate_poem_with_ollama "$prompt"); then
-                # Format poem with indentation
-                echo "$poem" | sed 's/^/│  /'
-            else
-                echo "│  [Poem generation failed]"
-            fi
-
-            echo "│"
+            for word in "${rare_words[@]}"; do
+                echo "│  • $word"
+            done
             echo "└─────────────────────────────────────────────────────────────────────"
             echo ""
+
+            # Generate poem if enabled
+            if $GENERATE_POEMS; then
+                echo "┌─ Poetry About the Unique Words"
+                echo "│"
+
+                local prompt
+                prompt=$(build_ollama_prompt "$project_name" "${rare_words[@]}" "$transcripts_dir")
+
+                local poem
+                if poem=$(generate_poem_with_ollama "$prompt"); then
+                    # Format poem with indentation
+                    echo "$poem" | sed 's/^/│  /'
+                else
+                    echo "│  [Poem generation failed]"
+                fi
+
+                echo "│"
+                echo "└─────────────────────────────────────────────────────────────────────"
+                echo ""
+            fi
+        else
+            echo "No rare words found (all words appear frequently)"
         fi
-    else
-        log "No rare words found (all words appear frequently)"
-    fi
+    } > "$output_file"
 
     # Cleanup
     rm -f "$freq_file"
 
-    success "Completed analysis for $project_name"
+    if [[ -f "$output_file" ]]; then
+        success "Word cloud saved to: $output_file"
+    else
+        error "Failed to generate word cloud for $project_name"
+    fi
 }
 # }}}
 

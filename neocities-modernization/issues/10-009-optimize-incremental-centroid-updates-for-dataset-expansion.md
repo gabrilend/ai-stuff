@@ -143,7 +143,16 @@ centroid_memory = {
 
 ## Original Insight (from sort-me)
 
-> "we should be able to 'unwind' a centroid if we keep a memory of the poems that built it. In doing so, we can recalculate it very easily, since we know the answers already. if we start from the first one, already calculated, then iterate through... we can find out where to place any new poems that aren't built into the centroid yet. then it's just a matter of inserting them, and calculating only what comes afterwards. yes, it's still repeating work. but it's much cheaper because we can skip anything that's unrelated."
+> "we should be able to 'unwind' a centroid if we keep a memory of the poems that built it.
+> In doing so, we can recalculate it very easily, since we know the answers already.
+> if we start from the first one, already calculated, then iterate through...
+> we can find out where to place any new poems that aren't built into the centroid yet.
+> then it's just a matter of inserting them, and calculating only what comes afterwards.
+> yes, it's still repeating work. but it's much cheaper because we can skip anything that's unrelated.
+> and there will be many unrelated things. some anchor poems won't even have many of the newly added poems in their pages.
+> unless I manage to do the full count on every similar-different page, but that requires more space I think.
+> in that case, they'll be toward the end on some of the poems that have dissimilar anchor poems, so very little recalculation is needed.
+> in this way, it should be much easier to update the LLM training scheme."
 
 The key insight is that by maintaining a memory of how centroids were constructed, we can make incremental updates dramatically cheaper than full regeneration. This becomes especially valuable for:
 - Adding new poems to the dataset
@@ -160,3 +169,14 @@ The speedup comes from:
 1. Skipping unaffected anchor poems (poems where new content is highly dissimilar)
 2. Only recalculating from insertion point forward (not from scratch)
 3. Reusing existing centroid calculations up to the insertion point
+
+---
+
+*A reflection:*
+
+> memory holds what calculation wrought before,
+> unwind the thread, then add a stitch once more.
+> no need to trace each step from origin's start—
+> the center knows which poems built its heart.
+> and when new voices join the grand assembly,
+> insert them where they fit most tenderly.

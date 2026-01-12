@@ -1,0 +1,177 @@
+#!/usr/bin/env luajit
+-- Export hope cards: Select poems and format for words-pdf
+-- Supports both anchor-based and centroid-based selection
+
+-- {{{ setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir then return provided_dir end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path()
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+
+local utils = require("utils")
+local formatter = require("hope-card-formatter")
+local dkjson = require("dkjson")
+
+-- {{{ Parse CLI arguments
+local mode = "anchor"
+local anchor_id = nil
+local centroid_name = nil
+local limit = 200
+local output_file = "temp/hope-cards.txt"
+
+for i = 1, #arg do
+    local a = arg[i]
+    if a:match("^--anchor=") then
+        mode = "anchor"
+        anchor_id = tonumber(a:match("^--anchor=(%d+)"))
+    elseif a:match("^--from%-centroid=") then
+        mode = "centroid"
+        centroid_name = a:match("^--from%-centroid=(.+)")
+    elseif a:match("^--limit=") then
+        limit = tonumber(a:match("^--limit=(%d+)"))
+    elseif a:match("^--output=") then
+        output_file = a:match("^--output=(.+)")
+    elseif a == "--help" or a == "-h" then
+        print("Usage: export-hope-cards [OPTIONS]")
+        print("")
+        print("Options:")
+        print("  --anchor=<id>          Export from anchor poem ID")
+        print("  --from-centroid=<name> Export using centroid (e.g., 'hope')")
+        print("  --limit=<n>            Max poems (default: 200)")
+        print("  --output=<file>        Output file (default: temp/hope-cards.txt)")
+        print("")
+        print("Examples:")
+        print("  export-hope-cards --anchor=123 --limit=200")
+        print("  export-hope-cards --from-centroid=hope --limit=200")
+        os.exit(0)
+    end
+end
+-- }}}
+
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print("  Hope Card Exporter")
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print("")
+
+-- {{{ Validate arguments
+if mode == "anchor" and not anchor_id then
+    print("❌ Error: --anchor=<id> required in anchor mode")
+    os.exit(1)
+end
+
+if mode == "centroid" and not centroid_name then
+    print("❌ Error: --from-centroid=<name> required in centroid mode")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ Load poems
+print("📚 Loading poems...")
+local poems_file = DIR .. "/assets/poems.json"
+local poems_data = utils.read_json_file(poems_file)
+
+if not poems_data then
+    print("❌ Error: Cannot load poems.json")
+    os.exit(1)
+end
+
+-- Convert to array with IDs
+local poems = {}
+local poem_count = 0
+for id_str, poem in pairs(poems_data) do
+    local id = tonumber(id_str)
+    if id then
+        poem.id = id
+        poems[id] = poem
+        poem_count = poem_count + 1
+    end
+end
+
+print(string.format("   Loaded %d poems", poem_count))
+-- }}}
+
+-- {{{ Load similarity data based on mode
+local selected_poems = {}
+
+if mode == "anchor" then
+    print(string.format("🎯 Mode: Anchor-based (poem %d)", anchor_id))
+
+    -- Load similarity rankings for anchor
+    local sim_file = string.format("%s/assets/similarity/%d.json", DIR, anchor_id)
+    local sim_data = utils.read_json_file(sim_file)
+
+    if not sim_data or not sim_data.sorted then
+        print("❌ Error: Cannot load similarity data for anchor " .. anchor_id)
+        os.exit(1)
+    end
+
+    -- Take top N poems by similarity
+    for i, entry in ipairs(sim_data.sorted) do
+        if #selected_poems >= limit then break end
+
+        local poem_id = tonumber(entry.poem_id)
+        if poem_id and poems[poem_id] then
+            table.insert(selected_poems, poems[poem_id])
+        end
+    end
+
+elseif mode == "centroid" then
+    print(string.format("🎯 Mode: Centroid-based ('%s')", centroid_name))
+
+    -- Check if centroid pages exist
+    local centroid_file = string.format("%s/output/centroid/%s-similar.html", DIR, centroid_name)
+
+    if not utils.file_exists(centroid_file) then
+        print("⚠️  Warning: Centroid HTML not generated yet")
+        print("   Run: lua src/centroid-generator.lua")
+        print("   Then: Generate HTML with centroids enabled")
+        print("")
+        print("❌ Cannot proceed without centroid data")
+        os.exit(1)
+    end
+
+    -- TODO: Parse HTML or use cached centroid similarity data
+    -- For now, error with helpful message
+    print("❌ Centroid parsing not yet implemented")
+    print("   Coming in Phase 2 of Issue 6-012")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ Validate selection
+if #selected_poems == 0 then
+    print("❌ Error: No poems selected")
+    os.exit(1)
+end
+
+print(string.format("✅ Selected %d poems", #selected_poems))
+-- }}}
+
+-- {{{ Format and write
+print("")
+print("📝 Formatting for words-pdf...")
+
+local success, err = formatter.write_to_file(selected_poems, output_file)
+
+if not success then
+    print("❌ Error writing file: " .. (err or "unknown"))
+    os.exit(1)
+end
+
+print(string.format("✅ Wrote: %s", output_file))
+-- }}}
+
+-- {{{ Show next steps
+print("")
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print("  Next: Generate PDF")
+print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+print("")
+print("Run:")
+print(string.format("  ./scripts/generate-hope-card-pdf %s output/hope-card.pdf", output_file))
+print("")
+-- }}}
