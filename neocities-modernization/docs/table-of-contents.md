@@ -15,6 +15,8 @@ This document provides a hierarchical view of all project documentation.
 
 ### 🔧 Technical Guides
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
+- `/docs/words-pdf-integration.md` - Integration guide for words-pdf PDF generation system
+- `/docs/centroids-for-hope-cards.md` - Using centroid system for semantic hope card selection
 - `/docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis comparing effil threading vs GPU compute shaders for diversity pre-computation
 - `/docs/research-2d-embeddings.md` - Research analysis of dimensionality reduction (768D → 2D) for visualization
 - `/docs/research-tuple-embeddings.md` - Research analysis of tuple-based embeddings (768 × 2D coordinate pairs)
@@ -58,7 +60,9 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/completed/phase-5/011a-research-similarity-algorithms.md` - Comprehensive research analysis of 12 similarity algorithms (COMPLETED)
   - `/issues/completed/phase-5/016-implement-full-similarity-matrix-storage.md` - Full similarity matrix storage for complete HTML generation support (COMPLETED)
 - `/issues/6-progress.md` - Phase 6 progress tracking (visual content & user experience) - COMPLETED
-  - `/issues/6-012-implement-words-pdf-styled-export-system.md` - PDF export with words-pdf styling for printable hope cards
+  - `/issues/6-012-implement-words-pdf-styled-export-system.md` - PDF export with words-pdf styling for printable hope cards (Phase 1 COMPLETE)
+  - `/issues/6-012-DESIGN.md` - Detailed design document for hope card system
+  - `/issues/6-012-PHASE1-COMPLETE.md` - Phase 1 completion report
   - `/issues/phase-6/016-implement-content-warning-collapsible-system.md` - Content warning hide/show functionality (PLANNED)
   - `/issues/phase-6/017-create-image-configuration-and-directory-management-system.md` - Image discovery and configuration (PLANNED)
   - `/issues/phase-6/018-implement-image-alt-text-embedding-analysis.md` - Intelligent image alt-text analysis (PLANNED)
@@ -84,6 +88,8 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
   - `/issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Incremental centroid updates for efficient dataset expansion
+  - `/issues/10-009-DESIGN.md` - Detailed algorithm design for centroid unwinding
+  - `/issues/10-010-integrate-test-suites-into-development-pipeline.md` - Automated testing integration (low priority)
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
   - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)
   - `/issues/11-002-implement-maze-based-exploration-system.md` - Dimension-extreme maze with user choice at intersections

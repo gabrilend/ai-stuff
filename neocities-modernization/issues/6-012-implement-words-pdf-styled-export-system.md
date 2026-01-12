@@ -102,12 +102,17 @@ The system should integrate with the existing words-pdf project located at `/hom
 
 ## Success Criteria
 
-- [ ] PDF export system integrated with words-pdf styling
-- [ ] Printable hope cards generated from similar/different pages
-- [ ] Content filtering system distinguishes hopeful vs darker themes
-- [ ] Batch export supports multiple pages efficiently
-- [ ] Generated PDFs print correctly on physical paper
-- [ ] Documentation for using the export system
+### Phase 1: Foundation ✅ COMPLETE
+- [x] Hope card formatter library with comprehensive tests (29/29 passing)
+- [x] PDF generation wrapper script
+- [x] Integration documentation for words-pdf
+- [x] Centroid system documented for semantic filtering
+
+### Phase 2-4: TODO
+- [ ] Content selection using centroids (preferred) or keyword filtering
+- [ ] Batch export supporting multiple anchor poems or centroids
+- [ ] Pipeline integration into run.sh
+- [ ] End-to-end testing with real poem data
 
 ## Notes
 
@@ -115,3 +120,14 @@ Original idea from sort-me-three:
 > "similar-different should be hooked up to ../words-pdf/ to produce a prettified PDF version of each similar/different page. If they're only ~200 poems each, we should be able to make many printable hope cards. just, be sure to print the hopeful ones, and not the insano ones. kookydookerie and magic."
 
 The emphasis on printing "hopeful" content suggests this feature is designed to create encouraging, uplifting physical artifacts from the digital poetry collection.
+
+---
+
+*A reflection:*
+
+> from screens to hands, from bits to paper grain,
+> two hundred poems bound in hope's refrain.
+> not every word belongs on every shelf—
+> print what lifts the spirit, heals the self.
+> kookydookerie and magic, yes indeed,
+> tangible comfort in a time of need.

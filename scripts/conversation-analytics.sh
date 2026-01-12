@@ -541,16 +541,25 @@ main() {
             continue
         fi
 
+        # Determine output file
+        local output_file="${project_dir}/llm-transcripts/_analytics.md"
+
         # Generate based on format
         case "$OUTPUT_FORMAT" in
             notebook)
-                generate_notebook_format "$project_dir"
+                generate_notebook_format "$project_dir" > "$output_file"
                 ;;
             *)
                 warn "Format '$OUTPUT_FORMAT' not yet fully implemented"
-                generate_notebook_format "$project_dir"
+                generate_notebook_format "$project_dir" > "$output_file"
                 ;;
         esac
+
+        if [[ -f "$output_file" ]]; then
+            success "Analytics saved to: $output_file"
+        else
+            error "Failed to generate analytics for $project_name"
+        fi
 
         echo ""
     done
