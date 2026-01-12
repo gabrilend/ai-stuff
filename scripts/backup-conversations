@@ -54,188 +54,14 @@ function write-transcripts-to-project-directory(){ # {{{
          output_file="$TRANSCRIPT_DIR/${conversation_id}_summary.md"
          
          echo "Processing conversation: $conversation_id"
-         
-         # Extract conversation flow: user request -> final assistant response
-         # Also extract the timestamp of the final message for file dating
-         python3 -c "
-import json
-import sys
-import textwrap
-import re
 
-def wrap_text(text, width=80):
-    '''Wrap text to specified width, preserving markdown structure'''
-    lines = text.split('\n')
-    wrapped_lines = []
-    
-    for line in lines:
-        if line.strip() == '':
-            wrapped_lines.append('')
-        elif line.startswith('#') or line.startswith('-') or line.startswith('*') or line.startswith('\`\`\`'):
-            # Don't wrap markdown headers, lists, or code blocks
-            wrapped_lines.append(line)
-        else:
-            # Wrap regular text
-            wrapped = textwrap.fill(line, width=width, break_long_words=False, break_on_hyphens=False)
-            wrapped_lines.append(wrapped)
-    
-    return '\n'.join(wrapped_lines)
+         # Use Lua conversation parser instead of Python
+         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+         PARSER="${SCRIPT_DIR}/libs/conversation-parser.lua"
 
-def format_content(content):
-    '''Format content by converting ### to ## and wrapping text'''
-    if not content:
-        return ''
-    
-    # Convert ### to ## (downgrade heading levels to avoid conflict)
-    content = re.sub(r'^###', '##', content, flags=re.MULTILINE)
-    
-    # Wrap the text
-    content = wrap_text(content)
-    
-    return content
-
-# Read all lines and parse conversation
-messages = []
-final_timestamp = None
-with open('$jsonl_file', 'r') as f:
-    for line in f:
-        try:
-            data = json.loads(line.strip())
-            messages.append(data)
-            # Track the latest timestamp for file dating
-            if 'timestamp' in data:
-                final_timestamp = data['timestamp']
-        except:
-            continue
-
-# Header
-print('# Conversation Summary: $conversation_id')
-print()
-print('Generated on: $(date)')
-print()
-print('-' * 80)
-print()
-
-user_count = 1
-current_user_uuid = None
-assistant_responses = []
-
-for msg in messages:
-    msg_type = msg.get('type', '')
-    
-    # Process user messages (skip tool results)
-    if msg_type == 'user':
-        # Check if this is a tool result
-        content = msg.get('message', {}).get('content', '')
-        if isinstance(content, list) and len(content) > 0 and 'tool_use_id' in content[0]:
-            continue
-            
-        # If we have accumulated assistant responses, output the last one
-        if current_user_uuid and assistant_responses:
-            print(f'### Assistant Response {user_count - 1}')
-            print()
-            formatted_response = format_content(assistant_responses[-1])
-            print(formatted_response)
-            print()
-            print('-' * 80)
-            print()
-            assistant_responses = []
-        
-        # Output user message
-        print(f'### User Request {user_count}')
-        print()
-        if isinstance(content, str):
-            formatted_request = format_content(content)
-            print(formatted_request)
-        print()
-        print('-' * 80)
-        print()
-        
-        current_user_uuid = msg.get('uuid', '')
-        user_count += 1
-        
-    # Process assistant messages
-    elif msg_type == 'assistant' and current_user_uuid:
-        content_list = msg.get('message', {}).get('content', [])
-        text_content = ''
-        
-        # Extract text content from assistant message
-        for item in content_list:
-            if isinstance(item, dict) and item.get('type') == 'text':
-                text_content = item.get('text', '')
-                break
-        
-        if text_content:
-            assistant_responses.append(text_content)
-
-# Output the final assistant response if we have one
-if current_user_uuid and assistant_responses:
-    print(f'### Assistant Response {user_count - 1}')
-    print()
-    formatted_response = format_content(assistant_responses[-1])
-    print(formatted_response)
-    print()
-    print('-' * 80)
-
-# Write final timestamp to stdout for shell capture
-if final_timestamp:
-    print('FINAL_TIMESTAMP:' + str(final_timestamp), file=sys.stderr)
-" > "$output_file"
-         
-         # Capture the final timestamp and set file modification time
-         FINAL_TIMESTAMP=$(python3 -c "
-import json
-import sys
-from datetime import datetime
-import time
-
-final_timestamp = None
-line_count = 0
-
-with open('$jsonl_file', 'r') as f:
-    for line in f:
-        line_count += 1
-        try:
-            data = json.loads(line.strip())
-            # Look for timestamp in various possible locations
-            if 'timestamp' in data:
-                final_timestamp = data['timestamp']
-            elif 'message' in data and isinstance(data['message'], dict) and 'timestamp' in data['message']:
-                final_timestamp = data['message']['timestamp']
-            elif 'created_at' in data:
-                final_timestamp = data['created_at']
-        except json.JSONDecodeError:
-            continue
-        except Exception:
-            continue
-
-if final_timestamp:
-    try:
-        # Handle different timestamp formats
-        if isinstance(final_timestamp, str):
-            # Try to parse ISO format timestamp
-            try:
-                dt = datetime.fromisoformat(final_timestamp.replace('Z', '+00:00'))
-                final_timestamp = int(dt.timestamp())
-            except:
-                # If ISO parsing fails, try other common formats
-                try:
-                    final_timestamp = int(float(final_timestamp))
-                except:
-                    final_timestamp = None
-        elif isinstance(final_timestamp, (int, float)):
-            # Convert timestamp to seconds if it appears to be in milliseconds
-            if final_timestamp > 10000000000:  # More than 10 digits means milliseconds
-                final_timestamp = int(final_timestamp / 1000)
-            else:
-                final_timestamp = int(final_timestamp)
-        
-        # Validate timestamp is reasonable (between 2020 and 2030)
-        if final_timestamp and 1577836800 <= final_timestamp <= 1893456000:
-            print(final_timestamp)
-    except Exception:
-        pass
-" 2>/dev/null)
+         # Run the Lua parser and capture timestamp from stderr
+         TIMESTAMP_OUTPUT=$(lua "$PARSER" "$jsonl_file" "$output_file" 2>&1 >/dev/null)
+         FINAL_TIMESTAMP=$(echo "$TIMESTAMP_OUTPUT" | grep "FINAL_TIMESTAMP:" | cut -d: -f2)
          
          # Set file modification time if we have a timestamp
          if [ ! -z "$FINAL_TIMESTAMP" ] && [ "$FINAL_TIMESTAMP" -gt 0 ]; then
@@ -274,10 +100,10 @@ if final_timestamp:
 function backup-conversation(){
    DIR="${1:-$(pwd)}" # first argument, or current directory if no argument
     echo "Backing up Claude conversation transcripts..."
-    if command -v python3 &> /dev/null; then
+    if command -v lua &> /dev/null; then
         write-transcripts-to-project-directory "${DIR}" 2>/dev/null || echo "  (No new transcripts to backup)"
     else
-        echo "  (Transcript backup unavailable - missing python3)"
+        echo "  (Transcript backup unavailable - missing lua)"
     fi
  }
 

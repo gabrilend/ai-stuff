@@ -1,37 +1,37 @@
 ═══════════════════════════════════════════════════════════════════════
                   CONVERSATION ANALYTICS NOTEBOOK
-                        Project: console-demakes
-                     Generated: 2026-01-12 04:06:23
+                        Project: handheld-office
+                     Generated: 2026-01-12 04:26:04
 ═══════════════════════════════════════════════════════════════════════
 
-┌─ Statistical Summary: console-demakes
+┌─ Statistical Summary: handheld-office
 │
 │  Metric                          Value         Per Conversation
 │  ───────────────────────────────────────────────────────────────
-│  Total Conversations             5
-│  Total Lines                     2421         484
-│  Total Words                     13561      2712
-│  Total Characters                98092    19618
-│  Code Blocks                     30           6
+│  Total Conversations             9
+│  Total Lines                     10869         1207
+│  Total Words                     59145      6571
+│  Total Characters                471461    52384
+│  Code Blocks                     81           9
 │
 │  Derived Metrics:
 │  Average Words per Line          5
 │  Characters per Word             7
-│  Code Density (blocks/1k words)  2
+│  Code Density (blocks/1k words)  1
 │
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Message Distribution
 │
-│ User Messages        ██████████████████████████████████████████████████ 55
-│ Assistant Messages   ████████████████████████████████████████ 45
+│ User Messages        ██████████████████████████████████████████████████ 188
+│ Assistant Messages   ████████████████████████████████ 121
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Content Distribution
 │
-│ Total Lines          ████████ 2421
-│ Code Blocks          █ 30
-│ Text Words           ██████████████████████████████████████████████████ 13561
+│ Total Lines          █████████ 10869
+│ Code Blocks          █ 81
+│ Text Words           ██████████████████████████████████████████████████ 59065
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Conversation Flow Diagram
@@ -74,62 +74,82 @@
 │    │
 │    └─► Assistant Response #9
 │       │
-│       └─► [Pending: User Request #10]
+│    ├─► User Request #10
+│    │
+│    └─► Assistant Response #10
+│       │
+│    ├─► User Request #11
+│    │
+│    └─► Assistant Response #11
+│       │
+│    ├─► User Request #12
+│    │
+│    └─► Assistant Response #12
+│       │
+│    ├─► User Request #13
+│    │
+│    └─► Assistant Response #13
+│       │
+│       └─► [Pending: User Request #14]
 │
 │  End
 └─────────────────────────────────────────────────────────────────────
 
-┌─ Analogical Analysis: console-demakes
+┌─ Analogical Analysis: handheld-office
 │
 │  📚 The Library Analogy:
-│  This project's conversations are like a library with 5 books.
-│  Each book (conversation) contains an average of 10 chapters
+│  This project's conversations are like a library with 9 books.
+│  Each book (conversation) contains an average of 17 chapters
 │  (exchange pairs), where the reader (user) and author (assistant)
 │  collaborate on the narrative.
 │
 │  🔧 The Workshop Analogy:
-│  Think of these conversations as 5 workshop sessions. In each
+│  Think of these conversations as 9 workshop sessions. In each
 │  session, the apprentice asks questions and the master craftsperson
-│  demonstrates techniques. The 30 code blocks are like
+│  demonstrates techniques. The 81 code blocks are like
 │  blueprints and tool demonstrations shared during the session.
 │
 │  🎼 The Musical Composition Analogy:
 │  Each conversation is a musical piece with user requests as the questions
 │  posed by the melody, and assistant responses as the harmony that resolves
-│  them. With 10 average exchanges, these pieces have a moderate
+│  them. With 17 average exchanges, these pieces have a moderate
 │  complexity - neither simple etudes nor complex symphonies.
 │
 │  🌊 The River Flow Analogy:
 │  Imagine each conversation as water flowing through a canyon. The user's
 │  messages are tributaries joining the main flow, and the assistant's
 │  responses are the river bed that shapes and guides the water's path.
-│  The 5 conversations form a entire river system.
+│  The 9 conversations form a entire river system.
 │
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Detailed Conversation Data Table
 │
-│  # Data Table: console-demakes
+│  # Data Table: handheld-office
 │  
 │  ConversationID,Lines,UserMsgs,AssistantMsgs,CodeBlocks,Words,Characters,WordsPerMsg,CharsPerWord
-│  0d142442-cfc1-48a0-8151-410aeb45bfe6,,,,,,,0,0
-│  19fd3328-a88d-411b-a9b9-cadacbe60f14,683,12,9,8,4006,27985,190,6
-│  2bf1d40a-bcc2-487c-af37-7402ecaaccaa,1271,31,25,17,7254,51305,129,7
-│  a57aa91a-5359-496c-9b84-a972cc50847e,467,12,11,5,2301,18802,100,8
-│  project_evolution,,,,,,,0,0
+│  25c344af-0a9b-49e9-8c36-a6fe8637fbb9,,,,,,,0,0
+│  32209423-76ed-444e-bf88-901d8e221555,3103,54,29,24,16430,131136,197,7
+│  71b05723-b2ce-4d40-a5d5-025fc40120d4,,,,,,,0,0
+│  75bf94d9-205f-462d-8b84-0499b433a151,284,4,4,4,1629,12865,203,7
+│  77bfc1ce-516b-49cf-b30b-2393c0916dde,554,8,7,2,3331,26405,222,7
+│  95646665-746b-4532-9520-c823be64545d,2328,32,25,18,13664,104022,239,7
+│  b15647f2-88c1-44eb-83a3-98516d212595,3916,79,45,25,20211,165962,162,8
+│  c0567703-78b6-4ae1-91d8-f7d3200fc624,,,,,,,0,0
+│  fb7c2711-bcc7-4834-9470-25249802b7a5,684,11,11,8,3880,31071,176,8
 │
 └─────────────────────────────────────────────────────────────────────
 
 ┌─ Pattern Analysis
 │
 │  Conversation Rhythm Pattern:
-│  ·■■■·
+│  ·■·▪▫■■·■
 │
 │  Legend: · = brief (< 5 msgs)  ▪ = short (5-9)  ▫ = medium (10-19)  ■ = long (20+)
 │
-│  Complexity Score: 87/100
-│  Collaboration Index: 55% user / 45% assistant
+│  Complexity Score: 155/100
+│  Collaboration Index: 60% user / 39% assistant
 │
 └─────────────────────────────────────────────────────────────────────
 
-[0;32m[SUCCESS][0m Analytics notebook generated for console-demakes
+[0;32m[SUCCESS][0m Analytics notebook generated for handheld-office
