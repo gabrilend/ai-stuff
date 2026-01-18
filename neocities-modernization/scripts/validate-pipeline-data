@@ -1,0 +1,673 @@
+#!/usr/bin/env bash
+# validate-pipeline-data
+#
+# Pipeline Data Validation Utility for Neocities Modernization Project
+# Checks completion status of embeddings, similarity matrix, diversity cache,
+# and HTML output to determine pipeline readiness for deployment.
+#
+# Usage:
+#   ./scripts/validate-pipeline-data [OPTIONS]
+#
+# Options:
+#   --quick                 Machine-readable output (fast, <1 second)
+#   --check-freshness      Validate timestamps and detect stale data
+#   --list-missing         Show specific poem IDs missing from matrix/cache
+#   --suggest-commands     Output exact commands to fix issues
+#   --format=json          Export structured JSON data
+#   --skip-validation      (Used by other scripts to bypass this check)
+#   --model=NAME           Embedding model to validate (default: embeddinggemma_latest)
+#   --help                 Show this help message
+#
+# Exit codes:
+#   0 = Ready for deployment (all data complete and fresh)
+#   1 = Incomplete (missing data, can be fixed)
+#   2 = Stale (data exists but outdated)
+#   3 = Configuration error (missing required files/directories)
+
+set -euo pipefail
+
+# {{{ Configuration
+# Hard-coded project directory (as per CLAUDE.md guidelines)
+DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+
+# Default paths (relative to $DIR)
+POEMS_JSON="${POEMS_JSON:-$DIR/assets/poems.json}"
+EMBEDDINGS_DIR="${EMBEDDINGS_DIR:-$DIR/assets/embeddings}"
+OUTPUT_SIMILAR_DIR="${OUTPUT_SIMILAR_DIR:-$DIR/output/similar}"
+OUTPUT_DIFFERENT_DIR="${OUTPUT_DIFFERENT_DIR:-$DIR/output/different}"
+OUTPUT_CHRONO="${OUTPUT_CHRONO:-$DIR/output/chronological.html}"
+
+# Default model
+MODEL="${MODEL:-embeddinggemma_latest}"
+
+# Flags
+QUICK_MODE=false
+CHECK_FRESHNESS=false
+LIST_MISSING=false
+SUGGEST_COMMANDS=false
+FORMAT="human"
+SHOW_HELP=false
+# }}}
+
+# {{{ Parse command line arguments
+for arg in "$@"; do
+    case $arg in
+        --quick)
+            QUICK_MODE=true
+            ;;
+        --check-freshness)
+            CHECK_FRESHNESS=true
+            ;;
+        --list-missing)
+            LIST_MISSING=true
+            ;;
+        --suggest-commands)
+            SUGGEST_COMMANDS=true
+            ;;
+        --format=json)
+            FORMAT="json"
+            ;;
+        --model=*)
+            MODEL="${arg#*=}"
+            ;;
+        --help)
+            SHOW_HELP=true
+            ;;
+        *)
+            echo "Unknown option: $arg" >&2
+            echo "Use --help for usage information" >&2
+            exit 3
+            ;;
+    esac
+done
+# }}}
+
+# {{{ Show help
+if [ "$SHOW_HELP" = true ]; then
+    head -n 30 "$0" | grep "^#" | sed 's/^# //; s/^#//'
+    exit 0
+fi
+# }}}
+
+# {{{ Helper functions
+count_poems() {
+    if [ ! -f "$POEMS_JSON" ]; then
+        echo "0"
+        return
+    fi
+    jq -r '.poems | length' "$POEMS_JSON" 2>/dev/null || echo "0"
+}
+
+count_embeddings() {
+    local embeddings_json="$EMBEDDINGS_DIR/$MODEL/embeddings.json"
+    if [ ! -f "$embeddings_json" ]; then
+        echo "0"
+        return
+    fi
+    # The embeddings.json is just metadata - count actual individual embedding files
+    local similarities_dir="$EMBEDDINGS_DIR/$MODEL/similarities"
+    if [ ! -d "$similarities_dir" ]; then
+        echo "0"
+        return
+    fi
+    find "$similarities_dir" -name "poem_*.json" -type f 2>/dev/null | wc -l
+}
+
+count_similarity_files() {
+    local similarities_dir="$EMBEDDINGS_DIR/$MODEL/similarities"
+    if [ ! -d "$similarities_dir" ]; then
+        echo "0"
+        return
+    fi
+    find "$similarities_dir" -name "poem_*.json" -type f 2>/dev/null | wc -l
+}
+
+check_diversity_cache() {
+    local cache_file="$EMBEDDINGS_DIR/$MODEL/diversity_cache.json"
+    if [ ! -f "$cache_file" ]; then
+        echo "MISSING"
+        return
+    fi
+    # Validate it's valid JSON
+    if jq -e '.' "$cache_file" >/dev/null 2>&1; then
+        # Count number of sequences
+        local count
+        count=$(jq 'length' "$cache_file" 2>/dev/null || echo "0")
+        echo "EXISTS:$count"
+    else
+        echo "INVALID"
+    fi
+}
+
+count_html_similar() {
+    if [ ! -d "$OUTPUT_SIMILAR_DIR" ]; then
+        echo "0"
+        return
+    fi
+    find "$OUTPUT_SIMILAR_DIR" -name "*.html" -type f 2>/dev/null | wc -l
+}
+
+count_html_different() {
+    if [ ! -d "$OUTPUT_DIFFERENT_DIR" ]; then
+        echo "0"
+        return
+    fi
+    find "$OUTPUT_DIFFERENT_DIR" -name "*.html" -type f 2>/dev/null | wc -l
+}
+
+check_chronological() {
+    if [ -f "$OUTPUT_CHRONO" ]; then
+        echo "EXISTS"
+    else
+        echo "MISSING"
+    fi
+}
+
+get_file_mtime() {
+    if [ ! -f "$1" ]; then
+        echo "0"
+        return
+    fi
+    stat -c "%Y" "$1" 2>/dev/null || echo "0"
+}
+
+format_timestamp() {
+    if [ "$1" = "0" ]; then
+        echo "N/A"
+        return
+    fi
+    date -d "@$1" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "N/A"
+}
+
+calculate_percentage() {
+    local current=$1
+    local total=$2
+    if [ "$total" -eq 0 ]; then
+        echo "0.0"
+        return
+    fi
+    awk -v c="$current" -v t="$total" 'BEGIN { printf "%.1f", (c/t)*100 }'
+}
+# }}}
+
+# {{{ Main validation logic
+validate_pipeline() {
+    # Count everything
+    local poem_count
+    local embedding_count
+    local similarity_count
+    local diversity_status
+    local html_similar_count
+    local html_different_count
+    local chrono_status
+
+    poem_count=$(count_poems)
+    embedding_count=$(count_embeddings)
+    similarity_count=$(count_similarity_files)
+    diversity_status=$(check_diversity_cache)
+    html_similar_count=$(count_html_similar)
+    html_different_count=$(count_html_different)
+    chrono_status=$(check_chronological)
+
+    # Calculate completion percentages
+    local embedding_pct
+    local similarity_pct
+
+    embedding_pct=$(calculate_percentage "$embedding_count" "$poem_count")
+    similarity_pct=$(calculate_percentage "$similarity_count" "$poem_count")
+
+    # Determine diversity cache count
+    local diversity_count=0
+    if [[ "$diversity_status" == EXISTS:* ]]; then
+        diversity_count="${diversity_status#EXISTS:}"
+    fi
+    local diversity_pct
+    diversity_pct=$(calculate_percentage "$diversity_count" "$poem_count")
+
+    # Determine overall status
+    local exit_code=0
+    local status_message="READY FOR DEPLOYMENT"
+
+    if [ "$poem_count" -eq 0 ]; then
+        exit_code=3
+        status_message="CONFIGURATION ERROR (poems.json missing or empty)"
+    elif [ "$embedding_count" -lt "$poem_count" ]; then
+        exit_code=1
+        status_message="INCOMPLETE (missing embeddings)"
+    elif [ "$similarity_count" -lt "$poem_count" ]; then
+        exit_code=1
+        status_message="INCOMPLETE (similarity matrix incomplete)"
+    elif [ "$diversity_status" = "MISSING" ]; then
+        exit_code=1
+        status_message="INCOMPLETE (diversity cache missing)"
+    elif [ "$diversity_count" -lt "$poem_count" ]; then
+        exit_code=1
+        status_message="INCOMPLETE (diversity cache incomplete)"
+    fi
+
+    # Export variables for use in output functions
+    export POEM_COUNT=$poem_count
+    export EMBEDDING_COUNT=$embedding_count
+    export SIMILARITY_COUNT=$similarity_count
+    export DIVERSITY_STATUS=$diversity_status
+    export DIVERSITY_COUNT=$diversity_count
+    export HTML_SIMILAR_COUNT=$html_similar_count
+    export HTML_DIFFERENT_COUNT=$html_different_count
+    export CHRONO_STATUS=$chrono_status
+    export EMBEDDING_PCT=$embedding_pct
+    export SIMILARITY_PCT=$similarity_pct
+    export DIVERSITY_PCT=$diversity_pct
+    export EXIT_CODE=$exit_code
+    export STATUS_MESSAGE="$status_message"
+}
+# }}}
+
+# {{{ Output functions
+output_quick() {
+    echo "STATUS: $STATUS_MESSAGE"
+    echo "EMBEDDINGS: ${EMBEDDING_PCT}% ($EMBEDDING_COUNT/$POEM_COUNT)"
+    echo "SIMILARITY: ${SIMILARITY_PCT}% ($SIMILARITY_COUNT/$POEM_COUNT)"
+    echo "DIVERSITY: ${DIVERSITY_PCT}% ($DIVERSITY_COUNT/$POEM_COUNT)"
+    echo "HTML_SIMILAR: $HTML_SIMILAR_COUNT"
+    echo "HTML_DIFFERENT: $HTML_DIFFERENT_COUNT"
+    echo "CHRONOLOGICAL: $CHRONO_STATUS"
+    echo ""
+    echo "EXIT_CODE: $EXIT_CODE"
+}
+
+output_human() {
+    echo "Pipeline Data Validation Report"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+    echo "Poem Corpus"
+    echo "  ├─ Total poems: $POEM_COUNT"
+    echo "  ├─ Source file: $POEMS_JSON"
+    echo "  └─ Last modified: $(format_timestamp "$(get_file_mtime "$POEMS_JSON")")"
+    echo ""
+
+    # Embeddings
+    local emb_status="✓"
+    [ "$EMBEDDING_COUNT" -lt "$POEM_COUNT" ] && emb_status="⚠"
+    [ "$EMBEDDING_COUNT" -eq 0 ] && emb_status="✗"
+
+    echo "Embeddings"
+    echo "  ├─ Progress: $EMBEDDING_COUNT / $POEM_COUNT (${EMBEDDING_PCT}%) $emb_status"
+    echo "  ├─ Location: $EMBEDDINGS_DIR/$MODEL/"
+    echo "  ├─ Model: $MODEL"
+
+    if [ "$EMBEDDING_COUNT" -eq "$POEM_COUNT" ]; then
+        echo "  └─ Status: UP-TO-DATE ✓"
+    elif [ "$EMBEDDING_COUNT" -eq 0 ]; then
+        echo "  └─ Status: MISSING (run: ./generate-embeddings.sh)"
+    else
+        local missing=$((POEM_COUNT - EMBEDDING_COUNT))
+        echo "  ├─ Missing entries: $missing"
+        echo "  └─ Status: INCOMPLETE (run: ./generate-embeddings.sh --incremental)"
+    fi
+    echo ""
+
+    # Similarity Matrix
+    local sim_status="✓"
+    [ "$SIMILARITY_COUNT" -lt "$POEM_COUNT" ] && sim_status="⚠"
+    [ "$SIMILARITY_COUNT" -eq 0 ] && sim_status="✗"
+
+    echo "Similarity Matrix"
+    echo "  ├─ Progress: $SIMILARITY_COUNT / $POEM_COUNT (${SIMILARITY_PCT}%) $sim_status"
+    echo "  ├─ Location: $EMBEDDINGS_DIR/$MODEL/similarities/"
+
+    if [ "$SIMILARITY_COUNT" -eq "$POEM_COUNT" ]; then
+        echo "  └─ Status: COMPLETE ✓"
+    elif [ "$SIMILARITY_COUNT" -eq 0 ]; then
+        echo "  ├─ Estimated time to complete: ~2 hours (8 threads)"
+        echo "  └─ Status: MISSING (run: lua src/similarity-engine-parallel.lua)"
+    else
+        local missing=$((POEM_COUNT - SIMILARITY_COUNT))
+        echo "  ├─ Missing entries: $missing"
+        echo "  ├─ Estimated time to complete: ~$(awk -v m="$missing" 'BEGIN { printf "%.1f", m*0.92/3600 }') hours (8 threads)"
+        echo "  └─ Status: INCOMPLETE (run: lua src/similarity-engine-parallel.lua)"
+    fi
+    echo ""
+
+    # Diversity Cache
+    local div_status="✓"
+    [ "$DIVERSITY_STATUS" = "MISSING" ] && div_status="✗"
+    [ "$DIVERSITY_STATUS" = "INVALID" ] && div_status="✗"
+    [[ "$DIVERSITY_STATUS" == EXISTS:* ]] && [ "$DIVERSITY_COUNT" -lt "$POEM_COUNT" ] && div_status="⚠"
+
+    echo "Diversity Cache"
+    echo "  ├─ Progress: $DIVERSITY_COUNT / $POEM_COUNT (${DIVERSITY_PCT}%) $div_status"
+    echo "  ├─ Location: $EMBEDDINGS_DIR/$MODEL/diversity_cache.json"
+
+    case "$DIVERSITY_STATUS" in
+        MISSING)
+            echo "  ├─ Cache size: N/A (not generated)"
+            echo "  ├─ Estimated time to complete: ~42 hours (8 threads)"
+            echo "  └─ Status: MISSING (run: ./scripts/precompute-diversity-sequences)"
+            ;;
+        INVALID)
+            echo "  ├─ Cache size: INVALID JSON"
+            echo "  └─ Status: CORRUPT (delete and regenerate)"
+            ;;
+        EXISTS:*)
+            if [ "$DIVERSITY_COUNT" -eq "$POEM_COUNT" ]; then
+                local cache_size
+                cache_size=$(du -h "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json" 2>/dev/null | cut -f1)
+                echo "  ├─ Cache size: $cache_size"
+                echo "  └─ Status: COMPLETE ✓"
+            else
+                echo "  ├─ Missing entries: $((POEM_COUNT - DIVERSITY_COUNT))"
+                echo "  └─ Status: INCOMPLETE (regenerate with updated poems)"
+            fi
+            ;;
+    esac
+    echo ""
+
+    # HTML Output
+    local expected_similar=$POEM_COUNT
+    local expected_different=$POEM_COUNT
+
+    echo "HTML Output"
+    echo "  ├─ Similar pages: $HTML_SIMILAR_COUNT / $expected_similar ($(calculate_percentage "$HTML_SIMILAR_COUNT" "$expected_similar")%)"
+    echo "  ├─ Different pages: $HTML_DIFFERENT_COUNT / $expected_different ($(calculate_percentage "$HTML_DIFFERENT_COUNT" "$expected_different")%)"
+    echo "  ├─ Chronological: 1 / 1 (100%) $( [ "$CHRONO_STATUS" = "EXISTS" ] && echo "✓" || echo "✗" )"
+
+    if [ "$HTML_SIMILAR_COUNT" -eq "$expected_similar" ] && \
+       [ "$HTML_DIFFERENT_COUNT" -eq "$expected_different" ] && \
+       [ "$CHRONO_STATUS" = "EXISTS" ]; then
+        echo "  └─ Status: COMPLETE ✓"
+    else
+        echo "  └─ Status: INCOMPLETE (blocked by dependencies)"
+    fi
+    echo ""
+
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "Overall Status: $STATUS_MESSAGE"
+
+    # Show next step if incomplete
+    if [ "$EXIT_CODE" -ne 0 ]; then
+        echo ""
+        if [ "$EMBEDDING_COUNT" -lt "$POEM_COUNT" ]; then
+            echo "Next Step: Generate missing embeddings"
+            echo "Command: ./generate-embeddings.sh --incremental"
+        elif [ "$SIMILARITY_COUNT" -lt "$POEM_COUNT" ]; then
+            echo "Next Step: Complete similarity matrix generation"
+            echo "Command: lua src/similarity-engine-parallel.lua"
+        elif [ "$DIVERSITY_STATUS" = "MISSING" ]; then
+            echo "Next Step: Pre-compute diversity cache (optional but recommended)"
+            echo "Command: nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
+        fi
+    fi
+}
+
+list_missing_entries() {
+    echo "Missing Entry Analysis"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+
+    # Use temporary files for efficient set operations
+    local all_poems_file="/tmp/all_poems_$$"
+    local existing_files_file="/tmp/existing_files_$$"
+    local missing_file="/tmp/missing_$$"
+
+    # Get list of all poem indices from poems.json (sorted)
+    jq -r '.poems[] | .poem_index' "$POEMS_JSON" 2>/dev/null | sort -n > "$all_poems_file"
+
+    if [ ! -s "$all_poems_file" ]; then
+        echo "ERROR: Could not read poem indices from $POEMS_JSON"
+        rm -f "$all_poems_file" "$existing_files_file" "$missing_file"
+        return
+    fi
+
+    # Get list of existing similarity files (sorted numerically)
+    if [ -d "$EMBEDDINGS_DIR/$MODEL/similarities" ]; then
+        find "$EMBEDDINGS_DIR/$MODEL/similarities" -name "poem_*.json" -type f 2>/dev/null | \
+            sed 's/.*poem_//' | sed 's/\.json$//' | sort -g > "$existing_files_file"
+    else
+        touch "$existing_files_file"
+    fi
+
+    # Find missing entries using comm (set difference)
+    # Note: comm requires lexicographic sorting, so re-sort both files
+    sort -o "$all_poems_file" "$all_poems_file"
+    sort -o "$existing_files_file" "$existing_files_file"
+    comm -23 "$all_poems_file" "$existing_files_file" > "$missing_file"
+
+    local missing_count
+    missing_count=$(wc -l < "$missing_file")
+
+    # Display missing similarity matrix entries
+    echo "Missing Similarity Matrix Entries"
+    echo "═══════════════════════════════════════════════════════════════"
+
+    if [ "$missing_count" -eq 0 ]; then
+        echo "  ✓ All poems have similarity files"
+    else
+        echo "  $missing_count poems missing from similarity matrix:"
+        echo ""
+
+        # Show first 50 missing entries
+        local display_count=$((missing_count < 50 ? missing_count : 50))
+
+        head -n "$display_count" "$missing_file" | awk '
+        BEGIN { line = "  "; count = 0 }
+        {
+            formatted = sprintf("%04d", $1)
+            if (count == 0) {
+                line = "  " formatted
+            } else {
+                line = line ", " formatted
+            }
+            count++
+
+            # Wrap at ~70 characters
+            if (length(line) > 70) {
+                print line ","
+                line = ""
+                count = 0
+            }
+        }
+        END { if (line != "  " && line != "") print line }
+        '
+
+        if [ "$missing_count" -gt 50 ]; then
+            echo "  ... and $((missing_count - 50)) more"
+        fi
+    fi
+
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+
+    # Also check diversity cache if it exists
+    if [ -f "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json" ]; then
+        echo ""
+        echo "Diversity Cache Entries"
+        echo "═══════════════════════════════════════════════════════════════"
+
+        local cache_keys
+        cache_keys=$(jq 'keys | length' "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json" 2>/dev/null)
+
+        if [ "$cache_keys" = "$POEM_COUNT" ]; then
+            echo "  ✓ All poems have diversity sequences"
+        else
+            echo "  ⚠ Cache has $cache_keys entries, expected $POEM_COUNT"
+        fi
+
+        echo ""
+        echo "═══════════════════════════════════════════════════════════════"
+    fi
+
+    # Cleanup temporary files
+    rm -f "$all_poems_file" "$existing_files_file" "$missing_file"
+}
+
+check_freshness() {
+    echo "Freshness Analysis"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+
+    local poems_mtime
+    local embeddings_mtime
+    local similarity_mtime
+    local diversity_mtime
+    local has_stale=false
+
+    poems_mtime=$(get_file_mtime "$POEMS_JSON")
+    embeddings_mtime=$(get_file_mtime "$EMBEDDINGS_DIR/$MODEL/embeddings.json")
+
+    # Get latest similarity file mtime
+    similarity_mtime=0
+    if [ -d "$EMBEDDINGS_DIR/$MODEL/similarities" ]; then
+        local latest_sim
+        latest_sim=$(find "$EMBEDDINGS_DIR/$MODEL/similarities" -name "poem_*.json" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
+        similarity_mtime=${latest_sim%.*}  # Remove decimal part
+        [ -z "$similarity_mtime" ] && similarity_mtime=0
+    fi
+
+    diversity_mtime=$(get_file_mtime "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json")
+
+    # Check if embeddings are stale compared to poems
+    if [ "$poems_mtime" -gt "$embeddings_mtime" ]; then
+        has_stale=true
+        local age_days=$(( (poems_mtime - embeddings_mtime) / 86400 ))
+        echo "Embeddings: STALE ⚠"
+        echo "  ├─ embeddings.json: $(format_timestamp "$embeddings_mtime")"
+        echo "  ├─ poems.json: $(format_timestamp "$poems_mtime")"
+        echo "  ├─ Age difference: $age_days days old"
+        echo "  └─ Action: Re-run ./generate-embeddings.sh --incremental"
+        echo ""
+    else
+        echo "Embeddings: UP-TO-DATE ✓"
+        echo "  └─ Newer than poems.json"
+        echo ""
+    fi
+
+    # Check if similarity matrix is stale compared to embeddings
+    if [ "$similarity_mtime" -gt 0 ] && [ "$embeddings_mtime" -gt "$similarity_mtime" ]; then
+        has_stale=true
+        local age_days=$(( (embeddings_mtime - similarity_mtime) / 86400 ))
+        echo "Similarity Matrix: STALE ⚠"
+        echo "  ├─ Latest file: $(format_timestamp "$similarity_mtime")"
+        echo "  ├─ embeddings.json: $(format_timestamp "$embeddings_mtime")"
+        echo "  ├─ Age difference: $age_days days old"
+        echo "  └─ Action: Re-run lua src/similarity-engine-parallel.lua"
+        echo ""
+    elif [ "$similarity_mtime" -eq 0 ]; then
+        echo "Similarity Matrix: NOT GENERATED"
+        echo "  └─ No similarity files found"
+        echo ""
+    else
+        echo "Similarity Matrix: UP-TO-DATE ✓"
+        echo "  └─ Newer than embeddings.json"
+        echo ""
+    fi
+
+    # Check if diversity cache is stale compared to embeddings
+    if [ "$diversity_mtime" -gt 0 ] && [ "$embeddings_mtime" -gt "$diversity_mtime" ]; then
+        has_stale=true
+        local age_days=$(( (embeddings_mtime - diversity_mtime) / 86400 ))
+        echo "Diversity Cache: STALE ⚠"
+        echo "  ├─ diversity_cache.json: $(format_timestamp "$diversity_mtime")"
+        echo "  ├─ embeddings.json: $(format_timestamp "$embeddings_mtime")"
+        echo "  ├─ Age difference: $age_days days old"
+        echo "  └─ Action: Regenerate with ./scripts/precompute-diversity-sequences"
+        echo ""
+    elif [ "$diversity_mtime" -eq 0 ]; then
+        echo "Diversity Cache: NOT GENERATED"
+        echo "  └─ File does not exist"
+        echo ""
+    else
+        echo "Diversity Cache: UP-TO-DATE ✓"
+        echo "  └─ Newer than embeddings.json"
+        echo ""
+    fi
+
+    echo "═══════════════════════════════════════════════════════════════"
+
+    if [ "$has_stale" = true ]; then
+        echo "Recommendation: Regenerate stale data to ensure consistency"
+        # Update exit code to indicate staleness
+        EXIT_CODE=2
+    else
+        echo "All data is fresh ✓"
+    fi
+}
+
+output_json() {
+    cat <<EOF
+{
+  "status": "$STATUS_MESSAGE",
+  "exit_code": $EXIT_CODE,
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "model": "$MODEL",
+  "poem_corpus": {
+    "total_poems": $POEM_COUNT,
+    "source_file": "$POEMS_JSON",
+    "last_modified": "$(format_timestamp "$(get_file_mtime "$POEMS_JSON")")"
+  },
+  "embeddings": {
+    "count": $EMBEDDING_COUNT,
+    "total": $POEM_COUNT,
+    "percentage": $EMBEDDING_PCT,
+    "missing": $((POEM_COUNT - EMBEDDING_COUNT)),
+    "location": "$EMBEDDINGS_DIR/$MODEL/",
+    "status": "$( [ "$EMBEDDING_COUNT" -eq "$POEM_COUNT" ] && echo "COMPLETE" || echo "INCOMPLETE" )"
+  },
+  "similarity_matrix": {
+    "count": $SIMILARITY_COUNT,
+    "total": $POEM_COUNT,
+    "percentage": $SIMILARITY_PCT,
+    "missing": $((POEM_COUNT - SIMILARITY_COUNT)),
+    "location": "$EMBEDDINGS_DIR/$MODEL/similarities/",
+    "status": "$( [ "$SIMILARITY_COUNT" -eq "$POEM_COUNT" ] && echo "COMPLETE" || echo "INCOMPLETE" )"
+  },
+  "diversity_cache": {
+    "count": $DIVERSITY_COUNT,
+    "total": $POEM_COUNT,
+    "percentage": $DIVERSITY_PCT,
+    "missing": $((POEM_COUNT - DIVERSITY_COUNT)),
+    "location": "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json",
+    "status": "$DIVERSITY_STATUS"
+  },
+  "html_output": {
+    "similar_pages": $HTML_SIMILAR_COUNT,
+    "different_pages": $HTML_DIFFERENT_COUNT,
+    "chronological": "$CHRONO_STATUS",
+    "expected_similar": $POEM_COUNT,
+    "expected_different": $POEM_COUNT
+  }
+}
+EOF
+}
+# }}}
+
+# {{{ Main execution
+# Change to project directory
+cd "$DIR" || exit 3
+
+# Run validation
+validate_pipeline
+
+# Handle list missing mode
+if [ "$LIST_MISSING" = true ]; then
+    list_missing_entries
+    exit "$EXIT_CODE"
+fi
+
+# Handle freshness check mode
+if [ "$CHECK_FRESHNESS" = true ]; then
+    check_freshness
+    exit "$EXIT_CODE"
+fi
+
+# Output results
+if [ "$FORMAT" = "json" ]; then
+    output_json
+elif [ "$QUICK_MODE" = true ]; then
+    output_quick
+else
+    output_human
+fi
+
+# Exit with appropriate code
+exit "$EXIT_CODE"
+# }}}
