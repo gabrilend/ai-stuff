@@ -80,6 +80,10 @@ local STORAGE_CONFIG = {
 -- Loaded from assets/embeddings/embeddinggemma_latest/diversity_cache.json
 local DIVERSITY_CACHE = nil
 
+-- Similarity rankings cache (pre-sorted similarity rankings for fast HTML generation)
+-- Loaded from assets/embeddings/embeddinggemma_latest/similarity_rankings_cache.json
+local SIMILARITY_RANKINGS_CACHE = nil
+
 -- {{{ local function load_diversity_cache
 -- Loads pre-computed diversity sequences from GPU cache (required for HTML generation)
 -- Errors out if cache doesn't exist - no fallback to on-the-fly computation
@@ -116,6 +120,49 @@ This takes ~1 minute with GPU (or ~42 hours with CPU using --cpu-only).
                                 cache_data.metadata.generation_time_seconds or 0))
 
     DIVERSITY_CACHE = cache_data
+    return cache_data
+end
+-- }}}
+
+-- {{{ local function load_similarity_rankings_cache
+-- Loads pre-sorted similarity rankings from cache (required for HTML generation)
+-- Errors out if cache doesn't exist - no fallback to on-the-fly sorting
+local function load_similarity_rankings_cache(model_name)
+    model_name = model_name or "embeddinggemma:latest"
+    local model_dir = model_name:gsub(":", "_")
+    local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/similarity_rankings_cache.json")
+
+    if not utils.file_exists(cache_file) then
+        error(string.format([[
+Similarity rankings cache not found: %s
+
+The similarity rankings cache is required for fast HTML generation.
+Generate it with: ./run.sh --generate-similarity
+
+This is a post-processing step that pre-sorts similarity rankings.
+]], cache_file))
+    end
+
+    utils.log_info("Loading similarity rankings cache from: " .. cache_file)
+    local cache_data = utils.read_json_file(cache_file)
+
+    if not cache_data then
+        error("Failed to parse similarity rankings cache JSON file")
+    end
+
+    if not cache_data.rankings then
+        error("Similarity rankings cache has invalid format (missing rankings table)")
+    end
+
+    -- Count rankings (for logging)
+    local count = 0
+    for _ in pairs(cache_data.rankings) do count = count + 1 end
+
+    utils.log_info(string.format("Similarity rankings cache loaded: %d poems (%s)",
+                                count,
+                                cache_data.metadata.algorithm or "unknown"))
+
+    SIMILARITY_RANKINGS_CACHE = cache_data
     return cache_data
 end
 -- }}}
@@ -859,13 +906,35 @@ end
 -- }}}
 
 -- {{{ function M.generate_similarity_ranked_list
+-- Cache-only similarity ranking lookup (no on-the-fly sorting)
+-- Requires pre-computed similarity rankings cache from: ./run.sh --generate-similarity
+-- Parameter similarity_data is kept for API compatibility but not used when cache is available
 function M.generate_similarity_ranked_list(starting_poem_id, poems_data, similarity_data)
-    utils.log_info(string.format("Generating similarity-ranked list starting from poem %s", starting_poem_id))
-    
+    -- Verify cache is loaded
+    if not SIMILARITY_RANKINGS_CACHE then
+        error("Similarity rankings cache not loaded! Run: ./run.sh --generate-similarity")
+    end
+
+    if not SIMILARITY_RANKINGS_CACHE.rankings then
+        error("Similarity rankings cache has invalid format (missing rankings table)")
+    end
+
+    -- Look up pre-sorted ranking for this poem
+    local cached_ranking = SIMILARITY_RANKINGS_CACHE.rankings[tostring(starting_poem_id)]
+    if not cached_ranking then
+        error(string.format("Similarity ranking not found for poem %s in cache.", starting_poem_id))
+    end
+
+    -- Build poem index lookup for fast access
+    local poem_by_index = {}
+    for i, poem in ipairs(poems_data.poems) do
+        if poem.poem_index then
+            poem_by_index[poem.poem_index] = poem
+        end
+    end
+
+    -- Initialize ranked list with starting poem
     local ranked_poems = {}
-    local similarities = similarity_data[tostring(starting_poem_id)] or {}
-    
-    -- Initialize with starting poem
     local starting_poem = poems_data.poems[starting_poem_id]
     table.insert(ranked_poems, {
         id = starting_poem_id,
@@ -873,33 +942,23 @@ function M.generate_similarity_ranked_list(starting_poem_id, poems_data, similar
         similarity = 1.0,  -- Perfect similarity to self
         rank = 1
     })
-    
-    -- Create list of all other poems with their direct similarity scores
-    local other_poems = {}
-    for poem_id, poem in ipairs(poems_data.poems) do
-        if poem_id ~= starting_poem_id and poem.id then
-            local similarity_score = similarities[tostring(poem.id)] or 0
-            table.insert(other_poems, {
+
+    -- Add poems in pre-sorted order from cache
+    -- Cache contains poem indices already sorted by similarity (descending)
+    local rank = 2
+    for _, target_poem_index in ipairs(cached_ranking) do
+        local poem = poem_by_index[target_poem_index]
+        if poem then
+            table.insert(ranked_poems, {
                 id = poem.id,
                 poem = poem,
-                similarity = similarity_score
+                similarity = nil,  -- Not needed for display, saves memory
+                rank = rank
             })
+            rank = rank + 1
         end
     end
-    
-    -- Sort by similarity (descending = most similar first)  
-    table.sort(other_poems, function(a, b)
-        return a.similarity > b.similarity
-    end)
-    
-    -- Add to ranked list with rank numbers
-    for i, poem_info in ipairs(other_poems) do
-        poem_info.rank = i + 1  -- +1 because starting poem is rank 1
-        table.insert(ranked_poems, poem_info)
-    end
-    
-    utils.log_info(string.format("Generated similarity ranking of %d poems", #ranked_poems))
-    
+
     return ranked_poems
 end
 -- }}}
@@ -2136,6 +2195,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Load diversity cache for fast HTML generation (Issue: diversity generation taking 42+ hours)
     -- Cache provides instant lookup of pre-computed GPU diversity sequences
     load_diversity_cache()
+
+    -- Load similarity rankings cache for fast HTML generation
+    -- Cache provides instant lookup of pre-sorted similarity rankings (no O(n log n) sorting per poem)
+    load_similarity_rankings_cache()
 
     -- Load pagination config first
     load_pagination_config()

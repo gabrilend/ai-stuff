@@ -741,6 +741,9 @@ run_generate_similarity() {
             exit 1
         }
     fi
+
+    # Note: Pre-sorted similarity rankings cache is now generated automatically
+    # by the GPU similarity engine (in-RAM, no file re-reading needed)
 }
 # }}}
 

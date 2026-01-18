@@ -107,6 +107,16 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
     local output_dir = "assets/embeddings/" .. model_dir .. "/similarities"
     os.execute("mkdir -p " .. output_dir)
 
+    -- Accumulate bidirectional similarity data in RAM for cache generation
+    -- Structure: full_similarities[poem_index] = {{target_index, similarity}, ...}
+    local full_similarities = {}
+    for idx = 1, num_poems do
+        local emb = embeddings_data.embeddings[idx]
+        if emb.poem_index then
+            full_similarities[emb.poem_index] = {}
+        end
+    end
+
     -- Generate similarities for each poem
     local start_time = os.time()
     for i = 0, num_poems - 1 do
@@ -175,13 +185,31 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
                 ))
             end
 
+            local target_index = target_embedding.poem_index
+            local sim_value = output_similarities[j]
+
             table.insert(similarities, {
-                id = tostring(target_embedding.poem_index),  -- Use poem_index for unique identification
-                similarity = output_similarities[j]
+                id = tostring(target_index),  -- Use poem_index for unique identification
+                similarity = sim_value
             })
+
+            -- Accumulate bidirectionally for full rankings cache
+            table.insert(full_similarities[poem_index], {target_index, sim_value})
+            table.insert(full_similarities[target_index], {poem_index, sim_value})
         end
 
-        -- Write JSON file
+        -- Sort similarities by score (descending) for sorted_indices field
+        table.sort(similarities, function(a, b)
+            return a.similarity > b.similarity
+        end)
+
+        -- Extract sorted indices for fast HTML generation
+        local sorted_indices = {}
+        for _, entry in ipairs(similarities) do
+            table.insert(sorted_indices, tonumber(entry.id))
+        end
+
+        -- Write JSON file with sorted_indices for fast HTML generation
         local data = {
             metadata = {
                 poem_id = tostring(poem_id),
@@ -192,7 +220,8 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
                 calculated_at = os.date("%Y-%m-%d %H:%M:%S"),
                 method = "gpu_vulkan"
             },
-            similarities = similarities
+            similarities = similarities,
+            sorted_indices = sorted_indices  -- Pre-sorted poem indices for fast lookup
         }
         utils.write_json_file(output_file, data)
 
@@ -212,9 +241,53 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force)
     print(string.format("[GPU SIMILARITY] ✅ Complete! Generated %d files in %.1f min (%.2f poems/sec)",
         num_poems, total_time / 60, num_poems / total_time))
 
-    -- Cleanup
+    -- Cleanup GPU resources
     vklib.vks_destroy(sim_ctx)
     vklib.vkc_destroy(vk_ctx)
+
+    -- Generate sorted rankings cache (while data is still in RAM)
+    print("[GPU SIMILARITY] Generating sorted similarity rankings cache...")
+    local cache_start = os.time()
+
+    local rankings = {}
+    local poems_sorted = 0
+    for poem_index, sim_list in pairs(full_similarities) do
+        -- Sort by similarity descending
+        table.sort(sim_list, function(a, b)
+            return a[2] > b[2]
+        end)
+
+        -- Extract just the sorted poem indices (similarity values not needed at runtime)
+        local sorted_ids = {}
+        for _, entry in ipairs(sim_list) do
+            table.insert(sorted_ids, entry[1])
+        end
+
+        rankings[tostring(poem_index)] = sorted_ids
+        poems_sorted = poems_sorted + 1
+
+        if poems_sorted % 1000 == 0 then
+            print(string.format("[GPU SIMILARITY] Sorted rankings: %d/%d poems", poems_sorted, num_poems))
+        end
+    end
+
+    -- Write cache file
+    local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
+    local cache_data = {
+        metadata = {
+            total_poems = num_poems,
+            generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+            algorithm = "gpu_vulkan_sorted",
+            format = "pre_sorted_rankings",
+            description = "Pre-sorted similarity rankings for fast HTML generation"
+        },
+        rankings = rankings
+    }
+
+    utils.write_json_file(cache_file, cache_data)
+
+    local cache_time = os.time() - cache_start
+    print(string.format("[GPU SIMILARITY] ✅ Rankings cache saved in %d seconds: %s", cache_time, cache_file))
 
     return true
 end
