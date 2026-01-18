@@ -388,7 +388,10 @@ local function load_poem_colors()
     local poem_colors_data = utils.read_json_file(poem_colors_file)
     
     if poem_colors_data and poem_colors_data.poem_colors then
-        utils.log_info(string.format("Loaded semantic colors for %d poems", poem_colors_data.total_poems))
+        -- Count actual entries dynamically (stored total_poems may be stale)
+        local actual_count = 0
+        for _ in pairs(poem_colors_data.poem_colors) do actual_count = actual_count + 1 end
+        utils.log_info(string.format("Loaded semantic colors for %d poems", actual_count))
         return poem_colors_data.poem_colors
     else
         utils.log_warn("Could not load poem colors, using mock colors")
