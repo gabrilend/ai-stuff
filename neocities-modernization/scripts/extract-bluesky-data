@@ -170,25 +170,32 @@ local function scan_for_posts(data)
             local success, record = pcall(function() return reader:parse_value() end)
 
             if success and record and type(record) == "table" and record["$type"] == post_marker then
-                -- Extract post data
+                -- Extract post data (ID assigned after sorting)
                 local post = {
                     content = record.text or "",
                     created_at = record.createdAt or "",
                     author = "unknown",  -- Would need to parse commit structure for DID
-                    id = tostring(#posts + 1),
                     url = ""
                 }
 
                 -- Only add if we have actual content
                 if post.content and #post.content > 0 then
                     table.insert(posts, post)
-                    io.stderr:write("  Found post " .. #posts .. ": " ..
-                        post.content:sub(1, 60):gsub("\n", " ") .. "...\n")
                 end
             end
         end
 
         start_pos = found_pos + 1
+    end
+
+    -- Sort posts by creation date (oldest first)
+    table.sort(posts, function(a, b)
+        return (a.created_at or "") < (b.created_at or "")
+    end)
+
+    -- Assign sequential IDs after sorting
+    for i, post in ipairs(posts) do
+        post.id = tostring(i)
     end
 
     return posts
@@ -217,7 +224,8 @@ local function main()
     -- {{{ Extract posts
     io.stderr:write("📝 Scanning for posts...\n")
     local posts = scan_for_posts(car_data)
-    io.stderr:write("\n   Extracted " .. #posts .. " posts\n\n")
+    io.stderr:write("   Found " .. #posts .. " posts\n")
+    io.stderr:write("   Sorted chronologically (oldest first)\n\n")
     -- }}}
 
     -- {{{ Write output

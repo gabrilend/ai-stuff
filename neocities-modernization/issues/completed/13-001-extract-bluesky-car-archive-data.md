@@ -421,7 +421,13 @@ Bluesky posts are public by design (no private posts yet):
    - Zero failures after error handling added
 
 **Files Created**:
-- `/scripts/extract-bluesky-data` (254 lines, executable)
+- `/scripts/extract-bluesky-data` (260 lines, executable)
+
+**Post-Implementation Fix (2026-01-17)**:
+- Added chronological sorting of posts by `created_at` timestamp
+- IDs now assigned after sorting (oldest post = ID 1, newest = ID 47)
+- CAR file stores posts in reverse chronological order; sorting corrects this
+- Date range: 2025-02-27 (oldest) → 2026-01-17 (newest)
 
 **Test Results**:
 ```bash
