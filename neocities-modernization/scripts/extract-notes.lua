@@ -21,6 +21,13 @@ local config_file = DIR .. "/config/input-sources.json"
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 
+-- ANSI color codes for terminal output
+local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
+local COLOR_BLUE = "\027[94m"     -- Bright blue for info (ℹ️)
+local COLOR_RED = "\027[91m"      -- Bright red for errors (✗, ❌)
+local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings (⚠️)
+local COLOR_RESET = "\027[0m"     -- Reset to default
+
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
     if absolute_path:sub(1, #DIR) == DIR then
@@ -124,20 +131,23 @@ local function is_valid_note_file(file_path)
     
     -- Skip backup files (.un~, .swp, etc.)
     if filename:match("%.un~$") or filename:match("%.swp$") then return false end
-    
+
+    -- Skip JSON files (including our own output)
+    if filename:match("%.json$") then return false end
+
     -- Skip directories (check if it's a regular file)
     local file_handle = io.open(file_path, "r")
     if not file_handle then return false end
     file_handle:close()
-    
+
     return true
 end
 -- }}}
 
 print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
 
--- Scan notes directory for files
-local find_cmd = string.format("find %s -type f", shell_escape(notes_dir))
+-- Scan notes directory for files (exclude files/ subdirectory to avoid reading our own output)
+local find_cmd = string.format("find %s -type f -not -path '*/files/*'", shell_escape(notes_dir))
 local find_handle = io.popen(find_cmd)
 
 local poems_json = {}
@@ -199,7 +209,7 @@ local f = io.open(json_file, "w")
 f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
-print("✅ Notes extraction complete")
+print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Notes extraction complete")
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Notes processed: " .. #poems_json)
 -- }}}
