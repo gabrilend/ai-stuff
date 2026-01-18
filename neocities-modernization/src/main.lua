@@ -388,7 +388,8 @@ function M.is_data_fresh()
     local source_files = {
         DIR .. "/input/fediverse/files/poems.json",
         DIR .. "/input/messages/files/poems.json",
-        DIR .. "/input/notes/files/poems.json"
+        DIR .. "/input/notes/files/poems.json",
+        DIR .. "/input/bluesky/files/poems.json"
     }
 
     for _, source_file in ipairs(source_files) do
@@ -524,7 +525,8 @@ end
 
 -- {{{ function M.generate_website_html
 -- Phase D (Issue 8-012): Added pages_spec parameter for pagination control
-function M.generate_website_html(force, pages_spec)
+-- Issue 8-022: Added poems_per_page parameter for CLI override
+function M.generate_website_html(force, pages_spec, poems_per_page)
     -- Skip if HTML is fresh (unless forced)
     if not force and M.is_html_fresh() then
         utils.log_info("Website HTML is up to date, skipping generation")
@@ -591,9 +593,10 @@ function M.generate_website_html(force, pages_spec)
     -- Generate all similarity and diversity pages
     -- Note: This is the long operation - generates ~12,000+ files
     -- Phase D (Issue 8-012): Pass pages_spec for pagination control
+    -- Issue 8-022: Pass poems_per_page for CLI override
     utils.log_info("Generating similarity and diversity pages (this may take a while)...")
     local gen_success = flat_html_generator.generate_complete_flat_html_collection(
-        poems_data, similarity_data, embeddings_data, output_dir, pages_spec
+        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page
     )
 
     if gen_success then
@@ -640,6 +643,7 @@ function M.show_project_status()
         {"JSON Extracts (Fed)", paths.root .. "/input/fediverse/files/poems.json"},
         {"JSON Extracts (Msg)", paths.root .. "/input/messages/files/poems.json"},
         {"JSON Extracts (Notes)", paths.root .. "/input/notes/files/poems.json"},
+        {"JSON Extracts (Sky)", paths.root .. "/input/bluesky/files/poems.json"},
         {"Processed Poems", utils.asset_path("poems.json")},
         {"Validation Report", utils.asset_path("validation-report.json")},
         {"Image Catalog", utils.asset_path("image-catalog.json")},
@@ -755,7 +759,7 @@ function M.handle_tui_action(values)
         executed = true
     end
     if values.full_website == "1" then
-        M.generate_website_html(true)
+        M.generate_website_html(true, nil, nil)  -- TUI mode: use config defaults
         executed = true
     end
 
@@ -903,15 +907,17 @@ function M.main(options)
     elseif options.html_only then
         -- Run only HTML generation
         -- Phase D (Issue 8-012): Pass pages parameter
+        -- Issue 8-022: Pass poems_per_page parameter
         utils.log_info("Running HTML generation only")
-        M.generate_website_html(options.force, options.pages)
+        M.generate_website_html(options.force, options.pages, options.poems_per_page)
     else
         -- Non-interactive mode - generate dataset and website HTML (full pipeline)
         -- Phase D (Issue 8-012): Pass pages parameter
+        -- Issue 8-022: Pass poems_per_page parameter
         utils.log_info("Running in non-interactive mode (full pipeline)")
         M.show_project_status()
         M.generate_complete_dataset()
-        M.generate_website_html(options.force, options.pages)
+        M.generate_website_html(options.force, options.pages, options.poems_per_page)
     end
 end
 -- }}}

@@ -230,13 +230,18 @@ local function main()
 
     -- {{{ Write output
     io.stderr:write("💾 Writing to JSON...\n")
+
+    -- Match the format expected by src/main.lua (same as fediverse/messages)
     local output_data = {
-        posts = posts,
-        metadata = {
-            source = "bluesky",
-            extracted_at = os.date("%Y-%m-%dT%H:%M:%SZ"),
-            total_posts = #posts
-        }
+        extraction_summary = {
+            total_poems = #posts,
+            by_category = {
+                bluesky = #posts
+            },
+            extraction_date = os.date("%Y-%m-%dT%H:%M:%SZ"),
+            content_warnings = {}
+        },
+        poems = posts
     }
 
     local json_str = dkjson.encode(output_data, { indent = true })
@@ -254,8 +259,9 @@ local function main()
     out_file:close()
     -- }}}
 
-    io.stderr:write("✅ Extraction complete!\n")
-    io.stderr:write("   " .. #posts .. " posts written to " .. OUTPUT_JSON .. "\n")
+    io.stderr:write("✅ Bluesky extraction complete\n")
+    io.stderr:write("   📄 Generated: " .. OUTPUT_JSON .. "\n")
+    io.stderr:write("   📊 Total posts: " .. #posts .. "\n")
 end
 -- }}}
 
