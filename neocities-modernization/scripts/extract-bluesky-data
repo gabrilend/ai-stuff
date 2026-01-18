@@ -1,0 +1,255 @@
+#!/usr/bin/env lua
+-- {{{ Bluesky CAR Archive Extraction Script
+-- Extracts posts from Bluesky CAR (Content Addressable aRchive) files
+-- and transforms them into the unified poem format matching fediverse structure.
+--
+-- Simplified approach: Scans for CBOR post records instead of full CAR parsing
+--
+-- Usage: ./scripts/extract-bluesky-data [car-file] [output-file]
+-- Default: input/bluesky/repo.car -> input/bluesky/files/poems.json
+-- }}}
+
+-- {{{ Configuration
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+if arg[1] and arg[1]:sub(1, 1) ~= "-" and arg[1]:match("%.car$") then
+    -- First arg is CAR file
+elseif arg[1] and not arg[1]:match("^%-") then
+    DIR = arg[1]
+end
+
+local INPUT_CAR = arg[1] or DIR .. "/input/bluesky/repo-2.car"
+local OUTPUT_JSON = arg[2] or DIR .. "/input/bluesky/files/poems.json"
+
+-- Ensure we can load required libraries
+package.path = package.path .. ';' .. DIR .. '/libs/?.lua'
+local dkjson = require('dkjson')
+-- }}}
+
+-- {{{ CBOR Reader
+local CBORReader = {}
+CBORReader.__index = CBORReader
+
+-- {{{ function CBORReader.new
+function CBORReader.new(data, offset)
+    return setmetatable({
+        data = data,
+        pos = offset or 1,
+        len = #data
+    }, CBORReader)
+end
+-- }}}
+
+-- {{{ function CBORReader:read_byte
+function CBORReader:read_byte()
+    if self.pos > self.len then return nil end
+    local byte = self.data:byte(self.pos)
+    self.pos = self.pos + 1
+    return byte
+end
+-- }}}
+
+-- {{{ function CBORReader:read_bytes
+function CBORReader:read_bytes(n)
+    if self.pos + n - 1 > self.len then return nil end
+    local bytes = self.data:sub(self.pos, self.pos + n - 1)
+    self.pos = self.pos + n
+    return bytes
+end
+-- }}}
+
+-- {{{ function CBORReader:parse_value
+function CBORReader:parse_value()
+    local initial = self:read_byte()
+    if not initial then return nil, "EOF" end
+
+    local major_type = bit32.rshift(initial, 5)
+    local additional = bit32.band(initial, 0x1F)
+
+    -- Read argument
+    local function read_arg(add_info)
+        if add_info < 24 then
+            return add_info
+        elseif add_info == 24 then
+            return self:read_byte()
+        elseif add_info == 25 then
+            local b1, b2 = self:read_byte(), self:read_byte()
+            if not b1 or not b2 then return nil end
+            return bit32.lshift(b1, 8) + b2
+        elseif add_info == 26 then
+            local b1, b2, b3, b4 = self:read_byte(), self:read_byte(),
+                                    self:read_byte(), self:read_byte()
+            if not b1 or not b2 or not b3 or not b4 then return nil end
+            return bit32.lshift(b1, 24) + bit32.lshift(b2, 16) +
+                   bit32.lshift(b3, 8) + b4
+        else
+            return nil
+        end
+    end
+
+    -- Handle types
+    if major_type == 0 then -- unsigned int
+        return read_arg(additional)
+    elseif major_type == 1 then -- negative int
+        local val = read_arg(additional)
+        return val and (-1 - val)
+    elseif major_type == 2 then -- byte string
+        local len = read_arg(additional)
+        return len and self:read_bytes(len)
+    elseif major_type == 3 then -- text string
+        local len = read_arg(additional)
+        return len and self:read_bytes(len)
+    elseif major_type == 4 then -- array
+        local len = read_arg(additional)
+        if not len then return nil end
+        local arr = {}
+        for i = 1, len do
+            local val, err = self:parse_value()
+            if err then return nil, err end
+            arr[i] = val
+        end
+        return arr
+    elseif major_type == 5 then -- map
+        local len = read_arg(additional)
+        if not len then return nil end
+        local map = {}
+        for i = 1, len do
+            local key, err = self:parse_value()
+            if err or not key then return nil, err or "nil key" end
+            local val, err2 = self:parse_value()
+            if err2 then return nil, err2 end
+            if key then  -- Only add if key is valid
+                map[key] = val
+            end
+        end
+        return map
+    elseif major_type == 6 then -- tag
+        read_arg(additional)
+        return self:parse_value()
+    elseif major_type == 7 then -- simple/null/bool
+        if additional == 20 then return false
+        elseif additional == 21 then return true
+        elseif additional == 22 then return nil
+        else return nil end
+    end
+
+    return nil, "Unknown type"
+end
+-- }}}
+-- }}}
+
+-- {{{ function scan_for_posts
+-- Scans the raw file data for CBOR post records
+local function scan_for_posts(data)
+    local posts = {}
+    local post_marker = "app.bsky.feed.post"
+
+    -- Find all occurrences of the post marker
+    local start_pos = 1
+    while true do
+        local found_pos = data:find(post_marker, start_pos, true)
+        if not found_pos then break end
+
+        -- Search backwards to find the start of the CBOR map
+        -- Look for map marker (0xa4 = map with 4 items is common for posts)
+        local search_start = math.max(1, found_pos - 200)
+        local best_map_pos = nil
+
+        -- Scan backwards for CBOR map markers
+        for check_pos = found_pos - 1, search_start, -1 do
+            local byte = data:byte(check_pos)
+            -- Check for map markers: 0xa0-0xb7 (maps with 0-23 items)
+            if byte and byte >= 0xa0 and byte <= 0xb7 then
+                best_map_pos = check_pos
+                break
+            end
+        end
+
+        if best_map_pos then
+            -- Try to parse the CBOR map
+            local reader = CBORReader.new(data, best_map_pos)
+            local success, record = pcall(function() return reader:parse_value() end)
+
+            if success and record and type(record) == "table" and record["$type"] == post_marker then
+                -- Extract post data
+                local post = {
+                    content = record.text or "",
+                    created_at = record.createdAt or "",
+                    author = "unknown",  -- Would need to parse commit structure for DID
+                    id = tostring(#posts + 1),
+                    url = ""
+                }
+
+                -- Only add if we have actual content
+                if post.content and #post.content > 0 then
+                    table.insert(posts, post)
+                    io.stderr:write("  Found post " .. #posts .. ": " ..
+                        post.content:sub(1, 60):gsub("\n", " ") .. "...\n")
+                end
+            end
+        end
+
+        start_pos = found_pos + 1
+    end
+
+    return posts
+end
+-- }}}
+
+-- {{{ Main Execution
+-- {{{ function main
+local function main()
+    io.stderr:write("🔍 Extracting Bluesky posts from CAR archive...\n")
+    io.stderr:write("   Input:  " .. INPUT_CAR .. "\n")
+    io.stderr:write("   Output: " .. OUTPUT_JSON .. "\n\n")
+
+    -- {{{ Read CAR file
+    local file, err = io.open(INPUT_CAR, "rb")
+    if not file then
+        io.stderr:write("❌ ERROR: Cannot open CAR file: " .. tostring(err) .. "\n")
+        os.exit(1)
+    end
+
+    local car_data = file:read("*all")
+    file:close()
+    io.stderr:write("📦 Read " .. #car_data .. " bytes\n\n")
+    -- }}}
+
+    -- {{{ Extract posts
+    io.stderr:write("📝 Scanning for posts...\n")
+    local posts = scan_for_posts(car_data)
+    io.stderr:write("\n   Extracted " .. #posts .. " posts\n\n")
+    -- }}}
+
+    -- {{{ Write output
+    io.stderr:write("💾 Writing to JSON...\n")
+    local output_data = {
+        posts = posts,
+        metadata = {
+            source = "bluesky",
+            extracted_at = os.date("%Y-%m-%dT%H:%M:%SZ"),
+            total_posts = #posts
+        }
+    }
+
+    local json_str = dkjson.encode(output_data, { indent = true })
+
+    -- Create output directory if needed
+    os.execute("mkdir -p \"" .. OUTPUT_JSON:match("(.*/)[^/]+$") .. "\"")
+
+    local out_file, err = io.open(OUTPUT_JSON, "w")
+    if not out_file then
+        io.stderr:write("❌ ERROR: Cannot write output: " .. tostring(err) .. "\n")
+        os.exit(1)
+    end
+
+    out_file:write(json_str)
+    out_file:close()
+    -- }}}
+
+    io.stderr:write("✅ Extraction complete!\n")
+    io.stderr:write("   " .. #posts .. " posts written to " .. OUTPUT_JSON .. "\n")
+end
+-- }}}
+
+main()
+-- }}}
