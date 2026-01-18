@@ -205,7 +205,28 @@ function M.load_extracted_json(input_directory)
     else
         print("No notes poems found at: " .. notes_file)
     end
-    
+
+    -- Load bluesky poems
+    local bluesky_file = input_directory .. "/bluesky/files/poems.json"
+    local bluesky_data = load_json_file(bluesky_file)
+    if bluesky_data and bluesky_data.poems then
+        print("Loading " .. #bluesky_data.poems .. " bluesky poems from JSON")
+        for _, poem in ipairs(bluesky_data.poems) do
+            table.insert(poems, {
+                id = tonumber(poem.id),
+                filepath = poem.category or "bluesky" .. "/" .. poem.id .. ".txt", -- Reconstruct legacy path format
+                category = poem.category or "bluesky",
+                content = poem.content,
+                creation_date = poem.created_at or poem.creation_date,
+                content_warning = poem.content_warning,
+                length = poem.metadata and poem.metadata.character_count or #(poem.content or ""),
+                metadata = poem.metadata
+            })
+        end
+    else
+        print("No bluesky poems found at: " .. bluesky_file)
+    end
+
     return poems
 end
 -- }}}
@@ -219,16 +240,19 @@ function M.detect_input_mode(base_directory)
     local fediverse_json = input_dir .. "/fediverse/files/poems.json"
     local messages_json = input_dir .. "/messages/files/poems.json"
     local notes_json = input_dir .. "/notes/files/poems.json"
-    
+    local bluesky_json = input_dir .. "/bluesky/files/poems.json"
+
     -- Check if any JSON file exists
     local fediverse_file = io.open(fediverse_json, "r")
     local messages_file = io.open(messages_json, "r")
     local notes_file = io.open(notes_json, "r")
-    
-    if fediverse_file or messages_file or notes_file then
+    local bluesky_file = io.open(bluesky_json, "r")
+
+    if fediverse_file or messages_file or notes_file or bluesky_file then
         if fediverse_file then io.close(fediverse_file) end
         if messages_file then io.close(messages_file) end
         if notes_file then io.close(notes_file) end
+        if bluesky_file then io.close(bluesky_file) end
         return "json", input_dir
     end
     

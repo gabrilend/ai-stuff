@@ -26,16 +26,17 @@ is_extraction_fresh() {
         "${dir}/input/fediverse/files/poems.json"
         "${dir}/input/messages/files/poems.json"
         "${dir}/input/notes/files/poems.json"
+        "${dir}/input/bluesky/files/poems.json"
     )
 
-    # Find all ZIP archives in input directory
-    local zips=()
-    while IFS= read -r -d '' zip; do
-        zips+=("$zip")
-    done < <(find "${dir}/input" -name "*.zip" -type f -print0 2>/dev/null)
+    # Find all ZIP archives and CAR files in input directory
+    local archives=()
+    while IFS= read -r -d '' archive; do
+        archives+=("$archive")
+    done < <(find "${dir}/input" \( -name "*.zip" -o -name "*.car" \) -type f -print0 2>/dev/null)
 
-    # If no ZIPs found, nothing to extract
-    if [ ${#zips[@]} -eq 0 ]; then
+    # If no archives found, nothing to extract
+    if [ ${#archives[@]} -eq 0 ]; then
         return 0
     fi
 
@@ -56,18 +57,18 @@ is_extraction_fresh() {
         fi
     done
 
-    # Get the newest ZIP file modification time
-    local newest_zip_mtime=0
-    for zip in "${zips[@]}"; do
+    # Get the newest archive file modification time
+    local newest_archive_mtime=0
+    for archive in "${archives[@]}"; do
         local mtime
-        mtime=$(stat -c %Y "$zip" 2>/dev/null || echo "0")
-        if [ "$mtime" -gt "$newest_zip_mtime" ]; then
-            newest_zip_mtime=$mtime
+        mtime=$(stat -c %Y "$archive" 2>/dev/null || echo "0")
+        if [ "$mtime" -gt "$newest_archive_mtime" ]; then
+            newest_archive_mtime=$mtime
         fi
     done
 
-    # Fresh if oldest output is newer than newest ZIP
-    if [ "$oldest_output_mtime" -gt "$newest_zip_mtime" ]; then
+    # Fresh if oldest output is newer than newest archive
+    if [ "$oldest_output_mtime" -gt "$newest_archive_mtime" ]; then
         return 0  # Fresh
     else
         return 1  # Stale, need to extract
@@ -166,6 +167,24 @@ if [ -d "${DIR}/input/notes" ] && [ "$(find "${DIR}/input/notes" -type f -not -n
     bash "${DIR}/scripts/run-notes" "${DIR}" || {
         echo "Warning: Main notes processing failed" >&2
     }
+fi
+
+# Check for Bluesky CAR files
+if [ -f "${DIR}/input/bluesky/repo.car" ] || [ -f "${DIR}/input/bluesky/repo-2.car" ]; then
+    echo "🦋 Extracting Bluesky content..."
+    # Find the CAR file (prefer repo-2.car if both exist)
+    CAR_FILE=""
+    if [ -f "${DIR}/input/bluesky/repo-2.car" ]; then
+        CAR_FILE="${DIR}/input/bluesky/repo-2.car"
+    elif [ -f "${DIR}/input/bluesky/repo.car" ]; then
+        CAR_FILE="${DIR}/input/bluesky/repo.car"
+    fi
+
+    "${DIR}/scripts/extract-bluesky-data" "$CAR_FILE" "${DIR}/input/bluesky/files/poems.json" || {
+        echo "Warning: Bluesky extraction failed" >&2
+    }
+else
+    echo "ℹ️  No Bluesky CAR files found in input/bluesky/"
 fi
 
 # Preserve media attachments before cleanup
