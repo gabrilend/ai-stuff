@@ -17,6 +17,7 @@ This document provides a hierarchical view of all project documentation.
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
 - `/docs/words-pdf-integration.md` - Integration guide for words-pdf PDF generation system
 - `/docs/centroids-for-hope-cards.md` - Using centroid system for semantic hope card selection
+- `/docs/effil-usage-patterns.md` - **Comprehensive guide to effil threading library: usage patterns, antipatterns, and performance characteristics**
 - `/docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis comparing effil threading vs GPU compute shaders for diversity pre-computation
 - `/docs/research-2d-embeddings.md` - Research analysis of dimensionality reduction (768D → 2D) for visualization
 - `/docs/research-tuple-embeddings.md` - Research analysis of tuple-based embeddings (768 × 2D coordinate pairs)
