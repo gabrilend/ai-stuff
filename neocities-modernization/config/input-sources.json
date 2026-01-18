@@ -37,8 +37,8 @@
   },
   "pagination": {
     "_comment": "Settings for paginated similarity/diversity pages (chronological stays full)",
-    "_poems_per_page_calculation": "Calculated from storage budget: (45GB - 7.7GB fixed) / 15,586 files = 2.39MB per file / 1.34KB per poem ≈ 1,783 poems. Using 1,500 for safety margin.",
-    "poems_per_page": 1500,
+    "_strategy": "Initial release: 200 poems per page, 1 page per anchor poem. Can be increased to 300, 600, etc. with additional pages as needed.",
+    "poems_per_page": 200,
     "max_pages_per_poem": 1,
     "minimum_pages": 1,
     "page_number_padding": 2,
