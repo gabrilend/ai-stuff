@@ -532,6 +532,102 @@ run_generate_embeddings() {
 }
 # }}}
 
+# {{{ run_generate_semantic_colors
+run_generate_semantic_colors() {
+    # Regenerate poem_colors.json if stale or missing
+    # This runs BEFORE similarity matrix generation (Stage 6.5)
+    # Requires: embeddings.json, color_embeddings.json
+    # Respects: --force (skip freshness check), --dry-run (show actions only)
+
+    local model_dir_name="${MODEL_NAME//:/_}"
+    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    local poem_colors_file="$DIR/assets/embeddings/$model_dir_name/poem_colors.json"
+    local color_embeddings_file="$DIR/assets/embeddings/$model_dir_name/color_embeddings.json"
+
+    # Embeddings must exist first (exit early if not - prevents confusing errors)
+    if [ ! -f "$embeddings_file" ]; then
+        log_verbose "   Skipping semantic colors - embeddings not yet generated"
+        return 0
+    fi
+
+    # Check if color embeddings exist (generated once, reused)
+    if [ ! -f "$color_embeddings_file" ]; then
+        log_stage "🎨 Stage 6.5/10: Generating color embeddings (one-time)"
+
+        if $DRY_RUN; then
+            log_dry_run "luajit semantic-color-calculator (generate color embeddings)"
+            # Still need to skip poem colors generation in dry run
+        else
+            log_info "   $(symbol_warning "⚠️")  Color embeddings not found, generating via Ollama..."
+            # Run interactive mode option 1 to generate color embeddings only
+            luajit -e "
+                package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+                local calc = require('semantic-color-calculator')
+                local utils = require('utils')
+                local dkjson = require('dkjson')
+                utils.init_assets_root({'$DIR'})
+
+                local color_config = utils.read_json_file('$DIR/config/semantic-colors.json')
+                if color_config then
+                    local embeddings = calc.generate_color_embeddings_using_ollama(color_config.color_names, '$MODEL_NAME')
+                    if next(embeddings) then
+                        local data = {embeddings = embeddings, generated_at = os.date('%Y-%m-%d %H:%M:%S'), model_name = '$MODEL_NAME'}
+                        utils.write_json_file('$color_embeddings_file', data)
+                        print('[INFO] Color embeddings saved: ' .. '$color_embeddings_file')
+                    end
+                end
+            " || {
+                echo "Error: Color embedding generation failed" >&2
+                exit 1
+            }
+        fi
+    fi
+
+    # Check freshness: poem_colors.json should be newer than embeddings.json
+    # With --force: always regenerate regardless of freshness
+    if ! $FORCE && [ -f "$poem_colors_file" ] && [ -f "$embeddings_file" ]; then
+        if [ "$poem_colors_file" -nt "$embeddings_file" ]; then
+            log_info "   ⏭️  Semantic colors are fresh (newer than embeddings), skipping..."
+            return 0
+        fi
+        log_verbose "   poem_colors.json is stale (older than embeddings), regenerating..."
+    elif $FORCE; then
+        log_verbose "   --force specified, regenerating semantic colors..."
+    fi
+
+    log_stage "🎨 Stage 6.5/10: Computing semantic colors"
+
+    if $DRY_RUN; then
+        log_dry_run "luajit semantic-color-calculator (poem colors regeneration)"
+        return 0
+    fi
+
+    log_info "   Input: $embeddings_file"
+    log_info "   Output: $poem_colors_file"
+
+    # Regenerate poem colors using existing embeddings
+    luajit -e "
+        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+        local calc = require('semantic-color-calculator')
+        local utils = require('utils')
+        utils.init_assets_root({'$DIR'})
+
+        local poems_data = utils.read_json_file(utils.asset_path('poems.json'))
+        local embeddings_data = utils.read_json_file('$embeddings_file')
+        local color_embeddings_data = utils.read_json_file('$color_embeddings_file')
+
+        if poems_data and embeddings_data and color_embeddings_data then
+            calc.precompute_poem_colors(poems_data, embeddings_data, color_embeddings_data.embeddings, '$poem_colors_file')
+        else
+            error('Failed to load required data files')
+        end
+    " || {
+        echo "Error: Semantic color generation failed" >&2
+        exit 1
+    }
+}
+# }}}
+
 # {{{ run_generate_similarity
 run_generate_similarity() {
     # Determine execution method: GPU (default) or CPU (--cpu-only only)
@@ -977,6 +1073,8 @@ $PARSE && run_parse
 $VALIDATE && run_validate
 $CATALOG_IMAGES && run_catalog_images
 $GENERATE_EMBEDDINGS && run_generate_embeddings
+# Semantic colors auto-run after embeddings or when HTML needs them
+($GENERATE_EMBEDDINGS || $GENERATE_HTML) && run_generate_semantic_colors
 $GENERATE_SIMILARITY && run_generate_similarity
 $GENERATE_DIVERSITY && run_generate_diversity
 $GENERATE_HTML && run_generate_html
