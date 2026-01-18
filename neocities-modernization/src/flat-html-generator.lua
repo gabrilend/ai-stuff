@@ -76,6 +76,39 @@ local STORAGE_CONFIG = {
     reserved_headroom_gb = 5
 }
 
+-- Diversity cache (pre-computed GPU sequences for fast HTML generation)
+-- Loaded from assets/embeddings/embeddinggemma_latest/diversity_cache.json
+local DIVERSITY_CACHE = nil
+
+-- {{{ local function load_diversity_cache
+-- Loads pre-computed diversity sequences from GPU cache
+-- Returns: cache data or nil if cache doesn't exist
+local function load_diversity_cache(model_name)
+    model_name = model_name or "embeddinggemma:latest"
+    local model_dir = model_name:gsub(":", "_")
+    local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/diversity_cache.json")
+
+    if utils.file_exists(cache_file) then
+        utils.log_info("Loading diversity cache from: " .. cache_file)
+        local cache_data = utils.read_json_file(cache_file)
+        if cache_data and cache_data.sequences then
+            utils.log_info(string.format("Diversity cache loaded: %d sequences (%s algorithm, %ds generation time)",
+                                        cache_data.metadata.total_sequences,
+                                        cache_data.metadata.algorithm,
+                                        cache_data.metadata.generation_time_seconds or 0))
+            DIVERSITY_CACHE = cache_data
+            return cache_data
+        else
+            utils.log_warn("Diversity cache file found but invalid format")
+        end
+    else
+        utils.log_warn("Diversity cache not found, will compute diversity sequences on-the-fly (slow)")
+        utils.log_warn("Generate cache with: ./run.sh --generate-diversity")
+    end
+    return nil
+end
+-- }}}
+
 -- {{{ local function load_pagination_config
 -- Loads pagination and storage settings from config/input-sources.json
 -- Updated for Issue 8-020: Hybrid pagination strategy with storage constraints
@@ -917,16 +950,48 @@ end
 
 -- {{{ function M.generate_maximum_diversity_sequence
 function M.generate_maximum_diversity_sequence(starting_poem_id, poems_data, embeddings_data)
-    utils.log_info(string.format("Generating maximum diversity sequence starting from poem %s", starting_poem_id))
-    
+    -- Check if we have a pre-computed diversity cache (GPU-accelerated, ~52s)
+    if DIVERSITY_CACHE and DIVERSITY_CACHE.sequences then
+        local cached_sequence = DIVERSITY_CACHE.sequences[tostring(starting_poem_id)]
+        if cached_sequence then
+            -- Convert cached poem IDs to full poem objects
+            local diversity_sequence = {}
+            local poem_lookup = {}
+
+            -- Build lookup table for fast poem access by ID
+            for i, poem in ipairs(poems_data.poems) do
+                if poem.id then
+                    poem_lookup[poem.id] = poem
+                end
+            end
+
+            -- Convert cached sequence to format expected by HTML generator
+            for step, poem_id in ipairs(cached_sequence) do
+                local poem = poem_lookup[poem_id]
+                if poem then
+                    table.insert(diversity_sequence, {
+                        id = poem_id,
+                        poem = poem,
+                        step = step
+                    })
+                end
+            end
+
+            return diversity_sequence
+        end
+    end
+
+    -- Fallback: compute diversity on-the-fly (slow, CPU-only, ~42 hours for all poems)
+    utils.log_info(string.format("Generating maximum diversity sequence starting from poem %s (on-the-fly computation)", starting_poem_id))
+
     local diversity_sequence = {}
     local remaining_poems = {}
     local selected_embeddings = {}
-    
+
     -- Initialize with starting poem
     local starting_poem = nil
     local starting_embedding = nil
-    
+
     -- Find starting poem and its embedding
     for i, poem in ipairs(poems_data.poems) do
         if poem.id == starting_poem_id then
@@ -935,19 +1000,19 @@ function M.generate_maximum_diversity_sequence(starting_poem_id, poems_data, emb
             break
         end
     end
-    
+
     if not starting_poem or not starting_embedding then
         utils.log_error("Could not find starting poem or embedding for ID: " .. starting_poem_id)
         return {}
     end
-    
+
     table.insert(diversity_sequence, {
         id = starting_poem_id,
         poem = starting_poem,
         step = 1
     })
     table.insert(selected_embeddings, starting_embedding)
-    
+
     -- Create list of all other poems with embeddings
     for i, poem in ipairs(poems_data.poems) do
         if poem.id and poem.id ~= starting_poem_id then
@@ -2186,6 +2251,10 @@ end
 -- pages_spec: (optional) --pages flag value: nil/"default", "all", "1", "1-10" (Phase D: Issue 8-012)
 -- poems_per_page: (optional) CLI override for poems per page (Issue 8-022)
 function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page)
+    -- Load diversity cache for fast HTML generation (Issue: diversity generation taking 42+ hours)
+    -- Cache provides instant lookup of pre-computed GPU diversity sequences
+    load_diversity_cache()
+
     -- Load pagination config first
     load_pagination_config()
 
