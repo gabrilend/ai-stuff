@@ -81,31 +81,42 @@ local STORAGE_CONFIG = {
 local DIVERSITY_CACHE = nil
 
 -- {{{ local function load_diversity_cache
--- Loads pre-computed diversity sequences from GPU cache
--- Returns: cache data or nil if cache doesn't exist
+-- Loads pre-computed diversity sequences from GPU cache (required for HTML generation)
+-- Errors out if cache doesn't exist - no fallback to on-the-fly computation
 local function load_diversity_cache(model_name)
     model_name = model_name or "embeddinggemma:latest"
     local model_dir = model_name:gsub(":", "_")
     local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/diversity_cache.json")
 
-    if utils.file_exists(cache_file) then
-        utils.log_info("Loading diversity cache from: " .. cache_file)
-        local cache_data = utils.read_json_file(cache_file)
-        if cache_data and cache_data.sequences then
-            utils.log_info(string.format("Diversity cache loaded: %d sequences (%s algorithm, %ds generation time)",
-                                        cache_data.metadata.total_sequences,
-                                        cache_data.metadata.algorithm,
-                                        cache_data.metadata.generation_time_seconds or 0))
-            DIVERSITY_CACHE = cache_data
-            return cache_data
-        else
-            utils.log_warn("Diversity cache file found but invalid format")
-        end
-    else
-        utils.log_warn("Diversity cache not found, will compute diversity sequences on-the-fly (slow)")
-        utils.log_warn("Generate cache with: ./run.sh --generate-diversity")
+    if not utils.file_exists(cache_file) then
+        error(string.format([[
+Diversity cache not found: %s
+
+The diversity cache is required for HTML generation.
+Generate it with: ./run.sh --generate-diversity
+
+This takes ~1 minute with GPU (or ~42 hours with CPU using --cpu-only).
+]], cache_file))
     end
-    return nil
+
+    utils.log_info("Loading diversity cache from: " .. cache_file)
+    local cache_data = utils.read_json_file(cache_file)
+
+    if not cache_data then
+        error("Failed to parse diversity cache JSON file")
+    end
+
+    if not cache_data.sequences then
+        error("Diversity cache has invalid format (missing sequences table)")
+    end
+
+    utils.log_info(string.format("Diversity cache loaded: %d sequences (%s algorithm, %ds generation time)",
+                                cache_data.metadata.total_sequences or 0,
+                                cache_data.metadata.algorithm or "unknown",
+                                cache_data.metadata.generation_time_seconds or 0))
+
+    DIVERSITY_CACHE = cache_data
+    return cache_data
 end
 -- }}}
 
@@ -754,64 +765,6 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
 end
 -- }}}
 
--- {{{ function cosine_distance
-local function cosine_distance(vec1, vec2)
-    -- Calculate cosine distance (1 - cosine_similarity)
-    if #vec1 ~= #vec2 then
-        error("Vectors must have same dimension")
-    end
-    
-    local dot_product = 0
-    local norm1 = 0
-    local norm2 = 0
-    
-    for i = 1, #vec1 do
-        dot_product = dot_product + (vec1[i] * vec2[i])
-        norm1 = norm1 + (vec1[i] * vec1[i])
-        norm2 = norm2 + (vec2[i] * vec2[i])
-    end
-    
-    norm1 = math.sqrt(norm1)
-    norm2 = math.sqrt(norm2)
-    
-    if norm1 == 0 or norm2 == 0 then
-        return 1.0  -- Maximum distance for zero vectors
-    end
-    
-    local cosine_sim = dot_product / (norm1 * norm2)
-    return 1.0 - cosine_sim
-end
--- }}}
-
--- {{{ function calculate_embedding_centroid
-local function calculate_embedding_centroid(embeddings_list)
-    -- Returns the sum of all embeddings (not averaged).
-    -- Division by count is unnecessary because cosine distance is scale-invariant:
-    -- cos(kA, B) = k(A·B) / (k||A|| × ||B||) = cos(A, B)
-    -- See Issue 9-003 for mathematical proof.
-    if #embeddings_list == 0 then
-        return nil
-    end
-
-    local embedding_dim = #embeddings_list[1]
-    local centroid = {}
-
-    -- Initialize centroid with zeros
-    for i = 1, embedding_dim do
-        centroid[i] = 0
-    end
-
-    -- Sum all embeddings (no averaging needed for cosine distance)
-    for _, embedding in ipairs(embeddings_list) do
-        for i = 1, embedding_dim do
-            centroid[i] = centroid[i] + embedding[i]
-        end
-    end
-
-    return centroid
-end
--- }}}
-
 -- {{{ function wrap_single_line_80_chars
 local function wrap_single_line_80_chars(line)
     -- Wrap a single line to 80 characters, preserving words
@@ -949,121 +902,47 @@ end
 -- }}}
 
 -- {{{ function M.generate_maximum_diversity_sequence
+-- Cache-only diversity sequence lookup (no on-the-fly computation)
+-- Requires pre-computed GPU diversity cache from: ./run.sh --generate-diversity
 function M.generate_maximum_diversity_sequence(starting_poem_id, poems_data, embeddings_data)
-    -- Check if we have a pre-computed diversity cache (GPU-accelerated, ~52s)
-    if DIVERSITY_CACHE and DIVERSITY_CACHE.sequences then
-        local cached_sequence = DIVERSITY_CACHE.sequences[tostring(starting_poem_id)]
-        if cached_sequence then
-            -- Convert cached poem IDs to full poem objects
-            local diversity_sequence = {}
-            local poem_lookup = {}
-
-            -- Build lookup table for fast poem access by ID
-            for i, poem in ipairs(poems_data.poems) do
-                if poem.id then
-                    poem_lookup[poem.id] = poem
-                end
-            end
-
-            -- Convert cached sequence to format expected by HTML generator
-            for step, poem_id in ipairs(cached_sequence) do
-                local poem = poem_lookup[poem_id]
-                if poem then
-                    table.insert(diversity_sequence, {
-                        id = poem_id,
-                        poem = poem,
-                        step = step
-                    })
-                end
-            end
-
-            return diversity_sequence
-        end
+    -- Verify cache is loaded
+    if not DIVERSITY_CACHE then
+        error("Diversity cache not loaded! Run: ./run.sh --generate-diversity")
     end
 
-    -- Fallback: compute diversity on-the-fly (slow, CPU-only, ~42 hours for all poems)
-    utils.log_info(string.format("Generating maximum diversity sequence starting from poem %s (on-the-fly computation)", starting_poem_id))
+    if not DIVERSITY_CACHE.sequences then
+        error("Diversity cache has invalid format (missing sequences table)")
+    end
 
+    -- Look up pre-computed sequence
+    local cached_sequence = DIVERSITY_CACHE.sequences[tostring(starting_poem_id)]
+    if not cached_sequence then
+        error(string.format("Diversity sequence not found for poem %d in cache. Cache may be corrupted or incomplete.", starting_poem_id))
+    end
+
+    -- Convert cached poem IDs to full poem objects
     local diversity_sequence = {}
-    local remaining_poems = {}
-    local selected_embeddings = {}
+    local poem_lookup = {}
 
-    -- Initialize with starting poem
-    local starting_poem = nil
-    local starting_embedding = nil
-
-    -- Find starting poem and its embedding
+    -- Build lookup table for fast poem access by ID
     for i, poem in ipairs(poems_data.poems) do
-        if poem.id == starting_poem_id then
-            starting_poem = poem
-            starting_embedding = embeddings_data.embeddings[i] and embeddings_data.embeddings[i].embedding
-            break
+        if poem.id then
+            poem_lookup[poem.id] = poem
         end
     end
 
-    if not starting_poem or not starting_embedding then
-        utils.log_error("Could not find starting poem or embedding for ID: " .. starting_poem_id)
-        return {}
-    end
-
-    table.insert(diversity_sequence, {
-        id = starting_poem_id,
-        poem = starting_poem,
-        step = 1
-    })
-    table.insert(selected_embeddings, starting_embedding)
-
-    -- Create list of all other poems with embeddings
-    for i, poem in ipairs(poems_data.poems) do
-        if poem.id and poem.id ~= starting_poem_id then
-            local embedding = embeddings_data.embeddings[i] and embeddings_data.embeddings[i].embedding
-            if embedding then
-                table.insert(remaining_poems, {
-                    id = poem.id,
-                    poem = poem,
-                    embedding = embedding
-                })
-            end
-        end
-    end
-    
-    -- Progressive centroid-based selection
-    while #remaining_poems > 0 and #diversity_sequence < #poems_data.poems do
-        -- Calculate cumulative centroid of selected poems
-        local centroid = calculate_embedding_centroid(selected_embeddings)
-        if not centroid then break end
-        
-        -- Find poem with maximum distance from current centroid
-        local max_distance = -1
-        local max_distance_poem = nil
-        local max_distance_index = -1
-        
-        for i, poem_info in ipairs(remaining_poems) do
-            local distance = cosine_distance(centroid, poem_info.embedding)
-            if distance > max_distance then
-                max_distance = distance
-                max_distance_poem = poem_info
-                max_distance_index = i
-            end
-        end
-        
-        -- Add most diverse poem to sequence
-        if max_distance_poem then
+    -- Convert cached sequence to format expected by HTML generator
+    for step, poem_id in ipairs(cached_sequence) do
+        local poem = poem_lookup[poem_id]
+        if poem then
             table.insert(diversity_sequence, {
-                id = max_distance_poem.id,
-                poem = max_distance_poem.poem,
-                step = #diversity_sequence + 1,
-                diversity_score = max_distance
+                id = poem_id,
+                poem = poem,
+                step = step
             })
-            table.insert(selected_embeddings, max_distance_poem.embedding)
-            table.remove(remaining_poems, max_distance_index)
-        else
-            break
         end
     end
-    
-    utils.log_info(string.format("Generated diversity sequence of %d poems", #diversity_sequence))
-    
+
     return diversity_sequence
 end
 -- }}}
