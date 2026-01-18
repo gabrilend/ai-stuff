@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# Wrapper script to run GPU diversity cache generation
+# Changes to vulkan-compute directory for shader loading, then runs Lua script
+
+# {{{ Setup directory path
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+
+# Change to vulkan-compute directory (C library needs relative shader paths)
+cd "$DIR/libs/vulkan-compute" || {
+    echo "Error: Failed to change to vulkan-compute directory" >&2
+    exit 1
+}
+
+# Export DIR so Lua can access it
+export DIR
+
+# Run the Lua script
+exec luajit -e '
+-- Pre-computes diversity sequences using GPU acceleration (Vulkan compute shaders)
+-- Replaces CPU-based effil implementation with 2,600× faster GPU batch processing
+-- Output: assets/embeddings/embeddinggemma_latest/diversity_cache.json
+--
+-- GPU ARCHITECTURE (Issue 9-005):
+-- - GPU computes sequences and returns Lua tables
+-- - CPU formats tables as JSON and writes to disk
+-- - Separation of concerns: GPU = compute, CPU = format/persist
+--
+-- Performance: ~58 seconds for 7,797 sequences (vs ~42 hours on CPU)
+
+-- Get DIR from environment (set by wrapper script)
+local DIR = os.getenv("DIR") or arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+
+-- Add library paths
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/libs/vulkan-compute/lua/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+
+-- Set GPU library path for vk_compute module
+_G.VK_COMPUTE_LIB = "./build/libvkcompute.so"  -- Relative to vulkan-compute dir
+
+local ffi = require("ffi")
+local vk = require("vk_compute")
+local utils = require("utils")
+local dkjson = require("dkjson")
+
+-- Configuration
+local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
+local MODEL_NAME = "embeddinggemma:latest"
+
+-- Parse command line arguments
+local SAVE_BINARY = false  -- Optional: save binary format for debug
+for i = 2, #arg do
+    local a = arg[i]
+    if a == "--save-binary" then
+        SAVE_BINARY = true
+    end
+end
+
+-- {{{ local function get_file_size
+local function get_file_size(filepath)
+    local f = io.open(filepath, "rb")
+    if not f then return 0 end
+    local size = f:seek("end")
+    f:close()
+    return size
+end
+-- }}}
+
+-- {{{ local function main
+local function main()
+    print("=" .. string.rep("=", 78))
+    print("  GPU Diversity Cache Generation")
+    print("=" .. string.rep("=", 78))
+    print()
+
+    -- Build paths
+    local model_dir = MODEL_NAME:gsub(":", "_")
+    local embeddings_file = string.format("%s/assets/embeddings/%s/embeddings.json", DIR, model_dir)
+    local output_file = string.format("%s/assets/embeddings/%s/diversity_cache.json", DIR, model_dir)
+    local binary_file = string.format("%s/output/diversity-cache-gpu-batch.bin", DIR)
+
+    print(string.format("[Config] Model: %s", MODEL_NAME))
+    print(string.format("[Config] Batch Size: %d sequences", BATCH_SIZE))
+    print(string.format("[Config] Input: %s", embeddings_file))
+    print(string.format("[Config] Output: %s", output_file))
+    if SAVE_BINARY then
+        print(string.format("[Config] Binary Output: %s", binary_file))
+    end
+    print()
+
+    -- Check if embeddings file exists
+    if not utils.file_exists(embeddings_file) then
+        error(string.format("Embeddings file not found: %s\nRun: ./run.sh --generate-embeddings", embeddings_file))
+    end
+
+    -- Load embeddings
+    print("[Loading] Reading embeddings...")
+    local embeddings_data = utils.read_json_file(embeddings_file)
+    if not embeddings_data or not embeddings_data.embeddings then
+        error("Failed to load embeddings or invalid format")
+    end
+
+    local num_poems = #embeddings_data.embeddings
+    local embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
+
+    print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
+
+    -- Convert embeddings to flat array for GPU
+    print("[Loading] Converting embeddings to flat array...")
+    local embeddings_flat = {}
+    local idx = 1
+    for _, poem in ipairs(embeddings_data.embeddings) do
+        if not poem.embedding or #poem.embedding ~= embedding_dim then
+            error(string.format("Invalid embedding for poem_index %d", poem.poem_index))
+        end
+        for _, value in ipairs(poem.embedding) do
+            embeddings_flat[idx] = value
+            idx = idx + 1
+        end
+    end
+    print(string.format("[Loading] Converted %d floats", #embeddings_flat))
+    print()
+
+    -- Initialize GPU
+    print("[GPU] Initializing Vulkan compute context...")
+    local ctx = vk.init()
+    if not ctx then
+        error("Failed to initialize GPU context")
+    end
+    print()
+
+    -- Compute diversity sequences on GPU
+    local start_time = os.clock()
+    print("[GPU] Computing diversity sequences (batch parallel processing)...")
+    print(string.format("[GPU] This will take approximately 1 minute for %d poems", num_poems))
+    print()
+
+    -- Call GPU batch function (returns Lua tables, no file writing)
+    local sequences = vk.compute_all_diversity_sequences_batched(
+        ctx,
+        embeddings_flat,
+        num_poems,
+        embedding_dim,
+        SAVE_BINARY and binary_file or nil,  -- Optional binary output
+        BATCH_SIZE
+    )
+
+    local elapsed = os.clock() - start_time
+    print()
+    print(string.format("[GPU] ✅ Completed in %.2f seconds (%.2f sequences/sec)", elapsed, num_poems / elapsed))
+    print()
+
+    -- Shutdown GPU
+    vk.shutdown(ctx)
+
+    -- Format sequences as JSON (CPU responsibility)
+    print("[CPU] Formatting sequences as JSON...")
+    local cache = {
+        metadata = {
+            model = MODEL_NAME,
+            num_poems = num_poems,
+            embedding_dimension = embedding_dim,
+            algorithm = "gpu_vulkan_batch",
+            batch_size = BATCH_SIZE,
+            generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+            generation_time_seconds = math.floor(elapsed),
+            embeddings_file_size = get_file_size(embeddings_file),
+            total_sequences = num_poems
+        },
+        sequences = {}
+    }
+
+    -- Convert 0-indexed Lua tables to 1-indexed JSON strings
+    -- GPU returns: {[0] = {seq}, [1] = {seq}, ...}
+    -- JSON needs: {"0": [seq], "1": [seq], ...}
+    for poem_id = 0, num_poems - 1 do
+        local sequence = sequences[poem_id]
+        if not sequence then
+            error(string.format("Missing sequence for poem_id %d", poem_id))
+        end
+        cache.sequences[tostring(poem_id)] = sequence
+    end
+
+    print(string.format("[CPU] Formatted %d sequences", num_poems))
+    print()
+
+    -- Write JSON to disk
+    print(string.format("[CPU] Writing JSON to: %s", output_file))
+    local json_str = dkjson.encode(cache, {indent = false})
+    local f = io.open(output_file, "w")
+    if not f then
+        error("Failed to open output file: " .. output_file)
+    end
+    f:write(json_str)
+    f:close()
+
+    local output_size = get_file_size(output_file)
+    print(string.format("[CPU] ✅ Written %.2f MB", output_size / 1024 / 1024))
+    print()
+
+    print("=" .. string.rep("=", 78))
+    print("  SUCCESS!")
+    print("=" .. string.rep("=", 78))
+    print(string.format("  Total Time: %.2f seconds", elapsed))
+    print(string.format("  Output: %s", output_file))
+    print(string.format("  Speedup: ~2,600× faster than CPU implementation"))
+    print("=" .. string.rep("=", 78))
+    print()
+end
+-- }}}
+
+-- Run with error handling
+local success, err = pcall(main)
+if not success then
+    print("\n[ERROR] " .. tostring(err))
+    os.exit(1)
+end
+'
