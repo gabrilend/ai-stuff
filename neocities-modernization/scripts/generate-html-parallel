@@ -662,6 +662,38 @@ else
     print("Pagination: unlimited (all poems)")
 end
 
+-- {{{ Pipeline validation (Issue 10-011 Phase G)
+print("\n🔍 Validating pipeline data...")
+local validator = require("pipeline-validator")
+validator.set_verbose(false)  -- Keep output minimal
+
+-- Validate for HTML generation
+-- Diversity cache only required if:
+--   1. NOT running --similar-only (need difference pages)
+--   2. AND using cache mode (not on-the-fly calculation)
+local require_diversity = (not SIMILARITY_ONLY) and USE_CACHE
+local validation = validator.validate_for_html_generation("embeddinggemma_latest", require_diversity)
+
+if not validation.ready then
+    print("\n" .. string.rep("=", 60))
+    io.stderr:write("\n")
+    validator.print_validation_report(validation)
+    io.stderr:write("Cannot generate HTML pages with incomplete pipeline data.\n")
+    io.stderr:write("Run the commands above to fix, or use --no-cache for on-the-fly\n")
+    io.stderr:write("diversity calculation (slow but doesn't require cache).\n\n")
+    os.exit(1)
+end
+
+-- Show warnings but continue
+if #validation.warnings > 0 then
+    io.stderr:write("\n")
+    validator.print_validation_report(validation)
+    io.stderr:write("Continuing despite warnings...\n\n")
+end
+
+print("   ✅ Pipeline validation passed")
+-- }}}
+
 -- Load data files
 print("\n🔄 Loading data files...")
 local poems_file = DIR .. "/assets/poems.json"
