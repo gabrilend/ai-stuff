@@ -22,11 +22,10 @@ Similarity matrix is calculated in `src/similarity-engine.lua`:
 
 ## Sub-Issues
 
-| Sub-Issue | Description | Priority |
-|-----------|-------------|----------|
-| 9-002a | Design similarity matrix compute shader | High |
-| 9-002b | Implement batch processing for large matrices | High |
-| 9-002c | Integrate with existing similarity-engine.lua | Medium |
+| Sub-Issue | Description | Status | Priority |
+|-----------|-------------|--------|----------|
+| 9-002a | Design similarity matrix compute shader | ✅ Completed | High |
+| 9-002b | Validate GPU similarity implementation | 🔄 Open | High |
 
 ## Technical Approach
 
@@ -93,8 +92,11 @@ void main() {
 - [x] GPU implementation created
 - [x] Generates triangular individual files format
 - [x] Memory usage stays within VRAM limits
-- [ ] Full integration testing with actual dataset (pending)
-- [ ] Performance benchmarking (pending)
+- [x] Shader compiled and integrated with pipeline
+- [x] Lua FFI bindings complete
+- [ ] Full integration testing with actual dataset (Issue 9-002b)
+- [ ] Performance benchmarking (Issue 9-002b)
+- [ ] Validation against CPU reference (Issue 9-002b)
 
 ## Performance Targets
 
@@ -129,10 +131,10 @@ Created GPU-accelerated similarity matrix computation adapted for triangular ind
 - Avoids LuaJIT table overflow issues
 - Directly compatible with existing storage format
 
-**Next Steps:**
-- Lua FFI bindings for integration
-- Integration with run.sh pipeline
+**Next Steps (Issue 9-002b):**
+- Validation testing on full dataset
 - Performance benchmarking against CPU implementation
+- Production deployment approval
 
 ## Related Files
 

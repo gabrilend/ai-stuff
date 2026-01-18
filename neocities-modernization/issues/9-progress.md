@@ -24,10 +24,9 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 9-001 | Implement Vulkan compute infrastructure | In Progress | High |
 | 9-001f | Remove effil dependency | Open | Low |
-| 9-002 | Port similarity matrix generation to Vulkan | Open | Medium |
-| 9-002a | Design similarity matrix compute shader | Open | High |
+| 9-002 | Port similarity matrix generation to Vulkan | In Progress | Medium |
+| 9-002b | Validate GPU similarity implementation | Open | High |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004 | GPU-accelerate maze algorithm | Open | Low |
 
@@ -41,6 +40,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-001d | Implement diversity sequence GPU algorithm | Completed | 2026-01-09 |
 | 9-001e | Create Lua/C integration layer | Completed | 2026-01-09 |
 | 9-001g | Batch parallel diversity sequence computation | Completed | 2026-01-09 |
+| 9-002a | Design similarity matrix compute shader | Completed | 2026-01-10 |
 | 9-003a | Remove unnecessary centroid division from source files | Completed | 2025-12-25 |
 
 ## Target Hardware
@@ -76,10 +76,11 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 ## Completion Criteria
 
 - [x] Vulkan compute infrastructure operational
-- [x] Diversity sequences generated on GPU
-- [ ] Similarity matrix generated on GPU
-- [ ] effil dependency removed
-- [x] Performance targets met (3.5-304x speedup achieved)
+- [x] Diversity sequences generated on GPU (996× speedup achieved)
+- [x] Similarity matrix GPU implementation complete
+- [ ] Similarity matrix GPU implementation validated (Issue 9-002b)
+- [ ] effil dependency removed (Issue 9-001f)
+- [x] Performance targets met (3.5-996× speedup achieved for diversity)
 
 ## Achievements
 
@@ -95,14 +96,24 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 - Full diversity cache: 10-12 hours for 7,797 sequences
 - Generated diversity_cache.bin (94 MB)
 
+**Similarity Matrix GPU Implementation (Issue 9-002):**
+- libs/vulkan-compute/shaders/similarity_batch.comp - Triangular batch shader
+- libs/vulkan-compute/src/vk_similarity.c - C implementation (290 lines)
+- libs/vulkan-compute/lua/vk_similarity.lua - Lua FFI bindings (223 lines)
+- Integrated with run.sh Stage 7 (GPU path at lines 574-595)
+- Generates triangular individual JSON files format
+- Memory efficient: ~50 MB VRAM usage
+- Expected speedup: 6-10× over CPU (pending validation)
+
 **Files Created:**
-- 22 new files (4,108+ lines of code)
-- Complete test suite with validation
+- 25+ new files (4,700+ lines of code)
+- Diversity cache: Complete test suite with validation (✅ Production ready)
+- Similarity matrix: Implementation complete, validation pending (Issue 9-002b)
 - Progress monitoring and auto-resume support
 
 ---
 
-**Phase Status: IN PROGRESS** (6/7 core issues complete, similarity matrix remaining)
+**Phase Status: IN PROGRESS** (7/8 core issues complete, validation remaining)
 
 **Started**: 2025-12-14
 
