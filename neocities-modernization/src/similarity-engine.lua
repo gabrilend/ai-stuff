@@ -366,38 +366,41 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     local retry_count = 0
     local retry_reasons = {}
 
-    for i, poem in ipairs(poems) do
-        -- Use poem_index if available, fallback to array index for legacy poems.json
-        -- This ensures correct matching even when the same id appears in multiple categories.
-        local lookup_key = poem.poem_index or i
+    if incremental then
+        -- Incremental mode: Check existing embeddings and only process missing/invalid ones
+        for i, poem in ipairs(poems) do
+            -- Use poem_index if available, fallback to array index for legacy poems.json
+            -- This ensures correct matching even when the same id appears in multiple categories.
+            local lookup_key = poem.poem_index or i
 
-        -- Only skip if embedding is valid AND dimensions are correct
-        if incremental and existing_embeddings[lookup_key] and
-           existing_embeddings[lookup_key].embedding and
-           type(existing_embeddings[lookup_key].embedding) == "table" and
-           #existing_embeddings[lookup_key].embedding == model_config.dimensions then
-            -- Skip: valid embedding found
-            embeddings_data.embeddings[lookup_key] = existing_embeddings[lookup_key]
-            skipped_count = skipped_count + 1
-        else
-            -- Re-process: no embedding, invalid embedding, or error state
-            table.insert(poems_to_process, {index = lookup_key, poem = poem})
+            -- Only skip if embedding is valid AND dimensions are correct
+            if existing_embeddings[lookup_key] and
+               existing_embeddings[lookup_key].embedding and
+               type(existing_embeddings[lookup_key].embedding) == "table" and
+               #existing_embeddings[lookup_key].embedding == model_config.dimensions then
+                -- Skip: valid embedding found
+                embeddings_data.embeddings[lookup_key] = existing_embeddings[lookup_key]
+                skipped_count = skipped_count + 1
+            else
+                -- Re-process: no embedding, invalid embedding, or error state
+                table.insert(poems_to_process, {index = lookup_key, poem = poem})
 
-            -- Track retry reasons for reporting
-            if incremental and existing_embeddings[lookup_key] then
-                if existing_embeddings[lookup_key].error then
-                    retry_count = retry_count + 1
-                    local error_type = existing_embeddings[lookup_key].error
-                    retry_reasons[error_type] = (retry_reasons[error_type] or 0) + 1
-                elseif existing_embeddings[lookup_key].embedding then
-                    -- Invalid embedding dimensions
-                    retry_count = retry_count + 1
-                    retry_reasons["invalid_dimensions"] = (retry_reasons["invalid_dimensions"] or 0) + 1
+                -- Track retry reasons for reporting
+                if existing_embeddings[lookup_key] then
+                    if existing_embeddings[lookup_key].error then
+                        retry_count = retry_count + 1
+                        local error_type = existing_embeddings[lookup_key].error
+                        retry_reasons[error_type] = (retry_reasons[error_type] or 0) + 1
+                    elseif existing_embeddings[lookup_key].embedding then
+                        -- Invalid embedding dimensions
+                        retry_count = retry_count + 1
+                        retry_reasons["invalid_dimensions"] = (retry_reasons["invalid_dimensions"] or 0) + 1
+                    end
                 end
             end
         end
     end
-    
+
     if incremental then
         utils.log_info("Incremental processing summary:")
         utils.log_info("  Total poems: " .. #poems)

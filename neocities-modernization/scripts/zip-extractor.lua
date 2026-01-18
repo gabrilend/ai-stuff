@@ -19,6 +19,13 @@ local TEMP_DIR = arg and arg[2] or error("Temporary directory required as second
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 
+-- ANSI color codes for terminal output
+local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
+local COLOR_BLUE = "\027[94m"     -- Bright blue for info (ℹ️)
+local COLOR_RED = "\027[91m"      -- Bright red for errors (✗, ❌)
+local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings (⚠️)
+local COLOR_RESET = "\027[0m"     -- Reset to default
+
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
     if absolute_path:sub(1, #DIR) == DIR then
@@ -71,7 +78,7 @@ local function detect_archives(input_directory)
             })
             print("📦 Found " .. archive_type .. " archive: " .. file:match("([^/]+)%.zip$"))
         else
-            print("⚠️  Unknown archive type: " .. file:match("([^/]+)%.zip$"))
+            print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Unknown archive type: " .. file:match("([^/]+)%.zip$"))
         end
     end
     handle:close()
@@ -98,14 +105,14 @@ local function extract_archive_data(archive_info, temp_base_dir)
             archive_info.path, extract_dir)
         local media_result = os.execute(media_cmd)
         if media_result == 0 or media_result == true then
-            print("✅ Extracted media_attachments directory")
+            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted media_attachments directory")
         else
             -- Try alternative: extract all and filter, or list-and-extract approach (suppress verbose output)
             local alt_cmd = string.format(
                 "unzip -l '%s' 2>/dev/null | grep media_attachments | awk '{print $4}' | xargs -I{} unzip -o '%s' '{}' -d '%s' >/dev/null 2>&1",
                 archive_info.path, archive_info.path, extract_dir)
             os.execute(alt_cmd)
-            print("✅ Extracted media_attachments directory")
+            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted media_attachments directory")
         end
     elseif archive_info.type == "messages" then
         -- Matrix exports have nested directory structure
@@ -123,7 +130,7 @@ local function extract_archive_data(archive_info, temp_base_dir)
 
         -- If either extraction worked, we're good
         if result1 == 0 or result2 == 0 then
-            print("✅ Extracted notes directory/text files")
+            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted notes directory/text files")
         end
 
         -- Skip the normal file extraction loop for notes
@@ -136,7 +143,7 @@ local function extract_archive_data(archive_info, temp_base_dir)
                                 archive_info.path, file, extract_dir)
         local result = os.execute(cmd)
         if result == 0 then
-            print("✅ Extracted: " .. file)
+            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted: " .. file)
             extracted_count = extracted_count + 1
             break  -- Stop after first successful extraction
         end
@@ -149,10 +156,10 @@ local function extract_archive_data(archive_info, temp_base_dir)
     check_handle:close()
     
     if found_file and found_file ~= "" then
-        print("✅ Successfully extracted " .. archive_info.type .. " data from " .. archive_info.basename)
+        print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Successfully extracted " .. archive_info.type .. " data from " .. archive_info.basename)
         return temp_dir
     else
-        print("❌ No extractable files found in " .. archive_info.basename)
+        print(COLOR_RED .. "❌" .. COLOR_RESET .. " No extractable files found in " .. archive_info.basename)
         return nil
     end
 end
@@ -195,7 +202,7 @@ print("\n📊 Archive scan results:")
 print("   Total ZIP files found: " .. #archives)
 
 if #archives == 0 then
-    print("❌ No valid archives found to extract")
+    print(COLOR_RED .. "❌" .. COLOR_RESET .. " No valid archives found to extract")
     os.exit(1)
 end
 
@@ -218,9 +225,9 @@ f:write(dkjson.encode(summary, { indent = true }))
 f:close()
 
 print("💾 Extraction summary saved: " .. relative_path(summary_file))
-print("✅ ZIP archive extraction completed")
+print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " ZIP archive extraction completed")
 
 if summary.extracted_archives == 0 then
-    print("❌ No archives could be extracted")
+    print(COLOR_RED .. "❌" .. COLOR_RESET .. " No archives could be extracted")
     os.exit(1)
 end
