@@ -1432,11 +1432,15 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     -- Check if this is a golden poem (exactly 1024 characters)
     local is_golden = is_golden_poem(poem)
 
-    -- Build navigation links for this poem (using category prefix for unique filenames)
-    local unique_id = get_unique_poem_filename_id(poem)
+    -- Build navigation links for this poem (using category prefix for anchors, poem_index for paginated files)
+    local unique_id = get_unique_poem_filename_id(poem)  -- For anchor IDs only (e.g. "messages-0001")
     local anchor_id = get_poem_anchor_id(poem)
-    local similar_link = string.format("<a href='similar/%s.html'>similar</a>", unique_id)
-    local different_link = string.format("<a href='different/%s.html'>different</a>", unique_id)
+    local poem_index = poem.poem_index or 0  -- Numeric ID for paginated files (e.g. 1 → "0001")
+
+    -- Issue 8-012 Phase E: Link to paginated format (similar/0001-01.html)
+    -- Uses poem_index (numeric) to match pagination file naming convention
+    local similar_link = string.format("<a href='similar/%04d-01.html'>similar</a>", poem_index)
+    local different_link = string.format("<a href='different/%04d-01.html'>different</a>", poem_index)
     local chronological_link = string.format("<a href='chronological.html#%s'>chronological</a>", anchor_id)
 
     -- Add file header (notes show original filename, others show numeric ID)
@@ -1941,17 +1945,21 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir)
         -- Check if this is a golden poem (exactly 1024 characters)
         local is_golden = is_golden_poem(poem)
 
-        -- Build navigation links (using category prefix for unique filenames)
-        local unique_id = get_unique_poem_filename_id(poem)
+        -- Build navigation links (using category prefix for anchors, poem_index for paginated files)
+        local unique_id = get_unique_poem_filename_id(poem)  -- For anchor IDs only (e.g. "messages-0001")
         local anchor_id = get_poem_anchor_id(poem)
+        local poem_index = poem.poem_index or 0  -- Numeric ID for paginated files (e.g. 1 → "0001")
 
         -- Add HTML anchor for direct linking (Issue 8-030)
         content = content .. string.format('<span id="%s"></span>', anchor_id)
 
         -- Add file header (notes show original filename, others show numeric ID)
         content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
-        local similar_link = string.format("<a href='similar/%s.html'>similar</a>", unique_id)
-        local different_link = string.format("<a href='different/%s.html'>different</a>", unique_id)
+
+        -- Issue 8-012 Phase E: Link to paginated format (similar/0001-01.html)
+        -- Uses poem_index (numeric) to match pagination file naming convention
+        local similar_link = string.format("<a href='similar/%04d-01.html'>similar</a>", poem_index)
+        local different_link = string.format("<a href='different/%04d-01.html'>different</a>", poem_index)
         local chronological_link = string.format("<a href='chronological.html#%s'>chronological</a>", anchor_id)
 
         -- Generate top progress bar separator (with golden corners if applicable)
@@ -2176,7 +2184,18 @@ end
 -- embeddings_data: poem embeddings (for diversity calculation)
 -- output_dir: base output directory
 -- pages_spec: (optional) --pages flag value: nil/"default", "all", "1", "1-10" (Phase D: Issue 8-012)
-function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec)
+-- poems_per_page: (optional) CLI override for poems per page (Issue 8-022)
+function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page)
+    -- Load pagination config first
+    load_pagination_config()
+
+    -- Apply CLI override for poems_per_page if provided (Issue 8-022)
+    if poems_per_page and type(poems_per_page) == "number" and poems_per_page > 0 then
+        utils.log_info(string.format("CLI override: Using %d poems per page (config: %d)",
+                                    poems_per_page, PAGINATION_CONFIG.poems_per_page))
+        PAGINATION_CONFIG.poems_per_page = poems_per_page
+    end
+
     -- Count poems with valid IDs
     local valid_poems = {}
     for i, poem in ipairs(poems_data.poems) do
