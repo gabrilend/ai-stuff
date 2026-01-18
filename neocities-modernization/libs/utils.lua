@@ -137,6 +137,7 @@ function M.parse_cli_args(args)
         force = false,
         threads = nil,
         pages = nil,  -- Phase D (Issue 8-012): Pagination control ("1", "all", "1-10")
+        poems_per_page = nil,  -- Issue 8-022: Poems per page override
     }
 
     local i = 1
@@ -165,6 +166,11 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--pages=") then
             options.pages = arg:match("^--pages=(.+)")  -- String value: "1", "all", "1-10"
+        elseif arg == "--poems-per-page" and args[i + 1] then
+            options.poems_per_page = tonumber(args[i + 1])  -- Numeric value: 100, 200, etc.
+            i = i + 1
+        elseif arg:match("^--poems%-per%-page=") then
+            options.poems_per_page = tonumber(arg:match("^--poems%-per%-page=(%d+)"))
         elseif not arg:match("^%-") then
             -- Non-flag argument, treat as directory override
             options.dir_override = arg

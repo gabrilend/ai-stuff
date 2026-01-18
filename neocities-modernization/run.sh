@@ -73,8 +73,8 @@ Stage Configuration:
   --model NAME        Embedding model name (default: embeddinggemma:latest)
 
 Pagination (HTML Generation):
-  --pages N           Pages per poem (default: from config, 15)
-  --poems-per-page N  Poems per page (default: from config, 100)
+  --pages N           Pages per poem (default: from config, 1)
+  --poems-per-page N  Poems per page (default: from config, 200)
 
 Output Control:
   --quiet             Suppress progress messages
@@ -826,9 +826,9 @@ interactive_mode_tui() {
         "Thread count for parallel HTML generation (type 1-16)" "t" "--threads"
     # Issue 8-022: Pagination options for HTML generation
     menu_add_item "config" "pages" "Pages per Poem" "flag" ":2" \
-        "Pages to generate per poem (default: from config, 15)" "p" "--pages"
+        "Pages to generate per poem (default: from config, 1)" "p" "--pages"
     menu_add_item "config" "poems_per_page" "Poems per Page" "flag" ":3" \
-        "Poems per page (default: from config, 100)" "y" "--poems-per-page"
+        "Poems per page (default: from config, 200)" "y" "--poems-per-page"
     menu_add_item "config" "force" "Force Regeneration" "checkbox" "0" \
         "Force regeneration even if files are fresh" "f" "--force"
     menu_add_item "config" "dry_run" "Dry Run" "checkbox" "0" \
