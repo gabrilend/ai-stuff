@@ -500,6 +500,75 @@ list_missing_entries() {
     rm -f "$all_poems_file" "$existing_files_file" "$missing_file"
 }
 
+suggest_commands() {
+    echo "Pipeline Fix Commands"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+    echo "To complete the pipeline, run these commands in order:"
+    echo ""
+
+    local step=1
+
+    # Check if embeddings need generation
+    if [ "$EMBEDDING_COUNT" -lt "$POEM_COUNT" ]; then
+        echo "Step $step: Generate missing embeddings"
+        echo "  Command: ./generate-embeddings.sh --incremental"
+        echo "  Time: ~$(awk -v m="$((POEM_COUNT - EMBEDDING_COUNT))" 'BEGIN { printf "%.1f", m*5/60 }') minutes"
+        echo ""
+        ((step++))
+    fi
+
+    # Check if similarity matrix needs generation
+    if [ "$SIMILARITY_COUNT" -lt "$POEM_COUNT" ]; then
+        echo "Step $step: Complete similarity matrix"
+        echo "  Command: lua src/similarity-engine-parallel.lua"
+        echo "  Time: ~$(awk -v m="$((POEM_COUNT - SIMILARITY_COUNT))" 'BEGIN { printf "%.1f", m*0.92/3600 }') hours (8 threads)"
+        echo ""
+        ((step++))
+    fi
+
+    # Check if diversity cache needs generation
+    if [ "$DIVERSITY_STATUS" = "MISSING" ] || [ "$DIVERSITY_COUNT" -lt "$POEM_COUNT" ]; then
+        echo "Step $step: Pre-compute diversity cache (optional but recommended)"
+        echo "  Command: nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
+        echo "  Time: ~42 hours (runs overnight, unattended)"
+        echo "  Benefit: Reduces HTML generation from 72 hours → 1 hour"
+        echo ""
+        ((step++))
+    fi
+
+    # Check if HTML needs generation
+    if [ "$HTML_SIMILAR_COUNT" -lt "$POEM_COUNT" ] || [ "$HTML_DIFFERENT_COUNT" -lt "$POEM_COUNT" ]; then
+        echo "Step $step: Generate all HTML pages"
+        if [ "$DIVERSITY_STATUS" = "MISSING" ]; then
+            echo "  Command: ./scripts/generate-html-parallel 8 --pages=all"
+            echo "  Time: ~72 hours (without diversity cache)"
+            echo "  Or wait for Step $((step-1)) to complete, then run in ~1 hour"
+        else
+            echo "  Command: ./scripts/generate-html-parallel 8 --pages=all"
+            echo "  Time: ~1 hour (with diversity cache)"
+        fi
+        echo ""
+        ((step++))
+    fi
+
+    if [ "$step" -eq 1 ]; then
+        echo "✓ Pipeline is complete! No commands needed."
+        echo ""
+    fi
+
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+    echo "To run the complete pipeline at once (without diversity cache):"
+    echo "  ./run.sh --full"
+    echo ""
+    echo "For fastest results (with overnight diversity pre-computation):"
+    echo "  ./run.sh --generate-embeddings --generate-similarity"
+    echo "  nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
+    echo "  # Wait ~42 hours, then:"
+    echo "  ./scripts/generate-html-parallel 8 --pages=all"
+}
+
 check_freshness() {
     echo "Freshness Analysis"
     echo "═══════════════════════════════════════════════════════════════"
@@ -646,6 +715,12 @@ cd "$DIR" || exit 3
 
 # Run validation
 validate_pipeline
+
+# Handle suggest commands mode
+if [ "$SUGGEST_COMMANDS" = true ]; then
+    suggest_commands
+    exit "$EXIT_CODE"
+fi
 
 # Handle list missing mode
 if [ "$LIST_MISSING" = true ]; then
