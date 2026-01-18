@@ -58,44 +58,76 @@ Sequential file writing uses only ~10% of SSD throughput. Concurrent writes satu
 
 ## Implementation Options
 
-### Option 1: Lua Lanes Library (Recommended)
+### Option 1: effil Thread Pool (Recommended)
 
-**Why Lanes over effil:**
-- Designed for producer-consumer patterns
-- Stable message passing (linda channels)
-- Better error handling
-- No shared table issues that plagued effil
+**Why effil is suitable for this use case:**
 
-**Architecture:**
+effil had catastrophic performance with diversity cache because of **constantly mutating shared state** (centroids, masks updated 60M times). File writing is fundamentally different:
+
+✅ **Good for file writing:** Immutable data passed once to worker
+- GPU produces results → copy to effil.table → worker reads once → writes file
+- Each worker writes independent files (no shared state)
+- Proven pattern in `generate-html-parallel` (lines 213, 342, 556)
+
+❌ **Bad for diversity cache:** Mutable shared state accessed continuously
+- effil.table synchronization on every centroid/mask update
+- ~17 billion synchronization operations
+- CPU-GPU data transfer already moves state to GPU
+
+**Architecture (following generate-html-parallel pattern):**
 ```lua
-local lanes = require("lanes").configure()
+local effil = require("effil")
 
--- Create writer thread pool once (8 threads)
-local function writer_thread(queue_linda, output_dir)
-    while true do
-        local key, data = queue_linda:receive("work")
-        if key == "shutdown" then break end
-        utils.write_json_file(data.filepath, data.content)
-        queue_linda:send("done", data.poem_index)
+-- Worker thread: Copy effil.table to local at start (CRITICAL)
+local function writer_thread(poem_data_shared, output_dir)
+    -- Copy effil.table to local Lua table (one-time, at worker start)
+    local poem_data = {}
+    for k, v in pairs(poem_data_shared) do
+        poem_data[k] = v
     end
+
+    -- Write file using local data (no effil synchronization)
+    local filepath = string.format("%s/poem_index_%d.json", output_dir, poem_data.poem_index)
+    utils.write_json_file(filepath, poem_data)
+
+    return poem_data.poem_index  -- Return for progress tracking
 end
 
-local writers = {}
-local work_queue = lanes.linda()
-for i = 1, 8 do
-    writers[i] = lanes.gen("*", writer_thread)(work_queue, output_dir)
-end
+-- Producer: GPU computes and spawns workers
+local active_threads = {}
+local max_concurrent = 8
 
--- Producer: GPU computes and queues work
 for i = 0, num_poems - 1 do
+    -- GPU computes similarities (FAST)
     local results = vks_compute_similarities_for_poem(sim_ctx, i, output)
-    local data = build_json_data(results, i)
-    work_queue:send("work", {filepath=..., content=data, poem_index=i})
+
+    -- Build JSON data in local table
+    local poem_data = build_json_data(results, i)
+
+    -- Copy to effil.table (immutable, passed to worker)
+    local shared_data = effil.table(poem_data)
+
+    -- Spawn worker (or wait if pool full)
+    while #active_threads >= max_concurrent do
+        -- Wait for a thread to complete
+        for j = #active_threads, 1, -1 do
+            local status, result = active_threads[j]:get(0)  -- Non-blocking check
+            if status ~= nil then
+                table.remove(active_threads, j)
+            end
+        end
+        if #active_threads >= max_concurrent then
+            effil.sleep(0.001)  -- 1ms sleep
+        end
+    end
+
+    -- Spawn new writer
+    table.insert(active_threads, effil.thread(writer_thread)(shared_data, output_dir))
 end
 
--- Shutdown
-for i = 1, 8 do
-    work_queue:send("work", "shutdown")
+-- Wait for all to complete
+for _, thread in ipairs(active_threads) do
+    thread:get()
 end
 ```
 
@@ -155,22 +187,22 @@ end
 
 ## Implementation Steps
 
-### Step 1: Evaluate Threading Libraries
-- [ ] Test Lua Lanes installation and compatibility with LuaJIT
-- [ ] Benchmark simple producer-consumer test (1,000 files)
-- [ ] Verify no memory leaks or stability issues
-- [ ] Compare with process-based approach
+### Step 1: Design effil Thread Pool
+- [ ] Study `generate-html-parallel` effil usage pattern
+- [ ] Implement thread pool with max_concurrent limit
+- [ ] Add non-blocking thread status checking
+- [ ] Test with small dataset (100 poems)
 
-### Step 2: Implement Thread Pool Infrastructure
-- [ ] Create `libs/thread-pool.lua` - Reusable thread pool library
-- [ ] Implement worker spawn, work queue, shutdown protocol
+### Step 2: Integrate with GPU Similarity
+- [ ] Refactor `vk_similarity.lua` to use effil thread pool
+- [ ] Implement critical pattern: Copy effil.table to local at worker start
+- [ ] Add thread pool management (spawn, wait, reap completed)
 - [ ] Add error propagation from workers to main thread
-- [ ] Add progress tracking (completed count)
 
-### Step 3: Integrate with GPU Similarity
-- [ ] Modify `vk_similarity.lua` to use thread pool
-- [ ] Refactor JSON building into worker function
-- [ ] Add queue depth limiting (prevent memory bloat)
+### Step 3: Optimize Thread Pool Management
+- [ ] Implement efficient thread reaping (non-blocking checks)
+- [ ] Add queue depth limiting (max 8 concurrent threads)
+- [ ] Tune effil.sleep() duration for optimal throughput
 - [ ] Implement graceful shutdown on GPU errors
 
 ### Step 4: Benchmark and Optimize
@@ -225,14 +257,16 @@ Speedup: 3.2×
 
 ## Dependencies
 
-- Lua Lanes library (or GNU parallel for process-based approach)
+- effil library (already in project)
 - 9-002b (Validation) - Should test sequential version first
 
 ## Related Issues
 
-- **9-001f**: Remove effil dependency (this could replace effil uses)
-- **8-002**: Multi-threaded HTML generation (similar problem space)
+- **9-001f**: Remove effil dependency (OBSOLETE - effil is suitable for this pattern)
+- **8-002**: Multi-threaded HTML generation (uses same effil pattern)
 - **9-002b**: Validation testing (should test this optimization)
+
+**Note on Issue 9-001f:** The "remove effil dependency" issue was created due to diversity cache performance problems. However, that was a misuse of effil (constantly mutating shared state). For immutable data passed to independent workers (like file writing), effil is appropriate and already proven in `generate-html-parallel`. Issue 9-001f should be closed or revised to "Use effil correctly."
 
 ## Related Files
 
