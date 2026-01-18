@@ -625,7 +625,26 @@ run_generate_similarity() {
 
 # {{{ run_generate_diversity
 run_generate_diversity() {
-    log_stage "🎲 Stage 8/10: Pre-computing diversity cache (~42 hours)"
+    # Determine execution method: GPU (default) or CPU (--cpu-only only)
+    local use_gpu=false
+    if ! $CPU_ONLY; then
+        # GPU is required unless --cpu-only is specified
+        if [ -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
+            use_gpu=true
+            log_stage "🎲 Stage 8/10: Pre-computing diversity cache with GPU (~1 min)"
+        else
+            echo "Error: GPU library not found: libs/vulkan-compute/build/libvkcompute.so" >&2
+            echo "" >&2
+            echo "Options:" >&2
+            echo "  1. Build GPU library: cd libs/vulkan-compute && make" >&2
+            echo "  2. Use CPU instead: ./run.sh --generate-diversity --cpu-only" >&2
+            echo "" >&2
+            echo "Note: GPU acceleration is 2,600× faster (~1 min vs ~42 hours)" >&2
+            exit 1
+        fi
+    else
+        log_stage "🎲 Stage 8/10: Pre-computing diversity cache with CPU (~42 hours, --cpu-only)"
+    fi
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
@@ -647,32 +666,51 @@ run_generate_diversity() {
         fi
     fi
 
-    # Issue 8-027: Build command with pagination flags
-    if [ -n "$THREADS" ]; then
-        export DIVERSITY_THREADS="$THREADS"
-    fi
-
-    local pagination_args=""
-    if [ -n "$PAGES" ]; then
-        pagination_args="$pagination_args --pages=$PAGES"
-    fi
-    if [ -n "$POEMS_PER_PAGE" ]; then
-        pagination_args="$pagination_args --poems-per-page=$POEMS_PER_PAGE"
-    fi
-
-    if $DRY_RUN; then
-        log_dry_run "luajit $DIR/scripts/precompute-diversity-sequences $DIR $pagination_args"
-        return 0
-    fi
-
     log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Output: assets/embeddings/$model_dir_name/diversity_cache.json"
-    log_info "   ⚠️  This is a one-time cost (~42 hours). Results will be cached."
 
-    luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" $pagination_args || {
-        echo "Error: Diversity cache generation failed" >&2
-        exit 1
-    }
+    if $use_gpu; then
+        # GPU diversity generation using Vulkan compute shaders
+        log_info "   Mode: GPU-accelerated (Vulkan)"
+
+        if $DRY_RUN; then
+            log_dry_run "$DIR/scripts/precompute-diversity-sequences-gpu $DIR"
+            return 0
+        fi
+
+        "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
+            echo "Error: GPU diversity cache generation failed" >&2
+            echo "Use --cpu-only flag to force CPU execution instead" >&2
+            exit 1
+        }
+    else
+        # CPU implementation (only when --cpu-only is explicitly specified)
+        log_info "   Mode: CPU (effil-based)"
+        log_info "   ⚠️  This is a one-time cost (~42 hours). Results will be cached."
+
+        # Issue 8-027: Build command with pagination flags
+        if [ -n "$THREADS" ]; then
+            export DIVERSITY_THREADS="$THREADS"
+        fi
+
+        local pagination_args=""
+        if [ -n "$PAGES" ]; then
+            pagination_args="$pagination_args --pages=$PAGES"
+        fi
+        if [ -n "$POEMS_PER_PAGE" ]; then
+            pagination_args="$pagination_args --poems-per-page=$POEMS_PER_PAGE"
+        fi
+
+        if $DRY_RUN; then
+            log_dry_run "luajit $DIR/scripts/precompute-diversity-sequences $DIR $pagination_args"
+            return 0
+        fi
+
+        luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" $pagination_args || {
+            echo "Error: Diversity cache generation failed" >&2
+            exit 1
+        }
+    fi
 }
 # }}}
 

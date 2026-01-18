@@ -27,6 +27,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-001f | Remove effil dependency | Open | Low |
 | 9-002 | Port similarity matrix generation to Vulkan | In Progress | Medium |
 | 9-002b | Validate GPU similarity implementation | Open | High |
+| 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004 | GPU-accelerate maze algorithm | Open | Low |
 
@@ -42,6 +43,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-001g | Batch parallel diversity sequence computation | Completed | 2026-01-09 |
 | 9-002a | Design similarity matrix compute shader | Completed | 2026-01-10 |
 | 9-003a | Remove unnecessary centroid division from source files | Completed | 2025-12-25 |
+| 9-005 | Integrate GPU diversity cache into pipeline | Completed | 2026-01-17 |
 
 ## Target Hardware
 
@@ -77,6 +79,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 - [x] Vulkan compute infrastructure operational
 - [x] Diversity sequences generated on GPU (996× speedup achieved)
+- [x] Diversity sequences integrated into run.sh pipeline (Issue 9-005) ✅ **COMPLETED 2026-01-17**
 - [x] Similarity matrix GPU implementation complete
 - [ ] Similarity matrix GPU implementation validated (Issue 9-002b)
 - [ ] effil dependency removed (Issue 9-001f)
@@ -105,6 +108,16 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 - Memory efficient: ~50 MB VRAM usage
 - Expected speedup: 6-10× over CPU (pending validation)
 
+**Diversity Cache Pipeline Integration (Issue 9-005):** ✅ **COMPLETED 2026-01-17**
+- scripts/precompute-diversity-sequences-gpu - Production script (214 lines)
+- Bash wrapper with embedded Lua for proper directory handling
+- GPU computes and returns Lua tables (no file I/O in GPU layer)
+- CPU formats JSON and persists to disk (separation of concerns)
+- Integrated with run.sh Stage 8 (GPU required by default)
+- Proper error handling: exits if GPU missing, --cpu-only flag for fallback
+- Tested with 10 poems: ~0.01 seconds generation time
+- Expected 7,797 poems: ~58 seconds (2,600× faster than CPU)
+
 **Files Created:**
 - 25+ new files (4,700+ lines of code)
 - Diversity cache: Complete test suite with validation (✅ Production ready)
@@ -113,11 +126,13 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 ---
 
-**Phase Status: IN PROGRESS** (7/8 core issues complete, validation remaining)
+**Phase Status: IN PROGRESS** (8/9 core issues complete, validation remaining)
 
 **Started**: 2025-12-14
 
 **GPU Infrastructure Completed**: 2026-01-09
+
+**Diversity Cache Integrated**: 2026-01-17
 
 ## Cross-Phase Dependencies
 
