@@ -376,6 +376,31 @@ log_stage() {
 log_dry_run() {
     echo "[DRY-RUN] Would execute: $1"
 }
+
+# ANSI color codes for terminal output
+# These add visual distinction to success/info/error messages
+COLOR_GREEN="\033[92m"    # Bright green for success (✓, ✅)
+COLOR_BLUE="\033[94m"     # Bright blue for info (ℹ️)
+COLOR_RED="\033[91m"      # Bright red for errors (✗, ❌)
+COLOR_YELLOW="\033[93m"   # Bright yellow for warnings (⚠️)
+COLOR_RESET="\033[0m"     # Reset to default
+
+# Colored symbol helpers
+symbol_success() {
+    echo -e "${COLOR_GREEN}$1${COLOR_RESET}"
+}
+
+symbol_info() {
+    echo -e "${COLOR_BLUE}$1${COLOR_RESET}"
+}
+
+symbol_error() {
+    echo -e "${COLOR_RED}$1${COLOR_RESET}"
+}
+
+symbol_warning() {
+    echo -e "${COLOR_YELLOW}$1${COLOR_RESET}"
+}
 # }}}
 
 # {{{ Stage execution functions
@@ -434,7 +459,7 @@ run_parse() {
 
 # {{{ run_validate
 run_validate() {
-    log_stage "✓ Stage 4/10: Validating poem data"
+    log_stage "$(symbol_success "✓") Stage 4/10: Validating poem data"
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --validate-only $ASSETS_ARG"
@@ -686,7 +711,7 @@ run_generate_diversity() {
     else
         # CPU implementation (only when --cpu-only is explicitly specified)
         log_info "   Mode: CPU (effil-based)"
-        log_info "   ⚠️  This is a one-time cost (~42 hours). Results will be cached."
+        log_info "   $(symbol_warning "⚠️")  This is a one-time cost (~42 hours). Results will be cached."
 
         # Issue 8-027: Build command with pagination flags
         if [ -n "$THREADS" ]; then
@@ -937,9 +962,9 @@ if $DRY_RUN || $VERBOSE; then
     $PARSE && echo "  3.  parse"
     $VALIDATE && echo "  4.  validate"
     $CATALOG_IMAGES && echo "  5.  catalog-images"
-    $GENERATE_EMBEDDINGS && echo "  6.  generate-embeddings ⚠️ (~2-3 hours)"
-    $GENERATE_SIMILARITY && echo "  7.  generate-similarity ⚠️ (~30 min)"
-    $GENERATE_DIVERSITY && echo "  8.  generate-diversity ⚠️ (~42 hours)"
+    $GENERATE_EMBEDDINGS && echo -e "  6.  generate-embeddings $(symbol_warning "⚠️") (~2-3 hours)"
+    $GENERATE_SIMILARITY && echo -e "  7.  generate-similarity $(symbol_warning "⚠️") (~30 min)"
+    $GENERATE_DIVERSITY && echo -e "  8.  generate-diversity $(symbol_warning "⚠️") (~42 hours)"
     $GENERATE_HTML && echo "  9.  generate-html"
     $GENERATE_INDEX && echo "  10. generate-index"
     echo ""
@@ -959,6 +984,6 @@ $GENERATE_INDEX && run_generate_index
 
 if ! $QUIET; then
     echo ""
-    echo "✅ Pipeline completed successfully"
+    echo -e "$(symbol_success "✅") Pipeline completed successfully"
 fi
 # }}}

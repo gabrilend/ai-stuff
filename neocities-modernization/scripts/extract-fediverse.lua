@@ -51,6 +51,13 @@ local config_file = DIR .. "/config/input-sources.json"
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 
+-- ANSI color codes for terminal output
+local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
+local COLOR_BLUE = "\027[94m"     -- Bright blue for info (ℹ️)
+local COLOR_RED = "\027[91m"      -- Bright red for errors (✗, ❌)
+local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings (⚠️)
+local COLOR_RESET = "\027[0m"     -- Reset to default
+
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
     if absolute_path:sub(1, #DIR) == DIR then
@@ -117,7 +124,7 @@ local save_location = DIR .. "/" .. fediverse_backup_path .. "/files"
 print("🔄 Loading ActivityPub data from: " .. relative_path(file))
 local opened_file = io.open(file, "r")
 if not opened_file then
-    print("❌ Error: Could not open file " .. file)
+    print(COLOR_RED .. "❌" .. COLOR_RESET .. " Error: Could not open file " .. file)
     print("   Make sure the file exists and is readable")
     os.exit(1)
 end
@@ -127,11 +134,11 @@ opened_file:close()
 
 local data = dkjson.decode(opened_file_string)
 if not data then
-    print("❌ Error: Could not parse JSON data from " .. file)
+    print(COLOR_RED .. "❌" .. COLOR_RESET .. " Error: Could not parse JSON data from " .. file)
     os.exit(1)
 end
 
-print("✅ Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities")
+print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities")
 
 -- Privacy system variables
 local user_anonymization_map = {}
@@ -567,7 +574,7 @@ local f = io.open(json_file, "w")
 f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
-print("✅ Fediverse extraction complete")
+print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Fediverse extraction complete")
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Total posts processed: " .. #poems_json)
 print("   📝 Original posts: " .. original_count)

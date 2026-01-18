@@ -1502,9 +1502,14 @@ local function render_item(row, item_id, highlight, item_num, section_type)
         end
     elseif highlight then
         if disabled then
-            tui.set_attrs(bit.bor(tui.ATTR_DIM, tui.ATTR_INVERSE))
+            -- Disabled + highlighted: dim text with gray background
+            tui.set_fg(tui.FG_BLACK)
+            tui.set_bg(tui.BG_WHITE)
+            tui.set_attrs(tui.ATTR_DIM)
         else
-            tui.set_attrs(tui.ATTR_INVERSE)
+            -- Normal highlight: black text on white background
+            tui.set_fg(tui.FG_BLACK)
+            tui.set_bg(tui.BG_WHITE)
         end
     else
         if disabled then
