@@ -529,10 +529,225 @@ Validation should:
 
 ---
 
-**ISSUE STATUS: OPEN**
+## Implementation Log
+
+### Session: 2026-01-18
+
+**Phase A: Core Status Checking - COMPLETED**
+
+Created `scripts/validate-pipeline-data` bash script with:
+- `count_poems()` - Parses poems.json with jq
+- `count_embeddings()` - Counts poem_*.json files in similarities directory
+- `count_similarity_files()` - Same as embeddings (they share the same files)
+- `check_diversity_cache()` - Validates diversity_cache.json exists and is valid JSON
+- `count_html_similar/different()` - Counts generated HTML files
+- `check_chronological()` - Verifies chronological.html exists
+- `calculate_percentage()` - Helper for completion percentages
+- Human-readable output with box-drawing characters and emoji status indicators
+- Exit code 0=ready, 1=incomplete, 3=config error
+
+**Phase B: Freshness Validation - COMPLETED**
+
+Added `check_freshness()` function:
+- Compares file modification times using `stat -c "%Y"`
+- Detects when poems.json > embeddings.json (stale embeddings)
+- Detects when embeddings.json > similarity matrix (stale matrix)
+- Detects when embeddings.json > diversity cache (stale cache)
+- Calculates age difference in days
+- Provides specific remediation commands
+- Sets exit code 2 for stale data
+- Integrated with `--check-freshness` flag
+
+**Phase C: Missing Entry Detection - COMPLETED**
+
+Added `list_missing_entries()` function:
+- Uses temp files + `comm` for efficient set operations
+- Extracts all poem indices from poems.json with jq
+- Finds existing similarity files with find + sed
+- Performs set difference with `comm -23`
+- Displays first 50 missing entries in formatted rows (70 char width)
+- Shows count of additional missing beyond 50
+- Validates diversity cache completeness
+- Completes in 0.4 seconds for 7,797 poems
+- Integrated with `--list-missing` flag
+
+**Phase D: Progress Estimation - COMPLETED**
+
+Embedded in Phase A output:
+- Similarity matrix: ~0.92 seconds per poem (8 threads)
+- Diversity cache: ~19.4 seconds per poem (8 threads)
+- Calculates remaining time based on missing count
+- Displays ETAs in human-readable format (hours/minutes)
+
+**Phase E: Integration & Output Modes - COMPLETED**
+
+Implemented three output modes:
+- **Human-readable** (default): Box-drawing, colors, detailed explanations
+- **`--quick`**: Machine-readable status output (<1 second)
+- **`--format=json`**: Structured JSON export with all metrics
+- All modes respect exit codes for CI/CD integration
+- `--help` flag with comprehensive usage documentation
+
+**Phase F: Auto-Fix Suggestions - COMPLETED**
+
+Added `suggest_commands()` function:
+- Analyzes current pipeline state
+- Generates numbered step-by-step commands
+- Calculates time estimates for each step
+- Distinguishes optional vs required steps
+- Shows two recommended workflows:
+  1. Fast path: without diversity cache (slower HTML generation)
+  2. Optimal path: with 42-hour overnight diversity pre-computation
+- Integrated with `--suggest-commands` flag
+
+**Phase G: Pipeline Integration - COMPLETED**
+
+Created `libs/pipeline-validator.lua` module:
+- `check_embeddings()` - Returns {complete, count, total, missing, status}
+- `check_similarity_matrix()` - Returns {complete, count, total, missing, status}
+- `check_diversity_cache()` - Returns {complete, count, total, status, exists}
+- `check_freshness()` - Returns {fresh, issues=[]}
+- `validate_for_html_generation()` - Comprehensive check returning {ready, errors, warnings}
+- `print_validation_report()` - Formatted error/warning display
+- `set_verbose()` - Enable/disable verbose logging
+
+Integrated validation into scripts:
+
+**1. scripts/generate-html-parallel**
+- Validates embeddings + similarity matrix (always required)
+- Validates diversity cache (only if not --similar-only and using --cache)
+- Context-aware: --similar-only doesn't require diversity cache
+- Exits with error code 1 if validation fails
+- Shows warnings but continues if data is stale
+
+**2. scripts/precompute-diversity-sequences**
+- Validates embeddings + similarity matrix (both required)
+- Shows warnings for stale data but continues
+- Clear error messages with exact fix commands
+- Exits early to prevent wasting 42 hours on incomplete inputs
+
+**3. src/similarity-engine-parallel.lua**
+- Validates embeddings (only requirement for similarity matrix generation)
+- Integrated into `calculate_similarity_matrix_parallel()` function
+- Returns false if validation fails (TUI mode)
+- Clear error messages with remediation steps
+
+### Performance Metrics
+
+All targets met or exceeded:
+
+| Operation | Target | Actual | Status |
+|-----------|--------|--------|--------|
+| Full validation | <5 sec | <1 sec | ✓ Exceeded |
+| Quick mode | <1 sec | ~0.4 sec | ✓ Exceeded |
+| Missing entry detection | <3 sec | ~0.4 sec | ✓ Exceeded |
+| JSON export | <2 sec | ~0.5 sec | ✓ Exceeded |
+
+### Test Results
+
+Tested with actual project data (7,797 poems, 82.6% complete):
+
+```bash
+# Default human-readable output
+$ ./scripts/validate-pipeline-data
+# Shows: 6444/7797 embeddings (82.6%), 1354 missing, exit code 1
+
+# Quick mode
+$ ./scripts/validate-pipeline-data --quick
+# Shows: STATUS: INCOMPLETE, EMBEDDINGS: 82.6%, exit code 1
+
+# Freshness check
+$ ./scripts/validate-pipeline-data --check-freshness
+# Shows: Similarity matrix STALE (0 days old), exit code 2
+
+# Missing entries
+$ ./scripts/validate-pipeline-data --list-missing
+# Shows: 1354 poems missing, first 50 listed
+
+# Suggest commands
+$ ./scripts/validate-pipeline-data --suggest-commands
+# Shows: 4-step plan with ETAs (112.8 min, 0.3 hrs, 42 hrs, 1-72 hrs)
+
+# JSON export
+$ ./scripts/validate-pipeline-data --format=json | jq .
+# Valid JSON with all metrics
+```
+
+Tested script integration:
+
+```bash
+# generate-html-parallel with incomplete data
+$ ./scripts/generate-html-parallel . --test --similar-only
+# ❌ Blocks with clear error, exit code 1
+
+# precompute-diversity-sequences with incomplete data
+$ ./scripts/precompute-diversity-sequences .
+# ❌ Blocks with clear error, exit code 1
+
+# similarity-engine-parallel.lua (via TUI)
+$ echo "1\nn\n0.5\n8\nembeddinggemma:latest" | luajit src/similarity-engine-parallel.lua
+# ✅ Validation passes (embeddings exist), continues to matrix generation
+```
+
+### Files Created/Modified
+
+**Created:**
+- `scripts/validate-pipeline-data` (673 lines) - Main validation utility
+- `libs/pipeline-validator.lua` (331 lines) - Lua validation module
+
+**Modified:**
+- `scripts/generate-html-parallel` (+27 lines) - Added validation before generation
+- `scripts/precompute-diversity-sequences` (+41 lines) - Added validation before computation
+- `src/similarity-engine-parallel.lua` (+20 lines) - Added validation before matrix generation
+
+### Key Design Decisions
+
+**1. Bash + Lua Dual Implementation**
+- Bash script for standalone CLI usage (human-friendly)
+- Lua module for script integration (programmatic)
+- Both share validation logic via function design patterns
+
+**2. Context-Aware Validation**
+- Scripts validate only what they actually need
+- Example: --similar-only doesn't require diversity cache
+- Prevents false positives and allows partial workflows
+
+**3. Fail-Fast Philosophy**
+- Scripts exit immediately on missing dependencies
+- Better to fail in 1 second than waste hours on bad data
+- Aligns with CLAUDE.md: "prefer error messages over fallbacks"
+
+**4. Helpful Error Messages**
+- Every error includes exact fix command
+- Time estimates help users plan work
+- Warnings vs errors: stale=warning, missing=error
+
+**5. Efficient Implementation**
+- Uses Unix tools (find, comm, awk) for speed
+- Temp files + set operations instead of nested loops
+- Validates 7,797 poems in <1 second
+
+### Deferred Features
+
+**Not Implemented (Lower Priority):**
+- TUI integration showing real-time status (can add later)
+- Color-coded menu items (would require TUI refactor)
+- run.sh integration (scripts already validated individually)
+- `--model` parameter support (hardcoded to embeddinggemma_latest)
+
+These can be added in follow-up issues if needed.
+
+---
+
+**ISSUE STATUS: COMPLETED**
 
 **Created**: 2026-01-17
+**Completed**: 2026-01-18
 
 **Phase**: 10 (Developer Experience)
 
 **Priority**: Medium (nice-to-have for MVP, essential for production)
+
+**Implementation Time**: ~3 hours (Phases A-G)
+
+**LOC Added**: ~1,000 lines (scripts + module + integration)

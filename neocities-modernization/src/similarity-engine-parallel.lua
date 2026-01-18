@@ -536,6 +536,28 @@ function M.calculate_similarity_matrix_parallel(embeddings_file, model_name, sle
     local cpu_count = get_cpu_count()
     local thread_count = requested_threads or cpu_count
 
+    -- {{{ Pipeline validation (Issue 10-011 Phase G)
+    utils.log_info("🔍 Validating pipeline data...")
+    local validator = require("pipeline-validator")
+    validator.set_verbose(false)
+
+    -- Check embeddings (only requirement for similarity matrix generation)
+    local emb = validator.check_embeddings(model_name:gsub("[^%w._-]", "_"))
+
+    if not emb.complete then
+        utils.log_error("\n" .. string.rep("=", 60))
+        utils.log_error("❌ Pipeline validation failed:")
+        utils.log_error(string.format("  • Embeddings incomplete: %d/%d poems", emb.count, emb.total))
+        utils.log_error("    Fix: ./generate-embeddings.sh --incremental")
+        utils.log_error("")
+        utils.log_error("Cannot generate similarity matrix without complete embeddings.")
+        utils.log_error("Run the command above to generate missing embeddings.\n")
+        return false
+    end
+
+    utils.log_info("   ✅ Pipeline validation passed")
+    -- }}}
+
     -- Load embeddings
     utils.log_info("Loading embeddings from: " .. embeddings_file)
     local embeddings_data = utils.read_json_file(embeddings_file)

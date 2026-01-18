@@ -307,6 +307,49 @@ print(string.format("Thread count: %d", NUM_THREADS))
 print(string.format("Sleep between batches: %d seconds", SLEEP_BETWEEN_BATCHES))
 print(string.format("Test mode: %s", TEST_MODE and "yes (first " .. MAX_TEST_SEQUENCES .. " sequences)" or "no"))
 
+-- {{{ Pipeline validation (Issue 10-011 Phase G)
+print("\n🔍 Validating pipeline data...")
+local validator = require("pipeline-validator")
+validator.set_verbose(false)
+
+-- Check embeddings and similarity matrix (both required for diversity computation)
+local emb = validator.check_embeddings("embeddinggemma_latest")
+local sim = validator.check_similarity_matrix("embeddinggemma_latest")
+
+if not emb.complete or not sim.complete then
+    print("\n" .. string.rep("=", 60))
+    io.stderr:write("\n")
+    io.stderr:write("❌ ERROR: Pipeline validation failed:\n")
+
+    if not emb.complete then
+        io.stderr:write(string.format("  • Embeddings incomplete: %d/%d poems\n", emb.count, emb.total))
+        io.stderr:write("    Fix: ./generate-embeddings.sh --incremental\n")
+    end
+
+    if not sim.complete then
+        io.stderr:write(string.format("  • Similarity matrix incomplete: %d/%d poems\n", sim.count, sim.total))
+        io.stderr:write("    Fix: lua src/similarity-engine-parallel.lua\n")
+    end
+
+    io.stderr:write("\nCannot compute diversity sequences without complete embeddings\n")
+    io.stderr:write("and similarity matrix. Run the commands above to fix.\n\n")
+    os.exit(1)
+end
+
+-- Check freshness (warning only)
+local fresh = validator.check_freshness("embeddinggemma_latest")
+if not fresh.fresh then
+    io.stderr:write("\n⚠️  WARNING: Pipeline data may be stale:\n")
+    for _, issue in ipairs(fresh.issues) do
+        io.stderr:write(string.format("  • %s\n", issue.message))
+        io.stderr:write(string.format("    Fix: %s\n", issue.fix))
+    end
+    io.stderr:write("\nContinuing anyway. Results may not reflect latest poems.\n\n")
+end
+
+print("   ✅ Pipeline validation passed")
+-- }}}
+
 -- Load data files
 print("\n🔄 Loading data files (single-threaded phase)...")
 local poems_file = DIR .. "/assets/poems.json"
