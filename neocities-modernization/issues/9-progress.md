@@ -44,6 +44,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-002a | Design similarity matrix compute shader | Completed | 2026-01-10 |
 | 9-003a | Remove unnecessary centroid division from source files | Completed | 2025-12-25 |
 | 9-005 | Integrate GPU diversity cache into pipeline | Completed | 2026-01-17 |
+| 9-005b | URL switching helper script (local ↔ production) | Completed | 2026-01-18 |
 
 ## Target Hardware
 
