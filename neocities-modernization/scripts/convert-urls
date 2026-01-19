@@ -1,0 +1,306 @@
+#!/usr/bin/env luajit
+-- convert-urls: Converts HTML file URLs between local file:// paths and production paths
+--
+-- This script recursively finds all HTML files in the output directory and replaces
+-- URL patterns to switch between local testing mode and production deployment mode.
+-- It is idempotent - running the same conversion multiple times has no additional effect.
+--
+-- Usage:
+--   ./scripts/convert-urls --to-production    Convert file:// URLs to /similar-different/
+--   ./scripts/convert-urls --to-local         Convert /similar-different/ URLs to file://
+--   ./scripts/convert-urls --dry-run -p       Preview production conversion without changes
+--   ./scripts/convert-urls --help             Show usage information
+
+-- {{{ Configuration
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+
+-- URL patterns for conversion
+-- Local path uses /home/ritz/... which is a symlink to /mnt/mtwo/...
+local LOCAL_BASE = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+local PRODUCTION_BASE = "/similar-different"
+
+-- Output directory containing HTML files
+local OUTPUT_DIR = DIR .. "/output"
+-- }}}
+
+-- {{{ parse_arguments
+local function parse_arguments(args)
+    local options = {
+        mode = nil,       -- "to-production" or "to-local"
+        dry_run = false,
+        verbose = false,
+        help = false
+    }
+
+    local i = 1
+    while i <= #args do
+        local arg = args[i]
+
+        if arg == "--to-production" or arg == "-p" then
+            options.mode = "to-production"
+        elseif arg == "--to-local" or arg == "-l" then
+            options.mode = "to-local"
+        elseif arg == "--dry-run" or arg == "-d" then
+            options.dry_run = true
+        elseif arg == "--verbose" or arg == "-v" then
+            options.verbose = true
+        elseif arg == "--help" or arg == "-h" then
+            options.help = true
+        elseif arg == "--dir" then
+            i = i + 1
+            if args[i] then
+                OUTPUT_DIR = args[i]
+            end
+        else
+            io.stderr:write("Unknown argument: " .. arg .. "\n")
+            options.help = true
+        end
+
+        i = i + 1
+    end
+
+    return options
+end
+-- }}}
+
+-- {{{ print_usage
+local function print_usage()
+    print([[
+convert-urls: Convert HTML URLs between local and production paths
+
+Usage:
+  ./scripts/convert-urls [OPTIONS]
+
+Options:
+  -p, --to-production   Convert local file:// URLs to production paths
+  -l, --to-local        Convert production paths back to local file:// URLs
+  -d, --dry-run         Preview changes without modifying files
+  -v, --verbose         Show detailed progress for each file
+  --dir PATH            Override output directory (default: output/)
+  -h, --help            Show this help message
+
+Examples:
+  # Convert to production before deploying to neocities
+  ./scripts/convert-urls --to-production
+
+  # Preview what would be changed
+  ./scripts/convert-urls --to-production --dry-run
+
+  # Convert back to local for browser testing
+  ./scripts/convert-urls --to-local
+
+URL Patterns:
+  Local:      file:///home/ritz/programming/ai-stuff/neocities-modernization/output
+  Production: /similar-different
+
+The script is idempotent - running the same conversion twice has no effect.
+]])
+end
+-- }}}
+
+-- {{{ find_html_files
+local function find_html_files(directory)
+    -- Use find command to recursively locate all HTML files
+    local cmd = string.format('find "%s" -type f -name "*.html" 2>/dev/null', directory)
+    local handle = io.popen(cmd)
+    if not handle then
+        return {}
+    end
+
+    local files = {}
+    for line in handle:lines() do
+        table.insert(files, line)
+    end
+    handle:close()
+
+    return files
+end
+-- }}}
+
+-- {{{ read_file
+local function read_file(path)
+    local file = io.open(path, "rb")
+    if not file then
+        return nil, "Could not open file: " .. path
+    end
+
+    local content = file:read("*all")
+    file:close()
+
+    return content
+end
+-- }}}
+
+-- {{{ write_file
+local function write_file(path, content)
+    local file = io.open(path, "wb")
+    if not file then
+        return false, "Could not write file: " .. path
+    end
+
+    file:write(content)
+    file:close()
+
+    return true
+end
+-- }}}
+
+-- {{{ escape_pattern
+-- Escape special pattern characters for Lua string matching
+local function escape_pattern(str)
+    -- Escape all Lua pattern magic characters: ^$()%.[]*+-?
+    return str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+end
+-- }}}
+
+-- {{{ count_occurrences
+local function count_occurrences(str, pattern)
+    local count = 0
+    local start = 1
+    while true do
+        local pos = str:find(pattern, start, true)  -- plain text search
+        if not pos then break end
+        count = count + 1
+        start = pos + 1
+    end
+    return count
+end
+-- }}}
+
+-- {{{ convert_file
+local function convert_file(path, from_pattern, to_pattern, dry_run, verbose)
+    local content, err = read_file(path)
+    if not content then
+        return 0, err
+    end
+
+    -- Count occurrences before replacement
+    local count = count_occurrences(content, from_pattern)
+
+    if count == 0 then
+        return 0, nil  -- No changes needed
+    end
+
+    -- Perform replacement using plain text (gsub with escaped pattern)
+    local escaped_from = escape_pattern(from_pattern)
+    local new_content = content:gsub(escaped_from, to_pattern)
+
+    if not dry_run then
+        local success, write_err = write_file(path, new_content)
+        if not success then
+            return 0, write_err
+        end
+    end
+
+    if verbose then
+        local action = dry_run and "Would replace" or "Replaced"
+        print(string.format("  %s %d occurrence(s) in %s", action, count, path))
+    end
+
+    return count, nil
+end
+-- }}}
+
+-- {{{ main
+local function main()
+    local options = parse_arguments(arg)
+
+    if options.help then
+        print_usage()
+        os.exit(0)
+    end
+
+    if not options.mode then
+        io.stderr:write("Error: Must specify --to-production or --to-local\n")
+        io.stderr:write("Use --help for usage information\n")
+        os.exit(1)
+    end
+
+    -- Determine conversion direction
+    local from_pattern, to_pattern, direction_desc
+    if options.mode == "to-production" then
+        from_pattern = LOCAL_BASE
+        to_pattern = PRODUCTION_BASE
+        direction_desc = "local → production"
+    else
+        from_pattern = PRODUCTION_BASE
+        to_pattern = LOCAL_BASE
+        direction_desc = "production → local"
+    end
+
+    -- Print header
+    print("=" .. string.rep("=", 60))
+    print("URL Converter: " .. direction_desc)
+    print("=" .. string.rep("=", 60))
+    print("")
+
+    if options.dry_run then
+        print("** DRY RUN MODE - No files will be modified **")
+        print("")
+    end
+
+    print("From: " .. from_pattern)
+    print("To:   " .. to_pattern)
+    print("Dir:  " .. OUTPUT_DIR)
+    print("")
+
+    -- Find all HTML files
+    print("Scanning for HTML files...")
+    local files = find_html_files(OUTPUT_DIR)
+
+    if #files == 0 then
+        print("No HTML files found in " .. OUTPUT_DIR)
+        os.exit(0)
+    end
+
+    print(string.format("Found %d HTML files", #files))
+    print("")
+
+    -- Process each file
+    local total_replacements = 0
+    local files_modified = 0
+    local errors = {}
+
+    for _, file_path in ipairs(files) do
+        local count, err = convert_file(file_path, from_pattern, to_pattern, options.dry_run, options.verbose)
+
+        if err then
+            table.insert(errors, { path = file_path, error = err })
+        elseif count > 0 then
+            total_replacements = total_replacements + count
+            files_modified = files_modified + 1
+        end
+    end
+
+    -- Print summary
+    print("")
+    print("-" .. string.rep("-", 60))
+    print("Summary:")
+    print("-" .. string.rep("-", 60))
+
+    local action = options.dry_run and "Would modify" or "Modified"
+    print(string.format("  Files scanned:  %d", #files))
+    print(string.format("  %s:    %d files", action, files_modified))
+    print(string.format("  URLs %s: %d", options.dry_run and "to replace" or "replaced", total_replacements))
+
+    if #errors > 0 then
+        print("")
+        print("Errors:")
+        for _, e in ipairs(errors) do
+            print(string.format("  %s: %s", e.path, e.error))
+        end
+    end
+
+    print("")
+
+    if options.dry_run and total_replacements > 0 then
+        print("Run without --dry-run to apply changes.")
+    elseif total_replacements == 0 then
+        print("No URLs needed conversion (already in target format or no matches found).")
+    else
+        print("Conversion complete!")
+    end
+end
+-- }}}
+
+main()
