@@ -63,20 +63,30 @@ end
 -- }}}
 
 -- {{{ function load_poem_colors
+-- Note: Only loads and logs once per session (idempotent)
+local cached_poem_colors = nil
+
 local function load_poem_colors()
+    -- Skip if already loaded (idempotent)
+    if cached_poem_colors then
+        return cached_poem_colors
+    end
+
     local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
-    
+
     if poem_colors_data and poem_colors_data.poem_colors then
         -- Count actual entries dynamically (stored total_poems may be stale)
         local actual_count = 0
         for _ in pairs(poem_colors_data.poem_colors) do actual_count = actual_count + 1 end
         utils.log_info(string.format("Loaded semantic colors for %d poems", actual_count))
-        return poem_colors_data.poem_colors
+        cached_poem_colors = poem_colors_data.poem_colors
+        return cached_poem_colors
     else
         utils.log_warn("Could not load poem colors, using fallback colors")
         -- Fallback color assignment
-        return {}
+        cached_poem_colors = {}
+        return cached_poem_colors
     end
 end
 -- }}}
@@ -497,11 +507,12 @@ function generate_golden_chronological_browser(golden_poems, output_dir)
         
         local timeline_progress = i / #sorted_poems * 100
         
-        local semantic_color = (poem_colors[poem.id] and poem_colors[poem.id].color) or "gray"
-        
+        -- Lookup by poem_index (globally unique) not poem.id (per-category)
+        local semantic_color = (poem_colors[poem.poem_index] and poem_colors[poem.poem_index].color) or "gray"
+
         -- Generate progress information
         local progress_info = {
-            poem_id = poem.id,
+            poem_id = poem.poem_index,  -- Use poem_index for consistency
             total_poems = #sorted_poems,
             percentage = timeline_progress,
             position = i
