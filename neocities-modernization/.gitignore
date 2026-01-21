@@ -3,7 +3,17 @@ temp/
 
 # Build products (regenerated each run)
 output/
+output-backup/
 assets/
+
+# Validation reports (generated during pipeline runs)
+validation_reports/
+
+# Extracted input files (regenerated from archives)
+input/*/files/
+
+# Binary cache files (GPU-generated, large)
+*.bin
 
 # Editor files
 *.swp
