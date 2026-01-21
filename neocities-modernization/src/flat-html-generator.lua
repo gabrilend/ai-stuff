@@ -1193,18 +1193,18 @@ local function render_attachment_images(attachments)
             alt_text = alt_text:gsub('"', '&quot;')
 
             -- Build image tag with lazy loading for performance
-            -- width/height hints help browser reserve space before load
-            -- CSS removed for performance - images display at native size
-            -- (acceptable for poetry site where text is primary content)
+            -- Issue 8-005 Fix: Add max-width:100% to prevent viewport overflow
+            -- This is a pragmatic CSS exception - no pure HTML way to make images responsive
+            -- width/height hints help browser reserve space before load (aspect ratio preserved)
             local img_tag
             if attachment.width and attachment.height then
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d">',
+                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="max-width:100%%; height:auto">',
                     img_src, alt_text, attachment.width, attachment.height
                 )
             else
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy">',
+                    '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto">',
                     img_src, alt_text
                 )
             end
@@ -1886,7 +1886,7 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
 <p>All poems sorted by %s to: %s</p>
@@ -2031,7 +2031,7 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s (Page %d of %d)</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
 <p>Poems sorted by %s to: %s</p>
@@ -2254,12 +2254,12 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order (Page %d of %d)</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
 <p>Poems in true chronological order by post date</p>
 %s
-<p><a href="explore.html">How to explore this collection</a></p>
+<p><a href="wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2276,11 +2276,11 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
 <p>All poems in true chronological order by post date</p>
-<p><a href="explore.html">How to explore this collection</a></p>
+<p><a href="wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2423,7 +2423,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <meta http-equiv="refresh" content="0;url=01.html">
 <title>Redirecting...</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <p>Redirecting to <a href="01.html">01.html</a>...</p>
 </body>
 </html>]]
@@ -2444,7 +2444,7 @@ function M.generate_simple_discovery_instructions(output_dir)
 <meta charset="UTF-8">
 <title>Poetry Collection - How to Explore</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection - Exploration Guide</h1>
 </center>
@@ -3176,7 +3176,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local html_parts = {
                         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
                         '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
-                        '</head><body><table align="center"><tr><td><pre>'
+                        '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
                     }
 
                     -- Add anchor poem with full formatting

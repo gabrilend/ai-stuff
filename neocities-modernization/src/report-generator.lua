@@ -343,7 +343,7 @@ function ReportGenerator:generate_html_report(result, output_file)
         }
     </style>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <div class="report-header">
         <h1>🔍 Similarity Validation Report</h1>
         <p><strong>Algorithm:</strong> {ALGORITHM}</p>
