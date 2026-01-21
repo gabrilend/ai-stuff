@@ -2,6 +2,8 @@
 # Syncs words/notes/images from backup locations to project input directory
 # Preserves generated poems.json files to avoid redundant extraction
 #
+# Issue 8-042: Added configurable image sync from config/input-sources.json
+#
 # The external sync-to-projects script does rm -rf input/, which would delete
 # the generated files that scripts/update creates. We preserve and restore them
 # so the freshness check works correctly.
@@ -10,6 +12,7 @@ set -euo pipefail
 
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 BACKUP_DIR="${DIR}/temp/preserved-files-$$"
+CONFIG_FILE="${DIR}/config/input-sources.json"
 
 # {{{ preserve_generated_files
 # Back up generated files before sync (they get deleted by rm -rf input/)
@@ -55,6 +58,103 @@ restore_generated_files() {
 }
 # }}}
 
+# {{{ sync_images_from_config
+# Issue 8-042: Sync images from configurable source directories
+sync_images_from_config() {
+    # Check if jq is available for JSON parsing
+    if ! command -v jq &> /dev/null; then
+        echo "   ⚠️  jq not found, skipping configurable image sync"
+        return 0
+    fi
+
+    # Check if config file exists
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "   ⚠️  Config file not found: ${CONFIG_FILE}"
+        return 0
+    fi
+
+    # Check if image_sync is enabled
+    local enabled
+    enabled=$(jq -r '.image_sync.enabled // false' "${CONFIG_FILE}")
+    if [ "${enabled}" != "true" ]; then
+        echo "   📷 Image sync disabled in config"
+        return 0
+    fi
+
+    # Get destination directory
+    local destination
+    destination=$(jq -r '.image_sync.destination // "input/media_attachments"' "${CONFIG_FILE}")
+    local dest_path="${DIR}/${destination}"
+
+    # Get sync options
+    local preserve_structure overwrite_existing
+    preserve_structure=$(jq -r '.image_sync.preserve_structure // true' "${CONFIG_FILE}")
+    overwrite_existing=$(jq -r '.image_sync.overwrite_existing // false' "${CONFIG_FILE}")
+
+    # Get number of sources
+    local num_sources
+    num_sources=$(jq '.image_sync.sources | length' "${CONFIG_FILE}")
+
+    if [ "${num_sources}" -eq 0 ]; then
+        echo "   📷 No image sources configured"
+        return 0
+    fi
+
+    echo "   📷 Syncing images from ${num_sources} configured source(s)..."
+
+    # Ensure destination exists
+    mkdir -p "${dest_path}"
+
+    local total_synced=0
+
+    # Iterate over sources
+    for i in $(seq 0 $((num_sources - 1))); do
+        local source_name source_path
+        source_name=$(jq -r ".image_sync.sources[${i}].name" "${CONFIG_FILE}")
+        source_path=$(jq -r ".image_sync.sources[${i}].path" "${CONFIG_FILE}")
+
+        if [ ! -d "${source_path}" ]; then
+            echo "      ⚠️  ${source_name}: source not found (${source_path})"
+            continue
+        fi
+
+        # Build rsync options
+        local rsync_opts="-a"
+        if [ "${overwrite_existing}" != "true" ]; then
+            rsync_opts="${rsync_opts} --ignore-existing"
+        fi
+
+        # Count files before sync
+        local files_before
+        files_before=$(find "${dest_path}" -type f 2>/dev/null | wc -l)
+
+        # Sync files
+        if [ "${preserve_structure}" == "true" ]; then
+            rsync ${rsync_opts} "${source_path}/" "${dest_path}/" 2>/dev/null || true
+        else
+            # Flatten structure (not recommended for media_attachments)
+            find "${source_path}" -type f -exec cp -n {} "${dest_path}/" \; 2>/dev/null || true
+        fi
+
+        # Count files after sync
+        local files_after
+        files_after=$(find "${dest_path}" -type f 2>/dev/null | wc -l)
+        local files_synced=$((files_after - files_before))
+
+        if [ ${files_synced} -gt 0 ]; then
+            echo "      ✓ ${source_name}: ${files_synced} files synced"
+            total_synced=$((total_synced + files_synced))
+        else
+            echo "      ✓ ${source_name}: up to date"
+        fi
+    done
+
+    if [ ${total_synced} -gt 0 ]; then
+        echo "   📷 Total: ${total_synced} new files synced to ${destination}"
+    fi
+}
+# }}}
+
 # {{{ main
 # Preserve generated files before the destructive sync
 preserve_generated_files
@@ -64,6 +164,9 @@ preserve_generated_files
 
 # Restore preserved files
 restore_generated_files
+
+# Issue 8-042: Sync images from configured sources
+sync_images_from_config
 
 # Remove unwanted ZIP files that get synced but aren't content archives
 rm -f "${DIR}/input/images/poem-pictures/neocities-ritz-menardi.zip"
