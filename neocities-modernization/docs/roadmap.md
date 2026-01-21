@@ -179,10 +179,10 @@
 - ✅ Rename "unique" to "different" for clarity
 - ✅ Image integration (532 images with lazy loading)
 - ✅ Freshness checking for extraction and generation
-- ✅ Complete embeddings for all poems (7,797 of 7,797)
-- 🔄 Similarity matrix generation (1,671 of 7,797 files)
-- ❌ Generation of all similarity-sorted pages (6 of 7,797)
-- ❌ Generation of all diversity-sorted pages (4 of 7,797)
+- ✅ Complete embeddings for all poems
+- Similarity matrix generation (run `./scripts/validate-pipeline-data --quick` to check)
+- Generation of all similarity-sorted pages (blocked by similarity matrix)
+- Generation of all diversity-sorted pages (blocked by diversity cache)
 
 ### Key Milestones:
 1. ✅ Rename "unique" terminology to "different" throughout codebase
@@ -213,65 +213,62 @@
 
 ## Deployment Readiness Assessment 📊
 
-**Last Updated**: 2026-01-04
-
 This section tracks progress toward deploying the complete website to Neocities.
 
-### Required Components Status
+> **To check current status:** Run `./scripts/validate-pipeline-data`
+> **Quick check:** Run `./scripts/validate-pipeline-data --quick`
 
-| Component | Current | Required | % Complete | Blocker? |
-|-----------|---------|----------|------------|----------|
-| Poems corpus | 7,797 | 7,797 | ✅ 100% | No |
-| Embeddings | 7,797 | 7,797 | ✅ 100% | No |
-| Similarity matrix | 1,671 files | 7,797 files | 🔄 21% | **YES** |
-| Diversity cache | In progress | 1 file | 🔄 Partial | Optional |
-| Similar pages | 6 | 7,797 | ❌ 0.08% | Blocked |
-| Different pages | 4 | 7,797 | ❌ 0.05% | Blocked |
-| Chronological index | 1 | 1 | ✅ 100% | No |
-| Numeric index | 1 | 1 | ✅ 100% | No |
-| Explore page | 1 | 1 | ✅ 100% | No |
+### Required Components
+
+| Component | Description | Blocker? |
+|-----------|-------------|----------|
+| Poems corpus | Source poems from fediverse/messages/notes | No |
+| Embeddings | 768-dim vectors for semantic similarity | No |
+| Similarity matrix | Per-poem similarity rankings | Yes (if incomplete) |
+| Diversity cache | Pre-computed diversity sequences | Optional |
+| Similar pages | Per-poem HTML similarity pages | Blocked by matrix |
+| Different pages | Per-poem HTML diversity pages | Blocked by cache |
+| Chronological index | Main entry page | No |
+| Numeric index | Searchable poem index | No |
+| Explore page | Discovery instructions | No |
 
 ### Expected Final Output
 
 ```
 output/
-├── index.html              (12 MB)     ✅ Complete
-├── chronological.html      (12 MB)     ✅ Complete
-├── numeric-index.html      (282 KB)    ✅ Complete
-├── explore.html            (1 KB)      ✅ Complete
+├── index.html              (→ chronological.html)
+├── chronological.html      (~12 MB, all poems)
+├── numeric-index.html      (~280 KB)
+├── explore.html            (~1 KB)
 ├── similar/
-│   ├── 001.html ... 7797.html          ❌ 6 of 7,797 (0.08%)
-│   └── (expected: ~6 MB each × 7,797 = ~47 GB)
+│   └── XXXX-NN.html        (per-poem similarity pages, paginated)
 ├── different/
-│   ├── 001.html ... 7797.html          ❌ 4 of 7,797 (0.05%)
-│   └── (expected: ~6 MB each × 7,797 = ~47 GB)
-└── input/media_attachments/            ✅ 639 MB (532 images)
+│   └── XXXX-NN.html        (per-poem diversity pages, paginated)
+└── input/media_attachments/ (images)
 
-Total HTML files expected: ~15,598
-Total output size expected: ~95 GB
+Run ./scripts/validate-pipeline-data to see actual generation progress.
 ```
 
 ### Deployment Pipeline Steps
 
-**Step 1: Complete Embeddings** ✅ COMPLETE
-- All 7,797 poems have embeddings (100% completion rate)
-- Last generated: 2026-01-04
+**Step 1: Complete Embeddings**
 - Tool: `./generate-embeddings.sh`
+- Check status: `./scripts/validate-pipeline-data --quick | grep EMBEDDING`
 
-**Step 2: Calculate Similarity Matrix** 🔄 IN PROGRESS (21% complete)
+**Step 2: Calculate Similarity Matrix**
 - Tool: `lua src/similarity-engine-parallel.lua`
-- Generates: 7,797 individual similarity JSON files
-- Est. time: 1-2 hours (8 threads)
+- Generates: Individual similarity JSON files per poem
+- Check status: `./scripts/validate-pipeline-data --quick | grep SIMILARITY`
 
-**Step 3: Pre-compute Diversity Cache** ⏸️ OPTIONAL (speeds up Step 4)
+**Step 3: Pre-compute Diversity Cache** (optional, speeds up Step 4)
 - Tool: `./scripts/precompute-diversity-sequences`
-- Generates: `diversity_cache.json` (~500 MB)
-- Est. time: 42 hours unattended
-- Benefit: Reduces Step 4 from 3 days → 1 hour
+- Generates: `diversity_cache.json`
+- Benefit: Reduces Step 4 from days → ~1 hour
+- Check status: `./scripts/validate-pipeline-data --quick | grep DIVERSITY`
 
-**Step 4: Generate All HTML Pages** ❌ BLOCKED (depends on Steps 1-2)
+**Step 4: Generate All HTML Pages** (depends on Steps 1-2)
 - Tool: `./scripts/generate-html-parallel`
-- Generates: 15,586 HTML files (7,793 similar + 7,793 different)
+- Generates: similar/ and different/ HTML pages
 - Est. time WITH cache: ~1 hour
 - Est. time WITHOUT cache: ~3 days
 
