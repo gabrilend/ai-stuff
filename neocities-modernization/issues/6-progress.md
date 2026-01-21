@@ -122,9 +122,24 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 
 ---
 
+## Open Issues (Post-Completion Improvements)
+
+| Issue | Description | Status | Priority |
+|-------|-------------|--------|----------|
+| 6-013 | Investigate semantic color distribution imbalance | Open | Low |
+| 6-031 | Configurable poem exclusion filter | Open | Medium |
+
+**6-031: Configurable Poem Exclusion Filter** - Open
+- Config file (`config/excluded-poems.txt`) to specify poems to exclude
+- Filter out mundane/non-poetic content that pollutes centroid calculations
+- Support per-category exclusion (notes, fediverse, messages, bluesky)
+- Applied during extraction/anonymization step
+
+---
+
 ## Phase 6 Completion Summary
 
-**Status: 100% COMPLETE**
+**Status: COMPLETE** (core objectives achieved, follow-up improvements open)
 
 **Key Metrics:**
 - **539 Images Cataloged**: Complete multimedia content foundation
