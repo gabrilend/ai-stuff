@@ -314,7 +314,9 @@ end
 local function clean_html(content)
     -- Clean HTML markup to get plain text (what Mastodon counts)
     local clean = content:gsub("<p>", "\n\n")
-    clean = clean:gsub("<br>", "\n")
+    -- Issue 6-032: Handle all BR tag variants (<br>, <br/>, <br />)
+    -- Mastodon uses XHTML-style <br /> which was causing words to run together
+    clean = clean:gsub("<br%s*/?>", "\n")
     clean = clean:gsub("&amp;", "&")
     clean = clean:gsub("&#39;", "'")
     clean = clean:gsub("&quot;", "\"")

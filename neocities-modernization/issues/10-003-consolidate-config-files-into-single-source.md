@@ -2,7 +2,7 @@
 
 **Priority**: Low
 **Phase**: 10 (Developer Experience & Tooling)
-**Status**: ✅ Complete
+**Status**: In Progress
 
 **Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
 **Created**: 2025-12-23
@@ -383,14 +383,69 @@ to work with their individual config files. Scripts can be gradually migrated to
 - `config/similarity-calculator-settings.json` - Can be deprecated
 - `assets/centroids.json` - Can be deprecated (centroids now in main.lua)
 
-### Success Criteria Met
+### Remaining Work: Script Migration
+
+The following scripts still read from old config files and must be updated to use `config-loader`:
+
+| Script | Old Config File | Config Section |
+|--------|----------------|----------------|
+| `scripts/extract-fediverse.lua` | `config/input-sources.json` | `input_sources`, `privacy`, `extraction` |
+| `scripts/extract-messages.lua` | `config/input-sources.json` | `input_sources`, `extraction` |
+| `scripts/extract-notes.lua` | `config/input-sources.json` | `input_sources`, `extraction` |
+| `src/flat-html-generator.lua` | `config/input-sources.json` | `layout`, `pagination`, `storage` |
+| `src/similarity-calculator.lua` | `config/similarity-calculator-settings.json` | `similarity` |
+| `src/centroid-generator.lua` | `assets/centroids.json` | `centroids` |
+| `src/centroid-html-generator.lua` | `assets/centroids.json` (help text) | `centroids` |
+| `src/semantic-color-calculator.lua` | `config/semantic-colors.json` | `semantic_colors` |
+| `src/image-manager.lua` | `config/input-sources.json` | `image_integration`, `image_sync` |
+| `src/wordcloud-generator.lua` | `config/input-sources.json` | `word_cloud` |
+| `src/html-generator/golden-poem-bonus.lua` | `config/golden-poem-settings.json` | `golden_poems` |
+| `src/html-generator/test-golden-poem-bonus.lua` | `config/golden-poem-settings.json` | `golden_poems` |
+
+**Migration pattern:**
+```lua
+-- Before:
+local config_file = DIR .. "/config/input-sources.json"
+local file = io.open(config_file, "r")
+local config_data = dkjson.decode(file:read("*a"))
+local value = config_data.some_section.some_value
+
+-- After:
+local config = require("config-loader")
+local value = config.some_section.some_value
+```
+
+Once all scripts are migrated, the "Previously:" comments can be removed from `config/main.lua`
+and the old config files can be deleted.
+
+### Stale Options (BLOCKER)
+
+The following config options are defined but NOT read by any scripts. This issue is **blocked** until each is resolved:
+
+| Option | Section | Resolution Needed |
+|--------|---------|-------------------|
+| `output_format` | extraction | Remove (only JSON supported) or implement TXT export |
+| `preserve_timestamps` | extraction | Remove (always preserved) or make configurable |
+| `validation_settings.*` | similarity | Implement in similarity-calculator.lua or remove |
+| `algorithm_metadata.*` | similarity | These are documentation-only; keep as reference or remove |
+
+**Resolution options for each:**
+1. **Implement** - Update scripts to actually read and use the option
+2. **Remove** - Delete from config (deemed unnecessary)
+3. **Keep as documentation** - Move to comments or separate docs file
+
+These are tracked in `config/main.lua` under the `_stale` section.
+
+### Success Criteria
 
 - [x] Single config file contains all project settings
 - [x] Config-loader utility created for script migration
-- [x] Symlink created for easy access (`config-file` -> `config/main.lua`)
-- [ ] All scripts use consolidated config (incremental migration pending)
+- [x] Symlink created for easy access (`config-file.lua` -> `config/main.lua`)
+- [ ] All 12 scripts updated to use config-loader
+- [ ] Old config files deleted
+- [ ] Stale options resolved (implemented or removed)
 - [x] Documentation updated in issue file
 
 ---
 
-**ISSUE STATUS: ✅ COMPLETE**
+**ISSUE STATUS: In Progress (script migration pending, stale options blocking)**
