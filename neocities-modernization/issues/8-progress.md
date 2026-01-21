@@ -32,12 +32,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
 | 8-016 | Validate poem representation in pagination | ✅ Core complete | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
-| 8-030 | Add chronological anchor links | 🔄 Re-opened (pagination bug) | **High** |
+| 8-030 | Add chronological anchor links | ✅ Complete | High |
 | 8-035 | Colorize nav boxes according to progress bar position | ✅ Complete | Low |
 | 8-036 | Add poem identification to ranking headers | ✅ Complete | Low |
-| 8-037 | Fix similar/different box alignment | 🔄 Re-opened (bottom bar off-by-one) | Medium |
+| 8-037 | Fix similar/different box alignment | ✅ Complete | Medium |
 | 8-038 | Center poem containers on page | ✅ Already implemented | Low |
-| 8-039 | Move chronological files to subdirectory | 🔄 Re-opened (cleanup + link format) | **High** |
+| 8-039 | Move chronological files to subdirectory | ✅ Complete | High |
 | 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
 | 8-041 | Escape HTML characters in poem content | Implemented (pending validation) | **High** |
 | 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
@@ -75,12 +75,28 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-039 | Move chronological files to subdirectory | Completed | 2026-01-21 |
 | 8-042 | Sync images from configurable directories | Completed | 2026-01-21 |
 | 8-043 | Generate semantic word cloud page (MVP) | Completed | 2026-01-21 |
+| 8-030 | Add chronological anchor links (re-completed) | Completed | 2026-01-21 |
+| 8-037 | Fix similar/different box alignment (re-completed) | Completed | 2026-01-21 |
 
-**8-039: Move Chronological Files to Subdirectory** - COMPLETED (2026-01-21)
+**8-030: Add Chronological Anchor Links** - RE-COMPLETED (2026-01-21)
+- ✅ Fixed anchor ID format mismatch in effil worker
+- ✅ Chronological pages: `id="poem-fediverse-4210"` (full category)
+- ✅ Similar/different links: `href="...#poem-fediverse-5000"` (now matches)
+- ✅ Pagination-aware links working: `chronological/05.html#poem-fediverse-5000`
+
+**8-037: Fix Similar/Different Box Alignment** - RE-COMPLETED (2026-01-21)
+- ✅ Fixed bottom progress bar off-by-one in effil worker
+- ✅ Corrected `build_segment()` call positions (1 to LEFT_JUNCTION, not 0)
+- ✅ Junction characters (`╧`, `┴`) now align with box corners
+- ✅ Similar/different pages match chronological page formatting
+
+**8-039: Move Chronological Files to Subdirectory** - RE-COMPLETED (2026-01-21)
 - ✅ Changed output from `chronological-XX.html` to `chronological/XX.html`
 - ✅ Updated `generate_chronological_page_navigation()` for relative paths
 - ✅ Updated redirect/index file to point to `chronological/index.html`
 - ✅ Updated similar/different page links to `chronological/` subdirectory
+- ✅ Manually deleted 79 old `chronological-*.html` files from output root
+- ✅ Fixed internal pagination links (`%s.html` instead of `chronological-%s.html`)
 
 **8-042: Sync Images From Configurable Directories** - COMPLETED (2026-01-21)
 - ✅ Added `image_sync` section to `config/input-sources.json`

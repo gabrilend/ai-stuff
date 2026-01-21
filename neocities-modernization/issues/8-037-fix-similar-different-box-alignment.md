@@ -235,27 +235,71 @@ The effil worker thread's bottom progress bar generation has a different charact
 ### Verification
 
 After fix:
-- [ ] Bottom progress bar on similar pages matches chronological pages
-- [ ] Bottom progress bar on different pages matches chronological pages
-- [ ] Junction characters (`╧`, `┴`) align directly below box corners (`┐`, `┘`)
+- [x] Bottom progress bar on similar pages matches chronological pages
+- [x] Bottom progress bar on different pages matches chronological pages
+- [x] Junction characters (`╧`, `┴`) align directly below box corners (`┐`, `┘`)
+
+---
+
+## Fix Applied: 2026-01-21 - Bottom Progress Bar Off-By-One
+
+### Root Cause Analysis
+
+The effil worker thread's `build_segment()` function was being called with incorrect position parameters:
+
+```lua
+-- WRONG (effil worker had):
+local bottom_line = colored_corner
+    .. build_segment(0, LEFT_JUNCTION)           -- Position 0 is the corner!
+    .. left_junction
+    .. build_segment(LEFT_JUNCTION + 1, RIGHT_JUNCTION)
+    .. right_junction
+    .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS)  -- Includes position 82 (closing ┘)
+    .. "┘"
+```
+
+The problems:
+1. `build_segment(0, LEFT_JUNCTION)` - Position 0 is the corner character, already added
+2. `build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS)` - Position 82 is the closing `┘`, already added
+
+### Fix Applied
+
+Updated effil worker (lines 3089-3102) to match main scope's segment calculations:
+
+```lua
+-- Issue 8-037 Fix: Corrected segment positions to match main scope
+-- Segment 1: positions 1 to LEFT_JUNCTION-1 (9 chars, corner is pos 0)
+-- Segment 2: positions LEFT_JUNCTION+1 to RIGHT_JUNCTION-1 (59 chars)
+-- Segment 3: positions RIGHT_JUNCTION+1 to TOTAL_CHARS-2 (11 chars, ┘ is pos 82)
+local bottom_line = colored_corner
+    .. build_segment(1, LEFT_JUNCTION)           -- Start at 1, corner at 0 already added
+    .. left_junction
+    .. build_segment(LEFT_JUNCTION + 1, RIGHT_JUNCTION)
+    .. right_junction
+    .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS - 1)  -- End at 81, ┘ at 82 added after
+    .. "┘"
+```
+
+---
+
+**ISSUE STATUS: ✅ COMPLETE**
 
 ## Metadata
 
-- **Status**: 🔄 Re-opened (bottom progress bar off-by-one)
+- **Status**: ✅ Complete
 - **Created**: 2026-01-19
 - **Last Updated**: 2026-01-21
-- **Re-opened**: 2026-01-21
+- **Re-opened**: 2026-01-21 (bottom progress bar off-by-one)
+- **Re-completed**: 2026-01-21 (segment position fix)
 - **Phase**: 8 (Website Completion / HTML Enhancement)
-- **Estimated Complexity**: Low (character count fix in effil worker)
-- **Dependencies**: Should be completed before 8-035 (colorize nav boxes)
-- **Blocks**: 8-035 (colorize nav boxes with progress bar)
+- **Dependencies**: None (8-035 now unblocked)
 
 ## Acceptance Criteria
 
-- [ ] Single source of truth for width constants
-- [ ] All width calculations use the constants
-- [ ] Junction positions verified mathematically
-- [ ] Top, nav, and bottom lines all measure identical visible width
-- [ ] Visual inspection confirms alignment in browser
-- [ ] Issue 9-006 documentation updated to match
-- [ ] **NEW**: Similar/different bottom progress bars match chronological
+- [x] Single source of truth for width constants
+- [x] All width calculations use the constants
+- [x] Junction positions verified mathematically
+- [x] Top, nav, and bottom lines all measure identical visible width
+- [x] Visual inspection confirms alignment in browser
+- [ ] Issue 9-006 documentation updated to match (optional - validator spec)
+- [x] Similar/different bottom progress bars match chronological
