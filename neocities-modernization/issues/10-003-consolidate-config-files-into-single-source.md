@@ -83,13 +83,17 @@ Replace the concept of separate config files entirely:
 -- /config/main.lua
 -- Single authoritative configuration for neocities-modernization
 -- All other config files are deprecated in favor of this one.
+-- Sections are organized with vimfolds for easy navigation.
 
 return {
+    -- {{{ asset_paths
     -- Asset storage paths (from asset-paths.lua)
     asset_paths = {
         assets_root = "/mnt/mtwo/programming/ai-stuff/neocities-modernization/assets"
     },
+    -- }}}
 
+    -- {{{ input_sources
     -- Input sources and extraction (from input-sources.json)
     input_sources = {
         fediverse_backup_path = "input/fediverse",
@@ -97,14 +101,18 @@ return {
         words_source_path = "input/words",
         notes_source_path = "input/notes"
     },
+    -- }}}
 
+    -- {{{ extraction
     extraction = {
         enable_fediverse = true,
         enable_messages = true,
         enable_notes = true,
         output_format = "json"
     },
+    -- }}}
 
+    -- {{{ privacy
     privacy = {
         mode = "clean",
         anonymization_prefix = "user-",
@@ -113,7 +121,9 @@ return {
         store_anonymization_map = false,
         local_server_domain = "tech.lgbt"
     },
+    -- }}}
 
+    -- {{{ golden_poems
     -- Golden poem settings (from golden-poem-settings.json)
     golden_poems = {
         enable_golden_prioritization = true,
@@ -123,7 +133,9 @@ return {
         min_golden_recommendations = 2,
         max_golden_recommendations = 5
     },
+    -- }}}
 
+    -- {{{ semantic_colors
     -- Semantic colors (from semantic-colors.json)
     semantic_colors = {
         red    = { rgb = {220, 60, 60},   hex = "#dc3c3c" },
@@ -135,7 +147,9 @@ return {
         gray   = { rgb = {120, 120, 120}, hex = "#787878" }
     },
     color_names = {"red", "blue", "green", "purple", "orange", "yellow", "gray"},
+    -- }}}
 
+    -- {{{ similarity
     -- Similarity calculation (from similarity-calculator-settings.json)
     similarity = {
         default_algorithm = "cosine",
@@ -155,7 +169,9 @@ return {
             -- ... other algorithms
         }
     },
+    -- }}}
 
+    -- {{{ image_integration
     -- Image integration (from input-sources.json)
     image_integration = {
         enabled = true,
@@ -165,7 +181,42 @@ return {
         output_path = "assets/images",
         catalog_file = "assets/image-catalog.json"
     },
+    -- }}}
 
+    -- {{{ image_sync
+    -- Issue 8-042: Configurable image source directories for syncing
+    image_sync = {
+        enabled = true,
+        destination = "input/media_attachments",
+        sources = {
+            {
+                name = "fediverse_media",
+                path = "/home/ritz/backups/words/fediverse/media_attachments",
+                description = "Mastodon/ActivityPub media attachments"
+            }
+        },
+        preserve_structure = true,
+        overwrite_existing = false,
+        supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
+    },
+    -- }}}
+
+    -- {{{ word_cloud
+    -- Issue 8-043: Word cloud generation settings
+    -- Stop words file contains categorized words to filter out (function words, artifacts)
+    word_cloud = {
+        enabled = true,
+        stop_words_file = "config/stop-words.txt",  -- External file for easy editing
+        output_file = "wordcloud.html",
+        min_occurrences = 5,    -- Minimum times a word must appear
+        max_words = 200,        -- Maximum words to display
+        min_word_length = 3,    -- Ignore words shorter than this
+        font_size_min = 1,      -- HTML font tag: 1-7
+        font_size_max = 7
+    },
+    -- }}}
+
+    -- {{{ centroids
     -- Mood-based centroids (from assets/centroids.json)
     -- Each centroid defines a semantic anchor for exploration pages
     centroids = {
@@ -224,6 +275,7 @@ return {
             output_slug = "absurd"
         }
     }
+    -- }}}
 }
 ```
 
@@ -244,8 +296,9 @@ return {
 
 - `/config/asset-paths.lua` - Current asset path config
 - `/config/golden-poem-settings.json` - Current golden poem config
-- `/config/input-sources.json` - Current input/extraction config
+- `/config/input-sources.json` - Current input/extraction config (includes word_cloud and image_sync)
 - `/config/semantic-colors.json` - Current color definitions
+- `/config/stop-words.txt` - Word cloud stop words (external file for user editing)
 - `/config/similarity-calculator-settings.json` - Current similarity settings
 - `/assets/centroids.json` - Current mood-based centroid definitions
 - `/docs/data-flow-architecture.md` - References config files in Configuration section

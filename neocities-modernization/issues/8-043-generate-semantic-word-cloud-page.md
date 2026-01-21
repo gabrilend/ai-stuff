@@ -324,11 +324,71 @@ Comparing word clouds across different poetry collections could reveal distincti
 - `config/input-sources.json` - Configuration location
 - `run.sh` - Pipeline orchestration
 
+## Implementation Progress
+
+### 2026-01-21: MVP Implemented (Frequency-Based)
+
+Implemented the first phase of the word cloud feature using frequency-based sizing rather than embedding-based weighting. This provides immediate value while leaving semantic weighting as a future enhancement.
+
+**Files Created:**
+
+1. **`config/stop-words.txt`** - 271 stop words organized by category:
+   - Anonymization artifacts (`user`, `users`)
+   - Contraction fragments (`don`, `doesn`, `didn`, etc.)
+   - URL/technical artifacts (`https`, `http`, `www`, `com`, etc.)
+   - Articles, pronouns, prepositions, conjunctions
+   - Auxiliary verbs, common verbs, common adverbs
+   - Question words, other common function words
+
+2. **`src/wordcloud-generator.lua`** - Word cloud generator:
+   - Loads stop words from configurable file
+   - Extracts words from all poems (alphanumeric sequences)
+   - Filters by minimum length (default: 3 chars)
+   - Filters by minimum occurrences (default: 5)
+   - Calculates font sizes (1-7) based on frequency normalization
+   - Fisher-Yates shuffles words for visual variety
+   - Generates CSS-free HTML using `<font size="X">` tags
+   - Reads configuration from `config/input-sources.json`
+
+**Configuration Added to `config/input-sources.json`:**
+
+```json
+"word_cloud": {
+    "enabled": true,
+    "stop_words_file": "config/stop-words.txt",
+    "output_file": "wordcloud.html",
+    "min_occurrences": 5,
+    "max_words": 200,
+    "min_word_length": 3,
+    "font_size_min": 1,
+    "font_size_max": 7
+}
+```
+
+**Configuration Added to Issue 10-003 (Config Consolidation):**
+
+Added `word_cloud` section with vimfolds to the proposed Lua config structure.
+
+**Output Statistics:**
+- 222,784 total words extracted from 7,844 poems
+- 23,455 unique words after stop word filtering
+- 200 words displayed (configurable `max_words`)
+- Output: `output/wordcloud.html`
+
+**Deferred to Future Enhancement:**
+- Embedding-based weighting (word similarity to centroid)
+- Individual word similarity pages (`wordcloud/{word}.html`)
+- Navigation links on word cloud words
+- Pagination for word pages
+
+The frequency-based word cloud provides immediate insight into the collection's vocabulary. Embedding-based semantic weighting can be added as a follow-up issue when more sophisticated thematic analysis is desired.
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete (MVP)
 - **Created**: 2026-01-20
-- **Phase**: 8 (Website Completion) or 11 (Future Enhancements)
+- **Completed**: 2026-01-21
+- **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium (word extraction easy, embedding integration moderate)
-- **Dependencies**: Requires embedding infrastructure (Stage 3)
+- **Dependencies**: Requires embedding infrastructure (Stage 3) - for future semantic version
 - **Affects**: New output file, new pipeline stage
