@@ -9,8 +9,11 @@ assets/
 # Validation reports (generated during pipeline runs)
 validation_reports/
 
-# Extracted input files (regenerated from archives)
-input/*/files/
+# Source archives (contain non-anonymized data - DO NOT TRACK)
+input/**/*.car
+input/**/*.zip
+input/**/*.tar.gz
+input/**/outbox.json
 
 # Binary cache files (GPU-generated, large)
 *.bin
