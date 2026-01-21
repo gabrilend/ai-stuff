@@ -12,7 +12,7 @@ INCLUDE_DIR := $(DIR)/include
 # {{{ Compiler settings
 CC := gcc
 CFLAGS := -Wall -Wextra -O2 -I$(INCLUDE_DIR) -fPIC
-LDFLAGS := -lvulkan
+LDFLAGS := -lvulkan -pthread
 GLSLC := glslangValidator
 # }}}
 
