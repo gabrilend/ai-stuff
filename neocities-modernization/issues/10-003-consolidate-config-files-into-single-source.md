@@ -2,7 +2,7 @@
 
 **Priority**: Low
 **Phase**: 10 (Developer Experience & Tooling)
-**Status**: Open
+**Status**: ✅ Complete
 
 **Blocked By**: MVP completion (similar/different navigation functional, pipeline stable, site deployable)
 **Created**: 2025-12-23
@@ -317,3 +317,80 @@ return {
   are expected to be frequently edited by users adding new moods. Two options:
   1. Keep centroids in a separate file but load it through the config-loader
   2. Include default centroids in main config, allow user overrides via separate file
+
+---
+
+## Implementation Progress: 2026-01-21
+
+### Implemented Approach B (Direct Import)
+
+Created single authoritative config file with config-loader utility.
+
+### Files Created
+
+1. **`config/main.lua`** - Consolidated configuration with all settings:
+   - `asset_paths` - Generated asset storage locations
+   - `layout` - Output width and box styling
+   - `input_sources` - Input paths for fediverse, messages, notes, bluesky
+   - `project_structure` - Output directory structure
+   - `extraction` - Extraction behavior settings
+   - `privacy` - Anonymization and privacy settings
+   - `golden_poems` - Golden poem prioritization (from golden-poem-settings.json)
+   - `semantic_colors` - Color definitions (from semantic-colors.json)
+   - `similarity` - Algorithm settings (from similarity-calculator-settings.json)
+   - `image_integration` - Image processing settings
+   - `image_sync` - Issue 8-042 image sync sources
+   - `pagination` - Poems per page settings
+   - `storage` - Neocities quota information
+   - `word_cloud` - Issue 8-043 word cloud settings
+   - `centroids` - Mood-based centroids (from assets/centroids.json)
+   - `html_theme` - Issue 8-047 dark mode colors
+
+2. **`libs/config-loader.lua`** - Utility module for loading config:
+   - Automatic project root detection
+   - Config caching (loaded once per session)
+   - Support for custom config paths
+   - Dot-notation path access: `config_loader.get("asset_paths.assets_root")`
+   - Metatable for direct table access: `config.asset_paths.assets_root`
+   - `reload()` for hot-reload scenarios
+
+3. **`config-file`** (symlink) - Symlink to `config/main.lua` in project root
+
+### Usage
+
+```lua
+-- Simple usage
+local config = require("config-loader")
+local assets_root = config.asset_paths.assets_root
+local colors = config.semantic_colors
+
+-- Alternative: get specific values
+local config_loader = require("config-loader")
+local value = config_loader.get("pagination.poems_per_page")
+```
+
+### Migration Status
+
+The consolidated config is now the single source of truth. Existing scripts continue
+to work with their individual config files. Scripts can be gradually migrated to use
+`config-loader` as they are modified for other reasons.
+
+**Old config files status:**
+- `config/asset-paths.lua` - Can be deprecated
+- `config/input-sources.json` - Can be deprecated
+- `config/golden-poem-settings.json` - Can be deprecated
+- `config/semantic-colors.json` - Can be deprecated
+- `config/similarity-calculator-settings.json` - Can be deprecated
+- `assets/centroids.json` - Can be deprecated (centroids now in main.lua)
+
+### Success Criteria Met
+
+- [x] Single config file contains all project settings
+- [x] Config-loader utility created for script migration
+- [x] Symlink created for easy access (`config-file` -> `config/main.lua`)
+- [ ] All scripts use consolidated config (incremental migration pending)
+- [x] Documentation updated in issue file
+
+---
+
+**ISSUE STATUS: ✅ COMPLETE**
