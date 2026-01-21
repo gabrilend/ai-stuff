@@ -14,10 +14,25 @@
 -- {{{ Configuration
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
--- URL patterns for conversion
--- Local path uses /home/ritz/... which is a symlink to /mnt/mtwo/...
-local LOCAL_BASE = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
-local PRODUCTION_BASE = "/similar-different"
+-- URL patterns for conversion (multiple patterns supported)
+-- Local paths use /home/ritz/... which is a symlink to /mnt/mtwo/...
+local URL_PATTERNS = {
+    -- Pattern 1: Output directory links (similar/different/chronological pages)
+    {
+        local_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output",
+        production_path = "/similar-different"
+    },
+    -- Pattern 2: Media attachments (images from ActivityPub extraction)
+    -- Issue 8-040: Added to support absolute image paths
+    {
+        local_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/input/media_attachments",
+        production_path = "/similar-different/media_attachments"
+    }
+}
+
+-- Legacy single pattern for backwards compatibility
+local LOCAL_BASE = URL_PATTERNS[1].local_path
+local PRODUCTION_BASE = URL_PATTERNS[1].production_path
 
 -- Output directory containing HTML files
 local OUTPUT_DIR = DIR .. "/output"
@@ -217,15 +232,25 @@ local function main()
     end
 
     -- Determine conversion direction
-    local from_pattern, to_pattern, direction_desc
+    local direction_desc
+    local patterns_to_apply = {}
+
     if options.mode == "to-production" then
-        from_pattern = LOCAL_BASE
-        to_pattern = PRODUCTION_BASE
         direction_desc = "local → production"
+        for _, pattern in ipairs(URL_PATTERNS) do
+            table.insert(patterns_to_apply, {
+                from = pattern.local_path,
+                to = pattern.production_path
+            })
+        end
     else
-        from_pattern = PRODUCTION_BASE
-        to_pattern = LOCAL_BASE
         direction_desc = "production → local"
+        for _, pattern in ipairs(URL_PATTERNS) do
+            table.insert(patterns_to_apply, {
+                from = pattern.production_path,
+                to = pattern.local_path
+            })
+        end
     end
 
     -- Print header
@@ -239,8 +264,12 @@ local function main()
         print("")
     end
 
-    print("From: " .. from_pattern)
-    print("To:   " .. to_pattern)
+    print("URL Patterns (" .. #patterns_to_apply .. "):")
+    for i, p in ipairs(patterns_to_apply) do
+        print(string.format("  [%d] %s", i, p.from))
+        print(string.format("    → %s", p.to))
+    end
+    print("")
     print("Dir:  " .. OUTPUT_DIR)
     print("")
 
@@ -256,18 +285,30 @@ local function main()
     print(string.format("Found %d HTML files", #files))
     print("")
 
-    -- Process each file
+    -- Process each file with all patterns
     local total_replacements = 0
     local files_modified = 0
     local errors = {}
 
     for _, file_path in ipairs(files) do
-        local count, err = convert_file(file_path, from_pattern, to_pattern, options.dry_run, options.verbose)
+        local file_total = 0
+        local file_had_error = false
 
-        if err then
-            table.insert(errors, { path = file_path, error = err })
-        elseif count > 0 then
-            total_replacements = total_replacements + count
+        -- Apply each pattern to this file
+        for _, pattern in ipairs(patterns_to_apply) do
+            local count, err = convert_file(file_path, pattern.from, pattern.to, options.dry_run, options.verbose)
+
+            if err then
+                table.insert(errors, { path = file_path, error = err })
+                file_had_error = true
+                break  -- Stop processing this file on error
+            else
+                file_total = file_total + count
+            end
+        end
+
+        if not file_had_error and file_total > 0 then
+            total_replacements = total_replacements + file_total
             files_modified = files_modified + 1
         end
     end
