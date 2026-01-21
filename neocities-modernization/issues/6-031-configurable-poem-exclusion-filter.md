@@ -66,6 +66,26 @@ at://did:plc:abc123/app.bsky.feed.post/xyz789
 3. **Logging**: Excluded poems are logged with a count summary
 4. **Metadata**: Extraction summary includes `poems_excluded` count
 
+### ID Stability (CRITICAL)
+
+**Excluded poems leave gaps - IDs must never shift.**
+
+When `fediverse-0004` is excluded:
+- ✅ Correct: `fediverse-0003`, (gap), `fediverse-0005`, `fediverse-0006`
+- ❌ Wrong: `fediverse-0003`, `fediverse-0004` (was 5), `fediverse-0005` (was 6)
+
+**Rationale:**
+1. **Stable anchor links**: `#poem-fediverse-0004` should always point to the same poem (or nothing if excluded)
+2. **External references**: Bookmarks, citations, and links remain valid
+3. **Reproducibility**: Running the pipeline twice produces identical IDs
+4. **Debugging**: ID mismatches between runs indicate real changes, not index drift
+
+**Implementation requirement:**
+- IDs are assigned based on the source data's inherent ordering (post ID, filename, etc.)
+- Exclusion filters *after* ID assignment, not before
+- The `poem_index` in poems.json may have gaps (e.g., 1, 2, 3, 5, 6 if 4 is excluded)
+- HTML anchors use the original ID regardless of exclusion
+
 ### Example Output
 
 ```
@@ -181,6 +201,8 @@ To identify poems for exclusion, users can:
 2. **Invalid category**: Ignore unknown category headers (log warning)
 3. **Non-existent ID**: Silently ignore (poem may have already been removed)
 4. **Duplicate IDs**: Deduplicated by hash table storage
+5. **ID gaps in output**: Expected and correct - similarity rankings skip missing IDs gracefully
+6. **Chronological display**: Excluded poems simply don't appear; surrounding poems keep their positions
 
 ## Suggested Implementation Steps
 
