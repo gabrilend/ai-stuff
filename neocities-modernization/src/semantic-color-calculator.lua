@@ -148,34 +148,36 @@ function M.precompute_poem_colors(poems_data, poem_embeddings_data, color_embedd
     local total_poems = 0
     
     -- Count total poems for progress tracking
+    -- Note: Use poem.poem_index (globally unique) not poem.id (per-category, NOT unique)
     for i, poem in ipairs(poems_data.poems) do
-        if poem.id and poem_embeddings_data.embeddings[i] and poem_embeddings_data.embeddings[i].embedding then
+        if poem.poem_index and poem_embeddings_data.embeddings[i] and poem_embeddings_data.embeddings[i].embedding then
             total_poems = total_poems + 1
         end
     end
-    
+
     utils.log_info(string.format("Computing semantic colors for %d poems", total_poems))
-    
+
     for i, poem in ipairs(poems_data.poems) do
-        if poem.id and poem_embeddings_data.embeddings[i] and poem_embeddings_data.embeddings[i].embedding then
+        if poem.poem_index and poem_embeddings_data.embeddings[i] and poem_embeddings_data.embeddings[i].embedding then
             local color, similarity = calculate_semantic_color_for_poem(
                 poem_embeddings_data.embeddings[i].embedding,
                 color_embeddings
             )
-            
-            poem_colors[poem.id] = {
+
+            -- Key by poem_index (globally unique across all categories)
+            poem_colors[poem.poem_index] = {
                 color = color,
                 similarity = similarity,
                 calculated_at = os.date("%Y-%m-%d %H:%M:%S")
             }
-            
+
             processed_count = processed_count + 1
-            
+
             if processed_count % 100 == 0 then
-                utils.log_info(string.format("Progress: %d/%d poems processed (%.1f%%) - Latest: poem %d = %s", 
-                                            processed_count, total_poems, 
+                utils.log_info(string.format("Progress: %d/%d poems processed (%.1f%%) - Latest: poem_index %d = %s",
+                                            processed_count, total_poems,
                                             (processed_count / total_poems) * 100,
-                                            poem.id, color))
+                                            poem.poem_index, color))
             end
         end
     end

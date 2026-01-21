@@ -74,7 +74,8 @@ Stage Configuration:
 
 Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
-  --poems-per-page N  Poems per page (default: from config, 200)
+  --poems-per-page N  Poems per page for similar/different (default: 200)
+  --chrono-per-page N Poems per page for chronological (default: 500)
 
 Output Control:
   --quiet             Suppress progress messages
@@ -222,6 +223,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --poems-per-page=*)
             POEMS_PER_PAGE="${1#*=}"
+            shift
+            ;;
+        --chrono-per-page)
+            CHRONO_PER_PAGE="$2"
+            shift 2
+            ;;
+        --chrono-per-page=*)
+            CHRONO_PER_PAGE="${1#*=}"
             shift
             ;;
         # Stage flags
@@ -595,7 +604,7 @@ run_generate_semantic_colors() {
         log_verbose "   --force specified, regenerating semantic colors..."
     fi
 
-    log_stage "🎨 Stage 6.5/10: Computing semantic colors"
+    log_stage "🎨 Stage 6b/10: Computing semantic colors (part of embeddings)"
 
     if $DRY_RUN; then
         log_dry_run "luajit semantic-color-calculator (poem colors regeneration)"
@@ -696,13 +705,20 @@ run_generate_similarity() {
         # GPU similarity generation using Vulkan compute shaders
         log_info "   Mode: GPU-accelerated (Vulkan)"
 
+        # Pass threads value to GPU similarity (defaults to 8 if not specified)
+        local default_threads=8
+        local threads_to_use=${THREADS:-$default_threads}
+        log_info "   CPU sorting threads: $threads_to_use"
+
         DIR="$DIR" luajit -e "
             package.path = '$DIR/?.lua;$DIR/?/init.lua;$DIR/libs/?.lua;' .. package.path
             local vk_sim = require('libs.vulkan-compute.lua.vk_similarity')
-            local success = vk_sim.generate_similarity_matrix_gpu(
+            -- Use TRUE parallel GPU computation (Issue 9-002 original design)
+            local success = vk_sim.generate_similarity_matrix_gpu_parallel(
                 '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
                 '$MODEL_NAME',
-                $FORCE_LUA
+                $FORCE_LUA,
+                $threads_to_use
             )
             if not success then
                 print('[GPU SIMILARITY ERROR] GPU generation failed')
@@ -863,12 +879,17 @@ run_generate_html() {
         poems_per_page_arg="--poems-per-page $POEMS_PER_PAGE"
     fi
 
+    local chrono_per_page_arg=""
+    if [ -n "$CHRONO_PER_PAGE" ]; then
+        chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
+    fi
+
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $ASSETS_ARG || {
+    luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
         echo "Error: HTML generation failed" >&2
         exit 1
     }
@@ -952,7 +973,9 @@ interactive_mode_tui() {
     menu_add_item "config" "pages" "Pages per Poem" "flag" ":2" \
         "Pages to generate per poem (default: from config, 1)" "p" "--pages"
     menu_add_item "config" "poems_per_page" "Poems per Page" "flag" ":3" \
-        "Poems per page (default: from config, 200)" "y" "--poems-per-page"
+        "Poems per page for similar/different (default: 200)" "y" "--poems-per-page"
+    menu_add_item "config" "chrono_per_page" "Chrono per Page" "flag" ":3" \
+        "Poems per page for chronological (default: 500)" "c" "--chrono-per-page"
     menu_add_item "config" "force" "Force Regeneration" "checkbox" "0" \
         "Force regeneration even if files are fresh" "f" "--force"
     menu_add_item "config" "dry_run" "Dry Run" "checkbox" "0" \
@@ -995,6 +1018,7 @@ interactive_mode_tui() {
             # Issue 8-022: Get pagination values from TUI
             local pages_val=$(menu_get_value "pages")
             local poems_per_page_val=$(menu_get_value "poems_per_page")
+            local chrono_per_page_val=$(menu_get_value "chrono_per_page")
             local force_val=$(menu_get_value "force")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
@@ -1016,6 +1040,7 @@ interactive_mode_tui() {
             # Issue 8-022: Set pagination values from TUI
             [[ -n "$pages_val" && "$pages_val" != "0" ]] && PAGES="$pages_val"
             [[ -n "$poems_per_page_val" && "$poems_per_page_val" != "0" ]] && POEMS_PER_PAGE="$poems_per_page_val"
+            [[ -n "$chrono_per_page_val" && "$chrono_per_page_val" != "0" ]] && CHRONO_PER_PAGE="$chrono_per_page_val"
             [[ "$force_val" == "1" ]] && FORCE=true || FORCE=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
@@ -1076,8 +1101,9 @@ $PARSE && run_parse
 $VALIDATE && run_validate
 $CATALOG_IMAGES && run_catalog_images
 $GENERATE_EMBEDDINGS && run_generate_embeddings
-# Semantic colors auto-run after embeddings or when HTML needs them
-($GENERATE_EMBEDDINGS || $GENERATE_HTML) && run_generate_semantic_colors
+# Semantic colors are part of embedding generation (Stage 6.5)
+# Only regenerate when embeddings are generated - HTML should use existing poem_colors.json
+$GENERATE_EMBEDDINGS && run_generate_semantic_colors
 $GENERATE_SIMILARITY && run_generate_similarity
 $GENERATE_DIVERSITY && run_generate_diversity
 $GENERATE_HTML && run_generate_html

@@ -526,7 +526,9 @@ end
 -- {{{ function M.generate_website_html
 -- Phase D (Issue 8-012): Added pages_spec parameter for pagination control
 -- Issue 8-022: Added poems_per_page parameter for CLI override
-function M.generate_website_html(force, pages_spec, poems_per_page)
+-- Issue 9-002: Added num_threads parameter for parallel HTML generation
+-- Issue 9-003: Added chrono_per_page parameter for chronological pagination
+function M.generate_website_html(force, pages_spec, poems_per_page, num_threads, chrono_per_page)
     -- Skip if HTML is fresh (unless forced)
     if not force and M.is_html_fresh() then
         utils.log_info("Website HTML is up to date, skipping generation")
@@ -579,8 +581,9 @@ function M.generate_website_html(force, pages_spec, poems_per_page)
     local output_dir = DIR .. "/output"
 
     -- Generate chronological index (main entry point)
+    -- Issue 9-003: Pass chrono_per_page for CLI override of chronological pagination
     utils.log_info("Generating chronological index...")
-    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir)
+    local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page)
     if not success then
         utils.log_error("Failed to generate chronological index")
         return false
@@ -594,9 +597,11 @@ function M.generate_website_html(force, pages_spec, poems_per_page)
     -- Note: This is the long operation - generates ~12,000+ files
     -- Phase D (Issue 8-012): Pass pages_spec for pagination control
     -- Issue 8-022: Pass poems_per_page for CLI override
+    -- Issue 9-002: Pass num_threads for parallel processing
+    -- Issue 9-003: Pass chrono_per_page for chronological mapping in parallel workers
     utils.log_info("Generating similarity and diversity pages (this may take a while)...")
     local gen_success = flat_html_generator.generate_complete_flat_html_collection(
-        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page
+        poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page
     )
 
     if gen_success then
@@ -908,16 +913,20 @@ function M.main(options)
         -- Run only HTML generation
         -- Phase D (Issue 8-012): Pass pages parameter
         -- Issue 8-022: Pass poems_per_page parameter
+        -- Issue 9-002: Pass threads parameter for parallel processing
+        -- Issue 9-003: Pass chrono_per_page parameter
         utils.log_info("Running HTML generation only")
-        M.generate_website_html(options.force, options.pages, options.poems_per_page)
+        M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page)
     else
         -- Non-interactive mode - generate dataset and website HTML (full pipeline)
         -- Phase D (Issue 8-012): Pass pages parameter
         -- Issue 8-022: Pass poems_per_page parameter
+        -- Issue 9-002: Pass threads parameter for parallel processing
+        -- Issue 9-003: Pass chrono_per_page parameter
         utils.log_info("Running in non-interactive mode (full pipeline)")
         M.show_project_status()
         M.generate_complete_dataset()
-        M.generate_website_html(options.force, options.pages, options.poems_per_page)
+        M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page)
     end
 end
 -- }}}
