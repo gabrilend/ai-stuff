@@ -41,8 +41,9 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
 | 8-041 | Escape HTML characters in poem content | Implemented (pending validation) | **High** |
 | 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
-| 8-043 | Generate semantic word cloud page | 🔄 Re-opened (word links + config) | Medium |
-| 8-046 | Create menu navigation page | Open | Medium |
+| 8-043 | Generate semantic word cloud page | ✅ Complete | Medium |
+| 8-046 | Create menu navigation page | ✅ Complete | Medium |
+| 8-047 | Implement dark mode (always on, CSS-free) | ✅ Complete | High |
 
 ### Completed Issues
 
@@ -74,9 +75,35 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-036 | Add poem identification to ranking headers | Completed | 2026-01-21 |
 | 8-039 | Move chronological files to subdirectory | Completed | 2026-01-21 |
 | 8-042 | Sync images from configurable directories | Completed | 2026-01-21 |
-| 8-043 | Generate semantic word cloud page (MVP) | Completed | 2026-01-21 |
+| 8-043 | Generate semantic word cloud page (full) | Completed | 2026-01-21 |
+| 8-046 | Create menu navigation page | Completed | 2026-01-21 |
+| 8-047 | Implement dark mode (always on) | Completed | 2026-01-21 |
+| 8-005 | Integrate images into HTML output (re-completed) | Completed | 2026-01-21 |
 | 8-030 | Add chronological anchor links (re-completed) | Completed | 2026-01-21 |
 | 8-037 | Fix similar/different box alignment (re-completed) | Completed | 2026-01-21 |
+
+**8-047: Implement Dark Mode (Always On)** - COMPLETED (2026-01-21)
+- ✅ Updated 17 `<body>` tags across 6 generator files
+- ✅ True black background (`#000000`), white text (`#FFFFFF`)
+- ✅ Accessible link colors (`#6699FF`, `#9966FF`)
+- ✅ CSS-free using HTML bgcolor/text/link/vlink attributes
+
+**8-046: Create Menu Navigation Page** - COMPLETED (2026-01-21)
+- ✅ Changed header "How to explore" link to "Menu" → wordcloud.html
+- ✅ Added poem index section to wordcloud.html
+- ✅ Poems grouped by category (fediverse, notes, messages, bluesky)
+- ✅ Each poem links to its chronological position
+
+**8-043: Generate Semantic Word Cloud Page** - RE-COMPLETED (2026-01-21)
+- ✅ Word cloud words now link to `wordcloud/{word}.html` similarity pages
+- ✅ Created `src/generate-word-pages.lua` for generating word similarity pages
+- ✅ Word embeddings cached to `word_embeddings.json`
+- ✅ Pages show top 50 most similar poems per word
+
+**8-005: Integrate Images into HTML Output** - RE-COMPLETED (2026-01-21)
+- ✅ Fixed viewport overflow with `style="max-width:100%; height:auto"`
+- ✅ Pragmatic CSS exception approved for responsive images
+- ✅ Maintains aspect ratio, prevents horizontal scroll
 
 **8-030: Add Chronological Anchor Links** - RE-COMPLETED (2026-01-21)
 - ✅ Fixed anchor ID format mismatch in effil worker
