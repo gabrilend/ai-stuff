@@ -40,7 +40,24 @@
     "store_anonymization_map": false,
     "local_server_domain": "tech.lgbt"
   },
+  "image_sync": {
+    "_comment": "Issue 8-042: Configurable image source directories for syncing",
+    "enabled": true,
+    "destination": "input/media_attachments",
+    "sources": [
+      {
+        "name": "fediverse_media",
+        "path": "/home/ritz/backups/words/fediverse/media_attachments",
+        "description": "Mastodon/ActivityPub media attachments"
+      }
+    ],
+    "preserve_structure": true,
+    "overwrite_existing": false,
+    "supported_formats": ["png", "jpg", "jpeg", "gif", "webp", "svg"]
+  },
+
   "image_integration": {
+    "_comment": "Image cataloging and display settings (reads from image_sync destination)",
     "enabled": true,
     "image_directories": [
       "input/media_attachments"
@@ -67,5 +84,17 @@
     "limit_gb": 45,
     "reserved_for_maze_gb": 0.031,
     "reserved_headroom_gb": 5
+  },
+
+  "word_cloud": {
+    "_comment": "Issue 8-043: Word cloud generation settings",
+    "enabled": true,
+    "stop_words_file": "config/stop-words.txt",
+    "output_file": "wordcloud.html",
+    "min_occurrences": 5,
+    "max_words": 200,
+    "min_word_length": 3,
+    "font_size_min": 1,
+    "font_size_max": 7
   }
 }

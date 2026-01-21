@@ -184,10 +184,56 @@ image_integration = {
 - `config/input-sources.json` - Current config location
 - `src/image-manager.lua` - Image cataloging (Stage 5)
 
+## Implementation Progress
+
+### 2026-01-21: Implemented
+
+**Changes to `config/input-sources.json`:**
+
+Added `image_sync` section with configurable source directories:
+```json
+"image_sync": {
+    "enabled": true,
+    "destination": "input/media_attachments",
+    "sources": [
+        {
+            "name": "fediverse_media",
+            "path": "/home/ritz/backups/words/fediverse/media_attachments",
+            "description": "Mastodon/ActivityPub media attachments"
+        }
+    ],
+    "preserve_structure": true,
+    "overwrite_existing": false,
+    "supported_formats": ["png", "jpg", "jpeg", "gif", "webp", "svg"]
+}
+```
+
+**Changes to `scripts/update-words`:**
+
+Added `sync_images_from_config()` function (lines 61-155):
+- Reads `image_sync` config section using `jq`
+- Gracefully handles missing `jq` command
+- Iterates over configured sources
+- Uses `rsync` with `--ignore-existing` by default (respects `overwrite_existing` config)
+- Reports per-source and total sync statistics
+- Handles missing source directories gracefully
+
+**Pipeline integration:**
+- Called after `restore_generated_files()` in update-words script
+- Output:
+```
+📷 Syncing images from 1 configured source(s)...
+   ✓ fediverse_media: 532 files synced
+📷 Total: 532 new files synced to input/media_attachments
+```
+
+**To add more sources:** Edit `config/input-sources.json` and add entries to `image_sync.sources` array.
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete
 - **Created**: 2026-01-20
+- **Completed**: 2026-01-21
 - **Phase**: 8 (Website Completion / Pipeline)
 - **Estimated Complexity**: Medium
 - **Dependencies**: Coordinates with Issue 10-003 (config consolidation)

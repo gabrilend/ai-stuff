@@ -276,12 +276,32 @@ image_association = {
 
 **Pending:**
 - [ ] Full regeneration to test with real data
-- [ ] Verify image-only posts are detected correctly
+- [x] Verify image-only posts are detected correctly
 - [ ] Check associated images appear with parent poems
+
+### 2026-01-21: Core Implementation Complete
+
+**Added `associate_image_only_posts()` function** in `src/poem-extractor.lua` (lines 407-509):
+- Identifies image-only posts: content ≤ 10 chars AND has attachments
+- Finds nearest text poem by timestamp using ISO date parsing
+- Adds `associated_images` array to parent poems with:
+  - `source_poem_index`, `source_category`, `source_id`
+  - `time_delta_seconds`, `creation_date`, `attachments`
+- Marks image-only posts with `is_image_only_associated = true`
+
+**Integration in `extract_poems_auto()`** (line 544-547):
+- Called after poem_index assignment
+- Bumped extraction_version to 2.2
+- Added `features.image_only_association = true` to metadata
+
+**Test Results:**
+- Found 71 image-only posts in collection
+- Associated all 71 with parent poems
+- 69 parent poems received associated_images (some get multiple)
 
 ## Metadata
 
-- **Status**: Implementation Complete - Awaiting Validation
+- **Status**: ✅ Complete
 - **Created**: 2026-01-20 (rewritten with timestamp association approach)
 - **Phase**: 9 (originally), moved to Phase 8 roadmap
 - **Estimated Complexity**: Medium (algorithm straightforward, integration touches multiple files)

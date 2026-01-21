@@ -404,6 +404,111 @@ function M.detect_input_mode(base_directory)
 end
 -- }}}
 
+-- {{{ function associate_image_only_posts
+-- Issue 9-004: Associate image-only posts with nearest text poem by timestamp
+-- Image-only posts (content <= 10 chars with attachments) get meaningless embeddings
+-- because there's no semantic content to embed. This function associates their
+-- images with the nearest text poem, allowing the images to appear alongside
+-- semantically relevant content on similar/different pages.
+local function associate_image_only_posts(poems)
+    local IMAGE_ONLY_MAX_LENGTH = 10  -- Posts with content <= 10 chars are "image-only"
+
+    -- Separate image-only posts from text poems
+    local image_only_posts = {}
+    local text_poems = {}
+
+    for _, poem in ipairs(poems) do
+        local has_attachments = poem.attachments and #poem.attachments > 0
+        local content_length = poem.content and #poem.content or 0
+
+        if has_attachments and content_length <= IMAGE_ONLY_MAX_LENGTH then
+            table.insert(image_only_posts, poem)
+        else
+            table.insert(text_poems, poem)
+        end
+    end
+
+    if #image_only_posts == 0 then
+        print("   No image-only posts found")
+        return poems  -- No changes needed
+    end
+
+    print(string.format("   Found %d image-only posts to associate with %d text poems",
+        #image_only_posts, #text_poems))
+
+    -- Parse ISO date string to comparable number (seconds since epoch approximation)
+    -- Format: "2023-10-31T03:18:20" or "2023-10-31T03:18:20Z"
+    local function parse_date(date_str)
+        if not date_str then return 0 end
+        local y, m, d, h, min, s = date_str:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+        if not y then return 0 end
+        -- Approximate seconds for comparison (doesn't need to be exact epoch)
+        return tonumber(y) * 31536000 + tonumber(m) * 2592000 + tonumber(d) * 86400
+             + tonumber(h) * 3600 + tonumber(min) * 60 + tonumber(s)
+    end
+
+    -- Sort text poems by creation_date for binary search
+    table.sort(text_poems, function(a, b)
+        return parse_date(a.creation_date) < parse_date(b.creation_date)
+    end)
+
+    -- Build lookup for quick access by poem reference
+    local poem_lookup = {}
+    for i, poem in ipairs(text_poems) do
+        poem_lookup[poem] = i
+    end
+
+    -- For each image-only post, find nearest text poem
+    local associations = 0
+    for _, img_post in ipairs(image_only_posts) do
+        local img_time = parse_date(img_post.creation_date)
+
+        -- Binary search for nearest text poem
+        local best_poem = nil
+        local best_delta = math.huge
+
+        -- Linear search is fine for ~7000 poems (fast enough)
+        for _, text_poem in ipairs(text_poems) do
+            local text_time = parse_date(text_poem.creation_date)
+            local delta = math.abs(img_time - text_time)
+
+            if delta < best_delta then
+                best_delta = delta
+                best_poem = text_poem
+            end
+        end
+
+        if best_poem then
+            -- Initialize associated_images array if needed
+            if not best_poem.associated_images then
+                best_poem.associated_images = {}
+            end
+
+            -- Add this image-only post's attachments to the parent poem
+            table.insert(best_poem.associated_images, {
+                source_poem_index = img_post.poem_index,  -- May be nil at this point
+                source_category = img_post.category,
+                source_id = img_post.id,
+                time_delta_seconds = best_delta,
+                creation_date = img_post.creation_date,
+                attachments = img_post.attachments
+            })
+
+            -- Mark the image-only post as associated (for potential future use)
+            img_post.associated_with_poem_id = best_poem.id
+            img_post.associated_with_category = best_poem.category
+            img_post.is_image_only_associated = true
+
+            associations = associations + 1
+        end
+    end
+
+    print(string.format("   Associated %d image-only posts with parent poems", associations))
+
+    return poems  -- Return all poems (both text and image-only, now with associations)
+end
+-- }}}
+
 -- {{{ function M.extract_poems_auto
 function M.extract_poems_auto(base_directory, output_file)
     local mode, source_path = M.detect_input_mode(base_directory)
@@ -436,6 +541,11 @@ function M.extract_poems_auto(base_directory, output_file)
         poem.poem_index = i
     end
 
+    -- Issue 9-004: Associate image-only posts with nearest text poems
+    -- This adds associated_images arrays to parent poems
+    print("Associating image-only posts with nearest text poems...")
+    poems = associate_image_only_posts(poems)
+
     -- Create output structure
     local output_data = {
         metadata = {
@@ -443,7 +553,11 @@ function M.extract_poems_auto(base_directory, output_file)
             source_path = source_path,
             extracted_at = os.date("%Y-%m-%d %H:%M:%S"),
             total_poems = #poems,
-            extraction_version = "2.1"  -- Bumped for poem_index addition
+            extraction_version = "2.2",  -- Bumped for image-only association (Issue 9-004)
+            features = {
+                poem_index = true,           -- Issue 8-019
+                image_only_association = true -- Issue 9-004
+            }
         },
         poems = poems
     }

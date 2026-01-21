@@ -189,10 +189,52 @@ Consider simplifying filenames while in the subdirectory:
 - [ ] URL switching script handles new paths (local ↔ production)
 - [ ] No broken links in generated output
 
+## Implementation Progress
+
+### 2026-01-21: Implemented
+
+**Changes to `src/flat-html-generator.lua`:**
+
+1. **`generate_chronological_page_navigation()`** (lines 2149-2194):
+   - Updated internal pagination links to use relative paths within `chronological/` directory
+   - Changed from `chronological-01.html` to `01.html` (simpler relative paths)
+
+2. **Output file paths** (lines 2382-2402):
+   - Creates `chronological/` subdirectory with `mkdir -p`
+   - Paginated: writes to `chronological/01.html`, `chronological/02.html`, etc.
+   - Single page: writes to `chronological/index.html` (for clean URLs)
+
+3. **Redirect/index file** (lines 2410-2426):
+   - For paginated: creates `chronological/index.html` redirecting to `01.html`
+
+4. **Links FROM similar/different TO chronological**:
+   - `format_single_poem_with_progress_and_color()` (line 1696): `chronological/index.html#anchor`
+   - Effil worker thread (lines 2860-2869):
+     - Paginated: `chronological/02.html#anchor`
+     - Single: `chronological/index.html#anchor`
+
+5. **Log message update** (line 3416): Updated to reflect new path
+
+**Directory structure after change:**
+```
+output/
+├── chronological/
+│   ├── index.html      (single page or redirect)
+│   ├── 01.html         (if paginated)
+│   ├── 02.html         (if paginated)
+│   └── ...
+├── similar/
+└── different/
+```
+
+**No changes needed to:**
+- `scripts/convert-urls` - Already uses generic path patterns
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete
 - **Created**: 2026-01-19
+- **Completed**: 2026-01-21
 - **Phase**: 8 (Website Completion / Structure)
 - **Estimated Complexity**: Medium (multiple link references to update)
 - **Dependencies**: None

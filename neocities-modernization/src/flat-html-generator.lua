@@ -1692,7 +1692,8 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
-    local chronological_link = string.format("<a href='%s/chronological.html#%s'>chronological</a>", base_path, anchor_id)
+    -- Issue 8-039: Chronological now in subdirectory
+    local chronological_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
 
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
@@ -2147,9 +2148,11 @@ end
 -- }}}
 
 -- {{{ local function generate_chronological_page_navigation
+-- Issue 8-039: Files now in chronological/ subdirectory, use simpler relative paths
 local function generate_chronological_page_navigation(current_page, total_pages)
     -- Generate pagination navigation for chronological pages
     -- Format: [« First] [‹ Prev] Page X of Y [Next ›] [Last »]
+    -- Issue 8-039: Using relative paths within chronological/ directory (01.html, not chronological-01.html)
     if total_pages <= 1 then
         return ""
     end
@@ -2158,14 +2161,14 @@ local function generate_chronological_page_navigation(current_page, total_pages)
 
     -- First page link
     if current_page > 1 then
-        table.insert(nav_parts, "<a href='chronological-01.html'>« First</a>")
+        table.insert(nav_parts, "<a href='01.html'>« First</a>")
     else
         table.insert(nav_parts, "« First")
     end
 
     -- Previous page link
     if current_page > 1 then
-        table.insert(nav_parts, string.format("<a href='chronological-%02d.html'>‹ Prev</a>", current_page - 1))
+        table.insert(nav_parts, string.format("<a href='%02d.html'>‹ Prev</a>", current_page - 1))
     else
         table.insert(nav_parts, "‹ Prev")
     end
@@ -2175,14 +2178,14 @@ local function generate_chronological_page_navigation(current_page, total_pages)
 
     -- Next page link
     if current_page < total_pages then
-        table.insert(nav_parts, string.format("<a href='chronological-%02d.html'>Next ›</a>", current_page + 1))
+        table.insert(nav_parts, string.format("<a href='%02d.html'>Next ›</a>", current_page + 1))
     else
         table.insert(nav_parts, "Next ›")
     end
 
     -- Last page link
     if current_page < total_pages then
-        table.insert(nav_parts, string.format("<a href='chronological-%02d.html'>Last »</a>", total_pages))
+        table.insert(nav_parts, string.format("<a href='%02d.html'>Last »</a>", total_pages))
     else
         table.insert(nav_parts, "Last »")
     end
@@ -2378,12 +2381,18 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
         end
 
         -- Write page file
+        -- Issue 8-039: Files now in chronological/ subdirectory
         local final_html = string.format(template, content)
+        local chrono_dir = output_dir .. "/chronological"
+        os.execute(string.format('mkdir -p "%s"', chrono_dir))
+
         local output_file
         if chronological_paginated and total_pages > 1 then
-            output_file = string.format("%s/chronological-%02d.html", output_dir, page_num)
+            -- Paginated: chronological/01.html, chronological/02.html, etc.
+            output_file = string.format("%s/%02d.html", chrono_dir, page_num)
         else
-            output_file = output_dir .. "/chronological.html"
+            -- Single page: chronological/index.html (for clean URL)
+            output_file = chrono_dir .. "/index.html"
         end
 
         local success = utils.write_file(output_file, final_html)
@@ -2399,22 +2408,22 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
     utils.log_info(string.format("Chronological HTML generation complete: %d poems, %d pages in %d seconds",
         total_poems, total_pages, total_elapsed))
 
-    -- For paginated chronological, create redirect at chronological.html for backward compatibility
-    -- Note: We do NOT create index.html here - the website's index.html is in a separate location
+    -- Issue 8-039: For paginated chronological, create index.html redirect within the subdirectory
     if chronological_paginated and total_pages > 1 then
+        local chrono_dir = output_dir .. "/chronological"
         local redirect_html = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=chronological-01.html">
+<meta http-equiv="refresh" content="0;url=01.html">
 <title>Redirecting...</title>
 </head>
 <body>
-<p>Redirecting to <a href="chronological-01.html">chronological-01.html</a>...</p>
+<p>Redirecting to <a href="01.html">01.html</a>...</p>
 </body>
 </html>]]
-        utils.write_file(output_dir .. "/chronological.html", redirect_html)
-        utils.log_info("✓ chronological.html created (redirect to chronological-01.html)")
+        utils.write_file(chrono_dir .. "/index.html", redirect_html)
+        utils.log_info("✓ chronological/index.html created (redirect to 01.html)")
     end
 
     return files_written[1]
@@ -2848,13 +2857,15 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
                     local anchor_id = string.format("poem-%s-%04d", (poem.category or "unknown"):sub(1,1):lower(), poem.id or 0)
 
-                    -- Chronological link points to correct page
+                    -- Issue 8-039: Chronological link points to subdirectory
                     local chrono_link
                     if chrono_paged and chrono_info.total_pages > 1 then
-                        chrono_link = string.format("<a href='%s/chronological-%02d.html#%s'>chronological</a>",
+                        -- Paginated: chronological/01.html, chronological/02.html, etc.
+                        chrono_link = string.format("<a href='%s/chronological/%02d.html#%s'>chronological</a>",
                             base_path, chrono_info.page_number, anchor_id)
                     else
-                        chrono_link = string.format("<a href='%s/chronological.html#%s'>chronological</a>", base_path, anchor_id)
+                        -- Single page: chronological/index.html
+                        chrono_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
                     end
 
                     -- Wrap content to 80 chars while preserving paragraph breaks
@@ -3402,7 +3413,7 @@ function M.main(interactive_mode)
             if poems_data then
                 M.generate_chronological_index_with_navigation(poems_data, output_dir)
                 M.generate_chronological_txt_file(poems_data, output_dir .. "/chronological.txt")
-                utils.log_info("Generated chronological.html and chronological.txt")
+                utils.log_info("Generated chronological/index.html and chronological.txt")
             end
         elseif choice == "3" then
             M.generate_simple_discovery_instructions(output_dir)
