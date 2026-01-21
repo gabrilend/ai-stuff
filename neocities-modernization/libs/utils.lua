@@ -138,6 +138,7 @@ function M.parse_cli_args(args)
         threads = nil,
         pages = nil,  -- Phase D (Issue 8-012): Pagination control ("1", "all", "1-10")
         poems_per_page = nil,  -- Issue 8-022: Poems per page override
+        chrono_per_page = nil,  -- Issue 9-003: Chronological poems per page override
     }
 
     local i = 1
@@ -171,6 +172,11 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--poems%-per%-page=") then
             options.poems_per_page = tonumber(arg:match("^--poems%-per%-page=(%d+)"))
+        elseif arg == "--chrono-per-page" and args[i + 1] then
+            options.chrono_per_page = tonumber(args[i + 1])  -- Issue 9-003: Chronological poems per page
+            i = i + 1
+        elseif arg:match("^--chrono%-per%-page=") then
+            options.chrono_per_page = tonumber(arg:match("^--chrono%-per%-page=(%d+)"))
         elseif not arg:match("^%-") then
             -- Non-flag argument, treat as directory override
             options.dir_override = arg
