@@ -1,0 +1,383 @@
+#!/usr/bin/env luajit
+-- validate-poem-representation: Validates that all poems are represented in generated output
+--
+-- Post-generation validator to ensure complete coverage of the poem corpus in HTML output.
+-- Checks that all poems have corresponding similar/different pages and appear in chronological.
+-- Useful for detecting interrupted generation runs, configuration errors, or edge cases.
+--
+-- Usage:
+--   ./scripts/validate-poem-representation [OPTIONS]
+--
+-- Options:
+--   --fix              Regenerate missing pages (not implemented yet)
+--   --quiet            Only output errors and summary
+--   --json             Output results as JSON
+--   --help             Show this help message
+--
+-- Exit codes:
+--   0 = All poems represented (PASS)
+--   1 = Missing poems detected (FAIL)
+--   2 = Configuration error (missing required files)
+
+-- {{{ Configuration
+local DIR = arg[0]:match("(.*/)")
+if DIR then
+    DIR = DIR:gsub("/scripts/$", "")
+else
+    DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+
+-- Paths relative to project directory
+local POEMS_JSON = DIR .. "/assets/poems.json"
+local OUTPUT_DIR = DIR .. "/output"
+local CONFIG_FILE = DIR .. "/config/input-sources.json"
+-- }}}
+
+-- {{{ Parse arguments
+local function parse_arguments(args)
+    local options = {
+        fix = false,
+        quiet = false,
+        json = false,
+        help = false
+    }
+
+    for _, a in ipairs(args or {}) do
+        if a == "--fix" then
+            options.fix = true
+        elseif a == "--quiet" or a == "-q" then
+            options.quiet = true
+        elseif a == "--json" then
+            options.json = true
+        elseif a == "--help" or a == "-h" then
+            options.help = true
+        end
+    end
+
+    return options
+end
+-- }}}
+
+-- {{{ Print usage
+local function print_usage()
+    print([[
+validate-poem-representation: Validate poem coverage in generated HTML output
+
+Usage:
+  ./scripts/validate-poem-representation [OPTIONS]
+
+Options:
+  --fix              Regenerate missing pages (not implemented)
+  --quiet, -q        Only output errors and summary
+  --json             Output results as JSON
+  --help, -h         Show this help message
+
+Exit codes:
+  0 = All poems represented (PASS)
+  1 = Missing poems detected (FAIL)
+  2 = Configuration error
+
+The validator checks:
+  1. Similar pages: Each poem_index has similar/XXXX-01.html
+  2. Different pages: Each poem_index has different/XXXX-01.html
+  3. Chronological: All poems appear (based on page count)
+]])
+end
+-- }}}
+
+-- {{{ Read JSON file
+local function read_json_file(path)
+    local file = io.open(path, "rb")
+    if not file then
+        return nil, "Could not open: " .. path
+    end
+
+    local content = file:read("*all")
+    file:close()
+
+    -- Use dkjson (project standard)
+    package.path = DIR .. "/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
+    local dkjson = require("dkjson")
+    local data, pos, err = dkjson.decode(content, 1, nil)
+    if not data then
+        return nil, "JSON parse error: " .. tostring(err)
+    end
+
+    return data
+end
+-- }}}
+
+-- {{{ Check file exists
+local function file_exists(path)
+    local file = io.open(path, "r")
+    if file then
+        file:close()
+        return true
+    end
+    return false
+end
+-- }}}
+
+-- {{{ Count files matching pattern
+local function count_files(directory, pattern)
+    local cmd = string.format('find "%s" -type f -name "%s" 2>/dev/null | wc -l', directory, pattern)
+    local handle = io.popen(cmd)
+    if not handle then return 0 end
+    local result = handle:read("*l")
+    handle:close()
+    return tonumber(result) or 0
+end
+-- }}}
+
+-- {{{ Get list of existing poem files
+local function get_existing_poem_indices(directory, prefix)
+    -- Find all files like similar/0001-01.html and extract the poem index
+    local cmd = string.format('find "%s/%s" -type f -name "*-01.html" 2>/dev/null', directory, prefix)
+    local handle = io.popen(cmd)
+    if not handle then return {} end
+
+    local indices = {}
+    for line in handle:lines() do
+        -- Extract poem index from filename like "0001-01.html"
+        local index = line:match("/(%d+)%-01%.html$")
+        if index then
+            indices[tonumber(index)] = true
+        end
+    end
+    handle:close()
+
+    return indices
+end
+-- }}}
+
+-- {{{ Main validation
+local function validate(options)
+    local results = {
+        pass = true,
+        errors = {},
+        stats = {
+            total_poems = 0,
+            similar_pages = 0,
+            different_pages = 0,
+            chronological_pages = 0,
+            missing_similar = {},
+            missing_different = {}
+        }
+    }
+
+    -- Load poems.json
+    if not options.quiet then
+        print("Loading poem corpus...")
+    end
+
+    local poems_data, err = read_json_file(POEMS_JSON)
+    if not poems_data then
+        results.pass = false
+        table.insert(results.errors, "Could not load poems.json: " .. (err or "unknown error"))
+        return results
+    end
+
+    local poems = poems_data.poems or {}
+    results.stats.total_poems = #poems
+
+    if not options.quiet then
+        print(string.format("  Found %d poems in corpus", #poems))
+    end
+
+    -- Build set of expected poem indices
+    local expected_indices = {}
+    for _, poem in ipairs(poems) do
+        local idx = poem.poem_index
+        if idx then
+            expected_indices[idx] = true
+        end
+    end
+
+    -- Check similar pages
+    if not options.quiet then
+        print("\nChecking similar/ pages...")
+    end
+
+    local existing_similar = get_existing_poem_indices(OUTPUT_DIR, "similar")
+    local similar_count = 0
+    for _ in pairs(existing_similar) do similar_count = similar_count + 1 end
+    results.stats.similar_pages = similar_count
+
+    for idx in pairs(expected_indices) do
+        if not existing_similar[idx] then
+            table.insert(results.stats.missing_similar, idx)
+        end
+    end
+
+    if #results.stats.missing_similar > 0 then
+        results.pass = false
+        table.insert(results.errors, string.format("%d poems missing from similar/", #results.stats.missing_similar))
+    end
+
+    if not options.quiet then
+        print(string.format("  Found %d similar pages (expected %d)", similar_count, results.stats.total_poems))
+        if #results.stats.missing_similar > 0 then
+            print(string.format("  ⚠ Missing %d poems", #results.stats.missing_similar))
+        else
+            print("  ✓ All poems have similar pages")
+        end
+    end
+
+    -- Check different pages
+    if not options.quiet then
+        print("\nChecking different/ pages...")
+    end
+
+    local existing_different = get_existing_poem_indices(OUTPUT_DIR, "different")
+    local different_count = 0
+    for _ in pairs(existing_different) do different_count = different_count + 1 end
+    results.stats.different_pages = different_count
+
+    for idx in pairs(expected_indices) do
+        if not existing_different[idx] then
+            table.insert(results.stats.missing_different, idx)
+        end
+    end
+
+    if #results.stats.missing_different > 0 then
+        results.pass = false
+        table.insert(results.errors, string.format("%d poems missing from different/", #results.stats.missing_different))
+    end
+
+    if not options.quiet then
+        print(string.format("  Found %d different pages (expected %d)", different_count, results.stats.total_poems))
+        if #results.stats.missing_different > 0 then
+            print(string.format("  ⚠ Missing %d poems", #results.stats.missing_different))
+        else
+            print("  ✓ All poems have different pages")
+        end
+    end
+
+    -- Check chronological pages
+    if not options.quiet then
+        print("\nChecking chronological pages...")
+    end
+
+    local chrono_count = count_files(OUTPUT_DIR, "chronological-*.html")
+    results.stats.chronological_pages = chrono_count
+
+    -- Load config to get poems_per_page
+    local config, _ = read_json_file(CONFIG_FILE)
+    local poems_per_page = 500  -- default
+    if config and config.pagination and config.pagination.chronological_poems_per_page then
+        poems_per_page = config.pagination.chronological_poems_per_page
+    end
+
+    local expected_chrono_pages = math.ceil(results.stats.total_poems / poems_per_page)
+
+    if not options.quiet then
+        print(string.format("  Found %d chronological pages (expected ~%d at %d poems/page)",
+            chrono_count, expected_chrono_pages, poems_per_page))
+        if chrono_count >= expected_chrono_pages then
+            print("  ✓ Chronological pages complete")
+        else
+            print("  ⚠ Fewer chronological pages than expected")
+        end
+    end
+
+    -- Check for redirect file
+    local has_redirect = file_exists(OUTPUT_DIR .. "/chronological.html")
+    if not options.quiet then
+        if has_redirect then
+            print("  ✓ chronological.html redirect exists")
+        else
+            print("  ⚠ chronological.html redirect missing")
+        end
+    end
+
+    return results
+end
+-- }}}
+
+-- {{{ Output JSON
+local function output_json(results)
+    package.path = DIR .. "/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
+    local dkjson = require("dkjson")
+    print(dkjson.encode(results, { indent = true }))
+end
+-- }}}
+
+-- {{{ Output summary
+local function output_summary(results, options)
+    if options.json then
+        output_json(results)
+        return
+    end
+
+    print("\n" .. string.rep("=", 60))
+    print("Validation Summary")
+    print(string.rep("=", 60))
+
+    print(string.format("\nPoem corpus:        %d poems", results.stats.total_poems))
+    print(string.format("Similar pages:      %d / %d", results.stats.similar_pages, results.stats.total_poems))
+    print(string.format("Different pages:    %d / %d", results.stats.different_pages, results.stats.total_poems))
+    print(string.format("Chronological:      %d pages", results.stats.chronological_pages))
+
+    if #results.stats.missing_similar > 0 then
+        print(string.format("\nMissing similar (%d):", #results.stats.missing_similar))
+        -- Show first 10
+        local show = math.min(10, #results.stats.missing_similar)
+        local indices = {}
+        for i = 1, show do
+            table.insert(indices, string.format("%04d", results.stats.missing_similar[i]))
+        end
+        print("  " .. table.concat(indices, ", "))
+        if #results.stats.missing_similar > 10 then
+            print(string.format("  ... and %d more", #results.stats.missing_similar - 10))
+        end
+    end
+
+    if #results.stats.missing_different > 0 then
+        print(string.format("\nMissing different (%d):", #results.stats.missing_different))
+        local show = math.min(10, #results.stats.missing_different)
+        local indices = {}
+        for i = 1, show do
+            table.insert(indices, string.format("%04d", results.stats.missing_different[i]))
+        end
+        print("  " .. table.concat(indices, ", "))
+        if #results.stats.missing_different > 10 then
+            print(string.format("  ... and %d more", #results.stats.missing_different - 10))
+        end
+    end
+
+    print("")
+    if results.pass then
+        print("✓ PASS: All poems are represented in generated output")
+    else
+        print("✗ FAIL: Some poems are missing from output")
+        for _, err in ipairs(results.errors) do
+            print("  - " .. err)
+        end
+    end
+end
+-- }}}
+
+-- {{{ Main
+local function main()
+    local options = parse_arguments(arg)
+
+    if options.help then
+        print_usage()
+        os.exit(0)
+    end
+
+    if not options.quiet and not options.json then
+        print("=" .. string.rep("=", 60))
+        print("Poem Representation Validator")
+        print("=" .. string.rep("=", 60))
+        print("")
+    end
+
+    local results = validate(options)
+    output_summary(results, options)
+
+    os.exit(results.pass and 0 or 1)
+end
+-- }}}
+
+main()

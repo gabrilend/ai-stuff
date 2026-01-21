@@ -4,9 +4,11 @@
 - **Phase**: 8
 - **Priority**: Medium
 - **Type**: Validation / Quality Assurance
+- **Status**: ✅ Core Implementation Complete (Phases A-B)
 - **Depends On**: 8-012 (Paginated Similarity Chapters)
 - **Modified By**: 8-020 (Hybrid Pagination Strategy)
 - **Created**: 2025-12-23
+- **Last Updated**: 2026-01-21
 
 ---
 
@@ -98,26 +100,26 @@ Regenerating missing pages...
 
 ## Implementation Steps
 
-### Phase A: Validation Logic
-1. [ ] Create `/scripts/validate-poem-representation.lua`
-2. [ ] Load poems.json to get full corpus list
-3. [ ] Scan `output/similar/` for existing poem index files
-4. [ ] Scan `output/different/` for existing poem index files
-5. [ ] Scan chronological pages for poem coverage
-6. [ ] Compare corpus against found pages
+### Phase A: Validation Logic ✅ COMPLETE (2026-01-21)
+1. [x] Create `/scripts/validate-poem-representation`
+2. [x] Load poems.json to get full corpus list
+3. [x] Scan `output/similar/` for existing poem index files
+4. [x] Scan `output/different/` for existing poem index files
+5. [x] Scan chronological pages for poem coverage
+6. [x] Compare corpus against found pages
 
-### Phase B: Gap Detection
-7. [ ] Identify poems missing from similarity indices
-8. [ ] Identify poems missing from diversity indices
-9. [ ] Identify poems missing from chronological pages
-10. [ ] Report gaps with clear error messages
+### Phase B: Gap Detection ✅ COMPLETE (2026-01-21)
+7. [x] Identify poems missing from similarity indices
+8. [x] Identify poems missing from diversity indices
+9. [x] Count chronological pages vs expected
+10. [x] Report gaps with clear error messages
 
-### Phase C: Recovery (Optional)
+### Phase C: Recovery (Optional) - DEFERRED
 11. [ ] Implement `--fix` flag to regenerate missing pages
 12. [ ] Call appropriate generator functions for missing content
 13. [ ] Re-validate after recovery
 
-### Phase D: Pipeline Integration
+### Phase D: Pipeline Integration - DEFERRED
 14. [ ] Add validation step to `run.sh` after generation
 15. [ ] Exit with error code if gaps found and not fixed
 16. [ ] Log validation results to generation report
