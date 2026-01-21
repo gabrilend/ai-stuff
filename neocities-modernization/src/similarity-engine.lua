@@ -481,7 +481,9 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
             local poem_data = poems_to_process[j]
             local poem = poem_data.poem
             local poem_index = poem_data.index
-            local poem_text = poem_extractor.extract_pure_poem_content(poem.content)
+            -- Issue 6-030: Use enhanced preprocessing for better embedding quality
+            -- This converts dashes to spaces, strips file metadata, and isolates single poems
+            local poem_text = poem_extractor.extract_pure_poem_content_for_embedding(poem.content)
             
             if poem_text == "" then
                 -- Generate random embedding for empty poems to place them semi-randomly

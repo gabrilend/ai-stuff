@@ -53,6 +53,140 @@ local function load_json_file(filepath)
 end
 -- }}}
 
+-- {{{ local function is_image_only_post
+-- Issue 9-004: Detect if a poem is an "image-only" post
+-- Image-only posts have attachments but minimal text content (just emoji or <10 chars)
+-- These posts cannot be meaningfully embedded because there's no semantic content
+local function is_image_only_post(poem)
+    -- Must have attachments to be an image post
+    if not poem.attachments or #poem.attachments == 0 then
+        return false
+    end
+
+    -- Get content and strip common image-related emojis and whitespace
+    local content = poem.content or ""
+    -- Remove whitespace
+    local stripped = content:gsub("%s+", "")
+    -- Remove common image emojis (these don't carry semantic meaning)
+    -- Using string patterns since Lua patterns don't handle UTF-8 well
+    stripped = stripped:gsub("[📷📸🖼🎨🌅🌄🌃🌉🏞️]", "")
+
+    -- If remaining content is less than 10 chars, it's image-only
+    return #stripped < 10
+end
+-- }}}
+
+-- {{{ local function parse_iso8601_timestamp
+-- Parse ISO 8601 timestamp to Unix epoch for comparison
+-- Handles formats like "2024-03-15T10:30:00Z" or "2024-03-15T10:30:00.000Z"
+local function parse_iso8601_timestamp(timestamp)
+    if not timestamp then return 0 end
+
+    local year, month, day, hour, min, sec = timestamp:match(
+        "(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)"
+    )
+
+    if year then
+        return os.time({
+            year = tonumber(year),
+            month = tonumber(month),
+            day = tonumber(day),
+            hour = tonumber(hour),
+            min = tonumber(min),
+            sec = tonumber(sec)
+        })
+    end
+
+    -- Fallback: try date-only format
+    year, month, day = timestamp:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
+    if year then
+        return os.time({
+            year = tonumber(year),
+            month = tonumber(month),
+            day = tonumber(day),
+            hour = 0, min = 0, sec = 0
+        })
+    end
+
+    return 0
+end
+-- }}}
+
+-- {{{ local function associate_image_only_posts
+-- Issue 9-004: Associate image-only posts with nearest text poem by timestamp
+-- Returns modified poems list with associations added
+local function associate_image_only_posts(poems)
+    -- Separate text poems and image-only posts
+    local text_poems = {}
+    local image_posts = {}
+
+    for _, poem in ipairs(poems) do
+        poem.is_image_only = is_image_only_post(poem)
+        if poem.is_image_only then
+            poem.associated_images = nil  -- Image posts don't have associated images
+            table.insert(image_posts, poem)
+        else
+            poem.associated_images = {}   -- Text poems can have associated images
+            table.insert(text_poems, poem)
+        end
+    end
+
+    if #image_posts == 0 then
+        return poems  -- No image-only posts to process
+    end
+
+    print(string.format("  Found %d image-only posts to associate with text poems", #image_posts))
+
+    -- Sort text poems by timestamp for efficient searching
+    table.sort(text_poems, function(a, b)
+        return parse_iso8601_timestamp(a.creation_date) < parse_iso8601_timestamp(b.creation_date)
+    end)
+
+    -- Configuration: max time delta (24 hours in seconds)
+    local MAX_TIME_DELTA = 24 * 60 * 60
+
+    -- Associate each image post with nearest text poem
+    local associated_count = 0
+    for _, img_post in ipairs(image_posts) do
+        local img_time = parse_iso8601_timestamp(img_post.creation_date)
+        local nearest = nil
+        local nearest_delta = math.huge
+
+        -- Linear search for nearest (could optimize with binary search for large datasets)
+        for _, text_poem in ipairs(text_poems) do
+            local text_time = parse_iso8601_timestamp(text_poem.creation_date)
+            local delta = math.abs(img_time - text_time)
+
+            if delta < nearest_delta then
+                nearest_delta = delta
+                nearest = text_poem
+            end
+        end
+
+        -- Only associate if within max time delta
+        if nearest and nearest_delta <= MAX_TIME_DELTA then
+            img_post.parent_poem_id = nearest.id
+            img_post.parent_poem_category = nearest.category
+            img_post.time_delta_seconds = nearest_delta
+
+            -- Add to parent poem's associated_images
+            table.insert(nearest.associated_images, {
+                post_id = img_post.id,
+                category = img_post.category,
+                time_delta_seconds = nearest_delta,
+                attachments = img_post.attachments
+            })
+            associated_count = associated_count + 1
+        end
+    end
+
+    print(string.format("  Associated %d image-only posts with text poems", associated_count))
+
+    -- Return original poems list (now modified with associations)
+    return poems
+end
+-- }}}
+
 -- {{{ local function extract_poem_info
 local function extract_poem_info(header_line)
     -- Extract info from lines like: " -> file: messages/0767.txt", " -> file: fediverse/1234.txt", etc.
@@ -226,6 +360,10 @@ function M.load_extracted_json(input_directory)
     else
         print("No bluesky poems found at: " .. bluesky_file)
     end
+
+    -- Issue 9-004: Associate image-only posts with nearest text poems
+    -- This allows image posts to inherit semantic context from adjacent poems
+    poems = associate_image_only_posts(poems)
 
     return poems
 end
@@ -498,6 +636,48 @@ function M.extract_pure_poem_content(processed_content)
     end
     
     return pure_content
+end
+-- }}}
+
+-- {{{ function M.extract_pure_poem_content_for_embedding
+-- Enhanced version of extract_pure_poem_content for embedding generation
+-- Issue 6-030: Additional preprocessing for better embedding quality
+-- Key differences from extract_pure_poem_content:
+--   1. Converts dashes to spaces (better tokenization: "cannabis-mentioned" → "cannabis mentioned")
+--   2. Strips file path metadata that leaked into content
+--   3. Strips separator lines (----)
+--   4. Isolates single poem if multiple are concatenated
+function M.extract_pure_poem_content_for_embedding(processed_content)
+    -- Start with the standard pure content extraction
+    local content = M.extract_pure_poem_content(processed_content)
+
+    -- First, check for concatenated poems and isolate the first one
+    -- Look for patterns like "\n----" or "\n -> file:" that indicate poem boundaries
+    local separator_pos = content:find("\n%-%-%-%-")
+    if separator_pos then
+        content = content:sub(1, separator_pos - 1)
+    end
+
+    -- Remove file path metadata lines
+    -- Pattern 1: " -> file: fediverse/1678.txt" style
+    content = content:gsub("%s*%->%s*file:[^\n]*\n?", " ")
+    -- Pattern 2: "file: /home/ritz/..." absolute path style
+    content = content:gsub("file:%s*/[^\n]*\n?", " ")
+
+    -- Remove any remaining separator lines (4+ dashes)
+    content = content:gsub("%-%-%-%-+", " ")
+
+    -- Convert dashes to spaces for better embedding tokenization
+    -- "cannabis-mentioned" becomes "cannabis mentioned" which tokenizes better
+    -- This helps the model understand compound concepts
+    content = content:gsub("%-", " ")
+
+    -- Clean up multiple consecutive spaces and whitespace artifacts
+    content = content:gsub("%s+", " ")
+    content = content:gsub("^%s*", "")
+    content = content:gsub("%s*$", "")
+
+    return content
 end
 -- }}}
 
