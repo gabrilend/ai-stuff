@@ -4,8 +4,8 @@
 - **Phase**: 8
 - **Priority**: High
 - **Type**: Enhancement / Architecture
-- **Status**: In Progress (Phases A-D complete, Phase E pending)
-- **Last Updated**: 2026-01-11 (Phase D completed)
+- **Status**: ✅ COMPLETE (Phases A-E complete)
+- **Last Updated**: 2026-01-21 (Phase E completed)
 - **Previously Blocked By**: 8-013 (now completed)
 - **Modified By**: 8-020 (Hybrid Pagination Strategy)
 
@@ -211,12 +211,12 @@ Grand total: ~947,000 HTML + ~947,000 TXT = ~1.9 million files
 14. [x] Integrate pagination into `M.generate_complete_flat_html_collection()`
 15. [x] CLI flag parsing and passthrough from run.sh → main.lua → flat-html-generator
 
-### Phase E: Integration
-16. [x] ~~Paginate chronological.html~~ → Keep as single file (per 8-020)
-17. [ ] Update index.html entry points to -01.html pages for similar/different
-18. [ ] Test prev/next navigation flow
-19. [ ] Update documentation
-20. [ ] Add `max_pages_per_poem` limit enforcement
+### Phase E: Integration ✅ COMPLETE (2026-01-21)
+16. [x] ~~Paginate chronological.html~~ → Paginated with 500 poems/page (Issue 9-003)
+17. [x] Links use -01.html format, convert-urls script handles local/production paths (Issue 9-005b)
+18. [x] Prev/next navigation working in generated pages
+19. [x] Documentation updated
+20. [x] max_pages_per_poem enforced via config (set to 1 for initial deployment)
 
 ---
 
