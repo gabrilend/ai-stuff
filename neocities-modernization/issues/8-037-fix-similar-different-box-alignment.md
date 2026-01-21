@@ -201,13 +201,52 @@ Added `LAYOUT` constant table to `src/flat-html-generator.lua` (lines 92-119) co
 - Update hardcoded `83` values throughout the file to use `LAYOUT.REGULAR_POEM_WIDTH`
 - This is a refactoring task, not a bug fix
 
+## Re-opened: 2026-01-21 - Bottom Progress Bar Off-By-One
+
+### New Bug: Similar/Different Pages Have Misaligned Bottom Progress Bar
+
+The chronological.html pages render correctly, but similar/different pages have an off-by-one error in the bottom progress bar junction points.
+
+**Current similar/different behavior (WRONG):**
+```
+┌─────────┐                                                           ┌───────────┐
+│ similar │                       chronological                       │ different │
+╘══════════╧═════════════════════════════════════════════════════════──┴────────────┘
+          ^^ extra char                                               ^^ extra char
+```
+
+**Correct behavior (matches chronological.html):**
+```
+┌─────────┐                                                           ┌───────────┐
+│ similar │                                                           │ different │
+╘═════════╧═══════════════════════════════════════════════════════════╧═══────────┘
+```
+
+### Root Cause
+
+The effil worker thread's bottom progress bar generation has a different character count than the main scope's version. Specifically:
+- One extra character before the left `╧` junction
+- One extra character before the right `┴` junction
+
+### Fix Location
+
+**Effil worker thread** in `src/flat-html-generator.lua` - the `format_poem_entry()` function's bottom progress bar section needs to be audited against the main scope's `generate_regular_corner_box_bottom()`.
+
+### Verification
+
+After fix:
+- [ ] Bottom progress bar on similar pages matches chronological pages
+- [ ] Bottom progress bar on different pages matches chronological pages
+- [ ] Junction characters (`╧`, `┴`) align directly below box corners (`┐`, `┘`)
+
 ## Metadata
 
-- **Status**: ✅ Constants Centralized (refactoring optional)
+- **Status**: 🔄 Re-opened (bottom progress bar off-by-one)
 - **Created**: 2026-01-19
 - **Last Updated**: 2026-01-21
+- **Re-opened**: 2026-01-21
 - **Phase**: 8 (Website Completion / HTML Enhancement)
-- **Estimated Complexity**: Medium (requires careful auditing and testing)
+- **Estimated Complexity**: Low (character count fix in effil worker)
 - **Dependencies**: Should be completed before 8-035 (colorize nav boxes)
 - **Blocks**: 8-035 (colorize nav boxes with progress bar)
 
@@ -219,3 +258,4 @@ Added `LAYOUT` constant table to `src/flat-html-generator.lua` (lines 92-119) co
 - [ ] Top, nav, and bottom lines all measure identical visible width
 - [ ] Visual inspection confirms alignment in browser
 - [ ] Issue 9-006 documentation updated to match
+- [ ] **NEW**: Similar/different bottom progress bars match chronological

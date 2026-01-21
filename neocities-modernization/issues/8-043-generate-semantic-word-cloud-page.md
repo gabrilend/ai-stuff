@@ -383,12 +383,78 @@ Added `word_cloud` section with vimfolds to the proposed Lua config structure.
 
 The frequency-based word cloud provides immediate insight into the collection's vocabulary. Embedding-based semantic weighting can be added as a follow-up issue when more sophisticated thematic analysis is desired.
 
+## Re-opened: 2026-01-21 - Word Cloud Links and Configurable Word Count
+
+### Enhancement 1: Word Cloud Words as Links to Similar Pages
+
+Each word in the word cloud should link to a "similar" page that uses that word's embedding as the starting centroid. This reuses the existing **Issue 8-008: Configurable Centroid Embedding System**.
+
+**Implementation Approach:**
+1. For each word in the word cloud, generate an embedding (single word as keyword)
+2. Use `src/centroid-html-generator.lua` pattern to create similarity pages
+3. Output: `wordcloud/{word}-similar.html` showing poems ranked by similarity to that word
+
+**Example:**
+```html
+<!-- In wordcloud.html -->
+<a href="wordcloud/silence.html"><font size="7">silence</font></a>
+
+<!-- In wordcloud/silence.html -->
+Poems similar to: silence
+#1 (0.847) - "the silence between us..."
+#2 (0.823) - "in the quiet dark..."
+```
+
+**Related:** Issue 8-008 (Configurable Centroid Embedding System) - provides the exact infrastructure needed.
+
+### Enhancement 2: Configurable Word Count
+
+Add a configurable option to `run.sh` and/or `config/input-sources.json` for the number of words to display:
+- If set to 0: display ALL unique words (after filtering)
+- If set to N: display top N words by frequency
+
+**Config change:**
+```json
+"word_cloud": {
+    "max_words": 200,    // 0 = all words
+    ...
+}
+```
+
+**run.sh flag:**
+```bash
+--wordcloud-words N    # Override max_words, 0 for unlimited
+```
+
+### Implementation Steps
+
+1. **Generate word embeddings**:
+   - Batch embed all word cloud words via Ollama
+   - Cache to `assets/embeddings/word-embeddings.json`
+
+2. **Generate similar pages**:
+   - For each word, create `wordcloud/{word}.html`
+   - Rank all poems by cosine similarity to word embedding
+   - Apply same pagination as similar/different pages
+
+3. **Update word cloud links**:
+   - Each word becomes `<a href="wordcloud/{word}.html">`
+
+4. **Add configurable word count**:
+   - Read from config, allow CLI override
+   - Handle 0 = unlimited case
+
+### Storage Estimate
+
+With 200 words × 15 max pages × ~200KB avg = ~600 MB (fits in Neocities 45GB budget)
+
 ## Metadata
 
-- **Status**: ✅ Complete (MVP)
+- **Status**: 🔄 Re-opened (links and config enhancements)
 - **Created**: 2026-01-20
-- **Completed**: 2026-01-21
+- **Completed**: 2026-01-21 (MVP)
+- **Re-opened**: 2026-01-21 (word links and configurable count)
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium (word extraction easy, embedding integration moderate)
-- **Dependencies**: Requires embedding infrastructure (Stage 3) - for future semantic version
-- **Affects**: New output file, new pipeline stage
+- **Dependencies**: Issue 8-008 (centroid system), embedding infrastructure
+- **Affects**: New output files (wordcloud/*.html), pipeline stage
