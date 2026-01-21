@@ -161,9 +161,53 @@ The chronological view becomes an anchor point users can always return to.
 
 ---
 
-**ISSUE STATUS: COMPLETED ✅**
+## Re-opened: 2026-01-21 - Pagination Not Accounted For
+
+### Problem: Anchor Links Don't Include Page Number
+
+When chronological.html is paginated (e.g., 8 pages with 1000 poems each), the anchor links from similar/different pages need to point to the **correct page** containing that poem, not just the anchor ID.
+
+**Current (broken):**
+```html
+<a href='chronological/index.html#poem-fediverse-5000'>chronological</a>
+```
+This links to page 1, but poem 5000 is on page 5.
+
+**Correct:**
+```html
+<a href='chronological/05.html#poem-fediverse-5000'>chronological</a>
+```
+
+### Root Cause
+
+The `chrono_map` includes `page_number` for each poem, but the link generation doesn't use it when `chrono_paginated = true`. The effil worker thread needs to:
+1. Check if pagination is enabled
+2. Use `chrono_info.page_number` to construct the correct URL
+
+### Fix Location
+
+**Effil worker thread** in `src/flat-html-generator.lua` - lines ~2889-2894:
+```lua
+-- Current code checks chrono_paginated but may not be using page_number correctly
+chrono_link = string.format("<a href='%s/chronological/%02d.html#%s'>chronological</a>",
+    base_path, chrono_info.page_number, anchor_id)
+```
+
+Verify that `chrono_info.page_number` is being passed correctly and the format string uses it.
+
+### Verification
+
+After fix:
+- [ ] Poem on page 1 → links to `chronological/01.html#anchor`
+- [ ] Poem on page 5 → links to `chronological/05.html#anchor`
+- [ ] Clicking link scrolls to correct poem on correct page
+
+---
+
+**ISSUE STATUS: 🔄 Re-opened (pagination bug)**
 
 **Created**: 2026-01-04
-**Completed**: 2026-01-09
+**Completed**: 2026-01-09 (basic anchor links)
+**Re-opened**: 2026-01-21 (pagination not accounted for)
 **Phase**: 8 (Website Completion)
-**Priority**: Medium (navigation enhancement)
+**Priority**: High (navigation broken for paginated chronological)

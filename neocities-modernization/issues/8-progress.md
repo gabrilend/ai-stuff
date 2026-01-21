@@ -27,19 +27,22 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 |-------|-------------|--------|----------|
 | 8-001 | Unified website generation pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
+| 8-005 | Integrate images into HTML output | 🔄 Re-opened (viewport overflow) | Medium |
 | 8-011 | Scrape fediverse boost content | Open | Low |
 | 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
 | 8-016 | Validate poem representation in pagination | ✅ Core complete | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
+| 8-030 | Add chronological anchor links | 🔄 Re-opened (pagination bug) | **High** |
 | 8-035 | Colorize nav boxes according to progress bar position | ✅ Complete | Low |
 | 8-036 | Add poem identification to ranking headers | ✅ Complete | Low |
-| 8-037 | Fix similar/different box alignment | ✅ Constants centralized | Low |
+| 8-037 | Fix similar/different box alignment | 🔄 Re-opened (bottom bar off-by-one) | Medium |
 | 8-038 | Center poem containers on page | ✅ Already implemented | Low |
-| 8-039 | Move chronological files to subdirectory | ✅ Complete | Medium |
+| 8-039 | Move chronological files to subdirectory | 🔄 Re-opened (cleanup + link format) | **High** |
 | 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
 | 8-041 | Escape HTML characters in poem content | Implemented (pending validation) | **High** |
 | 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
-| 8-043 | Generate semantic word cloud page | ✅ Complete (MVP) | Medium |
+| 8-043 | Generate semantic word cloud page | 🔄 Re-opened (word links + config) | Medium |
+| 8-046 | Create menu navigation page | Open | Medium |
 
 ### Completed Issues
 
