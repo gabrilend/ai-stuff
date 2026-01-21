@@ -154,10 +154,45 @@ These should probably NOT be treated as golden (they weren't golden when posted)
 - `src/flat-html-generator.lua` - effil worker `format_poem_entry()` (lines 2833+)
 - `issues/8-006-fix-golden-poem-box-drawing-format.md` - Original golden formatting implementation
 
+## Implementation Progress
+
+### 2026-01-21: Implemented
+
+**Changes to `src/flat-html-generator.lua`:**
+
+1. **Fixed main scope `is_golden_poem()` (line 1326)**:
+   - Now uses `poem.metadata.is_golden_poem` instead of `#poem.content == 1024`
+   - Single source of truth from extraction metadata
+
+2. **Added `is_golden_poem()` to effil worker thread (line 2787)**:
+   - Same logic as main scope, checks metadata
+
+3. **Added golden detection to `format_poem_entry()` (line 2854)**:
+   - Checks `is_golden` at function start
+
+4. **Modified top progress bar (lines 2869-2877)**:
+   - Golden poems get `╔` corner prefix
+   - Regular poems have no corner prefix
+
+5. **Added golden side borders to content (lines 2961-2985)**:
+   - Golden poems get `║` (colored) left wall, `│` right wall
+   - 80-char content area with padding
+
+6. **Modified navigation box (lines 3000-3053)**:
+   - Golden: `╟─────────┐` separator, `║ similar │` nav line, `┤` right end
+   - Regular: `┌─────────┐` separator, `│ similar │` nav line, `│` right end
+
+7. **Modified bottom progress bar (lines 3089-3098)**:
+   - Golden poems use `╚` corner
+   - Regular poems use `╘` corner
+
+**Result**: All 431 golden poems (per metadata) will now render with proper golden formatting on both chronological AND similar/different pages.
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete
 - **Created**: 2026-01-21
+- **Completed**: 2026-01-21
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: None
