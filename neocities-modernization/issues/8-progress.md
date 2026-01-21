@@ -28,9 +28,18 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-001 | Unified website generation pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-011 | Scrape fediverse boost content | Open | Low |
-| 8-012 | Implement paginated similarity chapters | **In Progress** | High |
-| 8-016 | Validate poem representation in pagination | Open (depends 8-012) | Medium |
+| 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
+| 8-016 | Validate poem representation in pagination | ✅ Core complete | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
+| 8-035 | Colorize nav boxes according to progress bar position | ✅ Complete | Low |
+| 8-036 | Add poem identification to ranking headers | ✅ Complete | Low |
+| 8-037 | Fix similar/different box alignment | ✅ Constants centralized | Low |
+| 8-038 | Center poem containers on page | ✅ Already implemented | Low |
+| 8-039 | Move chronological files to subdirectory | Open | Medium |
+| 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
+| 8-041 | Escape HTML characters in poem content | Implemented (pending validation) | **High** |
+| 8-042 | Sync images from configurable directories | Open | Medium |
+| 8-043 | Generate semantic word cloud page | Open | Medium |
 
 ### Completed Issues
 
@@ -58,6 +67,25 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-013 | Implement TXT export functionality | Completed | 2025-12-23 |
 | 8-015 | Implement ZIP extraction freshness check | Completed | 2025-12-23 |
 | 8-005 | Integrate images into HTML output | Completed | 2025-12-23 |
+| 8-035 | Colorize nav boxes according to progress bar | Completed | 2026-01-21 |
+| 8-036 | Add poem identification to ranking headers | Completed | 2026-01-21 |
+
+**8-035: Colorize Nav Boxes According to Progress Bar** - COMPLETED (2026-01-21)
+- ✅ Added `colorize_char()` helper function for color wrapping
+- ✅ Modified `generate_regular_corner_box_top()` with progressive colorization
+- ✅ Modified `generate_regular_corner_box_nav_line()` with wall colorization
+- ✅ Updated effil worker thread with equivalent inline functions
+- ✅ Left box (positions 0-10) colorizes as progress reaches them
+- ✅ Right box (positions 70-82) colorizes when progress passes 70
+- ✅ Uses poem's semantic color (red, blue, green, purple, orange, yellow, gray)
+
+**8-036: Add Poem Identification to Ranking Headers** - COMPLETED (2026-01-21)
+- ✅ Added `get_source_path()` helper to effil worker thread
+- ✅ Ranking headers now show: `--- #N category/identifier ---`
+- ✅ Notes: `notes/source_file` (e.g., "notes/what-a-lame-movie")
+- ✅ Bluesky: `bluesky#N` (e.g., "bluesky#42")
+- ✅ Fediverse: `fediverse/N` (e.g., "fediverse/1234")
+- ✅ Messages: `messages/N` (e.g., "messages/567")
 
 **8-030: Add Chronological Anchor Links** - COMPLETED (2026-01-09)
 - ✅ Created `get_poem_anchor_id()` helper function
@@ -79,7 +107,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
   - All 7,797 poems have embeddings (100% complete as of 2026-01-04)
 - ✅ Phase 4: Similarity Matrix Integration - complete (2025-12-25)
   - `--generate-similarity` flag with dependency validation
-  - Currently 1,671 of 7,797 files generated (21%)
+  - Run `./scripts/validate-pipeline-data --quick` to check current completion
 - ✅ Phase 5: Diversity Cache Integration - complete (2025-12-25)
   - `--generate-diversity` flag with freshness checks
   - Extendable cache with incremental saves implemented (8-027)
