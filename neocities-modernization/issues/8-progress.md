@@ -35,11 +35,11 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-036 | Add poem identification to ranking headers | ✅ Complete | Low |
 | 8-037 | Fix similar/different box alignment | ✅ Constants centralized | Low |
 | 8-038 | Center poem containers on page | ✅ Already implemented | Low |
-| 8-039 | Move chronological files to subdirectory | Open | Medium |
+| 8-039 | Move chronological files to subdirectory | ✅ Complete | Medium |
 | 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
 | 8-041 | Escape HTML characters in poem content | Implemented (pending validation) | **High** |
-| 8-042 | Sync images from configurable directories | Open | Medium |
-| 8-043 | Generate semantic word cloud page | Open | Medium |
+| 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
+| 8-043 | Generate semantic word cloud page | ✅ Complete (MVP) | Medium |
 
 ### Completed Issues
 
@@ -69,6 +69,30 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-005 | Integrate images into HTML output | Completed | 2025-12-23 |
 | 8-035 | Colorize nav boxes according to progress bar | Completed | 2026-01-21 |
 | 8-036 | Add poem identification to ranking headers | Completed | 2026-01-21 |
+| 8-039 | Move chronological files to subdirectory | Completed | 2026-01-21 |
+| 8-042 | Sync images from configurable directories | Completed | 2026-01-21 |
+| 8-043 | Generate semantic word cloud page (MVP) | Completed | 2026-01-21 |
+
+**8-039: Move Chronological Files to Subdirectory** - COMPLETED (2026-01-21)
+- ✅ Changed output from `chronological-XX.html` to `chronological/XX.html`
+- ✅ Updated `generate_chronological_page_navigation()` for relative paths
+- ✅ Updated redirect/index file to point to `chronological/index.html`
+- ✅ Updated similar/different page links to `chronological/` subdirectory
+
+**8-042: Sync Images From Configurable Directories** - COMPLETED (2026-01-21)
+- ✅ Added `image_sync` section to `config/input-sources.json`
+- ✅ Added `sync_images_from_config()` function to `scripts/update-words`
+- ✅ Uses `jq` for JSON parsing, `rsync` for file syncing
+- ✅ Supports multiple source directories with preserve_structure option
+- ✅ Reports per-source and total sync statistics
+
+**8-043: Generate Semantic Word Cloud Page (MVP)** - COMPLETED (2026-01-21)
+- ✅ Created `config/stop-words.txt` with 271 categorized stop words
+- ✅ Created `src/wordcloud-generator.lua` with frequency-based sizing
+- ✅ Added `word_cloud` section to `config/input-sources.json`
+- ✅ Updated Issue 10-003 with vimfolded config sections
+- ✅ 200 words displayed from 23,455 unique (after filtering)
+- ⏳ Future: embedding-based semantic weighting, word similarity pages
 
 **8-035: Colorize Nav Boxes According to Progress Bar** - COMPLETED (2026-01-21)
 - ✅ Added `colorize_char()` helper function for color wrapping
