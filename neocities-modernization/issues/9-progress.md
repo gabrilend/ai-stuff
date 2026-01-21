@@ -29,7 +29,8 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-002b | Validate GPU similarity implementation | Open | High |
 | 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
-| 9-004 | GPU-accelerate maze algorithm | Open | Low |
+| 9-004a | GPU-accelerate maze algorithm | Open | Low |
+| 9-004b | Image-only post timestamp association | ✅ Complete | Medium |
 
 ### Completed Issues
 
@@ -45,6 +46,16 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-003a | Remove unnecessary centroid division from source files | Completed | 2025-12-25 |
 | 9-005 | Integrate GPU diversity cache into pipeline | Completed | 2026-01-17 |
 | 9-005b | URL switching helper script (local ↔ production) | Completed | 2026-01-18 |
+| 9-004b | Image-only post timestamp association | Completed | 2026-01-21 |
+
+**9-004b: Image-Only Post Timestamp Association** - COMPLETED (2026-01-21)
+- ✅ Added `associate_image_only_posts()` to `src/poem-extractor.lua`
+- ✅ Identifies image-only posts (content ≤ 10 chars with attachments)
+- ✅ Finds nearest text poem by timestamp using binary search
+- ✅ Adds `associated_images` array to parent poems
+- ✅ Marks image-only posts with `is_image_only_associated = true`
+- ✅ 71 image-only posts associated with 69 parent poems
+- ✅ Bumped extraction_version to 2.2
 
 ## Target Hardware
 
