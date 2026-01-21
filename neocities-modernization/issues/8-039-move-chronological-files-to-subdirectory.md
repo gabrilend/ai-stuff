@@ -230,12 +230,46 @@ output/
 **No changes needed to:**
 - `scripts/convert-urls` - Already uses generic path patterns
 
+## Re-opened: 2026-01-21 - Cleanup and Link Format Bug
+
+### Problem 1: Old Files Not Cleaned Up
+
+After the migration, old `chronological-XX.html` files remain in the output root:
+```
+output/chronological-01.html (80 files, dated Jan 20)
+output/chronological/01.html (9 files, dated Jan 21) ← correct location
+```
+
+The old files should have been removed during/after migration.
+
+### Problem 2: Similar/Different Pages Link to Old Format
+
+Some links from similar/different pages still use the old format:
+- **Current**: `chronological-XX.html#anchor`
+- **Should be**: `chronological/XX.html#anchor`
+
+This causes the "chronological" navigation links to point to stale/incorrect files.
+
+### Fix Required
+
+1. **Delete old files**: Remove `output/chronological-*.html` (80 files in root)
+2. **Verify all link references**: Ensure effil worker and main scope both use `chronological/` format
+3. **Add cleanup step**: Consider adding cleanup to run.sh or regeneration script
+
+### Verification Steps
+
+- [ ] No `chronological-*.html` files in output root
+- [ ] All chronological links use `chronological/XX.html` format
+- [ ] Links from similar pages work correctly
+- [ ] Links from different pages work correctly
+
 ## Metadata
 
-- **Status**: ✅ Complete
+- **Status**: 🔄 Re-opened (cleanup needed)
 - **Created**: 2026-01-19
-- **Completed**: 2026-01-21
+- **Completed**: 2026-01-21 (partial - structure change done)
+- **Re-opened**: 2026-01-21 (cleanup and link format bug)
 - **Phase**: 8 (Website Completion / Structure)
-- **Estimated Complexity**: Medium (multiple link references to update)
+- **Estimated Complexity**: Low (cleanup + link audit)
 - **Dependencies**: None
 - **Affects**: All generated HTML files (chronological, similar, different)

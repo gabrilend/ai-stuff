@@ -178,10 +178,69 @@ The relative paths `../input/media_attachments/files/...` work because:
 
 Alternative: A future deploy script could copy/flatten images to `output/images/` and rewrite paths.
 
-**ISSUE STATUS: COMPLETED**
+---
+
+## Re-opened: 2026-01-21 - Images Overflow Viewport
+
+### Problem: Wide Images Extend Past Screen Edge
+
+Currently, images use inline CSS for responsive sizing:
+```html
+<img src="..." style="max-width:100%; height:auto">
+```
+
+**Issues:**
+1. This project is supposed to be CSS-free (Issue 8-003)
+2. The CSS isn't working as expected - wide images overflow the viewport
+3. Users must scroll horizontally to see full images
+
+### Intended Behavior
+
+Images should:
+1. Never exceed the viewport width
+2. Maintain aspect ratio
+3. Use HTML-only attributes (no CSS)
+
+### Possible Solutions
+
+**Option A: Use `width` attribute with fixed pixel value**
+```html
+<img src="..." width="600" alt="...">
+```
+Pros: Simple, CSS-free
+Cons: Fixed size, may be too small on wide screens or too large on mobile
+
+**Option B: Use HTML table constraint**
+```html
+<table width="100%"><tr><td><img src="..." width="100%"></td></tr></table>
+```
+Pros: Works without CSS, viewport-relative
+Cons: Hacky, nested elements
+
+**Option C: Accept CSS for images only (pragmatic exception)**
+Keep `style="max-width:100%; height:auto"` but fix why it's not working.
+
+**Recommendation**: Option A with a sensible max width (e.g., 600-800px) that fits most screens while not looking tiny. For narrow mobile screens, the natural CSS-free behavior will allow horizontal scroll, but most desktop users will see images properly contained.
+
+### Fix Location
+
+`src/flat-html-generator.lua` - `render_attachment_images()` function (lines 691-752)
+
+### Verification
+
+After fix:
+- [ ] Images don't extend past screen edge on desktop
+- [ ] Images maintain reasonable aspect ratio
+- [ ] No inline CSS used (if following Option A/B)
+
+---
+
+**ISSUE STATUS: 🔄 Re-opened (viewport overflow)**
 
 **Created**: 2025-12-15
 
-**Completed**: 2025-12-23
+**Completed**: 2025-12-23 (basic image integration)
+
+**Re-opened**: 2026-01-21 (images overflow viewport)
 
 **Phase**: 8 (Website Completion)
