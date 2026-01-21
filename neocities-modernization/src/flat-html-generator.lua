@@ -1324,10 +1324,13 @@ end
 
 -- {{{ function is_golden_poem
 local function is_golden_poem(poem)
-    -- Check if poem is exactly 1024 characters (golden)
-    if poem.content then
-        local content_length = #poem.content
-        return content_length == 1024
+    -- Issue 8-044: Use pre-calculated golden status from extraction metadata
+    -- This correctly accounts for:
+    --   - Pre-anonymization content (original @mentions preserved)
+    --   - Content warning text (without "CW: " prefix)
+    -- The extraction calculates this once; we use metadata as single source of truth
+    if poem.metadata and poem.metadata.is_golden_poem then
+        return true
     end
     return false
 end
@@ -2781,6 +2784,16 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
                 -- }}}
 
+                -- {{{ Local helper: Check if poem is golden (exactly 1024 chars when posted)
+                -- Issue 8-044: Use pre-calculated metadata as single source of truth
+                local function is_golden_poem(poem)
+                    if poem.metadata and poem.metadata.is_golden_poem then
+                        return true
+                    end
+                    return false
+                end
+                -- }}}
+
                 -- Local helper: Build poem lookup by poem_index for ranking conversion
                 local function build_poem_by_index()
                     local lookup = {}
@@ -2830,11 +2843,15 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                 -- Local helper: Format single poem with full formatting (Issue 9-003 Fix D)
                 -- Includes progress bars, navigation box, and chronological page links
+                -- Issue 8-044: Added golden poem formatting support
                 local function format_poem_entry(poem, poem_colors_tbl, clr_config, chrono_map, chrono_paged)
                     local poem_idx = poem.poem_index
                     local poem_color_data = poem_colors_tbl[poem_idx]
                     local semantic_color = poem_color_data and poem_color_data.color or "gray"
                     local hex_color = clr_config[semantic_color] or clr_config["gray"]
+
+                    -- Issue 8-044: Check if this is a golden poem
+                    local is_golden = is_golden_poem(poem)
 
                     -- Get chronological position from mapping
                     local chrono_info = chrono_map[poem_idx] or {position = 1, page_number = 1, total_poems = 1, total_pages = 1}
@@ -2845,10 +2862,19 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local remaining_chars = 83 - progress_chars
 
                     -- Build progress bar with color
+                    -- Issue 8-044: Golden poems get ╔ corner, regular poems get no corner on top bar
                     local progress_section = string.rep("═", progress_chars)
                     local remaining_section = string.rep("─", remaining_chars)
-                    local colored_progress = string.format('<font color="%s"><b>%s</b></font>%s',
-                        hex_color, progress_section, remaining_section)
+                    local colored_progress
+                    if is_golden then
+                        -- Golden: ╔═══════════────────────
+                        local corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
+                        colored_progress = corner .. string.format('<font color="%s"><b>%s</b></font>%s',
+                            hex_color, progress_section, remaining_section)
+                    else
+                        colored_progress = string.format('<font color="%s"><b>%s</b></font>%s',
+                            hex_color, progress_section, remaining_section)
+                    end
 
                     -- Navigation links (absolute paths for local testing)
                     -- Issue 9-003 Fix: Use absolute file:// paths - helper script converts to production URLs
@@ -2932,6 +2958,33 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         end
                     end
 
+                    -- Issue 8-044: Apply golden side borders to content lines
+                    -- Golden poems get ║ (colored) on left and │ on right, with 80-char content area
+                    if is_golden then
+                        local golden_lines = {}
+                        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
+                        local CONTENT_WIDTH = 80
+
+                        for _, line in ipairs(wrapped_lines) do
+                            -- Calculate visible length (excluding HTML tags)
+                            local visible_line = line:gsub("<[^>]+>", "")
+                            local visible_length = #visible_line
+
+                            -- Pad to content width
+                            local padded_line
+                            if visible_length >= CONTENT_WIDTH then
+                                padded_line = line
+                            else
+                                local padding_needed = CONTENT_WIDTH - visible_length
+                                padded_line = line .. string.rep(" ", padding_needed)
+                            end
+
+                            -- Add side borders: ║ (colored) content │
+                            table.insert(golden_lines, colored_wall .. " " .. padded_line .. " │")
+                        end
+                        wrapped_lines = golden_lines
+                    end
+
                     -- Build navigation box matching reference implementation
                     -- Regular poem structure: 83 chars total (positions 0-82)
                     -- ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
@@ -2944,32 +2997,60 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         return char
                     end
 
-                    -- Build nav_top with progressive colorization
-                    -- Left box: positions 0-10, Right box: positions 70-82
-                    local left_top = {}
-                    table.insert(left_top, color_char("┌", 0))
-                    for i = 1, 9 do
-                        table.insert(left_top, color_char("─", i))
+                    -- Build nav_top and nav_mid
+                    -- Issue 8-044: Golden poems use different box characters
+                    local nav_top, nav_mid
+
+                    if is_golden then
+                        -- Golden: ╟─────────┐ (separator line)  + gap + ┌───────────┤
+                        local colored_corner = string.format('<font color="%s"><b>╟</b></font>', hex_color)
+                        local left_sep = colored_corner
+                        for i = 1, 9 do
+                            left_sep = left_sep .. color_char("─", i)
+                        end
+                        left_sep = left_sep .. color_char("┐", 10)
+
+                        local right_sep = color_char("┌", 70)
+                        for i = 71, 81 do
+                            right_sep = right_sep .. color_char("─", i)
+                        end
+                        right_sep = right_sep .. color_char("┤", 82)
+
+                        nav_top = left_sep .. string.rep(" ", 59) .. right_sep
+
+                        -- Golden nav line: ║ similar │ + gap + chronological + gap + │ different ┤
+                        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
+                        local right_wall_of_left = color_char("│", 10)
+                        local left_wall_of_right = color_char("│", 70)
+                        local right_end = color_char("┤", 82)
+
+                        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
+                    else
+                        -- Regular: ┌─────────┐ + gap + ┌───────────┐
+                        local left_top = {}
+                        table.insert(left_top, color_char("┌", 0))
+                        for i = 1, 9 do
+                            table.insert(left_top, color_char("─", i))
+                        end
+                        table.insert(left_top, color_char("┐", 10))
+
+                        local right_top = {}
+                        table.insert(right_top, color_char("┌", 70))
+                        for i = 71, 81 do
+                            table.insert(right_top, color_char("─", i))
+                        end
+                        table.insert(right_top, color_char("┐", 82))
+
+                        nav_top = table.concat(left_top) .. string.rep(" ", 59) .. table.concat(right_top)
+
+                        -- Regular nav line: │ similar │ + gap + chronological + gap + │ different │
+                        local left_wall = color_char("│", 0)
+                        local right_wall_of_left = color_char("│", 10)
+                        local left_wall_of_right = color_char("│", 70)
+                        local right_wall = color_char("│", 82)
+
+                        nav_mid = left_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_wall
                     end
-                    table.insert(left_top, color_char("┐", 10))
-
-                    local right_top = {}
-                    table.insert(right_top, color_char("┌", 70))
-                    for i = 71, 81 do
-                        table.insert(right_top, color_char("─", i))
-                    end
-                    table.insert(right_top, color_char("┐", 82))
-
-                    local nav_top = table.concat(left_top) .. string.rep(" ", 59) .. table.concat(right_top)
-
-                    -- Navigation line: │ similar │ + gaps + chronological + gaps + │ different │
-                    -- Wall positions: 0, 10 (left box), 70, 82 (right box)
-                    local left_wall = color_char("│", 0)
-                    local right_wall_of_left = color_char("│", 10)
-                    local left_wall_of_right = color_char("│", 70)
-                    local right_wall = color_char("│", 82)
-
-                    local nav_mid = left_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_wall
 
                     -- Bottom line with progress bar and junction characters
                     -- Structure: ╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
@@ -3005,7 +3086,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         return result
                     end
 
-                    local colored_corner = string.format('<font color="%s"><b>╘</b></font>', hex_color)
+                    -- Issue 8-044: Golden poems use ╚ corner, regular use ╘
+                    local corner_char = is_golden and "╚" or "╘"
+                    local colored_corner = string.format('<font color="%s"><b>%s</b></font>', hex_color, corner_char)
                     local bottom_line = colored_corner
                         .. build_segment(0, LEFT_JUNCTION)
                         .. left_junction
