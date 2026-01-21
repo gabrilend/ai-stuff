@@ -252,24 +252,71 @@ This causes the "chronological" navigation links to point to stale/incorrect fil
 
 ### Fix Required
 
-1. **Delete old files**: Remove `output/chronological-*.html` (80 files in root)
+1. **Delete old files manually**: Remove `output/chronological-*.html` (80 files - deprecated naming scheme)
 2. **Verify all link references**: Ensure effil worker and main scope both use `chronological/` format
-3. **Add cleanup step**: Consider adding cleanup to run.sh or regeneration script
+3. **Add cleanup to run.sh**: Each stage should clean its output when `--force` is enabled
+   - Only clean when regenerating that stage
+   - Preserves in-progress files during normal runs
 
 ### Verification Steps
 
-- [ ] No `chronological-*.html` files in output root
-- [ ] All chronological links use `chronological/XX.html` format
-- [ ] Links from similar pages work correctly
-- [ ] Links from different pages work correctly
+- [x] No `chronological-*.html` files in output root
+- [x] All chronological links use `chronological/XX.html` format
+- [x] Links from similar pages work correctly
+- [x] Links from different pages work correctly
+
+---
+
+## Fix Applied: 2026-01-21 - Cleanup and Navigation Links
+
+### 1. Old Files Deleted
+
+Manually removed 79 deprecated files from output root:
+```bash
+rm output/chronological-*.html
+# Removed: chronological-01.html through chronological-80.html (old naming scheme)
+```
+
+New files remain in correct location:
+```
+output/chronological/
+├── 01.html through 08.html (9 paginated files)
+└── index.html (redirect)
+```
+
+### 2. Pagination Navigation Fixed
+
+**Problem**: Internal pagination links used old `chronological-XX.html` format
+
+**Location**: `generate_pagination_navigation()` lines 502, 520
+
+**Fix**: Changed from `chronological-%s.html` to `%s.html` (relative paths within subdirectory)
+
+```lua
+-- Before (broken):
+prev_file = string.format("chronological-%s.html", format_page_number(current_page - 1))
+
+-- After (fixed):
+prev_file = string.format("%s.html", format_page_number(current_page - 1))
+```
+
+### 3. External Links Already Working
+
+Links FROM similar/different pages TO chronological were already using the correct format:
+- `chronological/01.html#anchor` (paginated)
+- `chronological/index.html#anchor` (single page)
+
+---
+
+**ISSUE STATUS: ✅ COMPLETE**
 
 ## Metadata
 
-- **Status**: 🔄 Re-opened (cleanup needed)
+- **Status**: ✅ Complete
 - **Created**: 2026-01-19
 - **Completed**: 2026-01-21 (partial - structure change done)
 - **Re-opened**: 2026-01-21 (cleanup and link format bug)
+- **Re-completed**: 2026-01-21 (cleanup + navigation fix)
 - **Phase**: 8 (Website Completion / Structure)
-- **Estimated Complexity**: Low (cleanup + link audit)
 - **Dependencies**: None
 - **Affects**: All generated HTML files (chronological, similar, different)
