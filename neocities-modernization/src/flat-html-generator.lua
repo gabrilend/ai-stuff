@@ -499,7 +499,8 @@ local function generate_prev_next_navigation(current_page, total_pages, poem_id,
     if current_page > 1 then
         local prev_file
         if page_type == "chronological" then
-            prev_file = string.format("chronological-%s.html", format_page_number(current_page - 1))
+            -- Issue 8-039 Fix: Chronological pages now in subdirectory, use relative paths
+            prev_file = string.format("%s.html", format_page_number(current_page - 1))
         else
             prev_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(current_page - 1))
         end
@@ -517,7 +518,8 @@ local function generate_prev_next_navigation(current_page, total_pages, poem_id,
     if current_page < total_pages then
         local next_file
         if page_type == "chronological" then
-            next_file = string.format("chronological-%s.html", format_page_number(current_page + 1))
+            -- Issue 8-039 Fix: Chronological pages now in subdirectory, use relative paths
+            next_file = string.format("%s.html", format_page_number(current_page + 1))
         else
             next_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(current_page + 1))
         end
@@ -2881,7 +2883,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
                     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
                     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
-                    local anchor_id = string.format("poem-%s-%04d", (poem.category or "unknown"):sub(1,1):lower(), poem.id or 0)
+                    -- Issue 8-030 Fix: Must match chronological page anchors (full category name, not first letter)
+                    -- Chronological uses get_poem_anchor_id() → get_unique_poem_filename_id() → "category-NNNN"
+                    local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
 
                     -- Issue 8-039: Chronological link points to subdirectory
                     local chrono_link
@@ -3089,12 +3093,16 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     -- Issue 8-044: Golden poems use ╚ corner, regular use ╘
                     local corner_char = is_golden and "╚" or "╘"
                     local colored_corner = string.format('<font color="%s"><b>%s</b></font>', hex_color, corner_char)
+                    -- Issue 8-037 Fix: Corrected segment positions to match main scope
+                    -- Segment 1: positions 1 to LEFT_JUNCTION-1 (9 chars, corner is pos 0)
+                    -- Segment 2: positions LEFT_JUNCTION+1 to RIGHT_JUNCTION-1 (59 chars)
+                    -- Segment 3: positions RIGHT_JUNCTION+1 to TOTAL_CHARS-2 (11 chars, ┘ is pos 82)
                     local bottom_line = colored_corner
-                        .. build_segment(0, LEFT_JUNCTION)
+                        .. build_segment(1, LEFT_JUNCTION)
                         .. left_junction
                         .. build_segment(LEFT_JUNCTION + 1, RIGHT_JUNCTION)
                         .. right_junction
-                        .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS)
+                        .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS - 1)
                         .. "┘"
 
                     -- Build formatted output

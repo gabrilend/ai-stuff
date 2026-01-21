@@ -198,16 +198,55 @@ Verify that `chrono_info.page_number` is being passed correctly and the format s
 ### Verification
 
 After fix:
-- [ ] Poem on page 1 → links to `chronological/01.html#anchor`
-- [ ] Poem on page 5 → links to `chronological/05.html#anchor`
-- [ ] Clicking link scrolls to correct poem on correct page
+- [x] Poem on page 1 → links to `chronological/01.html#anchor`
+- [x] Poem on page 5 → links to `chronological/05.html#anchor`
+- [x] Clicking link scrolls to correct poem on correct page
 
 ---
 
-**ISSUE STATUS: 🔄 Re-opened (pagination bug)**
+## Fix Applied: 2026-01-21 - Anchor ID Format Mismatch
+
+### Investigation Findings
+
+The pagination logic was already working correctly (e.g., `chronological/06.html#poem-b-0001`). However, the **anchor IDs didn't match** between pages:
+
+| Location | Format Used | Example |
+|----------|-------------|---------|
+| Chronological pages | Full category | `id="poem-fediverse-4210"` |
+| Similar/different links | First letter only | `href="...#poem-f-2836"` |
+
+### Root Cause
+
+The effil worker thread at line 2886 incorrectly reimplemented the anchor ID logic:
+```lua
+-- WRONG: Used abbreviated category (first letter)
+local anchor_id = string.format("poem-%s-%04d", (poem.category or "unknown"):sub(1,1):lower(), poem.id or 0)
+```
+
+The main scope uses `get_poem_anchor_id()` → `get_unique_poem_filename_id()` which produces full category names.
+
+### Fix Applied
+
+Updated line 2886 to use full category name:
+```lua
+-- Issue 8-030 Fix: Must match chronological page anchors (full category name, not first letter)
+-- Chronological uses get_poem_anchor_id() → get_unique_poem_filename_id() → "category-NNNN"
+local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
+```
+
+### Verification Passed
+
+After fix:
+- Similar pages generate: `href="...#poem-fediverse-5000"`
+- Chronological pages have: `id="poem-fediverse-5000"`
+- Anchor IDs now match correctly
+
+---
+
+**ISSUE STATUS: ✅ COMPLETE**
 
 **Created**: 2026-01-04
 **Completed**: 2026-01-09 (basic anchor links)
-**Re-opened**: 2026-01-21 (pagination not accounted for)
+**Re-opened**: 2026-01-21 (pagination bug)
+**Re-completed**: 2026-01-21 (anchor ID format fix)
 **Phase**: 8 (Website Completion)
-**Priority**: High (navigation broken for paginated chronological)
