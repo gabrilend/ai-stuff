@@ -149,10 +149,50 @@ Either:
 - Collapsible category sections
 - Jump-to-letter navigation for large categories
 
+---
+
+## Implementation Progress: 2026-01-21
+
+### Step 1: Renamed Header Links ✅
+
+Updated `src/flat-html-generator.lua` (lines 2262, 2283):
+- Changed "How to explore this collection" → "Menu"
+- Changed `explore.html` → `wordcloud.html`
+
+### Step 2: Added Poem Index to Word Cloud Page ✅
+
+Updated `src/wordcloud-generator.lua`:
+
+1. **Created `generate_poem_index()` function** (lines 192-284):
+   - Groups poems by category (fediverse, notes, messages, bluesky)
+   - Sorts poems within each category by ID
+   - Shows identifier and 40-char preview for each poem
+   - Links to chronological position using anchor IDs
+
+2. **Updated `generate_wordcloud_html()`** (line 288):
+   - Added `poems_data` parameter
+   - Integrates poem index section into page
+   - Changed page title to "Menu - Poetry Collection"
+
+3. **Updated `M.generate_wordcloud()`** (line 388):
+   - Passes `poems_data` to HTML generator
+
+### Result
+
+The `wordcloud.html` page now serves as the main navigation hub with:
+- Link back to Chronological Index
+- Word Cloud section (words link to similarity pages)
+- Poem Index section (all poems organized by category, linked to chronological positions)
+
+---
+
+**ISSUE STATUS: ✅ COMPLETE**
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete
 - **Created**: 2026-01-21
+- **Completed**: 2026-01-21
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: 8-043 (word cloud), 8-030 (anchor links)

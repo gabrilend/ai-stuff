@@ -291,7 +291,7 @@ function generate_golden_collection_index(poems_data, output_dir)
     <meta name="description" content="Golden Poem Collection - Poetry perfectly formatted for fediverse sharing at exactly 1024 characters">
     <title>Golden Poem Collection - Perfect Fediverse Poetry</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <nav class="breadcrumb">
         <a href="../../index.html">Poetry Collection</a> > 
         <span>Golden Poems</span>
@@ -397,7 +397,7 @@ function generate_golden_similarity_browser(golden_poems, similarity_data, outpu
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golden Poems by Similarity</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <nav class="breadcrumb">
         <a href="../../index.html">Poetry Collection</a> > 
         <a href="index.html">Golden Poems</a> > 
@@ -549,7 +549,7 @@ function generate_golden_chronological_browser(golden_poems, output_dir)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golden Poems Chronologically</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <nav class="breadcrumb">
         <a href="../../index.html">Poetry Collection</a> > 
         <a href="index.html">Golden Poems</a> > 
@@ -624,7 +624,7 @@ function generate_random_golden_page(golden_poems, output_dir)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Random Golden Poems</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <nav class="breadcrumb">
         <a href="../../index.html">Poetry Collection</a> > 
         <a href="index.html">Golden Poems</a> > 

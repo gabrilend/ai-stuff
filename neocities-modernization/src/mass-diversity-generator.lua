@@ -193,7 +193,7 @@ function M.generate_diversity_chain_page(starting_poem_id, starting_poem, chain_
         }
     </style>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <nav class="breadcrumb">
         <a href="../../../index.html">Poetry Collection</a> → 
         <a href="../../index.html">Poems</a> → 
@@ -526,7 +526,7 @@ function M.generate_index_pages(generation_result, output_dir)
         }
     </style>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
     <h1>🎭 Diversity Chain Explorer</h1>
     
     <div class="description">

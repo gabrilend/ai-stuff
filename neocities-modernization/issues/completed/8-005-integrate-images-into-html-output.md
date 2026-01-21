@@ -224,23 +224,51 @@ Keep `style="max-width:100%; height:auto"` but fix why it's not working.
 
 ### Fix Location
 
-`src/flat-html-generator.lua` - `render_attachment_images()` function (lines 691-752)
+`src/flat-html-generator.lua` - `render_attachment_images()` function (lines 1158-1222)
 
 ### Verification
 
 After fix:
-- [ ] Images don't extend past screen edge on desktop
-- [ ] Images maintain reasonable aspect ratio
-- [ ] No inline CSS used (if following Option A/B)
+- [x] Images don't extend past screen edge on desktop
+- [x] Images maintain reasonable aspect ratio
+- [x] Inline CSS used (pragmatic exception approved by user)
 
 ---
 
-**ISSUE STATUS: 🔄 Re-opened (viewport overflow)**
+## Fix Applied: 2026-01-21 - Responsive Images with CSS
+
+### Solution Chosen: Option C (Pragmatic CSS Exception)
+
+After discussion, the user approved using inline CSS since there's no pure HTML way to make images responsive. The CSS-free constraint is maintained everywhere else.
+
+### Implementation
+
+Updated `render_attachment_images()` (lines 1195-1210) to add responsive styling:
+
+```lua
+-- Before (overflows viewport):
+'<img src="%s" alt="%s" loading="lazy" width="%d" height="%d">'
+
+-- After (responsive):
+'<img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="max-width:100%%; height:auto">'
+```
+
+### Why This Works
+
+- `max-width:100%` - Image never exceeds container width
+- `height:auto` - Maintains aspect ratio when width is constrained
+- `width`/`height` attributes - Browser reserves correct space before load (prevents layout shift)
+
+---
+
+**ISSUE STATUS: ✅ COMPLETE**
 
 **Created**: 2025-12-15
 
 **Completed**: 2025-12-23 (basic image integration)
 
 **Re-opened**: 2026-01-21 (images overflow viewport)
+
+**Re-completed**: 2026-01-21 (responsive CSS fix)
 
 **Phase**: 8 (Website Completion)

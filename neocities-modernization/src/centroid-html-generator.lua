@@ -193,7 +193,7 @@ local function generate_centroid_header(centroid_data, page_type, total_poems)
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>%s</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <pre>
 ================================================================================
                               %s
@@ -317,7 +317,7 @@ function M.generate_centroid_index_page(centroids_data)
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mood Exploration - Centroids</title>
 </head>
-<body>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <pre>
 ================================================================================
                             MOOD-BASED EXPLORATION

@@ -189,8 +189,103 @@ local function calculate_font_sizes(words)
 end
 -- }}}
 
+-- {{{ local function generate_poem_index
+-- Issue 8-046: Generate poem index section showing all poems by category
+local function generate_poem_index(poems_data)
+    if not poems_data or not poems_data.poems then
+        return ""
+    end
+
+    -- Group poems by category
+    local categories = {}
+    for _, poem in ipairs(poems_data.poems) do
+        local cat = poem.category or "unknown"
+        if not categories[cat] then
+            categories[cat] = {}
+        end
+        table.insert(categories[cat], poem)
+    end
+
+    -- Sort poems within each category by ID
+    for _, poems in pairs(categories) do
+        table.sort(poems, function(a, b)
+            return (a.id or 0) < (b.id or 0)
+        end)
+    end
+
+    -- Order categories: fediverse, notes, messages, bluesky, then others
+    local cat_order = {"fediverse", "notes", "messages", "bluesky"}
+    local ordered_cats = {}
+    for _, cat in ipairs(cat_order) do
+        if categories[cat] then
+            table.insert(ordered_cats, cat)
+        end
+    end
+    -- Add any remaining categories
+    for cat, _ in pairs(categories) do
+        local found = false
+        for _, c in ipairs(cat_order) do
+            if c == cat then found = true; break end
+        end
+        if not found then
+            table.insert(ordered_cats, cat)
+        end
+    end
+
+    -- Generate index HTML
+    local index_parts = {}
+    table.insert(index_parts, [[
+<hr>
+<h2>Poem Index</h2>
+<p>All poems organized by source category</p>
+<table align="center"><tr><td>
+<pre>
+]])
+
+    for _, cat in ipairs(ordered_cats) do
+        local poems = categories[cat]
+        table.insert(index_parts, string.format(
+            "\n<b>%s</b> (%d poems)\n",
+            cat:upper(), #poems
+        ))
+        table.insert(index_parts, string.rep("─", 60) .. "\n")
+
+        for _, poem in ipairs(poems) do
+            -- Get anchor and preview
+            local anchor_id = string.format("poem-%s-%04d", cat, poem.id or 0)
+            local content = poem.content or ""
+            content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+            local preview = content:gsub("\n", " "):sub(1, 40)
+            if #content > 40 then preview = preview .. "..." end
+
+            -- Get poem identifier
+            local identifier
+            if cat == "notes" and poem.source_file then
+                identifier = poem.source_file
+            else
+                identifier = tostring(poem.id or 0)
+            end
+
+            -- Link to chronological position
+            -- Note: Uses index.html for single-page or would need chrono_map for pagination
+            table.insert(index_parts, string.format(
+                '  <a href="chronological/index.html#%s">%s</a> - "%s"\n',
+                anchor_id, identifier, preview
+            ))
+        end
+    end
+
+    table.insert(index_parts, [[
+</pre>
+</td></tr></table>
+]])
+
+    return table.concat(index_parts)
+end
+-- }}}
+
 -- {{{ generate_wordcloud_html
-local function generate_wordcloud_html(words, output_dir)
+local function generate_wordcloud_html(words, output_dir, poems_data)
     -- Shuffle words for visual variety (not just sorted by size)
     local shuffled = {}
     for i, w in ipairs(words) do shuffled[i] = w end
@@ -202,7 +297,8 @@ local function generate_wordcloud_html(words, output_dir)
         shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
     end
 
-    -- Generate word spans
+    -- Generate word spans with links to similar pages
+    -- Issue 8-043: Each word links to wordcloud/{word}.html showing poems similar to that word
     local word_html = {}
     for _, entry in ipairs(shuffled) do
         -- Use font tag with size attribute (CSS-free)
@@ -211,37 +307,46 @@ local function generate_wordcloud_html(words, output_dir)
             bold_open, bold_close = "<b>", "</b>"
         end
 
+        -- Sanitize word for URL (lowercase, no special chars)
+        local safe_word = entry.word:lower():gsub("[^%w]", "")
+
+        -- Each word links to its similarity page
         table.insert(word_html, string.format(
-            '<font size="%d">%s%s%s</font>',
-            entry.font_size, bold_open, entry.word, bold_close
+            '<a href="wordcloud/%s.html"><font size="%d">%s%s%s</font></a>',
+            safe_word, entry.font_size, bold_open, entry.word, bold_close
         ))
     end
+
+    -- Generate poem index section (Issue 8-046)
+    local poem_index = generate_poem_index(poems_data)
 
     -- Generate HTML page
     local html = string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Word Cloud - Poetry Collection</title>
+<title>Menu - Poetry Collection</title>
 </head>
-<body bgcolor="#1a1a2e" text="#ffffff" link="#6cb4ee" vlink="#9370db" alink="#ff6b6b">
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 
 <center>
-<h1>Word Cloud</h1>
-<p>Words sized by frequency across %d poems</p>
-<p><a href="chronological/index.html">Back to Chronological Index</a></p>
+<h1>Menu</h1>
+<p><a href="chronological/index.html">Chronological Index</a></p>
 <hr>
+<h2>Word Cloud</h2>
+<p>Words sized by frequency across %d poems (click to explore similar poems)</p>
 <p>
 %s
 </p>
-<hr>
 <p><i>%d unique words shown (minimum %d occurrences)</i></p>
+%s
 </center>
 
 </body>
 </html>]], #words > 0 and words[1].total_poems or 0,
     table.concat(word_html, " &nbsp; "),
-    #shuffled, CONFIG.min_occurrences)
+    #shuffled, CONFIG.min_occurrences,
+    poem_index)
 
     -- Write file
     local output_file = output_dir .. "/" .. CONFIG.output_file
@@ -279,8 +384,8 @@ function M.generate_wordcloud(poems_data, output_dir)
         words[1].total_poems = #poems
     end
 
-    -- Generate HTML
-    return generate_wordcloud_html(words, output_dir)
+    -- Generate HTML (pass poems_data for poem index - Issue 8-046)
+    return generate_wordcloud_html(words, output_dir, poems_data)
 end
 -- }}}
 
