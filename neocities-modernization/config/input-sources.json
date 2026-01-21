@@ -1,4 +1,19 @@
 {
+  "_comment": "Neocities Modernization Configuration",
+  "_docs": "See Issue 10-003 for planned config consolidation",
+
+  "layout": {
+    "_comment": "Box drawing and progress bar dimensions (Issue 8-037)",
+    "regular_poem_width": 83,
+    "golden_poem_width": 85,
+    "text_content_width": 80,
+    "left_box_width": 11,
+    "right_box_width": 13,
+    "gap_width": 59,
+    "left_junction_pos": 10,
+    "right_junction_pos": 70
+  },
+
   "input_sources": {
     "fediverse_backup_path": "input/fediverse",
     "messages_backup_path": "input/messages", 
@@ -36,15 +51,16 @@
     "catalog_file": "assets/image-catalog.json"
   },
   "pagination": {
-    "_comment": "Settings for paginated similarity/diversity pages (chronological stays full)",
-    "_strategy": "Initial release: 200 poems per page, 1 page per anchor poem. Can be increased to 300, 600, etc. with additional pages as needed.",
+    "_comment": "Settings for paginated pages (Issue 9-003: Added chronological pagination)",
+    "_strategy": "200 poems per page for similarity/diversity, 500 for chronological (balances load time vs page count)",
     "poems_per_page": 200,
     "max_pages_per_poem": 1,
     "minimum_pages": 1,
     "page_number_padding": 2,
     "generate_txt_exports": true,
     "generate_html_archives": false,
-    "chronological_paginated": false
+    "chronological_paginated": true,
+    "chronological_poems_per_page": 500
   },
   "storage": {
     "_comment": "Budget constraints for 45GB Neocities limit",
