@@ -1182,7 +1182,8 @@ local function render_attachment_images(attachments)
             local img_src = base_path .. "/input/media_attachments/" .. (attachment.relative_path or "")
 
             -- Use alt text if available, otherwise generate generic description
-            local alt_text = attachment.alt_text or "Image attachment"
+            -- Issue 9-012: ActivityPub uses 'description' field for alt-text
+            local alt_text = attachment.description or attachment.alt_text or "Image attachment"
             -- Escape quotes in alt text for HTML attribute
             alt_text = alt_text:gsub('"', '&quot;')
 
