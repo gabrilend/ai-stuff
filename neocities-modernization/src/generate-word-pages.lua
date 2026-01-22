@@ -2,16 +2,18 @@
 
 -- {{{ generate-word-pages.lua
 -- Issue 8-043: Generate similarity pages for word cloud words
+-- Issue 8-043b: Separated into two stages for proper pipeline integration
+--
 -- For each word in the word cloud, generates a page showing poems ranked by
 -- their semantic similarity to that word's embedding.
 --
--- This is an expensive operation that:
--- 1. Generates embeddings for each word (via Ollama)
--- 2. Computes similarity between word and all 7797 poem embeddings
--- 3. Generates HTML pages in output/wordcloud/
+-- Modes:
+--   --embeddings-only   Stage 6: Generate word embeddings (expensive, via Ollama)
+--   --html-only         Stage 9: Generate HTML pages (fast, uses cached embeddings)
+--   (no flag)           Both stages (backward compatible)
 --
 -- Usage:
---   luajit src/generate-word-pages.lua [DIR]
+--   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only]
 --   luajit src/generate-word-pages.lua --help
 -- }}}
 
@@ -23,7 +25,29 @@ local function setup_dir_path(provided_dir)
     return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
 
-local DIR = setup_dir_path(arg and arg[1])
+-- Parse arguments, extracting DIR and mode flags
+local function parse_args(args)
+    local dir = nil
+    local mode = "both"  -- default: both embeddings and HTML
+
+    for i = 1, #(args or {}) do
+        local a = args[i]
+        if a == "--embeddings-only" then
+            mode = "embeddings"
+        elseif a == "--html-only" then
+            mode = "html"
+        elseif a == "--help" or a == "-h" then
+            mode = "help"
+        elseif a:sub(1, 1) ~= "-" then
+            dir = a
+        end
+    end
+
+    return dir, mode
+end
+
+local parsed_dir, RUN_MODE = parse_args(arg)
+local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
@@ -284,16 +308,17 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 end
 -- }}}
 
--- {{{ function M.generate_word_pages
-function M.generate_word_pages(options)
+-- {{{ function M.generate_word_embeddings
+-- Issue 8-043b: Stage 6 - Generate word embeddings only (expensive operation)
+-- Called during embedding generation stage of the pipeline
+function M.generate_word_embeddings(options)
     options = options or {}
-    local output_dir = options.output_dir or (DIR .. "/output")
 
     -- Check Ollama availability
     local endpoint = ollama_config.OLLAMA_ENDPOINT
     utils.log_info("Using Ollama endpoint: " .. endpoint)
 
-    -- Load poems
+    -- Load poems for word extraction
     local poems_file = utils.asset_path("poems.json")
     local poems_data = utils.read_json_file(poems_file)
     if not poems_data then
@@ -301,24 +326,6 @@ function M.generate_word_pages(options)
         return nil
     end
     utils.log_info(string.format("Loaded %d poems", #poems_data.poems))
-
-    -- Load poem embeddings
-    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
-    local embeddings_data = utils.read_json_file(embeddings_file)
-    if not embeddings_data then
-        utils.log_error("Could not load poem embeddings")
-        return nil
-    end
-    local poem_lookup = build_poem_embeddings_lookup(embeddings_data)
-    utils.log_info("Built poem embeddings lookup")
-
-    -- Build poem index lookup
-    local poems_by_index = {}
-    for _, poem in ipairs(poems_data.poems) do
-        if poem.poem_index then
-            poems_by_index[poem.poem_index] = poem
-        end
-    end
 
     -- Get word list
     local stop_words = load_stop_words()
@@ -333,7 +340,7 @@ function M.generate_word_pages(options)
     -- Generate embeddings for missing words
     for i, word in ipairs(words) do
         if not word_embeddings[word] then
-            io.write(string.format("\rGenerating embedding %d/%d: %s          ", i, #words, word))
+            io.write(string.format("\rGenerating word embedding %d/%d: %s          ", i, #words, word))
             io.flush()
 
             local embedding, status = generate_single_embedding(word, endpoint)
@@ -356,14 +363,67 @@ function M.generate_word_pages(options)
 
     -- Save final cache
     save_word_embeddings_cache(word_embeddings)
-    utils.log_info(string.format("Word embeddings: %d cached, %d generated", cache_hits, cache_misses))
+    utils.log_info(string.format("Word embeddings: %d cached, %d newly generated", cache_hits, cache_misses))
+
+    return cache_hits + cache_misses
+end
+-- }}}
+
+-- {{{ function M.generate_word_html
+-- Issue 8-043b: Stage 9 - Generate HTML pages only (requires existing embeddings)
+-- Called during HTML generation stage of the pipeline
+function M.generate_word_html(options)
+    options = options or {}
+    local output_dir = options.output_dir or (DIR .. "/output")
+
+    -- Load poems
+    local poems_file = utils.asset_path("poems.json")
+    local poems_data = utils.read_json_file(poems_file)
+    if not poems_data then
+        utils.log_error("Could not load poems.json")
+        return nil
+    end
+    utils.log_info(string.format("Loaded %d poems", #poems_data.poems))
+
+    -- Load poem embeddings
+    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
+    local embeddings_data = utils.read_json_file(embeddings_file)
+    if not embeddings_data then
+        utils.log_error("Could not load poem embeddings - run --generate-embeddings first")
+        return nil
+    end
+    local poem_lookup = build_poem_embeddings_lookup(embeddings_data)
+    utils.log_info("Built poem embeddings lookup")
+
+    -- Load word embeddings (must exist from Stage 6)
+    local word_embeddings = load_word_embeddings_cache()
+    local word_count = 0
+    for _ in pairs(word_embeddings) do word_count = word_count + 1 end
+
+    if word_count == 0 then
+        utils.log_error("No word embeddings found - run --embeddings-only first")
+        return nil
+    end
+    utils.log_info(string.format("Loaded %d word embeddings", word_count))
+
+    -- Build poem index lookup
+    local poems_by_index = {}
+    for _, poem in ipairs(poems_data.poems) do
+        if poem.poem_index then
+            poems_by_index[poem.poem_index] = poem
+        end
+    end
+
+    -- Get word list (same as embedding generation to ensure consistency)
+    local stop_words = load_stop_words()
+    local words = get_word_list(poems_data, stop_words, 5, 200, 3)
 
     -- Generate pages for each word
     local pages_generated = 0
     for i, word in ipairs(words) do
         local word_embedding = word_embeddings[word]
         if word_embedding then
-            io.write(string.format("\rGenerating page %d/%d: %s          ", i, #words, word))
+            io.write(string.format("\rGenerating word page %d/%d: %s          ", i, #words, word))
             io.flush()
 
             -- Compute similarity to all poems
@@ -389,6 +449,8 @@ function M.generate_word_pages(options)
             if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page) then
                 pages_generated = pages_generated + 1
             end
+        else
+            utils.log_warn(string.format("Missing embedding for word '%s', skipping", word))
         end
     end
     print("")  -- Newline after progress
@@ -398,28 +460,55 @@ function M.generate_word_pages(options)
 end
 -- }}}
 
+-- {{{ function M.generate_word_pages
+-- Backward compatible: generates both embeddings and HTML (original behavior)
+function M.generate_word_pages(options)
+    options = options or {}
+
+    -- Stage 1: Generate embeddings
+    local embed_count = M.generate_word_embeddings(options)
+    if not embed_count then
+        return nil
+    end
+
+    -- Stage 2: Generate HTML
+    return M.generate_word_html(options)
+end
+-- }}}
+
 -- {{{ function M.main
-function M.main()
-    return M.generate_word_pages()
+function M.main(mode)
+    mode = mode or RUN_MODE
+
+    if mode == "embeddings" then
+        return M.generate_word_embeddings()
+    elseif mode == "html" then
+        return M.generate_word_html()
+    else
+        return M.generate_word_pages()
+    end
 end
 -- }}}
 
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
-    if arg[1] == "--help" or arg[1] == "-h" then
-        print("Usage: luajit src/generate-word-pages.lua [DIR]")
+    if RUN_MODE == "help" then
+        print("Usage: luajit src/generate-word-pages.lua [DIR] [OPTIONS]")
         print("")
         print("Generates similarity pages for word cloud words.")
         print("For each word, creates a page showing poems ranked by semantic similarity.")
         print("")
         print("Options:")
-        print("  DIR      Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-        print("  --help   Show this help message")
+        print("  DIR               Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+        print("  --embeddings-only Generate word embeddings only (Stage 6 - expensive)")
+        print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
+        print("  --help            Show this help message")
         print("")
-        print("This is an expensive operation that:")
-        print("  1. Generates embeddings for each word (via Ollama)")
-        print("  2. Computes similarity to all poem embeddings")
-        print("  3. Generates HTML pages in output/wordcloud/")
+        print("Pipeline Integration (Issue 8-043b):")
+        print("  Stage 6 (Embeddings): luajit src/generate-word-pages.lua --embeddings-only")
+        print("  Stage 9 (HTML):       luajit src/generate-word-pages.lua --html-only")
+        print("")
+        print("Without flags, runs both stages (backward compatible).")
         os.exit(0)
     end
 

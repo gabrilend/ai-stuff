@@ -526,6 +526,7 @@ run_generate_embeddings() {
 
     if $DRY_RUN; then
         log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $DIR"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --embeddings-only"
         return 0
     fi
 
@@ -537,6 +538,12 @@ run_generate_embeddings() {
         echo "Error: Embedding generation failed" >&2
         echo "Make sure Ollama is running with the $MODEL_NAME model" >&2
         exit 1
+    }
+
+    # Issue 8-043b: Generate word embeddings (part of embedding stage)
+    log_info "   Generating word embeddings for word cloud..."
+    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only || {
+        echo "Warning: Word embedding generation failed, continuing..." >&2
     }
 }
 # }}}
@@ -886,12 +893,25 @@ run_generate_html() {
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only"
         return 0
     fi
 
     luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
         echo "Error: HTML generation failed" >&2
         exit 1
+    }
+
+    # Issue 8-043b: Generate word cloud pages (part of HTML stage)
+    log_info "   Generating word cloud menu..."
+    luajit "$DIR/src/wordcloud-generator.lua" "$DIR" || {
+        echo "Warning: Word cloud menu generation failed, continuing..." >&2
+    }
+
+    log_info "   Generating word similarity pages..."
+    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only || {
+        echo "Warning: Word similarity page generation failed, continuing..." >&2
     }
 }
 # }}}
