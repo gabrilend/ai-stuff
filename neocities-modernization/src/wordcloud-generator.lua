@@ -6,8 +6,12 @@
 -- where font size represents word frequency (or optionally, centroid similarity)
 --
 -- Usage:
---   luajit src/wordcloud-generator.lua [DIR]
+--   luajit src/wordcloud-generator.lua [DIR] [--all] [--words N]
 --   luajit src/wordcloud-generator.lua --help
+--
+-- Options:
+--   --all      Include all words (no max_words limit)
+--   --words N  Set maximum words to display (default: 200 from config)
 -- }}}
 
 -- {{{ Setup
@@ -18,7 +22,39 @@ local function setup_dir_path(provided_dir)
     return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
 
-local DIR = setup_dir_path(arg and arg[1])
+-- {{{ parse_args
+-- Parse command line arguments for DIR and word cloud options
+local function parse_args(args)
+    local dir = nil
+    local all_words = false
+    local max_words = nil  -- nil means use config default
+    local i = 1
+    while i <= #(args or {}) do
+        local a = args[i]
+        if a == "--all" then
+            all_words = true
+            i = i + 1
+        elseif a == "--words" then
+            max_words = tonumber(args[i + 1])
+            i = i + 2
+        elseif a:match("^--words=") then
+            max_words = tonumber(a:match("^--words=(.+)$"))
+            i = i + 1
+        elseif not a:match("^%-") then
+            -- Positional argument (DIR)
+            dir = a
+            i = i + 1
+        else
+            -- Skip unknown flags
+            i = i + 1
+        end
+    end
+    return dir, all_words, max_words
+end
+-- }}}
+
+local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS = parse_args(arg)
+local DIR = setup_dir_path(provided_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
@@ -36,9 +72,20 @@ local M = {}
 -- {{{ Configuration
 -- Issue 10-003: Load word_cloud config from unified config (including embedded stop_words)
 local wc = unified_config.word_cloud or {}
+
+-- Determine max_words: CLI --all > CLI --words > config
+local effective_max_words
+if CLI_ALL_WORDS then
+    effective_max_words = math.huge  -- No limit
+elseif CLI_MAX_WORDS then
+    effective_max_words = CLI_MAX_WORDS
+else
+    effective_max_words = wc.max_words or 200
+end
+
 local CONFIG = {
     min_occurrences = wc.min_occurrences or 5,
-    max_words = wc.max_words or 200,
+    max_words = effective_max_words,
     font_size_min = wc.font_size_min or 1,
     font_size_max = wc.font_size_max or 7,
     min_word_length = wc.min_word_length or 3,
@@ -370,14 +417,16 @@ end
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
     if arg[1] == "--help" or arg[1] == "-h" then
-        print("Usage: luajit src/wordcloud-generator.lua [DIR]")
+        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N]")
         print("")
         print("Generates a word cloud HTML page from the poetry collection.")
         print("Words are sized by frequency, with stop words filtered out.")
         print("")
         print("Options:")
-        print("  DIR      Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-        print("  --help   Show this help message")
+        print("  DIR        Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+        print("  --all      Include all words (no max_words limit)")
+        print("  --words N  Set maximum words to display (default: 200 from config)")
+        print("  --help     Show this help message")
         os.exit(0)
     end
 
