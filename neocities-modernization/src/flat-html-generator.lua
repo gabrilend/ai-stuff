@@ -2255,7 +2255,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <h1>Poetry Collection</h1>
 <p>Poems in true chronological order by post date</p>
 %s
-<p><a href="../wordcloud.html">Menu</a></p>
+<p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2276,7 +2276,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <center>
 <h1>Poetry Collection</h1>
 <p>All poems in true chronological order by post date</p>
-<p><a href="../wordcloud.html">Menu</a></p>
+<p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>

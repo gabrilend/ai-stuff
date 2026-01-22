@@ -294,7 +294,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <center>
 <h1>Poems similar to: <i>%s</i></h1>
 <p>Top %d poems ranked by semantic similarity</p>
-<p><a href="../wordcloud.html">Back to Word Cloud</a> | <a href="../chronological/index.html">Chronological</a></p>
+<p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Back to Word Cloud</a> | <a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/chronological/index.html">Chronological</a></p>
 </center>
 <hr>
 <table align="center"><tr><td>
