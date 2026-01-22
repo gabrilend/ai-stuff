@@ -440,8 +440,27 @@ The entire `config/` directory has been removed. All configuration is now in the
 | File | Purpose |
 |------|---------|
 | `config.lua` | Unified configuration (all settings) |
-| `excluded-poems.txt` | User-editable poem exclusion list |
-| `stop-words.txt` | User-editable word cloud stop words |
+| ~~`excluded-poems.txt`~~ | Embedded in config.lua `excluded_poems` section |
+| ~~`stop-words.txt`~~ | Embedded in config.lua `word_cloud.stop_words` array |
+
+### Text File Embedding (2026-01-21)
+
+The remaining separate text files have been embedded directly into `config.lua`:
+
+1. **`excluded-poems.txt`** → `config.lua` `excluded_poems` section
+   - Now a Lua table with category keys: `fediverse`, `notes`, `messages`, `bluesky`
+   - Each category contains an array of excluded IDs
+   - `libs/exclusion-filter.lua` updated to load from config
+
+2. **`stop-words.txt`** → `config.lua` `word_cloud.stop_words` array
+   - Now a Lua array of ~200 stop words
+   - `src/wordcloud-generator.lua` updated to use embedded array
+   - `src/generate-word-pages.lua` updated to use embedded array
+
+3. **Cleanup**
+   - `generate-site.lua` moved to `demos/`
+   - `package-lock.json` deleted (empty npm artifact)
+   - `temp/extract-*` directories cleaned (freed 2.3GB)
 
 ### Success Criteria
 
@@ -452,6 +471,8 @@ The entire `config/` directory has been removed. All configuration is now in the
 - [x] Stale options resolved (removed as unnecessary)
 - [x] Documentation updated in issue file
 - [x] `config/` directory removed - all config files in project root
+- [x] Text files (excluded-poems, stop-words) embedded in config.lua
+- [x] Project cleanup (demos, temp directories)
 
 ---
 

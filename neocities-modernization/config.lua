@@ -59,6 +59,36 @@ return {
     },
     -- }}}
 
+    -- {{{ excluded_poems
+    -- Issue 6-031: Poems to exclude from the collection during extraction.
+    -- Excluded poems leave gaps in the ID sequence (tombstoning) - they don't
+    -- shift other poem IDs down, preserving stable anchor links.
+    -- Read by: libs/exclusion-filter.lua
+    --
+    -- ID Formats by Category:
+    --   fediverse: Numeric post ID from ActivityPub (e.g., "113847291038475")
+    --   notes:     Filename without extension (e.g., "what-a-lame-movie")
+    --   messages:  Numeric message index (e.g., "42")
+    --   bluesky:   AT Protocol record key (e.g., "3k...abc")
+    --
+    -- Finding poem IDs:
+    --   Browse chronological.html, search poems.json, or grep generated HTML
+    excluded_poems = {
+        fediverse = {
+            -- Add fediverse post IDs here, e.g.: "113847291038475"
+        },
+        notes = {
+            -- Add note filenames here (without extension), e.g.: "test-post-please-ignore"
+        },
+        messages = {
+            -- Add message indices here, e.g.: "42"
+        },
+        bluesky = {
+            -- Add bluesky record keys here
+        }
+    },
+    -- }}}
+
     -- {{{ privacy
     -- Anonymization settings for public deployment. In "clean" mode, usernames
     -- are replaced with sequential identifiers (user-1, user-2...) to prevent
@@ -195,13 +225,66 @@ return {
     -- Read by: src/wordcloud-generator.lua
     word_cloud = {
         enabled = true,
-        stop_words_file = "stop-words.txt",  -- Editable filter list (project root)
         output_file = "wordcloud.html",
         min_occurrences = 5,        -- Minimum times a word must appear
         max_words = 200,            -- Maximum words to display (0 = unlimited)
         min_word_length = 3,        -- Ignore words shorter than this
         font_size_min = 1,          -- HTML font tag: 1-7 scale
-        font_size_max = 7
+        font_size_max = 7,
+
+        -- Stop words: common words to exclude from word cloud
+        -- Organized by category for easy editing
+        stop_words = {
+            -- Anonymization artifacts (from privacy processing)
+            "user", "users",
+            -- Contraction fragments (from apostrophe removal)
+            "don", "doesn", "didn", "isn", "aren", "wasn", "weren",
+            "wouldn", "couldn", "shouldn", "haven", "hasn", "hadn", "won",
+            -- URL/Technical artifacts
+            "https", "http", "www", "com", "org", "net",
+            -- Articles
+            "a", "an", "the",
+            -- Pronouns
+            "i", "me", "my", "mine", "myself", "you", "your", "yours", "yourself",
+            "he", "him", "his", "himself", "she", "her", "hers", "herself",
+            "it", "its", "itself", "we", "us", "our", "ours", "ourselves",
+            "they", "them", "their", "theirs", "themselves",
+            "who", "whom", "whose", "which", "what", "that", "this", "these", "those",
+            -- Prepositions
+            "in", "on", "at", "to", "for", "of", "with", "by", "from", "up", "down",
+            "out", "into", "over", "under", "through", "between", "among",
+            "about", "after", "before", "during", "without", "within",
+            -- Conjunctions
+            "and", "or", "but", "nor", "so", "yet", "because", "although",
+            "while", "if", "when", "where", "as", "than",
+            -- Auxiliary verbs
+            "is", "are", "was", "were", "be", "been", "being", "am",
+            "have", "has", "had", "having", "do", "does", "did", "doing",
+            "will", "would", "could", "should", "may", "might", "must", "shall", "can",
+            -- Common verbs
+            "get", "got", "go", "went", "gone", "come", "came", "make", "made",
+            "take", "took", "taken", "see", "saw", "seen", "know", "knew", "known",
+            "think", "thought", "say", "said", "give", "gave", "given",
+            "find", "found", "tell", "told", "feel", "felt", "become", "became",
+            "leave", "left", "put", "keep", "kept", "let", "begin", "began", "begun",
+            "seem", "seemed", "help", "helped", "show", "showed", "shown",
+            "hear", "heard", "turn", "turned", "start", "started", "run", "ran", "move", "moved",
+            -- Common adverbs
+            "very", "really", "just", "also", "too", "still", "even", "now", "then",
+            "here", "there", "always", "never", "often", "sometimes", "already",
+            "again", "ever", "soon", "only",
+            -- Question words
+            "how", "why",
+            -- Other common words
+            "all", "some", "any", "no", "not", "more", "most", "other", "such",
+            "own", "same", "like", "well", "way", "back", "much", "many",
+            "new", "good", "first", "last", "long", "great", "little", "old",
+            "right", "big", "high", "different", "small", "large", "next", "early",
+            "young", "important", "few", "public", "bad", "enough", "able", "sure",
+            "thing", "things", "people", "time", "year", "years", "day", "days",
+            "world", "life", "man", "woman", "men", "women", "child", "children",
+            "something", "nothing", "everything", "someone", "anyone", "everyone"
+        }
     },
     -- }}}
 
