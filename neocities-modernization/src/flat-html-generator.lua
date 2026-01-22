@@ -101,8 +101,9 @@ local STORAGE_CONFIG = {
 local LAYOUT = {
     -- Total visible width for regular poems (positions 0-82)
     REGULAR_POEM_WIDTH = 83,
-    -- Total visible width for golden poems (has ║ on left AND │ on right = +2)
-    GOLDEN_POEM_WIDTH = 85,
+    -- Total visible width for golden poems: 84 chars
+    -- Structure: ╔ (1) + interior (82) + ┐ (1) = 84
+    GOLDEN_POEM_WIDTH = 84,
     -- Maximum text content width (80 chars + 1 space padding on left)
     TEXT_CONTENT_WIDTH = 80,
 
@@ -115,13 +116,13 @@ local LAYOUT = {
     REGULAR_LEFT_JUNCTION_POS = 10,   -- Position of ┐/┴ under left box
     REGULAR_RIGHT_JUNCTION_POS = 70,  -- Position of ┌/┴ under right box
 
-    -- Golden poem nav box positions (within 85-char line):
-    -- Additional ║ on left (pos 0) and │ on right (pos 84) shift everything by 1
+    -- Golden poem nav box positions (within 84-char line):
+    -- Structure: ║ (1) + content (80) + space (1) + │ (1) = 83 interior + corners
     GOLDEN_LEFT_BOX_WIDTH = 11,
     GOLDEN_RIGHT_BOX_WIDTH = 13,
-    GOLDEN_GAP_WIDTH = 59,
-    GOLDEN_LEFT_JUNCTION_POS = 9,     -- Shifted left by 1 due to ║
-    GOLDEN_RIGHT_JUNCTION_POS = 70,   -- Position within golden layout
+    GOLDEN_GAP_WIDTH = 58,            -- 84 - 2 corners - 11 - 13 = 58
+    GOLDEN_LEFT_JUNCTION_POS = 9,     -- Position within interior
+    GOLDEN_RIGHT_JUNCTION_POS = 69,   -- Position within interior (was 70, now 69 for 84-char width)
 }
 
 -- {{{ function load_layout_from_config
@@ -726,9 +727,11 @@ end
 
 -- {{{ function generate_progress_dashes
 local function generate_progress_dashes(progress_info, color_name, is_golden, position, has_corner_boxes)
-    -- For golden poems: 83 chars interior (+ 2 corners = 85 total)
+    -- For golden poems: 82 chars interior (+ 2 corners = 84 total)
     -- For regular poems: 83 chars total (positions 0-82)
-    local total_chars = 83
+    -- Golden poems have corner characters (╔/┐ or ╚/┘) that add 2 to the width,
+    -- so interior needs to be 1 less to maintain 84-char total alignment
+    local total_chars = is_golden and 82 or 83
     local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
     local remaining_chars = total_chars - progress_chars
 
@@ -736,11 +739,11 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
     local hex_color = COLOR_CONFIG[color_name] or COLOR_CONFIG["gray"]
 
     -- For golden bottom borders with corner boxes, we need to insert junction characters
-    -- Junction positions in the 83-char interior (0-indexed):
+    -- Junction positions in the 82-char interior (0-indexed):
     -- - Position 9: "similar" box wall (uses ╧ if in ═ section, ┴ if in ─ section)
-    -- - Position 70: "different" box wall (uses ╧ if in ═ section, ┴ if in ─ section)
+    -- - Position 69: "different" box wall (uses ╧ if in ═ section, ┴ if in ─ section)
     local LEFT_JUNCTION_POS = 9   -- After "║ similar │" (11 chars, minus corner = 10, 0-indexed = 9)
-    local RIGHT_JUNCTION_POS = 70  -- Before "│ different │"
+    local RIGHT_JUNCTION_POS = 69  -- Before "│ different │" (adjusted from 70 for 84-char total)
 
     -- Junction positions for regular poems (different from golden due to no outer walls)
     -- Regular corner boxes: ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
@@ -1208,8 +1211,10 @@ local function render_attachment_images(attachments)
         return ""
     end
 
-    -- Return with newline prefix/suffix for proper spacing in poem layout
-    return "\n" .. table.concat(image_html, "\n") .. "\n"
+    -- Issue 8-005 Fix: Close </pre> before images, reopen after
+    -- Images inside <pre> don't respect max-width:100% because <pre> sizes to content
+    -- By closing </pre>, images inherit width constraints from the parent <td> container
+    return "\n</pre>\n" .. table.concat(image_html, "\n") .. "\n<pre>\n"
 end
 -- }}}
 
@@ -2250,7 +2255,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <h1>Poetry Collection</h1>
 <p>Poems in true chronological order by post date</p>
 %s
-<p><a href="wordcloud.html">Menu</a></p>
+<p><a href="../wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2271,7 +2276,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <center>
 <h1>Poetry Collection</h1>
 <p>All poems in true chronological order by post date</p>
-<p><a href="wordcloud.html">Menu</a></p>
+<p><a href="../wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2850,20 +2855,23 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local chrono_info = chrono_map[poem_idx] or {position = 1, page_number = 1, total_poems = 1, total_pages = 1}
                     local progress_pct = (chrono_info.position / chrono_info.total_poems) * 100
 
-                    -- Calculate progress bar chars (83 total, positions 0-82)
-                    local progress_chars = math.floor((progress_pct / 100) * 83)
-                    local remaining_chars = 83 - progress_chars
+                    -- Calculate progress bar chars
+                    -- Golden: 82 interior chars + 2 corners = 84 total
+                    -- Regular: 83 chars total (no corners on top bar)
+                    local total_bar_chars = is_golden and 82 or 83
+                    local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
+                    local remaining_chars = total_bar_chars - progress_chars
 
                     -- Build progress bar with color
-                    -- Issue 8-044: Golden poems get ╔ corner, regular poems get no corner on top bar
+                    -- Issue 8-044: Golden poems get ╔ corner + bar + ┐ corner
                     local progress_section = string.rep("═", progress_chars)
                     local remaining_section = string.rep("─", remaining_chars)
                     local colored_progress
                     if is_golden then
-                        -- Golden: ╔═══════════────────────
-                        local corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
-                        colored_progress = corner .. string.format('<font color="%s"><b>%s</b></font>%s',
-                            hex_color, progress_section, remaining_section)
+                        -- Golden: ╔═══════════────────────┐ (84 chars total)
+                        local left_corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
+                        colored_progress = left_corner .. string.format('<font color="%s"><b>%s</b></font>%s',
+                            hex_color, progress_section, remaining_section) .. "┐"
                     else
                         colored_progress = string.format('<font color="%s"><b>%s</b></font>%s',
                             hex_color, progress_section, remaining_section)
@@ -2954,28 +2962,32 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     end
 
                     -- Issue 8-044: Apply golden side borders to content lines
-                    -- Golden poems get ║ (colored) on left and │ on right, with 80-char content area
+                    -- Golden poems get ║ (colored) on left and │ on right
+                    -- Total width: ║ (1) + space (1) + 80 chars content + space (1) + │ (1) = 84 total
                     if is_golden then
                         local golden_lines = {}
                         local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
                         local CONTENT_WIDTH = 80
 
                         for _, line in ipairs(wrapped_lines) do
-                            -- Calculate visible length (excluding HTML tags)
-                            local visible_line = line:gsub("<[^>]+>", "")
-                            local visible_length = #visible_line
+                            -- Strip the leading space that word-wrap added (we'll add our own)
+                            local content = line:match("^%s*(.*)$") or line
 
-                            -- Pad to content width
-                            local padded_line
+                            -- Calculate visible length (excluding HTML tags)
+                            local visible_content = content:gsub("<[^>]+>", "")
+                            local visible_length = #visible_content
+
+                            -- Pad content to 80 chars
+                            local padded_content
                             if visible_length >= CONTENT_WIDTH then
-                                padded_line = line
+                                padded_content = content
                             else
                                 local padding_needed = CONTENT_WIDTH - visible_length
-                                padded_line = line .. string.rep(" ", padding_needed)
+                                padded_content = content .. string.rep(" ", padding_needed)
                             end
 
-                            -- Add side borders: ║ (colored) content │
-                            table.insert(golden_lines, colored_wall .. " " .. padded_line .. " │")
+                            -- Add side borders: ║ + space + 80 chars + space + │ = 84 total
+                            table.insert(golden_lines, colored_wall .. " " .. padded_content .. " │")
                         end
                         wrapped_lines = golden_lines
                     end
@@ -2997,7 +3009,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local nav_top, nav_mid
 
                     if is_golden then
-                        -- Golden: ╟─────────┐ (separator line)  + gap + ┌───────────┤
+                        -- Golden nav box: 84 chars total
+                        -- ╟─────────┐ (11 chars) + gap (58) + ┌───────────┤ (14 chars) = 84 total (includes outer walls)
+                        -- But corners ╟ and ┤ are part of the structure
                         local colored_corner = string.format('<font color="%s"><b>╟</b></font>', hex_color)
                         local left_sep = colored_corner
                         for i = 1, 9 do
@@ -3005,21 +3019,24 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         end
                         left_sep = left_sep .. color_char("┐", 10)
 
-                        local right_sep = color_char("┌", 70)
-                        for i = 71, 81 do
+                        -- Right separator: positions 69-81 for 84-char total width
+                        local right_sep = color_char("┌", 69)
+                        for i = 70, 80 do
                             right_sep = right_sep .. color_char("─", i)
                         end
-                        right_sep = right_sep .. color_char("┤", 82)
+                        right_sep = right_sep .. color_char("┤", 81)
 
-                        nav_top = left_sep .. string.rep(" ", 59) .. right_sep
+                        -- Gap: 84 - 11 (left) - 14 (right) = 58 chars (adjusted for 84-char total)
+                        nav_top = left_sep .. string.rep(" ", 58) .. right_sep
 
                         -- Golden nav line: ║ similar │ + gap + chronological + gap + │ different ┤
                         local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
                         local right_wall_of_left = color_char("│", 10)
-                        local left_wall_of_right = color_char("│", 70)
-                        local right_end = color_char("┤", 82)
+                        local left_wall_of_right = color_char("│", 69)
+                        local right_end = color_char("┤", 81)
 
-                        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
+                        -- Gap calculation: 58 total gap - 14 (chronological link) = 44, split: 22 + 22
+                        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 22) .. chrono_link .. string.rep(" ", 22) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
                     else
                         -- Regular: ┌─────────┐ + gap + ┌───────────┐
                         local left_top = {}
@@ -3049,10 +3066,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Bottom line with progress bar and junction characters
                     -- Structure: ╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
-                    -- Junction positions: 10 (after similar box) and 70 (before different box)
-                    local TOTAL_CHARS = 83
-                    local LEFT_JUNCTION = 10
-                    local RIGHT_JUNCTION = 70
+                    -- Golden: 82 interior + 2 corners = 84 total, junctions at 9 and 69
+                    -- Regular: 83 total, junctions at 10 and 70
+                    local TOTAL_CHARS = is_golden and 82 or 83
+                    local LEFT_JUNCTION = is_golden and 9 or 10
+                    local RIGHT_JUNCTION = is_golden and 69 or 70
 
                     local left_in_progress = LEFT_JUNCTION < progress_chars
                     local right_in_progress = RIGHT_JUNCTION < progress_chars
@@ -3098,7 +3116,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Build formatted output
                     local output = {}
-                    table.insert(output, colored_progress)  -- Top progress bar (83 chars)
+                    table.insert(output, colored_progress)  -- Top progress bar (golden: 84 chars, regular: 83 chars)
                     table.insert(output, table.concat(wrapped_lines, "\n"))  -- Content with preserved newlines
 
                     -- Issue 8-040: Render attached images if present (from ActivityPub extraction)
@@ -3107,8 +3125,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
 
                     -- Helper function to render a list of attachments
+                    -- Issue 8-005 Fix: Images rendered outside <pre> for proper max-width:100% behavior
                     local function render_attachments(attachments)
-                        if not attachments then return end
+                        if not attachments then return false end
+                        local has_images = false
                         for _, attachment in ipairs(attachments) do
                             local media_type = attachment.media_type or ""
                             if media_type:match("^image/") then
@@ -3117,7 +3137,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                                 -- Escape quotes in alt text
                                 alt_text = alt_text:gsub('"', '&quot;')
                                 local img_tag = string.format(
-                                    '  <img src="%s" alt="%s" loading="lazy"',
+                                    '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto"',
                                     img_src, alt_text
                                 )
                                 -- Add dimensions if available
@@ -3126,27 +3146,59 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                                 end
                                 img_tag = img_tag .. '>'
                                 table.insert(output, img_tag)
+                                has_images = true
+                            end
+                        end
+                        return has_images
+                    end
+
+                    -- Check if we have any images to render
+                    local has_any_images = false
+                    local image_attachments = {}
+                    if poem.attachments and #poem.attachments > 0 then
+                        for _, att in ipairs(poem.attachments) do
+                            if (att.media_type or ""):match("^image/") then
+                                table.insert(image_attachments, att)
+                                has_any_images = true
+                            end
+                        end
+                    end
+                    if poem.associated_images and #poem.associated_images > 0 then
+                        for _, assoc in ipairs(poem.associated_images) do
+                            if assoc.attachments then
+                                for _, att in ipairs(assoc.attachments) do
+                                    if (att.media_type or ""):match("^image/") then
+                                        table.insert(image_attachments, att)
+                                        has_any_images = true
+                                    end
+                                end
                             end
                         end
                     end
 
-                    -- Render poem's own attachments
-                    if poem.attachments and #poem.attachments > 0 then
-                        render_attachments(poem.attachments)
-                    end
-
-                    -- Issue 9-004: Render associated images from image-only posts
-                    -- These are images from posts that were too minimal to embed on their own
-                    -- They are associated with this poem based on timestamp proximity
-                    if poem.associated_images and #poem.associated_images > 0 then
-                        for _, assoc in ipairs(poem.associated_images) do
-                            render_attachments(assoc.attachments)
+                    -- If there are images, close </pre>, render them, reopen <pre>
+                    if has_any_images then
+                        table.insert(output, "</pre>")
+                        for _, attachment in ipairs(image_attachments) do
+                            local img_src = base_path .. "/input/media_attachments/" .. (attachment.relative_path or "")
+                            local alt_text = attachment.description or attachment.alt_text or "Image attachment"
+                            alt_text = alt_text:gsub('"', '&quot;')
+                            local img_tag = string.format(
+                                '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto"',
+                                img_src, alt_text
+                            )
+                            if attachment.width and attachment.height then
+                                img_tag = img_tag .. string.format(' width="%d" height="%d"', attachment.width, attachment.height)
+                            end
+                            img_tag = img_tag .. '>'
+                            table.insert(output, img_tag)
                         end
+                        table.insert(output, "<pre>")
                     end
 
-                    table.insert(output, nav_top)  -- Nav box top (83 chars)
-                    table.insert(output, nav_mid)  -- Nav box middle (83 chars visible)
-                    table.insert(output, bottom_line)  -- Bottom with junctions (83 chars)
+                    table.insert(output, nav_top)  -- Nav box top (golden: 84, regular: 83 chars)
+                    table.insert(output, nav_mid)  -- Nav box middle
+                    table.insert(output, bottom_line)  -- Bottom with junctions
 
                     return table.concat(output, "\n")
                 end
