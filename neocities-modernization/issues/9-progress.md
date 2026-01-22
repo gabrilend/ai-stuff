@@ -30,7 +30,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004a | GPU-accelerate maze algorithm | Open | Low |
-| 9-004b | Image-only post timestamp association | ✅ Complete | Medium |
+| 9-010 | Fix image repetition in associated posts | ✅ Complete | High |
 
 ### Completed Issues
 
@@ -46,16 +46,18 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-003a | Remove unnecessary centroid division from source files | Completed | 2025-12-25 |
 | 9-005 | Integrate GPU diversity cache into pipeline | Completed | 2026-01-17 |
 | 9-005b | URL switching helper script (local ↔ production) | Completed | 2026-01-18 |
-| 9-004b | Image-only post timestamp association | Completed | 2026-01-21 |
+| 9-004b | Image-only post timestamp association | Superseded by 9-010 | 2026-01-21 |
+| 9-010 | Fix image repetition in associated posts | Completed | 2026-01-21 |
 
-**9-004b: Image-Only Post Timestamp Association** - COMPLETED (2026-01-21)
-- ✅ Added `associate_image_only_posts()` to `src/poem-extractor.lua`
-- ✅ Identifies image-only posts (content ≤ 10 chars with attachments)
-- ✅ Finds nearest text poem by timestamp using binary search
-- ✅ Adds `associated_images` array to parent poems
-- ✅ Marks image-only posts with `is_image_only_associated = true`
-- ✅ 71 image-only posts associated with 69 parent poems
-- ✅ Bumped extraction_version to 2.2
+**9-010: Fix Image Repetition in Associated Posts** - COMPLETED (2026-01-21)
+- ✅ Removed `associated_images` rendering from `flat-html-generator.lua` (3 locations)
+- ✅ Replaced `associate_image_only_posts()` with `mark_image_only_posts()` in `poem-extractor.lua`
+- ✅ Added `assign_nearest_text_poem_index()` for embedding lookup
+- ✅ Added `inherit_embedding()` function to `similarity-engine.lua`
+- ✅ Image-only posts now inherit embedding from nearest text poem
+- ✅ Images appear only on their original post (no duplication)
+- ✅ 68 image-only posts detected and linked for embedding inheritance
+- ✅ Bumped extraction_version to 2.3 with `embedding_inheritance` feature
 
 ## Target Hardware
 

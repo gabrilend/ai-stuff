@@ -1723,16 +1723,9 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
 
     -- Render attached images if present (from ActivityPub extraction)
     -- Images appear after poem content, before navigation links
+    -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
     if poem.attachments then
         formatted = formatted .. render_attachment_images(poem.attachments)
-    end
-
-    -- Issue 9-004: Render associated images from image-only posts
-    -- These are images from posts that were too minimal to embed on their own
-    if poem.associated_images then
-        for _, assoc in ipairs(poem.associated_images) do
-            formatted = formatted .. render_attachment_images(assoc.attachments)
-        end
     end
 
     -- For golden poems, content already includes nav in corner boxes
@@ -2350,15 +2343,9 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
             content = content .. formatted_content
 
             -- Add images if present
+            -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
             if poem.attachments and #poem.attachments > 0 then
                 content = content .. render_attachment_images(poem.attachments)
-            end
-
-            -- Issue 9-004: Add associated images from image-only posts
-            if poem.associated_images and #poem.associated_images > 0 then
-                for _, assoc in ipairs(poem.associated_images) do
-                    content = content .. render_attachment_images(assoc.attachments)
-                end
             end
 
             -- Add navigation box for regular poems
@@ -3153,6 +3140,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     end
 
                     -- Check if we have any images to render
+                    -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
                     local has_any_images = false
                     local image_attachments = {}
                     if poem.attachments and #poem.attachments > 0 then
@@ -3160,18 +3148,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             if (att.media_type or ""):match("^image/") then
                                 table.insert(image_attachments, att)
                                 has_any_images = true
-                            end
-                        end
-                    end
-                    if poem.associated_images and #poem.associated_images > 0 then
-                        for _, assoc in ipairs(poem.associated_images) do
-                            if assoc.attachments then
-                                for _, att in ipairs(assoc.attachments) do
-                                    if (att.media_type or ""):match("^image/") then
-                                        table.insert(image_attachments, att)
-                                        has_any_images = true
-                                    end
-                                end
                             end
                         end
                     end
