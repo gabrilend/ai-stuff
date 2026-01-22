@@ -188,11 +188,48 @@ These should probably NOT be treated as golden (they weren't golden when posted)
 
 **Result**: All 431 golden poems (per metadata) will now render with proper golden formatting on both chronological AND similar/different pages.
 
+### 2026-01-21: Re-opened - Multiple alignment issues
+
+**Issues found:**
+1. Bottom progress bar right junction off by one (position 69 should be 70)
+2. Similar/different pages: nav box gap too small (58 chars, should be 60)
+3. Similar/different pages: nav line uses `┤` instead of `│` for right end
+4. Content warning lines not padded correctly (UTF-8 byte counting bug)
+
+**Fixes applied to `src/flat-html-generator.lua`:**
+
+1. **LAYOUT constant (line 125)**: Changed `GOLDEN_RIGHT_JUNCTION_POS = 69` → `70`
+
+2. **Main scope junction (line 746)**: Changed `RIGHT_JUNCTION_POS = 69` → `70`
+
+3. **Effil worker junction (line 3085)**: Changed `RIGHT_JUNCTION = is_golden and 69` → `70`
+
+4. **Effil worker nav top (lines 3023-3042)**:
+   - Gap changed from 58 → 60 chars
+   - Right box positions changed from 69-81 → 71-83
+
+5. **Effil worker nav line (lines 3044-3052)**:
+   - Right end changed from `┤` → `│` (separator uses ┤, nav uses │)
+   - Gap calculation changed from 22+22 → 23+23
+   - Right wall position changed from 69 → 71
+
+6. **UTF-8 character counting (lines 1559-1564, 2984-2989)**:
+   - Added `utf8_char_count()` helper function in both scopes
+   - Box-drawing chars are 3 bytes but 1 character; `#str` counted bytes
+   - Fix: Remove UTF-8 continuation bytes (0x80-0xBF) before counting
+
+**Root causes:**
+- Junction position 69 was incorrect for 60-char gap (should align with ┌ at position 71)
+- Effil worker used inconsistent gap (58 vs main scope's 60)
+- `#string` counts bytes in Lua, not UTF-8 characters
+
 ## Metadata
 
 - **Status**: ✅ Complete
 - **Created**: 2026-01-21
 - **Completed**: 2026-01-21
+- **Re-opened**: 2026-01-21 (alignment issues)
+- **Re-completed**: 2026-01-21 (junction, gap, and UTF-8 fixes)
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: None
