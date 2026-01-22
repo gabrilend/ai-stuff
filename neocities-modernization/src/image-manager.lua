@@ -20,6 +20,11 @@ package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local utils = require("utils")
 
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
@@ -37,22 +42,9 @@ end
 local M = {}
 
 -- {{{ function load_config
+-- Issue 10-003: Use unified config instead of input-sources.json
 local function load_config()
-    local config_file = DIR .. "/config/input-sources.json"
-    local file = io.open(config_file, "r")
-    if not file then
-        error("Could not open config file: " .. config_file)
-    end
-    
-    local content = file:read("*a")
-    file:close()
-    
-    local config, pos, err = dkjson.decode(content, 1, nil)
-    if err then
-        error("Failed to parse config file: " .. err)
-    end
-    
-    return config.image_integration or {}
+    return unified_config.image_integration or {}
 end
 -- }}}
 

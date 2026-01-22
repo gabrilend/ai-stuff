@@ -44,13 +44,15 @@ end
 local DIR = setup_dir_path(arg and arg[1])
 local OVERRIDE_SOURCE = arg and arg[2] -- Optional override for temporary extraction
 
--- Load configuration or use defaults  
-local config_file = DIR .. "/config/input-sources.json"
-
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local exclusion_filter = require("exclusion-filter")
+
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local config = config_loader.load()
 
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
@@ -70,37 +72,19 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Load privacy configuration
-local privacy_config = {
-    mode = "clean",
-    anonymization_prefix = "user-",
-    include_boosts = false,
-    preserve_original_length = true,
-    store_anonymization_map = false,
-    local_server_domain = "tech.lgbt",
-    debug_anonymization = false  -- Set to true to debug anonymization mappings
-}
+-- Load configuration from unified config
+local fediverse_backup_path = config.input_sources.fediverse_backup_path or "input/fediverse"
 
-local fediverse_backup_path = "input/fediverse"
-if io.open(config_file, "r") then
-    local config_handle = io.open(config_file, "r")
-    local config_content = config_handle:read("*a")
-    config_handle:close()
-    
-    local config_data = dkjson.decode(config_content)
-    if config_data then
-        if config_data.input_sources and config_data.input_sources.fediverse_backup_path then
-            fediverse_backup_path = config_data.input_sources.fediverse_backup_path
-        end
-        
-        -- Load privacy configuration
-        if config_data.privacy then
-            for key, value in pairs(config_data.privacy) do
-                privacy_config[key] = value
-            end
-        end
-    end
-end
+-- Privacy configuration from unified config
+local privacy_config = {
+    mode = config.privacy.mode or "clean",
+    anonymization_prefix = config.privacy.anonymization_prefix or "user-",
+    include_boosts = config.privacy.include_boosts or false,
+    preserve_original_length = config.privacy.preserve_original_length or true,
+    store_anonymization_map = config.privacy.store_anonymization_map or false,
+    local_server_domain = config.privacy.local_server_domain or "tech.lgbt",
+    debug_anonymization = false  -- Debug flag, not in config
+}
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path
 local source_base_path

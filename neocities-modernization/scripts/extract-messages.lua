@@ -15,13 +15,15 @@ end
 local DIR = setup_dir_path(arg and arg[1])
 local OVERRIDE_SOURCE = arg and arg[2] -- Optional override for temporary extraction
 
--- Load configuration or use defaults
-local config_file = DIR .. "/config/input-sources.json"
-
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local exclusion_filter = require("exclusion-filter")
+
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local config = config_loader.load()
 
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
@@ -41,17 +43,8 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
-local messages_backup_path = "input/messages"
-if io.open(config_file, "r") then
-    local config_handle = io.open(config_file, "r")
-    local config_content = config_handle:read("*a")
-    config_handle:close()
-    
-    local config_data = dkjson.decode(config_content)
-    if config_data and config_data.input_sources and config_data.input_sources.messages_backup_path then
-        messages_backup_path = config_data.input_sources.messages_backup_path
-    end
-end
+-- Load configuration from unified config
+local messages_backup_path = config.input_sources.messages_backup_path or "input/messages"
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path
 local source_base_path
