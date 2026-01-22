@@ -261,6 +261,55 @@ Updated `render_attachment_images()` (lines 1195-1210) to add responsive styling
 
 ---
 
+---
+
+## Re-opened Again: 2026-01-21 - CSS Still Not Working
+
+### Problem: max-width:100% Not Constraining Images
+
+The `style="max-width:100%; height:auto"` CSS was present but not working. Images still overflowed the viewport.
+
+### Root Cause
+
+Images were rendered **inside** `<pre>` tags:
+```html
+<table align="center"><tr><td>
+<pre>
+[poem content]
+<img src="..." style="max-width:100%; height:auto">
+[nav links]
+</pre>
+</td></tr></table>
+```
+
+The `<pre>` element is designed for preformatted text and sizes to its content width, not the viewport. The `max-width:100%` on the image means "100% of `<pre>`'s width" - but `<pre>`'s width is determined by its content, which can exceed the viewport.
+
+### Solution
+
+Close `</pre>` before images, render them outside, then reopen `<pre>`:
+```html
+<pre>
+[poem content]
+</pre>
+<img src="..." style="max-width:100%; height:auto">
+<pre>
+[nav links]
+</pre>
+```
+
+Now images inherit width constraints from the `<td>` container (which respects viewport width) instead of `<pre>`.
+
+### Files Modified
+
+1. **`src/flat-html-generator.lua`** - `render_attachment_images()` function
+   - Changed return format to close/reopen `<pre>`: `</pre>\n[images]\n<pre>`
+
+2. **`src/flat-html-generator.lua`** - effil worker thread (similar/different pages)
+   - Same pattern: close `</pre>`, render images, reopen `<pre>`
+   - Added `style="max-width:100%; height:auto"` to inline image rendering
+
+---
+
 **ISSUE STATUS: ✅ COMPLETE**
 
 **Created**: 2025-12-15
@@ -269,6 +318,10 @@ Updated `render_attachment_images()` (lines 1195-1210) to add responsive styling
 
 **Re-opened**: 2026-01-21 (images overflow viewport)
 
-**Re-completed**: 2026-01-21 (responsive CSS fix)
+**Re-completed**: 2026-01-21 (responsive CSS fix - incorrect approach)
+
+**Re-opened again**: 2026-01-21 (CSS still not working due to `<pre>` container)
+
+**Re-completed again**: 2026-01-21 (render images outside `<pre>` tags)
 
 **Phase**: 8 (Website Completion)
