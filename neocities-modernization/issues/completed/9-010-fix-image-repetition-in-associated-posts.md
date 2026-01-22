@@ -128,9 +128,57 @@ Need to investigate if:
 
 ## Metadata
 
-- **Status**: Open - Investigation
+- **Status**: ✅ COMPLETE
 - **Created**: 2026-01-21
+- **Completed**: 2026-01-21
 - **Phase**: 9 (Performance Optimization / Bug Fix)
 - **Estimated Complexity**: Medium (refactoring existing feature)
 - **Dependencies**: None (this is a fix/simplification)
 - **Affects**: All page types with image display
+
+---
+
+## Implementation Progress
+
+### 2026-01-21: Implementation Complete
+
+**Changes Made:**
+
+1. **`src/flat-html-generator.lua`** - Removed `associated_images` rendering (3 locations)
+   - Line 1726-1728: Removed loop that rendered `poem.associated_images` attachments
+   - Line 2345-2349: Removed associated_images rendering in chronological index
+   - Line 3142-3153: Removed associated_images loop in effil worker thread
+   - Added Issue 9-010 comments explaining images stay on original post
+
+2. **`src/poem-extractor.lua`** - Simplified association to marking only
+   - Replaced `associate_image_only_posts()` with `mark_image_only_posts()` (lines 115-176)
+   - New function marks poems with `is_image_only` flag and finds `nearest_text_poem_id`
+   - Added `assign_nearest_text_poem_index()` function (lines 396-427)
+   - This runs after `poem_index` assignment to set `nearest_text_poem_index` for embedding lookup
+   - Bumped extraction_version to "2.3" with `embedding_inheritance` feature flag
+   - Removed all `associated_images` array population logic
+
+3. **`src/similarity-engine.lua`** - Added embedding inheritance for image-only posts
+   - Added `inherit_embedding()` helper function (lines 196-234)
+   - Combines nearest text poem embedding with own text embedding (if any) via averaging
+   - Modified embedding generation loop (lines 529-583) to:
+     - Detect image-only posts via `is_image_only` and `nearest_text_poem_index`
+     - Look up nearest poem's embedding from current or existing embeddings
+     - Store inherited embedding with `is_inherited=true` flag
+     - Fall back to random embedding if nearest not yet available (marked `needs_inheritance_update`)
+
+**Verification Results:**
+
+Test with fediverse/5809 and 5810:
+- Post 5809: `is_image_only=true`, 1 attachment, content "@user-377" (9 chars)
+- Post 5809: `nearest_text_poem_id=5810`, `nearest_text_poem_index=5440`
+- Post 5810: `poem_index=5440`, text post about alt-text, `is_image_only=false`
+- 68 total image-only posts detected across all categories
+- All 68 linked to nearest text poems for embedding inheritance
+
+**Behavior After Fix:**
+
+1. Images appear only on their original post (no duplication)
+2. Image-only posts inherit semantic meaning via embedding from nearest text post
+3. Similar/different rankings for image-only posts based on inherited embedding
+4. No `associated_images` arrays created or rendered
