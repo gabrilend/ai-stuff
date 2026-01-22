@@ -21,6 +21,7 @@ local config_file = DIR .. "/config/input-sources.json"
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
+local exclusion_filter = require("exclusion-filter")
 
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
@@ -134,15 +135,33 @@ local function generate_poem_metadata(content, source_data)
 end
 -- }}}
 
+-- Issue 6-031: Load poem exclusion filter
+-- For messages, exclusion IDs are the message index (numeric)
+local poem_exclusions = exclusion_filter.load_default(DIR)
+if poem_exclusions:count("messages") > 0 then
+    print(COLOR_YELLOW .. "🚫" .. COLOR_RESET .. " Messages exclusion filter: " .. poem_exclusions:count("messages") .. " entries")
+end
+
+local excluded_count = 0
 local poems_json = {}
 local i = 1
 
 for key, value in pairs(data.messages) do
+   -- Issue 6-031: Generate poem ID early for exclusion check
+   local poem_id = string.format("%04d", i)
+
+   -- Issue 6-031: Check exclusion filter (tombstone - leaves gap in ID sequence)
+   if poem_exclusions:is_excluded("messages", poem_id) then
+       excluded_count = excluded_count + 1
+       i = i + 1  -- Increment to maintain ID stability (tombstoning)
+       goto continue
+   end
+
    local content = value.content.body or " "
-   
+
    -- Generate JSON format for HTML generation
    local poem_entry = {
-       id = string.format("%04d", i),
+       id = poem_id,
        category = "messages",
        source_file = "export.json",
        creation_date = generate_iso_timestamp(tonumber(value.origin_server_ts)),
@@ -152,8 +171,9 @@ for key, value in pairs(data.messages) do
        metadata = generate_poem_metadata(content, value)
    }
    table.insert(poems_json, poem_entry)
-   
+
    i = i + 1
+   ::continue::
 end
 
 -- {{{ Generate JSON output for HTML generation
@@ -165,6 +185,7 @@ local json_output = {
     poems = poems_json,
     extraction_summary = {
         total_poems = #poems_json,
+        poems_excluded = excluded_count,  -- Issue 6-031: Excluded poem count
         by_category = { messages = #poems_json },
         content_warnings = {},  -- Messages typically don't have content warnings
         extraction_date = os.date("%Y-%m-%dT%H:%M:%SZ")
@@ -179,5 +200,8 @@ f:close()
 print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Messages extraction complete")
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Messages processed: " .. #poems_json)
+if excluded_count > 0 then
+    print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
+end
 -- }}}
 

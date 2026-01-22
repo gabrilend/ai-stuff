@@ -264,9 +264,79 @@ To identify poems for exclusion, users can:
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Complete
 - **Created**: 2026-01-21
+- **Completed**: 2026-01-21
 - **Phase**: 6 (Embedding & Semantic)
 - **Estimated Complexity**: Low-Medium
 - **Dependencies**: None
 - **Affects**: All extraction scripts, final poem count, semantic calculations
+
+---
+
+## Implementation Notes (2026-01-21)
+
+### Files Created
+
+1. **`config/excluded-poems.txt`** - Configuration file with category sections:
+   - Supports `fediverse:`, `notes:`, `messages:`, `bluesky:` sections
+   - Comments start with `#`, blank lines ignored
+   - IDs listed one per line under their category
+   - Includes documentation header with ID format examples
+
+2. **`libs/exclusion-filter.lua`** - Exclusion filter library:
+   - `M.load(file_path)` - Load exclusions from a specific path
+   - `M.load_default(dir)` - Load from default config location
+   - `filter:is_excluded(category, id)` - Check if a poem should be excluded
+   - `filter:count([category])` - Get exclusion count (total or per-category)
+   - `filter:get_excluded_ids(category)` - List excluded IDs for debugging
+   - `filter:summary()` - Human-readable summary string
+
+### Scripts Updated
+
+1. **`scripts/extract-fediverse.lua`**:
+   - Loads exclusion filter after ActivityPub data
+   - Checks `poem_exclusions:is_excluded("fediverse", poem_id)` before processing
+   - Uses `goto continue` to skip excluded poems (ID still increments)
+   - Reports exclusion stats: `"🚫 Excluded posts: N (tombstoned)"`
+   - Adds `poems_excluded` to extraction_summary JSON
+
+2. **`scripts/extract-notes.lua`**:
+   - Notes use filename (without extension) as exclusion ID
+   - Same pattern: check before processing, report stats
+
+3. **`scripts/extract-messages.lua`**:
+   - Messages use formatted index ("0001", "0002") as exclusion ID
+   - Same pattern: check before processing, report stats
+
+### ID Stability Implementation
+
+The critical requirement that excluded poems leave ID gaps is implemented by:
+1. Assigning IDs **before** the exclusion check
+2. Using `goto continue` to skip processing but preserve ID sequence
+3. In messages, incrementing `i` even for excluded entries
+
+Example: If poem 0004 is excluded, the sequence remains 0001, 0002, 0003, 0005, 0006... (gap where 0004 was).
+
+### Usage Example
+
+```bash
+# Add exclusion to config
+echo "0042" >> config/excluded-poems.txt  # under fediverse: section
+
+# Re-run extraction
+luajit scripts/extract-fediverse.lua
+
+# Output will show:
+# 🚫 Exclusion filter loaded: fediverse: 1
+# ...
+# 🚫 Excluded posts: 1 (tombstoned)
+```
+
+### Testing
+
+Tested with temporary config file containing fediverse IDs 0003 and 0005:
+- `is_excluded("fediverse", "0001")` → false ✓
+- `is_excluded("fediverse", "0003")` → true ✓
+- `is_excluded("fediverse", "0005")` → true ✓
+- `is_excluded("fediverse", "0007")` → false ✓
