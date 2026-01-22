@@ -50,6 +50,7 @@ local config_file = DIR .. "/config/input-sources.json"
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
+local exclusion_filter = require("exclusion-filter")
 
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
@@ -139,6 +140,13 @@ if not data then
 end
 
 print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities")
+
+-- Issue 6-031: Load poem exclusion filter
+-- Excluded poems leave gaps in the ID sequence (tombstoning) to preserve stable anchor links
+local poem_exclusions = exclusion_filter.load_default(DIR)
+if poem_exclusions:count() > 0 then
+    print(COLOR_YELLOW .. "🚫" .. COLOR_RESET .. " Exclusion filter loaded: " .. poem_exclusions:summary())
+end
 
 -- Privacy system variables
 local user_anonymization_map = {}
@@ -443,23 +451,34 @@ local poems_json = {}
 local boost_count = 0
 local original_count = 0
 local attachment_count = 0
+local excluded_count = 0  -- Issue 6-031: Track excluded poems
 
 print("🔄 Processing activities with privacy mode: " .. privacy_config.mode)
 print("🔄 Include boosts: " .. tostring(privacy_config.include_boosts))
 
 for key, activity in pairs(data.orderedItems) do
     local activity_type, content_object = categorize_activity(activity)
-    
+
+    -- Issue 6-031: Generate poem ID early for exclusion check
+    -- IDs are assigned before exclusion filter runs, preserving stable anchors
+    local poem_id = string.format("%04d", key)
+
     if activity_type == "original_post" then
+        -- Issue 6-031: Check exclusion filter (tombstone - leaves gap in ID sequence)
+        if poem_exclusions:is_excluded("fediverse", poem_id) then
+            excluded_count = excluded_count + 1
+            goto continue
+        end
+
         -- Process original posts (Create activities)
         local cw = content_object.summary or ""
         local content = content_object.content
-        
+
         -- Process content with privacy settings
         local processed_content = process_fediverse_content(content, cw, privacy_config.mode)
         if processed_content then
             local poem_entry = {
-                id = string.format("%04d", key),
+                id = poem_id,
                 category = "fediverse",
                 source_file = "outbox.json",
                 creation_date = extract_full_date(activity.published),
@@ -493,6 +512,12 @@ for key, activity in pairs(data.orderedItems) do
         end
         
     elseif activity_type == "boost" and privacy_config.include_boosts then
+        -- Issue 6-031: Check exclusion filter for boosts too
+        if poem_exclusions:is_excluded("fediverse", poem_id) then
+            excluded_count = excluded_count + 1
+            goto continue
+        end
+
         -- Process boosted content when enabled
         local boost_content = extract_boost_content(activity)
         if boost_content then
@@ -500,7 +525,7 @@ for key, activity in pairs(data.orderedItems) do
             local processed_boost = process_fediverse_content(boost_content.content, "", privacy_config.mode)
             if processed_boost then
                 local boost_entry = {
-                    id = string.format("%04d", key),
+                    id = poem_id,
                     category = "fediverse_boost",
                     source_file = "outbox.json",
                     creation_date = extract_full_date(activity.published),
@@ -520,6 +545,8 @@ for key, activity in pairs(data.orderedItems) do
             end
         end
     end
+
+    ::continue::
 end
 
 -- {{{ Generate JSON output for HTML generation
@@ -541,6 +568,7 @@ local json_output = {
         total_poems = #poems_json,
         original_posts = original_count,
         boosted_posts = boost_count,
+        poems_excluded = excluded_count,  -- Issue 6-031: Excluded poem count
         by_category = {
             fediverse = original_count,
             fediverse_boost = boost_count
@@ -581,6 +609,9 @@ print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Total posts processed: " .. #poems_json)
 print("   📝 Original posts: " .. original_count)
 print("   🔄 Boosted posts: " .. boost_count)
+if excluded_count > 0 then
+    print("   🚫 Excluded posts: " .. excluded_count .. " (tombstoned)")
+end
 print("   🖼️  Attachments found: " .. attachment_count .. " in " .. posts_with_attachments .. " posts")
 print("   🚨 Content warnings: " .. #json_output.extraction_summary.content_warnings)
 print("   🔒 Privacy mode: " .. privacy_config.mode)
