@@ -126,7 +126,7 @@ return {
         enabled = true,
         image_directories = {"input/media_attachments"},
         supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
-        max_file_size_mb = 10,                      -- Skip oversized files
+        max_file_size_mb = 100,                      -- Skip oversized files
         output_path = "assets/images",              -- Where to copy images
         catalog_file = "assets/image-catalog.json"  -- Index of all images
     },
@@ -144,6 +144,11 @@ return {
                 name = "fediverse_media",
                 path = "/home/ritz/backups/words/fediverse/media_attachments",
                 description = "Mastodon/ActivityPub media attachments"
+            },
+            {
+                name = "my-art",
+                path = "/home/ritz/pictures/my-art",
+                description = "my artwork, made in kolourpaint"
             }
         },
         preserve_structure = true,                  -- Keep directory hierarchy
@@ -380,60 +385,20 @@ return {
     },
     -- }}}
 
-    -- {{{ STALE OPTIONS (not currently read by any scripts)
-    -- These options were proposed but are NOT currently implemented.
-    -- Issue 10-003 is BLOCKED until these are either:
-    --   1. Implemented (scripts updated to read them)
-    --   2. Removed (deemed unnecessary)
+    -- {{{ Algorithm Reference (documentation only)
+    -- These algorithm descriptions are for reference only - not read by scripts.
+    -- The actual algorithm is selected via similarity.default_algorithm above.
     --
-    -- See issues/10-003-consolidate-config-files-into-single-source.md for tracking.
-    _stale = {
-        -- From extraction section - scripts don't read these
-        output_format = "json",         -- [STALE] Only JSON is supported
-        preserve_timestamps = true,     -- [STALE] Always preserved, not configurable
-
-        -- From similarity section - validation settings never read
-        validation_settings = {
-            enable_validation = true,
-            tolerance_identical = 0.001,
-            tolerance_orthogonal = 0.6,
-            tolerance_opposite = 1.2
-        },
-
-        -- From similarity section - algorithm metadata never read
-        algorithm_metadata = {
-            -- Only default_algorithm is read; these descriptions are documentation-only
-            cosine = {
-                description = "Cosine similarity - measures angle between vectors",
-                recommended_for = {"text_embeddings", "high_dimensional_vectors"},
-                performance = "fast",
-                range = "[-1, 1]"
-            },
-            euclidean = {
-                description = "Euclidean distance converted to similarity",
-                recommended_for = {"spatial_data", "dense_vectors"},
-                performance = "fast",
-                range = "[0, 1]"
-            },
-            manhattan = {
-                description = "Manhattan distance converted to similarity",
-                recommended_for = {"sparse_vectors", "robust_to_outliers"},
-                performance = "fast",
-                range = "[0, 1]"
-            },
-            angular = {
-                description = "Angular similarity - normalized angle between vectors",
-                recommended_for = {"directional_data", "normalized_vectors"},
-                performance = "medium",
-                range = "[0, 1]"
-            },
-            pearson_correlation = {
-                description = "Pearson correlation coefficient",
-                recommended_for = {"statistical_analysis", "linear_relationships"},
-                performance = "medium",
-                range = "[0, 1]"
-            }
-        }
-    }
+    -- Available algorithms:
+    --   cosine:    Angle between vectors, range [-1, 1], fast, best for text embeddings
+    --   euclidean: Distance converted to similarity, range [0, 1], fast
+    --   manhattan: L1 distance converted to similarity, range [0, 1], robust to outliers
+    --   angular:   Normalized angle, range [0, 1], good for directional data
+    --   pearson:   Correlation coefficient, range [0, 1], for statistical analysis
+    --
+    -- Removed stale options (2026-01-21, Issue 10-003):
+    --   output_format: Only JSON is supported, no need for config
+    --   preserve_timestamps: Always preserved, not configurable
+    --   validation_settings: Over-engineering, not implemented
     -- }}}
 }

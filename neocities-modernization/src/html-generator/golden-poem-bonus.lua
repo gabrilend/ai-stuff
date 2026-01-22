@@ -11,48 +11,39 @@ local json = require("libs.json")
 local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("libs.config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 M.config = nil
 
 -- {{{ function M.get_default_golden_poem_config
 function M.get_default_golden_poem_config()
     return {
-        -- Similarity bonus when both poems are golden
         golden_poem_pair_bonus = 0.05,
-        
-        -- Similarity bonus when one poem is golden  
         golden_poem_single_bonus = 0.02,
-        
-        -- Minimum golden poems in Top-N recommendations
         min_golden_recommendations = 2,
-        
-        -- Maximum golden poems in Top-N recommendations (prevent dominance)
         max_golden_recommendations = 5,
-        
-        -- Enable/disable golden poem prioritization
         enable_golden_prioritization = true,
-        
-        -- Threshold for applying bonuses (minimum base similarity)
         golden_bonus_threshold = 0.1
     }
 end
 -- }}}
 
 -- {{{ function M.load_golden_poem_config
+-- Issue 10-003: Use unified config instead of golden-poem-settings.json
 function M.load_golden_poem_config(config_file)
-    config_file = config_file or (DIR .. "/config/golden-poem-settings.json")
-    
-    if utils.file_exists(config_file) then
-        local config_json = utils.read_file(config_file)
-        local config = json.decode(config_json)
-        utils.log_info("Loaded golden poem config: " .. config_file)
-        return config
-    else
-        -- Return defaults and create config file
-        local default_config = M.get_default_golden_poem_config()
-        utils.write_file(config_file, json.encode(default_config))
-        utils.log_info("Created default golden poem config: " .. config_file)
-        return default_config
-    end
+    -- Ignore config_file parameter - always use unified config
+    local gp = unified_config.golden_poems or {}
+    return {
+        golden_poem_pair_bonus = gp.golden_poem_pair_bonus or 0.05,
+        golden_poem_single_bonus = gp.golden_poem_single_bonus or 0.02,
+        min_golden_recommendations = gp.min_golden_recommendations or 2,
+        max_golden_recommendations = gp.max_golden_recommendations or 5,
+        enable_golden_prioritization = gp.enable_golden_prioritization ~= false,
+        golden_bonus_threshold = gp.golden_bonus_threshold or 0.1
+    }
 end
 -- }}}
 

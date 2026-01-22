@@ -27,6 +27,11 @@ local utils = require("utils")
 local dkjson = require("dkjson")
 local ollama_config = require("ollama-config")
 
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 -- Initialize asset path configuration
 utils.init_assets_root(arg)
 
@@ -35,15 +40,12 @@ local M = {}
 -- {{{ Configuration
 -- Note: model_storage_name matches the sanitized form of the Ollama model name
 -- model_name is what Ollama expects (embeddinggemma:latest)
+-- Issue 10-003: centroids now loaded from unified config
 local CONFIG = {
-    centroids_config_file = DIR .. "/assets/centroids.json",
     model_name = "embeddinggemma:latest",
     model_storage_name = "embeddinggemma_latest",
     embedding_dimensions = 768,
-    -- Approximate max characters before chunking is needed
-    -- embeddinggemma handles ~8k tokens, roughly 32k chars, but we stay conservative
     max_content_length = 20000,
-    -- Minimum content length to attempt embedding (skip if too short)
     min_content_length = 10
 }
 -- }}}
@@ -377,20 +379,14 @@ function M.generate_all_centroids(options)
         return nil, "ollama_unavailable"
     end
 
-    -- Load centroids config
-    local config_content, err = utils.read_file(CONFIG.centroids_config_file)
-    if not config_content then
-        utils.log_error("Failed to read centroids config: " .. (err or "unknown"))
-        return nil, "config_read_error"
-    end
-
-    local config = dkjson.decode(config_content)
-    if not config or not config.centroids then
-        utils.log_error("Invalid centroids config format")
+    -- Issue 10-003: Load centroids from unified config instead of assets/centroids.json
+    local centroids_list = unified_config.centroids
+    if not centroids_list or #centroids_list == 0 then
+        utils.log_error("No centroids defined in config/main.lua")
         return nil, "config_parse_error"
     end
 
-    utils.log_info("Found " .. #config.centroids .. " centroid definition(s)")
+    utils.log_info("Found " .. #centroids_list .. " centroid definition(s)")
 
     -- Process each centroid
     local results = {
@@ -399,15 +395,15 @@ function M.generate_all_centroids(options)
             model = CONFIG.model_name,
             dimensions = CONFIG.embedding_dimensions,
             generated_at = utils.get_timestamp(),
-            source_config = CONFIG.centroids_config_file
+            source_config = "config/main.lua"
         }
     }
 
     local success_count = 0
     local error_count = 0
 
-    for i, centroid_def in ipairs(config.centroids) do
-        utils.log_info(string.format("\n[%d/%d] Processing: %s", i, #config.centroids, centroid_def.name))
+    for i, centroid_def in ipairs(centroids_list) do
+        utils.log_info(string.format("\n[%d/%d] Processing: %s", i, #centroids_list, centroid_def.name))
 
         local result, status = generate_centroid_embedding(centroid_def, endpoint)
 
