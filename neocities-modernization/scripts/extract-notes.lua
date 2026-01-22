@@ -20,6 +20,7 @@ local config_file = DIR .. "/config/input-sources.json"
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
+local exclusion_filter = require("exclusion-filter")
 
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
@@ -146,6 +147,15 @@ end
 
 print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
 
+-- Issue 6-031: Load poem exclusion filter
+-- For notes, exclusion IDs are filenames (without extension)
+local poem_exclusions = exclusion_filter.load_default(DIR)
+if poem_exclusions:count("notes") > 0 then
+    print(COLOR_YELLOW .. "🚫" .. COLOR_RESET .. " Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries")
+end
+
+local excluded_count = 0
+
 -- Scan notes directory for files (exclude files/ subdirectory to avoid reading our own output)
 local find_cmd = string.format("find %s -type f -not -path '*/files/*'", shell_escape(notes_dir))
 local find_handle = io.popen(find_cmd)
@@ -155,18 +165,27 @@ local i = 1
 
 for file_path in find_handle:lines() do
     if is_valid_note_file(file_path) then
+        local filename = file_path:match("([^/]+)$")
+
+        -- Issue 6-031: Notes use filename (without extension) as exclusion ID
+        -- This matches the human-readable format in config/excluded-poems.txt
+        local note_id = filename:match("(.+)%..+$") or filename
+        if poem_exclusions:is_excluded("notes", note_id) then
+            excluded_count = excluded_count + 1
+            goto continue
+        end
+
         -- Read file content
         local file_handle = io.open(file_path, "r")
         if file_handle then
             local content = file_handle:read("*a")
             file_handle:close()
-            
+
             -- Clean up content (remove excessive whitespace)
             content = content:gsub("\n\n+", "\n\n") -- Reduce multiple newlines
             content = content:gsub("^%s+", ""):gsub("%s+$", "") -- Trim whitespace
-            
+
             if content and content ~= "" then
-                local filename = file_path:match("([^/]+)$")
                 local mtime = get_file_mtime(file_path)
                 
                 -- Generate JSON format for HTML generation
@@ -185,6 +204,8 @@ for file_path in find_handle:lines() do
             end
         end
     end
+
+    ::continue::
 end
 
 find_handle:close()
@@ -198,6 +219,7 @@ local json_output = {
     poems = poems_json,
     extraction_summary = {
         total_poems = #poems_json,
+        poems_excluded = excluded_count,  -- Issue 6-031: Excluded poem count
         by_category = { notes = #poems_json },
         content_warnings = {},  -- Notes typically don't have content warnings
         extraction_date = os.date("%Y-%m-%dT%H:%M:%SZ")
@@ -212,4 +234,7 @@ f:close()
 print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Notes extraction complete")
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Notes processed: " .. #poems_json)
+if excluded_count > 0 then
+    print("   🚫 Excluded: " .. excluded_count .. " (tombstoned)")
+end
 -- }}}
