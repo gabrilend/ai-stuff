@@ -18,7 +18,8 @@ local M = {}
 
 -- {{{ Configuration
 -- Default config path (relative to project root)
-local DEFAULT_CONFIG_PATH = "config/main.lua"
+-- Issue 10-003: Moved from config/main.lua to project root
+local DEFAULT_CONFIG_PATH = "config.lua"
 
 -- Cached config table (loaded once per session)
 local cached_config = nil
@@ -51,7 +52,8 @@ local function detect_project_root()
             "/home/ritz/programming/ai-stuff/neocities-modernization"
         }
         for _, path in ipairs(known_paths) do
-            local f = io.open(path .. "/config/main.lua", "r")
+            -- Issue 10-003: Check for config.lua in project root
+            local f = io.open(path .. "/config.lua", "r")
             if f then
                 f:close()
                 project_root = path

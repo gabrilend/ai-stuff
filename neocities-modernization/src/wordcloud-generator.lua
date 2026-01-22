@@ -25,7 +25,7 @@ local dkjson = require("dkjson")
 local utils = require("utils")
 utils.init_assets_root(arg)
 
--- Issue 10-003: Load unified config from config/main.lua
+-- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
@@ -43,7 +43,7 @@ local CONFIG = {
     font_size_max = wc.font_size_max or 7,
     min_word_length = wc.min_word_length or 3,
     output_file = wc.output_file or "wordcloud.html",
-    stop_words_file = wc.stop_words_file or "config/stop-words.txt"
+    stop_words_file = wc.stop_words_file or "stop-words.txt"
 }
 -- }}}
 
