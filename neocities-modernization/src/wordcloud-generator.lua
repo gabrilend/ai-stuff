@@ -191,6 +191,8 @@ end
 
 -- {{{ local function generate_poem_index
 -- Issue 8-046: Generate poem index section showing all poems by category
+-- Issue 6-031: Uses poem.id (not sequential index) to respect tombstones -
+--              excluded poems leave gaps in the ID sequence, they don't shift other IDs
 local function generate_poem_index(poems_data)
     if not poems_data or not poems_data.poems then
         return ""
