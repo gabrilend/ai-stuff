@@ -562,8 +562,15 @@ run_generate_embeddings() {
     }
 
     # Issue 8-043b: Generate word embeddings (part of embedding stage)
+    # Fix: Pass word cloud flags to embedding stage (was missing --all/--words flags)
     log_info "   Generating word embeddings for word cloud..."
-    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only || {
+    local wordcloud_args=""
+    if $WORDCLOUD_ALL; then
+        wordcloud_args="--all"
+    elif [ -n "$WORDCLOUD_WORDS" ]; then
+        wordcloud_args="--words $WORDCLOUD_WORDS"
+    fi
+    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only $wordcloud_args || {
         echo "Warning: Word embedding generation failed, continuing..." >&2
     }
 }
