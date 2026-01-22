@@ -12,8 +12,12 @@
 --   --html-only         Stage 9: Generate HTML pages (fast, uses cached embeddings)
 --   (no flag)           Both stages (backward compatible)
 --
+-- Word Count Options:
+--   --all               Include all words (no max_words limit)
+--   --words N           Set maximum words to process (default: 200 from config)
+--
 -- Usage:
---   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only]
+--   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only] [--all|--words N]
 --   luajit src/generate-word-pages.lua --help
 -- }}}
 
@@ -25,28 +29,49 @@ local function setup_dir_path(provided_dir)
     return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
 
--- Parse arguments, extracting DIR and mode flags
+-- {{{ parse_args
+-- Parse arguments, extracting DIR, mode flags, and word count options
 local function parse_args(args)
     local dir = nil
     local mode = "both"  -- default: both embeddings and HTML
+    local all_words = false
+    local max_words = nil  -- nil means use config default
+    local i = 1
 
-    for i = 1, #(args or {}) do
+    while i <= #(args or {}) do
         local a = args[i]
         if a == "--embeddings-only" then
             mode = "embeddings"
+            i = i + 1
         elseif a == "--html-only" then
             mode = "html"
+            i = i + 1
         elseif a == "--help" or a == "-h" then
             mode = "help"
+            i = i + 1
+        elseif a == "--all" then
+            all_words = true
+            i = i + 1
+        elseif a == "--words" then
+            max_words = tonumber(args[i + 1])
+            i = i + 2
+        elseif a:match("^--words=") then
+            max_words = tonumber(a:match("^--words=(.+)$"))
+            i = i + 1
         elseif a:sub(1, 1) ~= "-" then
             dir = a
+            i = i + 1
+        else
+            -- Skip unknown flags
+            i = i + 1
         end
     end
 
-    return dir, mode
+    return dir, mode, all_words, max_words
 end
+-- }}}
 
-local parsed_dir, RUN_MODE = parse_args(arg)
+local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -65,12 +90,24 @@ utils.init_assets_root(arg)
 local M = {}
 
 -- {{{ Configuration
+-- Determine effective max_words: CLI --all > CLI --words > config
+local wc = unified_config.word_cloud or {}
+local effective_max_words
+if CLI_ALL_WORDS then
+    effective_max_words = math.huge  -- No limit
+elseif CLI_MAX_WORDS then
+    effective_max_words = CLI_MAX_WORDS
+else
+    effective_max_words = wc.max_words or 200
+end
+
 local CONFIG = {
     model_name = "embeddinggemma:latest",
     max_poems_per_page = 100,        -- Poems per word page
     max_pages_per_word = 1,          -- For now, just one page per word
     word_embeddings_file = "word_embeddings.json",
     poems_per_word_page = 50,        -- Show top 50 most similar poems
+    max_words = effective_max_words, -- Max words to process (from CLI or config)
 }
 -- }}}
 
@@ -327,9 +364,9 @@ function M.generate_word_embeddings(options)
     end
     utils.log_info(string.format("Loaded %d poems", #poems_data.poems))
 
-    -- Get word list
+    -- Get word list (using CONFIG.max_words from CLI or config)
     local stop_words = load_stop_words()
-    local words = get_word_list(poems_data, stop_words, 5, 200, 3)
+    local words = get_word_list(poems_data, stop_words, 5, CONFIG.max_words, 3)
     utils.log_info(string.format("Processing %d words", #words))
 
     -- Load cached word embeddings
@@ -416,7 +453,7 @@ function M.generate_word_html(options)
 
     -- Get word list (same as embedding generation to ensure consistency)
     local stop_words = load_stop_words()
-    local words = get_word_list(poems_data, stop_words, 5, 200, 3)
+    local words = get_word_list(poems_data, stop_words, 5, CONFIG.max_words, 3)
 
     -- Generate pages for each word
     local pages_generated = 0
@@ -502,6 +539,8 @@ if arg and #arg >= 0 and debug.getinfo(3) == nil then
         print("  DIR               Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
         print("  --embeddings-only Generate word embeddings only (Stage 6 - expensive)")
         print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
+        print("  --all             Include all words (no max_words limit)")
+        print("  --words N         Set maximum words to process (default: 200 from config)")
         print("  --help            Show this help message")
         print("")
         print("Pipeline Integration (Issue 8-043b):")

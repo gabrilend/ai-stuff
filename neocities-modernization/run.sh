@@ -77,6 +77,10 @@ Pagination (HTML Generation):
   --poems-per-page N  Poems per page for similar/different (default: 200)
   --chrono-per-page N Poems per page for chronological (default: 500)
 
+Word Cloud:
+  --wordcloud-all     Include all words (ignore max_words limit)
+  --wordcloud-words N Number of words in word cloud (default: 200)
+
 Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
@@ -142,6 +146,10 @@ MODEL_NAME="embeddinggemma:latest"
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
 POEMS_PER_PAGE=""
+
+# Issue 8-043: Word cloud configuration
+WORDCLOUD_ALL=false
+WORDCLOUD_WORDS=""
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -231,6 +239,19 @@ while [[ $# -gt 0 ]]; do
             ;;
         --chrono-per-page=*)
             CHRONO_PER_PAGE="${1#*=}"
+            shift
+            ;;
+        # Issue 8-043: Word cloud configuration
+        --wordcloud-all)
+            WORDCLOUD_ALL=true
+            shift
+            ;;
+        --wordcloud-words)
+            WORDCLOUD_WORDS="$2"
+            shift 2
+            ;;
+        --wordcloud-words=*)
+            WORDCLOUD_WORDS="${1#*=}"
             shift
             ;;
         # Stage flags
@@ -891,10 +912,21 @@ run_generate_html() {
         chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
     fi
 
+    # Issue 8-043: Word cloud arguments
+    local wordcloud_all_arg=""
+    if $WORDCLOUD_ALL; then
+        wordcloud_all_arg="--all"
+    fi
+
+    local wordcloud_words_arg=""
+    if [ -n "$WORDCLOUD_WORDS" ]; then
+        wordcloud_words_arg="--words $WORDCLOUD_WORDS"
+    fi
+
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg"
         return 0
     fi
 
@@ -905,12 +937,12 @@ run_generate_html() {
 
     # Issue 8-043b: Generate word cloud pages (part of HTML stage)
     log_info "   Generating word cloud menu..."
-    luajit "$DIR/src/wordcloud-generator.lua" "$DIR" || {
+    luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_all_arg $wordcloud_words_arg || {
         echo "Warning: Word cloud menu generation failed, continuing..." >&2
     }
 
     log_info "   Generating word similarity pages..."
-    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only || {
+    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
     }
 }
@@ -1004,7 +1036,21 @@ interactive_mode_tui() {
         "Show detailed progress information" "v" "--verbose"
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # Section 3: Command Preview (shows the command that will be executed)
+    # Section 3: Word Cloud Configuration
+    # Issue 8-043: Configurable word count with "all words" toggle
+    # ═══════════════════════════════════════════════════════════════════════════
+    menu_add_section "wordcloud" "multi" "Word Cloud Options"
+    menu_add_item "wordcloud" "wordcloud_all" "All Words" "checkbox" "0" \
+        "Include all words (disables word count limit)" "a" "--wordcloud-all"
+    menu_add_item "wordcloud" "wordcloud_words" "Word Count" "flag" "200:3" \
+        "Maximum words in word cloud (default: 200)" "w" "--wordcloud-words"
+    # Dependency: Disable wordcloud_words when wordcloud_all is checked
+    # invert=true means: enable wordcloud_words when wordcloud_all is NOT checked (value "1")
+    menu_add_dependency "wordcloud_words" "wordcloud_all" "1" "true" \
+        "Word count disabled when 'All Words' is checked"
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 4: Command Preview (shows the command that will be executed)
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "preview" "multi" "Command Preview"
     menu_add_item "preview" "cmd_preview" "" "text" "" \
@@ -1014,7 +1060,7 @@ interactive_mode_tui() {
     menu_set_command_config "./run.sh" "cmd_preview" ""
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # Section 4: Actions
+    # Section 5: Actions
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "actions" "single" "Actions"
     menu_add_item "actions" "run" "Run Selected Stages" "action" "" \
@@ -1042,6 +1088,9 @@ interactive_mode_tui() {
             local force_val=$(menu_get_value "force")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
+            # Issue 8-043: Get wordcloud values from TUI
+            local wordcloud_all_val=$(menu_get_value "wordcloud_all")
+            local wordcloud_words_val=$(menu_get_value "wordcloud_words")
 
             # Set global flags based on menu selection
             [[ "$update_words_val" == "1" ]] && UPDATE_WORDS=true || UPDATE_WORDS=false
@@ -1064,6 +1113,9 @@ interactive_mode_tui() {
             [[ "$force_val" == "1" ]] && FORCE=true || FORCE=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
+            # Issue 8-043: Set wordcloud values from TUI
+            [[ "$wordcloud_all_val" == "1" ]] && WORDCLOUD_ALL=true || WORDCLOUD_ALL=false
+            [[ -n "$wordcloud_words_val" && "$wordcloud_words_val" != "0" ]] && WORDCLOUD_WORDS="$wordcloud_words_val"
 
             # Check if at least one stage is selected
             if ! $UPDATE_WORDS && ! $EXTRACT && ! $PARSE && ! $VALIDATE && \

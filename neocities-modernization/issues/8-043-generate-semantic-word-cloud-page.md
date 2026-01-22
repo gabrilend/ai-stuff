@@ -509,6 +509,54 @@ fi
 
 **ISSUE STATUS: ✅ COMPLETE (implementation done, pipeline integration optional)**
 
+---
+
+## Implementation Progress: 2026-01-21 - Word Count CLI and TUI Support
+
+### Enhancement: Configurable Word Count via CLI and TUI
+
+Implemented the `--wordcloud-words N` CLI flag and TUI support as specified in the issue.
+
+**CLI Flags Added to `run.sh`:**
+- `--wordcloud-all` - Include all words (ignores max_words limit)
+- `--wordcloud-words N` - Set maximum words to display (default: 200 from config)
+
+**TUI Support Added:**
+- New "Word Cloud Options" section in interactive mode
+- "All Words" checkbox - when checked, generates pages for all unique words
+- "Word Count" text field - enter the maximum number of words (default: 200)
+- Dependency system: when "All Words" is checked, the "Word Count" field is disabled
+  - Uses `menu_add_dependency` with `invert=true` for conditional field disabling
+
+**Files Updated:**
+
+1. **`run.sh`**:
+   - Added CLI parsing for `--wordcloud-all` and `--wordcloud-words`
+   - Added TUI items in new "Word Cloud Options" section
+   - Added dependency to disable word count when "All Words" is checked
+   - Updated `run_generate_html` to pass arguments to wordcloud scripts
+
+2. **`src/wordcloud-generator.lua`**:
+   - Added `parse_args()` function to handle `--all` and `--words N` flags
+   - Config precedence: CLI `--all` > CLI `--words N` > config `max_words`
+   - Updated help text with new options
+
+3. **`src/generate-word-pages.lua`**:
+   - Added same CLI argument parsing for consistency
+   - Uses `CONFIG.max_words` computed from CLI or config
+   - Updated help text with new options
+
+**TUI Dependency System:**
+```bash
+# When "All Words" checkbox (wordcloud_all) is checked (value "1"),
+# the "Word Count" field (wordcloud_words) is disabled.
+# invert=true means: enable wordcloud_words when wordcloud_all is NOT "1"
+menu_add_dependency "wordcloud_words" "wordcloud_all" "1" "true" \
+    "Word count disabled when 'All Words' is checked"
+```
+
+---
+
 ## Metadata
 
 - **Status**: ✅ Complete
