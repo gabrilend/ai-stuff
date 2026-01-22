@@ -30,6 +30,11 @@ local dkjson = require("dkjson")
 local utils = require("utils")
 local ollama_config = require("ollama-config")
 
+-- Issue 10-003: Load unified config from config.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 utils.init_assets_root(arg)
 -- }}}
 
@@ -173,21 +178,13 @@ end
 -- }}}
 
 -- {{{ local function load_stop_words
+-- Issue 10-003: Load stop words from embedded config.word_cloud.stop_words array
 local function load_stop_words()
     local stop_words = {}
-    local file_path = DIR .. "/stop-words.txt"
-
-    local file = io.open(file_path, "r")
-    if not file then return stop_words end
-
-    for line in file:lines() do
-        local word = line:match("^%s*(%S+)%s*$")
-        if word and not word:match("^#") then
-            stop_words[word:lower()] = true
-        end
+    local wc = unified_config.word_cloud or {}
+    for _, word in ipairs(wc.stop_words or {}) do
+        stop_words[word:lower()] = true
     end
-    file:close()
-
     return stop_words
 end
 -- }}}
