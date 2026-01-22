@@ -31,6 +31,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004a | GPU-accelerate maze algorithm | Open | Low |
 | 9-010 | Fix image repetition in associated posts | ✅ Complete | High |
+| 9-011 | Display content warnings from ActivityPub | ✅ Complete | Medium |
 
 ### Completed Issues
 
@@ -48,6 +49,14 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-005b | URL switching helper script (local ↔ production) | Completed | 2026-01-18 |
 | 9-004b | Image-only post timestamp association | Superseded by 9-010 | 2026-01-21 |
 | 9-010 | Fix image repetition in associated posts | Completed | 2026-01-21 |
+| 9-011 | Display content warnings from ActivityPub | Completed | 2026-01-21 |
+
+**9-011: Display Content Warnings from ActivityPub** - COMPLETED (2026-01-21)
+- ✅ Added `poem.content_warning` display to `format_content_with_warnings()` (chronological page)
+- ✅ Added `poem.content_warning` display to effil worker thread (similar/different pages)
+- ✅ Verified content warnings are excluded from embeddings (separate field from `poem.content`)
+- ✅ 1,781 poems with content warnings now display properly
+- ✅ Both ActivityPub CW field and in-content "CW:" patterns supported
 
 **9-010: Fix Image Repetition in Associated Posts** - COMPLETED (2026-01-21)
 - ✅ Removed `associated_images` rendering from `flat-html-generator.lua` (3 locations)
