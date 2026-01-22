@@ -175,7 +175,7 @@ end
 -- {{{ local function load_stop_words
 local function load_stop_words()
     local stop_words = {}
-    local file_path = DIR .. "/config/stop-words.txt"
+    local file_path = DIR .. "/stop-words.txt"
 
     local file = io.open(file_path, "r")
     if not file then return stop_words end

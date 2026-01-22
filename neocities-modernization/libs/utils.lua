@@ -332,15 +332,16 @@ end
 -- }}}
 
 -- {{{ function M.load_asset_config
--- Load asset path configuration from config/asset-paths.lua
--- @return: table with assets_root key, or nil if file not found
+-- Issue 10-003: Load asset path configuration from unified config (config.lua)
+-- @return: table with assets_root key, or nil if config not found
 function M.load_asset_config()
-    local config_path = M.DIR .. "/config/asset-paths.lua"
-    local config_func = loadfile(config_path)
-    if config_func then
-        local ok, config = pcall(config_func)
-        if ok and type(config) == "table" then
-            return config
+    -- Use config-loader to get asset_paths from unified config
+    local ok, config_loader = pcall(require, "config-loader")
+    if ok and config_loader then
+        config_loader.set_project_root(M.DIR)
+        local config = config_loader.load()
+        if config and config.asset_paths then
+            return config.asset_paths
         end
     end
     return nil
@@ -384,7 +385,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("Error: Assets directory not found: " .. config.assets_root .. "\n")
             io.stderr:write("\n")
             io.stderr:write("Fix: supply path via --dir ~/your/assets/path\n")
-            io.stderr:write("     or update config/asset-paths.lua\n")
+            io.stderr:write("     or update asset_paths.assets_root in config.lua\n")
             io.stderr:write("\n")
             io.stderr:write("Expected structure:\n")
             io.stderr:write("  " .. config.assets_root .. "/\n")

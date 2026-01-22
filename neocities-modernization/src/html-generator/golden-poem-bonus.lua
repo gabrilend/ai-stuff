@@ -11,7 +11,7 @@ local json = require("libs.json")
 local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
--- Issue 10-003: Load unified config from config/main.lua
+-- Issue 10-003: Load unified config from config.lua
 local config_loader = require("libs.config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()

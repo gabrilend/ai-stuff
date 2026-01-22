@@ -19,7 +19,7 @@ package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local exclusion_filter = require("exclusion-filter")
 
--- Issue 10-003: Load unified config from config/main.lua
+-- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local config = config_loader.load()
