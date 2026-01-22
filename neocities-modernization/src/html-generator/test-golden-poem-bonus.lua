@@ -257,46 +257,44 @@ end
 -- }}}
 
 -- {{{ function M.test_configuration_persistence
+-- Issue 10-003: Updated to test unified config loading instead of JSON file persistence
+-- The unified config system (config/main.lua) is loaded once at startup and cached
 function M.test_configuration_persistence()
-    utils.log_info("Testing configuration persistence...")
-    
-    local config_file = DIR .. "/config/golden-poem-settings.json"
-    local original_config = golden_bonus.load_golden_poem_config(config_file)
-    
-    if not original_config then
-        utils.log_error("Failed to load original configuration")
+    utils.log_info("Testing configuration from unified config...")
+
+    -- Load config using the module's public interface
+    local config = golden_bonus.get_config()
+
+    if not config then
+        utils.log_error("Failed to load configuration from unified config")
         return false
     end
-    
-    -- Modify a setting temporarily
-    local test_config = {}
-    for k, v in pairs(original_config) do
-        test_config[k] = v
-    end
-    test_config.golden_poem_pair_bonus = 0.10  -- Different from default 0.05
-    
-    -- Save modified config
-    local json = require("libs.json")
-    utils.write_file(config_file, json.encode(test_config))
-    
-    -- Clear config cache and reload
+
+    -- Verify config has expected default values (or values from unified config)
+    local has_pair_bonus = type(config.golden_poem_pair_bonus) == "number"
+    local has_single_bonus = type(config.golden_poem_single_bonus) == "number"
+    local has_threshold = type(config.golden_bonus_threshold) == "number"
+
+    -- Test config cache clearing and reload
     golden_bonus.config = nil
-    local reloaded_config = golden_bonus.load_golden_poem_config(config_file)
-    
-    local persistence_works = reloaded_config and 
-                             reloaded_config.golden_poem_pair_bonus == 0.10
-    
-    -- Restore original config
-    utils.write_file(config_file, json.encode(original_config))
-    golden_bonus.config = nil
-    
-    if persistence_works then
-        utils.log_info("✅ Configuration persistence working")
+    local reloaded_config = golden_bonus.get_config()
+
+    local reload_works = reloaded_config and
+                        reloaded_config.golden_poem_pair_bonus == config.golden_poem_pair_bonus
+
+    local config_valid = has_pair_bonus and has_single_bonus and has_threshold and reload_works
+
+    if config_valid then
+        utils.log_info("✅ Unified config loading working")
+        utils.log_info(string.format("   pair_bonus=%.3f, single_bonus=%.3f, threshold=%.3f",
+                                    config.golden_poem_pair_bonus,
+                                    config.golden_poem_single_bonus,
+                                    config.golden_bonus_threshold))
     else
-        utils.log_warn("❌ Configuration persistence failed")
+        utils.log_warn("❌ Unified config loading failed")
     end
-    
-    return persistence_works
+
+    return config_valid
 end
 -- }}}
 

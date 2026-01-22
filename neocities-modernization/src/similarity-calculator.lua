@@ -10,6 +10,11 @@ local json = require("libs.json")
 
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("libs.config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 local SimilarityCalculator = {}
 SimilarityCalculator.__index = SimilarityCalculator
 
@@ -333,21 +338,13 @@ end
 -- }}}
 
 -- {{{ function create_from_config
+-- Issue 10-003: Use unified config instead of similarity-calculator-settings.json
 local function create_from_config(algorithm_name)
-    algorithm_name = algorithm_name or "cosine"
-    
-    -- Try to load configuration
-    local config_file = DIR .. "/config/similarity-calculator-settings.json"
-    local config_data = utils.load_json(config_file)
-    
-    if config_data then
-        algorithm_name = algorithm_name or config_data.default_algorithm
-        local algorithm_config = config_data.algorithms[algorithm_name] or {}
-        return SimilarityCalculator:new(algorithm_name, algorithm_config)
-    else
-        -- Fallback if no config file
-        return SimilarityCalculator:new(algorithm_name)
-    end
+    -- Get default algorithm from unified config
+    local sim_config = unified_config.similarity or {}
+    algorithm_name = algorithm_name or sim_config.default_algorithm or "cosine"
+
+    return SimilarityCalculator:new(algorithm_name)
 end
 -- }}}
 

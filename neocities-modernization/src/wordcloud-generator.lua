@@ -24,57 +24,27 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local dkjson = require("dkjson")
 local utils = require("utils")
 utils.init_assets_root(arg)
+
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
 -- }}}
 
 local M = {}
 
 -- {{{ Configuration
--- Default values, can be overridden by config/input-sources.json
+-- Issue 10-003: Load word_cloud config from unified config
+local wc = unified_config.word_cloud or {}
 local CONFIG = {
-    min_occurrences = 5,          -- Minimum times a word must appear
-    max_words = 200,              -- Maximum words to display
-    font_size_min = 1,            -- Smallest font size (HTML font tag: 1-7)
-    font_size_max = 7,            -- Largest font size
-    min_word_length = 3,          -- Ignore words shorter than this
-    output_file = "wordcloud.html",
-    stop_words_file = "config/stop-words.txt"
+    min_occurrences = wc.min_occurrences or 5,
+    max_words = wc.max_words or 200,
+    font_size_min = wc.font_size_min or 1,
+    font_size_max = wc.font_size_max or 7,
+    min_word_length = wc.min_word_length or 3,
+    output_file = wc.output_file or "wordcloud.html",
+    stop_words_file = wc.stop_words_file or "config/stop-words.txt"
 }
-
--- {{{ load_config_from_json
-local function load_config_from_json()
-    local config_path = DIR .. "/config/input-sources.json"
-    local file = io.open(config_path, "r")
-    if not file then
-        utils.log_warn("Config file not found, using defaults: " .. config_path)
-        return
-    end
-
-    local content = file:read("*a")
-    file:close()
-
-    local config_data, _, err = dkjson.decode(content)
-    if not config_data then
-        utils.log_warn("Failed to parse config: " .. (err or "unknown error"))
-        return
-    end
-
-    -- Override defaults with config values if present
-    local wc = config_data.word_cloud
-    if wc then
-        if wc.min_occurrences then CONFIG.min_occurrences = wc.min_occurrences end
-        if wc.max_words then CONFIG.max_words = wc.max_words end
-        if wc.font_size_min then CONFIG.font_size_min = wc.font_size_min end
-        if wc.font_size_max then CONFIG.font_size_max = wc.font_size_max end
-        if wc.min_word_length then CONFIG.min_word_length = wc.min_word_length end
-        if wc.output_file then CONFIG.output_file = wc.output_file end
-        if wc.stop_words_file then CONFIG.stop_words_file = wc.stop_words_file end
-        utils.log_info("Loaded word cloud config from input-sources.json")
-    end
-end
--- }}}
-
--- Load config on module initialization
-load_config_from_json()
 -- }}}
 
 -- {{{ load_stop_words

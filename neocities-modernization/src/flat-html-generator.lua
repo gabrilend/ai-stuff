@@ -28,6 +28,11 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
 
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
@@ -67,7 +72,7 @@ local COLOR_CONFIG = {
 }
 
 -- Pagination configuration defaults
--- These values are overridden by config/input-sources.json if present
+-- Issue 10-003: These values are overridden by unified config (config/main.lua) if present
 -- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
 -- Issue 9-003 Fix F: Added chronological pagination settings
 local PAGINATION_CONFIG = {
@@ -82,7 +87,7 @@ local PAGINATION_CONFIG = {
 }
 
 -- Storage configuration (for display purposes)
--- Loaded from config/input-sources.json if present
+-- Issue 10-003: Loaded from unified config (config/main.lua) if present
 local STORAGE_CONFIG = {
     limit_gb = 45,
     reserved_for_maze_gb = 0.031,
@@ -91,7 +96,7 @@ local STORAGE_CONFIG = {
 
 -- Layout constants: Single source of truth for box widths and positions
 -- Issue 8-037: Centralized to prevent drift between calculations
--- Issue 10-003: Values can be overridden in config/input-sources.json "layout" section
+-- Issue 10-003: Values can be overridden in unified config (config/main.lua) "layout" section
 -- Reference: All progress bars, nav boxes, and content should use these
 local LAYOUT = {
     -- Total visible width for regular poems (positions 0-82)
@@ -120,20 +125,12 @@ local LAYOUT = {
 }
 
 -- {{{ function load_layout_from_config
--- Loads layout settings from config file, with fallback to LAYOUT defaults
+-- Issue 10-003: Loads layout settings from unified config, with fallback to LAYOUT defaults
 local function load_layout_from_config()
-    local config_path = DIR .. "/config/input-sources.json"
-    local file = io.open(config_path, "rb")
-    if not file then return end
-
-    local content = file:read("*all")
-    file:close()
-
-    local config, pos, err = dkjson.decode(content, 1, nil)
-    if not config or not config.layout then return end
+    local layout = unified_config.layout
+    if not layout then return end
 
     -- Override LAYOUT values from config
-    local layout = config.layout
     if layout.regular_poem_width then LAYOUT.REGULAR_POEM_WIDTH = layout.regular_poem_width end
     if layout.golden_poem_width then LAYOUT.GOLDEN_POEM_WIDTH = layout.golden_poem_width end
     if layout.text_content_width then LAYOUT.TEXT_CONTENT_WIDTH = layout.text_content_width end
@@ -263,7 +260,7 @@ end
 -- }}}
 
 -- {{{ local function load_pagination_config
--- Loads pagination and storage settings from config/input-sources.json
+-- Issue 10-003: Loads pagination and storage settings from unified config
 -- Updated for Issue 8-020: Hybrid pagination strategy with storage constraints
 -- Note: Only loads and logs once per session (idempotent)
 local pagination_config_loaded = false
@@ -274,34 +271,28 @@ local function load_pagination_config()
         return PAGINATION_CONFIG
     end
 
-    local config_file = DIR .. "/config/input-sources.json"
-    local config_data = utils.read_json_file(config_file)
-
-    if config_data then
-        -- Load pagination settings
-        if config_data.pagination then
-            -- Merge config values with defaults (only update known keys)
-            for key, value in pairs(config_data.pagination) do
-                if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
-                    PAGINATION_CONFIG[key] = value
-                end
+    -- Load pagination settings from unified config
+    if unified_config.pagination then
+        for key, value in pairs(unified_config.pagination) do
+            if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
+                PAGINATION_CONFIG[key] = value
             end
         end
-
-        -- Load storage settings (Issue 8-020)
-        if config_data.storage then
-            for key, value in pairs(config_data.storage) do
-                if key ~= "_comment" and STORAGE_CONFIG[key] ~= nil then
-                    STORAGE_CONFIG[key] = value
-                end
-            end
-        end
-
-        utils.log_info(string.format("Loaded pagination config: %d poems/page, max %d pages (storage: %dGB limit)",
-            PAGINATION_CONFIG.poems_per_page,
-            PAGINATION_CONFIG.max_pages_per_poem,
-            STORAGE_CONFIG.limit_gb))
     end
+
+    -- Load storage settings from unified config (Issue 8-020)
+    if unified_config.storage then
+        for key, value in pairs(unified_config.storage) do
+            if key ~= "_comment" and STORAGE_CONFIG[key] ~= nil then
+                STORAGE_CONFIG[key] = value
+            end
+        end
+    end
+
+    utils.log_info(string.format("Loaded pagination config: %d poems/page, max %d pages (storage: %dGB limit)",
+        PAGINATION_CONFIG.poems_per_page,
+        PAGINATION_CONFIG.max_pages_per_poem,
+        STORAGE_CONFIG.limit_gb))
 
     pagination_config_loaded = true
     return PAGINATION_CONFIG

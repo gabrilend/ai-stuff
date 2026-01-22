@@ -28,6 +28,11 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
 
+-- Issue 10-003: Load unified config from config/main.lua
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local unified_config = config_loader.load()
+
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
@@ -221,16 +226,19 @@ function M.main(interactive_mode)
         io.write("Select option (1-4): ")
         local choice = io.read()
         
-        local color_config_file = DIR .. "/config/semantic-colors.json"
+        -- Issue 10-003: Use unified config instead of semantic-colors.json
         local poems_file = utils.asset_path("poems.json")
         local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
         local color_embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/color_embeddings.json"
         local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
-        
-        -- Load color configuration
-        local color_config = utils.read_json_file(color_config_file)
-        if not color_config then
-            utils.log_error("Failed to load color configuration from: " .. color_config_file)
+
+        -- Color configuration from unified config
+        local color_config = {
+            color_names = unified_config.color_names,
+            semantic_colors = unified_config.semantic_colors
+        }
+        if not color_config.color_names then
+            utils.log_error("Failed to load color_names from unified config")
             return
         end
         
