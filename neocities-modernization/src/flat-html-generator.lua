@@ -121,8 +121,8 @@ local LAYOUT = {
     GOLDEN_LEFT_BOX_WIDTH = 11,
     GOLDEN_RIGHT_BOX_WIDTH = 13,
     GOLDEN_GAP_WIDTH = 58,            -- 84 - 2 corners - 11 - 13 = 58
-    GOLDEN_LEFT_JUNCTION_POS = 9,     -- Position within interior
-    GOLDEN_RIGHT_JUNCTION_POS = 69,   -- Position within interior (was 70, now 69 for 84-char width)
+    GOLDEN_LEFT_JUNCTION_POS = 9,     -- Position within interior (under ┐ at full pos 10)
+    GOLDEN_RIGHT_JUNCTION_POS = 70,   -- Position within interior (under ┌ at full pos 71)
 }
 
 -- {{{ function load_layout_from_config
@@ -740,10 +740,10 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
 
     -- For golden bottom borders with corner boxes, we need to insert junction characters
     -- Junction positions in the 82-char interior (0-indexed):
-    -- - Position 9: "similar" box wall (uses ╧ if in ═ section, ┴ if in ─ section)
-    -- - Position 69: "different" box wall (uses ╧ if in ═ section, ┴ if in ─ section)
+    -- - Position 9: under "similar" box ┐ (uses ╧ if in ═ section, ┴ if in ─ section)
+    -- - Position 70: under "different" box ┌ (uses ╧ if in ═ section, ┴ if in ─ section)
     local LEFT_JUNCTION_POS = 9   -- After "║ similar │" (11 chars, minus corner = 10, 0-indexed = 9)
-    local RIGHT_JUNCTION_POS = 69  -- Before "│ different │" (adjusted from 70 for 84-char total)
+    local RIGHT_JUNCTION_POS = 70  -- Under "┌" of right box at full position 71 (interior pos 70)
 
     -- Junction positions for regular poems (different from golden due to no outer walls)
     -- Regular corner boxes: ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
@@ -1556,6 +1556,13 @@ local function apply_golden_poem_formatting(content, is_golden, similar_link, di
     local CONTENT_WIDTH = 80  -- Content area between padding spaces
     local color = hex_color or "#787878"  -- Default to gray if no color provided
 
+    -- Helper to count UTF-8 characters (not bytes)
+    -- Box-drawing chars are 3 bytes each, so #str gives wrong count
+    local function utf8_char_count(str)
+        -- Remove UTF-8 continuation bytes (0x80-0xBF), count what remains
+        return #(str:gsub("[\128-\191]", ""))
+    end
+
     -- Split content into lines (append newline to handle last line without trailing newline)
     local lines = {}
     for line in (content .. "\n"):gmatch("(.-)\n") do
@@ -1566,9 +1573,9 @@ local function apply_golden_poem_formatting(content, is_golden, similar_link, di
     local colored_wall = string.format('<font color="%s"><b>║</b></font>', color)
 
     for _, line in ipairs(lines) do
-        -- Calculate visible length (excluding HTML tags)
+        -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
         local visible_line = line:gsub("<[^>]+>", "")
-        local visible_length = #visible_line
+        local visible_length = utf8_char_count(visible_line)
 
         -- Pad or handle line to fit content width
         local padded_line
@@ -2981,13 +2988,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
                         local CONTENT_WIDTH = 80
 
+                        -- Helper to count UTF-8 characters (not bytes)
+                        -- Box-drawing chars are 3 bytes each, so #str gives wrong count
+                        local function utf8_char_count(str)
+                            -- Remove UTF-8 continuation bytes (0x80-0xBF), count what remains
+                            return #(str:gsub("[\128-\191]", ""))
+                        end
+
                         for _, line in ipairs(wrapped_lines) do
                             -- Strip the leading space that word-wrap added (we'll add our own)
                             local content = line:match("^%s*(.*)$") or line
 
-                            -- Calculate visible length (excluding HTML tags)
+                            -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
                             local visible_content = content:gsub("<[^>]+>", "")
-                            local visible_length = #visible_content
+                            local visible_length = utf8_char_count(visible_content)
 
                             -- Pad content to 80 chars
                             local padded_content
@@ -3022,8 +3036,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     if is_golden then
                         -- Golden nav box: 84 chars total
-                        -- ╟─────────┐ (11 chars) + gap (58) + ┌───────────┤ (14 chars) = 84 total (includes outer walls)
-                        -- But corners ╟ and ┤ are part of the structure
+                        -- ╟─────────┐ (11 chars) + gap (60) + ┌───────────┤ (13 chars) = 84 total
+                        -- Left box ends at position 10, right box starts at position 71
                         local colored_corner = string.format('<font color="%s"><b>╟</b></font>', hex_color)
                         local left_sep = colored_corner
                         for i = 1, 9 do
@@ -3031,24 +3045,25 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         end
                         left_sep = left_sep .. color_char("┐", 10)
 
-                        -- Right separator: positions 69-81 for 84-char total width
-                        local right_sep = color_char("┌", 69)
-                        for i = 70, 80 do
+                        -- Right separator: positions 71-83 for 84-char total width
+                        local right_sep = color_char("┌", 71)
+                        for i = 72, 82 do
                             right_sep = right_sep .. color_char("─", i)
                         end
-                        right_sep = right_sep .. color_char("┤", 81)
+                        right_sep = right_sep .. color_char("┤", 83)
 
-                        -- Gap: 84 - 11 (left) - 14 (right) = 58 chars (adjusted for 84-char total)
-                        nav_top = left_sep .. string.rep(" ", 58) .. right_sep
+                        -- Gap: 84 - 11 (left) - 13 (right) = 60 chars
+                        nav_top = left_sep .. string.rep(" ", 60) .. right_sep
 
-                        -- Golden nav line: ║ similar │ + gap + chronological + gap + │ different ┤
+                        -- Golden nav line: ║ similar │ + gap + chronological + gap + │ different │
+                        -- Note: nav line uses │ on right end (not ┤ which is only for separator)
                         local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
                         local right_wall_of_left = color_char("│", 10)
-                        local left_wall_of_right = color_char("│", 69)
-                        local right_end = color_char("┤", 81)
+                        local left_wall_of_right = color_char("│", 71)
+                        local right_end = color_char("│", 83)  -- │ not ┤ for nav line
 
-                        -- Gap calculation: 58 total gap - 14 (chronological link) = 44, split: 22 + 22
-                        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 22) .. chrono_link .. string.rep(" ", 22) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
+                        -- Gap calculation: 60 total gap - 14 (chronological link) = 46, split: 23 + 23
+                        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
                     else
                         -- Regular: ┌─────────┐ + gap + ┌───────────┐
                         local left_top = {}
@@ -3078,11 +3093,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Bottom line with progress bar and junction characters
                     -- Structure: ╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
-                    -- Golden: 82 interior + 2 corners = 84 total, junctions at 9 and 69
+                    -- Golden: 82 interior + 2 corners = 84 total, junctions at 9 and 70
                     -- Regular: 83 total, junctions at 10 and 70
                     local TOTAL_CHARS = is_golden and 82 or 83
                     local LEFT_JUNCTION = is_golden and 9 or 10
-                    local RIGHT_JUNCTION = is_golden and 69 or 70
+                    local RIGHT_JUNCTION = is_golden and 70 or 70  -- Golden: interior pos 70 = full pos 71
 
                     local left_in_progress = LEFT_JUNCTION < progress_chars
                     local right_in_progress = RIGHT_JUNCTION < progress_chars
