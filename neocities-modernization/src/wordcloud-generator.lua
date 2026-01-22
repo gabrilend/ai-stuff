@@ -34,7 +34,7 @@ local unified_config = config_loader.load()
 local M = {}
 
 -- {{{ Configuration
--- Issue 10-003: Load word_cloud config from unified config
+-- Issue 10-003: Load word_cloud config from unified config (including embedded stop_words)
 local wc = unified_config.word_cloud or {}
 local CONFIG = {
     min_occurrences = wc.min_occurrences or 5,
@@ -42,34 +42,24 @@ local CONFIG = {
     font_size_min = wc.font_size_min or 1,
     font_size_max = wc.font_size_max or 7,
     min_word_length = wc.min_word_length or 3,
-    output_file = wc.output_file or "wordcloud.html",
-    stop_words_file = wc.stop_words_file or "stop-words.txt"
+    output_file = wc.output_file or "wordcloud.html"
 }
 -- }}}
 
 -- {{{ load_stop_words
+-- Issue 10-003: Load stop words from embedded config.word_cloud.stop_words array
 local function load_stop_words()
     local stop_words = {}
-    local file_path = DIR .. "/" .. CONFIG.stop_words_file
 
-    local file = io.open(file_path, "r")
-    if not file then
-        utils.log_warn("Stop words file not found: " .. file_path)
-        return stop_words
+    -- Load from config (array of words)
+    local config_stop_words = wc.stop_words or {}
+    for _, word in ipairs(config_stop_words) do
+        stop_words[word:lower()] = true
     end
-
-    for line in file:lines() do
-        -- Skip empty lines and comments
-        local word = line:match("^%s*(%S+)%s*$")
-        if word and not word:match("^#") then
-            stop_words[word:lower()] = true
-        end
-    end
-    file:close()
 
     local count = 0
     for _ in pairs(stop_words) do count = count + 1 end
-    utils.log_info(string.format("Loaded %d stop words", count))
+    utils.log_info(string.format("Loaded %d stop words from config", count))
 
     return stop_words
 end

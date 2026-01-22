@@ -1,7 +1,6 @@
 -- {{{ exclusion-filter.lua
 -- Issue 6-031: Configurable poem exclusion filter
--- Loads excluded poem IDs from excluded-poems.txt (project root) and provides
--- a check function to filter poems during extraction.
+-- Issue 10-003: Now loads from config.lua excluded_poems section
 --
 -- Excluded poems leave gaps in the ID sequence (tombstoning) -
 -- IDs are assigned first, then exclusions are applied, preserving
@@ -9,7 +8,7 @@
 --
 -- Usage:
 --   local exclusion = require("exclusion-filter")
---   local filter = exclusion.load("excluded-poems.txt")
+--   local filter = exclusion.load_default(DIR)
 --   if filter:is_excluded("fediverse", "113847291038475") then
 --       -- skip this poem
 --   end
@@ -17,60 +16,43 @@
 
 local M = {}
 
--- {{{ local function parse_exclusion_file
--- Parses the exclusion config file into a table of category -> set of IDs.
+-- {{{ local function load_exclusions_from_config
+-- Loads exclusions from unified config, converting arrays to sets
 -- Returns a table like: { fediverse = { ["123"] = true }, notes = { ["foo"] = true } }
-local function parse_exclusion_file(file_path)
+local function load_exclusions_from_config(project_dir)
     local exclusions = {
         fediverse = {},
         notes = {},
         messages = {},
         bluesky = {}
     }
-
-    local file = io.open(file_path, "r")
-    if not file then
-        -- File doesn't exist - return empty exclusions (not an error)
-        return exclusions, 0
-    end
-
-    local current_category = nil
     local total_count = 0
 
-    for line in file:lines() do
-        -- Trim whitespace
-        line = line:match("^%s*(.-)%s*$")
-
-        -- Skip empty lines and comments
-        if line == "" or line:match("^#") then
-            goto continue
-        end
-
-        -- Check for category header (e.g., "fediverse:")
-        local category = line:match("^(%w+):$")
-        if category then
-            if exclusions[category] then
-                current_category = category
-            else
-                -- Unknown category - warn but continue
-                io.stderr:write(string.format(
-                    "[exclusion-filter] Warning: Unknown category '%s' ignored\n",
-                    category
-                ))
-            end
-            goto continue
-        end
-
-        -- Add ID to current category
-        if current_category then
-            exclusions[current_category][line] = true
-            total_count = total_count + 1
-        end
-
-        ::continue::
+    -- Load config-loader
+    local ok, config_loader = pcall(require, "config-loader")
+    if not ok then
+        return exclusions, total_count
     end
 
-    file:close()
+    if project_dir then
+        config_loader.set_project_root(project_dir)
+    end
+
+    local config = config_loader.load()
+    if not config or not config.excluded_poems then
+        return exclusions, total_count
+    end
+
+    -- Convert arrays to sets
+    for category, ids in pairs(config.excluded_poems) do
+        if exclusions[category] and type(ids) == "table" then
+            for _, id in ipairs(ids) do
+                exclusions[category][tostring(id)] = true
+                total_count = total_count + 1
+            end
+        end
+    end
+
     return exclusions, total_count
 end
 -- }}}
@@ -137,31 +119,28 @@ end
 -- }}}
 -- }}}
 
--- {{{ function M.load
--- Load exclusions from a config file.
--- file_path: path to excluded-poems.txt (absolute or relative to cwd)
+-- {{{ function M.load_default
+-- Load exclusions from unified config (config.lua excluded_poems section)
+-- dir: project directory (optional, for config-loader)
 -- Returns: ExclusionFilter object
-function M.load(file_path)
-    local exclusions, total_count = parse_exclusion_file(file_path)
+function M.load_default(dir)
+    local exclusions, total_count = load_exclusions_from_config(dir)
 
     local filter = setmetatable({
         exclusions = exclusions,
         total_count = total_count,
-        file_path = file_path
+        source = "config.lua"
     }, ExclusionFilter)
 
     return filter
 end
 -- }}}
 
--- {{{ function M.load_default
--- Load exclusions from the default config location.
--- dir: project directory (optional, defaults to cwd)
--- Returns: ExclusionFilter object
-function M.load_default(dir)
-    dir = dir or "."
-    local file_path = dir .. "/excluded-poems.txt"
-    return M.load(file_path)
+-- {{{ function M.load
+-- Backward compatibility wrapper - now just calls load_default
+-- file_path parameter is ignored (kept for API compatibility)
+function M.load(file_path, dir)
+    return M.load_default(dir)
 end
 -- }}}
 
