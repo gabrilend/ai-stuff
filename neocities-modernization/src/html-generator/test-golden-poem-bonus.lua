@@ -258,7 +258,7 @@ end
 
 -- {{{ function M.test_configuration_persistence
 -- Issue 10-003: Updated to test unified config loading instead of JSON file persistence
--- The unified config system (config/main.lua) is loaded once at startup and cached
+-- The unified config system (config.lua) is loaded once at startup and cached
 function M.test_configuration_persistence()
     utils.log_info("Testing configuration from unified config...")
 

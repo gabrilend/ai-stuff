@@ -28,7 +28,7 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
 
--- Issue 10-003: Load unified config from config/main.lua
+-- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
@@ -72,7 +72,7 @@ local COLOR_CONFIG = {
 }
 
 -- Pagination configuration defaults
--- Issue 10-003: These values are overridden by unified config (config/main.lua) if present
+-- Issue 10-003: These values are overridden by unified config (config.lua) if present
 -- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
 -- Issue 9-003 Fix F: Added chronological pagination settings
 local PAGINATION_CONFIG = {
@@ -87,7 +87,7 @@ local PAGINATION_CONFIG = {
 }
 
 -- Storage configuration (for display purposes)
--- Issue 10-003: Loaded from unified config (config/main.lua) if present
+-- Issue 10-003: Loaded from unified config (config.lua) if present
 local STORAGE_CONFIG = {
     limit_gb = 45,
     reserved_for_maze_gb = 0.031,
@@ -96,7 +96,7 @@ local STORAGE_CONFIG = {
 
 -- Layout constants: Single source of truth for box widths and positions
 -- Issue 8-037: Centralized to prevent drift between calculations
--- Issue 10-003: Values can be overridden in unified config (config/main.lua) "layout" section
+-- Issue 10-003: Values can be overridden in unified config (config.lua) "layout" section
 -- Reference: All progress bars, nav boxes, and content should use these
 local LAYOUT = {
     -- Total visible width for regular poems (positions 0-82)

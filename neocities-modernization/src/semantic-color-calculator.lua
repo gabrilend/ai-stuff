@@ -28,7 +28,7 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
 
--- Issue 10-003: Load unified config from config/main.lua
+-- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()

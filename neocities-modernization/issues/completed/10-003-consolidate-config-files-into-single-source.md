@@ -421,7 +421,7 @@ All stale options have been resolved by removal (deemed unnecessary):
 | `validation_settings.*` | similarity | Removed - over-engineering, not needed |
 | `algorithm_metadata.*` | similarity | Converted to documentation comments |
 
-The algorithm descriptions are now inline comments in `config/main.lua` for reference.
+The algorithm descriptions are now inline comments in `config.lua` for reference.
 
 ### Old Config Files: DELETED (2026-01-21)
 
@@ -431,18 +431,27 @@ The following deprecated config files have been removed:
 - ~~`config/similarity-calculator-settings.json`~~ - Deleted
 - ~~`config/semantic-colors.json`~~ - Deleted
 - ~~`config/input-sources.json`~~ - Deleted
+- ~~`config/asset-paths.lua`~~ - Deleted (utils.lua now uses config-loader)
 
-The single authoritative config file is now `config/main.lua`.
+### Directory Removal (2026-01-21)
+
+The entire `config/` directory has been removed. All configuration is now in the project root:
+
+| File | Purpose |
+|------|---------|
+| `config.lua` | Unified configuration (all settings) |
+| `excluded-poems.txt` | User-editable poem exclusion list |
+| `stop-words.txt` | User-editable word cloud stop words |
 
 ### Success Criteria
 
 - [x] Single config file contains all project settings
 - [x] Config-loader utility created for script migration
-- [x] Symlink created for easy access (`config-file.lua` -> `config/main.lua`)
 - [x] All 11 scripts updated to use config-loader
 - [x] Old config files deleted
 - [x] Stale options resolved (removed as unnecessary)
 - [x] Documentation updated in issue file
+- [x] `config/` directory removed - all config files in project root
 
 ---
 

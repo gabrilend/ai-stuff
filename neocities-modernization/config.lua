@@ -1,4 +1,4 @@
--- {{{ config/main.lua
+-- {{{ config.lua
 -- Issue 10-003: Single authoritative configuration for neocities-modernization
 -- All settings are validated against actual script usage as of 2026-01-21.
 -- Sections are organized with vimfolds for easy navigation.
@@ -195,7 +195,7 @@ return {
     -- Read by: src/wordcloud-generator.lua
     word_cloud = {
         enabled = true,
-        stop_words_file = "config/stop-words.txt",  -- Editable filter list
+        stop_words_file = "stop-words.txt",  -- Editable filter list (project root)
         output_file = "wordcloud.html",
         min_occurrences = 5,        -- Minimum times a word must appear
         max_words = 200,            -- Maximum words to display (0 = unlimited)

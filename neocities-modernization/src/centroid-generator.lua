@@ -27,7 +27,7 @@ local utils = require("utils")
 local dkjson = require("dkjson")
 local ollama_config = require("ollama-config")
 
--- Issue 10-003: Load unified config from config/main.lua
+-- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
@@ -382,7 +382,7 @@ function M.generate_all_centroids(options)
     -- Issue 10-003: Load centroids from unified config instead of assets/centroids.json
     local centroids_list = unified_config.centroids
     if not centroids_list or #centroids_list == 0 then
-        utils.log_error("No centroids defined in config/main.lua")
+        utils.log_error("No centroids defined in config.lua")
         return nil, "config_parse_error"
     end
 
@@ -395,7 +395,7 @@ function M.generate_all_centroids(options)
             model = CONFIG.model_name,
             dimensions = CONFIG.embedding_dimensions,
             generated_at = utils.get_timestamp(),
-            source_config = "config/main.lua"
+            source_config = "config.lua"
         }
     }
 

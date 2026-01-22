@@ -1,6 +1,6 @@
 -- {{{ exclusion-filter.lua
 -- Issue 6-031: Configurable poem exclusion filter
--- Loads excluded poem IDs from config/excluded-poems.txt and provides
+-- Loads excluded poem IDs from excluded-poems.txt (project root) and provides
 -- a check function to filter poems during extraction.
 --
 -- Excluded poems leave gaps in the ID sequence (tombstoning) -
@@ -9,7 +9,7 @@
 --
 -- Usage:
 --   local exclusion = require("exclusion-filter")
---   local filter = exclusion.load("config/excluded-poems.txt")
+--   local filter = exclusion.load("excluded-poems.txt")
 --   if filter:is_excluded("fediverse", "113847291038475") then
 --       -- skip this poem
 --   end
@@ -160,7 +160,7 @@ end
 -- Returns: ExclusionFilter object
 function M.load_default(dir)
     dir = dir or "."
-    local file_path = dir .. "/config/excluded-poems.txt"
+    local file_path = dir .. "/excluded-poems.txt"
     return M.load(file_path)
 end
 -- }}}
