@@ -193,6 +193,47 @@ local function generate_random_embedding(poem_id, dimension)
 end
 -- }}}
 
+-- {{{ local function inherit_embedding
+-- Issue 9-010: For image-only posts, inherit embedding from nearest text poem
+-- Optionally combine with own text embedding if the post has any content
+local function inherit_embedding(nearest_embedding, own_embedding, dimension)
+    dimension = dimension or 768
+
+    if not nearest_embedding then
+        return nil  -- No embedding to inherit
+    end
+
+    if not own_embedding then
+        -- Pure inheritance: just copy the nearest embedding
+        local result = {}
+        for i = 1, dimension do
+            result[i] = nearest_embedding[i]
+        end
+        return result
+    end
+
+    -- Combine embeddings: average of nearest and own
+    -- This gives semantic meaning from context while preserving any content the post has
+    local result = {}
+    local norm = 0
+
+    for i = 1, dimension do
+        result[i] = (nearest_embedding[i] + own_embedding[i]) / 2
+        norm = norm + result[i] * result[i]
+    end
+
+    -- Normalize to unit vector for consistent similarity calculations
+    norm = math.sqrt(norm)
+    if norm > 0 then
+        for i = 1, dimension do
+            result[i] = result[i] / norm
+        end
+    end
+
+    return result
+end
+-- }}}
+
 -- {{{ local network_error_config
 local network_error_config = {
     max_consecutive_errors = 5,     -- Max consecutive network errors before abort
@@ -484,8 +525,63 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
             -- Issue 6-030: Use enhanced preprocessing for better embedding quality
             -- This converts dashes to spaces, strips file metadata, and isolates single poems
             local poem_text = poem_extractor.extract_pure_poem_content_for_embedding(poem.content)
-            
-            if poem_text == "" then
+
+            -- Issue 9-010: Handle image-only posts with embedding inheritance
+            if poem.is_image_only and poem.nearest_text_poem_index then
+                local nearest_index = poem.nearest_text_poem_index
+                local nearest_embedding = nil
+
+                -- Try to get nearest poem's embedding from existing or current batch
+                if embeddings_data.embeddings[nearest_index] and
+                   embeddings_data.embeddings[nearest_index].embedding then
+                    nearest_embedding = embeddings_data.embeddings[nearest_index].embedding
+                elseif existing_embeddings[nearest_index] and
+                       existing_embeddings[nearest_index].embedding then
+                    nearest_embedding = existing_embeddings[nearest_index].embedding
+                end
+
+                if nearest_embedding then
+                    -- Generate own text embedding if there's any content
+                    local own_embedding = nil
+                    if poem_text ~= "" then
+                        own_embedding = generate_embedding(poem_text, endpoint)
+                    end
+
+                    -- Inherit embedding from nearest text poem
+                    local inherited = inherit_embedding(nearest_embedding, own_embedding, model_config.dimensions)
+                    utils.log_info("Image-only post " .. poem_index .. " (ID: " .. (poem.id or "unknown") ..
+                                  ") - inheriting embedding from nearest text poem " .. nearest_index)
+
+                    embeddings_data.embeddings[poem_index] = {
+                        poem_index = poem_index,
+                        id = poem.id,
+                        embedding = inherited,
+                        content_length = #poem_text,
+                        is_inherited = true,  -- Flag indicating embedding inheritance
+                        nearest_text_poem_index = nearest_index,
+                        generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
+                    }
+                    newly_processed = newly_processed + 1
+                else
+                    -- Fallback: nearest embedding not available yet, use random
+                    utils.log_info("Image-only post " .. poem_index .. " - nearest embedding not ready, generating random")
+                    local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
+                    embeddings_data.embeddings[poem_index] = {
+                        poem_index = poem_index,
+                        id = poem.id,
+                        embedding = random_embedding,
+                        content_length = 0,
+                        is_random = true,
+                        is_image_only = true,
+                        needs_inheritance_update = true,  -- Mark for future update
+                        nearest_text_poem_index = nearest_index,
+                        generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
+                    }
+                    newly_processed = newly_processed + 1
+                end
+            elseif poem_text == "" then
                 -- Generate random embedding for empty poems to place them semi-randomly
                 utils.log_info("Empty poem content for ID: " .. (poem.id or "unknown") .. " - generating random embedding")
                 local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
