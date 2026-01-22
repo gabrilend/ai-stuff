@@ -1614,19 +1614,30 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
     -- Check if this is a golden poem
     local is_golden = poem and is_golden_poem(poem)
 
-    -- Detect content warning patterns (CW:, content warning:, etc.)
+    local formatted_lines = {}
+
+    -- Issue 9-011: Display content warning from poem.content_warning field (Mastodon CW)
+    -- This is separate from in-content CW: patterns - it comes from ActivityPub summary field
+    if poem and poem.content_warning and poem.content_warning ~= "" then
+        local cw_label = "CW: " .. poem.content_warning
+        local warning_box = format_warning_box(cw_label)
+        table.insert(formatted_lines, warning_box)
+        table.insert(formatted_lines, "") -- First newline
+        table.insert(formatted_lines, "") -- Second newline for spacing
+    end
+
+    -- Detect additional content warning patterns in text (CW:, content warning:, etc.)
     local lines = {}
     for line in text:gmatch("[^\n]+") do
         table.insert(lines, line)
     end
 
-    local formatted_lines = {}
     local i = 1
 
     while i <= #lines do
         local line = lines[i]
 
-        -- Check if line starts with content warning
+        -- Check if line starts with content warning (in-content CW pattern)
         if line:lower():match("^%s*cw%s*:") or line:lower():match("^%s*content warning%s*:") then
             -- Format content warning with box
             local warning_box = format_warning_box(line)
@@ -2895,6 +2906,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 
                     local wrapped_lines = {}
+
+                    -- Issue 9-011: Display content warning from poem.content_warning field (Mastodon CW)
+                    -- This is separate from in-content CW: patterns - it comes from ActivityPub summary field
+                    if poem.content_warning and poem.content_warning ~= "" then
+                        -- Build box around ActivityPub content warning
+                        local cw_display = "CW: " .. poem.content_warning
+                        local box_width = math.min(math.max(#cw_display, 20), 76)
+                        local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
+                        table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
+                        table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
+                        table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+                        table.insert(wrapped_lines, "")  -- Empty line after CW
+                        table.insert(wrapped_lines, "")  -- Second empty line for spacing
+                    end
 
                     -- Check for content warning at start
                     local cw_text = nil
