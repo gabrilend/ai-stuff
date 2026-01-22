@@ -1188,18 +1188,19 @@ local function render_attachment_images(attachments)
             alt_text = alt_text:gsub('"', '&quot;')
 
             -- Build image tag with lazy loading for performance
-            -- Issue 8-005 Fix: Add max-width:100% to prevent viewport overflow
-            -- This is a pragmatic CSS exception - no pure HTML way to make images responsive
+            -- Issue 8-005 Fix: Add max-width to prevent viewport overflow
+            -- display:block prevents multiple images from appearing side-by-side
+            -- max-width:min(100%,800px) caps at content width (~80 chars) while being responsive
             -- width/height hints help browser reserve space before load (aspect ratio preserved)
             local img_tag
             if attachment.width and attachment.height then
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="max-width:100%%; height:auto">',
+                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
                     img_src, alt_text, attachment.width, attachment.height
                 )
             else
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto">',
+                    '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
                     img_src, alt_text
                 )
             end
@@ -3153,7 +3154,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
 
                     -- Helper function to render a list of attachments
-                    -- Issue 8-005 Fix: Images rendered outside <pre> for proper max-width:100% behavior
+                    -- Issue 8-005 Fix: Images rendered outside <pre> for proper max-width behavior
+                    -- display:block prevents side-by-side, max-width:min(100%,800px) caps width
                     local function render_attachments(attachments)
                         if not attachments then return false end
                         local has_images = false
@@ -3165,7 +3167,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                                 -- Escape quotes in alt text
                                 alt_text = alt_text:gsub('"', '&quot;')
                                 local img_tag = string.format(
-                                    '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto"',
+                                    '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
                                     img_src, alt_text
                                 )
                                 -- Add dimensions if available
@@ -3194,6 +3196,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     end
 
                     -- If there are images, close </pre>, render them, reopen <pre>
+                    -- display:block prevents side-by-side, max-width:min(100%,800px) caps width
                     if has_any_images then
                         table.insert(output, "</pre>")
                         for _, attachment in ipairs(image_attachments) do
@@ -3201,7 +3204,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             local alt_text = attachment.description or attachment.alt_text or "Image attachment"
                             alt_text = alt_text:gsub('"', '&quot;')
                             local img_tag = string.format(
-                                '  <img src="%s" alt="%s" loading="lazy" style="max-width:100%%; height:auto"',
+                                '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
                                 img_src, alt_text
                             )
                             if attachment.width and attachment.height then
