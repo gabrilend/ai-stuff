@@ -171,6 +171,9 @@ end
 -- }}}
 
 -- {{{ calculate_font_sizes
+-- Issue 8-043c: Use logarithmic scaling for more gradual font size variation
+-- Word frequencies follow Zipf's law (power law), so linear scaling clusters
+-- most words at the minimum size. Log scaling spreads them more evenly.
 local function calculate_font_sizes(words)
     if #words == 0 then return words end
 
@@ -178,13 +181,17 @@ local function calculate_font_sizes(words)
     local min_count = words[#words].count  -- Last item (lowest count)
     local max_count = words[1].count       -- First item (highest count)
 
-    -- Calculate font size for each word
+    -- Calculate font size for each word using logarithmic scaling
     for _, entry in ipairs(words) do
         local normalized
         if max_count == min_count then
             normalized = 0.5  -- All same frequency
         else
-            normalized = (entry.count - min_count) / (max_count - min_count)
+            -- Log scaling: compresses high values, spreads low values
+            -- Add 1 to avoid log(0), shift so min_count maps to 0
+            local log_range = math.log(max_count - min_count + 1)
+            local log_value = math.log(entry.count - min_count + 1)
+            normalized = log_value / log_range
         end
 
         -- Map to font size range (1-7)
@@ -200,6 +207,7 @@ end
 -- Issue 8-046: Generate poem index section showing all poems by category
 -- Issue 6-031: Uses poem.id (not sequential index) to respect tombstones -
 --              excluded poems leave gaps in the ID sequence, they don't shift other IDs
+-- Issue 8-043c: Simplified format - just poem IDs, multiple per line
 local function generate_poem_index(poems_data)
     if not poems_data or not poems_data.poems then
         return ""
@@ -241,15 +249,17 @@ local function generate_poem_index(poems_data)
         end
     end
 
-    -- Generate index HTML
+    -- Generate index HTML - simplified format with multiple IDs per line
     local index_parts = {}
     table.insert(index_parts, [[
 <hr>
 <h2>Poem Index</h2>
-<p>All poems organized by source category</p>
+<p>Click any poem ID to jump to its chronological position</p>
 <table align="center"><tr><td>
 <pre>
 ]])
+
+    local IDS_PER_LINE = 10  -- Show 10 poem IDs per line
 
     for _, cat in ipairs(ordered_cats) do
         local poems = categories[cat]
@@ -257,30 +267,23 @@ local function generate_poem_index(poems_data)
             "\n<b>%s</b> (%d poems)\n",
             cat:upper(), #poems
         ))
-        table.insert(index_parts, string.rep("─", 60) .. "\n")
 
-        for _, poem in ipairs(poems) do
-            -- Get anchor and preview
+        -- Build lines of poem IDs
+        local line_ids = {}
+        for i, poem in ipairs(poems) do
             local anchor_id = string.format("poem-%s-%04d", cat, poem.id or 0)
-            local content = poem.content or ""
-            content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-            local preview = content:gsub("\n", " "):sub(1, 40)
-            if #content > 40 then preview = preview .. "..." end
+            local id_str = tostring(poem.id or 0)
 
-            -- Get poem identifier
-            local identifier
-            if cat == "notes" and poem.source_file then
-                identifier = poem.source_file
-            else
-                identifier = tostring(poem.id or 0)
+            -- Pad ID to 4 chars for alignment
+            local padded_id = string.format("%4s", id_str)
+            local link = string.format('<a href="chronological/index.html#%s">%s</a>', anchor_id, padded_id)
+            table.insert(line_ids, link)
+
+            -- Output line when we reach IDS_PER_LINE or end of poems
+            if #line_ids >= IDS_PER_LINE or i == #poems then
+                table.insert(index_parts, "  " .. table.concat(line_ids, " ") .. "\n")
+                line_ids = {}
             end
-
-            -- Link to chronological position
-            -- Note: Uses index.html for single-page or would need chrono_map for pagination
-            table.insert(index_parts, string.format(
-                '  <a href="chronological/index.html#%s">%s</a> - "%s"\n',
-                anchor_id, identifier, preview
-            ))
         end
     end
 
@@ -340,7 +343,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
 <center>
 <h1>Menu</h1>
-<p><a href="chronological/index.html">Chronological Index</a></p>
+<p><a href="explore.html">Explore</a> | <a href="chronological/index.html">Chronological Index</a></p>
 <hr>
 <h2>Word Cloud</h2>
 <p>Words sized by frequency across %d poems (click to explore similar poems)</p>
