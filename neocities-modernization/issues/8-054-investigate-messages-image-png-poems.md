@@ -107,56 +107,83 @@ end
 
 This would allow the HTML generator to render message images the same way it renders fediverse images.
 
-### Decision point
+### Decision
 
-The simplest fix is **option 1: filter out media-only messages**. This eliminates the "image.png" poems immediately and cleans up the semantic space. Image rendering for messages can be a separate follow-up issue if desired.
+**Extract the images — don't tombstone them.** Every image the user sent to themselves was worth saving. The poems should keep their IDs and gain proper image attachments instead of displaying bare filenames. Media-only messages become image poems with `[Image]` placeholder content (matching the pattern established by fediverse image-only posts).
 
 ## Suggested Implementation Steps
 
-### Phase A: Filter out media-only messages (recommended first step)
-
-1. **Add msgtype detection** to `scripts/extract-messages.lua` inside the extraction loop (after line 153):
+1. **Add msgtype detection** to `scripts/extract-messages.lua` inside the extraction loop (after line 153). Detect `m.image`, `m.video`, `m.audio`, and `m.file` message types:
    ```lua
    local content = value.content.body or " "
    local msgtype = value.content.msgtype
+   ```
 
-   -- Skip media-only messages — their body is just a filename, not meaningful text
-   -- These pollute the embedding space with identical "image.png" vectors
+2. **Build a filename-to-local-path lookup** from the ZIP extract's `images/` subdirectory. The Matrix export stores decrypted images alongside `export.json`:
+   ```lua
+   -- Scan images/ directory in the extract for local files
+   local function build_image_lookup(extract_dir)
+       local lookup = {}
+       local images_dir = extract_dir .. "/images"
+       local handle = io.popen('ls "' .. images_dir .. '" 2>/dev/null')
+       if handle then
+           for filename in handle:lines() do
+               lookup[filename] = images_dir .. "/" .. filename
+           end
+           handle:close()
+       end
+       return lookup
+   end
+   ```
+
+3. **For media messages, extract attachment metadata** and add it to the poem entry (matching fediverse attachment format):
+   ```lua
    if msgtype == "m.image" or msgtype == "m.video"
       or msgtype == "m.audio" or msgtype == "m.file" then
-       -- Check if body is just a filename (no real text content)
-       if content:match("^%S+%.%w+$") then
-           skipped_media_count = skipped_media_count + 1
-           i = i + 1  -- Preserve ID stability (tombstoning)
-           goto continue
+       local filename = value.content.body or ""
+       local local_path = image_lookup[filename]
+       local attachment = {
+           media_type = (value.content.info and value.content.info.mimetype) or "image/png",
+           width = value.content.info and value.content.info.w,
+           height = value.content.info and value.content.info.h,
+           alt_text = nil,  -- Matrix doesn't provide alt-text
+           relative_path = local_path
+       }
+       poem_entry.attachments = { attachment }
+
+       -- Replace bare filename content with descriptive placeholder
+       -- so the poem has meaningful display text and a non-trivial embedding
+       if filename:match("^%S+%.%w+$") then
+           content = "[Image: " .. filename .. "]"
+           poem_entry.content = content
+           poem_entry.raw_content = content
        end
    end
    ```
 
-2. **Add skip counter** and report it in the extraction summary:
+4. **Ensure the image sync pipeline** copies message images to the output `media/` directory alongside fediverse images. Update `scripts/sync-images` (or the relevant image sync step in `run.sh`) to include the messages extract `images/` directory as a source.
+
+5. **Add image statistics** to the extraction summary:
    ```lua
-   local skipped_media_count = 0
-   -- ... (in summary) ...
-   print("   🖼️  Skipped media-only: " .. skipped_media_count)
+   local image_count = 0
+   -- ... in the loop, after adding attachment:
+   image_count = image_count + 1
+   -- ... in summary:
+   print("   🖼️  Image messages: " .. image_count)
    ```
 
-3. **Update extraction summary JSON** to include `media_only_skipped` count.
+6. **Update the extraction summary JSON** to include `image_messages` count and `attachment_statistics` (matching the fediverse extraction summary format).
 
-4. **Test**: Re-run messages extraction and verify:
-   - "image.png" poems no longer appear in `poems.json`
-   - Total poem count decreases by ~16
-   - ID gaps are present where media messages were (tombstoning)
-   - Remaining poems all have meaningful text content
+7. **Test the full pipeline**:
+   - Re-run messages extraction and verify:
+     - Image messages now have an `attachments` array in poems.json
+     - Content shows `[Image: filename.png]` instead of bare `image.png`
+     - Image count is reported in extraction summary
+   - Re-run image sync and verify message images are copied to `output/media/`
+   - Re-run HTML generation and verify message images render inline (like fediverse images)
+   - Check that similarity rankings no longer cluster identical "image.png" poems together
 
-### Phase B: Extract message images (future enhancement)
-
-5. **Map Matrix image filenames to local files**: The ZIP extract has images in an `images/` subdirectory. Build a lookup from filename → local path.
-
-6. **Add attachment metadata** to poems that combine text + image (if any exist in the export).
-
-7. **Ensure the image sync pipeline** (`scripts/sync-images`) copies message images alongside fediverse images.
-
-8. **Verify rendering**: Regenerate HTML and confirm message images appear alongside their text content.
+8. **Handle mixed messages** (text + image): Some messages may have `msgtype: "m.image"` but contain a meaningful caption in `body` (not just a filename). The filename check (`body:match("^%S+%.%w+$")`) distinguishes these — captions contain spaces and don't match, so they keep their original content while also gaining the attachment.
 
 ## Data Statistics
 
@@ -173,13 +200,13 @@ The simplest fix is **option 1: filter out media-only messages**. This eliminate
 
 ## Edge Cases
 
-1. **Messages with text AND image**: Some Matrix messages might have `msgtype: "m.image"` but also contain a meaningful caption in `body`. The filename heuristic (`body:match("^%S+%.%w+$")`) handles this — a real caption won't match a bare filename pattern.
+1. **Messages with text AND image**: Some Matrix messages might have `msgtype: "m.image"` but also contain a meaningful caption in `body`. The filename heuristic (`body:match("^%S+%.%w+$")`) handles this — a real caption won't match a bare filename pattern, so the caption is preserved as content while the image attachment is also added.
 
-2. **ID stability**: Skipped media messages must still increment the ID counter (`i = i + 1`) to preserve tombstoning — existing poem IDs must not shift.
+2. **ID stability**: All messages keep their IDs — no poems are removed, so no tombstoning is needed. Image messages gain attachments and updated content but retain their position in the ID sequence.
 
-3. **Re-running embeddings**: After filtering, the poems.json changes and any existing embeddings for the removed poems become stale. The embedding pipeline should detect the poem count change and offer to regenerate.
+3. **Re-running embeddings**: After extraction changes, the poems.json content differs (e.g., `"image.png"` → `"[Image: image.png]"`) so existing embeddings become stale. The embedding pipeline should detect the content change and regenerate affected embeddings.
 
-4. **Other media types**: Matrix supports `m.video`, `m.audio`, `m.file` — these should all be filtered using the same logic. A video message with body "recording.mp4" is equally meaningless as text.
+4. **Other media types**: Matrix supports `m.video`, `m.audio`, `m.file` — these should all have their attachment metadata extracted using the same pattern. A video message gains an attachment entry even if it can't be rendered inline yet.
 
 ## Related Documents
 
