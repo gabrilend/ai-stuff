@@ -76,13 +76,18 @@ is_extraction_fresh() {
 }
 # }}}
 
-# Parse command line arguments for project directory
+# Parse command line arguments for project directory and options
 SCRIPT_DIR=""
 FORCE_EXTRACT=false
+INCLUDE_BOOSTS=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force|-f)
             FORCE_EXTRACT=true
+            shift
+            ;;
+        --include-boosts)
+            INCLUDE_BOOSTS=true
             shift
             ;;
         -*)
@@ -149,7 +154,13 @@ echo "📱 Processing extracted archives..."
 # Check for fediverse data
 if [ -f "${TEMP_EXTRACT_DIR}/fediverse/extract/outbox.json" ]; then
     echo "📱 Extracting fediverse content..."
-    lua "${DIR}/scripts/extract-fediverse.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/fediverse" || {
+    # Issue 8-011: Pass boost inclusion flag if enabled
+    BOOST_FLAG=""
+    if $INCLUDE_BOOSTS; then
+        BOOST_FLAG="--include-boosts"
+        echo "   📤 Including fediverse boosts in extraction"
+    fi
+    lua "${DIR}/scripts/extract-fediverse.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/fediverse" $BOOST_FLAG || {
         echo "Warning: Fediverse extraction failed" >&2
     }
 else
