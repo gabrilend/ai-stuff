@@ -267,9 +267,248 @@ local function build_poem_embeddings_lookup(embeddings_data)
 end
 -- }}}
 
+-- {{{ local function format_poem_for_word_page
+-- Issue 8-043c: Format poem entry using same box-drawing style as similar/different pages
+-- Uses CHRONOLOGICAL position for progress bar (same as similar/different pages)
+-- This helps users orient themselves in the timeline/story
+local function format_poem_for_word_page(poem, rank, similarity, poem_colors, color_config, chrono_map)
+    local poem_idx = poem.poem_index or 0
+
+    -- Get semantic color for this poem (default to gray)
+    local poem_color_data = poem_colors and poem_colors[poem_idx]
+    local semantic_color = poem_color_data and poem_color_data.color or "gray"
+    local hex_color = color_config and color_config[semantic_color] or "#888888"
+
+    -- Check if golden poem (metadata-based detection)
+    local is_golden = poem.metadata and poem.metadata.is_golden_poem
+
+    -- Use CHRONOLOGICAL position for progress bar (not similarity score)
+    -- This matches similar/different pages and helps orient the reader in the story
+    local chrono_info = chrono_map and chrono_map[poem_idx] or {position = 1, total_poems = 1}
+    local progress_pct = (chrono_info.position / chrono_info.total_poems) * 100
+
+    -- Calculate progress bar chars
+    -- Regular: 83 chars total, Golden: 82 interior + 2 corners = 84 total
+    local total_bar_chars = is_golden and 82 or 83
+    local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
+    local remaining_chars = total_bar_chars - progress_chars
+
+    -- Build top progress bar with color
+    local progress_section = string.rep("═", progress_chars)
+    local remaining_section = string.rep("─", remaining_chars)
+    local colored_progress
+    if is_golden then
+        local left_corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
+        colored_progress = left_corner .. string.format('<font color="%s"><b>%s</b></font>%s',
+            hex_color, progress_section, remaining_section) .. "┐"
+    else
+        colored_progress = string.format('<font color="%s"><b>%s</b></font>%s',
+            hex_color, progress_section, remaining_section)
+    end
+
+    -- Navigation links
+    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+    local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
+    local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
+    local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
+    local chrono_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
+
+    -- Word-wrap content to 80 chars
+    local content = poem.content or ""
+    content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+
+    local wrapped_lines = {}
+
+    -- Handle content warning from poem.content_warning (ActivityPub CW)
+    if poem.content_warning and poem.content_warning ~= "" then
+        local cw_display = "CW: " .. poem.content_warning
+        local box_width = math.min(math.max(#cw_display, 20), 76)
+        local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
+        table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
+        table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
+        table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+        table.insert(wrapped_lines, "")
+        table.insert(wrapped_lines, "")
+    end
+
+    -- Handle in-content CW: patterns
+    local main_content = content
+    local cw_match = content:match("^%s*[Cc][Ww]%s*:(.-)[\n\r]")
+    if not cw_match then
+        cw_match = content:match("^%s*[Cc]ontent [Ww]arning%s*:(.-)[\n\r]")
+    end
+    if cw_match then
+        local cw_text = cw_match:match("^%s*(.-)%s*$")
+        main_content = content:gsub("^%s*[Cc][Ww]%s*:[^\n\r]*[\n\r]?", "")
+        main_content = main_content:gsub("^%s*[Cc]ontent [Ww]arning%s*:[^\n\r]*[\n\r]?", "")
+        if cw_text and #cw_text > 0 then
+            local cw_display = "CW: " .. cw_text
+            local box_width = math.min(math.max(#cw_display, 20), 76)
+            local padded_cw = cw_display .. string.rep(" ", box_width - #cw_display)
+            table.insert(wrapped_lines, " ┌" .. string.rep("─", box_width + 2) .. "┐")
+            table.insert(wrapped_lines, " │ " .. padded_cw .. " │")
+            table.insert(wrapped_lines, " └" .. string.rep("─", box_width + 2) .. "┘")
+            table.insert(wrapped_lines, "")
+        end
+    end
+
+    -- Word-wrap paragraphs
+    for para in (main_content .. "\n"):gmatch("(.-)\n") do
+        if para == "" then
+            table.insert(wrapped_lines, "")
+        else
+            local current_line = ""
+            for word in para:gmatch("%S+") do
+                if #current_line + #word + 1 <= 80 then
+                    current_line = current_line .. (current_line ~= "" and " " or "") .. word
+                else
+                    if current_line ~= "" then table.insert(wrapped_lines, " " .. current_line) end
+                    current_line = word
+                end
+            end
+            if current_line ~= "" then table.insert(wrapped_lines, " " .. current_line) end
+        end
+    end
+
+    -- Apply golden side borders if needed
+    if is_golden then
+        local golden_lines = {}
+        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
+        local CONTENT_WIDTH = 80
+
+        local function utf8_char_count(str)
+            return #(str:gsub("[\128-\191]", ""))
+        end
+
+        for _, line in ipairs(wrapped_lines) do
+            local line_content = line:match("^%s*(.*)$") or line
+            local visible_content = line_content:gsub("<[^>]+>", "")
+            local visible_length = utf8_char_count(visible_content)
+            local padded_content
+            if visible_length >= CONTENT_WIDTH then
+                padded_content = line_content
+            else
+                padded_content = line_content .. string.rep(" ", CONTENT_WIDTH - visible_length)
+            end
+            table.insert(golden_lines, colored_wall .. " " .. padded_content .. " │")
+        end
+        wrapped_lines = golden_lines
+    end
+
+    -- Helper to colorize box characters based on progress
+    local function color_char(char, pos)
+        if progress_chars > pos then
+            return string.format('<font color="%s"><b>%s</b></font>', hex_color, char)
+        end
+        return char
+    end
+
+    -- Build navigation box
+    local nav_top, nav_mid
+    if is_golden then
+        -- Golden: 84 chars total
+        local colored_corner = string.format('<font color="%s"><b>╟</b></font>', hex_color)
+        local left_sep = colored_corner
+        for i = 1, 9 do left_sep = left_sep .. color_char("─", i) end
+        left_sep = left_sep .. color_char("┐", 10)
+
+        local right_sep = color_char("┌", 71)
+        for i = 72, 82 do right_sep = right_sep .. color_char("─", i) end
+        right_sep = right_sep .. color_char("┤", 83)
+
+        nav_top = left_sep .. string.rep(" ", 60) .. right_sep
+
+        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
+        local right_wall_of_left = color_char("│", 10)
+        local left_wall_of_right = color_char("│", 71)
+        local right_end = color_char("│", 83)
+        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
+    else
+        -- Regular: 83 chars total
+        local left_top = {}
+        table.insert(left_top, color_char("┌", 0))
+        for i = 1, 9 do table.insert(left_top, color_char("─", i)) end
+        table.insert(left_top, color_char("┐", 10))
+
+        local right_top = {}
+        table.insert(right_top, color_char("┌", 70))
+        for i = 71, 81 do table.insert(right_top, color_char("─", i)) end
+        table.insert(right_top, color_char("┐", 82))
+
+        nav_top = table.concat(left_top) .. string.rep(" ", 59) .. table.concat(right_top)
+
+        local left_wall = color_char("│", 0)
+        local right_wall_of_left = color_char("│", 10)
+        local left_wall_of_right = color_char("│", 70)
+        local right_wall = color_char("│", 82)
+        nav_mid = left_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_wall
+    end
+
+    -- Build bottom progress bar with junction characters
+    local TOTAL_CHARS = is_golden and 82 or 83
+    local LEFT_JUNCTION = is_golden and 9 or 10
+    local RIGHT_JUNCTION = is_golden and 70 or 70
+
+    local left_junction = (LEFT_JUNCTION < progress_chars)
+        and string.format('<font color="%s"><b>╧</b></font>', hex_color) or "┴"
+    local right_junction = (RIGHT_JUNCTION < progress_chars)
+        and string.format('<font color="%s"><b>╧</b></font>', hex_color) or "┴"
+
+    local function build_segment(start_pos, end_pos)
+        if end_pos <= start_pos then return "" end
+        local seg_len = end_pos - start_pos
+        local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
+        local remaining_in_seg = seg_len - progress_in_seg
+        local result = ""
+        if progress_in_seg > 0 then
+            result = result .. string.format('<font color="%s"><b>%s</b></font>', hex_color, string.rep("═", progress_in_seg))
+        end
+        if remaining_in_seg > 0 then
+            result = result .. string.rep("─", remaining_in_seg)
+        end
+        return result
+    end
+
+    local corner_char = is_golden and "╚" or "╘"
+    local colored_corner = string.format('<font color="%s"><b>%s</b></font>', hex_color, corner_char)
+    local bottom_line = colored_corner
+        .. build_segment(1, LEFT_JUNCTION)
+        .. left_junction
+        .. build_segment(LEFT_JUNCTION + 1, RIGHT_JUNCTION)
+        .. right_junction
+        .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS - 1)
+        .. "┘"
+
+    -- Generate poem identifier (same format as similar/different pages)
+    -- Format: " -> file: fediverse/1234" or " -> file: notes/myfile"
+    local category = poem.category or "unknown"
+    local filename
+    if category == "notes" and poem.metadata and poem.metadata.source_file then
+        filename = poem.metadata.source_file
+    else
+        filename = tostring(poem.id or "unknown")
+    end
+    local poem_identifier = " -> file: " .. category .. "/" .. filename
+
+    -- Build final output
+    local output = {}
+    table.insert(output, colored_progress)
+    table.insert(output, poem_identifier)
+    table.insert(output, "")
+    table.insert(output, table.concat(wrapped_lines, "\n"))
+    table.insert(output, nav_top)
+    table.insert(output, nav_mid)
+    table.insert(output, bottom_line)
+
+    return table.concat(output, "\n")
+end
+-- }}}
+
 -- {{{ local function generate_word_page
 -- Generates HTML page for a single word showing similar poems
-local function generate_word_page(word, ranked_poems, output_dir, poems_per_page)
+-- Issue 8-043c: Now uses same box-drawing format as similar/different pages
+-- Progress bar shows CHRONOLOGICAL position (not similarity) to orient readers
+local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map)
     local safe_word = word:lower():gsub("[^%w]", "")
     local output_file = output_dir .. "/wordcloud/" .. safe_word .. ".html"
 
@@ -293,7 +532,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poems similar to: <i>%s</i></h1>
-<p>Top %d poems ranked by semantic similarity</p>
+<p>Top %d poems ranked by semantic similarity (progress bar shows chronological position)</p>
 <p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Back to Word Cloud</a> | <a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/chronological/index.html">Chronological</a></p>
 </center>
 <hr>
@@ -301,40 +540,14 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <pre>
 ]], word, word, #top_poems))
 
-    -- Add ranked poems
+    -- Add ranked poems using box-drawing format
     for i, entry in ipairs(top_poems) do
-        local poem = entry.poem
-        local content = poem.content or ""
-        -- Escape HTML
-        content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-        -- Truncate long poems
-        if #content > 500 then
-            content = content:sub(1, 497) .. "..."
-        end
-
-        -- Get navigation links
-        local poem_index = poem.poem_index or 0
-        local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
-        local similar_link = string.format('<a href="%s/similar/%04d-01.html">similar</a>', base_path, poem_index)
-        local different_link = string.format('<a href="%s/different/%04d-01.html">different</a>', base_path, poem_index)
-        local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
-        local chrono_link = string.format('<a href="%s/chronological/index.html#%s">chronological</a>', base_path, anchor_id)
-
-        table.insert(html_parts, string.format(
-[[
-────────────────────────────────────────────────────────────────────────────────
-                           --- #%d (%.3f) ---
-
-%s
-
-                     %s | %s | %s
-]], i, entry.similarity, content, similar_link, chrono_link, different_link))
+        local formatted = format_poem_for_word_page(entry.poem, i, entry.similarity, poem_colors, color_config, chrono_map)
+        table.insert(html_parts, formatted)
+        table.insert(html_parts, "\n")
     end
 
-    table.insert(html_parts, [[
-────────────────────────────────────────────────────────────────────────────────
-</pre>
+    table.insert(html_parts, [[</pre>
 </td></tr></table>
 </body>
 </html>
@@ -408,6 +621,7 @@ end
 
 -- {{{ function M.generate_word_html
 -- Issue 8-043b: Stage 9 - Generate HTML pages only (requires existing embeddings)
+-- Issue 8-043c: Now uses box-drawing format with semantic colors
 -- Called during HTML generation stage of the pipeline
 function M.generate_word_html(options)
     options = options or {}
@@ -442,6 +656,61 @@ function M.generate_word_html(options)
         return nil
     end
     utils.log_info(string.format("Loaded %d word embeddings", word_count))
+
+    -- Issue 8-043c: Load poem colors for semantic coloring
+    local poem_colors_file = utils.asset_path("poem_colors.json")
+    local poem_colors_data = utils.read_json_file(poem_colors_file)
+    local poem_colors = {}
+    if poem_colors_data and poem_colors_data.poem_colors then
+        for _, entry in ipairs(poem_colors_data.poem_colors) do
+            if entry.poem_index then
+                poem_colors[entry.poem_index] = entry
+            end
+        end
+        utils.log_info(string.format("Loaded semantic colors for %d poems", #poem_colors_data.poem_colors))
+    else
+        utils.log_warn("No poem colors found - using default gray")
+    end
+
+    -- Issue 8-043c: Load color configuration from unified config
+    local color_config = unified_config.colors or {
+        red = "#FF6B6B",
+        orange = "#FFA94D",
+        yellow = "#FFE066",
+        green = "#69DB7C",
+        cyan = "#38D9A9",
+        blue = "#74C0FC",
+        indigo = "#748FFC",
+        violet = "#DA77F2",
+        gray = "#868E96"
+    }
+
+    -- Issue 8-043c: Compute chronological mapping for progress bars
+    -- This maps poem_index → {position, total_poems} for timeline orientation
+    local chrono_map = {}
+    do
+        -- Sort poems chronologically by creation_date
+        local sorted_poems = {}
+        for _, poem in ipairs(poems_data.poems) do
+            table.insert(sorted_poems, poem)
+        end
+        table.sort(sorted_poems, function(a, b)
+            local date_a = a.creation_date or ""
+            local date_b = b.creation_date or ""
+            return date_a < date_b
+        end)
+
+        local total_poems = #sorted_poems
+        for position, poem in ipairs(sorted_poems) do
+            if poem.poem_index then
+                chrono_map[poem.poem_index] = {
+                    position = position,
+                    total_poems = total_poems
+                }
+            end
+        end
+        utils.log_info(string.format("Built chronological mapping for %d poems", total_poems))
+    end
 
     -- Build poem index lookup
     local poems_by_index = {}
@@ -482,8 +751,8 @@ function M.generate_word_html(options)
                 return a.similarity > b.similarity
             end)
 
-            -- Generate page
-            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page) then
+            -- Generate page with semantic colors and chronological position
+            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map) then
                 pages_generated = pages_generated + 1
             end
         else
