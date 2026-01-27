@@ -40,9 +40,42 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
--- Get project directory from command line or use default
-local DIR = setup_dir_path(arg and arg[1])
-local OVERRIDE_SOURCE = arg and arg[2] -- Optional override for temporary extraction
+-- {{{ parse_args
+-- Parse command line arguments for DIR, source override, and boost inclusion
+local function parse_args(args)
+    local dir = nil
+    local source_override = nil
+    local include_boosts = nil  -- nil means use config default
+    local i = 1
+
+    while i <= #(args or {}) do
+        local a = args[i]
+        if a == "--include-boosts" then
+            include_boosts = true
+            i = i + 1
+        elseif a == "--no-boosts" then
+            include_boosts = false
+            i = i + 1
+        elseif not a:match("^%-") then
+            -- Positional arguments: first is DIR, second is source override
+            if not dir then
+                dir = a
+            else
+                source_override = a
+            end
+            i = i + 1
+        else
+            i = i + 1
+        end
+    end
+
+    return dir, source_override, include_boosts
+end
+-- }}}
+
+-- Get project directory and options from command line
+local parsed_dir, OVERRIDE_SOURCE, CLI_INCLUDE_BOOSTS = parse_args(arg)
+local DIR = setup_dir_path(parsed_dir)
 
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -76,15 +109,28 @@ end
 local fediverse_backup_path = config.input_sources.fediverse_backup_path or "input/fediverse"
 
 -- Privacy configuration from unified config
+-- CLI flags --include-boosts/--no-boosts override config value
+local function get_include_boosts()
+    if CLI_INCLUDE_BOOSTS ~= nil then
+        return CLI_INCLUDE_BOOSTS
+    end
+    return config.privacy.include_boosts or false
+end
+
 local privacy_config = {
     mode = config.privacy.mode or "clean",
     anonymization_prefix = config.privacy.anonymization_prefix or "user-",
-    include_boosts = config.privacy.include_boosts or false,
+    include_boosts = get_include_boosts(),
     preserve_original_length = config.privacy.preserve_original_length or true,
     store_anonymization_map = config.privacy.store_anonymization_map or false,
     local_server_domain = config.privacy.local_server_domain or "tech.lgbt",
     debug_anonymization = false  -- Debug flag, not in config
 }
+
+-- Log boost inclusion status
+if privacy_config.include_boosts then
+    print("📤 Including fediverse boosts in extraction (CLI flag or config)")
+end
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path
 local source_base_path

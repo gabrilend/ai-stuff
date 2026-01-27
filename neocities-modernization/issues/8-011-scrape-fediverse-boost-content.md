@@ -42,4 +42,41 @@ The implementation should:
 
 > Reformatted from informal issue `fediverse-boosts-are-links-and-not-text` during cleanup (8-009).
 
+## Implementation Progress
+
+### 2026-01-21: Added run.sh checkbox option
+
+**Note**: The boost extraction functionality itself was already implemented in Issue 6-027b. This update adds a convenient CLI/TUI option to control it.
+
+**Changes:**
+
+1. **`scripts/extract-fediverse.lua`**: Added CLI argument parsing
+   - `--include-boosts` flag overrides config setting
+   - `--no-boosts` flag explicitly disables boosts
+   - Logs when boost inclusion is enabled
+
+2. **`scripts/update`**: Pass-through for boost flag
+   - Added `--include-boosts` argument parsing
+   - Passes flag to extract-fediverse.lua
+
+3. **`run.sh`**: Full integration
+   - Added `INCLUDE_BOOSTS=false` config variable
+   - Added `--include-boosts` CLI flag
+   - Added `run_extract()` flag passing
+   - Added TUI checkbox "Include Boosts" with hotkey 'b'
+   - Updated help text under "Extraction Options"
+
+**Usage:**
+
+CLI:
+```bash
+./run.sh --extract --include-boosts    # Extract with boosts
+./run.sh --full --include-boosts       # Full pipeline with boosts
+```
+
+TUI:
+- Press 'b' to toggle "Include Boosts" checkbox in Configuration section
+
+**Result**: 458 boost activities can now be optionally included during extraction via convenient CLI/TUI controls.
+
 ---
