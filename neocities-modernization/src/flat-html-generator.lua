@@ -260,6 +260,84 @@ This will regenerate both similarity files AND the rankings cache.
 end
 -- }}}
 
+-- {{{ local function flatten_media_files
+-- Issue 8-048: Flatten nested Mastodon media structure to simple output/media/ directory
+-- This makes deployment to Neocities much easier (single flat directory vs 7+ levels deep)
+-- Filenames are already unique (content-addressable hashes from Mastodon)
+-- Called once at start of HTML generation; skips files that already exist (idempotent)
+local media_flattening_done = false
+
+local function flatten_media_files(output_dir)
+    -- Skip if already done this session (idempotent)
+    if media_flattening_done then
+        return true
+    end
+
+    local source_dir = DIR .. "/input/media_attachments"
+    local target_dir = output_dir .. "/media"
+
+    -- Check if source directory exists
+    local source_test = io.open(source_dir .. "/files", "r")
+    if not source_test then
+        -- No media_attachments directory - not an error, just skip
+        utils.log_info("No media_attachments directory found, skipping media flattening")
+        media_flattening_done = true
+        return true
+    end
+    source_test:close()
+
+    -- Create target directory if it doesn't exist
+    os.execute('mkdir -p "' .. target_dir .. '"')
+
+    utils.log_info("Flattening media files to: " .. target_dir)
+
+    -- Find all media files and copy them to flat structure
+    local find_cmd = string.format('find "%s" -type f 2>/dev/null', source_dir)
+    local handle = io.popen(find_cmd)
+    if not handle then
+        utils.log_warn("Could not scan media_attachments directory")
+        media_flattening_done = true
+        return false
+    end
+
+    local copied = 0
+    local skipped = 0
+    local errors = 0
+
+    for source_path in handle:lines() do
+        -- Extract just the filename (basename)
+        local filename = source_path:match("([^/]+)$")
+        if filename then
+            local target_path = target_dir .. "/" .. filename
+
+            -- Check if target already exists (idempotent - skip if present)
+            local exists_check = io.open(target_path, "r")
+            if exists_check then
+                exists_check:close()
+                skipped = skipped + 1
+            else
+                -- Copy file to flat directory
+                local cp_cmd = string.format('cp "%s" "%s" 2>/dev/null', source_path, target_path)
+                local success = os.execute(cp_cmd)
+                if success == 0 or success == true then
+                    copied = copied + 1
+                else
+                    errors = errors + 1
+                    utils.log_warn("Failed to copy: " .. source_path)
+                end
+            end
+        end
+    end
+    handle:close()
+
+    utils.log_info(string.format("Media flattening complete: %d copied, %d skipped (existing), %d errors",
+                                copied, skipped, errors))
+
+    media_flattening_done = true
+    return errors == 0
+end
+-- }}}
+
 -- {{{ local function load_pagination_config
 -- Issue 10-003: Loads pagination and storage settings from unified config
 -- Updated for Issue 8-020: Hybrid pagination strategy with storage constraints
@@ -1175,11 +1253,13 @@ local function render_attachment_images(attachments)
         -- Only process image types
         local media_type = attachment.media_type or ""
         if media_type:match("^image/") then
-            -- Issue 8-040: Use absolute file:// paths for images
-            -- This works uniformly regardless of page depth (chronological vs similar/different)
+            -- Issue 8-048: Use flat output/media/ path structure for easier deployment
+            -- Extract basename from relative_path (e.g., "files/112/.../abc.png" -> "abc.png")
             -- The convert-urls script handles conversion to production paths
             local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
-            local img_src = base_path .. "/input/media_attachments/" .. (attachment.relative_path or "")
+            local relative_path = attachment.relative_path or ""
+            local basename = relative_path:match("([^/]+)$") or relative_path
+            local img_src = base_path .. "/output/media/" .. basename
 
             -- Use alt text if available, otherwise generate generic description
             -- Issue 9-012: ActivityPub uses 'description' field for alt-text
@@ -2601,6 +2681,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Load pagination config first
     load_pagination_config()
 
+    -- Issue 8-048: Flatten media files to output/media/ for easier deployment
+    -- Must happen before HTML generation so paths resolve correctly
+    flatten_media_files(output_dir)
+
     -- Apply CLI override for poems_per_page if provided (Issue 8-022)
     if poems_per_page and type(poems_per_page) == "number" and poems_per_page > 0 then
         utils.log_info(string.format("CLI override: Using %d poems per page (config: %d)",
@@ -3162,7 +3246,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         for _, attachment in ipairs(attachments) do
                             local media_type = attachment.media_type or ""
                             if media_type:match("^image/") then
-                                local img_src = base_path .. "/input/media_attachments/" .. (attachment.relative_path or "")
+                                -- Issue 8-048: Use flat output/media/ path structure
+                                local relative_path = attachment.relative_path or ""
+                                local basename = relative_path:match("([^/]+)$") or relative_path
+                                local img_src = base_path .. "/output/media/" .. basename
                                 local alt_text = attachment.description or "Image attachment"
                                 -- Escape quotes in alt text
                                 alt_text = alt_text:gsub('"', '&quot;')
@@ -3200,7 +3287,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     if has_any_images then
                         table.insert(output, "</pre>")
                         for _, attachment in ipairs(image_attachments) do
-                            local img_src = base_path .. "/input/media_attachments/" .. (attachment.relative_path or "")
+                            -- Issue 8-048: Use flat output/media/ path structure
+                            local relative_path = attachment.relative_path or ""
+                            local basename = relative_path:match("([^/]+)$") or relative_path
+                            local img_src = base_path .. "/output/media/" .. basename
                             local alt_text = attachment.description or attachment.alt_text or "Image attachment"
                             alt_text = alt_text:gsub('"', '&quot;')
                             local img_tag = string.format(
