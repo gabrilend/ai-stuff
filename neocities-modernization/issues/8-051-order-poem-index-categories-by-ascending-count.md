@@ -90,9 +90,14 @@ This is a net reduction in code (18 lines → 6 lines) while adding flexibility.
 - Issue 8-043c: Simplified poem index format
 - `src/wordcloud-generator.lua:206-290` — `generate_poem_index()` function
 
+## Completion Notes
+
+Replaced 18-line hardcoded category ordering in `src/wordcloud-generator.lua:233-241` with a 6-line count-based sort. Categories now appear in ascending poem count order automatically, and new data sources require no code changes to sort correctly.
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-26
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Very Low (one sort replacement)
