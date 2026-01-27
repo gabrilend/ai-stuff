@@ -89,6 +89,7 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/8-053-add-image-title-attribute-and-fix-alt-text-fallback.md` - Add title tooltip and fix missing alt-text on similar/different pages (OPEN)
   - `/issues/8-054-investigate-messages-image-png-poems.md` - Extract image attachments from Matrix media messages (OPEN)
   - `/issues/8-055-fix-golden-poem-formatting-on-similar-different-pages.md` - Fix entity padding, junction alignment, and width consistency for golden poems (OPEN)
+  - `/issues/8-056-preserve-whitespace-in-poem-rendering.md` - Preserve whitespace for all categories via shared text formatter module (OPEN)
 - `/issues/5-025-optimize-similarity-matrix-to-triangular-storage.md` - Triangular matrix for 50% storage reduction (COMPLETED)
 - `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - IN PROGRESS
   - `/issues/completed/phase-9/9-001a-setup-vulkan-development-environment.md` - Vulkan SDK and development environment setup (COMPLETED)
@@ -149,7 +150,7 @@ This document provides a hierarchical view of all project documentation.
 
 ## Document Maintenance
 
-**Last Updated**: January 12, 2026  
+**Last Updated**: January 26, 2026  
 **Maintained By**: Project development team  
 **Update Policy**: All new documents must be added to this table of contents
 

@@ -44,6 +44,20 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-043 | Generate semantic word cloud page | ✅ Complete | Medium |
 | 8-046 | Create menu navigation page | ✅ Complete | Medium |
 | 8-047 | Implement dark mode (always on, CSS-free) | ✅ Complete | High |
+| 8-048 | Flatten media directory for deployment | Open | Medium |
+| 8-049 | Implement audio and video playback | Open | Low |
+| 8-050 | Enhance word-cloud semantic similarity pages | Open | High |
+| 8-050a | Compute semantic color for word-cloud words | Open | High |
+| 8-050b | Color-contextualized similarity ranking | Open | Medium |
+| 8-050c | Apply word color to word-page progress bars | Open | Medium |
+| 8-050d | Configurable poems-per-word-page via run.sh | Open | Low |
+| 8-050e | Centroid-based chronological link for word pages | Open | Medium |
+| 8-051 | Order poem index categories by ascending count | Open | Low |
+| 8-052 | Normalize vertical bar characters in HTML output | Open | Low |
+| 8-053 | Add image title attribute and fix alt-text fallback | Open | Medium-High |
+| 8-054 | Extract image attachments from Matrix media messages | Open | Medium |
+| 8-055 | Fix golden poem formatting on similar/different pages | Open | Medium |
+| 8-056 | Preserve whitespace in poem rendering (shared formatter) | Open | High |
 
 ### Completed Issues
 
