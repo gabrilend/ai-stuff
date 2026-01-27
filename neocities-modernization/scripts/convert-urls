@@ -23,10 +23,12 @@ local URL_PATTERNS = {
         production_path = "/similar-different"
     },
     -- Pattern 2: Media attachments (images from ActivityPub extraction)
-    -- Issue 8-040: Added to support absolute image paths
+    -- Issue 8-048: Updated for flat media directory structure (output/media/)
+    -- Old nested structure: input/media_attachments/files/112/.../abc.png
+    -- New flat structure: output/media/abc.png
     {
-        local_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/input/media_attachments",
-        production_path = "/similar-different/media_attachments"
+        local_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output/media",
+        production_path = "/similar-different/media"
     }
 }
 
