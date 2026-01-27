@@ -86,6 +86,7 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/8-050e-centroid-chronological-link-for-word-pages.md` - Smart chronological entry point per word (OPEN)
   - `/issues/8-051-order-poem-index-categories-by-ascending-count.md` - Sort poem index by ascending category size (OPEN)
   - `/issues/8-052-normalize-vertical-bar-characters-in-html-output.md` - Normalize ASCII pipe to Unicode box-drawing vertical in HTML output (OPEN)
+  - `/issues/8-053-add-image-title-attribute-and-fix-alt-text-fallback.md` - Add title tooltip and fix missing alt-text on similar/different pages (OPEN)
 - `/issues/5-025-optimize-similarity-matrix-to-triangular-storage.md` - Triangular matrix for 50% storage reduction (COMPLETED)
 - `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - IN PROGRESS
   - `/issues/completed/phase-9/9-001a-setup-vulkan-development-environment.md` - Vulkan SDK and development environment setup (COMPLETED)
