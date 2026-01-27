@@ -230,24 +230,15 @@ local function generate_poem_index(poems_data)
         end)
     end
 
-    -- Order categories: fediverse, notes, messages, bluesky, then others
-    local cat_order = {"fediverse", "notes", "messages", "bluesky"}
+    -- Issue 8-051: Order categories by ascending poem count (smallest first)
+    -- Removes the need for a hardcoded category list — new sources auto-sort
     local ordered_cats = {}
-    for _, cat in ipairs(cat_order) do
-        if categories[cat] then
-            table.insert(ordered_cats, cat)
-        end
-    end
-    -- Add any remaining categories
     for cat, _ in pairs(categories) do
-        local found = false
-        for _, c in ipairs(cat_order) do
-            if c == cat then found = true; break end
-        end
-        if not found then
-            table.insert(ordered_cats, cat)
-        end
+        table.insert(ordered_cats, cat)
     end
+    table.sort(ordered_cats, function(a, b)
+        return #categories[a] < #categories[b]
+    end)
 
     -- Generate index HTML - simplified format with multiple IDs per line
     local index_parts = {}
