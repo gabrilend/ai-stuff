@@ -114,10 +114,25 @@ This change applies **only to characters that appear in the HTML output** (insid
 - `issues/completed/8-044-golden-poem-detection-and-formatting-parity.md` — Added UTF-8 character counting (commit b0a76af8)
 - `issues/completed/8-047-implement-dark-mode-always-on.md` — HTML theme system
 
+## Completion Notes
+
+All 6 ASCII `|` separators in HTML output replaced with Unicode `│` (U+2502) across 4 source files:
+
+1. `src/flat-html-generator.lua:2290` — chronological page navigation `table.concat(nav_parts, " │ ")`
+2. `src/generate-word-pages.lua:536` — word page nav link separator
+3. `src/wordcloud-generator.lua:346` — menu page nav link separator
+4. `src/centroid-html-generator.lua:207` — centroid page navigation (3 separators)
+5. `src/centroid-html-generator.lua:208` — centroid page type links (1 separator)
+6. `src/centroid-html-generator.lua:268` — poem listing header `#N │ Poem ID │ score`
+7. `src/centroid-html-generator.lua:330` — centroid index navigation
+
+No width-calculation issues found — all replacement sites use the separator in free-flowing text or `string.format` output, not in padding-calculated contexts. The existing `utf8_char_count()` infrastructure (from 8-044) is not needed here since none of these lines compute character widths.
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: ✅ Complete
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-26
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Very Low
 - **Dependencies**: None
