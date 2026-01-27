@@ -244,32 +244,63 @@ luajit "${DIR}/src/config-editor.lua" --write-config "${DIR}" \
 
 ### Lua Editor Module (`src/config-editor.lua`)
 
-Two modes:
-1. **`--export-values`**: Reads `config.lua`, outputs bash variable assignments for menu pre-population
-2. **`--write-config`**: Receives JSON values from TUI, validates, and writes updated `config.lua`
+Three modes:
+1. **`--export-values`**: Reads `config.lua` (or generates defaults if missing), outputs bash variable assignments for menu pre-population
+2. **`--write-config`**: Receives JSON values from TUI, validates, and writes a complete `config.lua`
+3. **`--validate`**: Reads `config.lua` and reports any invalid values (used internally during load)
+
+### Config File Loading Strategy
+
+On startup, the editor follows this sequence:
+
+```
+1. Attempt to read config.lua via config-loader
+2. If file does not exist:
+   a. Initialize all sections with default values (hardcoded in editor module)
+   b. Print: "⚠  No config.lua found — initialized with default values"
+   c. Mark config as "new" so the TUI shows all sections as fresh
+3. If file exists but contains invalid values:
+   a. Load all valid values normally
+   b. For each invalid value, substitute the default and record the field name
+   c. Print: "⚠  Invalid values detected in config.lua — highlighted in TUI"
+   d. Pass invalid field IDs to the TUI, which highlights them (e.g., red or
+      yellow background) until the user first selects/acknowledges them
+4. Export loaded values as bash variable assignments for menu pre-population
+```
+
+The "invalid value highlight" persists in the TUI until the user navigates to that item and interacts with it (toggle, edit, or confirm). This ensures damaged config values are seen and addressed before saving.
 
 ### Config File Writing Strategy
 
-The writer reads the existing `config.lua` line by line and reconstructs it:
+The writer **regenerates the entire `config.lua`** from the in-memory value set. This approach is chosen over targeted section replacement because:
+
+1. **Self-healing**: A deleted or corrupted config file is fully reconstructed from defaults + user changes
+2. **Schema evolution**: New config sections added in future versions appear automatically — no need to merge with an old file that lacks them
+3. **Deterministic output**: The file always has the same structure, formatting, and comment placement regardless of prior state
+4. **Simpler implementation**: No line-by-line parsing with fragile section-boundary detection
+
+The writer produces a complete Lua file with:
+- `-- {{{ section_name` and `-- }}}` vimfold markers around each section
+- Documentation comments explaining each setting (sourced from a comment template in the editor module)
+- Consistent formatting: 4-space indent, aligned values, trailing commas
+- Section ordering matching the canonical layout
 
 ```lua
--- Pseudocode for targeted section replacement
-for each line in config.lua:
-    if line matches section_start_pattern then
-        current_section = detected_section
-        emit(line)  -- preserve the fold marker and comment
-        emit(generate_section_content(current_section, new_values))
-        skip_until_section_end()
-    else
-        emit(line)  -- preserve as-is (comments, structure)
+-- Pseudocode for full config regeneration
+local function write_config(path, values)
+    local f = io.open(path .. ".tmp", "w")
+    f:write(generate_file_header())
+    f:write("return {\n")
+    for _, section in ipairs(CANONICAL_SECTION_ORDER) do
+        f:write(generate_section(section, values[section.key]))
     end
+    f:write("}\n")
+    f:close()
+    os.rename(path .. ".tmp", path)  -- atomic replace
+end
 ```
 
-This preserves:
-- All `-- {{{ section_name` and `-- }}}` markers
-- Documentation comments within sections
-- The overall file structure and ordering
-- Any manually-added comments
+Each `generate_section()` call emits the fold markers, the documentation comments (from a template, not parsed from the old file), and the current values. The comment templates are maintained in the editor module itself — this is the single source of truth for config documentation.
 
 ## Suggested Implementation Steps
 
