@@ -391,6 +391,41 @@ ls output/different/ | wc -l  # Should be 7,793
 - `11-001-implement-journey-style-similar-navigation.md`
 - `11-002-implement-maze-based-exploration-system.md`
 
+## Phase 13: Audio-Visual Generation 📋 **PLANNED**
+**Duration**: TBD
+**Goal**: Transform embedding data into audio and visual experiences via TTS and stable diffusion
+
+### Deliverables:
+- Text-to-speech engine integrated into the Lua pipeline
+- Flopsopoly generation algorithm (frequency-weighted centroid-expansion word sequences)
+- Hypnotic TTS trance track from word-cloud vocabulary
+- Stable diffusion visual sequence with diameter-based context windowing
+- Manifest files for audio-visual synchronization
+
+### Key Concepts:
+- **Flopsopoly of Verbrases**: A word pool where each word appears N times (N = font size), ordered by progressive centroid expansion for maximum diversity with self-regulating duplicate spacing
+- **Diameter-Based Context**: Image prompts use N/2 words forward and N/2 backward from current position
+- **Local Inference**: Both TTS and stable diffusion run locally (no cloud APIs)
+
+### Key Milestones:
+1. Research and select TTS engine (local, Lua-compatible)
+2. Implement flopsopoly generation from word-cloud data
+3. Generate hypnotic trance audio track
+4. Integrate local stable diffusion API
+5. Generate visual sequence with diameter-based context prompts
+6. Produce synchronized audio-visual manifest
+
+### Target Hardware:
+- CPU: TTS engine execution
+- GPU: Stable diffusion inference (local instance, IP:port configurable)
+- Storage: Audio files, generated images (~1.5GB for full sequence)
+
+**Issues:**
+- `13-001-research-and-implement-tts-engine.md`
+- `13-002-generate-tts-hypnotic-trance-from-wordcloud-flopsopoly.md`
+- `13-003-generate-stable-diffusion-visuals-from-flopsopoly.md`
+- `13-004-assemble-video-from-tts-audio-and-generated-images.md`
+
 ---
 
 ## Future Phases (Planned)
