@@ -81,6 +81,9 @@ Word Cloud:
   --wordcloud-all     Include all words (ignore max_words limit)
   --wordcloud-words N Number of words in word cloud (default: 200)
 
+Extraction Options:
+  --include-boosts    Include fediverse boosts/reblogs in extraction
+
 Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
@@ -150,6 +153,9 @@ POEMS_PER_PAGE=""
 # Issue 8-043: Word cloud configuration
 WORDCLOUD_ALL=false
 WORDCLOUD_WORDS=""
+
+# Issue 8-011: Fediverse boost inclusion (extraction stage)
+INCLUDE_BOOSTS=false
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -252,6 +258,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --wordcloud-words=*)
             WORDCLOUD_WORDS="${1#*=}"
+            shift
+            ;;
+        # Issue 8-011: Fediverse boost inclusion
+        --include-boosts)
+            INCLUDE_BOOSTS=true
             shift
             ;;
         # Stage flags
@@ -454,12 +465,18 @@ run_update_words() {
 run_extract() {
     log_stage "🔄 Stage 2/10: Extracting content from backup archives"
 
+    # Issue 8-011: Build boost inclusion flag
+    local boost_flag=""
+    if $INCLUDE_BOOSTS; then
+        boost_flag="--include-boosts"
+    fi
+
     if $DRY_RUN; then
-        log_dry_run "$DIR/scripts/update $DIR"
+        log_dry_run "$DIR/scripts/update $DIR $boost_flag"
         return 0
     fi
 
-    "$DIR/scripts/update" "$DIR" || {
+    "$DIR/scripts/update" "$DIR" $boost_flag || {
         echo "Error: Content extraction failed" >&2
         exit 1
     }
@@ -1041,6 +1058,8 @@ interactive_mode_tui() {
         "Show what would be executed without running" "d" "--dry-run"
     menu_add_item "config" "verbose" "Verbose Output" "checkbox" "0" \
         "Show detailed progress information" "v" "--verbose"
+    menu_add_item "config" "include_boosts" "Include Boosts" "checkbox" "0" \
+        "Include fediverse boosts/reblogs in extraction" "b" "--include-boosts"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Word Cloud Configuration
@@ -1095,6 +1114,8 @@ interactive_mode_tui() {
             local force_val=$(menu_get_value "force")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
+            # Issue 8-011: Get boost inclusion value from TUI
+            local include_boosts_val=$(menu_get_value "include_boosts")
             # Issue 8-043: Get wordcloud values from TUI
             local wordcloud_all_val=$(menu_get_value "wordcloud_all")
             local wordcloud_words_val=$(menu_get_value "wordcloud_words")
@@ -1120,6 +1141,8 @@ interactive_mode_tui() {
             [[ "$force_val" == "1" ]] && FORCE=true || FORCE=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
+            # Issue 8-011: Set boost inclusion from TUI
+            [[ "$include_boosts_val" == "1" ]] && INCLUDE_BOOSTS=true || INCLUDE_BOOSTS=false
             # Issue 8-043: Set wordcloud values from TUI
             [[ "$wordcloud_all_val" == "1" ]] && WORDCLOUD_ALL=true || WORDCLOUD_ALL=false
             [[ -n "$wordcloud_words_val" && "$wordcloud_words_val" != "0" ]] && WORDCLOUD_WORDS="$wordcloud_words_val"
