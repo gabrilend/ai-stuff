@@ -1264,6 +1264,8 @@ local function render_attachment_images(attachments)
             -- Use alt text if available, otherwise generate generic description
             -- Issue 9-012: ActivityPub uses 'description' field for alt-text
             local alt_text = attachment.description or attachment.alt_text or "Image attachment"
+            -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
+            alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
             -- Escape quotes in alt text for HTML attribute
             alt_text = alt_text:gsub('"', '&quot;')
 
@@ -1272,16 +1274,17 @@ local function render_attachment_images(attachments)
             -- display:block prevents multiple images from appearing side-by-side
             -- max-width:min(100%,800px) caps at content width (~80 chars) while being responsive
             -- width/height hints help browser reserve space before load (aspect ratio preserved)
+            -- Issue 8-053: title attribute provides mouse-over tooltip for sighted users
             local img_tag
             if attachment.width and attachment.height then
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                    img_src, alt_text, attachment.width, attachment.height
+                    '  <img src="%s" alt="%s" title="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
+                    img_src, alt_text, alt_text, attachment.width, attachment.height
                 )
             else
                 img_tag = string.format(
-                    '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                    img_src, alt_text
+                    '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
+                    img_src, alt_text, alt_text
                 )
             end
 
@@ -3250,12 +3253,16 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                                 local relative_path = attachment.relative_path or ""
                                 local basename = relative_path:match("([^/]+)$") or relative_path
                                 local img_src = base_path .. "/output/media/" .. basename
-                                local alt_text = attachment.description or "Image attachment"
+                                -- Issue 8-053: Complete fallback chain matching Location 1 and 3
+                                local alt_text = attachment.description or attachment.alt_text or "Image attachment"
+                                -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
+                                alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
                                 -- Escape quotes in alt text
                                 alt_text = alt_text:gsub('"', '&quot;')
+                                -- Issue 8-053: title attribute provides mouse-over tooltip
                                 local img_tag = string.format(
-                                    '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
-                                    img_src, alt_text
+                                    '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
+                                    img_src, alt_text, alt_text
                                 )
                                 -- Add dimensions if available
                                 if attachment.width and attachment.height then
@@ -3292,10 +3299,13 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             local basename = relative_path:match("([^/]+)$") or relative_path
                             local img_src = base_path .. "/output/media/" .. basename
                             local alt_text = attachment.description or attachment.alt_text or "Image attachment"
+                            -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
+                            alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
                             alt_text = alt_text:gsub('"', '&quot;')
+                            -- Issue 8-053: title attribute provides mouse-over tooltip
                             local img_tag = string.format(
-                                '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
-                                img_src, alt_text
+                                '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
+                                img_src, alt_text, alt_text
                             )
                             if attachment.width and attachment.height then
                                 img_tag = img_tag .. string.format(' width="%d" height="%d"', attachment.width, attachment.height)
