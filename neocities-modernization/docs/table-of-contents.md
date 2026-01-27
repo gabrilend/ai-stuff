@@ -78,6 +78,13 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/8-031-convert-between-similarity-matrix-formats.md` - Convert between similarity matrix storage formats (individual/full/triangular)
   - `/issues/completed/8-032-fix-similarity-matrix-force-flag-and-filename-inconsistency.md` - Fix --force flag and filename inconsistency bugs (COMPLETED)
   - `/issues/completed/8-033-fix-run-sh-to-use-parallel-similarity-generation.md` - Fix run.sh to use parallel engine, avoid table overflow (COMPLETED)
+  - `/issues/8-050-enhance-wordcloud-semantic-similarity-pages.md` - Enhance word-cloud pages with unified color, ranking, and navigation (OPEN)
+  - `/issues/8-050a-compute-semantic-color-for-wordcloud-words.md` - Assign semantic colors to word-cloud words (OPEN)
+  - `/issues/8-050b-color-contextualized-similarity-ranking.md` - Factor word color into poem ranking (OPEN)
+  - `/issues/8-050c-apply-word-color-to-wordpage-progress-bars.md` - Unify progress bar colors per word page (OPEN)
+  - `/issues/8-050d-configurable-poems-per-wordcloud-page.md` - CLI flag for poems-per-word-page (OPEN)
+  - `/issues/8-050e-centroid-chronological-link-for-word-pages.md` - Smart chronological entry point per word (OPEN)
+  - `/issues/8-051-order-poem-index-categories-by-ascending-count.md` - Sort poem index by ascending category size (OPEN)
 - `/issues/5-025-optimize-similarity-matrix-to-triangular-storage.md` - Triangular matrix for 50% storage reduction (COMPLETED)
 - `/issues/9-progress.md` - Phase 9 progress tracking (GPU acceleration) - IN PROGRESS
   - `/issues/completed/phase-9/9-001a-setup-vulkan-development-environment.md` - Vulkan SDK and development environment setup (COMPLETED)
@@ -92,6 +99,7 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Incremental centroid updates for efficient dataset expansion
   - `/issues/10-009-DESIGN.md` - Detailed algorithm design for centroid unwinding
   - `/issues/10-010-integrate-test-suites-into-development-pipeline.md` - Automated testing integration (low priority)
+  - `/issues/10-013-implement-tui-config-editor.md` - Interactive TUI config editor with per-section editing and poem exclusion management (OPEN)
 - `/issues/11-progress.md` - Phase 11 progress tracking (advanced exploration) - PLANNED
   - `/issues/11-001-implement-journey-style-similar-navigation.md` - Chain-based similar navigation (closest to previous poem)
   - `/issues/11-002-implement-maze-based-exploration-system.md` - Dimension-extreme maze with user choice at intersections
@@ -102,6 +110,11 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/11-003-maze-pipeline-integration.md` - Integrate maze into run.sh pipeline
 - `/issues/12-progress.md` - Phase 12 progress tracking (experimental AI features) - EXPERIMENTAL
   - `/issues/12-001-implement-neural-navigation-llm.md` - Neural network-based poetry navigation with threshold-based routing
+- `/issues/13-progress.md` - Phase 13 progress tracking (audio-visual generation) - PLANNED
+  - `/issues/13-001-research-and-implement-tts-engine.md` - Research and integrate a local TTS engine (OPEN)
+  - `/issues/13-002-generate-tts-hypnotic-trance-from-wordcloud-flopsopoly.md` - Frequency-weighted centroid-expansion word sequence to audio (OPEN)
+  - `/issues/13-003-generate-stable-diffusion-visuals-from-flopsopoly.md` - Diameter-context stable diffusion image sequence (OPEN)
+  - `/issues/13-004-assemble-video-from-tts-audio-and-generated-images.md` - Video assembly from TTS audio + generated images (OPEN)
 
 ### 🎯 Source Documentation
 - `/src/main.lua` - Interactive project management interface
