@@ -165,3 +165,4 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 - **6-028**: Replace CSS with Hard-coded HTML Generation (2025-12-14)
 - **6-029**: Remove Reply Syntax from Embedding Content (2025-12-14)
 - **6-030**: Resolve Username Variation Anonymization Inconsistency (2025-12-14)
+- **6-032**: Fix BR Tag Variants in HTML Cleaning (2026-01-21)
