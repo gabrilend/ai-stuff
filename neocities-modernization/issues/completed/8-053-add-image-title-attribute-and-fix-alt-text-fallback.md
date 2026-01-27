@@ -125,8 +125,9 @@ After this fix, all three should have: `title` ✅, `alt_text` fallback ✅, new
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Completed
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-26
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Very Low
 - **Dependencies**: None

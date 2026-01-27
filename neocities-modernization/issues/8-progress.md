@@ -54,7 +54,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-050e | Centroid-based chronological link for word pages | Open | Medium |
 | 8-051 | Order poem index categories by ascending count | Open | Low |
 | 8-052 | Normalize vertical bar characters in HTML output | Open | Low |
-| 8-053 | Add image title attribute and fix alt-text fallback | Open | Medium-High |
+| 8-053 | Add image title attribute and fix alt-text fallback | ✅ Complete | Medium-High |
 | 8-054 | Extract image attachments from Matrix media messages | Open | Medium |
 | 8-055 | Fix golden poem formatting on similar/different pages | Open | Medium |
 | 8-056 | Preserve whitespace in poem rendering (shared formatter) | Open | High |
