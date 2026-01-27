@@ -204,8 +204,8 @@ Description: %s
 Mode: %s poems %s
 Total poems: %d
 
-Navigation: <a href="../chronological.html">chronological</a> | <a href="../explore.html">explore</a> | <a href="../centroid/">all moods</a>
-This page: <a href="%s-similar.html">similar</a> | <a href="%s-different.html">different</a>
+Navigation: <a href="../chronological.html">chronological</a> │ <a href="../explore.html">explore</a> │ <a href="../centroid/">all moods</a>
+This page: <a href="%s-similar.html">similar</a> │ <a href="%s-different.html">different</a>
 
 ================================================================================
 
@@ -265,7 +265,7 @@ local function format_poem_for_centroid_page(poem_info, page_type)
 
     local entry = string.format([[
 --------------------------------------------------------------------------------
-#%d | Poem %s | %s: %.4f
+#%d │ Poem %s │ %s: %.4f
 --------------------------------------------------------------------------------
 <a href="../similar/%s.html">[similar]</a> <a href="../different/%s.html">[different]</a>
 
@@ -327,7 +327,7 @@ Browse poems by emotional tone or thematic cluster. Each mood has two views:
 - Similar: poems that resonate with this mood
 - Different: poems that contrast with this mood
 
-Navigation: <a href="../chronological.html">chronological</a> | <a href="../explore.html">explore</a>
+Navigation: <a href="../chronological.html">chronological</a> │ <a href="../explore.html">explore</a>
 
 ================================================================================
                               AVAILABLE MOODS

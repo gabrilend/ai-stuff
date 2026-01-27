@@ -2287,7 +2287,8 @@ local function generate_chronological_page_navigation(current_page, total_pages)
         table.insert(nav_parts, "Last »")
     end
 
-    return table.concat(nav_parts, " | ")
+    -- Issue 8-052: Use Unicode box-drawing vertical for consistent HTML output
+    return table.concat(nav_parts, " │ ")
 end
 -- }}}
 
