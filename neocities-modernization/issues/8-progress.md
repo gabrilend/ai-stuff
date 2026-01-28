@@ -47,7 +47,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-048 | Flatten media directory for deployment | Open | Medium |
 | 8-049 | Implement audio and video playback | Open | Low |
 | 8-050 | Enhance word-cloud semantic similarity pages | Open | High |
-| 8-050a | Compute semantic color for word-cloud words | Open | High |
+| 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
 | 8-050b | Color-contextualized similarity ranking | Open | Medium |
 | 8-050c | Apply word color to word-page progress bars | Open | Medium |
 | 8-050d | Configurable poems-per-word-page via run.sh | Open | Low |
@@ -63,6 +63,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-050a | Compute semantic color for word-cloud words | Completed | 2026-01-28 |
 | 8-055 | Fix golden poem formatting on similar/different pages | Completed | 2026-01-28 |
 | 8-056 | Preserve whitespace in poem rendering (shared formatter) | Completed | 2026-01-28 |
 | 8-029 | Consolidate similarity matrix functions | Completed | 2026-01-04 |

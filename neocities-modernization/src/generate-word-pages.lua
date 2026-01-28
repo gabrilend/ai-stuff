@@ -202,6 +202,97 @@ local function save_word_embeddings_cache(embeddings)
 end
 -- }}}
 
+-- {{{ local function load_color_embeddings
+-- Issue 8-050a: Load color embeddings for semantic color assignment
+local function load_color_embeddings()
+    local color_file = utils.embeddings_dir("embeddinggemma_latest") .. "/color_embeddings.json"
+    local data = utils.read_json_file(color_file)
+    return data and data.embeddings or nil
+end
+-- }}}
+
+-- {{{ local function compute_nearest_color
+-- Issue 8-050a: Find the nearest color to a word embedding using cosine similarity
+local function compute_nearest_color(word_embedding, color_embeddings)
+    if not word_embedding or not color_embeddings then
+        return "gray", 0
+    end
+
+    local best_color = "gray"
+    local best_sim = -1
+
+    for color_name, color_embedding in pairs(color_embeddings) do
+        local sim = cosine_similarity(word_embedding, color_embedding)
+        if sim > best_sim then
+            best_sim = sim
+            best_color = color_name
+        end
+    end
+
+    return best_color, best_sim
+end
+-- }}}
+
+-- {{{ local function load_word_colors_cache
+-- Issue 8-050a: Load cached word colors
+local function load_word_colors_cache()
+    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/word_colors.json"
+    local data = utils.read_json_file(cache_file)
+    if data and data.word_colors then
+        -- Convert array to lookup table for easy access
+        local lookup = {}
+        for _, entry in ipairs(data.word_colors) do
+            lookup[entry.word] = entry
+        end
+        return lookup
+    end
+    return {}
+end
+-- }}}
+
+-- {{{ local function save_word_colors_cache
+-- Issue 8-050a: Save word colors to cache
+local function save_word_colors_cache(word_colors_array)
+    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/word_colors.json"
+    local data = {
+        word_colors = word_colors_array,
+        model = CONFIG.model_name,
+        generated = os.date("%Y-%m-%d %H:%M:%S"),
+        count = #word_colors_array
+    }
+    return utils.write_json_file(cache_file, data)
+end
+-- }}}
+
+-- {{{ local function compute_word_colors
+-- Issue 8-050a: Compute semantic colors for all word embeddings
+local function compute_word_colors(word_embeddings)
+    local color_embeddings = load_color_embeddings()
+    if not color_embeddings then
+        utils.log_warn("No color embeddings found - skipping word color computation")
+        return nil
+    end
+
+    local word_colors = {}
+    local count = 0
+    for word, embedding in pairs(word_embeddings) do
+        local best_color, best_sim = compute_nearest_color(embedding, color_embeddings)
+        table.insert(word_colors, {
+            word = word,
+            color = best_color,
+            similarity = best_sim
+        })
+        count = count + 1
+    end
+
+    -- Sort by word for consistent output
+    table.sort(word_colors, function(a, b) return a.word < b.word end)
+
+    utils.log_info(string.format("Computed semantic colors for %d words", count))
+    return word_colors
+end
+-- }}}
+
 -- {{{ local function get_word_list
 -- Extracts word list from poems (same logic as wordcloud-generator)
 local function get_word_list(poems_data, stop_words, min_occurrences, max_words, min_word_length)
@@ -615,6 +706,13 @@ function M.generate_word_embeddings(options)
     save_word_embeddings_cache(word_embeddings)
     utils.log_info(string.format("Word embeddings: %d cached, %d newly generated", cache_hits, cache_misses))
 
+    -- Issue 8-050a: Compute and save semantic colors for all words
+    local word_colors = compute_word_colors(word_embeddings)
+    if word_colors then
+        save_word_colors_cache(word_colors)
+        utils.log_info(string.format("Saved semantic colors for %d words to word_colors.json", #word_colors))
+    end
+
     return cache_hits + cache_misses
 end
 -- }}}
@@ -670,6 +768,16 @@ function M.generate_word_html(options)
         utils.log_info(string.format("Loaded semantic colors for %d poems", #poem_colors_data.poem_colors))
     else
         utils.log_warn("No poem colors found - using default gray")
+    end
+
+    -- Issue 8-050a: Load word colors for per-word semantic coloring
+    local word_colors = load_word_colors_cache()
+    local word_color_count = 0
+    for _ in pairs(word_colors) do word_color_count = word_color_count + 1 end
+    if word_color_count > 0 then
+        utils.log_info(string.format("Loaded semantic colors for %d words", word_color_count))
+    else
+        utils.log_warn("No word colors found - run --embeddings-only to generate them")
     end
 
     -- Issue 8-043c: Load color configuration from unified config
