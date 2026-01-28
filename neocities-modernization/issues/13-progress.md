@@ -23,18 +23,78 @@ Phase 13 transforms the poetry collection's semantic embedding data into audio a
 
 ## Phase 13 Issues
 
-### Active Issues
+### Parent Issues
 
-| Issue | Description | Status | Priority |
-|-------|-------------|--------|----------|
-| 13-001 | Research and implement TTS engine | Open | High |
-| 13-002 | Generate TTS hypnotic trance track from word-cloud flopsopoly | Open | High |
-| 13-003 | Generate stable diffusion visuals from flopsopoly | Open | Medium |
-| 13-004 | Assemble video from TTS audio and generated images | Open | Medium |
+| Issue | Description | Status | Priority | Sub-Issues |
+|-------|-------------|--------|----------|------------|
+| 13-001 | Research and implement TTS engine | Open | High | a, b, c |
+| 13-002 | Generate TTS hypnotic trance track from word-cloud flopsopoly | Open | High | a, b, c, d |
+| 13-003 | Generate stable diffusion visuals from flopsopoly | Open | Medium | a, b, c, d |
+| 13-004 | Assemble video from TTS audio and generated images | Open | Medium | a, b, c |
+
+### Sub-Issues
+
+#### 13-001: TTS Engine
+
+| Sub-Issue | Description | Status | Blocks |
+|-----------|-------------|--------|--------|
+| 13-001a | Research TTS options | **Complete** | 13-001b |
+| 13-001b | Design TTS integration architecture | Open | 13-001c |
+| 13-001c | Implement TTS integration | Open | 13-002c |
+
+**13-001a Result**: Piper TTS selected as primary engine. See issue file for detailed evaluation.
+
+#### 13-002: Flopsopoly Trance Track
+
+| Sub-Issue | Description | Status | Blocks |
+|-----------|-------------|--------|--------|
+| 13-002a | Build frequency-weighted word pool | Open | 13-002b |
+| 13-002b | Implement centroid expansion ordering | Open | 13-002c, 13-002d |
+| 13-002c | Generate per-word audio cache | Open | 13-002d |
+| 13-002d | Assemble trance track + manifest | Open | 13-003, 13-004 |
+
+#### 13-003: Stable Diffusion Visuals
+
+| Sub-Issue | Description | Status | Blocks |
+|-----------|-------------|--------|--------|
+| 13-003a | Implement diameter context window + prompt composition | Open | 13-003c |
+| 13-003b | Implement stable diffusion API integration | Open | 13-003c, 13-003d |
+| 13-003c | Implement single-pass image generation pipeline | Open | 13-004 |
+| 13-003d | Implement multi-pass refinement mode (optional) | Open | — |
+
+#### 13-004: Video Assembly
+
+| Sub-Issue | Description | Status | Blocks |
+|-----------|-------------|--------|--------|
+| 13-004a | Implement manifest parsing + concat file generation | Open | 13-004b |
+| 13-004b | Implement ffmpeg video assembly (MVP) | Open | 13-004c |
+| 13-004c | Implement transition effects (post-MVP) | Open (blocked) | — |
 
 ### Completed Issues
 
 None yet.
+
+### Critical Path
+
+The minimum path to a working video is:
+
+```
+13-001a → 13-001b → 13-001c
+                          ↘
+13-002a → 13-002b ────────→ 13-002c → 13-002d
+                                            ↘
+13-003a ─────────────────────────────────────→ 13-003c → 13-004a → 13-004b
+13-003b ─────────────────────────────────────↗
+```
+
+**Parallelizable work:**
+- 13-002a + 13-002b can start immediately (no TTS dependency)
+- 13-003a + 13-003b can start once 13-002d interface is known
+- 13-001 series can proceed in parallel with early 13-002 work
+
+**Optional/deferrable:**
+- 13-003d (multi-pass refinement)
+- 13-004c (transition effects)
 
 ## Key Concepts
 

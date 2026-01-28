@@ -11,6 +11,21 @@ The project generates static HTML pages with text-based box-drawing art. No imag
 
 After the TTS hypnotic trance track is generated (13-002), produce a sequence of images using a **locally-hosted stable diffusion model** that visually represent the flopsopoly word sequence. Each image's prompt is derived from the **N most recent words** in the flopsopoly, using a **diameter-based context window**.
 
+### Sub-Issues
+
+This issue has been split into the following sub-issues:
+
+| Sub-Issue | Description | Status |
+|-----------|-------------|--------|
+| [13-003a](13-003a-implement-diameter-context-window-and-prompt-composition.md) | Implement diameter context window + prompt composition | Open |
+| [13-003b](13-003b-implement-stable-diffusion-api-integration.md) | Implement stable diffusion API integration | Open |
+| [13-003c](13-003c-implement-single-pass-image-generation-pipeline.md) | Implement single-pass image generation pipeline | Open |
+| [13-003d](13-003d-implement-multi-pass-refinement-mode.md) | Implement multi-pass refinement mode (optional) | Open |
+
+**Dependency chain**: 13-003a + 13-003b → 13-003c → 13-003d (optional)
+
+Note: 13-003d (multi-pass) is an optional enhancement and not on the critical path.
+
 ### Diameter-Based Context Window
 
 The context window for image generation at position P in the flopsopoly uses a **diameter** centered on the current word — extending equally in both directions:
