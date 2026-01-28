@@ -49,7 +49,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-050 | Enhance word-cloud semantic similarity pages | Open | High |
 | 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
 | 8-050b | Color-contextualized similarity ranking | ✅ Complete | Medium |
-| 8-050c | Apply word color to word-page progress bars | Open | Medium |
+| 8-050c | Apply word color to word-page progress bars | ✅ Complete | Medium |
 | 8-050d | Configurable poems-per-word-page via run.sh | ✅ Complete | Low |
 | 8-050e | Centroid-based chronological link for word pages | Open | Medium |
 | 8-051 | Order poem index categories by ascending count | ✅ Complete | Low |
@@ -63,6 +63,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-050c | Apply word color to word-page header | Completed | 2026-01-28 |
 | 8-050b | Color-contextualized similarity ranking | Completed | 2026-01-28 |
 | 8-050d | Configurable poems-per-word-page via run.sh | Completed | 2026-01-28 |
 | 8-050a | Compute semantic color for word-cloud words | Completed | 2026-01-28 |
@@ -347,6 +348,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Groups candidates into 7 color buckets, picks from lowest cumulative total
 - ✅ Falls back to pure similarity ranking if color embeddings unavailable
 - Result: Each word page now shows poems from all 7 semantic colors, not just the dominant one
+
+**8-050c: Apply Word Color to Word-Page Header** - COMPLETED (2026-01-28)
+- ✅ Implemented Option 3 (Hybrid): word color for header, per-poem colors for bars
+- ✅ Added `word_hex_color` parameter to `generate_word_page()`
+- ✅ Header word now rendered with semantic color: `<font color="...">word</font>`
+- Result: "silence" shows in blue, "fire" in red, while bars show color diversity from 8-050b
 
 ## Completion Criteria
 
