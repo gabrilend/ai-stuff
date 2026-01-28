@@ -30,12 +30,13 @@ local function setup_dir_path(provided_dir)
 end
 
 -- {{{ parse_args
--- Parse arguments, extracting DIR, mode flags, and word count options
+-- Parse arguments, extracting DIR, mode flags, and word/page count options
 local function parse_args(args)
     local dir = nil
     local mode = "both"  -- default: both embeddings and HTML
     local all_words = false
     local max_words = nil  -- nil means use config default
+    local poems_per_page = nil  -- Issue 8-050d: nil means use config default
     local i = 1
 
     while i <= #(args or {}) do
@@ -58,6 +59,13 @@ local function parse_args(args)
         elseif a:match("^--words=") then
             max_words = tonumber(a:match("^--words=(.+)$"))
             i = i + 1
+        -- Issue 8-050d: Parse poems-per-page argument
+        elseif a == "--poems-per-page" then
+            poems_per_page = tonumber(args[i + 1])
+            i = i + 2
+        elseif a:match("^--poems%-per%-page=") then
+            poems_per_page = tonumber(a:match("^--poems%-per%-page=(.+)$"))
+            i = i + 1
         elseif a:sub(1, 1) ~= "-" then
             dir = a
             i = i + 1
@@ -67,11 +75,11 @@ local function parse_args(args)
         end
     end
 
-    return dir, mode, all_words, max_words
+    return dir, mode, all_words, max_words, poems_per_page
 end
 -- }}}
 
-local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS = parse_args(arg)
+local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -101,12 +109,15 @@ else
     effective_max_words = wc.max_words or 200
 end
 
+-- Issue 8-050d: Determine effective poems_per_page: CLI > config > default
+local effective_poems_per_page = CLI_POEMS_PER_PAGE or wc.poems_per_page or 50
+
 local CONFIG = {
     model_name = "embeddinggemma:latest",
     max_poems_per_page = 100,        -- Poems per word page
     max_pages_per_word = 1,          -- For now, just one page per word
     word_embeddings_file = "word_embeddings.json",
-    poems_per_word_page = 50,        -- Show top 50 most similar poems
+    poems_per_word_page = effective_poems_per_page,  -- Issue 8-050d: configurable via CLI/config
     max_words = effective_max_words, -- Max words to process (from CLI or config)
 }
 -- }}}

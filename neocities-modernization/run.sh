@@ -80,6 +80,7 @@ Pagination (HTML Generation):
 Word Cloud:
   --wordcloud-all     Include all words (ignore max_words limit)
   --wordcloud-words N Number of words in word cloud (default: 200)
+  --wordcloud-poems N Poems per word-cloud page (default: 50)
 
 Extraction Options:
   --include-boosts    Include fediverse boosts/reblogs in extraction
@@ -153,6 +154,8 @@ POEMS_PER_PAGE=""
 # Issue 8-043: Word cloud configuration
 WORDCLOUD_ALL=false
 WORDCLOUD_WORDS=""
+# Issue 8-050d: Poems per word-cloud page
+WORDCLOUD_POEMS=""
 
 # Issue 8-011: Fediverse boost inclusion (extraction stage)
 INCLUDE_BOOSTS=false
@@ -258,6 +261,15 @@ while [[ $# -gt 0 ]]; do
             ;;
         --wordcloud-words=*)
             WORDCLOUD_WORDS="${1#*=}"
+            shift
+            ;;
+        # Issue 8-050d: Poems per word-cloud page
+        --wordcloud-poems)
+            WORDCLOUD_POEMS="$2"
+            shift 2
+            ;;
+        --wordcloud-poems=*)
+            WORDCLOUD_POEMS="${1#*=}"
             shift
             ;;
         # Issue 8-011: Fediverse boost inclusion
@@ -947,10 +959,16 @@ run_generate_html() {
         wordcloud_words_arg="--words $WORDCLOUD_WORDS"
     fi
 
+    # Issue 8-050d: Poems per word-cloud page
+    local wordcloud_poems_arg=""
+    if [ -n "$WORDCLOUD_POEMS" ]; then
+        wordcloud_poems_arg="--poems-per-page $WORDCLOUD_POEMS"
+    fi
+
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
         log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg"
         return 0
     fi
 
@@ -966,7 +984,7 @@ run_generate_html() {
     }
 
     log_info "   Generating word similarity pages..."
-    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg || {
+    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
     }
 }
@@ -1070,6 +1088,9 @@ interactive_mode_tui() {
         "Include all words (disables word count limit)" "a" "--wordcloud-all"
     menu_add_item "wordcloud" "wordcloud_words" "Word Count" "flag" "200:3" \
         "Maximum words in word cloud (default: 200)" "w" "--wordcloud-words"
+    # Issue 8-050d: Poems per word-cloud page
+    menu_add_item "wordcloud" "wordcloud_poems" "Poems Per Page" "flag" "50:3" \
+        "Poems per word-cloud similarity page (default: 50)" "p" "--wordcloud-poems"
     # Dependency: Disable wordcloud_words when wordcloud_all is checked
     # invert=true means: enable wordcloud_words when wordcloud_all is NOT checked (value "1")
     menu_add_dependency "wordcloud_words" "wordcloud_all" "1" "true" \
@@ -1119,6 +1140,8 @@ interactive_mode_tui() {
             # Issue 8-043: Get wordcloud values from TUI
             local wordcloud_all_val=$(menu_get_value "wordcloud_all")
             local wordcloud_words_val=$(menu_get_value "wordcloud_words")
+            # Issue 8-050d: Get poems per word-cloud page from TUI
+            local wordcloud_poems_val=$(menu_get_value "wordcloud_poems")
 
             # Set global flags based on menu selection
             [[ "$update_words_val" == "1" ]] && UPDATE_WORDS=true || UPDATE_WORDS=false
@@ -1146,6 +1169,8 @@ interactive_mode_tui() {
             # Issue 8-043: Set wordcloud values from TUI
             [[ "$wordcloud_all_val" == "1" ]] && WORDCLOUD_ALL=true || WORDCLOUD_ALL=false
             [[ -n "$wordcloud_words_val" && "$wordcloud_words_val" != "0" ]] && WORDCLOUD_WORDS="$wordcloud_words_val"
+            # Issue 8-050d: Set poems per word-cloud page from TUI
+            [[ -n "$wordcloud_poems_val" && "$wordcloud_poems_val" != "0" ]] && WORDCLOUD_POEMS="$wordcloud_poems_val"
 
             # Check if at least one stage is selected
             if ! $UPDATE_WORDS && ! $EXTRACT && ! $PARSE && ! $VALIDATE && \

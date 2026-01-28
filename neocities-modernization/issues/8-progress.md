@@ -50,7 +50,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
 | 8-050b | Color-contextualized similarity ranking | Open | Medium |
 | 8-050c | Apply word color to word-page progress bars | Open | Medium |
-| 8-050d | Configurable poems-per-word-page via run.sh | Open | Low |
+| 8-050d | Configurable poems-per-word-page via run.sh | ✅ Complete | Low |
 | 8-050e | Centroid-based chronological link for word pages | Open | Medium |
 | 8-051 | Order poem index categories by ascending count | ✅ Complete | Low |
 | 8-052 | Normalize vertical bar characters in HTML output | ✅ Complete | Low |
@@ -63,6 +63,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-050d | Configurable poems-per-word-page via run.sh | Completed | 2026-01-28 |
 | 8-050a | Compute semantic color for word-cloud words | Completed | 2026-01-28 |
 | 8-055 | Fix golden poem formatting on similar/different pages | Completed | 2026-01-28 |
 | 8-056 | Preserve whitespace in poem rendering (shared formatter) | Completed | 2026-01-28 |
@@ -332,6 +333,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Bug 2: Junction positions - changed `GOLDEN_LEFT_JUNCTION_POS` from 9→10, `GOLDEN_RIGHT_JUNCTION_POS` from 70→71
 - ✅ Bug 3: Worker thread now receives layout config via `thread_config.layout`
 - Golden poems now render identically on chronological and similar/different pages
+
+**8-050d: Configurable Poems-per-Word-Page** - COMPLETED (2026-01-28)
+- ✅ Added `--wordcloud-poems N` CLI flag to run.sh
+- ✅ Added TUI menu item in "Word Cloud Options" section (hotkey 'p')
+- ✅ Updated `src/generate-word-pages.lua` to parse `--poems-per-page` argument
+- ✅ Configuration precedence: CLI > config.lua > default (50)
 
 ## Completion Criteria
 
