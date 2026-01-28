@@ -39,7 +39,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-038 | Center poem containers on page | ✅ Already implemented | Low |
 | 8-039 | Move chronological files to subdirectory | ✅ Complete | High |
 | 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
-| 8-041 | Escape HTML characters in poem content | Implemented (pending validation) | **High** |
+| 8-041 | Escape HTML characters in poem content | ✅ Complete | **High** |
 | 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
 | 8-043 | Generate semantic word cloud page | ✅ Complete | Medium |
 | 8-046 | Create menu navigation page | ✅ Complete | Medium |
@@ -63,6 +63,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-041 | Escape HTML characters in poem content | Completed | 2026-01-28 |
 | 8-050 | Enhance word-cloud semantic similarity pages | Completed | 2026-01-28 |
 | 8-050e | Centroid-based chronological link for word pages | Completed | 2026-01-28 |
 | 8-050c | Apply word color to word-page header | Completed | 2026-01-28 |
