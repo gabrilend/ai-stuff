@@ -123,8 +123,9 @@ local LAYOUT = {
     GOLDEN_LEFT_BOX_WIDTH = 11,
     GOLDEN_RIGHT_BOX_WIDTH = 13,
     GOLDEN_GAP_WIDTH = 58,            -- 84 - 2 corners - 11 - 13 = 58
-    GOLDEN_LEFT_JUNCTION_POS = 9,     -- Position within interior (under ┐ at full pos 10)
-    GOLDEN_RIGHT_JUNCTION_POS = 70,   -- Position within interior (under ┌ at full pos 71)
+    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
+    GOLDEN_LEFT_JUNCTION_POS = 10,    -- Same as regular (left box ┐ at position 10)
+    GOLDEN_RIGHT_JUNCTION_POS = 71,   -- Regular + 1 (right box ┌ at position 71 due to wider golden)
 }
 
 -- {{{ function load_layout_from_config
@@ -819,11 +820,12 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
     local hex_color = COLOR_CONFIG[color_name] or COLOR_CONFIG["gray"]
 
     -- For golden bottom borders with corner boxes, we need to insert junction characters
+    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
     -- Junction positions in the 82-char interior (0-indexed):
-    -- - Position 9: under "similar" box ┐ (uses ╧ if in ═ section, ┴ if in ─ section)
-    -- - Position 70: under "different" box ┌ (uses ╧ if in ═ section, ┴ if in ─ section)
-    local LEFT_JUNCTION_POS = 9   -- After "║ similar │" (11 chars, minus corner = 10, 0-indexed = 9)
-    local RIGHT_JUNCTION_POS = 70  -- Under "┌" of right box at full position 71 (interior pos 70)
+    -- - Position 10: under "similar" box ┐ (same as regular poems)
+    -- - Position 71: under "different" box ┌ (regular + 1 due to wider golden poem)
+    local LEFT_JUNCTION_POS = 10   -- Same as regular: left box ┐ at position 10
+    local RIGHT_JUNCTION_POS = 71  -- Regular + 1: right box ┌ at position 71 (golden is 1 char wider)
 
     -- Junction positions for regular poems (different from golden due to no outer walls)
     -- Regular corner boxes: ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
@@ -1661,8 +1663,9 @@ local function apply_golden_poem_formatting(content, is_golden, similar_link, di
 
     for _, line in ipairs(lines) do
         -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
-        local visible_line = line:gsub("<[^>]+>", "")
-        local visible_length = utf8_char_count(visible_line)
+        -- Issue 8-055: Also decode HTML entities for accurate width counting
+        -- e.g., &gt; is 4 bytes but displays as 1 character (>)
+        local visible_length = text_formatter.calculate_visible_width(line)
 
         -- Pad or handle line to fit content width
         local padded_line
@@ -2787,7 +2790,17 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             generate_txt_exports = PAGINATION_CONFIG.generate_txt_exports,
             -- Issue 9-003 Fix D: Full formatting data
             chrono_mapping = chrono_mapping,
-            chrono_paginated = chronological_paginated
+            chrono_paginated = chronological_paginated,
+            -- Issue 8-055: Pass layout constants to worker threads for consistency
+            layout = {
+                golden_poem_width = LAYOUT.GOLDEN_POEM_WIDTH or 84,
+                regular_poem_width = LAYOUT.REGULAR_POEM_WIDTH or 83,
+                text_content_width = LAYOUT.TEXT_CONTENT_WIDTH or 80,
+                golden_left_junction = LAYOUT.GOLDEN_LEFT_JUNCTION_POS or 10,
+                golden_right_junction = LAYOUT.GOLDEN_RIGHT_JUNCTION_POS or 71,
+                regular_left_junction = LAYOUT.REGULAR_LEFT_JUNCTION_POS or 10,
+                regular_right_junction = LAYOUT.REGULAR_RIGHT_JUNCTION_POS or 70
+            }
         }
 
         -- Create and launch worker threads
@@ -3056,7 +3069,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     if is_golden then
                         local golden_lines = {}
                         local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-                        local CONTENT_WIDTH = 80
+                        -- Issue 8-055: Use config layout values instead of hardcoded 80
+                        local CONTENT_WIDTH = config.layout and config.layout.text_content_width or 80
 
                         -- Helper to count UTF-8 characters (not bytes)
                         -- Box-drawing chars are 3 bytes each, so #str gives wrong count
@@ -3070,8 +3084,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             local content = line:match("^%s*(.*)$") or line
 
                             -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
-                            local visible_content = content:gsub("<[^>]+>", "")
-                            local visible_length = utf8_char_count(visible_content)
+                            -- Issue 8-055: Also decode HTML entities for accurate width counting
+                            -- e.g., &gt; is 4 bytes but displays as 1 character (>)
+                            local visible_length = t_text_formatter.calculate_visible_width(content)
 
                             -- Pad content to 80 chars
                             local padded_content
@@ -3163,11 +3178,16 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Bottom line with progress bar and junction characters
                     -- Structure: ╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
-                    -- Golden: 82 interior + 2 corners = 84 total, junctions at 9 and 70
-                    -- Regular: 83 total, junctions at 10 and 70
-                    local TOTAL_CHARS = is_golden and 82 or 83
-                    local LEFT_JUNCTION = is_golden and 9 or 10
-                    local RIGHT_JUNCTION = is_golden and 70 or 70  -- Golden: interior pos 70 = full pos 71
+                    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
+                    -- Use config layout values instead of hardcoded values
+                    local cfg_layout = config.layout or {}
+                    local golden_width = cfg_layout.golden_poem_width or 84
+                    local regular_width = cfg_layout.regular_poem_width or 83
+                    local TOTAL_CHARS = is_golden and (golden_width - 2) or regular_width  -- Golden: interior only
+                    local LEFT_JUNCTION = cfg_layout.golden_left_junction or 10   -- Same for both
+                    local RIGHT_JUNCTION = is_golden
+                        and (cfg_layout.golden_right_junction or 71)
+                        or (cfg_layout.regular_right_junction or 70)
 
                     local left_in_progress = LEFT_JUNCTION < progress_chars
                     local right_in_progress = RIGHT_JUNCTION < progress_chars

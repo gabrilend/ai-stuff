@@ -56,13 +56,14 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-052 | Normalize vertical bar characters in HTML output | ✅ Complete | Low |
 | 8-053 | Add image title attribute and fix alt-text fallback | ✅ Complete | Medium-High |
 | 8-054 | Extract image attachments from Matrix media messages | Open | Medium |
-| 8-055 | Fix golden poem formatting on similar/different pages | Open | Medium |
+| 8-055 | Fix golden poem formatting on similar/different pages | ✅ Complete | Medium |
 | 8-056 | Preserve whitespace in poem rendering (shared formatter) | ✅ Complete | High |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-055 | Fix golden poem formatting on similar/different pages | Completed | 2026-01-28 |
 | 8-056 | Preserve whitespace in poem rendering (shared formatter) | Completed | 2026-01-28 |
 | 8-029 | Consolidate similarity matrix functions | Completed | 2026-01-04 |
 | 8-028 | Clean output directory of test/demo files | Completed | 2026-01-04 |
@@ -324,6 +325,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Both code paths now use identical formatting logic via the shared module
 - ✅ Old `wrap_text_80_chars()` retained for UI text (CW boxes, help pages, TXT export)
 - Architectural fix: eliminates divergent code paths that caused the bug
+
+**8-055: Fix Golden Poem Formatting** - COMPLETED (2026-01-28)
+- ✅ Bug 1: HTML entity padding - now uses `text_formatter.calculate_visible_width()`
+- ✅ Bug 2: Junction positions - changed `GOLDEN_LEFT_JUNCTION_POS` from 9→10, `GOLDEN_RIGHT_JUNCTION_POS` from 70→71
+- ✅ Bug 3: Worker thread now receives layout config via `thread_config.layout`
+- Golden poems now render identically on chronological and similar/different pages
 
 ## Completion Criteria
 

@@ -187,9 +187,34 @@ All `│` right walls at the same column. `╧` directly under `┐`. `┴` dire
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Completed
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-28
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: None
 - **Affects**: All golden poems on all page types (chronological, similar, different)
+
+## Completion Notes
+
+### Bug 1 Fix: HTML Entity Padding Miscalculation
+- Used `text_formatter.calculate_visible_width()` (from shared module created in 8-056)
+- This function decodes HTML entities (`&gt;`, `&lt;`, `&amp;`, etc.) before counting width
+- Applied in both main thread (line 1668) and worker thread (line 3078)
+- Now `&gt;` counts as 1 display char, not 4 bytes
+
+### Bug 2 Fix: Golden Junction Position Correction
+- Changed `GOLDEN_LEFT_JUNCTION_POS` from 9 to 10 (same as regular)
+- Changed `GOLDEN_RIGHT_JUNCTION_POS` from 70 to 71 (regular + 1)
+- Updated LAYOUT config (lines 127-128), main thread (lines 827-828), and worker thread (lines 3184-3190)
+- Junction characters `╧`/`┴` now align directly under `┐`/`┌` corners
+
+### Bug 3 Fix: Worker Thread Config Layout Support
+- Added `layout` object to `thread_config` (lines 2795-2803) with:
+  - `golden_poem_width`, `regular_poem_width`, `text_content_width`
+  - `golden_left_junction`, `golden_right_junction`, `regular_left_junction`, `regular_right_junction`
+- Worker thread now reads from `config.layout` instead of hardcoding values
+- Golden poems now render identically on chronological and similar/different pages
+
+### Verification
+- `luajit -e "require('src.flat-html-generator')"` loads without errors
