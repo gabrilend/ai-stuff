@@ -57,12 +57,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-053 | Add image title attribute and fix alt-text fallback | ✅ Complete | Medium-High |
 | 8-054 | Extract image attachments from Matrix media messages | Open | Medium |
 | 8-055 | Fix golden poem formatting on similar/different pages | Open | Medium |
-| 8-056 | Preserve whitespace in poem rendering (shared formatter) | Open | High |
+| 8-056 | Preserve whitespace in poem rendering (shared formatter) | ✅ Complete | High |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-056 | Preserve whitespace in poem rendering (shared formatter) | Completed | 2026-01-28 |
 | 8-029 | Consolidate similarity matrix functions | Completed | 2026-01-04 |
 | 8-028 | Clean output directory of test/demo files | Completed | 2026-01-04 |
 | 8-027 | Implement extendable diversity cache | Completed | 2026-01-04 |
@@ -315,6 +316,14 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Fediverse/messages display numeric ID without `.txt` extension
 - ✅ Updated all 4 file header generation locations
 - ✅ Verified: notes show `source_file`, no `.txt` extensions anywhere
+
+**8-056: Preserve Whitespace in Poem Rendering** - COMPLETED (2026-01-28)
+- ✅ Created `libs/text-formatter.lua` shared module for whitespace preservation
+- ✅ Updated main thread to preserve whitespace for ALL categories (not just notes)
+- ✅ Updated worker thread (effil) to use shared module instead of `%S+` word-splitting
+- ✅ Both code paths now use identical formatting logic via the shared module
+- ✅ Old `wrap_text_80_chars()` retained for UI text (CW boxes, help pages, TXT export)
+- Architectural fix: eliminates divergent code paths that caused the bug
 
 ## Completion Criteria
 
