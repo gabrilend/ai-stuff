@@ -46,12 +46,12 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-047 | Implement dark mode (always on, CSS-free) | ✅ Complete | High |
 | 8-048 | Flatten media directory for deployment | Open | Medium |
 | 8-049 | Implement audio and video playback | Open | Low |
-| 8-050 | Enhance word-cloud semantic similarity pages | Open | High |
+| 8-050 | Enhance word-cloud semantic similarity pages | ✅ Complete | High |
 | 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
 | 8-050b | Color-contextualized similarity ranking | ✅ Complete | Medium |
 | 8-050c | Apply word color to word-page progress bars | ✅ Complete | Medium |
 | 8-050d | Configurable poems-per-word-page via run.sh | ✅ Complete | Low |
-| 8-050e | Centroid-based chronological link for word pages | Open | Medium |
+| 8-050e | Centroid-based chronological link for word pages | ✅ Complete | Medium |
 | 8-051 | Order poem index categories by ascending count | ✅ Complete | Low |
 | 8-052 | Normalize vertical bar characters in HTML output | ✅ Complete | Low |
 | 8-053 | Add image title attribute and fix alt-text fallback | ✅ Complete | Medium-High |
@@ -63,6 +63,8 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-050 | Enhance word-cloud semantic similarity pages | Completed | 2026-01-28 |
+| 8-050e | Centroid-based chronological link for word pages | Completed | 2026-01-28 |
 | 8-050c | Apply word color to word-page header | Completed | 2026-01-28 |
 | 8-050b | Color-contextualized similarity ranking | Completed | 2026-01-28 |
 | 8-050d | Configurable poems-per-word-page via run.sh | Completed | 2026-01-28 |
@@ -354,6 +356,20 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Added `word_hex_color` parameter to `generate_word_page()`
 - ✅ Header word now rendered with semantic color: `<font color="...">word</font>`
 - Result: "silence" shows in blue, "fire" in red, while bars show color diversity from 8-050b
+
+**8-050e: Centroid-Based Chronological Link** - COMPLETED (2026-01-28)
+- ✅ Added `compute_centroid()` and `find_closest_poem_to_centroid()` helper functions
+- ✅ Built `chrono_page_map` to map poem_index → chronological page number
+- ✅ Header now includes Main, Word Cloud, and centroid-targeted Chronological links
+- ✅ Chronological link points to the poem closest to the word's semantic center
+
+**8-050: Enhance Word-Cloud Semantic Similarity Pages** - COMPLETED (2026-01-28)
+All 5 sub-issues completed:
+- 8-050a: Word color computation ✓
+- 8-050b: Balanced color selection algorithm ✓
+- 8-050c: Word color in header ✓
+- 8-050d: Configurable poems-per-page ✓
+- 8-050e: Centroid-based chronological navigation ✓
 
 ## Completion Criteria
 
