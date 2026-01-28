@@ -18,13 +18,17 @@ Integrate a text-to-speech engine into the project that can:
 5. Be callable from Lua or via a shell command
 6. Output audio files (WAV or MP3) that can be concatenated into a continuous track
 
-### First Action Item
+### Sub-Issues
 
-**Split this issue into sub-issues** for the three development phases:
+This issue has been split into the following sub-issues:
 
-- **13-001a: Research TTS options** — Survey available TTS engines (Piper, Coqui, eSpeak, Festival, Bark, etc.), evaluate quality vs. performance tradeoffs, test compatibility with the Lua pipeline, and recommend a candidate
-- **13-001b: Design TTS integration architecture** — Define the interface between the Lua pipeline and the TTS engine (CLI invocation, API calls, file I/O), design the audio file naming and caching strategy, plan for configurable voice parameters
-- **13-001c: Implement TTS integration** — Install and configure the chosen engine, create Lua wrapper functions, implement word-to-audio generation with caching, add to run.sh pipeline
+| Sub-Issue | Description | Status |
+|-----------|-------------|--------|
+| [13-001a](13-001a-research-tts-options.md) | Research TTS options — Survey engines, evaluate quality vs. performance | Open |
+| [13-001b](13-001b-design-tts-integration-architecture.md) | Design TTS integration architecture — Interface, caching, config | Open |
+| [13-001c](13-001c-implement-tts-integration.md) | Implement TTS integration — Build libs/tts-engine.lua | Open |
+
+**Dependency chain**: 13-001a → 13-001b → 13-001c
 
 ## Research Considerations
 
