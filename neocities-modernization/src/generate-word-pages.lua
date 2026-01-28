@@ -693,8 +693,9 @@ end
 -- {{{ local function generate_word_page
 -- Generates HTML page for a single word showing similar poems
 -- Issue 8-043c: Now uses same box-drawing format as similar/different pages
+-- Issue 8-050c: Word color shown in header, per-poem colors for progress bars
 -- Progress bar shows CHRONOLOGICAL position (not similarity) to orient readers
-local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map)
+local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map, word_hex_color)
     local safe_word = word:lower():gsub("[^%w]", "")
     local output_file = output_dir .. "/wordcloud/" .. safe_word .. ".html"
 
@@ -707,6 +708,9 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
         top_poems[i] = ranked_poems[i]
     end
 
+    -- Issue 8-050c: Use word's semantic color for header (default to gray if not provided)
+    local header_color = word_hex_color or "#888888"
+
     -- Generate HTML
     local html_parts = {}
     table.insert(html_parts, string.format([[<!DOCTYPE html>
@@ -717,14 +721,14 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 </head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
-<h1>Poems similar to: <i>%s</i></h1>
+<h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
 <p>Top %d poems ranked by semantic similarity (progress bar shows chronological position)</p>
 <p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Back to Word Cloud</a> │ <a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/chronological/index.html">Chronological</a></p>
 </center>
 <hr>
 <table align="center"><tr><td>
 <pre>
-]], word, word, #top_poems))
+]], word, header_color, word, #top_poems))
 
     -- Add ranked poems using box-drawing format
     for i, entry in ipairs(top_poems) do
@@ -986,8 +990,13 @@ function M.generate_word_html(options)
                 ranked_poems = candidates
             end
 
+            -- Issue 8-050c: Get word's semantic color for header
+            local word_color_entry = word_colors[word]
+            local word_semantic_color = word_color_entry and word_color_entry.color or "gray"
+            local word_hex_color = color_config and color_config[word_semantic_color] or "#888888"
+
             -- Generate page with semantic colors and chronological position
-            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map) then
+            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map, word_hex_color) then
                 pages_generated = pages_generated + 1
             end
         else
