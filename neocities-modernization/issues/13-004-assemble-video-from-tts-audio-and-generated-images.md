@@ -15,6 +15,20 @@ These outputs exist independently. There is no combined audio-visual experience 
 
 Assemble a **video file** that combines the TTS audio track with the generated image sequence, creating a unified hypnotic audio-visual experience.
 
+### Sub-Issues
+
+This issue has been split into the following sub-issues:
+
+| Sub-Issue | Description | Status |
+|-----------|-------------|--------|
+| [13-004a](13-004a-implement-manifest-parsing-and-concat-file-generation.md) | Implement manifest parsing + concat file generation | Open |
+| [13-004b](13-004b-implement-ffmpeg-video-assembly.md) | Implement ffmpeg video assembly (MVP sharp cuts) | Open |
+| [13-004c](13-004c-implement-transition-effects.md) | Implement transition effects (post-MVP) | Open (blocked) |
+
+**Dependency chain**: 13-004a → 13-004b → 13-004c (optional)
+
+Note: 13-004c (transitions) is blocked by 13-004b MVP completion. Architecture should anticipate transitions, but implementation is deferred.
+
 ### MVP: Sharp Cuts
 
 For the initial implementation, use **sharp cuts** between images:

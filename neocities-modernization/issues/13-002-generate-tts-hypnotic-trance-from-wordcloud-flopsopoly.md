@@ -16,6 +16,21 @@ Generate an audio "hypnotic trance track" by:
 3. **Rendering to audio** — Pass each word through the TTS engine (from 13-001) in flopsopoly order
 4. **Outputting a continuous audio track** — Concatenate word audio into a single hypnotic trance file
 
+### Sub-Issues
+
+This issue has been split into the following sub-issues:
+
+| Sub-Issue | Description | Status |
+|-----------|-------------|--------|
+| [13-002a](13-002a-build-frequency-weighted-word-pool.md) | Build frequency-weighted word pool | Open |
+| [13-002b](13-002b-implement-centroid-expansion-ordering.md) | Implement centroid expansion ordering algorithm | Open |
+| [13-002c](13-002c-generate-per-word-audio-cache.md) | Generate per-word audio cache via TTS | Open |
+| [13-002d](13-002d-assemble-trance-track-and-manifest.md) | Assemble continuous trance track + manifest | Open |
+
+**Dependency chain**: 13-002a → 13-002b → 13-002c → 13-002d
+
+Note: 13-002a and 13-002b can be developed and tested before TTS engine (13-001) is complete.
+
 ### The Flopsopoly of Verbrases
 
 A flopsopoly is a frequency-weighted, centroid-diversified word sequence:
