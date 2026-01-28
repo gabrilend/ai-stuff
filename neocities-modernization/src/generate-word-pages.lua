@@ -304,6 +304,90 @@ local function compute_word_colors(word_embeddings)
 end
 -- }}}
 
+-- {{{ local function balanced_color_select
+-- Issue 8-050b: Selects N poems using cumulative-similarity-balanced round-robin
+-- Ensures roughly equal color representation while maintaining word relevance
+-- Uses cumulative totals to prevent high-affinity colors from dominating
+local function balanced_color_select(candidates, color_embeddings, color_names, N)
+    -- Phase 2: Compute color affinities for each candidate
+    for _, candidate in ipairs(candidates) do
+        local best_color = "gray"
+        local best_color_sim = -1
+        candidate.color_sims = {}
+        for _, color_name in ipairs(color_names) do
+            local color_emb = color_embeddings[color_name]
+            if color_emb then
+                local sim = cosine_similarity(color_emb, candidate.embedding)
+                candidate.color_sims[color_name] = sim
+                if sim > best_color_sim then
+                    best_color_sim = sim
+                    best_color = color_name
+                end
+            end
+        end
+        candidate.best_color = best_color
+        candidate.best_color_sim = best_color_sim
+    end
+
+    -- Phase 3: Build color buckets (sorted by word_similarity descending)
+    local buckets = {}
+    for _, color_name in ipairs(color_names) do
+        buckets[color_name] = {}
+    end
+    for _, candidate in ipairs(candidates) do
+        table.insert(buckets[candidate.best_color], candidate)
+    end
+    for _, color_name in ipairs(color_names) do
+        table.sort(buckets[color_name], function(a, b)
+            return a.word_similarity > b.word_similarity
+        end)
+    end
+
+    -- Phase 4: Balanced round-robin selection
+    -- Give priority to colors with lowest cumulative color-similarity totals
+    local cumulative = {}
+    local bucket_idx = {}  -- next pick index per color
+    for _, color_name in ipairs(color_names) do
+        cumulative[color_name] = 0
+        bucket_idx[color_name] = 1
+    end
+
+    local selected = {}
+    while #selected < N do
+        -- Find color with lowest cumulative score that still has candidates
+        local pick_color = nil
+        local lowest_cum = math.huge
+        local most_remaining = -1
+        for _, color_name in ipairs(color_names) do
+            local remaining = #buckets[color_name] - bucket_idx[color_name] + 1
+            if remaining > 0 then
+                local cum = cumulative[color_name]
+                -- Tiebreak: prefer color with more remaining candidates
+                if cum < lowest_cum or (cum == lowest_cum and remaining > most_remaining) then
+                    lowest_cum = cum
+                    pick_color = color_name
+                    most_remaining = remaining
+                end
+            end
+        end
+
+        if not pick_color then break end  -- all buckets exhausted
+
+        -- Pop top candidate from this color's bucket
+        local idx = bucket_idx[pick_color]
+        local poem = buckets[pick_color][idx]
+        bucket_idx[pick_color] = idx + 1
+
+        -- Track cumulative color similarity (high-affinity colors "spend" budget faster)
+        cumulative[pick_color] = cumulative[pick_color] + poem.best_color_sim
+
+        table.insert(selected, poem)
+    end
+
+    return selected
+end
+-- }}}
+
 -- {{{ local function get_word_list
 -- Extracts word list from poems (same logic as wordcloud-generator)
 local function get_word_list(poems_data, stop_words, min_occurrences, max_words, min_word_length)
@@ -791,6 +875,19 @@ function M.generate_word_html(options)
         utils.log_warn("No word colors found - run --embeddings-only to generate them")
     end
 
+    -- Issue 8-050b: Load color embeddings for balanced color selection
+    local color_embeddings = load_color_embeddings()
+    local use_balanced_selection = color_embeddings ~= nil
+    if use_balanced_selection then
+        utils.log_info("Loaded color embeddings for balanced color selection")
+    else
+        utils.log_warn("No color embeddings found - using pure similarity ranking")
+    end
+
+    -- Issue 8-050b: Get ordered color names from config
+    local color_names = unified_config.color_names
+        or {"red", "blue", "green", "purple", "orange", "yellow", "gray"}
+
     -- Issue 8-043c: Load color configuration from unified config
     local color_config = unified_config.colors or {
         red = "#FF6B6B",
@@ -851,24 +948,43 @@ function M.generate_word_html(options)
             io.write(string.format("\rGenerating word page %d/%d: %s          ", i, #words, word))
             io.flush()
 
-            -- Compute similarity to all poems
-            local ranked_poems = {}
+            -- Issue 8-050b: Build candidate pool with embeddings preserved
+            -- Phase 1: Rank ALL poems by word similarity
+            local candidates = {}
             for poem_id_str, poem_embedding in pairs(poem_lookup) do
                 local poem_id = tonumber(poem_id_str)
                 local poem = poems_by_index[poem_id]
                 if poem and poem_embedding then
-                    local similarity = cosine_similarity(word_embedding, poem_embedding)
-                    table.insert(ranked_poems, {
+                    local word_sim = cosine_similarity(word_embedding, poem_embedding)
+                    table.insert(candidates, {
                         poem = poem,
-                        similarity = similarity
+                        embedding = poem_embedding,
+                        word_similarity = word_sim,
+                        similarity = word_sim  -- for generate_word_page compatibility
                     })
                 end
             end
 
-            -- Sort by similarity (descending)
-            table.sort(ranked_poems, function(a, b)
-                return a.similarity > b.similarity
+            -- Sort by word similarity (descending)
+            table.sort(candidates, function(a, b)
+                return a.word_similarity > b.word_similarity
             end)
+
+            -- Issue 8-050b: Use balanced color selection if color embeddings available
+            local ranked_poems
+            if use_balanced_selection then
+                -- Pre-filter to top K (K = N × 7) to ensure semantic relevance
+                local pool_size = math.min(#candidates, CONFIG.poems_per_word_page * 7)
+                local pool = {}
+                for j = 1, pool_size do pool[j] = candidates[j] end
+
+                -- Balanced round-robin selection across all 7 colors
+                ranked_poems = balanced_color_select(
+                    pool, color_embeddings, color_names, CONFIG.poems_per_word_page)
+            else
+                -- Fallback: pure similarity ranking (original behavior)
+                ranked_poems = candidates
+            end
 
             -- Generate page with semantic colors and chronological position
             if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map) then
