@@ -388,6 +388,69 @@ local function balanced_color_select(candidates, color_embeddings, color_names, 
 end
 -- }}}
 
+-- {{{ local function compute_centroid
+-- Issue 8-050e: Compute the centroid (average embedding) of selected poems
+-- Returns nil if no valid embeddings found
+local function compute_centroid(poems, poem_lookup)
+    if not poems or #poems == 0 then return nil end
+
+    -- Find dimension from first valid embedding
+    local dim = nil
+    for _, entry in ipairs(poems) do
+        local poem_id = tostring(entry.poem and entry.poem.poem_index)
+        local emb = poem_lookup[poem_id]
+        if emb then
+            dim = #emb
+            break
+        end
+    end
+    if not dim then return nil end
+
+    -- Initialize centroid to zeros
+    local centroid = {}
+    for d = 1, dim do centroid[d] = 0 end
+
+    -- Sum embeddings of selected poems
+    local count = 0
+    for _, entry in ipairs(poems) do
+        local poem_id = tostring(entry.poem and entry.poem.poem_index)
+        local emb = poem_lookup[poem_id]
+        if emb then
+            for d = 1, dim do centroid[d] = centroid[d] + emb[d] end
+            count = count + 1
+        end
+    end
+
+    if count == 0 then return nil end
+
+    -- Average
+    for d = 1, dim do centroid[d] = centroid[d] / count end
+
+    return centroid
+end
+-- }}}
+
+-- {{{ local function find_closest_poem_to_centroid
+-- Issue 8-050e: Find the poem whose embedding is closest to the given centroid
+-- Returns poem data or nil if no match found
+local function find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
+    if not centroid then return nil end
+
+    local best_poem = nil
+    local best_similarity = -1
+
+    for poem_id_str, poem_embedding in pairs(poem_lookup) do
+        local sim = cosine_similarity(centroid, poem_embedding)
+        if sim > best_similarity then
+            best_similarity = sim
+            best_poem = poems_by_index[tonumber(poem_id_str)]
+        end
+    end
+
+    return best_poem
+end
+-- }}}
+
 -- {{{ local function get_word_list
 -- Extracts word list from poems (same logic as wordcloud-generator)
 local function get_word_list(poems_data, stop_words, min_occurrences, max_words, min_word_length)
@@ -694,8 +757,9 @@ end
 -- Generates HTML page for a single word showing similar poems
 -- Issue 8-043c: Now uses same box-drawing format as similar/different pages
 -- Issue 8-050c: Word color shown in header, per-poem colors for progress bars
+-- Issue 8-050e: Chronological link points to centroid-based location in timeline
 -- Progress bar shows CHRONOLOGICAL position (not similarity) to orient readers
-local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map, word_hex_color)
+local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link)
     local safe_word = word:lower():gsub("[^%w]", "")
     local output_file = output_dir .. "/wordcloud/" .. safe_word .. ".html"
 
@@ -711,6 +775,10 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
     -- Issue 8-050c: Use word's semantic color for header (default to gray if not provided)
     local header_color = word_hex_color or "#888888"
 
+    -- Issue 8-050e: Use centroid-based chronological link if provided, else default
+    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+    local chrono_link = chrono_center_link or (base_path .. "/chronological/index.html")
+
     -- Generate HTML
     local html_parts = {}
     table.insert(html_parts, string.format([[<!DOCTYPE html>
@@ -723,12 +791,12 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
 <p>Top %d poems ranked by semantic similarity (progress bar shows chronological position)</p>
-<p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Back to Word Cloud</a> │ <a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/chronological/index.html">Chronological</a></p>
+<p><a href="%s/main.html">Main</a> │ <a href="%s/wordcloud.html">Word Cloud</a> │ <a href="%s">Chronological</a></p>
 </center>
 <hr>
 <table align="center"><tr><td>
 <pre>
-]], word, header_color, word, #top_poems))
+]], word, header_color, word, #top_poems, base_path, base_path, chrono_link))
 
     -- Add ranked poems using box-drawing format
     for i, entry in ipairs(top_poems) do
@@ -907,7 +975,9 @@ function M.generate_word_html(options)
 
     -- Issue 8-043c: Compute chronological mapping for progress bars
     -- This maps poem_index → {position, total_poems} for timeline orientation
+    -- Issue 8-050e: Also builds chrono_page_map for centroid-based navigation
     local chrono_map = {}
+    local chrono_page_map = {}  -- poem_index → page string ("index", "02", etc.)
     do
         -- Sort poems chronologically by creation_date
         local sorted_poems = {}
@@ -921,15 +991,21 @@ function M.generate_word_html(options)
         end)
 
         local total_poems = #sorted_poems
+        local chrono_per_page = unified_config.pagination
+            and unified_config.pagination.chrono_per_page or 500
         for position, poem in ipairs(sorted_poems) do
             if poem.poem_index then
                 chrono_map[poem.poem_index] = {
                     position = position,
                     total_poems = total_poems
                 }
+                -- Issue 8-050e: Map poem to chronological page
+                local page_num = math.ceil(position / chrono_per_page)
+                local page_str = page_num == 1 and "index" or string.format("%02d", page_num)
+                chrono_page_map[poem.poem_index] = page_str
             end
         end
-        utils.log_info(string.format("Built chronological mapping for %d poems", total_poems))
+        utils.log_info(string.format("Built chronological mapping for %d poems (%d per page)", total_poems, chrono_per_page))
     end
 
     -- Build poem index lookup
@@ -995,8 +1071,31 @@ function M.generate_word_html(options)
             local word_semantic_color = word_color_entry and word_color_entry.color or "gray"
             local word_hex_color = color_config and color_config[word_semantic_color] or "#888888"
 
+            -- Issue 8-050e: Compute centroid-based chronological link
+            local chrono_center_link = nil
+            do
+                -- Compute centroid of selected poems
+                local centroid = compute_centroid(ranked_poems, poem_lookup)
+                if centroid then
+                    -- Find the poem closest to the centroid
+                    local center_poem = find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
+                    if center_poem and center_poem.poem_index then
+                        -- Build anchor ID (same format as flat-html-generator.lua)
+                        local anchor_id = string.format("poem-%s-%s",
+                            center_poem.category or "unknown",
+                            center_poem.id or 0)
+                        -- Get chronological page for this poem
+                        local chrono_page = chrono_page_map[center_poem.poem_index] or "index"
+                        -- Build full link
+                        local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+                        chrono_center_link = string.format("%s/chronological/%s.html#%s",
+                            base_path, chrono_page, anchor_id)
+                    end
+                end
+            end
+
             -- Generate page with semantic colors and chronological position
-            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map, word_hex_color) then
+            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link) then
                 pages_generated = pages_generated + 1
             end
         else
