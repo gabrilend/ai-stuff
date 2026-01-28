@@ -131,6 +131,7 @@ This document provides a hierarchical view of all project documentation.
 ### 📚 Utilities and Libraries
 - `/libs/utils.lua` - Common utility functions and file operations
 - `/libs/ollama-config.lua` - Ollama service configuration management
+- `/libs/text-formatter.lua` - Shared text formatting for whitespace preservation (Issue 8-056)
 
 ### 🗂️ Assets and Data
 - `/assets/poems.json` - Complete poem dataset (6,860+ poems)

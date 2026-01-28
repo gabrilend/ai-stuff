@@ -247,9 +247,50 @@ Re-run the pipeline and verify:
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Completed
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-28
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: None (but 8-055 touches adjacent code)
 - **Affects**: All poems on similar/different pages; architectural unification of text formatting
+
+## Completion Notes
+
+### Changes Made
+
+1. **Created `libs/text-formatter.lua`** - New shared module with:
+   - `format_poem_lines(text)` - Splits text into lines preserving all whitespace
+   - `format_poem_content(text)` - Convenience wrapper that adds 1-space left padding
+   - `decode_html_entities_for_width(content)` - For accurate padding calculations
+   - `utf8_char_count(str)` - Counts UTF-8 characters (not bytes)
+   - `calculate_visible_width(content)` - Combines entity decoding + UTF-8 counting
+
+2. **Updated main thread** (`flat-html-generator.lua`):
+   - Added `require("text-formatter")` at line 31
+   - Removed the notes-only bypass at lines 1741-1751
+   - Now preserves whitespace for ALL categories, not just notes
+
+3. **Updated worker thread** (`flat-html-generator.lua`):
+   - Added `require('text-formatter')` at line 2807 (inside effil thread)
+   - Replaced the `%S+` word-splitting loop (lines 3045-3069) with shared module call
+   - Worker now uses `t_text_formatter.format_poem_content()` for consistent behavior
+
+### Functions Retained
+
+The old `wrap_text_80_chars()` and `wrap_single_line_80_chars()` functions were NOT removed because they're still used for non-poem content:
+- Image alt-text placeholders (UI element)
+- Content warning boxes (UI chrome)
+- TXT export format (different requirements)
+- Instructions/help text (UI element)
+
+These are appropriate use cases for word-wrapping. Only poem content rendering needed the whitespace fix.
+
+### Verification
+
+- `luajit -e "local m = dofile('libs/text-formatter.lua'); ..."` - Module loads and preserves whitespace correctly
+- `luajit -e "require('src.flat-html-generator')"` - Main file loads without errors
+
+### Lessons Learned
+
+The root cause was **duplicated logic that diverged over time**. The main thread had a notes-only bypass added, but the worker thread was never updated. By creating a shared module, both code paths now use identical logic - future changes only need to happen in one place.
