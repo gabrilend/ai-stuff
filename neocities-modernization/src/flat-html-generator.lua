@@ -27,6 +27,8 @@ end
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
+-- Issue 8-056: Shared text formatting module for whitespace preservation
+local text_formatter = require("text-formatter")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -1737,16 +1739,10 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
             table.insert(formatted_lines, "") -- First newline
             table.insert(formatted_lines, "") -- Second newline for spacing
         else
-            -- Preserve whitespace for notes-dir poems (artistic formatting)
-            if poem_category == "notes" then
-                table.insert(formatted_lines, line)
-            else
-                -- Wrap long lines to 80 chars while preserving paragraph breaks
-                local wrapped = wrap_text_80_chars(line)
-                for wrapped_line in (wrapped .. "\n"):gmatch("(.-)\n") do
-                    table.insert(formatted_lines, wrapped_line)
-                end
-            end
+            -- Issue 8-056: Preserve whitespace for ALL categories, not just notes
+            -- Poetry is artistic content - the author's spacing decisions must be respected
+            -- No word-wrapping: lines are rendered as-is from poems.json
+            table.insert(formatted_lines, line)
         end
 
         i = i + 1
@@ -2807,6 +2803,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 -- Load required modules in thread context
                 local t_utils = require('utils')
                 local t_dkjson = require('dkjson')
+                -- Issue 8-056: Shared text formatting module for whitespace preservation
+                local t_text_formatter = require('text-formatter')
                 t_utils.init_assets_root({config.dir})
 
                 -- Load data files (each thread loads independently - files are in disk cache)
@@ -3044,30 +3042,12 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         table.insert(wrapped_lines, "")  -- Empty line after CW
                     end
 
-                    -- Split main content by paragraph breaks (single newlines)
-                    local paragraphs = {}
-                    for para in (main_content .. "\n"):gmatch("(.-)\n") do
-                        table.insert(paragraphs, para)
-                    end
-
-                    -- Wrap each paragraph separately
-                    for p_idx, paragraph in ipairs(paragraphs) do
-                        if paragraph == "" then
-                            -- Preserve empty lines (paragraph breaks)
-                            table.insert(wrapped_lines, "")
-                        else
-                            -- Word-wrap this paragraph
-                            local current_line = ""
-                            for word in paragraph:gmatch("%S+") do
-                                if #current_line + #word + 1 <= 80 then
-                                    current_line = current_line .. (current_line ~= "" and " " or "") .. word
-                                else
-                                    if current_line ~= "" then table.insert(wrapped_lines, " " .. current_line) end
-                                    current_line = word
-                                end
-                            end
-                            if current_line ~= "" then table.insert(wrapped_lines, " " .. current_line) end
-                        end
+                    -- Issue 8-056: Preserve whitespace for ALL categories
+                    -- Poetry is artistic content - author's spacing must be respected
+                    -- Use shared text-formatter module for consistent behavior with main thread
+                    local content_lines = t_text_formatter.format_poem_content(main_content)
+                    for _, line in ipairs(content_lines) do
+                        table.insert(wrapped_lines, line)
                     end
 
                     -- Issue 8-044: Apply golden side borders to content lines
