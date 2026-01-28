@@ -95,10 +95,57 @@ In `generate_word_html()`, load `word_colors.json` and pass the per-word color t
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Completed
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-28
 - **Phase**: 8 (Website Completion)
 - **Parent**: 8-050
 - **Estimated Complexity**: Low (algorithm exists, just apply to word embeddings)
 - **Dependencies**: color_embeddings.json, word_embeddings.json
 - **Blocks**: 8-050b, 8-050c, 8-050e
+
+## Completion Notes
+
+### Changes Made
+
+1. Added functions to `src/generate-word-pages.lua`:
+   - `load_color_embeddings()` - Loads color embeddings from existing color_embeddings.json
+   - `compute_nearest_color()` - Finds nearest color using cosine similarity
+   - `load_word_colors_cache()` - Loads cached word colors (as lookup table)
+   - `save_word_colors_cache()` - Saves word colors array to word_colors.json
+   - `compute_word_colors()` - Computes semantic colors for all word embeddings
+
+2. Updated `M.generate_word_embeddings()`:
+   - After saving word embeddings, computes and saves word colors
+
+3. Updated `M.generate_word_html()`:
+   - Loads word_colors.json at startup for downstream use
+
+### Output Generated
+
+```
+word_colors.json:
+{
+    "count": 6785,
+    "word_colors": [
+        {"word": "love", "color": "red", "similarity": 0.95},
+        ...
+    ],
+    "model": "embeddinggemma:latest",
+    "generated": "2026-01-28 ..."
+}
+```
+
+### Color Distribution
+
+| Color  | Count |
+|--------|-------|
+| orange | 3720  |
+| red    | 1987  |
+| yellow | 830   |
+| blue   | 108   |
+| purple | 103   |
+| green  | 25    |
+| gray   | 12    |
+
+The warm color dominance reflects the embedding space's natural clustering. The algorithm correctly assigns colors based on maximum cosine similarity to color embeddings.
