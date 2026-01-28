@@ -48,7 +48,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-049 | Implement audio and video playback | Open | Low |
 | 8-050 | Enhance word-cloud semantic similarity pages | Open | High |
 | 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
-| 8-050b | Color-contextualized similarity ranking | Open | Medium |
+| 8-050b | Color-contextualized similarity ranking | ✅ Complete | Medium |
 | 8-050c | Apply word color to word-page progress bars | Open | Medium |
 | 8-050d | Configurable poems-per-word-page via run.sh | ✅ Complete | Low |
 | 8-050e | Centroid-based chronological link for word pages | Open | Medium |
@@ -63,6 +63,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-050b | Color-contextualized similarity ranking | Completed | 2026-01-28 |
 | 8-050d | Configurable poems-per-word-page via run.sh | Completed | 2026-01-28 |
 | 8-050a | Compute semantic color for word-cloud words | Completed | 2026-01-28 |
 | 8-055 | Fix golden poem formatting on similar/different pages | Completed | 2026-01-28 |
@@ -339,6 +340,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Added TUI menu item in "Word Cloud Options" section (hotkey 'p')
 - ✅ Updated `src/generate-word-pages.lua` to parse `--poems-per-page` argument
 - ✅ Configuration precedence: CLI > config.lua > default (50)
+
+**8-050b: Color-Contextualized Similarity Ranking** - COMPLETED (2026-01-28)
+- ✅ Added `balanced_color_select()` function using cumulative-similarity round-robin
+- ✅ Pre-filters to top K candidates (K = N×7) for semantic relevance
+- ✅ Groups candidates into 7 color buckets, picks from lowest cumulative total
+- ✅ Falls back to pure similarity ranking if color embeddings unavailable
+- Result: Each word page now shows poems from all 7 semantic colors, not just the dominant one
 
 ## Completion Criteria
 
