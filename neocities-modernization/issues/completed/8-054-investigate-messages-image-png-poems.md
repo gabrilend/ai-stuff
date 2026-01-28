@@ -208,18 +208,86 @@ This would allow the HTML generator to render message images the same way it ren
 
 4. **Other media types**: Matrix supports `m.video`, `m.audio`, `m.file` — these should all have their attachment metadata extracted using the same pattern. A video message gains an attachment entry even if it can't be rendered inline yet.
 
+## Implementation Progress
+
+### 2026-01-28: Complete Implementation
+
+**Changes to `scripts/extract-messages.lua`:**
+
+1. **Added robust export.json path resolution** (lines 59-85):
+   - Tries multiple fallback paths: backup dir, nested dir, temp extraction
+   - Prints clear error message listing all tried paths if not found
+   - Fixes path mismatch between run-messages extraction and Lua script expectations
+
+2. **Added `build_image_lookup()` function** (lines 158-183):
+   - Scans images/ directory for available files
+   - Creates both exact filename and prefix-based mappings
+   - Handles Matrix timestamp suffix renaming pattern: `{basename}-{M-D-YYYY} at {time}.{ext}`
+   - Example: `20240202_170901.jpg` maps to `20240202_170901-2-2-2024 at 5-15-05 PM.jpg`
+
+3. **Added `is_bare_filename()` helper** (lines 197-203):
+   - Detects if content is just a filename (no meaningful text)
+   - Prevents replacing actual captions with placeholders
+
+4. **Updated main extraction loop** (lines 226-252):
+   - Detects media messages: `m.image`, `m.video`, `m.audio`, `m.file`
+   - Extracts attachment metadata matching fediverse format:
+     - `media_type`, `width`, `height`, `alt_text`, `relative_path`
+   - Replaces bare filenames with `[Image: filename.png]` placeholders
+   - Tracks `image_count` for extraction summary
+
+5. **Updated extraction summary** (lines 279-286):
+   - Added `image_messages` count to JSON output
+   - Added console output for media message count
+
+**Changes to `scripts/run-messages`:**
+
+1. **Added image preservation** (lines 51-57):
+   - Copies images from `extract/export/images/` to permanent `messages/images/` location
+   - Images survive cleanup of temp extraction directory
+
+2. **Guarded legacy txt processing** (lines 61-193):
+   - Wrapped entire legacy section (timestamps, blacklist, combine-messages) in conditional
+   - Skips legacy processing when using JSON output mode
+   - Prevents errors when no txt files exist
+
+**Test Results:**
+
+| Metric | Result |
+|--------|--------|
+| Messages processed | 1,081 |
+| Total attachments | 182 |
+| Attachments with paths | 167 (images) |
+| Without paths | 15 (videos, audio, docs - not in images/) |
+| Images preserved | 167 |
+
+**Attachment breakdown by media type:**
+- image/jpeg: 145
+- image/png: 22
+- video/mp4: 3
+- audio/mpeg: 2
+- audio/x-wav: 1
+- application/pdf: 2
+- application/vnd.openxmlformats-officedocument.wordprocessingml.document: 1
+- application/vnd.oasis.opendocument.text: 1
+- text/plain: 4
+- application/octet-stream: 1
+
 ## Related Documents
 
-- `scripts/extract-messages.lua` — Messages extraction script (200 lines, the file being modified)
+- `scripts/extract-messages.lua` — Messages extraction script (now ~300 lines)
+- `scripts/run-messages` — Shell wrapper for extraction pipeline
 - `scripts/extract-fediverse.lua:440-478` — Fediverse attachment extraction (reference implementation)
 - `src/poem-extractor.lua` — Poem loading with image-only filtering
 - `input/messages/` — Raw message backup directory
-- `issues/completed/6-031-configurable-poem-exclusion-filter.md` — Exclusion filter (could be used as interim workaround)
+- `input/messages/images/` — Permanently preserved image files
+- `issues/completed/6-031-configurable-poem-exclusion-filter.md` — Exclusion filter for blacklisting
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Completed
 - **Created**: 2026-01-26
+- **Completed**: 2026-01-28
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Low (Phase A), Medium (Phase B)
 - **Dependencies**: None
