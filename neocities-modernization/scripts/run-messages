@@ -48,18 +48,31 @@ cd "${DIR}"
 luajit "${PROJECT_DIR}/scripts/extract-messages.lua" "${PROJECT_DIR}"
 cd -
 
+# Issue 8-054: Preserve images to permanent location before cleanup
+# Copy images from extract to messages/images/ for persistent storage
+if [ -d "${DIR}/extract/export/images" ]; then
+    mkdir -p "${DIR}/messages/images"
+    cp -r "${DIR}/extract/export/images/"* "${DIR}/messages/images/" 2>/dev/null || true
+    echo "🖼️  Preserved $(ls -1 "${DIR}/messages/images" 2>/dev/null | wc -l) images to input/messages/images/"
+fi
+
 rm -drf "${DIR}/extract"
 
-# timestamps
-for file in "${DIR}/files/"*.txt; do
-    file_date=$(head -n 1 "$file")
-    tail -n +2 "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-    touch -d "$file_date" "$file"
-done
+# Legacy txt file processing (deprecated - now using JSON output)
+# Skip entire legacy section if no txt files exist (JSON-only mode)
+# Blacklisting is now handled by exclusion-filter.lua (Issue 6-031)
+# Combined messages would need to be implemented in Lua if still needed
+if ls "${DIR}/files/"*.txt 1>/dev/null 2>&1; then
+    # timestamps
+    for file in "${DIR}/files/"*.txt; do
+        file_date=$(head -n 1 "$file")
+        tail -n +2 "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+        touch -d "$file_date" "$file"
+    done
 
-# blacklisted messages
+# blacklisted messages (legacy - now using exclusion filter)
 function delete-message(){
-   rm "${DIR}/files/${1}.txt"
+   rm "${DIR}/files/${1}.txt" 2>/dev/null || true
 }
 
 # {{{
@@ -175,3 +188,6 @@ combine-messages 0335 0347
 combine-messages 0335 0348
 # }}}
 
+else
+    echo "📋 Using JSON output mode (legacy txt processing skipped)"
+fi
