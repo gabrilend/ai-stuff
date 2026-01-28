@@ -117,6 +117,39 @@ local function get_include_boosts()
     return config.privacy.include_boosts or false
 end
 
+-- {{{ local function load_boost_content_cache
+-- Load scraped boost content cache from assets/boost-content-cache.json
+-- Returns a table mapping URI -> cached content data
+local boost_content_cache = nil
+local function load_boost_content_cache()
+    if boost_content_cache then
+        return boost_content_cache
+    end
+
+    local cache_path = DIR .. "/assets/boost-content-cache.json"
+    local file = io.open(cache_path, "r")
+    if not file then
+        boost_content_cache = {}
+        return boost_content_cache
+    end
+
+    local content = file:read("*a")
+    file:close()
+
+    local data, pos, err = dkjson.decode(content)
+    if err or not data or not data.entries then
+        boost_content_cache = {}
+        return boost_content_cache
+    end
+
+    boost_content_cache = data.entries
+    local count = 0
+    for _ in pairs(boost_content_cache) do count = count + 1 end
+    print("   📥 Loaded boost content cache: " .. count .. " entries")
+    return boost_content_cache
+end
+-- }}}
+
 local privacy_config = {
     mode = config.privacy.mode or "clean",
     anonymization_prefix = config.privacy.anonymization_prefix or "user-",
@@ -309,9 +342,36 @@ end
 -- {{{ function extract_boost_content
 local function extract_boost_content(announce_activity)
     local boosted_object = announce_activity.object
-    
-    -- If object is URI, create reference entry
+
+    -- If object is URI, check cache for scraped content first
     if type(boosted_object) == "string" then
+        local cache = load_boost_content_cache()
+        local cached = cache[boosted_object]
+
+        if cached and cached.content then
+            -- Use cached scraped content instead of placeholder
+            -- The cached content is HTML that will be processed by clean_html later
+            return {
+                type = "cached_external_boost",
+                uri = boosted_object,
+                boost_timestamp = announce_activity.published,
+                content = cached.content,
+                content_warning = cached.summary,  -- CW from original post
+                sensitive = cached.sensitive,
+                original_published = cached.published,
+                original_author = cached.attributed_to,
+                metadata = {
+                    is_boost = true,
+                    boost_type = "cached_external",
+                    original_uri = boosted_object,
+                    boost_date = announce_activity.published,
+                    scraped_at = cached.scraped_at,
+                    original_author = cached.attributed_to
+                }
+            }
+        end
+
+        -- No cache entry - fall back to placeholder
         return {
             type = "external_boost",
             uri = boosted_object,
