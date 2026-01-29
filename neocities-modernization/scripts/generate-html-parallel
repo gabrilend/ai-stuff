@@ -204,12 +204,22 @@ local COLOR_CONFIG = {
     gray = "#787878"
 }
 
+-- Issue 8-057: Boost visual formatting color scheme for worker threads
+-- Boosts are reshared content from other fediverse users, displayed with nested frames
+local BOOST_COLOR_CONFIG = {
+    arrow = "#dc3c3c",       -- Red: ◀─ and ─▶ arrows, [BOOST] label
+    outer_frame = "#3c78dc", -- Blue: ╔═╗║╚═╝ outer frame
+    inner_box = "#2aa198",   -- Teal: ┌─┐│└─┘ inner content box
+    content_text = "#c8b428" -- Yellow: boosted text content
+}
+
 -- {{{ Worker function for similarity page generation
 -- Note: This function must not capture any upvalues - all data passed as parameters
 -- Issue 8-022: Added max_poems_to_show parameter to limit output size
-local function similarity_worker(poem_id, poem_content, poem_category, similarities_for_poem,
-                                  all_poems_array, poem_colors_table, max_poem_id, output_dir,
-                                  max_poems_to_show)
+-- Issue 8-057: Added boost visual formatting support (is_boost flag in poem array)
+local function similarity_worker(poem_id, poem_content, poem_category, poem_is_boost,
+                                  similarities_for_poem, all_poems_array, poem_colors_table,
+                                  max_poem_id, output_dir, max_poems_to_show, boost_colors)
     -- CRITICAL FIX: Copy effil.tables to local Lua tables at worker start
     -- This avoids catastrophic IPC overhead (17B accesses → single O(n) copy)
     -- See issue 8-002 "Bug 2: Catastrophic effil.table Access Overhead"
@@ -229,6 +239,123 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
         local_colors[k] = v
     end
 
+    local local_boost_colors = {}
+    for k, v in pairs(boost_colors) do
+        local_boost_colors[k] = v
+    end
+
+    -- {{{ Issue 8-057: Boost formatting helper functions (no upvalues)
+    -- Simplified version for similarity/different pages (no navigation section)
+
+    -- Generate boost top border with arrow and [BOOST] label
+    local function boost_top_border(progress_percent, colors)
+        local BAR_WIDTH = 78
+        local LABEL = "[BOOST]"
+        local LABEL_LEN = 7
+
+        local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+        if progress_chars < LABEL_LEN + 2 then
+            progress_chars = LABEL_LEN + 2
+        end
+
+        local label_center = math.floor(progress_chars / 2)
+        local label_start = label_center - math.floor(LABEL_LEN / 2)
+        if label_start < 1 then label_start = 1 end
+
+        local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', colors.arrow)
+        local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', colors.outer_frame)
+        local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', colors.outer_frame)
+
+        local colored_bar = ""
+        for i = 1, BAR_WIDTH do
+            if i >= label_start and i < label_start + LABEL_LEN then
+                local char = LABEL:sub(i - label_start + 1, i - label_start + 1)
+                colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', colors.arrow, char)
+            elseif i <= progress_chars then
+                colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+            else
+                colored_bar = colored_bar .. string.format('<font color="%s">─</font>', colors.outer_frame)
+            end
+        end
+
+        return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
+    end
+
+    -- Generate inner box top border
+    local function boost_inner_top(colors)
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', colors.inner_box)
+        local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', colors.inner_box)
+        local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+        return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+    end
+
+    -- Generate inner box bottom border
+    local function boost_inner_bottom(colors)
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', colors.inner_box)
+        local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', colors.inner_box)
+        local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+        return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+    end
+
+    -- Generate content line with nested frames
+    local function boost_content_line(line, colors)
+        local CONTENT_WIDTH = 74
+        local visible_length = #line  -- Simplified: byte length (HTML tags will extend this)
+        local padded_line
+        if visible_length >= CONTENT_WIDTH then
+            padded_line = line
+        else
+            padded_line = line .. string.rep(" ", CONTENT_WIDTH - visible_length)
+        end
+
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_wall = string.format('<font color="%s"><b>│</b></font>', colors.inner_box)
+        local colored_content = string.format('<font color="%s">%s</font>', colors.content_text, padded_line)
+
+        return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
+    end
+
+    -- Generate bottom border with arrow
+    local function boost_bottom_border(progress_percent, colors)
+        local BAR_WIDTH = 78
+        local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+
+        local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', colors.outer_frame)
+        local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', colors.outer_frame)
+        local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', colors.arrow)
+
+        local bar_str = ""
+        for i = 1, BAR_WIDTH do
+            local in_progress = i <= progress_chars
+            if in_progress then
+                bar_str = bar_str .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+            else
+                bar_str = bar_str .. string.format('<font color="%s">─</font>', colors.outer_frame)
+            end
+        end
+
+        return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
+    end
+
+    -- Apply complete boost formatting (simplified - no nav section)
+    local function apply_boost_formatting(content, progress_percent, colors)
+        local lines = {}
+        table.insert(lines, boost_top_border(progress_percent, colors))
+        table.insert(lines, boost_inner_top(colors))
+
+        for line in (content .. "\n"):gmatch("(.-)\n") do
+            table.insert(lines, boost_content_line(line, colors))
+        end
+
+        table.insert(lines, boost_inner_bottom(colors))
+        table.insert(lines, boost_bottom_border(progress_percent, colors))
+
+        return table.concat(lines, "\n")
+    end
+    -- }}} End boost formatting helpers
+
     -- Generate similarity ranking
     local ranked_poems = {}
 
@@ -237,15 +364,18 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
         id = poem_id,
         content = poem_content,
         category = poem_category,
+        is_boost = poem_is_boost,
         similarity = 1.0
     })
 
     -- Add other poems sorted by similarity (using local copies of effil.tables)
+    -- Issue 8-057: Poem array now has 4 elements per poem: id, content, category, is_boost
     local other_poems = {}
-    for i = 1, #local_poems_array, 3 do
+    for i = 1, #local_poems_array, 4 do
         local other_id = local_poems_array[i]
         local other_content = local_poems_array[i + 1]
         local other_category = local_poems_array[i + 2]
+        local other_is_boost = local_poems_array[i + 3]
 
         if other_id ~= poem_id then
             local sim_score = local_similarities[tostring(other_id)] or 0
@@ -253,6 +383,7 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
                 id = other_id,
                 content = other_content,
                 category = other_category,
+                is_boost = other_is_boost,
                 similarity = sim_score
             })
         end
@@ -274,8 +405,9 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
     for _, poem_info in ipairs(ranked_poems) do
         local pid = poem_info.id
 
-        -- Calculate progress
-        local progress_pct = (pid / max_poem_id) * 100
+        -- Calculate progress (as decimal 0-1 for boost functions)
+        local progress_decimal = pid / max_poem_id
+        local progress_pct = progress_decimal * 100
         local progress_chars = math.floor((progress_pct / 100) * 80)
         local remaining_chars = 80 - progress_chars
 
@@ -286,17 +418,25 @@ local function similarity_worker(poem_id, poem_content, poem_category, similarit
             purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
         })[color_name] or "#787878"
 
-        -- Generate progress bar
-        local progress_section = string.rep("═", progress_chars)
-        local remaining_section = string.rep("─", remaining_chars)
-        local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section)
-
         -- Format poem entry
         table.insert(content_parts, string.format(" -> file: %s/%s.txt\n", poem_info.category or "unknown", pid))
-        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
-        table.insert(content_parts, (poem_info.content or "") .. "\n")
-        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+
+        -- Issue 8-057: Apply boost formatting for boosted content
+        if poem_info.is_boost then
+            -- Boost poems get nested frame with arrows and [BOOST] label
+            local formatted_content = apply_boost_formatting(poem_info.content or "", progress_decimal, local_boost_colors)
+            table.insert(content_parts, formatted_content .. "\n\n")
+        else
+            -- Regular poems get standard progress bar formatting
+            local progress_section = string.rep("═", progress_chars)
+            local remaining_section = string.rep("─", remaining_chars)
+            local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+                hex_color, progress_section, remaining_section)
+
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
+            table.insert(content_parts, (poem_info.content or "") .. "\n")
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+        end
     end
 
     local html_content = table.concat(content_parts)
@@ -336,9 +476,11 @@ end
 
 -- {{{ Worker function for difference page generation (centroid-based diversity)
 -- Note: This function must not capture any upvalues - all data passed as parameters
-local function diversity_worker(poem_id, poem_content, poem_category, starting_embedding_flat,
-                                 all_poems_array, all_embeddings_flat, embedding_dim,
-                                 poem_colors_table, max_poem_id, output_dir, diversity_limit)
+-- Issue 8-057: Added boost visual formatting support
+local function diversity_worker(poem_id, poem_content, poem_category, poem_is_boost,
+                                 starting_embedding_flat, all_poems_array, all_embeddings_flat,
+                                 embedding_dim, poem_colors_table, max_poem_id, output_dir,
+                                 diversity_limit, boost_colors)
     -- CRITICAL FIX: Copy effil.tables to local Lua tables at worker start
     -- This is especially important for diversity_worker which has O(n²) access patterns
     -- Without this fix: ~17 BILLION IPC calls per sequence (~5 hours)
@@ -364,6 +506,117 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
     for k, v in pairs(poem_colors_table) do
         local_colors[k] = v
     end
+
+    local local_boost_colors = {}
+    for k, v in pairs(boost_colors) do
+        local_boost_colors[k] = v
+    end
+
+    -- {{{ Issue 8-057: Boost formatting helper functions (no upvalues)
+    -- Simplified version for similarity/different pages (no navigation section)
+
+    local function boost_top_border(progress_percent, colors)
+        local BAR_WIDTH = 78
+        local LABEL = "[BOOST]"
+        local LABEL_LEN = 7
+
+        local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+        if progress_chars < LABEL_LEN + 2 then
+            progress_chars = LABEL_LEN + 2
+        end
+
+        local label_center = math.floor(progress_chars / 2)
+        local label_start = label_center - math.floor(LABEL_LEN / 2)
+        if label_start < 1 then label_start = 1 end
+
+        local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', colors.arrow)
+        local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', colors.outer_frame)
+        local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', colors.outer_frame)
+
+        local colored_bar = ""
+        for i = 1, BAR_WIDTH do
+            if i >= label_start and i < label_start + LABEL_LEN then
+                local char = LABEL:sub(i - label_start + 1, i - label_start + 1)
+                colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', colors.arrow, char)
+            elseif i <= progress_chars then
+                colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+            else
+                colored_bar = colored_bar .. string.format('<font color="%s">─</font>', colors.outer_frame)
+            end
+        end
+
+        return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
+    end
+
+    local function boost_inner_top(colors)
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', colors.inner_box)
+        local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', colors.inner_box)
+        local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+        return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+    end
+
+    local function boost_inner_bottom(colors)
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', colors.inner_box)
+        local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', colors.inner_box)
+        local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+        return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+    end
+
+    local function boost_content_line(line, colors)
+        local CONTENT_WIDTH = 74
+        local visible_length = #line
+        local padded_line
+        if visible_length >= CONTENT_WIDTH then
+            padded_line = line
+        else
+            padded_line = line .. string.rep(" ", CONTENT_WIDTH - visible_length)
+        end
+
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_wall = string.format('<font color="%s"><b>│</b></font>', colors.inner_box)
+        local colored_content = string.format('<font color="%s">%s</font>', colors.content_text, padded_line)
+
+        return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
+    end
+
+    local function boost_bottom_border(progress_percent, colors)
+        local BAR_WIDTH = 78
+        local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+
+        local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', colors.outer_frame)
+        local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', colors.outer_frame)
+        local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', colors.arrow)
+
+        local bar_str = ""
+        for i = 1, BAR_WIDTH do
+            local in_progress = i <= progress_chars
+            if in_progress then
+                bar_str = bar_str .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+            else
+                bar_str = bar_str .. string.format('<font color="%s">─</font>', colors.outer_frame)
+            end
+        end
+
+        return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
+    end
+
+    local function apply_boost_formatting(content, progress_percent, colors)
+        local lines = {}
+        table.insert(lines, boost_top_border(progress_percent, colors))
+        table.insert(lines, boost_inner_top(colors))
+
+        for line in (content .. "\n"):gmatch("(.-)\n") do
+            table.insert(lines, boost_content_line(line, colors))
+        end
+
+        table.insert(lines, boost_inner_bottom(colors))
+        table.insert(lines, boost_bottom_border(progress_percent, colors))
+
+        return table.concat(lines, "\n")
+    end
+    -- }}} End boost formatting helpers
 
     -- Helper: cosine distance between two embeddings (passed as flat arrays with offset)
     local function cosine_distance(emb1, emb2)
@@ -415,14 +668,16 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
     end
 
     -- Build list of other poems with embeddings (using local copies)
+    -- Issue 8-057: Poem array now has 4 elements per poem: id, content, category, is_boost
     local remaining_poems = {}
-    local num_poems = #local_poems_array / 3
+    local num_poems = #local_poems_array / 4
 
     for i = 1, num_poems do
-        local idx = (i - 1) * 3 + 1
+        local idx = (i - 1) * 4 + 1
         local other_id = local_poems_array[idx]
         local other_content = local_poems_array[idx + 1]
         local other_category = local_poems_array[idx + 2]
+        local other_is_boost = local_poems_array[idx + 3]
 
         if other_id ~= poem_id then
             -- Extract embedding for this poem (using local copy)
@@ -436,6 +691,7 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
                 id = other_id,
                 content = other_content,
                 category = other_category,
+                is_boost = other_is_boost,
                 embedding = embedding
             })
         end
@@ -445,7 +701,8 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
     local diversity_sequence = {{
         id = poem_id,
         content = poem_content,
-        category = poem_category
+        category = poem_category,
+        is_boost = poem_is_boost
     }}
     local selected_embeddings = {starting_embedding}
 
@@ -473,7 +730,8 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
             table.insert(diversity_sequence, {
                 id = selected.id,
                 content = selected.content,
-                category = selected.category
+                category = selected.category,
+                is_boost = selected.is_boost
             })
             table.insert(selected_embeddings, selected.embedding)
             table.remove(remaining_poems, max_idx)
@@ -487,8 +745,9 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
     for _, poem_info in ipairs(diversity_sequence) do
         local pid = poem_info.id
 
-        -- Calculate progress
-        local progress_pct = (pid / max_poem_id) * 100
+        -- Calculate progress (as decimal 0-1 for boost functions)
+        local progress_decimal = pid / max_poem_id
+        local progress_pct = progress_decimal * 100
         local progress_chars = math.floor((progress_pct / 100) * 80)
         local remaining_chars = 80 - progress_chars
 
@@ -499,17 +758,25 @@ local function diversity_worker(poem_id, poem_content, poem_category, starting_e
             purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
         })[color_name] or "#787878"
 
-        -- Generate progress bar
-        local progress_section = string.rep("═", progress_chars)
-        local remaining_section = string.rep("─", remaining_chars)
-        local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section)
-
         -- Format poem entry
         table.insert(content_parts, string.format(" -> file: %s/%s.txt\n", poem_info.category or "unknown", pid))
-        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
-        table.insert(content_parts, (poem_info.content or "") .. "\n")
-        table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+
+        -- Issue 8-057: Apply boost formatting for boosted content
+        if poem_info.is_boost then
+            local formatted_content = apply_boost_formatting(poem_info.content or "", progress_decimal, local_boost_colors)
+            table.insert(content_parts, formatted_content .. "\n\n")
+        else
+            -- Generate progress bar
+            local progress_section = string.rep("═", progress_chars)
+            local remaining_section = string.rep("─", remaining_chars)
+            local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+                hex_color, progress_section, remaining_section)
+
+            -- Format poem entry
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
+            table.insert(content_parts, (poem_info.content or "") .. "\n")
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+        end
     end
 
     local html_content = table.concat(content_parts)
@@ -550,9 +817,10 @@ end
 -- {{{ Worker function for cached difference page generation (uses pre-computed sequences)
 -- Much faster than on-the-fly computation - just looks up poem data and generates HTML
 -- Issue 8-022: Added max_poems_to_show parameter to limit output size
+-- Issue 8-057: Added boost visual formatting support
 local function cached_diversity_worker(poem_id, diversity_sequence, all_poems_lookup,
                                         poem_colors_table, max_poem_id, output_dir,
-                                        max_poems_to_show)
+                                        max_poems_to_show, boost_colors)
     -- CRITICAL FIX: Copy effil.tables to local Lua tables at worker start
     -- See issue 8-002 "Bug 2: Catastrophic effil.table Access Overhead"
 
@@ -573,16 +841,126 @@ local function cached_diversity_worker(poem_id, diversity_sequence, all_poems_lo
         local_colors[k] = v
     end
 
+    local local_boost_colors = {}
+    for k, v in pairs(boost_colors) do
+        local_boost_colors[k] = v
+    end
+
+    -- {{{ Issue 8-057: Boost formatting helper functions (no upvalues)
+    local function boost_top_border(progress_percent, colors)
+        local BAR_WIDTH = 78
+        local LABEL = "[BOOST]"
+        local LABEL_LEN = 7
+
+        local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+        if progress_chars < LABEL_LEN + 2 then
+            progress_chars = LABEL_LEN + 2
+        end
+
+        local label_center = math.floor(progress_chars / 2)
+        local label_start = label_center - math.floor(LABEL_LEN / 2)
+        if label_start < 1 then label_start = 1 end
+
+        local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', colors.arrow)
+        local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', colors.outer_frame)
+        local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', colors.outer_frame)
+
+        local colored_bar = ""
+        for i = 1, BAR_WIDTH do
+            if i >= label_start and i < label_start + LABEL_LEN then
+                local char = LABEL:sub(i - label_start + 1, i - label_start + 1)
+                colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', colors.arrow, char)
+            elseif i <= progress_chars then
+                colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+            else
+                colored_bar = colored_bar .. string.format('<font color="%s">─</font>', colors.outer_frame)
+            end
+        end
+
+        return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
+    end
+
+    local function boost_inner_top(colors)
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', colors.inner_box)
+        local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', colors.inner_box)
+        local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+        return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+    end
+
+    local function boost_inner_bottom(colors)
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', colors.inner_box)
+        local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', colors.inner_box)
+        local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+        return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+    end
+
+    local function boost_content_line(line, colors)
+        local CONTENT_WIDTH = 74
+        local visible_length = #line
+        local padded_line
+        if visible_length >= CONTENT_WIDTH then
+            padded_line = line
+        else
+            padded_line = line .. string.rep(" ", CONTENT_WIDTH - visible_length)
+        end
+
+        local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+        local inner_wall = string.format('<font color="%s"><b>│</b></font>', colors.inner_box)
+        local colored_content = string.format('<font color="%s">%s</font>', colors.content_text, padded_line)
+
+        return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
+    end
+
+    local function boost_bottom_border(progress_percent, colors)
+        local BAR_WIDTH = 78
+        local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+
+        local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', colors.outer_frame)
+        local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', colors.outer_frame)
+        local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', colors.arrow)
+
+        local bar_str = ""
+        for i = 1, BAR_WIDTH do
+            local in_progress = i <= progress_chars
+            if in_progress then
+                bar_str = bar_str .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+            else
+                bar_str = bar_str .. string.format('<font color="%s">─</font>', colors.outer_frame)
+            end
+        end
+
+        return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
+    end
+
+    local function apply_boost_formatting(content, progress_percent, colors)
+        local lines = {}
+        table.insert(lines, boost_top_border(progress_percent, colors))
+        table.insert(lines, boost_inner_top(colors))
+
+        for line in (content .. "\n"):gmatch("(.-)\n") do
+            table.insert(lines, boost_content_line(line, colors))
+        end
+
+        table.insert(lines, boost_inner_bottom(colors))
+        table.insert(lines, boost_bottom_border(progress_percent, colors))
+
+        return table.concat(lines, "\n")
+    end
+    -- }}} End boost formatting helpers
+
     -- diversity_sequence is already ordered list of poem IDs
-    -- all_poems_lookup maps poem_id -> {content, category}
+    -- all_poems_lookup maps poem_id -> {content, category, is_boost}
 
     -- Generate HTML content
     local content_parts = {}
     for _, pid in ipairs(local_sequence) do
         local poem_data = local_poems_lookup[tostring(pid)]
         if poem_data then
-            -- Calculate progress
-            local progress_pct = (pid / max_poem_id) * 100
+            -- Calculate progress (as decimal 0-1 for boost functions)
+            local progress_decimal = pid / max_poem_id
+            local progress_pct = progress_decimal * 100
             local progress_chars = math.floor((progress_pct / 100) * 80)
             local remaining_chars = 80 - progress_chars
 
@@ -593,17 +971,24 @@ local function cached_diversity_worker(poem_id, diversity_sequence, all_poems_lo
                 purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
             })[color_name] or "#787878"
 
-            -- Generate progress bar
-            local progress_section = string.rep("═", progress_chars)
-            local remaining_section = string.rep("─", remaining_chars)
-            local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
-                hex_color, progress_section, remaining_section)
-
             -- Format poem entry
             table.insert(content_parts, string.format(" -> file: %s/%s.txt\n", poem_data.category or "unknown", pid))
-            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
-            table.insert(content_parts, (poem_data.content or "") .. "\n")
-            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+
+            -- Issue 8-057: Apply boost formatting for boosted content
+            if poem_data.is_boost then
+                local formatted_content = apply_boost_formatting(poem_data.content or "", progress_decimal, local_boost_colors)
+                table.insert(content_parts, formatted_content .. "\n\n")
+            else
+                -- Generate progress bar
+                local progress_section = string.rep("═", progress_chars)
+                local remaining_section = string.rep("─", remaining_chars)
+                local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+                    hex_color, progress_section, remaining_section)
+
+                table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n', color_name, progress_bar))
+                table.insert(content_parts, (poem_data.content or "") .. "\n")
+                table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n', color_name, progress_bar))
+            end
         end
     end
 
@@ -863,7 +1248,8 @@ elseif embeddings_data then
     print(string.format("   🧮 Embeddings: %d (dim=%d)", #embeddings_data.embeddings, embedding_dim))
 end
 
--- Build flat array of poems for worker (id, content, category triplets)
+-- Build flat array of poems for worker (id, content, category, is_boost quadruplets)
+-- Issue 8-057: Added is_boost flag for visual formatting support
 -- Also build embeddings lookup for diversity generation
 local all_poems_array = {}
 local all_embeddings_flat = {}
@@ -874,9 +1260,13 @@ local max_poem_id = 0
 
 for i, poem in ipairs(poems_data.poems) do
     if poem.id then
+        -- Issue 8-057: Detect boost poems via metadata.is_boost flag
+        local is_boost = (poem.metadata and poem.metadata.is_boost) and true or false
+
         table.insert(all_poems_array, poem.id)
         table.insert(all_poems_array, poem.content or "")
         table.insert(all_poems_array, poem.category or "unknown")
+        table.insert(all_poems_array, is_boost)  -- 4th element: is_boost flag
 
         -- Store embedding as flat values if available
         -- Use poem_index for lookup (Issue 8-019: cross-category ID collision fix)
@@ -910,13 +1300,16 @@ if poem_colors_data and poem_colors_data.poem_colors then
     end
 end
 
--- Build poem content lookup for cached diversity worker (id -> {content, category})
+-- Build poem content lookup for cached diversity worker (id -> {content, category, is_boost})
+-- Issue 8-057: Added is_boost flag for visual formatting support
 local poem_content_lookup = {}
 for _, poem in ipairs(poems_data.poems) do
     if poem.id then
+        local is_boost = (poem.metadata and poem.metadata.is_boost) and true or false
         poem_content_lookup[tostring(poem.id)] = {
             content = poem.content or "",
-            category = poem.category or "unknown"
+            category = poem.category or "unknown",
+            is_boost = is_boost
         }
     end
 end
@@ -1027,6 +1420,8 @@ os.execute("mkdir -p " .. output_dir .. "/different")
 print("\n📦 Converting data for parallel processing...")
 local shared_poems_array = effil.table(all_poems_array)
 local shared_colors = effil.table(poem_colors_lookup)
+-- Issue 8-057: Share boost color config for worker threads
+local shared_boost_colors = effil.table(BOOST_COLOR_CONFIG)
 local shared_embeddings = nil
 if embeddings_data then
     print("   Converting embeddings to shared format...")
@@ -1064,6 +1459,8 @@ if not DIFFERENCE_ONLY then
             else
                 local poem = poem_lookup[poem_id]
                 local poem_sims = similarities[tostring(poem_id)] or {}
+                -- Issue 8-057: Detect boost status for visual formatting
+                local is_boost = (poem.metadata and poem.metadata.is_boost) and true or false
 
                 -- Convert similarities to effil table
                 local shared_sims = effil.table(poem_sims)
@@ -1071,16 +1468,19 @@ if not DIFFERENCE_ONLY then
                 thread_idx = thread_idx + 1
                 batch_poem_ids[thread_idx] = poem_id
                 -- Issue 8-022: Pass max_poems_to_show for pagination control
+                -- Issue 8-057: Pass is_boost and boost_colors for visual formatting
                 batch_threads[thread_idx] = effil.thread(similarity_worker)(
                     poem_id,
                     poem.content or "",
                     poem.category or "unknown",
+                    is_boost,
                     shared_sims,
                     shared_poems_array,
                     shared_colors,
                     max_poem_id,
                     output_dir,
-                    MAX_POEMS_TO_SHOW
+                    MAX_POEMS_TO_SHOW,
+                    shared_boost_colors
                 )
             end
         end
@@ -1176,6 +1576,7 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
                     thread_idx = thread_idx + 1
                     batch_poem_ids[thread_idx] = poem_id
                     -- Issue 8-022: Pass max_poems_to_show for pagination control
+                    -- Issue 8-057: Pass boost_colors for visual formatting
                     batch_threads[thread_idx] = effil.thread(cached_diversity_worker)(
                         poem_id,
                         shared_sequence,
@@ -1183,13 +1584,16 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
                         shared_colors,
                         max_poem_id,
                         output_dir,
-                        MAX_POEMS_TO_SHOW
+                        MAX_POEMS_TO_SHOW,
+                        shared_boost_colors
                     )
                 end
             else
                 -- Compute on-the-fly (slow path)
                 local poem = poem_lookup[poem_id]
                 local poem_index = poem_index_lookup[poem_id]
+                -- Issue 8-057: Detect boost status for visual formatting
+                local is_boost = (poem.metadata and poem.metadata.is_boost) and true or false
 
                 -- Extract embedding for starting poem
                 local emb_start = (poem_index - 1) * embedding_dim + 1
@@ -1201,10 +1605,12 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
 
                 thread_idx = thread_idx + 1
                 batch_poem_ids[thread_idx] = poem_id
+                -- Issue 8-057: Pass is_boost and boost_colors for visual formatting
                 batch_threads[thread_idx] = effil.thread(diversity_worker)(
                     poem_id,
                     poem.content or "",
                     poem.category or "unknown",
+                    is_boost,
                     shared_starting_emb,
                     shared_poems_array,
                     shared_embeddings,
@@ -1212,7 +1618,8 @@ if not SIMILARITY_ONLY and (diversity_cache or shared_embeddings) then
                     shared_colors,
                     max_poem_id,
                     output_dir,
-                    DIVERSITY_LIMIT
+                    DIVERSITY_LIMIT,
+                    shared_boost_colors
                 )
             end
         end
