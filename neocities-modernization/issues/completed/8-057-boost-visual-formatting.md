@@ -151,6 +151,33 @@ connection between the boost indicator and the poem's chronological position.
 - Inner box (`┌─┐│└─┘`): `#2aa198` (teal)
 - Content text: `#c8b428` (yellow)
 
+### 2026-01-29: Parallel Worker Thread Implementation
+
+**Files Modified:**
+
+3. **`scripts/generate-html-parallel`** - Similarity/Different page worker threads:
+   - Added `BOOST_COLOR_CONFIG` constant (lines 207-214)
+   - Updated `similarity_worker()` function (lines 216-475):
+     - Added `poem_is_boost` and `boost_colors` parameters
+     - Added inline boost formatting helper functions (no upvalues allowed)
+     - Poem array now contains 4 elements per poem: `id, content, category, is_boost`
+     - Content rendering checks `is_boost` and applies formatting
+   - Updated `diversity_worker()` function (lines 477-815):
+     - Same boost formatting support as similarity_worker
+   - Updated `cached_diversity_worker()` function (lines 817-1030):
+     - Added `boost_colors` parameter
+     - Poem lookup now includes `is_boost` field
+   - Updated main code:
+     - Poem array building includes `is_boost` flag (lines 1263-1269)
+     - Poem content lookup includes `is_boost` field (lines 1308)
+     - Shared `BOOST_COLOR_CONFIG` effil table (line 1424)
+     - Worker calls updated with new parameters (lines 1472-1484, 1579-1623)
+
+**Key Design Decisions:**
+- Simplified boost frame for similarity/different pages (no navigation section)
+- All boost formatting functions defined inside each worker (effil upvalue limitation)
+- Boost poems identified by `poem.metadata.is_boost` flag
+
 **Pending Testing:**
 - Requires extraction with `--include-boosts` to populate boost poems
 - Then HTML generation to verify visual appearance
