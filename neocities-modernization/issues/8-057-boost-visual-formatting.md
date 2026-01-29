@@ -38,32 +38,69 @@ Based on `/notes/boost post image style.png`:
 
 ### Design Reference
 
+Example at 60% progress (label centered at position ~25):
 ```
-◀─╔═════════[BOOST]═══════════════════════════════════════════════════────────────╗
+◀─╔════════════════════════[BOOST]════════════════════════─────────────────────────╗
   ║ ┌────────────────────────────────────────────────────────────────────────────┐ ║
   ║ │  "A gem cannot be polished without friction, nor a man perfected          │ ║
   ║ │   without trials."                                                        │ ║
   ║ └────────────────────────────────────────────────────────────────────────────┘ ║
   ╠─────────┐                                                          ┌───────────╣
   ║ similar │                                                          │ different ║
-  ╚═════════╧══════════════════════════════════════════════════════════╧─────────╝─▶
+  ╚═════════════════════════════════════════════════════╧═════════════────────────╝─▶
 ```
 
-## Design Decision: Label Position
+## Design Decision: Dynamic Label Position
 
-**Confirmed**: Position 10 (early, near the left arrow)
+**Confirmed**: [BOOST] label centered at 50% of current progress
+
+The label "floats" on the progress wave - positioned at the halfway point of the
+completed (═) section of the progress bar.
+
+### Formula
 
 ```
-◀─╔═════════[BOOST]═══════════════════════════════════════════════════────────────╗
+label_center = (progress_percentage × bar_width) / 2
+             = progress_percentage × 40  (for 80-char bar interior)
+
+label_start  = label_center - 3  ([BOOST] is 7 chars)
+label_end    = label_center + 4
 ```
 
-This places the [BOOST] label close to the left arrow, creating a visual grouping
-that reads naturally: "arrow → BOOST → content". The label is visible early when
-scanning left-to-right.
+### Visual Examples
+
+At 20% progress (label at ~8):
+```
+◀─╔══[BOOST]══════════────────────────────────────────────────────────────────────╗
+```
+
+At 40% progress (label at ~16):
+```
+◀─╔═══════════════[BOOST]════════════════──────────────────────────────────────────╗
+```
+
+At 60% progress (label at ~25):
+```
+◀─╔════════════════════════[BOOST]════════════════════════─────────────────────────╗
+```
+
+At 80% progress (label at ~33):
+```
+◀─╔═══════════════════════════════════[BOOST]══════════════════════════════────────╗
+```
+
+At 100% progress (label at ~41):
+```
+◀─╔═════════════════════════════════════════[BOOST]════════════════════════════════╗
+```
+
+**Effect**: Early poems have [BOOST] near the left arrow; later poems have it drift
+toward center. The label visually "rides" the progress wave, creating a playful
+connection between the boost indicator and the poem's chronological position.
 
 ## Suggested Implementation Steps
 
-1. [x] Confirm label position preference with user → Position 10 selected
+1. [x] Confirm label position preference with user → Dynamic: 50% of current progress
 2. [ ] Create `generate_boost_frame_top()` function for outer frame with arrows and label
 3. [ ] Create `generate_boost_content_box()` function for inner teal box
 4. [ ] Create `generate_boost_frame_bottom()` function with arrow and progress bar
@@ -137,6 +174,12 @@ Evaluated 6 design options:
 **Selected**: Combination of Option 2 (asymmetric arrows) + Option 4 ([BOOST] label) +
 Option 6 (progress bar integration).
 
-Prepared three label position variants (Close, Near, Almost-Center) for user selection.
+Initially prepared three fixed label positions (Close, Near, Almost-Center).
+User selected position 10, then refined to dynamic positioning:
+
+**Final decision**: [BOOST] label centered at 50% of current progress.
+- Formula: `label_center = progress_percentage × 40`
+- Effect: Label "floats" on the progress wave, drifting from left (early poems) toward center (later poems)
+- Creates playful visual connection between boost indicator and chronological position
 
 ---
