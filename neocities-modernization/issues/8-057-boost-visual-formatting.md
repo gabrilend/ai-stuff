@@ -101,15 +101,59 @@ connection between the boost indicator and the poem's chronological position.
 ## Suggested Implementation Steps
 
 1. [x] Confirm label position preference with user → Dynamic: 50% of current progress
-2. [ ] Create `generate_boost_frame_top()` function for outer frame with arrows and label
-3. [ ] Create `generate_boost_content_box()` function for inner teal box
-4. [ ] Create `generate_boost_frame_bottom()` function with arrow and progress bar
-5. [ ] Modify `extract_boost_content()` return value to flag boost formatting needed
-6. [ ] Update HTML generator to detect boost type and apply formatting
-7. [ ] Update effil worker thread with equivalent boost formatting functions
-8. [ ] Add color mappings for boost-specific elements (red arrows, blue frame, teal box)
+2. [x] Create `generate_boost_frame_top()` function for outer frame with arrows and label
+3. [x] Create `generate_boost_content_box()` function for inner teal box
+4. [x] Create `generate_boost_frame_bottom()` function with arrow and progress bar
+5. [x] Modify `extract_boost_content()` return value to flag boost formatting needed (via `is_boost` metadata)
+6. [x] Update HTML generator to detect boost type and apply formatting
+7. [x] Update effil worker thread with equivalent boost formatting functions
+8. [x] Add color mappings for boost-specific elements (red arrows, blue frame, teal box)
 9. [ ] Test with sample boosts to verify visual appearance
 10. [ ] Adjust colors if needed after visual review
+
+## Implementation Progress
+
+### 2026-01-28: Core Implementation Complete
+
+**Files Modified:**
+
+1. **`src/flat-html-generator.lua`** - Main thread implementation:
+   - Added `BOOST_COLOR_CONFIG` color scheme (lines 76-83)
+   - Added `is_boost_poem()` detection function (lines 1484-1494)
+   - Added boost frame generation functions:
+     - `generate_boost_top_border()` - Top border with arrow and [BOOST] label
+     - `generate_boost_content_line()` - Content wrapped in nested frames
+     - `generate_boost_inner_box_top()` / `generate_boost_inner_box_bottom()` - Inner teal box borders
+     - `generate_boost_nav_separator()` / `generate_boost_nav_line()` - Navigation within boost frame
+     - `generate_boost_bottom_border()` - Bottom border with arrow and progress bar
+     - `apply_boost_poem_formatting()` - Main formatting orchestrator
+   - Updated `format_single_poem_with_progress_and_color()` to handle boosts (early return)
+
+2. **`src/flat-html-generator.lua`** - Effil worker thread implementation:
+   - Added `BOOST_COLORS` configuration (lines 3276-3282)
+   - Added `is_boost_poem()` worker helper (lines 3267-3274)
+   - Added worker boost functions (lines 3331-3477):
+     - `worker_boost_top_border()`, `worker_boost_inner_top()`, `worker_boost_inner_bottom()`
+     - `worker_boost_content_line()`, `worker_boost_nav_separator()`, `worker_boost_nav_line()`
+     - `worker_boost_bottom_border()`, `worker_apply_boost_formatting()`
+   - Updated `format_poem_entry()` to handle boosts with early return (lines 3542-3627)
+
+**Design Details:**
+
+- Width: 84 characters total (matching golden poem width)
+- Top border: `◀─╔═══════[BOOST]═══════─────────╗` with dynamic label position
+- Content: `║ │ text content │ ║` nested frames (outer blue + inner teal)
+- Bottom: `╚═══════╧═══════════╧═══════════╝─▶` with junctions for nav box
+
+**Color Scheme:**
+- Arrow (`◀─`, `─▶`) and `[BOOST]` label: `#dc3c3c` (red)
+- Outer frame (`╔═╗║╚═╝`): `#3c78dc` (blue)
+- Inner box (`┌─┐│└─┘`): `#2aa198` (teal)
+- Content text: `#c8b428` (yellow)
+
+**Pending Testing:**
+- Requires extraction with `--include-boosts` to populate boost poems
+- Then HTML generation to verify visual appearance
 
 ## Technical Notes
 
