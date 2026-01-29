@@ -180,10 +180,54 @@ Video files in dataset:
 - Issue 8-040: Add Images to Similar/Different Pages (established attachment rendering pattern)
 - Issue 8-048: Flatten Media Directory (media files already in correct location)
 
+## Implementation Progress
+
+### 2026-01-28: Complete Implementation
+
+**Changes to `src/flat-html-generator.lua`:**
+
+1. **Updated `render_attachment_images()` (lines 1234-1345)**:
+   - Now handles `audio/*` and `video/*` MIME types in addition to `image/*`
+   - Audio: `<audio controls preload="metadata">` with `<source>` element
+   - Video: `<video controls preload="metadata">` with optional width/height
+   - All media rendered outside `<pre>` tags for proper max-width behavior
+
+2. **Updated `render_attachment_images_txt()` (lines 1348-1400)**:
+   - Returns `[Audio: filename.mp3]` placeholders for audio
+   - Returns `[Video: filename.mp4]` placeholders for video
+   - Matches existing `[Image: alt-text]` pattern for TXT exports
+
+3. **Updated worker thread media rendering (lines 3282-3359)**:
+   - Collects all renderable media types (image, audio, video)
+   - Renders appropriate HTML5 element for each type
+   - Maintains consistency with main scope implementation
+
+**HTML5 elements generated:**
+
+```html
+<!-- Audio -->
+<audio controls preload="metadata" style="display:block; max-width:100%">
+  <source src="/.../media/3482997f23aeb1cb.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+
+<!-- Video -->
+<video controls preload="metadata" width="720" height="1280"
+       style="display:block; max-width:min(100%,800px); height:auto">
+  <source src="/.../media/0abcae28f5be3163.mp4" type="video/mp4">
+  Your browser does not support the video element.
+</video>
+```
+
+**Test files available:**
+- 4 MP3 files (audio/mpeg)
+- 6+ MP4 files (video/mp4)
+
 ## Metadata
 
-- **Status**: Open
+- **Status**: Completed
 - **Created**: 2026-01-23
+- **Completed**: 2026-01-28
 - **Phase**: 8 (Website Completion / HTML Generation)
 - **Estimated Complexity**: Low-Medium
 - **Dependencies**: Issue 8-048 (complete)

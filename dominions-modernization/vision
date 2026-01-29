@@ -1,0 +1,11 @@
+an AI system (composition of prompt-and-computation-based functions)
+that generates a dominions nation with the flavor of one mythology but the stats
+and gameplay functionality (with some select specifics chosen in a config file
+in advance like "must have this weapon on it's light infantry units" or "use
+these types of sprites for the summons and marshal type heroes" with LLM
+generated descriptions that takes in all the similar calculations that it's done
+on related statistics. The user can guide as they please and over time generate
+new flopsopolies arranged like a collage. [gameplay mechanics drawn with boxes
+and arrows on a board wall.]
+
+

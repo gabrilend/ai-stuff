@@ -1232,39 +1232,40 @@ end
 -- }}}
 
 -- {{{ function render_attachment_images
+-- Issue 8-049: Renamed conceptually to render all media types (images, audio, video)
+-- Function name kept for backwards compatibility with existing call sites
 local function render_attachment_images(attachments)
-    -- Render HTML for poem attachments (images)
-    -- Returns empty string if no attachments or no image attachments
-    -- Image output format designed for 80-char width aesthetic
+    -- Render HTML for poem attachments (images, audio, video)
+    -- Returns empty string if no attachments or no renderable attachments
+    -- Media output format designed for 80-char width aesthetic
     --
     -- ATTACHMENT STRUCTURE (from ActivityPub extraction):
     -- {
-    --   media_type = "image/png",
+    --   media_type = "image/png" or "audio/mpeg" or "video/mp4",
     --   url = "https://server.com/media/files/123/456/original/abc.png",
     --   relative_path = "files/123/456/original/abc.png",
     --   alt_text = "User description" or nil,
-    --   width = 1920,
-    --   height = 1080
+    --   width = 1920,   -- images/video only
+    --   height = 1080   -- images/video only
     -- }
 
     if not attachments or #attachments == 0 then
         return ""
     end
 
-    local image_html = {}
+    local media_html = {}
+    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
 
     for _, attachment in ipairs(attachments) do
-        -- Only process image types
         local media_type = attachment.media_type or ""
-        if media_type:match("^image/") then
-            -- Issue 8-048: Use flat output/media/ path structure for easier deployment
-            -- Extract basename from relative_path (e.g., "files/112/.../abc.png" -> "abc.png")
-            -- The convert-urls script handles conversion to production paths
-            local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
-            local relative_path = attachment.relative_path or ""
-            local basename = relative_path:match("([^/]+)$") or relative_path
-            local img_src = base_path .. "/output/media/" .. basename
+        -- Issue 8-048: Use flat output/media/ path structure for easier deployment
+        -- Extract basename from relative_path (e.g., "files/112/.../abc.png" -> "abc.png")
+        -- The convert-urls script handles conversion to production paths
+        local relative_path = attachment.relative_path or ""
+        local basename = relative_path:match("([^/]+)$") or relative_path
+        local media_src = base_path .. "/output/media/" .. basename
 
+        if media_type:match("^image/") then
             -- Use alt text if available, otherwise generate generic description
             -- Issue 9-012: ActivityPub uses 'description' field for alt-text
             local alt_text = attachment.description or attachment.alt_text or "Image attachment"
@@ -1283,70 +1284,118 @@ local function render_attachment_images(attachments)
             if attachment.width and attachment.height then
                 img_tag = string.format(
                     '  <img src="%s" alt="%s" title="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                    img_src, alt_text, alt_text, attachment.width, attachment.height
+                    media_src, alt_text, alt_text, attachment.width, attachment.height
                 )
             else
                 img_tag = string.format(
                     '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                    img_src, alt_text, alt_text
+                    media_src, alt_text, alt_text
                 )
             end
+            table.insert(media_html, img_tag)
 
-            table.insert(image_html, img_tag)
+        elseif media_type:match("^audio/") then
+            -- Issue 8-049: Audio playback support
+            -- controls: Shows play/pause, volume, seek bar
+            -- preload="metadata": Only loads duration/metadata initially for performance
+            local audio_tag = string.format(
+                '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
+                '    <source src="%s" type="%s">\n' ..
+                '    Your browser does not support the audio element.\n' ..
+                '  </audio>',
+                media_src, media_type
+            )
+            table.insert(media_html, audio_tag)
+
+        elseif media_type:match("^video/") then
+            -- Issue 8-049: Video playback support
+            -- controls: Shows play/pause, volume, seek bar, fullscreen
+            -- preload="metadata": Only loads poster frame initially for performance
+            -- max-width caps at content width while being responsive
+            local video_tag
+            if attachment.width and attachment.height then
+                video_tag = string.format(
+                    '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
+                    '    <source src="%s" type="%s">\n' ..
+                    '    Your browser does not support the video element.\n' ..
+                    '  </video>',
+                    attachment.width, attachment.height, media_src, media_type
+                )
+            else
+                video_tag = string.format(
+                    '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
+                    '    <source src="%s" type="%s">\n' ..
+                    '    Your browser does not support the video element.\n' ..
+                    '  </video>',
+                    media_src, media_type
+                )
+            end
+            table.insert(media_html, video_tag)
         end
     end
 
-    if #image_html == 0 then
+    if #media_html == 0 then
         return ""
     end
 
-    -- Issue 8-005 Fix: Close </pre> before images, reopen after
-    -- Images inside <pre> don't respect max-width:100% because <pre> sizes to content
-    -- By closing </pre>, images inherit width constraints from the parent <td> container
-    return "\n</pre>\n" .. table.concat(image_html, "\n") .. "\n<pre>\n"
+    -- Issue 8-005 Fix: Close </pre> before media, reopen after
+    -- Media inside <pre> don't respect max-width:100% because <pre> sizes to content
+    -- By closing </pre>, media inherit width constraints from the parent <td> container
+    return "\n</pre>\n" .. table.concat(media_html, "\n") .. "\n<pre>\n"
 end
 -- }}}
 
 -- {{{ function render_attachment_images_txt
+-- Issue 8-049: Now handles all media types (images, audio, video)
 local function render_attachment_images_txt(attachments)
-    -- Render plain text placeholders for poem attachments (images)
-    -- Returns [Image: alt-text] format for TXT export
+    -- Render plain text placeholders for poem attachments (images, audio, video)
+    -- Returns [Image: alt-text], [Audio: filename], [Video: filename] format for TXT export
     -- Unlike render_attachment_images(), this outputs plain text, not HTML
     --
-    -- This function exists because TXT exports cannot contain HTML <img> tags.
-    -- Images are replaced with bracketed alt-text descriptions.
+    -- This function exists because TXT exports cannot contain HTML media tags.
+    -- Media are replaced with bracketed descriptions.
 
     if not attachments or #attachments == 0 then
         return ""
     end
 
-    local image_lines = {}
+    local media_lines = {}
 
     for _, attachment in ipairs(attachments) do
-        -- Only process image types
         local media_type = attachment.media_type or ""
+        local placeholder
+
         if media_type:match("^image/") then
             -- Use alt text if available, otherwise indicate no description
-            local alt_text = attachment.alt_text or "no description"
+            local alt_text = attachment.description or attachment.alt_text or "no description"
+            placeholder = string.format("[Image: %s]", alt_text)
 
-            -- Format as bracketed placeholder, wrapped at 80 chars if needed
-            local placeholder = string.format("[Image: %s]", alt_text)
+        elseif media_type:match("^audio/") then
+            -- Issue 8-049: Audio placeholder
+            local basename = (attachment.relative_path or ""):match("([^/]+)$") or "audio file"
+            placeholder = string.format("[Audio: %s]", basename)
 
-            -- Wrap long alt-text to 80 characters
+        elseif media_type:match("^video/") then
+            -- Issue 8-049: Video placeholder
+            local basename = (attachment.relative_path or ""):match("([^/]+)$") or "video file"
+            placeholder = string.format("[Video: %s]", basename)
+        end
+
+        if placeholder then
+            -- Wrap long text to 80 characters
             if #placeholder > 80 then
                 placeholder = wrap_text_80_chars(placeholder)
             end
-
-            table.insert(image_lines, placeholder)
+            table.insert(media_lines, placeholder)
         end
     end
 
-    if #image_lines == 0 then
+    if #media_lines == 0 then
         return ""
     end
 
     -- Return with newline prefix/suffix for proper spacing
-    return "\n" .. table.concat(image_lines, "\n") .. "\n"
+    return "\n" .. table.concat(media_lines, "\n") .. "\n"
 end
 -- }}}
 
@@ -3241,78 +3290,81 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     -- Must be inline since worker thread can't access main scope functions
                     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
 
-                    -- Helper function to render a list of attachments
-                    -- Issue 8-005 Fix: Images rendered outside <pre> for proper max-width behavior
+                    -- Issue 8-049: Check if we have any media to render (images, audio, video)
+                    -- Issue 9-010: Media stays with their original post only (no associated_images rendering)
+                    local has_any_media = false
+                    local media_attachments = {}
+                    if poem.attachments and #poem.attachments > 0 then
+                        for _, att in ipairs(poem.attachments) do
+                            local mt = att.media_type or ""
+                            if mt:match("^image/") or mt:match("^audio/") or mt:match("^video/") then
+                                table.insert(media_attachments, att)
+                                has_any_media = true
+                            end
+                        end
+                    end
+
+                    -- If there are media attachments, close </pre>, render them, reopen <pre>
+                    -- Issue 8-005 Fix: Media rendered outside <pre> for proper max-width behavior
                     -- display:block prevents side-by-side, max-width:min(100%,800px) caps width
-                    local function render_attachments(attachments)
-                        if not attachments then return false end
-                        local has_images = false
-                        for _, attachment in ipairs(attachments) do
+                    if has_any_media then
+                        table.insert(output, "</pre>")
+                        for _, attachment in ipairs(media_attachments) do
+                            -- Issue 8-048: Use flat output/media/ path structure
+                            local relative_path = attachment.relative_path or ""
+                            local basename = relative_path:match("([^/]+)$") or relative_path
+                            local media_src = base_path .. "/output/media/" .. basename
                             local media_type = attachment.media_type or ""
+
                             if media_type:match("^image/") then
-                                -- Issue 8-048: Use flat output/media/ path structure
-                                local relative_path = attachment.relative_path or ""
-                                local basename = relative_path:match("([^/]+)$") or relative_path
-                                local img_src = base_path .. "/output/media/" .. basename
-                                -- Issue 8-053: Complete fallback chain matching Location 1 and 3
                                 local alt_text = attachment.description or attachment.alt_text or "Image attachment"
                                 -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
                                 alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
-                                -- Escape quotes in alt text
                                 alt_text = alt_text:gsub('"', '&quot;')
                                 -- Issue 8-053: title attribute provides mouse-over tooltip
                                 local img_tag = string.format(
                                     '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
-                                    img_src, alt_text, alt_text
+                                    media_src, alt_text, alt_text
                                 )
-                                -- Add dimensions if available
                                 if attachment.width and attachment.height then
                                     img_tag = img_tag .. string.format(' width="%d" height="%d"', attachment.width, attachment.height)
                                 end
                                 img_tag = img_tag .. '>'
                                 table.insert(output, img_tag)
-                                has_images = true
-                            end
-                        end
-                        return has_images
-                    end
 
-                    -- Check if we have any images to render
-                    -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
-                    local has_any_images = false
-                    local image_attachments = {}
-                    if poem.attachments and #poem.attachments > 0 then
-                        for _, att in ipairs(poem.attachments) do
-                            if (att.media_type or ""):match("^image/") then
-                                table.insert(image_attachments, att)
-                                has_any_images = true
-                            end
-                        end
-                    end
+                            elseif media_type:match("^audio/") then
+                                -- Issue 8-049: Audio playback support
+                                local audio_tag = string.format(
+                                    '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
+                                    '    <source src="%s" type="%s">\n' ..
+                                    '    Your browser does not support the audio element.\n' ..
+                                    '  </audio>',
+                                    media_src, media_type
+                                )
+                                table.insert(output, audio_tag)
 
-                    -- If there are images, close </pre>, render them, reopen <pre>
-                    -- display:block prevents side-by-side, max-width:min(100%,800px) caps width
-                    if has_any_images then
-                        table.insert(output, "</pre>")
-                        for _, attachment in ipairs(image_attachments) do
-                            -- Issue 8-048: Use flat output/media/ path structure
-                            local relative_path = attachment.relative_path or ""
-                            local basename = relative_path:match("([^/]+)$") or relative_path
-                            local img_src = base_path .. "/output/media/" .. basename
-                            local alt_text = attachment.description or attachment.alt_text or "Image attachment"
-                            -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
-                            alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
-                            alt_text = alt_text:gsub('"', '&quot;')
-                            -- Issue 8-053: title attribute provides mouse-over tooltip
-                            local img_tag = string.format(
-                                '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
-                                img_src, alt_text, alt_text
-                            )
-                            if attachment.width and attachment.height then
-                                img_tag = img_tag .. string.format(' width="%d" height="%d"', attachment.width, attachment.height)
+                            elseif media_type:match("^video/") then
+                                -- Issue 8-049: Video playback support
+                                local video_tag
+                                if attachment.width and attachment.height then
+                                    video_tag = string.format(
+                                        '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
+                                        '    <source src="%s" type="%s">\n' ..
+                                        '    Your browser does not support the video element.\n' ..
+                                        '  </video>',
+                                        attachment.width, attachment.height, media_src, media_type
+                                    )
+                                else
+                                    video_tag = string.format(
+                                        '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
+                                        '    <source src="%s" type="%s">\n' ..
+                                        '    Your browser does not support the video element.\n' ..
+                                        '  </video>',
+                                        media_src, media_type
+                                    )
+                                end
+                                table.insert(output, video_tag)
                             end
-                            img_tag = img_tag .. '>'
-                            table.insert(output, img_tag)
                         end
                         table.insert(output, "<pre>")
                     end
