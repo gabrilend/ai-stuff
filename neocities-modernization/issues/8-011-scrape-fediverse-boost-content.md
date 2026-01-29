@@ -156,9 +156,39 @@ Returns JSON with `content` (HTML), `summary` (content warning), `sensitive` fla
 
 **Remaining Work:**
 
-- Run full scrape of all 458 URIs
+- ~~Run full scrape of all 458 URIs~~ ✅ Done
 - Test that extraction properly uses cached content
 - Verify anonymization is applied to cached boost content
 - Consider handling errors (deleted posts, unavailable instances)
+
+---
+
+### 2026-01-28: Full Scrape Complete
+
+**Results:**
+
+| Metric | Count | Percentage |
+|--------|-------|------------|
+| Total URIs | 458 | 100% |
+| Successful | 273 | 60% |
+| Errors | 185 | 40% |
+| Time | ~99 min | — |
+
+**Error Breakdown:**
+
+- HTTP 401 (Unauthorized): Private posts or auth-required instances
+- HTTP 404/410 (Not Found/Gone): Deleted posts
+- HTTP 0 (Connection failed): Instances down, blocking, or timeout
+
+The 60% success rate is expected for 2+ year old fediverse content. Posts get deleted,
+accounts go private, and small instances come and go.
+
+**Cache Location:** `assets/boost-content-cache.json`
+
+**Next Steps:**
+
+1. Implement 8-057 (Boost Visual Formatting) to display the scraped content
+2. Re-run extraction pipeline with raw outbox.json to test cache integration
+3. For failed URIs, the system will continue showing "External post: [URI]" placeholder
 
 ---
