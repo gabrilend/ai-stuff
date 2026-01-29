@@ -1,0 +1,34 @@
+# 1-005: Grid Coordinate System
+
+## Status
+- Phase: 1
+- Priority: High
+- Dependencies: 1-002, 1-003
+
+## Current Behavior
+No conversion between screen pixels and grid tile coordinates. Mouse
+clicks cannot be mapped to tiles.
+
+## Intended Behavior
+Utility functions to convert between:
+- Screen coordinates (pixels) -> World coordinates (accounting for camera)
+- World coordinates -> Tile coordinates (which grid cell)
+- Tile coordinates -> World coordinates (center or corner of a tile)
+
+This is essential for: clicking on factories, drawing belts along tiles,
+and rendering UI at tile positions.
+
+## Suggested Implementation Steps
+1. Add coordinate conversion functions to `src/grid.lua` or a new
+   `src/coords.lua` module.
+2. `screen_to_world(sx, sy, camera)` -> applies inverse camera transform.
+3. `world_to_tile(wx, wy)` -> `math.floor(wx / tile_size), math.floor(wy / tile_size)`.
+4. `tile_to_world(tx, ty)` -> `tx * tile_size, ty * tile_size`.
+5. Add a visual debug overlay: display the tile coordinate under the mouse
+   cursor (toggle with a debug key).
+6. Write a validation test that round-trips screen -> world -> tile -> world
+   and confirms consistency at various zoom levels.
+
+## Related Documents
+- docs/technical-design.md (Grid section)
+- docs/roadmap.md (Phase 1)

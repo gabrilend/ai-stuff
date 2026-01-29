@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+    DIR="/home/ritz/programming/lua/raleigh2"
+OLD_DIR="$(pwd)"
+
+cd "${DIR}"
+
+love "${DIR}/build"
+
+cd "${OLD_DIR}"
+

@@ -1,0 +1,34 @@
+# 1-004: Basic Input Handling
+
+## Status
+- Phase: 1
+- Priority: Medium
+- Dependencies: 1-001
+
+## Current Behavior
+No input handling beyond what Love2D provides by default.
+
+## Intended Behavior
+A centralized input handler that:
+- Distinguishes between "grid mode" input (navigating the world) and future
+  "terminal mode" input (typing into an editor).
+- Supports both keyboard and mouse for grid interaction.
+- Maps vim-style keys (hjkl) to grid navigation.
+- Provides a clean API for other modules to query input state or register
+  callbacks.
+- Handles key repeat for held-down navigation keys.
+
+## Suggested Implementation Steps
+1. Create `src/input.lua` module with a mode state (`grid` or `terminal`).
+2. Implement `love.keypressed`, `love.keyreleased`, `love.mousepressed`,
+   `love.mousereleased`, `love.wheelmoved` callbacks in main.lua that
+   delegate to the input module.
+3. In grid mode, map hjkl / arrow keys to camera movement, Enter to select,
+   Escape to deselect.
+4. Expose `input.is_down(key)` for continuous polling and callback
+   registration for one-shot events.
+5. Terminal mode is a stub for now that just captures all input (Phase 5).
+
+## Related Documents
+- docs/technical-design.md (Input Handling section)
+- docs/roadmap.md (Phase 1)

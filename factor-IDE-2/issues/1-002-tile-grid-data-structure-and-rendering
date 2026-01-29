@@ -1,0 +1,29 @@
+# 1-002: Tile Grid Data Structure and Rendering
+
+## Status
+- Phase: 1
+- Priority: High
+- Dependencies: 1-001
+
+## Current Behavior
+No grid exists. The screen is blank.
+
+## Intended Behavior
+A 2D tile grid is stored as a data structure and rendered to the screen.
+Each tile is a fixed-size square. The grid should be large enough to scroll
+(larger than the viewport). Tiles should be drawn with subtle borders or
+alternating colors so the grid is visually apparent. The grid data model
+should support storing what occupies each tile (empty, factory, belt) via
+an enum-like value.
+
+## Suggested Implementation Steps
+1. Define grid dimensions and tile size as constants in a config module.
+2. Create `src/grid.lua` module with a 2D table representing the grid.
+3. Each cell stores: `{ type = "empty", entity = nil }` or similar.
+4. In `love.draw()`, iterate visible tiles and draw rectangles with grid lines.
+5. Use a muted color scheme: dark background, light grid lines.
+6. Confirm rendering performance with a large grid (e.g. 200x200 tiles).
+
+## Related Documents
+- docs/technical-design.md (Grid section)
+- docs/roadmap.md (Phase 1)
