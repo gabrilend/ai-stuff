@@ -1,0 +1,1 @@
+/mnt/mtwo/programming/ai-stuff/delta-version/docs/delta-guide.md

@@ -1,0 +1,26 @@
+# 1-001: Love2D Project Scaffolding
+
+## Status
+- Phase: 1
+- Priority: High
+- Dependencies: None
+
+## Current Behavior
+No project files exist. No Love2D application structure.
+
+## Intended Behavior
+A minimal Love2D application that launches a window, runs the game loop
+(love.load, love.update, love.draw), and displays a blank grid background.
+conf.lua should set window title, dimensions, and vsync. main.lua should
+establish the top-level game loop with stubs for future subsystems.
+
+## Suggested Implementation Steps
+1. Create `src/conf.lua` with window settings (title: "Factor IDE 2", resizable, vsync on).
+2. Create `src/main.lua` with `love.load()`, `love.update(dt)`, `love.draw()` stubs.
+3. Add a solid background color draw in `love.draw()` to confirm rendering works.
+4. Create a `run.sh` launch script that invokes `love src/` from the project root.
+5. Verify the window opens and the game loop runs without errors.
+
+## Related Documents
+- docs/technical-design.md (Technology Stack section)
+- docs/roadmap.md (Phase 1)

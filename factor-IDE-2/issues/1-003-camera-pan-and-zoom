@@ -1,0 +1,31 @@
+# 1-003: Camera Pan and Zoom
+
+## Status
+- Phase: 1
+- Priority: High
+- Dependencies: 1-002
+
+## Current Behavior
+The grid renders at a fixed position. No way to navigate a grid larger
+than the screen.
+
+## Intended Behavior
+A camera system that supports:
+- Panning with arrow keys or WASD (or hjkl for vim-style).
+- Zooming in/out with mouse scroll wheel or +/- keys.
+- The camera transform is applied via `love.graphics.translate` and
+  `love.graphics.scale` so all subsequent drawing is in world coordinates.
+- Smooth movement (lerp-based or immediate, configurable).
+
+## Suggested Implementation Steps
+1. Create `src/camera.lua` module with `x, y, zoom` state.
+2. Expose `camera:move(dx, dy)` and `camera:set_zoom(level)`.
+3. In `love.update(dt)`, poll key state and update camera position.
+4. In `love.draw()`, apply `love.graphics.push()`, translate, scale, then
+   draw the grid, then `love.graphics.pop()`.
+5. Clamp zoom to a reasonable range (e.g. 0.25x to 4x).
+6. Mouse scroll wheel adjusts zoom centered on cursor position.
+
+## Related Documents
+- docs/technical-design.md (Grid section)
+- docs/roadmap.md (Phase 1)

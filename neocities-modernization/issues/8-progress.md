@@ -46,7 +46,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-046 | Create menu navigation page | ✅ Complete | Medium |
 | 8-047 | Implement dark mode (always on, CSS-free) | ✅ Complete | High |
 | 8-048 | Flatten media directory for deployment | ✅ Already implemented | Medium |
-| 8-049 | Implement audio and video playback | Open | Low |
+| 8-049 | Implement audio and video playback | ✅ Complete | Low |
 | 8-050 | Enhance word-cloud semantic similarity pages | ✅ Complete | High |
 | 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
 | 8-050b | Color-contextualized similarity ranking | ✅ Complete | Medium |
@@ -64,6 +64,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-049 | Implement audio and video playback | Completed | 2026-01-28 |
 | 8-054 | Extract image attachments from Matrix media messages | Completed | 2026-01-28 |
 | 8-041 | Escape HTML characters in poem content | Completed | 2026-01-28 |
 | 8-050 | Enhance word-cloud semantic similarity pages | Completed | 2026-01-28 |

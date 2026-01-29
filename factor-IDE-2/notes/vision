@@ -1,0 +1,20 @@
+first, we need to make a game like beltmatic. just need factorio-style belts and 
+factories, and then we can build a window inside of the game window that holds
+a terminal emulator (literally just alt+enter on dwm) that runs nvim or whatever
+text editor the user wants because it's hooked into the shell of the system.
+
+then, use conveyors to represent inputs and outputs.
+
+always return a tuple.
+
+always take a function pointer and a tuple of variable length.
+
+or, in lua, take an anonymous function and a table. return a table.
+
+double click on a factory, or select it using the vim-style keybinds to iterate
+through all the keyboard factories to open up a terminal window inside the game
+with your chosen text editor running and opening the file of the factory you
+selected.
+
+I'm sure you could add more neat utilities like science packs and whatever but
+for now this is a good start.
