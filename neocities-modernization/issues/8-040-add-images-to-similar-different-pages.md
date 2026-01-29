@@ -165,13 +165,25 @@ grep -l "<img" output/chronological-*.html
 - `scripts/convert-urls` - Multi-pattern URL conversion
 
 **Pending:**
-- [ ] Full regeneration to test with real data
-- [ ] Visual verification that images appear on similar/different pages
-- [ ] Verify convert-urls handles new patterns correctly
+- [x] Full regeneration to test with real data
+- [x] Visual verification that images appear on similar/different pages
+- [x] Verify convert-urls handles new patterns correctly
+
+### 2026-01-28: Validation Complete
+
+**Validation Results:**
+- Similar pages: 7334/7844 (93.5%) contain `<img>` tags
+- Different pages: 7843/7843 (100%) contain `<img>` tags
+- Pages without images contain poems with no attachments (e.g., `fediverse_boost` posts)
+- Image paths use correct production format: `/similar-different/media/{hash}.ext`
+- Image tags include `width`, `height`, and responsive styling
+
+**Conclusion:** 8-040 implementation working correctly. Pages without images legitimately
+contain poems with no image attachments.
 
 ## Metadata
 
-- **Status**: Implementation Complete - Awaiting Validation
+- **Status**: ✅ Complete
 - **Created**: 2026-01-20
 - **Phase**: 8 (Website Completion / HTML Generation)
 - **Estimated Complexity**: Low-Medium (function exists, needs to be called in right places)

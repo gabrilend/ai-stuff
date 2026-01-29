@@ -73,6 +73,15 @@ local COLOR_CONFIG = {
     gray = "#787878"
 }
 
+-- Issue 8-057: Boost visual formatting color scheme
+-- Based on /notes/boost post image style.png design reference
+local BOOST_COLOR_CONFIG = {
+    arrow = "#dc3c3c",      -- Red/Magenta: ◀─ and ─▶ arrows, [BOOST] label
+    outer_frame = "#3c78dc", -- Blue/Navy: ╔═╗║╚═╝ outer frame
+    inner_box = "#2aa198",   -- Teal/Cyan: ┌─┐│└─┘ inner content box
+    content_text = "#c8b428" -- Yellow: The actual boosted text content
+}
+
 -- Pagination configuration defaults
 -- Issue 10-003: These values are overridden by unified config (config.lua) if present
 -- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
@@ -1472,6 +1481,18 @@ local function is_golden_poem(poem)
 end
 -- }}}
 
+-- {{{ function is_boost_poem
+local function is_boost_poem(poem)
+    -- Issue 8-057: Detect boosted/shared posts for visual formatting
+    -- Boosts are reshared content from other fediverse users
+    -- boost_type can be: "cached_external", "external", or "embedded"
+    if poem.metadata and poem.metadata.is_boost then
+        return true
+    end
+    return false
+end
+-- }}}
+
 -- {{{ function get_poem_display_filename
 local function get_poem_display_filename(poem)
     -- Returns the display filename for a poem (without extension)
@@ -1745,6 +1766,269 @@ local function apply_golden_poem_formatting(content, is_golden, similar_link, di
 end
 -- }}}
 
+-- {{{ Issue 8-057: Boost Visual Formatting Functions
+-- Boosts use nested frames: outer blue frame + inner teal content box
+-- with asymmetric arrows (◀─ top-left, ─▶ bottom-right) and floating [BOOST] label
+
+-- {{{ function generate_boost_top_border
+local function generate_boost_top_border(progress_percent)
+    -- Top border: ◀─╔═══════[BOOST]═══════─────────╗
+    -- Total width: 84 characters
+    -- Layout: ◀(1) + ─(1) + ╔(1) + progress bar(78) + ╗(1) + newline pad(2) = 84
+    -- [BOOST] label floats at 50% of progress position
+
+    local BAR_WIDTH = 78  -- Interior width for progress bar
+    local LABEL = "[BOOST]"
+    local LABEL_LEN = 7
+
+    -- Calculate progress position (how many ═ characters)
+    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+    if progress_chars < LABEL_LEN + 2 then
+        progress_chars = LABEL_LEN + 2  -- Ensure room for label
+    end
+
+    -- Calculate label center position (50% of progress)
+    local label_center = math.floor(progress_chars / 2)
+    local label_start = label_center - math.floor(LABEL_LEN / 2)
+    if label_start < 1 then label_start = 1 end
+
+    -- Build the progress bar with embedded label
+    local bar_chars = {}
+    for i = 1, BAR_WIDTH do
+        if i >= label_start and i < label_start + LABEL_LEN then
+            -- Insert label character
+            local label_idx = i - label_start + 1
+            table.insert(bar_chars, LABEL:sub(label_idx, label_idx))
+        elseif i <= progress_chars then
+            table.insert(bar_chars, "═")
+        else
+            table.insert(bar_chars, "─")
+        end
+    end
+    local bar_str = table.concat(bar_chars)
+
+    -- Apply colors: red for arrow and label, blue for frame
+    local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', BOOST_COLOR_CONFIG.arrow)
+    local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+
+    -- Color the bar: progress portion in blue, label in red, remaining in default
+    local colored_bar = ""
+    for i = 1, BAR_WIDTH do
+        if i >= label_start and i < label_start + LABEL_LEN then
+            -- Label character in red
+            local char = bar_str:sub(i, i)
+            colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', BOOST_COLOR_CONFIG.arrow, char)
+        elseif i <= progress_chars then
+            -- Progress bar in blue
+            colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+        else
+            -- Remaining in blue (but thin line)
+            colored_bar = colored_bar .. string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.outer_frame)
+        end
+    end
+
+    return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
+end
+-- }}}
+
+-- {{{ function generate_boost_content_line
+local function generate_boost_content_line(line, is_first, is_last)
+    -- Content lines: ║ │ content │ ║
+    -- Width breakdown: ║(1) + space(1) + │(1) + space(1) + content(74) + space(1) + │(1) + space(1) + ║(1) = 84
+    local CONTENT_WIDTH = 74
+
+    -- Calculate visible length
+    local visible_length = text_formatter.calculate_visible_width(line)
+
+    -- Pad to fit content width
+    local padded_line
+    if visible_length >= CONTENT_WIDTH then
+        padded_line = line
+    else
+        local padding_needed = CONTENT_WIDTH - visible_length
+        padded_line = line .. string.rep(" ", padding_needed)
+    end
+
+    -- Apply colors to frame characters
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLOR_CONFIG.inner_box)
+
+    -- Color the content text in yellow
+    local colored_content = string.format('<font color="%s">%s</font>', BOOST_COLOR_CONFIG.content_text, padded_line)
+
+    return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
+end
+-- }}}
+
+-- {{{ function generate_boost_inner_box_top
+local function generate_boost_inner_box_top()
+    -- Inner box top: ║ ┌────────────────────────────────────────────────────────────────────────────┐ ║
+    -- Width: 1 + 1 + 1 + 74 + 1 + 1 + 1 = 80 interior, plus 2 outer walls = 84 (but we're inside outer walls already)
+    local INNER_WIDTH = 78  -- ┌ + 76 dashes + ┐
+
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLOR_CONFIG.inner_box)
+    local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLOR_CONFIG.inner_box)
+    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
+
+    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+end
+-- }}}
+
+-- {{{ function generate_boost_inner_box_bottom
+local function generate_boost_inner_box_bottom()
+    -- Inner box bottom: ║ └────────────────────────────────────────────────────────────────────────────┘ ║
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', BOOST_COLOR_CONFIG.inner_box)
+    local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', BOOST_COLOR_CONFIG.inner_box)
+    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
+
+    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+end
+-- }}}
+
+-- {{{ function generate_boost_nav_separator
+local function generate_boost_nav_separator()
+    -- Navigation separator: ╠─────────┐                                                          ┌───────────╣
+    -- Adapts the golden poem corner box separator for boost outer frame
+    local outer_wall_left = string.format('<font color="%s"><b>╠</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local outer_wall_right = string.format('<font color="%s"><b>╣</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local corner_left = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLOR_CONFIG.inner_box)
+    local corner_right = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLOR_CONFIG.inner_box)
+    local dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
+
+    -- Layout: ╠(1) + dashes(9) + ┐(1) + spaces(60) + ┌(1) + dashes(11) + ╣(1) = 84
+    local left_box = outer_wall_left .. string.rep(dash, 9) .. corner_left
+    local right_box = corner_right .. string.rep(dash, 11) .. outer_wall_right
+    local gap = string.rep(" ", 60)
+
+    return left_box .. gap .. right_box
+end
+-- }}}
+
+-- {{{ function generate_boost_nav_line
+local function generate_boost_nav_line(similar_link, different_link, chronological_link)
+    -- Navigation line: ║ similar │                       chronological                       │ different ║
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLOR_CONFIG.inner_box)
+
+    -- Build similar link box (11 chars interior)
+    local similar_html = similar_link or "similar"
+    local similar_text = " " .. similar_html .. " "
+
+    -- Build different link box (11 chars interior)
+    local different_html = different_link or "different"
+    local different_text = " " .. different_html .. " "
+
+    -- Build chronological center (if provided)
+    local center_text = ""
+    if chronological_link then
+        center_text = chronological_link
+    end
+
+    -- Calculate gaps for centering
+    local left_box_width = 11  -- "║ similar │"
+    local right_box_width = 13 -- "│ different ║"
+    local total_width = 82     -- Interior width
+    local available_for_gaps = total_width - left_box_width - right_box_width
+
+    local left_gap, right_gap
+    if center_text ~= "" then
+        local center_len = #"chronological"  -- visible text length
+        local remaining = available_for_gaps - center_len
+        left_gap = string.rep(" ", math.floor(remaining / 2))
+        right_gap = string.rep(" ", math.ceil(remaining / 2))
+    else
+        left_gap = string.rep(" ", math.floor(available_for_gaps / 2))
+        right_gap = string.rep(" ", math.ceil(available_for_gaps / 2))
+    end
+
+    return outer_wall .. similar_text .. inner_wall .. left_gap .. center_text .. right_gap .. inner_wall .. different_text .. outer_wall
+end
+-- }}}
+
+-- {{{ function generate_boost_bottom_border
+local function generate_boost_bottom_border(progress_percent)
+    -- Bottom border: ╚═══════════════════════════════════════════════════╧═════════════────────────╝─▶
+    -- Similar to golden poem but with arrow at end
+    local BAR_WIDTH = 78
+    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+
+    -- Junction positions (matching golden poem layout)
+    local LEFT_JUNCTION_POS = 10
+    local RIGHT_JUNCTION_POS = 71
+
+    local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+    local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', BOOST_COLOR_CONFIG.arrow)
+
+    -- Build progress bar with junctions
+    local bar_str = ""
+    for i = 1, BAR_WIDTH do
+        local char
+        local in_progress = i <= progress_chars
+
+        if i == LEFT_JUNCTION_POS or i == RIGHT_JUNCTION_POS then
+            -- Junction character
+            if in_progress then
+                char = string.format('<font color="%s"><b>╧</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+            else
+                char = string.format('<font color="%s">┴</font>', BOOST_COLOR_CONFIG.outer_frame)
+            end
+        elseif in_progress then
+            char = string.format('<font color="%s"><b>═</b></font>', BOOST_COLOR_CONFIG.outer_frame)
+        else
+            char = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.outer_frame)
+        end
+        bar_str = bar_str .. char
+    end
+
+    return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
+end
+-- }}}
+
+-- {{{ function apply_boost_poem_formatting
+local function apply_boost_poem_formatting(content, progress_percent, similar_link, different_link, chronological_link)
+    -- Issue 8-057: Apply nested frame formatting to boost posts
+    -- Creates: outer blue frame + inner teal content box + arrows + [BOOST] label
+
+    local formatted_lines = {}
+
+    -- 1. Top border with arrow and [BOOST] label
+    table.insert(formatted_lines, generate_boost_top_border(progress_percent))
+
+    -- 2. Inner box top
+    table.insert(formatted_lines, generate_boost_inner_box_top())
+
+    -- 3. Content lines wrapped in nested frames
+    local lines = {}
+    for line in (content .. "\n"):gmatch("(.-)\n") do
+        table.insert(lines, line)
+    end
+
+    for i, line in ipairs(lines) do
+        table.insert(formatted_lines, generate_boost_content_line(line, i == 1, i == #lines))
+    end
+
+    -- 4. Inner box bottom
+    table.insert(formatted_lines, generate_boost_inner_box_bottom())
+
+    -- 5. Navigation separator and nav line (if links provided)
+    if similar_link and different_link then
+        table.insert(formatted_lines, generate_boost_nav_separator())
+        table.insert(formatted_lines, generate_boost_nav_line(similar_link, different_link, chronological_link))
+    end
+
+    -- 6. Bottom border with arrow
+    table.insert(formatted_lines, generate_boost_bottom_border(progress_percent))
+
+    return table.concat(formatted_lines, "\n")
+end
+-- }}}
+
+-- }}} End Issue 8-057: Boost Visual Formatting Functions
+
 -- {{{ function format_content_with_warnings
 local function format_content_with_warnings(text, poem_category, poem, similar_link, different_link, chronological_link, hex_color)
     -- Issue 8-041: Escape HTML special characters in poem content FIRST
@@ -1834,6 +2118,9 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     -- Check if this is a golden poem (exactly 1024 characters)
     local is_golden = is_golden_poem(poem)
 
+    -- Issue 8-057: Check if this is a boost (reshared content from another author)
+    local is_boost = is_boost_poem(poem)
+
     -- Build navigation links for this poem (using category prefix for anchors, poem_index for paginated files)
     local unique_id = get_unique_poem_filename_id(poem)  -- For anchor IDs only (e.g. "messages-0001")
     local anchor_id = get_poem_anchor_id(poem)
@@ -1850,6 +2137,36 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
 
+    -- Issue 8-057: Boost formatting - uses complete nested frame with arrows and [BOOST] label
+    -- Boost formatting replaces all standard elements (top bar, content, nav, bottom bar)
+    if is_boost then
+        -- Escape HTML and apply markdown to content
+        local text = escape_html(poem.content or "")
+        text = apply_markdown_formatting(text)
+
+        -- Calculate progress as decimal (0-1) for boost functions
+        local progress_percent = progress_info.percentage / 100
+
+        -- Apply complete boost formatting (includes all frame elements)
+        local boost_formatted = apply_boost_poem_formatting(
+            text, progress_percent, similar_link, different_link, chronological_link
+        )
+        formatted = formatted .. boost_formatted .. "\n"
+
+        -- Render attached images after boost frame
+        if poem.attachments then
+            formatted = formatted .. render_attachment_images(poem.attachments)
+        end
+
+        return {
+            content = formatted,
+            semantic_color = semantic_color,
+            progress_percentage = progress_info.percentage,
+            poem_id = poem.id
+        }
+    end
+
+    -- Standard formatting for golden and regular poems
     -- Generate top progress bar separator (with golden corners if applicable)
     local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
     formatted = formatted .. string.format('<span %s>%s</span>',
@@ -2947,6 +3264,23 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
                 -- }}}
 
+                -- {{{ Local helper: Check if poem is a boost (Issue 8-057)
+                local function is_boost_poem(poem)
+                    if poem.metadata and poem.metadata.is_boost then
+                        return true
+                    end
+                    return false
+                end
+                -- }}}
+
+                -- Issue 8-057: Boost color configuration for worker thread
+                local BOOST_COLORS = {
+                    arrow = "#dc3c3c",      -- Red: ◀─ and ─▶ arrows, [BOOST] label
+                    outer_frame = "#3c78dc", -- Blue: ╔═╗║╚═╝ outer frame
+                    inner_box = "#2aa198",   -- Teal: ┌─┐│└─┘ inner content box
+                    content_text = "#c8b428" -- Yellow: boosted text content
+                }
+
                 -- Local helper: Build poem lookup by poem_index for ranking conversion
                 local function build_poem_by_index()
                     local lookup = {}
@@ -2994,9 +3328,159 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     return result
                 end
 
+                -- {{{ Issue 8-057: Boost formatting functions for worker thread
+
+                -- Worker: Generate boost top border with arrow and [BOOST] label
+                local function worker_boost_top_border(progress_percent)
+                    local BAR_WIDTH = 78
+                    local LABEL = "[BOOST]"
+                    local LABEL_LEN = 7
+
+                    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+                    if progress_chars < LABEL_LEN + 2 then
+                        progress_chars = LABEL_LEN + 2
+                    end
+
+                    local label_center = math.floor(progress_chars / 2)
+                    local label_start = label_center - math.floor(LABEL_LEN / 2)
+                    if label_start < 1 then label_start = 1 end
+
+                    local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', BOOST_COLORS.arrow)
+                    local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', BOOST_COLORS.outer_frame)
+                    local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', BOOST_COLORS.outer_frame)
+
+                    local colored_bar = ""
+                    for i = 1, BAR_WIDTH do
+                        if i >= label_start and i < label_start + LABEL_LEN then
+                            local char = LABEL:sub(i - label_start + 1, i - label_start + 1)
+                            colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', BOOST_COLORS.arrow, char)
+                        elseif i <= progress_chars then
+                            colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', BOOST_COLORS.outer_frame)
+                        else
+                            colored_bar = colored_bar .. string.format('<font color="%s">─</font>', BOOST_COLORS.outer_frame)
+                        end
+                    end
+
+                    return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
+                end
+
+                -- Worker: Generate inner box top border
+                local function worker_boost_inner_top()
+                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
+                    local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLORS.inner_box)
+                    local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLORS.inner_box)
+                    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
+                    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+                end
+
+                -- Worker: Generate inner box bottom border
+                local function worker_boost_inner_bottom()
+                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
+                    local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', BOOST_COLORS.inner_box)
+                    local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', BOOST_COLORS.inner_box)
+                    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
+                    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+                end
+
+                -- Worker: Generate content line with nested frames
+                local function worker_boost_content_line(line, txt_fmt)
+                    local CONTENT_WIDTH = 74
+                    local visible_length = txt_fmt.calculate_visible_width(line)
+                    local padded_line
+                    if visible_length >= CONTENT_WIDTH then
+                        padded_line = line
+                    else
+                        padded_line = line .. string.rep(" ", CONTENT_WIDTH - visible_length)
+                    end
+
+                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
+                    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLORS.inner_box)
+                    local colored_content = string.format('<font color="%s">%s</font>', BOOST_COLORS.content_text, padded_line)
+
+                    return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
+                end
+
+                -- Worker: Generate nav separator for boost
+                local function worker_boost_nav_separator()
+                    local outer_wall_left = string.format('<font color="%s"><b>╠</b></font>', BOOST_COLORS.outer_frame)
+                    local outer_wall_right = string.format('<font color="%s"><b>╣</b></font>', BOOST_COLORS.outer_frame)
+                    local corner_left = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLORS.inner_box)
+                    local corner_right = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLORS.inner_box)
+                    local dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
+                    return outer_wall_left .. string.rep(dash, 9) .. corner_left .. string.rep(" ", 60) .. corner_right .. string.rep(dash, 11) .. outer_wall_right
+                end
+
+                -- Worker: Generate nav line for boost
+                local function worker_boost_nav_line(similar_link, different_link, chronological_link)
+                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
+                    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLORS.inner_box)
+                    local center_text = chronological_link or ""
+                    local left_gap, right_gap
+                    if center_text ~= "" then
+                        left_gap = string.rep(" ", 23)
+                        right_gap = string.rep(" ", 23)
+                    else
+                        left_gap = string.rep(" ", 29)
+                        right_gap = string.rep(" ", 29)
+                    end
+                    return outer_wall .. " " .. similar_link .. " " .. inner_wall .. left_gap .. center_text .. right_gap .. inner_wall .. " " .. different_link .. " " .. outer_wall
+                end
+
+                -- Worker: Generate bottom border with arrow
+                local function worker_boost_bottom_border(progress_percent)
+                    local BAR_WIDTH = 78
+                    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+                    local LEFT_JUNCTION_POS = 10
+                    local RIGHT_JUNCTION_POS = 71
+
+                    local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', BOOST_COLORS.outer_frame)
+                    local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', BOOST_COLORS.outer_frame)
+                    local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', BOOST_COLORS.arrow)
+
+                    local bar_str = ""
+                    for i = 1, BAR_WIDTH do
+                        local in_progress = i <= progress_chars
+                        if i == LEFT_JUNCTION_POS or i == RIGHT_JUNCTION_POS then
+                            if in_progress then
+                                bar_str = bar_str .. string.format('<font color="%s"><b>╧</b></font>', BOOST_COLORS.outer_frame)
+                            else
+                                bar_str = bar_str .. string.format('<font color="%s">┴</font>', BOOST_COLORS.outer_frame)
+                            end
+                        elseif in_progress then
+                            bar_str = bar_str .. string.format('<font color="%s"><b>═</b></font>', BOOST_COLORS.outer_frame)
+                        else
+                            bar_str = bar_str .. string.format('<font color="%s">─</font>', BOOST_COLORS.outer_frame)
+                        end
+                    end
+
+                    return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
+                end
+
+                -- Worker: Apply complete boost formatting
+                local function worker_apply_boost_formatting(content, progress_percent, similar_link, different_link, chronological_link, txt_fmt)
+                    local lines = {}
+                    table.insert(lines, worker_boost_top_border(progress_percent))
+                    table.insert(lines, worker_boost_inner_top())
+
+                    for line in (content .. "\n"):gmatch("(.-)\n") do
+                        table.insert(lines, worker_boost_content_line(line, txt_fmt))
+                    end
+
+                    table.insert(lines, worker_boost_inner_bottom())
+                    if similar_link and different_link then
+                        table.insert(lines, worker_boost_nav_separator())
+                        table.insert(lines, worker_boost_nav_line(similar_link, different_link, chronological_link))
+                    end
+                    table.insert(lines, worker_boost_bottom_border(progress_percent))
+
+                    return table.concat(lines, "\n")
+                end
+                -- }}} End Issue 8-057: Boost formatting functions
+
                 -- Local helper: Format single poem with full formatting (Issue 9-003 Fix D)
                 -- Includes progress bars, navigation box, and chronological page links
                 -- Issue 8-044: Added golden poem formatting support
+                -- Issue 8-057: Added boost formatting support
                 local function format_poem_entry(poem, poem_colors_tbl, clr_config, chrono_map, chrono_paged)
                     local poem_idx = poem.poem_index
                     local poem_color_data = poem_colors_tbl[poem_idx]
@@ -3005,6 +3489,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Issue 8-044: Check if this is a golden poem
                     local is_golden = is_golden_poem(poem)
+
+                    -- Issue 8-057: Check if this is a boost and handle with special formatting
+                    local is_boost = is_boost_poem(poem)
 
                     -- Get chronological position from mapping
                     local chrono_info = chrono_map[poem_idx] or {position = 1, page_number = 1, total_poems = 1, total_pages = 1}
@@ -3052,6 +3539,94 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         chrono_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
                     end
 
+                    -- Issue 8-057: Handle boost poems with special nested frame formatting
+                    -- Boosts return early with their complete formatting (arrows, [BOOST] label, nested frames)
+                    if is_boost then
+                        local boost_content = poem.content or ""
+                        -- Escape HTML in content
+                        boost_content = boost_content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+                        -- Calculate progress as decimal (0-1)
+                        local progress_decimal = progress_pct / 100
+
+                        -- Apply boost formatting with all frame elements
+                        local boost_formatted = worker_apply_boost_formatting(
+                            boost_content, progress_decimal,
+                            similar_link, different_link, chrono_link,
+                            t_text_formatter
+                        )
+
+                        -- Build output including any attached media
+                        local output = { boost_formatted }
+
+                        -- Handle media attachments for boosts (same logic as regular poems)
+                        local media_base = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
+                        local has_media = false
+                        local media_atts = {}
+                        if poem.attachments and #poem.attachments > 0 then
+                            for _, att in ipairs(poem.attachments) do
+                                local mt = att.media_type or ""
+                                if mt:match("^image/") or mt:match("^audio/") or mt:match("^video/") then
+                                    table.insert(media_atts, att)
+                                    has_media = true
+                                end
+                            end
+                        end
+
+                        if has_media then
+                            table.insert(output, "</pre>")
+                            for _, att in ipairs(media_atts) do
+                                local rpath = att.relative_path or ""
+                                local basename = rpath:match("([^/]+)$") or rpath
+                                local media_src = "/similar-different/media/" .. basename
+                                local media_type = att.media_type or "image/png"
+                                if media_type:match("^image/") then
+                                    local alt = att.description and att.description ~= "" and att.description or "Image attachment"
+                                    if att.width and att.height then
+                                        table.insert(output, string.format(
+                                            '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
+                                            media_src, alt, att.width, att.height
+                                        ))
+                                    else
+                                        table.insert(output, string.format(
+                                            '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
+                                            media_src, alt
+                                        ))
+                                    end
+                                elseif media_type:match("^audio/") then
+                                    table.insert(output, string.format(
+                                        '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
+                                        '    <source src="%s" type="%s">\n' ..
+                                        '    Your browser does not support the audio element.\n' ..
+                                        '  </audio>',
+                                        media_src, media_type
+                                    ))
+                                elseif media_type:match("^video/") then
+                                    if att.width and att.height then
+                                        table.insert(output, string.format(
+                                            '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
+                                            '    <source src="%s" type="%s">\n' ..
+                                            '    Your browser does not support the video element.\n' ..
+                                            '  </video>',
+                                            att.width, att.height, media_src, media_type
+                                        ))
+                                    else
+                                        table.insert(output, string.format(
+                                            '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
+                                            '    <source src="%s" type="%s">\n' ..
+                                            '    Your browser does not support the video element.\n' ..
+                                            '  </video>',
+                                            media_src, media_type
+                                        ))
+                                    end
+                                end
+                            end
+                            table.insert(output, "<pre>")
+                        end
+
+                        return table.concat(output, "\n")
+                    end
+
+                    -- Standard formatting for golden and regular (non-boost) poems
                     -- Wrap content to 80 chars while preserving paragraph breaks
                     -- Also handle content warnings (CW: or content warning:)
                     local content = poem.content or ""

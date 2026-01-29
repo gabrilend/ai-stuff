@@ -28,8 +28,8 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-001 | Unified website generation pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
 | 8-005 | Integrate images into HTML output | 🔄 Re-opened (viewport overflow) | Medium |
-| 8-011 | Scrape fediverse boost content | In Progress | Low |
-| 8-057 | Boost visual formatting | Open | Medium |
+| 8-011 | Scrape fediverse boost content | ✅ Complete (279/458 cached) | Low |
+| 8-057 | Boost visual formatting | ✅ Core Complete | Medium |
 | 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
 | 8-016 | Validate poem representation in pagination | ✅ Core complete | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
@@ -64,6 +64,8 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-057 | Boost visual formatting | Completed | 2026-01-28 |
+| 8-011 | Scrape fediverse boost content | Completed (279/458 scraped) | 2026-01-28 |
 | 8-049 | Implement audio and video playback | Completed | 2026-01-28 |
 | 8-054 | Extract image attachments from Matrix media messages | Completed | 2026-01-28 |
 | 8-041 | Escape HTML characters in poem content | Completed | 2026-01-28 |
