@@ -27,7 +27,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 |-------|-------------|--------|----------|
 | 8-001 | Unified website generation pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
-| 8-005 | Integrate images into HTML output | 🔄 Re-opened (viewport overflow) | Medium |
+| 8-005 | Integrate images into HTML output | ✅ Complete (fixed outside `<pre>`) | Medium |
 | 8-011 | Scrape fediverse boost content | ✅ Complete (279/458 cached) | Low |
 | 8-057 | Boost visual formatting | ✅ Core Complete | Medium |
 | 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
@@ -39,7 +39,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-037 | Fix similar/different box alignment | ✅ Complete | Medium |
 | 8-038 | Center poem containers on page | ✅ Already implemented | Low |
 | 8-039 | Move chronological files to subdirectory | ✅ Complete | High |
-| 8-040 | Add images to similar/different pages | Implemented (pending validation) | Medium |
+| 8-040 | Add images to similar/different pages | ✅ Complete (validated) | Medium |
 | 8-041 | Escape HTML characters in poem content | ✅ Complete | **High** |
 | 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
 | 8-043 | Generate semantic word cloud page | ✅ Complete | Medium |
@@ -202,7 +202,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Phase 3: Embedding Integration - complete (2025-12-25)
   - `--generate-embeddings` flag with freshness checks
   - `--model` option for model selection
-  - All 7,797 poems have embeddings (100% complete as of 2026-01-04)
+  - All 7,844 poems have embeddings (100% complete as of 2026-01-04)
 - ✅ Phase 4: Similarity Matrix Integration - complete (2025-12-25)
   - `--generate-similarity` flag with dependency validation
   - Run `./scripts/validate-pipeline-data --quick` to check current completion
@@ -212,7 +212,8 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - ✅ Phase 6: Pipeline Orchestration - complete (2025-12-25)
   - `--full` runs all 10 stages, `--all` runs fast stages (1-5, 9-10)
   - TUI updated with new stages (marked ⚠️ for expensive ones)
-- Pending: Full HTML generation test with all poems
+- **Pending**: Full HTML regeneration with boost formatting (8-057)
+  - Run `./run.sh --generate-html` after merging boost formatting changes
 
 **8-002: Implement Multi-threaded HTML Generation** - IN PROGRESS
 - ✅ Created `scripts/generate-html-parallel` using effil library
