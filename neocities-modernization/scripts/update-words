@@ -186,9 +186,9 @@ sync_images_from_config() {
         return 0
     fi
 
-    # Get destination directory
+    # Get destination directory from shared path (single source of truth)
     local destination
-    destination=$(get_config_value "image_sync.destination")
+    destination=$(get_config_value "input_sources.media_attachments_path")
     if [ "${destination}" == "nil" ] || [ -z "${destination}" ]; then
         destination="input/media_attachments"
     fi
@@ -302,7 +302,4 @@ fi
 
 # Issue 8-042: Sync images from configured sources
 sync_images_from_config
-
-# Remove unwanted ZIP files that get synced but aren't content archives
-rm -f "${DIR}/input/images/poem-pictures/neocities-ritz-menardi.zip"
 # }}}

@@ -44,7 +44,9 @@ return {
         messages_backup_path = "input/messages",        -- Private message archives
         words_source_path = "input/words",              -- Raw text collections
         notes_source_path = "input/notes",              -- Personal notes and drafts
-        bluesky_backup_path = "input/bluesky"           -- Bluesky/AT Protocol exports
+        bluesky_backup_path = "input/bluesky",          -- Bluesky/AT Protocol exports
+        -- Shared path: used by image_sync (writes) and image_integration (reads)
+        media_attachments_path = "input/media_attachments"
     },
     -- }}}
 
@@ -55,7 +57,13 @@ return {
         enable_fediverse = true,
         enable_messages = true,
         enable_notes = true,
-        enable_bluesky = true
+        enable_bluesky = true,
+        -- Issue 7-003: ZIP files to ignore during archive scanning.
+        -- These are ZIPs that appear in input/ but aren't content archives
+        -- (e.g., site backups embedded in media_attachments from fediverse export).
+        ignored_archives = {
+            "neocities-ritz-menardi"  -- Neocities site backup, not content data
+        }
     },
     -- }}}
 
@@ -154,7 +162,7 @@ return {
     -- Read by: src/image-manager.lua
     image_integration = {
         enabled = true,
-        image_directories = {"input/media_attachments"},
+        -- NOTE: Reads from input_sources.media_attachments_path (single source of truth)
         supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
         max_file_size_mb = 100,                      -- Skip oversized files
         output_path = "assets/images",              -- Where to copy images
@@ -171,23 +179,30 @@ return {
     --   name: Display name for logging
     --   path: Absolute path to source directory
     --   description: Human-readable description
-    --   optional: If true, missing source is skipped silently. If false/absent, missing source is fatal.
+    --   optional: If true, missing source is skipped with attention message. If false/absent, missing source is fatal.
     image_sync = {
         enabled = true,
-        destination = "input/media_attachments",    -- Where to sync images to
+        -- NOTE: Writes to input_sources.media_attachments_path (single source of truth)
         sources = {
-            {
-                name = "fediverse_media",
-                path = "/home/ritz/backups/words/fediverse/media_attachments",
-                description = "Mastodon/ActivityPub media attachments",
-                optional = true  -- May not exist on all machines
-            },
+            -- Note: fediverse_media removed - it's extracted from most-recent-29.zip in Stage 2
             {
                 name = "my-art",
                 path = "/home/ritz/pictures/my-art",
                 description = "my artwork, made in kolourpaint",
-                optional = false  -- Required - error if missing
-            }
+                optional = false,  -- Required - error if missing
+            },
+            {
+               name = "things-I-almost-posted",
+               path = "/home/ritz/pictures/things-i-almost-posted",
+               description = "lol I'm posting them now this sucks haha",
+               optional = false,
+            },
+            {
+               name = "poem-pictures",
+               path = "/home/ritz/pictures/poem-pictures",
+               description = "pictures I made of my poems",
+               optional = false,
+            },
         },
         preserve_structure = true,                  -- Keep directory hierarchy
         overwrite_existing = false,                 -- Don't replace existing files
@@ -201,7 +216,7 @@ return {
     -- Read by: src/flat-html-generator.lua:load_pagination_config()
     -- CLI overrides: --poems-per-page, --chrono-per-page, --pages (via run.sh)
     pagination = {
-        poems_per_page = 100,               -- Poems per similar/different page
+        poems_per_page = 200,               -- Poems per similar/different page
                                             -- CLI: --poems-per-page N (run.sh default: 200)
         minimum_pages = 1,                  -- Minimum pages to generate
         max_pages_per_poem = 15,            -- Maximum similar/different pages per poem
@@ -210,7 +225,7 @@ return {
         generate_txt_exports = true,        -- Generate .txt versions of poems
         generate_html_archives = false,     -- Disabled: redundant with paginated pages
         chronological_paginated = false,    -- Split chronological.html into pages
-        chronological_poems_per_page = 500  -- Poems per chronological page (if paginated)
+        chronological_poems_per_page = 1000 -- Poems per chronological page (if paginated)
                                             -- CLI: --chrono-per-page N
     },
     -- }}}
