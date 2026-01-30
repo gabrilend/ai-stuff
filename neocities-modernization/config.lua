@@ -166,6 +166,12 @@ return {
     -- Syncs media from external backup locations into the project's input directory.
     -- Run before extraction to ensure all attachments are available locally.
     -- Add multiple sources if your media is spread across backup locations.
+    --
+    -- Source fields:
+    --   name: Display name for logging
+    --   path: Absolute path to source directory
+    --   description: Human-readable description
+    --   optional: If true, missing source is skipped silently. If false/absent, missing source is fatal.
     image_sync = {
         enabled = true,
         destination = "input/media_attachments",    -- Where to sync images to
@@ -173,12 +179,14 @@ return {
             {
                 name = "fediverse_media",
                 path = "/home/ritz/backups/words/fediverse/media_attachments",
-                description = "Mastodon/ActivityPub media attachments"
+                description = "Mastodon/ActivityPub media attachments",
+                optional = true  -- May not exist on all machines
             },
             {
                 name = "my-art",
                 path = "/home/ritz/pictures/my-art",
-                description = "my artwork, made in kolourpaint"
+                description = "my artwork, made in kolourpaint",
+                optional = false  -- Required - error if missing
             }
         },
         preserve_structure = true,                  -- Keep directory hierarchy

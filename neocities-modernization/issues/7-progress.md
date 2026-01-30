@@ -24,9 +24,7 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 
 ### Active Issues
 
-| Issue | Description | Status | Priority |
-|-------|-------------|--------|----------|
-| (none) | All Phase 7 issues completed | - | - |
+*No active issues*
 
 ### Completed Issues
 
@@ -34,8 +32,18 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 |-------|-------------|--------|-----------|
 | 7-001 | Fix run.sh warnings and errors | Completed | 2025-12-14 |
 | 7-002 | Clean up run.sh output | Completed | 2025-12-14 |
+| 7-003 | Cleanup run.sh output formatting | Completed | 2026-01-30 |
 
 ### Issue Details
+
+**7-003: Cleanup run.sh Output Formatting** - COMPLETED (2026-01-30)
+- Removed duplicate progress messages (zip extractor)
+- Removed redundant "extraction completed" messages
+- Fixed `relative_path()` to show "neocities-modernization/" instead of "./"
+- Added `--force` flag to skip file preservation in update-words
+- Added `optional` flag to config sources (missing required = fatal error)
+- Optional missing sources show yellow attention message instead of silent skip
+- Semantic color scheme documented (green=milestones, white=success, yellow=attention, red=fatal)
 
 **7-002: Clean Up run.sh Output** - COMPLETED
 - Suppressed verbose unzip output
@@ -84,7 +92,7 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 **Phase Status: COMPLETED**
 
 **Started**: 2025-12-14
-**Completed**: 2025-12-14
+**Completed**: 2025-12-14 (reopened 2026-01-30 for 7-003, completed same day)
 
 ## Phase 7 Summary
 

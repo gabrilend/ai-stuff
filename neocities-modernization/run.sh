@@ -462,12 +462,18 @@ symbol_warning() {
 run_update_words() {
     log_stage "📁 Stage 1/10: Updating input files from words repository"
 
+    # Issue 7-003: Pass force flag to skip file preservation
+    local force_flag=""
+    if $FORCE; then
+        force_flag="--force"
+    fi
+
     if $DRY_RUN; then
-        log_dry_run "$DIR/scripts/update-words"
+        log_dry_run "$DIR/scripts/update-words $force_flag"
         return 0
     fi
 
-    "$DIR/scripts/update-words" || {
+    "$DIR/scripts/update-words" $force_flag || {
         echo "Warning: Failed to update input files, continuing anyway..." >&2
     }
 }
