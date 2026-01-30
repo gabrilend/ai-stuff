@@ -1,4 +1,4 @@
-# Issue 6-030: Enhance Embedding Content Preprocessing
+# Issue 6-033: Enhance Embedding Content Preprocessing
 
 ## Priority
 High
