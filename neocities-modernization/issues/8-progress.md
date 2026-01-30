@@ -27,48 +27,25 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 |-------|-------------|--------|----------|
 | 8-001 | Unified website generation pipeline | In Progress | High |
 | 8-002 | Implement multi-threaded HTML generation | In Progress | High |
-| 8-005 | Integrate images into HTML output | ✅ Complete (fixed outside `<pre>`) | Medium |
-| 8-011 | Scrape fediverse boost content | ✅ Complete (279/458 cached) | Low |
-| 8-057 | Boost visual formatting | ✅ Core Complete | Medium |
-| 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
-| 8-016 | Validate poem representation in pagination | ✅ Core complete | Medium |
-| 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
+| 8-016 | Validate poem representation in pagination | Open | Medium |
+| 8-020 | Hybrid pagination strategy (45GB constraint) | In Progress | High |
 | 8-031 | Convert between similarity matrix formats | Open | Low |
 | 8-034 | Refactor to triangular individual files only | Open | Low |
 | 8-045 | Timeline-based progress bar calculation | Open | Medium |
-| 8-030 | Add chronological anchor links | ✅ Complete | High |
-| 8-035 | Colorize nav boxes according to progress bar position | ✅ Complete | Low |
-| 8-036 | Add poem identification to ranking headers | ✅ Complete | Low |
-| 8-037 | Fix similar/different box alignment | ✅ Complete | Medium |
-| 8-038 | Center poem containers on page | ✅ Already implemented | Low |
-| 8-039 | Move chronological files to subdirectory | ✅ Complete | High |
-| 8-040 | Add images to similar/different pages | ✅ Complete (validated) | Medium |
-| 8-041 | Escape HTML characters in poem content | ✅ Complete | **High** |
-| 8-042 | Sync images from configurable directories | ✅ Complete | Medium |
-| 8-043 | Generate semantic word cloud page | ✅ Complete | Medium |
-| 8-046 | Create menu navigation page | ✅ Complete | Medium |
-| 8-047 | Implement dark mode (always on, CSS-free) | ✅ Complete | High |
-| 8-048 | Flatten media directory for deployment | ✅ Already implemented | Medium |
-| 8-049 | Implement audio and video playback | ✅ Complete | Low |
-| 8-050 | Enhance word-cloud semantic similarity pages | ✅ Complete | High |
-| 8-050a | Compute semantic color for word-cloud words | ✅ Complete | High |
-| 8-050b | Color-contextualized similarity ranking | ✅ Complete | Medium |
-| 8-050c | Apply word color to word-page progress bars | ✅ Complete | Medium |
-| 8-050d | Configurable poems-per-word-page via run.sh | ✅ Complete | Low |
-| 8-050e | Centroid-based chronological link for word pages | ✅ Complete | Medium |
-| 8-051 | Order poem index categories by ascending count | ✅ Complete | Low |
-| 8-052 | Normalize vertical bar characters in HTML output | ✅ Complete | Low |
-| 8-053 | Add image title attribute and fix alt-text fallback | ✅ Complete | Medium-High |
-| 8-054 | Extract image attachments from Matrix media messages | ✅ Complete | Medium |
-| 8-055 | Fix golden poem formatting on similar/different pages | ✅ Complete | Medium |
-| 8-056 | Preserve whitespace in poem rendering (shared formatter) | ✅ Complete | High |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
-| 8-057 | Boost visual formatting | Completed | 2026-01-28 |
+| 8-057 | Boost visual formatting | Completed | 2026-01-29 |
+| 8-040 | Add images to similar/different pages | Completed | 2026-01-28 |
 | 8-011 | Scrape fediverse boost content | Completed (279/458 scraped) | 2026-01-28 |
+| 8-012 | Implement paginated similarity chapters | Completed | 2026-01-21 |
+| 8-038 | Center poem containers on page | Completed | 2026-01-21 |
+| 8-048 | Flatten media directory for deployment | Completed | 2026-01-23 |
+| 8-051 | Order poem index categories by ascending count | Completed | 2026-01-26 |
+| 8-052 | Normalize vertical bar characters in HTML output | Completed | 2026-01-26 |
+| 8-053 | Add image title attribute and fix alt-text fallback | Completed | 2026-01-26 |
 | 8-049 | Implement audio and video playback | Completed | 2026-01-28 |
 | 8-054 | Extract image attachments from Matrix media messages | Completed | 2026-01-28 |
 | 8-041 | Escape HTML characters in poem content | Completed | 2026-01-28 |
