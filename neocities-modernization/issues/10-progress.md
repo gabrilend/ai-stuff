@@ -40,6 +40,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2026-01-09 |
 | 10-006 | Identify checkbox conversion opportunities | Completed | 2026-01-09 |
 | 10-011 | Implement pipeline data validation utility | Completed | 2026-01-17 |
+| 10-014 | Complete config migration from input-sources.json | Completed | 2026-01-30 |
 
 ## Issue Details
 
@@ -48,6 +49,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Migrated settings from 6+ separate files
 - Added vimfolded sections for each config category
 - Single authoritative source for all project settings
+
+**10-014: Complete Config Migration** - COMPLETED (2026-01-30)
+- Follow-up to 10-003: migrated remaining scripts still using `input-sources.json`
+- `scripts/update-words`: Created Lua helper functions for bash config reading
+- `scripts/generate-html-parallel`: Migrated to `dofile()` for pagination config
+- `scripts/validate-poem-representation`: Migrated to `dofile()` for config loading
+- Eliminates "Config file not found" warning during pipeline execution
 
 **10-011: Pipeline Data Validation Utility** - COMPLETED (2026-01-17)
 - Created `scripts/validate-pipeline-data` script
