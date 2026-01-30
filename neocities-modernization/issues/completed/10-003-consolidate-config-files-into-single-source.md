@@ -477,3 +477,22 @@ The remaining separate text files have been embedded directly into `config.lua`:
 ---
 
 **ISSUE STATUS: COMPLETE**
+
+---
+
+## Post-Completion Note (2026-01-30)
+
+**Migration was incomplete.** The following scripts were marked as migrated but still reference `config/input-sources.json`:
+
+| Script | Line | Status |
+|--------|------|--------|
+| `scripts/update-words` | 15 | NOT migrated |
+| `scripts/generate-html-parallel` | 162 | NOT migrated |
+| `scripts/validate-poem-representation` | 33 | NOT migrated |
+
+This causes a warning on every pipeline run:
+```
+⚠  Config file not found: .../config/input-sources.json
+```
+
+**Follow-up issue created:** `10-014-complete-config-migration-from-input-sources-json.md`

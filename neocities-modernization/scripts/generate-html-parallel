@@ -158,18 +158,18 @@ if OPTS.dir then
 end
 
 -- {{{ Issue 8-022: Load pagination config and apply CLI overrides
+-- Issue 10-014: Migrated from input-sources.json to unified config.lua
 local function load_pagination_config()
-    local config_file = DIR .. "/config/input-sources.json"
-    local config = utils.read_json_file(config_file)
-
     -- Default values (fallback if config missing)
     local pagination = {
         poems_per_page = 100,
         max_pages_per_poem = 15  -- 0 means all poems (no limit)
     }
 
-    -- Load from config file
-    if config and config.pagination then
+    -- Load from config.lua
+    local config_file = DIR .. "/config.lua"
+    local ok, config = pcall(dofile, config_file)
+    if ok and config and config.pagination then
         pagination.poems_per_page = config.pagination.poems_per_page or pagination.poems_per_page
         pagination.max_pages_per_poem = config.pagination.max_pages_per_poem or pagination.max_pages_per_poem
     end
