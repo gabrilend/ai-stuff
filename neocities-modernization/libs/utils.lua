@@ -287,8 +287,13 @@ end
 -- {{{ function M.relative_path
 function M.relative_path(absolute_path, base_dir)
     -- Convert absolute path to relative path for cleaner output
-    -- If path starts with base_dir, replace with "./"
+    -- Issue 7-003: If path equals base_dir, show project name instead of "./"
     base_dir = base_dir or M.DIR
+    if absolute_path == base_dir or absolute_path == base_dir .. "/" then
+        -- Return the directory name (e.g., "neocities-modernization/")
+        local dir_name = base_dir:match("([^/]+)/?$")
+        return dir_name .. "/"
+    end
     if absolute_path:sub(1, #base_dir) == base_dir then
         local relative = absolute_path:sub(#base_dir + 1)
         if relative:sub(1, 1) == "/" then

@@ -4,14 +4,29 @@
 #
 # Issue 8-042: Added configurable image sync from config.lua
 # Issue 10-014: Migrated from input-sources.json to unified config.lua
+# Issue 7-003: Added --force flag to skip file preservation
 #
 # The external sync-to-projects script does rm -rf input/, which would delete
 # the generated files that scripts/update creates. We preserve and restore them
 # so the freshness check works correctly.
+#
+# Usage: scripts/update-words [--force]
+#   --force: Skip file preservation (regenerate everything from scratch)
 
 set -euo pipefail
 
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# {{{ Parse arguments
+FORCE=false
+for arg in "$@"; do
+    case "$arg" in
+        --force)
+            FORCE=true
+            ;;
+    esac
+done
+# }}}
+
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 BACKUP_DIR="${DIR}/temp/preserved-files-$$"
 CONFIG_FILE="${DIR}/config.lua"
 
@@ -155,11 +170,12 @@ restore_generated_files() {
 # {{{ sync_images_from_config
 # Issue 8-042: Sync images from configurable source directories
 # Issue 10-014: Migrated from jq/JSON to inline Lua config reading
+# Issue 7-003: Made missing required sources fatal (no warnings, only errors)
 sync_images_from_config() {
-    # Check if config file exists
+    # Check if config file exists - this is FATAL if missing
     if [ ! -f "${CONFIG_FILE}" ]; then
-        echo "   ⚠️  Config file not found: ${CONFIG_FILE}"
-        return 0
+        echo "   ✗ Config file not found: ${CONFIG_FILE}" >&2
+        exit 1
     fi
 
     # Check if image_sync is enabled (using Lua helper)
@@ -206,16 +222,28 @@ sync_images_from_config() {
     mkdir -p "${dest_path}"
 
     local total_synced=0
+    local skipped_optional=0
 
     # Iterate over sources (1-indexed for Lua)
     for i in $(seq 1 "${num_sources}"); do
-        local source_name source_path
+        local source_name source_path source_optional
         source_name=$(get_config_array_item "image_sync.sources" "${i}" "name")
         source_path=$(get_config_array_item "image_sync.sources" "${i}" "path")
+        source_optional=$(get_config_array_item "image_sync.sources" "${i}" "optional")
 
         if [ ! -d "${source_path}" ]; then
-            echo "      ⚠️  ${source_name}: source not found (${source_path})"
-            continue
+            # Issue 7-003: Check optional flag - missing required sources are fatal
+            if [ "${source_optional}" == "true" ]; then
+                # Optional source - show yellow attention, then skip
+                echo -e "      \033[33m!\033[0m ${source_name}: skipped (source not found)"
+                skipped_optional=$((skipped_optional + 1))
+                continue
+            else
+                # Required source - fatal error
+                echo "      ✗ ${source_name}: source not found (${source_path})" >&2
+                echo "      Add 'optional = true' in config.lua if this source may legitimately be absent" >&2
+                exit 1
+            fi
         fi
 
         # Build rsync options
@@ -256,14 +284,21 @@ sync_images_from_config() {
 # }}}
 
 # {{{ main
-# Preserve generated files before the destructive sync
-preserve_generated_files
+# Issue 7-003: Skip file preservation when --force is active
+if $FORCE; then
+    echo "   🔄 Force regenerate: skipping file preservation"
+else
+    # Preserve generated files before the destructive sync
+    preserve_generated_files
+fi
 
 # Run the external sync script (does rm -rf input/)
 /home/ritz/backups/words/sync-to-projects > /dev/null 2>&1
 
-# Restore preserved files
-restore_generated_files
+# Issue 7-003: Only restore if we preserved (i.e., not in force mode)
+if ! $FORCE; then
+    restore_generated_files
+fi
 
 # Issue 8-042: Sync images from configured sources
 sync_images_from_config

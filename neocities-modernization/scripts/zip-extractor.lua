@@ -27,7 +27,12 @@ local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings (⚠️)
 local COLOR_RESET = "\027[0m"     -- Reset to default
 
 -- {{{ local function relative_path
+-- Issue 7-003: Show project name instead of "./" when path equals DIR
 local function relative_path(absolute_path)
+    if absolute_path == DIR or absolute_path == DIR .. "/" then
+        local dir_name = DIR:match("([^/]+)/?$")
+        return dir_name .. "/"
+    end
     if absolute_path:sub(1, #DIR) == DIR then
         local rel = absolute_path:sub(#DIR + 1)
         if rel:sub(1, 1) == "/" then rel = rel:sub(2) end
@@ -193,9 +198,7 @@ end
 -- }}}
 
 -- Main execution
-print("🔄 Starting ZIP archive extraction...")
-print("Project directory: " .. relative_path(DIR))
-print("Temporary directory: " .. relative_path(TEMP_DIR))
+-- Issue 7-003: Removed duplicate "Starting extraction" message (parent script already printed it)
 
 local archives = detect_archives(DIR .. "/input")
 print("\n📊 Archive scan results:")
@@ -225,7 +228,7 @@ f:write(dkjson.encode(summary, { indent = true }))
 f:close()
 
 print("💾 Extraction summary saved: " .. relative_path(summary_file))
-print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " ZIP archive extraction completed")
+-- Issue 7-003: Removed redundant "extraction completed" line - summary already shows completion
 
 if summary.extracted_archives == 0 then
     print(COLOR_RED .. "❌" .. COLOR_RESET .. " No archives could be extracted")
