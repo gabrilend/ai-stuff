@@ -120,4 +120,19 @@ Phase 5 focused on implementing the core flat HTML generation system, ensuring d
 
 **Phase 5 successfully established the core flat HTML generation system and enforced design consistency throughout the project. The combination of mass HTML generation, validation frameworks, and simplified navigation provides an excellent foundation for multimedia enhancements and advanced chronological features.**
 
+---
+
+## Open Issues (Post-Completion Enhancements)
+
+| Issue | Description | Status | Priority |
+|-------|-------------|--------|----------|
+| 5-024 | Implement multi-algorithm similarity selection system | Open | Low |
+| 5-026 | Optimize chronological HTML generation performance | Open | Medium |
+
+**5-024**: Research-driven multi-algorithm framework implementing Jensen-Shannon Divergence and other similarity algorithms identified in 5-011a research.
+
+**5-026**: Performance optimization for chronological.html generation addressing timeout and content issues.
+
+---
+
 **Next Phase**: Phase 6 - Image Integration & Chronological Enhancements
