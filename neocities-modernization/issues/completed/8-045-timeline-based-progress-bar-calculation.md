@@ -167,9 +167,32 @@ After implementation, check a known gap period:
 
 ## Metadata
 
-- **Status**: Open
+- **Status**: Complete
 - **Created**: 2026-01-21
+- **Completed**: 2026-01-30
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: All poems need parseable timestamps
 - **Affects**: Progress bar display on all pages
+
+## Implementation Notes
+
+**Audit Results:**
+- All 7,844 poems have `creation_date` field (100% coverage)
+- Timeline spans: April 2021 → January 2026 (~4.7 years)
+- Timestamp format: ISO 8601 with optional milliseconds
+
+**Files Modified:**
+1. `src/flat-html-generator.lua`:
+   - `compute_chronological_mapping()`: Now calculates `timeline_progress` for each poem
+   - Chronological page generation: Uses timeline-based progress instead of position
+   - Effil worker: Uses `timeline_progress` from chrono_map
+
+2. `src/generate-word-pages.lua`:
+   - Uses `timeline_progress` from chrono_map with position fallback
+
+**Key Changes:**
+- Progress bars now show actual temporal position in the author's timeline
+- Periods of prolific writing appear as dense clusters
+- Periods of silence appear as visible gaps in progression
+- Falls back to position-based calculation if timeline_progress missing
