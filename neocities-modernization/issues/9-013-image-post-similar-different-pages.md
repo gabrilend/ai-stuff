@@ -1,4 +1,4 @@
-# Issue 9-004: Image-Only Post Timestamp Association
+# Issue 9-013: Image-Only Post Timestamp Association
 
 ## Priority
 Medium
