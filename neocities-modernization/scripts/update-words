@@ -2,7 +2,8 @@
 # Syncs words/notes/images from backup locations to project input directory
 # Preserves generated poems.json files to avoid redundant extraction
 #
-# Issue 8-042: Added configurable image sync from config/input-sources.json
+# Issue 8-042: Added configurable image sync from config.lua
+# Issue 10-014: Migrated from input-sources.json to unified config.lua
 #
 # The external sync-to-projects script does rm -rf input/, which would delete
 # the generated files that scripts/update creates. We preserve and restore them
@@ -12,7 +13,100 @@ set -euo pipefail
 
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 BACKUP_DIR="${DIR}/temp/preserved-files-$$"
-CONFIG_FILE="${DIR}/config/input-sources.json"
+CONFIG_FILE="${DIR}/config.lua"
+
+# {{{ get_config_value
+# Helper function to read values from config.lua using inline Lua
+# Usage: get_config_value "image_sync.enabled"
+# Returns the value as a string (true/false for booleans, strings as-is)
+get_config_value() {
+    local key_path="$1"
+    lua -e "
+        local config = dofile('${DIR}/config.lua')
+        local keys = {}
+        for k in string.gmatch('${key_path}', '[^.]+') do
+            table.insert(keys, k)
+        end
+        local value = config
+        for _, k in ipairs(keys) do
+            if type(value) ~= 'table' then
+                print('nil')
+                return
+            end
+            value = value[k]
+        end
+        if value == nil then
+            print('nil')
+        elseif type(value) == 'boolean' then
+            print(value and 'true' or 'false')
+        else
+            print(tostring(value))
+        end
+    " 2>/dev/null || echo "nil"
+}
+# }}}
+
+# {{{ get_config_array_length
+# Get the length of a config array
+get_config_array_length() {
+    local key_path="$1"
+    lua -e "
+        local config = dofile('${DIR}/config.lua')
+        local keys = {}
+        for k in string.gmatch('${key_path}', '[^.]+') do
+            table.insert(keys, k)
+        end
+        local value = config
+        for _, k in ipairs(keys) do
+            if type(value) ~= 'table' then
+                print('0')
+                return
+            end
+            value = value[k]
+        end
+        if type(value) == 'table' then
+            print(#value)
+        else
+            print('0')
+        end
+    " 2>/dev/null || echo "0"
+}
+# }}}
+
+# {{{ get_config_array_item
+# Get an item from a config array (1-indexed)
+# Usage: get_config_array_item "image_sync.sources" 1 "name"
+get_config_array_item() {
+    local key_path="$1"
+    local index="$2"
+    local field="$3"
+    lua -e "
+        local config = dofile('${DIR}/config.lua')
+        local keys = {}
+        for k in string.gmatch('${key_path}', '[^.]+') do
+            table.insert(keys, k)
+        end
+        local value = config
+        for _, k in ipairs(keys) do
+            if type(value) ~= 'table' then
+                print('')
+                return
+            end
+            value = value[k]
+        end
+        if type(value) == 'table' and value[${index}] then
+            local item = value[${index}]['${field}']
+            if item then
+                print(tostring(item))
+            else
+                print('')
+            end
+        else
+            print('')
+        end
+    " 2>/dev/null || echo ""
+}
+# }}}
 
 # {{{ preserve_generated_files
 # Back up generated files before sync (they get deleted by rm -rf input/)
@@ -60,22 +154,17 @@ restore_generated_files() {
 
 # {{{ sync_images_from_config
 # Issue 8-042: Sync images from configurable source directories
+# Issue 10-014: Migrated from jq/JSON to inline Lua config reading
 sync_images_from_config() {
-    # Check if jq is available for JSON parsing
-    if ! command -v jq &> /dev/null; then
-        echo "   ⚠️  jq not found, skipping configurable image sync"
-        return 0
-    fi
-
     # Check if config file exists
     if [ ! -f "${CONFIG_FILE}" ]; then
         echo "   ⚠️  Config file not found: ${CONFIG_FILE}"
         return 0
     fi
 
-    # Check if image_sync is enabled
+    # Check if image_sync is enabled (using Lua helper)
     local enabled
-    enabled=$(jq -r '.image_sync.enabled // false' "${CONFIG_FILE}")
+    enabled=$(get_config_value "image_sync.enabled")
     if [ "${enabled}" != "true" ]; then
         echo "   📷 Image sync disabled in config"
         return 0
@@ -83,17 +172,28 @@ sync_images_from_config() {
 
     # Get destination directory
     local destination
-    destination=$(jq -r '.image_sync.destination // "input/media_attachments"' "${CONFIG_FILE}")
+    destination=$(get_config_value "image_sync.destination")
+    if [ "${destination}" == "nil" ] || [ -z "${destination}" ]; then
+        destination="input/media_attachments"
+    fi
     local dest_path="${DIR}/${destination}"
 
     # Get sync options
     local preserve_structure overwrite_existing
-    preserve_structure=$(jq -r '.image_sync.preserve_structure // true' "${CONFIG_FILE}")
-    overwrite_existing=$(jq -r '.image_sync.overwrite_existing // false' "${CONFIG_FILE}")
+    preserve_structure=$(get_config_value "image_sync.preserve_structure")
+    overwrite_existing=$(get_config_value "image_sync.overwrite_existing")
+
+    # Default to true/false if not set
+    if [ "${preserve_structure}" == "nil" ]; then
+        preserve_structure="true"
+    fi
+    if [ "${overwrite_existing}" == "nil" ]; then
+        overwrite_existing="false"
+    fi
 
     # Get number of sources
     local num_sources
-    num_sources=$(jq '.image_sync.sources | length' "${CONFIG_FILE}")
+    num_sources=$(get_config_array_length "image_sync.sources")
 
     if [ "${num_sources}" -eq 0 ]; then
         echo "   📷 No image sources configured"
@@ -107,11 +207,11 @@ sync_images_from_config() {
 
     local total_synced=0
 
-    # Iterate over sources
-    for i in $(seq 0 $((num_sources - 1))); do
+    # Iterate over sources (1-indexed for Lua)
+    for i in $(seq 1 "${num_sources}"); do
         local source_name source_path
-        source_name=$(jq -r ".image_sync.sources[${i}].name" "${CONFIG_FILE}")
-        source_path=$(jq -r ".image_sync.sources[${i}].path" "${CONFIG_FILE}")
+        source_name=$(get_config_array_item "image_sync.sources" "${i}" "name")
+        source_path=$(get_config_array_item "image_sync.sources" "${i}" "path")
 
         if [ ! -d "${source_path}" ]; then
             echo "      ⚠️  ${source_name}: source not found (${source_path})"

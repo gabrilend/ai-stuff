@@ -30,7 +30,8 @@ end
 -- Paths relative to project directory
 local POEMS_JSON = DIR .. "/assets/poems.json"
 local OUTPUT_DIR = DIR .. "/output"
-local CONFIG_FILE = DIR .. "/config/input-sources.json"
+-- Issue 10-014: Migrated from input-sources.json to unified config.lua
+local CONFIG_FILE = DIR .. "/config.lua"
 -- }}}
 
 -- {{{ Parse arguments
@@ -261,10 +262,10 @@ local function validate(options)
     local chrono_count = count_files(OUTPUT_DIR, "chronological-*.html")
     results.stats.chronological_pages = chrono_count
 
-    -- Load config to get poems_per_page
-    local config, _ = read_json_file(CONFIG_FILE)
+    -- Load config to get poems_per_page (Issue 10-014: using config.lua)
     local poems_per_page = 500  -- default
-    if config and config.pagination and config.pagination.chronological_poems_per_page then
+    local ok, config = pcall(dofile, CONFIG_FILE)
+    if ok and config and config.pagination and config.pagination.chronological_poems_per_page then
         poems_per_page = config.pagination.chronological_poems_per_page
     end
 
