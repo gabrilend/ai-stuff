@@ -31,6 +31,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-012 | Fix pipeline validation counting bugs | Open | High |
 | 10-013 | Implement TUI config editor | Open | Medium |
+| 10-015 | Unified input sources configuration | Open | Medium |
 
 ### Completed Issues
 
@@ -72,6 +73,14 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Interactive editor for config.lua
 - Validation before writing
 - Integrates with existing TUI infrastructure
+
+**10-015: Unified Input Sources Configuration** - OPEN
+- Consolidate 4 scattered input-related sections into single `sources` structure
+- Support multiple named directories per source type (fediverse, messages, notes, images)
+- Deduplicate by content ID across directories (same poem = one entry)
+- Preserve unique content from different directories
+- Each format respects its native ID scheme (ActivityPub IDs, filenames, record keys)
+- Follow-up improvement to 10-003 config consolidation
 
 ## Completion Criteria
 
