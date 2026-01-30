@@ -496,3 +496,163 @@ This causes a warning on every pipeline run:
 ```
 
 **Follow-up issue created:** `10-014-complete-config-migration-from-input-sources-json.md`
+
+---
+
+## Proposed Future Improvement: Unified Input Sources (2026-01-30)
+
+The current config has input-related settings scattered across 4 sections:
+
+| Section | Purpose | Lines |
+|---------|---------|-------|
+| `input_sources` | Paths to input directories | 38-51 |
+| `extraction` | Enable/disable toggles per source type | 53-67 |
+| `image_sync` | External directories to sync images from | 173-211 |
+| `image_integration` | Image processing settings | 159-171 |
+
+### Proposed Consolidation
+
+Collapse these into a unified `sources` structure where:
+- Each source type can have **multiple named directories**
+- Duplicate entries across directories are **deduplicated** (same content ID = same poem)
+- Differences are treated as **unique** (new poems from new directories)
+- Each source respects its **native format** (ActivityPub JSON, plain text, etc.)
+
+### Proposed Config Structure
+
+```lua
+-- {{{ sources
+-- Unified input source configuration. Each source type supports multiple
+-- named directories. The pipeline deduplicates by content ID across all
+-- directories of the same type, preserving unique poems from each.
+sources = {
+    fediverse = {
+        enabled = true,
+        format = "activitypub",  -- outbox.json parsing
+        directories = {
+            {
+                name = "primary",
+                path = "input/fediverse",
+                description = "Main Mastodon archive"
+            },
+            {
+                name = "backup-2024",
+                path = "/home/ritz/backups/old-fedi/2024",
+                description = "Archived export from 2024",
+                optional = true
+            }
+        },
+        -- Media handling for this source type
+        media = {
+            extract_attachments = true,
+            output_path = "input/media_attachments/fediverse"
+        }
+    },
+
+    messages = {
+        enabled = true,
+        format = "messages_export",  -- export.json parsing
+        directories = {
+            {
+                name = "primary",
+                path = "input/messages",
+                description = "Private message archives"
+            }
+        }
+    },
+
+    notes = {
+        enabled = true,
+        format = "plaintext",  -- .txt/.md files
+        directories = {
+            {
+                name = "primary",
+                path = "input/notes",
+                description = "Personal notes and drafts"
+            },
+            {
+                name = "archived-notes",
+                path = "/home/ritz/documents/old-notes",
+                optional = true
+            }
+        }
+    },
+
+    bluesky = {
+        enabled = true,
+        format = "atproto",  -- AT Protocol records
+        directories = {
+            {
+                name = "primary",
+                path = "input/bluesky"
+            }
+        }
+    },
+
+    images = {
+        enabled = true,
+        -- Multiple named image sources
+        directories = {
+            {
+                name = "my-art",
+                path = "/home/ritz/pictures/my-art",
+                description = "artwork made in kolourpaint"
+            },
+            {
+                name = "things-I-almost-posted",
+                path = "/home/ritz/pictures/things-i-almost-posted",
+                description = "finally posting them"
+            },
+            {
+                name = "poem-pictures",
+                path = "/home/ritz/pictures/poem-pictures",
+                description = "pictures I made of my poems"
+            }
+        },
+        -- Image-specific settings (merged from image_integration)
+        supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
+        max_file_size_mb = 100,
+        preserve_structure = true,
+        overwrite_existing = false
+    }
+},
+-- }}}
+
+-- Sections to REMOVE after migration:
+--   - input_sources (merged into sources.*.directories)
+--   - extraction (merged into sources.*.enabled)
+--   - image_sync (merged into sources.images)
+--   - image_integration (merged into sources.images settings)
+```
+
+### Benefits
+
+1. **Single section for all inputs**: One place to see everything the pipeline reads
+2. **Named directories**: Clear logging showing which source contributed what
+3. **Multi-directory support**: Add old archives without restructuring
+4. **Deduplication logic**: Same content ID from multiple directories = one poem
+5. **Per-type settings**: Each format can have format-specific options in its section
+6. **Optional directories**: Missing optional sources skip gracefully, missing required sources error
+
+### Implementation Considerations
+
+1. **Deduplication key**: Each format needs a stable ID for deduplication:
+   - `fediverse`: ActivityPub post ID
+   - `messages`: Message index within export
+   - `notes`: Filename (without extension)
+   - `bluesky`: AT Protocol record key
+   - `images`: MD5 hash of file content
+
+2. **Extraction order**: When duplicates exist, prefer:
+   - Primary directory over optional directories
+   - Earlier-listed directories over later ones
+   - Most recent modification time (for tie-breaking)
+
+3. **Migration path**:
+   - Phase 1: Add `sources` section alongside existing sections
+   - Phase 2: Update extractors to read from unified structure
+   - Phase 3: Remove deprecated sections
+
+### Related Issue
+
+Create `10-015-unified-input-sources-config.md` to track this improvement.
