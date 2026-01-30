@@ -33,6 +33,9 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-012 | Implement paginated similarity chapters | ✅ Complete | High |
 | 8-016 | Validate poem representation in pagination | ✅ Core complete | Medium |
 | 8-020 | Hybrid pagination strategy (45GB constraint) | **In Progress** | High |
+| 8-031 | Convert between similarity matrix formats | Open | Low |
+| 8-034 | Refactor to triangular individual files only | Open | Low |
+| 8-045 | Timeline-based progress bar calculation | Open | Medium |
 | 8-030 | Add chronological anchor links | ✅ Complete | High |
 | 8-035 | Colorize nav boxes according to progress bar position | ✅ Complete | Low |
 | 8-036 | Add poem identification to ranking headers | ✅ Complete | Low |
