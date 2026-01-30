@@ -787,13 +787,22 @@ end
 -- }}}
 
 -- {{{ function compute_chronological_mapping
--- Computes poem_index → {position, page_number, total_poems, total_pages}
+-- Computes poem_index → {position, page_number, total_poems, total_pages, timeline_progress}
 -- Used by parallel workers to generate correct chronological links and progress bars
+-- Issue 8-045: Added timeline_progress for time-based progress bar calculation
 local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
     -- Sort chronologically (same as generate_chronological_index_with_navigation)
     local sorted_poems = sort_poems_chronologically_by_dates(poems_data)
     local total_poems = #sorted_poems
     local total_pages = chrono_poems_per_page and math.ceil(total_poems / chrono_poems_per_page) or 1
+
+    -- Issue 8-045: Calculate timeline bounds for time-based progress
+    -- sorted_poems[i].timestamp contains Unix timestamp from extract_post_date_from_poem()
+    local first_timestamp = sorted_poems[1] and sorted_poems[1].timestamp or 0
+    local last_timestamp = sorted_poems[total_poems] and sorted_poems[total_poems].timestamp or 0
+    local timeline_span = last_timestamp - first_timestamp
+    -- Avoid division by zero if all poems have same timestamp
+    if timeline_span <= 0 then timeline_span = 1 end
 
     -- Build mapping
     local mapping = {}
@@ -802,11 +811,15 @@ local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
         local poem_index = poem.poem_index
         if poem_index then
             local page_number = chrono_poems_per_page and math.ceil(position / chrono_poems_per_page) or 1
+            -- Issue 8-045: Calculate timeline progress as percentage of time elapsed
+            local poem_timestamp = poem_info.timestamp or first_timestamp
+            local timeline_progress = ((poem_timestamp - first_timestamp) / timeline_span) * 100
             mapping[poem_index] = {
                 position = position,
                 page_number = page_number,
                 total_poems = total_poems,
-                total_pages = total_pages
+                total_pages = total_pages,
+                timeline_progress = timeline_progress  -- Issue 8-045: time-based progress
             }
         end
     end
@@ -2678,6 +2691,12 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
     local sorted_poems_with_timestamps = sort_poems_chronologically_by_dates(poems_data)
     local total_poems = #sorted_poems_with_timestamps
 
+    -- Issue 8-045: Calculate timeline bounds for time-based progress bars
+    local first_timestamp = sorted_poems_with_timestamps[1] and sorted_poems_with_timestamps[1].timestamp or 0
+    local last_timestamp = sorted_poems_with_timestamps[total_poems] and sorted_poems_with_timestamps[total_poems].timestamp or 0
+    local timeline_span = last_timestamp - first_timestamp
+    if timeline_span <= 0 then timeline_span = 1 end  -- Avoid division by zero
+
     -- Calculate pagination
     local total_pages = chronological_paginated and math.ceil(total_poems / poems_per_page) or 1
     if total_pages < 1 then total_pages = 1 end
@@ -2767,12 +2786,14 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
                 io.flush()
             end
 
-            -- Calculate chronological progress based on temporal position (not ID)
-            local temporal_progress = (i / total_poems) * 100
+            -- Issue 8-045: Calculate chronological progress based on actual timestamp
+            -- This shows temporal position in the author's timeline, not just poem count
+            local poem_timestamp = poem_info.timestamp or first_timestamp
+            local timeline_progress = ((poem_timestamp - first_timestamp) / timeline_span) * 100
             local progress_info = {
                 poem_id = poem_id,
                 total_poems = total_poems,
-                percentage = temporal_progress,
+                percentage = timeline_progress,  -- Issue 8-045: time-based, not position-based
                 position = i,
                 temporal_index = i
             }
@@ -3494,8 +3515,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local is_boost = is_boost_poem(poem)
 
                     -- Get chronological position from mapping
-                    local chrono_info = chrono_map[poem_idx] or {position = 1, page_number = 1, total_poems = 1, total_pages = 1}
-                    local progress_pct = (chrono_info.position / chrono_info.total_poems) * 100
+                    local chrono_info = chrono_map[poem_idx] or {position = 1, page_number = 1, total_poems = 1, total_pages = 1, timeline_progress = 50}
+                    -- Issue 8-045: Use timeline_progress (time-based) instead of position-based
+                    -- Shows actual temporal position in the author's timeline, not just poem count
+                    local progress_pct = chrono_info.timeline_progress or ((chrono_info.position / chrono_info.total_poems) * 100)
 
                     -- Calculate progress bar chars
                     -- Golden: 82 interior chars + 2 corners = 84 total

@@ -533,8 +533,9 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
 
     -- Use CHRONOLOGICAL position for progress bar (not similarity score)
     -- This matches similar/different pages and helps orient the reader in the story
-    local chrono_info = chrono_map and chrono_map[poem_idx] or {position = 1, total_poems = 1}
-    local progress_pct = (chrono_info.position / chrono_info.total_poems) * 100
+    -- Issue 8-045: Use timeline_progress (time-based) instead of position-based
+    local chrono_info = chrono_map and chrono_map[poem_idx] or {position = 1, total_poems = 1, timeline_progress = 50}
+    local progress_pct = chrono_info.timeline_progress or ((chrono_info.position / chrono_info.total_poems) * 100)
 
     -- Calculate progress bar chars
     -- Regular: 83 chars total, Golden: 82 interior + 2 corners = 84 total
