@@ -31,13 +31,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 | 8-020 | Hybrid pagination strategy (45GB constraint) | In Progress | High |
 | 8-031 | Convert between similarity matrix formats | Open | Low |
 | 8-034 | Refactor to triangular individual files only | Open | Low |
-| 8-045 | Timeline-based progress bar calculation | Open | Medium |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
 | 8-057 | Boost visual formatting | Completed | 2026-01-29 |
+| 8-045 | Timeline-based progress bar calculation | Completed | 2026-01-30 |
 | 8-040 | Add images to similar/different pages | Completed | 2026-01-28 |
 | 8-011 | Scrape fediverse boost content | Completed (279/458 scraped) | 2026-01-28 |
 | 8-012 | Implement paginated similarity chapters | Completed | 2026-01-21 |
