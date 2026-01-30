@@ -260,7 +260,7 @@ To identify poems for exclusion, users can:
 - `scripts/extract-notes.lua` - Notes extraction
 - `scripts/extract-messages.lua` - Messages extraction
 - `config/input-sources.json` - Other configuration
-- `issues/6-030-enhance-embedding-content-preprocessing.md` - Related quality improvements
+- `issues/6-033-enhance-embedding-content-preprocessing.md` - Related quality improvements
 
 ## Metadata
 
