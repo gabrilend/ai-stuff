@@ -33,6 +33,7 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 | 7-001 | Fix run.sh warnings and errors | Completed | 2025-12-14 |
 | 7-002 | Clean up run.sh output | Completed | 2025-12-14 |
 | 7-003 | Cleanup run.sh output formatting | Completed | 2026-01-30 |
+| 7-004 | Add ignored archives configuration | Completed | 2026-01-30 |
 
 ### Issue Details
 
@@ -44,6 +45,14 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 - Added `optional` flag to config sources (missing required = fatal error)
 - Optional missing sources show yellow attention message instead of silent skip
 - Semantic color scheme documented (green=milestones, white=success, yellow=attention, red=fatal)
+- Added `extraction.ignored_archives` config for non-content ZIPs (neocities site backup)
+- Removed obsolete cleanup line from update-words (was targeting wrong path)
+
+**7-004: Add Ignored Archives Configuration** - COMPLETED (2026-01-30)
+- Config-driven list of ZIP files to skip during archive scanning
+- Addresses `neocities-ritz-menardi.zip` embedded in fediverse media_attachments
+- Silently skips rather than warning (explicit "not content" config)
+- Removed obsolete cleanup from update-words (wrong path, wrong stage)
 
 **7-002: Clean Up run.sh Output** - COMPLETED
 - Suppressed verbose unzip output

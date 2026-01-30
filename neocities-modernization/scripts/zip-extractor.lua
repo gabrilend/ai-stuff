@@ -19,6 +19,24 @@ local TEMP_DIR = arg and arg[2] or error("Temporary directory required as second
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dkjson = require("dkjson")
 
+-- Issue 7-003: Load config for ignored_archives list
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local config = config_loader.load()
+local ignored_archives = (config.extraction and config.extraction.ignored_archives) or {}
+
+-- {{{ local function is_ignored_archive
+-- Check if a ZIP file should be skipped based on config.extraction.ignored_archives
+local function is_ignored_archive(basename)
+    for _, ignored in ipairs(ignored_archives) do
+        if basename == ignored then
+            return true
+        end
+    end
+    return false
+end
+-- }}}
+
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
 local COLOR_BLUE = "\027[94m"     -- Bright blue for info (ℹ️)
@@ -74,16 +92,23 @@ local function detect_archives(input_directory)
     local handle = io.popen(find_cmd)
     
     for file in handle:lines() do
-        local archive_type = detect_archive_type(file)
-        if archive_type then
-            table.insert(archives, {
-                path = file,
-                type = archive_type,
-                basename = file:match("([^/]+)%.zip$")
-            })
-            print("📦 Found " .. archive_type .. " archive: " .. file:match("([^/]+)%.zip$"))
+        local basename = file:match("([^/]+)%.zip$")
+
+        -- Issue 7-003: Skip archives in the ignored list (configured in config.lua)
+        if is_ignored_archive(basename) then
+            -- Silently skip - these are known non-content ZIPs
         else
-            print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Unknown archive type: " .. file:match("([^/]+)%.zip$"))
+            local archive_type = detect_archive_type(file)
+            if archive_type then
+                table.insert(archives, {
+                    path = file,
+                    type = archive_type,
+                    basename = basename
+                })
+                print("📦 Found " .. archive_type .. " archive: " .. basename)
+            else
+                print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Unknown archive type: " .. basename)
+            end
         end
     end
     handle:close()

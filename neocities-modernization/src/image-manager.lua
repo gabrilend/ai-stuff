@@ -43,8 +43,17 @@ local M = {}
 
 -- {{{ function load_config
 -- Issue 10-003: Use unified config instead of input-sources.json
+-- Issue 7-003: Use shared media_attachments_path from input_sources (single source of truth)
 local function load_config()
-    return unified_config.image_integration or {}
+    local config = unified_config.image_integration or {}
+    -- Build image_directories from shared path
+    local media_path = unified_config.input_sources and unified_config.input_sources.media_attachments_path
+    if media_path then
+        config.image_directories = {media_path}
+    else
+        config.image_directories = {"input/media_attachments"}  -- fallback
+    end
+    return config
 end
 -- }}}
 
