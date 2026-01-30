@@ -32,7 +32,12 @@ local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings (⚠️)
 local COLOR_RESET = "\027[0m"     -- Reset to default
 
 -- {{{ local function relative_path
+-- Issue 7-003: Show project name instead of "./" when path equals DIR
 local function relative_path(absolute_path)
+    if absolute_path == DIR or absolute_path == DIR .. "/" then
+        local dir_name = DIR:match("([^/]+)/?$")
+        return dir_name .. "/"
+    end
     if absolute_path:sub(1, #DIR) == DIR then
         local rel = absolute_path:sub(#DIR + 1)
         if rel:sub(1, 1) == "/" then rel = rel:sub(2) end
