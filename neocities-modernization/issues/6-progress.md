@@ -127,10 +127,7 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
 | 6-013 | Investigate semantic color distribution imbalance | Open | Low |
-| 6-030* | Enhance embedding content preprocessing | Open | High |
-
-**Note**: 6-030 in completed/ is "Resolve username variation anonymization" (2025-12-14).
-The open 6-030 file is a different issue created later about embedding preprocessing improvements.
+| 6-033 | Enhance embedding content preprocessing | Open | High |
 
 ---
 

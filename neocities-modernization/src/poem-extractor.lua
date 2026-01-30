@@ -673,7 +673,7 @@ end
 
 -- {{{ function M.extract_pure_poem_content_for_embedding
 -- Enhanced version of extract_pure_poem_content for embedding generation
--- Issue 6-030: Additional preprocessing for better embedding quality
+-- Issue 6-033: Additional preprocessing for better embedding quality
 -- Key differences from extract_pure_poem_content:
 --   1. Converts dashes to spaces (better tokenization: "cannabis-mentioned" → "cannabis mentioned")
 --   2. Strips file path metadata that leaked into content
