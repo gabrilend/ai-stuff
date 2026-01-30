@@ -1,4 +1,4 @@
-# Issue 9-003: HTML Rendering and Performance Fixes
+# Issue 9-009: HTML Rendering and Performance Fixes
 
 ## Current Behavior
 

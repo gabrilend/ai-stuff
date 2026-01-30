@@ -24,14 +24,18 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
+| 9-001 | Implement Vulkan compute infrastructure | In Progress | High |
 | 9-001f | Remove effil dependency | Open | Low |
 | 9-002 | Port similarity matrix generation to Vulkan | In Progress | Medium |
 | 9-002b | Validate GPU similarity implementation | Open | High |
 | 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
-| 9-004a | GPU-accelerate maze algorithm | Open | Low |
-| 9-010 | Fix image repetition in associated posts | ✅ Complete | High |
-| 9-011 | Display content warnings from ActivityPub | ✅ Complete | Medium |
+| 9-004 | GPU-accelerate maze algorithm | Open | Low |
+| 9-006 | Poem box format validator | Open | Low |
+| 9-007 | C shared memory for HTML generation | Open | Low |
+| 9-008 | Streaming HTML generation with progress | Open | Low |
+| 9-009 | HTML rendering and performance fixes | Open | Medium |
+| 9-013 | Image-only post timestamp association | Open | Medium |
 
 ### Completed Issues
 
@@ -50,6 +54,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-004b | Image-only post timestamp association | Superseded by 9-010 | 2026-01-21 |
 | 9-010 | Fix image repetition in associated posts | Completed | 2026-01-21 |
 | 9-011 | Display content warnings from ActivityPub | Completed | 2026-01-21 |
+| 9-012 | Use archive alt-text for images | Completed | 2026-01-21 |
 
 **9-011: Display Content Warnings from ActivityPub** - COMPLETED (2026-01-21)
 - ✅ Added `poem.content_warning` display to `format_content_with_warnings()` (chronological page)
