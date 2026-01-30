@@ -127,13 +127,10 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
 | 6-013 | Investigate semantic color distribution imbalance | Open | Low |
-| 6-031 | Configurable poem exclusion filter | Open | Medium |
+| 6-030* | Enhance embedding content preprocessing | Open | High |
 
-**6-031: Configurable Poem Exclusion Filter** - Open
-- Config file (`config/excluded-poems.txt`) to specify poems to exclude
-- Filter out mundane/non-poetic content that pollutes centroid calculations
-- Support per-category exclusion (notes, fediverse, messages, bluesky)
-- Applied during extraction/anonymization step
+**Note**: 6-030 in completed/ is "Resolve username variation anonymization" (2025-12-14).
+The open 6-030 file is a different issue created later about embedding preprocessing improvements.
 
 ---
 
@@ -146,7 +143,7 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 - **1,271 Users Anonymized**: Comprehensive privacy protection
 - **True Temporal Ordering**: Chronological browsing by actual timestamps
 - **Cleaner Embeddings**: 29% of content improved for better similarity
-- **13 Issues Completed**: All Phase 6 objectives achieved
+- **15 Issues Completed**: All Phase 6 objectives achieved
 
 ---
 
@@ -165,4 +162,5 @@ Phase 6 focuses on integrating multimedia content with the poem collection and i
 - **6-028**: Replace CSS with Hard-coded HTML Generation (2025-12-14)
 - **6-029**: Remove Reply Syntax from Embedding Content (2025-12-14)
 - **6-030**: Resolve Username Variation Anonymization Inconsistency (2025-12-14)
+- **6-031**: Configurable Poem Exclusion Filter (2026-01-21)
 - **6-032**: Fix BR Tag Variants in HTML Cleaning (2026-01-21)
