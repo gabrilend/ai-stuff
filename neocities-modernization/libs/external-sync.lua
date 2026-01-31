@@ -105,9 +105,19 @@ local function get_external_files()
 end
 -- }}}
 
--- {{{ local function dir_exists
--- Check if a directory exists
-local function dir_exists(path)
+-- {{{ local function path_exists
+-- Check if a path exists (file or directory)
+local function path_exists(path)
+    local handle = io.popen("test -e '" .. path .. "' && echo yes || echo no")
+    local result = handle:read("*l")
+    handle:close()
+    return result == "yes"
+end
+-- }}}
+
+-- {{{ local function is_directory
+-- Check if a path is a directory (vs a file)
+local function is_directory(path)
     local handle = io.popen("test -d '" .. path .. "' && echo yes || echo no")
     local result = handle:read("*l")
     handle:close()
@@ -116,10 +126,13 @@ end
 -- }}}
 
 -- {{{ local function count_files
--- Count files in a directory
+-- Count files in a directory (returns 1 for a single file)
 local function count_files(path)
-    if not dir_exists(path) then
+    if not path_exists(path) then
         return 0
+    end
+    if not is_directory(path) then
+        return 1  -- Single file
     end
     local handle = io.popen("find '" .. path .. "' -type f 2>/dev/null | wc -l")
     local result = handle:read("*l")
@@ -130,6 +143,7 @@ end
 
 -- {{{ local function run_rsync
 -- Run rsync to sync source to destination
+-- Handles both files and directories
 -- Returns: success (bool), files_synced (number)
 local function run_rsync(source_path, dest_path, options)
     options = options or {}
@@ -141,15 +155,22 @@ local function run_rsync(source_path, dest_path, options)
         rsync_opts = rsync_opts .. " --ignore-existing"
     end
 
-    -- Ensure destination exists
+    -- Ensure destination directory exists
     os.execute("mkdir -p '" .. dest_path .. "'")
 
     -- Count files before
     local before_count = count_files(dest_path)
 
-    -- Run rsync (trailing slash on source means "contents of")
-    local cmd = string.format("rsync %s '%s/' '%s/' 2>/dev/null",
-        rsync_opts, source_path, dest_path)
+    local cmd
+    if is_directory(source_path) then
+        -- Directory: trailing slash on source means "contents of"
+        cmd = string.format("rsync %s '%s/' '%s/' 2>/dev/null",
+            rsync_opts, source_path, dest_path)
+    else
+        -- File: copy file into destination directory (no trailing slash on source)
+        cmd = string.format("rsync %s '%s' '%s/' 2>/dev/null",
+            rsync_opts, source_path, dest_path)
+    end
     local result = os.execute(cmd)
 
     -- Count files after
@@ -186,7 +207,8 @@ function M.sync_source(source_entry)
         }
     end
 
-    if not destination then
+    -- destination can be empty string "" (meaning input/ root), but not nil
+    if destination == nil then
         return {
             success = false,
             name = name,
@@ -196,10 +218,14 @@ function M.sync_source(source_entry)
     end
 
     -- Build full destination path (relative to input/)
-    local full_dest = project_root .. "/input/" .. destination
+    -- Empty destination "" means input/ directory itself
+    local full_dest = project_root .. "/input"
+    if destination ~= "" then
+        full_dest = full_dest .. "/" .. destination
+    end
 
-    -- Check if source exists
-    if not dir_exists(source_path) then
+    -- Check if source exists (file or directory)
+    if not path_exists(source_path) then
         if is_optional then
             return {
                 success = true,  -- Optional missing is not a failure
@@ -361,7 +387,9 @@ function M.print_sources()
         local opt_marker = source.optional and " (optional)" or ""
         print(string.format("  %s%s", source.name, opt_marker))
         print(string.format("    FROM: %s", source.source))
-        print(string.format("    TO:   input/%s", source.destination))
+        -- Show "input/" for empty destination, otherwise "input/{dest}"
+        local dest_display = source.destination == "" and "input/" or ("input/" .. source.destination)
+        print(string.format("    TO:   %s", dest_display))
     end
 end
 -- }}}
