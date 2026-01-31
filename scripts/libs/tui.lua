@@ -31,6 +31,20 @@ ffi.cdef[[
         unsigned short ws_ypixel;
     };
     int ioctl(int fd, unsigned long request, ...);
+
+    // Issue 10-018: Add select() for non-blocking input with timeout
+    typedef long int __fd_mask;
+    typedef struct {
+        __fd_mask fds_bits[16];  // 1024 / 64 = 16 for 64-bit systems
+    } fd_set;
+
+    struct timeval {
+        long tv_sec;
+        long tv_usec;
+    };
+
+    int select(int nfds, fd_set *readfds, fd_set *writefds,
+               fd_set *exceptfds, struct timeval *timeout);
 ]]
 
 local STDIN_FILENO = 0
@@ -228,6 +242,51 @@ local function read_char()
         return io.stdin:read(1)
     end
 end
+
+-- {{{ Issue 10-018: Non-blocking input with timeout for animations
+-- fd_set manipulation helpers
+local function fd_zero(fdset)
+    for i = 0, 15 do
+        fdset.fds_bits[i] = 0
+    end
+end
+
+local function fd_set(fd, fdset)
+    local word = math.floor(fd / 64)
+    local bit_pos = fd % 64
+    fdset.fds_bits[word] = bit.bor(fdset.fds_bits[word], bit.lshift(1LL, bit_pos))
+end
+
+local function fd_isset(fd, fdset)
+    local word = math.floor(fd / 64)
+    local bit_pos = fd % 64
+    return bit.band(fdset.fds_bits[word], bit.lshift(1LL, bit_pos)) ~= 0
+end
+
+-- Check if input is available within timeout_ms milliseconds
+-- Returns true if input is available, false if timeout
+local function input_available(timeout_ms)
+    local readfds = ffi.new("fd_set")
+    local timeout = ffi.new("struct timeval")
+
+    fd_zero(readfds)
+    fd_set(STDIN_FILENO, readfds)
+
+    timeout.tv_sec = math.floor(timeout_ms / 1000)
+    timeout.tv_usec = (timeout_ms % 1000) * 1000
+
+    local result = ffi.C.select(STDIN_FILENO + 1, readfds, nil, nil, timeout)
+    return result > 0
+end
+
+-- Read a character with timeout (returns nil if timeout)
+local function read_char_timeout(timeout_ms)
+    if not input_available(timeout_ms) then
+        return nil
+    end
+    return read_char()
+end
+-- }}}
 
 local function goto_raw(row, col)
     write_raw(string.format("\027[%d;%dH", row, col))
@@ -606,6 +665,91 @@ function tui.read_key()
     if c == "\003" then return "CTRL_C" end
 
     return c
+end
+-- }}}
+
+-- {{{ tui.read_key_timeout
+-- Issue 10-018: Read key with timeout for animation support
+-- Returns: key, nil on success; nil, "timeout" on timeout; nil, nil on EOF
+function tui.read_key_timeout(timeout_ms)
+    -- Check if input is available within timeout
+    if not input_available(timeout_ms) then
+        return nil, "timeout"
+    end
+
+    -- Input is available, read it (won't block now)
+    local c = read_char()
+    if not c then return nil, nil end
+
+    if c == "\027" then
+        -- Escape sequence - need to read more characters
+        -- Use short timeout for escape sequences (they come quickly)
+        local seq1 = read_char_timeout(50)
+        if not seq1 then return "ESCAPE", nil end
+
+        if seq1 == "[" then
+            local seq2 = read_char_timeout(50)
+            if not seq2 then return "ESCAPE", nil end
+
+            if seq2 == "A" then return "UP", nil end
+            if seq2 == "B" then return "DOWN", nil end
+            if seq2 == "C" then return "RIGHT", nil end
+            if seq2 == "D" then return "LEFT", nil end
+            if seq2 == "H" then return "HOME", nil end
+            if seq2 == "F" then return "END", nil end
+            if seq2 == "Z" then return "SHIFT_TAB", nil end
+
+            if seq2 >= "0" and seq2 <= "9" then
+                local seq3 = read_char_timeout(50)
+                if seq3 == "~" then
+                    if seq2 == "1" then return "HOME", nil end
+                    if seq2 == "3" then return "DELETE", nil end
+                    if seq2 == "4" then return "END", nil end
+                    if seq2 == "5" then return "PAGEUP", nil end
+                    if seq2 == "6" then return "PAGEDOWN", nil end
+                elseif seq3 == ";" then
+                    local seq4 = read_char_timeout(50)
+                    local seq5 = read_char_timeout(50)
+                    if seq2 == "1" and seq4 == "2" and seq5 == "u" then
+                        return "SHIFT_ENTER", nil
+                    elseif seq4 == "2" then
+                        if seq5 == "u" or seq5 == "~" then
+                            if seq2 == "1" then return "SHIFT_HOME", nil end
+                        end
+                    end
+                end
+            end
+            if seq2 == "1" then
+                local seq3 = read_char_timeout(50)
+                if seq3 == "3" then
+                    local seq4 = read_char_timeout(50)
+                    if seq4 == ";" then
+                        local seq5 = read_char_timeout(50)
+                        local seq6 = read_char_timeout(50)
+                        if seq5 == "2" and seq6 == "u" then
+                            return "SHIFT_ENTER", nil
+                        end
+                    end
+                end
+            end
+        end
+        return "ESCAPE", nil
+    end
+
+    if c == "\r" or c == "\n" then return "ENTER", nil end
+    if c == "\t" then return "TAB", nil end
+    if c == "\127" then return "BACKSPACE", nil end
+    if c == " " then return "SPACE", nil end
+    if c == "\003" then return "CTRL_C", nil end
+
+    return c, nil
+end
+-- }}}
+
+-- {{{ tui.input_available
+-- Issue 10-018: Expose input_available for animation loops
+function tui.input_available(timeout_ms)
+    return input_available(timeout_ms)
 end
 -- }}}
 
