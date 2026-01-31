@@ -51,19 +51,17 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Issue 10-015: Get notes path from unified sources config (with fallback to old config)
+-- Issue 10-015a: Get notes path from unified sources config (no fallback - errors if not configured)
 local notes_directories = sources_loader.get_directories("notes")
-local notes_backup_path
-if #notes_directories > 0 then
-    -- Use the primary directory from sources config
-    notes_backup_path = notes_directories[1].path
-    -- Strip DIR prefix if present (sources-loader returns absolute paths)
-    if notes_backup_path:sub(1, #DIR) == DIR then
-        notes_backup_path = notes_backup_path:sub(#DIR + 2)  -- +2 for the slash
-    end
-else
-    -- Fallback to legacy input_sources config
-    notes_backup_path = config.input_sources.notes_source_path or "input/notes"
+if #notes_directories == 0 then
+    print(COLOR_RED .. "❌ Error: sources.notes not configured in config.lua" .. COLOR_RESET)
+    os.exit(1)
+end
+-- Use the primary directory from sources config
+local notes_backup_path = notes_directories[1].path
+-- Strip DIR prefix if present (sources-loader returns absolute paths)
+if notes_backup_path:sub(1, #DIR) == DIR then
+    notes_backup_path = notes_backup_path:sub(#DIR + 2)  -- +2 for the slash
 end
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path

@@ -26,14 +26,11 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 |-------|-------------|--------|----------|
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings | Open | Medium |
-| 10-003 | Consolidate config files into single source (umbrella) | In Progress | Medium |
-| 10-003b | External files syncing centralization | Open | Medium |
+| 10-003 | Consolidate config files into single source (umbrella) | Completed | Medium |
 | 10-008 | Implement multiline command wrapping | Open | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
-| 10-012 | Fix pipeline validation counting bugs | Completed | High |
 | 10-013 | Implement TUI config editor | Open | Medium |
-| 10-015 | Unified input sources configuration | Open | Medium |
 | 10-016 | TUI per-stage regeneration options | Open | Medium |
 | 10-017 | Multi-Ollama server configuration | Open | Medium |
 | 10-018 | Animated command option transitions | Open | Low |
@@ -42,19 +39,24 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 10-003 | Consolidate config files into single source (umbrella) | Completed | 2026-01-30 |
 | 10-003a | Initial config file consolidation | Completed | 2026-01-21 |
+| 10-003b | External files syncing centralization | Completed | 2026-01-30 |
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2026-01-09 |
 | 10-006 | Identify checkbox conversion opportunities | Completed | 2026-01-09 |
 | 10-011 | Implement pipeline data validation utility | Completed | 2026-01-17 |
+| 10-012 | Fix pipeline validation counting bugs | Completed | 2026-01-30 |
 | 10-014 | Complete config migration from input-sources.json | Completed | 2026-01-30 |
+| 10-015 | Unified input sources configuration | Completed | 2026-01-30 |
+| 10-015a | Migrate image-manager to sources-loader | Completed | 2026-01-30 |
 
 ## Issue Details
 
-**10-003: Consolidate Config Files** - IN PROGRESS (umbrella issue)
+**10-003: Consolidate Config Files** - COMPLETED (umbrella issue)
 - Split into sub-issues for tracking:
   - 10-003a: Initial consolidation (COMPLETED 2026-01-21)
-  - 10-003b: External files centralization (OPEN)
-- See also: 10-015 (Unified input sources)
+  - 10-003b: External files centralization (COMPLETED 2026-01-30)
+- Related: 10-015 (Unified input sources) - also completed
 
 **10-003a: Initial Config Consolidation** - COMPLETED (2026-01-21)
 - Unified configuration into `config.lua`
@@ -62,10 +64,12 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Added vimfolded sections for each config category
 - Single authoritative source for all project settings
 
-**10-003b: External Files Centralization** - OPEN
-- Centralize all external file syncing into `external_files` config section
-- Replace hardcoded paths in `scripts/update-words` and `scripts/update`
-- Each entry has: name, source, destination (relative to input/), type, optional
+**10-003b: External Files Centralization** - COMPLETED (2026-01-30)
+- Created `libs/external-sync.lua` module for unified external file syncing
+- Created `scripts/sync-external-files` CLI wrapper
+- Added `external_files` section to config.lua
+- Replaced hardcoded paths in scripts/update and scripts/update-words
+- Removed deprecated `image_sync` section
 
 **10-014: Complete Config Migration** - COMPLETED (2026-01-30)
 - Follow-up to 10-003: migrated remaining scripts still using `input-sources.json`
@@ -80,23 +84,27 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Quick mode and full validation modes
 - Deployment readiness verification
 
-**10-012: Fix Pipeline Validation Counting Bugs** - OPEN
-- Validator reports incorrect counts (182% progress, 2/7844 diversity)
-- Root cause: checking wrong data sources (stale individual files vs cache files)
-- Fix: Use jq queries on actual cache files used by HTML generator
+**10-012: Fix Pipeline Validation Counting Bugs** - COMPLETED (2026-01-30)
+- Fixed validator to use correct data sources (JSON files vs cache files)
+- Added progress percentage displays
+- Validated counts match actual poem collection
 
 **10-013: TUI Config Editor** - OPEN
 - Interactive editor for config.lua
 - Validation before writing
 - Integrates with existing TUI infrastructure
 
-**10-015: Unified Input Sources Configuration** - OPEN
-- Consolidate 4 scattered input-related sections into single `sources` structure
-- Support multiple named directories per source type (fediverse, messages, notes, images)
-- Deduplicate by content ID across directories (same poem = one entry)
-- Preserve unique content from different directories
-- Each format respects its native ID scheme (ActivityPub IDs, filenames, record keys)
-- Follow-up improvement to 10-003 config consolidation
+**10-015: Unified Input Sources Configuration** - COMPLETED (2026-01-30)
+- Created `libs/sources-loader.lua` module for unified source config
+- Consolidated input paths into single `sources` section in config.lua
+- Supports multiple named directories per source type
+- Migrated all extractors to use sources-loader (no fallbacks)
+- Removed deprecated `input_sources` section (10-015a)
+
+**10-015a: Migrate image-manager to sources-loader** - COMPLETED (2026-01-30)
+- Updated `src/image-manager.lua` to use sources-loader
+- Removed last dependency on `input_sources` section
+- Follows "no fallbacks" design - errors clearly if config missing
 
 **10-016: TUI Per-Stage Regeneration Options** - OPEN
 - Move "Force regenerate ALL stages" to top of stages section
@@ -121,11 +129,12 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 
 ## Completion Criteria
 
-- [x] Configuration consolidated into single source (10-003)
+- [x] Configuration consolidated into single source (10-003, 10-003a, 10-003b)
 - [x] CLI flags for all functionality (10-005)
 - [x] Pipeline data validation utility (10-011)
+- [x] Validation script counts accurate (10-012)
+- [x] Unified input sources config (10-015, 10-015a)
 - [ ] TUI integration for all interactive scripts
-- [ ] Validation script counts accurate (10-012)
 - [ ] Test suite integration (10-010)
 
 ---
