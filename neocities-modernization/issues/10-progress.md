@@ -31,7 +31,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
-| 10-018 | Animated command option transitions | Open | Low |
+| 10-018 | Animated command option transitions | Completed | Low |
 | 10-019 | Document config structure and field usage | Open | Low |
 
 ### Completed Issues
@@ -50,6 +50,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-015a | Migrate image-manager to sources-loader | Completed | 2026-01-30 |
 | 10-016 | TUI per-stage regeneration options | Completed | 2026-01-30 |
 | 10-017 | Multi-Ollama server configuration | Completed | 2026-01-30 |
+| 10-018 | Animated command option transitions | Completed | 2026-01-30 |
 
 ## Issue Details
 
@@ -124,12 +125,15 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - TUI radio button selection deferred (CLI sufficient for current workflow)
 - "No fallbacks" design: removed all backward-compatibility code
 
-**10-018: Animated Command Option Transitions** - OPEN
+**10-018: Animated Command Option Transitions** - COMPLETED (2026-01-30)
 - Visual animations when options are added/removed from command preview
-- Insert: highlight color for ~400ms, then fade to normal
-- Remove: change to red/dim, pause, remove text, slide remaining options left
-- Character-by-character slide animation (~100ms per frame)
-- Configurable timing with disable option for users who prefer instant updates
+- Insert: highlight color (cyan, bold) for ~400ms, then fade to normal
+- Remove: change to red/bold, pause, then progressively close gap
+- Progressive slide animation (gap shrinks over 12 frames, 80ms each)
+- Queue system processes animations in order (no interruption)
+- Non-blocking input via FFI select() with timeout
+- Animation enable flag in state (configurable)
+- Files modified: tui.lua (FFI input), menu.lua (animation system)
 
 **10-019: Document Config Structure and Field Usage** - OPEN
 - Add inline documentation to config.lua explaining field usage

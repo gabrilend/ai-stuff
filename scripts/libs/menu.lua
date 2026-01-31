@@ -66,6 +66,30 @@ local state = {
     -- Allows sections to have a max visible height with scrollbar
     section_scroll_offset = {},   -- section_id -> scroll offset within section
     section_max_visible = {},     -- section_id -> max visible items (nil = unlimited)
+
+    -- Issue 10-018: Animation state for command preview transitions
+    animation = {
+        enabled = true,              -- Master enable/disable
+        queue = {},                  -- Array of pending animation tasks
+        current = nil,               -- Currently executing animation
+        start_time = 0,              -- When current animation started (os.clock())
+        -- Animation timing configuration (milliseconds)
+        config = {
+            insert_highlight_duration = 400,   -- How long to show highlight color
+            remove_highlight_duration = 400,   -- How long to show removal color
+            slide_interval = 80,               -- Time between slide frames
+            max_slide_frames = 12,             -- Cap slide frames to prevent slowness
+        },
+        -- Current animation render state
+        render_state = {
+            highlight_ranges = {},   -- {start, end, color} ranges to highlight
+            empty_ranges = {},       -- {start, end} ranges to show as spaces (during slide)
+            slide_offset = 0,        -- Characters slid so far
+            display_cmd = nil,       -- Override command to display during remove animation
+        },
+        -- Previous command preview for diff detection
+        prev_command = "",
+    },
 }
 -- }}}
 
@@ -114,6 +138,19 @@ function menu.init(config)
     -- Section viewport scrolling state
     state.section_scroll_offset = {}
     state.section_max_visible = {}
+
+    -- Issue 10-018: Animation state reset
+    state.animation.enabled = true
+    state.animation.queue = {}
+    state.animation.current = nil
+    state.animation.start_time = 0
+    state.animation.render_state = {
+        highlight_ranges = {},
+        empty_ranges = {},
+        slide_offset = 0,
+        display_cmd = nil,
+    }
+    state.animation.prev_command = ""
 
     -- Process sections
     for _, section in ipairs(config.sections or {}) do
@@ -620,6 +657,248 @@ local function reset_digit_input_state()
     state.digit_count = 0
 end
 
+-- {{{ Issue 10-018: Animation system for command preview transitions
+-- Diff two command strings to find added/removed segments
+-- Returns: {type="add"|"remove", text=string, position=number}
+local function diff_commands(old_cmd, new_cmd)
+    if not old_cmd or not new_cmd then return nil end
+    if old_cmd == new_cmd then return nil end
+
+    -- Tokenize both commands
+    local old_tokens = {}
+    local new_tokens = {}
+    for word in old_cmd:gmatch("%S+") do
+        table.insert(old_tokens, word)
+    end
+    for word in new_cmd:gmatch("%S+") do
+        table.insert(new_tokens, word)
+    end
+
+    -- Find added tokens (in new but not in old)
+    local old_set = {}
+    for _, t in ipairs(old_tokens) do
+        old_set[t] = (old_set[t] or 0) + 1
+    end
+    for _, t in ipairs(new_tokens) do
+        if old_set[t] and old_set[t] > 0 then
+            old_set[t] = old_set[t] - 1
+        else
+            -- This token was added - find its position in new_cmd
+            local pos = new_cmd:find(t, 1, true)
+            return {type = "add", text = t, position = pos or 1}
+        end
+    end
+
+    -- Find removed tokens (in old but not in new)
+    local new_set = {}
+    for _, t in ipairs(new_tokens) do
+        new_set[t] = (new_set[t] or 0) + 1
+    end
+    for i, t in ipairs(old_tokens) do
+        if new_set[t] and new_set[t] > 0 then
+            new_set[t] = new_set[t] - 1
+        else
+            -- This token was removed - calculate slide info
+            -- Find all tokens after the removed one in the old command
+            local pos = old_cmd:find(t, 1, true)
+            local slide_targets = {}
+            -- Tokens after this one need to slide left by (length of removed token + 1 for space)
+            local slide_distance = #t + 1
+            for j = i + 1, #old_tokens do
+                local target_pos = old_cmd:find(old_tokens[j], pos + #t, true)
+                if target_pos then
+                    table.insert(slide_targets, {
+                        text = old_tokens[j],
+                        original_pos = target_pos,
+                        final_pos = target_pos - slide_distance
+                    })
+                end
+            end
+            return {
+                type = "remove",
+                text = t,
+                position = pos or 1,
+                slide_distance = slide_distance,
+                slide_targets = slide_targets
+            }
+        end
+    end
+
+    return nil
+end
+
+-- Queue an animation task
+local function queue_animation(task)
+    if not state.animation.enabled then return end
+    table.insert(state.animation.queue, task)
+    -- If no animation is running, start immediately
+    if not state.animation.current then
+        -- Start next animation
+        if #state.animation.queue > 0 then
+            state.animation.current = table.remove(state.animation.queue, 1)
+            state.animation.start_time = os.clock() * 1000  -- Convert to ms
+            -- Initialize render state for this animation
+            if state.animation.current.type == "add" then
+                state.animation.render_state.highlight_ranges = {
+                    {start_pos = state.animation.current.position,
+                     end_pos = state.animation.current.position + #state.animation.current.text - 1,
+                     color = "cyan"}
+                }
+                state.animation.render_state.display_cmd = nil  -- Use current value
+            elseif state.animation.current.type == "remove" then
+                state.animation.render_state.highlight_ranges = {
+                    {start_pos = state.animation.current.position,
+                     end_pos = state.animation.current.position + #state.animation.current.text - 1,
+                     color = "red"}
+                }
+                -- Issue 10-018: For remove, display old command during animation
+                state.animation.render_state.display_cmd = state.animation.current.old_cmd
+            end
+        end
+    end
+end
+
+-- Start the next animation in the queue
+local function start_next_animation()
+    if #state.animation.queue == 0 then
+        state.animation.current = nil
+        state.animation.render_state = {
+            highlight_ranges = {},
+            empty_ranges = {},
+            slide_offset = 0,
+            display_cmd = nil,
+        }
+        return false
+    end
+
+    state.animation.current = table.remove(state.animation.queue, 1)
+    state.animation.start_time = os.clock() * 1000
+
+    -- Initialize render state for this animation
+    state.animation.render_state.slide_offset = 0
+    state.animation.render_state.empty_ranges = {}
+
+    if state.animation.current.type == "add" then
+        state.animation.render_state.highlight_ranges = {
+            {start_pos = state.animation.current.position,
+             end_pos = state.animation.current.position + #state.animation.current.text - 1,
+             color = "cyan"}
+        }
+        state.animation.render_state.display_cmd = nil  -- Use current value
+    elseif state.animation.current.type == "remove" then
+        state.animation.render_state.highlight_ranges = {
+            {start_pos = state.animation.current.position,
+             end_pos = state.animation.current.position + #state.animation.current.text - 1,
+             color = "red"}
+        }
+        -- Issue 10-018: For remove, display old command during animation
+        state.animation.render_state.display_cmd = state.animation.current.old_cmd
+    end
+
+    return true
+end
+
+-- Update animation state based on elapsed time
+-- Returns: true if animation is still active, false if complete
+local function update_animation()
+    if not state.animation.current then
+        return false
+    end
+
+    local elapsed = os.clock() * 1000 - state.animation.start_time
+    local anim = state.animation.current
+    local cfg = state.animation.config
+
+    if anim.type == "add" then
+        -- Add animation: highlight -> normal
+        if elapsed > cfg.insert_highlight_duration then
+            -- Animation complete
+            state.animation.render_state.highlight_ranges = {}
+            start_next_animation()
+            return #state.animation.queue > 0 or state.animation.current ~= nil
+        end
+        return true
+
+    elseif anim.type == "remove" then
+        -- Remove animation: highlight -> empty -> slide
+        if elapsed <= cfg.remove_highlight_duration then
+            -- Still in highlight phase
+            return true
+        end
+
+        -- Past highlight phase - start sliding
+        local slide_elapsed = elapsed - cfg.remove_highlight_duration
+        local slide_frames = math.floor(slide_elapsed / cfg.slide_interval)
+        slide_frames = math.min(slide_frames, cfg.max_slide_frames)
+
+        -- Update slide offset
+        local total_slide = anim.slide_distance or (#anim.text + 1)
+        local chars_per_frame = math.ceil(total_slide / cfg.max_slide_frames)
+        state.animation.render_state.slide_offset = math.min(
+            slide_frames * chars_per_frame,
+            total_slide
+        )
+
+        -- Issue 10-018: Clear highlight, set shrinking empty range for progressive slide
+        -- The gap shrinks as slide_offset increases, creating a "closing" effect
+        state.animation.render_state.highlight_ranges = {}
+        local remaining_gap = total_slide - state.animation.render_state.slide_offset
+        if remaining_gap > 0 then
+            state.animation.render_state.empty_ranges = {
+                {start_pos = anim.position,
+                 end_pos = anim.position + remaining_gap - 1}
+            }
+        else
+            state.animation.render_state.empty_ranges = {}
+        end
+
+        -- Check if slide is complete
+        if state.animation.render_state.slide_offset >= total_slide then
+            -- Animation complete - clear display_cmd to show new command
+            state.animation.render_state = {
+                highlight_ranges = {},
+                empty_ranges = {},
+                slide_offset = 0,
+                display_cmd = nil,
+            }
+            start_next_animation()
+            return #state.animation.queue > 0 or state.animation.current ~= nil
+        end
+
+        return true
+    end
+
+    return false
+end
+
+-- Check if animation needs re-rendering
+local function animation_active()
+    return state.animation.current ~= nil or #state.animation.queue > 0
+end
+
+-- Detect changes to command preview and queue animations
+local function detect_command_changes(new_cmd)
+    if not state.animation.enabled then
+        state.animation.prev_command = new_cmd or ""
+        return
+    end
+
+    local old_cmd = state.animation.prev_command
+    if old_cmd == new_cmd then return end
+
+    local diff = diff_commands(old_cmd, new_cmd)
+    if diff then
+        -- Issue 10-018: Store both old and new commands for slide animation
+        -- During "remove" animation, we need to render from old_cmd then slide to new_cmd
+        diff.old_cmd = old_cmd
+        diff.new_cmd = new_cmd
+        queue_animation(diff)
+    end
+
+    state.animation.prev_command = new_cmd or ""
+end
+-- }}}
+
 -- Compute the command preview string based on current values
 -- Iterates through sections in order, adding flags for enabled options
 local function compute_command_preview()
@@ -958,6 +1237,8 @@ local function reconcile_command_preview()
     -- Normal case: recompute command from checkbox/flag states
     local cmd = compute_command_preview()
     if cmd then
+        -- Issue 10-018: Detect changes and queue animations
+        detect_command_changes(cmd)
         state.values[state.command_preview_item] = cmd
         state.cmd_invalid_ranges = {}
     end
@@ -1386,6 +1667,13 @@ local function render_item(row, item_id, highlight, item_num, section_type)
     if not data then return end
 
     local value = state.values[item_id] or ""
+
+    -- Issue 10-018: For command preview, override with animation display_cmd if set
+    -- This allows showing the old command during remove animation while sliding
+    if item_id == state.command_preview_item and state.animation.render_state.display_cmd then
+        value = state.animation.render_state.display_cmd
+    end
+
     local label = data.label
     local item_type = data.type
     local disabled = data.disabled
@@ -1689,26 +1977,67 @@ local function render_item(row, item_id, highlight, item_num, section_type)
                 return pos >= range.start_pos and pos <= range.end_pos
             end
 
+            -- Issue 10-018: Helper to check animation highlight ranges
+            local function get_animation_color(pos)
+                for _, range in ipairs(state.animation.render_state.highlight_ranges or {}) do
+                    if pos >= range.start_pos and pos <= range.end_pos then
+                        return range.color
+                    end
+                end
+                return nil
+            end
+
+            -- Issue 10-018: Helper to check if position should be hidden (slide animation)
+            local function is_empty_range(pos)
+                for _, range in ipairs(state.animation.render_state.empty_ranges or {}) do
+                    if pos >= range.start_pos and pos <= range.end_pos then
+                        return true
+                    end
+                end
+                return false
+            end
+
             -- Render character by character for colored flags
             local char_col = col
             for i = 1, #display_val do
                 local c = display_val:sub(i, i)
-                local in_radio = in_ranges(i, radio_ranges)
-                local in_checkbox = in_ranges(i, checkbox_ranges)
-                local in_base = in_range(i, base_range)
 
-                tui.reset_style()
-                tui.set_attrs(tui.ATTR_DIM)
-                if in_radio or in_base then
-                    tui.set_fg(tui.FG_YELLOW)  -- Required (radio/base) in yellow
-                elseif in_checkbox then
-                    tui.set_fg(tui.FG_GREEN)
+                -- Issue 10-018: Skip characters in empty_ranges during slide animation
+                -- This creates the "closing gap" effect as remaining text shifts left
+                if is_empty_range(i) then
+                    -- Don't render this character, don't advance column
+                    -- (this naturally shifts remaining text left)
                 else
-                    tui.set_fg(tui.FG_CYAN)
-                end
+                    local in_radio = in_ranges(i, radio_ranges)
+                    local in_checkbox = in_ranges(i, checkbox_ranges)
+                    local in_base = in_range(i, base_range)
 
-                tui.write_str(row, char_col, c)
-                char_col = char_col + 1
+                    -- Issue 10-018: Check for animation highlight first
+                    local anim_color = get_animation_color(i)
+
+                    tui.reset_style()
+                    if anim_color then
+                        -- Animation highlight takes precedence
+                        tui.set_attrs(tui.ATTR_BOLD)
+                        if anim_color == "cyan" then
+                            tui.set_fg(tui.FG_CYAN)
+                        elseif anim_color == "red" then
+                            tui.set_fg(tui.FG_RED)
+                        end
+                    else
+                        tui.set_attrs(tui.ATTR_DIM)
+                        if in_radio or in_base then
+                            tui.set_fg(tui.FG_YELLOW)  -- Required (radio/base) in yellow
+                        elseif in_checkbox then
+                            tui.set_fg(tui.FG_GREEN)
+                        else
+                            tui.set_fg(tui.FG_CYAN)
+                        end
+                    end
+
+                    tui.write_str(row, char_col, c)
+                    char_col = char_col + 1
+                end
             end
 
             if truncated then
@@ -3096,7 +3425,23 @@ function menu.run()
     menu.render()
 
     while true do
-        local key = tui.read_key()
+        -- Issue 10-018: Use non-blocking input with timeout for animation support
+        -- When animation is active, use short timeout to allow smooth updates
+        -- When idle, use longer timeout to reduce CPU usage
+        local timeout_ms = animation_active() and 50 or 500
+        local key, err = tui.read_key_timeout(timeout_ms)
+
+        -- Handle timeout - update animation and re-render if needed
+        if err == "timeout" then
+            if animation_active() then
+                local still_active = update_animation()
+                if still_active or animation_active() then
+                    menu.render()
+                end
+            end
+            -- Continue loop without processing input
+            goto continue
+        end
 
         -- Handle nil key (EOF or read error)
         if not key then
@@ -3519,6 +3864,9 @@ function menu.run()
                 menu.handle_flag_backspace()
             end
         end  -- end of normal mode
+
+        -- Issue 10-018: Continue label for animation timeout handling
+        ::continue::
     end  -- end of while loop
 end
 -- }}}
