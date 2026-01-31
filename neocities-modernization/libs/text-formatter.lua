@@ -49,22 +49,30 @@ end
 -- }}}
 
 -- {{{ function M.format_poem_content
--- Convenience function: formats poem content and returns as single string.
+-- Convenience function: formats poem content with word wrapping and left padding.
 -- Each line gets a 1-space left padding (standard for poem content area).
--- Preserves all whitespace within lines.
+-- Long lines are wrapped at word boundaries while preserving leading whitespace.
+--
+-- Issue 10-021: Re-enabled word wrapping (was disabled by 8-056) but now uses
+-- wrap_preserving_indent() which maintains artistic whitespace.
 --
 -- This is the main entry point for both main thread and worker thread
 -- poem content formatting.
-function M.format_poem_content(text)
+function M.format_poem_content(text, max_width)
+    max_width = max_width or 80
     local lines = M.format_poem_lines(text)
-    local padded_lines = {}
+    local result_lines = {}
 
     for _, line in ipairs(lines) do
-        -- 1-space left padding for content alignment within poem box
-        table.insert(padded_lines, " " .. line)
+        -- Add 1-space left padding, then wrap if needed
+        local padded_line = " " .. line
+        local wrapped = M.wrap_preserving_indent(padded_line, max_width)
+        for _, wrapped_line in ipairs(wrapped) do
+            table.insert(result_lines, wrapped_line)
+        end
     end
 
-    return padded_lines
+    return result_lines
 end
 -- }}}
 
@@ -117,6 +125,82 @@ end
 function M.calculate_visible_width(content)
     local decoded = M.decode_html_entities_for_width(content)
     return M.utf8_char_count(decoded)
+end
+-- }}}
+
+-- {{{ function M.wrap_preserving_indent
+-- Issue 10-021: Wraps a single line to max_width while preserving leading whitespace.
+-- Continuation lines inherit the same indentation as the original line.
+--
+-- Key behaviors:
+--   - Lines <= max_width: returned unchanged (single-element table)
+--   - Leading whitespace: captured and prepended to all wrapped lines
+--   - Long words (URLs): broken at character boundaries if they exceed available width
+--   - Multi-space runs: preserved within content (splits on space boundaries)
+--
+-- Returns a table of wrapped lines.
+function M.wrap_preserving_indent(line, max_width)
+    max_width = max_width or 80
+
+    -- Short lines pass through unchanged
+    if #line <= max_width then
+        return {line}
+    end
+
+    -- Capture leading whitespace separately
+    local leading, remainder = line:match("^(%s*)(.*)$")
+    leading = leading or ""
+    remainder = remainder or line
+    local indent_width = #leading
+    local content_width = max_width - indent_width
+
+    -- Edge case: if indent is so large we can't fit meaningful content
+    if content_width < 10 then
+        return {line}
+    end
+
+    local result_lines = {}
+    local current = ""
+
+    -- Split remainder into words, preserving the spaces after each word
+    -- Pattern: capture non-spaces followed by any trailing spaces
+    for word, trailing_space in remainder:gmatch("(%S+)(%s*)") do
+        local segment = word .. trailing_space
+
+        if #current + #segment <= content_width then
+            -- Fits on current line
+            current = current .. segment
+        else
+            -- Doesn't fit - flush current line first
+            if #current > 0 then
+                -- Trim trailing spaces from the line being flushed
+                table.insert(result_lines, leading .. current:gsub("%s+$", ""))
+            end
+
+            -- Handle very long words (URLs) that exceed content_width
+            if #word > content_width then
+                -- Break the long word at character boundaries
+                local remaining_word = word
+                while #remaining_word > content_width do
+                    local chunk = remaining_word:sub(1, content_width)
+                    table.insert(result_lines, leading .. chunk)
+                    remaining_word = remaining_word:sub(content_width + 1)
+                end
+                -- Whatever is left becomes start of new current line
+                current = remaining_word .. trailing_space
+            else
+                -- Normal word, just starts a new line
+                current = segment
+            end
+        end
+    end
+
+    -- Flush final line
+    if #current > 0 then
+        table.insert(result_lines, leading .. current:gsub("%s+$", ""))
+    end
+
+    return result_lines
 end
 -- }}}
 
