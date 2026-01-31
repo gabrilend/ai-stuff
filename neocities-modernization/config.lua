@@ -50,6 +50,82 @@ return {
     },
     -- }}}
 
+    -- {{{ sources
+    -- Unified input source configuration (Issue 10-015).
+    -- Each source type supports multiple named directories.
+    -- Pipeline deduplicates by content ID across directories.
+    --
+    -- NOTE: This section coexists with input_sources/extraction for now.
+    -- Extractors will be migrated incrementally. See 10-015 for details.
+    sources = {
+        fediverse = {
+            enabled = true,
+            format = "activitypub",
+            directories = {
+                {
+                    name = "primary",
+                    path = "input/fediverse",
+                },
+            },
+            media = {
+                extract_attachments = true,
+                output_path = "input/media_attachments/fediverse",
+            },
+        },
+        messages = {
+            enabled = true,
+            format = "messages_export",
+            directories = {
+                {
+                    name = "primary",
+                    path = "input/messages",
+                },
+            },
+        },
+        notes = {
+            enabled = true,
+            format = "plaintext",
+            directories = {
+                {
+                    name = "primary",
+                    path = "input/notes",
+                },
+            },
+        },
+        bluesky = {
+            enabled = true,
+            format = "atproto",
+            directories = {
+                {
+                    name = "primary",
+                    path = "input/bluesky",
+                },
+            },
+        },
+        images = {
+            enabled = true,
+            directories = {
+                {
+                    name = "my-art",
+                    path = "input/media_attachments/my-art",
+                },
+                {
+                    name = "things-I-almost-posted",
+                    path = "input/media_attachments/things-i-almost-posted",
+                },
+                {
+                    name = "poem-pictures",
+                    path = "input/media_attachments/poem-pictures",
+                },
+            },
+            supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
+            max_file_size_mb = 100,
+            preserve_structure = true,
+            overwrite_existing = false,
+        },
+    },
+    -- }}}
+
     -- {{{ external_files
     -- Defines all external files/directories the pipeline pulls from.
     -- All destinations are relative to input/.
