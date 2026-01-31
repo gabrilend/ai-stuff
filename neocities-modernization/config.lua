@@ -50,6 +50,36 @@ return {
     },
     -- }}}
 
+    -- {{{ external_files
+    -- Defines all external files/directories the pipeline pulls from.
+    -- All destinations are relative to input/.
+    -- Archive selection (newest by mtime) is handled by downstream scripts.
+    --
+    -- NOTE: image_sync.sources will eventually be merged here. For now, both exist.
+    external_files = {
+        {
+            name = "bluesky-car",
+            source = "/home/ritz/backups/bluesky/input",
+            destination = "bluesky",
+        },
+        {
+            name = "my-art",
+            source = "/home/ritz/pictures/my-art",
+            destination = "media_attachments/my-art",
+        },
+        {
+            name = "things-I-almost-posted",
+            source = "/home/ritz/pictures/things-i-almost-posted",
+            destination = "media_attachments/things-i-almost-posted",
+        },
+        {
+            name = "poem-pictures",
+            source = "/home/ritz/pictures/poem-pictures",
+            destination = "media_attachments/poem-pictures",
+        },
+    },
+    -- }}}
+
     -- {{{ extraction
     -- Controls which input sources are processed during extraction.
     -- Disabling a source skips it entirely, useful for testing or partial rebuilds.
