@@ -159,8 +159,8 @@ in `external_files`.
 
 ### Phase 2: Centralize External Sources
 3. [x] Add `external_files` section to `config.lua`
-4. [ ] Create `libs/external-sync.lua` module to process external_files config
-5. [ ] Update `scripts/update` to use external-sync module (replace hardcoded Bluesky sync)
+4. [x] Create `libs/external-sync.lua` module to process external_files config
+5. [x] Update `scripts/update` to use external-sync module (replace hardcoded Bluesky sync)
 6. [ ] Merge `image_sync.sources` entries into `external_files`
 7. [ ] Update `scripts/update-words` to iterate external_files instead of custom logic
 

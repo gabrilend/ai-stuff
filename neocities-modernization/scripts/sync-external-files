@@ -1,0 +1,119 @@
+#!/usr/bin/env lua
+-- {{{ sync-external-files
+-- Issue 10-003b: CLI for external file syncing
+-- Syncs files from external directories into the project's input/ directory.
+--
+-- Usage:
+--   ./scripts/sync-external-files           # Sync all sources
+--   ./scripts/sync-external-files --list    # List configured sources
+--   ./scripts/sync-external-files NAME      # Sync specific source by name
+--   ./scripts/sync-external-files --quiet   # Suppress output
+--
+-- Exit codes:
+--   0 - Success (all syncs completed or optional sources skipped)
+--   1 - Failure (required source missing or rsync failed)
+-- }}}
+
+-- {{{ DIR setup
+-- Determine project root from script location
+local DIR = arg[0]:match("(.*/)")
+if DIR then
+    DIR = DIR:gsub("/scripts/$", "")
+else
+    DIR = "."
+end
+-- Handle relative paths
+if DIR:sub(1, 1) ~= "/" then
+    local handle = io.popen("cd '" .. DIR .. "' && pwd")
+    DIR = handle:read("*l")
+    handle:close()
+end
+-- }}}
+
+-- {{{ Add libs to package path
+package.path = DIR .. "/libs/?.lua;" .. package.path
+-- }}}
+
+-- {{{ Parse arguments
+local function parse_args()
+    local opts = {
+        list = false,
+        quiet = false,
+        source_name = nil,
+        help = false
+    }
+
+    for i = 1, #arg do
+        local a = arg[i]
+        if a == "--list" or a == "-l" then
+            opts.list = true
+        elseif a == "--quiet" or a == "-q" then
+            opts.quiet = true
+        elseif a == "--help" or a == "-h" then
+            opts.help = true
+        elseif a:sub(1, 1) ~= "-" then
+            opts.source_name = a
+        end
+    end
+
+    return opts
+end
+-- }}}
+
+-- {{{ Print usage
+local function print_usage()
+    print([[
+Usage: sync-external-files [OPTIONS] [NAME]
+
+Sync external files into the project's input/ directory.
+
+Options:
+  --list, -l     List all configured external sources
+  --quiet, -q    Suppress output (only show errors)
+  --help, -h     Show this help message
+
+Arguments:
+  NAME           Sync only the source with this name (optional)
+
+Examples:
+  sync-external-files              # Sync all sources
+  sync-external-files bluesky-car  # Sync only bluesky-car source
+  sync-external-files --list       # Show configured sources
+]])
+end
+-- }}}
+
+-- {{{ Main
+local opts = parse_args()
+
+if opts.help then
+    print_usage()
+    os.exit(0)
+end
+
+local sync = require("external-sync")
+sync.set_project_root(DIR)
+sync.set_verbose(not opts.quiet)
+
+if opts.list then
+    -- List sources
+    sync.print_sources()
+    os.exit(0)
+elseif opts.source_name then
+    -- Sync specific source
+    local result = sync.sync_by_name(opts.source_name)
+    if result and result.success then
+        os.exit(0)
+    else
+        os.exit(1)
+    end
+else
+    -- Sync all sources
+    local results = sync.sync_all()
+    if sync.has_failures(results) then
+        os.exit(1)
+    else
+        os.exit(0)
+    end
+end
+-- }}}
