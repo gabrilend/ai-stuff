@@ -42,6 +42,8 @@ MODEL_STATUS=false
 INTERACTIVE_MODE=false
 DIRECTORY_ARG=""
 ASSETS_DIR=""
+# Issue 10-017: Ollama server selection from config.lua
+OLLAMA_SERVER=""
 
 for arg in "$@"; do
     case $arg in
@@ -78,6 +80,10 @@ for arg in "$@"; do
             ;;
         --model=*)
             MODEL_NAME="${arg#*=}"
+            ;;
+        # Issue 10-017: Ollama server selection
+        --ollama=*)
+            OLLAMA_SERVER="${arg#*=}"
             ;;
         --list-models)
             LIST_MODELS=true
@@ -554,7 +560,23 @@ TOTAL_POEMS=$(lua -e "local dkjson = require('libs.dkjson'); local f = io.open('
 echo -e "${GREEN}✓ Found $TOTAL_POEMS poems to process${NC}"
 
 # Check Ollama service
-OLLAMA_ENDPOINT="http://192.168.0.115:10265"
+# Issue 10-017: Use ollama-config when --ollama flag is provided, otherwise use default
+if [ -n "$OLLAMA_SERVER" ]; then
+    OLLAMA_ENDPOINT=$(luajit -e "
+        package.path = '$DIR/libs/?.lua;' .. package.path
+        local ollama = require('ollama-config')
+        ollama.set_selected_server('$OLLAMA_SERVER')
+        print(ollama.build_host_url())
+    ")
+    echo -e "${CYAN}Using Ollama server: $OLLAMA_SERVER${NC}"
+else
+    # Default: use config default or hardcoded fallback
+    OLLAMA_ENDPOINT=$(luajit -e "
+        package.path = '$DIR/libs/?.lua;' .. package.path
+        local ollama = require('ollama-config')
+        print(ollama.build_host_url())
+    " 2>/dev/null || echo "http://192.168.0.115:10265")
+fi
 if curl -s --max-time 3 "$OLLAMA_ENDPOINT/api/version" > /dev/null; then
     OLLAMA_VERSION=$(curl -s "$OLLAMA_ENDPOINT/api/version" | lua -e "local dkjson = require('libs.dkjson'); local data = dkjson.decode(io.read('*a')); print(data.version or 'unknown')")
     echo -e "${GREEN}✓ Ollama service running (version: $OLLAMA_VERSION)${NC}"
