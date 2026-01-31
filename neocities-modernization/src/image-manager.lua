@@ -32,6 +32,10 @@ sources_loader.set_project_root(DIR)
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
+-- ANSI color codes for terminal output
+local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings
+local COLOR_RESET = "\027[0m"
+
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
     if absolute_path:sub(1, #DIR) == DIR then
@@ -426,18 +430,14 @@ function M.show_statistics(catalog)
     print(string.format("  High (>1500px): %d images", stats.resolution_distribution.high))
     
     if #catalog.duplicates > 0 then
-        print(string.format("\nDuplicate Groups: %d", #catalog.duplicates))
+        -- Duplicates are a warning - show all of them in yellow
+        print(COLOR_YELLOW .. string.format("\n⚠️  Duplicate Groups: %d", #catalog.duplicates) .. COLOR_RESET)
         for i, dup_group in ipairs(catalog.duplicates) do
-            if i <= 3 then -- Show first 3 duplicate groups
-                local rel_files = {}
-                for _, f in ipairs(dup_group.files) do
-                    table.insert(rel_files, relative_path(f))
-                end
-                print(string.format("  Group %d (%d files): %s", i, dup_group.count, table.concat(rel_files, ", ")))
+            local rel_files = {}
+            for _, f in ipairs(dup_group.files) do
+                table.insert(rel_files, relative_path(f))
             end
-        end
-        if #catalog.duplicates > 3 then
-            print(string.format("  ... and %d more groups", #catalog.duplicates - 3))
+            print(COLOR_YELLOW .. string.format("  Group %d (%d files): %s", i, dup_group.count, table.concat(rel_files, ", ")) .. COLOR_RESET)
         end
     end
 end
