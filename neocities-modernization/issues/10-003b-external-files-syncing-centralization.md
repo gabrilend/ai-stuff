@@ -42,50 +42,41 @@ All external file syncing declared in a single `external_files` config section:
 -- Defines all external files/directories the pipeline pulls from.
 -- NO external file operations should occur unless configured here.
 -- All destinations are relative to input/.
+--
+-- The sync module just moves files from source to destination.
+-- The pipeline scripts already know what to do with files based on where they land.
 external_files = {
     {
         name = "words-sync",
         description = "Sync words/notes/fediverse from backup location",
         source = "/home/ritz/backups/words/sync-to-projects",
-        type = "script",  -- "script" runs a command, "directory" does rsync
-        enabled = true,
+        destination = "",  -- Empty = runs as script, populates input/ directly
     },
     {
         name = "bluesky-car",
         description = "Latest Bluesky CAR repository file",
         source = "/home/ritz/backups/bluesky/input",
-        destination = "bluesky",  -- Relative to input/
-        type = "directory",
+        destination = "bluesky",
         pattern = "repo-*.car",
-        select = "newest",  -- "newest", "all", or specific filename
-        enabled = true,
+        select = "newest",
     },
     {
         name = "my-art",
         description = "Artwork made in kolourpaint",
         source = "/home/ritz/pictures/my-art",
         destination = "media_attachments/my-art",
-        type = "directory",
-        enabled = true,
-        optional = false,
     },
     {
         name = "things-I-almost-posted",
         description = "Finally posting them",
         source = "/home/ritz/pictures/things-i-almost-posted",
         destination = "media_attachments/things-i-almost-posted",
-        type = "directory",
-        enabled = true,
-        optional = false,
     },
     {
         name = "poem-pictures",
         description = "Pictures I made of my poems",
         source = "/home/ritz/pictures/poem-pictures",
         destination = "media_attachments/poem-pictures",
-        type = "directory",
-        enabled = true,
-        optional = false,
     },
 },
 -- }}}
@@ -95,17 +86,20 @@ external_files = {
 
 ## Config Field Definitions
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Unique identifier for logging and CLI targeting |
-| `description` | string | No | Human-readable description |
-| `source` | string | Yes | Absolute path to external file, directory, or script |
-| `destination` | string | Conditional | Relative path under `input/` (required for type="directory") |
-| `type` | string | Yes | `"script"` (run command) or `"directory"` (rsync) |
-| `pattern` | string | No | Glob pattern to filter files (for directory type) |
-| `select` | string | No | `"newest"`, `"oldest"`, `"all"` (default: "all") |
-| `enabled` | boolean | No | Default true. Set false to disable without removing |
-| `optional` | boolean | No | Default false. If true, missing source is warning not error |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Unique identifier for logging and CLI targeting |
+| `source` | Yes | Absolute path to external file, directory, or script |
+| `destination` | Yes | Relative path under `input/`. Empty string = source is a script that populates input/ directly |
+| `description` | No | Human-readable description |
+| `pattern` | No | Glob pattern to filter files (e.g., `"repo-*.car"`) |
+| `select` | No | `"newest"`, `"oldest"`, or `"all"` (default: `"all"`) |
+| `optional` | No | Default false. If true, missing source shows warning instead of error |
+
+**Behavior:**
+- If `destination` is empty string (`""`), the source is executed as a script
+- If `destination` is non-empty, rsync copies from `source` to `input/{destination}`
+- Scripts already know what to do with files based on their location - no `type` field needed
 
 ---
 
