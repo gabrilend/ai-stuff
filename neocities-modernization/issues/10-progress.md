@@ -31,7 +31,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-008 | Implement multiline command wrapping | Open | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
-| 10-012 | Fix pipeline validation counting bugs | Open | High |
+| 10-012 | Fix pipeline validation counting bugs | Completed | High |
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-015 | Unified input sources configuration | Open | Medium |
 | 10-016 | TUI per-stage regeneration options | Open | Medium |

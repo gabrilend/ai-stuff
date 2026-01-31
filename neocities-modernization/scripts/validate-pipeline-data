@@ -99,27 +99,24 @@ count_poems() {
 }
 
 count_embeddings() {
+    # Count entries in the embeddings.json file (the actual embeddings data)
     local embeddings_json="$EMBEDDINGS_DIR/$MODEL/embeddings.json"
     if [ ! -f "$embeddings_json" ]; then
         echo "0"
         return
     fi
-    # The embeddings.json is just metadata - count actual individual embedding files
-    local similarities_dir="$EMBEDDINGS_DIR/$MODEL/similarities"
-    if [ ! -d "$similarities_dir" ]; then
-        echo "0"
-        return
-    fi
-    find "$similarities_dir" -name "poem_*.json" -type f 2>/dev/null | wc -l
+    jq '.embeddings | keys | length' "$embeddings_json" 2>/dev/null || echo "0"
 }
 
-count_similarity_files() {
-    local similarities_dir="$EMBEDDINGS_DIR/$MODEL/similarities"
-    if [ ! -d "$similarities_dir" ]; then
+count_similarity_rankings() {
+    # Count entries in similarity_rankings_cache.json (used by HTML generator)
+    # Note: Individual files in similarities/ are stale from older architecture
+    local cache_file="$EMBEDDINGS_DIR/$MODEL/similarity_rankings_cache.json"
+    if [ ! -f "$cache_file" ]; then
         echo "0"
         return
     fi
-    find "$similarities_dir" -name "poem_*.json" -type f 2>/dev/null | wc -l
+    jq '.rankings | keys | length' "$cache_file" 2>/dev/null || echo "0"
 }
 
 check_diversity_cache() {
@@ -130,9 +127,9 @@ check_diversity_cache() {
     fi
     # Validate it's valid JSON
     if jq -e '.' "$cache_file" >/dev/null 2>&1; then
-        # Count number of sequences
+        # Count entries in the sequences object (not top-level keys)
         local count
-        count=$(jq 'length' "$cache_file" 2>/dev/null || echo "0")
+        count=$(jq '.sequences | keys | length' "$cache_file" 2>/dev/null || echo "0")
         echo "EXISTS:$count"
     else
         echo "INVALID"
@@ -203,7 +200,7 @@ validate_pipeline() {
 
     poem_count=$(count_poems)
     embedding_count=$(count_embeddings)
-    similarity_count=$(count_similarity_files)
+    similarity_count=$(count_similarity_rankings)
     diversity_status=$(check_diversity_cache)
     html_similar_count=$(count_html_similar)
     html_different_count=$(count_html_different)
