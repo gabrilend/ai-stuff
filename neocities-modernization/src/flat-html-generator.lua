@@ -2070,16 +2070,10 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
     end
 
     -- Detect additional content warning patterns in text (CW:, content warning:, etc.)
-    local lines = {}
-    for line in text:gmatch("[^\n]+") do
-        table.insert(lines, line)
-    end
+    -- Issue 10-021: Use text_formatter.format_poem_lines to preserve empty lines (paragraph breaks)
+    local lines = text_formatter.format_poem_lines(text)
 
-    local i = 1
-
-    while i <= #lines do
-        local line = lines[i]
-
+    for _, line in ipairs(lines) do
         -- Check if line starts with content warning (in-content CW pattern)
         if line:lower():match("^%s*cw%s*:") or line:lower():match("^%s*content warning%s*:") then
             -- Format content warning with box
@@ -2088,13 +2082,13 @@ local function format_content_with_warnings(text, poem_category, poem, similar_l
             table.insert(formatted_lines, "") -- First newline
             table.insert(formatted_lines, "") -- Second newline for spacing
         else
-            -- Issue 8-056: Preserve whitespace for ALL categories, not just notes
-            -- Poetry is artistic content - the author's spacing decisions must be respected
-            -- No word-wrapping: lines are rendered as-is from poems.json
-            table.insert(formatted_lines, line)
+            -- Issue 10-021: Wrap long lines while preserving leading whitespace
+            -- This replaces 8-056's no-wrap approach with whitespace-aware wrapping
+            local wrapped = text_formatter.wrap_preserving_indent(line, 80)
+            for _, wrapped_line in ipairs(wrapped) do
+                table.insert(formatted_lines, wrapped_line)
+            end
         end
-
-        i = i + 1
     end
 
     local formatted_content = table.concat(formatted_lines, "\n")

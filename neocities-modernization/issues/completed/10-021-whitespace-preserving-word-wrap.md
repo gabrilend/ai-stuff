@@ -160,6 +160,12 @@ end
    - Maintains 1-space left padding for all lines
    - Optional max_width parameter (default 80)
 
+3. **Updated `format_content_with_warnings()` in `src/flat-html-generator.lua`**
+   - Main thread path was NOT using text-formatter module (had inline implementation)
+   - Fixed line splitting: was using `[^\n]+` which skipped empty lines (paragraph breaks lost)
+   - Now uses `text_formatter.format_poem_lines()` to preserve empty lines
+   - Now uses `text_formatter.wrap_preserving_indent()` for wrapping
+
 ### Test Results
 
 ```
