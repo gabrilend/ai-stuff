@@ -26,8 +26,6 @@ local COLOR_GREEN = "\027[92m"
 local COLOR_BLUE = "\027[94m"
 local COLOR_RED = "\027[91m"
 local COLOR_YELLOW = "\027[93m"
-local COLOR_CYAN = "\027[96m"
-local COLOR_WHITE = "\027[97m"
 local COLOR_RESET = "\027[0m"
 -- }}}
 
@@ -73,18 +71,6 @@ end
 local function log_warning(msg)
     if verbose then
         print(COLOR_YELLOW .. msg .. COLOR_RESET)
-    end
-end
--- }}}
-
--- {{{ local function format_sync_result
--- Format sync result with colored parts: cyan name, white text, yellow number
-local function format_sync_result(prefix, name, files_synced, is_uptodate)
-    if is_uptodate then
-        return prefix .. COLOR_CYAN .. name .. COLOR_WHITE .. ": Up to date" .. COLOR_RESET
-    else
-        return prefix .. COLOR_CYAN .. name .. COLOR_WHITE .. ": Synced " ..
-               COLOR_YELLOW .. tostring(files_synced) .. COLOR_WHITE .. " new files" .. COLOR_RESET
     end
 end
 -- }}}
@@ -298,11 +284,7 @@ function M.sync_by_name(name)
                 if result.skipped then
                     log_warning("⚠️  " .. name .. ": " .. result.message)
                 else
-                    -- Use formatted output: cyan name, white text, yellow number
-                    local is_uptodate = (result.files_synced or 0) == 0
-                    if verbose then
-                        print("✅ " .. format_sync_result("", name, result.files_synced or 0, is_uptodate))
-                    end
+                    log_success("✅ " .. name .. ": " .. result.message)
                 end
             else
                 log_error("❌ " .. name .. ": " .. result.message)
@@ -347,11 +329,7 @@ function M.sync_all()
                 log_warning("   ⚠️  " .. result.name .. ": " .. result.message)
             else
                 results.synced = results.synced + 1
-                -- Use formatted output: cyan name, white text, yellow number
-                local is_uptodate = (result.files_synced or 0) == 0
-                if verbose then
-                    print("   ✅ " .. format_sync_result("", result.name, result.files_synced or 0, is_uptodate))
-                end
+                log_success("   ✅ " .. result.name .. ": " .. result.message)
             end
         else
             results.failed = results.failed + 1
