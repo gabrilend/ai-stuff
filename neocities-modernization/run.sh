@@ -85,6 +85,10 @@ Word Cloud:
 Extraction Options:
   --include-boosts    Include fediverse boosts/reblogs in extraction
 
+External Files (Issue 10-003b):
+  --list-external     List configured external file sources
+  --sync-only NAME    Sync only the specified external source
+
 Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
@@ -159,6 +163,10 @@ WORDCLOUD_POEMS=""
 
 # Issue 8-011: Fediverse boost inclusion (extraction stage)
 INCLUDE_BOOSTS=false
+
+# Issue 10-003b: External file management
+LIST_EXTERNAL=false
+SYNC_ONLY=""
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -275,6 +283,19 @@ while [[ $# -gt 0 ]]; do
         # Issue 8-011: Fediverse boost inclusion
         --include-boosts)
             INCLUDE_BOOSTS=true
+            shift
+            ;;
+        # Issue 10-003b: External file management
+        --list-external)
+            LIST_EXTERNAL=true
+            shift
+            ;;
+        --sync-only)
+            SYNC_ONLY="$2"
+            shift 2
+            ;;
+        --sync-only=*)
+            SYNC_ONLY="${1#*=}"
             shift
             ;;
         # Stage flags
@@ -402,6 +423,18 @@ cd "$DIR" || {
     echo "Error: Could not access directory $DIR" >&2
     exit 1
 }
+# }}}
+
+# {{{ Issue 10-003b: Handle external file commands (immediate actions)
+if $LIST_EXTERNAL; then
+    "$DIR/scripts/sync-external-files" --list
+    exit 0
+fi
+
+if [ -n "$SYNC_ONLY" ]; then
+    "$DIR/scripts/sync-external-files" "$SYNC_ONLY"
+    exit $?
+fi
 # }}}
 
 # {{{ Logging functions

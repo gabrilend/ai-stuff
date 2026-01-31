@@ -28,100 +28,9 @@ done
 
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 BACKUP_DIR="${DIR}/temp/preserved-files-$$"
-CONFIG_FILE="${DIR}/config.lua"
 
-# {{{ get_config_value
-# Helper function to read values from config.lua using inline Lua
-# Usage: get_config_value "image_sync.enabled"
-# Returns the value as a string (true/false for booleans, strings as-is)
-get_config_value() {
-    local key_path="$1"
-    lua -e "
-        local config = dofile('${DIR}/config.lua')
-        local keys = {}
-        for k in string.gmatch('${key_path}', '[^.]+') do
-            table.insert(keys, k)
-        end
-        local value = config
-        for _, k in ipairs(keys) do
-            if type(value) ~= 'table' then
-                print('nil')
-                return
-            end
-            value = value[k]
-        end
-        if value == nil then
-            print('nil')
-        elseif type(value) == 'boolean' then
-            print(value and 'true' or 'false')
-        else
-            print(tostring(value))
-        end
-    " 2>/dev/null || echo "nil"
-}
-# }}}
-
-# {{{ get_config_array_length
-# Get the length of a config array
-get_config_array_length() {
-    local key_path="$1"
-    lua -e "
-        local config = dofile('${DIR}/config.lua')
-        local keys = {}
-        for k in string.gmatch('${key_path}', '[^.]+') do
-            table.insert(keys, k)
-        end
-        local value = config
-        for _, k in ipairs(keys) do
-            if type(value) ~= 'table' then
-                print('0')
-                return
-            end
-            value = value[k]
-        end
-        if type(value) == 'table' then
-            print(#value)
-        else
-            print('0')
-        end
-    " 2>/dev/null || echo "0"
-}
-# }}}
-
-# {{{ get_config_array_item
-# Get an item from a config array (1-indexed)
-# Usage: get_config_array_item "image_sync.sources" 1 "name"
-get_config_array_item() {
-    local key_path="$1"
-    local index="$2"
-    local field="$3"
-    lua -e "
-        local config = dofile('${DIR}/config.lua')
-        local keys = {}
-        for k in string.gmatch('${key_path}', '[^.]+') do
-            table.insert(keys, k)
-        end
-        local value = config
-        for _, k in ipairs(keys) do
-            if type(value) ~= 'table' then
-                print('')
-                return
-            end
-            value = value[k]
-        end
-        if type(value) == 'table' and value[${index}] then
-            local item = value[${index}]['${field}']
-            if item then
-                print(tostring(item))
-            else
-                print('')
-            end
-        else
-            print('')
-        end
-    " 2>/dev/null || echo ""
-}
-# }}}
+# Issue 10-003b: Config helper functions removed
+# Image syncing now uses centralized external-sync module via scripts/sync-external-files
 
 # {{{ preserve_generated_files
 # Back up generated files before sync (they get deleted by rm -rf input/)
@@ -167,119 +76,14 @@ restore_generated_files() {
 }
 # }}}
 
-# {{{ sync_images_from_config
-# Issue 8-042: Sync images from configurable source directories
-# Issue 10-014: Migrated from jq/JSON to inline Lua config reading
-# Issue 7-003: Made missing required sources fatal (no warnings, only errors)
-sync_images_from_config() {
-    # Check if config file exists - this is FATAL if missing
-    if [ ! -f "${CONFIG_FILE}" ]; then
-        echo "   ✗ Config file not found: ${CONFIG_FILE}" >&2
-        exit 1
-    fi
-
-    # Check if image_sync is enabled (using Lua helper)
-    local enabled
-    enabled=$(get_config_value "image_sync.enabled")
-    if [ "${enabled}" != "true" ]; then
-        echo "   📷 Image sync disabled in config"
-        return 0
-    fi
-
-    # Get destination directory from shared path (single source of truth)
-    local destination
-    destination=$(get_config_value "input_sources.media_attachments_path")
-    if [ "${destination}" == "nil" ] || [ -z "${destination}" ]; then
-        destination="input/media_attachments"
-    fi
-    local dest_path="${DIR}/${destination}"
-
-    # Get sync options
-    local preserve_structure overwrite_existing
-    preserve_structure=$(get_config_value "image_sync.preserve_structure")
-    overwrite_existing=$(get_config_value "image_sync.overwrite_existing")
-
-    # Default to true/false if not set
-    if [ "${preserve_structure}" == "nil" ]; then
-        preserve_structure="true"
-    fi
-    if [ "${overwrite_existing}" == "nil" ]; then
-        overwrite_existing="false"
-    fi
-
-    # Get number of sources
-    local num_sources
-    num_sources=$(get_config_array_length "image_sync.sources")
-
-    if [ "${num_sources}" -eq 0 ]; then
-        echo "   📷 No image sources configured"
-        return 0
-    fi
-
-    echo "   📷 Syncing images from ${num_sources} configured source(s)..."
-
-    # Ensure destination exists
-    mkdir -p "${dest_path}"
-
-    local total_synced=0
-    local skipped_optional=0
-
-    # Iterate over sources (1-indexed for Lua)
-    for i in $(seq 1 "${num_sources}"); do
-        local source_name source_path source_optional
-        source_name=$(get_config_array_item "image_sync.sources" "${i}" "name")
-        source_path=$(get_config_array_item "image_sync.sources" "${i}" "path")
-        source_optional=$(get_config_array_item "image_sync.sources" "${i}" "optional")
-
-        if [ ! -d "${source_path}" ]; then
-            # Issue 7-003: Check optional flag - missing required sources are fatal
-            if [ "${source_optional}" == "true" ]; then
-                # Optional source - show yellow attention, then skip
-                echo -e "      \033[33m!\033[0m ${source_name}: skipped (source not found)"
-                skipped_optional=$((skipped_optional + 1))
-                continue
-            else
-                # Required source - fatal error
-                echo "      ✗ ${source_name}: source not found (${source_path})" >&2
-                echo "      Add 'optional = true' in config.lua if this source may legitimately be absent" >&2
-                exit 1
-            fi
-        fi
-
-        # Build rsync options
-        local rsync_opts="-a"
-        if [ "${overwrite_existing}" != "true" ]; then
-            rsync_opts="${rsync_opts} --ignore-existing"
-        fi
-
-        # Count files before sync
-        local files_before
-        files_before=$(find "${dest_path}" -type f 2>/dev/null | wc -l)
-
-        # Sync files
-        if [ "${preserve_structure}" == "true" ]; then
-            rsync ${rsync_opts} "${source_path}/" "${dest_path}/" 2>/dev/null || true
-        else
-            # Flatten structure (not recommended for media_attachments)
-            find "${source_path}" -type f -exec cp -n {} "${dest_path}/" \; 2>/dev/null || true
-        fi
-
-        # Count files after sync
-        local files_after
-        files_after=$(find "${dest_path}" -type f 2>/dev/null | wc -l)
-        local files_synced=$((files_after - files_before))
-
-        if [ ${files_synced} -gt 0 ]; then
-            echo "      ✓ ${source_name}: ${files_synced} files synced"
-            total_synced=$((total_synced + files_synced))
-        else
-            echo "      ✓ ${source_name}: up to date"
-        fi
-    done
-
-    if [ ${total_synced} -gt 0 ]; then
-        echo "   📷 Total: ${total_synced} new files synced to ${destination}"
-    fi
+# {{{ sync_external_files
+# Issue 10-003b: Use centralized external-sync module
+# Replaces the old sync_images_from_config() function
+sync_external_files() {
+    echo "   📁 Syncing external files from config..."
+    "${DIR}/scripts/sync-external-files" || {
+        echo "   ⚠️  Some external file syncs failed (check output above)" >&2
+    }
 }
 # }}}
 
@@ -300,6 +104,6 @@ if ! $FORCE; then
     restore_generated_files
 fi
 
-# Issue 8-042: Sync images from configured sources
-sync_images_from_config
+# Issue 10-003b: Sync external files (images, etc.) from centralized config
+sync_external_files
 # }}}
