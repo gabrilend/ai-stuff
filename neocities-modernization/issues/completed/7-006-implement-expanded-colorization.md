@@ -80,10 +80,40 @@ See `issues/completed/7-003-cleanup-run-sh-output-formatting.md` section "Propos
 
 ## Success Criteria
 
-- [ ] All warning/error lines fully colorized (not just icon)
-- [ ] Stage delimiters use magenta or gradient colors
-- [ ] Stage numbers highlighted in green
-- [ ] Visual consistency across all pipeline scripts
+- [x] All warning/error lines fully colorized (not just icon)
+- [x] Stage delimiters use magenta or gradient colors
+- [x] Stage numbers highlighted in green
+- [x] Visual consistency across all pipeline scripts
+
+---
+
+## Implementation Notes (2026-01-30)
+
+### Stage Delimiters (run.sh)
+- Added `COLOR_MAGENTA="\033[95m"` for bright magenta delimiters
+- Updated `log_stage()` function to display:
+  - Magenta `═══...═══` delimiters
+  - Green stage text
+
+### Full-Line Colorization (Lua scripts)
+All print statements with semantic meaning now color the entire line instead of just the icon.
+
+**Pattern change:**
+```lua
+-- Before: Only icon colored
+print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Message: " .. value)
+
+-- After: Full line colored
+print(COLOR_YELLOW .. "⚠️  Message: " .. value .. COLOR_RESET)
+```
+
+**Files updated:**
+- `scripts/zip-extractor.lua` - 7 instances
+- `scripts/extract-notes.lua` - 2 instances
+- `scripts/extract-fediverse.lua` - 5 instances
+- `scripts/extract-messages.lua` - 4 instances
+
+**Note:** `scripts/generate-html-parallel` uses colors in HTML output (not terminal), so no changes needed there.
 
 ---
 
