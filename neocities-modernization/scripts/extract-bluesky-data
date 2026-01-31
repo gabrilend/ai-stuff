@@ -17,8 +17,25 @@ elseif arg[1] and not arg[1]:match("^%-") then
     DIR = arg[1]
 end
 
-local INPUT_CAR = arg[1] or DIR .. "/input/bluesky/repo-2.car"
+-- {{{ find_car_file
+-- Dynamically find any .car file in input/bluesky/ if not provided
+local function find_car_file()
+    local bluesky_dir = DIR .. "/input/bluesky"
+    local handle = io.popen("find '" .. bluesky_dir .. "' -name '*.car' -type f -printf '%T@ %p\\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-")
+    local result = handle:read("*l")
+    handle:close()
+    return result and result ~= "" and result or nil
+end
+-- }}}
+
+local INPUT_CAR = arg[1] or find_car_file()
 local OUTPUT_JSON = arg[2] or DIR .. "/input/bluesky/files/poems.json"
+
+if not INPUT_CAR then
+    io.stderr:write("Error: No CAR file found in " .. DIR .. "/input/bluesky/\n")
+    io.stderr:write("Usage: " .. arg[0] .. " [car-file] [output-file]\n")
+    os.exit(1)
+end
 
 -- Ensure we can load required libraries
 package.path = package.path .. ';' .. DIR .. '/libs/?.lua'

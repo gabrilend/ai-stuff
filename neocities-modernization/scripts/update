@@ -195,17 +195,11 @@ if [ -d "${DIR}/input/notes" ] && [ "$(find "${DIR}/input/notes" -type f -not -n
     }
 fi
 
-# Check for Bluesky CAR files
-if [ -f "${DIR}/input/bluesky/repo.car" ] || [ -f "${DIR}/input/bluesky/repo-2.car" ]; then
-    echo "🦋 Extracting Bluesky content..."
-    # Find the CAR file (prefer repo-2.car if both exist)
-    CAR_FILE=""
-    if [ -f "${DIR}/input/bluesky/repo-2.car" ]; then
-        CAR_FILE="${DIR}/input/bluesky/repo-2.car"
-    elif [ -f "${DIR}/input/bluesky/repo.car" ]; then
-        CAR_FILE="${DIR}/input/bluesky/repo.car"
-    fi
-
+# Check for Bluesky CAR files (find newest by mtime, not specific filenames)
+# This allows any repo-*.car or *.car file to be used
+CAR_FILE=$(find "${DIR}/input/bluesky" -name "*.car" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+if [ -n "$CAR_FILE" ]; then
+    echo "🦋 Extracting Bluesky content from $(basename "$CAR_FILE")..."
     "${DIR}/scripts/extract-bluesky-data" "$CAR_FILE" "${DIR}/input/bluesky/files/poems.json" || {
         echo "Warning: Bluesky extraction failed" >&2
     }
