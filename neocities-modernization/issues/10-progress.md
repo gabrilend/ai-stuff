@@ -34,6 +34,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-016 | TUI per-stage regeneration options | Open | Medium |
 | 10-017 | Multi-Ollama server configuration | Open | Medium |
 | 10-018 | Animated command option transitions | Open | Low |
+| 10-019 | Document config structure and field usage | Open | Low |
 
 ### Completed Issues
 
@@ -126,6 +127,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Remove: change to red/dim, pause, remove text, slide remaining options left
 - Character-by-character slide animation (~100ms per frame)
 - Configurable timing with disable option for users who prefer instant updates
+
+**10-019: Document Config Structure and Field Usage** - OPEN
+- Add inline documentation to config.lua explaining field usage
+- Create docs/config-reference.md with detailed section-by-section guide
+- Focus on "when to use which fields" over basic descriptions
+- Variable verbosity: heavy docs for complex sections (sources, external_files), light for simple ones
+- Include examples of common customizations and validation errors
 
 ## Completion Criteria
 
