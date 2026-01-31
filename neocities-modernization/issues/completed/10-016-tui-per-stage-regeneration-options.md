@@ -2,7 +2,8 @@
 
 **Priority**: Medium
 **Phase**: 10 (Developer Experience & Tooling)
-**Status**: Open
+**Status**: Completed
+**Completed**: 2026-01-30
 **Created**: 2026-01-30
 
 ---
@@ -223,12 +224,12 @@ For non-TUI usage, add corresponding flags:
 
 ## Success Criteria
 
-- [ ] "Force regenerate ALL stages" moved to top of stages section
-- [ ] Each stage has indented "Force regenerate" sub-option
-- [ ] Sub-options grayed out when "Force All" is checked
-- [ ] Navigation skips disabled/grayed options
-- [ ] Per-stage force flags passed to pipeline correctly
-- [ ] CLI `--force-stage N` flag working
+- [x] "Force regenerate ALL stages" moved to top of stages section
+- [x] Each stage has indented "Force regenerate" sub-option
+- [x] Sub-options grayed out when "Force All" is checked (via menu_add_dependency)
+- [x] Navigation skips disabled/grayed options (handled by lua-menu library)
+- [x] Per-stage force flags passed to pipeline correctly
+- [x] CLI `--force-stage N` flag working
 
 ---
 
@@ -246,3 +247,35 @@ For non-TUI usage, add corresponding flags:
 - Consider whether hidden vs grayed-out is better UX for disabled options
 - The `--force-stage N` CLI flag allows scripted usage without TUI
 - Each stage may need to implement its own force-regenerate behavior (delete cached files, etc.)
+
+---
+
+## Implementation Notes (2026-01-30)
+
+### Changes Made
+
+| Area | Change |
+|------|--------|
+| TUI | Added "Force regenerate ALL stages" as first item in stages section |
+| TUI | Added 10 per-stage "↳ Force regenerate" sub-options with indented labels |
+| TUI | Added `menu_add_dependency` rules to disable per-stage options when global force is checked |
+| CLI | Added `--force-stage=N` flag (accepts 1-10) |
+| Variables | Added `FORCE_STAGE_1` through `FORCE_STAGE_10` global flags |
+| Stages | Updated stages 1, 3, 6, 7, 8, 9 to check both global and per-stage force flags |
+
+### How It Works
+
+1. **TUI**: Each stage has an indented "↳ Force regenerate" checkbox. When "Force regenerate ALL stages" is checked, per-stage options are disabled (grayed out) via the existing `menu_add_dependency` mechanism.
+
+2. **CLI**: `--force-stage=6 --force-stage=9` allows forcing specific stages without affecting others.
+
+3. **Execution**: Each stage function now computes a local `stage_force` boolean:
+   ```bash
+   local stage_force=$FORCE
+   $FORCE_STAGE_N && stage_force=true
+   ```
+   This is then used for freshness checks and passed to Lua functions.
+
+### Design Decision
+
+The existing `lua-menu.sh` library's dependency system was sufficient - no library modifications were needed. The `menu_add_dependency` with `invert=true` provides the "disabled when parent is checked" behavior.

@@ -70,6 +70,7 @@ Stage Groups:
 Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
+  --force-stage=N     Force regenerate specific stage only (1-10)
   --model NAME        Embedding model name (default: embeddinggemma:latest)
 
 Pagination (HTML Generation):
@@ -151,6 +152,17 @@ GENERATE_INDEX=false
 # Config flags
 THREADS=""
 FORCE=false
+# Issue 10-016: Per-stage force flags
+FORCE_STAGE_1=false
+FORCE_STAGE_2=false
+FORCE_STAGE_3=false
+FORCE_STAGE_4=false
+FORCE_STAGE_5=false
+FORCE_STAGE_6=false
+FORCE_STAGE_7=false
+FORCE_STAGE_8=false
+FORCE_STAGE_9=false
+FORCE_STAGE_10=false
 QUIET=false
 VERBOSE=false
 DRY_RUN=false
@@ -216,6 +228,27 @@ while [[ $# -gt 0 ]]; do
             ;;
         --force)
             FORCE=true
+            shift
+            ;;
+        # Issue 10-016: Per-stage force regeneration
+        --force-stage=*)
+            stage_num="${1#*=}"
+            case "$stage_num" in
+                1) FORCE_STAGE_1=true ;;
+                2) FORCE_STAGE_2=true ;;
+                3) FORCE_STAGE_3=true ;;
+                4) FORCE_STAGE_4=true ;;
+                5) FORCE_STAGE_5=true ;;
+                6) FORCE_STAGE_6=true ;;
+                7) FORCE_STAGE_7=true ;;
+                8) FORCE_STAGE_8=true ;;
+                9) FORCE_STAGE_9=true ;;
+                10) FORCE_STAGE_10=true ;;
+                *)
+                    echo "ERROR: Invalid stage number: $stage_num (valid: 1-10)" >&2
+                    exit 1
+                    ;;
+            esac
             shift
             ;;
         --quiet)
@@ -529,9 +562,13 @@ symbol_warning() {
 run_update_words() {
     log_stage "📁 Stage 1/10: Updating input files from words repository"
 
+    # Issue 10-016: Check both global and per-stage force flags (Stage 1)
+    local stage_force=$FORCE
+    $FORCE_STAGE_1 && stage_force=true
+
     # Issue 7-003: Pass force flag to skip file preservation
     local force_flag=""
-    if $FORCE; then
+    if $stage_force; then
         force_flag="--force"
     fi
 
@@ -572,8 +609,12 @@ run_extract() {
 run_parse() {
     log_stage "📝 Stage 3/10: Parsing poems from JSON sources"
 
+    # Issue 10-016: Check both global and per-stage force flags (Stage 3)
+    local stage_force=$FORCE
+    $FORCE_STAGE_3 && stage_force=true
+
     local force_arg=""
-    if $FORCE; then
+    if $stage_force; then
         force_arg="--force"
     fi
 
@@ -635,8 +676,12 @@ run_generate_embeddings() {
     local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
     local poems_file="$DIR/assets/poems.json"
 
+    # Issue 10-016: Check both global and per-stage force flags
+    local stage_force=$FORCE
+    $FORCE_STAGE_6 && stage_force=true
+
     # Freshness check: skip if embeddings.json newer than poems.json
-    if ! $FORCE && [ -f "$embeddings_file" ] && [ -f "$poems_file" ]; then
+    if ! $stage_force && [ -f "$embeddings_file" ] && [ -f "$poems_file" ]; then
         if [ "$embeddings_file" -nt "$poems_file" ]; then
             log_info "   ⏭️  Embeddings are fresh (newer than poems.json), skipping..."
             log_verbose "   embeddings: $(stat -c %Y "$embeddings_file" 2>/dev/null || echo 'N/A')"
@@ -646,7 +691,7 @@ run_generate_embeddings() {
     fi
 
     local force_arg=""
-    if $FORCE; then
+    if $stage_force; then
         force_arg="--full-regen"
     else
         force_arg="--incremental"
@@ -743,15 +788,19 @@ run_generate_semantic_colors() {
         fi
     fi
 
+    # Issue 10-016: Check both global and per-stage force flags (Stage 6)
+    local stage_force=$FORCE
+    $FORCE_STAGE_6 && stage_force=true
+
     # Check freshness: poem_colors.json should be newer than embeddings.json
-    # With --force: always regenerate regardless of freshness
-    if ! $FORCE && [ -f "$poem_colors_file" ] && [ -f "$embeddings_file" ]; then
+    # With --force or --force-stage=6: always regenerate regardless of freshness
+    if ! $stage_force && [ -f "$poem_colors_file" ] && [ -f "$embeddings_file" ]; then
         if [ "$poem_colors_file" -nt "$embeddings_file" ]; then
             log_info "   ⏭️  Semantic colors are fresh (newer than embeddings), skipping..."
             return 0
         fi
         log_verbose "   poem_colors.json is stale (older than embeddings), regenerating..."
-    elif $FORCE; then
+    elif $stage_force; then
         log_verbose "   --force specified, regenerating semantic colors..."
     fi
 
@@ -822,6 +871,10 @@ run_generate_similarity() {
         exit 1
     fi
 
+    # Issue 10-016: Check both global and per-stage force flags (Stage 7)
+    local stage_force=$FORCE
+    $FORCE_STAGE_7 && stage_force=true
+
     # Issue 8-033: Check for individual similarity files instead of monolithic matrix
     local similarities_dir="$DIR/assets/embeddings/$model_dir_name/similarities"
     local similarity_count=0
@@ -830,7 +883,7 @@ run_generate_similarity() {
     fi
 
     # Freshness check: skip if we have all files and they're fresh
-    if ! $FORCE && [ "$similarity_count" -ge 7797 ]; then
+    if ! $stage_force && [ "$similarity_count" -ge 7797 ]; then
         # Check if any are older than embeddings (check newest file)
         local newest_similarity=$(find "$similarities_dir" -name "poem_*.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
         if [ -n "$newest_similarity" ] && [ "$newest_similarity" -nt "$embeddings_file" ]; then
@@ -852,6 +905,10 @@ run_generate_similarity() {
     log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Output: assets/embeddings/$model_dir_name/similarities/*.json (individual files)"
 
+    # Issue 10-016: Convert stage_force to Lua boolean for Lua function calls
+    local stage_force_lua="false"
+    $stage_force && stage_force_lua="true"
+
     if $use_gpu; then
         # GPU similarity generation using Vulkan compute shaders
         log_info "   Mode: GPU-accelerated (Vulkan)"
@@ -868,7 +925,7 @@ run_generate_similarity() {
             local success = vk_sim.generate_similarity_matrix_gpu_parallel(
                 '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
                 '$MODEL_NAME',
-                $FORCE_LUA,
+                $stage_force_lua,
                 $threads_to_use
             )
             if not success then
@@ -900,7 +957,7 @@ run_generate_similarity() {
                 '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
                 '$MODEL_NAME',
                 sleep,
-                $FORCE_LUA,
+                $stage_force_lua,
                 threads
             )
         " || {
@@ -949,8 +1006,12 @@ run_generate_diversity() {
         exit 1
     fi
 
+    # Issue 10-016: Check both global and per-stage force flags (Stage 8)
+    local stage_force=$FORCE
+    $FORCE_STAGE_8 && stage_force=true
+
     # Freshness check: skip if cache newer than embeddings
-    if ! $FORCE && [ -f "$cache_file" ]; then
+    if ! $stage_force && [ -f "$cache_file" ]; then
         if [ "$cache_file" -nt "$embeddings_file" ]; then
             log_info "   ⏭️  Diversity cache is fresh (newer than embeddings), skipping..."
             return 0
@@ -1009,8 +1070,12 @@ run_generate_diversity() {
 run_generate_html() {
     log_stage "🌐 Stage 9/10: Generating website HTML"
 
+    # Issue 10-016: Check both global and per-stage force flags (Stage 9)
+    local stage_force=$FORCE
+    $FORCE_STAGE_9 && stage_force=true
+
     local force_arg=""
-    if $FORCE; then
+    if $stage_force; then
         force_arg="--force"
     fi
 
@@ -1121,28 +1186,86 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 1: Pipeline Stages (multi - can select multiple)
     # Each checkbox maps to a CLI flag for command preview
+    # Issue 10-016: Force regeneration moved here with per-stage options
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "stages" "multi" "Pipeline Stages (toggle stages to run)"
+
+    # Issue 10-016: Global force regenerate option at top of stages
+    menu_add_item "stages" "force" "Force regenerate ALL stages" "checkbox" "0" \
+        "Force regeneration even if files are fresh" "f" "--force"
+
     menu_add_item "stages" "update_words" "1. Update Words" "checkbox" "1" \
         "Sync input files from words repository" "1" "--update-words"
+    menu_add_item "stages" "force_update_words" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=1"
+
     menu_add_item "stages" "extract" "2. Extract" "checkbox" "1" \
         "Extract content from backup archives" "2" "--extract"
+    menu_add_item "stages" "force_extract" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=2"
+
     menu_add_item "stages" "parse" "3. Parse" "checkbox" "1" \
         "Parse poems from JSON sources into poems.json" "3" "--parse"
+    menu_add_item "stages" "force_parse" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=3"
+
     menu_add_item "stages" "validate" "4. Validate" "checkbox" "1" \
         "Run poem validation" "4" "--validate"
+    menu_add_item "stages" "force_validate" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=4"
+
     menu_add_item "stages" "catalog_images" "5. Catalog Images" "checkbox" "1" \
         "Catalog images from input directories" "5" "--catalog-images"
+    menu_add_item "stages" "force_catalog_images" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=5"
+
     menu_add_item "stages" "generate_embeddings" "6. Embeddings ⚠️" "checkbox" "0" \
         "Generate embeddings via Ollama (~2-3 hours)" "6" "--generate-embeddings"
+    menu_add_item "stages" "force_generate_embeddings" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=6"
+
     menu_add_item "stages" "generate_similarity" "7. Similarity ⚠️" "checkbox" "0" \
         "Build similarity matrix (~30 min)" "7" "--generate-similarity"
+    menu_add_item "stages" "force_generate_similarity" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=7"
+
     menu_add_item "stages" "generate_diversity" "8. Diversity ⚠️" "checkbox" "0" \
         "Pre-compute diversity cache (~42 hours)" "8" "--generate-diversity"
+    menu_add_item "stages" "force_generate_diversity" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=8"
+
     menu_add_item "stages" "generate_html" "9. Generate HTML" "checkbox" "1" \
         "Generate website HTML (chronological + similarity pages)" "9" "--generate-html"
+    menu_add_item "stages" "force_generate_html" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=9"
+
     menu_add_item "stages" "generate_index" "10. Generate Index" "checkbox" "1" \
         "Generate numeric similarity index" "0" "--generate-index"
+    menu_add_item "stages" "force_generate_index" "    ↳ Force regenerate" "checkbox" "0" \
+        "Force regenerate this stage only" "" "--force-stage=10"
+
+    # Issue 10-016: Dependencies - per-stage force options disabled when global force is checked
+    # invert=true means: enable per-stage force when global force is NOT checked
+    menu_add_dependency "force_update_words" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_extract" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_parse" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_validate" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_catalog_images" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_generate_embeddings" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_generate_similarity" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_generate_diversity" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_generate_html" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
+    menu_add_dependency "force_generate_index" "force" "1" "true" \
+        "Disabled: global force is active" "orange"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 2: Configuration Options
@@ -1157,8 +1280,7 @@ interactive_mode_tui() {
         "Poems per page for similar/different (default: 200)" "y" "--poems-per-page"
     menu_add_item "config" "chrono_per_page" "Chrono per Page" "flag" ":3" \
         "Poems per page for chronological (default: 500)" "c" "--chrono-per-page"
-    menu_add_item "config" "force" "Force Regeneration" "checkbox" "0" \
-        "Force regeneration even if files are fresh" "f" "--force"
+    # Issue 10-016: Force Regeneration moved to stages section
     menu_add_item "config" "dry_run" "Dry Run" "checkbox" "0" \
         "Show what would be executed without running" "d" "--dry-run"
     menu_add_item "config" "verbose" "Verbose Output" "checkbox" "0" \
@@ -1220,6 +1342,17 @@ interactive_mode_tui() {
             local poems_per_page_val=$(menu_get_value "poems_per_page")
             local chrono_per_page_val=$(menu_get_value "chrono_per_page")
             local force_val=$(menu_get_value "force")
+            # Issue 10-016: Get per-stage force values from TUI
+            local force_update_words_val=$(menu_get_value "force_update_words")
+            local force_extract_val=$(menu_get_value "force_extract")
+            local force_parse_val=$(menu_get_value "force_parse")
+            local force_validate_val=$(menu_get_value "force_validate")
+            local force_catalog_val=$(menu_get_value "force_catalog_images")
+            local force_embeddings_val=$(menu_get_value "force_generate_embeddings")
+            local force_similarity_val=$(menu_get_value "force_generate_similarity")
+            local force_diversity_val=$(menu_get_value "force_generate_diversity")
+            local force_html_val=$(menu_get_value "force_generate_html")
+            local force_index_val=$(menu_get_value "force_generate_index")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
             # Issue 8-011: Get boost inclusion value from TUI
@@ -1249,6 +1382,17 @@ interactive_mode_tui() {
             [[ -n "$poems_per_page_val" && "$poems_per_page_val" != "0" ]] && POEMS_PER_PAGE="$poems_per_page_val"
             [[ -n "$chrono_per_page_val" && "$chrono_per_page_val" != "0" ]] && CHRONO_PER_PAGE="$chrono_per_page_val"
             [[ "$force_val" == "1" ]] && FORCE=true || FORCE=false
+            # Issue 10-016: Set per-stage force flags from TUI
+            [[ "$force_update_words_val" == "1" ]] && FORCE_STAGE_1=true || FORCE_STAGE_1=false
+            [[ "$force_extract_val" == "1" ]] && FORCE_STAGE_2=true || FORCE_STAGE_2=false
+            [[ "$force_parse_val" == "1" ]] && FORCE_STAGE_3=true || FORCE_STAGE_3=false
+            [[ "$force_validate_val" == "1" ]] && FORCE_STAGE_4=true || FORCE_STAGE_4=false
+            [[ "$force_catalog_val" == "1" ]] && FORCE_STAGE_5=true || FORCE_STAGE_5=false
+            [[ "$force_embeddings_val" == "1" ]] && FORCE_STAGE_6=true || FORCE_STAGE_6=false
+            [[ "$force_similarity_val" == "1" ]] && FORCE_STAGE_7=true || FORCE_STAGE_7=false
+            [[ "$force_diversity_val" == "1" ]] && FORCE_STAGE_8=true || FORCE_STAGE_8=false
+            [[ "$force_html_val" == "1" ]] && FORCE_STAGE_9=true || FORCE_STAGE_9=false
+            [[ "$force_index_val" == "1" ]] && FORCE_STAGE_10=true || FORCE_STAGE_10=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
             # Issue 8-011: Set boost inclusion from TUI
