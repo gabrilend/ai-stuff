@@ -51,7 +51,6 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-016 | TUI per-stage regeneration options | Completed | 2026-01-30 |
 | 10-017 | Multi-Ollama server configuration | Completed | 2026-01-30 |
 | 10-018 | Animated command option transitions | Completed | 2026-01-30 |
-| 10-020 | Fix long URL text overflow in HTML pages | Completed | 2026-01-30 |
 
 ## Issue Details
 
@@ -142,11 +141,6 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Focus on "when to use which fields" over basic descriptions
 - Variable verbosity: heavy docs for complex sections (sources, external_files), light for simple ones
 - Include examples of common customizations and validation errors
-
-**10-020: Fix Long URL Text Overflow in HTML Pages** - COMPLETED (2026-01-30)
-- Added CSS `pre { white-space: pre-wrap; ... }` to all HTML templates
-- Fixes chronological pages where long URLs pushed content far to the right
-- Applied to 6 templates: chronological (paginated/non), sorted poems (paginated/non), exploration guide, similarity/diversity pages
 
 ## Completion Criteria
 
