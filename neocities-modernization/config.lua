@@ -35,28 +35,15 @@ return {
     },
     -- }}}
 
-    -- {{{ input_sources
-    -- Paths to raw input data from various sources. The pipeline reads from these
-    -- directories during extraction. Each source type has its own extractor script
-    -- that parses the native format (ActivityPub JSON, plain text files, etc).
-    input_sources = {
-        fediverse_backup_path = "input/fediverse",      -- Mastodon/ActivityPub exports
-        messages_backup_path = "input/messages",        -- Private message archives
-        words_source_path = "input/words",              -- Raw text collections
-        notes_source_path = "input/notes",              -- Personal notes and drafts
-        bluesky_backup_path = "input/bluesky",          -- Bluesky/AT Protocol exports
-        -- Shared path: used by image_sync (writes) and image_integration (reads)
-        media_attachments_path = "input/media_attachments"
-    },
-    -- }}}
+    -- NOTE: input_sources section REMOVED (Issue 10-015a)
+    -- All source paths are now in the unified 'sources' section below.
+    -- Extractors use sources-loader.lua to read paths.
 
     -- {{{ sources
     -- Unified input source configuration (Issue 10-015).
     -- Each source type supports multiple named directories.
     -- Pipeline deduplicates by content ID across directories.
-    --
-    -- NOTE: This section coexists with input_sources/extraction for now.
-    -- Extractors will be migrated incrementally. See 10-015 for details.
+    -- All extractors now use sources-loader.lua to read these paths.
     sources = {
         fediverse = {
             enabled = true,
@@ -106,16 +93,25 @@ return {
             enabled = true,
             directories = {
                 {
+                    name = "fediverse-media",
+                    path = "input/media_attachments/files",
+                    description = "Mastodon/ActivityPub media attachments (deeply nested)"
+                },
+                {
                     name = "my-art",
                     path = "input/media_attachments/my-art",
+                    description = "artwork made in kolourpaint",
+                    optional = true
                 },
                 {
                     name = "things-I-almost-posted",
                     path = "input/media_attachments/things-i-almost-posted",
+                    optional = true
                 },
                 {
                     name = "poem-pictures",
                     path = "input/media_attachments/poem-pictures",
+                    optional = true
                 },
             },
             supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
@@ -265,10 +261,10 @@ return {
     -- {{{ image_integration
     -- Settings for including media attachments (images, GIFs) alongside poems.
     -- Images from fediverse posts are copied to the output and displayed inline.
-    -- Read by: src/image-manager.lua
+    -- Read by: src/image-manager.lua (uses sources.images for directories)
     image_integration = {
         enabled = true,
-        -- NOTE: Reads from input_sources.media_attachments_path (single source of truth)
+        -- NOTE: image directories now come from sources.images (Issue 10-015a)
         supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
         max_file_size_mb = 100,                      -- Skip oversized files
         output_path = "assets/images",              -- Where to copy images

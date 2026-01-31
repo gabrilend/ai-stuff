@@ -114,19 +114,17 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Issue 10-015: Get fediverse path from unified sources config (with fallback to old config)
+-- Issue 10-015a: Get fediverse path from unified sources config (no fallback - errors if not configured)
 local fediverse_directories = sources_loader.get_directories("fediverse")
-local fediverse_backup_path
-if #fediverse_directories > 0 then
-    -- Use the primary directory from sources config
-    fediverse_backup_path = fediverse_directories[1].path
-    -- Strip DIR prefix if present (sources-loader returns absolute paths)
-    if fediverse_backup_path:sub(1, #DIR) == DIR then
-        fediverse_backup_path = fediverse_backup_path:sub(#DIR + 2)  -- +2 for the slash
-    end
-else
-    -- Fallback to legacy input_sources config
-    fediverse_backup_path = config.input_sources.fediverse_backup_path or "input/fediverse"
+if #fediverse_directories == 0 then
+    print(COLOR_RED .. "❌ Error: sources.fediverse not configured in config.lua" .. COLOR_RESET)
+    os.exit(1)
+end
+-- Use the primary directory from sources config
+local fediverse_backup_path = fediverse_directories[1].path
+-- Strip DIR prefix if present (sources-loader returns absolute paths)
+if fediverse_backup_path:sub(1, #DIR) == DIR then
+    fediverse_backup_path = fediverse_backup_path:sub(#DIR + 2)  -- +2 for the slash
 end
 
 -- Privacy configuration from unified config
