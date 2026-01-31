@@ -27,6 +27,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings | Open | Medium |
 | 10-008 | Implement multiline command wrapping | Open | Low |
+| 10-018 | Animated command option transitions | Open | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-012 | Fix pipeline validation counting bugs | Open | High |
@@ -97,6 +98,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - CLI `--ollama NAME` and `--model NAME` flags for override
 - Server validation at pipeline start
 - Centralized config replaces scattered OLLAMA_HOST environment variables
+
+**10-018: Animated Command Option Transitions** - OPEN
+- Visual animations when options are added/removed from command preview
+- Insert: highlight color for ~400ms, then fade to normal
+- Remove: change to red/dim, pause, remove text, slide remaining options left
+- Character-by-character slide animation (~100ms per frame)
+- Configurable timing with disable option for users who prefer instant updates
 
 ## Completion Criteria
 
