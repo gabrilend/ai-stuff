@@ -20,6 +20,10 @@ local utils = require("utils")
 -- Initialize asset path configuration for standalone execution
 utils.init_assets_root(arg)
 
+-- ANSI color codes for terminal output
+local COLOR_GOLD = "\027[93m"     -- Bright yellow (gold) for golden poems
+local COLOR_RESET = "\027[0m"
+
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
     if absolute_path:sub(1, #DIR) == DIR then
@@ -54,13 +58,15 @@ local function generate_character_distribution_report(validation_stats)
     local display_count = math.min(20, #lengths)
     for i = 1, display_count do
         local item = lengths[i]
-        local marker = ""
+        local line
         if item.length == 1024 then
-            marker = " ← GOLDEN POEMS"
+            -- Golden poems get gold coloring
+            line = COLOR_GOLD .. string.format("%d poems @ %d characters ← GOLDEN POEMS",
+                                              item.count, item.length) .. COLOR_RESET
+        else
+            line = string.format("%d poems @ %d characters", item.count, item.length)
         end
-
-        table.insert(report, string.format("%d poems @ %d characters%s",
-                                         item.count, item.length, marker))
+        table.insert(report, line)
     end
 
     -- Show how many more entries exist
