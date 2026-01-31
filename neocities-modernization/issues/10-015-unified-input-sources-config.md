@@ -163,8 +163,8 @@ When the same content appears in multiple directories:
 
 ### Phase 1: Parallel Structure
 1. [x] Add new `sources` section to config.lua (alongside existing sections)
-2. [ ] Create `libs/sources-loader.lua` to parse the unified structure
-3. [ ] Add validation that checks for required fields, valid paths
+2. [x] Create `libs/sources-loader.lua` to parse the unified structure
+3. [x] Add validation that checks for required fields, valid paths (validate_all() function)
 
 ### Phase 2: Extractor Migration
 1. Update `scripts/extract-fediverse.lua` to iterate over `sources.fediverse.directories`

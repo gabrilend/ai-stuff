@@ -1,0 +1,376 @@
+-- {{{ external-sync.lua
+-- Issue 10-003b: Centralized external file syncing module
+-- Reads from config.external_files and syncs directories using rsync.
+--
+-- All external file pulling should go through this module.
+-- No hardcoded external paths should exist in scripts.
+--
+-- Usage:
+--   local sync = require("external-sync")
+--   sync.set_project_root("/path/to/project")
+--   sync.sync_all()                  -- Sync all sources
+--   sync.sync_by_name("bluesky-car") -- Sync specific source
+--   sync.list_sources()              -- List configured sources
+-- }}}
+
+local M = {}
+
+-- {{{ Module state
+local project_root = nil
+local config = nil
+local verbose = true
+-- }}}
+
+-- {{{ ANSI color codes for terminal output
+local COLOR_GREEN = "\027[92m"
+local COLOR_BLUE = "\027[94m"
+local COLOR_RED = "\027[91m"
+local COLOR_YELLOW = "\027[93m"
+local COLOR_RESET = "\027[0m"
+-- }}}
+
+-- {{{ set_project_root
+-- Set the project root directory (required before any operations)
+function M.set_project_root(path)
+    project_root = path
+    config = nil  -- Reset config when root changes
+end
+-- }}}
+
+-- {{{ set_verbose
+-- Enable or disable verbose output
+function M.set_verbose(enabled)
+    verbose = enabled
+end
+-- }}}
+
+-- {{{ local function log
+-- Print a message if verbose mode is enabled
+local function log(msg)
+    if verbose then
+        print(msg)
+    end
+end
+-- }}}
+
+-- {{{ local function log_success
+local function log_success(msg)
+    if verbose then
+        print(COLOR_GREEN .. msg .. COLOR_RESET)
+    end
+end
+-- }}}
+
+-- {{{ local function log_error
+local function log_error(msg)
+    io.stderr:write(COLOR_RED .. msg .. COLOR_RESET .. "\n")
+end
+-- }}}
+
+-- {{{ local function log_warning
+local function log_warning(msg)
+    if verbose then
+        print(COLOR_YELLOW .. msg .. COLOR_RESET)
+    end
+end
+-- }}}
+
+-- {{{ local function load_config
+-- Load config.lua if not already loaded
+local function load_config()
+    if config then
+        return config
+    end
+
+    if not project_root then
+        error("external-sync: project_root not set. Call set_project_root() first.")
+    end
+
+    local config_path = project_root .. "/config.lua"
+    local ok, result = pcall(dofile, config_path)
+    if not ok then
+        error("external-sync: Failed to load config.lua: " .. tostring(result))
+    end
+
+    config = result
+    return config
+end
+-- }}}
+
+-- {{{ local function get_external_files
+-- Get the external_files array from config
+local function get_external_files()
+    local cfg = load_config()
+    return cfg.external_files or {}
+end
+-- }}}
+
+-- {{{ local function dir_exists
+-- Check if a directory exists
+local function dir_exists(path)
+    local handle = io.popen("test -d '" .. path .. "' && echo yes || echo no")
+    local result = handle:read("*l")
+    handle:close()
+    return result == "yes"
+end
+-- }}}
+
+-- {{{ local function count_files
+-- Count files in a directory
+local function count_files(path)
+    if not dir_exists(path) then
+        return 0
+    end
+    local handle = io.popen("find '" .. path .. "' -type f 2>/dev/null | wc -l")
+    local result = handle:read("*l")
+    handle:close()
+    return tonumber(result) or 0
+end
+-- }}}
+
+-- {{{ local function run_rsync
+-- Run rsync to sync source to destination
+-- Returns: success (bool), files_synced (number)
+local function run_rsync(source_path, dest_path, options)
+    options = options or {}
+
+    -- Build rsync command
+    local rsync_opts = "-a"  -- Archive mode (preserves permissions, timestamps, etc.)
+
+    if not options.overwrite then
+        rsync_opts = rsync_opts .. " --ignore-existing"
+    end
+
+    -- Ensure destination exists
+    os.execute("mkdir -p '" .. dest_path .. "'")
+
+    -- Count files before
+    local before_count = count_files(dest_path)
+
+    -- Run rsync (trailing slash on source means "contents of")
+    local cmd = string.format("rsync %s '%s/' '%s/' 2>/dev/null",
+        rsync_opts, source_path, dest_path)
+    local result = os.execute(cmd)
+
+    -- Count files after
+    local after_count = count_files(dest_path)
+    local files_synced = after_count - before_count
+
+    -- os.execute returns different values in different Lua versions
+    local success = (result == 0) or (result == true)
+
+    return success, files_synced
+end
+-- }}}
+
+-- {{{ sync_source
+-- Sync a single external source entry
+-- Returns: { success = bool, name = string, files_synced = number, message = string }
+function M.sync_source(source_entry)
+    if not project_root then
+        error("external-sync: project_root not set. Call set_project_root() first.")
+    end
+
+    local name = source_entry.name or "unnamed"
+    local source_path = source_entry.source
+    local destination = source_entry.destination
+    local is_optional = source_entry.optional or false
+
+    -- Validate required fields
+    if not source_path then
+        return {
+            success = false,
+            name = name,
+            files_synced = 0,
+            message = "Missing 'source' field"
+        }
+    end
+
+    if not destination then
+        return {
+            success = false,
+            name = name,
+            files_synced = 0,
+            message = "Missing 'destination' field"
+        }
+    end
+
+    -- Build full destination path (relative to input/)
+    local full_dest = project_root .. "/input/" .. destination
+
+    -- Check if source exists
+    if not dir_exists(source_path) then
+        if is_optional then
+            return {
+                success = true,  -- Optional missing is not a failure
+                name = name,
+                files_synced = 0,
+                message = "Optional source not found (skipped)",
+                skipped = true
+            }
+        else
+            return {
+                success = false,
+                name = name,
+                files_synced = 0,
+                message = "Required source not found: " .. source_path
+            }
+        end
+    end
+
+    -- Run rsync
+    local success, files_synced = run_rsync(source_path, full_dest, {
+        overwrite = false  -- Don't overwrite existing files
+    })
+
+    if success then
+        return {
+            success = true,
+            name = name,
+            files_synced = files_synced,
+            message = files_synced > 0
+                and string.format("Synced %d new files", files_synced)
+                or "Up to date"
+        }
+    else
+        return {
+            success = false,
+            name = name,
+            files_synced = 0,
+            message = "rsync failed"
+        }
+    end
+end
+-- }}}
+
+-- {{{ sync_by_name
+-- Sync a specific source by name
+-- Returns: result table or nil if not found
+function M.sync_by_name(name)
+    local sources = get_external_files()
+
+    for _, source in ipairs(sources) do
+        if source.name == name then
+            local result = M.sync_source(source)
+
+            -- Log result
+            if result.success then
+                if result.skipped then
+                    log_warning("⚠️  " .. name .. ": " .. result.message)
+                else
+                    log_success("✅ " .. name .. ": " .. result.message)
+                end
+            else
+                log_error("❌ " .. name .. ": " .. result.message)
+            end
+
+            return result
+        end
+    end
+
+    log_error("❌ Source not found: " .. name)
+    return nil
+end
+-- }}}
+
+-- {{{ sync_all
+-- Sync all configured external sources
+-- Returns: { total = n, synced = n, skipped = n, failed = n, results = {} }
+function M.sync_all()
+    local sources = get_external_files()
+    local results = {
+        total = #sources,
+        synced = 0,
+        skipped = 0,
+        failed = 0,
+        results = {}
+    }
+
+    if #sources == 0 then
+        log("📁 No external sources configured")
+        return results
+    end
+
+    log("📁 Syncing " .. #sources .. " external sources...")
+
+    for _, source in ipairs(sources) do
+        local result = M.sync_source(source)
+        table.insert(results.results, result)
+
+        if result.success then
+            if result.skipped then
+                results.skipped = results.skipped + 1
+                log_warning("   ⚠️  " .. result.name .. ": " .. result.message)
+            else
+                results.synced = results.synced + 1
+                log_success("   ✅ " .. result.name .. ": " .. result.message)
+            end
+        else
+            results.failed = results.failed + 1
+            log_error("   ❌ " .. result.name .. ": " .. result.message)
+        end
+    end
+
+    -- Summary
+    if results.failed > 0 then
+        log_error(string.format("📁 Sync complete: %d synced, %d skipped, %d FAILED",
+            results.synced, results.skipped, results.failed))
+    else
+        log_success(string.format("📁 Sync complete: %d synced, %d skipped",
+            results.synced, results.skipped))
+    end
+
+    return results
+end
+-- }}}
+
+-- {{{ list_sources
+-- List all configured external sources
+-- Returns: array of { name, source, destination, optional }
+function M.list_sources()
+    local sources = get_external_files()
+    local list = {}
+
+    for _, source in ipairs(sources) do
+        table.insert(list, {
+            name = source.name or "unnamed",
+            source = source.source or "",
+            destination = source.destination or "",
+            optional = source.optional or false
+        })
+    end
+
+    return list
+end
+-- }}}
+
+-- {{{ print_sources
+-- Print a formatted list of configured sources
+function M.print_sources()
+    local sources = M.list_sources()
+
+    if #sources == 0 then
+        print("No external sources configured")
+        return
+    end
+
+    print("External sources (" .. #sources .. "):")
+    print(string.rep("-", 70))
+
+    for _, source in ipairs(sources) do
+        local opt_marker = source.optional and " (optional)" or ""
+        print(string.format("  %s%s", source.name, opt_marker))
+        print(string.format("    FROM: %s", source.source))
+        print(string.format("    TO:   input/%s", source.destination))
+    end
+end
+-- }}}
+
+-- {{{ has_failures
+-- Check if sync_all result has any failures (for exit code)
+function M.has_failures(results)
+    return results.failed > 0
+end
+-- }}}
+
+return M
