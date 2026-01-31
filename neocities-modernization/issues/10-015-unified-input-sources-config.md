@@ -4,6 +4,7 @@
 **Phase**: 10 (Developer Experience & Tooling)
 **Status**: Open
 **Created**: 2026-01-30
+**Parent Issue**: 10-003
 
 ---
 
