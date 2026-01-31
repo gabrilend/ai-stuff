@@ -25,6 +25,10 @@ local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local config = config_loader.load()
 
+-- Issue 10-015: Load sources configuration for multi-directory support
+local sources_loader = require("sources-loader")
+sources_loader.set_project_root(DIR)
+
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
 local COLOR_BLUE = "\027[94m"     -- Bright blue for info (ℹ️)
@@ -48,8 +52,20 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Load configuration from unified config
-local messages_backup_path = config.input_sources.messages_backup_path or "input/messages"
+-- Issue 10-015: Get messages path from unified sources config (with fallback to old config)
+local messages_directories = sources_loader.get_directories("messages")
+local messages_backup_path
+if #messages_directories > 0 then
+    -- Use the primary directory from sources config
+    messages_backup_path = messages_directories[1].path
+    -- Strip DIR prefix if present (sources-loader returns absolute paths)
+    if messages_backup_path:sub(1, #DIR) == DIR then
+        messages_backup_path = messages_backup_path:sub(#DIR + 2)  -- +2 for the slash
+    end
+else
+    -- Fallback to legacy input_sources config
+    messages_backup_path = config.input_sources.messages_backup_path or "input/messages"
+end
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path
 local source_base_path

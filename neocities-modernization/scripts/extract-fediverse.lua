@@ -87,6 +87,10 @@ local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local config = config_loader.load()
 
+-- Issue 10-015: Load sources configuration for multi-directory support
+local sources_loader = require("sources-loader")
+sources_loader.set_project_root(DIR)
+
 -- ANSI color codes for terminal output
 local COLOR_GREEN = "\027[92m"    -- Bright green for success (✓, ✅)
 local COLOR_BLUE = "\027[94m"     -- Bright blue for info (ℹ️)
@@ -110,8 +114,20 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Load configuration from unified config
-local fediverse_backup_path = config.input_sources.fediverse_backup_path or "input/fediverse"
+-- Issue 10-015: Get fediverse path from unified sources config (with fallback to old config)
+local fediverse_directories = sources_loader.get_directories("fediverse")
+local fediverse_backup_path
+if #fediverse_directories > 0 then
+    -- Use the primary directory from sources config
+    fediverse_backup_path = fediverse_directories[1].path
+    -- Strip DIR prefix if present (sources-loader returns absolute paths)
+    if fediverse_backup_path:sub(1, #DIR) == DIR then
+        fediverse_backup_path = fediverse_backup_path:sub(#DIR + 2)  -- +2 for the slash
+    end
+else
+    -- Fallback to legacy input_sources config
+    fediverse_backup_path = config.input_sources.fediverse_backup_path or "input/fediverse"
+end
 
 -- Privacy configuration from unified config
 -- CLI flags --include-boosts/--no-boosts override config value
