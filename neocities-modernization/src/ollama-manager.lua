@@ -208,7 +208,8 @@ function M.main(interactive_mode)
                 M.test_embedding(endpoint, model)
             end
         elseif choice == "3" then
-            local endpoint = ollama_config.OLLAMA_ENDPOINT
+            -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
+            local endpoint = ollama_config.build_host_url()
             M.test_embedding(endpoint, "embeddinggemma:latest")
         else
             print("Invalid choice")

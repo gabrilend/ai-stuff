@@ -130,11 +130,6 @@ return {
     -- NOTE: image_sync.sources will eventually be merged here. For now, both exist.
     external_files = {
         {
-            name = "bluesky-car",
-            source = "/home/ritz/backups/bluesky/input",
-            destination = "bluesky",
-        },
-        {
             name = "my-art",
             source = "/home/ritz/pictures/my-art",
             destination = "media_attachments/my-art",
@@ -148,6 +143,26 @@ return {
             name = "poem-pictures",
             source = "/home/ritz/pictures/poem-pictures",
             destination = "media_attachments/poem-pictures",
+        },
+        {
+           name = "fediverse-zip",
+           source = "/home/ritz/backups/fediverse/backups/most-recent-29.zip",
+           destination = "",
+        },
+        {
+           name = "messages-zip",
+           source = "/home/ritz/backups/messages-to-myself/input-zip-file/meldowin-wins.zip",
+           destination = "",
+        },
+        {
+           name = "notes-dir",
+           source = "/home/ritz/notes",
+           destination = "notes",
+        },
+        {
+            name = "bluesky-car",
+            source = "/home/ritz/backups/bluesky/input",
+            destination = "bluesky",
         },
     },
     -- }}}
@@ -252,10 +267,55 @@ return {
     -- Algorithm settings for computing poem-to-poem similarity scores.
     -- Read by: src/similarity-calculator.lua
     -- Available algorithms: "cosine", "euclidean", "manhattan", "angular", "pearson_correlation"
-    -- CLI override: --model NAME (embedding model, via run.sh)
     similarity = {
         default_algorithm = "cosine"    -- Cosine is standard for text embeddings
     },
+    -- }}}
+
+    -- {{{ ollama_servers
+    -- Issue 10-017: Ollama server configuration for embedding generation.
+    -- Define multiple servers (local, remote GPU, etc.) and switch between them
+    -- via TUI selection or CLI flags.
+    -- Read by: libs/ollama-config.lua
+    -- CLI overrides: --ollama NAME, --model NAME, --list-ollama
+    --
+    -- Fields per server:
+    --   name: Label shown in TUI and used with --ollama flag
+    --   description: Human-readable description
+    --   host: Server hostname or IP
+    --   port: Ollama API port (default: 11434)
+    --   model: Default embedding model for this server
+    --   available_models: (optional) List of models available on this server
+    ollama_servers = {
+        {
+            name = "gpu-server",
+            description = "Remote GPU server (CUDA)",
+            host = "192.168.0.115",
+            port = 10265,
+            model = "nomic-embed-text",
+            available_models = {
+                "nomic-embed-text",
+                "mxbai-embed-large",
+            }
+        },
+        {
+            name = "gpu-server-alt",
+            description = "Remote GPU server (alternate port)",
+            host = "192.168.0.115",
+            port = 11434,
+            model = "nomic-embed-text",
+        },
+        {
+            name = "local",
+            description = "Local Ollama instance",
+            host = "localhost",
+            port = 11434,
+            model = "nomic-embed-text",
+        },
+    },
+    -- Default server name (must match a name above)
+    -- If not set, first server in list is used
+    default_ollama_server = "gpu-server",
     -- }}}
 
     -- {{{ image_integration

@@ -367,7 +367,8 @@ function M.generate_all_centroids(options)
     options = options or {}
 
     -- Check Ollama availability
-    local endpoint = ollama_config.OLLAMA_ENDPOINT
+    -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
+    local endpoint = ollama_config.build_host_url()
     utils.log_info("Using Ollama endpoint: " .. endpoint)
 
     -- Verify endpoint is reachable
