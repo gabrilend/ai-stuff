@@ -2355,9 +2355,6 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s</title>
-<style>
-pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 80ch; }
-</style>
 </head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
@@ -2503,9 +2500,6 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s (Page %d of %d)</title>
-<style>
-pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 80ch; }
-</style>
 </head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
@@ -2736,9 +2730,6 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order (Page %d of %d)</title>
-<style>
-pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 80ch; }
-</style>
 </head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
@@ -2761,9 +2752,6 @@ pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; m
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order</title>
-<style>
-pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 80ch; }
-</style>
 </head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
@@ -2928,9 +2916,6 @@ function M.generate_simple_discovery_instructions(output_dir)
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - How to Explore</title>
-<style>
-pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 80ch; }
-</style>
 </head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
@@ -4005,7 +3990,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local html_parts = {
                         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
                         '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
-                        '<style>pre { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 80ch; }</style>',
                         '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
                     }
 
