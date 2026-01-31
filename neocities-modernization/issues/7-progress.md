@@ -34,6 +34,7 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 | 7-002 | Clean up run.sh output | Completed | 2025-12-14 |
 | 7-003 | Cleanup run.sh output formatting | Completed | 2026-01-30 |
 | 7-004 | Add ignored archives configuration | Completed | 2026-01-30 |
+| 7-005 | Select most recent archive per type | Completed | 2026-01-30 |
 
 ### Issue Details
 
@@ -53,6 +54,13 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 - Addresses `neocities-ritz-menardi.zip` embedded in fediverse media_attachments
 - Silently skips rather than warning (explicit "not content" config)
 - Removed obsolete cleanup from update-words (wrong path, wrong stage)
+
+**7-005: Select Most Recent Archive Per Type** - COMPLETED (2026-01-30)
+- Groups archives by type (fediverse, messages, notes)
+- Sorts each group by modification time (newest first)
+- Selects only the most recent archive per type
+- Warns about skipped older archives with full yellow text and date
+- Shows dates inline during archive scanning: `📦 Found messages archive: export (2026-01-28)`
 
 **7-002: Clean Up run.sh Output** - COMPLETED
 - Suppressed verbose unzip output
