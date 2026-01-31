@@ -31,7 +31,6 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
-| 10-016 | TUI per-stage regeneration options | Open | Medium |
 | 10-018 | Animated command option transitions | Open | Low |
 | 10-019 | Document config structure and field usage | Open | Low |
 
@@ -49,6 +48,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-014 | Complete config migration from input-sources.json | Completed | 2026-01-30 |
 | 10-015 | Unified input sources configuration | Completed | 2026-01-30 |
 | 10-015a | Migrate image-manager to sources-loader | Completed | 2026-01-30 |
+| 10-016 | TUI per-stage regeneration options | Completed | 2026-01-30 |
 | 10-017 | Multi-Ollama server configuration | Completed | 2026-01-30 |
 
 ## Issue Details
@@ -107,11 +107,12 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Removed last dependency on `input_sources` section
 - Follows "no fallbacks" design - errors clearly if config missing
 
-**10-016: TUI Per-Stage Regeneration Options** - OPEN
-- Move "Force regenerate ALL stages" to top of stages section
-- Add indented "Force regenerate" sub-option under each stage
-- When "Force All" is selected, gray out per-stage options and skip during navigation
-- Add CLI `--force-stage N` flag for scripted usage
+**10-016: TUI Per-Stage Regeneration Options** - COMPLETED (2026-01-30)
+- Moved "Force regenerate ALL stages" to top of stages section
+- Added 10 indented "↳ Force regenerate" sub-options with visual indentation
+- Per-stage options grayed out when global force is checked (via menu_add_dependency)
+- Added CLI `--force-stage=N` flag (accepts 1-10)
+- Updated stages 1, 3, 6, 7, 8, 9 to check both global and per-stage force flags
 - Enables selective cache invalidation without full rebuild
 
 **10-017: Multi-Ollama Server Configuration** - COMPLETED (2026-01-30)
@@ -145,6 +146,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - [x] Validation script counts accurate (10-012)
 - [x] Unified input sources config (10-015, 10-015a)
 - [x] Multi-Ollama server configuration (10-017)
+- [x] TUI per-stage regeneration options (10-016)
 - [ ] TUI integration for all interactive scripts
 - [ ] Test suite integration (10-010)
 
