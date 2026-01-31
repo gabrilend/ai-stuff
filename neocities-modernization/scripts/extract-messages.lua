@@ -52,19 +52,17 @@ local function relative_path(absolute_path)
 end
 -- }}}
 
--- Issue 10-015: Get messages path from unified sources config (with fallback to old config)
+-- Issue 10-015a: Get messages path from unified sources config (no fallback - errors if not configured)
 local messages_directories = sources_loader.get_directories("messages")
-local messages_backup_path
-if #messages_directories > 0 then
-    -- Use the primary directory from sources config
-    messages_backup_path = messages_directories[1].path
-    -- Strip DIR prefix if present (sources-loader returns absolute paths)
-    if messages_backup_path:sub(1, #DIR) == DIR then
-        messages_backup_path = messages_backup_path:sub(#DIR + 2)  -- +2 for the slash
-    end
-else
-    -- Fallback to legacy input_sources config
-    messages_backup_path = config.input_sources.messages_backup_path or "input/messages"
+if #messages_directories == 0 then
+    print(COLOR_RED .. "❌ Error: sources.messages not configured in config.lua" .. COLOR_RESET)
+    os.exit(1)
+end
+-- Use the primary directory from sources config
+local messages_backup_path = messages_directories[1].path
+-- Strip DIR prefix if present (sources-loader returns absolute paths)
+if messages_backup_path:sub(1, #DIR) == DIR then
+    messages_backup_path = messages_backup_path:sub(#DIR + 2)  -- +2 for the slash
 end
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path

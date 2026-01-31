@@ -25,6 +25,10 @@ local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
 
+-- Issue 10-015a: Load sources configuration for multi-directory support
+local sources_loader = require("sources-loader")
+sources_loader.set_project_root(DIR)
+
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
@@ -42,17 +46,45 @@ end
 local M = {}
 
 -- {{{ function load_config
--- Issue 10-003: Use unified config instead of input-sources.json
--- Issue 7-003: Use shared media_attachments_path from input_sources (single source of truth)
+-- Issue 10-015a: Use sources-loader for image directories (replaces input_sources dependency)
+-- This is the "no fallbacks" design - errors if sources.images not configured
 local function load_config()
-    local config = unified_config.image_integration or {}
-    -- Build image_directories from shared path
-    local media_path = unified_config.input_sources and unified_config.input_sources.media_attachments_path
-    if media_path then
-        config.image_directories = {media_path}
-    else
-        config.image_directories = {"input/media_attachments"}  -- fallback
+    -- Get image source configuration
+    local images_source = sources_loader.get_source("images")
+    if not images_source then
+        error("sources.images not configured in config.lua - required for image discovery")
     end
+
+    -- Build image_directories from sources.images.directories
+    local directories = sources_loader.get_directories("images")
+    if #directories == 0 then
+        error("sources.images.directories is empty in config.lua - no directories to scan")
+    end
+
+    -- Extract just the paths (relative to project root, will be prefixed with DIR later)
+    local image_directories = {}
+    for _, dir in ipairs(directories) do
+        -- sources-loader returns absolute paths, convert to relative for consistency
+        local path = dir.path
+        if path:sub(1, #DIR) == DIR then
+            path = path:sub(#DIR + 2)  -- Strip DIR prefix and leading slash
+        end
+        table.insert(image_directories, path)
+    end
+
+    -- Build config from sources.images settings (with image_integration fallbacks for display settings)
+    local display_config = unified_config.image_integration or {}
+    local config = {
+        enabled = sources_loader.is_enabled("images"),
+        image_directories = image_directories,
+        -- Use sources.images settings, fall back to image_integration for legacy compat
+        supported_formats = images_source.supported_formats or display_config.supported_formats or {"png", "jpg", "jpeg", "gif", "webp", "svg"},
+        max_file_size_mb = images_source.max_file_size_mb or display_config.max_file_size_mb or 10,
+        -- Keep display settings from image_integration
+        output_path = display_config.output_path,
+        catalog_file = display_config.catalog_file
+    }
+
     return config
 end
 -- }}}
