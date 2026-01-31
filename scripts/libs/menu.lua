@@ -74,10 +74,11 @@ local state = {
         current = nil,               -- Currently executing animation
         start_time = 0,              -- When current animation started (os.clock())
         -- Animation timing configuration (milliseconds)
+        -- Issue 10-018: Reduced timings by 50% for snappier feel
         config = {
-            insert_highlight_duration = 400,   -- How long to show highlight color
-            remove_highlight_duration = 400,   -- How long to show removal color
-            slide_interval = 80,               -- Time between slide frames
+            insert_highlight_duration = 200,   -- How long to show highlight color
+            remove_highlight_duration = 200,   -- How long to show removal color
+            slide_interval = 40,               -- Time between slide frames
             max_slide_frames = 12,             -- Cap slide frames to prevent slowness
         },
         -- Current animation render state
@@ -2454,6 +2455,12 @@ end
 -- {{{ menu.render
 -- Full render of the menu (writes to back buffer, then presents)
 function menu.render()
+    -- Issue 10-018: Update animation state on every render
+    -- This ensures animations progress even when user is actively pressing keys
+    if animation_active() then
+        update_animation()
+    end
+
     -- Update command preview before rendering
     update_command_preview()
 
