@@ -113,20 +113,12 @@ fi
 
 echo "🔄 Starting content extraction with ZIP archive support..."
 
-# Sync latest Bluesky CAR file from backups
-BLUESKY_BACKUP_DIR="/home/ritz/backups/bluesky/input"
-if [ -d "$BLUESKY_BACKUP_DIR" ]; then
-    # Find the highest numbered repo-*.car file
-    LATEST_CAR=$(find "$BLUESKY_BACKUP_DIR" -name "repo-*.car" -type f 2>/dev/null | sort -V | tail -1)
-
-    if [ -n "$LATEST_CAR" ]; then
-        CAR_FILENAME=$(basename "$LATEST_CAR")
-        echo "🦋 Syncing latest Bluesky CAR file: $CAR_FILENAME"
-        mkdir -p "${DIR}/input/bluesky"
-        cp "$LATEST_CAR" "${DIR}/input/bluesky/$CAR_FILENAME"
-        echo "   ✓ Copied to input/bluesky/$CAR_FILENAME"
-    fi
-fi
+# Issue 10-003b: Sync external files from configured sources
+# This replaces the hardcoded Bluesky sync and uses the centralized external_files config
+echo "📁 Syncing external files..."
+"${DIR}/scripts/sync-external-files" || {
+    echo "Warning: Some external file syncs failed (check output above)" >&2
+}
 
 # Create temporary extraction directory
 TEMP_EXTRACT_DIR="${DIR}/temp/extract-$(date +%s)"
