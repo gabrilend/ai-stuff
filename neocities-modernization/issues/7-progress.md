@@ -24,7 +24,9 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 
 ### Active Issues
 
-*No active issues*
+| Issue | Description | Status | Priority |
+|-------|-------------|--------|----------|
+| 7-006 | Implement expanded colorization | Open | Low |
 
 ### Completed Issues
 
@@ -106,10 +108,11 @@ Phase 7 focuses on eliminating warnings, errors, and fallbacks from the pipeline
 
 ---
 
-**Phase Status: COMPLETED**
+**Phase Status: IN PROGRESS** (reopened for polish items)
 
 **Started**: 2025-12-14
-**Completed**: 2025-12-14 (reopened 2026-01-30 for 7-003, completed same day)
+**Initial Completion**: 2025-12-14
+**Reopened**: 2026-01-30 (7-003 through 7-006)
 
 ## Phase 7 Summary
 
