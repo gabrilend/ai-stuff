@@ -82,7 +82,8 @@ end
 local save_location = DIR .. "/" .. messages_backup_path .. "/files"
 
 if not file_handle then
-    print(COLOR_RED .. "❌" .. COLOR_RESET .. " Error: Could not find export.json at any expected location")
+    -- Issue 7-006: Full-line coloring for error messages
+    print(COLOR_RED .. "❌ Error: Could not find export.json at any expected location" .. COLOR_RESET)
     print("   Tried: " .. relative_path(source_base_path .. "/extract/export.json"))
     print("   Tried: " .. relative_path(source_base_path .. "/extract/export/export.json"))
     print("   Tried: " .. relative_path(DIR .. "/input/extract/export/export.json"))
@@ -157,7 +158,8 @@ end
 -- For messages, exclusion IDs are the message index (numeric)
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count("messages") > 0 then
-    print(COLOR_YELLOW .. "🚫" .. COLOR_RESET .. " Messages exclusion filter: " .. poem_exclusions:count("messages") .. " entries")
+    -- Issue 7-006: Full-line coloring for info messages
+    print(COLOR_YELLOW .. "🚫 Messages exclusion filter: " .. poem_exclusions:count("messages") .. " entries" .. COLOR_RESET)
 end
 
 -- {{{ Issue 8-054: Build image lookup from extract/images/ directory
@@ -205,7 +207,8 @@ end
 local image_lookup_count = 0
 for _ in pairs(image_lookup) do image_lookup_count = image_lookup_count + 1 end
 if image_lookup_count > 0 then
-    print(COLOR_BLUE .. "ℹ️" .. COLOR_RESET .. " Found " .. image_lookup_count .. " images in extract/images/")
+    -- Issue 7-006: Full-line coloring for info messages
+    print(COLOR_BLUE .. "ℹ️ Found " .. image_lookup_count .. " images in extract/images/" .. COLOR_RESET)
 end
 -- }}}
 
@@ -307,7 +310,8 @@ local f = io.open(json_file, "w")
 f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
-print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Messages extraction complete")
+-- Issue 7-006: Full-line coloring for success messages
+print(COLOR_GREEN .. "✅ Messages extraction complete" .. COLOR_RESET)
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Messages processed: " .. #poems_json)
 if image_count > 0 then

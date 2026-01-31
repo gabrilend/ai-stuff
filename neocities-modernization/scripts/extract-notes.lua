@@ -149,7 +149,8 @@ print("📝 Starting notes extraction from: " .. relative_path(notes_dir))
 -- For notes, exclusion IDs are filenames (without extension)
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count("notes") > 0 then
-    print(COLOR_YELLOW .. "🚫" .. COLOR_RESET .. " Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries")
+    -- Issue 7-006: Full-line coloring for info messages
+    print(COLOR_YELLOW .. "🚫 Notes exclusion filter: " .. poem_exclusions:count("notes") .. " entries" .. COLOR_RESET)
 end
 
 local excluded_count = 0
@@ -229,7 +230,8 @@ local f = io.open(json_file, "w")
 f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
-print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Notes extraction complete")
+-- Issue 7-006: Full-line coloring for success messages
+print(COLOR_GREEN .. "✅ Notes extraction complete" .. COLOR_RESET)
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Notes processed: " .. #poems_json)
 if excluded_count > 0 then
