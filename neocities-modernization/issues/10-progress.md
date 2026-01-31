@@ -33,6 +33,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-015 | Unified input sources configuration | Open | Medium |
 | 10-016 | TUI per-stage regeneration options | Open | Medium |
+| 10-017 | Multi-Ollama server configuration | Open | Medium |
 
 ### Completed Issues
 
@@ -89,6 +90,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - When "Force All" is selected, gray out per-stage options and skip during navigation
 - Add CLI `--force-stage N` flag for scripted usage
 - Enables selective cache invalidation without full rebuild
+
+**10-017: Multi-Ollama Server Configuration** - OPEN
+- Add `ollama_servers` config section with name, host, port, model per server
+- TUI radio button selection (exactly one must be selected, first is default)
+- CLI `--ollama NAME` and `--model NAME` flags for override
+- Server validation at pipeline start
+- Centralized config replaces scattered OLLAMA_HOST environment variables
 
 ## Completion Criteria
 
