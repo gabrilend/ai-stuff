@@ -154,11 +154,11 @@ in `external_files`.
 ## Implementation Steps
 
 ### Phase 1: Fix Hardcoded Filenames
-1. [ ] Update `scripts/update` to find any `.car` file by pattern (not specific names)
-2. [ ] Update `scripts/extract-bluesky-data` to find CAR file dynamically if not provided
+1. [x] Update `scripts/update` to find any `.car` file by pattern (not specific names)
+2. [x] Update `scripts/extract-bluesky-data` to find CAR file dynamically if not provided
 
 ### Phase 2: Centralize External Sources
-3. [ ] Add `external_files` section to `config.lua`
+3. [x] Add `external_files` section to `config.lua`
 4. [ ] Create `libs/external-sync.lua` module to process external_files config
 5. [ ] Update `scripts/update` to use external-sync module (replace hardcoded Bluesky sync)
 6. [ ] Merge `image_sync.sources` entries into `external_files`
