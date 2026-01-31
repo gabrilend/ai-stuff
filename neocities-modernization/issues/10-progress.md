@@ -51,6 +51,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-016 | TUI per-stage regeneration options | Completed | 2026-01-30 |
 | 10-017 | Multi-Ollama server configuration | Completed | 2026-01-30 |
 | 10-018 | Animated command option transitions | Completed | 2026-01-30 |
+| 10-021 | Whitespace-preserving word wrap for poems | Completed | 2026-01-30 |
 
 ## Issue Details
 
@@ -141,6 +142,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Focus on "when to use which fields" over basic descriptions
 - Variable verbosity: heavy docs for complex sections (sources, external_files), light for simple ones
 - Include examples of common customizations and validation errors
+
+**10-021: Whitespace-Preserving Word Wrap** - COMPLETED (2026-01-30)
+- Re-enabled 80-char word wrapping (disabled by 8-056) with new algorithm
+- Added `wrap_preserving_indent()` to text-formatter.lua
+- Preserves leading whitespace on continuation lines
+- Long URLs broken at character boundaries when exceeding line width
+- Artistic indentation and paragraph breaks maintained
 
 ## Completion Criteria
 
