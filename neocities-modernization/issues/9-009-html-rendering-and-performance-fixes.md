@@ -41,6 +41,15 @@ Images embedded or referenced in chronological.html should be compressed.
 ### H. UTF-8 Box Drawing Optimization
 Consider using ASCII alternatives or optimizing encoding to reduce file size.
 
+### I. Missing "Different" Page (discovered 2026-01-30)
+Validation reports off-by-one error:
+```
+HTML_SIMILAR: 7844
+HTML_DIFFERENT: 7843
+```
+One poem's "different" page wasn't generated (likely from interrupted run).
+Need to identify which poem is missing and regenerate.
+
 ## Intended Behavior
 
 ### A. Fix Navigation Box Alignment
