@@ -276,45 +276,15 @@ return {
     },
     -- }}}
 
-    -- {{{ image_sync
-    -- Syncs media from external backup locations into the project's input directory.
-    -- Run before extraction to ensure all attachments are available locally.
-    -- Add multiple sources if your media is spread across backup locations.
+    -- {{{ image_sync - DEPRECATED (Issue 10-003b)
+    -- This section has been replaced by external_files (see above).
+    -- All external file syncing is now handled by libs/external-sync.lua
+    -- and scripts/sync-external-files.
     --
-    -- Source fields:
-    --   name: Display name for logging
-    --   path: Absolute path to source directory
-    --   description: Human-readable description
-    --   optional: If true, missing source is skipped with attention message. If false/absent, missing source is fatal.
-    image_sync = {
-        enabled = true,
-        -- NOTE: Writes to input_sources.media_attachments_path (single source of truth)
-        sources = {
-            -- Note: fediverse_media removed - it's extracted from most-recent-29.zip in Stage 2
-            {
-                name = "my-art",
-                path = "/home/ritz/pictures/my-art",
-                description = "my artwork, made in kolourpaint",
-                optional = false,  -- Required - error if missing
-            },
-            {
-               name = "things-I-almost-posted",
-               path = "/home/ritz/pictures/things-i-almost-posted",
-               description = "lol I'm posting them now this sucks haha",
-               optional = false,
-            },
-            {
-               name = "poem-pictures",
-               path = "/home/ritz/pictures/poem-pictures",
-               description = "pictures I made of my poems",
-               optional = false,
-            },
-        },
-        preserve_structure = true,                  -- Keep directory hierarchy
-        overwrite_existing = false,                 -- Don't replace existing files
-        supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
-    },
+    -- To add new image sources, add entries to external_files with:
+    --   destination = "media_attachments/your-source-name"
     -- }}}
+    -- REMOVED: image_sync section (10-003b)
 
     -- {{{ pagination
     -- Controls how poems are split across HTML pages. Large collections need
