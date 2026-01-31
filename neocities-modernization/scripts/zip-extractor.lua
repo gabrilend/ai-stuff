@@ -128,7 +128,8 @@ local function detect_archives(input_directory)
                 })
                 print("📦 Found " .. archive_type .. " archive: " .. basename .. " (" .. os.date("%Y-%m-%d", mtime) .. ")")
             else
-                print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Unknown archive type: " .. basename)
+                -- Issue 7-006: Full-line coloring for warnings
+                print(COLOR_YELLOW .. "⚠️  Unknown archive type: " .. basename .. COLOR_RESET)
             end
         end
     end
@@ -189,15 +190,16 @@ local function extract_archive_data(archive_info, temp_base_dir)
             "bash -c 'unzip -o \"%s\" \"media_attachments/files/*\" -d \"%s\"' >/dev/null 2>&1",
             archive_info.path, extract_dir)
         local media_result = os.execute(media_cmd)
+        -- Issue 7-006: Full-line coloring for success messages
         if media_result == 0 or media_result == true then
-            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted media_attachments directory")
+            print(COLOR_GREEN .. "✅ Extracted media_attachments directory" .. COLOR_RESET)
         else
             -- Try alternative: extract all and filter, or list-and-extract approach (suppress verbose output)
             local alt_cmd = string.format(
                 "unzip -l '%s' 2>/dev/null | grep media_attachments | awk '{print $4}' | xargs -I{} unzip -o '%s' '{}' -d '%s' >/dev/null 2>&1",
                 archive_info.path, archive_info.path, extract_dir)
             os.execute(alt_cmd)
-            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted media_attachments directory")
+            print(COLOR_GREEN .. "✅ Extracted media_attachments directory" .. COLOR_RESET)
         end
     elseif archive_info.type == "messages" then
         -- Matrix exports have nested directory structure
@@ -214,8 +216,9 @@ local function extract_archive_data(archive_info, temp_base_dir)
         local result2 = os.execute(extract_txt_cmd)
 
         -- If either extraction worked, we're good
+        -- Issue 7-006: Full-line coloring for success messages
         if result1 == 0 or result2 == 0 then
-            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted notes directory/text files")
+            print(COLOR_GREEN .. "✅ Extracted notes directory/text files" .. COLOR_RESET)
         end
 
         -- Skip the normal file extraction loop for notes
@@ -227,8 +230,9 @@ local function extract_archive_data(archive_info, temp_base_dir)
         local cmd = string.format("unzip -j '%s' '%s' -d '%s' >/dev/null 2>&1",
                                 archive_info.path, file, extract_dir)
         local result = os.execute(cmd)
+        -- Issue 7-006: Full-line coloring for success messages
         if result == 0 then
-            print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Extracted: " .. file)
+            print(COLOR_GREEN .. "✅ Extracted: " .. file .. COLOR_RESET)
             extracted_count = extracted_count + 1
             break  -- Stop after first successful extraction
         end
@@ -240,11 +244,12 @@ local function extract_archive_data(archive_info, temp_base_dir)
     local found_file = check_handle:read("*l")
     check_handle:close()
     
+    -- Issue 7-006: Full-line coloring for success/error messages
     if found_file and found_file ~= "" then
-        print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Successfully extracted " .. archive_info.type .. " data from " .. archive_info.basename)
+        print(COLOR_GREEN .. "✅ Successfully extracted " .. archive_info.type .. " data from " .. archive_info.basename .. COLOR_RESET)
         return temp_dir
     else
-        print(COLOR_RED .. "❌" .. COLOR_RESET .. " No extractable files found in " .. archive_info.basename)
+        print(COLOR_RED .. "❌ No extractable files found in " .. archive_info.basename .. COLOR_RESET)
         return nil
     end
 end
@@ -282,8 +287,9 @@ end
 
 local all_archives = detect_archives(DIR .. "/input")
 
+-- Issue 7-006: Full-line coloring for error messages
 if #all_archives == 0 then
-    print(COLOR_RED .. "❌" .. COLOR_RESET .. " No valid archives found to extract")
+    print(COLOR_RED .. "❌ No valid archives found to extract" .. COLOR_RESET)
     os.exit(1)
 end
 
@@ -322,7 +328,8 @@ f:close()
 print("💾 Extraction summary saved: " .. relative_path(summary_file))
 -- Issue 7-003: Removed redundant "extraction completed" line - summary already shows completion
 
+-- Issue 7-006: Full-line coloring for error messages
 if summary.extracted_archives == 0 then
-    print(COLOR_RED .. "❌" .. COLOR_RESET .. " No archives could be extracted")
+    print(COLOR_RED .. "❌ No archives could be extracted" .. COLOR_RESET)
     os.exit(1)
 end

@@ -193,7 +193,8 @@ local save_location = DIR .. "/" .. fediverse_backup_path .. "/files"
 print("🔄 Loading ActivityPub data from: " .. relative_path(file))
 local opened_file = io.open(file, "r")
 if not opened_file then
-    print(COLOR_RED .. "❌" .. COLOR_RESET .. " Error: Could not open file " .. file)
+    -- Issue 7-006: Full-line coloring for error messages
+    print(COLOR_RED .. "❌ Error: Could not open file " .. file .. COLOR_RESET)
     print("   Make sure the file exists and is readable")
     os.exit(1)
 end
@@ -203,17 +204,20 @@ opened_file:close()
 
 local data = dkjson.decode(opened_file_string)
 if not data then
-    print(COLOR_RED .. "❌" .. COLOR_RESET .. " Error: Could not parse JSON data from " .. file)
+    -- Issue 7-006: Full-line coloring for error messages
+    print(COLOR_RED .. "❌ Error: Could not parse JSON data from " .. file .. COLOR_RESET)
     os.exit(1)
 end
 
-print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities")
+-- Issue 7-006: Full-line coloring for success messages
+print(COLOR_GREEN .. "✅ Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities" .. COLOR_RESET)
 
 -- Issue 6-031: Load poem exclusion filter
 -- Excluded poems leave gaps in the ID sequence (tombstoning) to preserve stable anchor links
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count() > 0 then
-    print(COLOR_YELLOW .. "🚫" .. COLOR_RESET .. " Exclusion filter loaded: " .. poem_exclusions:summary())
+    -- Issue 7-006: Full-line coloring for info messages
+    print(COLOR_YELLOW .. "🚫 Exclusion filter loaded: " .. poem_exclusions:summary() .. COLOR_RESET)
 end
 
 -- Privacy system variables
@@ -699,7 +703,8 @@ local f = io.open(json_file, "w")
 f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
-print(COLOR_GREEN .. "✅" .. COLOR_RESET .. " Fediverse extraction complete")
+-- Issue 7-006: Full-line coloring for success messages
+print(COLOR_GREEN .. "✅ Fediverse extraction complete" .. COLOR_RESET)
 print("   📄 Generated: " .. relative_path(json_file))
 print("   📊 Total posts processed: " .. #poems_json)
 print("   📝 Original posts: " .. original_count)

@@ -420,9 +420,9 @@ log_verbose() {
 log_stage() {
     if ! $QUIET; then
         echo ""
-        echo "═══════════════════════════════════════════════════════════════════"
-        echo "  $1"
-        echo "═══════════════════════════════════════════════════════════════════"
+        echo -e "${COLOR_MAGENTA}═══════════════════════════════════════════════════════════════════${COLOR_RESET}"
+        echo -e "  ${COLOR_GREEN}$1${COLOR_RESET}"
+        echo -e "${COLOR_MAGENTA}═══════════════════════════════════════════════════════════════════${COLOR_RESET}"
     fi
 }
 
@@ -436,6 +436,7 @@ COLOR_GREEN="\033[92m"    # Bright green for success (✓, ✅)
 COLOR_BLUE="\033[94m"     # Bright blue for info (ℹ️)
 COLOR_RED="\033[91m"      # Bright red for errors (✗, ❌)
 COLOR_YELLOW="\033[93m"   # Bright yellow for warnings (⚠️)
+COLOR_MAGENTA="\033[95m"  # Bright magenta for stage delimiters
 COLOR_RESET="\033[0m"     # Reset to default
 
 # Colored symbol helpers
