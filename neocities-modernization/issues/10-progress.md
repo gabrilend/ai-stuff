@@ -32,6 +32,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-012 | Fix pipeline validation counting bugs | Open | High |
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-015 | Unified input sources configuration | Open | Medium |
+| 10-016 | TUI per-stage regeneration options | Open | Medium |
 
 ### Completed Issues
 
@@ -81,6 +82,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Preserve unique content from different directories
 - Each format respects its native ID scheme (ActivityPub IDs, filenames, record keys)
 - Follow-up improvement to 10-003 config consolidation
+
+**10-016: TUI Per-Stage Regeneration Options** - OPEN
+- Move "Force regenerate ALL stages" to top of stages section
+- Add indented "Force regenerate" sub-option under each stage
+- When "Force All" is selected, gray out per-stage options and skip during navigation
+- Add CLI `--force-stage N` flag for scripted usage
+- Enables selective cache invalidation without full rebuild
 
 ## Completion Criteria
 
