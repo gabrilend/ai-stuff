@@ -45,6 +45,9 @@ ffi.cdef[[
 
     int select(int nfds, fd_set *readfds, fd_set *writefds,
                fd_set *exceptfds, struct timeval *timeout);
+
+    // Issue 10-018: Add gettimeofday() for wall clock time (not CPU time)
+    int gettimeofday(struct timeval *tv, void *tz);
 ]]
 
 local STDIN_FILENO = 0
@@ -285,6 +288,14 @@ local function read_char_timeout(timeout_ms)
         return nil
     end
     return read_char()
+end
+
+-- Issue 10-018: Get wall clock time in milliseconds
+-- Uses gettimeofday() instead of os.clock() which only measures CPU time
+local tv_buffer = ffi.new("struct timeval")
+local function get_time_ms()
+    ffi.C.gettimeofday(tv_buffer, nil)
+    return tonumber(tv_buffer.tv_sec) * 1000 + math.floor(tonumber(tv_buffer.tv_usec) / 1000)
 end
 -- }}}
 
@@ -750,6 +761,13 @@ end
 -- Issue 10-018: Expose input_available for animation loops
 function tui.input_available(timeout_ms)
     return input_available(timeout_ms)
+end
+
+-- {{{ tui.get_time_ms
+-- Issue 10-018: Get wall clock time in milliseconds for animations
+-- Unlike os.clock() which measures CPU time, this uses gettimeofday()
+function tui.get_time_ms()
+    return get_time_ms()
 end
 -- }}}
 
