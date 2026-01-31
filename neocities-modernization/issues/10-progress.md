@@ -26,8 +26,9 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 |-------|-------------|--------|----------|
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings | Open | Medium |
+| 10-003 | Consolidate config files into single source (umbrella) | In Progress | Medium |
+| 10-003b | External files syncing centralization | Open | Medium |
 | 10-008 | Implement multiline command wrapping | Open | Low |
-| 10-018 | Animated command option transitions | Open | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-012 | Fix pipeline validation counting bugs | Open | High |
@@ -35,12 +36,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-015 | Unified input sources configuration | Open | Medium |
 | 10-016 | TUI per-stage regeneration options | Open | Medium |
 | 10-017 | Multi-Ollama server configuration | Open | Medium |
+| 10-018 | Animated command option transitions | Open | Low |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
-| 10-003 | Consolidate config files into single source | Completed | 2026-01-21 |
+| 10-003a | Initial config file consolidation | Completed | 2026-01-21 |
 | 10-005 | Implement CLI flag support for all functionality | Completed | 2026-01-09 |
 | 10-006 | Identify checkbox conversion opportunities | Completed | 2026-01-09 |
 | 10-011 | Implement pipeline data validation utility | Completed | 2026-01-17 |
@@ -48,11 +50,22 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 
 ## Issue Details
 
-**10-003: Consolidate Config Files** - COMPLETED (2026-01-21)
+**10-003: Consolidate Config Files** - IN PROGRESS (umbrella issue)
+- Split into sub-issues for tracking:
+  - 10-003a: Initial consolidation (COMPLETED 2026-01-21)
+  - 10-003b: External files centralization (OPEN)
+- See also: 10-015 (Unified input sources)
+
+**10-003a: Initial Config Consolidation** - COMPLETED (2026-01-21)
 - Unified configuration into `config.lua`
 - Migrated settings from 6+ separate files
 - Added vimfolded sections for each config category
 - Single authoritative source for all project settings
+
+**10-003b: External Files Centralization** - OPEN
+- Centralize all external file syncing into `external_files` config section
+- Replace hardcoded paths in `scripts/update-words` and `scripts/update`
+- Each entry has: name, source, destination (relative to input/), type, optional
 
 **10-014: Complete Config Migration** - COMPLETED (2026-01-30)
 - Follow-up to 10-003: migrated remaining scripts still using `input-sources.json`
