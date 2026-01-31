@@ -72,7 +72,7 @@ local state = {
         enabled = true,              -- Master enable/disable
         queue = {},                  -- Array of pending animation tasks
         current = nil,               -- Currently executing animation
-        start_time = 0,              -- When current animation started (os.clock())
+        start_time = 0,              -- When current animation started (tui.get_time_ms())
         -- Animation timing configuration (milliseconds)
         -- Issue 10-018: Reduced timings by 50% for snappier feel
         config = {
@@ -737,7 +737,7 @@ local function queue_animation(task)
         -- Start next animation
         if #state.animation.queue > 0 then
             state.animation.current = table.remove(state.animation.queue, 1)
-            state.animation.start_time = os.clock() * 1000  -- Convert to ms
+            state.animation.start_time = tui.get_time_ms()  -- Wall clock time
             -- Initialize render state for this animation
             if state.animation.current.type == "add" then
                 state.animation.render_state.highlight_ranges = {
@@ -773,7 +773,7 @@ local function start_next_animation()
     end
 
     state.animation.current = table.remove(state.animation.queue, 1)
-    state.animation.start_time = os.clock() * 1000
+    state.animation.start_time = tui.get_time_ms()  -- Wall clock time
 
     -- Initialize render state for this animation
     state.animation.render_state.slide_offset = 0
@@ -806,7 +806,7 @@ local function update_animation()
         return false
     end
 
-    local elapsed = os.clock() * 1000 - state.animation.start_time
+    local elapsed = tui.get_time_ms() - state.animation.start_time
     local anim = state.animation.current
     local cfg = state.animation.config
 
