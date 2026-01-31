@@ -281,6 +281,106 @@ Updated `scripts/update-words` and `config.lua`:
 - Problem 4: Unclear byte counts in extract-bluesky.lua (not implemented)
 - Problem 7: Semantic colors library (proposed but not implemented)
 
+---
+
+## Proposed Enhancement: Expanded Colorization (2026-01-30)
+
+### Issue: Inconsistent Line Colorization
+
+Currently, only icons/emojis are colorized while the rest of the line remains white. This is visually inconsistent and makes the semantic meaning less scannable.
+
+**Current behavior:**
+```
+⚠️  Skipped older: ./input/similar-different.zip (2025-12-13)
+    ↑ yellow    ↑ white text
+```
+
+**Intended behavior:**
+```
+⚠️  Skipped older: ./input/similar-different.zip (2025-12-13)
+    ↑ entire line is yellow
+```
+
+### Principle: Colorize the Whole Line
+
+When a line has semantic meaning (warning, error, milestone, info), the **entire line** should be colored, not just the icon. This makes the output:
+- More scannable (yellow lines = attention, green lines = milestones)
+- More consistent (no mixing of colored icons with white text)
+- More accessible (color carries meaning beyond the icon)
+
+### Stage Delimiters Should Be Colorful
+
+The stage transition delimiters are currently plain. They should be visually distinct:
+
+**Current:**
+```
+═══════════════════════════════════════════════════════════════════════════
+📁 Stage 1/10: Updating input files from words repository
+═══════════════════════════════════════════════════════════════════════════
+```
+
+**Proposed:**
+```
+[magenta]═══════════════════════════════════════════════════════════════════════════[reset]
+[green]📁 Stage 1/10:[reset] Updating input files from words repository
+[magenta]═══════════════════════════════════════════════════════════════════════════[reset]
+```
+
+Or use different colors per stage for visual tracking:
+
+```
+[cyan]══════════════════════════ Stage 1/10: Input Files ═════════════════════════[reset]
+...
+[blue]══════════════════════════ Stage 2/10: Extraction ══════════════════════════[reset]
+...
+[green]═════════════════════════ Stage 3/10: Processing ══════════════════════════[reset]
+```
+
+### Implementation Suggestions
+
+1. **Update all `print()` calls** that use colored icons to color the full line:
+   ```lua
+   -- Before:
+   print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Skipped older: " .. path)
+
+   -- After:
+   print(COLOR_YELLOW .. "⚠️  Skipped older: " .. path .. COLOR_RESET)
+   ```
+
+2. **Create stage delimiter function** in libs/output.lua or run.sh:
+   ```bash
+   # Bash example
+   stage_header() {
+       local stage_num="$1"
+       local stage_name="$2"
+       echo -e "\033[35m════════════════════════════════════════════════════════════════════\033[0m"
+       echo -e "\033[92m📁 Stage ${stage_num}/10:\033[0m ${stage_name}"
+       echo -e "\033[35m════════════════════════════════════════════════════════════════════\033[0m"
+   }
+   ```
+
+3. **Semantic line helpers** (extend proposed output.lua):
+   ```lua
+   function output.warning(msg)
+       print(output.YELLOW .. "⚠️  " .. msg .. output.RESET)
+   end
+   function output.stage_delimiter(num, total, name)
+       print(output.MAGENTA .. string.rep("═", 72) .. output.RESET)
+       print(output.GREEN .. "📁 Stage " .. num .. "/" .. total .. ":" .. output.RESET .. " " .. name)
+       print(output.MAGENTA .. string.rep("═", 72) .. output.RESET)
+   end
+   ```
+
+### Files to Update
+
+| File | Changes Needed |
+|------|----------------|
+| `scripts/zip-extractor.lua` | Full-line coloring for warnings |
+| `scripts/update-words` | Full-line coloring for sync status |
+| `run.sh` | Colorful stage delimiters |
+| `libs/utils.lua` | Add semantic output helpers |
+| All extractor scripts | Consistent full-line coloring |
+
 ## Related Documents
 
 - `issues/completed/7-002-clean-up-run-sh-output.md` — Previous cleanup effort
@@ -288,9 +388,15 @@ Updated `scripts/update-words` and `config.lua`:
 
 ## Metadata
 
-- **Status**: Completed (partial - core issues fixed, verbose mode deferred)
+- **Status**: Completed (partial - core issues fixed, colorization and verbose mode deferred)
 - **Created**: 2026-01-30
 - **Completed**: 2026-01-30
+- **Updated**: 2026-01-30 (added colorization enhancement proposal)
 - **Phase**: 7 (Stabilization and Polish)
 - **Estimated Complexity**: Medium
 - **Affects**: All pipeline output, user experience
+
+## Follow-up Issues
+
+- **7-006**: Implement expanded colorization (full-line colors, stage delimiters) - to be created
+- **10-016**: TUI per-stage regeneration options - to be created
