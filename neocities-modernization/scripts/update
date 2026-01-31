@@ -113,12 +113,8 @@ fi
 
 echo "🔄 Starting content extraction with ZIP archive support..."
 
-# Issue 10-003b: Sync external files from configured sources
-# This replaces the hardcoded Bluesky sync and uses the centralized external_files config
-echo "📁 Syncing external files..."
-"${DIR}/scripts/sync-external-files" || {
-    echo "Warning: Some external file syncs failed (check output above)" >&2
-}
+# NOTE: External file syncing happens in Stage 1 (update-words), not here.
+# By this point, all external files (ZIPs, notes, images) should already be in input/.
 
 # Create temporary extraction directory
 TEMP_EXTRACT_DIR="${DIR}/temp/extract-$(date +%s)"
