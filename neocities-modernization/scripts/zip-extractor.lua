@@ -44,6 +44,23 @@ local COLOR_RED = "\027[91m"      -- Bright red for errors (✗, ❌)
 local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings (⚠️)
 local COLOR_RESET = "\027[0m"     -- Reset to default
 
+-- {{{ local function get_file_mtime
+-- Issue 7-005: Get file modification time for archive date comparison
+local function get_file_mtime(file_path)
+    local stat_cmd = string.format("stat -c %%Y '%s' 2>/dev/null", file_path)
+    local handle = io.popen(stat_cmd)
+    local result = handle:read("*a")
+    handle:close()
+
+    if result and result ~= "" then
+        -- Wrap gsub in parens to discard second return value (count)
+        local clean = (result:gsub("%s+", ""))
+        return tonumber(clean) or 0
+    end
+    return 0
+end
+-- }}}
+
 -- {{{ local function relative_path
 -- Issue 7-003: Show project name instead of "./" when path equals DIR
 local function relative_path(absolute_path)
@@ -100,20 +117,58 @@ local function detect_archives(input_directory)
         else
             local archive_type = detect_archive_type(file)
             if archive_type then
+                -- Issue 7-005: Store modification time for date-based selection
+                local mtime = get_file_mtime(file)
                 table.insert(archives, {
                     path = file,
                     type = archive_type,
-                    basename = basename
+                    basename = basename,
+                    mtime = mtime,
+                    mtime_date = os.date("%Y-%m-%d", mtime)
                 })
-                print("📦 Found " .. archive_type .. " archive: " .. basename)
+                print("📦 Found " .. archive_type .. " archive: " .. basename .. " (" .. os.date("%Y-%m-%d", mtime) .. ")")
             else
                 print(COLOR_YELLOW .. "⚠️  " .. COLOR_RESET .. "Unknown archive type: " .. basename)
             end
         end
     end
     handle:close()
-    
+
     return archives
+end
+-- }}}
+
+-- {{{ local function select_archives_by_type
+-- Issue 7-005: Groups archives by type, sorts by mtime (newest first),
+-- returns selected archives and skipped (older) archives
+local function select_archives_by_type(archives)
+    local by_type = {}
+
+    -- Group by type
+    for _, archive in ipairs(archives) do
+        if not by_type[archive.type] then
+            by_type[archive.type] = {}
+        end
+        table.insert(by_type[archive.type], archive)
+    end
+
+    local selected = {}
+    local skipped = {}
+
+    -- Sort each group by mtime (descending) and pick newest
+    for archive_type, group in pairs(by_type) do
+        table.sort(group, function(a, b) return a.mtime > b.mtime end)
+
+        -- First (newest) is selected
+        table.insert(selected, group[1])
+
+        -- Rest are skipped (older archives)
+        for i = 2, #group do
+            table.insert(skipped, group[i])
+        end
+    end
+
+    return selected, skipped
 end
 -- }}}
 
@@ -225,17 +280,29 @@ end
 -- Main execution
 -- Issue 7-003: Removed duplicate "Starting extraction" message (parent script already printed it)
 
-local archives = detect_archives(DIR .. "/input")
-print("\n📊 Archive scan results:")
-print("   Total ZIP files found: " .. #archives)
+local all_archives = detect_archives(DIR .. "/input")
 
-if #archives == 0 then
+if #all_archives == 0 then
     print(COLOR_RED .. "❌" .. COLOR_RESET .. " No valid archives found to extract")
     os.exit(1)
 end
 
--- Extract all archives
-local summary = create_extraction_summary(archives, TEMP_DIR)
+-- Issue 7-005: Select most recent archive per type, warn about skipped
+local selected, skipped = select_archives_by_type(all_archives)
+
+print("\n📊 Archive selection:")
+print("   Total found: " .. #all_archives .. ", Selected: " .. #selected .. ", Skipped: " .. #skipped)
+
+-- Warn about skipped archives with full yellow text
+if #skipped > 0 then
+    for _, archive in ipairs(skipped) do
+        print(COLOR_YELLOW .. "   ⚠️  Skipped older: " .. relative_path(archive.path) ..
+              " (" .. archive.mtime_date .. ")" .. COLOR_RESET)
+    end
+end
+
+-- Extract only selected archives (most recent per type)
+local summary = create_extraction_summary(selected, TEMP_DIR)
 
 print("\n📋 Extraction summary:")
 print("   Archives processed: " .. summary.extracted_archives .. "/" .. summary.total_archives)
