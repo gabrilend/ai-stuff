@@ -2,7 +2,8 @@
 
 **Priority**: Medium
 **Phase**: 10 (Developer Experience & Tooling)
-**Status**: Open
+**Status**: Completed
+**Completed**: 2026-01-30
 **Created**: 2026-01-30
 
 ---
@@ -267,15 +268,15 @@ end
 
 ## Success Criteria
 
-- [ ] `ollama_servers` config section with name, host, port, model
-- [ ] TUI radio button selection for Ollama server
-- [ ] First server is default, exactly one must be selected
-- [ ] CLI `--ollama NAME` flag to select server
-- [ ] CLI `--model NAME` flag to override model
-- [ ] CLI `--list-ollama` to show available servers
-- [ ] All embedding scripts use selected server config
-- [ ] Server validation at pipeline start (reachable check)
-- [ ] Graceful error if selected server is unreachable
+- [x] `ollama_servers` config section with name, host, port, model
+- [ ] TUI radio button selection for Ollama server (deferred - CLI sufficient for current needs)
+- [x] First server is default, exactly one must be selected
+- [x] CLI `--ollama NAME` flag to select server
+- [x] CLI `--model NAME` flag to override model
+- [x] CLI `--list-ollama` to show available servers
+- [x] All embedding scripts use selected server config
+- [x] Server validation at pipeline start (reachable check)
+- [x] Graceful error if selected server is unreachable
 
 ---
 
@@ -297,3 +298,36 @@ end
 - Server validation should be quick (timeout after 2-3 seconds)
 - If validation fails, show warning but allow user to proceed (server might come online)
 - Store last-used server in a session file for convenience (optional enhancement)
+
+---
+
+## Implementation Notes (2026-01-30)
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `config.lua` | Added `ollama_servers` section (lines 275-318) with gpu-server, gpu-server-alt, and local servers |
+| `libs/ollama-config.lua` | Complete rewrite with new API: `get_servers()`, `get_server_by_name()`, `get_default_server()`, `get_selected_server()`, `set_selected_server()`, `build_host_url()`, `validate_server()`, `list_servers()` |
+| `run.sh` | Added `--ollama NAME`, `--model NAME`, `--list-ollama` flags; added server validation before embedding stages |
+| `generate-embeddings.sh` | Added `--ollama` flag support, updated endpoint setup to use ollama-config |
+| `libs/fuzzy-computing.lua` | Migrated from `OLLAMA_ENDPOINT` to `build_host_url()` |
+| `src/generate-word-pages.lua` | Migrated from `OLLAMA_ENDPOINT` to `build_host_url()` |
+| `src/centroid-generator.lua` | Migrated from `OLLAMA_ENDPOINT` to `build_host_url()` |
+| `src/similarity-engine.lua` | Migrated from `OLLAMA_ENDPOINT` to `build_host_url()` |
+| `src/ollama-manager.lua` | Migrated from `OLLAMA_ENDPOINT` to `build_host_url()` |
+
+### Design Decisions
+
+1. **No Fallbacks**: Removed all backward-compatibility code (`OLLAMA_ENDPOINT`, `detect_ollama_endpoint()`, `get_ollama_endpoint()`). Code should error clearly if config is missing, not silently use defaults.
+
+2. **CLI-First**: Deferred TUI radio button selection. The `--ollama`, `--model`, and `--list-ollama` CLI flags provide sufficient control for current workflow.
+
+3. **Server Validation**: Added validation check before embedding stages 3/4/6 to fail-fast if selected server is unreachable.
+
+4. **Centralized Config**: All Ollama server definitions now live in `config.lua` with a clean API in `libs/ollama-config.lua`.
+
+### Lessons Learned
+
+- Backward-compatibility fallbacks create "stale code branches" - better to migrate all usages and remove the fallback entirely.
+- The `set_project_root()` pattern in ollama-config allows the module to work from any directory by deferring config loading until needed.

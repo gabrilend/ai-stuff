@@ -89,6 +89,11 @@ External Files (Issue 10-003b):
   --list-external     List configured external file sources
   --sync-only NAME    Sync only the specified external source
 
+Ollama Server (Issue 10-017):
+  --ollama NAME       Use specific Ollama server from config.lua
+  --model NAME        Override embedding model (default from server config)
+  --list-ollama       List available Ollama servers and exit
+
 Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
@@ -167,6 +172,10 @@ INCLUDE_BOOSTS=false
 # Issue 10-003b: External file management
 LIST_EXTERNAL=false
 SYNC_ONLY=""
+
+# Issue 10-017: Ollama server configuration
+OLLAMA_SERVER=""
+LIST_OLLAMA=false
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -296,6 +305,19 @@ while [[ $# -gt 0 ]]; do
             ;;
         --sync-only=*)
             SYNC_ONLY="${1#*=}"
+            shift
+            ;;
+        # Issue 10-017: Ollama server configuration
+        --ollama)
+            OLLAMA_SERVER="$2"
+            shift 2
+            ;;
+        --ollama=*)
+            OLLAMA_SERVER="${1#*=}"
+            shift
+            ;;
+        --list-ollama)
+            LIST_OLLAMA=true
             shift
             ;;
         # Stage flags
@@ -437,6 +459,17 @@ if [ -n "$SYNC_ONLY" ]; then
 fi
 # }}}
 
+# {{{ Issue 10-017: Handle Ollama server commands (immediate actions)
+if $LIST_OLLAMA; then
+    luajit -e "
+        package.path = '$DIR/libs/?.lua;' .. package.path
+        local ollama = require('ollama-config')
+        ollama.list_servers()
+    "
+    exit 0
+fi
+# }}}
+
 # {{{ Logging functions
 log_info() {
     if ! $QUIET; then
@@ -573,15 +606,20 @@ run_validate() {
 # }}}
 
 # {{{ run_catalog_images
+# Issue 10-015a: Pass --verbose flag to show detailed image catalog statistics
 run_catalog_images() {
     log_stage "🖼️ Stage 5/10: Cataloging images"
 
+    # Build verbose argument if enabled
+    local VERBOSE_ARG=""
+    $VERBOSE && VERBOSE_ARG="--verbose"
+
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --catalog-only $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua $DIR --catalog-only $VERBOSE_ARG $ASSETS_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --catalog-only $ASSETS_ARG || {
+    luajit src/main.lua "$DIR" --catalog-only $VERBOSE_ARG $ASSETS_ARG || {
         echo "Error: Image cataloging failed" >&2
         exit 1
     }
@@ -614,17 +652,26 @@ run_generate_embeddings() {
         force_arg="--incremental"
     fi
 
+    # Issue 10-017: Build Ollama server argument
+    local ollama_arg=""
+    if [ -n "$OLLAMA_SERVER" ]; then
+        ollama_arg="--ollama=$OLLAMA_SERVER"
+    fi
+
     if $DRY_RUN; then
-        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $DIR"
+        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $ollama_arg $DIR"
         log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --embeddings-only"
         return 0
     fi
 
+    if [ -n "$OLLAMA_SERVER" ]; then
+        log_info "   Ollama Server: $OLLAMA_SERVER"
+    fi
     log_info "   Model: $MODEL_NAME"
     log_info "   Output: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Mode: $(if $FORCE; then echo 'full regeneration'; else echo 'incremental (skip existing)'; fi)"
 
-    "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" "$DIR" || {
+    "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $ollama_arg "$DIR" || {
         echo "Error: Embedding generation failed" >&2
         echo "Make sure Ollama is running with the $MODEL_NAME model" >&2
         exit 1
@@ -1260,6 +1307,40 @@ if $DRY_RUN || $VERBOSE; then
     $GENERATE_INDEX && echo "  10. generate-index"
     echo ""
 fi
+
+# {{{ Issue 10-017: Validate Ollama server connectivity before embedding stages
+if $GENERATE_EMBEDDINGS && ! $DRY_RUN; then
+    log_info "Validating Ollama server connectivity..."
+    VALIDATION_RESULT=$(luajit -e "
+        package.path = '$DIR/libs/?.lua;' .. package.path
+        local ollama = require('ollama-config')
+        if '$OLLAMA_SERVER' ~= '' then
+            ollama.set_selected_server('$OLLAMA_SERVER')
+        end
+        local server = ollama.get_selected_server()
+        local ok, msg = ollama.validate_server(server)
+        if ok then
+            print('OK:' .. server.name .. ':' .. ollama.build_host_url(server))
+        else
+            print('FAIL:' .. server.name .. ':' .. msg)
+        end
+    " 2>&1)
+
+    if [[ "$VALIDATION_RESULT" == OK:* ]]; then
+        SERVER_NAME=$(echo "$VALIDATION_RESULT" | cut -d: -f2)
+        SERVER_URL=$(echo "$VALIDATION_RESULT" | cut -d: -f3-)
+        log_info "   ✓ Ollama server '$SERVER_NAME' is reachable at $SERVER_URL"
+    else
+        SERVER_NAME=$(echo "$VALIDATION_RESULT" | cut -d: -f2)
+        ERROR_MSG=$(echo "$VALIDATION_RESULT" | cut -d: -f3-)
+        echo -e "${RED}❌ ERROR: Cannot connect to Ollama server '$SERVER_NAME'${NC}" >&2
+        echo -e "${RED}   $ERROR_MSG${NC}" >&2
+        echo -e "${YELLOW}💡 Use --list-ollama to see available servers${NC}" >&2
+        echo -e "${YELLOW}💡 Use --ollama=NAME to select a different server${NC}" >&2
+        exit 1
+    fi
+fi
+# }}}
 
 # Execute stages in pipeline order (regardless of argument order)
 $UPDATE_WORDS && run_update_words

@@ -319,7 +319,8 @@ end
 
 -- {{{ function M.generate_all_embeddings
 function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, incremental, model_name)
-    endpoint = endpoint or ollama_config.OLLAMA_ENDPOINT
+    -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
+    endpoint = endpoint or ollama_config.build_host_url()
     incremental = incremental ~= false -- Default to true
     model_name = model_name or "embeddinggemma:latest"
     

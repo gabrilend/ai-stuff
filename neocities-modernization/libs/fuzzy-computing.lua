@@ -21,9 +21,10 @@ function M.generate(context, model) -- {{{ (DEPRECATED - use M.get_embedding ins
    f:close()
    
    -- Make curl request
+   -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
    local curl_cmd = string.format(
        "curl -s -X POST %s/api/chat -H 'Content-Type: application/json' -d @%s > %s",
-       ollama_config.OLLAMA_ENDPOINT, input_file, output_file
+       ollama_config.build_host_url(), input_file, output_file
    )
    
    os.execute(curl_cmd)
@@ -69,9 +70,10 @@ function M.get_embedding(text, model) -- {{{
    f:close()
    
    -- Make curl request to embeddings endpoint
+   -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
    local curl_cmd = string.format(
        "curl -s -X POST %s/api/embeddings -H 'Content-Type: application/json' -d @%s > %s",
-       ollama_config.OLLAMA_ENDPOINT, input_file, output_file
+       ollama_config.build_host_url(), input_file, output_file
    )
    
    os.execute(curl_cmd)

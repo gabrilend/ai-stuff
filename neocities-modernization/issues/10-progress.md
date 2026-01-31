@@ -32,7 +32,6 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-016 | TUI per-stage regeneration options | Open | Medium |
-| 10-017 | Multi-Ollama server configuration | Open | Medium |
 | 10-018 | Animated command option transitions | Open | Low |
 | 10-019 | Document config structure and field usage | Open | Low |
 
@@ -50,6 +49,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-014 | Complete config migration from input-sources.json | Completed | 2026-01-30 |
 | 10-015 | Unified input sources configuration | Completed | 2026-01-30 |
 | 10-015a | Migrate image-manager to sources-loader | Completed | 2026-01-30 |
+| 10-017 | Multi-Ollama server configuration | Completed | 2026-01-30 |
 
 ## Issue Details
 
@@ -114,12 +114,14 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Add CLI `--force-stage N` flag for scripted usage
 - Enables selective cache invalidation without full rebuild
 
-**10-017: Multi-Ollama Server Configuration** - OPEN
-- Add `ollama_servers` config section with name, host, port, model per server
-- TUI radio button selection (exactly one must be selected, first is default)
-- CLI `--ollama NAME` and `--model NAME` flags for override
-- Server validation at pipeline start
+**10-017: Multi-Ollama Server Configuration** - COMPLETED (2026-01-30)
+- Added `ollama_servers` config section with name, host, port, model per server
+- CLI `--ollama NAME`, `--model NAME`, and `--list-ollama` flags implemented
+- Server validation at pipeline start (fails-fast if unreachable)
 - Centralized config replaces scattered OLLAMA_HOST environment variables
+- Migrated all 5 files using `OLLAMA_ENDPOINT` to new `build_host_url()` API
+- TUI radio button selection deferred (CLI sufficient for current workflow)
+- "No fallbacks" design: removed all backward-compatibility code
 
 **10-018: Animated Command Option Transitions** - OPEN
 - Visual animations when options are added/removed from command preview
@@ -142,6 +144,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - [x] Pipeline data validation utility (10-011)
 - [x] Validation script counts accurate (10-012)
 - [x] Unified input sources config (10-015, 10-015a)
+- [x] Multi-Ollama server configuration (10-017)
 - [ ] TUI integration for all interactive scripts
 - [ ] Test suite integration (10-010)
 
