@@ -433,27 +433,40 @@ C/JS:   // ============================= phase 4 issue files ===================
 
 #### Phase Detection Logic
 
-For issue ID `XYZ` (3 digits), phase = second digit:
-- `040` → Phase 4, Issue 0
-- `047` → Phase 4, Issue 7
-- `001` → Phase 0, Issue 1
+Two naming conventions are supported:
 
-For issue ID `XY` (2 digits), phase = first digit:
-- `40` → Phase 4, Issue 0
+**1. Dash-separated format** (`P-NNN-desc.md`):
+- Phase is explicitly the number before the first dash
+- `10-001` → Phase 10, Issue 1
+- `1-005` → Phase 1, Issue 5
+- Used by: neocities-modernization, symbeline-realms
+
+**2. Numeric prefix format** (`PNN-desc.md`):
+- First digit = phase, last two digits = issue number
+- `001-099` → Phase 0, issues 1-99
+- `100-199` → Phase 1, issues 0-99
+- `500-599` → Phase 5, issues 0-99
+- `800-899` → Phase 8, issues 0-99
+- Used by: delta-version, authorship-tool, world-edit-to-execute, my-libs
+
+**Examples:**
+- `047` → Phase 0, Issue 47 (delta-version)
+- `101` → Phase 1, Issue 1 (authorship-tool)
+- `501a` → Phase 5, Issue 1, sub-issue a (world-edit-to-execute)
+- `10-015a` → Phase 10, Issue 15, sub-issue a (neocities-modernization)
 
 #### Example Output
 
-When a source file contains `-- ===== phase 4 issue files =====`:
+When a source file contains `-- ===== phase 0 issue files =====`:
 
 ```markdown
 | [my-script.lua](scripts/my-script.lua) 📚 | 2026-02-10 | Description |
 
-#### Phase 4 Issues
+#### Phase 0 Issues
 
 | ID | Issue | Status |
 |----|-------|--------|
-| 040 | [Dynamic CLAUDE.md Revision System](issues/040-dynamic-claudemd.md) | ⏳ Active |
-| 040a | [Design Event Taxonomy](issues/040a-design-event-taxonomy.md) | ⏳ Active |
+| 001 | [Prepare Repository Structure](issues/001-prepare-repository-structure.md) | ⏳ Active |
 | 047 | [README Table of Contents Generator](issues/completed/047-readme-toc.md) | ✅ Completed |
 ```
 
