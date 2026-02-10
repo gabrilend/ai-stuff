@@ -398,3 +398,67 @@ The "read-order" concept treats source code like a book - files with numeric pre
 This supports the CLAUDE.md principle: "all source-code files must have an index at the beginning of the filename, so they can be read in order."
 
 The modification date fallback ensures all files appear in the table of contents, even if not yet curated, while clearly marking them as "not curated - sorted by date" to encourage developers to add numeric prefixes for better organization.
+
+## Implementation Updates (2026-02-10)
+
+### Phase Divider Feature
+
+Added support for **phase issue file insertion dividers**. Source files can now contain special divider comments that trigger automatic insertion of phase-specific issue tables in the generated README.
+
+#### Divider Format
+
+```
+============================= phase N issue files ==============================
+```
+
+The divider is 80 characters wide with the text centered. Generate one with:
+
+```bash
+./scripts/generate-readme-toc.lua --divider 4
+```
+
+Output:
+```
+Lua:    -- ============================= phase 4 issue files ==============================
+Shell:  # ============================= phase 4 issue files ==============================
+C/JS:   // ============================= phase 4 issue files ==============================
+```
+
+#### How It Works
+
+1. When scanning source files, the script detects phase divider comments
+2. Files containing dividers are marked with 📚 in the table
+3. After each file with dividers, a table of phase issues is inserted
+4. Issues are discovered from `issues/` and `issues/completed/` directories
+
+#### Phase Detection Logic
+
+For issue ID `XYZ` (3 digits), phase = second digit:
+- `040` → Phase 4, Issue 0
+- `047` → Phase 4, Issue 7
+- `001` → Phase 0, Issue 1
+
+For issue ID `XY` (2 digits), phase = first digit:
+- `40` → Phase 4, Issue 0
+
+#### Example Output
+
+When a source file contains `-- ===== phase 4 issue files =====`:
+
+```markdown
+| [my-script.lua](scripts/my-script.lua) 📚 | 2026-02-10 | Description |
+
+#### Phase 4 Issues
+
+| ID | Issue | Status |
+|----|-------|--------|
+| 040 | [Dynamic CLAUDE.md Revision System](issues/040-dynamic-claudemd.md) | ⏳ Active |
+| 040a | [Design Event Taxonomy](issues/040a-design-event-taxonomy.md) | ⏳ Active |
+| 047 | [README Table of Contents Generator](issues/completed/047-readme-toc.md) | ✅ Completed |
+```
+
+#### Use Cases
+
+- Create narrative documentation that interleaves source explanations with related issues
+- Future: PDF generation with page number cross-references
+- Enable "this section is referenced in issue 1234" style documentation
