@@ -35,6 +35,9 @@ local config = {
     doc_dirs = { "docs", "notes" },
     dry_run = false,
     no_description = false,
+    -- Phase divider configuration
+    divider_width = 80,
+    divider_char = "=",
 }
 -- }}}
 
@@ -114,6 +117,216 @@ end
 local function make_relative_path(filepath, base_path)
     local escaped_base = escape_pattern(base_path)
     return filepath:gsub("^" .. escaped_base .. "/", "")
+end
+-- }}}
+
+-- }}}
+
+-- {{{ Phase Divider Functions
+
+-- {{{ generate_phase_divider
+-- Generates a centered phase divider string with equal sign padding
+-- Example: "============================= phase 4 issue files =============================="
+local function generate_phase_divider(phase_num)
+    local text = string.format("phase %d issue files", phase_num)
+    local text_with_spaces = " " .. text .. " "
+    local remaining = config.divider_width - #text_with_spaces
+    local left_pad = math.floor(remaining / 2)
+    local right_pad = remaining - left_pad
+
+    return string.rep(config.divider_char, left_pad) ..
+           text_with_spaces ..
+           string.rep(config.divider_char, right_pad)
+end
+-- }}}
+
+-- {{{ parse_phase_divider
+-- Parses a line to detect if it's a phase divider, returns phase number or nil
+-- Matches patterns like: "===== phase 4 issue files =====" (with optional comment prefix)
+local function parse_phase_divider(line)
+    -- Strip common comment prefixes
+    local stripped = line
+        :gsub("^%s*%-%-+%s*", "")   -- Lua: --
+        :gsub("^%s*#%s*", "")        -- Shell/Python: #
+        :gsub("^%s*//%s*", "")       -- C/JS: //
+        :gsub("^%s*/%*%s*", "")      -- C block: /*
+        :gsub("%s*%*/%s*$", "")      -- C block end: */
+        :gsub("^%s*", "")            -- Leading whitespace
+        :gsub("%s*$", "")            -- Trailing whitespace
+
+    -- Match the divider pattern: =+ phase N issue files =+
+    local phase_num = stripped:match("^=+%s*phase%s+(%d+)%s+issue%s+files%s*=+$")
+    if phase_num then
+        return tonumber(phase_num)
+    end
+
+    return nil
+end
+-- }}}
+
+-- {{{ get_issue_phase
+-- Determines the phase number from an issue ID
+-- Naming conventions supported:
+--   - 3-digit: first 2 digits are phase (e.g., 040 = phase 4, 001 = phase 0)
+--   - 2-digit: first digit is phase (e.g., 40 = phase 4, 01 = phase 0)
+--   - 1-digit: phase 0 (e.g., 1 = phase 0, issue 1)
+-- Also handles sub-issues like 040a, 040b, etc.
+local function get_issue_phase(issue_id)
+    -- Extract just the numeric part (strip trailing letters for sub-issues)
+    local num_part = issue_id:match("^(%d+)")
+    if not num_part then return nil end
+
+    local num = tonumber(num_part)
+    if not num then return nil end
+
+    -- Determine phase based on number of digits
+    local len = #num_part
+    if len >= 3 then
+        -- 3+ digits: first 2 digits are phase (040 -> phase 4)
+        return math.floor(num / 10) % 10
+    elseif len == 2 then
+        -- 2 digits: first digit is phase (40 -> phase 4)
+        return math.floor(num / 10)
+    else
+        -- 1 digit: phase 0
+        return 0
+    end
+end
+-- }}}
+
+-- {{{ discover_phase_issues
+-- Discovers all issue files for a given phase number in a project
+-- Returns a sorted list of issue file info: {path, name, id, title}
+local function discover_phase_issues(project_path, phase_num)
+    local issues = {}
+    local issues_dir = project_path .. "/issues"
+
+    if not dir_exists(issues_dir) then
+        return issues
+    end
+
+    -- Search both active and completed issues
+    local search_dirs = {
+        issues_dir,
+        issues_dir .. "/completed",
+    }
+
+    for _, search_dir in ipairs(search_dirs) do
+        if dir_exists(search_dir) then
+            -- Find all .md files with numeric prefixes
+            local cmd = string.format("find %q -maxdepth 1 -name '[0-9]*.md' -type f 2>/dev/null",
+                search_dir)
+            local handle = io.popen(cmd)
+            if handle then
+                for filepath in handle:lines() do
+                    local filename = filepath:match("([^/]+)$")
+                    -- Parse issue ID and description from filename
+                    -- Format: {ID}-{description}.md or {ID}{letter}-{description}.md
+                    local issue_id, descr = filename:match("^(%d+[a-z]?)%-(.+)%.md$")
+
+                    if issue_id then
+                        local issue_phase = get_issue_phase(issue_id)
+                        -- Verify this issue belongs to the requested phase
+                        if issue_phase == phase_num then
+                            -- Try to extract title from first heading in file
+                            local title = descr:gsub("%-", " "):gsub("^%l", string.upper)
+                            local file_handle = io.open(filepath, "r")
+                            if file_handle then
+                                for file_line in file_handle:lines() do
+                                    local heading = file_line:match("^#%s+(.+)$")
+                                    if heading then
+                                        -- Clean up "Issue XXX:" prefix if present
+                                        title = heading:gsub("^Issue%s+%d+:%s*", "")
+                                        break
+                                    end
+                                end
+                                file_handle:close()
+                            end
+
+                            local is_completed = filepath:match("/completed/") ~= nil
+                            table.insert(issues, {
+                                path = filepath,
+                                name = filename,
+                                id = issue_id,
+                                title = title,
+                                completed = is_completed,
+                            })
+                        end
+                    end
+                end
+                handle:close()
+            end
+        end
+    end
+
+    -- Sort by issue ID (numeric part first, then letter suffix)
+    table.sort(issues, function(a, b)
+        local a_num = tonumber(a.id:match("^(%d+)")) or 0
+        local b_num = tonumber(b.id:match("^(%d+)")) or 0
+        if a_num ~= b_num then
+            return a_num < b_num
+        end
+        -- Same number, sort by letter suffix
+        local a_suffix = a.id:match("^%d+([a-z]*)$") or ""
+        local b_suffix = b.id:match("^%d+([a-z]*)$") or ""
+        return a_suffix < b_suffix
+    end)
+
+    return issues
+end
+-- }}}
+
+-- {{{ scan_file_for_dividers
+-- Scans a source file for phase dividers, returns list of {line_num, phase_num}
+local function scan_file_for_dividers(filepath)
+    local dividers = {}
+    local handle = io.open(filepath, "r")
+    if not handle then return dividers end
+
+    local line_num = 0
+    for line in handle:lines() do
+        line_num = line_num + 1
+        local phase = parse_phase_divider(line)
+        if phase then
+            table.insert(dividers, {
+                line = line_num,
+                phase = phase,
+            })
+        end
+    end
+
+    handle:close()
+    return dividers
+end
+-- }}}
+
+-- {{{ format_phase_issues_markdown
+-- Formats a list of phase issues as markdown for insertion
+local function format_phase_issues_markdown(issues, project_path, phase_num)
+    local output = {}
+
+    table.insert(output, "")
+    table.insert(output, string.format("#### Phase %d Issues", phase_num))
+    table.insert(output, "")
+
+    if #issues == 0 then
+        table.insert(output, string.format("_No phase %d issues found._", phase_num))
+    else
+        table.insert(output, "| ID | Issue | Status |")
+        table.insert(output, "|----|-------|--------|")
+
+        for _, issue in ipairs(issues) do
+            local rel_path = make_relative_path(issue.path, project_path)
+            local status = issue.completed and "✅ Completed" or "⏳ Active"
+            table.insert(output, string.format(
+                "| %s | [%s](%s) | %s |",
+                issue.id, issue.title, rel_path, status
+            ))
+        end
+    end
+
+    table.insert(output, "")
+    return output
 end
 -- }}}
 
@@ -231,12 +444,16 @@ local function discover_files(dir, extensions)
                 local order, is_indexed = extract_read_order(filename)
                 local mtime = get_modification_time(line)
 
+                -- Scan for phase dividers in this file
+                local dividers = scan_file_for_dividers(line)
+
                 table.insert(files, {
                     path = line,
                     name = filename,
                     order = order,
                     is_indexed = is_indexed,
                     mtime = mtime,
+                    dividers = dividers,  -- List of {line, phase} found in file
                 })
             end
         end
@@ -353,10 +570,38 @@ local function generate_readme(project_path, project_name)
                     for i, file in ipairs(indexed) do
                         local file_desc = extract_file_description(file.path)
                         local rel_path = make_relative_path(file.path, project_path)
+
+                        -- Add divider indicator if file contains phase dividers
+                        local divider_note = ""
+                        if file.dividers and #file.dividers > 0 then
+                            local phases = {}
+                            for _, div in ipairs(file.dividers) do
+                                table.insert(phases, tostring(div.phase))
+                            end
+                            divider_note = " 📚"
+                        end
+
                         table.insert(output, string.format(
-                            "| %d | [%s](%s) | %s |",
-                            i, file.name, rel_path, file_desc
+                            "| %d | [%s](%s)%s | %s |",
+                            i, file.name, rel_path, divider_note, file_desc
                         ))
+
+                        -- Insert phase issues after the file row if dividers found
+                        if file.dividers and #file.dividers > 0 then
+                            table.insert(output, "")
+                            for _, div in ipairs(file.dividers) do
+                                local phase_issues = discover_phase_issues(project_path, div.phase)
+                                local phase_md = format_phase_issues_markdown(phase_issues, project_path, div.phase)
+                                for _, md_line in ipairs(phase_md) do
+                                    table.insert(output, md_line)
+                                end
+                            end
+                            -- Resume the main table if more files follow
+                            if i < #indexed then
+                                table.insert(output, "| # | File | Description |")
+                                table.insert(output, "|---|------|-------------|")
+                            end
+                        end
                     end
                     table.insert(output, "")
                 end
@@ -370,16 +615,41 @@ local function generate_readme(project_path, project_name)
                     table.insert(output, "| File | Modified | Description |")
                     table.insert(output, "|------|----------|-------------|")
 
-                    for _, file in ipairs(unindexed) do
+                    for idx, file in ipairs(unindexed) do
                         local file_desc = extract_file_description(file.path)
                         local rel_path = make_relative_path(file.path, project_path)
+
+                        -- Add divider indicator if file contains phase dividers
+                        local divider_note = ""
+                        if file.dividers and #file.dividers > 0 then
+                            divider_note = " 📚"
+                        end
+
                         table.insert(output, string.format(
-                            "| [%s](%s) | %s | %s |",
+                            "| [%s](%s)%s | %s | %s |",
                             file.name,
                             rel_path,
+                            divider_note,
                             os.date("%Y-%m-%d", file.mtime),
                             file_desc
                         ))
+
+                        -- Insert phase issues after the file row if dividers found
+                        if file.dividers and #file.dividers > 0 then
+                            table.insert(output, "")
+                            for _, div in ipairs(file.dividers) do
+                                local phase_issues = discover_phase_issues(project_path, div.phase)
+                                local phase_md = format_phase_issues_markdown(phase_issues, project_path, div.phase)
+                                for _, md_line in ipairs(phase_md) do
+                                    table.insert(output, md_line)
+                                end
+                            end
+                            -- Resume the main table if more files follow
+                            if idx < #unindexed then
+                                table.insert(output, "| File | Modified | Description |")
+                                table.insert(output, "|------|----------|-------------|")
+                            end
+                        end
                     end
                     table.insert(output, "")
                 end
@@ -472,6 +742,7 @@ OPTIONS:
     --output FILE       Output filename (default: README.md)
     --no-description    Skip extracting descriptions from source files
     --dir=PATH          Override delta-version directory path
+    --divider N         Generate a phase N divider string to copy into source files
     -h, --help          Show this help
 
 EXAMPLES:
@@ -484,10 +755,26 @@ EXAMPLES:
     generate-readme-toc.lua . --output CONTENTS.md
         Write to custom filename
 
+    generate-readme-toc.lua --divider 4
+        Generate: ============================= phase 4 issue files ==============================
+
 READ-ORDER PRIORITY:
     1. Numeric prefix in filename (001-, 02_, 1.) - curated order
     2. Modification date (newest first) - fallback for unindexed
     3. Alphabetical - last resort
+
+PHASE DIVIDERS:
+    Insert a divider comment in source files to automatically include phase issues.
+    The divider format is: ===== phase N issue files ===== (centered in 80 chars)
+
+    Example in Lua:
+        -- ============================= phase 4 issue files ==============================
+
+    Example in Shell:
+        # ============================= phase 4 issue files ==============================
+
+    When the script finds these dividers, it inserts a table of phase N issues
+    at that point in the generated README, creating an interleaved narrative.
 ]])
 end
 -- }}}
@@ -512,6 +799,35 @@ local function parse_args()
         elseif a:match("^%-%-output$") then
             i = i + 1
             config.output_file = arg[i]
+        elseif a:match("^%-%-divider=") then
+            local phase = tonumber(a:match("^%-%-divider=(%d+)$"))
+            if phase then
+                print("Phase divider (copy into your source file):")
+                print("")
+                print("  Lua:    -- " .. generate_phase_divider(phase))
+                print("  Shell:  # " .. generate_phase_divider(phase))
+                print("  C/JS:   // " .. generate_phase_divider(phase))
+                print("")
+                print("Raw:      " .. generate_phase_divider(phase))
+            else
+                io.stderr:write("Error: --divider requires a phase number\n")
+            end
+            os.exit(0)
+        elseif a:match("^%-%-divider$") then
+            i = i + 1
+            local phase = tonumber(arg[i])
+            if phase then
+                print("Phase divider (copy into your source file):")
+                print("")
+                print("  Lua:    -- " .. generate_phase_divider(phase))
+                print("  Shell:  # " .. generate_phase_divider(phase))
+                print("  C/JS:   // " .. generate_phase_divider(phase))
+                print("")
+                print("Raw:      " .. generate_phase_divider(phase))
+            else
+                io.stderr:write("Error: --divider requires a phase number\n")
+            end
+            os.exit(0)
         elseif not a:match("^%-") then
             project_path = a
         else
