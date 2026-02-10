@@ -166,12 +166,29 @@ end
 
 -- {{{ get_issue_phase
 -- Determines the phase number from an issue ID
--- Naming conventions supported:
---   - 3-digit: first 2 digits are phase (e.g., 040 = phase 4, 001 = phase 0)
---   - 2-digit: first digit is phase (e.g., 40 = phase 4, 01 = phase 0)
---   - 1-digit: phase 0 (e.g., 1 = phase 0, issue 1)
--- Also handles sub-issues like 040a, 040b, etc.
+--
+-- Supports two naming conventions:
+--   1. Dash-separated: P-NNN-desc.md (e.g., "10-001" = phase 10, issue 1)
+--   2. Numeric prefix: PNN-desc.md (e.g., "047" = phase 0, issue 47; "101" = phase 1, issue 1)
+--
+-- For numeric prefix format: first digit = phase, last two digits = issue
+--   - 001-099: phase 0, issues 1-99
+--   - 100-199: phase 1, issues 0-99
+--   - 800-899: phase 8, issues 0-99
+--
+-- Also handles sub-issues like 101a, 101b, etc.
 local function get_issue_phase(issue_id)
+    -- First check for dash-separated format: "10-001" or "1-005"
+    local explicit_phase = issue_id:match("^(%d+)%-")
+    if explicit_phase then
+        -- Check if this looks like explicit phase-issue format
+        -- by seeing if there's another number after the dash
+        local after_dash = issue_id:match("^%d+%-(%d)")
+        if after_dash then
+            return tonumber(explicit_phase)
+        end
+    end
+
     -- Extract just the numeric part (strip trailing letters for sub-issues)
     local num_part = issue_id:match("^(%d+)")
     if not num_part then return nil end
@@ -179,18 +196,11 @@ local function get_issue_phase(issue_id)
     local num = tonumber(num_part)
     if not num then return nil end
 
-    -- Determine phase based on number of digits
-    local len = #num_part
-    if len >= 3 then
-        -- 3+ digits: first 2 digits are phase (040 -> phase 4)
-        return math.floor(num / 10) % 10
-    elseif len == 2 then
-        -- 2 digits: first digit is phase (40 -> phase 4)
-        return math.floor(num / 10)
-    else
-        -- 1 digit: phase 0
-        return 0
-    end
+    -- Numeric prefix format: first digit = phase, last two digits = issue
+    -- 047 = phase 0, issue 47
+    -- 101 = phase 1, issue 01
+    -- 800 = phase 8, issue 00
+    return math.floor(num / 100)
 end
 -- }}}
 
