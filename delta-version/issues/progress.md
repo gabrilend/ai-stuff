@@ -224,6 +224,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 047**: README Table of Contents Generator (2026-02-09)
+  - Generates README.md with source code in "read-order"
+  - Sorts indexed files (numeric prefix) first, then by modification date
+  - Extracts descriptions from first comment line
+  - Implemented: scripts/generate-readme-toc.lua
+
 - **Issue 036**: Commit History Viewer (2025-01-04)
   - TUI-based narrative browser for git history
   - Lua implementation using framebuffer TUI library
@@ -384,8 +390,8 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~57 (including sub-issues)
-- **Completed**: 27 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038)
+- **Total Issues**: ~58 (including sub-issues)
+- **Completed**: 28 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038, 047)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
 - **Pending**: ~28 (including 040 series)
