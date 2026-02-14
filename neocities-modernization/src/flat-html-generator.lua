@@ -111,11 +111,11 @@ local STORAGE_CONFIG = {
 -- Reference: All progress bars, nav boxes, and content should use these
 local LAYOUT = {
     -- Total visible width for regular poems (positions 0-82)
-    REGULAR_POEM_WIDTH = 83,
+    REGULAR_POEM_WIDTH = 82,
     -- Total visible width for golden poems: 84 chars
     -- Structure: ╔ (1) + interior (82) + ┐ (1) = 84
     GOLDEN_POEM_WIDTH = 84,
-    -- Maximum text content width (80 chars + 1 space padding on left)
+    -- Maximum text content width (80 chars by default +1 space padding on left and +1 on right)
     TEXT_CONTENT_WIDTH = 80,
 
     -- Regular poem nav box positions (within 83-char line):
@@ -1238,14 +1238,17 @@ function M.generate_maximum_diversity_sequence(starting_poem_id, poems_data, emb
     end
 
     -- Convert cached sequence (contains poem_index values) to format expected by HTML generator
+    -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
     for step, poem_index in ipairs(cached_sequence) do
-        local poem = poem_lookup[poem_index]
-        if poem then
-            table.insert(diversity_sequence, {
-                id = poem_index,  -- Store poem_index for consistency
-                poem = poem,
-                step = step
-            })
+        if poem_index ~= starting_poem_id then
+            local poem = poem_lookup[poem_index]
+            if poem then
+                table.insert(diversity_sequence, {
+                    id = poem_index,  -- Store poem_index for consistency
+                    poem = poem,
+                    step = step
+                })
+            end
         end
     end
 
@@ -3175,7 +3178,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             -- Issue 8-055: Pass layout constants to worker threads for consistency
             layout = {
                 golden_poem_width = LAYOUT.GOLDEN_POEM_WIDTH or 84,
-                regular_poem_width = LAYOUT.REGULAR_POEM_WIDTH or 83,
+                regular_poem_width = LAYOUT.REGULAR_POEM_WIDTH or 82,
                 text_content_width = LAYOUT.TEXT_CONTENT_WIDTH or 80,
                 golden_left_junction = LAYOUT.GOLDEN_LEFT_JUNCTION_POS or 10,
                 golden_right_junction = LAYOUT.GOLDEN_RIGHT_JUNCTION_POS or 71,
@@ -3326,18 +3329,21 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
 
                 -- Local helper: Convert diversity sequence to poem objects
+                -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
                 local function get_diversity_sequence(source_poem_index)
                     local cached_seq = diversity_cache.sequences[tostring(source_poem_index)]
                     if not cached_seq then return {} end
                     local result = {}
                     for step, neighbor_index in ipairs(cached_seq) do
-                        local neighbor_poem = poem_by_index[neighbor_index]
-                        if neighbor_poem then
-                            table.insert(result, {
-                                id = neighbor_index,
-                                poem = neighbor_poem,
-                                step = step
-                            })
+                        if neighbor_index ~= source_poem_index then
+                            local neighbor_poem = poem_by_index[neighbor_index]
+                            if neighbor_poem then
+                                table.insert(result, {
+                                    id = neighbor_index,
+                                    poem = neighbor_poem,
+                                    step = step
+                                })
+                            end
                         end
                     end
                     return result
