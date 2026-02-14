@@ -393,3 +393,73 @@ The FULL animation system was implemented (not the simplified option):
 3. **Display override**: During remove animation, old command is shown (via `display_cmd`)
 4. **Non-blocking**: Main loop uses `select()` via FFI for timeout-based input reading
 5. **CPU efficiency**: Uses 500ms timeout when idle, 50ms only during active animation
+
+---
+
+## Post-Implementation Fixes (2026-01-30)
+
+### Fix 1: Wall Clock Time vs CPU Time
+
+**Problem**: Animation timing used `os.clock() * 1000` which measures CPU time, not wall clock time. During I/O waits (like waiting for keyboard input), CPU time doesn't advance, so animations appeared to "stick" forever.
+
+**Solution**: Added `gettimeofday()` FFI to `tui.lua`:
+```lua
+int gettimeofday(struct timeval *tv, void *tz);
+
+function tui.get_time_ms()
+    ffi.C.gettimeofday(tv_buffer, nil)
+    return tonumber(tv_buffer.tv_sec) * 1000 + math.floor(tonumber(tv_buffer.tv_usec) / 1000)
+end
+```
+
+Replaced all `os.clock() * 1000` with `tui.get_time_ms()` in animation code.
+
+### Fix 2: Add Highlight Color Contrast
+
+**Problem**: Add animation used cyan highlight, but normal text color was also cyan (just dim vs bold). Users couldn't perceive the "fade" transition because both states were cyan.
+
+**Solution**: Changed add highlight color from "cyan" to "white". Now the transition is:
+- Animation: bold white (very visible flash)
+- Normal: dim cyan (clear contrast shows the fade)
+
+### Fix 3: Slide Direction (COMPLETED)
+
+**Problem**: Remove animation was showing the OLD command with `empty_ranges` to skip the removed text. But as the gap shrunk, it revealed the TAIL of the removed text (e.g., `./run.sh act --parse` instead of `./run.sh --parse`).
+
+**Root cause**: The approach of "hide characters in old command" doesn't work because the text positions are wrong. When you hide characters 11-15 of the old string but keep 16+, you reveal the end of `--extract`, not `--parse`.
+
+**Solution**: During slide phase, construct a NEW display string:
+1. Take the NEW command (which already has the text removed)
+2. INSERT a shrinking gap (spaces) at the removal position
+3. As animation progresses, the gap shrinks and text from the right naturally appears to slide left
+
+```lua
+-- Insert remaining_gap spaces at gap_pos in NEW command
+local before = new_cmd:sub(1, gap_pos - 1)
+local after = new_cmd:sub(gap_pos)
+display_cmd = before .. string.rep(" ", remaining_gap) .. after
+```
+
+Example progression when removing `--extract` from `./run.sh --extract --parse`:
+```
+Frame 0: ./run.sh           --parse  (10 spaces inserted)
+Frame 5: ./run.sh      --parse       (5 spaces inserted)
+Final:   ./run.sh --parse            (0 spaces, new command)
+```
+
+**Status**: Completed.
+
+### Fix 4: Gap Size Calculation (COMPLETED)
+
+**Problem**: Gap size was calculated as `#token + 1` (assuming trailing space), causing off-by-one or off-by-two errors depending on flag position:
+- Last flag has no trailing space → 1 char too big
+- Middle flags with different spacing → variable errors
+
+**Solution**: Calculate gap size from actual command length difference:
+```lua
+local total_slide = #anim.old_cmd - #anim.new_cmd
+```
+
+This measures exactly how many characters were removed (including the correct spacing), regardless of whether the flag was first, middle, or last in the command.
+
+**Status**: Completed.
