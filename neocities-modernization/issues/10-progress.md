@@ -36,6 +36,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-022 | Fix empty embeddings validation | Completed | High |
 | 10-023 | Fix image manager shell escaping and duplicates | Completed | Medium |
 | 10-024 | Force flag should clear output directories | Completed | High |
+| 10-025 | Diversity cache includes anchor poem | Completed | Medium |
 
 ### Completed Issues
 
@@ -58,6 +59,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-022 | Fix empty embeddings validation in GPU similarity | Completed | 2026-02-10 |
 | 10-023 | Fix image manager shell escaping and duplicates | Completed | 2026-02-10 |
 | 10-024 | Force flag should clear output directories | Completed | 2026-02-13 |
+| 10-025 | Diversity cache includes anchor poem | Completed | 2026-02-13 |
 
 ## Issue Details
 
@@ -177,6 +179,14 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Added directory clearing in run.sh when `--force` or `--force-stage=9` is set
 - Clears `output/similar/`, `output/different/`, `output/chronological/` before regenerating
 - Force now means "start fresh" not just "ignore freshness checks"
+
+**10-025: Diversity Cache Includes Anchor Poem** - COMPLETED (2026-02-13)
+- Diversity pages showed anchor poem twice (as anchor AND as #1 in diversity ranking)
+- Root cause: GPU algorithm initializes sequence[0] with starting poem (algorithmically correct)
+- Fixed by filtering `source_poem_index` when reading from cache in both:
+  - `M.generate_maximum_diversity_sequence()` (sequential processing)
+  - `get_diversity_sequence()` (parallel processing)
+- Design choice: Filter at display time rather than modify cache (no cache regeneration needed)
 
 ## Completion Criteria
 
