@@ -33,6 +33,9 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-013 | Implement TUI config editor | Open | Medium |
 | 10-018 | Animated command option transitions | Completed | Low |
 | 10-019 | Document config structure and field usage | Open | Low |
+| 10-022 | Fix empty embeddings validation | Completed | High |
+| 10-023 | Fix image manager shell escaping and duplicates | Completed | Medium |
+| 10-024 | Force flag should clear output directories | Completed | High |
 
 ### Completed Issues
 
@@ -52,6 +55,9 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-017 | Multi-Ollama server configuration | Completed | 2026-01-30 |
 | 10-018 | Animated command option transitions | Completed | 2026-01-30 |
 | 10-021 | Whitespace-preserving word wrap for poems | Completed | 2026-01-30 |
+| 10-022 | Fix empty embeddings validation in GPU similarity | Completed | 2026-02-10 |
+| 10-023 | Fix image manager shell escaping and duplicates | Completed | 2026-02-10 |
+| 10-024 | Force flag should clear output directories | Completed | 2026-02-13 |
 
 ## Issue Details
 
@@ -149,6 +155,28 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Preserves leading whitespace on continuation lines
 - Long URLs broken at character boundaries when exceeding line width
 - Artistic indentation and paragraph breaks maintained
+
+**10-022: Fix Empty Embeddings Validation** - COMPLETED (2026-02-10)
+- GPU similarity module crashed when embeddings.json had empty array (from failed generation)
+- Added validation to check `#embeddings > 0` before accessing first element
+- Error message includes termination_reason from metadata for diagnosis
+- Also fixed generate-embeddings.sh division by zero in statistics calculation
+- Files modified: vk_similarity.lua, generate-embeddings.sh
+
+**10-023: Fix Image Manager Shell Escaping and Duplicates** - COMPLETED (2026-02-10)
+- Fixed shell errors for filenames with single quotes (e.g., `Sant'Azraphel.png`)
+- Added `shell_escape()` function: replaces `'` with `'\''`
+- Applied to all 6 io.popen shell commands (stat, identify, md5sum, find)
+- Added automatic duplicate resolution: keeps newest file by modification_time
+- Changed duplicate reporting from warning to informational message
+- Catalog now includes `resolved_duplicates` with kept/removed paths
+
+**10-024: Force Flag Should Clear Output Directories** - COMPLETED (2026-02-13)
+- When using `--force` for HTML generation, stale files with obsolete poem_index values remained
+- After poem re-extraction changed poem_index assignments, old HTML files showed wrong content
+- Added directory clearing in run.sh when `--force` or `--force-stage=9` is set
+- Clears `output/similar/`, `output/different/`, `output/chronological/` before regenerating
+- Force now means "start fresh" not just "ignore freshness checks"
 
 ## Completion Criteria
 

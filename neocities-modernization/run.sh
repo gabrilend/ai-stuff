@@ -1074,6 +1074,16 @@ run_generate_html() {
     local stage_force=$FORCE
     $FORCE_STAGE_9 && stage_force=true
 
+    # Issue 10-024: Clear output directories when forcing regeneration
+    # This prevents stale files with obsolete poem_index values from persisting
+    # after poem re-extraction changes the poem_index assignments
+    if $stage_force; then
+        log_info "   Clearing stale HTML files (--force)..."
+        rm -f "$DIR/output/similar/"*.html 2>/dev/null
+        rm -f "$DIR/output/different/"*.html 2>/dev/null
+        rm -f "$DIR/output/chronological/"*.html 2>/dev/null
+    fi
+
     local force_arg=""
     if $stage_force; then
         force_arg="--force"
@@ -1192,55 +1202,55 @@ interactive_mode_tui() {
 
     # Issue 10-016: Global force regenerate option at top of stages
     menu_add_item "stages" "force" "Force regenerate ALL stages" "checkbox" "0" \
-        "Force regeneration even if files are fresh" "f" "--force"
+        "Force regeneration even if files are fresh" "" "--force"
 
     menu_add_item "stages" "update_words" "1. Update Words" "checkbox" "1" \
-        "Sync input files from words repository" "1" "--update-words"
+        "Sync input files from words repository" "" "--update-words"
     menu_add_item "stages" "force_update_words" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=1"
 
     menu_add_item "stages" "extract" "2. Extract" "checkbox" "1" \
-        "Extract content from backup archives" "2" "--extract"
+        "Extract content from backup archives" "" "--extract"
     menu_add_item "stages" "force_extract" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=2"
 
     menu_add_item "stages" "parse" "3. Parse" "checkbox" "1" \
-        "Parse poems from JSON sources into poems.json" "3" "--parse"
+        "Parse poems from JSON sources into poems.json" "" "--parse"
     menu_add_item "stages" "force_parse" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=3"
 
     menu_add_item "stages" "validate" "4. Validate" "checkbox" "1" \
-        "Run poem validation" "4" "--validate"
+        "Run poem validation" "" "--validate"
     menu_add_item "stages" "force_validate" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=4"
 
     menu_add_item "stages" "catalog_images" "5. Catalog Images" "checkbox" "1" \
-        "Catalog images from input directories" "5" "--catalog-images"
+        "Catalog images from input directories" "" "--catalog-images"
     menu_add_item "stages" "force_catalog_images" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=5"
 
     menu_add_item "stages" "generate_embeddings" "6. Embeddings ⚠️" "checkbox" "0" \
-        "Generate embeddings via Ollama (~2-3 hours)" "6" "--generate-embeddings"
+        "Generate embeddings via Ollama (~2-3 hours)" "" "--generate-embeddings"
     menu_add_item "stages" "force_generate_embeddings" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=6"
 
     menu_add_item "stages" "generate_similarity" "7. Similarity ⚠️" "checkbox" "0" \
-        "Build similarity matrix (~30 min)" "7" "--generate-similarity"
+        "Build similarity matrix (~30 min)" "" "--generate-similarity"
     menu_add_item "stages" "force_generate_similarity" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=7"
 
     menu_add_item "stages" "generate_diversity" "8. Diversity ⚠️" "checkbox" "0" \
-        "Pre-compute diversity cache (~42 hours)" "8" "--generate-diversity"
+        "Pre-compute diversity cache (~42 hours)" "" "--generate-diversity"
     menu_add_item "stages" "force_generate_diversity" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=8"
 
     menu_add_item "stages" "generate_html" "9. Generate HTML" "checkbox" "1" \
-        "Generate website HTML (chronological + similarity pages)" "9" "--generate-html"
+        "Generate website HTML (chronological + similarity pages)" "" "--generate-html"
     menu_add_item "stages" "force_generate_html" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=9"
 
     menu_add_item "stages" "generate_index" "10. Generate Index" "checkbox" "1" \
-        "Generate numeric similarity index" "0" "--generate-index"
+        "Generate numeric similarity index" "" "--generate-index"
     menu_add_item "stages" "force_generate_index" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage=10"
 
@@ -1272,21 +1282,21 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "config" "multi" "Configuration"
     menu_add_item "config" "threads" "Thread Count" "flag" "4:2" \
-        "Thread count for parallel HTML generation (type 1-16)" "t" "--threads"
+        "Thread count for parallel HTML generation (type 1-16)" "" "--threads"
     # Issue 8-022: Pagination options for HTML generation
     menu_add_item "config" "pages" "Pages per Poem" "flag" ":2" \
-        "Pages to generate per poem (default: from config, 1)" "p" "--pages"
+        "Pages to generate per poem (default: from config, 1)" "" "--pages"
     menu_add_item "config" "poems_per_page" "Poems per Page" "flag" ":3" \
-        "Poems per page for similar/different (default: 200)" "y" "--poems-per-page"
+        "Poems per page for similar/different (default: 200)" "" "--poems-per-page"
     menu_add_item "config" "chrono_per_page" "Chrono per Page" "flag" ":3" \
-        "Poems per page for chronological (default: 500)" "c" "--chrono-per-page"
+        "Poems per page for chronological (default: 500)" "" "--chrono-per-page"
     # Issue 10-016: Force Regeneration moved to stages section
     menu_add_item "config" "dry_run" "Dry Run" "checkbox" "0" \
-        "Show what would be executed without running" "d" "--dry-run"
+        "Show what would be executed without running" "" "--dry-run"
     menu_add_item "config" "verbose" "Verbose Output" "checkbox" "0" \
-        "Show detailed progress information" "v" "--verbose"
+        "Show detailed progress information" "" "--verbose"
     menu_add_item "config" "include_boosts" "Include Boosts" "checkbox" "0" \
-        "Include fediverse boosts/reblogs in extraction" "b" "--include-boosts"
+        "Include fediverse boosts/reblogs in extraction" "" "--include-boosts"
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Word Cloud Configuration
@@ -1294,12 +1304,12 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "wordcloud" "multi" "Word Cloud Options"
     menu_add_item "wordcloud" "wordcloud_all" "All Words" "checkbox" "0" \
-        "Include all words (disables word count limit)" "a" "--wordcloud-all"
+        "Include all words (disables word count limit)" "" "--wordcloud-all"
     menu_add_item "wordcloud" "wordcloud_words" "Word Count" "flag" "200:3" \
-        "Maximum words in word cloud (default: 200)" "w" "--wordcloud-words"
+        "Maximum words in word cloud (default: 200)" "" "--wordcloud-words"
     # Issue 8-050d: Poems per word-cloud page
     menu_add_item "wordcloud" "wordcloud_poems" "Poems Per Page" "flag" "50:3" \
-        "Poems per word-cloud similarity page (default: 50)" "p" "--wordcloud-poems"
+        "Poems per word-cloud similarity page (default: 50)" "" "--wordcloud-poems"
     # Dependency: Disable wordcloud_words when wordcloud_all is checked
     # invert=true means: enable wordcloud_words when wordcloud_all is NOT checked (value "1")
     menu_add_dependency "wordcloud_words" "wordcloud_all" "1" "true" \
@@ -1320,7 +1330,7 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "actions" "single" "Actions"
     menu_add_item "actions" "run" "Run Selected Stages" "action" "" \
-        "Execute the selected pipeline stages" "r"
+        "Execute the selected pipeline stages" ""
 
     # Run the menu loop
     while true; do
