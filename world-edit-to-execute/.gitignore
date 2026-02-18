@@ -1,0 +1,74 @@
+# World Edit to Execute - .gitignore
+# Prevents sensitive, generated, and large files from being pushed to public repos
+
+# ============================================================================
+# X01: HotS Behavior Analysis Mod Generator - Private Materials
+# ============================================================================
+
+# Generated mod files (output of the pipeline)
+assets/generated-mods/
+
+# Video clips and raw analysis data (large, potentially copyrighted)
+assets/video-clips/
+assets/analysis-data/
+
+# Web scrape caches (may contain copyrighted text)
+assets/source-data/
+
+# Resume and Blizzard inquiry materials (private/personal)
+assets/blizzard-inquiry/
+resume/
+cover-letter*
+
+# Private git repository sync (this is shared separately)
+hots-to-wc3-gift/
+
+# ============================================================================
+# General Project Ignores
+# ============================================================================
+
+# Temporary files
+tmp/
+*.tmp
+*.temp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Lua bytecode
+*.luac
+luac.out
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Test output
+test-output/
+coverage/
+
+# Large binary assets (maps for testing - user-provided)
+assets/maps/*.w3x
+assets/maps/*.w3m
+
+# Keep the maps directory structure
+!assets/maps/.gitkeep
+
+# LLM conversation logs (may contain sensitive context)
+llm-transcripts/*.json
+llm-transcripts/*.log
+
+# Keep transcript markdown summaries
+!llm-transcripts/*.md
