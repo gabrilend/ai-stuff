@@ -25,6 +25,7 @@ Phase 12 explores experimental applications of machine learning and AI to create
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
 | 12-001 | Implement neural navigation LLM | Open | Experimental |
+| 12-002 | Investigate dual-axis similarity (theme AND style) | Open | Research |
 
 ### Completed Issues
 
