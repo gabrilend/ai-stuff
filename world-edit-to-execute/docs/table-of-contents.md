@@ -300,6 +300,12 @@ issues/
 | pkware-dcl-compression.md | PKWARE DCL compression algorithm | Created |
 | unitsdoo.md | Unit/building placement format | Created |
 
+### Experimental Issues (X-Series)
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| X01 | HotS Behavior Analysis to WC3 Mod Generator | Design Research |
+
 ### Guides
 
 (To be added as development progresses)
