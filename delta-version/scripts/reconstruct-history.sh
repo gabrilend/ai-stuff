@@ -56,6 +56,15 @@ PROVENANCE_METHOD="${PROVENANCE_METHOD:-git-notes}"  # git-notes | sidecar
 PROVENANCE_MIN_CONFIDENCE="${PROVENANCE_MIN_CONFIDENCE:-0.3}"
 SHOW_PROVENANCE=""            # Commit ref to show provenance for
 LIST_PROVENANCE=false         # List all commits with provenance
+
+# Version Extraction (050) - extract file versions from existing git history
+# When enabled, reconstructed commits use file versions from their corresponding dates
+# rather than always using the latest version of each file
+ENABLE_VERSION_EXTRACTION="${ENABLE_VERSION_EXTRACTION:-auto}"  # auto | true | false
+VERSION_HISTORY_FILE=""       # Temp file for version history (set at runtime)
+SHOW_VERSION_PLAN=false       # Show which versions would be used per commit
+SHOW_FILE_HISTORY=""          # Show version history for specific file
+MIN_COMMITS_FOR_EXTRACTION=3  # Minimum commits to consider history "meaningful"
 # }}}
 
 # -- {{{ log
@@ -875,6 +884,310 @@ list_provenance_commits() {
     fi
 
     [[ $found -eq 0 ]] && echo "No commits with provenance data found."
+}
+# }}}
+
+# =============================================================================
+# Version Extraction Functions (050)
+# =============================================================================
+# Extract file versions from existing git history to reconstruct commits
+# with files as they appeared at each issue's completion date, rather than
+# always using the latest version.
+
+# -- {{{ has_meaningful_history
+# Checks if the project has git history worth extracting versions from
+#
+# Returns true if:
+#   - Git repository exists
+#   - Has more than MIN_COMMITS_FOR_EXTRACTION commits
+#   - At least some files have multiple versions
+has_meaningful_history() {
+    local project_dir="$1"
+
+    # No git = no history
+    [[ ! -d "$project_dir/.git" ]] && return 1
+
+    local commit_count
+    commit_count=$(git -C "$project_dir" rev-list --count HEAD 2>/dev/null || echo "0")
+
+    # Need minimum commits for meaningful version history
+    [[ "$commit_count" -lt "$MIN_COMMITS_FOR_EXTRACTION" ]] && return 1
+
+    # Check if any tracked file has multiple versions (appeared in multiple commits)
+    # This is a quick heuristic - count files that appear more than once in log
+    local multi_version_count
+    multi_version_count=$(git -C "$project_dir" log --all --pretty=format: --name-only 2>/dev/null | \
+        grep -v '^$' | sort | uniq -c | awk '$1 > 1 {count++} END {print count+0}')
+
+    [[ "$multi_version_count" -gt 0 ]]
+}
+# }}}
+
+# -- {{{ extract_file_history
+# Builds a timeline of all versions of all files in the repository
+#
+# Output format (one line per file version):
+#   filepath|commit_hash|commit_date_epoch|blob_hash
+#
+# Example:
+#   src/parser.lua|abc123|1702684800|def456
+#   src/parser.lua|ghi789|1702771200|jkl012
+#
+# The output is sorted by filepath then by date (chronological order)
+extract_file_history() {
+    local project_dir="$1"
+    local output_file="$2"
+
+    cd "$project_dir" || return 1
+
+    log "Extracting file version history from git..."
+
+    # Get all commits in chronological order (oldest first)
+    local commits
+    commits=$(git rev-list --reverse HEAD 2>/dev/null)
+
+    # For each commit, list files and their blob hashes
+    # Output: filepath|commit_hash|commit_date_epoch|blob_hash
+    echo "$commits" | while IFS= read -r commit; do
+        [[ -z "$commit" ]] && continue
+
+        local commit_date
+        commit_date=$(git show -s --format='%ct' "$commit" 2>/dev/null)
+
+        # List all files in this commit with their blob hashes
+        # Format: mode type blob_hash\tfilepath
+        git ls-tree -r "$commit" 2>/dev/null | while read -r mode type blob filepath; do
+            # Only process blobs (files), not trees (directories)
+            [[ "$type" != "blob" ]] && continue
+            echo "${filepath}|${commit}|${commit_date}|${blob}"
+        done
+    done > "$output_file"
+
+    local version_count
+    version_count=$(wc -l < "$output_file" 2>/dev/null || echo "0")
+    log "Extracted $version_count file versions from git history"
+
+    return 0
+}
+# }}}
+
+# -- {{{ get_file_version_at_date
+# Returns the file version that existed at or before a given date
+#
+# Args:
+#   $1 - filepath (relative to repo root)
+#   $2 - target date (epoch seconds)
+#   $3 - history file (from extract_file_history)
+#
+# Output: commit_hash|blob_hash for the version, or empty if file didn't exist yet
+get_file_version_at_date() {
+    local filepath="$1"
+    local target_date="$2"
+    local history_file="$3"
+
+    # Find all versions of this file with date <= target_date
+    # Take the latest one (closest to target date without exceeding)
+    # Format in history file: filepath|commit|date|blob
+    grep "^${filepath}|" "$history_file" 2>/dev/null | \
+        awk -F'|' -v target="$target_date" '$3 <= target {print $3"|"$2"|"$4}' | \
+        sort -t'|' -k1,1rn | \
+        head -1 | \
+        cut -d'|' -f2,3
+}
+# }}}
+
+# -- {{{ get_earliest_file_version
+# Returns the earliest (first appearing) version of a file
+#
+# Args:
+#   $1 - filepath
+#   $2 - history file
+#
+# Output: commit_hash|blob_hash
+get_earliest_file_version() {
+    local filepath="$1"
+    local history_file="$2"
+
+    # Get first occurrence (sorted by date ascending in the file)
+    grep "^${filepath}|" "$history_file" 2>/dev/null | \
+        head -1 | \
+        cut -d'|' -f2,4
+}
+# }}}
+
+# -- {{{ extract_blob_to_file
+# Extracts a specific blob (file version) to a target path
+#
+# Args:
+#   $1 - blob hash
+#   $2 - target filepath (relative to repo root)
+#
+# The file is extracted to the working directory, ready for git add
+extract_blob_to_file() {
+    local blob_hash="$1"
+    local target_path="$2"
+
+    # Ensure parent directory exists
+    mkdir -p "$(dirname "$target_path")" 2>/dev/null
+
+    # Extract blob content to file
+    git cat-file blob "$blob_hash" > "$target_path" 2>/dev/null
+}
+# }}}
+
+# -- {{{ show_file_history
+# Displays the version history for a specific file
+show_file_history() {
+    local project_dir="$1"
+    local filepath="$2"
+
+    if [[ ! -d "$project_dir/.git" ]]; then
+        error "No git repository at: $project_dir"
+        return 1
+    fi
+
+    cd "$project_dir" || return 1
+
+    echo "=== Version History for: $filepath ==="
+    echo ""
+
+    # Get all commits that touched this file
+    local count=0
+    local commit epoch date subject blob_hash lines size_info
+
+    # Use process substitution to avoid subshell issues with the while loop
+    while IFS='|' read -r commit epoch date subject; do
+        [[ -z "$commit" ]] && continue
+
+        # Get file stats at this commit
+        blob_hash=$(git ls-tree "$commit" -- "$filepath" 2>/dev/null | awk '{print $3}')
+        if [[ -n "$blob_hash" ]]; then
+            lines=$(git cat-file blob "$blob_hash" 2>/dev/null | wc -l)
+            size_info="($lines lines)"
+        else
+            size_info="(deleted)"
+        fi
+
+        printf "  %s [%s] %s\n" "${date%% *}" "${commit:0:7}" "$size_info"
+        printf "    %s\n\n" "$subject"
+        ((count++)) || true  # Prevent set -e from exiting when count was 0
+    done < <(git log --follow --pretty=format:'%H|%ct|%ci|%s' -- "$filepath" 2>/dev/null)
+
+    [[ $count -eq 0 ]] && echo "  File not found in git history" || true
+}
+# }}}
+
+# -- {{{ show_version_plan
+# Shows which file versions would be used for each issue commit
+show_version_plan() {
+    local project_dir="$1"
+    local history_file="$2"
+
+    echo "=== Version Extraction Plan ==="
+    echo ""
+
+    # Get ordered issues with dates
+    local -a completed_issues
+    mapfile -t completed_issues < <(order_issues_by_dependencies "$project_dir")
+
+    if [[ ${#completed_issues[@]} -eq 0 ]]; then
+        echo "No completed issues found"
+        return 0
+    fi
+
+    # Get dates for all issues
+    local -A issue_dates
+    while IFS=':' read -r file epoch source; do
+        [[ -z "$file" ]] && continue
+        issue_dates["$file"]="$epoch"
+    done < <(printf '%s\n' "${completed_issues[@]}" | interpolate_dates)
+
+    # Build file associations
+    local -A issue_file_map
+    while IFS=':' read -r issue_id files; do
+        [[ -z "$issue_id" ]] && continue
+        issue_file_map["$issue_id"]="$files"
+    done < <(associate_files_with_issues "$project_dir")
+
+    # Show plan for each issue
+    for issue_file in "${completed_issues[@]}"; do
+        local issue_name issue_date issue_id associated_files
+        issue_name=$(basename "$issue_file" .md)
+        issue_date="${issue_dates[$issue_file]:-}"
+        issue_id=$(extract_issue_id "$issue_file")
+        associated_files="${issue_file_map[$issue_id]:-}"
+
+        local date_display="(no date)"
+        [[ -n "$issue_date" ]] && date_display="$(date -d "@$issue_date" '+%Y-%m-%d')"
+
+        echo "Issue: $issue_name ($date_display)"
+
+        if [[ -z "$associated_files" ]]; then
+            echo "  (no associated files)"
+        else
+            for filepath in $associated_files; do
+                local version_info
+                version_info=$(get_file_version_at_date "$filepath" "$issue_date" "$history_file")
+
+                if [[ -n "$version_info" ]]; then
+                    local commit_hash blob_hash
+                    commit_hash=$(echo "$version_info" | cut -d'|' -f1)
+                    blob_hash=$(echo "$version_info" | cut -d'|' -f2)
+
+                    # Get version date
+                    local version_date
+                    version_date=$(git show -s --format='%ci' "$commit_hash" 2>/dev/null | cut -d' ' -f1)
+
+                    echo "  $filepath: commit ${commit_hash:0:7} ($version_date)"
+                else
+                    echo "  $filepath: NOT YET CREATED at issue date"
+                fi
+            done
+        fi
+        echo ""
+    done
+}
+# }}}
+
+# -- {{{ stage_versioned_files
+# Stages files at their versions corresponding to the given date
+#
+# Args:
+#   $1 - target date (epoch)
+#   $2 - history file
+#   $3 - space-separated list of files to stage
+#
+# Returns: number of files successfully staged
+stage_versioned_files() {
+    local target_date="$1"
+    local history_file="$2"
+    local files="$3"
+
+    local staged_count=0
+
+    for filepath in $files; do
+        local version_info
+        version_info=$(get_file_version_at_date "$filepath" "$target_date" "$history_file")
+
+        if [[ -n "$version_info" ]]; then
+            local commit_hash blob_hash
+            commit_hash=$(echo "$version_info" | cut -d'|' -f1)
+            blob_hash=$(echo "$version_info" | cut -d'|' -f2)
+
+            # Extract this version of the file
+            if extract_blob_to_file "$blob_hash" "$filepath"; then
+                git add "$filepath" 2>/dev/null
+                ((staged_count++))
+                log "  $filepath: staged version from ${commit_hash:0:7}"
+            else
+                log "  $filepath: failed to extract blob $blob_hash"
+            fi
+        else
+            log "  $filepath: did not exist at target date, skipping"
+        fi
+    done
+
+    echo "$staged_count"
 }
 # }}}
 
@@ -2090,6 +2403,7 @@ create_issue_commit() {
     local commit_date="${2:-}"      # Optional: epoch timestamp
     local associated_files="${3:-}" # Optional: space-separated list of associated files
     local project_dir="${4:-$(pwd)}" # Optional: project directory for provenance (035g)
+    local history_file="${5:-}"     # Optional: version history file for 050
     local issue_name
     local title
 
@@ -2102,15 +2416,24 @@ create_issue_commit() {
     git add "$issue_file"
 
     # Add associated source files (035d)
+    # If version extraction is enabled (050) and we have a history file,
+    # stage files at their versions corresponding to the commit date
     local file_count=0
     if [[ -n "$associated_files" ]]; then
-        for file in $associated_files; do
-            if [[ -f "$file" ]]; then
-                git add "$file"
-                ((file_count++))
-                log "  + $file (associated)"
-            fi
-        done
+        if [[ -n "$history_file" && -f "$history_file" && -n "$commit_date" ]]; then
+            # Version extraction enabled: stage files at their historical versions
+            log "  Using version extraction for associated files"
+            file_count=$(stage_versioned_files "$commit_date" "$history_file" "$associated_files")
+        else
+            # No version extraction: use current file versions
+            for file in $associated_files; do
+                if [[ -f "$file" ]]; then
+                    git add "$file"
+                    ((file_count++))
+                    log "  + $file (associated)"
+                fi
+            done
+        fi
     fi
 
     # Check if there's anything to commit
@@ -2387,6 +2710,31 @@ reconstruct_history_with_rebase() {
     local backup_branch="backup-${ORIGINAL_BRANCH}-$(date +%Y%m%d-%H%M%S)"
     git branch "$backup_branch" 2>/dev/null
     echo "      Backup created: $backup_branch"
+
+    # Step 3b: Extract file version history (050)
+    # This captures all file versions before we start reconstruction
+    local use_version_extraction=false
+    local version_history_file=""
+
+    # Determine if we should use version extraction
+    if [[ "$ENABLE_VERSION_EXTRACTION" == "true" ]] || \
+       { [[ "$ENABLE_VERSION_EXTRACTION" == "auto" ]] && has_meaningful_history "$project_dir"; }; then
+        echo ""
+        echo "      Extracting file version history (050)..."
+        version_history_file=$(mktemp)
+        VERSION_HISTORY_FILE="$version_history_file"  # Set global for cleanup
+
+        if extract_file_history "$project_dir" "$version_history_file"; then
+            use_version_extraction=true
+            local version_count
+            version_count=$(wc -l < "$version_history_file" 2>/dev/null || echo "0")
+            echo "      Extracted $version_count file versions for date-based staging"
+        else
+            echo "      Warning: Failed to extract file history, using latest versions"
+            rm -f "$version_history_file"
+            version_history_file=""
+        fi
+    fi
     echo ""
 
     # Step 4: Create orphan branch with reconstructed history
@@ -2447,7 +2795,8 @@ reconstruct_history_with_rebase() {
             associated_files="${issue_file_map[$issue_id]:-}"
 
             echo "          - $issue_name"
-            if create_issue_commit "$issue_file" "$issue_date" "$associated_files"; then
+            # Pass version_history_file (050) as 5th argument if available
+            if create_issue_commit "$issue_file" "$issue_date" "$associated_files" "$project_dir" "$version_history_file"; then
                 ((commit_count++)) || true
             fi
         done
@@ -2463,6 +2812,9 @@ reconstruct_history_with_rebase() {
 
     echo ""
     echo "      Reconstructed commits: $commit_count"
+    if [[ "$use_version_extraction" == true ]]; then
+        echo "      (used version extraction for date-appropriate file staging)"
+    fi
 
     # Step 5: Apply post-blob commits
     echo ""
@@ -2473,8 +2825,9 @@ reconstruct_history_with_rebase() {
         echo "      No post-blob commits to apply"
     fi
 
-    # Cleanup temp file
+    # Cleanup temp files
     rm -f "$POST_BLOB_COMMIT_FILE"
+    [[ -n "$version_history_file" ]] && rm -f "$version_history_file"
 
     # Step 6: Handle branch replacement
     echo ""
@@ -2844,6 +3197,12 @@ Transcript Provenance Options (035g):
     --show-provenance [REF]  Show provenance for a commit (default: HEAD)
     --list-provenance        List all commits with provenance data
 
+Version Extraction Options (050):
+    --with-version-extraction    Force version extraction even for sparse history
+    --no-version-extraction      Disable version extraction, use latest files only
+    --show-version-plan          Show which file versions would be used per commit
+    --show-file-history FILE     Show version history for a specific file
+
 Project States:
     external       - Outside monorepo, will be imported first
     no_git         - No git history, create from scratch
@@ -3181,6 +3540,23 @@ parse_args() {
                 LIST_PROVENANCE=true
                 shift
                 ;;
+            # Version Extraction Options (050)
+            --with-version-extraction)
+                ENABLE_VERSION_EXTRACTION="true"
+                shift
+                ;;
+            --no-version-extraction)
+                ENABLE_VERSION_EXTRACTION="false"
+                shift
+                ;;
+            --show-version-plan)
+                SHOW_VERSION_PLAN=true
+                shift
+                ;;
+            --show-file-history)
+                SHOW_FILE_HISTORY="$2"
+                shift 2
+                ;;
             -h|--help)
                 show_help
                 exit 0
@@ -3269,6 +3645,40 @@ main() {
     if [[ ! -d "$PROJECT_DIR" ]]; then
         error "Project directory not found: $PROJECT_DIR"
         exit 1
+    fi
+
+    # Handle version extraction info commands (050)
+    if [[ -n "$SHOW_FILE_HISTORY" ]]; then
+        show_file_history "$PROJECT_DIR" "$SHOW_FILE_HISTORY"
+        exit 0
+    fi
+
+    if [[ "$SHOW_VERSION_PLAN" == true ]]; then
+        if [[ ! -d "$PROJECT_DIR/.git" ]]; then
+            error "No git repository found at: $PROJECT_DIR"
+            error "--show-version-plan requires existing git history"
+            exit 1
+        fi
+
+        echo "Analyzing version extraction plan for: $(basename "$PROJECT_DIR")"
+        echo ""
+
+        # Extract file history to temp file
+        local temp_history
+        temp_history=$(mktemp)
+
+        cd "$PROJECT_DIR" || exit 1
+        if ! extract_file_history "$PROJECT_DIR" "$temp_history"; then
+            error "Failed to extract file history"
+            rm -f "$temp_history"
+            exit 1
+        fi
+
+        # Show the version plan
+        show_version_plan "$PROJECT_DIR" "$temp_history"
+
+        rm -f "$temp_history"
+        exit 0
     fi
 
     if [[ "$DRY_RUN" == true ]]; then
