@@ -224,6 +224,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 050**: Earliest Version Extraction for History Reconstruction (2026-02-12)
+  - Enhances reconstruct-history.sh to extract file versions from existing git history
+  - 8 new functions: has_meaningful_history, extract_file_history, get_file_version_at_date, etc.
+  - CLI flags: --show-version-plan, --show-file-history, --with/no-version-extraction
+  - Bug fix: ((count++)) with set -e issue
+
 - **Issue 047**: README Table of Contents Generator (2026-02-09)
   - Generates README.md with source code in "read-order"
   - Sorts indexed files (numeric prefix) first, then by modification date
@@ -355,6 +361,57 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: Completed 2024-12-15
 
 ### Phase 4: Meta-Infrastructure (NEW)
+- **Issue 050**: Earliest Version Extraction for History Reconstruction ✅
+  - *Purpose*: Enhance reconstruct-history.sh to extract file versions from existing git history
+  - *Problem*: Currently reconstructed commits use latest file versions even when earlier versions exist
+  - *Solution*: Build file timeline from git history, match file versions to issue dates
+  - *Features*:
+    - Extract complete file version history via `git ls-tree` and blob hashes
+    - Match issue dates to closest-before-date file versions
+    - `--show-version-plan` preview flag
+    - `--show-file-history` for individual file evolution
+  - *Implemented*: 8 new functions in `delta-version/scripts/reconstruct-history.sh`
+  - *Dependencies*: Issue 035 (complete)
+  - *Status*: Completed 2026-02-12
+
+- **Issue 051**: Git Repository Documentation Generator 📝
+  - *Purpose*: Reverse-engineer structured project documentation from git commit history
+  - *Philosophy*: Charts the "arc" from kernel (initial commit) to success (current state)
+  - *Pipeline*: analyze → roadmap → issues → completion → demos → install → network
+  - *Features*:
+    - Extract project kernel/vision from initial commits
+    - AI-assisted roadmap generation via LLM tool-calls
+    - Automatic issue file generation following CLAUDE.md conventions
+    - Completion status detection and progress tracking
+    - Phase demo script generation
+    - Dependency installation script generation
+    - Module interconnection network for tool composition
+  - *Symmetry*: Inverse operation of Issue 035 (docs→history vs history→docs)
+  - *Dependencies*: None
+  - *Sub-issues*:
+    - **051a** 📝: Initial commit analysis and goal extraction
+    - **051b** 📝: AI-assisted roadmap generation (LLM tool-calls)
+    - **051c** 📝: Issue file generation from roadmap
+    - **051d** 📝: Completion status detection
+    - **051e** 📝: Phase demo generation
+    - **051f** 📝: Library install script generation
+    - **051g** 📝: Module interconnection network (API layer)
+  - *Status*: Ready for implementation
+
+- **Issue 049**: LLM Transcript Abstraction Viewer 📝
+  - *Purpose*: Transform LLM conversation logs into multi-layered documentation viewable at different abstraction and detail levels
+  - *Features*: Two-phase pipeline (detail filtering → abstraction transform), Ollama LLM integration, chapter organization with interleaving
+  - *Abstraction Levels*: High (architecture/dataflows), Medium (features/workflows), Low (implementation details)
+  - *Detail Levels*: 1-5 (minimal to full), controlling how much content is retained
+  - *Philosophy*: Different readers need different views - executives need architecture, maintainers need code
+  - *Dependencies*: Ollama installation and model availability
+  - *Sub-issues*:
+    - **049a** 📝: Detail Level Filtering (LLM-assisted section classification and removal)
+    - **049b** 📝: Abstraction Level Transformation (rewrite content at target abstraction)
+    - **049c** 📝: Chapter Segmentation and Interleaving (unify multiple transcripts)
+    - **049d** 📝: Ollama Processing Pipeline (LLM client with consensus validation)
+  - *Status*: Ready for implementation
+
 - **Issue 040**: Dynamic CLAUDE.md Revision System 📝
   - *Purpose*: Create a living instruction set that evolves based on usage patterns and natural events
   - *Features*: Event detection, API layer for script integration, revision engine, history audit trail, conflict validation, TUI review interface
@@ -390,13 +447,13 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~58 (including sub-issues)
-- **Completed**: 28 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038, 047)
+- **Total Issues**: ~72 (including sub-issues)
+- **Completed**: 29 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038, 047, 050)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~28 (including 040 series)
-- **High Priority**: None
-- **New (Phase 4)**: 10 (040, 040a-i)
+- **Pending**: ~41 (including 040, 049, and 051)
+- **High Priority**: 051 (Git Documentation Generator)
+- **New (Phase 4)**: 23 (040, 040a-i, 049, 049a-d, 051, 051a-g)
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
