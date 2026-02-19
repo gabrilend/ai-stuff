@@ -1,6 +1,9 @@
 -- {{{ external-sync.lua
 -- Issue 10-003b: Centralized external file syncing module
--- Reads from config.external_files and syncs directories using rsync.
+-- Issue 10-026: Now reads from sources-loader (unified config)
+--
+-- Reads external sync info from config.sources via sources-loader.
+-- Falls back to config.external_files for backward compatibility.
 --
 -- All external file pulling should go through this module.
 -- No hardcoded external paths should exist in scripts.
@@ -19,6 +22,7 @@ local M = {}
 local project_root = nil
 local config = nil
 local verbose = true
+local sources_loader = nil  -- Issue 10-026: lazy-loaded sources-loader
 -- }}}
 
 -- {{{ ANSI color codes for terminal output
@@ -34,6 +38,16 @@ local COLOR_RESET = "\027[0m"
 function M.set_project_root(path)
     project_root = path
     config = nil  -- Reset config when root changes
+    -- Issue 10-026: Also initialize sources-loader
+    if not sources_loader then
+        local ok, loader = pcall(require, "sources-loader")
+        if ok then
+            sources_loader = loader
+        end
+    end
+    if sources_loader then
+        sources_loader.set_project_root(path)
+    end
 end
 -- }}}
 
@@ -98,10 +112,27 @@ end
 -- }}}
 
 -- {{{ local function get_external_files
--- Get the external_files array from config
+-- Issue 10-026: Get external sync entries, preferring sources-loader
+-- Falls back to config.external_files for backward compatibility
 local function get_external_files()
+    -- Try sources-loader first (unified config)
+    if sources_loader then
+        local syncs = sources_loader.get_all_external_syncs()
+        if #syncs > 0 then
+            return syncs
+        end
+    end
+
+    -- Fall back to legacy external_files section
     local cfg = load_config()
-    return cfg.external_files or {}
+    local legacy = cfg.external_files or {}
+    -- Add is_archive field for compatibility (detect by .zip extension)
+    for _, entry in ipairs(legacy) do
+        if entry.is_archive == nil then
+            entry.is_archive = entry.source and entry.source:match("%.zip$") ~= nil
+        end
+    end
+    return legacy
 end
 -- }}}
 
