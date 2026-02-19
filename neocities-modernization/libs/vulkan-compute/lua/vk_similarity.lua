@@ -270,6 +270,20 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     end
 
     local num_poems = #embeddings_data.embeddings
+    -- Validate embeddings array is non-empty before accessing first element
+    -- Empty arrays occur when embedding generation failed (network errors, etc.)
+    if num_poems == 0 then
+        local reason = embeddings_data.metadata and embeddings_data.metadata.termination_reason or "unknown"
+        local mode = embeddings_data.metadata and embeddings_data.metadata.processing_mode or "unknown"
+        error(string.format(
+            "[GPU SIMILARITY ERROR] Embeddings array is empty (0 poems).\n" ..
+            "  Processing mode: %s\n" ..
+            "  Termination reason: %s\n" ..
+            "  Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force\n" ..
+            "  Ensure Ollama is running: ollama serve",
+            mode, reason
+        ))
+    end
     local embedding_dim = #embeddings_data.embeddings[1].embedding
     print(string.format("[GPU SIMILARITY] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
 
@@ -549,6 +563,21 @@ function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force, nu
     end
 
     local num_poems = #embeddings_data.embeddings
+    -- Validate embeddings array is non-empty before accessing first element
+    -- Empty arrays occur when embedding generation failed (network errors, etc.)
+    if num_poems == 0 then
+        local reason = embeddings_data.metadata and embeddings_data.metadata.termination_reason or "unknown"
+        local mode = embeddings_data.metadata and embeddings_data.metadata.processing_mode or "unknown"
+        print(string.format(
+            "[GPU SIMILARITY ERROR] Embeddings array is empty (0 poems).\n" ..
+            "  Processing mode: %s\n" ..
+            "  Termination reason: %s\n" ..
+            "  Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force\n" ..
+            "  Ensure Ollama is running: ollama serve",
+            mode, reason
+        ))
+        return false
+    end
     local embedding_dim = #embeddings_data.embeddings[1].embedding
     print(string.format("[GPU SIMILARITY] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
 

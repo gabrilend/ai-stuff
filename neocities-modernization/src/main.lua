@@ -470,13 +470,14 @@ end
 -- }}}
 
 -- {{{ function M.catalog_images
-function M.catalog_images()
+-- Issue 10-015a: Added verbose parameter for detailed statistics output
+function M.catalog_images(verbose)
     utils.log_info("Starting image cataloging...")
-    
+
     local success, result = pcall(function()
-        return image_manager.main()
+        return image_manager.main(verbose)
     end)
-    
+
     if success and result then
         utils.log_info("Image cataloging completed successfully")
         return true
@@ -907,8 +908,9 @@ function M.main(options)
         M.validate_poems()
     elseif options.catalog_only then
         -- Run only image cataloging
+        -- Issue 10-015a: Pass verbose option for detailed statistics
         utils.log_info("Running image cataloging only")
-        M.catalog_images()
+        M.catalog_images(options.verbose)
     elseif options.html_only then
         -- Run only HTML generation
         -- Phase D (Issue 8-012): Pass pages parameter

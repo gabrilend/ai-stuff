@@ -135,6 +135,7 @@ function M.parse_cli_args(args)
         html_only = false,
         -- Config flags
         force = false,
+        verbose = false,  -- Issue 10-015a: Verbose output for detailed statistics
         threads = nil,
         pages = nil,  -- Phase D (Issue 8-012): Pagination control ("1", "all", "1-10")
         poems_per_page = nil,  -- Issue 8-022: Poems per page override
@@ -157,6 +158,8 @@ function M.parse_cli_args(args)
             options.html_only = true
         elseif arg == "--force" then
             options.force = true
+        elseif arg == "--verbose" or arg == "-v" then
+            options.verbose = true
         elseif arg == "--threads" and args[i + 1] then
             options.threads = tonumber(args[i + 1])
             i = i + 1

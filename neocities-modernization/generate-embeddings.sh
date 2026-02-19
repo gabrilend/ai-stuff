@@ -679,13 +679,17 @@ cleanup_and_exit() {
 trap cleanup_and_exit SIGINT SIGTERM
 
 # Create monitoring function
+# Issue 10-022: Updated to use PID-based detection instead of pgrep for process name
+# This is needed because we now use luajit -e instead of lua similarity-engine.lua
 monitor_progress() {
     local current_poem=0
     local start_time=$(date +%s)
     local percent=0
     local progress_file="/tmp/embedding_progress_${USER}.txt"
     local last_progress_time=0
-    
+    # EMBED_PID is set in the calling scope before monitor_progress is started
+    local target_pid=$EMBED_PID
+
     while true; do
         # Check for real-time progress updates from Lua script
         if [ -f "$progress_file" ]; then
@@ -695,31 +699,36 @@ monitor_progress() {
                 local progress_data=$(cat "$progress_file" 2>/dev/null || echo "0,0")
                 IFS=',' read -r current_poem total_poems <<< "$progress_data"
                 last_progress_time=$file_mtime
-                
-                # Calculate percentage
-                percent=$((current_poem * 100 / total_poems))
+
+                # Calculate percentage (guard against division by zero)
+                if [ "$total_poems" -gt 0 ]; then
+                    percent=$((current_poem * 100 / total_poems))
+                else
+                    percent=0
+                fi
             fi
         else
             # No progress file found - fallback to basic monitoring
             current_poem=0
             percent=0
         fi
-        
+
         # Create progress bar
         local bar_length=50
         local filled=$((percent * bar_length / 100))
         local bar=""
         for ((i=0; i<filled; i++)); do bar="${bar}█"; done
         for ((i=filled; i<bar_length; i++)); do bar="${bar}░"; done
-        
+
         # Clear the line and print progress bar (just x/y display)
         echo -ne "\033[2K\r${PURPLE}Progress: ${bar} ${percent}% (${current_poem}/${TOTAL_POEMS})${NC}"
-        
-        # Check if process is still running
-        if ! pgrep -f "similarity-engine.lua" > /dev/null; then
+
+        # Check if embedding process is still running using PID
+        # Issue 10-022: Changed from pgrep to kill -0 for accurate PID detection
+        if ! kill -0 "$target_pid" 2>/dev/null; then
             break
         fi
-        
+
         # Periodic health check of Ollama service (every 5 minutes)
         local current_time=$(date +%s)
         local health_check_interval=300  # 5 minutes
@@ -732,17 +741,41 @@ monitor_progress() {
                 echo -e "${YELLOW}Consider stopping the process and restarting Ollama.${NC}"
             fi
         fi
-        
+
         sleep 0.2
     done
 }
 
 # Start the embedding generation in background
+# Issue 10-022: Use direct function call instead of piped stdin
+# Piped stdin causes curl exit code 7 (connection refused) due to file descriptor issues
 echo "Generating embeddings..." > "$TEMP_LOG"
 if [ "$INCREMENTAL" = true ]; then
-    (echo -e "1\ny\n$MODEL_NAME" | lua src/similarity-engine.lua -I $ASSETS_ARG) >> "$TEMP_LOG" 2>&1 &
+    luajit -e "
+        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+        local sim = require('similarity-engine')
+        local success = sim.generate_all_embeddings(
+            '$POEMS_FILE',
+            '$DIR/assets',
+            '$OLLAMA_ENDPOINT',
+            true,  -- incremental
+            '$MODEL_NAME'
+        )
+        os.exit(success and 0 or 1)
+    " >> "$TEMP_LOG" 2>&1 &
 else
-    (echo -e "1\nn\n$MODEL_NAME" | lua src/similarity-engine.lua -I $ASSETS_ARG) >> "$TEMP_LOG" 2>&1 &
+    luajit -e "
+        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+        local sim = require('similarity-engine')
+        local success = sim.generate_all_embeddings(
+            '$POEMS_FILE',
+            '$DIR/assets',
+            '$OLLAMA_ENDPOINT',
+            false,  -- full regeneration
+            '$MODEL_NAME'
+        )
+        os.exit(success and 0 or 1)
+    " >> "$TEMP_LOG" 2>&1 &
 fi
 EMBED_PID=$!
 
@@ -808,8 +841,15 @@ if [ $EMBED_RESULT -eq 0 ] && [ -f "$EMBEDDINGS_FILE" ]; then
             avg_length = math.floor(total_length / successful)
         end
         
-        local success_rate = math.floor((successful / total) * 100)
-        local processing_rate = math.floor(successful * 3600 / $TOTAL_TIME)
+        -- Guard against division by zero when embeddings array is empty
+        local success_rate = 0
+        if total > 0 then
+            success_rate = math.floor((successful / total) * 100)
+        end
+        local processing_rate = 0
+        if $TOTAL_TIME > 0 then
+            processing_rate = math.floor(successful * 3600 / $TOTAL_TIME)
+        end
         local time_savings = 0
         if total > 0 then
             time_savings = math.floor((reused_embeddings / total) * 100)
@@ -819,7 +859,23 @@ if [ $EMBED_RESULT -eq 0 ] && [ -f "$EMBEDDINGS_FILE" ]; then
     ")
     
     IFS=',' read -r TOTAL_PROCESSED SUCCESSFUL FAILED EMPTY_CONTENT SUCCESS_RATE AVG_LENGTH PROCESSING_RATE NEW_EMBEDDINGS TIME_SAVINGS PROCESSING_MODE <<< "$STATS"
-    
+
+    # Check if generation actually produced embeddings
+    # terminated_network_error mode with 0 successful is a failure
+    if [ "$SUCCESSFUL" -eq 0 ] || [ "$PROCESSING_MODE" = "terminated_network_error" ]; then
+        echo -e "${RED}❌ GENERATION FAILED${NC}"
+        echo ""
+        echo -e "${YELLOW}The embedding generation terminated without completing:${NC}"
+        echo -e "   Processing Mode: ${RED}$PROCESSING_MODE${NC}"
+        echo -e "   Successful Embeddings: ${RED}$SUCCESSFUL${NC}"
+        echo ""
+        echo -e "${YELLOW}💡 Troubleshooting:${NC}"
+        echo -e "   1. Check Ollama service: curl $OLLAMA_ENDPOINT/api/version"
+        echo -e "   2. Test embedding API: curl $OLLAMA_ENDPOINT/api/embed -d '{\"model\":\"$MODEL_NAME\",\"input\":\"test\"}'"
+        echo -e "   3. Retry: ./run.sh --generate-embeddings --force"
+        exit 1
+    fi
+
     echo -e "${GREEN}✅ GENERATION SUCCESSFUL${NC}"
     echo ""
     echo -e "${BLUE}📊 Processing Statistics:${NC}"
