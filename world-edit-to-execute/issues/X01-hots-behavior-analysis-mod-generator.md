@@ -209,6 +209,46 @@ assets/generated-mods/
 - `issues/911-map-format-export.md` - Map file writing (required)
 - `notes/vision` - Legal philosophy (community content)
 
+## Related Tools
+
+- `src/cli/private-sync.sh` - Sync X01 materials to local private git repository
+
+### Private Repository Sync
+
+All X01 materials are kept in a separate private git repository on the local
+machine, synced automatically during backups:
+
+```bash
+# Initialize private bare repository (first time)
+./src/cli/private-sync.sh --init
+
+# Check sync status
+./src/cli/private-sync.sh --status
+
+# Sync current materials to private remote
+./src/cli/private-sync.sh
+
+# Use custom remote location
+./src/cli/private-sync.sh --remote ~/my-private-repos/x01.git
+```
+
+**Default location:** `~/.local/share/wc3-engine-private/x01-hots-mod.git`
+
+**Synced materials:**
+- `issues/X01-hots-behavior-analysis-mod-generator.md` (this file)
+- `assets/generated-mods/` - Output .w3x files
+- `assets/video-clips/` - HotS gameplay footage
+- `assets/analysis-data/` - Behavior analysis results
+- `assets/source-data/` - Web scrape caches
+- `assets/blizzard-inquiry/` - Resume and gift package
+- `src/mods/hots/` - Generator source code (when implemented)
+
+**Backup integration:** Add to your backup script:
+```bash
+# In your backup cron or script
+/path/to/world-edit-to-execute/src/cli/private-sync.sh
+```
+
 ---
 
 ## Notes
@@ -359,6 +399,7 @@ The author retains no expectation of response, compensation, or acknowledgment b
 | Date | Change |
 |------|--------|
 | 2026-02-17 | Initial issue creation with full scope and sub-issue recommendations |
+| 2026-02-17 | Added private-sync.sh utility for local git repository backup |
 
 ---
 
