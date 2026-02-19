@@ -182,6 +182,11 @@ src/video-inspiration/2024-01-12_21-04-33.mkv
 test_output/
 video-inspiration/2024-01-12_21-04-33.mkv
 
+# Nested repositories (separate git histories)
+games/wow-chat-2/
+llm-http/
+symbeline-realms/
+
 # =============================================================================
 # VERSION CONTROL
 # =============================================================================
