@@ -70,6 +70,7 @@ local state = {
     -- Issue 10-018: Animation state for command preview transitions
     animation = {
         enabled = true,              -- Master enable/disable
+        debug = true,                -- Debug logging to /tmp/menu-anim-debug.log
         queue = {},                  -- Array of pending animation tasks
         current = nil,               -- Currently executing animation
         start_time = 0,              -- When current animation started (tui.get_time_ms())
@@ -92,6 +93,20 @@ local state = {
         prev_command = "",
     },
 }
+-- }}}
+
+-- {{{ anim_debug
+-- Debug logging helper for animation troubleshooting
+local function anim_debug(msg, clear_log)
+    if not state.animation.debug then return end
+    local mode = clear_log and "w" or "a"
+    local f = io.open("/tmp/menu-anim-debug.log", mode)
+    if f then
+        local timestamp = tui.get_time_ms and tui.get_time_ms() or (os.clock() * 1000)
+        f:write(string.format("[%d] %s\n", timestamp, msg))
+        f:close()
+    end
+end
 -- }}}
 
 -- {{{ menu.init
@@ -715,6 +730,14 @@ local function diff_commands(old_cmd, new_cmd)
                     })
                 end
             end
+            -- DEBUG: Log remove detection
+            anim_debug("=== REMOVE DETECTED ===", true)  -- Clear log on new animation
+            anim_debug(string.format("  removed_token: '%s' (len=%d)", t, #t))
+            anim_debug(string.format("  position_in_old: %d", pos or -1))
+            anim_debug(string.format("  old_cmd: '%s' (len=%d)", old_cmd, #old_cmd))
+            anim_debug(string.format("  new_cmd: '%s' (len=%d)", new_cmd, #new_cmd))
+            anim_debug(string.format("  length_diff: %d", #old_cmd - #new_cmd))
+            anim_debug(string.format("  estimated_slide_distance: %d (token+1)", slide_distance))
             return {
                 type = "remove",
                 text = t,
@@ -740,10 +763,11 @@ local function queue_animation(task)
             state.animation.start_time = tui.get_time_ms()  -- Wall clock time
             -- Initialize render state for this animation
             if state.animation.current.type == "add" then
+                -- Issue 10-018: Use white for add highlight (not cyan, since normal text is dim cyan)
                 state.animation.render_state.highlight_ranges = {
                     {start_pos = state.animation.current.position,
                      end_pos = state.animation.current.position + #state.animation.current.text - 1,
-                     color = "cyan"}
+                     color = "white"}
                 }
                 state.animation.render_state.display_cmd = nil  -- Use current value
             elseif state.animation.current.type == "remove" then
@@ -780,10 +804,11 @@ local function start_next_animation()
     state.animation.render_state.empty_ranges = {}
 
     if state.animation.current.type == "add" then
+        -- Issue 10-018: Use white for add highlight (not cyan, since normal text is dim cyan)
         state.animation.render_state.highlight_ranges = {
             {start_pos = state.animation.current.position,
              end_pos = state.animation.current.position + #state.animation.current.text - 1,
-             color = "cyan"}
+             color = "white"}
         }
         state.animation.render_state.display_cmd = nil  -- Use current value
     elseif state.animation.current.type == "remove" then
@@ -811,9 +836,9 @@ local function update_animation()
     local cfg = state.animation.config
 
     if anim.type == "add" then
-        -- Add animation: highlight -> normal
+        -- Add animation: highlight (white) -> normal (dim cyan)
+        -- Issue 10-018: Duration from config, color contrast makes transition visible
         if elapsed > cfg.insert_highlight_duration then
-            -- Animation complete
             state.animation.render_state.highlight_ranges = {}
             start_next_animation()
             return #state.animation.queue > 0 or state.animation.current ~= nil
@@ -828,33 +853,136 @@ local function update_animation()
         end
 
         -- Past highlight phase - start sliding
+        -- Issue 10-018 fix: Use NEW command with shrinking gap inserted
+        -- This makes text from RIGHT slide LEFT to fill the gap
         local slide_elapsed = elapsed - cfg.remove_highlight_duration
         local slide_frames = math.floor(slide_elapsed / cfg.slide_interval)
         slide_frames = math.min(slide_frames, cfg.max_slide_frames)
 
-        -- Update slide offset
-        local total_slide = anim.slide_distance or (#anim.text + 1)
+        -- Calculate how much of the gap remains
+        -- Issue 10-018 fix: Use actual length difference, not estimated slide_distance
+        -- This handles edge cases: last flag (no trailing space), variable spacing, etc.
+        local total_slide = #anim.old_cmd - #anim.new_cmd
         local chars_per_frame = math.ceil(total_slide / cfg.max_slide_frames)
         state.animation.render_state.slide_offset = math.min(
             slide_frames * chars_per_frame,
             total_slide
         )
 
-        -- Issue 10-018: Clear highlight, set shrinking empty range for progressive slide
-        -- The gap shrinks as slide_offset increases, creating a "closing" effect
+        -- Clear highlight, no empty_ranges needed with new approach
         state.animation.render_state.highlight_ranges = {}
+        state.animation.render_state.empty_ranges = {}
+
+        -- Construct display string: NEW command with shrinking gap inserted
+        -- This creates the visual effect of text sliding left from the right
         local remaining_gap = total_slide - state.animation.render_state.slide_offset
-        if remaining_gap > 0 then
-            state.animation.render_state.empty_ranges = {
-                {start_pos = anim.position,
-                 end_pos = anim.position + remaining_gap - 1}
-            }
+
+        -- DEBUG: Log slide phase (only on first frame and periodically)
+        if slide_frames == 0 or slide_frames == cfg.max_slide_frames then
+            anim_debug("--- SLIDE PHASE ---")
+            anim_debug(string.format("  elapsed=%d, slide_elapsed=%d", elapsed, slide_elapsed))
+            anim_debug(string.format("  slide_frames=%d, max_frames=%d", slide_frames, cfg.max_slide_frames))
+            anim_debug(string.format("  total_slide=%d (old_len=%d - new_len=%d)", total_slide, #anim.old_cmd, #anim.new_cmd))
+            anim_debug(string.format("  chars_per_frame=%d", chars_per_frame))
+            anim_debug(string.format("  slide_offset=%d, remaining_gap=%d", state.animation.render_state.slide_offset, remaining_gap))
+            anim_debug(string.format("  gap_pos (anim.position)=%d", anim.position))
+        end
+
+        if remaining_gap > 0 and anim.new_cmd then
+            -- Issue 10-018: Token-based approach
+            -- Split into words, replace removed token(s) with shrinking gap, rejoin
+            local old_cmd = anim.old_cmd
+            local new_cmd = anim.new_cmd
+            local removed_token = anim.text
+
+            -- Tokenize both commands
+            local old_tokens = {}
+            for word in old_cmd:gmatch("%S+") do
+                table.insert(old_tokens, word)
+            end
+
+            local new_tokens = {}
+            for word in new_cmd:gmatch("%S+") do
+                table.insert(new_tokens, word)
+            end
+
+            -- Build new_tokens lookup for quick checking
+            local new_set = {}
+            for _, t in ipairs(new_tokens) do
+                new_set[t] = (new_set[t] or 0) + 1
+            end
+
+            -- Build display tokens: copy from old, but replace removed tokens with gap
+            local display_tokens = {}
+            local gap_inserted = false
+            local i = 1
+            while i <= #old_tokens do
+                local token = old_tokens[i]
+                if new_set[token] and new_set[token] > 0 then
+                    -- Token exists in new, keep it
+                    table.insert(display_tokens, token)
+                    new_set[token] = new_set[token] - 1
+                    i = i + 1
+                elseif not gap_inserted then
+                    -- Token was removed - insert shrinking gap
+                    -- Gap token gets separators on BOTH sides from table.concat
+                    -- So: visual_gap = sep(1) + gap_token + sep(1) = gap_token + 2
+                    -- Therefore: gap_token = remaining_gap - 2
+                    local current_gap = remaining_gap - 2
+                    if current_gap > 0 then
+                        table.insert(display_tokens, string.rep(" ", current_gap))
+                    elseif remaining_gap == 2 then
+                        -- Exactly 2: empty token gives us 2 separators = 2 visual
+                        table.insert(display_tokens, "")
+                    elseif remaining_gap == 1 then
+                        -- Only 1 needed: skip gap token entirely, rely on natural spacing
+                        -- (adjacent tokens already get 1 separator between them)
+                        -- Don't insert anything
+                    end
+                    gap_inserted = true
+                    -- Skip this token and any following value token (doesn't start with -)
+                    i = i + 1
+                    while i <= #old_tokens and not old_tokens[i]:match("^%-") do
+                        -- Skip value tokens too (like "4" in "--threads 4")
+                        if not new_set[old_tokens[i]] or new_set[old_tokens[i]] == 0 then
+                            i = i + 1
+                        else
+                            break
+                        end
+                    end
+                else
+                    -- Already inserted gap, skip remaining removed tokens
+                    i = i + 1
+                end
+            end
+
+            -- Rejoin tokens
+            state.animation.render_state.display_cmd = table.concat(display_tokens, " ")
+
+            -- DEBUG: Log construction details (only first frame)
+            if slide_frames == 0 then
+                anim_debug("  CONSTRUCTING display_cmd (token method):")
+                anim_debug(string.format("    old_tokens: {%s}", table.concat(old_tokens, ", ")))
+                anim_debug(string.format("    new_tokens: {%s}", table.concat(new_tokens, ", ")))
+                anim_debug(string.format("    remaining_gap: %d, gap_token_size: %d (remaining-2 for two separators)", remaining_gap, math.max(0, remaining_gap - 2)))
+                anim_debug(string.format("    display_tokens: {%s}", table.concat(display_tokens, ", ")))
+                anim_debug(string.format("    display_cmd: '%s' (len=%d)", state.animation.render_state.display_cmd, #state.animation.render_state.display_cmd))
+                anim_debug(string.format("    old_cmd len: %d, should match display_cmd len", #old_cmd))
+            end
         else
-            state.animation.render_state.empty_ranges = {}
+            -- Gap fully closed, show new command
+            state.animation.render_state.display_cmd = anim.new_cmd
+            -- DEBUG: Log gap closed
+            if remaining_gap <= 0 then
+                anim_debug("  GAP CLOSED - showing new_cmd directly")
+            end
         end
 
         -- Check if slide is complete
         if state.animation.render_state.slide_offset >= total_slide then
+            -- DEBUG: Log animation complete
+            anim_debug("=== ANIMATION COMPLETE ===")
+            anim_debug(string.format("  final slide_offset=%d, total_slide=%d", state.animation.render_state.slide_offset, total_slide))
             -- Animation complete - clear display_cmd to show new command
             state.animation.render_state = {
                 highlight_ranges = {},
@@ -886,6 +1014,14 @@ local function detect_command_changes(new_cmd)
 
     local old_cmd = state.animation.prev_command
     if old_cmd == new_cmd then return end
+
+    -- DEBUG: Log when changes are detected
+    local dbg = io.open("/tmp/menu-anim-debug.log", "a")
+    if dbg then
+        dbg:write(string.format("[%d] CHANGE DETECTED:\n  old: %s\n  new: %s\n",
+            tui.get_time_ms(), old_cmd or "nil", new_cmd or "nil"))
+        dbg:close()
+    end
 
     local diff = diff_commands(old_cmd, new_cmd)
     if diff then
@@ -2020,7 +2156,9 @@ local function render_item(row, item_id, highlight, item_num, section_type)
                     if anim_color then
                         -- Animation highlight takes precedence
                         tui.set_attrs(tui.ATTR_BOLD)
-                        if anim_color == "cyan" then
+                        if anim_color == "white" then
+                            tui.set_fg(tui.FG_WHITE)
+                        elseif anim_color == "cyan" then
                             tui.set_fg(tui.FG_CYAN)
                         elseif anim_color == "red" then
                             tui.set_fg(tui.FG_RED)
