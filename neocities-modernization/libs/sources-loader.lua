@@ -1,6 +1,9 @@
 -- {{{ sources-loader.lua
 -- Issue 10-015: Unified input sources configuration loader
+-- Issue 10-026: Extended with external sync support (merged external_files)
+--
 -- Reads from config.sources and provides iteration over source directories.
+-- Also provides access to external sync information (where to pull data from).
 --
 -- The sources config supports multiple named directories per source type,
 -- enabling deduplication and flexible input management.
@@ -21,6 +24,15 @@
 --   -- Get source metadata
 --   local src = loader.get_source("fediverse")
 --   print(src.format)  -- "activitypub"
+--
+--   -- Get all external sync entries (Issue 10-026)
+--   local syncs = loader.get_all_external_syncs()
+--   for _, sync in ipairs(syncs) do
+--       print(sync.name, sync.source, sync.destination)
+--   end
+--
+--   -- Get archives for a source type
+--   local archives = loader.get_archives("fediverse")
 -- }}}
 
 local M = {}
@@ -359,6 +371,142 @@ function M.iterate_directories(source_type, callback)
     end
 
     return true
+end
+-- }}}
+
+-- {{{ get_directories_with_external
+-- Issue 10-026: Get directories including external sync information
+-- Returns: array of { name, path, optional, description, external }
+-- external is { source = "...", destination = "..." } or nil
+function M.get_directories_with_external(source_type)
+    local source = M.get_source(source_type)
+    if not source then
+        return {}
+    end
+
+    local dirs = source.directories or {}
+    local result = {}
+
+    for _, dir in ipairs(dirs) do
+        local entry = {
+            name = dir.name or "unnamed",
+            path = resolve_path(dir.path),
+            optional = dir.optional or false,
+            description = dir.description or "",
+            external = nil
+        }
+
+        -- Include external sync info if present
+        -- external.source is where to pull from
+        -- destination is derived from path (strip "input/" prefix)
+        if dir.external and dir.external.source then
+            local dest = dir.path or ""
+            -- Strip "input/" prefix if present to get destination relative to input/
+            if dest:sub(1, 6) == "input/" then
+                dest = dest:sub(7)
+            end
+            entry.external = {
+                source = dir.external.source,
+                destination = dest
+            }
+        end
+
+        table.insert(result, entry)
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ get_archives
+-- Issue 10-026: Get archive entries for a source type
+-- Archives are ZIP files that need extraction rather than rsync
+-- Returns: array of { name, source, extract_to }
+function M.get_archives(source_type)
+    local source = M.get_source(source_type)
+    if not source then
+        return {}
+    end
+
+    local archives = source.archives or {}
+    local result = {}
+
+    for _, archive in ipairs(archives) do
+        table.insert(result, {
+            name = archive.name or "unnamed",
+            source = archive.source,
+            extract_to = resolve_path(archive.extract_to or "input")
+        })
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ get_all_external_syncs
+-- Issue 10-026: Get ALL external sync entries across all sources
+-- Returns data in external_files-compatible format for backward compatibility
+-- Returns: array of { name, source, destination, optional, is_archive }
+function M.get_all_external_syncs()
+    local sources = get_sources()
+    local result = {}
+
+    for source_type, source in pairs(sources) do
+        -- Collect directory-based syncs (rsync)
+        if source.directories then
+            for _, dir in ipairs(source.directories) do
+                if dir.external and dir.external.source then
+                    local dest = dir.path or ""
+                    -- Strip "input/" prefix for destination
+                    if dest:sub(1, 6) == "input/" then
+                        dest = dest:sub(7)
+                    end
+                    table.insert(result, {
+                        name = dir.name or "unnamed",
+                        source = dir.external.source,
+                        destination = dest,
+                        optional = dir.optional or false,
+                        is_archive = false,
+                        source_type = source_type
+                    })
+                end
+            end
+        end
+
+        -- Collect archive-based syncs (unzip)
+        if source.archives then
+            for _, archive in ipairs(source.archives) do
+                local dest = archive.extract_to or "input"
+                -- Strip "input/" prefix for destination
+                if dest:sub(1, 6) == "input/" then
+                    dest = dest:sub(7)
+                end
+                -- Empty string means extract to input/ root
+                if dest == "input" then
+                    dest = ""
+                end
+                table.insert(result, {
+                    name = archive.name or "unnamed",
+                    source = archive.source,
+                    destination = dest,
+                    optional = archive.optional or false,
+                    is_archive = true,
+                    source_type = source_type
+                })
+            end
+        end
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ has_external_syncs
+-- Issue 10-026: Check if any source has external sync configuration
+-- Returns: boolean
+function M.has_external_syncs()
+    local syncs = M.get_all_external_syncs()
+    return #syncs > 0
 end
 -- }}}
 

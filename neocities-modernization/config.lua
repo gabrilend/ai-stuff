@@ -40,10 +40,15 @@ return {
     -- Extractors use sources-loader.lua to read paths.
 
     -- {{{ sources
-    -- Unified input source configuration (Issue 10-015).
+    -- Unified input source configuration (Issue 10-015, extended 10-026).
     -- Each source type supports multiple named directories.
     -- Pipeline deduplicates by content ID across directories.
     -- All extractors now use sources-loader.lua to read these paths.
+    --
+    -- Issue 10-026: External sync info is now embedded in each source:
+    --   - directories[].external.source = where to rsync from
+    --   - archives[] = ZIP files that extract to this source's directory
+    -- Use sources-loader.get_all_external_syncs() to collect all sync entries.
     sources = {
         fediverse = {
             enabled = true,
@@ -52,6 +57,14 @@ return {
                 {
                     name = "primary",
                     path = "input/fediverse",
+                },
+            },
+            -- Issue 10-026: Archive sources (ZIP files that extract to this source's directory)
+            archives = {
+                {
+                    name = "fediverse-zip",
+                    source = "/home/ritz/backups/fediverse/backups/most-recent-29.zip",
+                    extract_to = "input",  -- Extracts to input/ root (archive contains fediverse/ dir)
                 },
             },
             media = {
@@ -68,6 +81,14 @@ return {
                     path = "input/messages",
                 },
             },
+            -- Issue 10-026: Archive sources
+            archives = {
+                {
+                    name = "messages-zip",
+                    source = "/home/ritz/backups/messages-to-myself/input-zip-file/the-mage-charges-at-home.zip",
+                    extract_to = "input",  -- Extracts to input/ root (archive contains messages/ dir)
+                },
+            },
         },
         notes = {
             enabled = true,
@@ -76,6 +97,10 @@ return {
                 {
                     name = "primary",
                     path = "input/notes",
+                    -- Issue 10-026: External source for rsync
+                    external = {
+                        source = "/home/ritz/notes",
+                    },
                 },
             },
         },
@@ -86,6 +111,10 @@ return {
                 {
                     name = "primary",
                     path = "input/bluesky",
+                    -- Issue 10-026: External source for rsync
+                    external = {
+                        source = "/home/ritz/backups/bluesky/input",
+                    },
                 },
             },
         },
@@ -95,23 +124,53 @@ return {
                 {
                     name = "fediverse-media",
                     path = "input/media_attachments/files",
-                    description = "Mastodon/ActivityPub media attachments (deeply nested)"
+                    description = "Mastodon/ActivityPub media attachments (deeply nested)",
+                    optional = true,
+                    -- No external: comes from ZIP extraction
                 },
                 {
                     name = "my-art",
                     path = "input/media_attachments/my-art",
                     description = "artwork made in kolourpaint",
-                    optional = true
+                    optional = false,
+                    -- Issue 10-026: External source for rsync
+                    external = {
+                        source = "/home/ritz/pictures/my-art",
+                    },
                 },
                 {
                     name = "things-I-almost-posted",
                     path = "input/media_attachments/things-i-almost-posted",
-                    optional = true
+                    optional = true,
+                    external = {
+                        source = "/home/ritz/pictures/things-i-almost-posted",
+                    },
                 },
                 {
                     name = "poem-pictures",
                     path = "input/media_attachments/poem-pictures",
-                    optional = true
+                    optional = true,
+                    external = {
+                        source = "/home/ritz/pictures/poem-pictures",
+                    },
+                },
+                {
+                    name = "dnd-pictures-from-the-internet",
+                    path = "input/media_attachments/dnd-pictures",
+                    optional = true,
+                    external = {
+                        source = "/home/ritz/pictures/dnd-pictures",
+                    },
+                },
+                {
+                    -- NOTE: external syncs to fediverse-stars, sources reads from here
+                    -- Path updated to match sync destination (was fediverse-backup)
+                    name = "fediverse-stars",
+                    path = "input/media_attachments/fediverse-stars",
+                    optional = true,
+                    external = {
+                        source = "/home/ritz/pictures/fediverse-backup",
+                    },
                 },
             },
             supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
@@ -122,49 +181,17 @@ return {
     },
     -- }}}
 
-    -- {{{ external_files
-    -- Defines all external files/directories the pipeline pulls from.
-    -- All destinations are relative to input/.
-    -- Archive selection (newest by mtime) is handled by downstream scripts.
+    -- {{{ external_files - DEPRECATED (Issue 10-026)
+    -- This section has been merged into the 'sources' section above.
+    -- External sync info is now stored as 'external' fields in each source's directories,
+    -- and as 'archives' arrays for ZIP files.
     --
-    -- NOTE: image_sync.sources will eventually be merged here. For now, both exist.
-    external_files = {
-        {
-            name = "my-art",
-            source = "/home/ritz/pictures/my-art",
-            destination = "media_attachments/my-art",
-        },
-        {
-            name = "things-I-almost-posted",
-            source = "/home/ritz/pictures/things-i-almost-posted",
-            destination = "media_attachments/things-i-almost-posted",
-        },
-        {
-            name = "poem-pictures",
-            source = "/home/ritz/pictures/poem-pictures",
-            destination = "media_attachments/poem-pictures",
-        },
-        {
-           name = "fediverse-zip",
-           source = "/home/ritz/backups/fediverse/backups/most-recent-29.zip",
-           destination = "",
-        },
-        {
-           name = "messages-zip",
-           source = "/home/ritz/backups/messages-to-myself/input-zip-file/meldowin-wins.zip",
-           destination = "",
-        },
-        {
-           name = "notes-dir",
-           source = "/home/ritz/notes",
-           destination = "notes",
-        },
-        {
-            name = "bluesky-car",
-            source = "/home/ritz/backups/bluesky/input",
-            destination = "bluesky",
-        },
-    },
+    -- external-sync.lua now reads from sources-loader.get_all_external_syncs()
+    -- which collects external sync info from the unified sources configuration.
+    --
+    -- This empty array is kept for backward compatibility during the transition.
+    -- It can be removed after confirming all scripts use sources-loader.
+    external_files = {},
     -- }}}
 
     -- {{{ extraction

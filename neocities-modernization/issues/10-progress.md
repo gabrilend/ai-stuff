@@ -37,6 +37,8 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-023 | Fix image manager shell escaping and duplicates | Completed | Medium |
 | 10-024 | Force flag should clear output directories | Completed | High |
 | 10-025 | Diversity cache includes anchor poem | Completed | Medium |
+| 10-026 | Merge sources and external_files config sections | Completed | Low |
+| 10-027 | Fix golden poem trailing whitespace detection | Open | Medium |
 
 ### Completed Issues
 
@@ -60,6 +62,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-023 | Fix image manager shell escaping and duplicates | Completed | 2026-02-10 |
 | 10-024 | Force flag should clear output directories | Completed | 2026-02-13 |
 | 10-025 | Diversity cache includes anchor poem | Completed | 2026-02-13 |
+| 10-026 | Merge sources and external_files config sections | Completed | 2026-02-18 |
 
 ## Issue Details
 
@@ -187,6 +190,16 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
   - `M.generate_maximum_diversity_sequence()` (sequential processing)
   - `get_diversity_sequence()` (parallel processing)
 - Design choice: Filter at display time rather than modify cache (no cache regeneration needed)
+
+**10-026: Merge sources and external_files Config Sections** - COMPLETED (2026-02-18)
+- Merged `external_files` into `sources` section for unified configuration
+- Added `external = { source = "..." }` field to directory entries (7 entries)
+- Added `archives = [...]` array for ZIP files (fediverse, messages)
+- Extended sources-loader.lua with `get_all_external_syncs()` function
+- Updated external-sync.lua to read from sources-loader first
+- Deprecated `external_files` section (now empty, kept for reference)
+- Fixed path inconsistency: fediverse-stars now points to correct sync destination
+- All 9 external sync entries verified working through both loaders
 
 ## Completion Criteria
 
