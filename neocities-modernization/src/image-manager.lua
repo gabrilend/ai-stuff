@@ -5,15 +5,31 @@
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)
-    if provided_dir then
+    -- Skip if provided_dir is a flag (starts with -)
+    if provided_dir and provided_dir:sub(1, 1) ~= "-" then
         return provided_dir
     end
     return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
 -- }}}
 
+-- {{{ parse_dir_from_args
+-- Parse arguments to extract directory path, skipping flags like --verbose
+local function parse_dir_from_args(args)
+    if not args then return nil end
+    for i = 1, #args do
+        local a = args[i]
+        -- Skip flags (start with -)
+        if a and a:sub(1, 1) ~= "-" then
+            return a
+        end
+    end
+    return nil
+end
+-- }}}
+
 -- Script configuration
-local DIR = setup_dir_path(arg and arg[1])
+local DIR = setup_dir_path(parse_dir_from_args(arg))
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -35,6 +51,14 @@ utils.init_assets_root(arg)
 -- ANSI color codes for terminal output
 local COLOR_YELLOW = "\027[93m"   -- Bright yellow for warnings
 local COLOR_RESET = "\027[0m"
+
+-- {{{ local function shell_escape
+-- Escape single quotes in paths for safe shell execution
+-- e.g., "Sant'Azraphel.png" -> "Sant'\''Azraphel.png"
+local function shell_escape(path)
+    return path:gsub("'", "'\\''")
+end
+-- }}}
 
 -- {{{ local function relative_path
 local function relative_path(absolute_path)
@@ -95,7 +119,7 @@ end
 
 -- {{{ function get_file_size
 local function get_file_size(file_path)
-    local stat_cmd = string.format("stat -c %%s '%s' 2>/dev/null", file_path)
+    local stat_cmd = string.format("stat -c %%s '%s' 2>/dev/null", shell_escape(file_path))
     local handle = io.popen(stat_cmd)
     local result = handle:read("*a")
     handle:close()
@@ -114,7 +138,7 @@ end
 
 -- {{{ function get_file_mtime
 local function get_file_mtime(file_path)
-    local stat_cmd = string.format("stat -c %%Y '%s' 2>/dev/null", file_path)
+    local stat_cmd = string.format("stat -c %%Y '%s' 2>/dev/null", shell_escape(file_path))
     local handle = io.popen(stat_cmd)
     local result = handle:read("*a")
     handle:close()
@@ -134,7 +158,7 @@ end
 -- {{{ function extract_image_dimensions
 local function extract_image_dimensions(file_path)
     -- Try to use imagemagick's identify command
-    local identify_cmd = string.format("identify -format '%%wx%%h' '%s' 2>/dev/null", file_path)
+    local identify_cmd = string.format("identify -format '%%wx%%h' '%s' 2>/dev/null", shell_escape(file_path))
     local handle = io.popen(identify_cmd)
     local result = handle:read("*a")
     handle:close()
@@ -154,7 +178,7 @@ end
 -- {{{ function generate_image_hash
 local function generate_image_hash(file_path)
     -- Generate MD5 hash for duplicate detection
-    local hash_cmd = string.format("md5sum '%s' 2>/dev/null | cut -d' ' -f1", file_path)
+    local hash_cmd = string.format("md5sum '%s' 2>/dev/null | cut -d' ' -f1", shell_escape(file_path))
     local handle = io.popen(hash_cmd)
     local result = handle:read("*a")
     handle:close()
@@ -192,7 +216,7 @@ local function scan_directory_for_images(directory, config)
     print("🔍 Scanning directory: " .. relative_path(directory))
     
     -- Check if directory exists
-    local check_cmd = string.format("test -d '%s'", directory)
+    local check_cmd = string.format("test -d '%s'", shell_escape(directory))
     local exists = os.execute(check_cmd) == true or os.execute(check_cmd) == 0
     
     if not exists then
@@ -201,7 +225,7 @@ local function scan_directory_for_images(directory, config)
     end
     
     -- Find all files in directory
-    local find_cmd = string.format("find '%s' -type f", directory)
+    local find_cmd = string.format("find '%s' -type f", shell_escape(directory))
     local handle = io.popen(find_cmd)
     
     local processed_count = 0
@@ -291,31 +315,76 @@ function M.generate_catalog(images, output_file)
     -- Create assets directory if it doesn't exist (use configured path)
     local assets_dir = utils.get_assets_root()
     os.execute("mkdir -p " .. assets_dir)
-    
-    -- Generate duplicate analysis
+
+    -- Generate duplicate analysis - group by hash with full image data
     local hash_groups = {}
-    local duplicate_count = 0
-    
+
     for _, image in ipairs(images) do
         if image.hash then
             if not hash_groups[image.hash] then
                 hash_groups[image.hash] = {}
             end
-            table.insert(hash_groups[image.hash], image.relative_path)
+            table.insert(hash_groups[image.hash], image)
         end
     end
-    
-    -- Count duplicates
-    for hash, files in pairs(hash_groups) do
-        if #files > 1 then
-            duplicate_count = duplicate_count + (#files - 1)
+
+    -- Resolve duplicates by keeping only the newest file from each group
+    -- Also track which duplicates were resolved for reporting
+    local resolved_duplicates = {}
+    local kept_hashes = {}  -- Track which images to keep
+    local duplicate_count = 0
+
+    for hash, group in pairs(hash_groups) do
+        if #group > 1 then
+            -- Sort group by modification_time descending (newest first)
+            table.sort(group, function(a, b)
+                return (a.modification_time or 0) > (b.modification_time or 0)
+            end)
+
+            -- Keep the newest file (first after sorting)
+            kept_hashes[hash] = group[1].file_path
+
+            -- Track resolved duplicates for reporting
+            local removed_paths = {}
+            for i = 2, #group do
+                table.insert(removed_paths, group[i].relative_path)
+                duplicate_count = duplicate_count + 1
+            end
+
+            table.insert(resolved_duplicates, {
+                hash = hash,
+                kept = group[1].relative_path,
+                removed = removed_paths,
+                count = #group
+            })
+        else
+            -- Only one file with this hash - keep it
+            kept_hashes[hash] = group[1].file_path
         end
     end
+
+    -- Filter images to only include kept files (newest from each duplicate group)
+    local filtered_images = {}
+    for _, image in ipairs(images) do
+        if not image.hash then
+            -- No hash - can't detect duplicates, keep it
+            table.insert(filtered_images, image)
+        elseif kept_hashes[image.hash] == image.file_path then
+            -- This is the kept file from the duplicate group
+            table.insert(filtered_images, image)
+        end
+        -- Otherwise skip - it's a duplicate that was resolved
+    end
+
+    -- Report duplicate resolution
+    if duplicate_count > 0 then
+        print(string.format("🔄 Resolved %d duplicates (kept newest of each group)", duplicate_count))
+    end
     
-    -- Generate statistics
+    -- Generate statistics (using filtered_images which has duplicates removed)
     local stats = {
-        total_images = #images,
-        unique_images = #images - duplicate_count,
+        total_images = #images,  -- Original count before filtering
+        unique_images = #filtered_images,  -- After duplicate resolution
         duplicate_images = duplicate_count,
         total_size_mb = 0,
         average_size_mb = 0,
@@ -332,14 +401,15 @@ function M.generate_catalog(images, output_file)
         }
     }
     
-    for _, image in ipairs(images) do
+    -- Calculate stats using filtered (de-duplicated) images
+    for _, image in ipairs(filtered_images) do
         -- Size statistics
         stats.total_size_mb = stats.total_size_mb + (image.size_mb or 0)
-        
+
         -- Format distribution
         local ext = image.extension or "unknown"
         stats.format_distribution[ext] = (stats.format_distribution[ext] or 0) + 1
-        
+
         -- Size distribution
         local size_mb = image.size_mb or 0
         if size_mb < 0.1 then
@@ -349,7 +419,7 @@ function M.generate_catalog(images, output_file)
         else
             stats.size_distribution.large = stats.size_distribution.large + 1
         end
-        
+
         -- Resolution distribution
         local width = image.width or 0
         if width < 500 then
@@ -360,33 +430,23 @@ function M.generate_catalog(images, output_file)
             stats.resolution_distribution.high = stats.resolution_distribution.high + 1
         end
     end
-    
-    stats.average_size_mb = stats.total_size_mb / math.max(#images, 1)
+
+    stats.average_size_mb = stats.total_size_mb / math.max(#filtered_images, 1)
     stats.total_size_mb = math.floor(stats.total_size_mb * 100) / 100
     stats.average_size_mb = math.floor(stats.average_size_mb * 1000) / 1000
     
-    -- Create catalog structure
+    -- Create catalog structure (uses filtered_images with duplicates resolved)
     local catalog = {
         metadata = {
             generated_at = os.date("%Y-%m-%dT%H:%M:%SZ"),
-            total_images = #images,
+            total_images = #images,  -- Original count before filtering
+            unique_images = #filtered_images,  -- After duplicate resolution
             configuration = config,
             statistics = stats
         },
-        images = images,
-        duplicates = {}
+        images = filtered_images,  -- De-duplicated image list
+        resolved_duplicates = resolved_duplicates  -- Record of what was deduplicated
     }
-    
-    -- Add duplicate information
-    for hash, files in pairs(hash_groups) do
-        if #files > 1 then
-            table.insert(catalog.duplicates, {
-                hash = hash,
-                files = files,
-                count = #files
-            })
-        end
-    end
     
     -- Write catalog to file (use configured assets path)
     local catalog_path = output_file or utils.asset_path("image-catalog.json")
@@ -404,64 +464,75 @@ end
 -- }}}
 
 -- {{{ function M.show_statistics
-function M.show_statistics(catalog)
+-- Issue 10-015a: Added verbose parameter - detailed stats only show when verbose=true
+-- Summary (always shown): total, unique, duplicates count, size
+-- Detailed (verbose only): format distribution, size distribution, resolution distribution
+-- Warnings (always shown): duplicate groups
+function M.show_statistics(catalog, verbose)
     local stats = catalog.metadata.statistics
-    
+
     print("\n=== IMAGE CATALOG STATISTICS ===")
     print(string.format("Total Images: %d", stats.total_images))
     print(string.format("Unique Images: %d", stats.unique_images))
     print(string.format("Duplicate Images: %d", stats.duplicate_images))
     print(string.format("Total Size: %.2f MB", stats.total_size_mb))
     print(string.format("Average Size: %.3f MB", stats.average_size_mb))
-    
-    print("\nFormat Distribution:")
-    for format, count in pairs(stats.format_distribution) do
-        print(string.format("  %s: %d images", format, count))
+
+    -- Detailed statistics only shown when verbose flag is set
+    if verbose then
+        print("\nFormat Distribution:")
+        for format, count in pairs(stats.format_distribution) do
+            print(string.format("  %s: %d images", format, count))
+        end
+
+        print("\nSize Distribution:")
+        print(string.format("  Small (<100KB): %d images", stats.size_distribution.small))
+        print(string.format("  Medium (100KB-1MB): %d images", stats.size_distribution.medium))
+        print(string.format("  Large (>1MB): %d images", stats.size_distribution.large))
+
+        print("\nResolution Distribution:")
+        print(string.format("  Low (<500px): %d images", stats.resolution_distribution.low))
+        print(string.format("  Medium (500-1500px): %d images", stats.resolution_distribution.medium))
+        print(string.format("  High (>1500px): %d images", stats.resolution_distribution.high))
     end
-    
-    print("\nSize Distribution:")
-    print(string.format("  Small (<100KB): %d images", stats.size_distribution.small))
-    print(string.format("  Medium (100KB-1MB): %d images", stats.size_distribution.medium))
-    print(string.format("  Large (>1MB): %d images", stats.size_distribution.large))
-    
-    print("\nResolution Distribution:")
-    print(string.format("  Low (<500px): %d images", stats.resolution_distribution.low))
-    print(string.format("  Medium (500-1500px): %d images", stats.resolution_distribution.medium))
-    print(string.format("  High (>1500px): %d images", stats.resolution_distribution.high))
-    
-    if #catalog.duplicates > 0 then
-        -- Duplicates are a warning - show all of them in yellow
-        print(COLOR_YELLOW .. string.format("\n⚠️  Duplicate Groups: %d", #catalog.duplicates) .. COLOR_RESET)
-        for i, dup_group in ipairs(catalog.duplicates) do
-            local rel_files = {}
-            for _, f in ipairs(dup_group.files) do
-                table.insert(rel_files, relative_path(f))
+
+    -- Show resolved duplicates (informational, not warnings - duplicates are now handled)
+    local resolved = catalog.resolved_duplicates or {}
+    if #resolved > 0 then
+        print(string.format("\n✅ Resolved %d duplicate groups (kept newest):", #resolved))
+        if verbose then
+            for i, dup_group in ipairs(resolved) do
+                local removed_str = table.concat(dup_group.removed, ", ")
+                print(string.format("  Group %d: kept %s, removed: %s",
+                    i, relative_path(dup_group.kept), removed_str))
             end
-            print(COLOR_YELLOW .. string.format("  Group %d (%d files): %s", i, dup_group.count, table.concat(rel_files, ", ")) .. COLOR_RESET)
+        else
+            print("   (use --verbose to see details)")
         end
     end
 end
 -- }}}
 
 -- {{{ function M.main
-function M.main()
+-- Issue 10-015a: Added verbose parameter for detailed statistics output
+function M.main(verbose)
     print("🖼️  Image Integration System")
     print("Project Directory: " .. relative_path(DIR))
-    
+
     -- Discover all images
     local images = M.discover_images()
-    
+
     if #images == 0 then
         print("❌ No images found in configured directories")
         return false
     end
-    
+
     -- Generate catalog
     local catalog = M.generate_catalog(images)
-    
-    -- Show statistics
-    M.show_statistics(catalog)
-    
+
+    -- Show statistics (detailed distribution only when verbose=true)
+    M.show_statistics(catalog, verbose)
+
     print("\n✅ Image integration system ready")
     return true
 end
@@ -469,7 +540,15 @@ end
 
 -- Command line execution (only when run directly, not when required as module)
 if arg and arg[0] and arg[0]:match("image%-manager%.lua$") then
-    M.main()
+    -- Issue 10-015a: Parse --verbose/-v flag for detailed statistics
+    local verbose = false
+    for i = 1, #arg do
+        if arg[i] == "--verbose" or arg[i] == "-v" then
+            verbose = true
+            break
+        end
+    end
+    M.main(verbose)
 end
 
 return M
