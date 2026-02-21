@@ -1,10 +1,7 @@
-# Issue 16-001e: Trust Warning Intermediate Page
+# Issue 16-005: Trust Warning Intermediate Page
 
 ## Priority
-High (User Experience)
-
-## Parent Issue
-16-001: Android File Server — Vision
+Medium (User Experience)
 
 ## Current Behavior
 
@@ -318,14 +315,13 @@ This design ensures:
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001c: Network file type integration
-- 16-001f: Chronological position-aware back navigation
+- 16-003: Network file type integration
+- 16-006: Chronological position-aware back navigation
 
 ## Metadata
 
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Parent**: 16-001
 - **Estimated Complexity**: Low-Medium
-- **Dependencies**: 16-001c (entry structure defined)
+- **Dependencies**: 16-003 (entry structure defined)

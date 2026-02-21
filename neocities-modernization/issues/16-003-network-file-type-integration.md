@@ -1,10 +1,7 @@
-# Issue 16-001c: Network File Type Integration
+# Issue 16-003: Network File Type Integration
 
 ## Priority
 High (Integration)
-
-## Parent Issue
-16-001: Android File Server — Vision
 
 ## Current Behavior
 
@@ -300,7 +297,7 @@ config.network_settings = {
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001e: Trust warning intermediate page
+- 16-005: Trust warning intermediate page
 - `src/html-generator.lua` — Existing HTML generation
 - `config.lua` — Project configuration
 
@@ -309,6 +306,5 @@ config.network_settings = {
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Parent**: 16-001
 - **Estimated Complexity**: Medium
-- **Dependencies**: 16-001a or 16-001b (server must exist)
+- **Dependencies**: 16-001 or 16-002 (server must exist)
