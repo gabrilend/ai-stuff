@@ -42,6 +42,7 @@ Phase 16 extends the neocities modernization project beyond local files to treat
 | 16-006 | Chronological position-aware back navigation | Open | Medium |
 | 16-007 | File scanning and metadata extraction | Open | High |
 | 16-008 | Torrent file generation for distribution | Open | Medium |
+| 16-009 | WebTorrent in-browser streaming (JS option) | Open | Low |
 
 ### Completed Issues
 
