@@ -1,10 +1,7 @@
-# Issue 16-001b: Native Android Background Service
+# Issue 16-002: Native Android Background Service
 
 ## Priority
 High (Implementation)
-
-## Parent Issue
-16-001: Android File Server — Vision
 
 ## Current Behavior
 
@@ -284,7 +281,7 @@ dependencies {
 
 ## Comparison: Termux vs Native
 
-| Aspect | Termux (16-001a) | Native (16-001b) |
+| Aspect | Termux (16-001) | Native (16-002) |
 |--------|------------------|------------------|
 | Setup complexity | Lower | Higher |
 | User interface | CLI only | Full GUI |
@@ -296,14 +293,13 @@ dependencies {
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001a: Termux + Lua server implementation
-- 16-001d: HTTPS with self-signed certificates
+- 16-001: Termux + Lua server implementation
+- 16-004: HTTPS with self-signed certificates
 
 ## Metadata
 
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Parent**: 16-001
 - **Estimated Complexity**: High
 - **Dependencies**: NanoHTTPD, Android SDK 26+

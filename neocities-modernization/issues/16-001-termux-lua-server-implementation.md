@@ -1,10 +1,7 @@
-# Issue 16-001a: Termux + Lua Server Implementation
+# Issue 16-001: Termux + Lua Server Implementation
 
 ## Priority
 High (Implementation)
-
-## Parent Issue
-16-001: Android File Server — Vision
 
 ## Current Behavior
 
@@ -194,7 +191,7 @@ luarocks install lua-cjson
 # Grant storage permission (required for /sdcard access)
 termux-setup-storage
 
-# Generate self-signed certificate (see 16-001d)
+# Generate self-signed certificate (see 16-004)
 openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt -days 365 -nodes
 ```
 
@@ -295,7 +292,7 @@ end
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001d: HTTPS with self-signed certificates
+- 16-004: HTTPS with self-signed certificates
 - Termux documentation: https://wiki.termux.com
 
 ## Metadata
@@ -303,6 +300,5 @@ end
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Parent**: 16-001
 - **Estimated Complexity**: Medium-High
 - **Dependencies**: Termux, luasocket, luasec
