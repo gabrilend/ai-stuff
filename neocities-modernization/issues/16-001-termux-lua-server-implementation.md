@@ -193,7 +193,44 @@ termux-setup-storage
 
 # Generate self-signed certificate (see 16-004)
 openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt -days 365 -nodes
+
+# Optional: Install torrent daemon for seeding (see 16-008)
+pkg install transmission
+# or: pkg install aria2
+
+# Optional: Auto-start on boot
+pkg install termux-boot
 ```
+
+### Torrent Daemon Integration (Optional)
+
+If torrent seeding is desired (16-008), the HTTP server should coordinate with a torrent daemon:
+
+```lua
+-- {{{ local function start_torrent_daemon
+local function start_torrent_daemon(config)
+    if not config.enable_torrent then return end
+
+    -- Check if transmission-daemon is running
+    local handle = io.popen("pgrep transmission-daemon")
+    local pid = handle:read("*l")
+    handle:close()
+
+    if not pid then
+        -- Start daemon
+        os.execute("transmission-daemon --download-dir " .. config.media_dir)
+        print("[TORRENT] Started transmission-daemon")
+    else
+        print("[TORRENT] transmission-daemon already running (PID " .. pid .. ")")
+    end
+end
+-- }}}
+```
+
+The HTTP server and torrent daemon run as separate processes, coordinated via:
+- HTTP server generates `.torrent` files
+- HTTP server adds torrents to daemon via `transmission-remote`
+- Daemon handles actual BitTorrent seeding
 
 ### File ID Generation
 
@@ -291,8 +328,9 @@ end
 
 ## Related Documents
 
-- 16-001: Android File Server — Vision
 - 16-004: HTTPS with self-signed certificates
+- 16-007: File scanning and metadata extraction
+- 16-008: Torrent file generation (optional daemon integration)
 - Termux documentation: https://wiki.termux.com
 
 ## Metadata
@@ -301,4 +339,4 @@ end
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
 - **Estimated Complexity**: Medium-High
-- **Dependencies**: Termux, luasocket, luasec
+- **Dependencies**: Termux, luasocket, luasec, (optional: transmission or aria2)
