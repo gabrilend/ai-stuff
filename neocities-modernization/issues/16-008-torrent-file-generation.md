@@ -289,6 +289,7 @@ output/
 
 - 16-005: Trust warning intermediate page (integration point)
 - 16-007: File scanning and metadata extraction (generation trigger)
+- 16-009: WebTorrent in-browser streaming (JS alternative)
 - BitTorrent Protocol Specification: http://bittorrent.org/beps/bep_0003.html
 
 ## Metadata
