@@ -206,6 +206,108 @@ For internet distribution:
 - Use public trackers (opentrackr.org, etc.)
 - Files become seedable by anyone with the torrent
 
+### Phone as Seeder (Required)
+
+**Critical**: The phone holds the original files, so it must run a torrent daemon to seed them. Without this, generated `.torrent` files would have no seeders.
+
+#### Termux Setup (transmission-daemon)
+
+```bash
+# Install transmission
+pkg install transmission
+
+# Create config directory
+mkdir -p ~/.config/transmission-daemon
+
+# Start daemon
+transmission-daemon \
+    --download-dir /sdcard/DCIM/Camera \
+    --port 51413 \
+    --allowed "192.168.*.*" \
+    --no-auth
+
+# Add a torrent for seeding (points to existing file)
+transmission-remote --add /path/to/file.torrent --download-dir /sdcard/DCIM/Camera
+```
+
+#### Alternative: aria2 (Lightweight)
+
+```bash
+# Install aria2
+pkg install aria2
+
+# Seed a torrent (file already exists at path)
+aria2c --seed-ratio=0 \
+       --enable-dht=true \
+       --dht-listen-port=6881 \
+       --listen-port=6881-6999 \
+       --bt-seed-unverified=true \
+       /path/to/file.torrent
+```
+
+#### Auto-Seeding Integration
+
+When generating torrent files, automatically add them to the daemon:
+
+```lua
+-- {{{ local function add_torrent_to_daemon
+local function add_torrent_to_daemon(torrent_path, file_dir, config)
+    if config.daemon == "transmission" then
+        local cmd = string.format(
+            'transmission-remote --add "%s" --download-dir "%s"',
+            torrent_path, file_dir
+        )
+        os.execute(cmd)
+    elseif config.daemon == "aria2" then
+        -- aria2 uses JSON-RPC
+        local cmd = string.format(
+            'curl -s http://localhost:6800/jsonrpc -d \'{"jsonrpc":"2.0","method":"aria2.addTorrent","id":"1","params":["token:%s","%s"]}\'',
+            config.aria2_secret or "",
+            base64_encode(read_file(torrent_path))
+        )
+        os.execute(cmd)
+    end
+end
+-- }}}
+```
+
+#### Resource Considerations
+
+| Concern | Mitigation |
+|---------|------------|
+| **Battery drain** | Schedule seeding during charging, or limit upload speed |
+| **Bandwidth** | Set upload rate limits (`--upload-limit` in transmission) |
+| **Storage** | Torrents point to existing files, no duplication |
+| **Background killing** | Run daemon via Termux:Boot or foreground service (16-002) |
+
+#### Daemon Lifecycle
+
+```
+Phone boots
+    │
+    ▼
+Termux:Boot starts transmission-daemon
+    │
+    ▼
+HTTP server starts (16-001)
+    │
+    ▼
+File scanner generates/updates torrents (16-007)
+    │
+    ▼
+New torrents auto-added to daemon
+    │
+    ▼
+Phone seeds to anyone with the torrent
+```
+
+#### Termux Dependencies
+
+```bash
+pkg install transmission   # or aria2
+pkg install termux-boot    # for auto-start on boot
+```
+
 ### Pre-Generation vs On-Demand
 
 | Approach | Pros | Cons |
@@ -249,41 +351,56 @@ output/
 
 ## Suggested Implementation Steps
 
-1. **Implement bencode encoder**
+1. **Install torrent daemon in Termux**
+   - `pkg install transmission` or `pkg install aria2`
+   - Configure daemon settings (ports, rate limits)
+   - Test manual seeding of a file
+
+2. **Implement bencode encoder**
    - String, integer, list, dict encoding
    - Match BitTorrent spec exactly
 
-2. **Implement SHA1 piece hashing**
+3. **Implement SHA1 piece hashing**
    - Read file in chunks
    - Calculate piece hashes
    - Concatenate into pieces string
 
-3. **Build torrent file generator**
+4. **Build torrent file generator**
    - Create info dict
    - Add announce URLs
    - Write to file
 
-4. **Add API endpoints**
+5. **Implement auto-add to daemon**
+   - Detect daemon type (transmission/aria2)
+   - Add generated torrents automatically
+   - Verify seeding starts
+
+6. **Add API endpoints**
    - `/api/torrent/:id` — individual file
    - `/api/magnet/:id` — magnet link
    - `/api/torrent/all` — collection torrent
 
-5. **Update trust warning page**
+7. **Update trust warning page**
    - Add torrent download link
    - Add resonance directory suggestion
 
-6. **Integrate with file scanner**
+8. **Integrate with file scanner**
    - Generate torrents during scan
+   - Add to daemon
    - Invalidate on file change
 
 ## Testing Checklist
 
+- [ ] Torrent daemon installs and starts in Termux
 - [ ] Bencode output matches spec
 - [ ] Torrent files open in standard clients (qBittorrent, Transmission)
 - [ ] Info hash matches between generated and client-calculated
-- [ ] Files download correctly via torrent
+- [ ] Phone successfully seeds (check with external client)
+- [ ] Files download correctly via torrent from phone
 - [ ] Magnet links work
 - [ ] Collection torrent includes all files
+- [ ] Auto-add to daemon works
+- [ ] Seeding survives phone reboot (Termux:Boot)
 
 ## Related Documents
 
@@ -297,8 +414,8 @@ output/
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Estimated Complexity**: Medium
-- **Dependencies**: SHA1 library, bencode implementation
+- **Estimated Complexity**: Medium-High
+- **Dependencies**: SHA1 library, bencode implementation, transmission or aria2, Termux:Boot
 
 ## Philosophical Note
 

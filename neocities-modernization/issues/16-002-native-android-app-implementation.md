@@ -289,12 +289,29 @@ dependencies {
 | Development language | Lua | Kotlin |
 | Distribution | Manual script copy | APK install |
 | Maintenance | Edit script | App update |
+| Torrent seeding | transmission-daemon | Embedded library or delegate to Termux |
+
+### Torrent Daemon Considerations (Optional)
+
+For torrent seeding (16-008), the native app has two options:
+
+1. **Embed a torrent library** (e.g., libtorrent4j)
+   - Full control within the app
+   - Larger APK size
+   - More complex implementation
+
+2. **Delegate to Termux**
+   - App generates `.torrent` files
+   - User runs `transmission-daemon` in Termux separately
+   - Simpler app, but requires Termux installed
+
+The native app's primary role is HTTPS serving. Torrent seeding can be added later or delegated to the Termux implementation.
 
 ## Related Documents
 
-- 16-001: Android File Server — Vision
 - 16-001: Termux + Lua server implementation
 - 16-004: HTTPS with self-signed certificates
+- 16-008: Torrent file generation (optional integration)
 
 ## Metadata
 
