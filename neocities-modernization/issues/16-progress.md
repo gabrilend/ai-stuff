@@ -34,19 +34,14 @@ Phase 16 extends the neocities modernization project beyond local files to treat
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 16-001 | Android File Server (Vision) | Open | High |
-| 16-002 | File Scanning and Metadata Extraction | Open | High |
-
-### Sub-Issues
-
-| Sub-Issue | Description | Status |
-|-----------|-------------|--------|
-| 16-001a | Termux + Lua server implementation | Planned |
-| 16-001b | Native Android background service | Planned |
-| 16-001c | Network file type integration | Planned |
-| 16-001d | HTTPS with self-signed certificates | Planned |
-| 16-001e | Trust warning intermediate page | Planned |
-| 16-001f | Chronological position-aware back navigation | Planned |
+| 16-001 | Termux + Lua server implementation | Open | High |
+| 16-002 | Native Android background service | Open | High |
+| 16-003 | Network file type integration | Open | High |
+| 16-004 | HTTPS with self-signed certificates | Open | Medium |
+| 16-005 | Trust warning intermediate page | Open | Medium |
+| 16-006 | Chronological position-aware back navigation | Open | Medium |
+| 16-007 | File scanning and metadata extraction | Open | High |
+| 16-008 | Torrent file generation for distribution | Open | Medium |
 
 ### Completed Issues
 
@@ -146,7 +141,6 @@ chronological.html#2026-02-15-143022
 
 ## Related Documents
 
-- 16-001: Android File Server (vision issue)
 - `src/html-generator.lua` — HTML generation infrastructure
 - `output/chronological/` — Chronological page output
 - Phase 8: HTML generation and pagination

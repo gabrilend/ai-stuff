@@ -459,8 +459,8 @@ pkg install exiftool imagemagick ffmpeg
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001a: Termux + Lua server implementation
-- 16-001c: Network file type integration
+- 16-001: Termux + Lua server implementation
+- 16-003: Network file type integration
 
 ## Metadata
 

@@ -1,10 +1,7 @@
-# Issue 16-001f: Chronological Position-Aware Back Navigation
+# Issue 16-006: Chronological Position-Aware Back Navigation
 
 ## Priority
 Medium (Navigation)
-
-## Parent Issue
-16-001: Android File Server — Vision
 
 ## Current Behavior
 
@@ -291,7 +288,7 @@ Ensure targeted anchors are visible (not hidden under sticky headers):
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001e: Trust warning intermediate page
+- 16-005: Trust warning intermediate page
 - 8-012: Implement paginated similarity chapters
 
 ## Metadata
@@ -299,6 +296,5 @@ Ensure targeted anchors are visible (not hidden under sticky headers):
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Parent**: 16-001
 - **Estimated Complexity**: Medium
 - **Dependencies**: Pagination infrastructure (Phase 8)

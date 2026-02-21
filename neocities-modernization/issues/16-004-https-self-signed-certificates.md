@@ -1,10 +1,7 @@
-# Issue 16-001d: HTTPS with Self-Signed Certificates
+# Issue 16-004: HTTPS with Self-Signed Certificates
 
 ## Priority
-High (Security Infrastructure)
-
-## Parent Issue
-16-001: Android File Server — Vision
+Medium (Security Infrastructure)
 
 ## Current Behavior
 
@@ -16,7 +13,7 @@ Generate and use self-signed SSL/TLS certificates for secure file transfer over 
 
 ### Certificate Generation
 
-#### For Termux (16-001a)
+#### For Termux (16-001)
 
 ```bash
 #!/bin/bash
@@ -55,7 +52,7 @@ echo "Certificate fingerprint (SHA256):"
 openssl x509 -in "$DIR/server.crt" -noout -fingerprint -sha256
 ```
 
-#### For Native Android (16-001b)
+#### For Native Android (16-002)
 
 ```kotlin
 // SSLUtils.kt
@@ -348,15 +345,14 @@ end
 ## Related Documents
 
 - 16-001: Android File Server — Vision
-- 16-001a: Termux + Lua server implementation
-- 16-001b: Native Android app implementation
-- 16-001e: Trust warning intermediate page
+- 16-001: Termux + Lua server implementation
+- 16-002: Native Android app implementation
+- 16-005: Trust warning intermediate page
 
 ## Metadata
 
 - **Status**: Open
 - **Created**: 2026-02-20
 - **Phase**: 16 (Network Media)
-- **Parent**: 16-001
 - **Estimated Complexity**: Medium
 - **Dependencies**: OpenSSL (Termux), BouncyCastle (Android)
