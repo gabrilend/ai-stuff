@@ -112,6 +112,24 @@ local function load_stop_words()
 end
 -- }}}
 
+-- {{{ load_word_colors
+-- Issue 16-010: Load word colors from embeddings directory for colorized word cloud display
+local function load_word_colors()
+    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/word_colors.json"
+    local data = utils.read_json_file(cache_file)
+    if data and data.word_colors then
+        local lookup = {}
+        for _, entry in ipairs(data.word_colors) do
+            lookup[entry.word] = entry.color
+        end
+        utils.log_info(string.format("Loaded %d word colors from cache", #data.word_colors))
+        return lookup
+    end
+    utils.log_warn("No word colors found - words will display in default color")
+    return {}
+end
+-- }}}
+
 -- {{{ extract_words_from_poems
 local function extract_words_from_poems(poems, stop_words)
     local word_counts = {}
@@ -289,6 +307,18 @@ end
 
 -- {{{ generate_wordcloud_html
 local function generate_wordcloud_html(words, output_dir, poems_data)
+    -- Issue 16-010: Load word colors and color configuration for colorized display
+    local word_colors = load_word_colors()
+    local color_config = unified_config.colors or {
+        red = "#FF6B6B",
+        orange = "#FFA94D",
+        yellow = "#FFE066",
+        green = "#69DB7C",
+        blue = "#74C0FC",
+        purple = "#DA77F2",
+        gray = "#868E96"
+    }
+
     -- Shuffle words for visual variety (not just sorted by size)
     local shuffled = {}
     for i, w in ipairs(words) do shuffled[i] = w end
@@ -302,6 +332,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
     -- Generate word spans with links to similar pages
     -- Issue 8-043: Each word links to wordcloud/{word}.html showing poems similar to that word
+    -- Issue 16-010: Words are now colored by their semantic color
     local word_html = {}
     for _, entry in ipairs(shuffled) do
         -- Use font tag with size attribute (CSS-free)
@@ -313,10 +344,14 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         -- Sanitize word for URL (lowercase, no special chars)
         local safe_word = entry.word:lower():gsub("[^%w]", "")
 
-        -- Each word links to its similarity page
+        -- Issue 16-010: Look up semantic color for this word
+        local semantic_color = word_colors[safe_word] or "gray"
+        local hex_color = color_config[semantic_color] or "#868E96"
+
+        -- Each word links to its similarity page, colored by semantic meaning
         table.insert(word_html, string.format(
-            '<a href="wordcloud/%s.html"><font size="%d">%s%s%s</font></a>',
-            safe_word, entry.font_size, bold_open, entry.word, bold_close
+            '<a href="wordcloud/%s.html"><font size="%d" color="%s">%s%s%s</font></a>',
+            safe_word, entry.font_size, hex_color, bold_open, entry.word, bold_close
         ))
     end
 

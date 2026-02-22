@@ -792,12 +792,13 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
 <p>Top %d poems ranked by semantic similarity (progress bar shows chronological position)</p>
-<p><a href="%s/main.html">Main</a> │ <a href="%s/wordcloud.html">Word Cloud</a> │ <a href="%s">Chronological</a></p>
+<!-- Issue 16-010: Changed main.html to wordcloud.html (main.html doesn't exist) -->
+<p><a href="%s/wordcloud.html">Menu</a> │ <a href="%s">Chronological</a></p>
 </center>
 <hr>
 <table align="center"><tr><td>
 <pre>
-]], word, header_color, word, #top_poems, base_path, base_path, chrono_link))
+]], word, header_color, word, #top_poems, base_path, chrono_link))
 
     -- Add ranked poems using box-drawing format
     for i, entry in ipairs(top_poems) do
