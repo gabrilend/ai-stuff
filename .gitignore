@@ -146,6 +146,21 @@ drive_c/
 Source-develop.zip
 
 # =============================================================================
+# EXTERNAL GAME SOURCES AND TOOLCHAINS
+# =============================================================================
+# Large C/C++ codebases that should be downloaded/installed via scripts
+# See: delta-version/issues/phase-16/16-011-library-cleanup.md
+
+# City of Heroes source code and build artifacts
+games/city-of-chat/src/coh-source/
+games/city-of-chat/build/
+games/city-of-chat/libs/
+
+# GBA/GBC cross-compilation toolchains
+console-demakes/tools/gba-toolchain/
+console-demakes/tools/rgbds/
+
+# =============================================================================
 # LARGE DATA FILES
 # =============================================================================
 # Generated or downloaded data that can be recreated
