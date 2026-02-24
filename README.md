@@ -147,7 +147,9 @@ Scripts accept a `DIR` argument and use it for all path resolution, allowing exe
 
 ### Interface Documentation
 
-Each source file should have a corresponding `.info.md` file listing its external functions and their signatures. These serve as header files for humans and LLMs—read the interface summary before diving into implementation details.
+In C, header files (`.h`) declare what a module exposes without revealing implementation. Compilers use them to verify correct usage. The problem: most languages don't have this concept, and even in C, headers serve compilers rather than humans.
+
+The `.info.md` pattern solves this. Each source file gets a corresponding markdown file listing its external functions, their signatures, and brief descriptions. This creates language-agnostic header files optimized for human and LLM consumption.
 
 ```markdown
 # parser.lua
@@ -159,7 +161,15 @@ Parses JSON string into Lua table. Throws on invalid input.
 
 ### stringify(data: table) → string
 Converts Lua table to JSON string.
+
+## Internal (not exported)
+- _validate_syntax
+- _handle_escape
 ```
+
+The benefit is token efficiency. An LLM exploring a codebase can read `parser.info.md` (20 lines) instead of `parser.lua` (500 lines) to understand what the module offers. Only when the interface description proves insufficient does it need the full source.
+
+This creates a layered reading strategy: table of contents → info.md summaries → full source. Each layer filters out readers who got what they needed at the previous level.
 
 ### Change Documentation
 
@@ -188,18 +198,43 @@ Read the issue. Implement the change. Update the issue with what happened. Move 
 
 ### For Parallel Work
 
-The work-stealing pattern: create a task manifest listing all subtasks, work through them incrementally, allow other workers to claim uncompleted chunks. Results aggregate when all chunks complete.
+Some tasks decompose naturally into independent chunks: processing 1000 files, running tests across modules, applying transformations to data partitions. When chunks don't depend on each other's results, they can execute simultaneously.
+
+The work-stealing pattern coordinates this:
+
+1. **Create a manifest** listing all chunks before starting work
+2. **Claim chunks atomically** — a worker marks a chunk "in_progress" with their identifier
+3. **Process independently** — each worker handles their claimed chunks
+4. **Aggregate results** when all chunks reach "completed"
 
 ```lua
+-- Task manifest (stored in issues/.tasks/ or similar)
 {
     id = "process-dataset",
+    created = "2026-02-24",
     chunks = {
-        { id = 1, status = "completed", claimed_by = "worker-1" },
-        { id = 2, status = "in_progress", claimed_by = "worker-2" },
+        { id = 1, status = "completed", claimed_by = "worker-1", completed_at = "..." },
+        { id = 2, status = "in_progress", claimed_by = "worker-2", started_at = "..." },
         { id = 3, status = "unclaimed" },
+        { id = 4, status = "unclaimed" },
     }
 }
 ```
+
+**When to apply this pattern:**
+
+- **Large refactors** — updating 50 files to use a new API can be split by file or directory
+- **Test suites** — running tests across independent modules
+- **Data processing** — transforming datasets that partition cleanly
+- **Issue phases** — when a phase has many independent issues, multiple agents can claim different issues
+
+**When not to apply:**
+
+- Tasks with sequential dependencies (step 2 needs step 1's output)
+- Small tasks where coordination overhead exceeds parallelism benefit
+- Work requiring shared mutable state
+
+The manifest serves as both coordination mechanism and progress tracker. Anyone can inspect it to see what's done, what's in progress, and what remains.
 
 ### For Agent Collaboration
 
