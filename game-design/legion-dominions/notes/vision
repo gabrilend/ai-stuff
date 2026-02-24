@@ -1,0 +1,57 @@
+okay a game like legion td except you can see the entire map, the units are very
+small (but still distinct) and it plays more like a game of Dominions. Armies
+instead of units, like in WC3. Led by lieutenants which are guided by captains,
+each with their own effects. Tank, dps, melee, ranged, healer, support, corrupt,
+ranged tank, unique, etc. Of course, just like in legion td, there are multiple
+types of units, each of a particular category but possessing their own unique
+playstyle and usage scenarios. Essentially the game is finding the best tool for
+the job, whatever that may be. You should be able to see what mercenaries your
+opponent is summoning for you, because each turn is delayed. also, the
+units keep coming until you die, sorta like... minimum required to push through
+the chokepoint that you're holding with these particular units in this
+particular formation.
+
+oh and another thing
+
+the units should be placable not on a square grid, but rather in a hex formation
+arranged such that the middle unit is in contact with them all. Just like you'd
+place units for an aura in Legion TD.
+
+image describing said hex:
+
+   **
+  *  *
+   **
+
+each * is a group of units (a batallion, if you will, of a particular size,
+arrangement, and density) - sorta like the formations in Dominions.
+
+anyway
+
+since you place units like that anyway, why not abstract away the grid and just
+have slots you can fill for each unit? And maybe a hero unit that is assigned to
+the board itself (you could have more than one) who will go wherever your line
+is weakest. Shouldn't be too hard, just calculate the value of all of the
+fighters in each location and return that to the hero as an array. Then pick the
+smallest one as a destination, and boom your hero reinforces the frontline where
+it's weakest.
+
+The center unit of course is for the lieutenant, and the "heros" are actually
+captains. Because y'know maybe heroism isn't celebrated the way it is in our
+culture. Anyway it's better to describe them based on their role rather than
+their reception.
+
+... right so 
+
+=========================================================== stack overflow =====
+
+make the combat sorta like crusader kings - the actual army to army part.
+Except with three long boards that represent flanks. As your units approach, the
+boards would fill up with pixels. (resolution configurable)
+
+there would also be a line (or block) approaching from the top of the screen. It
+essentially represents your distance to the other team.
+
+Each unit has been configured in the army management phase, which happens
+inbetween each turn. Essentially, while the game is loading, you can assess the
+units you have at your disposal, and 
