@@ -1,0 +1,37 @@
+# Spatial Drones - Vision Document
+
+## Project Purpose
+
+3D spatial mapping system using WiFi signal propagation patterns from
+mesh-connected drone chains. Each node in the chain acts as a radar-like
+sensor, measuring signal reflections and strengths to build a volumetric
+model of the explored space.
+
+## Core Philosophy
+
+Most of the world is fine. We just don't have good maps of it.
+
+Civilians generating complete mappings of their spaces - homes, towns,
+nations - reveals that anomalies are rare. The monotony is worth celebrating.
+When we can see that infrastructure works, that buildings stand, that roads
+connect, we stop imagining threats in every shadow.
+
+## Key Components
+
+1. Signal Analysis Module - WiFi RSSI, time-of-flight, multipath analysis
+2. Drone Chain Protocol - Relay chains extending mapping range
+3. Voxel Map System - 3D volumetric representation
+4. Export Formats - PLY, OBJ, GeoJSON for external tools
+
+## Applications
+
+- Building inspection
+- Search and rescue
+- Infrastructure audit
+- Archaeological survey
+- Community mapping projects
+
+## Origin
+
+Split from symbeline-realms project (issue 11-002) on 2026-02-21.
+This is a standalone infrastructure/civilian mapping project.
