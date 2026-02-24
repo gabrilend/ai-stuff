@@ -1,8 +1,0 @@
-MACRO m
-ENDM
-
-MACRO m2
-	m \
-ENDM
-
-	m2

@@ -1,2 +1,0 @@
-FATAL: Section "A" is already on the stack
-    at new-pushed-section.asm(4)

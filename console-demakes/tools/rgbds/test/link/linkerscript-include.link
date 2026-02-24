@@ -1,3 +1,0 @@
-; This has no newline at the end of the file
-ROM0
-INCLUDE "linkerscript-include.inc"

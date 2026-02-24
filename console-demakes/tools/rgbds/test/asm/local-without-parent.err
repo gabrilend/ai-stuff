@@ -1,2 +1,0 @@
-FATAL: Unqualified local label `.test` in main scope
-    at local-without-parent.asm(3)

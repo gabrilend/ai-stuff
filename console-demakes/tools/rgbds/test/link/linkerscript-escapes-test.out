@@ -1,3 +1,0 @@
-error: Cannot escape character '{'
-    at linkerscript-escapes-test.link(4)
-Linking failed with 1 error

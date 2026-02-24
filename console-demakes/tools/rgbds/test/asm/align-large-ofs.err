@@ -1,3 +1,0 @@
-error: The absolute alignment offset (2) must be less than alignment size (2)
-    at align-large-ofs.asm(2)
-Assembly aborted with 1 error!

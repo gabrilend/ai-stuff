@@ -1,3 +1,0 @@
-error: Cannot output data outside of a `SECTION`
-    at pushs.asm(5)
-Assembly aborted with 1 error!

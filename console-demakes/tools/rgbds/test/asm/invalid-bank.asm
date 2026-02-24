@@ -1,1 +1,0 @@
-SECTION "vram", VRAM, BANK[2]

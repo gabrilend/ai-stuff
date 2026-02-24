@@ -1,2 +1,0 @@
-warning: 5 [-Wuser]
-    at if-macro.asm::m(5) <- if-macro.asm(10)

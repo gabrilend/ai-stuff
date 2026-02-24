@@ -1,3 +1,0 @@
-error: Undefined base charmap `eggs`
-    at charmap-inheritance.asm(26)
-Assembly aborted with 1 error!

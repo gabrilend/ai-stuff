@@ -1,2 +1,0 @@
-SECTION "rom", ROM0
-LOAD "ram", WRAM0
