@@ -10,7 +10,9 @@ This is a unified monorepo containing 53 interconnected software development pro
 
 The system emerged from a simple observation: code without documentation becomes unmaintainable, but documentation without structure becomes unreadable. The solution is to make structure itself the documentation.
 
-If you're a wizard and want a more rigorous foundation, see *Structure and Interpretation of Computer Programs*. This repository is for sorcerers—those who learn by doing, by breaking, and by building again.
+If you're a wizard who wields power through knowledge and want a more rigorous foundation, see *Structure and Interpretation of Computer Programs*.
+
+This repository is for sorcerers - those who use vision to see a problem and solution, language to describe that path, and will to compel reality to stitch itself into the proper configuration.
 
 ---
 
@@ -87,6 +89,7 @@ The most mature projects have completion rates above 60%:
 | words-pdf | 8/19 | 42% |
 | delta-version | 29/101 | 29% |
 
+Feel free to poke around. I recommend reading the `notes/`, `docs/`, and `issues/` directories.
 
 ### Project Categories
 
@@ -121,8 +124,6 @@ project-name/
 ```
 
 The first thing a program should do is read `input/`. The last thing it should do is write to `output/`. This lifecycle makes programs composable: one project's output becomes another's input.
-
-Shared libraries live in `libs/` and `my-libs/` at the repository root. Shared scripts live in `scripts/`. The `delta-version` project contains cross-project tooling and the authoritative documentation.
 
 ---
 
@@ -203,11 +204,11 @@ export LUA_PATH="$DIR/libs/?.lua;$DIR/src/?.lua;;"
 luajit "$DIR/src/main.lua" "$@"
 ```
 
-This creates a clean workflow: clone the repo, run `./scripts/run.sh`, and everything works. No manual dependency hunting. No "works on my machine." The install script documents exactly what external code the project needs, and the run script pipelines the entire launch process into a single command.
+This creates a clean workflow: clone the repo, run `libs/install.sh`, then `./scripts/run.sh` and everything works. No manual dependency hunting. No "works on my machine." The install script documents exactly what external code the project needs, configured to spec, and the run script pipelines the entire launch process into a single command.
 
 ### Interface Documentation
 
-In C, header files (`.h`) declare what a module exposes without revealing implementation. Compilers use them to verify correct usage. The problem: most languages don't have this concept, and even in C, headers serve compilers rather than humans.
+In C, header files (`.h`) declare what a module exposes without revealing implementation. Compilers use them to verify correct usage. Many languages don't have this concept, and even in C, headers serve compilers rather than humans.
 
 The `.info.md` pattern solves this. Each source file gets a corresponding markdown file listing its external functions, their signatures, and brief descriptions. This creates language-agnostic header files optimized for human and LLM consumption.
 
@@ -231,6 +232,8 @@ statements; adding tasks requires no control flow changes.
 | 3  | transform_output | ast, format      | pretty_print  | output_string   |
 | 4  | write_file       | out_string, dest | overwrite     | bytes_written   |
 | 5  | notify_complete  | task_chain_id    | webhook_url   | status_code     |
+
+(each of the task functions, arguments, and return values could be documented here as well, but omitted for brevity)
 
 ## External Functions
 
@@ -267,7 +270,7 @@ When a change is made, a comment explains why. Not what the code does—that's v
 -- Retry up to 3 times before failing. We chose 3 over 5 based on
 -- latency measurements in issue 423: beyond 3 retries, user-perceived
 -- delay exceeds acceptable thresholds.
-counter = counter + 1
+if counter < 3 then counter = counter + 1 else return false
 ```
 
 ### Error Philosophy
@@ -282,7 +285,7 @@ When a bug is fixed, create a test that validates the fix. The test serves as do
 
 ### For Sequential Work
 
-Read the issue. Implement the change. Update the issue with what happened. Move to `completed/`. Commit.
+Read the issue. Implement the change. Update the issue with what happened. Move to `issues/completed/`. Commit.
 
 ### For Parallel Work
 
@@ -311,10 +314,10 @@ The work-stealing pattern coordinates this:
 
 **When to apply this pattern:**
 
+- **Issue phases** — when a phase has many independent issues, multiple agents can claim different issues
 - **Large refactors** — updating 50 files to use a new API can be split by file or directory
 - **Test suites** — running tests across independent modules
 - **Data processing** — transforming datasets that partition cleanly
-- **Issue phases** — when a phase has many independent issues, multiple agents can claim different issues
 
 **When not to apply:**
 
@@ -354,8 +357,6 @@ Don't throw away and rebuild. Extend existing capabilities. Maintain compatibili
 
 ## Getting Started
 
-The repository lives at `/mnt/mtwo/programming/ai-stuff/` with a symlink at `/home/ritz/programming/ai-stuff/`.
-
 To understand a project, read its `notes/vision` document first, then `docs/roadmap.md`, then browse `issues/` to see current and completed work.
 
 To contribute, find or create an issue file before making changes. Follow the naming convention. Update the phase progress file when completing issues. Commit atomically—one issue, one commit.
@@ -369,10 +370,6 @@ To contribute, find or create an issue file before making changes. Follow the na
   - `worktree-guide.md` — Git worktree workflows
   - `development-guide.md` — Development standards
   - `issue-template.md` — Standard issue format
-
-### Global Configuration
-
-Development guidelines live in `CLAUDE.md` at `/home/ritz/.claude/`. These instructions govern how work proceeds across all projects.
 
 ---
 
