@@ -412,6 +412,26 @@ These issues provide foundational utilities and can be implemented independently
     - **049d** 📝: Ollama Processing Pipeline (LLM client with consensus validation)
   - *Status*: Ready for implementation
 
+- **Issue 053**: TODONE - Cross-Project Roadmap Coordinator 📝
+  - *Purpose*: Analyze all projects, detect shared components, and generate collective TODO roadmap
+  - *Philosophy*: "Build once, use everywhere" - identify synergies across projects
+  - *Key Features*:
+    - Project scanning and component extraction across 24+ projects
+    - Semantic similarity detection for overlapping components (threadpool, TUI, LLM client)
+    - Shared library identification with effort reduction estimates
+    - Two-tier LLM: Ollama (light tasks), Anthropic Opus (deep analysis)
+    - Unified LLM interface with Ollama-compatible output format
+  - *Output*: `/home/ritz/programming/ai-stuff/TODO.md` - collective roadmap
+  - *Dependencies*: Issue 023 (Project Listing Utility)
+  - *Sub-issues*:
+    - **053a** 📝: Project Scanning and Analysis (extract roadmaps, issues, components)
+    - **053b** 📝: Component Similarity Detection (keyword + semantic + LLM analysis)
+    - **053c** 📝: Shared Library Roadmap Generation (topological sort, effort calculation)
+    - **053d** 📝: Ollama Integration for Updates (light tasks: resort, similarity, summaries)
+    - **053e** 📝: Anthropic API with Ollama-style Output (deep analysis, unified format)
+    - **053f** 📝: TODO Document Output Format (markdown with shared-first ordering)
+  - *Status*: Ready for implementation
+
 - **Issue 040**: Dynamic CLAUDE.md Revision System 📝
   - *Purpose*: Create a living instruction set that evolves based on usage patterns and natural events
   - *Features*: Event detection, API layer for script integration, revision engine, history audit trail, conflict validation, TUI review interface
@@ -447,13 +467,13 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 027**: Basic Reporting Framework
 
 ## Summary Statistics
-- **Total Issues**: ~72 (including sub-issues)
+- **Total Issues**: ~79 (including sub-issues)
 - **Completed**: 29 (001, 004, 006, 007, 009, 010, 011, 012, 013, 014, 015, 016, 023, 026, 029, 030, 031, 035 w/ all sub-issues, 037, 038, 047, 050)
 - **In Progress**: 0
 - **Partial**: 2 (005, 008)
-- **Pending**: ~41 (including 040, 049, and 051)
-- **High Priority**: 051 (Git Documentation Generator)
-- **New (Phase 4)**: 23 (040, 040a-i, 049, 049a-d, 051, 051a-g)
+- **Pending**: ~48 (including 040, 049, 051, and 053)
+- **High Priority**: 051 (Git Documentation Generator), 053 (TODONE)
+- **New (Phase 4)**: 30 (040, 040a-i, 049, 049a-d, 051, 051a-g, 053, 053a-f)
 
 ## Notes
 - Issues follow CLAUDE.md conventions for implementation
