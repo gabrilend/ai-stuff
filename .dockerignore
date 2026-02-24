@@ -1,0 +1,47 @@
+# Docker build context exclusions
+# Keeps the image size reasonable by excluding non-essential files
+
+# Git history (large)
+.git
+
+# Build artifacts and caches
+**/*.o
+**/*.so
+**/*.a
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/target
+**/build
+
+# IDE/editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Large media files (can be mounted as volumes if needed)
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.mp4
+**/*.mp3
+**/*.wav
+
+# Temporary files
+**/tmp
+**/*.tmp
+**/*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keep README but exclude backup versions
+README-*.md
+!README.md
+
+# Exclude existing output directories
+**/output

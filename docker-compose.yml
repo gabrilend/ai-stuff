@@ -1,0 +1,140 @@
+# ai-stuff monorepo sandbox
+# Docker Compose configuration for GPU-accelerated graphical development
+# Supports NVIDIA, AMD, Intel GPUs, or software rendering fallback
+#
+# Usage:
+#   X11 mode (Linux):     docker compose up sandbox-x11
+#   VNC mode (any OS):    docker compose up sandbox-vnc
+#   Headless (no GUI):    docker compose up sandbox-headless
+#
+# GPU Support:
+#   NVIDIA: Install nvidia-container-toolkit, then use sandbox-x11-nvidia or sandbox-vnc-nvidia
+#   AMD/Intel: Standard profiles work automatically with /dev/dri mounted
+#   None: Software rendering fallback (slow but functional)
+
+services:
+  # ============================================================================
+  # Standard profiles (AMD, Intel, or software fallback)
+  # These work without special GPU toolkits
+  # ============================================================================
+
+  # X11 forwarding mode - best for Linux hosts
+  sandbox-x11:
+    build: .
+    image: ai-stuff-sandbox
+    container_name: ai-stuff-x11
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      # X11 socket for display forwarding
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # GPU device access (AMD/Intel via DRI)
+      - /dev/dri:/dev/dri
+    network_mode: host
+    # Required for DRI device access
+    group_add:
+      - video
+      - render
+
+  # VNC mode - works on any OS via web browser
+  # Access at http://localhost:6080/vnc.html
+  sandbox-vnc:
+    build: .
+    image: ai-stuff-sandbox
+    container_name: ai-stuff-vnc
+    stdin_open: true
+    tty: true
+    ports:
+      - "5901:5901"   # VNC direct
+      - "6080:6080"   # noVNC web interface
+    volumes:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    command: /home/sandbox/start-vnc.sh
+
+  # Headless mode - no GUI, for compute-only tasks
+  sandbox-headless:
+    build: .
+    image: ai-stuff-sandbox
+    container_name: ai-stuff-headless
+    stdin_open: true
+    tty: true
+    volumes:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+
+  # ============================================================================
+  # NVIDIA profiles
+  # Require nvidia-container-toolkit to be installed on the host
+  # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+  # ============================================================================
+
+  sandbox-x11-nvidia:
+    build: .
+    image: ai-stuff-sandbox
+    container_name: ai-stuff-x11-nvidia
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /dev/dri:/dev/dri
+    network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility, graphics]
+
+  sandbox-vnc-nvidia:
+    build: .
+    image: ai-stuff-sandbox
+    container_name: ai-stuff-vnc-nvidia
+    stdin_open: true
+    tty: true
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    ports:
+      - "5901:5901"
+      - "6080:6080"
+    volumes:
+      - /dev/dri:/dev/dri
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility, graphics]
+    command: /home/sandbox/start-vnc.sh
+
+  sandbox-headless-nvidia:
+    build: .
+    image: ai-stuff-sandbox
+    container_name: ai-stuff-headless-nvidia
+    stdin_open: true
+    tty: true
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - /dev/dri:/dev/dri
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility]

@@ -361,6 +361,59 @@ To understand a project, read its `notes/vision` document first, then `docs/road
 
 To contribute, find or create an issue file before making changes. Follow the naming convention. Update the phase progress file when completing issues. Commit atomically—one issue, one commit.
 
+### Docker Sandbox
+
+A sandboxed environment is available for experimenting without affecting your system. The container includes LuaJIT, Vulkan, OpenGL, SDL2, and all project dependencies.
+
+**Quick start:**
+
+```bash
+# Build the container image
+./docker-run.sh build
+
+# Run (auto-detects your GPU and display setup)
+./docker-run.sh
+```
+
+**Display modes:**
+
+| Mode | Command | Use case |
+|------|---------|----------|
+| X11 | `./docker-run.sh x11` | Linux with X11 display (lowest latency) |
+| VNC | `./docker-run.sh vnc` | Any OS, access via browser at `http://localhost:6080` |
+| Headless | `./docker-run.sh headless` | Compute-only, no graphics |
+
+**GPU support:**
+
+The sandbox auto-detects your GPU:
+
+- **NVIDIA**: Requires `nvidia-container-toolkit` on the host. Run `./docker-run.sh gpu-info` to check if it's detected.
+- **AMD/Intel**: Works automatically via `/dev/dri`.
+- **No GPU**: Falls back to software rendering (functional but slow).
+
+**What's inside:**
+
+```
+/workspace/              # The monorepo (your working directory)
+~/scripts/detect-gpu.sh  # Run to see GPU detection details
+```
+
+All changes inside the container are isolated. Exit and restart to reset to a clean state. For VNC mode, the password is `sandbox`.
+
+**Using docker-compose:**
+
+For more control, use docker-compose directly:
+
+```bash
+# Standard (AMD/Intel/software)
+docker compose up sandbox-x11
+docker compose up sandbox-vnc
+
+# NVIDIA-specific (requires nvidia-container-toolkit)
+docker compose up sandbox-x11-nvidia
+docker compose up sandbox-vnc-nvidia
+```
+
 ### Key Resources
 
 - `QUICK-START.md` — Quick reference for common operations
