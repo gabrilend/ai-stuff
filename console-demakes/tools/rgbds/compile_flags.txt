@@ -1,6 +1,0 @@
--std=c++2a
--I
-include
--fno-exceptions
--fno-rtti
--fno-caret-diagnostics

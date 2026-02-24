@@ -1,2 +1,0 @@
-FATAL: `LOAD` blocks cannot contain fragment literals
-    at fragment-literal-in-load.asm(7)

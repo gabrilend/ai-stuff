@@ -1,2 +1,0 @@
-warning: `LOAD` block without `ENDL` terminated by EOF [-Wunterminated-load]
-    at unterminated-load.asm(3)

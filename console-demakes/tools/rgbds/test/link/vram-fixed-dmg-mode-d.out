@@ -1,2 +1,0 @@
-error: Section "v1" has type `VRAM`, which must be in bank 0 with option '-d'
-Linking failed with 1 error

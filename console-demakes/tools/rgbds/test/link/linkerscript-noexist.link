@@ -1,3 +1,0 @@
-INCLUDE "linkerscript-noexist.inc"
-ROM0
-	"test"

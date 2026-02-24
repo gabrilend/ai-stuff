@@ -1,1 +1,0 @@
-void startSlaveLauncher(const char *server);

@@ -1,2 +1,0 @@
-FATAL: Division by zero
-    at divzero-instr.asm(2)

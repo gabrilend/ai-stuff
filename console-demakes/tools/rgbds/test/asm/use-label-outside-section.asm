@@ -1,2 +1,0 @@
-lab:
-	PRINTLN lab-lab

@@ -1,5 +1,0 @@
-def STRING equs "OK"
-def WRAPPER equs "TRIN"
-	PRINTLN "{S{WRAPPER}G}"
-
-	PRINTLN "{S{WRAPPER}G"

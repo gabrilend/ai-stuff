@@ -1,5 +1,0 @@
-IF X
-	PRINTLN "Yes!"
-ELSE
-	PRINTLN "No."
-ENDC
