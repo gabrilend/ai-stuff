@@ -172,6 +172,34 @@ libs/lua/effil-jit/
 **/libs/effil-jit/
 **/libs/native/effil/
 
+# PixelLib - C graphics library
+# Re-fetch from: https://github.com/user/pixellib (or similar)
+libs/c/pixellib/
+
+# Raylib - C game development library
+# Re-fetch with: git clone https://github.com/raysan5/raylib.git
+libs/c/raylib/
+
+# Lua source - install via system package manager
+# Re-fetch with: apt install lua5.2 liblua5.2-dev (or download from lua.org)
+RPG-autobattler/libs/lua/
+
+# Love2D game framework - download from love2d.org
+RPG-autobattler/libs/love2d/
+
+# libharu PDF library - install via apt or build from source
+# Re-fetch with: apt install libhpdf-dev (or git clone https://github.com/libharu/libharu)
+words-pdf/libs/libharu-*/
+words-pdf/libs/luahpdf/
+words-pdf/backup-mvp/libs/libharu-*/
+
+# AppImage binaries - download from project releases
+*.AppImage
+
+# LuaSocket - install via luarocks
+# Re-fetch with: luarocks install luasocket
+**/libs/luasocket/
+
 # =============================================================================
 # LARGE DATA FILES
 # =============================================================================
