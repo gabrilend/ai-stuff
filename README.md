@@ -144,6 +144,67 @@ Scripts begin with a header comment explaining purpose and usage at an executive
 
 Scripts accept a `DIR` argument and use it for all path resolution, allowing execution from any working directory.
 
+### Dependency Management
+
+Libraries install locally to each project rather than globally. This keeps projects self-contained and reproducible—anyone cloning a project gets exactly the dependencies it needs without polluting their system or conflicting with other projects.
+
+Each project maintains its dependencies in `libs/`:
+
+```
+project-name/
+├── libs/
+│   ├── json.lua          # Vendored directly
+│   ├── socket/           # Multi-file library
+│   └── install.sh        # Fetches external deps
+└── scripts/
+    └── run.sh            # Entry point
+```
+
+The `install.sh` script handles all dependency acquisition. It should be idempotent (safe to run multiple times) and explicit about what it fetches:
+
+```bash
+#!/bin/bash
+# install.sh - Fetch all project dependencies
+# Downloads json.lua and luasocket to libs/
+
+DIR="${1:-$(dirname "$0")/..}"
+LIBS_DIR="$DIR/libs"
+
+mkdir -p "$LIBS_DIR"
+
+# Fetch json.lua if missing
+if [ ! -f "$LIBS_DIR/json.lua" ]; then
+    curl -o "$LIBS_DIR/json.lua" \
+        "https://raw.githubusercontent.com/rxi/json.lua/master/json.lua"
+fi
+
+# Fetch luasocket if missing
+if [ ! -d "$LIBS_DIR/socket" ]; then
+    # ... installation steps
+fi
+```
+
+The `run.sh` script serves as the single entry point. It ensures dependencies exist, sets up the environment, and launches the application:
+
+```bash
+#!/bin/bash
+# run.sh - Launch the application
+# Ensures dependencies are installed, then runs main.lua
+
+DIR="${1:-$(dirname "$0")/..}"
+
+# Ensure dependencies
+"$DIR/scripts/install.sh" "$DIR"
+
+# Set library path to include project libs
+export LUA_PATH="$DIR/libs/?.lua;$DIR/src/?.lua;;"
+
+# Launch
+luajit "$DIR/src/main.lua" "$@"
+```
+
+This creates a clean workflow: clone the repo, run `./scripts/run.sh`, and everything works. No manual dependency hunting. No "works on my machine." The install script documents exactly what external code the project needs, and the run script pipelines the entire launch process into a single command.
+
 ### Interface Documentation
 
 In C, header files (`.h`) declare what a module exposes without revealing implementation. Compilers use them to verify correct usage. The problem: most languages don't have this concept, and even in C, headers serve compilers rather than humans.
@@ -334,6 +395,8 @@ The following directives govern development. Priority indicates enforcement leve
 | D-019 | Separation of concerns | High |
 | D-045 | Agent etiquette | High |
 | D-054 | Work-stealing coordination | High |
+| D-055 | Local lib installation with install.sh | High |
+| D-056 | Single-command launch via run.sh | High |
 | D-001 | Script portability via DIR | Medium |
 | D-002 | Vimfold function organization | Medium |
 | D-011 | Commits on issue completion | Medium |
