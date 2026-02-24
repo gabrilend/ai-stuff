@@ -164,13 +164,13 @@ statements; adding tasks requires no control flow changes.
 
 ## Dispatch Table
 
-| ID | Task | Required Args | Optional Args | Returns |
-|----|------|---------------|---------------|---------|
-| 1 | parse_document | filepath | encoding | ast, errors |
-| 2 | validate_schema | ast, schema_id | strict_mode | valid, messages |
-| 3 | transform_output | ast, format | pretty_print | output_string |
-| 4 | write_file | output_string, dest | overwrite | bytes_written |
-| 5 | notify_complete | task_chain_id | webhook_url | status_code |
+| ID |       Task       |  Required Args   | Optional Args |     Returns     |
+|----|------------------|------------------|---------------|-----------------|
+| 1  | parse_document   | filepath         | encoding      | ast, errors     |
+| 2  | validate_schema  | ast, schema_id   | strict_mode   | valid, messages |
+| 3  | transform_output | ast, format      | pretty_print  | output_string   |
+| 4  | write_file       | out_string, dest | overwrite     | bytes_written   |
+| 5  | notify_complete  | task_chain_id    | webhook_url   | status_code     |
 
 ## External Functions
 
