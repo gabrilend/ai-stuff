@@ -151,23 +151,51 @@ In C, header files (`.h`) declare what a module exposes without revealing implem
 
 The `.info.md` pattern solves this. Each source file gets a corresponding markdown file listing its external functions, their signatures, and brief descriptions. This creates language-agnostic header files optimized for human and LLM consumption.
 
+Here's an example documenting a task worker module with a dispatch table pattern:
+
 ```markdown
-# parser.lua
+# task_worker.lua
+
+## Overview
+
+Executes tasks by ID using a dispatch table. Call `run_task(id, args)`
+where `id` indexes into the task registry. More efficient than switch
+statements; adding tasks requires no control flow changes.
+
+## Dispatch Table
+
+| ID | Task | Required Args | Optional Args | Returns |
+|----|------|---------------|---------------|---------|
+| 1 | parse_document | filepath | encoding | ast, errors |
+| 2 | validate_schema | ast, schema_id | strict_mode | valid, messages |
+| 3 | transform_output | ast, format | pretty_print | output_string |
+| 4 | write_file | output_string, dest | overwrite | bytes_written |
+| 5 | notify_complete | task_chain_id | webhook_url | status_code |
 
 ## External Functions
 
-### parse_json(input: string) → table
-Parses JSON string into Lua table. Throws on invalid input.
+### run_task(id: int, args: table) → result, error
+Executes task by dispatch table index. Returns nil, error if ID invalid
+or required args missing.
 
-### stringify(data: table) → string
-Converts Lua table to JSON string.
+### queue_task(id: int, args: table) → task_handle
+Adds task to threadpool queue. Returns handle for status polling.
+
+### await_task(handle: task_handle, timeout_ms: int) → result, error
+Blocks until task completes or timeout. Returns nil, "timeout" on timeout.
+
+### get_task_info(id: int) → { name, required_args, optional_args, description }
+Returns metadata for task ID without executing.
 
 ## Internal (not exported)
-- _validate_syntax
-- _handle_escape
+- _dispatch_table (the function pointer array)
+- _validate_args
+- _worker_thread_main
 ```
 
-The benefit is token efficiency. An LLM exploring a codebase can read `parser.info.md` (20 lines) instead of `parser.lua` (500 lines) to understand what the module offers. Only when the interface description proves insufficient does it need the full source.
+The dispatch table format makes the module's capabilities scannable at a glance. A caller can see all available operations, their IDs, and argument requirements without reading implementation code.
+
+The benefit is token efficiency. An LLM exploring a codebase can read `task_worker.info.md` (40 lines) instead of `task_worker.lua` (800 lines) to understand what the module offers. Only when the interface description proves insufficient does it need the full source.
 
 This creates a layered reading strategy: table of contents → info.md summaries → full source. Each layer filters out readers who got what they needed at the previous level.
 
