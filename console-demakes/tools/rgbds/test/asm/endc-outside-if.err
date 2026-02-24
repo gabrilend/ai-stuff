@@ -1,2 +1,0 @@
-FATAL: Found `ENDC` outside of a conditional (not after an `IF`/`ELIF`/`ELSE` block)
-    at endc-outside-if.asm(1)

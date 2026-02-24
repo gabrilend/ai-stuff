@@ -1,3 +1,0 @@
-warning: MBC "ROM" has no RAM, but RAM size was set to 2 [-Wmbc]
-warning: Overwrote a non-zero byte in the cartridge type [-Woverwrite]
-warning: Overwrote a non-zero byte in the RAM size [-Woverwrite]

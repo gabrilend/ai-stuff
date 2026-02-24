@@ -1,4 +1,0 @@
-SECTION "A\"B\tC\rD\nE", ROM0
-DS $1000
-SECTION "in\{valid", ROM0
-DS $1000

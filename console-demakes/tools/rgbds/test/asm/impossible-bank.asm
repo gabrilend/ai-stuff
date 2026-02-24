@@ -1,1 +1,0 @@
-SECTION "hram", HRAM, BANK[0]

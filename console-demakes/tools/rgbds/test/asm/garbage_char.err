@@ -1,3 +1,0 @@
-error: Invalid character 0xFF (is the file UTF-8?)
-    at garbage_char.asm(1)
-Assembly aborted with 1 error!

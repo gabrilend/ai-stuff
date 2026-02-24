@@ -1,4 +1,0 @@
-
-SECTION "sec", ROM0
-
-SECTION "sec", ROM0

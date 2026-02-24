@@ -1,2 +1,0 @@
-FATAL: Constant must not be negative: -42
-    at incbin-negative-bad.asm(3)

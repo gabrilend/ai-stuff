@@ -1,2 +1,0 @@
--i rgbd -t 0123456789ABCDEF
-Checks that the game ID flag correctly truncates the title to 11 chars only

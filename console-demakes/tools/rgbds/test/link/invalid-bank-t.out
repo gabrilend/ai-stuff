@@ -1,2 +1,0 @@
-error: Section "test" has type `ROMX`, which must be in bank 1 (if any) with option '-t'
-Linking failed with 1 error

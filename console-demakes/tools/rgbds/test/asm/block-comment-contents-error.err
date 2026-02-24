@@ -1,2 +1,0 @@
-warning: "/*" in block comment [-Wnested-comment]
-    at block-comment-contents-error.asm(1)

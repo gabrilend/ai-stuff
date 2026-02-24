@@ -1,6 +1,0 @@
-@INCLUDE_PATH = ..\..\..\
-@INCLUDE = .doxyfile
-
-PROJECT_NAME = "AI Library"
-
-INPUT += ..\include

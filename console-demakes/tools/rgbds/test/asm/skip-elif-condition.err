@@ -1,2 +1,0 @@
-FATAL: Division by zero
-    at skip-elif-condition.asm::mac(6) <- skip-elif-condition.asm(18)
