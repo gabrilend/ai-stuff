@@ -160,6 +160,18 @@ games/city-of-chat/libs/
 console-demakes/tools/gba-toolchain/
 console-demakes/tools/rgbds/
 
+# Sol2 C++ Lua bindings - large header-only library
+# Re-fetch with: git clone https://github.com/ThePhD/sol2.git libs/sol
+libs/sol/
+
+# Effil (Lua multithreading) - installed via project install scripts
+# Re-fetch with: ./scripts/install-deps.sh or libs/scripts/install-effil.sh
+libs/lua/effil/
+libs/lua/effil-jit/
+**/libs/effil/
+**/libs/effil-jit/
+**/libs/native/effil/
+
 # =============================================================================
 # LARGE DATA FILES
 # =============================================================================
