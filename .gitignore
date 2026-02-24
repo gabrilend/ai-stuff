@@ -196,6 +196,12 @@ words-pdf/backup-mvp/libs/libharu-*/
 # AppImage binaries - download from project releases
 *.AppImage
 
+# C++ files - we only use C
+*.cpp
+*.hpp
+*.cxx
+*.cc
+
 # LuaSocket - install via luarocks
 # Re-fetch with: luarocks install luasocket
 **/libs/luasocket/
