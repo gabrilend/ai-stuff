@@ -28,7 +28,7 @@ The workflow is simple:
 3. Read and understand the issue
 4. Implement the change
 5. Update the issue with what actually happened
-6. Move the issue to `completed/`
+6. Move the issue to `issues/completed/`
 7. Commit
 
 This creates a development history that can be read like a narrative. Each issue tells a story: here was a problem, here was a plan, here is what we learned.
@@ -87,7 +87,6 @@ The most mature projects have completion rates above 60%:
 | words-pdf | 8/19 | 42% |
 | delta-version | 29/101 | 29% |
 
-Projects at 0% have issue files created but work not yet begun—these represent planned future development.
 
 ### Project Categories
 
