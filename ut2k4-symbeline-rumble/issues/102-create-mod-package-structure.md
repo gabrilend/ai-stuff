@@ -34,13 +34,14 @@ Note: This goes in the UT2004 installation directory, not the project repository
 - Configure any needed package dependencies
 - Test that compiler recognizes the package
 
-### 3. Create Minimal Mutator Class
-- Extend Mutator base class
-- Implement required functions:
-  - GetDescriptionstring()
-  - PostBeginPlay()
-- Add basic identification strings
-- Keep implementation minimal for now
+### 3. Create Skeleton Mutator Class File
+- Create file: `SR_SymbelineRumbleMutator.uc`
+- Add class declaration extending Mutator
+- Add placeholder for GetDescriptionstring()
+- Add placeholder for PostBeginPlay()
+- Keep as minimal skeleton only
+
+Note: Full implementation happens in Issue 103. This step just creates the file structure so the package compiles.
 
 ### 4. Set Up Class Naming Convention
 - Prefix: SR_ (SymbelineRumble)
@@ -97,10 +98,13 @@ Start minimal, add dependencies as needed.
 ## Acceptance Criteria
 - [ ] Package directory structure created
 - [ ] UT2004.ini properly configured
-- [ ] Minimal mutator class compiles without errors
+- [ ] Skeleton mutator class file created
+- [ ] Package compiles without errors
 - [ ] .u package file generated successfully
 - [ ] Source code is in version control
 - [ ] Sync mechanism between repo and UT2004 is working
 
 ## Notes
-Keep the initial implementation as simple as possible. The goal is to prove we can compile and load, not to implement features yet.
+This issue creates the package structure and skeleton class file. The actual mutator implementation (logging, version info, lifecycle) is in Issue 103.
+
+The separation ensures we can test the build system (Issue 105a) with a compilable package before implementing full functionality.
