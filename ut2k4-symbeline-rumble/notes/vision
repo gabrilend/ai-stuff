@@ -1,0 +1,77 @@
+this game is a total conversion for Unreal Tournament 2004.
+
+It starts with the mechanics of Warcraft Rumble in the engine of UT2004 with the
+assets of UT2004.
+
+The player will have a top-down-ish view (movable via joystick or keyboard)
+
+a special rendering engine will be made to allow for the default or user made
+maps to be used. This rendering system will clip or occlude parts of the map
+that are between the player and the units being played. It will do this by
+raycasting from a unit's position toward the camera, and in a cone that fully
+detects the doodads and map geometry sections that would occlude the unit.
+
+It does this dynamically as the player moves the camera. In-fact, it's probably
+better to do it from the AI waypoints instead - but if a player is on the ground
+playing with the other bots (not in the MVP) then it can detect from each human
+player as well as the AI waypoints. For now, it just detects geometry that
+occludes the AI waypoints and hides them from view.
+
+Note, each player with the top-down-ish-adjustable view will need a different
+set of occlusion, because they will have different perspectives.
+
+---
+
+In terms of mechanics, how it works is each second or so the player will receive
+1 adrenaline. When they reach 100 they can't gain any more. They will have,
+from their skybox perspective, several guns in their inventory. There will be
+several "nodes" (onslaught map) or spawn locations (team deathmatch style) that
+they can spawn units at. In the team deathmatch style, they can spawn units on
+an AI waypoint that is close to allies but not foes. They will appear to the
+player as green floating orbs, while the unavailable ones will be red, and the
+unclaimed ones will be gray.
+
+They can spawn a unit at the node they are looking at (which is highlighted as
+if selected) by left clicking. This creates an AI bot that behaves according to
+the nature of the gun the player has selected. For example, a sniper rifle like
+the lightning gun will stay at a distance and fire at their target, ignoring
+other enemies. They will select the farthest target they have line of sight on.
+But a flak cannon will move close to enemies and attempt to mulch them while
+moving left and right to try and dodge incoming projectiles.
+
+Depending on the map mode, the game will end when objectives are complete.
+
+Spawning a unit uses 10 adrenaline. If a unit picks up adrenaline in the map, it
+goes to the player. The player has 200 health. If they lose all their health,
+they die. They gain health whenever an ally picks up health packs and such
+(5 health per 25 healthpack, 1 health per health vial) and they lose health when
+one of their units dies (10 health per unit)
+
+If a unit gains an armor powerup, it guards the unit but does not transfer to
+the player. The healthpacks heal the units in addition to the player. The AI
+bots will not use adrenaline of their own. If they pick up adrenaline powerups,
+it goes to the player at a rate of 1 adrenaline per pill pickup.
+
+When the player spawns a unit, it discards the gun (removing it from the game)
+that they have equipped and spawns the unit with it. Then, they receive another
+random gun that isn't the one they just spawned. It's a weighted random, meaning
+they have to cycle through all the guns before they can get the first one again.
+
+the player will have 4 guns at any one time.
+
+the game will be a total conversion mod built for the Linux version. It should
+not use features that were added in later versions of the game, but a separate
+version should be made for the most common or most up-to-date version of the
+game that is functionally identical. This is for compatibility reasons - the
+real version is the Linux version, and development should treat that as the
+target.
+
+---
+
+the AI bots should spread out through the level and attempt to fulfil objectives
+if they are nearby. They will choose which route to take through the level
+randomly, but they will avoid paths they have taken already, resetting on death.
+In this way, they will naturally spread out through the map and avoid loopbacks
+and getting stuck.
+
+
