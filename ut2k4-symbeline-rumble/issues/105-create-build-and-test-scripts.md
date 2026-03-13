@@ -1,4 +1,4 @@
-# Issue 105: Create Build and Testing Scripts
+# Issue 105: Create Build and Testing Scripts (Parent Issue)
 
 ## Status
 - Phase: 1
@@ -10,223 +10,65 @@
 No automated build or testing scripts exist. Manual compilation and testing required.
 
 ## Intended Behavior
-Automated scripts that streamline development workflow:
+A complete build automation system with:
 - Quick compilation
 - Easy testing
 - Clean build management
 - Error reporting
+- Log monitoring
+- Phase demonstrations
+- Unified interface
 
-## Suggested Implementation Steps
+## Sub-Issues
 
-### 1. Create compile.sh Script
+This issue has been broken down into focused sub-issues:
 
-```bash
-#!/bin/bash
-# Compile the SymbelineRumble mod
+- **105a**: Core Build Scripts (compile, clean, rebuild)
+- **105b**: Testing and Monitoring Scripts (test, watch-log, check-log)
+- **105c**: Demo Runner Script (run-phase-demo)
+- **105d**: Master Build Wrapper and Documentation (unified interface)
 
-DIR="/mnt/mtwo/programming/ai-stuff/ut2k4-symbeline-rumble"
-UT2004_DIR="${UT2004_DIR:-$HOME/.ut2004}"
+## Overview of Build System
 
-# Accept DIR override from command line
-if [ -n "$1" ]; then
-    DIR="$1"
-fi
+The build system consists of:
 
-echo "=== SymbelineRumble Compiler ==="
-echo "Project dir: $DIR"
-echo "UT2004 dir: $UT2004_DIR"
+### Configuration (Issue 105a)
+- `config.sh` - Central configuration file
+  - Project directory (auto-detected)
+  - UT2004 installation location (configurable)
+  - Package and class names
 
-# Sync source files to UT2004 installation
-echo "Syncing source files..."
-rsync -av "$DIR/src/" "$UT2004_DIR/SymbelineRumble/Classes/"
+### Core Build Scripts (Issue 105a)
+- `scripts/compile.sh` - Sync source and compile with ucc
+- `scripts/clean.sh` - Remove build artifacts
+- `scripts/full-rebuild.sh` - Clean then compile
 
-# Run compiler
-echo "Compiling..."
-cd "$UT2004_DIR/System"
-./ucc make
+### Testing & Monitoring (Issue 105b)
+- `scripts/test.sh` - Launch UT2004 with/without mutator
+- `scripts/watch-log.sh` - Monitor log in real-time
+- `scripts/check-log.sh` - Analyze log for errors/warnings
 
-if [ $? -eq 0 ]; then
-    echo "=== Build successful ==="
-    ls -lh SymbelineRumble.u
-else
-    echo "=== Build failed ==="
-    exit 1
-fi
-```
+### Demo System (Issue 105c)
+- `scripts/run-phase-demo.sh` - Interactive demo selection
+- `demo` - Quick demo launcher (project root)
 
-### 2. Create test.sh Script
+### Unified Interface (Issue 105d)
+- `build` - Master build script (project root)
+- `scripts/README.md` - Comprehensive documentation
 
-```bash
-#!/bin/bash
-# Launch UT2004 for testing
-
-DIR="/mnt/mtwo/programming/ai-stuff/ut2k4-symbeline-rumble"
-UT2004_DIR="${UT2004_DIR:-$HOME/.ut2004}"
-
-if [ -n "$1" ]; then
-    DIR="$1"
-fi
-
-echo "=== SymbelineRumble Test Launcher ==="
-echo "Launching UT2004..."
-
-cd "$UT2004_DIR/System"
-
-# Launch with test map and mutator
-./ut2004-bin \
-    DM-Rankin?Mutator=SymbelineRumble.SR_SymbelineRumbleMutator \
-    -log
-
-# Alternative: Just launch to menu
-# ./ut2004-bin -log
-```
-
-### 3. Create clean.sh Script
+## Usage Examples
 
 ```bash
-#!/bin/bash
-# Clean build artifacts
+# Via master build script (recommended)
+./build compile
+./build test
+./build watch
+./build demo
 
-DIR="/mnt/mtwo/programming/ai-stuff/ut2k4-symbeline-rumble"
-UT2004_DIR="${UT2004_DIR:-$HOME/.ut2004}"
-
-if [ -n "$1" ]; then
-    DIR="$1"
-fi
-
-echo "=== SymbelineRumble Clean ==="
-
-# Remove compiled package
-rm -fv "$UT2004_DIR/System/SymbelineRumble.u"
-
-# Remove temporary files
-rm -rf "$DIR/tmp/"*
-
-echo "=== Clean complete ==="
+# Or directly
+./scripts/compile.sh
+./scripts/test.sh
 ```
-
-### 4. Create watch-log.sh Script
-
-```bash
-#!/bin/bash
-# Watch UT2004 log for SymbelineRumble messages
-
-UT2004_DIR="${UT2004_DIR:-$HOME/.ut2004}"
-
-LOG_FILE="$UT2004_DIR/System/UT2004.log"
-
-echo "=== Watching SymbelineRumble log entries ==="
-echo "Log file: $LOG_FILE"
-echo ""
-
-# Follow log, grep for our messages
-tail -f "$LOG_FILE" | grep --line-buffered "SymbelineRumble"
-```
-
-### 5. Create full-rebuild.sh Script
-
-```bash
-#!/bin/bash
-# Clean and rebuild
-
-DIR="/mnt/mtwo/programming/ai-stuff/ut2k4-symbeline-rumble"
-
-if [ -n "$1" ]; then
-    DIR="$1"
-fi
-
-echo "=== Full Rebuild ==="
-
-"$DIR/scripts/clean.sh" "$DIR"
-"$DIR/scripts/compile.sh" "$DIR"
-```
-
-### 6. Create run-phase-demo.sh Script
-
-```bash
-#!/bin/bash
-# Run phase demonstration
-
-DIR="/mnt/mtwo/programming/ai-stuff/ut2k4-symbeline-rumble"
-
-if [ -n "$1" ]; then
-    DIR="$1"
-fi
-
-echo "=== SymbelineRumble Phase Demos ==="
-echo ""
-echo "Available phases:"
-
-# List completed phases
-for demo in "$DIR/issues/completed/demos/"phase-*; do
-    if [ -d "$demo" ]; then
-        phase_num=$(basename "$demo" | grep -oP 'phase-\K\d+')
-        echo "  $phase_num) Phase $phase_num demo"
-    fi
-done
-
-echo ""
-read -p "Select phase number: " phase
-
-demo_script="$DIR/issues/completed/demos/phase-$phase/run.sh"
-
-if [ -f "$demo_script" ]; then
-    bash "$demo_script"
-else
-    echo "Error: Phase $phase demo not found"
-    exit 1
-fi
-```
-
-### 7. Set Up Scripts Directory
-- Create scripts/ directory in project root
-- Place all scripts there
-- Make executable: `chmod +x scripts/*.sh`
-- Test each script
-- Document usage in README or docs
-
-### 8. Create Master Build Script
-
-Create `build` wrapper in project root:
-```bash
-#!/bin/bash
-# Master build script - delegates to specific scripts
-
-DIR="/mnt/mtwo/programming/ai-stuff/ut2k4-symbeline-rumble"
-
-case "$1" in
-    compile|build)
-        "$DIR/scripts/compile.sh"
-        ;;
-    test|run)
-        "$DIR/scripts/test.sh"
-        ;;
-    clean)
-        "$DIR/scripts/clean.sh"
-        ;;
-    rebuild)
-        "$DIR/scripts/full-rebuild.sh"
-        ;;
-    watch|log)
-        "$DIR/scripts/watch-log.sh"
-        ;;
-    demo)
-        "$DIR/scripts/run-phase-demo.sh"
-        ;;
-    *)
-        echo "Usage: $0 {compile|test|clean|rebuild|watch|demo}"
-        exit 1
-        ;;
-esac
-```
-
-### 9. Document Scripts
-Create `scripts/README.md`:
-- List all scripts
-- Explain what each does
-- Provide usage examples
-- Document environment variables
-- List troubleshooting tips
 
 ## Related Documents
 - docs/005-roadmap.md (Phase 1)
@@ -252,23 +94,44 @@ Create `scripts/README.md`:
 - User feedback (echo statements)
 
 ## Acceptance Criteria
-- [ ] All scripts created and documented
-- [ ] Scripts are executable
-- [ ] compile.sh successfully builds mod
-- [ ] clean.sh removes build artifacts
-- [ ] test.sh launches game with mod
-- [ ] watch-log.sh shows real-time log output
-- [ ] full-rebuild.sh does clean + compile
-- [ ] Master build script works for all operations
-- [ ] Scripts work from any directory
-- [ ] Documentation is clear and complete
+
+This parent issue is complete when all sub-issues are complete:
+
+- [ ] Issue 105a complete (core build scripts)
+- [ ] Issue 105b complete (testing and monitoring)
+- [ ] Issue 105c complete (demo runner)
+- [ ] Issue 105d complete (master wrapper and docs)
+
+## Key Features
+
+### Configurable UT2004 Location
+The build system supports three configuration methods:
+1. Edit `config.sh` (permanent)
+2. Set `UT2004_DIR` environment variable
+3. Pass as argument to scripts (advanced)
+
+Default: `PROJECT_DIR/ut2004-install` (local installation)
+
+### Self-Contained Development
+By using a local UT2004 installation in the project directory:
+- No system-wide installation needed
+- Multiple versions/mods can coexist
+- Easier to manage and distribute
+- Git-ignored to keep repo clean
+
+### Consistent Interface
+All scripts:
+- Source config.sh for consistency
+- Accept PROJECT_DIR override
+- Provide clear error messages
+- Return proper exit codes
+- Work from any directory
+
+## Related Documents
+- docs/005-roadmap.md (Phase 1)
+- Sub-issues: 105a, 105b, 105c, 105d
 
 ## Notes
-These scripts will be used throughout development. Keep them maintained and updated as the build process evolves.
+These scripts will be used throughout all 12 phases of development. They are foundational infrastructure that should be robust, well-documented, and maintainable.
 
-Future enhancements might include:
-- Automatic version bumping
-- Git integration (commit on successful build)
-- Parallel compilation (if multi-package)
-- Deployment scripts
-- Packaging for distribution
+The separation into sub-issues allows focused implementation and testing of each component while maintaining a coherent overall system.
