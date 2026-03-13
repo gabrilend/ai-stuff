@@ -7,7 +7,8 @@
 - [Roadmap](005-roadmap.md) - Development phases and milestones
 
 ### Technical Systems
-- [Rendering System](002-rendering-system.md) - Dynamic occlusion and raycasting
+- [Rendering System Overview](002-rendering-system.md) - Dynamic occlusion overview
+- [Rendering System Technical](006-rendering-system-technical.md) - Deep dive: BSP, actors, performance
 - [Game Mechanics](003-game-mechanics.md) - Resources, spawning, and player systems
 - [AI Behavior](004-ai-behavior.md) - Bot behaviors and pathfinding
 

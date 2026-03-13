@@ -163,25 +163,59 @@ This roadmap breaks down the UT2K4 Symbeline Rumble total conversion mod into ma
 
 **Goal:** Implement raycasting-based geometry occlusion
 
+**Complexity:** HIGH - This is the most technically challenging phase of the project.
+
+**Risk:** BSP geometry may not be fully controllable at runtime. Research in Issue 701c will determine feasibility. Fallback strategies are documented.
+
+### Sub-Issues
+
+This phase is broken into focused sub-issues due to complexity:
+
+- **701a**: Occlusion Detection Framework - Ray tracing, waypoint filtering, geometry identification
+- **701b**: Actor Occlusion Handling - StaticMeshes, Movers, Decorations
+- **701c**: BSP Research and Prototyping - Investigate BSP modification possibilities (CRITICAL)
+- **701d**: BSP Occlusion Implementation - Implement based on 701c findings
+- **701e**: Performance Optimization - Caching, LOD, spatial partitioning
+- **701f**: Visual Polish - Transitions, edge cases, user feedback
+
+### Technical Challenges
+
+1. **BSP Geometry**: Core level geometry cannot be easily modified at runtime
+2. **Performance**: Many traces per frame required for thorough detection
+3. **Multiplayer**: Each player needs separate occlusion calculations
+4. **Engine Limits**: Unreal Engine 2 has limited runtime rendering control
+
 ### Objectives
-- Create raycasting system from AI waypoints to camera
-- Detect occluding geometry in cone
-- Implement geometry hiding/transparency
-- Optimize for performance
-- Handle per-player occlusion sets
-- Create visual feedback system
+- Create cone-based raycasting system from AI waypoints to camera
+- Detect all geometry types (StaticMeshes, Movers, BSP) that occlude waypoints
+- Implement hiding/transparency for actor-based geometry
+- Research and implement best available BSP handling
+- Optimize for <2ms per update with 50+ waypoints
+- Handle per-player occlusion sets for multiplayer
+- Create smooth visual transitions
+- Provide fallback strategies if full occlusion is impossible
 
 ### Deliverables
-- Functional occlusion system
-- Performance-optimized raycasting
-- Per-player occlusion handling
+- SR_OcclusionManager class
+- Actor occlusion with transparency/hiding
+- BSP handling (extent depends on 701c findings)
+- Performance profiling and optimization
+- Configuration options for quality vs performance
+- Debug visualization tools
 - Phase 7 demo showing occlusion on complex map geometry
 
 ### Success Criteria
 - Units remain visible through obstructions
-- Performance remains playable (30+ FPS)
+- Performance remains playable (30+ FPS with 20+ units)
 - Works correctly with multiple players
 - Visually clear what is being occluded
+- Smooth transitions, no flickering
+- Works on at least 5 stock UT2004 maps
+
+### Documentation
+- See `docs/002-rendering-system.md` for overview
+- See `docs/006-rendering-system-technical.md` for deep technical analysis
+- See `issues/701*.md` for detailed implementation plans
 
 ---
 
