@@ -47,14 +47,46 @@ Establish the development environment and create the basic mod structure for UT2
 - **Blockers**: Waiting for Issue 103
 - **Notes**: Critical for project goal of Linux-first development
 
-### 105: Create Build and Testing Scripts
+### 105: Create Build and Testing Scripts (Parent Issue)
 - **Status**: Open
 - **Priority**: High
 - **Progress**: 0%
 - **Dependencies**: Issue 102
-- **Description**: Automate compilation, testing, cleaning, and log monitoring
+- **Description**: Complete build automation system with unified interface
 - **Blockers**: Waiting for Issue 102
-- **Notes**: Can be developed in parallel with 103/104
+- **Notes**: Split into sub-issues for focused implementation
+
+#### 105a: Create Core Build Scripts
+- **Status**: Open
+- **Priority**: High
+- **Progress**: 0%
+- **Dependencies**: Issue 102
+- **Description**: config.sh, compile.sh, clean.sh, full-rebuild.sh
+- **Blockers**: Waiting for Issue 102
+
+#### 105b: Create Testing and Monitoring Scripts
+- **Status**: Open
+- **Priority**: High
+- **Progress**: 0%
+- **Dependencies**: Issue 105a
+- **Description**: test.sh, watch-log.sh, check-log.sh
+- **Blockers**: Waiting for Issue 105a
+
+#### 105c: Create Demo Runner Script
+- **Status**: Open
+- **Priority**: Medium
+- **Progress**: 0%
+- **Dependencies**: Issue 105a
+- **Description**: run-phase-demo.sh and quick launcher
+- **Blockers**: Waiting for Issue 105a
+
+#### 105d: Create Master Build Wrapper and Documentation
+- **Status**: Open
+- **Priority**: Medium
+- **Progress**: 0%
+- **Dependencies**: Issues 105a, 105b, 105c
+- **Description**: Unified build script and comprehensive docs
+- **Blockers**: Waiting for Issues 105a, 105b, 105c
 
 ### 106: Create Phase 1 Demo
 - **Status**: Open
@@ -67,39 +99,59 @@ Establish the development environment and create the basic mod structure for UT2
 
 ## Progress Metrics
 
-**Overall Phase Progress**: 0/6 issues completed (0%)
+**Overall Phase Progress**: 0/10 issues completed (0%)
+- Core Issues: 0/6 completed
+- Sub-Issues: 0/4 completed
 
 **Critical Path**:
 1. Issue 101 (Setup Dev Environment)
 2. Issue 102 (Package Structure)
-3. Issue 103 (Minimal Mutator)
-4. Issue 104 (Linux Compatibility)
-5. Issue 106 (Phase Demo)
+3. Issue 105a (Core Build Scripts)
+4. Issue 103 (Minimal Mutator)
+5. Issue 104 (Linux Compatibility)
+6. Issue 106 (Phase Demo)
 
-**Parallel Track**:
-- Issue 105 (Build Scripts) - Can start after Issue 102
+**Parallel Tracks**:
+- After 105a: Issues 105b and 105c can run in parallel
+- Issue 105d depends on 105a, 105b, 105c
 
 ## Completion Criteria
 
 Phase 1 is complete when:
-- [ ] All 6 issues are closed
+- [ ] All 6 core issues are closed (101-106)
+- [ ] All 4 sub-issues are closed (105a-105d)
 - [ ] Phase 1 demo runs successfully
 - [ ] Mutator loads in UT2004 without errors
-- [ ] Build scripts are functional and documented
+- [ ] Build system is fully functional and documented
 - [ ] Linux compatibility is verified
 - [ ] All acceptance criteria from individual issues are met
+
+## Infrastructure Updates
+
+- **Config System**: config.sh created for centralized configuration
+- **Git Ignore**: .gitignore created to exclude game files and build artifacts
+- **Local Installation**: Default UT2004 location is now PROJECT_DIR/ut2004-install
+- **Issue Clarifications**:
+  - Issue 101: Removed script creation (moved to 105)
+  - Issue 102: Clarified as skeleton-only (full implementation in 103)
+  - Issue 105: Split into focused sub-issues (105a-105d)
 
 ## Next Steps
 
 1. Begin Issue 101: Setup UT2004 Linux Development Environment
-   - Locate UT2004 installation
-   - Test ucc compiler
+   - Copy UT2004 game files to ut2004-install/ directory
+   - Locate and test ucc compiler
+   - Configure UT2004.ini for package compilation
    - Document paths and configuration
 
-2. Once Issue 101 complete, start Issue 102
-   - Create package directory structure
-   - Configure UT2004.ini
-   - Set up source sync mechanism
+2. Once Issue 101 complete, start Issue 102 in parallel with 105a
+   - Issue 102: Create package structure and skeleton class
+   - Issue 105a: Create core build scripts (uses config.sh already created)
+
+3. Test build system with skeleton package
+   - Verify compile.sh works
+   - Verify clean.sh works
+   - Verify config.sh is properly sourced
 
 ## Timeline Notes
 

@@ -43,13 +43,7 @@ A fully functional UT2004 Linux development environment that allows:
 - Configure logging for debugging
 - Test map loading with mod active
 
-### 5. Create Development Scripts
-- Script to compile mod: `compile.sh`
-- Script to launch game for testing: `test.sh`
-- Script to clean build artifacts: `clean.sh`
-- Add error handling and user feedback
-
-### 6. Documentation
+### 5. Documentation
 - Document all paths and configurations
 - Create quick-start guide for development
 - List common compiler errors and solutions
@@ -69,8 +63,10 @@ A fully functional UT2004 Linux development environment that allows:
 - [ ] ucc compiler is accessible and functional
 - [ ] Can compile a minimal test package
 - [ ] Can load compiled package in-game
-- [ ] Build scripts are functional and documented
 - [ ] Testing workflow is established and documented
+- [ ] Development environment is fully configured
+
+Note: Build scripts are created in Issue 105 and its sub-issues.
 
 ## Notes
 Target the base UT2004 Linux version for maximum compatibility. Do not rely on features from later patches unless absolutely necessary.

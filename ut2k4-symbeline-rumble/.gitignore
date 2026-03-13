@@ -1,0 +1,40 @@
+# UT2K4 Symbeline Rumble - Git Ignore
+
+# UT2004 Game Installation
+# The game files are too large and not part of our source code
+ut2004-install/
+
+# Build Artifacts
+tmp/
+*.u
+*.ucl
+*.int
+
+# UT2004 Logs
+*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Backup Files
+*.bak
+*.backup
+*~
+
+# Compiled Python (if we use any tools)
+__pycache__/
+*.pyc
+*.pyo
+
+# Local Configuration Overrides
+config.local.sh
+.env.local
