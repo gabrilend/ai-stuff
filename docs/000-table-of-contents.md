@@ -13,3 +13,8 @@
 
 ### Reference
 - [006 - Build Instructions](006-build-instructions.md)
+
+### Issue Tracking
+- [Phase 1 Progress](../issues/phase-1-progress.md) - Foundation (Complete)
+- [Phase 2 Progress](../issues/phase-2-progress.md) - Static World (Complete)
+- [Phase 3 Progress](../issues/phase-3-progress.md) - Ball Physics (In Progress)
