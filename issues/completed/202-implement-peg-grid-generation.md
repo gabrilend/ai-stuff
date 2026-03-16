@@ -69,4 +69,43 @@ Generate a staggered peg grid typical of pachinko machines:
 
 ## Status
 
-- [ ] Not started
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/004-world.h (added function declarations)
+- src/005-world.c (added peg generation and rendering)
+- src/005-world.info.md (added documentation)
+
+**Implementation Steps Completed:**
+
+1. Added world_generate_pegs() function to src/005-world.c:
+   - Takes rows, cols, start position, and spacing parameters
+   - Frees existing pegs before allocating new ones
+   - Generates staggered grid with alternating row offsets
+   - Odd rows offset by half-spacing for zigzag pattern
+   - Sets PEG_RADIUS for each peg
+
+2. Added world_render_pegs() function to src/005-world.c:
+   - Renders each peg using raylib DrawCircle
+   - Uses LIGHTGRAY color
+   - Draws circles at peg position with peg radius
+
+3. Updated src/004-world.h with function declarations
+
+4. Updated src/005-world.info.md with complete documentation
+
+5. Tested compilation successfully with no warnings
+
+**Current Behavior:**
+- Pegs can be generated in a staggered grid pattern
+- Grid supports configurable dimensions and spacing
+- Pegs render as light gray circles
+- Safe to call with NULL world pointer
+- Memory managed properly (frees old pegs before allocating)
+
+**Design Notes:**
+- Staggered pattern creates zigzag paths for ball movement (Phase 3)
+- Peg grid is immutable after generation (read-only for collision)
+- Rendering function separate from generation for flexibility

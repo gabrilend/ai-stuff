@@ -64,4 +64,27 @@ World* world_create(int width, int height);
 void world_destroy(World* world);
 // }}}
 
+// {{{ world_generate_pegs
+// Generates a staggered peg grid in the world.
+// Frees any existing pegs before allocating new ones.
+//
+// Parameters:
+//   world: World instance
+//   rows: Number of peg rows
+//   cols: Number of pegs per row
+//   start_x: Starting x position for grid
+//   start_y: Starting y position for grid
+//   spacing: Distance between pegs in pixels
+void world_generate_pegs(World* world, int rows, int cols,
+                         float start_x, float start_y, float spacing);
+// }}}
+
+// {{{ world_render_pegs
+// Renders all pegs in the world as light gray circles.
+//
+// Parameters:
+//   world: World instance
+void world_render_pegs(World* world);
+// }}}
+
 #endif // WORLD_H

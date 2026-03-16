@@ -2,7 +2,7 @@
 
 ## Purpose
 World state management for the pachinko machine. Handles creation,
-initialization, and cleanup of world state including pegs and score zones.
+initialization, cleanup, peg generation, and rendering of world state.
 
 ## External Functions
 
@@ -45,3 +45,49 @@ void world_destroy(World* world)
 - Frees zone array if allocated
 - Frees world structure itself
 - Safe to call with NULL pointer
+
+---
+
+### world_generate_pegs
+```c
+void world_generate_pegs(World* world, int rows, int cols,
+                         float start_x, float start_y, float spacing)
+```
+**Description:** Generates a staggered peg grid in the world
+
+**Parameters:**
+- `world`: World instance
+- `rows`: Number of peg rows
+- `cols`: Number of pegs per row
+- `start_x`: Starting x position for grid
+- `start_y`: Starting y position for grid
+- `spacing`: Distance between pegs in pixels
+
+**Returns:** void
+
+**Behavior:**
+- Frees existing peg array if present
+- Allocates new peg array (rows * cols)
+- Generates staggered grid pattern
+- Odd rows offset by half-spacing for zigzag effect
+- Sets each peg's position and radius (PEG_RADIUS)
+- Prints error to stderr on allocation failure
+
+---
+
+### world_render_pegs
+```c
+void world_render_pegs(World* world)
+```
+**Description:** Renders all pegs in the world as light gray circles
+
+**Parameters:**
+- `world`: World instance
+
+**Returns:** void
+
+**Behavior:**
+- Returns early if world or pegs are NULL
+- Renders each peg using raylib DrawCircle
+- Uses LIGHTGRAY color
+- Draws circles at peg position with peg radius
