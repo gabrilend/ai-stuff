@@ -21,6 +21,10 @@ typedef struct World World;
 #define RESTITUTION 0.7f      // Bounce energy retention (0-1)
 #define COLLISION_BIAS 0.1f   // Separation push to prevent sticking
 
+// Boundary constants
+#define WALL_RESTITUTION 0.6f // Wall bounce retention
+#define ZONE_TOP_Y 560.0f     // Top of score zone area
+
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
 // Uses double-buffering: read from current, write to next.

@@ -114,3 +114,7 @@ typedef struct BallManager {
 ### Collision Constants
 - `RESTITUTION`: 0.7f - Bounce energy retention (0-1, 70% energy retained)
 - `COLLISION_BIAS`: 0.1f - Small separation push to prevent sticking
+
+### Boundary Constants
+- `WALL_RESTITUTION`: 0.6f - Wall bounce energy retention (60%)
+- `ZONE_TOP_Y`: 560.0f - Top of score zone area in pixels

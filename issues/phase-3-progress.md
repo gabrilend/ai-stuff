@@ -12,12 +12,12 @@ brings the pachinko machine to life with physics simulation.
 | 301 | Create ball state structure        | ✓ Completed |
 | 302 | Implement ball physics             | ✓ Completed |
 | 303 | Implement peg collision            | ✓ Completed |
-| 304 | Implement boundary collision       | Pending     |
+| 304 | Implement boundary collision       | ✓ Completed |
 | 305 | Implement ball spawning with input | Pending     |
 
 ## Progress Summary
 
-**Completed:** 3/5 issues (60%)
+**Completed:** 4/5 issues (80%)
 **Phase 3:** In Progress
 
 ## Notes
@@ -71,3 +71,15 @@ Implemented circle-circle collision detection and response:
 - Multiple collisions per frame handled correctly
 - No balls pass through pegs, no sticking issues
 - Ball creates zigzag paths through peg grid
+
+### Issue 304 - Implement Boundary Collision (Completed)
+Implemented wall collision and bounds checking:
+- Added boundary constants (WALL_RESTITUTION, ZONE_TOP_Y)
+- Implemented ball_collide_with_walls() for left/right/top walls
+- Implemented ball_check_bounds() to deactivate off-screen balls
+- Wall collisions use 60% energy retention (less bouncy than pegs)
+- Balls bounce off left/right/top walls, no bottom wall
+- Balls deactivate when falling below screen
+- Updated active_count tracking in ball_manager_update()
+- Collision order: physics → pegs → walls → bounds
+- No balls escape through walls or corners

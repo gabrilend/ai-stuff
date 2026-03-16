@@ -195,9 +195,49 @@ static void ball_collide_with_pegs(Ball* ball, World* world) {
 }
 // }}}
 
+// {{{ ball_collide_with_walls
+// Internal function to check and resolve collisions with screen boundaries
+static void ball_collide_with_walls(Ball* ball, int screen_width,
+                                     int screen_height) {
+    // Left wall
+    if (ball->x - ball->radius < 0) {
+        ball->x = ball->radius;
+        ball->vx = -ball->vx * WALL_RESTITUTION;
+    }
+
+    // Right wall
+    if (ball->x + ball->radius > screen_width) {
+        ball->x = screen_width - ball->radius;
+        ball->vx = -ball->vx * WALL_RESTITUTION;
+    }
+
+    // Top wall (prevent escape upward)
+    if (ball->y - ball->radius < 0) {
+        ball->y = ball->radius;
+        ball->vy = -ball->vy * WALL_RESTITUTION;
+    }
+
+    // No bottom wall - balls fall through to score zones
+    (void)screen_height;  // Suppress unused parameter warning
+}
+// }}}
+
+// {{{ ball_check_bounds
+// Internal function to deactivate balls that fall below screen
+static void ball_check_bounds(Ball* ball, int screen_height) {
+    // Ball has fallen below screen
+    if (ball->y - ball->radius > screen_height) {
+        ball->active = 0;
+    }
+}
+// }}}
+
 // {{{ ball_manager_update
 void ball_manager_update(BallManager* manager, World* world, float dt) {
     if (!manager) return;
+
+    // Reset active count
+    manager->active_count = 0;
 
     for (int i = 0; i < manager->capacity; i++) {
         Ball* current = &manager->balls_current[i];
@@ -209,6 +249,13 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
         // Perform collision detection and response on next buffer
         if (next->active) {
             ball_collide_with_pegs(next, world);
+            ball_collide_with_walls(next, world->width, world->height);
+            ball_check_bounds(next, world->height);
+
+            // Count active balls
+            if (next->active) {
+                manager->active_count++;
+            }
         }
     }
 }
