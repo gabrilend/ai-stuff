@@ -1,0 +1,88 @@
+// src/006-ball.h
+// Ball state structures and ball manager for pachinko simulation
+// Implements double-buffering for physics updates
+
+#ifndef BALL_H
+#define BALL_H
+
+// Ball constants
+#define BALL_RADIUS 8.0f
+#define MAX_BALLS 256
+
+// {{{ typedef struct Ball
+// Ball represents a single ball in the pachinko machine.
+// Uses double-buffering: read from current, write to next.
+typedef struct Ball {
+    float x, y;        // Position in pixels
+    float vx, vy;      // Velocity in pixels per second
+    float radius;      // Collision and render radius
+    int active;        // 1 if in play, 0 if inactive
+} Ball;
+// }}}
+
+// {{{ typedef struct BallManager
+// BallManager holds and manages a collection of balls.
+// Maintains two buffers for double-buffered physics updates.
+typedef struct BallManager {
+    Ball* balls_current;  // Current frame state (read-only during update)
+    Ball* balls_next;     // Next frame state (write during update)
+    int capacity;         // Maximum number of balls
+    int active_count;     // Number of currently active balls
+} BallManager;
+// }}}
+
+// {{{ ball_manager_create
+// Creates and initializes a ball manager with the given capacity.
+// Allocates both current and next ball buffers.
+// Returns NULL on allocation failure.
+//
+// Parameters:
+//   capacity: Maximum number of balls to manage
+//
+// Returns:
+//   BallManager pointer on success, NULL on failure
+BallManager* ball_manager_create(int capacity);
+// }}}
+
+// {{{ ball_manager_destroy
+// Destroys a ball manager and frees all associated resources.
+//
+// Parameters:
+//   manager: BallManager instance to destroy
+void ball_manager_destroy(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_spawn
+// Spawns a new ball at the given position.
+// Finds an inactive slot and activates it.
+// Returns 0 if no slots available.
+//
+// Parameters:
+//   manager: BallManager instance
+//   x: Starting x position in pixels
+//   y: Starting y position in pixels
+//
+// Returns:
+//   1 on success, 0 if capacity reached
+int ball_manager_spawn(BallManager* manager, float x, float y);
+// }}}
+
+// {{{ ball_manager_swap_buffers
+// Swaps the current and next ball buffers.
+// Call at end of frame after all updates complete.
+//
+// Parameters:
+//   manager: BallManager instance
+void ball_manager_swap_buffers(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_deactivate
+// Marks a ball as inactive, allowing the slot to be reused.
+//
+// Parameters:
+//   manager: BallManager instance
+//   index: Ball index to deactivate
+void ball_manager_deactivate(BallManager* manager, int index);
+// }}}
+
+#endif // BALL_H
