@@ -87,4 +87,59 @@ Complete visual pachinko board display:
 
 ## Status
 
-- [ ] Not started
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/001-main.c (integrated world creation and rendering)
+
+**Implementation Steps Completed:**
+
+1. Updated src/001-main.c to include world header (004-world.h)
+
+2. Created world after threadpool initialization:
+   - world_create() with screen dimensions
+   - Error handling for allocation failure
+
+3. Generated peg grid with proper layout:
+   - 10 rows, 8 columns
+   - 60 pixel spacing
+   - Centered horizontally: start_x = (800 - 480) / 2 = 160
+   - Start_y = 80 (below title)
+
+4. Generated score zones:
+   - 7 zones across screen width
+   - 40 pixels high at bottom
+
+5. Added world rendering in main loop:
+   - world_render_pegs() draws staggered peg grid
+   - world_render_zones() draws color-coded score zones
+   - Score display shows current score (starts at 0)
+
+6. Removed "Phase 1 Complete" placeholder text
+
+7. Added world destruction in cleanup sequence:
+   - world_destroy() called before threadpool cleanup
+   - Proper shutdown order: window → world → threadpool
+
+8. Tested compilation successfully
+
+**Current Behavior:**
+- Complete visual pachinko board display
+- Pegs render in staggered grid pattern
+- Score zones visible at bottom with point values [10, 50, 100, 500, 100, 50, 10]
+- Score display shows current score (0)
+- Title and exit instructions visible
+- Clean startup and shutdown sequence
+- All resources properly freed
+
+**Visual Elements:**
+- Title: "Physics Simulator - Pachinko" (top left)
+- Peg grid: 10x8 staggered pattern (centered)
+- Score zones: 7 color-coded zones at bottom
+- Score display: "Score: 0" (bottom left)
+- Exit instruction: "Press ESC to exit" (bottom right)
+
+**Phase 2 Complete:**
+Static pachinko board fully functional. Ready for ball physics (Phase 3).
