@@ -3,18 +3,44 @@
 # Compiles the physics simulator project using make
 # This script can be run from any directory and will compile the project
 # from the correct location. It accepts an optional directory argument.
+#
+# Usage:
+#   ./scripts/compile              # Normal compilation
+#   ./scripts/compile --force      # Clean rebuild
+#   ./scripts/compile --clean      # Clean rebuild
+#   ./scripts/compile /custom/dir  # Compile from custom directory
+#   ./scripts/compile --force /custom/dir  # Clean rebuild at custom directory
 
 # Hard-coded project directory
 DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
 
-# Allow directory override via argument
-if [ $# -eq 1 ]; then
-    DIR="$1"
+# Parse arguments
+CLEAN_BUILD=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --force|--clean)
+            CLEAN_BUILD=1
+            ;;
+        *)
+            # Assume it's a directory path
+            DIR="$arg"
+            ;;
+    esac
+done
+
+# Navigate to project directory
+cd "${DIR}" || exit 1
+
+# Clean build if requested
+if [ ${CLEAN_BUILD} -eq 1 ]; then
+    echo "Cleaning previous build from: ${DIR}"
+    make clean
+    echo ""
 fi
 
 # Compile the project
 echo "Compiling physics simulator from: ${DIR}"
-cd "${DIR}" || exit 1
 make
 
 # Check compilation result
