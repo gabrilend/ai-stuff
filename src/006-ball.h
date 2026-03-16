@@ -9,6 +9,11 @@
 #define BALL_RADIUS 8.0f
 #define MAX_BALLS 256
 
+// Physics constants
+#define GRAVITY 980.0f        // Pixels per second squared
+#define DAMPING 0.98f         // Velocity damping factor
+#define MIN_VELOCITY 1.0f     // Threshold for stopping
+
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
 // Uses double-buffering: read from current, write to next.
@@ -83,6 +88,26 @@ void ball_manager_swap_buffers(BallManager* manager);
 //   manager: BallManager instance
 //   index: Ball index to deactivate
 void ball_manager_deactivate(BallManager* manager, int index);
+// }}}
+
+// {{{ ball_manager_update
+// Updates all balls in the manager using physics simulation.
+// Reads from current buffer, writes to next buffer.
+// Must call swap_buffers after to apply updates.
+//
+// Parameters:
+//   manager: BallManager instance
+//   dt: Delta time in seconds
+void ball_manager_update(BallManager* manager, float dt);
+// }}}
+
+// {{{ ball_manager_render
+// Renders all active balls in the manager.
+// Draws each active ball as a colored circle.
+//
+// Parameters:
+//   manager: BallManager instance
+void ball_manager_render(BallManager* manager);
 // }}}
 
 #endif // BALL_H

@@ -10,14 +10,14 @@ brings the pachinko machine to life with physics simulation.
 | ID  | Description                        | Status      |
 |-----|------------------------------------|-------------|
 | 301 | Create ball state structure        | ✓ Completed |
-| 302 | Implement ball physics             | Pending     |
+| 302 | Implement ball physics             | ✓ Completed |
 | 303 | Implement peg collision            | Pending     |
 | 304 | Implement boundary collision       | Pending     |
 | 305 | Implement ball spawning with input | Pending     |
 
 ## Progress Summary
 
-**Completed:** 1/5 issues (20%)
+**Completed:** 2/5 issues (40%)
 **Phase 3:** In Progress
 
 ## Notes
@@ -46,3 +46,15 @@ Created ball state structures with double-buffering:
 - ball_manager_deactivate() marks ball as inactive
 - Compiled successfully with no warnings
 - Double-buffering ready for parallel processing in Phase 4
+
+### Issue 302 - Implement Ball Physics (Completed)
+Implemented gravity-based physics simulation:
+- Added physics constants (GRAVITY, DAMPING, MIN_VELOCITY)
+- Implemented ball_update_physics() with semi-implicit Euler integration
+- Implemented ball_manager_update() for all-ball physics updates
+- Implemented ball_manager_render() with orange circle rendering
+- Integrated into main loop with delta time from GetFrameTime()
+- Test ball spawns at top center and falls with gravity
+- Ball accelerates realistically, motion smooth at 60fps
+- Framerate-independent physics using delta time
+- Ball currently falls through pegs/walls (collisions next)

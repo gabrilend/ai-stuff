@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "006-ball.h"
+#include "raylib.h"
 
 // {{{ ball_manager_create
 BallManager* ball_manager_create(int capacity) {
@@ -103,6 +104,62 @@ void ball_manager_deactivate(BallManager* manager, int index) {
     if (manager->balls_current[index].active) {
         manager->balls_current[index].active = 0;
         manager->active_count--;
+    }
+}
+// }}}
+
+// {{{ ball_update_physics
+// Internal function to update a single ball's physics
+static void ball_update_physics(Ball* current, Ball* next, float dt) {
+    // Copy constant properties
+    next->active = current->active;
+    next->radius = current->radius;
+
+    if (!current->active) return;
+
+    // Semi-implicit Euler integration
+    // Update velocity first (using gravity)
+    next->vy = current->vy + GRAVITY * dt;
+    next->vx = current->vx;
+
+    // Apply damping to both velocity components
+    next->vx *= DAMPING;
+    next->vy *= DAMPING;
+
+    // Update position using new velocity
+    next->x = current->x + next->vx * dt;
+    next->y = current->y + next->vy * dt;
+}
+// }}}
+
+// {{{ ball_manager_update
+void ball_manager_update(BallManager* manager, float dt) {
+    if (!manager) return;
+
+    for (int i = 0; i < manager->capacity; i++) {
+        ball_update_physics(
+            &manager->balls_current[i],
+            &manager->balls_next[i],
+            dt
+        );
+    }
+}
+// }}}
+
+// {{{ ball_manager_render
+void ball_manager_render(BallManager* manager) {
+    if (!manager) return;
+
+    for (int i = 0; i < manager->capacity; i++) {
+        Ball* ball = &manager->balls_current[i];
+        if (ball->active) {
+            DrawCircle(
+                (int)ball->x,
+                (int)ball->y,
+                ball->radius,
+                ORANGE
+            );
+        }
     }
 }
 // }}}

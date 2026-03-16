@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "003-threadpool.h"
 #include "004-world.h"
+#include "006-ball.h"
 
 // {{{ main
 int main(void) {
@@ -53,11 +54,30 @@ int main(void) {
     world_generate_zones(world, 7, 40.0f);
     printf("Generated score zones: 7 zones\n");
 
+    // Create ball manager
+    BallManager* ball_manager = ball_manager_create(MAX_BALLS);
+    if (!ball_manager) {
+        fprintf(stderr, "ERROR: Failed to create ball manager\n");
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    printf("Ball manager created: %d capacity\n", MAX_BALLS);
+
+    // Spawn test ball at top center
+    ball_manager_spawn(ball_manager, screen_width / 2.0f, 50.0f);
+    printf("Spawned test ball at center top\n");
+
     // Main loop
     printf("Entering main loop...\n");
     while (!WindowShouldClose()) {
-        // Physics updates would be submitted to threadpool here
-        // (Phase 3 will implement ball physics)
+        // Get delta time for physics
+        float dt = GetFrameTime();
+
+        // Update ball physics
+        ball_manager_update(ball_manager, dt);
+        ball_manager_swap_buffers(ball_manager);
 
         // Render
         BeginDrawing();
@@ -69,6 +89,9 @@ int main(void) {
         // Draw world elements
         world_render_pegs(world);
         world_render_zones(world);
+
+        // Draw balls
+        ball_manager_render(ball_manager);
 
         // Draw score and instructions
         char score_text[64];
@@ -83,6 +106,9 @@ int main(void) {
     printf("Shutting down...\n");
     CloseWindow();
     printf("Raylib window closed\n");
+
+    ball_manager_destroy(ball_manager);
+    printf("Ball manager destroyed\n");
 
     world_destroy(world);
     printf("World destroyed\n");

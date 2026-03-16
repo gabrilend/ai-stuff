@@ -101,4 +101,74 @@ Delta time:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/006-ball.h (added physics constants and function declarations)
+- src/007-ball.c (added physics implementation)
+- src/006-ball.info.md (updated documentation)
+- src/001-main.c (integrated ball physics into main loop)
+
+**Implementation Steps Completed:**
+
+1. Added physics constants to 006-ball.h:
+   - GRAVITY: 980.0 pixels/sec² (realistic earth gravity)
+   - DAMPING: 0.98 velocity retention per frame
+   - MIN_VELOCITY: 1.0 threshold for stopping
+
+2. Implemented ball_update_physics() internal function:
+   - Copies active state and radius
+   - Skips inactive balls
+   - Semi-implicit Euler: velocity updated first, then position
+   - Gravity applies to vertical velocity
+   - Damping applies to both velocity components
+   - Position integrates using updated velocity
+
+3. Implemented ball_manager_update():
+   - Iterates through all balls in capacity
+   - Calls ball_update_physics for each ball
+   - Reads from balls_current, writes to balls_next
+   - Preserves double-buffering architecture
+
+4. Implemented ball_manager_render():
+   - Iterates through all balls in current buffer
+   - Renders only active balls
+   - Uses ORANGE color for visibility
+   - Draws balls as filled circles using raylib
+
+5. Integrated into main loop (001-main.c):
+   - Added 006-ball.h include
+   - Created ball_manager after world creation
+   - Spawned test ball at screen center (400, 50)
+   - Get delta time using GetFrameTime()
+   - Call ball_manager_update(manager, dt)
+   - Call ball_manager_swap_buffers(manager)
+   - Call ball_manager_render(manager) in render section
+   - Destroy ball_manager in cleanup sequence
+
+6. Updated API documentation in 006-ball.info.md:
+   - Added ball_manager_update documentation
+   - Added ball_manager_render documentation
+   - Added physics constants documentation
+
+7. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- Test ball spawns at top center of screen
+- Ball falls under gravity (980 px/s²)
+- Ball accelerates as it falls (visible acceleration)
+- Delta time integration ensures framerate-independent physics
+- Ball renders as orange circle
+- Motion appears smooth at 60fps
+- Ball falls through pegs and bottom (expected - collisions in Issue 303/304)
+
+**Physics Notes:**
+- Semi-implicit Euler more stable than explicit Euler
+- Velocity updated before position prevents energy gain
+- Damping prevents infinite bouncing (will be useful after collision)
+- Delta time allows physics to work at any framerate
+
+**Phase 3 Progress:**
+Issue 302 complete (2/5 issues, 40%). Ready for Issue 303 (peg collision).
