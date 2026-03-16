@@ -7,16 +7,30 @@
 # Hard-coded project directory
 DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
 
-# Allow directory override via argument
-if [ $# -eq 1 ]; then
-    DIR="$1"
-fi
+# Parse arguments
+COMPILE_FLAGS=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --recompile)
+            COMPILE_FLAGS="--force"
+            shift
+            ;;
+        *)
+            DIR="$1"
+            shift
+            ;;
+    esac
+done
 
 echo "=== Physics Simulator - Build and Run ==="
 echo ""
 
 # Run compile script
-"${DIR}/scripts/compile" "${DIR}"
+if [ -n "$COMPILE_FLAGS" ]; then
+    "${DIR}/scripts/compile" "$COMPILE_FLAGS" "${DIR}"
+else
+    "${DIR}/scripts/compile" "${DIR}"
+fi
 
 # Check if compilation succeeded
 if [ $? -ne 0 ]; then

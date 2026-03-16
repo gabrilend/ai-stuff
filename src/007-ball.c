@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "006-ball.h"
+#include "004-world.h"
 #include "raylib.h"
 
 // {{{ ball_manager_create
@@ -132,16 +134,82 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
 }
 // }}}
 
+// {{{ ball_check_peg_collision
+// Internal function to check circle-circle collision
+// Returns 1 if collision detected, 0 otherwise
+// Outputs collision normal and penetration depth
+static int ball_check_peg_collision(Ball* ball, Peg* peg,
+                                     float* nx, float* ny, float* depth) {
+    float dx = ball->x - peg->x;
+    float dy = ball->y - peg->y;
+    float dist_sq = dx * dx + dy * dy;
+    float min_dist = ball->radius + peg->radius;
+
+    // No collision if distance >= sum of radii
+    if (dist_sq >= min_dist * min_dist) return 0;
+
+    float dist = sqrtf(dist_sq);
+    if (dist < 0.001f) dist = 0.001f;  // Avoid division by zero
+
+    // Collision normal (points from peg to ball)
+    *nx = dx / dist;
+    *ny = dy / dist;
+    *depth = min_dist - dist;
+
+    return 1;  // Collision detected
+}
+// }}}
+
+// {{{ ball_resolve_peg_collision
+// Internal function to resolve collision with a peg
+// Separates ball from peg and reflects velocity
+static void ball_resolve_peg_collision(Ball* ball, float nx, float ny,
+                                        float depth) {
+    // Separate ball from peg along collision normal
+    ball->x += nx * (depth + COLLISION_BIAS);
+    ball->y += ny * (depth + COLLISION_BIAS);
+
+    // Calculate velocity component along normal
+    float vn = ball->vx * nx + ball->vy * ny;
+
+    // Only respond if moving into peg (negative means approaching)
+    if (vn < 0) {
+        // Reflect velocity with restitution
+        // Formula: v' = v - (1 + e) * (v · n) * n
+        ball->vx -= (1.0f + RESTITUTION) * vn * nx;
+        ball->vy -= (1.0f + RESTITUTION) * vn * ny;
+    }
+}
+// }}}
+
+// {{{ ball_collide_with_pegs
+// Internal function to check and resolve collisions with all pegs
+static void ball_collide_with_pegs(Ball* ball, World* world) {
+    float nx, ny, depth;
+    for (int i = 0; i < world->peg_count; i++) {
+        if (ball_check_peg_collision(ball, &world->pegs[i],
+                                      &nx, &ny, &depth)) {
+            ball_resolve_peg_collision(ball, nx, ny, depth);
+        }
+    }
+}
+// }}}
+
 // {{{ ball_manager_update
-void ball_manager_update(BallManager* manager, float dt) {
+void ball_manager_update(BallManager* manager, World* world, float dt) {
     if (!manager) return;
 
     for (int i = 0; i < manager->capacity; i++) {
-        ball_update_physics(
-            &manager->balls_current[i],
-            &manager->balls_next[i],
-            dt
-        );
+        Ball* current = &manager->balls_current[i];
+        Ball* next = &manager->balls_next[i];
+
+        // Update physics
+        ball_update_physics(current, next, dt);
+
+        // Perform collision detection and response on next buffer
+        if (next->active) {
+            ball_collide_with_pegs(next, world);
+        }
     }
 }
 // }}}

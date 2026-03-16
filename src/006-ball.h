@@ -5,6 +5,9 @@
 #ifndef BALL_H
 #define BALL_H
 
+// Forward declaration for World struct
+typedef struct World World;
+
 // Ball constants
 #define BALL_RADIUS 8.0f
 #define MAX_BALLS 256
@@ -13,6 +16,10 @@
 #define GRAVITY 980.0f        // Pixels per second squared
 #define DAMPING 0.98f         // Velocity damping factor
 #define MIN_VELOCITY 1.0f     // Threshold for stopping
+
+// Collision constants
+#define RESTITUTION 0.7f      // Bounce energy retention (0-1)
+#define COLLISION_BIAS 0.1f   // Separation push to prevent sticking
 
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
@@ -93,12 +100,14 @@ void ball_manager_deactivate(BallManager* manager, int index);
 // {{{ ball_manager_update
 // Updates all balls in the manager using physics simulation.
 // Reads from current buffer, writes to next buffer.
+// Performs collision detection with pegs in the world.
 // Must call swap_buffers after to apply updates.
 //
 // Parameters:
 //   manager: BallManager instance
+//   world: World containing pegs for collision detection
 //   dt: Delta time in seconds
-void ball_manager_update(BallManager* manager, float dt);
+void ball_manager_update(BallManager* manager, World* world, float dt);
 // }}}
 
 // {{{ ball_manager_render

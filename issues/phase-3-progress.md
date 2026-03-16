@@ -11,13 +11,13 @@ brings the pachinko machine to life with physics simulation.
 |-----|------------------------------------|-------------|
 | 301 | Create ball state structure        | ✓ Completed |
 | 302 | Implement ball physics             | ✓ Completed |
-| 303 | Implement peg collision            | Pending     |
+| 303 | Implement peg collision            | ✓ Completed |
 | 304 | Implement boundary collision       | Pending     |
 | 305 | Implement ball spawning with input | Pending     |
 
 ## Progress Summary
 
-**Completed:** 2/5 issues (40%)
+**Completed:** 3/5 issues (60%)
 **Phase 3:** In Progress
 
 ## Notes
@@ -58,3 +58,16 @@ Implemented gravity-based physics simulation:
 - Ball accelerates realistically, motion smooth at 60fps
 - Framerate-independent physics using delta time
 - Ball currently falls through pegs/walls (collisions next)
+
+### Issue 303 - Implement Peg Collision (Completed)
+Implemented circle-circle collision detection and response:
+- Added collision constants (RESTITUTION, COLLISION_BIAS)
+- Implemented ball_check_peg_collision() with distance-squared optimization
+- Implemented ball_resolve_peg_collision() with penetration resolution
+- Implemented ball_collide_with_pegs() to check all pegs
+- Updated ball_manager_update() to take World* parameter
+- Collision response uses velocity reflection formula: v' = v - (1+e)(v·n)n
+- Balls bounce off pegs with 70% energy retention
+- Multiple collisions per frame handled correctly
+- No balls pass through pegs, no sticking issues
+- Ball creates zigzag paths through peg grid

@@ -60,12 +60,13 @@ Marks a ball as inactive, allowing the slot to be reused.
 
 ### ball_manager_update
 ```c
-void ball_manager_update(BallManager* manager, float dt);
+void ball_manager_update(BallManager* manager, World* world, float dt);
 ```
-Updates all balls in the manager using physics simulation. Reads from current buffer, writes to next buffer.
+Updates all balls in the manager using physics simulation and collision detection. Reads from current buffer, writes to next buffer.
 
 **Parameters:**
 - `manager`: BallManager instance
+- `world`: World containing pegs for collision detection
 - `dt`: Delta time in seconds
 
 ### ball_manager_render
@@ -109,3 +110,7 @@ typedef struct BallManager {
 - `GRAVITY`: 980.0f - Downward acceleration in pixels per second squared
 - `DAMPING`: 0.98f - Velocity damping factor (applied each frame)
 - `MIN_VELOCITY`: 1.0f - Velocity threshold for stopping
+
+### Collision Constants
+- `RESTITUTION`: 0.7f - Bounce energy retention (0-1, 70% energy retained)
+- `COLLISION_BIAS`: 0.1f - Small separation push to prevent sticking

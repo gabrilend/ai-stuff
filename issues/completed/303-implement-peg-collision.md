@@ -128,4 +128,78 @@ Restitution:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/006-ball.h (added collision constants, World forward declaration, updated ball_manager_update signature)
+- src/007-ball.c (added collision detection and response implementation)
+- src/006-ball.info.md (updated documentation)
+- src/001-main.c (passed world to ball_manager_update)
+
+**Implementation Steps Completed:**
+
+1. Added collision constants to 006-ball.h:
+   - RESTITUTION: 0.7 (70% energy retention on bounce)
+   - COLLISION_BIAS: 0.1 (small separation to prevent sticking)
+
+2. Added World forward declaration to 006-ball.h:
+   - Allows use of World* in function signatures
+   - Avoids circular include dependencies
+
+3. Implemented ball_check_peg_collision():
+   - Circle-circle collision detection
+   - Distance-squared optimization (avoids sqrt when no collision)
+   - Returns collision normal and penetration depth
+   - Handles zero-distance edge case (division by zero protection)
+   - Returns 1 if collision, 0 otherwise
+
+4. Implemented ball_resolve_peg_collision():
+   - Separates ball from peg along collision normal
+   - Adds COLLISION_BIAS to prevent repeated detection
+   - Calculates velocity dot product with normal
+   - Only responds if ball moving into peg (vn < 0)
+   - Reflects velocity using formula: v' = v - (1 + e)(v·n)n
+   - Restitution coefficient scales bounce energy
+
+5. Implemented ball_collide_with_pegs():
+   - Iterates through all pegs in world
+   - Checks collision with each peg
+   - Resolves collisions immediately
+   - Handles multiple collisions per frame (accumulating response)
+
+6. Updated ball_manager_update() signature:
+   - Now takes World* parameter for peg access
+   - Calls ball_collide_with_pegs() on next buffer after physics
+   - Only checks collisions for active balls
+
+7. Updated main.c integration:
+   - Passes world to ball_manager_update(ball_manager, world, dt)
+   - No other changes needed
+
+8. Updated API documentation in 006-ball.info.md:
+   - Updated ball_manager_update signature and description
+   - Added collision constants documentation
+
+9. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- Ball bounces off pegs when colliding
+- Collision detection accurate (circle-circle)
+- Ball separates from pegs properly (no sticking)
+- Velocity reflects realistically with 70% energy retention
+- Multiple peg collisions handled correctly
+- Ball deflects through peg grid creating zigzag paths
+- No balls pass through pegs
+- Bounce direction looks natural
+
+**Physics Notes:**
+- Circle-circle collision: simple distance check
+- Penetration resolution prevents tunneling
+- Restitution creates bouncy pachinko feel
+- Multiple collisions per frame handled by iterating all pegs
+- Collision response applied to next buffer (double-buffering preserved)
+
+**Phase 3 Progress:**
+Issue 303 complete (3/5 issues, 60%). Ready for Issue 304 (boundary collision).

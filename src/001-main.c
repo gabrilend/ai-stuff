@@ -75,8 +75,8 @@ int main(void) {
         // Get delta time for physics
         float dt = GetFrameTime();
 
-        // Update ball physics
-        ball_manager_update(ball_manager, dt);
+        // Update ball physics and collisions
+        ball_manager_update(ball_manager, world, dt);
         ball_manager_swap_buffers(ball_manager);
 
         // Render
