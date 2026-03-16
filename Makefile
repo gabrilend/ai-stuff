@@ -1,9 +1,11 @@
 # Makefile for Physics Simulator - Pachinko Machine
 # Compiles C source files and links with raylib, pthreads, and system libraries
+# Raylib is built locally via scripts/build-deps.sh
 
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -I./src
-LDFLAGS = -lraylib -lm -lpthread
+RAYLIB_PATH = ./libs/raylib/src
+CFLAGS = -Wall -Wextra -std=c11 -I./src -I$(RAYLIB_PATH)
+LDFLAGS = $(RAYLIB_PATH)/libraylib.a -lm -lpthread
 
 # Linux-specific libraries for raylib
 LDFLAGS += -lGL -ldl -lrt -lX11

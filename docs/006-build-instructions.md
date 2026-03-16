@@ -2,34 +2,34 @@
 
 ## Prerequisites
 
-### Raylib
-Install raylib development files:
+### Build Tools
+- GCC or Clang
+- Make
+- Git
+- pthreads (usually included with libc)
 
+### OpenGL Development Headers
 **Void Linux:**
 ```bash
-sudo xbps-install -S raylib-devel
+sudo xbps-install -S mesa-devel libX11-devel
 ```
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install libraylib-dev
+sudo apt install libgl1-mesa-dev libx11-dev
 ```
-
-**From source:**
-```bash
-git clone https://github.com/raysan5/raylib.git
-cd raylib/src
-make PLATFORM=PLATFORM_DESKTOP
-sudo make install
-```
-
-### Build Tools
-- GCC or Clang
-- Make
-- pthreads (usually included with libc)
 
 ## Building
 
+### First Time Setup
+Build raylib locally (only needed once):
+```bash
+./scripts/build-deps.sh
+```
+
+This downloads and compiles raylib 5.0 into `libs/raylib/`.
+
+### Compile the Project
 From project root:
 ```bash
 make
@@ -82,8 +82,9 @@ physics-sim/
 
 ```makefile
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -I./src
-LDFLAGS = -lraylib -lm -lpthread
+RAYLIB_PATH = ./libs/raylib/src
+CFLAGS = -Wall -Wextra -std=c11 -I./src -I$(RAYLIB_PATH)
+LDFLAGS = $(RAYLIB_PATH)/libraylib.a -lm -lpthread
 
 # Linux-specific
 LDFLAGS += -lGL -ldl -lrt -lX11

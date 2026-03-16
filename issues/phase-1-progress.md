@@ -13,10 +13,11 @@ raylib window integration.
 | 102 | Implement threadpool           | ✓ Completed |
 | 103 | Create raylib window           | ✓ Completed |
 | 104 | Create basic project structure | ✓ Completed |
+| 105 | Create local dependency build  | ✓ Completed |
 
 ## Progress Summary
 
-**Completed:** 4/4 issues (100%)
+**Completed:** 5/5 issues (100%)
 **Phase 1:** ✓ COMPLETE
 
 ## Notes
@@ -72,6 +73,16 @@ Integrated all Phase 1 components into complete infrastructure:
 - "Phase 1 Complete" message displayed in window
 - Compilation tested successfully with no warnings
 - All resources properly cleaned up
+
+### Issue 105 - Create Local Dependency Build (Completed)
+Created dependency build script for reproducible builds:
+- scripts/build-deps.sh downloads and builds raylib locally
+- Pins to raylib version 5.0 for stability
+- Builds libraylib.a in libs/raylib/src/
+- Supports --clean flag for fresh rebuilds
+- Makefile updated to use local raylib (RAYLIB_PATH variable)
+- Build documentation updated with new workflow
+- Enables builds independent of system package installations
 
 ## Phase 1 Summary
 
