@@ -3,12 +3,14 @@
 // Handles creation, initialization, and cleanup of world state
 //
 // External functions: world_create, world_destroy, world_generate_pegs,
-//                     world_render_pegs
+//                     world_render_pegs, world_generate_zones,
+//                     world_render_zones
 
 #include "004-world.h"
 #include <raylib.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // {{{ world_create
 World* world_create(int width, int height) {
@@ -99,6 +101,99 @@ void world_render_pegs(World* world) {
     for (int i = 0; i < world->peg_count; i++) {
         DrawCircle((int)world->pegs[i].x, (int)world->pegs[i].y,
                    world->pegs[i].radius, LIGHTGRAY);
+    }
+}
+// }}}
+
+// {{{ world_generate_zones
+void world_generate_zones(World* world, int zone_count, float zone_height) {
+    if (!world || zone_count <= 0) {
+        return;
+    }
+
+    // Free existing zones if any
+    if (world->zones) {
+        free(world->zones);
+    }
+
+    // Allocate zone array
+    world->zone_count = zone_count;
+    world->zones = (ScoreZone*)malloc(sizeof(ScoreZone) * zone_count);
+
+    if (!world->zones) {
+        fprintf(stderr, "ERROR: Failed to allocate zone array\n");
+        world->zone_count = 0;
+        return;
+    }
+
+    // Calculate zone width
+    float zone_width = (float)world->width / zone_count;
+
+    // Default point values (symmetric pattern: 10, 50, 100, 500, 100, 50, 10)
+    // For 7 zones: center gets 500, working outward gets lower values
+    int default_points[] = {10, 50, 100, 500, 100, 50, 10};
+
+    // Generate zones
+    for (int i = 0; i < zone_count; i++) {
+        world->zones[i].x_min = i * zone_width;
+        world->zones[i].x_max = (i + 1) * zone_width;
+
+        // Assign point values (use default pattern if zone_count == 7)
+        if (zone_count == 7) {
+            world->zones[i].points = default_points[i];
+        } else {
+            // For other zone counts, use simple center-based pattern
+            int distance_from_center = (zone_count / 2) - i;
+            if (distance_from_center < 0) distance_from_center = -distance_from_center;
+            world->zones[i].points = (zone_count - distance_from_center) * 100;
+        }
+    }
+}
+// }}}
+
+// {{{ world_render_zones
+void world_render_zones(World* world) {
+    if (!world || !world->zones) {
+        return;
+    }
+
+    // Zone starts at bottom of screen
+    float zone_y = world->height - 40;
+    float zone_height = 40;
+
+    // Render each zone
+    for (int i = 0; i < world->zone_count; i++) {
+        ScoreZone* zone = &world->zones[i];
+
+        // Choose color based on point value
+        Color zone_color;
+        if (zone->points >= 500) {
+            zone_color = GOLD;
+        } else if (zone->points >= 100) {
+            zone_color = GREEN;
+        } else if (zone->points >= 50) {
+            zone_color = BLUE;
+        } else {
+            zone_color = GRAY;
+        }
+
+        // Draw zone rectangle
+        DrawRectangle((int)zone->x_min, (int)zone_y,
+                     (int)(zone->x_max - zone->x_min), (int)zone_height,
+                     zone_color);
+
+        // Draw zone border
+        DrawRectangleLines((int)zone->x_min, (int)zone_y,
+                          (int)(zone->x_max - zone->x_min), (int)zone_height,
+                          DARKGRAY);
+
+        // Draw point value text
+        char text[16];
+        sprintf(text, "%d", zone->points);
+        int text_width = MeasureText(text, 20);
+        float text_x = zone->x_min + (zone->x_max - zone->x_min) / 2 - text_width / 2;
+        float text_y = zone_y + zone_height / 2 - 10;
+        DrawText(text, (int)text_x, (int)text_y, 20, WHITE);
     }
 }
 // }}}

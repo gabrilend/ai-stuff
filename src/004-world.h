@@ -87,4 +87,23 @@ void world_generate_pegs(World* world, int rows, int cols,
 void world_render_pegs(World* world);
 // }}}
 
+// {{{ world_generate_zones
+// Generates score zones at the bottom of the world.
+// Frees any existing zones before allocating new ones.
+//
+// Parameters:
+//   world: World instance
+//   zone_count: Number of score zones to create
+//   zone_height: Height of each zone in pixels
+void world_generate_zones(World* world, int zone_count, float zone_height);
+// }}}
+
+// {{{ world_render_zones
+// Renders all score zones with colored backgrounds and point values.
+//
+// Parameters:
+//   world: World instance
+void world_render_zones(World* world);
+// }}}
+
 #endif // WORLD_H

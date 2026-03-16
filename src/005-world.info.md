@@ -91,3 +91,52 @@ void world_render_pegs(World* world)
 - Renders each peg using raylib DrawCircle
 - Uses LIGHTGRAY color
 - Draws circles at peg position with peg radius
+
+---
+
+### world_generate_zones
+```c
+void world_generate_zones(World* world, int zone_count, float zone_height)
+```
+**Description:** Generates score zones at the bottom of the world
+
+**Parameters:**
+- `world`: World instance
+- `zone_count`: Number of score zones to create
+- `zone_height`: Height of each zone in pixels
+
+**Returns:** void
+
+**Behavior:**
+- Frees existing zone array if present
+- Allocates new zone array
+- Divides screen width into equal-width zones
+- Assigns symmetric point values (high in center, low at edges)
+- For 7 zones: uses pattern [10, 50, 100, 500, 100, 50, 10]
+- For other counts: calculates center-based pattern
+- Prints error to stderr on allocation failure
+
+---
+
+### world_render_zones
+```c
+void world_render_zones(World* world)
+```
+**Description:** Renders all score zones with colored backgrounds and point values
+
+**Parameters:**
+- `world`: World instance
+
+**Returns:** void
+
+**Behavior:**
+- Returns early if world or zones are NULL
+- Renders zones at bottom of screen (40 pixels high)
+- Color codes by point value:
+  - 500+: GOLD
+  - 100-499: GREEN
+  - 50-99: BLUE
+  - <50: GRAY
+- Draws zone rectangles with borders
+- Draws point value text centered in each zone
+- Uses WHITE text on colored background
