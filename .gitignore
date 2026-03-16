@@ -1,0 +1,18 @@
+# Build artifacts
+*.o
+bin/
+
+# Temporary files
+tmp/*
+!tmp/.gitkeep
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
