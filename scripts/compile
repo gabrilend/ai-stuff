@@ -6,8 +6,8 @@
 #
 # Usage:
 #   ./scripts/compile              # Normal compilation
-#   ./scripts/compile --force      # Clean rebuild
-#   ./scripts/compile --clean      # Clean rebuild
+#   ./scripts/compile --clean      # Clean only (remove binaries)
+#   ./scripts/compile --force      # Clean rebuild (clean then compile)
 #   ./scripts/compile /custom/dir  # Compile from custom directory
 #   ./scripts/compile --force /custom/dir  # Clean rebuild at custom directory
 
@@ -15,12 +15,16 @@
 DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
 
 # Parse arguments
-CLEAN_BUILD=0
+CLEAN_ONLY=0
+FORCE_BUILD=0
 
 for arg in "$@"; do
     case "$arg" in
-        --force|--clean)
-            CLEAN_BUILD=1
+        --clean)
+            CLEAN_ONLY=1
+            ;;
+        --force)
+            FORCE_BUILD=1
             ;;
         *)
             # Assume it's a directory path
@@ -32,8 +36,16 @@ done
 # Navigate to project directory
 cd "${DIR}" || exit 1
 
-# Clean build if requested
-if [ ${CLEAN_BUILD} -eq 1 ]; then
+# Clean only if requested
+if [ ${CLEAN_ONLY} -eq 1 ]; then
+    echo "Cleaning previous build from: ${DIR}"
+    make clean
+    echo "Clean complete"
+    exit 0
+fi
+
+# Clean before force build
+if [ ${FORCE_BUILD} -eq 1 ]; then
     echo "Cleaning previous build from: ${DIR}"
     make clean
     echo ""
