@@ -18,10 +18,11 @@ opponent, creating competitive gameplay with resource management.
 | 807 | Cross-board ball physics           | Complete |
 | 808 | Gate bumpers                       | Complete |
 | 809 | Ball health and damage system      | Complete |
+| 810 | Granular upgrade levels            | Complete |
 
 ## Progress Summary
 
-**Completed:** 9/9 issues (100%)
+**Completed:** 10/10 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -129,3 +130,16 @@ Implemented complete adversary system with AI-controlled opponent:
 - Added died_from_damage tracking to BallTaskData
 
 Files: 004-world.h, 005-world.c, 006-ball.h, 007-ball.c, 012-adversary.h, 013-adversary.c, 001-main.c
+
+### Issue 810 - Granular Upgrade Levels (Complete)
+
+Converted upgrade system to incremental/clicker-style with 100x more levels:
+
+- Spawn rate: 5 → 500 levels, +0.01/level (same +5 total at max)
+- Ball size: 3 → 300 levels, -0.01/level (same -3 total at max)
+- Base costs reduced: 100 → 1, 150 → 2 for incremental purchasing
+- Hold-to-purchase: initial 0.3s delay, then 30 purchases/second repeat
+- Progress bar UI replaces level counters for cleaner display
+- Percentage indicator next to each progress bar
+
+Files: 010-upgrades.h, 011-upgrades.c

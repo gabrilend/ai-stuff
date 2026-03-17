@@ -33,6 +33,8 @@ typedef struct UpgradeManager {
     Upgrade upgrades[UPGRADE_COUNT];  // Array of all upgrades
     int menu_open;                    // 1 if menu is visible
     int selected_index;               // Currently highlighted upgrade
+    float purchase_hold_time;         // Time ENTER has been held (for repeat purchases)
+    float purchase_cooldown;          // Time until next repeat purchase
 } UpgradeManager;
 // }}}
 

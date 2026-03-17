@@ -7,9 +7,13 @@
 #include "010-upgrades.h"
 #include "raylib.h"
 
-// Upgrade effect constants
-#define SPAWN_RATE_BONUS_PER_LEVEL 1.0f   // +1 ball/sec per level
-#define BALL_RADIUS_REDUCTION_PER_LEVEL 1.0f  // -1 radius per level
+// Upgrade effect constants (scaled for 100x more levels)
+#define SPAWN_RATE_BONUS_PER_LEVEL 0.01f      // +0.01 ball/sec per level (500 levels = +5 total)
+#define BALL_RADIUS_REDUCTION_PER_LEVEL 0.01f // -0.01 radius per level (300 levels = -3 total)
+
+// Hold-to-purchase repeat timing
+#define PURCHASE_INITIAL_DELAY 0.3f   // Delay before repeat starts (seconds)
+#define PURCHASE_REPEAT_RATE 30.0f    // Purchases per second when holding
 
 // {{{ upgrade_manager_create
 UpgradeManager* upgrade_manager_create(void) {
@@ -22,20 +26,22 @@ UpgradeManager* upgrade_manager_create(void) {
     // Initialize menu state
     manager->menu_open = 0;
     manager->selected_index = 0;
+    manager->purchase_hold_time = 0.0f;
+    manager->purchase_cooldown = 0.0f;
 
-    // Initialize spawn rate upgrade
+    // Initialize spawn rate upgrade (500 levels, +0.01/level = +5 total)
     manager->upgrades[UPGRADE_SPAWN_RATE].name = "Spawn Rate";
-    manager->upgrades[UPGRADE_SPAWN_RATE].description = "+1 ball/sec";
-    manager->upgrades[UPGRADE_SPAWN_RATE].base_cost = 100;
+    manager->upgrades[UPGRADE_SPAWN_RATE].description = "+5 ball/sec max";
+    manager->upgrades[UPGRADE_SPAWN_RATE].base_cost = 1;
     manager->upgrades[UPGRADE_SPAWN_RATE].level = 0;
-    manager->upgrades[UPGRADE_SPAWN_RATE].max_level = 5;
+    manager->upgrades[UPGRADE_SPAWN_RATE].max_level = 500;
 
-    // Initialize ball size upgrade
+    // Initialize ball size upgrade (300 levels, -0.01/level = -3 total)
     manager->upgrades[UPGRADE_BALL_SIZE].name = "Ball Size";
-    manager->upgrades[UPGRADE_BALL_SIZE].description = "-1 radius";
-    manager->upgrades[UPGRADE_BALL_SIZE].base_cost = 150;
+    manager->upgrades[UPGRADE_BALL_SIZE].description = "-3 radius max";
+    manager->upgrades[UPGRADE_BALL_SIZE].base_cost = 2;
     manager->upgrades[UPGRADE_BALL_SIZE].level = 0;
-    manager->upgrades[UPGRADE_BALL_SIZE].max_level = 3;
+    manager->upgrades[UPGRADE_BALL_SIZE].max_level = 300;
 
     return manager;
 }
@@ -93,6 +99,8 @@ int upgrade_manager_purchase(UpgradeManager* manager, int* score) {
 void upgrade_manager_handle_input(UpgradeManager* manager, int* score) {
     if (!manager) return;
 
+    float dt = GetFrameTime();
+
     // Tab toggles menu
     if (IsKeyPressed(KEY_TAB)) {
         manager->menu_open = !manager->menu_open;
@@ -120,9 +128,26 @@ void upgrade_manager_handle_input(UpgradeManager* manager, int* score) {
         }
     }
 
-    // Enter to purchase
-    if (IsKeyPressed(KEY_ENTER)) {
-        upgrade_manager_purchase(manager, score);
+    // Enter to purchase (hold for repeat)
+    if (IsKeyDown(KEY_ENTER)) {
+        if (IsKeyPressed(KEY_ENTER)) {
+            // First press - purchase immediately
+            upgrade_manager_purchase(manager, score);
+            manager->purchase_hold_time = 0.0f;
+            manager->purchase_cooldown = PURCHASE_INITIAL_DELAY;
+        } else {
+            // Holding - accumulate time and repeat purchase
+            manager->purchase_hold_time += dt;
+            manager->purchase_cooldown -= dt;
+            if (manager->purchase_cooldown <= 0.0f) {
+                upgrade_manager_purchase(manager, score);
+                manager->purchase_cooldown = 1.0f / PURCHASE_REPEAT_RATE;
+            }
+        }
+    } else {
+        // Reset hold state when key released
+        manager->purchase_hold_time = 0.0f;
+        manager->purchase_cooldown = 0.0f;
     }
 
     // Escape to close
@@ -143,7 +168,7 @@ void upgrade_manager_render(UpgradeManager* manager, int score,
 
     // Menu box dimensions
     int menu_width = 350;
-    int menu_height = 50 + UPGRADE_COUNT * 70 + 60;  // Title + upgrades + footer
+    int menu_height = 60 + UPGRADE_COUNT * 75 + 40;  // Title + upgrades + footer
     int menu_x = (screen_width - menu_width) / 2;
     int menu_y = (screen_height - menu_height) / 2;
 
@@ -167,33 +192,50 @@ void upgrade_manager_render(UpgradeManager* manager, int score,
         int is_selected = (i == manager->selected_index);
         int can_afford = (cost > 0 && score >= cost);
         int is_maxed = (upgrade->level >= upgrade->max_level);
+        float progress = (float)upgrade->level / (float)upgrade->max_level;
 
         // Selection highlight
         if (is_selected) {
-            DrawRectangle(menu_x + 10, y_offset - 5, menu_width - 20, 60,
+            DrawRectangle(menu_x + 10, y_offset - 5, menu_width - 20, 70,
                          (Color){60, 60, 80, 255});
         }
 
-        // Upgrade name and level
-        char name_text[64];
-        sprintf(name_text, "%s [%d/%d]", upgrade->name, upgrade->level, upgrade->max_level);
+        // Upgrade name
         Color name_color = is_selected ? WHITE : LIGHTGRAY;
-        DrawText(name_text, menu_x + 20, y_offset, 18, name_color);
+        DrawText(upgrade->name, menu_x + 20, y_offset, 18, name_color);
+
+        // Progress bar background
+        int bar_x = menu_x + 20;
+        int bar_y = y_offset + 24;
+        int bar_width = menu_width - 130;
+        int bar_height = 12;
+        DrawRectangle(bar_x, bar_y, bar_width, bar_height, (Color){30, 30, 40, 255});
+
+        // Progress bar fill
+        int fill_width = (int)(bar_width * progress);
+        Color bar_color = is_maxed ? GREEN : (Color){100, 180, 255, 255};
+        DrawRectangle(bar_x, bar_y, fill_width, bar_height, bar_color);
+        DrawRectangleLines(bar_x, bar_y, bar_width, bar_height, (Color){80, 80, 100, 255});
+
+        // Percentage text
+        char pct_text[16];
+        sprintf(pct_text, "%d%%", (int)(progress * 100));
+        DrawText(pct_text, bar_x + bar_width + 8, bar_y - 1, 14, LIGHTGRAY);
 
         // Description
-        DrawText(upgrade->description, menu_x + 20, y_offset + 22, 14, GRAY);
+        DrawText(upgrade->description, menu_x + 20, y_offset + 40, 12, GRAY);
 
         // Cost or status
         if (is_maxed) {
-            DrawText("MAX", menu_x + menu_width - 70, y_offset + 10, 18, GREEN);
+            DrawText("MAX", menu_x + menu_width - 55, y_offset + 4, 16, GREEN);
         } else {
             char cost_text[32];
-            sprintf(cost_text, "%d pts", cost);
+            sprintf(cost_text, "%d", cost);
             Color cost_color = can_afford ? GREEN : RED;
-            DrawText(cost_text, menu_x + menu_width - 90, y_offset + 10, 16, cost_color);
+            DrawText(cost_text, menu_x + menu_width - 55, y_offset + 4, 16, cost_color);
         }
 
-        y_offset += 70;
+        y_offset += 75;
     }
 
     // Footer controls
