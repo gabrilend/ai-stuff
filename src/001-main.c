@@ -414,8 +414,8 @@ int main(void) {
                                         task->death_vy, MAGENTA);
             }
 
-            // Spawn splash for cross-owner ball collisions
-            if (task->had_collision) {
+            // Spawn splash for cross-owner ball collisions (skip if ball exploded)
+            if (task->had_collision && !task->died_from_damage) {
                 // Small tangent splash at collision point
                 Color splash_color = (Color){255, 200, 100, 255};  // Warm spark
                 particle_spawn_splash(particle_system, task->collision_x,
