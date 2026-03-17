@@ -31,7 +31,9 @@ typedef struct ThreadPool ThreadPool;
 #define SPAWN_Y 50.0f         // Default spawn y (top)
 #define SPAWN_VX_RANGE 100.0f // Random horizontal range
 #define SPAWN_VY_INITIAL 50.0f // Initial downward velocity
-#define SPAWN_COOLDOWN 0.1f   // Minimum time between spawns (seconds)
+#define SPAWN_COOLDOWN 0.1f   // Legacy: kept for visual indicator timing
+#define SPAWN_RATE 10.0f      // Credits accumulated per second
+#define MAX_SPAWN_CREDITS 3.0f // Maximum stored credits (prevents burst)
 
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
@@ -70,7 +72,8 @@ typedef struct BallManager {
     Ball* balls_next;        // Next frame state (write during update)
     int capacity;            // Maximum number of balls
     int active_count;        // Number of currently active balls
-    float spawn_cooldown;    // Time until next spawn allowed
+    float spawn_cooldown;    // Visual indicator timing (legacy)
+    float spawn_credits;     // Accumulated spawn credits (1.0 = can spawn)
     BallTaskData* task_data; // Pre-allocated task data for parallel processing
 } BallManager;
 // }}}
@@ -152,8 +155,9 @@ void ball_manager_render(BallManager* manager);
 // }}}
 
 // {{{ ball_manager_update_cooldown
-// Updates the spawn cooldown timer.
-// Decrements cooldown by delta time.
+// Updates spawn system each frame.
+// Accumulates spawn credits (capped at MAX_SPAWN_CREDITS).
+// Also updates visual cooldown indicator.
 //
 // Parameters:
 //   manager: BallManager instance
@@ -163,7 +167,7 @@ void ball_manager_update_cooldown(BallManager* manager, float dt);
 
 // {{{ ball_manager_can_spawn
 // Checks if the manager can spawn a new ball.
-// Returns 1 if cooldown expired and capacity not reached.
+// Returns 1 if credits >= 1.0 and capacity not reached.
 //
 // Parameters:
 //   manager: BallManager instance
@@ -189,7 +193,8 @@ int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_
 // }}}
 
 // {{{ ball_manager_reset_cooldown
-// Resets the spawn cooldown to the default value.
+// Consumes one spawn credit and resets visual cooldown.
+// Call after successfully spawning a ball.
 //
 // Parameters:
 //   manager: BallManager instance

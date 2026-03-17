@@ -9,10 +9,11 @@ Bug fixes discovered during Phase 7-8 testing.
 | ID  | Description                              | Status   |
 |-----|------------------------------------------|----------|
 | 901 | Fix info box positioning on resize       | Complete |
+| 902 | Spawn buffering system                   | Complete |
 
 ## Progress Summary
 
-**Completed:** 1/1 issues (100%)
+**Completed:** 2/2 issues (100%)
 **Phase 9:** Complete
 
 ## Notes
@@ -37,3 +38,17 @@ Fix: Made `screen_width` mutable and update it directly in resize handler.
 All references to `new_screen_width` replaced with `screen_width`.
 
 UI now correctly anchors to viewport corners on resize.
+
+### Issue 902 - Spawn Buffering System (Complete)
+
+Implemented credit-based spawn system for consistent ball output rate.
+
+System design:
+- Credits accumulate at SPAWN_RATE (10/sec)
+- Cap at MAX_SPAWN_CREDITS (3.0)
+- Spawning costs 1 credit
+- Blocked spawns don't consume credits
+
+This prevents rapid mouse movement from bypassing spawn blocking,
+and ensures players aren't penalized when spawn is temporarily blocked.
+Supports future upgrade mechanics for spawn rate modification.

@@ -22,6 +22,7 @@ BallManager* ball_manager_create(int capacity) {
     manager->capacity = capacity;
     manager->active_count = 0;
     manager->spawn_cooldown = 0.0f;
+    manager->spawn_credits = 1.0f;  // Start with one credit (ready to spawn)
 
     // Allocate current buffer
     manager->balls_current = (Ball*)calloc(capacity, sizeof(Ball));
@@ -404,6 +405,14 @@ void ball_manager_render(BallManager* manager) {
 void ball_manager_update_cooldown(BallManager* manager, float dt) {
     if (!manager) return;
 
+    // Accumulate spawn credits over time (capped)
+    // Credits accumulate even when spawn is blocked, saving for later
+    manager->spawn_credits += SPAWN_RATE * dt;
+    if (manager->spawn_credits > MAX_SPAWN_CREDITS) {
+        manager->spawn_credits = MAX_SPAWN_CREDITS;
+    }
+
+    // Update visual cooldown indicator
     if (manager->spawn_cooldown > 0) {
         manager->spawn_cooldown -= dt;
     }
@@ -414,7 +423,8 @@ void ball_manager_update_cooldown(BallManager* manager, float dt) {
 int ball_manager_can_spawn(BallManager* manager) {
     if (!manager) return 0;
 
-    return manager->spawn_cooldown <= 0 &&
+    // Check credits (>= 1.0 means can spawn) and capacity
+    return manager->spawn_credits >= 1.0f &&
            manager->active_count < manager->capacity;
 }
 // }}}
@@ -423,6 +433,13 @@ int ball_manager_can_spawn(BallManager* manager) {
 void ball_manager_reset_cooldown(BallManager* manager) {
     if (!manager) return;
 
+    // Consume one credit for spawning
+    manager->spawn_credits -= 1.0f;
+    if (manager->spawn_credits < 0.0f) {
+        manager->spawn_credits = 0.0f;
+    }
+
+    // Reset visual cooldown indicator
     manager->spawn_cooldown = SPAWN_COOLDOWN;
 }
 // }}}
