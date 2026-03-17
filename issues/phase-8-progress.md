@@ -16,10 +16,11 @@ opponent, creating competitive gameplay with resource management.
 | 805 | Adversary spawning AI              | Pending |
 | 806 | Shared gates / ball passthrough    | Pending |
 | 807 | Cross-board ball physics           | Pending |
+| 808 | Gate bumpers                       | Pending |
 
 ## Progress Summary
 
-**Completed:** 0/7 issues (0%)
+**Completed:** 0/8 issues (0%)
 **Phase 8:** In Progress
 
 ## Notes
