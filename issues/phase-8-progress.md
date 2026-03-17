@@ -180,11 +180,18 @@ Files: 006-ball.h, 007-ball.c, 008-particles.h, 009-particles.c, 001-main.c
 
 ### Issue 813 - Fix Persistent Splash Particles (Complete)
 
-Bug fix for splash particles spawning continuously while balls overlap:
+Bug fix for splash particles spawning continuously (fountain effect):
 
-- Root cause: collision tracking fired every frame during overlap, not just on impact
-- Added velocity check to `ball_collide_with_balls` collision tracking
-- Only flags collision when balls approaching with velocity > 10 units/sec
-- Matches existing velocity check pattern in `ball_resolve_ball_collision`
+**Root causes identified:**
+1. Collision tracking fired every frame during overlap, not just on impact
+2. Both balls in collision set had_collision (double-detection)
+3. Velocity comparison used different time points (write vs read buffer)
+4. Stale task_data persisted for inactive balls
 
-Files: 007-ball.c
+**Fixes applied:**
+- Velocity check before collision resolution (vn < -10.0f threshold)
+- `ball_index < i` check prevents double-detection
+- Use read buffer for both balls' velocities (same time point)
+- Main loop skips inactive balls to avoid stale task_data
+
+Files: 007-ball.c, 001-main.c

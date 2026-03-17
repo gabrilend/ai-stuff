@@ -42,4 +42,14 @@ Added velocity check to collision tracking in `ball_collide_with_balls`:
 is called, because collision resolution modifies ball velocities. Checking after
 resolution would always see balls moving apart (vn > 0), never approaching.
 
-Files: 007-ball.c (lines 426-446)
+**Double-detection fix:** Added `ball_index < i` check so only one ball in each
+collision pair triggers splash (lower index wins).
+
+**Velocity time-sync fix:** Use read buffer for BOTH balls' velocities to compare
+same point in time.
+
+**Stale task data fix:** Main loop now skips balls that weren't active at frame
+start. Inactive balls don't run tasks, so their task_data retains old values.
+This caused fountains when had_collision=1 persisted after ball despawned.
+
+Files: 007-ball.c, 001-main.c
