@@ -20,3 +20,4 @@
 - [Phase 3 Progress](../issues/phase-3-progress.md) - Ball Physics (Complete)
 - [Phase 4 Progress](../issues/phase-4-progress.md) - Parallel Processing (Complete)
 - [Phase 5 Progress](../issues/phase-5-progress.md) - Scoring and Polish (Complete)
+- [Phase 6 Progress](../issues/phase-6-progress.md) - Bug Fixes and Features (In Progress)

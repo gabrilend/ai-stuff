@@ -454,8 +454,11 @@ int ball_manager_collect_scores(BallManager* manager) {
     int total = 0;
     for (int i = 0; i < manager->capacity; i++) {
         total += manager->task_data[i].score_delta;
-        // Reset score_delta for next frame
+        // Reset scoring fields for next frame
+        // Critical: must reset 'scored' flag here because inactive balls
+        // don't have tasks submitted, so their flags would persist forever
         manager->task_data[i].score_delta = 0;
+        manager->task_data[i].scored = 0;
     }
 
     return total;

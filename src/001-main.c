@@ -124,20 +124,14 @@ int main(void) {
         }
 
         // Parallel ball physics update with performance timing
-        // Sequence: prepare → submit → wait → collect scores → spawn particles → finalize → swap
+        // Sequence: prepare → submit → wait → spawn particles → collect scores → finalize → swap
         double physics_start = GetTime();
         ball_manager_prepare_tasks(ball_manager, world, dt);
         ball_manager_submit_tasks(ball_manager, pool);
         threadpool_wait_all(pool);
-        int points = ball_manager_collect_scores(ball_manager);
-        world->score += points;
-
-        // Update high score if current score exceeds it
-        if (world->score > world->high_score) {
-            world->high_score = world->score;
-        }
 
         // Spawn particle bursts for balls that scored this frame
+        // Must happen BEFORE collect_scores because it resets scored/score_delta
         for (int i = 0; i < ball_manager->capacity; i++) {
             BallTaskData* task = &ball_manager->task_data[i];
             if (task->scored) {
@@ -157,6 +151,15 @@ int main(void) {
                 particle_spawn_burst(particle_system, task->score_pos_x,
                                    task->score_pos_y, 12, particle_color);
             }
+        }
+
+        // Collect scores and reset scoring fields
+        int points = ball_manager_collect_scores(ball_manager);
+        world->score += points;
+
+        // Update high score if current score exceeds it
+        if (world->score > world->high_score) {
+            world->high_score = world->score;
         }
 
         ball_manager_finalize_update(ball_manager);
