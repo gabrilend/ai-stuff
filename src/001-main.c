@@ -176,11 +176,13 @@ int main(void) {
         float spawn_min_x = world->table_x + spawn_margin;
         float spawn_max_x = world->table_x + world->table_width - spawn_margin;
 
-        // Check for mouse movement
-        int current_mouse_x = GetMouseX();
+        // Check for mouse movement - convert screen coords to world coords
+        Vector2 mouse_screen = { (float)GetMouseX(), (float)GetMouseY() };
+        Vector2 mouse_world = GetScreenToWorld2D(mouse_screen, camera);
+        int current_mouse_x = (int)mouse_world.x;
         if (current_mouse_x != last_mouse_x) {
-            // Mouse moved - snap spawn_x to mouse position (clamped)
-            spawn_x = (float)current_mouse_x;
+            // Mouse moved - snap spawn_x to mouse world position (clamped)
+            spawn_x = mouse_world.x;
             last_mouse_x = current_mouse_x;
         } else {
             // No mouse movement - check arrow keys for nudge
@@ -202,16 +204,8 @@ int main(void) {
             printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
         }
 
-        // Handle ball spawning input
-        // Check cooldown AND that no balls are blocking the spawn area
-        // Spawn blocking prevents physics issues when balls overlap at spawn
-        // Auto-spawn acts like SPACE is held down
-        // Uses movable spawn_x position, fixed spawn_y height
-        if ((IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
-            !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
-            ball_manager_spawn(ball_manager, spawn_x, spawn_y);
-            ball_manager_reset_cooldown(ball_manager);
-        }
+        // NOTE: Ball spawning moved to after physics/buffer swap
+        // This ensures balls appear at spawn position on first frame
 
         // Handle window resize - recalculate table centering and regenerate world
         if (IsWindowResized()) {
@@ -335,6 +329,17 @@ int main(void) {
         ball_manager_swap_buffers(ball_manager);
         double physics_end = GetTime();
         double physics_ms = (physics_end - physics_start) * 1000.0;
+
+        // Handle ball spawning input (after buffer swap so balls render at spawn position)
+        // Check cooldown AND that no balls are blocking the spawn area
+        // Spawn blocking prevents physics issues when balls overlap at spawn
+        // Auto-spawn acts like SPACE is held down
+        // Uses movable spawn_x position, fixed spawn_y height
+        if ((IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
+            !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
+            ball_manager_spawn(ball_manager, spawn_x, spawn_y);
+            ball_manager_reset_cooldown(ball_manager);
+        }
 
         // Render
         BeginDrawing();

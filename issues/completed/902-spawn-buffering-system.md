@@ -107,3 +107,15 @@ Changed `ball_manager_spawn_blocked()` to use Euclidean distance:
 
 This allows more natural spawning when balls have initial horizontal velocity,
 while still preventing overlap at the spawn point.
+
+**Fix (Session 3b):** Moved spawning to after buffer swap.
+Root cause: Balls were spawning BEFORE physics update, so they had one
+frame of physics applied before first render. With initial velocity of
+50 px/sec downward, balls appeared ~1 pixel below spawn point.
+
+Solution: Moved spawn input handling to AFTER `ball_manager_swap_buffers()`.
+Now balls spawn into the post-swap buffer and render at exact spawn position
+on their first frame. Physics applies starting from the next frame.
+
+Also added `GetScreenToWorld2D()` for proper mouse-to-world coordinate
+conversion, ensuring spawn_x aligns with camera transformations.

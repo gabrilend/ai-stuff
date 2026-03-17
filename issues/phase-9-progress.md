@@ -61,3 +61,7 @@ blocking if ANY ball is near spawn height regardless of X position.
 Y-only was too conservative. Now uses Euclidean distance centered on
 reticle (spawn_x, spawn_y). Balls with horizontal velocity exit blocking
 zone quickly, allowing more natural spawn flow.
+
+**Fix (Session 3b):** Moved spawning to after buffer swap.
+Balls now spawn into post-swap buffer and render at exact spawn position.
+Added GetScreenToWorld2D for proper mouse coordinate conversion.
