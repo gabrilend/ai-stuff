@@ -440,17 +440,19 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
         ball->vx = -ball->vx * WALL_RESTITUTION;
     }
 
-    // Top boundary (prevent escape upward)
+    // Top boundary (prevent player balls from escaping upward)
+    // Only applies to player balls - adversary balls pass through to despawn
     // Must be above SPAWN_Y so balls can spawn without hitting the wall
-    // SPAWN_Y = 50, ball radius = 8, so ball top edge is at Y=42
-    // Set top_wall above that with margin for physics movement
-    float top_wall = SPAWN_Y - BALL_RADIUS - 20.0f;  // Y=22, well above spawn
-    if (ball->y - ball->radius < top_wall) {
-        ball->y = top_wall + ball->radius;
-        ball->vy = -ball->vy * WALL_RESTITUTION;
+    if (ball->gravity_dir > 0) {
+        float top_wall = SPAWN_Y - BALL_RADIUS - 20.0f;  // Y=22, well above spawn
+        if (ball->y - ball->radius < top_wall) {
+            ball->y = top_wall + ball->radius;
+            ball->vy = -ball->vy * WALL_RESTITUTION;
+        }
     }
 
-    // No bottom wall - balls fall through to score zones
+    // No bottom wall - balls fall through to score zones (player balls)
+    // No top wall for adversary balls - they pass through to despawn
 }
 // }}}
 
