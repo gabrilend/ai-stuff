@@ -423,29 +423,26 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
 
         Ball* other = &read_buffer[i];
         if (ball_check_ball_collision(ball, other, &nx, &ny, &depth)) {
+            // Calculate relative velocity BEFORE resolving collision
+            // (resolution modifies velocities, making post-check impossible)
+            float rel_vx = ball->vx - other->vx;
+            float rel_vy = ball->vy - other->vy;
+            float vn = rel_vx * nx + rel_vy * ny;
+
             ball_resolve_ball_collision(ball, other, nx, ny, depth);
 
             // Track cross-owner collision for splash effect (only first one)
-            // Only track if balls are actually approaching with meaningful velocity
+            // Only track if balls were actually approaching with meaningful velocity
             // This prevents continuous splash spawning while balls are overlapping
             if (collision_out && collision_out[0] == 0.0f &&
-                ball->owner != other->owner) {
-                // Calculate relative velocity along collision normal
-                float rel_vx = ball->vx - other->vx;
-                float rel_vy = ball->vy - other->vy;
-                float vn = rel_vx * nx + rel_vy * ny;
-
-                // Only flag collision if balls are approaching (vn < 0)
-                // with meaningful velocity (threshold prevents micro-splashes)
-                if (vn < -10.0f) {
-                    collision_out[0] = 1.0f;  // had_collision
-                    // Collision point is midpoint between ball centers
-                    collision_out[1] = (ball->x + other->x) * 0.5f;  // x
-                    collision_out[2] = (ball->y + other->y) * 0.5f;  // y
-                    // Tangent is perpendicular to normal
-                    collision_out[3] = -ny;  // tangent_x
-                    collision_out[4] = nx;   // tangent_y
-                }
+                ball->owner != other->owner && vn < -10.0f) {
+                collision_out[0] = 1.0f;  // had_collision
+                // Collision point is midpoint between ball centers
+                collision_out[1] = (ball->x + other->x) * 0.5f;  // x
+                collision_out[2] = (ball->y + other->y) * 0.5f;  // y
+                // Tangent is perpendicular to normal
+                collision_out[3] = -ny;  // tangent_x
+                collision_out[4] = nx;   // tangent_y
             }
         }
     }

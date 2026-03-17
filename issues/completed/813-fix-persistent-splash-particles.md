@@ -33,9 +33,13 @@ Complete
 ## Implementation Notes
 
 Added velocity check to collision tracking in `ball_collide_with_balls`:
-- Calculates relative velocity (rel_vx, rel_vy)
+- Calculates relative velocity (rel_vx, rel_vy) BEFORE collision resolution
 - Calculates normal component (vn = rel_v dot normal)
 - Only flags collision if vn < -10.0f (approaching with meaningful speed)
 - Matches the existing velocity check in `ball_resolve_ball_collision`
 
-Files: 007-ball.c (lines 428-449)
+**Critical fix:** Velocity must be calculated BEFORE `ball_resolve_ball_collision`
+is called, because collision resolution modifies ball velocities. Checking after
+resolution would always see balls moving apart (vn > 0), never approaching.
+
+Files: 007-ball.c (lines 426-446)
