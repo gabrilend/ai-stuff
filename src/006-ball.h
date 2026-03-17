@@ -85,6 +85,9 @@ typedef struct BallTaskData {
     float death_pos_y;     // Y position where ball died (if died_from_damage)
     float death_vx;        // X velocity at death (for fragment momentum)
     float death_vy;        // Y velocity at death (for fragment momentum)
+    float death_nx;        // Collision normal X at death (points away from other ball)
+    float death_ny;        // Collision normal Y at death
+    int death_was_dominant; // 1 if this ball had higher closing speed in fatal collision
     int had_collision;     // 1 if ball collided with enemy ball this frame
     float collision_x;     // Collision point X
     float collision_y;     // Collision point Y

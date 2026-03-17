@@ -413,10 +413,16 @@ int main(void) {
 
             // Spawn explosion fragments for balls destroyed by cross-board damage
             if (task->died_from_damage) {
-                // Ball splits into fragments with physics and trails
+                // Fragment direction based on collision dominance:
+                // - Dominant ball (higher closing speed) = projectile hitting wall
+                //   → explodes away from impact point (FRAG_AWAY)
+                // - Non-dominant ball (lower closing speed) = wall being hit
+                //   → shatters along impact tangent (FRAG_TANGENT)
+                FragmentMode frag_mode = task->death_was_dominant ? FRAG_AWAY : FRAG_TANGENT;
                 particle_spawn_fragments(particle_system, task->death_pos_x,
                                         task->death_pos_y, task->death_vx,
-                                        task->death_vy, MAGENTA);
+                                        task->death_vy, MAGENTA, frag_mode,
+                                        task->death_nx, task->death_ny);
             }
 
             // Spawn splash for cross-owner ball collisions (skip if ball exploded)

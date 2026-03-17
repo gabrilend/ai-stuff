@@ -23,10 +23,11 @@ opponent, creating competitive gameplay with resource management.
 | 812 | Particle effects overhaul          | Complete |
 | 813 | Fix persistent splash particles    | Complete |
 | 814 | Glancing collision damage scaling  | Complete |
+| 815 | Directional explosion fragments    | Complete |
 
 ## Progress Summary
 
-**Completed:** 14/14 issues (100%)
+**Completed:** 15/15 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -207,3 +208,17 @@ Fixed damage calculation to account for collision angle:
 - Uses existing `vn` value (no additional computation)
 
 Files: 007-ball.c
+
+### Issue 815 - Directional Explosion Fragments (Complete)
+
+Implemented direction-aware fragment explosions based on collision dominance:
+
+- Added FragmentMode enum: FRAG_RADIAL, FRAG_TANGENT, FRAG_AWAY
+- Track collision normal and individual approach speeds in ball collisions
+- Dominant ball (higher closing speed) uses FRAG_AWAY (splatter effect)
+- Non-dominant ball (lower closing speed) uses FRAG_TANGENT (shatter effect)
+- FRAG_TANGENT: fragments alternate sides along tangent with ±45° spread
+- FRAG_AWAY: fragments distributed across 180° hemisphere in normal direction
+- Extended BallTaskData with death_nx, death_ny, death_was_dominant
+
+Files: 006-ball.h, 007-ball.c, 008-particles.h, 009-particles.c, 001-main.c

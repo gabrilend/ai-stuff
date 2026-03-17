@@ -576,7 +576,8 @@ void particle_spawn_splash(ParticleSystem* ps, float x, float y,
 
 // {{{ particle_spawn_fragments
 void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
-                              float vx, float vy, Color color) {
+                              float vx, float vy, Color color,
+                              FragmentMode mode, float nx, float ny) {
     if (!ps) return;
 
     // Choose number of fragments: 3, 4, 6, or 8
@@ -587,6 +588,11 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
     float base_h, base_s, base_v;
     rgb_to_hsv(color, &base_h, &base_s, &base_v);
 
+    // Calculate base angle for directional modes
+    // Normal points away from collision; tangent is perpendicular
+    float normal_angle = atan2f(ny, nx);
+    float tangent_angle = normal_angle + 1.5708f;  // +90 degrees
+
     int spawned = 0;
     for (int i = 0; i < ps->capacity && spawned < num_fragments; i++) {
         Particle* p = &ps->particles_current[i];
@@ -596,8 +602,38 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
         p->x = x;
         p->y = y;
 
-        // Each fragment flies outward from its position in the circle
-        float outward_angle = (float)spawned / (float)num_fragments * 6.28318f;
+        // Calculate outward angle based on fragment mode
+        float outward_angle;
+        switch (mode) {
+            case FRAG_TANGENT:
+                // "Wall" ball shatters along impact tangent in both directions
+                // Fragments spread ±90° from tangent with some randomness
+                {
+                    // Alternate sides: even fragments go one way, odd the other
+                    float side = (spawned % 2 == 0) ? 1.0f : -1.0f;
+                    // Spread within ±45° of tangent direction
+                    float spread = ((float)(rand() % 100) / 100.0f - 0.5f) * 1.5708f;
+                    outward_angle = tangent_angle + side * 1.5708f + spread;
+                }
+                break;
+
+            case FRAG_AWAY:
+                // "Projectile" ball explodes away from impact point
+                // Fragments spread in hemisphere opposite to normal (toward normal direction)
+                {
+                    // Distribute across 180° hemisphere in direction of normal
+                    float spread = ((float)spawned / (float)num_fragments - 0.5f) * 3.14159f;
+                    outward_angle = normal_angle + spread;
+                }
+                break;
+
+            case FRAG_RADIAL:
+            default:
+                // Default 360° outward spread
+                outward_angle = (float)spawned / (float)num_fragments * 6.28318f;
+                break;
+        }
+
         float speed = FRAGMENT_SPEED * (0.7f + 0.6f * (float)(rand() % 100) / 100.0f);
         p->vx = cosf(outward_angle) * speed + vx * 0.3f;
         p->vy = sinf(outward_angle) * speed + vy * 0.3f;

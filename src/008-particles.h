@@ -17,6 +17,13 @@ typedef enum {
     PARTICLE_FRAGMENT    // Physics-enabled ball fragment (explosions)
 } ParticleType;
 
+// Fragment explosion direction mode
+typedef enum {
+    FRAG_RADIAL,     // 360° outward spread (default/fallback)
+    FRAG_TANGENT,    // Shatter along impact tangent (wall hit by projectile)
+    FRAG_AWAY        // Explode away from impact point (projectile hitting wall)
+} FragmentMode;
+
 // Trail point for fragment ribbons
 #define TRAIL_LENGTH 16
 
@@ -167,8 +174,11 @@ void particle_spawn_splash(ParticleSystem* ps, float x, float y,
 //   vx: Ball velocity x (fragments inherit momentum)
 //   vy: Ball velocity y
 //   color: Base fragment color
+//   mode: Fragment direction mode (FRAG_RADIAL, FRAG_TANGENT, FRAG_AWAY)
+//   nx, ny: Collision normal (used for FRAG_TANGENT and FRAG_AWAY modes)
 void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
-                              float vx, float vy, Color color);
+                              float vx, float vy, Color color,
+                              FragmentMode mode, float nx, float ny);
 // }}}
 
 // {{{ particle_system_update_with_world

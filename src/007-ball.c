@@ -404,8 +404,10 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
 
 // {{{ ball_collide_with_balls
 // Internal function to check and resolve collisions with other balls
-// Tracks cross-owner collisions for splash particle effects
-// collision_out: array of 5 floats [had_collision, x, y, tangent_x, tangent_y]
+// Tracks cross-owner collisions for splash and explosion effects
+// collision_out: array of 9 floats:
+//   [0] had_collision, [1] x, [2] y, [3] tangent_x, [4] tangent_y,
+//   [5] death_nx, [6] death_ny, [7] this_approach, [8] other_approach
 static void ball_collide_with_balls(Ball* ball, int ball_index,
                                      Ball* read_buffer, int capacity,
                                      float* collision_out) {
@@ -414,7 +416,12 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
     // Initialize collision output
     if (collision_out) {
         collision_out[0] = 0.0f;  // had_collision
+        collision_out[7] = 0.0f;  // this_approach (for dominance tracking)
+        collision_out[8] = 0.0f;  // other_approach
     }
+
+    // Track strongest cross-owner collision for explosion direction
+    float strongest_closing = 0.0f;
 
     // Check collision with all other active balls
     // To avoid double-processing, we check against all balls
@@ -433,20 +440,35 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
 
             ball_resolve_ball_collision(ball, other, nx, ny, depth);
 
-            // Track cross-owner collision for splash effect
-            // Only track when ball_index < i to avoid double-detection
-            // (both balls detect same collision; only lower index spawns splash)
-            // Only track if balls were actually approaching with meaningful velocity
-            if (collision_out && collision_out[0] == 0.0f &&
-                ball_index < i &&
-                ball->owner != other->owner && vn < -10.0f) {
-                collision_out[0] = 1.0f;  // had_collision
-                // Collision point is midpoint between ball centers
-                collision_out[1] = (ball->x + other->x) * 0.5f;  // x
-                collision_out[2] = (ball->y + other->y) * 0.5f;  // y
-                // Tangent is perpendicular to normal
-                collision_out[3] = -ny;  // tangent_x
-                collision_out[4] = nx;   // tangent_y
+            // Track cross-owner collisions
+            if (collision_out && ball->owner != other->owner && vn < -10.0f) {
+                // Track splash collision (first one, lower index only)
+                if (collision_out[0] == 0.0f && ball_index < i) {
+                    collision_out[0] = 1.0f;  // had_collision
+                    collision_out[1] = (ball->x + other->x) * 0.5f;  // x
+                    collision_out[2] = (ball->y + other->y) * 0.5f;  // y
+                    collision_out[3] = -ny;  // tangent_x
+                    collision_out[4] = nx;   // tangent_y
+                }
+
+                // Track strongest collision for explosion direction
+                // (used if ball dies from accumulated damage)
+                float closing = -vn;  // Positive closing speed
+                if (closing > strongest_closing) {
+                    strongest_closing = closing;
+                    collision_out[5] = nx;   // death_nx (points toward this ball)
+                    collision_out[6] = ny;   // death_ny
+
+                    // Calculate individual approach speeds for dominance
+                    // Normal points from other to this ball
+                    // This ball's approach = how fast we're moving toward other
+                    float this_approach = -(current_ball->vx * nx + current_ball->vy * ny);
+                    // Other ball's approach = how fast they're moving toward us
+                    float other_approach = other->vx * nx + other->vy * ny;
+
+                    collision_out[7] = this_approach;
+                    collision_out[8] = other_approach;
+                }
             }
         }
     }
@@ -708,12 +730,12 @@ void ball_update_task(void* data) {
         ball_collide_with_pegs(next, task->world);
         ball_collide_with_bumpers(next, task->world);
 
-        // Track cross-owner ball collisions for splash particles
-        float collision_info[5] = {0};
+        // Track cross-owner ball collisions for splash particles and explosion direction
+        float collision_info[9] = {0};
         ball_collide_with_balls(next, task->ball_index,
                                task->read_buffer, task->capacity, collision_info);
 
-        // Copy collision info to task data
+        // Copy splash collision info to task data
         if (collision_info[0] > 0.5f) {
             task->had_collision = 1;
             task->collision_x = collision_info[1];
@@ -732,6 +754,13 @@ void ball_update_task(void* data) {
             task->death_pos_y = next->y;
             task->death_vx = next->vx;
             task->death_vy = next->vy;
+
+            // Copy explosion direction info
+            task->death_nx = collision_info[5];
+            task->death_ny = collision_info[6];
+            // Dominant if our approach speed >= other's approach speed
+            task->death_was_dominant = (collision_info[7] >= collision_info[8]) ? 1 : 0;
+
             next->active = 0;
         }
 
