@@ -105,6 +105,10 @@ int main(void) {
     world_generate_zones(world, 7, zone_height);
     printf("Generated score zones: 7 zones\n");
 
+    // Generate gate bumpers (low-restitution caps on zone dividers)
+    world_generate_bumpers(world);
+    printf("Generated gate bumpers: %d bumpers\n", world->bumper_count);
+
     // Create ball manager
     BallManager* ball_manager = ball_manager_create(MAX_BALLS);
     if (!ball_manager) {
@@ -233,6 +237,9 @@ int main(void) {
             // Regenerate zones (they use table bounds for positioning)
             world_generate_zones(world, 7, zone_height);
 
+            // Regenerate gate bumpers (must come after zones)
+            world_generate_bumpers(world);
+
             // Update camera offset to match new screen center
             camera.offset = (Vector2){ (float)screen_width / 2.0f,
                                        (float)screen_height / 2.0f };
@@ -353,6 +360,7 @@ int main(void) {
         world_render_rails(world);
         world_render_pegs(world);
         world_render_zones(world);
+        world_render_bumpers(world);
 
         // Draw spawn point indicator (pulsing circle at movable position)
         float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1

@@ -1,7 +1,7 @@
 # Issue 808 - Gate Bumpers
 
 ## Status
-Pending
+Complete
 
 ## Current Behavior
 Gate dividers are simple vertical separators between score zones. Balls bounce
@@ -98,3 +98,42 @@ vy = -vy * 0.15
 - Player should learn to aim for bumpers to guide balls
 - Creates skill expression: intentionally hitting bumper for zone targeting
 - Consider particle effect when ball hits bumper (soft puff?)
+
+## Implementation Log
+
+### Changes Made
+
+**src/004-world.h:**
+- Added Bumper struct (x, y, radius)
+- Added bumpers array and bumper_count to World struct
+- Added world_generate_bumpers() and world_render_bumpers() declarations
+
+**src/005-world.c:**
+- Initialize bumpers to NULL in world_create()
+- Free bumpers in world_destroy()
+- Implemented world_generate_bumpers(): places bumpers at x_max of each zone
+  at zone y_min (top of gates), creating N-1 bumpers for N zones
+- Implemented world_render_bumpers(): muted teal circles (80, 140, 140)
+
+**src/006-ball.h:**
+- Added BUMPER_RADIUS (10.0f) and BUMPER_RESTITUTION (0.15f) constants
+
+**src/007-ball.c:**
+- Added ball_check_bumper_collision(): circle-circle detection like pegs
+- Added ball_resolve_bumper_collision(): very low restitution (0.15) plus
+  tangential velocity damping (0.7) for "sticky" feel that slides balls
+  into gates
+- Added ball_collide_with_bumpers(): checks all bumpers
+- Integrated bumper collision into ball_manager_update() and ball_update_task()
+
+**src/001-main.c:**
+- Added world_generate_bumpers() call after zone generation
+- Added world_generate_bumpers() call in resize handler
+- Added world_render_bumpers() call in render loop
+
+### Physics Tuning
+
+- BUMPER_RESTITUTION = 0.15 (very low bounce)
+- Tangential damping = 0.7 (reduces sideways deflection)
+- Combined effect: balls hit bumper, lose most energy, drop straight down
+- Adversary bumpers deferred until Issue 804 (board layout)

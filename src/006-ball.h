@@ -22,6 +22,10 @@ typedef struct ThreadPool ThreadPool;
 #define RESTITUTION 0.7f      // Bounce energy retention (0-1)
 #define COLLISION_BIAS 0.1f   // Separation push to prevent sticking
 
+// Bumper constants (gate divider caps)
+#define BUMPER_RADIUS 10.0f       // Slightly wider than dividers
+#define BUMPER_RESTITUTION 0.15f  // Very low bounce for "donk" feel
+
 // Boundary constants
 #define WALL_RESTITUTION 0.6f // Wall bounce retention
 // Note: Zone position is now calculated from world->height in ball_check_zone()

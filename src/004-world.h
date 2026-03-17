@@ -33,6 +33,16 @@ typedef struct ScoreZone {
 } ScoreZone;
 // }}}
 
+// {{{ typedef struct Bumper
+// Bumper represents a low-restitution collision point at gate dividers.
+// Bumpers cause balls to "donk" softly and slide into gates rather than
+// bouncing chaotically. Placed at the top of each gate divider.
+typedef struct Bumper {
+    float x, y;        // Position in pixels (center of bumper)
+    float radius;      // Collision radius
+} Bumper;
+// }}}
+
 // {{{ typedef struct World
 // World contains all state for the pachinko machine.
 // This includes the peg grid, score zones, and current score.
@@ -43,6 +53,8 @@ typedef struct World {
     int peg_count;         // Number of pegs
     ScoreZone* zones;      // Array of score zones
     int zone_count;        // Number of zones
+    Bumper* bumpers;       // Array of gate bumpers
+    int bumper_count;      // Number of bumpers
     int score;             // Current player score
     int high_score;        // Session high score
 
@@ -138,6 +150,26 @@ void world_set_table_bounds(World* world, float table_width,
 // Parameters:
 //   world: World instance
 void world_render_rails(World* world);
+// }}}
+
+// {{{ world_generate_bumpers
+// Generates gate bumpers at the top of each zone divider.
+// Bumpers are low-restitution collision points that cause balls
+// to donk softly and slide into gates.
+// Call after world_generate_zones() to ensure zone bounds are set.
+//
+// Parameters:
+//   world: World instance
+void world_generate_bumpers(World* world);
+// }}}
+
+// {{{ world_render_bumpers
+// Renders all gate bumpers with distinct visual style.
+// Bumpers appear as soft, cushion-like caps on zone dividers.
+//
+// Parameters:
+//   world: World instance
+void world_render_bumpers(World* world);
 // }}}
 
 #endif // WORLD_H

@@ -26,6 +26,8 @@ World* world_create(int width, int height) {
     world->peg_count = 0;
     world->zones = NULL;
     world->zone_count = 0;
+    world->bumpers = NULL;
+    world->bumper_count = 0;
     world->score = 0;
     world->high_score = 0;
 
@@ -53,6 +55,11 @@ void world_destroy(World* world) {
     // Free zone array if allocated
     if (world->zones) {
         free(world->zones);
+    }
+
+    // Free bumper array if allocated
+    if (world->bumpers) {
+        free(world->bumpers);
     }
 
     // Free world structure
@@ -263,5 +270,77 @@ void world_render_rails(World* world) {
     // Highlight on left edge (inner side)
     DrawRectangle((int)right_x, (int)rail_top,
                  2, (int)rail_height, rail_highlight);
+}
+// }}}
+
+// {{{ world_generate_bumpers
+// Bumpers are placed at the top of each gate divider (between zones).
+// For N zones, there are N-1 dividers, so N-1 bumpers.
+// Each bumper is centered on the divider line at the top of the zones.
+void world_generate_bumpers(World* world) {
+    if (!world || world->zone_count < 2) {
+        return;  // Need at least 2 zones to have dividers
+    }
+
+    // Free existing bumpers if any
+    if (world->bumpers) {
+        free(world->bumpers);
+    }
+
+    // Number of bumpers = number of dividers = zone_count - 1
+    world->bumper_count = world->zone_count - 1;
+    world->bumpers = (Bumper*)malloc(sizeof(Bumper) * world->bumper_count);
+
+    if (!world->bumpers) {
+        fprintf(stderr, "ERROR: Failed to allocate bumper array\n");
+        world->bumper_count = 0;
+        return;
+    }
+
+    // Bumper radius from ball.h constant
+    // Note: we can't include ball.h here due to circular deps,
+    // so we use a local constant that should match BUMPER_RADIUS
+    float bumper_radius = 10.0f;
+
+    // Generate bumpers at each zone divider
+    // Divider is at the x_max of zone[i] (which equals x_min of zone[i+1])
+    for (int i = 0; i < world->bumper_count; i++) {
+        // Divider X position is at the right edge of zone[i]
+        float divider_x = world->zones[i].x_max;
+
+        // Y position is at the top of the zones (y_min)
+        // Position bumper so its bottom edge aligns with zone top
+        float bumper_y = world->zones[i].y_min;
+
+        world->bumpers[i].x = divider_x;
+        world->bumpers[i].y = bumper_y;
+        world->bumpers[i].radius = bumper_radius;
+    }
+}
+// }}}
+
+// {{{ world_render_bumpers
+void world_render_bumpers(World* world) {
+    if (!world || !world->bumpers) {
+        return;
+    }
+
+    // Bumper visual style - soft, cushion-like appearance
+    // Muted teal/cyan color to contrast with gold/green/blue zones
+    Color bumper_color = (Color){80, 140, 140, 255};      // Muted teal
+    Color bumper_outline = (Color){60, 100, 100, 255};    // Darker outline
+
+    // Render each bumper as a filled circle with outline
+    for (int i = 0; i < world->bumper_count; i++) {
+        Bumper* bumper = &world->bumpers[i];
+
+        // Draw filled circle
+        DrawCircle((int)bumper->x, (int)bumper->y,
+                   bumper->radius, bumper_color);
+
+        // Draw outline for depth
+        DrawCircleLines((int)bumper->x, (int)bumper->y,
+                        bumper->radius, bumper_outline);
+    }
 }
 // }}}

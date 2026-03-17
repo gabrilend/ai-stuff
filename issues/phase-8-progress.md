@@ -16,11 +16,11 @@ opponent, creating competitive gameplay with resource management.
 | 805 | Adversary spawning AI              | Pending |
 | 806 | Shared gates / ball passthrough    | Pending |
 | 807 | Cross-board ball physics           | Pending |
-| 808 | Gate bumpers                       | Pending |
+| 808 | Gate bumpers                       | Complete |
 
 ## Progress Summary
 
-**Completed:** 0/8 issues (0%)
+**Completed:** 1/8 issues (12.5%)
 **Phase 8:** In Progress
 
 ## Notes
@@ -53,4 +53,14 @@ Phase 7 must be complete (spawn system and UI improvements).
 
 ## Implementation Log
 
-(To be filled as issues are completed)
+### Issue 808 - Gate Bumpers (Complete)
+
+Added low-restitution bumper caps at the top of each gate divider:
+
+- Bumper struct added to World (x, y, radius)
+- Bumpers auto-generated at zone boundaries (N-1 bumpers for N zones)
+- Very low restitution (0.15) plus tangential velocity damping (0.7)
+- Balls hitting bumpers "donk" softly and slide into gates
+- Muted teal visual (80, 140, 140) with darker outline
+- Integrated into parallel ball physics (ball_update_task)
+- Adversary bumpers (bottom of dividers) deferred to Issue 804

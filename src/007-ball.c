@@ -220,6 +220,76 @@ static void ball_collide_with_pegs(Ball* ball, World* world) {
 }
 // }}}
 
+// {{{ ball_check_bumper_collision
+// Internal function to check circle-circle collision with bumper
+// Returns 1 if collision detected, 0 otherwise
+// Outputs collision normal and penetration depth
+static int ball_check_bumper_collision(Ball* ball, Bumper* bumper,
+                                        float* nx, float* ny, float* depth) {
+    float dx = ball->x - bumper->x;
+    float dy = ball->y - bumper->y;
+    float dist_sq = dx * dx + dy * dy;
+    float min_dist = ball->radius + bumper->radius;
+
+    // No collision if distance >= sum of radii
+    if (dist_sq >= min_dist * min_dist) return 0;
+
+    float dist = sqrtf(dist_sq);
+    if (dist < 0.001f) dist = 0.001f;  // Avoid division by zero
+
+    // Collision normal (points from bumper to ball)
+    *nx = dx / dist;
+    *ny = dy / dist;
+    *depth = min_dist - dist;
+
+    return 1;  // Collision detected
+}
+// }}}
+
+// {{{ ball_resolve_bumper_collision
+// Internal function to resolve collision with a bumper
+// Uses very low restitution for "donk" feel - ball slides into gate
+static void ball_resolve_bumper_collision(Ball* ball, float nx, float ny,
+                                           float depth) {
+    // Separate ball from bumper along collision normal
+    ball->x += nx * (depth + COLLISION_BIAS);
+    ball->y += ny * (depth + COLLISION_BIAS);
+
+    // Calculate velocity component along normal
+    float vn = ball->vx * nx + ball->vy * ny;
+
+    // Only respond if moving into bumper (negative means approaching)
+    if (vn < 0) {
+        // Very low restitution - ball "sticks" briefly then slides
+        // Also dampen tangential velocity to reduce sideways bounce
+        ball->vx -= (1.0f + BUMPER_RESTITUTION) * vn * nx;
+        ball->vy -= (1.0f + BUMPER_RESTITUTION) * vn * ny;
+
+        // Additional damping to tangential velocity for "sticky" feel
+        // This makes the ball more likely to drop straight down
+        float tangent_damping = 0.7f;
+        float vt = ball->vx * (-ny) + ball->vy * nx;  // Tangent component
+        ball->vx -= (1.0f - tangent_damping) * vt * (-ny);
+        ball->vy -= (1.0f - tangent_damping) * vt * nx;
+    }
+}
+// }}}
+
+// {{{ ball_collide_with_bumpers
+// Internal function to check and resolve collisions with all bumpers
+static void ball_collide_with_bumpers(Ball* ball, World* world) {
+    if (!world->bumpers) return;
+
+    float nx, ny, depth;
+    for (int i = 0; i < world->bumper_count; i++) {
+        if (ball_check_bumper_collision(ball, &world->bumpers[i],
+                                         &nx, &ny, &depth)) {
+            ball_resolve_bumper_collision(ball, nx, ny, depth);
+        }
+    }
+}
+// }}}
+
 // {{{ ball_check_ball_collision
 // Internal function to check circle-circle collision between two balls
 // Returns 1 if collision detected, 0 otherwise
@@ -356,6 +426,7 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
         // Perform collision detection and response on next buffer
         if (next->active) {
             ball_collide_with_pegs(next, world);
+            ball_collide_with_bumpers(next, world);
             ball_collide_with_walls(next, world);
             ball_check_bounds(next, world->height);
 
@@ -524,6 +595,7 @@ void ball_update_task(void* data) {
     // Only if ball is still active after physics update
     if (next->active) {
         ball_collide_with_pegs(next, task->world);
+        ball_collide_with_bumpers(next, task->world);
         ball_collide_with_balls(next, task->ball_index,
                                task->read_buffer, task->capacity);
         ball_collide_with_walls(next, task->world);
