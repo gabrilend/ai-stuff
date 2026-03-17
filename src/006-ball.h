@@ -45,7 +45,10 @@ typedef struct ThreadPool ThreadPool;
 
 // Health system constants
 #define BALL_MAX_HEALTH 100.0f    // Starting health for all balls
-#define DAMAGE_VELOCITY_SCALE 0.3f // Damage = relative_velocity * scale (tunable)
+#define DAMAGE_VELOCITY_SCALE 0.1f // Damage = relative_velocity * scale (lower = more durable)
+
+// Despawn buffer - balls despawn one screen height + this buffer past the board edges
+#define DESPAWN_BUFFER 100.0f
 
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.

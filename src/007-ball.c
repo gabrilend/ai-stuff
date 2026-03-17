@@ -458,17 +458,20 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
 
 // {{{ ball_check_bounds
 // Internal function to deactivate balls that exit the play area
-// Player balls (gravity_dir=+1) are destroyed at adversary_table_bottom
-// Adversary balls (gravity_dir=-1) are destroyed at table_top
+// Balls despawn one screen height + buffer past the board edges
+// This ensures they're fully off-screen before despawning
 static void ball_check_bounds(Ball* ball, World* world) {
+    float screen_height = (float)world->height;
+
     if (ball->gravity_dir > 0) {
-        // Player ball moving downward - destroy at bottom of adversary board
-        if (ball->y - ball->radius > world->adversary_table_bottom) {
+        // Player ball moving downward - destroy one screen past adversary board
+        float bottom_bound = world->adversary_table_bottom + screen_height + DESPAWN_BUFFER;
+        if (ball->y - ball->radius > bottom_bound) {
             ball->active = 0;
         }
     } else {
-        // Adversary ball moving upward - destroy above player spawn area
-        float top_bound = SPAWN_Y - BALL_RADIUS - 30.0f;
+        // Adversary ball moving upward - destroy one screen above player board
+        float top_bound = world->table_top - screen_height - DESPAWN_BUFFER;
         if (ball->y + ball->radius < top_bound) {
             ball->active = 0;
         }
