@@ -90,7 +90,63 @@ Complete gameplay loop and visual refinement.
 
 ---
 
-## Phase 6: Optimization (Optional)
+## Phase 6: Viewport and Window
+
+Viewport management and window handling.
+
+### Deliverables
+- Scrolling viewport with Camera2D
+- Dynamic window resize handling
+- Scroll limits to keep table visible
+- UI repositioning on resize
+
+### Success Criteria
+- Smooth scrolling through game world
+- Window resizes handled gracefully
+- UI elements stay properly positioned
+
+---
+
+## Phase 7: Spawn System and UI
+
+Spawn system improvements and UI polish.
+
+### Deliverables
+- Auto-spawn toggle (A key)
+- Movable spawn point (mouse/keyboard)
+- Improved spawn visual display
+- Credit-based spawn buffering
+- UI repositioned for better visibility
+
+### Success Criteria
+- Consistent spawn rate regardless of input method
+- Intuitive spawn point control
+- Clear visual feedback for spawn state
+
+---
+
+## Phase 8: Game Mechanics
+
+Upgrade system and adversary opponent.
+
+### Deliverables
+- Upgrade menu system (spend points on improvements)
+- Spawn rate upgrade
+- Ball radius upgrade
+- Adversary board (mirrored below player)
+- Adversary AI (oscillating reticle, auto-spawn)
+- Shared gates (balls pass through to opposite board)
+- Cross-board ball physics (reversed gravity, momentum transfer)
+
+### Success Criteria
+- Upgrades purchasable and functional
+- Enemy board renders correctly (flipped orientation)
+- Balls pass through shared gates to opposite board
+- Cross-board collisions transfer momentum correctly
+
+---
+
+## Phase 9: Optimization (Future)
 
 Performance improvements for high ball counts.
 

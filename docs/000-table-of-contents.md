@@ -14,10 +14,15 @@
 ### Reference
 - [006 - Build Instructions](006-build-instructions.md)
 
+### Design Documents
+- [008 - Future Ball Types](008-future-ball-types.md)
+
 ### Issue Tracking
 - [Phase 1 Progress](../issues/phase-1-progress.md) - Foundation (Complete)
 - [Phase 2 Progress](../issues/phase-2-progress.md) - Static World (Complete)
 - [Phase 3 Progress](../issues/phase-3-progress.md) - Ball Physics (Complete)
 - [Phase 4 Progress](../issues/phase-4-progress.md) - Parallel Processing (Complete)
 - [Phase 5 Progress](../issues/phase-5-progress.md) - Scoring and Polish (Complete)
-- [Phase 6 Progress](../issues/phase-6-progress.md) - Bug Fixes and Features (In Progress)
+- [Phase 6 Progress](../issues/phase-6-progress.md) - Viewport and Window (Complete)
+- [Phase 7 Progress](../issues/phase-7-progress.md) - Spawn System and UI (Complete)
+- [Phase 8 Progress](../issues/phase-8-progress.md) - Game Mechanics (In Progress)
