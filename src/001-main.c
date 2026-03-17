@@ -52,6 +52,7 @@ int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(screen_width, screen_height, "Physics Simulator - Pachinko");
     SetTargetFPS(60);
+    SetExitKey(0);  // Disable default ESC-to-quit, we handle it manually
 
     // Detect monitor size and scale window vertically
     // Works on X11 (i3, dwm) and Wayland (sway) via raylib abstraction
@@ -202,7 +203,9 @@ int main(void) {
     printf("Entering main loop...\n");
     printf("Press SPACE to spawn balls, A to toggle auto-spawn, SCROLL to pan view\n");
     printf("Move mouse or use LEFT/RIGHT arrows to aim spawn point\n");
-    while (!WindowShouldClose()) {
+    printf("Press Q to quit, ESC closes menus first\n");
+    int should_quit = 0;
+    while (!should_quit) {
         // Get delta time for physics
         float dt = GetFrameTime();
 
@@ -255,8 +258,20 @@ int main(void) {
             printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
         }
 
-        // Handle upgrade menu input
-        upgrade_manager_handle_input(upgrade_manager, &world->score);
+        // Handle upgrade menu input (returns 1 if ESC was consumed)
+        int esc_consumed = upgrade_manager_handle_input(upgrade_manager, &world->score);
+
+        // Handle quit: Q always quits, ESC quits only if not consumed by menu
+        if (IsKeyPressed(KEY_Q)) {
+            should_quit = 1;
+        }
+        if (IsKeyPressed(KEY_ESCAPE) && !esc_consumed) {
+            should_quit = 1;
+        }
+        // Also quit if window close button clicked
+        if (WindowShouldClose()) {
+            should_quit = 1;
+        }
 
         // Update adversary AI (moves reticle, spawns enemy balls)
         adversary_update(adversary, world, ball_manager, dt);

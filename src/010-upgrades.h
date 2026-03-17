@@ -99,7 +99,10 @@ int upgrade_manager_purchase(UpgradeManager* manager, int* score);
 // Parameters:
 //   manager: UpgradeManager instance
 //   score: Pointer to player score (for purchases)
-void upgrade_manager_handle_input(UpgradeManager* manager, int* score);
+//
+// Returns:
+//   1 if ESC was consumed (menu was closed), 0 otherwise
+int upgrade_manager_handle_input(UpgradeManager* manager, int* score);
 // }}}
 
 // {{{ upgrade_manager_render

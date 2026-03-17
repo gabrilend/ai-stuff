@@ -96,8 +96,8 @@ int upgrade_manager_purchase(UpgradeManager* manager, int* score) {
 // }}}
 
 // {{{ upgrade_manager_handle_input
-void upgrade_manager_handle_input(UpgradeManager* manager, int* score) {
-    if (!manager) return;
+int upgrade_manager_handle_input(UpgradeManager* manager, int* score) {
+    if (!manager) return 0;
 
     float dt = GetFrameTime();
 
@@ -112,7 +112,7 @@ void upgrade_manager_handle_input(UpgradeManager* manager, int* score) {
     }
 
     // Menu controls only work when menu is open
-    if (!manager->menu_open) return;
+    if (!manager->menu_open) return 0;
 
     // Up/Down to select
     if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
@@ -150,11 +150,14 @@ void upgrade_manager_handle_input(UpgradeManager* manager, int* score) {
         manager->purchase_cooldown = 0.0f;
     }
 
-    // Escape to close
+    // Escape to close menu (consumes the key press)
     if (IsKeyPressed(KEY_ESCAPE)) {
         manager->menu_open = 0;
         printf("Upgrade menu closed\n");
+        return 1;  // ESC was consumed
     }
+
+    return 0;  // ESC was not consumed
 }
 // }}}
 

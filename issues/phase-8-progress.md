@@ -19,10 +19,11 @@ opponent, creating competitive gameplay with resource management.
 | 808 | Gate bumpers                       | Complete |
 | 809 | Ball health and damage system      | Complete |
 | 810 | Granular upgrade levels            | Complete |
+| 811 | Escape key behavior / Q to quit    | Complete |
 
 ## Progress Summary
 
-**Completed:** 10/10 issues (100%)
+**Completed:** 11/11 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -143,3 +144,14 @@ Converted upgrade system to incremental/clicker-style with 100x more levels:
 - Percentage indicator next to each progress bar
 
 Files: 010-upgrades.h, 011-upgrades.c
+
+### Issue 811 - Escape Key Behavior (Complete)
+
+Improved quit key handling for better menu interaction:
+
+- SetExitKey(0) disables raylib's default ESC-to-quit
+- ESC closes upgrade menu if open, only quits if menu closed
+- Q key always quits immediately
+- upgrade_manager_handle_input() returns 1 if ESC was consumed
+
+Files: 001-main.c, 010-upgrades.h, 011-upgrades.c
