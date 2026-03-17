@@ -220,4 +220,18 @@ void ball_manager_finalize_update(BallManager* manager);
 void ball_update_task(void* data);
 // }}}
 
+// {{{ ball_check_zone
+// Checks if a ball has entered a score zone.
+// Returns zone index (0 to zone_count-1) if captured, -1 otherwise.
+// Uses ball center point for detection.
+//
+// Parameters:
+//   ball: Ball to check
+//   world: World containing score zones
+//
+// Returns:
+//   Zone index if captured, -1 if not in any zone
+int ball_check_zone(Ball* ball, World* world);
+// }}}
+
 #endif // BALL_H

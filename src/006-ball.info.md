@@ -167,6 +167,29 @@ Task function for parallel ball update. Receives BallTaskData pointer and perfor
 - Writes only to write_buffer[ball_index] (disjoint access)
 - Reads from world (immutable during frame)
 
+### ball_check_zone
+```c
+int ball_check_zone(Ball* ball, World* world);
+```
+Checks if a ball has entered a score zone at the bottom of the screen. Returns zone index if the ball's center point is below ZONE_TOP_Y and within a zone's x boundaries.
+
+**Parameters:**
+- `ball`: Ball to check
+- `world`: World containing score zones
+
+**Returns:**
+- Zone index (0 to zone_count-1) if ball is in a zone
+- -1 if ball is not in any zone (above threshold, between zones, or inactive)
+
+**Detection Logic:**
+- Checks if ball->y > ZONE_TOP_Y (560.0f)
+- Uses ball center point for detection (not radius)
+- Returns first matching zone index from left to right
+
+**Thread Safety:**
+- Read-only on both ball and world
+- Safe to call from parallel tasks
+
 ## Data Structures
 
 ### Ball

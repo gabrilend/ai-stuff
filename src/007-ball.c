@@ -407,3 +407,29 @@ void ball_manager_finalize_update(BallManager* manager) {
     manager->active_count = count;
 }
 // }}}
+
+// {{{ ball_check_zone
+int ball_check_zone(Ball* ball, World* world) {
+    if (!ball || !world) return -1;
+    if (!ball->active) return -1;
+
+    // Check if ball has entered the score zone area
+    // ZONE_TOP_Y (560.0f) defines the top of the zone area
+    if (ball->y <= ZONE_TOP_Y) return -1;
+
+    // Ball is below the zone threshold, check which zone it's in
+    // Uses ball center point (not radius) for zone detection
+    for (int i = 0; i < world->zone_count; i++) {
+        ScoreZone* zone = &world->zones[i];
+
+        // Check if ball x-position is within zone boundaries
+        if (ball->x >= zone->x_min && ball->x < zone->x_max) {
+            return i;  // Return zone index
+        }
+    }
+
+    // Ball is below zone threshold but not in any zone
+    // (between zones or outside leftmost/rightmost zones)
+    return -1;
+}
+// }}}

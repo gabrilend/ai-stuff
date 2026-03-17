@@ -7,17 +7,17 @@ machine to a playable state with scoring, ball capture, and visual polish.
 
 ## Issues
 
-| ID  | Description                        | Status  |
-|-----|------------------------------------|---------|
-| 501 | Implement score zone detection     | Pending |
-| 502 | Implement scoring and ball capture | Pending |
-| 503 | Add visual polish and colors       | Pending |
-| 504 | Add particle effects               | Pending |
-| 505 | Final gameplay polish              | Pending |
+| ID  | Description                        | Status    |
+|-----|------------------------------------|-----------|
+| 501 | Implement score zone detection     | Complete  |
+| 502 | Implement scoring and ball capture | Pending   |
+| 503 | Add visual polish and colors       | Pending   |
+| 504 | Add particle effects               | Pending   |
+| 505 | Final gameplay polish              | Pending   |
 
 ## Progress Summary
 
-**Completed:** 0/5 issues (0%)
+**Completed:** 1/5 issues (20%)
 **Phase 5:** In Progress
 
 ## Notes
@@ -46,4 +46,15 @@ Phase 4 must be complete (parallel ball physics processing).
 
 ## Implementation Log
 
-(To be filled as issues are completed)
+### Issue 501 - Score Zone Detection (Complete)
+
+Implemented ball_check_zone() function for detecting when balls enter score zones.
+
+Key changes:
+- Added ball_check_zone() to src/006-ball.h and src/007-ball.c
+- Function checks if ball->y > ZONE_TOP_Y (560.0f)
+- Returns zone index when ball x-position is within zone boundaries
+- Thread-safe read-only function, callable from parallel tasks
+- Updated API documentation in src/006-ball.info.md
+
+The detection system is ready to be integrated with the scoring system in Issue 502. Balls can now be identified when they enter zones, but scoring and deactivation logic still needs to be implemented.
