@@ -39,6 +39,10 @@ typedef struct ThreadPool ThreadPool;
 #define SPAWN_RATE 5.0f       // Credits accumulated per second (5 = one every 0.2s)
 #define MAX_SPAWN_CREDITS 3.0f // Maximum stored credits (prevents burst)
 
+// Ball owner constants
+#define OWNER_PLAYER 0
+#define OWNER_ADVERSARY 1
+
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
 // Uses double-buffering: read from current, write to next.
@@ -46,7 +50,10 @@ typedef struct Ball {
     float x, y;        // Position in pixels
     float vx, vy;      // Velocity in pixels per second
     float radius;      // Collision and render radius
+    float gravity_dir; // Gravity direction: +1.0 (down) or -1.0 (up)
     int active;        // 1 if in play, 0 if inactive
+    int owner;         // OWNER_PLAYER or OWNER_ADVERSARY
+    int passed_gate;   // 1 if ball has passed through gate (prevents double-scoring)
 } Ball;
 // }}}
 
@@ -104,7 +111,7 @@ void ball_manager_destroy(BallManager* manager);
 // }}}
 
 // {{{ ball_manager_spawn
-// Spawns a new ball at the given position with specified radius.
+// Spawns a new ball at the given position with specified radius and owner.
 // Finds an inactive slot and activates it.
 // Returns 0 if no slots available.
 //
@@ -113,10 +120,13 @@ void ball_manager_destroy(BallManager* manager);
 //   x: Starting x position in pixels
 //   y: Starting y position in pixels
 //   radius: Ball radius (use BALL_RADIUS + upgrade modifier)
+//   owner: OWNER_PLAYER or OWNER_ADVERSARY
+//   gravity_dir: +1.0 (downward) or -1.0 (upward)
 //
 // Returns:
 //   1 on success, 0 if capacity reached
-int ball_manager_spawn(BallManager* manager, float x, float y, float radius);
+int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
+                       int owner, float gravity_dir);
 // }}}
 
 // {{{ ball_manager_swap_buffers

@@ -1,9 +1,12 @@
 # Issue 805 - Adversary Spawning AI
 
 ## Status
-Pending
+Completed
 
 ## Current Behavior
+Adversary AI spawns balls from an oscillating reticle at the bottom of the adversary board. Reticle moves back and forth at ADVERSARY_MOVE_SPEED (120 px/sec), bouncing off table edges. Spawn credits accumulate at ADVERSARY_SPAWN_RATE (4 balls/sec). Adversary balls are spawned with gravity_dir=-1.0 (upward) and owner=OWNER_ADVERSARY. Red-tinted reticle with cooldown arc indicator.
+
+## Previous Behavior
 No adversary exists. Only player can spawn balls.
 
 ## Intended Behavior
@@ -61,3 +64,12 @@ No adversary exists. Only player can spawn balls.
 - Future enhancement: AI could target high-value zones
 - Future enhancement: AI spawn rate could scale with game time
 - Adversary balls need reversed gravity (handled in Issue 807)
+
+## Implementation Notes
+- Created src/012-adversary.h with Adversary struct
+- Created src/013-adversary.c with adversary_create/destroy/update/render/reset
+- Adversary struct holds: spawn_x, spawn_y, spawn_direction, spawn_credits, spawn_rate, move_speed
+- adversary_update() called each frame in main loop
+- adversary_render() draws reticle and cooldown arc
+- adversary_reset() called on R key press and window resize
+- Uses ball_manager_spawn() with OWNER_ADVERSARY and gravity_dir=-1.0

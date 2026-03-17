@@ -1,9 +1,18 @@
 # Issue 807 - Cross-Board Ball Physics
 
 ## Status
-Pending
+Completed
 
 ## Current Behavior
+- Ball struct has gravity_dir field (+1.0 downward, -1.0 upward)
+- Ball struct has owner field (OWNER_PLAYER or OWNER_ADVERSARY)
+- Physics update multiplies GRAVITY by gravity_dir
+- Balls collide with both player and adversary pegs
+- Balls collide with both player and adversary bumpers
+- Cross-board collisions (different owners) apply 2x impulse multiplier
+- Dramatic momentum transfer when player and adversary balls collide
+
+## Previous Behavior
 - All balls have same gravity direction (downward)
 - Ball-ball collisions use standard elastic physics
 - No concept of "opposing" balls
@@ -85,3 +94,16 @@ v2_final = v2 + 2.0 * impulse * n
 - Double-strength creates dramatic interactions
 - Players can strategically aim to "spike" enemy balls
 - Future: power-ups could modify collision strength
+
+## Implementation Notes
+- Added gravity_dir and owner fields to Ball struct in src/006-ball.h
+- Added OWNER_PLAYER (0) and OWNER_ADVERSARY (1) constants
+- Modified ball_manager_spawn to accept radius, owner, gravity_dir parameters
+- Modified ball_update_physics to multiply GRAVITY by gravity_dir:
+  `next->vy = current->vy + GRAVITY * current->gravity_dir * dt;`
+- Modified ball_collide_with_pegs to check both world->pegs and world->adversary_pegs
+- Modified ball_collide_with_bumpers to check both bumper arrays
+- Modified ball_resolve_ball_collision:
+  - Checks if ball_a->owner != ball_b->owner
+  - If cross-board collision, applies strength_multiplier = 2.0
+  - Impulse formula: `-(1.0f + RESTITUTION) * vn * strength_multiplier`

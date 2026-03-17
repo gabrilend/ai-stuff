@@ -31,11 +31,19 @@ World* world_create(int width, int height) {
     world->score = 0;
     world->high_score = 0;
 
+    // Adversary board
+    world->adversary_pegs = NULL;
+    world->adversary_peg_count = 0;
+    world->adversary_bumpers = NULL;
+    world->adversary_bumper_count = 0;
+
     // Initialize table bounds to defaults (will be set properly later)
     world->table_x = 0.0f;
     world->table_width = (float)width;
     world->table_top = 0.0f;
     world->table_bottom = (float)height;
+    world->adversary_table_top = (float)height;
+    world->adversary_table_bottom = (float)height;
 
     return world;
 }
@@ -60,6 +68,14 @@ void world_destroy(World* world) {
     // Free bumper array if allocated
     if (world->bumpers) {
         free(world->bumpers);
+    }
+
+    // Free adversary arrays
+    if (world->adversary_pegs) {
+        free(world->adversary_pegs);
+    }
+    if (world->adversary_bumpers) {
+        free(world->adversary_bumpers);
     }
 
     // Free world structure
@@ -339,6 +355,133 @@ void world_render_bumpers(World* world) {
                    bumper->radius, bumper_color);
 
         // Draw outline for depth
+        DrawCircleLines((int)bumper->x, (int)bumper->y,
+                        bumper->radius, bumper_outline);
+    }
+}
+// }}}
+
+// {{{ world_generate_adversary_pegs
+void world_generate_adversary_pegs(World* world, int rows, int cols, float spacing) {
+    if (!world) {
+        return;
+    }
+
+    // Free existing adversary pegs if any
+    if (world->adversary_pegs) {
+        free(world->adversary_pegs);
+    }
+
+    // Calculate total peg count
+    world->adversary_peg_count = rows * cols;
+    world->adversary_pegs = (Peg*)malloc(sizeof(Peg) * world->adversary_peg_count);
+
+    if (!world->adversary_pegs) {
+        fprintf(stderr, "ERROR: Failed to allocate adversary peg array\n");
+        world->adversary_peg_count = 0;
+        return;
+    }
+
+    // Calculate adversary board bounds (below zones)
+    // Adversary table starts at bottom of zones
+    world->adversary_table_top = world->zones[0].y_max;
+    world->adversary_table_bottom = world->adversary_table_top + (rows * spacing) + 50.0f;
+
+    // Generate staggered grid (mirrored from player)
+    // Pegs are placed from top of adversary area downward
+    float peg_grid_width = cols * spacing;
+    float start_x = world->table_x + (world->table_width - peg_grid_width) / 2.0f;
+    float start_y = world->adversary_table_top + 50.0f;  // Margin below zones
+
+    int idx = 0;
+    for (int row = 0; row < rows; row++) {
+        // Odd rows get half-spacing offset for staggered pattern
+        float offset = (row % 2 == 0) ? 0 : spacing / 2;
+
+        for (int col = 0; col < cols; col++) {
+            world->adversary_pegs[idx].x = start_x + col * spacing + offset;
+            world->adversary_pegs[idx].y = start_y + row * spacing;
+            world->adversary_pegs[idx].radius = PEG_RADIUS;
+            idx++;
+        }
+    }
+}
+// }}}
+
+// {{{ world_render_adversary_pegs
+void world_render_adversary_pegs(World* world) {
+    if (!world || !world->adversary_pegs) {
+        return;
+    }
+
+    // Adversary peg colors - red-tinted, dimmer than player pegs
+    Color peg_color = (Color){180, 140, 140, 255};      // Reddish steel
+    Color peg_outline = (Color){120, 80, 80, 255};      // Darker red outline
+
+    // Render each peg as a circle with outline
+    for (int i = 0; i < world->adversary_peg_count; i++) {
+        // Draw filled circle
+        DrawCircle((int)world->adversary_pegs[i].x, (int)world->adversary_pegs[i].y,
+                   world->adversary_pegs[i].radius, peg_color);
+
+        // Draw outline for depth
+        DrawCircleLines((int)world->adversary_pegs[i].x, (int)world->adversary_pegs[i].y,
+                       world->adversary_pegs[i].radius, peg_outline);
+    }
+}
+// }}}
+
+// {{{ world_generate_adversary_bumpers
+void world_generate_adversary_bumpers(World* world) {
+    if (!world || world->zone_count < 2) {
+        return;
+    }
+
+    // Free existing adversary bumpers if any
+    if (world->adversary_bumpers) {
+        free(world->adversary_bumpers);
+    }
+
+    // Number of bumpers = number of dividers = zone_count - 1
+    world->adversary_bumper_count = world->zone_count - 1;
+    world->adversary_bumpers = (Bumper*)malloc(sizeof(Bumper) * world->adversary_bumper_count);
+
+    if (!world->adversary_bumpers) {
+        fprintf(stderr, "ERROR: Failed to allocate adversary bumper array\n");
+        world->adversary_bumper_count = 0;
+        return;
+    }
+
+    float bumper_radius = 10.0f;
+
+    // Generate bumpers at bottom of each zone divider
+    for (int i = 0; i < world->adversary_bumper_count; i++) {
+        float divider_x = world->zones[i].x_max;
+        float bumper_y = world->zones[i].y_max;  // Bottom of zones
+
+        world->adversary_bumpers[i].x = divider_x;
+        world->adversary_bumpers[i].y = bumper_y;
+        world->adversary_bumpers[i].radius = bumper_radius;
+    }
+}
+// }}}
+
+// {{{ world_render_adversary_bumpers
+void world_render_adversary_bumpers(World* world) {
+    if (!world || !world->adversary_bumpers) {
+        return;
+    }
+
+    // Adversary bumper colors - reddish teal
+    Color bumper_color = (Color){140, 100, 100, 255};
+    Color bumper_outline = (Color){100, 70, 70, 255};
+
+    for (int i = 0; i < world->adversary_bumper_count; i++) {
+        Bumper* bumper = &world->adversary_bumpers[i];
+
+        DrawCircle((int)bumper->x, (int)bumper->y,
+                   bumper->radius, bumper_color);
+
         DrawCircleLines((int)bumper->x, (int)bumper->y,
                         bumper->radius, bumper_outline);
     }

@@ -1,9 +1,17 @@
 # Issue 806 - Shared Gates / Ball Passthrough
 
 ## Status
-Pending
+Completed
 
 ## Current Behavior
+- Balls entering score zones score points but continue through (not destroyed)
+- passed_gate flag in Ball struct prevents double-scoring
+- Player balls pass through gates and enter adversary board
+- Adversary balls pass through gates and enter player board
+- Particles still spawn on gate entry (once per crossing)
+- Balls destroyed only at far boundary (player balls at adversary_table_bottom, adversary balls above spawn area)
+
+## Previous Behavior
 - Balls entering score zones are captured and destroyed
 - Points are awarded and particles spawn
 - Ball becomes inactive
@@ -60,3 +68,14 @@ Pending
 - This creates risk/reward: balls that pass through help opponent
 - Future: could have "blocker" power-up to capture balls at gates
 - Future: gates could award different points based on direction
+
+## Implementation Notes
+- Added passed_gate field to Ball struct in src/006-ball.h
+- Modified ball_update_task in src/007-ball.c:
+  - Zone detection now checks !next->passed_gate before scoring
+  - Sets passed_gate=1 after scoring instead of deactivating ball
+- Modified ball_check_bounds in src/007-ball.c:
+  - Takes World* instead of screen_height
+  - Player balls (gravity_dir > 0) deactivate at adversary_table_bottom
+  - Adversary balls (gravity_dir < 0) deactivate above spawn area
+- ball_manager_spawn initializes passed_gate=0 for new balls

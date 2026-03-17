@@ -12,16 +12,16 @@ opponent, creating competitive gameplay with resource management.
 | 801 | Upgrade system framework           | Complete |
 | 802 | Spawn rate upgrade                 | Complete |
 | 803 | Ball radius upgrade                | Complete |
-| 804 | Adversary board layout             | Pending |
-| 805 | Adversary spawning AI              | Pending |
-| 806 | Shared gates / ball passthrough    | Pending |
-| 807 | Cross-board ball physics           | Pending |
+| 804 | Adversary board layout             | Complete |
+| 805 | Adversary spawning AI              | Complete |
+| 806 | Shared gates / ball passthrough    | Complete |
+| 807 | Cross-board ball physics           | Complete |
 | 808 | Gate bumpers                       | Complete |
 
 ## Progress Summary
 
-**Completed:** 4/8 issues (50%)
-**Phase 8:** In Progress
+**Completed:** 8/8 issues (100%)
+**Phase 8:** Complete
 
 ## Notes
 
@@ -85,4 +85,38 @@ Added low-restitution bumper caps at the top of each gate divider:
 - Balls hitting bumpers "donk" softly and slide into gates
 - Muted teal visual (80, 140, 140) with darker outline
 - Integrated into parallel ball physics (ball_update_task)
-- Adversary bumpers (bottom of dividers) deferred to Issue 804
+- Adversary bumpers (bottom of dividers) implemented in Issue 804
+
+### Issues 804-807 - Adversary System (Complete)
+
+Implemented complete adversary system with AI-controlled opponent:
+
+**Issue 804 - Adversary Board Layout:**
+- Extended World struct with adversary_pegs, adversary_bumpers, adversary_table_top/bottom
+- world_generate_adversary_pegs() creates mirrored peg layout below gates
+- world_render_adversary_pegs() draws red-tinted pegs (180, 140, 140)
+- Adversary bumpers generated at bottom of gate dividers
+- Pegs/bumpers regenerate on window resize
+
+**Issue 805 - Adversary Spawning AI:**
+- Created Adversary struct (spawn_x, spawn_y, spawn_direction, spawn_credits, etc.)
+- Oscillating reticle at ADVERSARY_MOVE_SPEED (120 px/sec)
+- Spawn rate of ADVERSARY_SPAWN_RATE (4 balls/sec)
+- Red-tinted reticle with cooldown arc indicator
+- Spawns balls with OWNER_ADVERSARY and gravity_dir=-1.0
+
+**Issue 806 - Shared Gates / Ball Passthrough:**
+- Added passed_gate flag to Ball struct
+- Balls score points on gate entry but continue through (not destroyed)
+- Player balls continue to adversary board, adversary balls to player board
+- Balls destroyed only at far boundary (adversary_table_bottom or above spawn)
+- Prevents double-scoring with passed_gate flag
+
+**Issue 807 - Cross-Board Ball Physics:**
+- Added gravity_dir (+1.0 downward, -1.0 upward) to Ball struct
+- Added owner (OWNER_PLAYER, OWNER_ADVERSARY) to Ball struct
+- Physics update: vy += GRAVITY * gravity_dir * dt
+- Balls collide with both player and adversary pegs/bumpers
+- Cross-board collisions apply 2x impulse multiplier for dramatic interactions
+
+Files: 004-world.h, 005-world.c, 006-ball.h, 007-ball.c, 012-adversary.h, 013-adversary.c, 001-main.c

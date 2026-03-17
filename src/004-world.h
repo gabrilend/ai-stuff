@@ -47,23 +47,36 @@ typedef struct Bumper {
 // World contains all state for the pachinko machine.
 // This includes the peg grid, score zones, and current score.
 // Table bounds define the playable area (may be smaller than screen).
+// With adversary mode, there are two boards sharing the same gates.
 typedef struct World {
     int width, height;     // Screen/window dimensions
-    Peg* pegs;             // Array of pegs
-    int peg_count;         // Number of pegs
-    ScoreZone* zones;      // Array of score zones
+
+    // Player board (top)
+    Peg* pegs;             // Array of player pegs
+    int peg_count;         // Number of player pegs
+    ScoreZone* zones;      // Array of score zones (shared)
     int zone_count;        // Number of zones
-    Bumper* bumpers;       // Array of gate bumpers
-    int bumper_count;      // Number of bumpers
+    Bumper* bumpers;       // Array of gate bumpers (top of zones)
+    int bumper_count;      // Number of bumpers (top)
     int score;             // Current player score
     int high_score;        // Session high score
+
+    // Adversary board (bottom, mirrored)
+    Peg* adversary_pegs;           // Array of adversary pegs
+    int adversary_peg_count;       // Number of adversary pegs
+    Bumper* adversary_bumpers;     // Array of gate bumpers (bottom of zones)
+    int adversary_bumper_count;    // Number of bumpers (bottom)
 
     // Table bounds - the actual playable area
     // Table is centered horizontally when window is wider than table
     float table_x;         // Left edge of table (for centering)
     float table_width;     // Width of table (fixed, e.g., 800px)
-    float table_top;       // Top of table (where pegs start)
-    float table_bottom;    // Bottom of table (bottom of zones)
+    float table_top;       // Top of player table (where player pegs start)
+    float table_bottom;    // Bottom of player table / top of zones
+
+    // Adversary bounds (below zones)
+    float adversary_table_top;     // Top of adversary table (bottom of zones)
+    float adversary_table_bottom;  // Bottom of adversary table (where adversary pegs end)
 } World;
 // }}}
 
@@ -170,6 +183,44 @@ void world_generate_bumpers(World* world);
 // Parameters:
 //   world: World instance
 void world_render_bumpers(World* world);
+// }}}
+
+// {{{ world_generate_adversary_pegs
+// Generates adversary peg grid below the zones (mirrored from player).
+// Call after world_set_table_bounds() and world_generate_zones().
+//
+// Parameters:
+//   world: World instance
+//   rows: Number of peg rows
+//   cols: Number of pegs per row
+//   spacing: Distance between pegs in pixels
+void world_generate_adversary_pegs(World* world, int rows, int cols, float spacing);
+// }}}
+
+// {{{ world_render_adversary_pegs
+// Renders all adversary pegs with distinct visual style.
+// Adversary pegs are dimmer/redder than player pegs.
+//
+// Parameters:
+//   world: World instance
+void world_render_adversary_pegs(World* world);
+// }}}
+
+// {{{ world_generate_adversary_bumpers
+// Generates gate bumpers at the bottom of each zone divider.
+// These are the adversary-side bumpers (mirrored from player).
+//
+// Parameters:
+//   world: World instance
+void world_generate_adversary_bumpers(World* world);
+// }}}
+
+// {{{ world_render_adversary_bumpers
+// Renders all adversary gate bumpers.
+//
+// Parameters:
+//   world: World instance
+void world_render_adversary_bumpers(World* world);
 // }}}
 
 #endif // WORLD_H

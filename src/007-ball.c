@@ -55,8 +55,14 @@ BallManager* ball_manager_create(int capacity) {
     for (int i = 0; i < capacity; i++) {
         manager->balls_current[i].active = 0;
         manager->balls_current[i].radius = BALL_RADIUS;
+        manager->balls_current[i].gravity_dir = 1.0f;
+        manager->balls_current[i].owner = OWNER_PLAYER;
+        manager->balls_current[i].passed_gate = 0;
         manager->balls_next[i].active = 0;
         manager->balls_next[i].radius = BALL_RADIUS;
+        manager->balls_next[i].gravity_dir = 1.0f;
+        manager->balls_next[i].owner = OWNER_PLAYER;
+        manager->balls_next[i].passed_gate = 0;
 
         // Initialize task data with immutable ball_index
         manager->task_data[i].ball_index = i;
@@ -84,7 +90,8 @@ void ball_manager_destroy(BallManager* manager) {
 // }}}
 
 // {{{ ball_manager_spawn
-int ball_manager_spawn(BallManager* manager, float x, float y, float radius) {
+int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
+                       int owner, float gravity_dir) {
     if (!manager) return 0;
 
     // Clamp radius to reasonable bounds (minimum 4, maximum default)
@@ -101,11 +108,14 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius) {
             // Random horizontal velocity in range [-SPAWN_VX_RANGE, +SPAWN_VX_RANGE]
             ball->vx = (rand() / (float)RAND_MAX - 0.5f) * SPAWN_VX_RANGE * 2.0f;
 
-            // Initial downward velocity
-            ball->vy = SPAWN_VY_INITIAL;
+            // Initial velocity in gravity direction
+            ball->vy = SPAWN_VY_INITIAL * gravity_dir;
 
             ball->radius = radius;
+            ball->gravity_dir = gravity_dir;
             ball->active = 1;
+            ball->owner = owner;
+            ball->passed_gate = 0;
             manager->active_count++;
             return 1;
         }
@@ -145,12 +155,15 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
     // Copy constant properties
     next->active = current->active;
     next->radius = current->radius;
+    next->gravity_dir = current->gravity_dir;
+    next->owner = current->owner;
+    next->passed_gate = current->passed_gate;
 
     if (!current->active) return;
 
     // Semi-implicit Euler integration
-    // Update velocity first (using gravity)
-    next->vy = current->vy + GRAVITY * dt;
+    // Update velocity first (using gravity in ball's direction)
+    next->vy = current->vy + GRAVITY * current->gravity_dir * dt;
     next->vx = current->vx;
 
     // Apply damping to both velocity components
@@ -213,12 +226,25 @@ static void ball_resolve_peg_collision(Ball* ball, float nx, float ny,
 
 // {{{ ball_collide_with_pegs
 // Internal function to check and resolve collisions with all pegs
+// Checks both player pegs and adversary pegs
 static void ball_collide_with_pegs(Ball* ball, World* world) {
     float nx, ny, depth;
+
+    // Check player pegs
     for (int i = 0; i < world->peg_count; i++) {
         if (ball_check_peg_collision(ball, &world->pegs[i],
                                       &nx, &ny, &depth)) {
             ball_resolve_peg_collision(ball, nx, ny, depth);
+        }
+    }
+
+    // Check adversary pegs
+    if (world->adversary_pegs) {
+        for (int i = 0; i < world->adversary_peg_count; i++) {
+            if (ball_check_peg_collision(ball, &world->adversary_pegs[i],
+                                          &nx, &ny, &depth)) {
+                ball_resolve_peg_collision(ball, nx, ny, depth);
+            }
         }
     }
 }
@@ -281,14 +307,27 @@ static void ball_resolve_bumper_collision(Ball* ball, float nx, float ny,
 
 // {{{ ball_collide_with_bumpers
 // Internal function to check and resolve collisions with all bumpers
+// Checks both player bumpers and adversary bumpers
 static void ball_collide_with_bumpers(Ball* ball, World* world) {
-    if (!world->bumpers) return;
-
     float nx, ny, depth;
-    for (int i = 0; i < world->bumper_count; i++) {
-        if (ball_check_bumper_collision(ball, &world->bumpers[i],
-                                         &nx, &ny, &depth)) {
-            ball_resolve_bumper_collision(ball, nx, ny, depth);
+
+    // Check player bumpers (top of zones)
+    if (world->bumpers) {
+        for (int i = 0; i < world->bumper_count; i++) {
+            if (ball_check_bumper_collision(ball, &world->bumpers[i],
+                                             &nx, &ny, &depth)) {
+                ball_resolve_bumper_collision(ball, nx, ny, depth);
+            }
+        }
+    }
+
+    // Check adversary bumpers (bottom of zones)
+    if (world->adversary_bumpers) {
+        for (int i = 0; i < world->adversary_bumper_count; i++) {
+            if (ball_check_bumper_collision(ball, &world->adversary_bumpers[i],
+                                             &nx, &ny, &depth)) {
+                ball_resolve_bumper_collision(ball, nx, ny, depth);
+            }
         }
     }
 }
@@ -326,6 +365,7 @@ static int ball_check_ball_collision(Ball* ball_a, Ball* ball_b,
 // {{{ ball_resolve_ball_collision
 // Internal function to resolve collision between two balls
 // Only applies response to ball_a (caller handles ball_b separately)
+// Cross-board collisions (player vs adversary) use 2x impulse strength
 static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
                                          float nx, float ny, float depth) {
     // Each ball moves half the penetration distance
@@ -341,9 +381,16 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
 
     // Only respond if balls are approaching
     if (vn < 0) {
+        // Check if this is a cross-board collision (player vs adversary)
+        // Cross-board collisions have 2x impulse for dramatic interactions
+        float strength_multiplier = 1.0f;
+        if (ball_a->owner != ball_b->owner) {
+            strength_multiplier = 2.0f;
+        }
+
         // Equal mass elastic collision: swap velocity components along normal
         // For ball_a, we add the impulse; ball_b will be handled by its own task
-        float impulse = -(1.0f + RESTITUTION) * vn;
+        float impulse = -(1.0f + RESTITUTION) * vn * strength_multiplier;
         ball_a->vx += impulse * nx;
         ball_a->vy += impulse * ny;
     }
@@ -404,11 +451,21 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
 // }}}
 
 // {{{ ball_check_bounds
-// Internal function to deactivate balls that fall below screen
-static void ball_check_bounds(Ball* ball, int screen_height) {
-    // Ball has fallen below screen
-    if (ball->y - ball->radius > screen_height) {
-        ball->active = 0;
+// Internal function to deactivate balls that exit the play area
+// Player balls (gravity_dir=+1) are destroyed at adversary_table_bottom
+// Adversary balls (gravity_dir=-1) are destroyed at table_top
+static void ball_check_bounds(Ball* ball, World* world) {
+    if (ball->gravity_dir > 0) {
+        // Player ball moving downward - destroy at bottom of adversary board
+        if (ball->y - ball->radius > world->adversary_table_bottom) {
+            ball->active = 0;
+        }
+    } else {
+        // Adversary ball moving upward - destroy above player spawn area
+        float top_bound = SPAWN_Y - BALL_RADIUS - 30.0f;
+        if (ball->y + ball->radius < top_bound) {
+            ball->active = 0;
+        }
     }
 }
 // }}}
@@ -432,7 +489,7 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
             ball_collide_with_pegs(next, world);
             ball_collide_with_bumpers(next, world);
             ball_collide_with_walls(next, world);
-            ball_check_bounds(next, world->height);
+            ball_check_bounds(next, world);
 
             // Count active balls
             if (next->active) {
@@ -603,20 +660,21 @@ void ball_update_task(void* data) {
         ball_collide_with_balls(next, task->ball_index,
                                task->read_buffer, task->capacity);
         ball_collide_with_walls(next, task->world);
-        ball_check_bounds(next, task->world->height);
+        ball_check_bounds(next, task->world);
 
         // Check if ball entered a score zone
         // This happens after all physics and collision updates
+        // Balls pass through gates (don't deactivate) for adversary mode
+        // passed_gate flag prevents double-scoring
         if (next->active) {
             int zone_index = ball_check_zone(next, task->world);
-            if (zone_index >= 0) {
-                // Ball captured by zone
-                // Award points, record position, and deactivate ball
+            if (zone_index >= 0 && !next->passed_gate) {
+                // Ball entered zone for first time - award points
                 task->score_delta = task->world->zones[zone_index].points;
                 task->scored = 1;
                 task->score_pos_x = next->x;
                 task->score_pos_y = next->y;
-                next->active = 0;
+                next->passed_gate = 1;  // Mark as scored, ball continues through
             }
         }
     }

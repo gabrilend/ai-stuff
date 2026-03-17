@@ -1,9 +1,12 @@
 # Issue 804 - Adversary Board Layout
 
 ## Status
-Pending
+Completed
 
 ## Current Behavior
+Dual pachinko boards with shared gate row. Player board on top, adversary board below (mirrored). Adversary pegs rendered in red-tinted color (180, 140, 140) to distinguish from player pegs. World struct extended with adversary_pegs, adversary_peg_count, adversary_bumpers, adversary_bumper_count, adversary_table_top, and adversary_table_bottom fields.
+
+## Previous Behavior
 Single pachinko board. World height accommodates one table with scrolling.
 
 ## Intended Behavior
@@ -57,3 +60,11 @@ Single pachinko board. World height accommodates one table with scrolling.
 - Gates remain in the same physical location, shared by both boards
 - Adversary pegs don't need collision with player balls (handled in 807)
 - Visual hierarchy: player board brighter, adversary slightly dimmer
+
+## Implementation Notes
+- Added world_generate_adversary_pegs() in src/005-world.c
+- Added world_render_adversary_pegs() in src/005-world.c
+- Added world_generate_adversary_bumpers() in src/005-world.c
+- Added world_render_adversary_bumpers() in src/005-world.c
+- Adversary pegs positioned relative to adversary_table_top/bottom
+- Pegs regenerate on window resize

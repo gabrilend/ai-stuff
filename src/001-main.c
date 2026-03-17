@@ -14,6 +14,7 @@
 #include "006-ball.h"
 #include "008-particles.h"
 #include "010-upgrades.h"
+#include "012-adversary.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -146,6 +147,27 @@ int main(void) {
     }
     printf("Upgrade manager created\n");
 
+    // Generate adversary board (mirrored below zones)
+    world_generate_adversary_pegs(world, peg_rows, peg_cols, peg_spacing);
+    printf("Generated adversary pegs: %d\n", world->adversary_peg_count);
+
+    world_generate_adversary_bumpers(world);
+    printf("Generated adversary bumpers: %d\n", world->adversary_bumper_count);
+
+    // Create adversary AI
+    Adversary* adversary = adversary_create(world);
+    if (!adversary) {
+        fprintf(stderr, "ERROR: Failed to create adversary\n");
+        upgrade_manager_destroy(upgrade_manager);
+        particle_system_destroy(particle_system);
+        ball_manager_destroy(ball_manager);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    printf("Adversary AI created\n");
+
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
     float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
@@ -234,6 +256,9 @@ int main(void) {
         // Handle upgrade menu input
         upgrade_manager_handle_input(upgrade_manager, &world->score);
 
+        // Update adversary AI (moves reticle, spawns enemy balls)
+        adversary_update(adversary, world, ball_manager, dt);
+
         // NOTE: Ball spawning moved to after physics/buffer swap
         // This ensures balls appear at spawn position on first frame
 
@@ -266,6 +291,13 @@ int main(void) {
             // Regenerate gate bumpers (must come after zones)
             world_generate_bumpers(world);
 
+            // Regenerate adversary board (mirrored below zones)
+            world_generate_adversary_pegs(world, new_peg_rows, peg_cols, peg_spacing);
+            world_generate_adversary_bumpers(world);
+
+            // Reset adversary position after resize
+            adversary_reset(adversary, world);
+
             // Update camera offset to match new screen center
             camera.offset = (Vector2){ (float)screen_width / 2.0f,
                                        (float)screen_height / 2.0f };
@@ -295,6 +327,9 @@ int main(void) {
                 ball_manager->balls_next[i].active = 0;
             }
             ball_manager->active_count = 0;
+
+            // Reset adversary spawn position
+            adversary_reset(adversary, world);
         }
 
         // Handle scroll wheel for viewport panning
@@ -374,7 +409,8 @@ int main(void) {
             !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
             // Calculate ball radius with upgrade modifier
             float ball_radius = BALL_RADIUS + upgrade_get_ball_radius_modifier(upgrade_manager);
-            ball_manager_spawn(ball_manager, spawn_x, spawn_y, ball_radius);
+            ball_manager_spawn(ball_manager, spawn_x, spawn_y, ball_radius,
+                             OWNER_PLAYER, 1.0f);  // Player ball, gravity down
             ball_manager_reset_cooldown(ball_manager);
         }
 
@@ -391,6 +427,11 @@ int main(void) {
         world_render_pegs(world);
         world_render_zones(world);
         world_render_bumpers(world);
+
+        // Draw adversary board elements
+        world_render_adversary_pegs(world);
+        world_render_adversary_bumpers(world);
+        adversary_render(adversary);
 
         // Draw spawn point indicator (pulsing circle at movable position)
         float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1
@@ -481,6 +522,9 @@ int main(void) {
     printf("Shutting down...\n");
     CloseWindow();
     printf("Raylib window closed\n");
+
+    adversary_destroy(adversary);
+    printf("Adversary destroyed\n");
 
     upgrade_manager_destroy(upgrade_manager);
     printf("Upgrade manager destroyed\n");
