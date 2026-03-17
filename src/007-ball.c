@@ -385,10 +385,11 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
     if (vn < 0) {
         // Check if this is a cross-board collision (player vs adversary)
         if (ball_a->owner != ball_b->owner) {
-            // Calculate damage based on relative velocity magnitude
-            // Faster collisions deal more damage
-            float rel_speed = sqrtf(rel_vx * rel_vx + rel_vy * rel_vy);
-            float damage = rel_speed * DAMAGE_VELOCITY_SCALE;
+            // Calculate damage based on closing speed (velocity along collision normal)
+            // Head-on collisions deal full damage, glancing blows deal little/none
+            // vn is negative when approaching, so use -vn for positive damage
+            float closing_speed = -vn;
+            float damage = closing_speed * DAMAGE_VELOCITY_SCALE;
             ball_a->health -= damage;
         }
 

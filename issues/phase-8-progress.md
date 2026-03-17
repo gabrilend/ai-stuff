@@ -22,10 +22,11 @@ opponent, creating competitive gameplay with resource management.
 | 811 | Escape key behavior / Q to quit    | Complete |
 | 812 | Particle effects overhaul          | Complete |
 | 813 | Fix persistent splash particles    | Complete |
+| 814 | Glancing collision damage scaling  | Complete |
 
 ## Progress Summary
 
-**Completed:** 13/13 issues (100%)
+**Completed:** 14/14 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -195,3 +196,14 @@ Bug fix for splash particles spawning continuously (fountain effect):
 - Main loop skips inactive balls to avoid stale task_data
 
 Files: 007-ball.c, 001-main.c
+
+### Issue 814 - Glancing Collision Damage Scaling (Complete)
+
+Fixed damage calculation to account for collision angle:
+
+- Old: damage based on total relative speed (glancing blows dealt full damage)
+- New: damage based on closing speed along collision normal
+- Head-on collisions deal full damage, glancing blows deal minimal damage
+- Uses existing `vn` value (no additional computation)
+
+Files: 007-ball.c
