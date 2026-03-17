@@ -100,4 +100,47 @@ When board is expanded, increase world_height.
 
 ## Status
 
-- [ ] Pending
+- [x] Complete
+
+## Implementation Log
+
+### Camera Setup
+Used raylib's Camera2D system for clean separation of world and UI rendering.
+
+Added variables:
+- `world_height`: Total height of game world (expandable for larger boards)
+- `viewport_offset_y`: Current vertical scroll position
+- `camera`: Camera2D struct with offset and target
+
+Camera offset centers the view, target tracks scroll position.
+
+### Scroll Input
+- `GetMouseWheelMove()` returns scroll delta
+- Multiplied by `SCROLL_SPEED` (40 px per notch)
+- Clamped to valid range: `[0, world_height - screen_height]`
+- Camera target Y updated to reflect scroll position
+
+### Render Structure
+```
+BeginDrawing()
+  ClearBackground()
+  BeginMode2D(camera)    // World elements (scrollable)
+    - Pegs
+    - Zones
+    - Spawn indicator
+    - Balls
+    - Particles
+  EndMode2D()            // UI elements (screen-fixed)
+    - Title
+    - Score panel
+    - Controls panel
+EndDrawing()
+```
+
+### UI Updates
+- Controls panel expanded to include "SCROLL - Pan view"
+- Console message updated to mention scroll functionality
+
+### Future Expansion
+When board size increases, simply increase `world_height` to enable
+scrolling. All world elements will scroll correctly via camera system.

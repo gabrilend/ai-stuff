@@ -21,6 +21,9 @@
 #define BALL_COLOR (Color){255, 180, 50, 255}      // Warm orange ball
 #define BALL_HIGHLIGHT (Color){255, 220, 150, 255} // Lighter ball highlight
 
+// Scrolling viewport constants
+#define SCROLL_SPEED 40.0f    // Pixels per scroll wheel notch
+
 // {{{ main
 int main(void) {
     const int screen_width = 800;
@@ -92,9 +95,27 @@ int main(void) {
     }
     printf("Particle system created: 256 capacity\n");
 
+    // Initialize scrolling viewport
+    // World height can be larger than screen for scrollable areas
+    float world_height = (float)screen_height;  // Expandable for larger boards
+    float viewport_offset_y = 0.0f;             // Current scroll position
+
+    // Setup 2D camera for viewport scrolling
+    // Camera centers on viewport position, allowing scroll without
+    // modifying individual render positions
+    Camera2D camera = { 0 };
+    camera.offset = (Vector2){ (float)screen_width / 2.0f,
+                               (float)screen_height / 2.0f };
+    camera.target = (Vector2){ (float)screen_width / 2.0f,
+                               (float)screen_height / 2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+    printf("Viewport initialized: %.0fx%.0f world, scrollable\n",
+           (float)screen_width, world_height);
+
     // Main loop
     printf("Entering main loop...\n");
-    printf("Press SPACE to spawn balls\n");
+    printf("Press SPACE to spawn balls, SCROLL to pan view\n");
     while (!WindowShouldClose()) {
         // Get delta time for physics
         float dt = GetFrameTime();
@@ -125,6 +146,27 @@ int main(void) {
                 ball_manager->balls_next[i].active = 0;
             }
             ball_manager->active_count = 0;
+        }
+
+        // Handle scroll wheel for viewport panning
+        float scroll = GetMouseWheelMove();
+        if (scroll != 0.0f) {
+            viewport_offset_y -= scroll * SCROLL_SPEED;
+
+            // Clamp viewport to valid range
+            // Minimum: can't scroll above top of world
+            if (viewport_offset_y < 0.0f) {
+                viewport_offset_y = 0.0f;
+            }
+            // Maximum: can't scroll below bottom of world
+            float max_offset = world_height - (float)screen_height;
+            if (max_offset < 0.0f) max_offset = 0.0f;
+            if (viewport_offset_y > max_offset) {
+                viewport_offset_y = max_offset;
+            }
+
+            // Update camera target to reflect scroll position
+            camera.target.y = (float)screen_height / 2.0f + viewport_offset_y;
         }
 
         // Parallel ball physics update with performance timing
@@ -175,11 +217,11 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BG_COLOR);
 
-        // Draw title with semi-transparent background
-        DrawRectangle(5, 5, 360, 30, (Color){0, 0, 0, 100});
-        DrawText("Physics Simulator - Pachinko", 10, 10, 20, LIGHTGRAY);
+        // Begin camera mode for world elements (scrollable)
+        // All world elements are rendered in camera space
+        BeginMode2D(camera);
 
-        // Draw world elements
+        // Draw world elements (in camera space - scrollable)
         world_render_pegs(world);
         world_render_zones(world);
 
@@ -202,6 +244,13 @@ int main(void) {
 
         // Draw particles (after balls, before UI)
         particle_system_render(particle_system);
+
+        // End camera mode - UI elements below are screen-fixed
+        EndMode2D();
+
+        // Draw title with semi-transparent background (fixed to screen)
+        DrawRectangle(5, 5, 360, 30, (Color){0, 0, 0, 100});
+        DrawText("Physics Simulator - Pachinko", 10, 10, 20, LIGHTGRAY);
 
         // Draw score panel (left side)
         DrawRectangle(5, screen_height - 120, 180, 115, (Color){0, 0, 0, 150});
@@ -228,12 +277,13 @@ int main(void) {
         DrawText(perf_text, 10, screen_height - 8, 14, LIGHTGRAY);
 
         // Draw controls panel (right side)
-        DrawRectangle(screen_width - 205, screen_height - 95, 200, 90,
+        DrawRectangle(screen_width - 205, screen_height - 110, 200, 105,
                      (Color){0, 0, 0, 150});
-        DrawText("Controls:", screen_width - 200, screen_height - 90, 16, LIGHTGRAY);
-        DrawText("SPACE - Spawn ball", screen_width - 200, screen_height - 68, 14, WHITE);
-        DrawText("R - Reset game", screen_width - 200, screen_height - 50, 14, WHITE);
-        DrawText("ESC - Exit", screen_width - 200, screen_height - 32, 14, WHITE);
+        DrawText("Controls:", screen_width - 200, screen_height - 105, 16, LIGHTGRAY);
+        DrawText("SPACE - Spawn ball", screen_width - 200, screen_height - 83, 14, WHITE);
+        DrawText("SCROLL - Pan view", screen_width - 200, screen_height - 65, 14, WHITE);
+        DrawText("R - Reset game", screen_width - 200, screen_height - 47, 14, WHITE);
+        DrawText("ESC - Exit", screen_width - 200, screen_height - 29, 14, WHITE);
         DrawText("Hold SPACE for more!", screen_width - 200, screen_height - 10, 12, GRAY);
 
         EndDrawing();

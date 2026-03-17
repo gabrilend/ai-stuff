@@ -13,12 +13,12 @@ during Phase 5 and adds new gameplay and rendering features.
 | 507 | Detect system thread count               | Complete |
 | 508 | Add ball-to-ball collisions              | Complete |
 | 509 | Improve particle effects                 | Complete |
-| 510 | Add scrolling viewport                   | Pending  |
+| 510 | Add scrolling viewport                   | Complete |
 
 ## Progress Summary
 
-**Completed:** 4/5 issues (80%)
-**Phase 6:** In Progress
+**Completed:** 5/5 issues (100%)
+**Phase 6:** Complete
 
 ## Notes
 
@@ -96,3 +96,21 @@ New features:
 - Lifetime variation: +0 to +0.3s random per particle
 
 Added HSV/RGB conversion utilities for color manipulation.
+
+### Issue 510 - Scrolling Viewport (Complete)
+
+Implemented scrollable world view using raylib's Camera2D system.
+
+Camera system:
+- Camera2D centers view and tracks scroll position
+- World elements rendered in camera space (scrollable)
+- UI elements rendered outside camera (screen-fixed)
+
+Scroll mechanics:
+- Mouse wheel controls viewport offset
+- SCROLL_SPEED = 40 pixels per notch
+- Offset clamped to valid range [0, world_height - screen_height]
+- Currently world_height = screen_height (no scroll needed)
+
+When board expands in future, increase world_height to enable scrolling.
+All world elements (pegs, balls, zones, particles) scroll automatically.
