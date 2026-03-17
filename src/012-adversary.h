@@ -12,7 +12,7 @@ typedef struct BallManager BallManager;
 // Adversary AI constants
 #define ADVERSARY_SPAWN_RATE 4.0f     // Balls per second
 #define ADVERSARY_MOVE_SPEED 120.0f   // Pixels per second for reticle
-#define ADVERSARY_SPAWN_Y_OFFSET 50.0f // Distance below adversary_table_bottom
+#define ADVERSARY_SPAWN_Y_OFFSET 40.0f // Distance below adversary_table_bottom (matches player's 100px gap from pegs)
 
 // {{{ typedef struct Adversary
 // Adversary holds the AI state for the enemy spawner.

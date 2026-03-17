@@ -20,9 +20,10 @@ Adversary* adversary_create(World* world) {
         return NULL;
     }
 
-    // Initialize spawn position at center bottom of adversary board
+    // Initialize spawn position below adversary board (balls float UP)
+    // Offset matches player's 100px gap from top peg (peg_start_y - SPAWN_Y)
     adversary->spawn_x = world->table_x + world->table_width / 2.0f;
-    adversary->spawn_y = world->adversary_table_bottom - ADVERSARY_SPAWN_Y_OFFSET;
+    adversary->spawn_y = world->adversary_table_bottom + ADVERSARY_SPAWN_Y_OFFSET;
     adversary->spawn_direction = 1.0f;  // Start moving right
     adversary->spawn_credits = 0.0f;    // Start with no credits
     adversary->spawn_rate = ADVERSARY_SPAWN_RATE;
@@ -45,7 +46,7 @@ void adversary_update(Adversary* adversary, World* world,
     if (!adversary || !world || !ball_manager) return;
 
     // Update spawn_y in case world bounds changed (resize)
-    adversary->spawn_y = world->adversary_table_bottom - ADVERSARY_SPAWN_Y_OFFSET;
+    adversary->spawn_y = world->adversary_table_bottom + ADVERSARY_SPAWN_Y_OFFSET;
 
     // Move reticle horizontally
     adversary->spawn_x += adversary->move_speed * adversary->spawn_direction * dt;
@@ -134,7 +135,7 @@ void adversary_reset(Adversary* adversary, World* world) {
     if (!adversary || !world) return;
 
     adversary->spawn_x = world->table_x + world->table_width / 2.0f;
-    adversary->spawn_y = world->adversary_table_bottom - ADVERSARY_SPAWN_Y_OFFSET;
+    adversary->spawn_y = world->adversary_table_bottom + ADVERSARY_SPAWN_Y_OFFSET;
     adversary->spawn_direction = 1.0f;
     adversary->spawn_credits = 0.0f;
 }
