@@ -504,13 +504,21 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
 void ball_manager_render(BallManager* manager) {
     if (!manager) return;
 
-    // Color palette for balls - warm and visible
-    Color ball_color = (Color){255, 180, 50, 255};       // Warm orange
-    Color ball_highlight = (Color){255, 220, 150, 255};  // Lighter highlight
+    // Color palettes for player and adversary balls
+    Color player_color = (Color){255, 180, 50, 255};        // Warm orange
+    Color player_highlight = (Color){255, 220, 150, 255};   // Lighter highlight
+    Color adversary_color = (Color){255, 80, 80, 255};      // Red
+    Color adversary_highlight = (Color){255, 150, 150, 255}; // Light red
 
     for (int i = 0; i < manager->capacity; i++) {
         Ball* ball = &manager->balls_current[i];
         if (ball->active) {
+            // Select color based on ball owner
+            Color ball_color = (ball->owner == OWNER_ADVERSARY) ?
+                               adversary_color : player_color;
+            Color ball_highlight = (ball->owner == OWNER_ADVERSARY) ?
+                                   adversary_highlight : player_highlight;
+
             // Draw main ball circle
             DrawCircle(
                 (int)ball->x,

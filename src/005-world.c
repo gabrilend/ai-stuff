@@ -266,10 +266,10 @@ void world_render_rails(World* world) {
     Color rail_color = (Color){80, 80, 100, 255};
     Color rail_highlight = (Color){100, 100, 120, 255};
 
-    // Rail dimensions
+    // Rail dimensions - extend to cover both player and adversary boards
     float rail_width = 10.0f;
-    float rail_top = world->table_top - 20.0f;  // Start above table
-    float rail_height = world->table_bottom - rail_top;
+    float rail_top = world->table_top - 20.0f;  // Start above player table
+    float rail_height = world->adversary_table_bottom - rail_top + 20.0f;
 
     // Left rail
     float left_x = world->table_x - rail_width;
