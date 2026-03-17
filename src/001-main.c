@@ -149,9 +149,16 @@ int main(void) {
     // Auto-spawn toggle state
     int auto_spawn = 0;
 
+    // Movable spawn point - horizontal position controlled by mouse/keyboard
+    // Mouse takes priority, arrow keys for fine adjustment
+    float spawn_x = SPAWN_X;  // Start at center
+    float spawn_nudge_speed = 200.0f;  // Pixels per second for keyboard control
+    int last_mouse_x = GetMouseX();  // Track mouse to detect movement
+
     // Main loop
     printf("Entering main loop...\n");
     printf("Press SPACE to spawn balls, A to toggle auto-spawn, SCROLL to pan view\n");
+    printf("Move mouse or use LEFT/RIGHT arrows to aim spawn point\n");
     while (!WindowShouldClose()) {
         // Get delta time for physics
         float dt = GetFrameTime();
@@ -161,6 +168,32 @@ int main(void) {
 
         // Update particle system
         particle_system_update(particle_system, dt);
+
+        // Handle spawn point movement - mouse takes priority over keyboard
+        // Calculate spawn bounds (keep ball radius away from rails)
+        float spawn_margin = BALL_RADIUS + 5.0f;
+        float spawn_min_x = world->table_x + spawn_margin;
+        float spawn_max_x = world->table_x + world->table_width - spawn_margin;
+
+        // Check for mouse movement
+        int current_mouse_x = GetMouseX();
+        if (current_mouse_x != last_mouse_x) {
+            // Mouse moved - snap spawn_x to mouse position (clamped)
+            spawn_x = (float)current_mouse_x;
+            last_mouse_x = current_mouse_x;
+        } else {
+            // No mouse movement - check arrow keys for nudge
+            if (IsKeyDown(KEY_LEFT)) {
+                spawn_x -= spawn_nudge_speed * dt;
+            }
+            if (IsKeyDown(KEY_RIGHT)) {
+                spawn_x += spawn_nudge_speed * dt;
+            }
+        }
+
+        // Clamp spawn_x to table bounds
+        if (spawn_x < spawn_min_x) spawn_x = spawn_min_x;
+        if (spawn_x > spawn_max_x) spawn_x = spawn_max_x;
 
         // Handle auto-spawn toggle (A key)
         if (IsKeyPressed(KEY_A)) {
@@ -172,9 +205,10 @@ int main(void) {
         // Check cooldown AND that no balls are blocking the spawn area
         // Spawn blocking prevents physics issues when balls overlap at spawn
         // Auto-spawn acts like SPACE is held down
+        // Uses movable spawn_x position, fixed SPAWN_Y height
         if ((IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
-            !ball_manager_spawn_blocked(ball_manager, SPAWN_X, SPAWN_Y)) {
-            ball_manager_spawn(ball_manager, SPAWN_X, SPAWN_Y);
+            !ball_manager_spawn_blocked(ball_manager, spawn_x, SPAWN_Y)) {
+            ball_manager_spawn(ball_manager, spawn_x, SPAWN_Y);
             ball_manager_reset_cooldown(ball_manager);
         }
 
@@ -314,18 +348,28 @@ int main(void) {
         world_render_pegs(world);
         world_render_zones(world);
 
-        // Draw spawn point indicator (pulsing circle)
+        // Draw spawn point indicator (pulsing circle at movable position)
         float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1
         unsigned char alpha = (unsigned char)(pulse * 150.0f + 50.0f);  // Range: 50-200
-        DrawCircleLines((int)SPAWN_X, (int)SPAWN_Y, 15.0f,
+        DrawCircleLines((int)spawn_x, (int)SPAWN_Y, 15.0f,
                        (Color){255, 255, 255, alpha});
 
-        // Draw cooldown indicator (arc around spawn point)
+        // Draw cooldown indicator (ring around spawn point)
+        // Shows remaining cooldown as a depleting arc starting from top
         if (ball_manager->spawn_cooldown > 0) {
             float cooldown_ratio = ball_manager->spawn_cooldown / SPAWN_COOLDOWN;
-            float end_angle = 360.0f * (1.0f - cooldown_ratio);
-            DrawRing((Vector2){SPAWN_X, SPAWN_Y}, 18.0f, 20.0f,
-                    0, end_angle, 32, (Color){255, 100, 100, 200});
+            // Draw background ring (dim) to show full circumference
+            DrawRing((Vector2){spawn_x, SPAWN_Y}, 18.0f, 20.0f,
+                    0, 360, 32, (Color){60, 60, 80, 150});
+            // Draw remaining cooldown arc (bright) - starts from top (-90), fills clockwise
+            // Arc shrinks as cooldown depletes (shows time remaining)
+            float arc_degrees = 360.0f * cooldown_ratio;
+            DrawRing((Vector2){spawn_x, SPAWN_Y}, 18.0f, 20.0f,
+                    -90, -90 + arc_degrees, 32, (Color){100, 200, 255, 220});
+        } else {
+            // Ready to spawn - show full green ring
+            DrawRing((Vector2){spawn_x, SPAWN_Y}, 18.0f, 20.0f,
+                    0, 360, 32, (Color){100, 255, 150, 180});
         }
 
         // Draw balls

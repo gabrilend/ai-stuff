@@ -1,9 +1,2 @@
-
-can we make it so that the spawning reticle moves horizontally to match the
-user's mouse pointer? if the user pushes the left/right arrow keys, it should
-move as well, but any mouse movement should snap it to where the mouse is
-pointing. Essentially, mouse priority, but keyboard accessibility.
-
-there's an orange circle that flashes around the spawn point whenever a ball
-is spawned, what is that? it's a 3/4th three quarter circle, with the top right
-portion missing. Can we improve that visual display to be more clean?
+when the screen is resized, the info boxes aren't repositioned correctly. They
+should be anchored to the viewport, not the world.
