@@ -8,12 +8,17 @@
 #include "raylib.h"
 
 // Upgrade effect constants (scaled for 100x more levels)
-#define SPAWN_RATE_BONUS_PER_LEVEL 0.01f      // +0.01 ball/sec per level (500 levels = +5 total)
+#define SPAWN_RATE_BONUS_PER_LEVEL 0.0166f    // +0.0166 ball/sec per level (500 levels = +8.3 total)
 #define BALL_RADIUS_REDUCTION_PER_LEVEL 0.01f // -0.01 radius per level (300 levels = -3 total)
 
 // Hold-to-purchase repeat timing
 #define PURCHASE_INITIAL_DELAY 0.3f   // Delay before repeat starts (seconds)
 #define PURCHASE_REPEAT_RATE 30.0f    // Purchases per second when holding
+
+// Stage upgrade costs (fixed per stage)
+#define STAGE_2_COST 10000
+#define STAGE_3_COST 50000
+#define STAGE_4_COST 200000
 
 // {{{ upgrade_manager_create
 UpgradeManager* upgrade_manager_create(void) {
@@ -29,9 +34,9 @@ UpgradeManager* upgrade_manager_create(void) {
     manager->purchase_hold_time = 0.0f;
     manager->purchase_cooldown = 0.0f;
 
-    // Initialize spawn rate upgrade (500 levels, +0.01/level = +5 total)
+    // Initialize spawn rate upgrade (500 levels, +0.0166/level = +8.3 total)
     manager->upgrades[UPGRADE_SPAWN_RATE].name = "Spawn Rate";
-    manager->upgrades[UPGRADE_SPAWN_RATE].description = "+5 ball/sec max";
+    manager->upgrades[UPGRADE_SPAWN_RATE].description = "+8 ball/sec max";
     manager->upgrades[UPGRADE_SPAWN_RATE].base_cost = 1;
     manager->upgrades[UPGRADE_SPAWN_RATE].level = 0;
     manager->upgrades[UPGRADE_SPAWN_RATE].max_level = 500;
@@ -42,6 +47,17 @@ UpgradeManager* upgrade_manager_create(void) {
     manager->upgrades[UPGRADE_BALL_SIZE].base_cost = 2;
     manager->upgrades[UPGRADE_BALL_SIZE].level = 0;
     manager->upgrades[UPGRADE_BALL_SIZE].max_level = 300;
+
+    // Initialize stage expansion upgrade (1 level = stage 2 with ramps)
+    manager->upgrades[UPGRADE_NEXT_STAGE].name = "Next Stage";
+    manager->upgrades[UPGRADE_NEXT_STAGE].description = "Unlock ramp stage";
+    manager->upgrades[UPGRADE_NEXT_STAGE].base_cost = STAGE_2_COST;
+    manager->upgrades[UPGRADE_NEXT_STAGE].level = 0;
+    manager->upgrades[UPGRADE_NEXT_STAGE].max_level = 1;  // Only stage 2 for now
+
+    // Initialize callback to NULL
+    manager->on_stage_purchase = NULL;
+    manager->callback_user_data = NULL;
 
     return manager;
 }
@@ -64,14 +80,33 @@ int upgrade_get_cost(Upgrade* upgrade) {
 }
 // }}}
 
+// {{{ upgrade_get_cost_by_type
+// Gets cost for upgrade by type (used for special stage cost handling)
+static int upgrade_get_cost_by_type(UpgradeManager* manager, UpgradeType type) {
+    if (!manager) return 0;
+    Upgrade* upgrade = &manager->upgrades[type];
+    if (upgrade->level >= upgrade->max_level) return 0;
+
+    // Stage upgrades have fixed costs per level
+    if (type == UPGRADE_NEXT_STAGE) {
+        int stage_costs[] = { STAGE_2_COST, STAGE_3_COST, STAGE_4_COST };
+        if (upgrade->level < 3) {
+            return stage_costs[upgrade->level];
+        }
+        return 999999;  // Max stages reached
+    }
+
+    // Normal exponential scaling for other upgrades
+    return upgrade->base_cost * (upgrade->level + 1);
+}
+// }}}
+
 // {{{ upgrade_manager_can_afford
 int upgrade_manager_can_afford(UpgradeManager* manager, int score) {
     if (!manager) return 0;
     if (manager->selected_index < 0 || manager->selected_index >= UPGRADE_COUNT) return 0;
 
-    Upgrade* upgrade = &manager->upgrades[manager->selected_index];
-    int cost = upgrade_get_cost(upgrade);
-
+    int cost = upgrade_get_cost_by_type(manager, (UpgradeType)manager->selected_index);
     return cost > 0 && score >= cost;
 }
 // }}}
@@ -81,8 +116,9 @@ int upgrade_manager_purchase(UpgradeManager* manager, int* score) {
     if (!manager || !score) return 0;
     if (!upgrade_manager_can_afford(manager, *score)) return 0;
 
-    Upgrade* upgrade = &manager->upgrades[manager->selected_index];
-    int cost = upgrade_get_cost(upgrade);
+    UpgradeType type = (UpgradeType)manager->selected_index;
+    Upgrade* upgrade = &manager->upgrades[type];
+    int cost = upgrade_get_cost_by_type(manager, type);
 
     // Deduct cost and increment level
     *score -= cost;
@@ -90,6 +126,11 @@ int upgrade_manager_purchase(UpgradeManager* manager, int* score) {
 
     printf("Purchased %s level %d for %d points\n",
            upgrade->name, upgrade->level, cost);
+
+    // Trigger stage purchase callback if this was a stage upgrade
+    if (type == UPGRADE_NEXT_STAGE && manager->on_stage_purchase) {
+        manager->on_stage_purchase(manager->callback_user_data);
+    }
 
     return 1;
 }
@@ -191,46 +232,65 @@ void upgrade_manager_render(UpgradeManager* manager, int score,
     int y_offset = menu_y + 70;
     for (int i = 0; i < UPGRADE_COUNT; i++) {
         Upgrade* upgrade = &manager->upgrades[i];
-        int cost = upgrade_get_cost(upgrade);
+        UpgradeType type = (UpgradeType)i;
+        int cost = upgrade_get_cost_by_type(manager, type);
         int is_selected = (i == manager->selected_index);
         int can_afford = (cost > 0 && score >= cost);
         int is_maxed = (upgrade->level >= upgrade->max_level);
         float progress = (float)upgrade->level / (float)upgrade->max_level;
 
-        // Selection highlight
+        // Special background for stage upgrade
+        int is_stage_upgrade = (type == UPGRADE_NEXT_STAGE);
+
+        // Selection highlight (special color for stage upgrade)
         if (is_selected) {
-            DrawRectangle(menu_x + 10, y_offset - 5, menu_width - 20, 70,
-                         (Color){60, 60, 80, 255});
+            Color highlight = is_stage_upgrade ?
+                (Color){60, 40, 80, 255} :  // Purple tint for stage
+                (Color){60, 60, 80, 255};   // Normal gray
+            DrawRectangle(menu_x + 10, y_offset - 5, menu_width - 20, 70, highlight);
         }
 
-        // Upgrade name
-        Color name_color = is_selected ? WHITE : LIGHTGRAY;
+        // Upgrade name (gold for stage upgrade)
+        Color name_color = is_stage_upgrade ?
+            (is_selected ? GOLD : ORANGE) :
+            (is_selected ? WHITE : LIGHTGRAY);
         DrawText(upgrade->name, menu_x + 20, y_offset, 18, name_color);
 
-        // Progress bar background
+        // Progress bar or unlock status for stage upgrade
         int bar_x = menu_x + 20;
         int bar_y = y_offset + 24;
         int bar_width = menu_width - 130;
         int bar_height = 12;
-        DrawRectangle(bar_x, bar_y, bar_width, bar_height, (Color){30, 30, 40, 255});
 
-        // Progress bar fill
-        int fill_width = (int)(bar_width * progress);
-        Color bar_color = is_maxed ? GREEN : (Color){100, 180, 255, 255};
-        DrawRectangle(bar_x, bar_y, fill_width, bar_height, bar_color);
-        DrawRectangleLines(bar_x, bar_y, bar_width, bar_height, (Color){80, 80, 100, 255});
+        if (is_stage_upgrade && is_maxed) {
+            // Stage unlocked - show special status
+            DrawText("STAGE 2 UNLOCKED", bar_x, bar_y, 14, GREEN);
+        } else {
+            // Progress bar background
+            DrawRectangle(bar_x, bar_y, bar_width, bar_height, (Color){30, 30, 40, 255});
 
-        // Percentage text
-        char pct_text[16];
-        sprintf(pct_text, "%d%%", (int)(progress * 100));
-        DrawText(pct_text, bar_x + bar_width + 8, bar_y - 1, 14, LIGHTGRAY);
+            // Progress bar fill
+            int fill_width = (int)(bar_width * progress);
+            Color bar_color = is_maxed ? GREEN :
+                (is_stage_upgrade ? PURPLE : (Color){100, 180, 255, 255});
+            DrawRectangle(bar_x, bar_y, fill_width, bar_height, bar_color);
+            DrawRectangleLines(bar_x, bar_y, bar_width, bar_height, (Color){80, 80, 100, 255});
+
+            // Percentage text (skip for stage upgrade since it's 0% or 100%)
+            if (!is_stage_upgrade) {
+                char pct_text[16];
+                sprintf(pct_text, "%d%%", (int)(progress * 100));
+                DrawText(pct_text, bar_x + bar_width + 8, bar_y - 1, 14, LIGHTGRAY);
+            }
+        }
 
         // Description
         DrawText(upgrade->description, menu_x + 20, y_offset + 40, 12, GRAY);
 
         // Cost or status
         if (is_maxed) {
-            DrawText("MAX", menu_x + menu_width - 55, y_offset + 4, 16, GREEN);
+            const char* max_text = is_stage_upgrade ? "DONE" : "MAX";
+            DrawText(max_text, menu_x + menu_width - 55, y_offset + 4, 16, GREEN);
         } else {
             char cost_text[32];
             sprintf(cost_text, "%d", cost);
@@ -259,5 +319,22 @@ float upgrade_get_ball_radius_modifier(UpgradeManager* manager) {
     if (!manager) return 0.0f;
     // Returns negative value (radius reduction)
     return -manager->upgrades[UPGRADE_BALL_SIZE].level * BALL_RADIUS_REDUCTION_PER_LEVEL;
+}
+// }}}
+
+// {{{ upgrade_manager_set_stage_callback
+void upgrade_manager_set_stage_callback(UpgradeManager* manager,
+                                        StagePurchaseCallback callback,
+                                        void* user_data) {
+    if (!manager) return;
+    manager->on_stage_purchase = callback;
+    manager->callback_user_data = user_data;
+}
+// }}}
+
+// {{{ upgrade_get_stage_level
+int upgrade_get_stage_level(UpgradeManager* manager) {
+    if (!manager) return 0;
+    return manager->upgrades[UPGRADE_NEXT_STAGE].level;
 }
 // }}}

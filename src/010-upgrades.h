@@ -12,8 +12,12 @@ typedef struct World World;
 typedef enum {
     UPGRADE_SPAWN_RATE,
     UPGRADE_BALL_SIZE,
+    UPGRADE_NEXT_STAGE,  // Stage expansion purchase
     UPGRADE_COUNT  // Number of upgrade types
 } UpgradeType;
+
+// Callback for stage purchase notifications
+typedef void (*StagePurchaseCallback)(void* user_data);
 
 // {{{ typedef struct Upgrade
 // Upgrade represents a single purchasable improvement.
@@ -35,6 +39,10 @@ typedef struct UpgradeManager {
     int selected_index;               // Currently highlighted upgrade
     float purchase_hold_time;         // Time ENTER has been held (for repeat purchases)
     float purchase_cooldown;          // Time until next repeat purchase
+
+    // Stage purchase callback (notifies main loop to trigger animation)
+    StagePurchaseCallback on_stage_purchase;
+    void* callback_user_data;
 } UpgradeManager;
 // }}}
 
@@ -138,6 +146,30 @@ float upgrade_get_spawn_rate_bonus(UpgradeManager* manager);
 // Returns:
 //   Radius reduction (negative value) from ball size upgrade
 float upgrade_get_ball_radius_modifier(UpgradeManager* manager);
+// }}}
+
+// {{{ upgrade_manager_set_stage_callback
+// Sets the callback function for stage purchase events.
+// The callback is invoked when a stage upgrade is purchased.
+//
+// Parameters:
+//   manager: UpgradeManager instance
+//   callback: Function to call on stage purchase
+//   user_data: User data passed to callback
+void upgrade_manager_set_stage_callback(UpgradeManager* manager,
+                                        StagePurchaseCallback callback,
+                                        void* user_data);
+// }}}
+
+// {{{ upgrade_get_stage_level
+// Returns the current stage level (number of stages purchased).
+//
+// Parameters:
+//   manager: UpgradeManager instance
+//
+// Returns:
+//   Stage level (0 = base stage only, 1 = stage 2 unlocked, etc.)
+int upgrade_get_stage_level(UpgradeManager* manager);
 // }}}
 
 #endif // UPGRADES_H

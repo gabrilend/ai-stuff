@@ -7,6 +7,7 @@
 //                     world_render_zones
 
 #include "004-world.h"
+#include "014-stage.h"
 #include <raylib.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -45,6 +46,13 @@ World* world_create(int width, int height) {
     world->adversary_table_top = (float)height;
     world->adversary_table_bottom = (float)height;
 
+    // Stage expansion system (NULL until first stage upgrade purchased)
+    world->stages = NULL;
+
+    // Expansion tracking
+    world->total_height = (float)height;
+    world->expansion_offset = 0.0f;
+
     return world;
 }
 // }}}
@@ -76,6 +84,11 @@ void world_destroy(World* world) {
     }
     if (world->adversary_bumpers) {
         free(world->adversary_bumpers);
+    }
+
+    // Free stage manager if active
+    if (world->stages) {
+        stage_manager_destroy(world->stages);
     }
 
     // Free world structure
@@ -489,5 +502,78 @@ void world_render_adversary_bumpers(World* world) {
         DrawCircleLines((int)bumper->x, (int)bumper->y,
                         bumper->radius, bumper_outline);
     }
+}
+// }}}
+
+// =============================================================================
+// World expansion functions
+// =============================================================================
+
+// {{{ world_shift_adversary_content
+void world_shift_adversary_content(World* world, float offset) {
+    if (!world || offset == 0.0f) return;
+
+    // Shift adversary pegs
+    for (int i = 0; i < world->adversary_peg_count; i++) {
+        world->adversary_pegs[i].y += offset;
+    }
+
+    // Shift adversary bumpers
+    for (int i = 0; i < world->adversary_bumper_count; i++) {
+        world->adversary_bumpers[i].y += offset;
+    }
+
+    // Update adversary table bounds
+    world->adversary_table_top += offset;
+    world->adversary_table_bottom += offset;
+}
+// }}}
+
+// {{{ world_shift_zones
+void world_shift_zones(World* world, float offset) {
+    if (!world || !world->zones || offset == 0.0f) return;
+
+    // Shift all zone boundaries
+    for (int i = 0; i < world->zone_count; i++) {
+        world->zones[i].y_min += offset;
+        world->zones[i].y_max += offset;
+    }
+
+    // Shift player bumpers (top of zones)
+    for (int i = 0; i < world->bumper_count; i++) {
+        world->bumpers[i].y += offset;
+    }
+
+    // Shift adversary bumpers (bottom of zones) - moved with zones
+    for (int i = 0; i < world->adversary_bumper_count; i++) {
+        world->adversary_bumpers[i].y += offset;
+    }
+}
+// }}}
+
+// {{{ world_expand_for_stages
+void world_expand_for_stages(World* world, float player_stage_height,
+                             float adversary_stage_height, float gate_height) {
+    if (!world) return;
+
+    // Calculate total expansion needed
+    // Two gate rows (one after player stage 2, one after adversary stage 2)
+    float expansion = player_stage_height + adversary_stage_height + (gate_height * 2.0f);
+
+    // Shift the original shared zones down to make room for player stage 2
+    // The zones will become the "gate row 1" after expansion
+    world_shift_zones(world, player_stage_height + gate_height);
+
+    // Shift adversary content further down to make room for adversary stage 2
+    // Total shift = player_stage + gate + adversary_stage + gate
+    world_shift_adversary_content(world, expansion);
+
+    // Update world height tracking
+    world->total_height += expansion;
+    world->expansion_offset += expansion;
+
+    // Update table_bottom to reflect new zone positions
+    // (zones were shifted down by player_stage_height + gate_height)
+    world->table_bottom += player_stage_height + gate_height;
 }
 // }}}

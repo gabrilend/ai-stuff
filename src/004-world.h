@@ -5,6 +5,9 @@
 #ifndef WORLD_H
 #define WORLD_H
 
+// Forward declaration for stage system (defined in 014-stage.h)
+typedef struct StageManager StageManager;
+
 // Physics constants
 #define PEG_RADIUS 12.0f
 #define DEFAULT_PEG_ROWS 10
@@ -77,6 +80,14 @@ typedef struct World {
     // Adversary bounds (below zones)
     float adversary_table_top;     // Top of adversary table (bottom of zones)
     float adversary_table_bottom;  // Bottom of adversary table (where adversary pegs end)
+
+    // Stage expansion system (NULL until first stage upgrade purchased)
+    // When active, stages manages additional board sections and gate rows
+    StageManager* stages;
+
+    // Expansion tracking for dynamic world growth
+    float total_height;        // Current total world height (updated on expansion)
+    float expansion_offset;    // Accumulated vertical shift from expansions
 } World;
 // }}}
 
@@ -221,6 +232,43 @@ void world_generate_adversary_bumpers(World* world);
 // Parameters:
 //   world: World instance
 void world_render_adversary_bumpers(World* world);
+// }}}
+
+// =============================================================================
+// World expansion functions (for dynamic stage system)
+// =============================================================================
+
+// {{{ world_expand_for_stages
+// Expands the world vertically to accommodate new stages.
+// Shifts adversary content downward to make room.
+//
+// Parameters:
+//   world: World instance
+//   player_stage_height: Height of new player stage
+//   adversary_stage_height: Height of new adversary stage
+//   gate_height: Height of each new gate row
+void world_expand_for_stages(World* world, float player_stage_height,
+                             float adversary_stage_height, float gate_height);
+// }}}
+
+// {{{ world_shift_adversary_content
+// Shifts all adversary content (pegs, bumpers, bounds) by the given offset.
+// Used during world expansion to make room for new stages.
+//
+// Parameters:
+//   world: World instance
+//   offset: Vertical offset to shift (positive = downward)
+void world_shift_adversary_content(World* world, float offset);
+// }}}
+
+// {{{ world_shift_zones
+// Shifts the shared gate zones by the given offset.
+// Used during world expansion.
+//
+// Parameters:
+//   world: World instance
+//   offset: Vertical offset to shift (positive = downward)
+void world_shift_zones(World* world, float offset);
 // }}}
 
 #endif // WORLD_H

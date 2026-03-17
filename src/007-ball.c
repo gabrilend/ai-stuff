@@ -9,6 +9,8 @@
 #include "006-ball.h"
 #include "004-world.h"
 #include "003-threadpool.h"
+#include "014-stage.h"
+#include "016-ramp.h"
 #include "raylib.h"
 
 // {{{ ball_manager_create
@@ -335,6 +337,44 @@ static void ball_collide_with_bumpers(Ball* ball, World* world) {
 }
 // }}}
 
+// {{{ ball_collide_with_ramps
+// Internal function to check and resolve collisions with ramps in stage manager
+// Checks both player stages and adversary stages for ramp obstacles
+static void ball_collide_with_ramps(Ball* ball, World* world) {
+    // Only check if stage manager exists (stages have been purchased)
+    if (!world->stages) return;
+
+    StageManager* stages = world->stages;
+    float penetration, contact_x, contact_y;
+
+    // Check player stage ramps
+    for (int s = 0; s < stages->player_stage_count; s++) {
+        Stage* stage = &stages->player_stages[s];
+        if (stage->type != STAGE_TYPE_RAMPS || !stage->ramps) continue;
+
+        for (int r = 0; r < stage->ramp_count; r++) {
+            if (ramp_check_collision(ball, &stage->ramps[r],
+                                     &penetration, &contact_x, &contact_y)) {
+                ramp_resolve_collision(ball, &stage->ramps[r], penetration);
+            }
+        }
+    }
+
+    // Check adversary stage ramps
+    for (int s = 0; s < stages->adversary_stage_count; s++) {
+        Stage* stage = &stages->adversary_stages[s];
+        if (stage->type != STAGE_TYPE_RAMPS || !stage->ramps) continue;
+
+        for (int r = 0; r < stage->ramp_count; r++) {
+            if (ramp_check_collision(ball, &stage->ramps[r],
+                                     &penetration, &contact_x, &contact_y)) {
+                ramp_resolve_collision(ball, &stage->ramps[r], penetration);
+            }
+        }
+    }
+}
+// }}}
+
 // {{{ ball_check_ball_collision
 // Internal function to check circle-circle collision between two balls
 // Returns 1 if collision detected, 0 otherwise
@@ -558,6 +598,7 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
         if (next->active) {
             ball_collide_with_pegs(next, world);
             ball_collide_with_bumpers(next, world);
+            ball_collide_with_ramps(next, world);
             ball_collide_with_walls(next, world);
             ball_check_bounds(next, world);
 
@@ -737,6 +778,7 @@ void ball_update_task(void* data) {
     if (next->active) {
         ball_collide_with_pegs(next, task->world);
         ball_collide_with_bumpers(next, task->world);
+        ball_collide_with_ramps(next, task->world);
 
         // Track cross-owner ball collisions for splash particles and explosion direction
         float collision_info[9] = {0};

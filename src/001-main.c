@@ -15,6 +15,8 @@
 #include "008-particles.h"
 #include "010-upgrades.h"
 #include "012-adversary.h"
+#include "014-stage.h"
+#include "018-expansion-anim.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -26,6 +28,86 @@
 // Scrolling viewport constants
 #define SCROLL_SPEED 120.0f   // Pixels per scroll wheel notch (tripled for faster panning)
 #define SCROLL_LERP_SPEED 8.0f // Lerp factor for smooth scrolling (higher = snappier)
+
+// {{{ typedef struct StagePurchaseContext
+// Context passed to stage purchase callback
+// Contains all state needed to trigger stage expansion
+typedef struct StagePurchaseContext {
+    World* world;
+    ExpansionAnimation* anim;
+    Camera2D* camera;
+    BallManager* ball_manager;
+} StagePurchaseContext;
+// }}}
+
+// {{{ on_stage_purchased
+// Callback invoked when player purchases a stage upgrade
+// Creates stage manager if needed, adds stages, expands world, starts animation
+static void on_stage_purchased(void* user_data) {
+    StagePurchaseContext* ctx = (StagePurchaseContext*)user_data;
+    if (!ctx || !ctx->world || !ctx->anim) return;
+
+    World* world = ctx->world;
+
+    // Create stage manager if this is the first stage purchase
+    if (!world->stages) {
+        world->stages = stage_manager_create(world->table_x, world->table_width);
+        if (!world->stages) {
+            fprintf(stderr, "ERROR: Failed to create stage manager\n");
+            return;
+        }
+        printf("Stage manager created\n");
+    }
+
+    // Calculate expansion dimensions
+    float player_stage_height = STAGE_2_HEIGHT;
+    float adversary_stage_height = STAGE_2_HEIGHT;
+    float gate_height = 50.0f;  // Height for gate rows
+
+    float total_expansion = player_stage_height + adversary_stage_height +
+                           gate_height * 2;  // Two gate rows
+
+    // Add player stage 2 (ramps)
+    int player_idx = stage_manager_add_player_stage(world->stages, STAGE_TYPE_RAMPS,
+                                                    player_stage_height);
+    if (player_idx >= 0) {
+        Stage* player_stage = &world->stages->player_stages[player_idx];
+        stage_generate_ramps_stage2(player_stage);
+        printf("Added player stage 2 with %d ramps\n", player_stage->ramp_count);
+    }
+
+    // Add adversary stage 2 (mirrored ramps)
+    int adv_idx = stage_manager_add_adversary_stage(world->stages, STAGE_TYPE_RAMPS,
+                                                    adversary_stage_height);
+    if (adv_idx >= 0) {
+        Stage* adv_stage = &world->stages->adversary_stages[adv_idx];
+        stage_generate_ramps_stage2_mirrored(adv_stage);
+        printf("Added adversary stage 2 with %d ramps\n", adv_stage->ramp_count);
+    }
+
+    // Add gate rows between stages with 2x multiplier
+    stage_manager_add_gate_row(world->stages, world->table_bottom,
+                               gate_height, 7, 2);
+    stage_manager_add_gate_row(world->stages, world->adversary_table_top - gate_height,
+                               gate_height, 7, 2);
+
+    // Expand the world to accommodate new stages
+    world_expand_for_stages(world, player_stage_height, adversary_stage_height,
+                           gate_height);
+
+    // Handle ball positions during expansion
+    float expansion_y = world->table_bottom;  // Expansion point
+    ball_manager_handle_expansion(ctx->ball_manager, total_expansion, expansion_y);
+
+    // Start the expansion animation
+    float current_zoom = ctx->camera->zoom;
+    float current_target_y = ctx->camera->target.y;
+    expansion_animation_start(ctx->anim, total_expansion, expansion_y, 1,
+                             current_zoom, current_target_y);
+
+    printf("Stage expansion triggered: %.0f pixels total\n", total_expansion);
+}
+// }}}
 
 // {{{ main
 int main(void) {
@@ -170,6 +252,12 @@ int main(void) {
     }
     printf("Adversary AI created\n");
 
+    // Initialize expansion animation system
+    // Used when purchasing new stages to animate world expansion
+    ExpansionAnimation expansion_anim;
+    expansion_animation_init(&expansion_anim);
+    printf("Expansion animation initialized\n");
+
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
     float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
@@ -188,6 +276,18 @@ int main(void) {
     camera.zoom = 1.0f;
     printf("Viewport initialized: %.0fx%.0f world, scrollable\n",
            (float)screen_width, world_height);
+
+    // Set up stage purchase callback context
+    // This connects the upgrade system to the stage expansion system
+    // Must be done after camera is created since we pass a pointer to it
+    StagePurchaseContext stage_ctx = {
+        .world = world,
+        .anim = &expansion_anim,
+        .camera = &camera,
+        .ball_manager = ball_manager
+    };
+    upgrade_manager_set_stage_callback(upgrade_manager, on_stage_purchased, &stage_ctx);
+    printf("Stage purchase callback configured\n");
 
     // Auto-spawn toggle state
     int auto_spawn = 0;
@@ -381,6 +481,26 @@ int main(void) {
         // Update camera target to reflect scroll position
         camera.target.y = (float)screen_height / 2.0f + viewport_offset_y;
 
+        // Update expansion animation if active
+        // Animation controls camera zoom and may pause physics
+        int expansion_completed = expansion_animation_update(&expansion_anim, dt);
+        if (expansion_animation_is_active(&expansion_anim)) {
+            // Apply animated camera zoom and offset
+            expansion_animation_apply_camera(&expansion_anim, &camera);
+        }
+        if (expansion_completed) {
+            // Animation just finished - world expansion already applied at start
+            // Physics resumes automatically (physics_paused flag cleared)
+        }
+
+        // Skip physics update when expansion animation is active
+        // Balls freeze in place during animation for visual clarity
+        double physics_ms = 0.0;  // Initialize before potential skip
+        if (expansion_anim.physics_paused) {
+            // Still need to render, but skip physics
+            goto skip_physics;
+        }
+
         // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → spawn particles → collect scores → finalize → swap
         double physics_start = GetTime();
@@ -459,7 +579,7 @@ int main(void) {
         ball_manager_finalize_update(ball_manager);
         ball_manager_swap_buffers(ball_manager);
         double physics_end = GetTime();
-        double physics_ms = (physics_end - physics_start) * 1000.0;
+        physics_ms = (physics_end - physics_start) * 1000.0;
 
         // Handle ball spawning input (after buffer swap so balls render at spawn position)
         // Check cooldown AND that no balls are blocking the spawn area
@@ -477,6 +597,7 @@ int main(void) {
             ball_manager_reset_cooldown(ball_manager);
         }
 
+    skip_physics:  // Label for expansion animation physics skip
         // Render
         BeginDrawing();
         ClearBackground(BG_COLOR);
@@ -495,6 +616,11 @@ int main(void) {
         world_render_adversary_pegs(world);
         world_render_adversary_bumpers(world);
         adversary_render(adversary);
+
+        // Draw stage expansion content (if stages have been purchased)
+        if (world->stages) {
+            stage_manager_render_all(world->stages);
+        }
 
         // Draw spawn point indicator (pulsing circle at movable position)
         float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1
