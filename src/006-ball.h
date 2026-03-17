@@ -55,6 +55,9 @@ typedef struct BallTaskData {
     World* world;          // World for collision detection
     float dt;              // Delta time in seconds
     int score_delta;       // Points scored during this task (0 if none)
+    int scored;            // 1 if ball scored this frame, 0 otherwise
+    float score_pos_x;     // X position where ball scored (if scored)
+    float score_pos_y;     // Y position where ball scored (if scored)
 } BallTaskData;
 // }}}
 

@@ -11,6 +11,7 @@
 #include "003-threadpool.h"
 #include "004-world.h"
 #include "006-ball.h"
+#include "008-particles.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -77,6 +78,18 @@ int main(void) {
     }
     printf("Ball manager created: %d capacity\n", MAX_BALLS);
 
+    // Create particle system
+    ParticleSystem* particle_system = particle_system_create(256);
+    if (!particle_system) {
+        fprintf(stderr, "ERROR: Failed to create particle system\n");
+        ball_manager_destroy(ball_manager);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    printf("Particle system created: 256 capacity\n");
+
     // Main loop
     printf("Entering main loop...\n");
     printf("Press SPACE to spawn balls\n");
@@ -87,6 +100,9 @@ int main(void) {
         // Update spawn cooldown
         ball_manager_update_cooldown(ball_manager, dt);
 
+        // Update particle system
+        particle_system_update(particle_system, dt);
+
         // Handle ball spawning input
         if (IsKeyDown(KEY_SPACE) && ball_manager_can_spawn(ball_manager)) {
             ball_manager_spawn(ball_manager, SPAWN_X, SPAWN_Y);
@@ -94,13 +110,36 @@ int main(void) {
         }
 
         // Parallel ball physics update with performance timing
-        // Sequence: prepare → submit → wait → collect scores → finalize → swap
+        // Sequence: prepare → submit → wait → collect scores → spawn particles → finalize → swap
         double physics_start = GetTime();
         ball_manager_prepare_tasks(ball_manager, world, dt);
         ball_manager_submit_tasks(ball_manager, pool);
         threadpool_wait_all(pool);
         int points = ball_manager_collect_scores(ball_manager);
         world->score += points;
+
+        // Spawn particle bursts for balls that scored this frame
+        for (int i = 0; i < ball_manager->capacity; i++) {
+            BallTaskData* task = &ball_manager->task_data[i];
+            if (task->scored) {
+                // Choose particle color based on point value
+                Color particle_color;
+                if (task->score_delta >= 500) {
+                    particle_color = GOLD;
+                } else if (task->score_delta >= 100) {
+                    particle_color = GREEN;
+                } else if (task->score_delta >= 50) {
+                    particle_color = BLUE;
+                } else {
+                    particle_color = GRAY;
+                }
+
+                // Spawn burst of 12 particles at score position
+                particle_spawn_burst(particle_system, task->score_pos_x,
+                                   task->score_pos_y, 12, particle_color);
+            }
+        }
+
         ball_manager_finalize_update(ball_manager);
         ball_manager_swap_buffers(ball_manager);
         double physics_end = GetTime();
@@ -120,6 +159,9 @@ int main(void) {
 
         // Draw balls
         ball_manager_render(ball_manager);
+
+        // Draw particles (after balls, before UI)
+        particle_system_render(particle_system);
 
         // Draw score, ball count, and instructions
         char score_text[64];
@@ -151,6 +193,9 @@ int main(void) {
     printf("Shutting down...\n");
     CloseWindow();
     printf("Raylib window closed\n");
+
+    particle_system_destroy(particle_system);
+    printf("Particle system destroyed\n");
 
     ball_manager_destroy(ball_manager);
     printf("Ball manager destroyed\n");

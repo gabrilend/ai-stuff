@@ -369,8 +369,9 @@ void ball_update_task(void* data) {
     BallTaskData* task = (BallTaskData*)data;
     if (!task) return;
 
-    // Initialize score_delta to 0 (no points scored yet)
+    // Initialize scoring fields (no points scored yet)
     task->score_delta = 0;
+    task->scored = 0;
 
     // Get ball pointers using immutable ball_index
     Ball* current = &task->read_buffer[task->ball_index];
@@ -392,8 +393,11 @@ void ball_update_task(void* data) {
             int zone_index = ball_check_zone(next, task->world);
             if (zone_index >= 0) {
                 // Ball captured by zone
-                // Award points and deactivate ball
+                // Award points, record position, and deactivate ball
                 task->score_delta = task->world->zones[zone_index].points;
+                task->scored = 1;
+                task->score_pos_x = next->x;
+                task->score_pos_y = next->y;
                 next->active = 0;
             }
         }

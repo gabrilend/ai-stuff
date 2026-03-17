@@ -12,12 +12,12 @@ machine to a playable state with scoring, ball capture, and visual polish.
 | 501 | Implement score zone detection     | Complete  |
 | 502 | Implement scoring and ball capture | Complete  |
 | 503 | Add visual polish and colors       | Complete  |
-| 504 | Add particle effects               | Pending   |
+| 504 | Add particle effects               | Complete  |
 | 505 | Final gameplay polish              | Pending   |
 
 ## Progress Summary
 
-**Completed:** 3/5 issues (60%)
+**Completed:** 4/5 issues (80%)
 **Phase 5:** In Progress
 
 ## Notes
@@ -92,3 +92,20 @@ Key changes:
 Visual hierarchy established: balls most visible (warm colors with highlights), pegs
 less prominent (cool tones), dark background for contrast. Creates professional,
 cohesive appearance. Issues 504-505 will add particle effects and final polish.
+
+### Issue 504 - Particle Effects (Complete)
+
+Implemented particle system for visual feedback when balls are captured by zones.
+
+Key changes:
+- Created particle system (src/008-particles.h, src/009-particles.c)
+- Fixed-capacity pool (256 particles) with automatic slot reuse
+- Particles affected by gravity, fade out over 0.8 second lifetime
+- Extended BallTaskData to track scored positions
+- Integrated with main loop to spawn bursts (12 particles) on scoring
+- Particle colors match zone colors (gold/green/blue/gray)
+
+Particle system provides satisfying visual feedback when balls score. Bursts radiate
+outward from scoring position with gravity-affected physics. Alpha fades as particles
+expire. No performance impact due to efficient fixed-capacity design. Issue 505 will
+add final gameplay polish (high score, reset, UI improvements).

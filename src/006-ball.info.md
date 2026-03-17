@@ -244,16 +244,19 @@ typedef struct BallTaskData {
     World* world;          // World for collision detection
     float dt;              // Delta time in seconds
     int score_delta;       // Points scored during this task (0 if none)
+    int scored;            // 1 if ball scored this frame, 0 otherwise
+    float score_pos_x;     // X position where ball scored (if scored)
+    float score_pos_y;     // Y position where ball scored (if scored)
 } BallTaskData;
 ```
 
 Encapsulates all information needed for a worker thread to process a single ball update. Pre-allocated at startup to avoid malloc during gameplay.
 
-**score_delta Field:**
-- Set to 0 at start of ball_update_task()
-- Set to zone point value when ball enters a zone
-- Summed by ball_manager_collect_scores() after parallel phase
-- Thread-safe: each task writes only to its own score_delta
+**Scoring Fields:**
+- `score_delta`: Set to 0 at start of ball_update_task(), set to zone point value when ball enters a zone
+- `scored`: Set to 1 when ball scores, 0 otherwise. Used by main loop to spawn particles
+- `score_pos_x`, `score_pos_y`: Records ball position at moment of scoring for particle effects
+- Thread-safe: each task writes only to its own fields
 
 ### BallManager
 ```c
