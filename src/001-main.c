@@ -221,8 +221,8 @@ int main(void) {
             }
         }
 
-        // Update particle system (with world for fragment physics)
-        particle_system_update_with_world(particle_system, world, dt);
+        // Particle system now updated in parallel after ball physics
+        // (see particle_system_prepare_tasks/submit_tasks/finalize/swap below)
 
         // Handle spawn point movement - mouse takes priority over keyboard
         // Calculate spawn bounds (keep ball radius away from rails)
@@ -428,6 +428,14 @@ int main(void) {
                                      task->collision_ty, splash_color);
             }
         }
+
+        // Parallel particle physics update
+        // Particles spawned above are now in particles_current, will be updated
+        particle_system_prepare_tasks(particle_system, world, dt);
+        particle_system_submit_tasks(particle_system, pool);
+        threadpool_wait_all(pool);
+        particle_system_finalize_update(particle_system);
+        particle_system_swap_buffers(particle_system);
 
         // Collect scores and reset scoring fields
         int points = ball_manager_collect_scores(ball_manager);

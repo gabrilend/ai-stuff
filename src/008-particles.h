@@ -50,13 +50,28 @@ typedef struct Particle {
 } Particle;
 // }}}
 
+// {{{ typedef struct ParticleTaskData
+// ParticleTaskData encapsulates all information needed for a worker thread
+// to process a single particle update. Pre-allocated at startup.
+typedef struct ParticleTaskData {
+    int particle_index;        // Index into particle arrays (immutable)
+    Particle* read_buffer;     // Current state (read-only)
+    Particle* write_buffer;    // Next state (write target)
+    World* world;              // World for fragment collision detection
+    float dt;                  // Delta time in seconds
+} ParticleTaskData;
+// }}}
+
 // {{{ typedef struct ParticleSystem
 // ParticleSystem manages a fixed-capacity pool of particles.
+// Uses double-buffering for thread-safe parallel updates.
 // Reuses inactive particle slots to avoid runtime allocation.
 typedef struct ParticleSystem {
-    Particle* particles; // Particle array
-    int capacity;        // Maximum particles
-    int active_count;    // Current active particles (for stats)
+    Particle* particles_current; // Current frame state (read-only during update)
+    Particle* particles_next;    // Next frame state (write during update)
+    int capacity;                // Maximum particles
+    int active_count;            // Current active particles (for stats)
+    ParticleTaskData* task_data; // Pre-allocated task data for parallel processing
 } ParticleSystem;
 // }}}
 
@@ -159,12 +174,65 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
 // {{{ particle_system_update_with_world
 // Updates all active particles with world collision for fragments.
 // Fragments collide with pegs/bumpers but don't affect them.
+// NOTE: Legacy single-threaded update. Use parallel functions for new code.
 //
 // Parameters:
 //   ps: ParticleSystem instance
 //   world: World for fragment collision detection
 //   dt: Delta time in seconds
 void particle_system_update_with_world(ParticleSystem* ps, World* world, float dt);
+// }}}
+
+// Forward declaration for threadpool
+typedef struct ThreadPool ThreadPool;
+
+// {{{ particle_system_swap_buffers
+// Swaps current and next particle buffers after parallel update completes.
+// Call after threadpool_wait_all() to make updated state visible.
+//
+// Parameters:
+//   ps: ParticleSystem instance
+void particle_system_swap_buffers(ParticleSystem* ps);
+// }}}
+
+// {{{ particle_system_prepare_tasks
+// Prepares task data for parallel particle update.
+// Sets buffer pointers, world reference, and delta time for each task.
+// Propagates inactive state from current to next buffer.
+//
+// Parameters:
+//   ps: ParticleSystem instance
+//   world: World for fragment collision detection
+//   dt: Delta time in seconds
+void particle_system_prepare_tasks(ParticleSystem* ps, World* world, float dt);
+// }}}
+
+// {{{ particle_system_submit_tasks
+// Submits particle update tasks to the threadpool.
+// Only submits tasks for active particles (life > 0).
+//
+// Parameters:
+//   ps: ParticleSystem instance
+//   pool: ThreadPool for parallel execution
+void particle_system_submit_tasks(ParticleSystem* ps, ThreadPool* pool);
+// }}}
+
+// {{{ particle_system_finalize_update
+// Counts active particles after parallel update completes.
+// Call after threadpool_wait_all() and before swap_buffers().
+//
+// Parameters:
+//   ps: ParticleSystem instance
+void particle_system_finalize_update(ParticleSystem* ps);
+// }}}
+
+// {{{ particle_update_task
+// Worker function for parallel particle update.
+// Updates a single particle: physics, collision, lifetime.
+//
+// Parameters:
+//   data: ParticleTaskData pointer
+void particle_update_task(void* data);
 // }}}
 
 #endif // PARTICLES_H

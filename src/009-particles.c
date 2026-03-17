@@ -4,6 +4,7 @@
 
 #include "008-particles.h"
 #include "004-world.h"
+#include "003-threadpool.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -116,17 +117,38 @@ ParticleSystem* particle_system_create(int capacity) {
     ps->capacity = capacity;
     ps->active_count = 0;
 
-    // Allocate particle array
-    ps->particles = (Particle*)calloc(capacity, sizeof(Particle));
-    if (!ps->particles) {
-        fprintf(stderr, "ERROR: Failed to allocate particle array\n");
+    // Allocate current particle buffer
+    ps->particles_current = (Particle*)calloc(capacity, sizeof(Particle));
+    if (!ps->particles_current) {
+        fprintf(stderr, "ERROR: Failed to allocate particle current buffer\n");
+        free(ps);
+        return NULL;
+    }
+
+    // Allocate next particle buffer
+    ps->particles_next = (Particle*)calloc(capacity, sizeof(Particle));
+    if (!ps->particles_next) {
+        fprintf(stderr, "ERROR: Failed to allocate particle next buffer\n");
+        free(ps->particles_current);
+        free(ps);
+        return NULL;
+    }
+
+    // Allocate task data array
+    ps->task_data = (ParticleTaskData*)malloc(capacity * sizeof(ParticleTaskData));
+    if (!ps->task_data) {
+        fprintf(stderr, "ERROR: Failed to allocate particle task data\n");
+        free(ps->particles_next);
+        free(ps->particles_current);
         free(ps);
         return NULL;
     }
 
     // Initialize all particles as inactive (life = 0)
     for (int i = 0; i < capacity; i++) {
-        ps->particles[i].life = 0.0f;
+        ps->particles_current[i].life = 0.0f;
+        ps->particles_next[i].life = 0.0f;
+        ps->task_data[i].particle_index = i;  // Immutable index
     }
 
     return ps;
@@ -137,8 +159,14 @@ ParticleSystem* particle_system_create(int capacity) {
 void particle_system_destroy(ParticleSystem* ps) {
     if (!ps) return;
 
-    if (ps->particles) {
-        free(ps->particles);
+    if (ps->particles_current) {
+        free(ps->particles_current);
+    }
+    if (ps->particles_next) {
+        free(ps->particles_next);
+    }
+    if (ps->task_data) {
+        free(ps->task_data);
     }
     free(ps);
 }
@@ -152,13 +180,15 @@ void particle_system_update(ParticleSystem* ps, float dt) {
 // }}}
 
 // {{{ particle_system_update_with_world
+// Legacy single-threaded update. Modifies particles_current in-place.
+// For parallel updates, use prepare_tasks/submit_tasks/finalize/swap pattern.
 void particle_system_update_with_world(ParticleSystem* ps, World* world, float dt) {
     if (!ps) return;
 
     int active = 0;
 
     for (int i = 0; i < ps->capacity; i++) {
-        Particle* p = &ps->particles[i];
+        Particle* p = &ps->particles_current[i];
 
         // Skip inactive particles
         if (p->life <= 0.0f) continue;
@@ -326,7 +356,7 @@ void particle_system_render(ParticleSystem* ps) {
     if (!ps) return;
 
     for (int i = 0; i < ps->capacity; i++) {
-        Particle* p = &ps->particles[i];
+        Particle* p = &ps->particles_current[i];
 
         // Skip inactive particles
         if (p->life <= 0.0f) continue;
@@ -438,7 +468,7 @@ void particle_spawn_burst(ParticleSystem* ps, float x, float y,
 
     // Find inactive particle slots and spawn particles
     for (int i = 0; i < ps->capacity && spawned < count; i++) {
-        Particle* p = &ps->particles[i];
+        Particle* p = &ps->particles_current[i];
 
         // Skip active particles
         if (p->life > 0.0f) continue;
@@ -489,7 +519,7 @@ void particle_spawn_ripple(ParticleSystem* ps, float x, float y, Color color) {
 
     // Find an inactive particle slot
     for (int i = 0; i < ps->capacity; i++) {
-        Particle* p = &ps->particles[i];
+        Particle* p = &ps->particles_current[i];
         if (p->life > 0.0f) continue;
 
         p->type = PARTICLE_RIPPLE;
@@ -518,7 +548,7 @@ void particle_spawn_splash(ParticleSystem* ps, float x, float y,
 
     int spawned = 0;
     for (int i = 0; i < ps->capacity && spawned < SPLASH_PARTICLE_COUNT; i++) {
-        Particle* p = &ps->particles[i];
+        Particle* p = &ps->particles_current[i];
         if (p->life > 0.0f) continue;
 
         p->type = PARTICLE_SIMPLE;
@@ -559,7 +589,7 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
 
     int spawned = 0;
     for (int i = 0; i < ps->capacity && spawned < num_fragments; i++) {
-        Particle* p = &ps->particles[i];
+        Particle* p = &ps->particles_current[i];
         if (p->life > 0.0f) continue;
 
         p->type = PARTICLE_FRAGMENT;
@@ -599,5 +629,233 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
 
         spawned++;
     }
+}
+// }}}
+
+// {{{ particle_system_swap_buffers
+void particle_system_swap_buffers(ParticleSystem* ps) {
+    if (!ps) return;
+
+    Particle* temp = ps->particles_current;
+    ps->particles_current = ps->particles_next;
+    ps->particles_next = temp;
+}
+// }}}
+
+// {{{ particle_system_prepare_tasks
+void particle_system_prepare_tasks(ParticleSystem* ps, World* world, float dt) {
+    if (!ps) return;
+
+    for (int i = 0; i < ps->capacity; i++) {
+        ps->task_data[i].read_buffer = ps->particles_current;
+        ps->task_data[i].write_buffer = ps->particles_next;
+        ps->task_data[i].world = world;
+        ps->task_data[i].dt = dt;
+
+        // Propagate inactive state from current to next buffer
+        // When a particle is inactive, no task is submitted. Without this,
+        // particles_next retains stale active state from previous frames.
+        if (ps->particles_current[i].life <= 0.0f) {
+            ps->particles_next[i].life = 0.0f;
+        }
+    }
+}
+// }}}
+
+// {{{ particle_system_submit_tasks
+void particle_system_submit_tasks(ParticleSystem* ps, ThreadPool* pool) {
+    if (!ps || !pool) return;
+
+    for (int i = 0; i < ps->capacity; i++) {
+        // Only submit tasks for active particles
+        if (ps->particles_current[i].life > 0.0f) {
+            threadpool_submit(pool, particle_update_task, &ps->task_data[i]);
+        }
+    }
+}
+// }}}
+
+// {{{ particle_system_finalize_update
+void particle_system_finalize_update(ParticleSystem* ps) {
+    if (!ps) return;
+
+    // Count active particles in next buffer
+    int active = 0;
+    for (int i = 0; i < ps->capacity; i++) {
+        if (ps->particles_next[i].life > 0.0f) {
+            active++;
+        }
+    }
+    ps->active_count = active;
+}
+// }}}
+
+// {{{ particle_update_task
+void particle_update_task(void* data) {
+    ParticleTaskData* task = (ParticleTaskData*)data;
+    if (!task) return;
+
+    int idx = task->particle_index;
+    Particle* current = &task->read_buffer[idx];
+    Particle* next = &task->write_buffer[idx];
+
+    // Skip inactive particles
+    if (current->life <= 0.0f) {
+        next->life = 0.0f;
+        return;
+    }
+
+    // Copy current state to next
+    *next = *current;
+
+    float dt = task->dt;
+    World* world = task->world;
+
+    switch (next->type) {
+        case PARTICLE_SIMPLE:
+            // Simple particles: gravity and movement
+            next->vy += PARTICLE_GRAVITY * dt;
+            next->x += next->vx * dt;
+            next->y += next->vy * dt;
+            break;
+
+        case PARTICLE_RIPPLE:
+            // Ripple: expand radius over lifetime
+            next->radius += RIPPLE_EXPANSION_SPEED * dt;
+            if (next->radius > next->max_radius) {
+                next->radius = next->max_radius;
+            }
+            break;
+
+        case PARTICLE_FRAGMENT: {
+            // Fragment: gravity, movement, rotation, corkscrew, trail, collisions
+            next->vy += FRAGMENT_GRAVITY * dt;
+
+            // Calculate base movement
+            float move_x = next->vx * dt;
+            float move_y = next->vy * dt;
+
+            // Apply corkscrew motion (perpendicular oscillation)
+            if (next->corkscrew) {
+                float elapsed = next->max_life - next->life;
+                float phase = elapsed * CORKSCREW_FREQUENCY + next->corkscrew_phase;
+                float offset = sinf(phase) * CORKSCREW_AMPLITUDE * dt;
+
+                // Perpendicular to velocity direction
+                float vel_mag = sqrtf(next->vx * next->vx + next->vy * next->vy);
+                if (vel_mag > 0.1f) {
+                    float perp_x = -next->vy / vel_mag;
+                    float perp_y = next->vx / vel_mag;
+                    move_x += perp_x * offset;
+                    move_y += perp_y * offset;
+                }
+            }
+
+            next->x += move_x;
+            next->y += move_y;
+            next->angle += next->angular_vel * dt;
+
+            // Update trail
+            next->trail_timer -= dt;
+            if (next->trail_timer <= 0.0f) {
+                next->trail_timer = TRAIL_INTERVAL;
+                next->trail_x[next->trail_head] = next->x;
+                next->trail_y[next->trail_head] = next->y;
+                next->trail_head = (next->trail_head + 1) % TRAIL_LENGTH;
+            }
+
+            // Fragment collision with pegs (if world provided)
+            if (world) {
+                // Check player pegs
+                for (int j = 0; j < world->peg_count; j++) {
+                    float dx = next->x - world->pegs[j].x;
+                    float dy = next->y - world->pegs[j].y;
+                    float dist = sqrtf(dx * dx + dy * dy);
+                    float min_dist = world->pegs[j].radius + next->size;
+
+                    if (dist < min_dist && dist > 0.001f) {
+                        float nx = dx / dist;
+                        float ny = dy / dist;
+                        float dot = next->vx * nx + next->vy * ny;
+                        next->vx -= 2.0f * dot * nx * 0.6f;
+                        next->vy -= 2.0f * dot * ny * 0.6f;
+                        next->x = world->pegs[j].x + nx * min_dist;
+                        next->y = world->pegs[j].y + ny * min_dist;
+                    }
+                }
+
+                // Check adversary pegs
+                for (int j = 0; j < world->adversary_peg_count; j++) {
+                    float dx = next->x - world->adversary_pegs[j].x;
+                    float dy = next->y - world->adversary_pegs[j].y;
+                    float dist = sqrtf(dx * dx + dy * dy);
+                    float min_dist = world->adversary_pegs[j].radius + next->size;
+
+                    if (dist < min_dist && dist > 0.001f) {
+                        float nx = dx / dist;
+                        float ny = dy / dist;
+                        float dot = next->vx * nx + next->vy * ny;
+                        next->vx -= 2.0f * dot * nx * 0.6f;
+                        next->vy -= 2.0f * dot * ny * 0.6f;
+                        next->x = world->adversary_pegs[j].x + nx * min_dist;
+                        next->y = world->adversary_pegs[j].y + ny * min_dist;
+                    }
+                }
+
+                // Check bumpers
+                for (int j = 0; j < world->bumper_count; j++) {
+                    float dx = next->x - world->bumpers[j].x;
+                    float dy = next->y - world->bumpers[j].y;
+                    float dist = sqrtf(dx * dx + dy * dy);
+                    float min_dist = world->bumpers[j].radius + next->size;
+
+                    if (dist < min_dist && dist > 0.001f) {
+                        float nx = dx / dist;
+                        float ny = dy / dist;
+                        float dot = next->vx * nx + next->vy * ny;
+                        next->vx -= 2.0f * dot * nx * 0.4f;
+                        next->vy -= 2.0f * dot * ny * 0.4f;
+                        next->x = world->bumpers[j].x + nx * min_dist;
+                        next->y = world->bumpers[j].y + ny * min_dist;
+                    }
+                }
+
+                // Check adversary bumpers
+                for (int j = 0; j < world->adversary_bumper_count; j++) {
+                    float dx = next->x - world->adversary_bumpers[j].x;
+                    float dy = next->y - world->adversary_bumpers[j].y;
+                    float dist = sqrtf(dx * dx + dy * dy);
+                    float min_dist = world->adversary_bumpers[j].radius + next->size;
+
+                    if (dist < min_dist && dist > 0.001f) {
+                        float nx = dx / dist;
+                        float ny = dy / dist;
+                        float dot = next->vx * nx + next->vy * ny;
+                        next->vx -= 2.0f * dot * nx * 0.4f;
+                        next->vy -= 2.0f * dot * ny * 0.4f;
+                        next->x = world->adversary_bumpers[j].x + nx * min_dist;
+                        next->y = world->adversary_bumpers[j].y + ny * min_dist;
+                    }
+                }
+
+                // Wall bounces
+                float wall_left = world->table_x;
+                float wall_right = world->table_x + world->table_width;
+
+                if (next->x - next->size < wall_left) {
+                    next->x = wall_left + next->size;
+                    next->vx = -next->vx * 0.5f;
+                }
+                if (next->x + next->size > wall_right) {
+                    next->x = wall_right - next->size;
+                    next->vx = -next->vx * 0.5f;
+                }
+            }
+            break;
+        }
+    }
+
+    // Decrement life
+    next->life -= dt;
 }
 // }}}
