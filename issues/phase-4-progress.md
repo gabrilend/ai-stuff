@@ -11,14 +11,14 @@ ball updates across multiple worker threads.
 | ID  | Description                        | Status      |
 |-----|------------------------------------|-------------|
 | 401 | Create ball task data structure    | ✓ Completed |
-| 402 | Implement parallel ball update     | Pending     |
+| 402 | Implement parallel ball update     | ✓ Completed |
 | 403 | Implement synchronization barriers | Pending     |
 | 404 | Integrate parallel updates in main | Pending     |
 | 405 | Create performance benchmark       | Pending     |
 
 ## Progress Summary
 
-**Completed:** 1/5 issues (20%)
+**Completed:** 2/5 issues (40%)
 **Phase 4:** In Progress
 
 ## Notes
@@ -56,3 +56,17 @@ Created BallTaskData structure and integrated with BallManager:
 - Thread-safe design: each task owns one ball index in write buffer
 - Compiled successfully with no new warnings
 - Infrastructure ready for parallel ball updates in Issue 402
+
+### Issue 402 - Implement Parallel Ball Update Function (Completed)
+Implemented ball_update_task() for worker threads:
+- Added ball_update_task() declaration to src/006-ball.h
+- Implemented function in src/007-ball.c taking void* data parameter
+- Casts data to BallTaskData* and extracts ball_index
+- Calls ball_update_physics() for gravity and velocity integration
+- Calls collision functions: ball_collide_with_pegs(), ball_collide_with_walls()
+- Calls ball_check_bounds() for deactivation off-screen
+- Reuses existing static helper functions (no code duplication)
+- Thread safety verified: disjoint buffer writes, read-only world access
+- Updated documentation with thread safety notes
+- Compiled successfully with no new warnings
+- Task function ready for threadpool submission in Issue 403

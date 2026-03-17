@@ -120,6 +120,20 @@ Prepares task data for parallel ball updates. Sets up buffer pointers, world ref
 - `world`: World containing pegs for collision detection
 - `dt`: Delta time in seconds
 
+### ball_update_task
+```c
+void ball_update_task(void* data);
+```
+Task function for parallel ball update. Receives BallTaskData pointer and performs physics integration, collision detection, and bounds checking for a single ball. Thread-safe: only writes to its own ball index in write buffer.
+
+**Parameters:**
+- `data`: BallTaskData pointer (cast from void*)
+
+**Thread Safety:**
+- Reads from read_buffer (immutable during frame)
+- Writes only to write_buffer[ball_index] (disjoint access)
+- Reads from world (immutable during frame)
+
 ## Data Structures
 
 ### Ball

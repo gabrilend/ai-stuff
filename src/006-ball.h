@@ -187,4 +187,15 @@ void ball_manager_reset_cooldown(BallManager* manager);
 void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt);
 // }}}
 
+// {{{ ball_update_task
+// Task function for parallel ball update.
+// Receives BallTaskData* as void* data parameter.
+// Performs physics integration, collision detection, and bounds checking
+// for a single ball. Thread-safe: only writes to its own ball index.
+//
+// Parameters:
+//   data: BallTaskData pointer (cast from void*)
+void ball_update_task(void* data);
+// }}}
+
 #endif // BALL_H

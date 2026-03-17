@@ -344,3 +344,26 @@ void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt) {
     }
 }
 // }}}
+
+// {{{ ball_update_task
+void ball_update_task(void* data) {
+    // Cast task data
+    BallTaskData* task = (BallTaskData*)data;
+    if (!task) return;
+
+    // Get ball pointers using immutable ball_index
+    Ball* current = &task->read_buffer[task->ball_index];
+    Ball* next = &task->write_buffer[task->ball_index];
+
+    // Update physics (gravity, velocity, position)
+    ball_update_physics(current, next, task->dt);
+
+    // Perform collision detection and response on next buffer
+    // Only if ball is still active after physics update
+    if (next->active) {
+        ball_collide_with_pegs(next, task->world);
+        ball_collide_with_walls(next, task->world->width, task->world->height);
+        ball_check_bounds(next, task->world->height);
+    }
+}
+// }}}

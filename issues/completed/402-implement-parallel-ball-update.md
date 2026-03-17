@@ -105,4 +105,53 @@ Thread safety analysis:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/006-ball.h (added ball_update_task declaration)
+- src/007-ball.c (implemented ball_update_task function)
+- src/006-ball.info.md (documented ball_update_task with thread safety notes)
+
+**Implementation Steps Completed:**
+
+1. Added ball_update_task() declaration to src/006-ball.h:
+   - Documented as thread-safe task function
+   - Takes void* data parameter (BallTaskData*)
+
+2. Implemented ball_update_task() in src/007-ball.c:
+   - Casts void* data to BallTaskData*
+   - Gets current and next ball pointers using task->ball_index
+   - Calls ball_update_physics(current, next, task->dt)
+   - If ball active: calls collision and bounds checking functions
+   - Reuses existing static helper functions (no code duplication)
+
+3. Thread safety verified:
+   - Reads from read_buffer (immutable during parallel phase)
+   - Writes only to write_buffer[ball_index] (disjoint access)
+   - Reads from world (pegs immutable during frame)
+   - No shared mutable state between tasks
+
+4. Updated src/006-ball.info.md:
+   - Documented ball_update_task() function
+   - Added thread safety notes
+   - Explained parameter casting and buffer access
+
+5. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- ball_update_task() ready to be submitted to threadpool
+- Function processes single ball with full physics and collisions
+- Thread-safe design confirmed: each task owns one write buffer index
+- Reuses existing, tested physics code from Phase 3
+- Foundation ready for Issue 403 (synchronization barriers)
+
+**Design Decisions:**
+- Single ball per task for maximum parallelism
+- Wrapped existing static functions (no refactoring needed)
+- Disjoint buffer access pattern avoids locks
+- Task data provides all needed context (no global state)
+
+**Phase 4 Progress:**
+Issue 402 complete. Ready for Issue 403 (synchronization barriers).
