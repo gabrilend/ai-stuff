@@ -11,13 +11,13 @@ during Phase 5 and adds new gameplay and rendering features.
 |-----|------------------------------------------|----------|
 | 506 | Fix ball scoring/disappearing bug        | Complete |
 | 507 | Detect system thread count               | Complete |
-| 508 | Add ball-to-ball collisions              | Pending  |
+| 508 | Add ball-to-ball collisions              | Complete |
 | 509 | Improve particle effects                 | Pending  |
 | 510 | Add scrolling viewport                   | Pending  |
 
 ## Progress Summary
 
-**Completed:** 2/5 issues (40%)
+**Completed:** 3/5 issues (60%)
 **Phase 6:** In Progress
 
 ## Notes
@@ -61,3 +61,19 @@ Implemented automatic CPU core detection for optimal thread pool sizing.
 - Calculates: cores - 1, clamped to [2, 16]
 - Main.c now uses detected count instead of hardcoded 4
 - Logged at startup for visibility
+
+### Issue 508 - Ball-to-Ball Collisions (Complete)
+
+Implemented elastic collisions between balls and spawn area blocking.
+
+Ball collision system:
+- `ball_check_ball_collision()` detects circle-circle overlap
+- `ball_resolve_ball_collision()` applies impulse-based response
+- `ball_collide_with_balls()` iterates all other balls per task
+- Added `capacity` field to BallTaskData for collision loop bounds
+- Each ball handles its own collision response (thread-safe)
+
+Spawn blocking system:
+- `ball_manager_spawn_blocked()` checks for balls within 3x radius of spawn
+- Updated main.c to prevent spawning when area is occupied
+- Prevents overlapping balls and physics glitches at spawn point

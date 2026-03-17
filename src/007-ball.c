@@ -219,6 +219,83 @@ static void ball_collide_with_pegs(Ball* ball, World* world) {
 }
 // }}}
 
+// {{{ ball_check_ball_collision
+// Internal function to check circle-circle collision between two balls
+// Returns 1 if collision detected, 0 otherwise
+// Outputs collision normal and penetration depth
+static int ball_check_ball_collision(Ball* ball_a, Ball* ball_b,
+                                      float* nx, float* ny, float* depth) {
+    // Skip if either ball is inactive
+    if (!ball_a->active || !ball_b->active) return 0;
+
+    float dx = ball_a->x - ball_b->x;
+    float dy = ball_a->y - ball_b->y;
+    float dist_sq = dx * dx + dy * dy;
+    float min_dist = ball_a->radius + ball_b->radius;
+
+    // No collision if distance >= sum of radii
+    if (dist_sq >= min_dist * min_dist) return 0;
+
+    float dist = sqrtf(dist_sq);
+    if (dist < 0.001f) dist = 0.001f;  // Avoid division by zero
+
+    // Collision normal (points from ball_b to ball_a)
+    *nx = dx / dist;
+    *ny = dy / dist;
+    *depth = min_dist - dist;
+
+    return 1;
+}
+// }}}
+
+// {{{ ball_resolve_ball_collision
+// Internal function to resolve collision between two balls
+// Only applies response to ball_a (caller handles ball_b separately)
+static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
+                                         float nx, float ny, float depth) {
+    // Each ball moves half the penetration distance
+    ball_a->x += nx * (depth * 0.5f + COLLISION_BIAS);
+    ball_a->y += ny * (depth * 0.5f + COLLISION_BIAS);
+
+    // Calculate relative velocity
+    float rel_vx = ball_a->vx - ball_b->vx;
+    float rel_vy = ball_a->vy - ball_b->vy;
+
+    // Velocity component along collision normal
+    float vn = rel_vx * nx + rel_vy * ny;
+
+    // Only respond if balls are approaching
+    if (vn < 0) {
+        // Equal mass elastic collision: swap velocity components along normal
+        // For ball_a, we add the impulse; ball_b will be handled by its own task
+        float impulse = -(1.0f + RESTITUTION) * vn;
+        ball_a->vx += impulse * nx;
+        ball_a->vy += impulse * ny;
+    }
+}
+// }}}
+
+// {{{ ball_collide_with_balls
+// Internal function to check and resolve collisions with other balls
+// Only checks against balls with higher indices to avoid double-handling
+static void ball_collide_with_balls(Ball* ball, int ball_index,
+                                     Ball* read_buffer, int capacity) {
+    float nx, ny, depth;
+
+    // Check collision with all other active balls
+    // To avoid double-processing, we check against all balls
+    // Each ball task handles its own response
+    for (int i = 0; i < capacity; i++) {
+        if (i == ball_index) continue;  // Skip self
+
+        Ball* other = &read_buffer[i];
+        if (ball_check_ball_collision(ball, other, &nx, &ny, &depth)) {
+            ball_resolve_ball_collision(ball, other, nx, ny, depth);
+        }
+    }
+}
+// }}}
+
 // {{{ ball_collide_with_walls
 // Internal function to check and resolve collisions with screen boundaries
 static void ball_collide_with_walls(Ball* ball, int screen_width,
@@ -347,18 +424,46 @@ void ball_manager_reset_cooldown(BallManager* manager) {
 }
 // }}}
 
+// {{{ ball_manager_spawn_blocked
+int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_y) {
+    if (!manager) return 0;
+
+    // Check if any active ball is within spawn area
+    // Use larger radius than ball to prevent immediate collision
+    float spawn_radius = BALL_RADIUS * 3.0f;  // Safety margin
+
+    for (int i = 0; i < manager->capacity; i++) {
+        Ball* ball = &manager->balls_current[i];
+        if (!ball->active) continue;
+
+        // Check distance from spawn point
+        float dx = ball->x - spawn_x;
+        float dy = ball->y - spawn_y;
+        float dist_sq = dx * dx + dy * dy;
+        float min_dist = spawn_radius + ball->radius;
+
+        if (dist_sq < min_dist * min_dist) {
+            return 1;  // Spawn is blocked
+        }
+    }
+
+    return 0;  // Spawn area is clear
+}
+// }}}
+
 // {{{ ball_manager_prepare_tasks
 void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt) {
     if (!manager) return;
 
     // Update task data for all balls
     // Each task data entry has immutable ball_index,
-    // but buffer pointers, world, and dt change each frame
+    // but buffer pointers, world, dt, and capacity change each frame
     for (int i = 0; i < manager->capacity; i++) {
         manager->task_data[i].read_buffer = manager->balls_current;
         manager->task_data[i].write_buffer = manager->balls_next;
         manager->task_data[i].world = world;
         manager->task_data[i].dt = dt;
+        manager->task_data[i].capacity = manager->capacity;
     }
 }
 // }}}
@@ -384,6 +489,8 @@ void ball_update_task(void* data) {
     // Only if ball is still active after physics update
     if (next->active) {
         ball_collide_with_pegs(next, task->world);
+        ball_collide_with_balls(next, task->ball_index,
+                               task->read_buffer, task->capacity);
         ball_collide_with_walls(next, task->world->width, task->world->height);
         ball_check_bounds(next, task->world->height);
 

@@ -54,6 +54,7 @@ typedef struct BallTaskData {
     Ball* write_buffer;    // Next state (write target)
     World* world;          // World for collision detection
     float dt;              // Delta time in seconds
+    int capacity;          // Total ball capacity (for ball-ball collisions)
     int score_delta;       // Points scored during this task (0 if none)
     int scored;            // 1 if ball scored this frame, 0 otherwise
     float score_pos_x;     // X position where ball scored (if scored)
@@ -170,6 +171,21 @@ void ball_manager_update_cooldown(BallManager* manager, float dt);
 // Returns:
 //   1 if can spawn, 0 otherwise
 int ball_manager_can_spawn(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_spawn_blocked
+// Checks if the spawn area is blocked by any active balls.
+// Returns 1 if any ball is within the spawn area, preventing spawning.
+// Uses a safety margin (3x ball radius) to prevent physics issues.
+//
+// Parameters:
+//   manager: BallManager instance
+//   spawn_x: Spawn point X coordinate
+//   spawn_y: Spawn point Y coordinate
+//
+// Returns:
+//   1 if spawn blocked, 0 if area is clear
+int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_y);
 // }}}
 
 // {{{ ball_manager_reset_cooldown

@@ -89,4 +89,36 @@ immediate collision after spawning.
 
 ## Status
 
-- [ ] Pending
+- [x] Complete
+
+## Implementation Log
+
+### Ball-to-Ball Collision System
+
+Added three static functions to src/007-ball.c:
+
+1. `ball_check_ball_collision()` - Detects circle-circle collision between two balls,
+   returns collision normal and penetration depth.
+
+2. `ball_resolve_ball_collision()` - Applies impulse-based collision response to the
+   first ball only (each ball handles its own response from its own task).
+
+3. `ball_collide_with_balls()` - Iterates through all other balls and handles
+   collisions, called from ball_update_task().
+
+Added `capacity` field to BallTaskData struct so each task knows total ball count
+for the O(n) collision check loop.
+
+### Spawn Blocking System
+
+Added `ball_manager_spawn_blocked()` function that checks if any active ball is
+within 3x ball radius of the spawn point. This prevents overlapping balls at spawn.
+
+Updated main.c spawn logic to check both `ball_manager_can_spawn()` (cooldown/capacity)
+and `!ball_manager_spawn_blocked()` before allowing spawn.
+
+### Thread Safety
+
+Each ball only writes to its own position in write_buffer. Collision reads from
+read_buffer (immutable during frame). Both balls in a collision pair handle their
+own response independently, which is correct for elastic collisions.

@@ -106,7 +106,10 @@ int main(void) {
         particle_system_update(particle_system, dt);
 
         // Handle ball spawning input
-        if (IsKeyDown(KEY_SPACE) && ball_manager_can_spawn(ball_manager)) {
+        // Check cooldown AND that no balls are blocking the spawn area
+        // Spawn blocking prevents physics issues when balls overlap at spawn
+        if (IsKeyDown(KEY_SPACE) && ball_manager_can_spawn(ball_manager) &&
+            !ball_manager_spawn_blocked(ball_manager, SPAWN_X, SPAWN_Y)) {
             ball_manager_spawn(ball_manager, SPAWN_X, SPAWN_Y);
             ball_manager_reset_cooldown(ball_manager);
         }
