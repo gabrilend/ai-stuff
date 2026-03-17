@@ -37,8 +37,9 @@ typedef struct Particle {
     float thickness;     // Ring thickness
 
     // Fragment-specific fields (type == PARTICLE_FRAGMENT)
-    float size;          // Fragment visual size
+    float size;          // Fragment visual size (ball radius)
     float angle;         // Current rotation angle (radians)
+    float slice_angle;   // Pie slice width (radians, e.g. PI/2 for quarters)
     float angular_vel;   // Rotation speed (radians/sec)
     int corkscrew;       // 1 if doing corkscrew motion
     float corkscrew_phase; // Phase offset for corkscrew

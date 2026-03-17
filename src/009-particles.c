@@ -395,30 +395,29 @@ void particle_system_render(ParticleSystem* ps) {
                     );
                 }
 
-                // Draw fragment itself as rotating shape
+                // Draw fragment as pie slice of the original ball
                 // Iridescent color based on time
                 float elapsed = p->max_life - p->life;
                 float frag_hue = h + elapsed * 60.0f;
                 Color frag_color = hsv_to_rgb(frag_hue, s, v);
                 frag_color.a = (unsigned char)(life_ratio * 255.0f);
 
-                // Draw as triangle rotated by p->angle
-                float s1 = p->size;
-                float cos_a = cosf(p->angle);
-                float sin_a = sinf(p->angle);
+                // Convert angles from radians to degrees for raylib
+                // Center the slice on p->angle (slice spans angle +/- half_slice)
+                float half_slice_deg = (p->slice_angle * 0.5f) * 57.2958f;  // radians to degrees
+                float center_angle_deg = p->angle * 57.2958f;
+                float start_angle = center_angle_deg - half_slice_deg;
+                float end_angle = center_angle_deg + half_slice_deg;
 
-                Vector2 v1 = {p->x + cos_a * s1, p->y + sin_a * s1};
-                Vector2 v2 = {p->x + cosf(p->angle + 2.094f) * s1,
-                              p->y + sinf(p->angle + 2.094f) * s1};
-                Vector2 v3 = {p->x + cosf(p->angle + 4.189f) * s1,
-                              p->y + sinf(p->angle + 4.189f) * s1};
+                // Draw pie slice (filled sector)
+                DrawCircleSector((Vector2){p->x, p->y}, p->size,
+                                start_angle, end_angle, 8, frag_color);
 
-                DrawTriangle(v1, v2, v3, frag_color);
-
-                // Bright center highlight
-                Color highlight = frag_color;
-                highlight.a = (unsigned char)(life_ratio * 200.0f);
-                DrawCircle((int)p->x, (int)p->y, p->size * 0.3f, highlight);
+                // Draw outline for definition
+                Color outline_color = frag_color;
+                outline_color.a = (unsigned char)(life_ratio * 180.0f);
+                DrawCircleSectorLines((Vector2){p->x, p->y}, p->size,
+                                     start_angle, end_angle, 8, outline_color);
                 break;
             }
         }
@@ -553,6 +552,7 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
     // Choose number of fragments: 3, 4, 6, or 8
     int fragment_options[] = {3, 4, 6, 8};
     int num_fragments = fragment_options[rand() % 4];
+    float slice_angle = 6.28318f / (float)num_fragments;  // Pie slice width
 
     float base_h, base_s, base_v;
     rgb_to_hsv(color, &base_h, &base_s, &base_v);
@@ -566,15 +566,16 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
         p->x = x;
         p->y = y;
 
-        // Distribute fragments evenly around circle, inherit some ball velocity
-        float angle = (float)spawned / (float)num_fragments * 6.28318f;
+        // Each fragment flies outward from its position in the circle
+        float outward_angle = (float)spawned / (float)num_fragments * 6.28318f;
         float speed = FRAGMENT_SPEED * (0.7f + 0.6f * (float)(rand() % 100) / 100.0f);
-        p->vx = cosf(angle) * speed + vx * 0.3f;
-        p->vy = sinf(angle) * speed + vy * 0.3f;
+        p->vx = cosf(outward_angle) * speed + vx * 0.3f;
+        p->vy = sinf(outward_angle) * speed + vy * 0.3f;
 
-        // Fragment-specific initialization
-        p->size = FRAGMENT_SIZE * (0.8f + 0.4f * (float)(rand() % 100) / 100.0f);
-        p->angle = (float)(rand() % 628) / 100.0f;  // Random start angle
+        // Fragment is a pie slice of the ball
+        p->size = 8.0f;  // Ball radius (BALL_RADIUS)
+        p->angle = outward_angle;  // Slice points in direction of travel
+        p->slice_angle = slice_angle;
         p->angular_vel = FRAGMENT_ANGULAR_SPEED * (rand() % 2 ? 1.0f : -1.0f);
 
         // 1/5th chance of corkscrew motion
