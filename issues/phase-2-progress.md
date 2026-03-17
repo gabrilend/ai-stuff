@@ -2,8 +2,8 @@
 
 ## Phase Goal
 
-Create the pachinko machine structure without moving balls. This phase
-establishes the visual world that balls will interact with in Phase 3.
+Create the pachinko machine structure and world layout. This phase
+establishes the visual world that balls will interact with.
 
 ## Issues
 
@@ -13,10 +13,12 @@ establishes the visual world that balls will interact with in Phase 3.
 | 202 | Implement peg grid generation  | ✓ Completed |
 | 203 | Implement score zones          | ✓ Completed |
 | 204 | Integrate world rendering      | ✓ Completed |
+| 205 | Center table in window         | ✓ Completed |
+| 206 | Add guard rails on sides       | ✓ Completed |
 
 ## Progress Summary
 
-**Completed:** 4/4 issues (100%)
+**Completed:** 6/6 issues (100%)
 **Phase 2:** ✓ COMPLETE
 
 ## Notes
@@ -74,6 +76,22 @@ Integrated all world elements into main game loop:
 - Proper shutdown order: window → world → threadpool
 - Compiled successfully
 
+### Issue 205 - Center Table in Window (Completed)
+Added table bounds architecture to World struct:
+- table_x: Horizontal offset for centering
+- table_width: Fixed at 800px
+- table_top/table_bottom: Vertical bounds
+- Added `world_set_table_bounds()` to calculate centering offset
+- Updated peg generation, zone generation, and ball collision to use table bounds
+
+### Issue 206 - Add Guard Rails on Sides (Completed)
+Added visual guard rails on table edges:
+- `world_render_rails()` draws vertical bars at table_x and table_x + table_width
+- Dark industrial style (80, 80, 100) with inner highlight
+- Rails extend full table height
+- Updated `ball_collide_with_walls()` to use table bounds instead of screen edges
+- Balls now bounce off rails, preventing them from falling off wider windows
+
 ## Phase 2 Summary
 
 **PHASE 2 COMPLETE** - Static pachinko board fully functional:
@@ -83,11 +101,4 @@ Integrated all world elements into main game loop:
 ✓ Score zone generation (color-coded with point values)
 ✓ Complete visual display (title, pegs, zones, score)
 ✓ Clean resource management (creation and destruction)
-
-The pachinko board is now visually complete with pegs and score zones.
-Project ready for Phase 3 (Ball Physics).
-
-## Next Steps
-
-Begin Phase 3 (Ball Physics) to add ball spawning, movement, gravity,
-and collision detection.
+✓ Table centering and guard rails

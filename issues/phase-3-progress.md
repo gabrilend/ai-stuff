@@ -14,10 +14,11 @@ brings the pachinko machine to life with physics simulation.
 | 303 | Implement peg collision            | ✓ Completed |
 | 304 | Implement boundary collision       | ✓ Completed |
 | 305 | Implement ball spawning with input | ✓ Completed |
+| 306 | Add ball-to-ball collisions        | ✓ Completed |
 
 ## Progress Summary
 
-**Completed:** 5/5 issues (100%)
+**Completed:** 6/6 issues (100%)
 **Phase 3:** ✓ COMPLETE
 
 ## Notes
@@ -99,6 +100,16 @@ Implemented player-controlled ball spawning:
 - Each ball has unique random trajectory
 - Player controls spawning by holding SPACE
 
+### Issue 306 - Ball-to-Ball Collisions (Completed)
+Implemented elastic collisions between balls and spawn area blocking:
+- `ball_check_ball_collision()` detects circle-circle overlap
+- `ball_resolve_ball_collision()` applies impulse-based response
+- `ball_collide_with_balls()` iterates all other balls per task
+- Added `capacity` field to BallTaskData for collision loop bounds
+- Each ball handles its own collision response (thread-safe)
+- `ball_manager_spawn_blocked()` checks for balls within radius of spawn
+- Updated main.c to prevent spawning when area is occupied
+
 ## Phase 3 Summary
 
 **PHASE 3 COMPLETE** - Ball physics fully functional:
@@ -108,10 +119,4 @@ Implemented player-controlled ball spawning:
 ✓ Circle-circle peg collision with 70% energy retention
 ✓ Wall collision and boundary checking
 ✓ Player-controlled ball spawning with keyboard input
-
-The pachinko machine is now fully playable! Balls spawn at the top,
-fall under gravity, bounce through the peg grid creating zigzag paths,
-and deactivate when falling off screen. The double-buffering architecture
-is ready for Phase 4's parallel processing integration.
-
-Project ready for Phase 4 (Parallel Processing).
+✓ Ball-to-ball collisions with spawn blocking

@@ -14,10 +14,12 @@ machine to a playable state with scoring, ball capture, and visual polish.
 | 503 | Add visual polish and colors       | Complete  |
 | 504 | Add particle effects               | Complete  |
 | 505 | Final gameplay polish              | Complete  |
+| 506 | Fix ball scoring bug               | Complete  |
+| 507 | Improve particle effects           | Complete  |
 
 ## Progress Summary
 
-**Completed:** 5/5 issues (100%)
+**Completed:** 7/7 issues (100%)
 **Phase 5:** Complete
 
 ## Notes
@@ -123,10 +125,34 @@ Key changes:
 - High score displayed in gold for emphasis
 - Controls documented on-screen for accessibility
 
+### Issue 506 - Fix Ball Scoring Bug (Complete)
+
+Fixed critical bug where balls flickered and triggered multiple scoring/particles.
+
+Root cause: `scored` flag in BallTaskData was never reset for inactive balls. When
+a ball scored and became inactive, no task was submitted for it on future frames,
+so the `scored=1` flag persisted forever.
+
+Fix: Modified `ball_manager_collect_scores()` to reset both `score_delta` AND `scored`
+for all task entries. Reordered main loop to spawn particles BEFORE collecting scores.
+
+Additional fix: In `ball_manager_prepare_tasks()`, explicitly propagate inactive state
+from `balls_current` to `balls_next` for all inactive balls to prevent resurrection.
+
+### Issue 507 - Improve Particle Effects (Complete)
+
+Enhanced particles for more vibrant, dynamic visual effects:
+- Smaller radius (2.0f vs 3.0f), faster burst speed (220.0f vs 120.0f)
+- Lower gravity for more hang time (200.0f vs 300.0f)
+- Longer lifetime (1.0f vs 0.8f)
+- Iridescence: Hue shifts over lifetime (60° shift creates rainbow shimmer)
+- Color randomization: ±30° hue variation per particle
+- Speed/position/lifetime variation for organic feel
+- Added HSV/RGB conversion utilities for color manipulation
+
+## Phase 5 Summary
+
 Complete gameplay loop achieved: spawn balls, watch them bounce through pegs, score
 points in zones with particle effects, track high score for replay motivation, reset
 to start fresh. UI is polished, informative, and unobtrusive. Performance verified
 at stable 60fps with 100+ balls.
-
-Phase 5 is now complete! The pachinko simulator has evolved from basic ball physics
-to a complete, polished game with scoring, visual effects, and quality-of-life features.

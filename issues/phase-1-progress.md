@@ -2,8 +2,8 @@
 
 ## Phase Goal
 
-Establish core infrastructure: build system, threadpool, and basic
-raylib window integration.
+Establish core infrastructure: build system, threadpool, raylib window
+integration, and system detection.
 
 ## Issues
 
@@ -14,10 +14,11 @@ raylib window integration.
 | 103 | Create raylib window           | ✓ Completed |
 | 104 | Create basic project structure | ✓ Completed |
 | 105 | Create local dependency build  | ✓ Completed |
+| 106 | Detect system thread count     | ✓ Completed |
 
 ## Progress Summary
 
-**Completed:** 5/5 issues (100%)
+**Completed:** 6/6 issues (100%)
 **Phase 1:** ✓ COMPLETE
 
 ## Notes
@@ -84,6 +85,13 @@ Created dependency build script for reproducible builds:
 - Build documentation updated with new workflow
 - Enables builds independent of system package installations
 
+### Issue 106 - Detect System Thread Count (Completed)
+Implemented automatic CPU core detection for optimal thread pool sizing:
+- Added `get_optimal_thread_count()` using sysconf(_SC_NPROCESSORS_ONLN)
+- Calculates: cores - 1, clamped to [2, 16]
+- Main.c now uses detected count instead of hardcoded 4
+- Logged at startup for visibility
+
 ## Phase 1 Summary
 
 **PHASE 1 COMPLETE** - All infrastructure now in place:
@@ -92,14 +100,4 @@ Created dependency build script for reproducible builds:
 ✓ Threadpool (parallel task execution ready)
 ✓ Raylib window (rendering loop active)
 ✓ Integration (clean startup/shutdown sequence)
-
-The project is now ready for Phase 2 (Static World - peg grid and score zones)
-and Phase 3 (Ball Physics - movement, gravity, collisions with threadpool
-integration).
-
-## Next Steps
-
-Begin Phase 2 by creating issue files for:
-- Peg grid generation and rendering
-- Score zone layout and rendering
-- World state structure
+✓ System detection (automatic thread count)
