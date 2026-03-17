@@ -78,7 +78,7 @@ int main(void) {
     // Table dimensions - fixed width, dynamic height
     float table_width = 800.0f;  // Fixed table width
     float peg_spacing = 60.0f;
-    float peg_start_y = 100.0f;  // Gap from spawn (SPAWN_Y=50) for ball clearance
+    float peg_start_y = 150.0f;  // Large gap from spawn (SPAWN_Y=50) for ball clearance
     float zone_height = 40.0f;
     float bottom_margin = 20.0f;
 
@@ -149,9 +149,10 @@ int main(void) {
     // Auto-spawn toggle state
     int auto_spawn = 0;
 
-    // Movable spawn point - horizontal position controlled by mouse/keyboard
-    // Mouse takes priority, arrow keys for fine adjustment
-    float spawn_x = SPAWN_X;  // Start at center
+    // Spawn point position - single source of truth for spawn location
+    // spawn_x is movable via mouse/keyboard, spawn_y is fixed
+    float spawn_x = SPAWN_X;  // Start at center (movable)
+    float spawn_y = SPAWN_Y;  // Fixed vertical position
     float spawn_nudge_speed = 200.0f;  // Pixels per second for keyboard control
     int last_mouse_x = GetMouseX();  // Track mouse to detect movement
 
@@ -205,10 +206,10 @@ int main(void) {
         // Check cooldown AND that no balls are blocking the spawn area
         // Spawn blocking prevents physics issues when balls overlap at spawn
         // Auto-spawn acts like SPACE is held down
-        // Uses movable spawn_x position, fixed SPAWN_Y height
+        // Uses movable spawn_x position, fixed spawn_y height
         if ((IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
-            !ball_manager_spawn_blocked(ball_manager, spawn_x, SPAWN_Y)) {
-            ball_manager_spawn(ball_manager, spawn_x, SPAWN_Y);
+            !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
+            ball_manager_spawn(ball_manager, spawn_x, spawn_y);
             ball_manager_reset_cooldown(ball_manager);
         }
 
@@ -351,7 +352,7 @@ int main(void) {
         // Draw spawn point indicator (pulsing circle at movable position)
         float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1
         unsigned char alpha = (unsigned char)(pulse * 150.0f + 50.0f);  // Range: 50-200
-        DrawCircleLines((int)spawn_x, (int)SPAWN_Y, 15.0f,
+        DrawCircleLines((int)spawn_x, (int)spawn_y, 15.0f,
                        (Color){255, 255, 255, alpha});
 
         // Draw cooldown indicator (ring around spawn point)
@@ -359,16 +360,16 @@ int main(void) {
         if (ball_manager->spawn_cooldown > 0) {
             float cooldown_ratio = ball_manager->spawn_cooldown / SPAWN_COOLDOWN;
             // Draw background ring (dim) to show full circumference
-            DrawRing((Vector2){spawn_x, SPAWN_Y}, 18.0f, 20.0f,
+            DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
                     0, 360, 32, (Color){60, 60, 80, 150});
             // Draw remaining cooldown arc (bright) - starts from top (-90), fills clockwise
             // Arc shrinks as cooldown depletes (shows time remaining)
             float arc_degrees = 360.0f * cooldown_ratio;
-            DrawRing((Vector2){spawn_x, SPAWN_Y}, 18.0f, 20.0f,
+            DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
                     -90, -90 + arc_degrees, 32, (Color){100, 200, 255, 220});
         } else {
             // Ready to spawn - show full green ring
-            DrawRing((Vector2){spawn_x, SPAWN_Y}, 18.0f, 20.0f,
+            DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
                     0, 360, 32, (Color){100, 255, 150, 180});
         }
 

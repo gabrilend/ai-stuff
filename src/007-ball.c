@@ -458,8 +458,8 @@ int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_
         if (!ball->active) continue;
 
         // Dynamic margin based on ball radius (supports future size upgrades)
-        // 3x ball radius ensures balls clear the zone before next spawn
-        float spawn_margin = ball->radius * 3.0f;
+        // 1.5x ball radius is minimum clearance to prevent overlap
+        float spawn_margin = ball->radius * 1.5f;
 
         // Check vertical distance from spawn height only
         // This makes blocking position-independent
