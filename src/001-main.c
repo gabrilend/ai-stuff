@@ -86,8 +86,12 @@ int main(void) {
             ball_manager_reset_cooldown(ball_manager);
         }
 
-        // Update ball physics and collisions
-        ball_manager_update(ball_manager, world, dt);
+        // Parallel ball physics update
+        // Sequence: prepare → submit → wait → finalize → swap
+        ball_manager_prepare_tasks(ball_manager, world, dt);
+        ball_manager_submit_tasks(ball_manager, pool);
+        threadpool_wait_all(pool);
+        ball_manager_finalize_update(ball_manager);
         ball_manager_swap_buffers(ball_manager);
 
         // Render

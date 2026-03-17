@@ -128,4 +128,52 @@ Spawning during parallel phase:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/001-main.c (replaced sequential ball_manager_update with parallel processing sequence)
+
+**Implementation Steps Completed:**
+
+1. Modified src/001-main.c main loop (lines 89-95):
+   - Replaced ball_manager_update(ball_manager, world, dt)
+   - Added ball_manager_prepare_tasks(ball_manager, world, dt)
+   - Added ball_manager_submit_tasks(ball_manager, pool)
+   - Added threadpool_wait_all(pool)
+   - Added ball_manager_finalize_update(ball_manager)
+   - Kept ball_manager_swap_buffers(ball_manager)
+
+2. Updated comments to reflect parallel processing:
+   - "Parallel ball physics update"
+   - "Sequence: prepare → submit → wait → finalize → swap"
+
+3. Verified threadpool integration:
+   - pool variable already existed in main()
+   - Passed to ball_manager_submit_tasks() correctly
+   - No additional includes needed (already included)
+
+4. Compiled successfully with no new warnings
+
+5. Integration pattern:
+   - Minimal changes to main loop structure
+   - Clear separation of phases (5-step sequence)
+   - Spawning happens before prepare (no race conditions)
+
+**Current Behavior:**
+- Main loop now uses parallel ball physics processing
+- Threadpool distributes ball updates across worker threads
+- All balls processed in parallel for maximum performance
+- Synchronization ensures correctness (wait before finalize/swap)
+- Visual behavior should be identical to sequential version
+- Foundation ready for Issue 405 (performance benchmarking)
+
+**Design Decisions:**
+- Kept sequential ball_manager_update() in codebase (not removed)
+- Could be useful for debugging or fallback
+- Five-step sequence clearly documented in comments
+- No conditional compilation (#ifdef) - always use parallel
+
+**Phase 4 Progress:**
+Issue 404 complete. Ready for Issue 405 (performance benchmarking).

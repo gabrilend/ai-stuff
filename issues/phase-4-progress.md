@@ -13,12 +13,12 @@ ball updates across multiple worker threads.
 | 401 | Create ball task data structure    | ✓ Completed |
 | 402 | Implement parallel ball update     | ✓ Completed |
 | 403 | Implement synchronization barriers | ✓ Completed |
-| 404 | Integrate parallel updates in main | Pending     |
+| 404 | Integrate parallel updates in main | ✓ Completed |
 | 405 | Create performance benchmark       | Pending     |
 
 ## Progress Summary
 
-**Completed:** 3/5 issues (60%)
+**Completed:** 4/5 issues (80%)
 **Phase 4:** In Progress
 
 ## Notes
@@ -84,3 +84,19 @@ Implemented synchronization functions for parallel processing:
 - Updated documentation with usage pattern and synchronization notes
 - Compiled successfully with no new warnings
 - Synchronization infrastructure ready for main loop integration in Issue 404
+
+### Issue 404 - Integrate Parallel Updates in Main Loop (Completed)
+Integrated parallel ball physics into main game loop:
+- Modified src/001-main.c main loop to use parallel processing
+- Replaced single ball_manager_update() call with 5-step sequence
+- Step 1: ball_manager_prepare_tasks() sets up task data
+- Step 2: ball_manager_submit_tasks() submits to threadpool
+- Step 3: threadpool_wait_all() blocks until completion
+- Step 4: ball_manager_finalize_update() counts active balls
+- Step 5: ball_manager_swap_buffers() swaps for rendering
+- Updated comments to document parallel processing sequence
+- Spawning occurs before prepare (no race conditions)
+- Threadpool variable already existed in main, passed correctly
+- Kept sequential ball_manager_update() in codebase for fallback/debugging
+- Compiled successfully with no new warnings
+- Parallel ball physics now fully operational in Issue 405
