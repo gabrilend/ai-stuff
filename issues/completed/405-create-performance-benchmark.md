@@ -116,4 +116,62 @@ Benchmark methodology:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/001-main.c (added performance timing and on-screen display)
+
+**Implementation Steps Completed:**
+
+1. Added performance timing to main loop:
+   - Captured start time with GetTime() before physics update
+   - Captured end time with GetTime() after swap_buffers()
+   - Calculated physics_ms = (end - start) * 1000.0
+   - Measures entire parallel processing sequence
+
+2. Added performance statistics display:
+   - Physics time: "Physics: %.2f ms" (10, screen_height - 70)
+   - FPS counter: "FPS: %d" using GetFPS() (10, screen_height - 90)
+   - Thread count: "Threads: %d" from pool->thread_count (10, screen_height - 110)
+   - All displayed in left column with other stats
+
+3. Display layout (bottom-left corner):
+   - Line 1: Threads: 4
+   - Line 2: FPS: 60
+   - Line 3: Physics: X.XX ms
+   - Line 4: Balls: N
+   - Line 5: Score: N
+
+4. Timing methodology:
+   - GetTime() uses raylib high-precision timer
+   - Returns seconds as double, multiplied by 1000 for ms
+   - Per-frame measurement (no rolling average for simplicity)
+   - Minimal overhead from timing code
+
+5. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- Physics update time displayed in real-time
+- FPS counter shows frame rate
+- Thread count visible (4 worker threads)
+- Ball count visible (from Phase 3)
+- Performance metrics update every frame
+- Can observe performance scaling with ball count
+
+**Design Decisions:**
+- Simple per-frame timing (no rolling average)
+- Minimal instrumentation overhead
+- All stats visible on screen simultaneously
+- No sequential/parallel toggle (parallel only)
+- No console output (on-screen only)
+
+**Expected Performance:**
+- Physics time should scale with active ball count
+- FPS should remain stable at 60 with good parallelism
+- Thread count confirms parallel processing (4 workers)
+- Can spawn balls with SPACE to test performance scaling
+
+**Phase 4 Progress:**
+Issue 405 complete. Phase 4 COMPLETE (5/5 issues, 100%)!

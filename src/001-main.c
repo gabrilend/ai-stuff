@@ -86,13 +86,16 @@ int main(void) {
             ball_manager_reset_cooldown(ball_manager);
         }
 
-        // Parallel ball physics update
+        // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → finalize → swap
+        double physics_start = GetTime();
         ball_manager_prepare_tasks(ball_manager, world, dt);
         ball_manager_submit_tasks(ball_manager, pool);
         threadpool_wait_all(pool);
         ball_manager_finalize_update(ball_manager);
         ball_manager_swap_buffers(ball_manager);
+        double physics_end = GetTime();
+        double physics_ms = (physics_end - physics_start) * 1000.0;
 
         // Render
         BeginDrawing();
@@ -116,6 +119,17 @@ int main(void) {
         char ball_text[64];
         sprintf(ball_text, "Balls: %d", ball_manager->active_count);
         DrawText(ball_text, 10, screen_height - 50, 16, WHITE);
+
+        // Draw performance statistics
+        char perf_text[64];
+        sprintf(perf_text, "Physics: %.2f ms", physics_ms);
+        DrawText(perf_text, 10, screen_height - 70, 16, WHITE);
+
+        sprintf(perf_text, "FPS: %d", GetFPS());
+        DrawText(perf_text, 10, screen_height - 90, 16, WHITE);
+
+        sprintf(perf_text, "Threads: %d", pool->thread_count);
+        DrawText(perf_text, 10, screen_height - 110, 16, WHITE);
 
         DrawText("Press SPACE to spawn balls", screen_width - 220, screen_height - 50, 16, GRAY);
         DrawText("Press ESC to exit", screen_width - 150, screen_height - 30, 16, GRAY);
