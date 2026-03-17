@@ -43,6 +43,10 @@ typedef struct ThreadPool ThreadPool;
 #define OWNER_PLAYER 0
 #define OWNER_ADVERSARY 1
 
+// Health system constants
+#define BALL_MAX_HEALTH 100.0f    // Starting health for all balls
+#define DAMAGE_VELOCITY_SCALE 0.3f // Damage = relative_velocity * scale (tunable)
+
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
 // Uses double-buffering: read from current, write to next.
@@ -51,6 +55,7 @@ typedef struct Ball {
     float vx, vy;      // Velocity in pixels per second
     float radius;      // Collision and render radius
     float gravity_dir; // Gravity direction: +1.0 (down) or -1.0 (up)
+    float health;      // Current health (0 = dead, starts at BALL_MAX_HEALTH)
     int active;        // 1 if in play, 0 if inactive
     int owner;         // OWNER_PLAYER or OWNER_ADVERSARY
     int passed_gate;   // 1 if ball has passed through gate (prevents double-scoring)
@@ -72,6 +77,9 @@ typedef struct BallTaskData {
     int scored;            // 1 if ball scored this frame, 0 otherwise
     float score_pos_x;     // X position where ball scored (if scored)
     float score_pos_y;     // Y position where ball scored (if scored)
+    int died_from_damage;  // 1 if ball died from cross-board collision damage
+    float death_pos_x;     // X position where ball died (if died_from_damage)
+    float death_pos_y;     // Y position where ball died (if died_from_damage)
 } BallTaskData;
 // }}}
 

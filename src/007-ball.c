@@ -113,6 +113,7 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
 
             ball->radius = radius;
             ball->gravity_dir = gravity_dir;
+            ball->health = BALL_MAX_HEALTH;
             ball->active = 1;
             ball->owner = owner;
             ball->passed_gate = 0;
@@ -382,15 +383,17 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
     // Only respond if balls are approaching
     if (vn < 0) {
         // Check if this is a cross-board collision (player vs adversary)
-        // Cross-board collisions have 2x impulse for dramatic interactions
-        float strength_multiplier = 1.0f;
         if (ball_a->owner != ball_b->owner) {
-            strength_multiplier = 2.0f;
+            // Calculate damage based on relative velocity magnitude
+            // Faster collisions deal more damage
+            float rel_speed = sqrtf(rel_vx * rel_vx + rel_vy * rel_vy);
+            float damage = rel_speed * DAMAGE_VELOCITY_SCALE;
+            ball_a->health -= damage;
         }
 
         // Equal mass elastic collision: swap velocity components along normal
         // For ball_a, we add the impulse; ball_b will be handled by its own task
-        float impulse = -(1.0f + RESTITUTION) * vn * strength_multiplier;
+        float impulse = -(1.0f + RESTITUTION) * vn;
         ball_a->vx += impulse * nx;
         ball_a->vy += impulse * ny;
     }
@@ -649,9 +652,10 @@ void ball_update_task(void* data) {
     BallTaskData* task = (BallTaskData*)data;
     if (!task) return;
 
-    // Initialize scoring fields (no points scored yet)
+    // Initialize scoring and death tracking fields
     task->score_delta = 0;
     task->scored = 0;
+    task->died_from_damage = 0;
 
     // Get ball pointers using immutable ball_index
     Ball* current = &task->read_buffer[task->ball_index];
@@ -669,6 +673,14 @@ void ball_update_task(void* data) {
                                task->read_buffer, task->capacity);
         ball_collide_with_walls(next, task->world);
         ball_check_bounds(next, task->world);
+
+        // Check if ball died from cross-board collision damage
+        if (next->active && next->health <= 0) {
+            task->died_from_damage = 1;
+            task->death_pos_x = next->x;
+            task->death_pos_y = next->y;
+            next->active = 0;
+        }
 
         // Check if ball entered a score zone
         // This happens after all physics and collision updates
@@ -738,11 +750,12 @@ int ball_manager_collect_scores(BallManager* manager) {
     int total = 0;
     for (int i = 0; i < manager->capacity; i++) {
         total += manager->task_data[i].score_delta;
-        // Reset scoring fields for next frame
-        // Critical: must reset 'scored' flag here because inactive balls
+        // Reset scoring and death tracking fields for next frame
+        // Critical: must reset flags here because inactive balls
         // don't have tasks submitted, so their flags would persist forever
         manager->task_data[i].score_delta = 0;
         manager->task_data[i].scored = 0;
+        manager->task_data[i].died_from_damage = 0;
     }
 
     return total;

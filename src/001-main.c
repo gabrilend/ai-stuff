@@ -382,6 +382,13 @@ int main(void) {
                 particle_spawn_burst(particle_system, task->score_pos_x,
                                    task->score_pos_y, 12, particle_color);
             }
+
+            // Spawn explosion for balls destroyed by cross-board damage
+            if (task->died_from_damage) {
+                // Bright explosion - more particles, dramatic color
+                particle_spawn_burst(particle_system, task->death_pos_x,
+                                   task->death_pos_y, 24, MAGENTA);
+            }
         }
 
         // Collect scores and reset scoring fields
