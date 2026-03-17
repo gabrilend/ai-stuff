@@ -157,6 +157,7 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
     next->active = current->active;
     next->radius = current->radius;
     next->gravity_dir = current->gravity_dir;
+    next->health = current->health;
     next->owner = current->owner;
     next->passed_gate = current->passed_gate;
 
