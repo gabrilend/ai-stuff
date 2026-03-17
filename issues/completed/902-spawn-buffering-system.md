@@ -109,13 +109,16 @@ This allows more natural spawning when balls have initial horizontal velocity,
 while still preventing overlap at the spawn point.
 
 **Fix (Session 3b):** Moved spawning to after buffer swap.
-Root cause: Balls were spawning BEFORE physics update, so they had one
-frame of physics applied before first render. With initial velocity of
-50 px/sec downward, balls appeared ~1 pixel below spawn point.
+Balls were spawning BEFORE physics update, so they had one frame of
+physics applied before first render. Moved spawn input handling to
+AFTER `ball_manager_swap_buffers()`. Also added `GetScreenToWorld2D()`
+for proper mouse-to-world coordinate conversion.
 
-Solution: Moved spawn input handling to AFTER `ball_manager_swap_buffers()`.
-Now balls spawn into the post-swap buffer and render at exact spawn position
-on their first frame. Physics applies starting from the next frame.
+**Fix (Session 3c):** Fixed top wall boundary pushing balls down.
+Root cause found via debug output: top_wall was at Y=110 (table_top - 40),
+but SPAWN_Y = 50. Since ball Y=50 is ABOVE Y=110 (smaller Y = higher),
+balls immediately hit the top boundary and got pushed down to Y=118.
 
-Also added `GetScreenToWorld2D()` for proper mouse-to-world coordinate
-conversion, ensuring spawn_x aligns with camera transformations.
+Solution: Changed top_wall from `table_top - 40` to `SPAWN_Y - BALL_RADIUS - 20`.
+Now top_wall = 22, which is above the spawn point, so balls can spawn
+and fall naturally without hitting any boundary.

@@ -316,8 +316,10 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
     }
 
     // Top boundary (prevent escape upward)
-    // Use table_top minus some margin so balls can spawn above
-    float top_wall = world->table_top - 40.0f;
+    // Must be above SPAWN_Y so balls can spawn without hitting the wall
+    // SPAWN_Y = 50, ball radius = 8, so ball top edge is at Y=42
+    // Set top_wall above that with margin for physics movement
+    float top_wall = SPAWN_Y - BALL_RADIUS - 20.0f;  // Y=22, well above spawn
     if (ball->y - ball->radius < top_wall) {
         ball->y = top_wall + ball->radius;
         ball->vy = -ball->vy * WALL_RESTITUTION;

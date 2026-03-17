@@ -65,3 +65,7 @@ zone quickly, allowing more natural spawn flow.
 **Fix (Session 3b):** Moved spawning to after buffer swap.
 Balls now spawn into post-swap buffer and render at exact spawn position.
 Added GetScreenToWorld2D for proper mouse coordinate conversion.
+
+**Fix (Session 3c):** Fixed top wall boundary pushing balls down.
+Top wall was at Y=110 but spawn at Y=50. Changed to SPAWN_Y-based
+calculation so balls spawn without hitting boundaries.
