@@ -34,8 +34,8 @@
 #define FRAGMENT_SIZE 4.0f            // Fragment visual size
 #define FRAGMENT_SPEED 120.0f         // Base fragment speed
 #define FRAGMENT_ANGULAR_SPEED 8.0f   // Rotation speed (rad/s)
-#define CORKSCREW_AMPLITUDE 20.0f     // Corkscrew lateral amplitude
-#define CORKSCREW_FREQUENCY 12.0f     // Corkscrew oscillation frequency
+#define CORKSCREW_AMPLITUDE 50.0f     // Corkscrew lateral amplitude (pronounced swing)
+#define CORKSCREW_FREQUENCY 18.0f     // Corkscrew oscillation frequency (tighter spirals)
 #define TRAIL_INTERVAL 0.02f          // Time between trail points
 
 // {{{ hsv_to_rgb
