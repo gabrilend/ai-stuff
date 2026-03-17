@@ -72,11 +72,13 @@ void adversary_update(Adversary* adversary, World* world,
 
     // Attempt to spawn if we have credits
     if (adversary->spawn_credits >= 1.0f) {
-        // Check if spawn area is clear (same logic as player)
+        // Check if spawn area is clear - only check OTHER adversary balls
+        // Player balls passing through shouldn't block adversary spawn
         int blocked = 0;
         for (int i = 0; i < ball_manager->capacity; i++) {
             Ball* ball = &ball_manager->balls_current[i];
             if (!ball->active) continue;
+            if (ball->owner != OWNER_ADVERSARY) continue;  // Ignore player balls
 
             float dx = ball->x - adversary->spawn_x;
             float dy = ball->y - adversary->spawn_y;
