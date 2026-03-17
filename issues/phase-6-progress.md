@@ -12,12 +12,12 @@ during Phase 5 and adds new gameplay and rendering features.
 | 506 | Fix ball scoring/disappearing bug        | Complete |
 | 507 | Detect system thread count               | Complete |
 | 508 | Add ball-to-ball collisions              | Complete |
-| 509 | Improve particle effects                 | Pending  |
+| 509 | Improve particle effects                 | Complete |
 | 510 | Add scrolling viewport                   | Pending  |
 
 ## Progress Summary
 
-**Completed:** 3/5 issues (60%)
+**Completed:** 4/5 issues (80%)
 **Phase 6:** In Progress
 
 ## Notes
@@ -77,3 +77,22 @@ Spawn blocking system:
 - `ball_manager_spawn_blocked()` checks for balls within 3x radius of spawn
 - Updated main.c to prevent spawning when area is occupied
 - Prevents overlapping balls and physics glitches at spawn point
+
+### Issue 509 - Particle Effects Improvements (Complete)
+
+Enhanced particles for more vibrant, dynamic visual effects.
+
+Constants tuned:
+- Smaller radius (2.0f vs 3.0f)
+- Faster burst speed (220.0f vs 120.0f)
+- Lower gravity for more hang time (200.0f vs 300.0f)
+- Longer lifetime (1.0f vs 0.8f)
+
+New features:
+- Iridescence: Hue shifts over lifetime (60° shift creates rainbow shimmer)
+- Color randomization: ±30° hue variation per particle
+- Speed variation: ±80 px/s random speed per particle
+- Position jitter: ±2 px random spawn offset
+- Lifetime variation: +0 to +0.3s random per particle
+
+Added HSV/RGB conversion utilities for color manipulation.

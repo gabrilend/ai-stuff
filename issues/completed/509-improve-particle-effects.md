@@ -87,4 +87,33 @@ Random color generation:
 
 ## Status
 
-- [ ] Pending
+- [x] Complete
+
+## Implementation Log
+
+### Constants Changed
+- PARTICLE_RADIUS: 3.0f → 2.0f (smaller particles)
+- PARTICLE_BURST_SPEED: 120.0f → 220.0f (faster burst)
+- PARTICLE_GRAVITY: 300.0f → 200.0f (slower fall, more hang time)
+- PARTICLE_LIFETIME: 0.8f → 1.0f (longer visible)
+- Added PARTICLE_SPEED_VARIANCE: 80.0f (random speed variation)
+- Added PARTICLE_HUE_SHIFT: 60.0f (iridescence shift degrees)
+
+### New Helper Functions
+- `hsv_to_rgb()`: Converts HSV color to RGB for color manipulation
+- `rgb_to_hsv()`: Converts RGB to HSV for extracting hue/saturation/value
+
+### Iridescence (particle_system_render)
+- Converts particle color to HSV on each render
+- Shifts hue progressively as particle ages (creates rainbow shimmer)
+- Boosts saturation and brightness for more vibrant appearance
+- Amount of shift controlled by PARTICLE_HUE_SHIFT constant
+
+### Randomization (particle_spawn_burst)
+- Position: Random offset ±2 pixels from spawn center
+- Angle: Random jitter ±0.25 radians from base angle
+- Speed: Random ±PARTICLE_SPEED_VARIANCE from base speed
+- Color: Random hue variation ±30 degrees from base color
+- Lifetime: Random +0-0.3 seconds variation
+
+Each particle in a burst now has unique color, speed, and trajectory.
