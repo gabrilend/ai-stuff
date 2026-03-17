@@ -25,6 +25,13 @@ typedef struct World World;
 #define WALL_RESTITUTION 0.6f // Wall bounce retention
 #define ZONE_TOP_Y 560.0f     // Top of score zone area
 
+// Spawning constants
+#define SPAWN_X 400.0f        // Default spawn x (center)
+#define SPAWN_Y 50.0f         // Default spawn y (top)
+#define SPAWN_VX_RANGE 100.0f // Random horizontal range
+#define SPAWN_VY_INITIAL 50.0f // Initial downward velocity
+#define SPAWN_COOLDOWN 0.1f   // Minimum time between spawns (seconds)
+
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
 // Uses double-buffering: read from current, write to next.
@@ -44,6 +51,7 @@ typedef struct BallManager {
     Ball* balls_next;     // Next frame state (write during update)
     int capacity;         // Maximum number of balls
     int active_count;     // Number of currently active balls
+    float spawn_cooldown; // Time until next spawn allowed
 } BallManager;
 // }}}
 
@@ -121,6 +129,36 @@ void ball_manager_update(BallManager* manager, World* world, float dt);
 // Parameters:
 //   manager: BallManager instance
 void ball_manager_render(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_update_cooldown
+// Updates the spawn cooldown timer.
+// Decrements cooldown by delta time.
+//
+// Parameters:
+//   manager: BallManager instance
+//   dt: Delta time in seconds
+void ball_manager_update_cooldown(BallManager* manager, float dt);
+// }}}
+
+// {{{ ball_manager_can_spawn
+// Checks if the manager can spawn a new ball.
+// Returns 1 if cooldown expired and capacity not reached.
+//
+// Parameters:
+//   manager: BallManager instance
+//
+// Returns:
+//   1 if can spawn, 0 otherwise
+int ball_manager_can_spawn(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_reset_cooldown
+// Resets the spawn cooldown to the default value.
+//
+// Parameters:
+//   manager: BallManager instance
+void ball_manager_reset_cooldown(BallManager* manager);
 // }}}
 
 #endif // BALL_H

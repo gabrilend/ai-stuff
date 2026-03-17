@@ -145,4 +145,93 @@ Random velocity:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/006-ball.h (added spawning constants, spawn_cooldown field, function declarations)
+- src/007-ball.c (updated spawn function, added cooldown management)
+- src/006-ball.info.md (updated documentation)
+- src/001-main.c (added RNG seeding, input handling, ball count display)
+
+**Implementation Steps Completed:**
+
+1. Added spawning constants to 006-ball.h:
+   - SPAWN_X: 400.0 (screen center)
+   - SPAWN_Y: 50.0 (top of screen)
+   - SPAWN_VX_RANGE: 100.0 (random horizontal velocity range)
+   - SPAWN_VY_INITIAL: 50.0 (initial downward velocity)
+   - SPAWN_COOLDOWN: 0.1 (minimum time between spawns)
+
+2. Added spawn_cooldown field to BallManager struct:
+   - Tracks time until next spawn allowed
+   - Initialized to 0.0 in ball_manager_create()
+
+3. Updated ball_manager_spawn():
+   - Sets random horizontal velocity: (rand() / RAND_MAX - 0.5) * SPAWN_VX_RANGE * 2
+   - Sets initial downward velocity: SPAWN_VY_INITIAL
+   - Creates variety in ball trajectories
+   - Each ball takes different path through pegs
+
+4. Implemented ball_manager_update_cooldown():
+   - Decrements spawn_cooldown by delta time
+   - Called each frame before input handling
+
+5. Implemented ball_manager_can_spawn():
+   - Checks if spawn_cooldown <= 0 (cooldown expired)
+   - Checks if active_count < capacity (slots available)
+   - Returns 1 if both conditions met, 0 otherwise
+
+6. Implemented ball_manager_reset_cooldown():
+   - Sets spawn_cooldown to SPAWN_COOLDOWN (0.1 seconds)
+   - Called after successful spawn
+
+7. Added input handling in main loop:
+   - Uses IsKeyDown(KEY_SPACE) for continuous spawning
+   - Checks ball_manager_can_spawn() before spawning
+   - Calls ball_manager_spawn(manager, SPAWN_X, SPAWN_Y)
+   - Resets cooldown after successful spawn
+   - Rate limited to prevent spam (10 balls/sec max)
+
+8. Added ball count display:
+   - Shows "Balls: N" where N is active_count
+   - Displayed at bottom left above score
+   - Updates in real-time as balls spawn/deactivate
+
+9. Seeded random number generator:
+   - srand((unsigned int)time(NULL)) in main()
+   - Added stdlib.h and time.h includes
+   - Ensures different ball trajectories each run
+
+10. Removed test ball spawn:
+    - Replaced with player-controlled spawning
+    - Added "Press SPACE to spawn balls" instruction
+
+11. Updated API documentation in 006-ball.info.md:
+    - Added spawn_cooldown field to BallManager documentation
+    - Added ball_manager_update_cooldown documentation
+    - Added ball_manager_can_spawn documentation
+    - Added ball_manager_reset_cooldown documentation
+    - Added spawning constants documentation
+
+12. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- Press and hold SPACE to spawn balls continuously
+- Balls spawn at top center (400, 50)
+- Each ball has random horizontal velocity
+- Spawn rate limited to 0.1 second cooldown
+- Ball count display shows active ball count
+- Up to 256 balls can be active simultaneously
+- Each ball takes unique path through peg grid
+- Visual variety makes pachinko gameplay engaging
+
+**Input Notes:**
+- IsKeyDown allows continuous spawning (hold SPACE)
+- Cooldown prevents excessive spawn rate
+- Random velocity creates interesting gameplay
+- Player can experiment with different timing
+
+**Phase 3 Progress:**
+Issue 305 complete (5/5 issues, 100%). PHASE 3 COMPLETE!

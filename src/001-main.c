@@ -6,6 +6,8 @@
 
 #include <raylib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include "003-threadpool.h"
 #include "004-world.h"
 #include "006-ball.h"
@@ -14,6 +16,9 @@
 int main(void) {
     const int screen_width = 800;
     const int screen_height = 600;
+
+    // Seed random number generator for ball spawning
+    srand((unsigned int)time(NULL));
 
     printf("Physics Simulator - Initializing...\n");
 
@@ -65,15 +70,21 @@ int main(void) {
     }
     printf("Ball manager created: %d capacity\n", MAX_BALLS);
 
-    // Spawn test ball at top center
-    ball_manager_spawn(ball_manager, screen_width / 2.0f, 50.0f);
-    printf("Spawned test ball at center top\n");
-
     // Main loop
     printf("Entering main loop...\n");
+    printf("Press SPACE to spawn balls\n");
     while (!WindowShouldClose()) {
         // Get delta time for physics
         float dt = GetFrameTime();
+
+        // Update spawn cooldown
+        ball_manager_update_cooldown(ball_manager, dt);
+
+        // Handle ball spawning input
+        if (IsKeyDown(KEY_SPACE) && ball_manager_can_spawn(ball_manager)) {
+            ball_manager_spawn(ball_manager, SPAWN_X, SPAWN_Y);
+            ball_manager_reset_cooldown(ball_manager);
+        }
 
         // Update ball physics and collisions
         ball_manager_update(ball_manager, world, dt);
@@ -93,10 +104,16 @@ int main(void) {
         // Draw balls
         ball_manager_render(ball_manager);
 
-        // Draw score and instructions
+        // Draw score, ball count, and instructions
         char score_text[64];
         sprintf(score_text, "Score: %d", world->score);
         DrawText(score_text, 10, screen_height - 30, 16, WHITE);
+
+        char ball_text[64];
+        sprintf(ball_text, "Balls: %d", ball_manager->active_count);
+        DrawText(ball_text, 10, screen_height - 50, 16, WHITE);
+
+        DrawText("Press SPACE to spawn balls", screen_width - 220, screen_height - 50, 16, GRAY);
         DrawText("Press ESC to exit", screen_width - 150, screen_height - 30, 16, GRAY);
 
         EndDrawing();

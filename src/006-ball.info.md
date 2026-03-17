@@ -78,6 +78,37 @@ Renders all active balls in the manager as colored circles.
 **Parameters:**
 - `manager`: BallManager instance
 
+### ball_manager_update_cooldown
+```c
+void ball_manager_update_cooldown(BallManager* manager, float dt);
+```
+Updates the spawn cooldown timer by decrementing it by delta time.
+
+**Parameters:**
+- `manager`: BallManager instance
+- `dt`: Delta time in seconds
+
+### ball_manager_can_spawn
+```c
+int ball_manager_can_spawn(BallManager* manager);
+```
+Checks if the manager can spawn a new ball (cooldown expired and capacity not reached).
+
+**Parameters:**
+- `manager`: BallManager instance
+
+**Returns:**
+- 1 if can spawn, 0 otherwise
+
+### ball_manager_reset_cooldown
+```c
+void ball_manager_reset_cooldown(BallManager* manager);
+```
+Resets the spawn cooldown to the default value (SPAWN_COOLDOWN).
+
+**Parameters:**
+- `manager`: BallManager instance
+
 ## Data Structures
 
 ### Ball
@@ -97,6 +128,7 @@ typedef struct BallManager {
     Ball* balls_next;     // Next frame state (write during update)
     int capacity;         // Maximum number of balls
     int active_count;     // Number of currently active balls
+    float spawn_cooldown; // Time until next spawn allowed
 } BallManager;
 ```
 
@@ -118,3 +150,10 @@ typedef struct BallManager {
 ### Boundary Constants
 - `WALL_RESTITUTION`: 0.6f - Wall bounce energy retention (60%)
 - `ZONE_TOP_Y`: 560.0f - Top of score zone area in pixels
+
+### Spawning Constants
+- `SPAWN_X`: 400.0f - Default spawn x position (screen center)
+- `SPAWN_Y`: 50.0f - Default spawn y position (top of screen)
+- `SPAWN_VX_RANGE`: 100.0f - Random horizontal velocity range
+- `SPAWN_VY_INITIAL`: 50.0f - Initial downward velocity
+- `SPAWN_COOLDOWN`: 0.1f - Minimum time between spawns in seconds

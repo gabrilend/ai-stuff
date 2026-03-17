@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include "006-ball.h"
 #include "004-world.h"
 #include "raylib.h"
@@ -19,6 +20,7 @@ BallManager* ball_manager_create(int capacity) {
 
     manager->capacity = capacity;
     manager->active_count = 0;
+    manager->spawn_cooldown = 0.0f;
 
     // Allocate current buffer
     manager->balls_current = (Ball*)calloc(capacity, sizeof(Ball));
@@ -73,8 +75,13 @@ int ball_manager_spawn(BallManager* manager, float x, float y) {
             Ball* ball = &manager->balls_current[i];
             ball->x = x;
             ball->y = y;
-            ball->vx = 0.0f;
-            ball->vy = 0.0f;
+
+            // Random horizontal velocity in range [-SPAWN_VX_RANGE, +SPAWN_VX_RANGE]
+            ball->vx = (rand() / (float)RAND_MAX - 0.5f) * SPAWN_VX_RANGE * 2.0f;
+
+            // Initial downward velocity
+            ball->vy = SPAWN_VY_INITIAL;
+
             ball->radius = BALL_RADIUS;
             ball->active = 1;
             manager->active_count++;
@@ -276,5 +283,32 @@ void ball_manager_render(BallManager* manager) {
             );
         }
     }
+}
+// }}}
+
+// {{{ ball_manager_update_cooldown
+void ball_manager_update_cooldown(BallManager* manager, float dt) {
+    if (!manager) return;
+
+    if (manager->spawn_cooldown > 0) {
+        manager->spawn_cooldown -= dt;
+    }
+}
+// }}}
+
+// {{{ ball_manager_can_spawn
+int ball_manager_can_spawn(BallManager* manager) {
+    if (!manager) return 0;
+
+    return manager->spawn_cooldown <= 0 &&
+           manager->active_count < manager->capacity;
+}
+// }}}
+
+// {{{ ball_manager_reset_cooldown
+void ball_manager_reset_cooldown(BallManager* manager) {
+    if (!manager) return;
+
+    manager->spawn_cooldown = SPAWN_COOLDOWN;
 }
 // }}}
