@@ -13,12 +13,12 @@ machine to a playable state with scoring, ball capture, and visual polish.
 | 502 | Implement scoring and ball capture | Complete  |
 | 503 | Add visual polish and colors       | Complete  |
 | 504 | Add particle effects               | Complete  |
-| 505 | Final gameplay polish              | Pending   |
+| 505 | Final gameplay polish              | Complete  |
 
 ## Progress Summary
 
-**Completed:** 4/5 issues (80%)
-**Phase 5:** In Progress
+**Completed:** 5/5 issues (100%)
+**Phase 5:** Complete
 
 ## Notes
 
@@ -109,3 +109,24 @@ Particle system provides satisfying visual feedback when balls score. Bursts rad
 outward from scoring position with gravity-affected physics. Alpha fades as particles
 expire. No performance impact due to efficient fixed-capacity design. Issue 505 will
 add final gameplay polish (high score, reset, UI improvements).
+
+### Issue 505 - Final Gameplay Polish (Complete)
+
+Implemented final polish features for complete gameplay experience.
+
+Key changes:
+- Added high score tracking to World structure
+- Implemented reset functionality (R key) - clears score and all balls
+- Added pulsing spawn point indicator for visual clarity
+- Added cooldown arc indicator showing time until next spawn
+- Reorganized UI with score panel (left) and controls panel (right)
+- High score displayed in gold for emphasis
+- Controls documented on-screen for accessibility
+
+Complete gameplay loop achieved: spawn balls, watch them bounce through pegs, score
+points in zones with particle effects, track high score for replay motivation, reset
+to start fresh. UI is polished, informative, and unobtrusive. Performance verified
+at stable 60fps with 100+ balls.
+
+Phase 5 is now complete! The pachinko simulator has evolved from basic ball physics
+to a complete, polished game with scoring, visual effects, and quality-of-life features.

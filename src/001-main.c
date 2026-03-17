@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include "003-threadpool.h"
 #include "004-world.h"
 #include "006-ball.h"
@@ -109,6 +110,19 @@ int main(void) {
             ball_manager_reset_cooldown(ball_manager);
         }
 
+        // Handle reset input (R key)
+        if (IsKeyPressed(KEY_R)) {
+            // Reset score
+            world->score = 0;
+
+            // Deactivate all balls
+            for (int i = 0; i < ball_manager->capacity; i++) {
+                ball_manager->balls_current[i].active = 0;
+                ball_manager->balls_next[i].active = 0;
+            }
+            ball_manager->active_count = 0;
+        }
+
         // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → collect scores → spawn particles → finalize → swap
         double physics_start = GetTime();
@@ -117,6 +131,11 @@ int main(void) {
         threadpool_wait_all(pool);
         int points = ball_manager_collect_scores(ball_manager);
         world->score += points;
+
+        // Update high score if current score exceeds it
+        if (world->score > world->high_score) {
+            world->high_score = world->score;
+        }
 
         // Spawn particle bursts for balls that scored this frame
         for (int i = 0; i < ball_manager->capacity; i++) {
@@ -157,34 +176,58 @@ int main(void) {
         world_render_pegs(world);
         world_render_zones(world);
 
+        // Draw spawn point indicator (pulsing circle)
+        float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1
+        unsigned char alpha = (unsigned char)(pulse * 150.0f + 50.0f);  // Range: 50-200
+        DrawCircleLines((int)SPAWN_X, (int)SPAWN_Y, 15.0f,
+                       (Color){255, 255, 255, alpha});
+
+        // Draw cooldown indicator (arc around spawn point)
+        if (ball_manager->spawn_cooldown > 0) {
+            float cooldown_ratio = ball_manager->spawn_cooldown / SPAWN_COOLDOWN;
+            float end_angle = 360.0f * (1.0f - cooldown_ratio);
+            DrawRing((Vector2){SPAWN_X, SPAWN_Y}, 18.0f, 20.0f,
+                    0, end_angle, 32, (Color){255, 100, 100, 200});
+        }
+
         // Draw balls
         ball_manager_render(ball_manager);
 
         // Draw particles (after balls, before UI)
         particle_system_render(particle_system);
 
-        // Draw score, ball count, and instructions
+        // Draw score panel (left side)
+        DrawRectangle(5, screen_height - 120, 180, 115, (Color){0, 0, 0, 150});
         char score_text[64];
         sprintf(score_text, "Score: %d", world->score);
-        DrawText(score_text, 10, screen_height - 30, 16, WHITE);
+        DrawText(score_text, 10, screen_height - 115, 18, WHITE);
+
+        sprintf(score_text, "High: %d", world->high_score);
+        DrawText(score_text, 10, screen_height - 92, 16, GOLD);
 
         char ball_text[64];
         sprintf(ball_text, "Balls: %d", ball_manager->active_count);
-        DrawText(ball_text, 10, screen_height - 50, 16, WHITE);
+        DrawText(ball_text, 10, screen_height - 68, 16, WHITE);
 
         // Draw performance statistics
         char perf_text[64];
-        sprintf(perf_text, "Physics: %.2f ms", physics_ms);
-        DrawText(perf_text, 10, screen_height - 70, 16, WHITE);
-
         sprintf(perf_text, "FPS: %d", GetFPS());
-        DrawText(perf_text, 10, screen_height - 90, 16, WHITE);
+        DrawText(perf_text, 10, screen_height - 44, 14, LIGHTGRAY);
+
+        sprintf(perf_text, "Physics: %.2f ms", physics_ms);
+        DrawText(perf_text, 10, screen_height - 26, 14, LIGHTGRAY);
 
         sprintf(perf_text, "Threads: %d", pool->thread_count);
-        DrawText(perf_text, 10, screen_height - 110, 16, WHITE);
+        DrawText(perf_text, 10, screen_height - 8, 14, LIGHTGRAY);
 
-        DrawText("Press SPACE to spawn balls", screen_width - 220, screen_height - 50, 16, GRAY);
-        DrawText("Press ESC to exit", screen_width - 150, screen_height - 30, 16, GRAY);
+        // Draw controls panel (right side)
+        DrawRectangle(screen_width - 205, screen_height - 95, 200, 90,
+                     (Color){0, 0, 0, 150});
+        DrawText("Controls:", screen_width - 200, screen_height - 90, 16, LIGHTGRAY);
+        DrawText("SPACE - Spawn ball", screen_width - 200, screen_height - 68, 14, WHITE);
+        DrawText("R - Reset game", screen_width - 200, screen_height - 50, 14, WHITE);
+        DrawText("ESC - Exit", screen_width - 200, screen_height - 32, 14, WHITE);
+        DrawText("Hold SPACE for more!", screen_width - 200, screen_height - 10, 12, GRAY);
 
         EndDrawing();
     }

@@ -27,6 +27,7 @@ World* world_create(int width, int height) {
     world->zones = NULL;
     world->zone_count = 0;
     world->score = 0;
+    world->high_score = 0;
 
     return world;
 }

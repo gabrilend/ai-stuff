@@ -19,4 +19,4 @@
 - [Phase 2 Progress](../issues/phase-2-progress.md) - Static World (Complete)
 - [Phase 3 Progress](../issues/phase-3-progress.md) - Ball Physics (Complete)
 - [Phase 4 Progress](../issues/phase-4-progress.md) - Parallel Processing (Complete)
-- [Phase 5 Progress](../issues/phase-5-progress.md) - Scoring and Polish (In Progress)
+- [Phase 5 Progress](../issues/phase-5-progress.md) - Scoring and Polish (Complete)

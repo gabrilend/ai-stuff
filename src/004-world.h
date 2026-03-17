@@ -40,6 +40,7 @@ typedef struct World {
     ScoreZone* zones;  // Array of score zones
     int zone_count;    // Number of zones
     int score;         // Current player score
+    int high_score;    // Session high score
 } World;
 // }}}
 
