@@ -52,3 +52,7 @@ System design:
 This prevents rapid mouse movement from bypassing spawn blocking,
 and ensures players aren't penalized when spawn is temporarily blocked.
 Supports future upgrade mechanics for spawn rate modification.
+
+**Fix (Session 2):** Made spawn blocking position-independent.
+Changed `ball_manager_spawn_blocked()` to check Y distance only,
+blocking if ANY ball is near spawn height regardless of X position.

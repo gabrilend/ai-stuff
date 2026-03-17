@@ -447,23 +447,24 @@ void ball_manager_reset_cooldown(BallManager* manager) {
 // {{{ ball_manager_spawn_blocked
 int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_y) {
     if (!manager) return 0;
+    (void)spawn_x;  // Position-independent blocking (prevents mouse exploit)
 
-    // Check if any active ball is within spawn area
-    // Use larger radius than ball to prevent immediate collision
-    float spawn_radius = BALL_RADIUS * 3.0f;  // Safety margin
+    // Check if any active ball is within spawn Y level
+    // This prevents bypassing spawn blocking by moving mouse horizontally
+    // Use vertical distance only - if any ball is near spawn height, block
+    float spawn_margin = BALL_RADIUS * 4.0f;  // Vertical safety margin
 
     for (int i = 0; i < manager->capacity; i++) {
         Ball* ball = &manager->balls_current[i];
         if (!ball->active) continue;
 
-        // Check distance from spawn point
-        float dx = ball->x - spawn_x;
+        // Check vertical distance from spawn height only
+        // This makes blocking position-independent
         float dy = ball->y - spawn_y;
-        float dist_sq = dx * dx + dy * dy;
-        float min_dist = spawn_radius + ball->radius;
+        if (dy < 0) dy = -dy;  // Absolute value
 
-        if (dist_sq < min_dist * min_dist) {
-            return 1;  // Spawn is blocked
+        if (dy < spawn_margin + ball->radius) {
+            return 1;  // Spawn is blocked by ball at spawn height
         }
     }
 

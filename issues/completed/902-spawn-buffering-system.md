@@ -84,3 +84,12 @@ Behavior changes:
 - Blocked spawns don't consume credits (saved for later)
 - Cap prevents storing more than 3 spawns
 - Visual cooldown indicator still works for feedback
+
+**Fix (Session 2):** Made spawn blocking position-independent.
+Original issue: Moving mouse horizontally bypassed spawn blocking because
+the check was against the current spawn_x position.
+
+Changed `ball_manager_spawn_blocked()` to check vertical distance only.
+If ANY ball is within spawn_margin of SPAWN_Y, spawning is blocked regardless
+of horizontal position. This ensures consistent spawn rate whether mouse
+is moving or stationary.
