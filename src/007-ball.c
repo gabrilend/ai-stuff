@@ -352,6 +352,9 @@ void ball_update_task(void* data) {
     BallTaskData* task = (BallTaskData*)data;
     if (!task) return;
 
+    // Initialize score_delta to 0 (no points scored yet)
+    task->score_delta = 0;
+
     // Get ball pointers using immutable ball_index
     Ball* current = &task->read_buffer[task->ball_index];
     Ball* next = &task->write_buffer[task->ball_index];
@@ -365,6 +368,18 @@ void ball_update_task(void* data) {
         ball_collide_with_pegs(next, task->world);
         ball_collide_with_walls(next, task->world->width, task->world->height);
         ball_check_bounds(next, task->world->height);
+
+        // Check if ball entered a score zone
+        // This happens after all physics and collision updates
+        if (next->active) {
+            int zone_index = ball_check_zone(next, task->world);
+            if (zone_index >= 0) {
+                // Ball captured by zone
+                // Award points and deactivate ball
+                task->score_delta = task->world->zones[zone_index].points;
+                next->active = 0;
+            }
+        }
     }
 }
 // }}}
@@ -405,6 +420,24 @@ void ball_manager_finalize_update(BallManager* manager) {
     }
 
     manager->active_count = count;
+}
+// }}}
+
+// {{{ ball_manager_collect_scores
+int ball_manager_collect_scores(BallManager* manager) {
+    if (!manager) return 0;
+
+    // Sum all score deltas from task data
+    // Called after threadpool_wait_all() ensures all tasks complete
+    // Each task writes only to its own score_delta, so this is thread-safe
+    int total = 0;
+    for (int i = 0; i < manager->capacity; i++) {
+        total += manager->task_data[i].score_delta;
+        // Reset score_delta for next frame
+        manager->task_data[i].score_delta = 0;
+    }
+
+    return total;
 }
 // }}}
 

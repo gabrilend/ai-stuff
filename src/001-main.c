@@ -87,11 +87,13 @@ int main(void) {
         }
 
         // Parallel ball physics update with performance timing
-        // Sequence: prepare → submit → wait → finalize → swap
+        // Sequence: prepare → submit → wait → collect scores → finalize → swap
         double physics_start = GetTime();
         ball_manager_prepare_tasks(ball_manager, world, dt);
         ball_manager_submit_tasks(ball_manager, pool);
         threadpool_wait_all(pool);
+        int points = ball_manager_collect_scores(ball_manager);
+        world->score += points;
         ball_manager_finalize_update(ball_manager);
         ball_manager_swap_buffers(ball_manager);
         double physics_end = GetTime();

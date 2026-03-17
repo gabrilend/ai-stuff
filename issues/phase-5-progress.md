@@ -10,14 +10,14 @@ machine to a playable state with scoring, ball capture, and visual polish.
 | ID  | Description                        | Status    |
 |-----|------------------------------------|-----------|
 | 501 | Implement score zone detection     | Complete  |
-| 502 | Implement scoring and ball capture | Pending   |
+| 502 | Implement scoring and ball capture | Complete  |
 | 503 | Add visual polish and colors       | Pending   |
 | 504 | Add particle effects               | Pending   |
 | 505 | Final gameplay polish              | Pending   |
 
 ## Progress Summary
 
-**Completed:** 1/5 issues (20%)
+**Completed:** 2/5 issues (40%)
 **Phase 5:** In Progress
 
 ## Notes
@@ -58,3 +58,21 @@ Key changes:
 - Updated API documentation in src/006-ball.info.md
 
 The detection system is ready to be integrated with the scoring system in Issue 502. Balls can now be identified when they enter zones, but scoring and deactivation logic still needs to be implemented.
+
+### Issue 502 - Scoring and Ball Capture (Complete)
+
+Implemented thread-safe scoring system that awards points when balls are captured.
+
+Key changes:
+- Added score_delta field to BallTaskData structure
+- Modified ball_update_task() to check zones and award points
+- Implemented ball_manager_collect_scores() to sum scores after parallel phase
+- Updated main loop to collect scores and add to world->score
+- Balls are deactivated when captured by zones
+
+Thread-safe design uses per-task score accumulation without atomics. Each worker
+writes only to its own score_delta. Main thread sums after synchronization.
+
+The core gameplay loop is now complete. Balls fall, bounce off pegs, land in zones,
+and award points. Score display updates in real-time. Issues 503-505 will add
+visual polish and gameplay refinements.

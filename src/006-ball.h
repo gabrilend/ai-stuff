@@ -54,6 +54,7 @@ typedef struct BallTaskData {
     Ball* write_buffer;    // Next state (write target)
     World* world;          // World for collision detection
     float dt;              // Delta time in seconds
+    int score_delta;       // Points scored during this task (0 if none)
 } BallTaskData;
 // }}}
 
@@ -207,6 +208,19 @@ void ball_manager_submit_tasks(BallManager* manager, ThreadPool* pool);
 // Parameters:
 //   manager: BallManager instance
 void ball_manager_finalize_update(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_collect_scores
+// Collects score deltas from all tasks after parallel phase.
+// Call after threadpool_wait_all() and before finalize_update().
+// Returns total points scored this frame.
+//
+// Parameters:
+//   manager: BallManager instance
+//
+// Returns:
+//   Total points scored this frame
+int ball_manager_collect_scores(BallManager* manager);
 // }}}
 
 // {{{ ball_update_task

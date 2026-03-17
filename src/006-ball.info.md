@@ -153,6 +153,39 @@ Finalizes ball states after parallel updates complete. Counts active balls in wr
 - Safe to read balls_next because all worker threads have finished
 - Memory barriers from thread synchronization ensure visibility
 
+### ball_manager_collect_scores
+```c
+int ball_manager_collect_scores(BallManager* manager);
+```
+Collects score deltas from all tasks after parallel phase. Sums points scored by all balls during the frame and resets score_delta fields for next frame.
+
+**Parameters:**
+- `manager`: BallManager instance
+
+**Returns:**
+- Total points scored this frame (0 if no balls scored)
+
+**Usage:**
+- Call after threadpool_wait_all() (ensures all tasks complete)
+- Call before finalize_update()
+- Add returned value to world score
+
+**Thread Safety:**
+- Each task writes only to its own score_delta
+- Safe to read after threadpool_wait_all() synchronization
+- Resets all score_delta values to 0
+
+**Usage Pattern:**
+```c
+ball_manager_prepare_tasks(manager, world, dt);
+ball_manager_submit_tasks(manager, pool);
+threadpool_wait_all(pool);
+int points = ball_manager_collect_scores(manager);
+world->score += points;
+ball_manager_finalize_update(manager);
+ball_manager_swap_buffers(manager);
+```
+
 ### ball_update_task
 ```c
 void ball_update_task(void* data);
@@ -210,10 +243,17 @@ typedef struct BallTaskData {
     Ball* write_buffer;    // Next state (write target)
     World* world;          // World for collision detection
     float dt;              // Delta time in seconds
+    int score_delta;       // Points scored during this task (0 if none)
 } BallTaskData;
 ```
 
 Encapsulates all information needed for a worker thread to process a single ball update. Pre-allocated at startup to avoid malloc during gameplay.
+
+**score_delta Field:**
+- Set to 0 at start of ball_update_task()
+- Set to zone point value when ball enters a zone
+- Summed by ball_manager_collect_scores() after parallel phase
+- Thread-safe: each task writes only to its own score_delta
 
 ### BallManager
 ```c
