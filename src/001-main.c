@@ -304,7 +304,7 @@ int main(void) {
 
             // Clamp viewport offset to new valid range
             float min_offset = world->table_top - (float)screen_height;
-            float max_offset = world->table_bottom;
+            float max_offset = world->adversary_table_bottom;
             if (viewport_offset_y < min_offset) viewport_offset_y = min_offset;
             if (viewport_offset_y > max_offset) viewport_offset_y = max_offset;
 
@@ -337,15 +337,14 @@ int main(void) {
         if (scroll != 0.0f) {
             viewport_offset_y -= scroll * SCROLL_SPEED;
 
-            // Clamp viewport to table-relative range
-            // Minimum: top of table can never go below bottom of screen
-            // (viewport shows from viewport_offset_y to viewport_offset_y + screen_height)
+            // Clamp viewport to show both player and adversary boards
+            // Minimum: top of player board can scroll to bottom of screen
             float min_offset = world->table_top - (float)screen_height;
             if (viewport_offset_y < min_offset) {
                 viewport_offset_y = min_offset;
             }
-            // Maximum: bottom of table can never go above top of screen
-            float max_offset = world->table_bottom;
+            // Maximum: bottom of adversary board can scroll to top of screen
+            float max_offset = world->adversary_table_bottom;
             if (viewport_offset_y > max_offset) {
                 viewport_offset_y = max_offset;
             }

@@ -266,10 +266,14 @@ void world_render_rails(World* world) {
     Color rail_color = (Color){80, 80, 100, 255};
     Color rail_highlight = (Color){100, 100, 120, 255};
 
-    // Rail dimensions - extend to cover both player and adversary boards
+    // Rail dimensions - extend to cover full scrollable area
+    // When scrolling up, player can see table_top at bottom of screen
+    // When scrolling down, player can see adversary_table_bottom at top of screen
+    // Rails extend one screen height above and below to cover all visible area
     float rail_width = 10.0f;
-    float rail_top = world->table_top - 20.0f;  // Start above player table
-    float rail_height = world->adversary_table_bottom - rail_top + 20.0f;
+    float rail_top = world->table_top - (float)world->height;
+    float rail_bottom = world->adversary_table_bottom + (float)world->height;
+    float rail_height = rail_bottom - rail_top;
 
     // Left rail
     float left_x = world->table_x - rail_width;

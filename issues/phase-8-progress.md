@@ -17,10 +17,11 @@ opponent, creating competitive gameplay with resource management.
 | 806 | Shared gates / ball passthrough    | Complete |
 | 807 | Cross-board ball physics           | Complete |
 | 808 | Gate bumpers                       | Complete |
+| 809 | Ball health and damage system      | Complete |
 
 ## Progress Summary
 
-**Completed:** 8/8 issues (100%)
+**Completed:** 9/9 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -117,6 +118,14 @@ Implemented complete adversary system with AI-controlled opponent:
 - Added owner (OWNER_PLAYER, OWNER_ADVERSARY) to Ball struct
 - Physics update: vy += GRAVITY * gravity_dir * dt
 - Balls collide with both player and adversary pegs/bumpers
-- Cross-board collisions apply 2x impulse multiplier for dramatic interactions
+- Cross-board collisions originally used 2x impulse (replaced by health system in 809)
+
+**Issue 809 - Ball Health and Damage System:**
+- Added health field to Ball struct (starts at BALL_MAX_HEALTH = 100)
+- Cross-board collisions deal damage based on relative velocity
+- Damage formula: relative_speed * DAMAGE_VELOCITY_SCALE (0.3)
+- Replaced 2x impulse with health/damage for more strategic gameplay
+- Balls explode with 24 magenta particles when health reaches zero
+- Added died_from_damage tracking to BallTaskData
 
 Files: 004-world.h, 005-world.c, 006-ball.h, 007-ball.c, 012-adversary.h, 013-adversary.c, 001-main.c
