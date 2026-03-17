@@ -78,7 +78,7 @@ int main(void) {
     // Table dimensions - fixed width, dynamic height
     float table_width = 800.0f;  // Fixed table width
     float peg_spacing = 60.0f;
-    float peg_start_y = 140.0f;  // Extra gap from spawn (SPAWN_Y=50) for ball clearance
+    float peg_start_y = 100.0f;  // Gap from spawn (SPAWN_Y=50) for ball clearance
     float zone_height = 40.0f;
     float bottom_margin = 20.0f;
 

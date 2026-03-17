@@ -31,8 +31,8 @@ typedef struct ThreadPool ThreadPool;
 #define SPAWN_Y 50.0f         // Default spawn y (top)
 #define SPAWN_VX_RANGE 100.0f // Random horizontal range
 #define SPAWN_VY_INITIAL 50.0f // Initial downward velocity
-#define SPAWN_COOLDOWN 0.1f   // Legacy: kept for visual indicator timing
-#define SPAWN_RATE 10.0f      // Credits accumulated per second
+#define SPAWN_COOLDOWN 0.2f   // Visual indicator timing
+#define SPAWN_RATE 5.0f       // Credits accumulated per second (5 = one every 0.2s)
 #define MAX_SPAWN_CREDITS 3.0f // Maximum stored credits (prevents burst)
 
 // {{{ typedef struct Ball
