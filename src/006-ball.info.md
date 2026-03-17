@@ -120,6 +120,39 @@ Prepares task data for parallel ball updates. Sets up buffer pointers, world ref
 - `world`: World containing pegs for collision detection
 - `dt`: Delta time in seconds
 
+### ball_manager_submit_tasks
+```c
+void ball_manager_submit_tasks(BallManager* manager, ThreadPool* pool);
+```
+Submits all active ball updates to threadpool. Iterates through all balls and submits tasks for active ones. Call after prepare_tasks() and before threadpool_wait_all().
+
+**Parameters:**
+- `manager`: BallManager instance
+- `pool`: ThreadPool to submit tasks to
+
+**Usage Pattern:**
+```c
+ball_manager_prepare_tasks(manager, world, dt);
+ball_manager_submit_tasks(manager, pool);
+threadpool_wait_all(pool);
+ball_manager_finalize_update(manager);
+ball_manager_swap_buffers(manager);
+```
+
+### ball_manager_finalize_update
+```c
+void ball_manager_finalize_update(BallManager* manager);
+```
+Finalizes ball states after parallel updates complete. Counts active balls in write buffer and updates active_count. Call after threadpool_wait_all() and before swap_buffers().
+
+**Parameters:**
+- `manager`: BallManager instance
+
+**Synchronization:**
+- Must be called after threadpool_wait_all() returns
+- Safe to read balls_next because all worker threads have finished
+- Memory barriers from thread synchronization ensure visibility
+
 ### ball_update_task
 ```c
 void ball_update_task(void* data);

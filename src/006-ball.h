@@ -5,8 +5,9 @@
 #ifndef BALL_H
 #define BALL_H
 
-// Forward declaration for World struct
+// Forward declarations
 typedef struct World World;
+typedef struct ThreadPool ThreadPool;
 
 // Ball constants
 #define BALL_RADIUS 8.0f
@@ -185,6 +186,27 @@ void ball_manager_reset_cooldown(BallManager* manager);
 //   world: World containing pegs for collision detection
 //   dt: Delta time in seconds
 void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt);
+// }}}
+
+// {{{ ball_manager_submit_tasks
+// Submits all active ball updates to threadpool.
+// Call prepare_tasks() first to set up task data.
+// Iterates through all balls and submits tasks for active ones.
+//
+// Parameters:
+//   manager: BallManager instance
+//   pool: ThreadPool to submit tasks to
+void ball_manager_submit_tasks(BallManager* manager, ThreadPool* pool);
+// }}}
+
+// {{{ ball_manager_finalize_update
+// Finalizes ball states after threadpool_wait_all() completes.
+// Counts active balls in write buffer and updates active_count.
+// Call after wait_all() and before swap_buffers().
+//
+// Parameters:
+//   manager: BallManager instance
+void ball_manager_finalize_update(BallManager* manager);
 // }}}
 
 // {{{ ball_update_task

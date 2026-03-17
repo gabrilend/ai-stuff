@@ -8,6 +8,7 @@
 #include <time.h>
 #include "006-ball.h"
 #include "004-world.h"
+#include "003-threadpool.h"
 #include "raylib.h"
 
 // {{{ ball_manager_create
@@ -365,5 +366,44 @@ void ball_update_task(void* data) {
         ball_collide_with_walls(next, task->world->width, task->world->height);
         ball_check_bounds(next, task->world->height);
     }
+}
+// }}}
+
+// {{{ ball_manager_submit_tasks
+void ball_manager_submit_tasks(BallManager* manager, ThreadPool* pool) {
+    if (!manager || !pool) return;
+
+    // Submit tasks for all active balls
+    // Frame update sequence:
+    // 1. ball_manager_prepare_tasks()  - Set up task data
+    // 2. ball_manager_submit_tasks()   - Submit to threadpool (this function)
+    // 3. threadpool_wait_all()         - Wait for completion
+    // 4. ball_manager_finalize_update() - Count active balls
+    // 5. ball_manager_swap_buffers()   - Swap for rendering
+
+    for (int i = 0; i < manager->capacity; i++) {
+        // Only submit tasks for active balls
+        if (manager->balls_current[i].active) {
+            threadpool_submit(pool, ball_update_task, &manager->task_data[i]);
+        }
+    }
+}
+// }}}
+
+// {{{ ball_manager_finalize_update
+void ball_manager_finalize_update(BallManager* manager) {
+    if (!manager) return;
+
+    // Count active balls in write buffer
+    // Called after threadpool_wait_all() ensures all tasks complete
+    // Memory barrier from mutex unlock ensures all writes are visible
+    int count = 0;
+    for (int i = 0; i < manager->capacity; i++) {
+        if (manager->balls_next[i].active) {
+            count++;
+        }
+    }
+
+    manager->active_count = count;
 }
 // }}}

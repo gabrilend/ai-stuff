@@ -106,4 +106,55 @@ Alternative considered:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/006-ball.h (added ThreadPool forward declaration, added ball_manager_submit_tasks and ball_manager_finalize_update declarations)
+- src/007-ball.c (added threadpool header include, implemented both functions)
+- src/006-ball.info.md (documented synchronization functions with usage pattern)
+
+**Implementation Steps Completed:**
+
+1. Added ThreadPool forward declaration to src/006-ball.h:
+   - Allows ball manager to reference ThreadPool without circular dependency
+
+2. Added ball_manager_submit_tasks() declaration and implementation:
+   - Takes BallManager and ThreadPool parameters
+   - Loops through all balls (0 to capacity)
+   - Submits ball_update_task for each active ball
+   - Uses threadpool_submit() with task data pointer
+
+3. Added ball_manager_finalize_update() declaration and implementation:
+   - Resets active_count to 0
+   - Loops through balls_next buffer
+   - Counts balls where active == 1
+   - Updates manager->active_count with final count
+
+4. Documented synchronization pattern in code:
+   - prepare_tasks() → submit_tasks() → wait_all() → finalize_update() → swap_buffers()
+   - Comments explain memory barriers and visibility guarantees
+
+5. Updated src/006-ball.info.md:
+   - Documented both synchronization functions
+   - Added usage pattern example
+   - Explained synchronization guarantees
+
+6. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- ball_manager_submit_tasks() ready for use in main loop
+- ball_manager_finalize_update() safely counts after parallel phase
+- Synchronization pattern documented and ready for integration
+- Thread-safe: wait_all() ensures completion before finalize
+- Foundation ready for Issue 404 (main loop integration)
+
+**Design Decisions:**
+- Sequential count in finalize (not atomic) for simplicity
+- Memory barriers from threadpool ensure visibility
+- submit_tasks() only submits active balls (optimization)
+- finalize_update() always counts all balls (correctness)
+
+**Phase 4 Progress:**
+Issue 403 complete. Ready for Issue 404 (integrate with main loop).
