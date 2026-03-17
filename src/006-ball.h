@@ -24,7 +24,7 @@ typedef struct ThreadPool ThreadPool;
 
 // Boundary constants
 #define WALL_RESTITUTION 0.6f // Wall bounce retention
-#define ZONE_TOP_Y 860.0f     // Top of score zone area (world_height - 40)
+// Note: Zone position is now calculated from world->height in ball_check_zone()
 
 // Spawning constants
 #define SPAWN_X 400.0f        // Default spawn x (center)

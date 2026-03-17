@@ -587,8 +587,10 @@ int ball_check_zone(Ball* ball, World* world) {
     if (!ball->active) return -1;
 
     // Check if ball has entered the score zone area
-    // ZONE_TOP_Y (560.0f) defines the top of the zone area
-    if (ball->y <= ZONE_TOP_Y) return -1;
+    // Zone area is at bottom of world (world->height - zone_height)
+    // Zone height is 40 pixels, matching world_render_zones()
+    float zone_top_y = (float)world->height - 40.0f;
+    if (ball->y <= zone_top_y) return -1;
 
     // Ball is below the zone threshold, check which zone it's in
     // Uses ball center point (not radius) for zone detection
