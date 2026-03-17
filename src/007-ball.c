@@ -388,9 +388,13 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
             // Calculate damage based on closing speed (velocity along collision normal)
             // Head-on collisions deal full damage, glancing blows deal little/none
             // vn is negative when approaching, so use -vn for positive damage
+            // Only deal damage above threshold (gentle bumps are harmless)
             float closing_speed = -vn;
-            float damage = closing_speed * DAMAGE_VELOCITY_SCALE;
-            ball_a->health -= damage;
+            if (closing_speed > DAMAGE_SPEED_THRESHOLD) {
+                float effective_speed = closing_speed - DAMAGE_SPEED_THRESHOLD;
+                float damage = effective_speed * DAMAGE_VELOCITY_SCALE;
+                ball_a->health -= damage;
+            }
         }
 
         // Equal mass elastic collision: swap velocity components along normal
@@ -510,23 +514,27 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
 // }}}
 
 // {{{ ball_check_bounds
-// Internal function to deactivate balls that exit the play area
-// Balls despawn one screen height + buffer past the board edges
-// This ensures they're fully off-screen before despawning
+// Internal function to wrap balls that exit the play area
+// Balls wrap to the opposite side of the screen, preserving velocity and health
+// This creates a continuous loop where balls cycle through both boards
 static void ball_check_bounds(Ball* ball, World* world) {
-    float screen_height = (float)world->height;
-
     if (ball->gravity_dir > 0) {
-        // Player ball moving downward - destroy one screen past adversary board
-        float bottom_bound = world->adversary_table_bottom + screen_height + DESPAWN_BUFFER;
+        // Player ball moving downward - wrap to top when exiting bottom
+        float bottom_bound = world->adversary_table_bottom + WRAP_BUFFER;
         if (ball->y - ball->radius > bottom_bound) {
-            ball->active = 0;
+            // Wrap to top of player board
+            float wrap_y = world->table_top - WRAP_BUFFER - ball->radius;
+            ball->y = wrap_y;
+            // x position and velocity preserved for smooth transition
         }
     } else {
-        // Adversary ball moving upward - destroy one screen above player board
-        float top_bound = world->table_top - screen_height - DESPAWN_BUFFER;
+        // Adversary ball moving upward - wrap to bottom when exiting top
+        float top_bound = world->table_top - WRAP_BUFFER;
         if (ball->y + ball->radius < top_bound) {
-            ball->active = 0;
+            // Wrap to bottom of adversary board
+            float wrap_y = world->adversary_table_bottom + WRAP_BUFFER + ball->radius;
+            ball->y = wrap_y;
+            // x position and velocity preserved for smooth transition
         }
     }
 }
@@ -863,5 +871,28 @@ int ball_check_zone(Ball* ball, World* world) {
 
     // Ball not in any zone
     return -1;
+}
+// }}}
+
+// {{{ ball_manager_handle_expansion
+void ball_manager_handle_expansion(BallManager* manager, float offset,
+                                   float expansion_y_start) {
+    if (!manager || offset == 0.0f) return;
+
+    // Shift all active balls that are below the expansion point
+    // This keeps balls in their correct relative position in the world
+    for (int i = 0; i < manager->capacity; i++) {
+        // Shift in current buffer
+        if (manager->balls_current[i].active &&
+            manager->balls_current[i].y > expansion_y_start) {
+            manager->balls_current[i].y += offset;
+        }
+
+        // Shift in next buffer (may have pending updates)
+        if (manager->balls_next[i].active &&
+            manager->balls_next[i].y > expansion_y_start) {
+            manager->balls_next[i].y += offset;
+        }
+    }
 }
 // }}}

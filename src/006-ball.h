@@ -36,7 +36,7 @@ typedef struct ThreadPool ThreadPool;
 #define SPAWN_VX_RANGE 100.0f // Random horizontal range
 #define SPAWN_VY_INITIAL 50.0f // Initial downward velocity
 #define SPAWN_COOLDOWN 0.2f   // Visual indicator timing
-#define SPAWN_RATE 5.0f       // Credits accumulated per second (5 = one every 0.2s)
+#define SPAWN_RATE 1.7f       // Credits accumulated per second (base rate, upgrades add more)
 #define MAX_SPAWN_CREDITS 3.0f // Maximum stored credits (prevents burst)
 
 // Ball owner constants
@@ -44,11 +44,13 @@ typedef struct ThreadPool ThreadPool;
 #define OWNER_ADVERSARY 1
 
 // Health system constants
-#define BALL_MAX_HEALTH 100.0f    // Starting health for all balls
-#define DAMAGE_VELOCITY_SCALE 0.1f // Damage = relative_velocity * scale (lower = more durable)
+#define BALL_MAX_HEALTH 100.0f       // Starting health for all balls
+#define DAMAGE_VELOCITY_SCALE 0.15f  // Damage = relative_velocity * scale (increased to compensate for threshold)
+#define DAMAGE_SPEED_THRESHOLD 80.0f // No damage below this closing speed (gentle bumps harmless)
 
-// Despawn buffer - balls despawn one screen height + this buffer past the board edges
-#define DESPAWN_BUFFER 100.0f
+// Wrap buffer - distance past board edge before ball wraps to opposite side
+// Balls wrap around the screen instead of being destroyed
+#define WRAP_BUFFER 50.0f
 
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
@@ -306,6 +308,19 @@ void ball_update_task(void* data);
 // Returns:
 //   Zone index if captured, -1 if not in any zone
 int ball_check_zone(Ball* ball, World* world);
+// }}}
+
+// {{{ ball_manager_handle_expansion
+// Adjusts ball positions when the world expands.
+// Balls below the expansion point are shifted down to maintain relative position.
+// Called during stage purchase before physics resume.
+//
+// Parameters:
+//   manager: BallManager instance
+//   offset: Vertical distance to shift balls (positive = downward)
+//   expansion_y_start: Y position where expansion begins (balls below this shift)
+void ball_manager_handle_expansion(BallManager* manager, float offset,
+                                   float expansion_y_start);
 // }}}
 
 #endif // BALL_H

@@ -197,12 +197,14 @@ int main(void) {
     float spawn_x = SPAWN_X;  // Start at center (movable)
     float spawn_y = SPAWN_Y;  // Fixed vertical position
     float spawn_nudge_speed = 200.0f;  // Pixels per second for keyboard control
-    int last_mouse_x = GetMouseX();  // Track mouse to detect movement
+    // Toggle-based mouse control: click to enable/disable mouse tracking
+    // Default state: frozen (player must click to enable mouse control)
+    int mouse_controls_reticle = 0;  // 0 = frozen, 1 = follows mouse
 
     // Main loop
     printf("Entering main loop...\n");
     printf("Press SPACE to spawn balls, A to toggle auto-spawn, SCROLL to pan view\n");
-    printf("Move mouse or use LEFT/RIGHT arrows to aim spawn point\n");
+    printf("Click to toggle mouse aim, LEFT/RIGHT arrows to nudge spawn point\n");
     printf("Press Q to quit, ESC closes menus first\n");
     int should_quit = 0;
     while (!should_quit) {
@@ -224,28 +226,30 @@ int main(void) {
         // Particle system now updated in parallel after ball physics
         // (see particle_system_prepare_tasks/submit_tasks/finalize/swap below)
 
-        // Handle spawn point movement - mouse takes priority over keyboard
+        // Handle spawn point movement - toggle-based mouse control
         // Calculate spawn bounds (keep ball radius away from rails)
         float spawn_margin = BALL_RADIUS + 5.0f;
         float spawn_min_x = world->table_x + spawn_margin;
         float spawn_max_x = world->table_x + world->table_width - spawn_margin;
 
-        // Check for mouse movement - convert screen coords to world coords
-        Vector2 mouse_screen = { (float)GetMouseX(), (float)GetMouseY() };
-        Vector2 mouse_world = GetScreenToWorld2D(mouse_screen, camera);
-        int current_mouse_x = (int)mouse_world.x;
-        if (current_mouse_x != last_mouse_x) {
-            // Mouse moved - snap spawn_x to mouse world position (clamped)
+        // Toggle mouse control on left click (when menu is closed)
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !upgrade_manager->menu_open) {
+            mouse_controls_reticle = !mouse_controls_reticle;
+        }
+
+        // Mouse tracking (only when enabled via toggle)
+        if (mouse_controls_reticle) {
+            Vector2 mouse_screen = { (float)GetMouseX(), (float)GetMouseY() };
+            Vector2 mouse_world = GetScreenToWorld2D(mouse_screen, camera);
             spawn_x = mouse_world.x;
-            last_mouse_x = current_mouse_x;
-        } else {
-            // No mouse movement - check arrow keys for nudge
-            if (IsKeyDown(KEY_LEFT)) {
-                spawn_x -= spawn_nudge_speed * dt;
-            }
-            if (IsKeyDown(KEY_RIGHT)) {
-                spawn_x += spawn_nudge_speed * dt;
-            }
+        }
+
+        // Arrow keys always work (independent of mouse toggle)
+        if (IsKeyDown(KEY_LEFT)) {
+            spawn_x -= spawn_nudge_speed * dt;
+        }
+        if (IsKeyDown(KEY_RIGHT)) {
+            spawn_x += spawn_nudge_speed * dt;
         }
 
         // Clamp spawn_x to table bounds
@@ -556,18 +560,22 @@ int main(void) {
 
         // Draw controls panel (top-right, below title)
         // Moved from bottom to top so gates/zones area is unobstructed
-        DrawRectangle(screen_width - 205, 40, 200, 135,
+        DrawRectangle(screen_width - 205, 40, 200, 150,
                      (Color){0, 0, 0, 150});
         DrawText("Controls:", screen_width - 200, 45, 16, LIGHTGRAY);
-        DrawText("SPACE - Spawn ball", screen_width - 200, 65, 14, WHITE);
-        DrawText("A - Toggle auto-spawn", screen_width - 200, 81, 14, WHITE);
-        DrawText("TAB - Upgrades", screen_width - 200, 97, 14, WHITE);
-        DrawText("SCROLL - Pan view", screen_width - 200, 113, 14, WHITE);
-        DrawText("R - Reset game", screen_width - 200, 129, 14, WHITE);
-        DrawText("ESC - Exit", screen_width - 200, 145, 14, WHITE);
-        // Auto-spawn status indicator
+        DrawText("CLICK - Toggle mouse aim", screen_width - 200, 65, 14, WHITE);
+        DrawText("SPACE - Spawn ball", screen_width - 200, 81, 14, WHITE);
+        DrawText("A - Toggle auto-spawn", screen_width - 200, 97, 14, WHITE);
+        DrawText("TAB - Upgrades", screen_width - 200, 113, 14, WHITE);
+        DrawText("SCROLL - Pan view", screen_width - 200, 129, 14, WHITE);
+        DrawText("R - Reset game", screen_width - 200, 145, 14, WHITE);
+        DrawText("ESC - Exit", screen_width - 200, 161, 14, WHITE);
+        // Status indicators
         if (auto_spawn) {
-            DrawText("[AUTO-SPAWN ON]", screen_width - 200, 163, 12, GREEN);
+            DrawText("[AUTO-SPAWN]", screen_width - 200, 179, 12, GREEN);
+        }
+        if (mouse_controls_reticle) {
+            DrawText("[MOUSE AIM]", screen_width - 100, 179, 12, SKYBLUE);
         }
 
         // Draw upgrade menu overlay (if open)

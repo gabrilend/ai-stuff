@@ -1,0 +1,48 @@
+# Balance Updates
+
+Append-only log of balance tweaks and number adjustments.
+
+---
+
+## 2026-03-17: Spawn Rate Slowdown
+
+**Rationale:** Initial spawn rates were too fast, making the game feel rushed from the start. Slower initial rates give players time to observe ball physics and make upgrades feel more impactful.
+
+**Changes:**
+
+| Variable | File | Old Value | New Value |
+|----------|------|-----------|-----------|
+| SPAWN_RATE | 006-ball.h | 5.0f | 1.7f |
+| ADVERSARY_SPAWN_RATE | 012-adversary.h | 4.0f | 1.3f |
+| SPAWN_RATE_BONUS_PER_LEVEL | 011-upgrades.c | 0.01f | 0.0166f |
+
+**Effect:**
+- Player initial: 5.0 → 1.7 balls/sec (34% of original)
+- Player max (500 upgrades): 10.0 → 10.0 balls/sec (unchanged)
+- Adversary: 4.0 → 1.3 balls/sec (32.5% of original)
+
+Upgrade description updated from "+5 ball/sec max" to "+8 ball/sec max".
+
+---
+
+## 2026-03-17: Low-Speed Impact Damage Threshold
+
+**Rationale:** Gentle bumps between balls were dealing damage proportional to speed. Even slow 50 px/sec collisions dealt 5 damage, causing balls to die from insignificant contact. Balls should only take damage from meaningful collisions.
+
+**Changes:**
+
+| Variable | File | Old Value | New Value |
+|----------|------|-----------|-----------|
+| DAMAGE_VELOCITY_SCALE | 006-ball.h | 0.1f | 0.15f |
+| DAMAGE_SPEED_THRESHOLD | 006-ball.h | (new) | 80.0f |
+
+**Effect (damage per collision):**
+
+| Closing Speed | Before | After |
+|---------------|--------|-------|
+| 50 px/sec | 5 | 0 (below threshold) |
+| 100 px/sec | 10 | 3 |
+| 200 px/sec | 20 | 18 |
+| 400 px/sec | 40 | 48 |
+
+Hard hits now deal more damage than before, but gentle bumps are harmless. Balls survive longer in crowded situations but still die from meaningful collisions.
