@@ -289,14 +289,31 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
 void ball_manager_render(BallManager* manager) {
     if (!manager) return;
 
+    // Color palette for balls - warm and visible
+    Color ball_color = (Color){255, 180, 50, 255};       // Warm orange
+    Color ball_highlight = (Color){255, 220, 150, 255};  // Lighter highlight
+
     for (int i = 0; i < manager->capacity; i++) {
         Ball* ball = &manager->balls_current[i];
         if (ball->active) {
+            // Draw main ball circle
             DrawCircle(
                 (int)ball->x,
                 (int)ball->y,
                 ball->radius,
-                ORANGE
+                ball_color
+            );
+
+            // Draw highlight circle for 3D sphere illusion
+            // Offset toward top-left to simulate light source
+            float highlight_radius = ball->radius * 0.4f;
+            float highlight_offset_x = ball->radius * -0.3f;
+            float highlight_offset_y = ball->radius * -0.3f;
+            DrawCircle(
+                (int)(ball->x + highlight_offset_x),
+                (int)(ball->y + highlight_offset_y),
+                highlight_radius,
+                ball_highlight
             );
         }
     }

@@ -12,6 +12,13 @@
 #include "004-world.h"
 #include "006-ball.h"
 
+// Visual constants - Color palette for cohesive visual design
+#define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
+#define PEG_COLOR (Color){180, 180, 200, 255}      // Light steel peg fill
+#define PEG_OUTLINE (Color){100, 100, 120, 255}    // Darker peg outline
+#define BALL_COLOR (Color){255, 180, 50, 255}      // Warm orange ball
+#define BALL_HIGHLIGHT (Color){255, 220, 150, 255} // Lighter ball highlight
+
 // {{{ main
 int main(void) {
     const int screen_width = 800;
@@ -101,9 +108,10 @@ int main(void) {
 
         // Render
         BeginDrawing();
-        ClearBackground(DARKGRAY);
+        ClearBackground(BG_COLOR);
 
-        // Draw title text
+        // Draw title with semi-transparent background
+        DrawRectangle(5, 5, 360, 30, (Color){0, 0, 0, 100});
         DrawText("Physics Simulator - Pachinko", 10, 10, 20, LIGHTGRAY);
 
         // Draw world elements

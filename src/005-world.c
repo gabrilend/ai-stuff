@@ -97,10 +97,19 @@ void world_render_pegs(World* world) {
         return;
     }
 
-    // Render each peg as a circle
+    // Color palette for pegs - cohesive visual design
+    Color peg_color = (Color){180, 180, 200, 255};      // Light steel
+    Color peg_outline = (Color){100, 100, 120, 255};    // Darker outline
+
+    // Render each peg as a circle with outline
     for (int i = 0; i < world->peg_count; i++) {
+        // Draw filled circle
         DrawCircle((int)world->pegs[i].x, (int)world->pegs[i].y,
-                   world->pegs[i].radius, LIGHTGRAY);
+                   world->pegs[i].radius, peg_color);
+
+        // Draw outline for depth
+        DrawCircleLines((int)world->pegs[i].x, (int)world->pegs[i].y,
+                       world->pegs[i].radius, peg_outline);
     }
 }
 // }}}
@@ -110,6 +119,10 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     if (!world || zone_count <= 0) {
         return;
     }
+
+    // Note: zone_height parameter reserved for future use (custom zone heights)
+    // Currently using fixed height in world_render_zones
+    (void)zone_height;  // Suppress unused parameter warning
 
     // Free existing zones if any
     if (world->zones) {

@@ -11,13 +11,13 @@ machine to a playable state with scoring, ball capture, and visual polish.
 |-----|------------------------------------|-----------|
 | 501 | Implement score zone detection     | Complete  |
 | 502 | Implement scoring and ball capture | Complete  |
-| 503 | Add visual polish and colors       | Pending   |
+| 503 | Add visual polish and colors       | Complete  |
 | 504 | Add particle effects               | Pending   |
 | 505 | Final gameplay polish              | Pending   |
 
 ## Progress Summary
 
-**Completed:** 2/5 issues (40%)
+**Completed:** 3/5 issues (60%)
 **Phase 5:** In Progress
 
 ## Notes
@@ -76,3 +76,19 @@ writes only to its own score_delta. Main thread sums after synchronization.
 The core gameplay loop is now complete. Balls fall, bounce off pegs, land in zones,
 and award points. Score display updates in real-time. Issues 503-505 will add
 visual polish and gameplay refinements.
+
+### Issue 503 - Visual Polish and Colors (Complete)
+
+Implemented cohesive color palette and visual improvements for better aesthetics.
+
+Key changes:
+- Defined color palette constants (dark blue-gray background, steel pegs, orange balls)
+- Updated background from DARKGRAY to custom BG_COLOR
+- Added outline rendering to pegs for depth effect
+- Added highlight circles to balls for 3D sphere illusion
+- Added semi-transparent background to title text
+- Fixed unused parameter warning
+
+Visual hierarchy established: balls most visible (warm colors with highlights), pegs
+less prominent (cool tones), dark background for contrast. Creates professional,
+cohesive appearance. Issues 504-505 will add particle effects and final polish.
