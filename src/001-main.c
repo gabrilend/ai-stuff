@@ -24,7 +24,8 @@
 #define BALL_HIGHLIGHT (Color){255, 220, 150, 255} // Lighter ball highlight
 
 // Scrolling viewport constants
-#define SCROLL_SPEED 40.0f    // Pixels per scroll wheel notch
+#define SCROLL_SPEED 120.0f   // Pixels per scroll wheel notch (tripled for faster panning)
+#define SCROLL_LERP_SPEED 8.0f // Lerp factor for smooth scrolling (higher = snappier)
 
 // {{{ main
 int main(void) {
@@ -172,6 +173,7 @@ int main(void) {
     // World height can be larger than screen for scrollable areas
     float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
     float viewport_offset_y = 0.0f;             // Current scroll position
+    float viewport_target_y = 0.0f;             // Target scroll position (lerped toward)
 
     // Setup 2D camera for viewport scrolling
     // Camera centers on viewport position, allowing scroll without
@@ -302,9 +304,11 @@ int main(void) {
             camera.offset = (Vector2){ (float)screen_width / 2.0f,
                                        (float)screen_height / 2.0f };
 
-            // Clamp viewport offset to new valid range
+            // Clamp viewport offset and target to new valid range
             float min_offset = world->table_top - (float)screen_height;
             float max_offset = world->adversary_table_bottom;
+            if (viewport_target_y < min_offset) viewport_target_y = min_offset;
+            if (viewport_target_y > max_offset) viewport_target_y = max_offset;
             if (viewport_offset_y < min_offset) viewport_offset_y = min_offset;
             if (viewport_offset_y > max_offset) viewport_offset_y = max_offset;
 
@@ -333,25 +337,30 @@ int main(void) {
         }
 
         // Handle scroll wheel for viewport panning
+        // Scroll wheel updates target, actual position lerps toward it
         float scroll = GetMouseWheelMove();
         if (scroll != 0.0f) {
-            viewport_offset_y -= scroll * SCROLL_SPEED;
+            viewport_target_y -= scroll * SCROLL_SPEED;
 
-            // Clamp viewport to show both player and adversary boards
-            // Minimum: top of player board can scroll to bottom of screen
+            // Clamp target to valid range
             float min_offset = world->table_top - (float)screen_height;
-            if (viewport_offset_y < min_offset) {
-                viewport_offset_y = min_offset;
-            }
-            // Maximum: bottom of adversary board can scroll to top of screen
             float max_offset = world->adversary_table_bottom;
-            if (viewport_offset_y > max_offset) {
-                viewport_offset_y = max_offset;
-            }
-
-            // Update camera target to reflect scroll position
-            camera.target.y = (float)screen_height / 2.0f + viewport_offset_y;
+            if (viewport_target_y < min_offset) viewport_target_y = min_offset;
+            if (viewport_target_y > max_offset) viewport_target_y = max_offset;
         }
+
+        // Smooth scroll lerping - runs every frame for gentle movement
+        // Lerp formula: current += (target - current) * speed * dt
+        float scroll_diff = viewport_target_y - viewport_offset_y;
+        if (fabsf(scroll_diff) > 0.1f) {
+            viewport_offset_y += scroll_diff * SCROLL_LERP_SPEED * dt;
+        } else {
+            // Snap to target when close enough to avoid endless tiny movements
+            viewport_offset_y = viewport_target_y;
+        }
+
+        // Update camera target to reflect scroll position
+        camera.target.y = (float)screen_height / 2.0f + viewport_offset_y;
 
         // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → spawn particles → collect scores → finalize → swap
