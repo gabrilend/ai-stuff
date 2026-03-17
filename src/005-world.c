@@ -29,6 +29,12 @@ World* world_create(int width, int height) {
     world->score = 0;
     world->high_score = 0;
 
+    // Initialize table bounds to defaults (will be set properly later)
+    world->table_x = 0.0f;
+    world->table_width = (float)width;
+    world->table_top = 0.0f;
+    world->table_bottom = (float)height;
+
     return world;
 }
 // }}}
@@ -137,8 +143,8 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     }
 
     // Calculate zone dimensions
-    // Zones are placed at the bottom of the world
-    float zone_width = (float)world->width / zone_count;
+    // Zones span the table width (centered in window)
+    float zone_width = world->table_width / zone_count;
     float zone_y_min = (float)world->height - zone_height;
     float zone_y_max = (float)world->height;
 
@@ -146,10 +152,10 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     // For 7 zones: center gets 500, working outward gets lower values
     int default_points[] = {10, 50, 100, 500, 100, 50, 10};
 
-    // Generate zones
+    // Generate zones (positioned within table bounds)
     for (int i = 0; i < zone_count; i++) {
-        world->zones[i].x_min = i * zone_width;
-        world->zones[i].x_max = (i + 1) * zone_width;
+        world->zones[i].x_min = world->table_x + i * zone_width;
+        world->zones[i].x_max = world->table_x + (i + 1) * zone_width;
         world->zones[i].y_min = zone_y_min;
         world->zones[i].y_max = zone_y_max;
 
@@ -210,5 +216,52 @@ void world_render_zones(World* world) {
         float text_y = zone->y_min + zone_height / 2 - 10;
         DrawText(text, (int)text_x, (int)text_y, 20, WHITE);
     }
+}
+// }}}
+
+// {{{ world_set_table_bounds
+void world_set_table_bounds(World* world, float table_width,
+                            float table_top, float zone_height) {
+    if (!world) return;
+    (void)zone_height;  // Reserved for future use (multi-row zones)
+
+    // Store table dimensions
+    world->table_width = table_width;
+    world->table_top = table_top;
+    world->table_bottom = (float)world->height;  // Zones go to bottom
+
+    // Center table horizontally in window
+    world->table_x = ((float)world->width - table_width) / 2.0f;
+}
+// }}}
+
+// {{{ world_render_rails
+void world_render_rails(World* world) {
+    if (!world) return;
+
+    // Rail visual style - darker than pegs, industrial look
+    Color rail_color = (Color){80, 80, 100, 255};
+    Color rail_highlight = (Color){100, 100, 120, 255};
+
+    // Rail dimensions
+    float rail_width = 10.0f;
+    float rail_top = world->table_top - 20.0f;  // Start above table
+    float rail_height = world->table_bottom - rail_top;
+
+    // Left rail
+    float left_x = world->table_x - rail_width;
+    DrawRectangle((int)left_x, (int)rail_top,
+                 (int)rail_width, (int)rail_height, rail_color);
+    // Highlight on right edge (inner side)
+    DrawRectangle((int)(left_x + rail_width - 2), (int)rail_top,
+                 2, (int)rail_height, rail_highlight);
+
+    // Right rail
+    float right_x = world->table_x + world->table_width;
+    DrawRectangle((int)right_x, (int)rail_top,
+                 (int)rail_width, (int)rail_height, rail_color);
+    // Highlight on left edge (inner side)
+    DrawRectangle((int)right_x, (int)rail_top,
+                 2, (int)rail_height, rail_highlight);
 }
 // }}}

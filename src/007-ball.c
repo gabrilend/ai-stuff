@@ -297,29 +297,32 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
 // }}}
 
 // {{{ ball_collide_with_walls
-// Internal function to check and resolve collisions with screen boundaries
-static void ball_collide_with_walls(Ball* ball, int screen_width,
-                                     int screen_height) {
-    // Left wall
-    if (ball->x - ball->radius < 0) {
-        ball->x = ball->radius;
+// Internal function to check and resolve collisions with table boundaries
+// Uses table bounds (guard rails) instead of screen edges
+static void ball_collide_with_walls(Ball* ball, World* world) {
+    // Left rail (table left edge)
+    float left_wall = world->table_x;
+    if (ball->x - ball->radius < left_wall) {
+        ball->x = left_wall + ball->radius;
         ball->vx = -ball->vx * WALL_RESTITUTION;
     }
 
-    // Right wall
-    if (ball->x + ball->radius > screen_width) {
-        ball->x = screen_width - ball->radius;
+    // Right rail (table right edge)
+    float right_wall = world->table_x + world->table_width;
+    if (ball->x + ball->radius > right_wall) {
+        ball->x = right_wall - ball->radius;
         ball->vx = -ball->vx * WALL_RESTITUTION;
     }
 
-    // Top wall (prevent escape upward)
-    if (ball->y - ball->radius < 0) {
-        ball->y = ball->radius;
+    // Top boundary (prevent escape upward)
+    // Use table_top minus some margin so balls can spawn above
+    float top_wall = world->table_top - 40.0f;
+    if (ball->y - ball->radius < top_wall) {
+        ball->y = top_wall + ball->radius;
         ball->vy = -ball->vy * WALL_RESTITUTION;
     }
 
     // No bottom wall - balls fall through to score zones
-    (void)screen_height;  // Suppress unused parameter warning
 }
 // }}}
 
@@ -350,7 +353,7 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
         // Perform collision detection and response on next buffer
         if (next->active) {
             ball_collide_with_pegs(next, world);
-            ball_collide_with_walls(next, world->width, world->height);
+            ball_collide_with_walls(next, world);
             ball_check_bounds(next, world->height);
 
             // Count active balls
@@ -500,7 +503,7 @@ void ball_update_task(void* data) {
         ball_collide_with_pegs(next, task->world);
         ball_collide_with_balls(next, task->ball_index,
                                task->read_buffer, task->capacity);
-        ball_collide_with_walls(next, task->world->width, task->world->height);
+        ball_collide_with_walls(next, task->world);
         ball_check_bounds(next, task->world->height);
 
         // Check if ball entered a score zone

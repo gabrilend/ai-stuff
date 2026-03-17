@@ -36,14 +36,22 @@ typedef struct ScoreZone {
 // {{{ typedef struct World
 // World contains all state for the pachinko machine.
 // This includes the peg grid, score zones, and current score.
+// Table bounds define the playable area (may be smaller than screen).
 typedef struct World {
-    int width, height; // Screen dimensions
-    Peg* pegs;         // Array of pegs
-    int peg_count;     // Number of pegs
-    ScoreZone* zones;  // Array of score zones
-    int zone_count;    // Number of zones
-    int score;         // Current player score
-    int high_score;    // Session high score
+    int width, height;     // Screen/window dimensions
+    Peg* pegs;             // Array of pegs
+    int peg_count;         // Number of pegs
+    ScoreZone* zones;      // Array of score zones
+    int zone_count;        // Number of zones
+    int score;             // Current player score
+    int high_score;        // Session high score
+
+    // Table bounds - the actual playable area
+    // Table is centered horizontally when window is wider than table
+    float table_x;         // Left edge of table (for centering)
+    float table_width;     // Width of table (fixed, e.g., 800px)
+    float table_top;       // Top of table (where pegs start)
+    float table_bottom;    // Bottom of table (bottom of zones)
 } World;
 // }}}
 
@@ -108,6 +116,28 @@ void world_generate_zones(World* world, int zone_count, float zone_height);
 // Parameters:
 //   world: World instance
 void world_render_zones(World* world);
+// }}}
+
+// {{{ world_set_table_bounds
+// Sets the table bounds for centering and collision.
+// Call after generating pegs and zones to update bounds.
+//
+// Parameters:
+//   world: World instance
+//   table_width: Fixed width of table (typically 800px)
+//   table_top: Y position of top of table (peg start)
+//   zone_height: Height of zones at bottom
+void world_set_table_bounds(World* world, float table_width,
+                            float table_top, float zone_height);
+// }}}
+
+// {{{ world_render_rails
+// Renders guard rails on the sides of the table.
+// Rails prevent balls from falling off the table edges.
+//
+// Parameters:
+//   world: World instance
+void world_render_rails(World* world);
 // }}}
 
 #endif // WORLD_H

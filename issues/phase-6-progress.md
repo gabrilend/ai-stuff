@@ -14,10 +14,14 @@ during Phase 5 and adds new gameplay and rendering features.
 | 508 | Add ball-to-ball collisions              | Complete |
 | 509 | Improve particle effects                 | Complete |
 | 510 | Add scrolling viewport                   | Complete |
+| 511 | Dynamic window resize handling           | Complete |
+| 512 | Center table in window                   | Complete |
+| 513 | Scroll limits to keep table visible      | Complete |
+| 514 | Add guard rails on sides                 | Complete |
 
 ## Progress Summary
 
-**Completed:** 5/5 issues (100%)
+**Completed:** 9/9 issues (100%)
 **Phase 6:** Complete
 
 ## Notes
@@ -130,3 +134,46 @@ Expanded board to test scrolling functionality:
 - Peg rows: 10 → 15
 - ZONE_TOP_Y: 560 → 860 (world_height - 40)
 - Scrolling now functional: mouse wheel pans viewport up/down
+
+### Issue 511 - Dynamic Window Resize Handling (Complete)
+
+Implemented `IsWindowResized()` handler in main loop.
+
+On resize:
+- Updates world dimensions
+- Recalculates table bounds (centers table horizontally)
+- Regenerates pegs dynamically based on new height
+- Regenerates zones using table bounds
+- Updates camera offset and clamps viewport
+- Logs resize event
+
+Balls are preserved during resize, continuing physics with new bounds.
+
+### Issue 512 - Center Table in Window (Complete)
+
+Added table bounds architecture to World struct:
+- table_x: Horizontal offset for centering
+- table_width: Fixed at 800px
+- table_top/table_bottom: Vertical bounds
+
+Added `world_set_table_bounds()` to calculate centering offset.
+Updated peg generation, zone generation, and ball collision to use table bounds.
+
+### Issue 513 - Scroll Limits to Keep Table Visible (Complete)
+
+Updated scroll clamping to use table-relative bounds:
+- min_offset = table_top - screen_height (allows scrolling above table)
+- max_offset = table_bottom (allows scrolling to see table bottom at screen top)
+
+This ensures table is always partially visible while allowing user to see
+empty space above/below the table.
+
+### Issue 514 - Add Guard Rails on Sides (Complete)
+
+Added visual guard rails on table edges:
+- `world_render_rails()` draws vertical bars at table_x and table_x + table_width
+- Dark industrial style (80, 80, 100) with inner highlight
+- Rails extend full table height
+
+Updated `ball_collide_with_walls()` to use table bounds instead of screen edges.
+Balls now bounce off rails, preventing them from falling off wider windows.

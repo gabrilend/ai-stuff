@@ -75,25 +75,33 @@ int main(void) {
     }
     printf("World created: %dx%d\n", screen_width, world_height_pixels);
 
-    // Generate peg grid dynamically based on world height
-    // Calculate rows to fill available vertical space
+    // Table dimensions - fixed width, dynamic height
+    float table_width = 800.0f;  // Fixed table width
     float peg_spacing = 60.0f;
     float peg_start_y = 80.0f;
     float zone_height = 40.0f;
-    float bottom_margin = 20.0f;  // Space between last peg row and zones
+    float bottom_margin = 20.0f;
 
-    // Available space for pegs: world_height - top - zones - margin
+    // Set table bounds (centers table horizontally in window)
+    world_set_table_bounds(world, table_width, peg_start_y, zone_height);
+    printf("Table bounds: x=%.0f, width=%.0f, top=%.0f, bottom=%.0f\n",
+           world->table_x, world->table_width, world->table_top, world->table_bottom);
+
+    // Generate peg grid dynamically based on world height
+    // Calculate rows to fill available vertical space
     float available_height = world_height_pixels - peg_start_y - zone_height - bottom_margin;
     int peg_rows = (int)(available_height / peg_spacing);
     if (peg_rows < 5) peg_rows = 5;    // Minimum 5 rows
     if (peg_rows > 30) peg_rows = 30;  // Maximum 30 rows
 
     int peg_cols = 8;
-    float peg_start_x = (screen_width - (peg_cols * peg_spacing)) / 2.0f;
+    // Center pegs within the table (table is centered in window)
+    float peg_grid_width = peg_cols * peg_spacing;
+    float peg_start_x = world->table_x + (table_width - peg_grid_width) / 2.0f;
     world_generate_pegs(world, peg_rows, peg_cols, peg_start_x, peg_start_y, peg_spacing);
     printf("Generated peg grid: %d rows, %d cols (scaled to window)\n", peg_rows, peg_cols);
 
-    // Generate score zones (7 zones at bottom of world)
+    // Generate score zones (7 zones spanning table width)
     world_generate_zones(world, 7, zone_height);
     printf("Generated score zones: 7 zones\n");
 
@@ -160,6 +168,50 @@ int main(void) {
             ball_manager_reset_cooldown(ball_manager);
         }
 
+        // Handle window resize - recalculate table centering and regenerate world
+        if (IsWindowResized()) {
+            screen_height = GetScreenHeight();
+            int new_screen_width = GetScreenWidth();
+
+            // Update world dimensions
+            world->width = new_screen_width;
+            world->height = screen_height;
+
+            // Recalculate table centering (width stays fixed at 800)
+            world_set_table_bounds(world, table_width, peg_start_y, zone_height);
+
+            // Recalculate peg grid based on new height
+            float new_available_height = screen_height - peg_start_y - zone_height - bottom_margin;
+            int new_peg_rows = (int)(new_available_height / peg_spacing);
+            if (new_peg_rows < 5) new_peg_rows = 5;
+            if (new_peg_rows > 30) new_peg_rows = 30;
+
+            // Regenerate pegs centered in table
+            float new_peg_grid_width = peg_cols * peg_spacing;
+            float new_peg_start_x = world->table_x + (table_width - new_peg_grid_width) / 2.0f;
+            world_generate_pegs(world, new_peg_rows, peg_cols, new_peg_start_x, peg_start_y, peg_spacing);
+
+            // Regenerate zones (they use table bounds for positioning)
+            world_generate_zones(world, 7, zone_height);
+
+            // Update camera offset to match new screen center
+            camera.offset = (Vector2){ (float)new_screen_width / 2.0f,
+                                       (float)screen_height / 2.0f };
+
+            // Clamp viewport offset to new valid range
+            float min_offset = world->table_top - (float)screen_height;
+            float max_offset = world->table_bottom;
+            if (viewport_offset_y < min_offset) viewport_offset_y = min_offset;
+            if (viewport_offset_y > max_offset) viewport_offset_y = max_offset;
+
+            // Update camera target
+            camera.target = (Vector2){ (float)new_screen_width / 2.0f,
+                                       (float)screen_height / 2.0f + viewport_offset_y };
+
+            printf("Window resized: %dx%d, table_x=%.0f, peg_rows=%d\n",
+                   new_screen_width, screen_height, world->table_x, new_peg_rows);
+        }
+
         // Handle reset input (R key)
         if (IsKeyPressed(KEY_R)) {
             // Reset score
@@ -178,14 +230,15 @@ int main(void) {
         if (scroll != 0.0f) {
             viewport_offset_y -= scroll * SCROLL_SPEED;
 
-            // Clamp viewport to valid range
-            // Minimum: can't scroll above top of world
-            if (viewport_offset_y < 0.0f) {
-                viewport_offset_y = 0.0f;
+            // Clamp viewport to table-relative range
+            // Minimum: top of table can never go below bottom of screen
+            // (viewport shows from viewport_offset_y to viewport_offset_y + screen_height)
+            float min_offset = world->table_top - (float)screen_height;
+            if (viewport_offset_y < min_offset) {
+                viewport_offset_y = min_offset;
             }
-            // Maximum: can't scroll below bottom of world
-            float max_offset = world_height - (float)screen_height;
-            if (max_offset < 0.0f) max_offset = 0.0f;
+            // Maximum: bottom of table can never go above top of screen
+            float max_offset = world->table_bottom;
             if (viewport_offset_y > max_offset) {
                 viewport_offset_y = max_offset;
             }
@@ -247,6 +300,7 @@ int main(void) {
         BeginMode2D(camera);
 
         // Draw world elements (in camera space - scrollable)
+        world_render_rails(world);
         world_render_pegs(world);
         world_render_zones(world);
 
