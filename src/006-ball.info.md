@@ -109,6 +109,17 @@ Resets the spawn cooldown to the default value (SPAWN_COOLDOWN).
 **Parameters:**
 - `manager`: BallManager instance
 
+### ball_manager_prepare_tasks
+```c
+void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt);
+```
+Prepares task data for parallel ball updates. Sets up buffer pointers, world reference, and delta time for all task data entries. Call once per frame before submitting tasks to threadpool.
+
+**Parameters:**
+- `manager`: BallManager instance
+- `world`: World containing pegs for collision detection
+- `dt`: Delta time in seconds
+
 ## Data Structures
 
 ### Ball
@@ -121,14 +132,28 @@ typedef struct Ball {
 } Ball;
 ```
 
+### BallTaskData
+```c
+typedef struct BallTaskData {
+    int ball_index;        // Index into ball arrays (immutable)
+    Ball* read_buffer;     // Current state (read-only)
+    Ball* write_buffer;    // Next state (write target)
+    World* world;          // World for collision detection
+    float dt;              // Delta time in seconds
+} BallTaskData;
+```
+
+Encapsulates all information needed for a worker thread to process a single ball update. Pre-allocated at startup to avoid malloc during gameplay.
+
 ### BallManager
 ```c
 typedef struct BallManager {
-    Ball* balls_current;  // Current frame state (read-only during update)
-    Ball* balls_next;     // Next frame state (write during update)
-    int capacity;         // Maximum number of balls
-    int active_count;     // Number of currently active balls
-    float spawn_cooldown; // Time until next spawn allowed
+    Ball* balls_current;     // Current frame state (read-only during update)
+    Ball* balls_next;        // Next frame state (write during update)
+    int capacity;            // Maximum number of balls
+    int active_count;        // Number of currently active balls
+    float spawn_cooldown;    // Time until next spawn allowed
+    BallTaskData* task_data; // Pre-allocated task data for parallel processing
 } BallManager;
 ```
 

@@ -91,4 +91,61 @@ Thread safety considerations:
 
 ## Status
 
-- [ ] Pending
+- [x] Completed
+
+## Implementation Notes
+
+**Files Modified:**
+- src/006-ball.h (added BallTaskData struct, updated BallManager struct, added ball_manager_prepare_tasks declaration)
+- src/007-ball.c (updated ball_manager_create/destroy, implemented ball_manager_prepare_tasks)
+- src/006-ball.info.md (documented new structures and functions)
+
+**Implementation Steps Completed:**
+
+1. Added BallTaskData structure to src/006-ball.h:
+   - ball_index: Immutable index into ball arrays
+   - read_buffer: Pointer to current ball state (read-only)
+   - write_buffer: Pointer to next ball state (write target)
+   - world: World reference for collision detection
+   - dt: Delta time for physics integration
+
+2. Updated BallManager struct:
+   - Added task_data field as pre-allocated array
+
+3. Updated ball_manager_create():
+   - Allocates task_data array with calloc(capacity, sizeof(BallTaskData))
+   - Initializes ball_index for each task data entry (immutable field)
+   - Proper error handling with cleanup on allocation failure
+
+4. Updated ball_manager_destroy():
+   - Frees task_data array
+   - Null-safe (checks before freeing)
+
+5. Implemented ball_manager_prepare_tasks():
+   - Sets read_buffer to balls_current
+   - Sets write_buffer to balls_next
+   - Sets world reference
+   - Sets delta time
+   - Called once per frame before submitting tasks
+
+6. Updated src/006-ball.info.md:
+   - Documented BallTaskData structure
+   - Documented ball_manager_prepare_tasks() function
+   - Updated BallManager documentation
+
+7. Compiled successfully with no new warnings
+
+**Current Behavior:**
+- BallTaskData structure ready for parallel processing
+- Task data array pre-allocated at startup (no malloc during gameplay)
+- ball_manager_prepare_tasks() updates per-frame data
+- Foundation ready for Issue 402 (parallel ball update task function)
+
+**Design Decisions:**
+- Pre-allocation eliminates runtime allocation overhead
+- ball_index is immutable (set once at creation)
+- Other fields are updated each frame via prepare_tasks()
+- Thread-safe design: each task owns one ball index in write buffer
+
+**Phase 4 Progress:**
+Issue 401 complete. Ready for Issue 402 (parallel ball update function).

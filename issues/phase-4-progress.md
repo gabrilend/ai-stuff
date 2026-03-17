@@ -8,17 +8,17 @@ ball updates across multiple worker threads.
 
 ## Issues
 
-| ID  | Description                        | Status  |
-|-----|------------------------------------|---------|
-| 401 | Create ball task data structure    | Pending |
-| 402 | Implement parallel ball update     | Pending |
-| 403 | Implement synchronization barriers | Pending |
-| 404 | Integrate parallel updates in main | Pending |
-| 405 | Create performance benchmark       | Pending |
+| ID  | Description                        | Status      |
+|-----|------------------------------------|-------------|
+| 401 | Create ball task data structure    | ✓ Completed |
+| 402 | Implement parallel ball update     | Pending     |
+| 403 | Implement synchronization barriers | Pending     |
+| 404 | Integrate parallel updates in main | Pending     |
+| 405 | Create performance benchmark       | Pending     |
 
 ## Progress Summary
 
-**Completed:** 0/5 issues (0%)
+**Completed:** 1/5 issues (20%)
 **Phase 4:** In Progress
 
 ## Notes
@@ -45,4 +45,14 @@ Phase 3 must be complete (ball physics, collision detection).
 
 ## Implementation Log
 
-(To be filled as issues are completed)
+### Issue 401 - Create Ball Task Data Structure (Completed)
+Created BallTaskData structure and integrated with BallManager:
+- Defined BallTaskData with ball_index, read_buffer, write_buffer, world, dt
+- Added task_data array to BallManager struct
+- Updated ball_manager_create() to allocate and initialize task_data
+- Updated ball_manager_destroy() to free task_data
+- Implemented ball_manager_prepare_tasks() to set up per-frame data
+- Pre-allocation pattern: ball_index immutable, other fields updated each frame
+- Thread-safe design: each task owns one ball index in write buffer
+- Compiled successfully with no new warnings
+- Infrastructure ready for parallel ball updates in Issue 402

@@ -39,12 +39,25 @@ BallManager* ball_manager_create(int capacity) {
         return NULL;
     }
 
+    // Allocate task data array for parallel processing
+    manager->task_data = (BallTaskData*)calloc(capacity, sizeof(BallTaskData));
+    if (!manager->task_data) {
+        fprintf(stderr, "ERROR: Failed to allocate task data array\n");
+        free(manager->balls_next);
+        free(manager->balls_current);
+        free(manager);
+        return NULL;
+    }
+
     // Initialize all balls as inactive
     for (int i = 0; i < capacity; i++) {
         manager->balls_current[i].active = 0;
         manager->balls_current[i].radius = BALL_RADIUS;
         manager->balls_next[i].active = 0;
         manager->balls_next[i].radius = BALL_RADIUS;
+
+        // Initialize task data with immutable ball_index
+        manager->task_data[i].ball_index = i;
     }
 
     return manager;
@@ -60,6 +73,9 @@ void ball_manager_destroy(BallManager* manager) {
     }
     if (manager->balls_next) {
         free(manager->balls_next);
+    }
+    if (manager->task_data) {
+        free(manager->task_data);
     }
     free(manager);
 }
@@ -310,5 +326,21 @@ void ball_manager_reset_cooldown(BallManager* manager) {
     if (!manager) return;
 
     manager->spawn_cooldown = SPAWN_COOLDOWN;
+}
+// }}}
+
+// {{{ ball_manager_prepare_tasks
+void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt) {
+    if (!manager) return;
+
+    // Update task data for all balls
+    // Each task data entry has immutable ball_index,
+    // but buffer pointers, world, and dt change each frame
+    for (int i = 0; i < manager->capacity; i++) {
+        manager->task_data[i].read_buffer = manager->balls_current;
+        manager->task_data[i].write_buffer = manager->balls_next;
+        manager->task_data[i].world = world;
+        manager->task_data[i].dt = dt;
+    }
 }
 // }}}

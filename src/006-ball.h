@@ -43,15 +43,29 @@ typedef struct Ball {
 } Ball;
 // }}}
 
+// {{{ typedef struct BallTaskData
+// BallTaskData encapsulates all information needed for a worker thread
+// to process a single ball update. Pre-allocated at startup to avoid
+// malloc during gameplay.
+typedef struct BallTaskData {
+    int ball_index;        // Index into ball arrays (immutable)
+    Ball* read_buffer;     // Current state (read-only)
+    Ball* write_buffer;    // Next state (write target)
+    World* world;          // World for collision detection
+    float dt;              // Delta time in seconds
+} BallTaskData;
+// }}}
+
 // {{{ typedef struct BallManager
 // BallManager holds and manages a collection of balls.
 // Maintains two buffers for double-buffered physics updates.
 typedef struct BallManager {
-    Ball* balls_current;  // Current frame state (read-only during update)
-    Ball* balls_next;     // Next frame state (write during update)
-    int capacity;         // Maximum number of balls
-    int active_count;     // Number of currently active balls
-    float spawn_cooldown; // Time until next spawn allowed
+    Ball* balls_current;     // Current frame state (read-only during update)
+    Ball* balls_next;        // Next frame state (write during update)
+    int capacity;            // Maximum number of balls
+    int active_count;        // Number of currently active balls
+    float spawn_cooldown;    // Time until next spawn allowed
+    BallTaskData* task_data; // Pre-allocated task data for parallel processing
 } BallManager;
 // }}}
 
@@ -159,6 +173,18 @@ int ball_manager_can_spawn(BallManager* manager);
 // Parameters:
 //   manager: BallManager instance
 void ball_manager_reset_cooldown(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_prepare_tasks
+// Prepares task data for parallel ball updates.
+// Sets up read_buffer, write_buffer, world, and dt for all task entries.
+// Call once per frame before submitting tasks to threadpool.
+//
+// Parameters:
+//   manager: BallManager instance
+//   world: World containing pegs for collision detection
+//   dt: Delta time in seconds
+void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt);
 // }}}
 
 #endif // BALL_H
