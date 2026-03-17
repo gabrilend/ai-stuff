@@ -586,25 +586,19 @@ int ball_check_zone(Ball* ball, World* world) {
     if (!ball || !world) return -1;
     if (!ball->active) return -1;
 
-    // Check if ball has entered the score zone area
-    // Zone area is at bottom of world (world->height - zone_height)
-    // Zone height is 40 pixels, matching world_render_zones()
-    float zone_top_y = (float)world->height - 40.0f;
-    if (ball->y <= zone_top_y) return -1;
-
-    // Ball is below the zone threshold, check which zone it's in
-    // Uses ball center point (not radius) for zone detection
+    // Check each zone's actual bounds
+    // This allows zones to be placed anywhere on the board
     for (int i = 0; i < world->zone_count; i++) {
         ScoreZone* zone = &world->zones[i];
 
-        // Check if ball x-position is within zone boundaries
-        if (ball->x >= zone->x_min && ball->x < zone->x_max) {
+        // Check if ball center is within zone boundaries (x and y)
+        if (ball->x >= zone->x_min && ball->x < zone->x_max &&
+            ball->y >= zone->y_min && ball->y < zone->y_max) {
             return i;  // Return zone index
         }
     }
 
-    // Ball is below zone threshold but not in any zone
-    // (between zones or outside leftmost/rightmost zones)
+    // Ball not in any zone
     return -1;
 }
 // }}}

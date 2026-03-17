@@ -121,10 +121,6 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
         return;
     }
 
-    // Note: zone_height parameter reserved for future use (custom zone heights)
-    // Currently using fixed height in world_render_zones
-    (void)zone_height;  // Suppress unused parameter warning
-
     // Free existing zones if any
     if (world->zones) {
         free(world->zones);
@@ -140,8 +136,11 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
         return;
     }
 
-    // Calculate zone width
+    // Calculate zone dimensions
+    // Zones are placed at the bottom of the world
     float zone_width = (float)world->width / zone_count;
+    float zone_y_min = (float)world->height - zone_height;
+    float zone_y_max = (float)world->height;
 
     // Default point values (symmetric pattern: 10, 50, 100, 500, 100, 50, 10)
     // For 7 zones: center gets 500, working outward gets lower values
@@ -151,6 +150,8 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     for (int i = 0; i < zone_count; i++) {
         world->zones[i].x_min = i * zone_width;
         world->zones[i].x_max = (i + 1) * zone_width;
+        world->zones[i].y_min = zone_y_min;
+        world->zones[i].y_max = zone_y_max;
 
         // Assign point values (use default pattern if zone_count == 7)
         if (zone_count == 7) {
@@ -171,13 +172,13 @@ void world_render_zones(World* world) {
         return;
     }
 
-    // Zone starts at bottom of screen
-    float zone_y = world->height - 40;
-    float zone_height = 40;
-
-    // Render each zone
+    // Render each zone using its stored bounds
     for (int i = 0; i < world->zone_count; i++) {
         ScoreZone* zone = &world->zones[i];
+
+        // Calculate zone dimensions from stored bounds
+        float zone_width = zone->x_max - zone->x_min;
+        float zone_height = zone->y_max - zone->y_min;
 
         // Choose color based on point value
         Color zone_color;
@@ -192,21 +193,21 @@ void world_render_zones(World* world) {
         }
 
         // Draw zone rectangle
-        DrawRectangle((int)zone->x_min, (int)zone_y,
-                     (int)(zone->x_max - zone->x_min), (int)zone_height,
+        DrawRectangle((int)zone->x_min, (int)zone->y_min,
+                     (int)zone_width, (int)zone_height,
                      zone_color);
 
         // Draw zone border
-        DrawRectangleLines((int)zone->x_min, (int)zone_y,
-                          (int)(zone->x_max - zone->x_min), (int)zone_height,
+        DrawRectangleLines((int)zone->x_min, (int)zone->y_min,
+                          (int)zone_width, (int)zone_height,
                           DARKGRAY);
 
         // Draw point value text
         char text[16];
         sprintf(text, "%d", zone->points);
         int text_width = MeasureText(text, 20);
-        float text_x = zone->x_min + (zone->x_max - zone->x_min) / 2 - text_width / 2;
-        float text_y = zone_y + zone_height / 2 - 10;
+        float text_x = zone->x_min + zone_width / 2 - text_width / 2;
+        float text_y = zone->y_min + zone_height / 2 - 10;
         DrawText(text, (int)text_x, (int)text_y, 20, WHITE);
     }
 }

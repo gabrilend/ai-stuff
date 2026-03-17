@@ -21,11 +21,14 @@ typedef struct Peg {
 // }}}
 
 // {{{ typedef struct ScoreZone
-// ScoreZone represents a scoring slot at the bottom of the board.
-// Balls landing in a zone add points to the player's score.
+// ScoreZone represents a scoring slot on the board.
+// Balls entering a zone's bounds add points to the player's score.
+// Zones can be placed anywhere, allowing for multiple gate rows.
 typedef struct ScoreZone {
     float x_min;       // Left edge of zone
     float x_max;       // Right edge of zone
+    float y_min;       // Top edge of zone
+    float y_max;       // Bottom edge of zone
     int points;        // Point value for this zone
 } ScoreZone;
 // }}}
