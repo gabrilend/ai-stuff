@@ -146,9 +146,12 @@ int main(void) {
     printf("Viewport initialized: %.0fx%.0f world, scrollable\n",
            (float)screen_width, world_height);
 
+    // Auto-spawn toggle state
+    int auto_spawn = 0;
+
     // Main loop
     printf("Entering main loop...\n");
-    printf("Press SPACE to spawn balls, SCROLL to pan view\n");
+    printf("Press SPACE to spawn balls, A to toggle auto-spawn, SCROLL to pan view\n");
     while (!WindowShouldClose()) {
         // Get delta time for physics
         float dt = GetFrameTime();
@@ -159,10 +162,17 @@ int main(void) {
         // Update particle system
         particle_system_update(particle_system, dt);
 
+        // Handle auto-spawn toggle (A key)
+        if (IsKeyPressed(KEY_A)) {
+            auto_spawn = !auto_spawn;
+            printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
+        }
+
         // Handle ball spawning input
         // Check cooldown AND that no balls are blocking the spawn area
         // Spawn blocking prevents physics issues when balls overlap at spawn
-        if (IsKeyDown(KEY_SPACE) && ball_manager_can_spawn(ball_manager) &&
+        // Auto-spawn acts like SPACE is held down
+        if ((IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
             !ball_manager_spawn_blocked(ball_manager, SPAWN_X, SPAWN_Y)) {
             ball_manager_spawn(ball_manager, SPAWN_X, SPAWN_Y);
             ball_manager_reset_cooldown(ball_manager);
@@ -331,39 +341,45 @@ int main(void) {
         DrawRectangle(5, 5, 360, 30, (Color){0, 0, 0, 100});
         DrawText("Physics Simulator - Pachinko", 10, 10, 20, LIGHTGRAY);
 
-        // Draw score panel (left side)
-        DrawRectangle(5, screen_height - 120, 180, 115, (Color){0, 0, 0, 150});
+        // Draw score panel (top-left, below title)
+        // Moved from bottom to top so gates/zones area is unobstructed
+        DrawRectangle(5, 40, 180, 115, (Color){0, 0, 0, 150});
         char score_text[64];
         sprintf(score_text, "Score: %d", world->score);
-        DrawText(score_text, 10, screen_height - 115, 18, WHITE);
+        DrawText(score_text, 10, 45, 18, WHITE);
 
         sprintf(score_text, "High: %d", world->high_score);
-        DrawText(score_text, 10, screen_height - 92, 16, GOLD);
+        DrawText(score_text, 10, 68, 16, GOLD);
 
         char ball_text[64];
         sprintf(ball_text, "Balls: %d", ball_manager->active_count);
-        DrawText(ball_text, 10, screen_height - 68, 16, WHITE);
+        DrawText(ball_text, 10, 92, 16, WHITE);
 
         // Draw performance statistics
         char perf_text[64];
         sprintf(perf_text, "FPS: %d", GetFPS());
-        DrawText(perf_text, 10, screen_height - 44, 14, LIGHTGRAY);
+        DrawText(perf_text, 10, 116, 14, LIGHTGRAY);
 
         sprintf(perf_text, "Physics: %.2f ms", physics_ms);
-        DrawText(perf_text, 10, screen_height - 26, 14, LIGHTGRAY);
+        DrawText(perf_text, 10, 134, 14, LIGHTGRAY);
 
         sprintf(perf_text, "Threads: %d", pool->thread_count);
-        DrawText(perf_text, 10, screen_height - 8, 14, LIGHTGRAY);
+        DrawText(perf_text, 10, 152, 14, LIGHTGRAY);
 
-        // Draw controls panel (right side)
-        DrawRectangle(screen_width - 205, screen_height - 110, 200, 105,
+        // Draw controls panel (top-right, below title)
+        // Moved from bottom to top so gates/zones area is unobstructed
+        DrawRectangle(screen_width - 205, 40, 200, 120,
                      (Color){0, 0, 0, 150});
-        DrawText("Controls:", screen_width - 200, screen_height - 105, 16, LIGHTGRAY);
-        DrawText("SPACE - Spawn ball", screen_width - 200, screen_height - 83, 14, WHITE);
-        DrawText("SCROLL - Pan view", screen_width - 200, screen_height - 65, 14, WHITE);
-        DrawText("R - Reset game", screen_width - 200, screen_height - 47, 14, WHITE);
-        DrawText("ESC - Exit", screen_width - 200, screen_height - 29, 14, WHITE);
-        DrawText("Hold SPACE for more!", screen_width - 200, screen_height - 10, 12, GRAY);
+        DrawText("Controls:", screen_width - 200, 45, 16, LIGHTGRAY);
+        DrawText("SPACE - Spawn ball", screen_width - 200, 67, 14, WHITE);
+        DrawText("A - Toggle auto-spawn", screen_width - 200, 85, 14, WHITE);
+        DrawText("SCROLL - Pan view", screen_width - 200, 103, 14, WHITE);
+        DrawText("R - Reset game", screen_width - 200, 121, 14, WHITE);
+        DrawText("ESC - Exit", screen_width - 200, 139, 14, WHITE);
+        // Auto-spawn status indicator
+        if (auto_spawn) {
+            DrawText("[AUTO-SPAWN ON]", screen_width - 200, 157, 12, GREEN);
+        }
 
         EndDrawing();
     }
