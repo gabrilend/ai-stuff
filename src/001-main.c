@@ -386,7 +386,12 @@ int main(void) {
 
         // Spawn particle bursts for balls that scored this frame
         // Must happen BEFORE collect_scores because it resets scored/score_delta
+        // Only process task data for balls that were active this frame
+        // (prevents stale task_data from spawning particles for dead balls)
         for (int i = 0; i < ball_manager->capacity; i++) {
+            // Skip balls that weren't active at start of frame
+            if (!ball_manager->balls_current[i].active) continue;
+
             BallTaskData* task = &ball_manager->task_data[i];
             if (task->scored) {
                 // Choose ripple color based on point value

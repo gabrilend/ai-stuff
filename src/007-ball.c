@@ -423,18 +423,21 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
 
         Ball* other = &read_buffer[i];
         if (ball_check_ball_collision(ball, other, &nx, &ny, &depth)) {
-            // Calculate relative velocity BEFORE resolving collision
-            // (resolution modifies velocities, making post-check impossible)
-            float rel_vx = ball->vx - other->vx;
-            float rel_vy = ball->vy - other->vy;
+            // Use READ buffer velocities for both balls to compare same time point
+            // (write buffer has gravity applied, read buffer is last frame)
+            Ball* current_ball = &read_buffer[ball_index];
+            float rel_vx = current_ball->vx - other->vx;
+            float rel_vy = current_ball->vy - other->vy;
             float vn = rel_vx * nx + rel_vy * ny;
 
             ball_resolve_ball_collision(ball, other, nx, ny, depth);
 
-            // Track cross-owner collision for splash effect (only first one)
+            // Track cross-owner collision for splash effect
+            // Only track when ball_index < i to avoid double-detection
+            // (both balls detect same collision; only lower index spawns splash)
             // Only track if balls were actually approaching with meaningful velocity
-            // This prevents continuous splash spawning while balls are overlapping
             if (collision_out && collision_out[0] == 0.0f &&
+                ball_index < i &&
                 ball->owner != other->owner && vn < -10.0f) {
                 collision_out[0] = 1.0f;  // had_collision
                 // Collision point is midpoint between ball centers
