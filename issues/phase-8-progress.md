@@ -21,10 +21,11 @@ opponent, creating competitive gameplay with resource management.
 | 810 | Granular upgrade levels            | Complete |
 | 811 | Escape key behavior / Q to quit    | Complete |
 | 812 | Particle effects overhaul          | Complete |
+| 813 | Fix persistent splash particles    | Complete |
 
 ## Progress Summary
 
-**Completed:** 12/12 issues (100%)
+**Completed:** 13/13 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -176,3 +177,14 @@ Complete rewrite of particle system with three new effect types:
 - Iridescent trailing ribbons with hue shift
 
 Files: 006-ball.h, 007-ball.c, 008-particles.h, 009-particles.c, 001-main.c
+
+### Issue 813 - Fix Persistent Splash Particles (Complete)
+
+Bug fix for splash particles spawning continuously while balls overlap:
+
+- Root cause: collision tracking fired every frame during overlap, not just on impact
+- Added velocity check to `ball_collide_with_balls` collision tracking
+- Only flags collision when balls approaching with velocity > 10 units/sec
+- Matches existing velocity check pattern in `ball_resolve_ball_collision`
+
+Files: 007-ball.c
