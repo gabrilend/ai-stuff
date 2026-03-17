@@ -26,8 +26,8 @@
 
 // {{{ main
 int main(void) {
-    const int screen_width = 800;
-    const int screen_height = 600;
+    const int screen_width = 800;  // Fixed horizontal size
+    int screen_height = 600;       // Will be adjusted to monitor
 
     // Seed random number generator for ball spawning
     srand((unsigned int)time(NULL));
@@ -44,14 +44,28 @@ int main(void) {
     printf("Threadpool created: %d workers (auto-detected), 64 queue capacity\n",
            thread_count);
 
-    // Initialize raylib window
+    // Initialize raylib window with resizable flag
+    // Start with default size, then resize based on monitor detection
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(screen_width, screen_height, "Physics Simulator - Pachinko");
     SetTargetFPS(60);
-    printf("Raylib window initialized: %dx%d @ 60fps\n", screen_width, screen_height);
 
-    // Create world with expanded height for scrollable board
-    // World height > screen height enables scrolling viewport
-    const int world_height_pixels = 900;  // Taller than 600px screen
+    // Detect monitor size and scale window vertically
+    // Works on X11 (i3, dwm) and Wayland (sway) via raylib abstraction
+    int monitor = GetCurrentMonitor();
+    int monitor_height = GetMonitorHeight(monitor);
+    int monitor_width = GetMonitorWidth(monitor);
+    printf("Detected monitor %d: %dx%d\n", monitor, monitor_width, monitor_height);
+
+    // Scale window height to 90% of monitor height (leave room for panels/bars)
+    // Keep width fixed at 800 as requested
+    screen_height = (int)(monitor_height * 0.9f);
+    SetWindowSize(screen_width, screen_height);
+    printf("Window resized to: %dx%d\n", screen_width, screen_height);
+
+    // World height matches window height (no scrolling needed when full-screen)
+    // Can still scroll if world is made larger than window
+    int world_height_pixels = screen_height;
     World* world = world_create(screen_width, world_height_pixels);
     if (!world) {
         fprintf(stderr, "ERROR: Failed to create world\n");
@@ -61,18 +75,26 @@ int main(void) {
     }
     printf("World created: %dx%d\n", screen_width, world_height_pixels);
 
-    // Generate peg grid (15 rows, 8 cols, centered)
-    // More rows to fill the taller board
+    // Generate peg grid dynamically based on world height
+    // Calculate rows to fill available vertical space
     float peg_spacing = 60.0f;
-    int peg_rows = 15;
+    float peg_start_y = 80.0f;
+    float zone_height = 40.0f;
+    float bottom_margin = 20.0f;  // Space between last peg row and zones
+
+    // Available space for pegs: world_height - top - zones - margin
+    float available_height = world_height_pixels - peg_start_y - zone_height - bottom_margin;
+    int peg_rows = (int)(available_height / peg_spacing);
+    if (peg_rows < 5) peg_rows = 5;    // Minimum 5 rows
+    if (peg_rows > 30) peg_rows = 30;  // Maximum 30 rows
+
     int peg_cols = 8;
     float peg_start_x = (screen_width - (peg_cols * peg_spacing)) / 2.0f;
-    float peg_start_y = 80.0f;
     world_generate_pegs(world, peg_rows, peg_cols, peg_start_x, peg_start_y, peg_spacing);
-    printf("Generated peg grid: %d rows, %d cols\n", peg_rows, peg_cols);
+    printf("Generated peg grid: %d rows, %d cols (scaled to window)\n", peg_rows, peg_cols);
 
-    // Generate score zones (7 zones, 40 pixels high)
-    world_generate_zones(world, 7, 40.0f);
+    // Generate score zones (7 zones at bottom of world)
+    world_generate_zones(world, 7, zone_height);
     printf("Generated score zones: 7 zones\n");
 
     // Create ball manager
