@@ -5,6 +5,7 @@
 #include "003-threadpool.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>  // For sysconf
 
 // {{{ worker_thread
 // Worker thread loop: dequeues and executes tasks until shutdown.
@@ -193,5 +194,32 @@ void threadpool_destroy(ThreadPool* pool) {
     pthread_mutex_destroy(&pool->pending_lock);
     pthread_cond_destroy(&pool->all_done);
     free(pool);
+}
+// }}}
+
+// {{{ get_optimal_thread_count
+int get_optimal_thread_count(void) {
+    // Detect number of online processors using POSIX sysconf
+    long cores = sysconf(_SC_NPROCESSORS_ONLN);
+
+    // Fallback to 4 if detection fails
+    if (cores < 1) {
+        fprintf(stderr, "WARNING: Could not detect CPU count, defaulting to 4\n");
+        cores = 4;
+    }
+
+    // Calculate optimal thread count: cores - 1 (leave one for main thread)
+    int thread_count = (int)cores - 1;
+
+    // Clamp to reasonable range [2, 16]
+    // Minimum 2: need at least 2 threads for parallelism benefit
+    // Maximum 16: diminishing returns and memory overhead beyond this
+    if (thread_count < 2) {
+        thread_count = 2;
+    } else if (thread_count > 16) {
+        thread_count = 16;
+    }
+
+    return thread_count;
 }
 // }}}

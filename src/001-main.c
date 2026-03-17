@@ -31,14 +31,15 @@ int main(void) {
 
     printf("Physics Simulator - Initializing...\n");
 
-    // Initialize threadpool
-    // Using 4 worker threads and queue capacity of 64
-    ThreadPool* pool = threadpool_create(4, 64);
+    // Initialize threadpool with detected optimal thread count
+    int thread_count = get_optimal_thread_count();
+    ThreadPool* pool = threadpool_create(thread_count, 64);
     if (!pool) {
         fprintf(stderr, "ERROR: Failed to create threadpool\n");
         return 1;
     }
-    printf("Threadpool created: 4 workers, 64 queue capacity\n");
+    printf("Threadpool created: %d workers (auto-detected), 64 queue capacity\n",
+           thread_count);
 
     // Initialize raylib window
     InitWindow(screen_width, screen_height, "Physics Simulator - Pachinko");

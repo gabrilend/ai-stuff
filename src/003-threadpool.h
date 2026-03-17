@@ -90,4 +90,14 @@ void threadpool_wait_all(ThreadPool* pool);
 void threadpool_destroy(ThreadPool* pool);
 // }}}
 
+// {{{ get_optimal_thread_count
+// Detects the number of CPU cores and returns an optimal thread count.
+// Uses sysconf(_SC_NPROCESSORS_ONLN) on Linux.
+// Returns (cores - 1) clamped to range [2, 16].
+//
+// Returns:
+//   Optimal number of worker threads
+int get_optimal_thread_count(void);
+// }}}
+
 #endif // THREADPOOL_H
