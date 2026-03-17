@@ -452,11 +452,14 @@ int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_
     // Check if any active ball is within spawn Y level
     // This prevents bypassing spawn blocking by moving mouse horizontally
     // Use vertical distance only - if any ball is near spawn height, block
-    float spawn_margin = BALL_RADIUS * 4.0f;  // Vertical safety margin
 
     for (int i = 0; i < manager->capacity; i++) {
         Ball* ball = &manager->balls_current[i];
         if (!ball->active) continue;
+
+        // Dynamic margin based on ball radius (supports future size upgrades)
+        // 1.5x ball radius gives just enough clearance to prevent overlap
+        float spawn_margin = ball->radius * 1.5f;
 
         // Check vertical distance from spawn height only
         // This makes blocking position-independent
