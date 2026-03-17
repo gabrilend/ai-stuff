@@ -1,2 +1,12 @@
 when the screen is resized, the info boxes aren't repositioned correctly. They
 should be anchored to the viewport, not the world.
+
+if the user moves the mouse back-and-forth rapidly, it's possible to spawn many
+balls at once. We should add a cooldown that is intended to be modified later
+on, when we implement future features like upgrades and such. If the user is
+unable to spawn a ball because there is another ball inside the spawn radius,
+then instead of wasting that opportunity we should think of a way to "save" that
+extra spawn time, so the user isn't rewarded for flicking the mouse back and
+forth, and they aren't penalized for leaving it alone. This should also have the
+benefit of "standardizing" the output of balls per second, even if they are
+unable to spawn immediately, they should still spawn at roughly the same rate.

@@ -26,7 +26,7 @@
 
 // {{{ main
 int main(void) {
-    const int screen_width = 800;  // Fixed horizontal size
+    int screen_width = 800;  // Initial horizontal size (updated on resize)
     int screen_height = 600;       // Will be adjusted to monitor
 
     // Seed random number generator for ball spawning
@@ -215,10 +215,10 @@ int main(void) {
         // Handle window resize - recalculate table centering and regenerate world
         if (IsWindowResized()) {
             screen_height = GetScreenHeight();
-            int new_screen_width = GetScreenWidth();
+            screen_width = GetScreenWidth();  // Update for UI anchoring
 
             // Update world dimensions
-            world->width = new_screen_width;
+            world->width = screen_width;
             world->height = screen_height;
 
             // Recalculate table centering (width stays fixed at 800)
@@ -239,7 +239,7 @@ int main(void) {
             world_generate_zones(world, 7, zone_height);
 
             // Update camera offset to match new screen center
-            camera.offset = (Vector2){ (float)new_screen_width / 2.0f,
+            camera.offset = (Vector2){ (float)screen_width / 2.0f,
                                        (float)screen_height / 2.0f };
 
             // Clamp viewport offset to new valid range
@@ -249,11 +249,11 @@ int main(void) {
             if (viewport_offset_y > max_offset) viewport_offset_y = max_offset;
 
             // Update camera target
-            camera.target = (Vector2){ (float)new_screen_width / 2.0f,
+            camera.target = (Vector2){ (float)screen_width / 2.0f,
                                        (float)screen_height / 2.0f + viewport_offset_y };
 
             printf("Window resized: %dx%d, table_x=%.0f, peg_rows=%d\n",
-                   new_screen_width, screen_height, world->table_x, new_peg_rows);
+                   screen_width, screen_height, world->table_x, new_peg_rows);
         }
 
         // Handle reset input (R key)
