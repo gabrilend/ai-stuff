@@ -9,9 +9,9 @@ opponent, creating competitive gameplay with resource management.
 
 | ID  | Description                        | Status  |
 |-----|------------------------------------|---------|
-| 801 | Upgrade system framework           | Pending |
-| 802 | Spawn rate upgrade                 | Pending |
-| 803 | Ball radius upgrade                | Pending |
+| 801 | Upgrade system framework           | Complete |
+| 802 | Spawn rate upgrade                 | Complete |
+| 803 | Ball radius upgrade                | Complete |
 | 804 | Adversary board layout             | Pending |
 | 805 | Adversary spawning AI              | Pending |
 | 806 | Shared gates / ball passthrough    | Pending |
@@ -20,7 +20,7 @@ opponent, creating competitive gameplay with resource management.
 
 ## Progress Summary
 
-**Completed:** 1/8 issues (12.5%)
+**Completed:** 4/8 issues (50%)
 **Phase 8:** In Progress
 
 ## Notes
@@ -52,6 +52,28 @@ Success is measured by:
 Phase 7 must be complete (spawn system and UI improvements).
 
 ## Implementation Log
+
+### Issues 801-803 - Upgrade System (Complete)
+
+Implemented complete upgrade system with menu UI and two upgrades:
+
+- Created UpgradeManager with Upgrade struct (name, description, base_cost, level, max_level)
+- Tab key toggles upgrade menu overlay
+- Up/Down selects upgrade, Enter purchases, Escape closes
+- Purchases deduct from current score (not high score)
+- Cost scaling: base_cost * (level + 1)
+
+**Spawn Rate Upgrade (802):**
+- +1 ball/sec per level, max 5 levels
+- Base cost 100, scales to 500 at level 5
+- Bonus credits added to spawn_credits each frame
+
+**Ball Size Upgrade (803):**
+- -1 radius per level, max 3 levels (minimum radius 5)
+- Base cost 150, scales to 450 at level 3
+- Modified ball_manager_spawn() to accept radius parameter
+
+Files: 010-upgrades.h, 011-upgrades.c, 001-main.c, 006-ball.h, 007-ball.c
 
 ### Issue 808 - Gate Bumpers (Complete)
 

@@ -84,8 +84,12 @@ void ball_manager_destroy(BallManager* manager) {
 // }}}
 
 // {{{ ball_manager_spawn
-int ball_manager_spawn(BallManager* manager, float x, float y) {
+int ball_manager_spawn(BallManager* manager, float x, float y, float radius) {
     if (!manager) return 0;
+
+    // Clamp radius to reasonable bounds (minimum 4, maximum default)
+    if (radius < 4.0f) radius = 4.0f;
+    if (radius > BALL_RADIUS) radius = BALL_RADIUS;
 
     // Find an inactive slot in current buffer
     for (int i = 0; i < manager->capacity; i++) {
@@ -100,7 +104,7 @@ int ball_manager_spawn(BallManager* manager, float x, float y) {
             // Initial downward velocity
             ball->vy = SPAWN_VY_INITIAL;
 
-            ball->radius = BALL_RADIUS;
+            ball->radius = radius;
             ball->active = 1;
             manager->active_count++;
             return 1;

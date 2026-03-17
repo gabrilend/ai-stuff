@@ -104,7 +104,7 @@ void ball_manager_destroy(BallManager* manager);
 // }}}
 
 // {{{ ball_manager_spawn
-// Spawns a new ball at the given position.
+// Spawns a new ball at the given position with specified radius.
 // Finds an inactive slot and activates it.
 // Returns 0 if no slots available.
 //
@@ -112,10 +112,11 @@ void ball_manager_destroy(BallManager* manager);
 //   manager: BallManager instance
 //   x: Starting x position in pixels
 //   y: Starting y position in pixels
+//   radius: Ball radius (use BALL_RADIUS + upgrade modifier)
 //
 // Returns:
 //   1 on success, 0 if capacity reached
-int ball_manager_spawn(BallManager* manager, float x, float y);
+int ball_manager_spawn(BallManager* manager, float x, float y, float radius);
 // }}}
 
 // {{{ ball_manager_swap_buffers

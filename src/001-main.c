@@ -13,6 +13,7 @@
 #include "004-world.h"
 #include "006-ball.h"
 #include "008-particles.h"
+#include "010-upgrades.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -132,6 +133,19 @@ int main(void) {
     }
     printf("Particle system created: 256 capacity\n");
 
+    // Create upgrade manager
+    UpgradeManager* upgrade_manager = upgrade_manager_create();
+    if (!upgrade_manager) {
+        fprintf(stderr, "ERROR: Failed to create upgrade manager\n");
+        particle_system_destroy(particle_system);
+        ball_manager_destroy(ball_manager);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    printf("Upgrade manager created\n");
+
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
     float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
@@ -168,8 +182,17 @@ int main(void) {
         // Get delta time for physics
         float dt = GetFrameTime();
 
-        // Update spawn cooldown
+        // Update spawn cooldown (base rate)
         ball_manager_update_cooldown(ball_manager, dt);
+
+        // Add bonus spawn credits from upgrades
+        float spawn_rate_bonus = upgrade_get_spawn_rate_bonus(upgrade_manager);
+        if (spawn_rate_bonus > 0.0f) {
+            ball_manager->spawn_credits += spawn_rate_bonus * dt;
+            if (ball_manager->spawn_credits > MAX_SPAWN_CREDITS) {
+                ball_manager->spawn_credits = MAX_SPAWN_CREDITS;
+            }
+        }
 
         // Update particle system
         particle_system_update(particle_system, dt);
@@ -202,11 +225,14 @@ int main(void) {
         if (spawn_x < spawn_min_x) spawn_x = spawn_min_x;
         if (spawn_x > spawn_max_x) spawn_x = spawn_max_x;
 
-        // Handle auto-spawn toggle (A key)
-        if (IsKeyPressed(KEY_A)) {
+        // Handle auto-spawn toggle (A key) - only when menu is closed
+        if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open) {
             auto_spawn = !auto_spawn;
             printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
         }
+
+        // Handle upgrade menu input
+        upgrade_manager_handle_input(upgrade_manager, &world->score);
 
         // NOTE: Ball spawning moved to after physics/buffer swap
         // This ensures balls appear at spawn position on first frame
@@ -342,9 +368,13 @@ int main(void) {
         // Spawn blocking prevents physics issues when balls overlap at spawn
         // Auto-spawn acts like SPACE is held down
         // Uses movable spawn_x position, fixed spawn_y height
-        if ((IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
+        // Spawning paused while upgrade menu is open
+        if (!upgrade_manager->menu_open &&
+            (IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
             !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
-            ball_manager_spawn(ball_manager, spawn_x, spawn_y);
+            // Calculate ball radius with upgrade modifier
+            float ball_radius = BALL_RADIUS + upgrade_get_ball_radius_modifier(upgrade_manager);
+            ball_manager_spawn(ball_manager, spawn_x, spawn_y, ball_radius);
             ball_manager_reset_cooldown(ball_manager);
         }
 
@@ -426,18 +456,23 @@ int main(void) {
 
         // Draw controls panel (top-right, below title)
         // Moved from bottom to top so gates/zones area is unobstructed
-        DrawRectangle(screen_width - 205, 40, 200, 120,
+        DrawRectangle(screen_width - 205, 40, 200, 135,
                      (Color){0, 0, 0, 150});
         DrawText("Controls:", screen_width - 200, 45, 16, LIGHTGRAY);
-        DrawText("SPACE - Spawn ball", screen_width - 200, 67, 14, WHITE);
-        DrawText("A - Toggle auto-spawn", screen_width - 200, 85, 14, WHITE);
-        DrawText("SCROLL - Pan view", screen_width - 200, 103, 14, WHITE);
-        DrawText("R - Reset game", screen_width - 200, 121, 14, WHITE);
-        DrawText("ESC - Exit", screen_width - 200, 139, 14, WHITE);
+        DrawText("SPACE - Spawn ball", screen_width - 200, 65, 14, WHITE);
+        DrawText("A - Toggle auto-spawn", screen_width - 200, 81, 14, WHITE);
+        DrawText("TAB - Upgrades", screen_width - 200, 97, 14, WHITE);
+        DrawText("SCROLL - Pan view", screen_width - 200, 113, 14, WHITE);
+        DrawText("R - Reset game", screen_width - 200, 129, 14, WHITE);
+        DrawText("ESC - Exit", screen_width - 200, 145, 14, WHITE);
         // Auto-spawn status indicator
         if (auto_spawn) {
-            DrawText("[AUTO-SPAWN ON]", screen_width - 200, 157, 12, GREEN);
+            DrawText("[AUTO-SPAWN ON]", screen_width - 200, 163, 12, GREEN);
         }
+
+        // Draw upgrade menu overlay (if open)
+        upgrade_manager_render(upgrade_manager, world->score,
+                              screen_width, screen_height);
 
         EndDrawing();
     }
@@ -446,6 +481,9 @@ int main(void) {
     printf("Shutting down...\n");
     CloseWindow();
     printf("Raylib window closed\n");
+
+    upgrade_manager_destroy(upgrade_manager);
+    printf("Upgrade manager destroyed\n");
 
     particle_system_destroy(particle_system);
     printf("Particle system destroyed\n");
