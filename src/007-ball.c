@@ -464,6 +464,15 @@ void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt) {
         manager->task_data[i].world = world;
         manager->task_data[i].dt = dt;
         manager->task_data[i].capacity = manager->capacity;
+
+        // CRITICAL: Propagate inactive state from current to next buffer
+        // When a ball is inactive, no task is submitted for it. Without this,
+        // balls_next retains a stale active=1 from a previous frame. After
+        // the next swap, this stale state becomes balls_current, causing
+        // the ball to "resurrect" and trigger scoring/particles again.
+        if (!manager->balls_current[i].active) {
+            manager->balls_next[i].active = 0;
+        }
     }
 }
 // }}}

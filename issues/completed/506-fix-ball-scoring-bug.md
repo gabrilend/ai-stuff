@@ -101,6 +101,30 @@ scored and became inactive:
 
 Compilation tested: No warnings.
 
+### Additional Fix (Session 2)
+
+**Problem Persisted:**
+The initial fix addressed `scored` flag persistence but balls still flickered.
+
+**True Root Cause:**
+When a ball becomes inactive, no task is submitted for it on subsequent frames.
+But `balls_next` retained a stale `active=1` from a previous frame. After swap:
+1. Frame N: Ball scores, `next[i].active = 0`
+2. Swap: `current[i] = 0`, `next[i]` has stale value (active=1 from N-1)
+3. Frame N+1: No task submitted (current inactive), `next[i]` unchanged
+4. Swap: `current[i] = 1` (the stale value!) - ball resurrects!
+5. Frame N+2: Task submitted, ball scores AGAIN
+
+**Fix:**
+In `ball_manager_prepare_tasks()`, explicitly propagate inactive state:
+```c
+if (!manager->balls_current[i].active) {
+    manager->balls_next[i].active = 0;
+}
+```
+
+This ensures inactive balls stay inactive in both buffers, preventing resurrection.
+
 ## Status
 
 - [x] Complete

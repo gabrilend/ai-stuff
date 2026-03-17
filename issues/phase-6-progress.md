@@ -45,6 +45,7 @@ Phase 5 must be complete (scoring and polish).
 
 Fixed critical bug where balls flickered and triggered multiple scoring/particles.
 
+**Initial Fix:**
 Root cause: `scored` flag in BallTaskData was never reset for inactive balls. When
 a ball scored and became inactive, no task was submitted for it on future frames,
 so the `scored=1` flag persisted forever.
@@ -52,6 +53,14 @@ so the `scored=1` flag persisted forever.
 Fix: Modified `ball_manager_collect_scores()` to reset both `score_delta` AND `scored`
 for all task entries. Reordered main loop to spawn particles BEFORE collecting scores
 (while flags are still valid).
+
+**Additional Fix (Session 2):**
+Bug persisted due to deeper double-buffer issue. When a ball becomes inactive, no
+task runs for it, so `balls_next` retains stale `active=1` from previous frame.
+After buffer swap, stale value resurrects the ball.
+
+Fix: In `ball_manager_prepare_tasks()`, explicitly propagate inactive state from
+`balls_current` to `balls_next` for all inactive balls. This prevents resurrection.
 
 ### Issue 507 - System Thread Detection (Complete)
 
@@ -114,3 +123,10 @@ Scroll mechanics:
 
 When board expands in future, increase world_height to enable scrolling.
 All world elements (pegs, balls, zones, particles) scroll automatically.
+
+**Board Expansion (Session 2):**
+Expanded board to test scrolling functionality:
+- World height: 600px → 900px
+- Peg rows: 10 → 15
+- ZONE_TOP_Y: 560 → 860 (world_height - 40)
+- Scrolling now functional: mouse wheel pans viewport up/down

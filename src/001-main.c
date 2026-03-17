@@ -49,19 +49,22 @@ int main(void) {
     SetTargetFPS(60);
     printf("Raylib window initialized: %dx%d @ 60fps\n", screen_width, screen_height);
 
-    // Create world
-    World* world = world_create(screen_width, screen_height);
+    // Create world with expanded height for scrollable board
+    // World height > screen height enables scrolling viewport
+    const int world_height_pixels = 900;  // Taller than 600px screen
+    World* world = world_create(screen_width, world_height_pixels);
     if (!world) {
         fprintf(stderr, "ERROR: Failed to create world\n");
         threadpool_destroy(pool);
         CloseWindow();
         return 1;
     }
-    printf("World created: %dx%d\n", screen_width, screen_height);
+    printf("World created: %dx%d\n", screen_width, world_height_pixels);
 
-    // Generate peg grid (10 rows, 8 cols, centered)
+    // Generate peg grid (15 rows, 8 cols, centered)
+    // More rows to fill the taller board
     float peg_spacing = 60.0f;
-    int peg_rows = 10;
+    int peg_rows = 15;
     int peg_cols = 8;
     float peg_start_x = (screen_width - (peg_cols * peg_spacing)) / 2.0f;
     float peg_start_y = 80.0f;
@@ -97,7 +100,7 @@ int main(void) {
 
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
-    float world_height = (float)screen_height;  // Expandable for larger boards
+    float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
     float viewport_offset_y = 0.0f;             // Current scroll position
 
     // Setup 2D camera for viewport scrolling
