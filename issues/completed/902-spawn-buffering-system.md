@@ -93,3 +93,17 @@ Changed `ball_manager_spawn_blocked()` to check vertical distance only.
 If ANY ball is within spawn_margin of SPAWN_Y, spawning is blocked regardless
 of horizontal position. This ensures consistent spawn rate whether mouse
 is moving or stationary.
+
+**Fix (Session 3):** Restored circular distance checking.
+The Y-only approach was too conservative - balls had to fall far enough
+vertically before clearing, even if they had horizontal velocity taking
+them away from the spawn point.
+
+Changed `ball_manager_spawn_blocked()` to use Euclidean distance:
+- `dist_sq = dx*dx + dy*dy` (circular check centered on spawn point)
+- Balls moving left/right exit blocking zone quickly via horizontal motion
+- Balls still spawn at exact reticle center (spawn_x, spawn_y)
+- Spawn margin remains 1.5x ball radius
+
+This allows more natural spawning when balls have initial horizontal velocity,
+while still preventing overlap at the spawn point.

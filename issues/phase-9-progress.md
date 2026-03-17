@@ -56,3 +56,8 @@ Supports future upgrade mechanics for spawn rate modification.
 **Fix (Session 2):** Made spawn blocking position-independent.
 Changed `ball_manager_spawn_blocked()` to check Y distance only,
 blocking if ANY ball is near spawn height regardless of X position.
+
+**Fix (Session 3):** Restored circular distance checking.
+Y-only was too conservative. Now uses Euclidean distance centered on
+reticle (spawn_x, spawn_y). Balls with horizontal velocity exit blocking
+zone quickly, allowing more natural spawn flow.

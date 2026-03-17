@@ -445,13 +445,11 @@ void ball_manager_reset_cooldown(BallManager* manager) {
 // }}}
 
 // {{{ ball_manager_spawn_blocked
+// Checks circular distance from reticle center (spawn_x, spawn_y).
+// Balls with initial horizontal velocity will quickly exit the blocking zone,
+// allowing the next ball to spawn - no need to wait for vertical clearance.
 int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_y) {
     if (!manager) return 0;
-    (void)spawn_x;  // Position-independent blocking (prevents mouse exploit)
-
-    // Check if any active ball is within spawn Y level
-    // This prevents bypassing spawn blocking by moving mouse horizontally
-    // Use vertical distance only - if any ball is near spawn height, block
 
     for (int i = 0; i < manager->capacity; i++) {
         Ball* ball = &manager->balls_current[i];
@@ -461,13 +459,15 @@ int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_
         // 1.5x ball radius is minimum clearance to prevent overlap
         float spawn_margin = ball->radius * 1.5f;
 
-        // Check vertical distance from spawn height only
-        // This makes blocking position-independent
+        // Circular distance check centered on reticle position
+        // Balls moving left/right exit blocking zone quickly via horizontal distance
+        float dx = ball->x - spawn_x;
         float dy = ball->y - spawn_y;
-        if (dy < 0) dy = -dy;  // Absolute value
+        float dist_sq = dx * dx + dy * dy;
+        float min_dist = spawn_margin + ball->radius;
 
-        if (dy < spawn_margin + ball->radius) {
-            return 1;  // Spawn is blocked by ball at spawn height
+        if (dist_sq < min_dist * min_dist) {
+            return 1;  // Spawn is blocked by ball within reticle zone
         }
     }
 
