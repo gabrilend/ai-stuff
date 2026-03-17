@@ -1,21 +1,51 @@
 // src/008-particles.h
 // Particle system for visual effects
-// Provides burst effects and floating text for scoring events
+// Provides burst effects, ripples, collision splashes, and explosion fragments
 
 #ifndef PARTICLES_H
 #define PARTICLES_H
 
 #include <raylib.h>
 
+// Forward declarations
+typedef struct World World;
+
+// Particle type enum
+typedef enum {
+    PARTICLE_SIMPLE,     // Basic particle (burst effects)
+    PARTICLE_RIPPLE,     // Expanding ring (gate effects)
+    PARTICLE_FRAGMENT    // Physics-enabled ball fragment (explosions)
+} ParticleType;
+
+// Trail point for fragment ribbons
+#define TRAIL_LENGTH 16
+
 // {{{ typedef struct Particle
 // Particle represents a single visual effect particle.
-// Used for score burst effects when balls are captured.
+// Union-style struct supports multiple particle behaviors.
 typedef struct Particle {
+    ParticleType type;   // Particle behavior type
     float x, y;          // Position in pixels
     float vx, vy;        // Velocity in pixels per second
     float life;          // Remaining lifetime in seconds
     float max_life;      // Initial lifetime (for alpha fade calculation)
     Color color;         // Particle color
+
+    // Ripple-specific fields (type == PARTICLE_RIPPLE)
+    float radius;        // Current ripple radius
+    float max_radius;    // Maximum expansion radius
+    float thickness;     // Ring thickness
+
+    // Fragment-specific fields (type == PARTICLE_FRAGMENT)
+    float size;          // Fragment visual size
+    float angle;         // Current rotation angle (radians)
+    float angular_vel;   // Rotation speed (radians/sec)
+    int corkscrew;       // 1 if doing corkscrew motion
+    float corkscrew_phase; // Phase offset for corkscrew
+    float trail_x[TRAIL_LENGTH];  // Trail X positions
+    float trail_y[TRAIL_LENGTH];  // Trail Y positions
+    int trail_head;      // Current trail write index
+    float trail_timer;   // Time until next trail point
 } Particle;
 // }}}
 
@@ -81,6 +111,59 @@ void particle_system_render(ParticleSystem* ps);
 //   color: Particle color
 void particle_spawn_burst(ParticleSystem* ps, float x, float y,
                           int count, Color color);
+// }}}
+
+// {{{ particle_spawn_ripple
+// Spawns an expanding ripple ring at the given position.
+// Used for gate scoring effects.
+//
+// Parameters:
+//   ps: ParticleSystem instance
+//   x: Center x position
+//   y: Center y position
+//   color: Ripple color
+void particle_spawn_ripple(ParticleSystem* ps, float x, float y, Color color);
+// }}}
+
+// {{{ particle_spawn_splash
+// Spawns a small collision splash along the tangent direction.
+// Particles spread ~30 degrees from the tangent in both directions.
+//
+// Parameters:
+//   ps: ParticleSystem instance
+//   x: Collision x position
+//   y: Collision y position
+//   tangent_x: Tangent direction x (normalized)
+//   tangent_y: Tangent direction y (normalized)
+//   color: Splash color
+void particle_spawn_splash(ParticleSystem* ps, float x, float y,
+                           float tangent_x, float tangent_y, Color color);
+// }}}
+
+// {{{ particle_spawn_fragments
+// Spawns explosion fragments that split into thirds, quarters, sixths, or eighths.
+// Fragments have physics, optional corkscrew motion, and iridescent trails.
+//
+// Parameters:
+//   ps: ParticleSystem instance
+//   x: Explosion x position
+//   y: Explosion y position
+//   vx: Ball velocity x (fragments inherit momentum)
+//   vy: Ball velocity y
+//   color: Base fragment color
+void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
+                              float vx, float vy, Color color);
+// }}}
+
+// {{{ particle_system_update_with_world
+// Updates all active particles with world collision for fragments.
+// Fragments collide with pegs/bumpers but don't affect them.
+//
+// Parameters:
+//   ps: ParticleSystem instance
+//   world: World for fragment collision detection
+//   dt: Delta time in seconds
+void particle_system_update_with_world(ParticleSystem* ps, World* world, float dt);
 // }}}
 
 #endif // PARTICLES_H

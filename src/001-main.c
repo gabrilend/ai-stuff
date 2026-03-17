@@ -221,8 +221,8 @@ int main(void) {
             }
         }
 
-        // Update particle system
-        particle_system_update(particle_system, dt);
+        // Update particle system (with world for fragment physics)
+        particle_system_update_with_world(particle_system, world, dt);
 
         // Handle spawn point movement - mouse takes priority over keyboard
         // Calculate spawn bounds (keep ball radius away from rails)
@@ -389,28 +389,38 @@ int main(void) {
         for (int i = 0; i < ball_manager->capacity; i++) {
             BallTaskData* task = &ball_manager->task_data[i];
             if (task->scored) {
-                // Choose particle color based on point value
-                Color particle_color;
+                // Choose ripple color based on point value
+                Color ripple_color;
                 if (task->score_delta >= 500) {
-                    particle_color = GOLD;
+                    ripple_color = GOLD;
                 } else if (task->score_delta >= 100) {
-                    particle_color = GREEN;
+                    ripple_color = GREEN;
                 } else if (task->score_delta >= 50) {
-                    particle_color = BLUE;
+                    ripple_color = BLUE;
                 } else {
-                    particle_color = GRAY;
+                    ripple_color = GRAY;
                 }
 
-                // Spawn burst of 12 particles at score position
-                particle_spawn_burst(particle_system, task->score_pos_x,
-                                   task->score_pos_y, 12, particle_color);
+                // Spawn ripple effect at gate position (halo pulse)
+                particle_spawn_ripple(particle_system, task->score_pos_x,
+                                     task->score_pos_y, ripple_color);
             }
 
-            // Spawn explosion for balls destroyed by cross-board damage
+            // Spawn explosion fragments for balls destroyed by cross-board damage
             if (task->died_from_damage) {
-                // Bright explosion - more particles, dramatic color
-                particle_spawn_burst(particle_system, task->death_pos_x,
-                                   task->death_pos_y, 24, MAGENTA);
+                // Ball splits into fragments with physics and trails
+                particle_spawn_fragments(particle_system, task->death_pos_x,
+                                        task->death_pos_y, task->death_vx,
+                                        task->death_vy, MAGENTA);
+            }
+
+            // Spawn splash for cross-owner ball collisions
+            if (task->had_collision) {
+                // Small tangent splash at collision point
+                Color splash_color = (Color){255, 200, 100, 255};  // Warm spark
+                particle_spawn_splash(particle_system, task->collision_x,
+                                     task->collision_y, task->collision_tx,
+                                     task->collision_ty, splash_color);
             }
         }
 

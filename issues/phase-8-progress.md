@@ -20,10 +20,11 @@ opponent, creating competitive gameplay with resource management.
 | 809 | Ball health and damage system      | Complete |
 | 810 | Granular upgrade levels            | Complete |
 | 811 | Escape key behavior / Q to quit    | Complete |
+| 812 | Particle effects overhaul          | Complete |
 
 ## Progress Summary
 
-**Completed:** 11/11 issues (100%)
+**Completed:** 12/12 issues (100%)
 **Phase 8:** Complete
 
 ## Notes
@@ -155,3 +156,23 @@ Improved quit key handling for better menu interaction:
 - upgrade_manager_handle_input() returns 1 if ESC was consumed
 
 Files: 001-main.c, 010-upgrades.h, 011-upgrades.c
+
+### Issue 812 - Particle Effects Overhaul (Complete)
+
+Complete rewrite of particle system with three new effect types:
+
+**Gate Ripple:**
+- Expanding ring effect replaces burst particles at gates
+- Color based on point value, fades as ring grows
+
+**Collision Splash:**
+- Small particles along collision tangent for ball-vs-ball hits
+- Tracks cross-owner collisions via BallTaskData
+
+**Explosion Fragments:**
+- Ball splits into 3/4/6/8 physics-enabled fragments
+- 20% chance of corkscrew motion (sinusoidal perpendicular offset)
+- Fragments collide with pegs/bumpers/walls but don't affect them
+- Iridescent trailing ribbons with hue shift
+
+Files: 006-ball.h, 007-ball.c, 008-particles.h, 009-particles.c, 001-main.c

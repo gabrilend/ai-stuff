@@ -403,10 +403,17 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
 
 // {{{ ball_collide_with_balls
 // Internal function to check and resolve collisions with other balls
-// Only checks against balls with higher indices to avoid double-handling
+// Tracks cross-owner collisions for splash particle effects
+// collision_out: array of 5 floats [had_collision, x, y, tangent_x, tangent_y]
 static void ball_collide_with_balls(Ball* ball, int ball_index,
-                                     Ball* read_buffer, int capacity) {
+                                     Ball* read_buffer, int capacity,
+                                     float* collision_out) {
     float nx, ny, depth;
+
+    // Initialize collision output
+    if (collision_out) {
+        collision_out[0] = 0.0f;  // had_collision
+    }
 
     // Check collision with all other active balls
     // To avoid double-processing, we check against all balls
@@ -417,6 +424,18 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
         Ball* other = &read_buffer[i];
         if (ball_check_ball_collision(ball, other, &nx, &ny, &depth)) {
             ball_resolve_ball_collision(ball, other, nx, ny, depth);
+
+            // Track cross-owner collision for splash effect (only first one)
+            if (collision_out && collision_out[0] == 0.0f &&
+                ball->owner != other->owner) {
+                collision_out[0] = 1.0f;  // had_collision
+                // Collision point is midpoint between ball centers
+                collision_out[1] = (ball->x + other->x) * 0.5f;  // x
+                collision_out[2] = (ball->y + other->y) * 0.5f;  // y
+                // Tangent is perpendicular to normal
+                collision_out[3] = -ny;  // tangent_x
+                collision_out[4] = nx;   // tangent_y
+            }
         }
     }
 }
@@ -658,10 +677,11 @@ void ball_update_task(void* data) {
     BallTaskData* task = (BallTaskData*)data;
     if (!task) return;
 
-    // Initialize scoring and death tracking fields
+    // Initialize scoring, death, and collision tracking fields
     task->score_delta = 0;
     task->scored = 0;
     task->died_from_damage = 0;
+    task->had_collision = 0;
 
     // Get ball pointers using immutable ball_index
     Ball* current = &task->read_buffer[task->ball_index];
@@ -675,8 +695,21 @@ void ball_update_task(void* data) {
     if (next->active) {
         ball_collide_with_pegs(next, task->world);
         ball_collide_with_bumpers(next, task->world);
+
+        // Track cross-owner ball collisions for splash particles
+        float collision_info[5] = {0};
         ball_collide_with_balls(next, task->ball_index,
-                               task->read_buffer, task->capacity);
+                               task->read_buffer, task->capacity, collision_info);
+
+        // Copy collision info to task data
+        if (collision_info[0] > 0.5f) {
+            task->had_collision = 1;
+            task->collision_x = collision_info[1];
+            task->collision_y = collision_info[2];
+            task->collision_tx = collision_info[3];
+            task->collision_ty = collision_info[4];
+        }
+
         ball_collide_with_walls(next, task->world);
         ball_check_bounds(next, task->world);
 
@@ -685,6 +718,8 @@ void ball_update_task(void* data) {
             task->died_from_damage = 1;
             task->death_pos_x = next->x;
             task->death_pos_y = next->y;
+            task->death_vx = next->vx;
+            task->death_vy = next->vy;
             next->active = 0;
         }
 
