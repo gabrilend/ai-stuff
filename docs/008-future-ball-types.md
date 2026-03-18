@@ -54,9 +54,9 @@ on-demand alongside regular balls.
 ### Ghost Ball (Phase Ball)
 **Visual:** Semi-transparent white with glow effect
 **Physics:**
-- Passes through first 3 pegs without collision
+- Passes through first 3 pegs or balls without collision
 - Normal collision after "materializing"
-- Cannot collide with other balls
+- Turns back into a ghost state after 3 more collisions
 
 **Strategic Use:**
 - Bypass top peg rows to target specific zones
@@ -73,6 +73,8 @@ on-demand alongside regular balls.
 - Normal physics until first peg hit
 - Splits into two smaller balls on collision
 - Each half-ball has half the score value
+- when each smaller ball passes through a gate, they reset to their original
+  state, allowing for additional growth.
 
 **Strategic Use:**
 - Cover more zones with single spawn
@@ -90,6 +92,7 @@ on-demand alongside regular balls.
 - Attracts nearby regular balls toward it
 - Range: 60 pixels
 - Force: proportional to distance
+- lowers the restitution of nearby balls, proportional to distance, to help with clumping.
 
 **Strategic Use:**
 - Create ball clusters for zone targeting
@@ -100,54 +103,20 @@ on-demand alongside regular balls.
 
 ---
 
-### Sticky Ball (Gum Ball)
-**Visual:** Pink with gooey texture
+### Sand Ball (Particle Ball)
+**Visual:** Tan/beige cluster of small spheres in hexagonal formation
 **Physics:**
-- Zero restitution on first peg hit
-- "Sticks" to peg for 2 seconds
-- Then drops straight down
-- Normal collision with other balls
+- Spawns as 10 smaller balls (1/10th size each)
+- Formation: 2 top, 3 middle-upper, 3 middle-lower, 2 bottom (hexagon shape)
+- Lower restitution - "slides" over obstacles
+- Each small ball treated independently for scoring
 
 **Strategic Use:**
-- Precise vertical drop after stick
-- Target center zones
-- Timing-based play
+- Scatter coverage across multiple zones
+- Slides through tight gaps standard balls can't reach
+- Visual spectacle as cluster disperses
 
-**Suggested Cost:** 60 points per ball
-
----
-
-### Explosive Ball (Bomb Ball)
-**Visual:** Black with red fuse/spark
-**Physics:**
-- Normal physics
-- Explodes on scoring zone entry
-- Pushes all nearby balls outward
-- Destroys self (no double scoring)
-
-**Strategic Use:**
-- Clear ball clusters
-- Push adversary balls away from zones
-- Risk: can push your own balls out
-
-**Suggested Cost:** 150 points per ball
-
----
-
-### Giant Ball (Mega Ball)
-**Visual:** Orange with 2x radius
-**Physics:**
-- Double radius (16 vs 8)
-- Normal mass and gravity
-- Harder to navigate peg grid
-- Larger collision area
-
-**Strategic Use:**
-- Blocks adversary balls
-- Dominate zone entry
-- Chaotic but powerful
-
-**Suggested Cost:** 100 points per ball
+**Suggested Cost:** 60 points per spawn
 
 ---
 
@@ -155,7 +124,7 @@ on-demand alongside regular balls.
 
 ### Ball Type System Architecture
 
-```
+```c
 typedef enum {
     BALL_TYPE_STANDARD,
     BALL_TYPE_BOUNCY,
@@ -163,14 +132,12 @@ typedef enum {
     BALL_TYPE_GHOST,
     BALL_TYPE_SPLIT,
     BALL_TYPE_MAGNET,
-    BALL_TYPE_STICKY,
-    BALL_TYPE_EXPLOSIVE,
-    BALL_TYPE_GIANT
+    BALL_TYPE_SAND
 } BallType;
 
 // Add to Ball struct:
 BallType type;
-int special_state;  // Type-specific state (ghost peg count, sticky timer, etc.)
+int special_state;  // Type-specific state (ghost peg count, sand particle count, etc.)
 ```
 
 ### Spawn Integration
@@ -202,12 +169,10 @@ int special_state;  // Type-specific state (ghost peg count, sticky timer, etc.)
 
 1. **Heavy Ball** - Simple physics change, clear visual
 2. **Bouncy Ball** - Simple physics change, fun visual
-3. **Giant Ball** - Simple size change, dramatic impact
+3. **Sand Ball** - Multi-spawn system, visual spectacle
 4. **Ghost Ball** - Moderate complexity, unique mechanic
-5. **Split Ball** - Complex (spawns new balls)
-6. **Sticky Ball** - Requires timer system
-7. **Magnet Ball** - Requires force field system
-8. **Explosive Ball** - Requires area effect system
+5. **Split Ball** - Complex (spawns new balls mid-flight)
+6. **Magnet Ball** - Requires force field system
 
 ---
 
