@@ -17,7 +17,6 @@
 #include "010-upgrades.h"
 #include "012-adversary.h"
 #include "014-stage.h"
-#include "016-ramp.h"
 #include "018-expansion-anim.h"
 #include "026-stage-pool.h"
 #include "020-board-data.h"
@@ -148,10 +147,10 @@ static int apply_initial_board_data(BoardData* data, World* world,
     world->pegs = NULL;
     world->peg_count = 0;
 
-    // Free existing ramps
-    if (world->ramps) free(world->ramps);
-    world->ramps = NULL;
-    world->ramp_count = 0;
+    // Free existing lines
+    if (world->lines) free(world->lines);
+    world->lines = NULL;
+    world->line_count = 0;
 
     // Allocate and populate pegs
     if (peg_count > 0) {
@@ -194,29 +193,49 @@ static int apply_initial_board_data(BoardData* data, World* world,
         }
     }
 
-    // Allocate and populate ramps from lines
+    // Allocate and populate lines
     if (line_count > 0) {
-        world->ramps = (Ramp*)malloc(sizeof(Ramp) * line_count);
-        if (!world->ramps) {
-            // Pegs were allocated, but we can continue without ramps
-            world->ramp_count = 0;
+        world->lines = (Line*)malloc(sizeof(Line) * line_count);
+        if (!world->lines) {
+            // Pegs were allocated, but we can continue without lines
+            world->line_count = 0;
         } else {
-            world->ramp_count = line_count;
+            world->line_count = line_count;
 
-            int ramp_idx = 0;
+            // Default line color (warm orange)
+            Color default_line_color = (Color){255, 160, 80, 255};
+
+            int line_idx = 0;
             for (int i = 0; i < data->object_count; i++) {
                 BoardObject* obj = &data->objects[i];
                 if (obj->type != OBJECT_LINE) continue;
 
-                float x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
-                float y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
-                float x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
-                float y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+                Line* line = &world->lines[line_idx];
+                line->x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
+                line->y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
+                line->x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
+                line->y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+                line->thickness = obj->thickness;
+                line->restitution = property_to_float(obj->restitution);
+                line->friction = property_to_float(obj->friction);
+                line->point_bonus = obj->point_bonus;
 
-                world->ramps[ramp_idx] = ramp_create_line(x1, y1, x2, y2, obj->thickness);
-                ramp_idx++;
+                // Use default color if no custom properties, otherwise tint
+                if (obj->restitution == DEFAULT_RESTITUTION &&
+                    obj->friction == DEFAULT_FRICTION &&
+                    obj->point_bonus == DEFAULT_POINT_BONUS) {
+                    line->color = default_line_color;
+                } else {
+                    // Tint based on RGB properties
+                    int red = 180 + (obj->restitution * 75 / 255);
+                    int green = 100 + (obj->friction * 60 / 255);
+                    int blue = 40 + (obj->point_bonus * 40 / 255);
+                    line->color = (Color){(unsigned char)red, (unsigned char)green,
+                                          (unsigned char)blue, 255};
+                }
+                line_idx++;
             }
-            printf("Created %d ramps from board lines\n", world->ramp_count);
+            printf("Created %d lines from board data\n", world->line_count);
         }
     }
 
@@ -225,8 +244,8 @@ static int apply_initial_board_data(BoardData* data, World* world,
 // }}}
 
 // {{{ apply_adversary_board_data
-// Applies BoardData to the world's adversary pegs and ramps.
-// Positions pegs/ramps in the adversary area (below zones).
+// Applies BoardData to the world's adversary pegs and lines.
+// Positions pegs/lines in the adversary area (below zones).
 // Returns 1 on success, 0 on failure.
 static int apply_adversary_board_data(BoardData* data, World* world,
                                       float peg_start_x, float peg_start_y) {
@@ -250,10 +269,10 @@ static int apply_adversary_board_data(BoardData* data, World* world,
     world->adversary_pegs = NULL;
     world->adversary_peg_count = 0;
 
-    // Free existing adversary ramps
-    if (world->adversary_ramps) free(world->adversary_ramps);
-    world->adversary_ramps = NULL;
-    world->adversary_ramp_count = 0;
+    // Free existing adversary lines
+    if (world->adversary_lines) free(world->adversary_lines);
+    world->adversary_lines = NULL;
+    world->adversary_line_count = 0;
 
     // Allocate and populate pegs
     if (peg_count > 0) {
@@ -296,28 +315,48 @@ static int apply_adversary_board_data(BoardData* data, World* world,
         }
     }
 
-    // Allocate and populate ramps from lines
+    // Allocate and populate lines
     if (line_count > 0) {
-        world->adversary_ramps = (Ramp*)malloc(sizeof(Ramp) * line_count);
-        if (!world->adversary_ramps) {
-            world->adversary_ramp_count = 0;
+        world->adversary_lines = (Line*)malloc(sizeof(Line) * line_count);
+        if (!world->adversary_lines) {
+            world->adversary_line_count = 0;
         } else {
-            world->adversary_ramp_count = line_count;
+            world->adversary_line_count = line_count;
 
-            int ramp_idx = 0;
+            // Default adversary line color (reddish orange)
+            Color default_line_color = (Color){220, 120, 80, 255};
+
+            int line_idx = 0;
             for (int i = 0; i < data->object_count; i++) {
                 BoardObject* obj = &data->objects[i];
                 if (obj->type != OBJECT_LINE) continue;
 
-                float x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
-                float y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
-                float x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
-                float y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+                Line* line = &world->adversary_lines[line_idx];
+                line->x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
+                line->y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
+                line->x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
+                line->y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+                line->thickness = obj->thickness;
+                line->restitution = property_to_float(obj->restitution);
+                line->friction = property_to_float(obj->friction);
+                line->point_bonus = obj->point_bonus;
 
-                world->adversary_ramps[ramp_idx] = ramp_create_line(x1, y1, x2, y2, obj->thickness);
-                ramp_idx++;
+                // Use default color if no custom properties, otherwise tint
+                if (obj->restitution == DEFAULT_RESTITUTION &&
+                    obj->friction == DEFAULT_FRICTION &&
+                    obj->point_bonus == DEFAULT_POINT_BONUS) {
+                    line->color = default_line_color;
+                } else {
+                    // Reddish tint based on RGB properties
+                    int red = 180 + (obj->restitution * 75 / 255);
+                    int green = 80 + (obj->friction * 40 / 255);
+                    int blue = 40 + (obj->point_bonus * 40 / 255);
+                    line->color = (Color){(unsigned char)red, (unsigned char)green,
+                                          (unsigned char)blue, 255};
+                }
+                line_idx++;
             }
-            printf("Created %d adversary ramps from board lines\n", world->adversary_ramp_count);
+            printf("Created %d adversary lines from board data\n", world->adversary_line_count);
         }
     }
 
@@ -1014,13 +1053,13 @@ int main(int argc, char* argv[]) {
         // Draw world elements (in camera space - scrollable)
         world_render_rails(world);
         world_render_pegs(world);
-        world_render_ramps(world);
+        world_render_lines(world);
         world_render_zones(world);
         world_render_bumpers(world);
 
         // Draw adversary board elements
         world_render_adversary_pegs(world);
-        world_render_adversary_ramps(world);
+        world_render_adversary_lines(world);
         world_render_adversary_bumpers(world);
         adversary_render(adversary);
 

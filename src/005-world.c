@@ -8,7 +8,6 @@
 
 #include "004-world.h"
 #include "014-stage.h"
-#include "016-ramp.h"
 #include "028-portal.h"
 #include <raylib.h>
 #include <stdlib.h>
@@ -27,8 +26,8 @@ World* world_create(int width, int height) {
     world->height = height;
     world->pegs = NULL;
     world->peg_count = 0;
-    world->ramps = NULL;
-    world->ramp_count = 0;
+    world->lines = NULL;
+    world->line_count = 0;
     world->zones = NULL;
     world->zone_count = 0;
     world->bumpers = NULL;
@@ -39,8 +38,8 @@ World* world_create(int width, int height) {
     // Adversary board
     world->adversary_pegs = NULL;
     world->adversary_peg_count = 0;
-    world->adversary_ramps = NULL;
-    world->adversary_ramp_count = 0;
+    world->adversary_lines = NULL;
+    world->adversary_line_count = 0;
     world->adversary_bumpers = NULL;
     world->adversary_bumper_count = 0;
 
@@ -77,9 +76,9 @@ void world_destroy(World* world) {
         free(world->pegs);
     }
 
-    // Free ramp array if allocated
-    if (world->ramps) {
-        free(world->ramps);
+    // Free line array if allocated
+    if (world->lines) {
+        free(world->lines);
     }
 
     // Free zone array if allocated
@@ -96,8 +95,8 @@ void world_destroy(World* world) {
     if (world->adversary_pegs) {
         free(world->adversary_pegs);
     }
-    if (world->adversary_ramps) {
-        free(world->adversary_ramps);
+    if (world->adversary_lines) {
+        free(world->adversary_lines);
     }
     if (world->adversary_bumpers) {
         free(world->adversary_bumpers);
@@ -612,22 +611,47 @@ void world_expand_for_stages(World* world, float player_stage_height,
 }
 // }}}
 
-// {{{ world_render_ramps
-void world_render_ramps(World* world) {
-    if (!world || !world->ramps) return;
+// {{{ line_render
+// Renders a single line with thickness and color
+static void line_render(Line* line) {
+    if (!line) return;
 
-    for (int i = 0; i < world->ramp_count; i++) {
-        ramp_render(&world->ramps[i]);
+    Vector2 start = { line->x1, line->y1 };
+    Vector2 end = { line->x2, line->y2 };
+
+    // Draw the main line with thickness
+    DrawLineEx(start, end, line->thickness, line->color);
+
+    // Draw rounded caps at endpoints
+    float cap_radius = line->thickness / 2.0f;
+    DrawCircleV(start, cap_radius, line->color);
+    DrawCircleV(end, cap_radius, line->color);
+
+    // Draw subtle highlight for depth
+    Color highlight = (Color){255, 255, 255, 60};
+    Vector2 offset = { 0, -1 };  // Slight upward offset
+    Vector2 h_start = { start.x + offset.x, start.y + offset.y };
+    Vector2 h_end = { end.x + offset.x, end.y + offset.y };
+    DrawLineEx(h_start, h_end, line->thickness * 0.5f, highlight);
+}
+// }}}
+
+// {{{ world_render_lines
+void world_render_lines(World* world) {
+    if (!world || !world->lines) return;
+
+    for (int i = 0; i < world->line_count; i++) {
+        line_render(&world->lines[i]);
     }
 }
 // }}}
 
-// {{{ world_render_adversary_ramps
-void world_render_adversary_ramps(World* world) {
-    if (!world || !world->adversary_ramps) return;
+// {{{ world_render_adversary_lines
+void world_render_adversary_lines(World* world) {
+    if (!world || !world->adversary_lines) return;
 
-    for (int i = 0; i < world->adversary_ramp_count; i++) {
-        ramp_render_mirrored(&world->adversary_ramps[i]);
+    for (int i = 0; i < world->adversary_line_count; i++) {
+        line_render(&world->adversary_lines[i]);
     }
 }
 // }}}

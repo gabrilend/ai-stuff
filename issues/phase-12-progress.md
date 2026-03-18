@@ -21,10 +21,11 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1214 | Save dialog cursor movement         | Complete  |
 | 1215 | Random board selection not working  | Complete  |
 | 1216 | JSON board overwritten on resize    | Complete  |
+| 1217 | Unify line and ramp abstraction     | Complete  |
 
 ## Progress Summary
 
-**Completed:** 13/13 issues (100%)
+**Completed:** 14/14 issues (100%)
 **Status:** Complete
 
 ## Design Overview

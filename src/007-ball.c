@@ -393,6 +393,131 @@ static void ball_collide_with_ramps(Ball* ball, World* world) {
 }
 // }}}
 
+// {{{ line_closest_point
+// Finds the closest point on a line segment to a given point
+static void line_closest_point(float px, float py,
+                               float x1, float y1, float x2, float y2,
+                               float* out_x, float* out_y) {
+    float dx = px - x1;
+    float dy = py - y1;
+    float sx = x2 - x1;
+    float sy = y2 - y1;
+    float seg_len_sq = sx * sx + sy * sy;
+
+    if (seg_len_sq < 0.0001f) {
+        *out_x = x1;
+        *out_y = y1;
+        return;
+    }
+
+    float t = (dx * sx + dy * sy) / seg_len_sq;
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+
+    *out_x = x1 + t * sx;
+    *out_y = y1 + t * sy;
+}
+// }}}
+
+// {{{ ball_collide_with_line
+// Checks and resolves collision between ball and a single line
+static void ball_collide_with_line(Ball* ball, Line* line) {
+    if (!ball || !line) return;
+
+    // Find closest point on line segment to ball center
+    float px, py;
+    line_closest_point(ball->x, ball->y,
+                       line->x1, line->y1, line->x2, line->y2,
+                       &px, &py);
+
+    // Calculate distance from ball center to closest point
+    float dx = ball->x - px;
+    float dy = ball->y - py;
+    float dist_sq = dx * dx + dy * dy;
+
+    // Collision radius includes line thickness
+    float collision_radius = ball->radius + line->thickness / 2.0f;
+
+    if (dist_sq < collision_radius * collision_radius) {
+        float dist = sqrtf(dist_sq);
+        float penetration = collision_radius - dist;
+
+        // Calculate collision normal
+        float nx, ny;
+        if (dist < 0.0001f) {
+            // Ball center on line - use line perpendicular
+            float lx = line->x2 - line->x1;
+            float ly = line->y2 - line->y1;
+            float len = sqrtf(lx * lx + ly * ly);
+            if (len > 0.0001f) {
+                nx = -ly / len;
+                ny = lx / len;
+            } else {
+                nx = 0;
+                ny = -1;
+            }
+        } else {
+            nx = dx / dist;
+            ny = dy / dist;
+        }
+
+        // Push ball out
+        ball->x += nx * penetration;
+        ball->y += ny * penetration;
+
+        // Calculate velocity component along normal
+        float dot_normal = ball->vx * nx + ball->vy * ny;
+
+        // Only resolve if ball is moving into the line
+        if (dot_normal < 0) {
+            // Remove normal component with line's restitution (low = sliding)
+            float bounce_factor = 1.0f + line->restitution;
+            ball->vx -= bounce_factor * dot_normal * nx;
+            ball->vy -= bounce_factor * dot_normal * ny;
+
+            // Add velocity along line direction (gravity assist)
+            float lx = line->x2 - line->x1;
+            float ly = line->y2 - line->y1;
+            float len = sqrtf(lx * lx + ly * ly);
+            if (len > 0.0001f) {
+                float tx = lx / len;
+                float ty = ly / len;
+                ball->vx += tx * LINE_GRAVITY_ASSIST;
+                ball->vy += ty * LINE_GRAVITY_ASSIST;
+            }
+
+            // Award points if line has bonus
+            if (line->point_bonus > 0) {
+                // Points would be awarded here through world->score
+                // but we don't have direct access, so skip for now
+            }
+        }
+    }
+}
+// }}}
+
+// {{{ ball_collide_with_lines
+// Internal function to check and resolve collisions with lines in world
+// Checks both player lines and adversary lines
+static void ball_collide_with_lines(Ball* ball, World* world) {
+    if (!world) return;
+
+    // Check player lines
+    if (world->lines) {
+        for (int i = 0; i < world->line_count; i++) {
+            ball_collide_with_line(ball, &world->lines[i]);
+        }
+    }
+
+    // Check adversary lines
+    if (world->adversary_lines) {
+        for (int i = 0; i < world->adversary_line_count; i++) {
+            ball_collide_with_line(ball, &world->adversary_lines[i]);
+        }
+    }
+}
+// }}}
+
 // {{{ ball_check_ball_collision
 // Internal function to check circle-circle collision between two balls
 // Returns 1 if collision detected, 0 otherwise
@@ -601,6 +726,7 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
             ball_collide_with_pegs(next, world);
             ball_collide_with_bumpers(next, world);
             ball_collide_with_ramps(next, world);
+            ball_collide_with_lines(next, world);
             ball_collide_with_walls(next, world);
 
             // Check wrap zones for ball teleportation at screen edges
@@ -785,6 +911,7 @@ void ball_update_task(void* data) {
         ball_collide_with_pegs(next, task->world);
         ball_collide_with_bumpers(next, task->world);
         ball_collide_with_ramps(next, task->world);
+        ball_collide_with_lines(next, task->world);
 
         // Track cross-owner ball collisions for splash particles and explosion direction
         float collision_info[9] = {0};

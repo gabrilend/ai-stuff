@@ -13,9 +13,6 @@ typedef struct StageManager StageManager;
 // Forward declaration for portal system (defined in 028-portal.h)
 typedef struct PortalManager PortalManager;
 
-// Forward declaration for ramp (defined in 016-ramp.h)
-typedef struct Ramp Ramp;
-
 // Forward declaration for wrap zones (defined in 036-wrap-zones.h)
 typedef struct WrapZones WrapZones;
 
@@ -69,6 +66,30 @@ typedef struct Bumper {
 } Bumper;
 // }}}
 
+// Line physics constants
+#define LINE_DEFAULT_RESTITUTION 0.1f   // Low - sliding behavior
+#define LINE_DEFAULT_FRICTION 0.3f      // Moderate grip
+#define LINE_GRAVITY_ASSIST 30.0f       // Extra velocity along line direction
+
+// {{{ typedef struct Line
+// Line represents a thick line segment obstacle.
+// Balls collide with lines and slide along their surface.
+// Physics properties are editable like pegs (RGB system).
+typedef struct Line {
+    float x1, y1;         // Start point in pixels
+    float x2, y2;         // End point in pixels
+    float thickness;      // Line thickness for collision and rendering
+
+    // Physics properties (RGB encoded, same as pegs)
+    float restitution;    // Bounciness (0.0-1.0)
+    float friction;       // Surface grip (0.0-1.0)
+    int point_bonus;      // Points awarded on hit
+
+    // Visual color (derived from properties)
+    Color color;
+} Line;
+// }}}
+
 // {{{ typedef struct World
 // World contains all state for the pachinko machine.
 // This includes the peg grid, score zones, and current score.
@@ -80,8 +101,8 @@ typedef struct World {
     // Player board (top)
     Peg* pegs;             // Array of player pegs
     int peg_count;         // Number of player pegs
-    Ramp* ramps;           // Array of player ramps (from JSON lines)
-    int ramp_count;        // Number of player ramps
+    Line* lines;           // Array of player lines (from JSON)
+    int line_count;        // Number of player lines
     ScoreZone* zones;      // Array of score zones (shared)
     int zone_count;        // Number of zones
     Bumper* bumpers;       // Array of gate bumpers (top of zones)
@@ -92,8 +113,8 @@ typedef struct World {
     // Adversary board (bottom, mirrored)
     Peg* adversary_pegs;           // Array of adversary pegs
     int adversary_peg_count;       // Number of adversary pegs
-    Ramp* adversary_ramps;         // Array of adversary ramps (from JSON lines)
-    int adversary_ramp_count;      // Number of adversary ramps
+    Line* adversary_lines;         // Array of adversary lines (from JSON)
+    int adversary_line_count;      // Number of adversary lines
     Bumper* adversary_bumpers;     // Array of gate bumpers (bottom of zones)
     int adversary_bumper_count;    // Number of bumpers (bottom)
 
@@ -267,20 +288,20 @@ void world_generate_adversary_bumpers(World* world);
 void world_render_adversary_bumpers(World* world);
 // }}}
 
-// {{{ world_render_ramps
-// Renders all player ramps from JSON board.
+// {{{ world_render_lines
+// Renders all player lines from JSON board.
 //
 // Parameters:
 //   world: World instance
-void world_render_ramps(World* world);
+void world_render_lines(World* world);
 // }}}
 
-// {{{ world_render_adversary_ramps
-// Renders all adversary ramps from JSON board.
+// {{{ world_render_adversary_lines
+// Renders all adversary lines from JSON board.
 //
 // Parameters:
 //   world: World instance
-void world_render_adversary_ramps(World* world);
+void world_render_adversary_lines(World* world);
 // }}}
 
 // =============================================================================
