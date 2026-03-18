@@ -22,11 +22,12 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1215 | Random board selection not working  | Complete  |
 | 1216 | JSON board overwritten on resize    | Complete  |
 | 1217 | Unify line and ramp abstraction     | Complete  |
+| 1218 | Editor file picker vim keybinds     | Open      |
 
 ## Progress Summary
 
-**Completed:** 14/14 issues (100%)
-**Status:** Complete
+**Completed:** 14/15 issues (93%)
+**Status:** In Progress
 
 ## Design Overview
 
