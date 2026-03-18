@@ -40,6 +40,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-026 | Merge sources and external_files config sections | Completed | Low |
 | 10-027 | Fix golden poem trailing whitespace detection | Resolved (Mastodon limitation) | Medium |
 | 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |
+| 10-029 | TUI Ollama server selector dropdown | Open | Medium |
 
 ### Completed Issues
 
@@ -201,6 +202,14 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Deprecated `external_files` section (now empty, kept for reference)
 - Fixed path inconsistency: fediverse-stars now points to correct sync destination
 - All 9 external sync entries verified working through both loaders
+
+**10-029: TUI Ollama Server Selector Dropdown** - OPEN
+- Add dropdown selector to TUI for Ollama server selection
+- Shows all servers from `ollama_servers` config section
+- Updates command preview with `--ollama=NAME` flag
+- Optional model dropdown filtered by server's `available_models`
+- Depends on: scripts/issues/017 (TUI dropdown component)
+- Builds on: 10-017 (Multi-Ollama server configuration)
 
 ## Completion Criteria
 
