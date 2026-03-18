@@ -118,6 +118,12 @@ typedef struct EditorState {
     // Notification message
     char notification_text[64];
     float notification_timer;    // Seconds remaining to show
+
+    // Load dialog state
+    int show_load_dialog;           // 1 if load dialog is visible
+    BoardFileList* available_boards; // List of board files in boards/
+    int load_selected_index;        // Currently selected file index
+    int load_scroll_offset;         // Scroll position in file list
 } EditorState;
 // }}}
 
@@ -264,6 +270,23 @@ void editor_show_notification(EditorState* editor, const char* text, float durat
 // {{{ editor_update_notification
 // Updates notification timer. Call each frame with delta time.
 void editor_update_notification(EditorState* editor, float dt);
+// }}}
+
+// {{{ editor_load_board
+// Loads a board from a JSON file.
+// Replaces current board data and syncs to world.
+// Returns 1 on success, 0 on failure.
+int editor_load_board(EditorState* editor, const char* filepath);
+// }}}
+
+// {{{ editor_open_load_dialog
+// Opens the load dialog, scanning for available boards.
+void editor_open_load_dialog(EditorState* editor);
+// }}}
+
+// {{{ editor_close_load_dialog
+// Closes the load dialog and frees the file list.
+void editor_close_load_dialog(EditorState* editor);
 // }}}
 
 #endif // EDITOR_H

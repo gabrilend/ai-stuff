@@ -69,6 +69,10 @@ static int line_tool_handle_click(EditorState* editor);
 static void line_tool_render_preview(EditorState* editor);
 static void line_tool_render_ui(EditorState* editor);
 
+// Forward declarations for load dialog functions
+static void editor_handle_load_dialog_input(EditorState* editor);
+static void editor_render_load_dialog(EditorState* editor);
+
 // =============================================================================
 // Editor Lifecycle
 // =============================================================================
@@ -118,6 +122,12 @@ EditorState* editor_create(struct World* world) {
     editor->notification_text[0] = '\0';
     editor->notification_timer = 0.0f;
 
+    // Initialize load dialog state
+    editor->show_load_dialog = 0;
+    editor->available_boards = NULL;
+    editor->load_selected_index = 0;
+    editor->load_scroll_offset = 0;
+
     // Setup grid based on world if provided
     if (world) {
         editor_setup_grid(editor, world);
@@ -130,6 +140,11 @@ EditorState* editor_create(struct World* world) {
 // {{{ editor_destroy
 void editor_destroy(EditorState* editor) {
     if (!editor) return;
+
+    // Free board file list if present
+    if (editor->available_boards) {
+        board_file_list_destroy(editor->available_boards);
+    }
 
     // Board data is not owned by editor, don't free it
     free(editor);
@@ -227,6 +242,17 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
     // Ctrl+S to save board
     if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
         editor_save_board(editor);
+    }
+
+    // Ctrl+O to open load dialog
+    if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) {
+        editor_open_load_dialog(editor);
+    }
+
+    // Handle load dialog input if open (consumes all other input)
+    if (editor->show_load_dialog) {
+        editor_handle_load_dialog_input(editor);
+        return;  // Don't process other input while dialog is open
     }
 
     // Handle palette clicks (consumes click if on palette)
@@ -457,7 +483,7 @@ void editor_render_ui(EditorState* editor) {
     DrawText(selected_text, sel_x, HELP_TEXT_Y, HELP_TEXT_FONT_SIZE, WHITE);
 
     // Draw help text at bottom
-    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | Ctrl+S=Save";
+    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | Ctrl+S=Save | Ctrl+O=Load";
     int help_width = MeasureText(help_text, HELP_TEXT_FONT_SIZE);
     int help_x = (editor->screen_width - help_width) / 2;
     int help_y = editor->screen_height - HELP_TEXT_FONT_SIZE - 10;
@@ -503,6 +529,9 @@ void editor_render_ui(EditorState* editor) {
                            notif_width + 30, 36, GREEN);
         DrawText(editor->notification_text, notif_x, notif_y, 16, GREEN);
     }
+
+    // Draw load dialog (renders on top of everything else)
+    editor_render_load_dialog(editor);
 }
 // }}}
 
@@ -1113,5 +1142,244 @@ int editor_save_board(EditorState* editor) {
     }
 
     return success;
+}
+// }}}
+
+// =============================================================================
+// Load Dialog
+// =============================================================================
+
+// {{{ editor_open_load_dialog
+void editor_open_load_dialog(EditorState* editor) {
+    if (!editor) return;
+
+    // Free existing file list
+    if (editor->available_boards) {
+        board_file_list_destroy(editor->available_boards);
+    }
+
+    // Scan for board files
+    editor->available_boards = board_scan_directory("boards");
+
+    // Reset selection
+    editor->load_selected_index = 0;
+    editor->load_scroll_offset = 0;
+
+    // Show dialog
+    editor->show_load_dialog = 1;
+    printf("Load dialog opened\n");
+}
+// }}}
+
+// {{{ editor_close_load_dialog
+void editor_close_load_dialog(EditorState* editor) {
+    if (!editor) return;
+
+    editor->show_load_dialog = 0;
+
+    // Free file list
+    if (editor->available_boards) {
+        board_file_list_destroy(editor->available_boards);
+        editor->available_boards = NULL;
+    }
+}
+// }}}
+
+// {{{ editor_load_board
+int editor_load_board(EditorState* editor, const char* filepath) {
+    if (!editor || !filepath) return 0;
+
+    // Load board data from file
+    BoardData* new_data = board_data_load_json(filepath);
+    if (!new_data) {
+        editor_show_notification(editor, "Load failed!", 2.0f);
+        fprintf(stderr, "ERROR: Failed to load board: %s\n", filepath);
+        return 0;
+    }
+
+    // Free existing board data
+    if (editor->board_data) {
+        board_data_destroy(editor->board_data);
+    }
+
+    // Set new board data
+    editor->board_data = new_data;
+
+    // Update editor state
+    strncpy(editor->current_filename, filepath, sizeof(editor->current_filename) - 1);
+    editor->current_filename[sizeof(editor->current_filename) - 1] = '\0';
+    editor->has_filename = 1;
+    editor->board_modified = 0;
+
+    // Update grid from loaded data
+    editor->grid = grid_create(new_data->grid_cols, new_data->grid_rows,
+                               (float)new_data->cell_size,
+                               editor->grid.origin_x, editor->grid.origin_y);
+
+    // Sync to world
+    if (editor->world) {
+        board_data_apply_to_world(editor->board_data, editor->world, &editor->grid);
+    }
+
+    char msg[80];
+    snprintf(msg, sizeof(msg), "Loaded: %s", filepath);
+    editor_show_notification(editor, msg, 3.0f);
+    printf("Board loaded: %s (%d objects)\n", filepath, new_data->object_count);
+
+    return 1;
+}
+// }}}
+
+// {{{ editor_handle_load_dialog_input
+static void editor_handle_load_dialog_input(EditorState* editor) {
+    if (!editor || !editor->show_load_dialog) return;
+
+    // Escape to cancel
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        editor_close_load_dialog(editor);
+        return;
+    }
+
+    // Handle empty list case
+    if (!editor->available_boards || editor->available_boards->count == 0) {
+        return;
+    }
+
+    int visible_items = 10;  // Max items visible at once
+
+    // Navigation with Up/Down
+    if (IsKeyPressed(KEY_UP)) {
+        editor->load_selected_index--;
+        if (editor->load_selected_index < 0) {
+            editor->load_selected_index = editor->available_boards->count - 1;
+            // Scroll to show selection
+            int max_scroll = editor->available_boards->count - visible_items;
+            if (max_scroll < 0) max_scroll = 0;
+            editor->load_scroll_offset = max_scroll;
+        }
+        // Adjust scroll to keep selection visible
+        if (editor->load_selected_index < editor->load_scroll_offset) {
+            editor->load_scroll_offset = editor->load_selected_index;
+        }
+    }
+
+    if (IsKeyPressed(KEY_DOWN)) {
+        editor->load_selected_index++;
+        if (editor->load_selected_index >= editor->available_boards->count) {
+            editor->load_selected_index = 0;
+            editor->load_scroll_offset = 0;
+        }
+        // Adjust scroll to keep selection visible
+        if (editor->load_selected_index >= editor->load_scroll_offset + visible_items) {
+            editor->load_scroll_offset = editor->load_selected_index - visible_items + 1;
+        }
+    }
+
+    // Mouse wheel scrolling
+    int wheel = (int)GetMouseWheelMove();
+    if (wheel != 0) {
+        editor->load_scroll_offset -= wheel * 2;
+        if (editor->load_scroll_offset < 0) {
+            editor->load_scroll_offset = 0;
+        }
+        int max_scroll = editor->available_boards->count - visible_items;
+        if (max_scroll < 0) max_scroll = 0;
+        if (editor->load_scroll_offset > max_scroll) {
+            editor->load_scroll_offset = max_scroll;
+        }
+    }
+
+    // Enter to load selected
+    if (IsKeyPressed(KEY_ENTER)) {
+        const char* filename = editor->available_boards->filenames[
+            editor->load_selected_index];
+
+        char filepath[280];
+        snprintf(filepath, sizeof(filepath), "boards/%s", filename);
+
+        editor_load_board(editor, filepath);
+        editor_close_load_dialog(editor);
+    }
+}
+// }}}
+
+// {{{ editor_render_load_dialog
+// Renders the load dialog UI (call from editor_render_ui)
+static void editor_render_load_dialog(EditorState* editor) {
+    if (!editor || !editor->show_load_dialog) return;
+
+    int screen_width = editor->screen_width;
+    int screen_height = editor->screen_height;
+
+    // Dim background
+    DrawRectangle(0, 0, screen_width, screen_height, (Color){0, 0, 0, 150});
+
+    // Dialog box
+    int dialog_width = 400;
+    int dialog_height = 350;
+    int dialog_x = (screen_width - dialog_width) / 2;
+    int dialog_y = (screen_height - dialog_height) / 2;
+
+    DrawRectangle(dialog_x, dialog_y, dialog_width, dialog_height,
+                  (Color){40, 40, 50, 250});
+    DrawRectangleLines(dialog_x, dialog_y, dialog_width, dialog_height,
+                       (Color){100, 100, 120, 255});
+
+    // Title
+    DrawText("Load Board", dialog_x + 20, dialog_y + 15, 20, WHITE);
+
+    // File list area
+    int list_x = dialog_x + 20;
+    int list_y = dialog_y + 50;
+    int list_width = dialog_width - 40;
+    int list_height = 250;
+    int item_height = 25;
+    int visible_items = list_height / item_height;
+
+    DrawRectangle(list_x, list_y, list_width, list_height, (Color){30, 30, 40, 255});
+    DrawRectangleLines(list_x, list_y, list_width, list_height,
+                       (Color){80, 80, 100, 255});
+
+    // Render file list
+    if (editor->available_boards && editor->available_boards->count > 0) {
+        for (int i = 0; i < visible_items; i++) {
+            int file_index = i + editor->load_scroll_offset;
+            if (file_index >= editor->available_boards->count) break;
+
+            const char* filename = editor->available_boards->filenames[file_index];
+            int item_y = list_y + i * item_height;
+
+            // Selection highlight
+            if (file_index == editor->load_selected_index) {
+                DrawRectangle(list_x + 2, item_y + 2, list_width - 4,
+                             item_height - 4, (Color){60, 100, 180, 255});
+            }
+
+            // Filename (remove .json extension for display)
+            char display_name[64];
+            strncpy(display_name, filename, sizeof(display_name) - 1);
+            display_name[sizeof(display_name) - 1] = '\0';
+            size_t len = strlen(display_name);
+            if (len > 5) display_name[len - 5] = '\0';  // Remove .json
+
+            DrawText(display_name, list_x + 10, item_y + 5, 14, WHITE);
+        }
+
+        // Scroll indicator if needed
+        if (editor->available_boards->count > visible_items) {
+            float scroll_ratio = (float)editor->load_scroll_offset /
+                                (editor->available_boards->count - visible_items);
+            int scrollbar_y = list_y + (int)(scroll_ratio * (list_height - 30));
+            DrawRectangle(list_x + list_width - 8, scrollbar_y, 6, 30,
+                         (Color){100, 100, 120, 255});
+        }
+    } else {
+        DrawText("No boards found", list_x + 10, list_y + 10, 14, GRAY);
+        DrawText("Save a board first with Ctrl+S", list_x + 10, list_y + 30, 12, DARKGRAY);
+    }
+
+    // Controls hint
+    DrawText("UP/DOWN: Select  ENTER: Load  ESC: Cancel",
+             dialog_x + 20, dialog_y + dialog_height - 30, 12, GRAY);
 }
 // }}}
