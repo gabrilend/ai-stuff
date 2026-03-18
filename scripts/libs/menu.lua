@@ -1690,39 +1690,78 @@ local function get_expanded_command(use_absolute, use_backslash_newlines)
 end
 -- }}}
 
--- Copy text to system clipboard using xclip or xsel
+-- Copy text to system clipboard using wl-copy (Wayland), xclip, or xsel (X11)
 -- Copies to both PRIMARY (middle-click) and CLIPBOARD (Ctrl+V) selections
 -- Returns true on success, false with error message on failure
 -- {{{ local function copy_to_clipboard
 local function copy_to_clipboard(text)
-    -- Try xclip first (most common on Linux)
-    local handle = io.popen("which xclip >/dev/null 2>&1 && echo 'xclip'", "r")
-    local result = handle:read("*a")
-    handle:close()
+    -- Check if we're on Wayland (WAYLAND_DISPLAY is set)
+    local is_wayland = os.getenv("WAYLAND_DISPLAY") ~= nil
 
     local tool = nil
-    if result:match("xclip") then
-        tool = "xclip"
-    else
-        -- Try xsel as fallback
-        handle = io.popen("which xsel >/dev/null 2>&1 && echo 'xsel'", "r")
+    local handle, result
+
+    if is_wayland then
+        -- On Wayland, prefer wl-copy
+        handle = io.popen("which wl-copy >/dev/null 2>&1 && echo 'wl-copy'", "r")
         result = handle:read("*a")
         handle:close()
-        if result:match("xsel") then
-            tool = "xsel"
+        if result:match("wl%-copy") then
+            tool = "wl-copy"
+        end
+    end
+
+    -- If not on Wayland or wl-copy not found, try X11 tools
+    if not tool then
+        handle = io.popen("which xclip >/dev/null 2>&1 && echo 'xclip'", "r")
+        result = handle:read("*a")
+        handle:close()
+        if result:match("xclip") then
+            tool = "xclip"
+        else
+            handle = io.popen("which xsel >/dev/null 2>&1 && echo 'xsel'", "r")
+            result = handle:read("*a")
+            handle:close()
+            if result:match("xsel") then
+                tool = "xsel"
+            end
+        end
+    end
+
+    if not tool then
+        if is_wayland then
+            return false, "No clipboard tool found (install wl-clipboard)"
         else
             return false, "No clipboard tool found (install xclip or xsel)"
         end
     end
 
-    -- Copy to both PRIMARY (middle-click) and CLIPBOARD (Ctrl+V)
+    -- Wayland: wl-copy
+    if tool == "wl-copy" then
+        -- Copy to regular clipboard
+        handle = io.popen("wl-copy 2>/dev/null", "w")
+        if not handle then
+            return false, "Failed to open wl-copy"
+        end
+        handle:write(text)
+        handle:close()
+        -- Also copy to primary selection
+        handle = io.popen("wl-copy --primary 2>/dev/null", "w")
+        if handle then
+            handle:write(text)
+            handle:close()
+        end
+        return true, ""
+    end
+
+    -- X11: Copy to both PRIMARY (middle-click) and CLIPBOARD (Ctrl+V)
     local selections = {"primary", "clipboard"}
     for _, sel in ipairs(selections) do
         local cmd
         if tool == "xclip" then
-            cmd = "xclip -selection " .. sel
+            cmd = "xclip -selection " .. sel .. " 2>/dev/null"
         else
-            cmd = "xsel --" .. sel .. " --input"
+            cmd = "xsel --" .. sel .. " --input 2>/dev/null"
         end
 
         handle = io.popen(cmd, "w")
