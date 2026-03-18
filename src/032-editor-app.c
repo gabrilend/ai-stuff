@@ -48,6 +48,7 @@
 static void handle_input(EditorApp* app);
 static void handle_canvas_click(EditorApp* app);
 static void handle_tool_selection(EditorApp* app);
+static int handle_toolbar_click(EditorApp* app);
 static void handle_line_tool(EditorApp* app);
 static void update_hover(EditorApp* app);
 static void render_toolbar(EditorApp* app);
@@ -395,6 +396,11 @@ static void handle_input(EditorApp* app) {
         return;  // Panel consumed the input
     }
 
+    // Toolbar button clicks (issue 1213)
+    if (handle_toolbar_click(app)) {
+        return;  // Toolbar consumed the click
+    }
+
     // Tool selection: 1-4
     handle_tool_selection(app);
 
@@ -494,6 +500,37 @@ static void handle_tool_selection(EditorApp* app) {
         app->tool = APP_TOOL_PORTAL_EXIT;
         app->line_tool.state = LINE_STATE_IDLE;
     }
+}
+// }}}
+
+// {{{ handle_toolbar_click
+// Handles mouse clicks on toolbar buttons (issue 1213)
+// Returns 1 if click was consumed, 0 otherwise
+static int handle_toolbar_click(EditorApp* app) {
+    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return 0;
+
+    Vector2 mouse = GetMousePosition();
+
+    // Button layout (must match render_toolbar)
+    int btn_x = 200;
+    int btn_y = 10;
+    int btn_w = 80;
+    int btn_h = 30;
+    int btn_spacing = 10;
+
+    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT};
+
+    for (int i = 0; i < 4; i++) {
+        if (mouse.x >= btn_x && mouse.x < btn_x + btn_w &&
+            mouse.y >= btn_y && mouse.y < btn_y + btn_h) {
+            app->tool = tool_values[i];
+            app->line_tool.state = LINE_STATE_IDLE;
+            return 1;
+        }
+        btn_x += btn_w + btn_spacing;
+    }
+
+    return 0;
 }
 // }}}
 
