@@ -64,6 +64,7 @@ typedef struct Ball {
     int active;        // 1 if in play, 0 if inactive
     int owner;         // OWNER_PLAYER or OWNER_ADVERSARY
     int passed_gate;   // 1 if ball has passed through gate (prevents double-scoring)
+    int portal_cooldown; // Frames until portal can trigger again (prevents re-entry)
 } Ball;
 // }}}
 

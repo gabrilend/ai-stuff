@@ -11,6 +11,7 @@
 #include "003-threadpool.h"
 #include "014-stage.h"
 #include "016-ramp.h"
+#include "028-portal.h"
 #include "raylib.h"
 
 // {{{ ball_manager_create
@@ -162,6 +163,7 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
     next->health = current->health;
     next->owner = current->owner;
     next->passed_gate = current->passed_gate;
+    next->portal_cooldown = current->portal_cooldown;
 
     if (!current->active) return;
 
@@ -555,26 +557,31 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
 
 // {{{ ball_check_bounds
 // Internal function to wrap balls that exit the play area
-// Balls wrap to the opposite side of the screen, preserving velocity and health
-// This creates a continuous loop where balls cycle through both boards
+// Balls wrap to the opposite side of the screen, preserving x position, velocity, and health
+// Uses owner field (not gravity_dir) to differentiate ball types and prevent double-wrap
+// Viewable area is asymmetric: [table_top, adversary_table_bottom + height]
+// So spawn positions must also be asymmetric to match the viewable edges
 static void ball_check_bounds(Ball* ball, World* world) {
-    if (ball->gravity_dir > 0) {
-        // Player ball moving downward - wrap to top when exiting bottom
-        float bottom_bound = world->adversary_table_bottom + WRAP_BUFFER;
+    // Large despawn buffer ensures ball is completely off any viewable scroll position
+    float despawn_buffer = (float)world->height;
+
+    if (ball->owner == OWNER_PLAYER) {
+        // Player ball falling down - wrap when completely below viewable area
+        // Bottom of viewable area is adversary_table_bottom + world->height
+        float bottom_bound = world->adversary_table_bottom + despawn_buffer;
         if (ball->y - ball->radius > bottom_bound) {
-            // Wrap to top of player board
-            float wrap_y = world->table_top - WRAP_BUFFER - ball->radius;
-            ball->y = wrap_y;
-            // x position and velocity preserved for smooth transition
+            // Spawn at top edge of viewable area (matching how adversary spawns at bottom edge)
+            // Viewable top is table_top, so spawn just above it
+            ball->y = world->table_top - ball->radius;
         }
-    } else {
-        // Adversary ball moving upward - wrap to bottom when exiting top
-        float top_bound = world->table_top - WRAP_BUFFER;
+    } else if (ball->owner == OWNER_ADVERSARY) {
+        // Adversary ball floating up - wrap when completely above viewable area
+        // Top of viewable area is table_top
+        float top_bound = world->table_top - despawn_buffer;
         if (ball->y + ball->radius < top_bound) {
-            // Wrap to bottom of adversary board
-            float wrap_y = world->adversary_table_bottom + WRAP_BUFFER + ball->radius;
-            ball->y = wrap_y;
-            // x position and velocity preserved for smooth transition
+            // Spawn at bottom edge of viewable area (adversary_table_bottom + height)
+            // Large buffer since viewable bottom extends world->height past the board
+            ball->y = world->adversary_table_bottom + (float)world->height + ball->radius;
         }
     }
 }
@@ -796,6 +803,24 @@ void ball_update_task(void* data) {
 
         ball_collide_with_walls(next, task->world);
         ball_check_bounds(next, task->world);
+
+        // Check portals for teleportation
+        // Decrement cooldown each frame, then check for entry
+        if (next->portal_cooldown > 0) {
+            next->portal_cooldown--;
+        }
+
+        if (task->world->portals && next->active) {
+            float teleport_x, teleport_y;
+            if (portal_manager_check_ball(task->world->portals, next,
+                                          &teleport_x, &teleport_y)) {
+                // Teleport ball to exit position
+                next->x = teleport_x;
+                next->y = teleport_y;
+                // Set cooldown to prevent immediate re-entry
+                next->portal_cooldown = PORTAL_COOLDOWN_FRAMES;
+            }
+        }
 
         // Check if ball died from cross-board collision damage
         if (next->active && next->health <= 0) {

@@ -33,6 +33,14 @@ typedef enum EditorMode {
 } EditorMode;
 // }}}
 
+// {{{ EditorToolType enum
+// Distinguishes between placing objects and zones
+typedef enum EditorToolType {
+    EDITOR_TOOL_OBJECT,       // Placing objects (pegs, lines)
+    EDITOR_TOOL_ZONE_PORTAL   // Placing portal zones
+} EditorToolType;
+// }}}
+
 // =============================================================================
 // Line Tool State Machine
 // =============================================================================
@@ -124,6 +132,11 @@ typedef struct EditorState {
     BoardFileList* available_boards; // List of board files in boards/
     int load_selected_index;        // Currently selected file index
     int load_scroll_offset;         // Scroll position in file list
+
+    // Portal tool state
+    EditorToolType tool_type;       // Object vs zone placement
+    PortalDirection portal_direction; // PORTAL_ENTRY or PORTAL_EXIT
+    int portal_channel;             // Channel ID for linked portals (1-16)
 } EditorState;
 // }}}
 

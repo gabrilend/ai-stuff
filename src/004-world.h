@@ -5,8 +5,13 @@
 #ifndef WORLD_H
 #define WORLD_H
 
+#include "raylib.h"
+
 // Forward declaration for stage system (defined in 014-stage.h)
 typedef struct StageManager StageManager;
+
+// Forward declaration for portal system (defined in 028-portal.h)
+typedef struct PortalManager PortalManager;
 
 // Physics constants
 #define PEG_RADIUS 12.0f
@@ -14,12 +19,24 @@ typedef struct StageManager StageManager;
 #define DEFAULT_PEG_COLS 8
 #define DEFAULT_PEG_SPACING 60.0f
 
+// Default peg physics (pre-RGB system values)
+#define DEFAULT_PEG_RESTITUTION 0.7f
+#define DEFAULT_PEG_FRICTION 0.2f
+
 // {{{ typedef struct Peg
 // Peg represents a single collision peg in the pachinko machine.
-// Pegs are arranged in a staggered grid pattern.
+// RGB properties control physics behavior and visual color.
 typedef struct Peg {
-    float x, y;        // Position in pixels
-    float radius;      // Collision radius
+    float x, y;           // Position in pixels
+    float radius;         // Collision radius
+
+    // Physics properties (RGB encoded)
+    float restitution;    // Bounciness (0.0-1.0)
+    float friction;       // Surface grip (0.0-1.0)
+    int point_bonus;      // Points awarded on hit
+
+    // Visual color (derived from properties)
+    Color color;
 } Peg;
 // }}}
 
@@ -84,6 +101,9 @@ typedef struct World {
     // Stage expansion system (NULL until first stage upgrade purchased)
     // When active, stages manages additional board sections and gate rows
     StageManager* stages;
+
+    // Portal system (NULL if no portals defined)
+    PortalManager* portals;
 
     // Expansion tracking for dynamic world growth
     float total_height;        // Current total world height (updated on expansion)

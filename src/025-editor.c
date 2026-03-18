@@ -8,6 +8,7 @@
 
 #include "024-editor.h"
 #include "004-world.h"
+#include "028-portal.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -44,7 +45,9 @@
 
 // {{{ typedef struct PaletteItem
 typedef struct PaletteItem {
-    ObjectType type;
+    EditorToolType tool_type;    // Object or zone placement
+    ObjectType object_type;      // For EDITOR_TOOL_OBJECT
+    PortalDirection portal_dir;  // For EDITOR_TOOL_ZONE_PORTAL
     const char* name;
     const char* shortcut;
     Color preview_color;
@@ -53,10 +56,12 @@ typedef struct PaletteItem {
 
 // {{{ palette_items array
 static PaletteItem palette_items[] = {
-    { OBJECT_PEG,  "Peg",  "1", (Color){180, 180, 200, 255} },
-    { OBJECT_LINE, "Line", "2", (Color){200, 150, 100, 255} }
+    { EDITOR_TOOL_OBJECT,      OBJECT_PEG,  PORTAL_ENTRY, "Peg",       "1", (Color){180, 180, 200, 255} },
+    { EDITOR_TOOL_OBJECT,      OBJECT_LINE, PORTAL_ENTRY, "Line",      "2", (Color){200, 150, 100, 255} },
+    { EDITOR_TOOL_ZONE_PORTAL, OBJECT_PEG,  PORTAL_ENTRY, "Portal In", "3", (Color){50, 100, 255, 255} },
+    { EDITOR_TOOL_ZONE_PORTAL, OBJECT_PEG,  PORTAL_EXIT,  "Portal Out","4", (Color){255, 150, 50, 255} }
 };
-#define PALETTE_ITEM_COUNT 2
+#define PALETTE_ITEM_COUNT 4
 // }}}
 
 // Forward declaration for palette click handler (defined in Palette Rendering section)
@@ -127,6 +132,11 @@ EditorState* editor_create(struct World* world) {
     editor->available_boards = NULL;
     editor->load_selected_index = 0;
     editor->load_scroll_offset = 0;
+
+    // Initialize portal tool state
+    editor->tool_type = EDITOR_TOOL_OBJECT;
+    editor->portal_direction = PORTAL_ENTRY;
+    editor->portal_channel = 1;
 
     // Setup grid based on world if provided
     if (world) {
@@ -214,14 +224,37 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
         printf("Grid visibility: %s\n", editor->show_grid ? "ON" : "OFF");
     }
 
-    // Object type selection with number keys
+    // Object/tool selection with number keys
     if (IsKeyPressed(KEY_ONE)) {
+        editor->tool_type = EDITOR_TOOL_OBJECT;
         editor->selected_object_type = OBJECT_PEG;
         printf("Selected: PEG\n");
     }
     if (IsKeyPressed(KEY_TWO)) {
+        editor->tool_type = EDITOR_TOOL_OBJECT;
         editor->selected_object_type = OBJECT_LINE;
         printf("Selected: LINE\n");
+    }
+    if (IsKeyPressed(KEY_THREE)) {
+        editor->tool_type = EDITOR_TOOL_ZONE_PORTAL;
+        editor->portal_direction = PORTAL_ENTRY;
+        printf("Selected: PORTAL ENTRY (ch %d)\n", editor->portal_channel);
+    }
+    if (IsKeyPressed(KEY_FOUR)) {
+        editor->tool_type = EDITOR_TOOL_ZONE_PORTAL;
+        editor->portal_direction = PORTAL_EXIT;
+        printf("Selected: PORTAL EXIT (ch %d)\n", editor->portal_channel);
+    }
+
+    // Portal channel selection with scroll wheel when portal tool is active
+    if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+        int wheel = GetMouseWheelMove();
+        if (wheel != 0 && !editor_is_over_ui(editor)) {
+            editor->portal_channel += wheel;
+            if (editor->portal_channel < 1) editor->portal_channel = 1;
+            if (editor->portal_channel > 16) editor->portal_channel = 16;
+            printf("Portal channel: %d\n", editor->portal_channel);
+        }
     }
 
     // Delete/Backspace to remove object at cursor (works in any mode)
@@ -312,29 +345,57 @@ static void editor_render_palette_icon(PaletteItem* item, int x, int y, int size
     int cy = y + size / 2;
     int half = size / 3;
 
-    switch (item->type) {
-        case OBJECT_PEG:
-            // Circle
-            DrawCircle(cx, cy, (float)half, item->preview_color);
-            DrawCircleLines(cx, cy, (float)half, WHITE);
-            break;
+    if (item->tool_type == EDITOR_TOOL_OBJECT) {
+        // Object tools
+        switch (item->object_type) {
+            case OBJECT_PEG:
+                // Circle
+                DrawCircle(cx, cy, (float)half, item->preview_color);
+                DrawCircleLines(cx, cy, (float)half, WHITE);
+                break;
 
-        case OBJECT_LINE:
-            // Diagonal line with rounded endpoints
-            DrawLineEx(
-                (Vector2){(float)(cx - half), (float)(cy - half)},
-                (Vector2){(float)(cx + half), (float)(cy + half)},
-                4, item->preview_color
+            case OBJECT_LINE:
+                // Diagonal line with rounded endpoints
+                DrawLineEx(
+                    (Vector2){(float)(cx - half), (float)(cy - half)},
+                    (Vector2){(float)(cx + half), (float)(cy + half)},
+                    4, item->preview_color
+                );
+                // Ball joints at endpoints
+                DrawCircle(cx - half, cy - half, 4, item->preview_color);
+                DrawCircle(cx + half, cy + half, 4, item->preview_color);
+                break;
+
+            default:
+                DrawText("?", cx - 5, cy - 8, 16, RED);
+                break;
+        }
+    } else if (item->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+        // Portal zone preview - rectangle with direction indicator
+        int rect_half = half - 2;
+        DrawRectangle(cx - rect_half, cy - rect_half, rect_half * 2, rect_half * 2,
+                     item->preview_color);
+        DrawRectangleLines(cx - rect_half, cy - rect_half, rect_half * 2, rect_half * 2,
+                          WHITE);
+
+        // Direction indicator (arrow)
+        if (item->portal_dir == PORTAL_ENTRY) {
+            // Inward arrow (V pointing down)
+            DrawTriangle(
+                (Vector2){(float)cx, (float)(cy + 6)},       // Bottom
+                (Vector2){(float)(cx + 6), (float)(cy - 4)}, // Top right
+                (Vector2){(float)(cx - 6), (float)(cy - 4)}, // Top left
+                WHITE
             );
-            // Ball joints at endpoints
-            DrawCircle(cx - half, cy - half, 4, item->preview_color);
-            DrawCircle(cx + half, cy + half, 4, item->preview_color);
-            break;
-
-        default:
-            // Unknown type - draw question mark
-            DrawText("?", cx - 5, cy - 8, 16, RED);
-            break;
+        } else {
+            // Outward arrow (^ pointing up)
+            DrawTriangle(
+                (Vector2){(float)cx, (float)(cy - 6)},       // Top
+                (Vector2){(float)(cx - 6), (float)(cy + 4)}, // Bottom left
+                (Vector2){(float)(cx + 6), (float)(cy + 4)}, // Bottom right
+                WHITE
+            );
+        }
     }
 }
 // }}}
@@ -365,7 +426,13 @@ static void editor_render_palette(EditorState* editor) {
         // Selection/hover highlight
         Rectangle item_rect = { (float)item_x, (float)item_y,
                                 (float)PALETTE_ITEM_SIZE, (float)PALETTE_ITEM_SIZE };
-        int is_selected = (editor->selected_object_type == item->type);
+        // Check if this item is selected based on tool type and specific settings
+        int is_selected = 0;
+        if (item->tool_type == EDITOR_TOOL_OBJECT && editor->tool_type == EDITOR_TOOL_OBJECT) {
+            is_selected = (editor->selected_object_type == item->object_type);
+        } else if (item->tool_type == EDITOR_TOOL_ZONE_PORTAL && editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+            is_selected = (editor->portal_direction == item->portal_dir);
+        }
         int is_hovered = CheckCollisionPointRec(GetMousePosition(), item_rect);
 
         if (is_selected) {
@@ -401,8 +468,14 @@ static int editor_handle_palette_click(EditorState* editor) {
         };
 
         if (CheckCollisionPointRec(mouse, item_rect)) {
-            editor->selected_object_type = palette_items[i].type;
-            printf("Selected: %s\n", palette_items[i].name);
+            PaletteItem* item = &palette_items[i];
+            editor->tool_type = item->tool_type;
+            if (item->tool_type == EDITOR_TOOL_OBJECT) {
+                editor->selected_object_type = item->object_type;
+            } else if (item->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+                editor->portal_direction = item->portal_dir;
+            }
+            printf("Selected: %s\n", item->name);
             return 1;  // Click consumed
         }
 
@@ -463,16 +536,21 @@ void editor_render_ui(EditorState* editor) {
                   MODE_BG_COLOR);
     DrawText(mode_text, x, MODE_INDICATOR_Y, MODE_INDICATOR_FONT_SIZE, mode_color);
 
-    // Draw selected object indicator
-    const char* obj_name;
-    switch (editor->selected_object_type) {
-        case OBJECT_PEG: obj_name = "PEG"; break;
-        case OBJECT_LINE: obj_name = "LINE"; break;
-        default: obj_name = "???"; break;
+    // Draw selected tool indicator
+    char selected_text[80];
+    if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+        const char* dir_name = (editor->portal_direction == PORTAL_ENTRY) ? "ENTRY" : "EXIT";
+        snprintf(selected_text, sizeof(selected_text),
+                "Portal %s Ch %d (3/4=Dir, Scroll=Ch)", dir_name, editor->portal_channel);
+    } else {
+        const char* obj_name;
+        switch (editor->selected_object_type) {
+            case OBJECT_PEG: obj_name = "PEG"; break;
+            case OBJECT_LINE: obj_name = "LINE"; break;
+            default: obj_name = "???"; break;
+        }
+        snprintf(selected_text, sizeof(selected_text), "Selected: %s (1=PEG, 2=LINE, 3/4=Portal)", obj_name);
     }
-
-    char selected_text[64];
-    snprintf(selected_text, sizeof(selected_text), "Selected: %s (1=PEG, 2=LINE)", obj_name);
 
     int selected_width = MeasureText(selected_text, HELP_TEXT_FONT_SIZE);
     int sel_x = (editor->screen_width - selected_width) / 2;
@@ -540,7 +618,8 @@ void editor_render_cursor(EditorState* editor) {
     if (!editor || editor->mode == EDITOR_MODE_DISABLED) return;
 
     // Line tool has its own preview rendering for all states
-    if (editor->selected_object_type == OBJECT_LINE &&
+    if (editor->tool_type == EDITOR_TOOL_OBJECT &&
+        editor->selected_object_type == OBJECT_LINE &&
         editor->mode == EDITOR_MODE_PLACE) {
         line_tool_render_preview(editor);
         // Only render hover dot in idle state with valid hover
@@ -559,15 +638,57 @@ void editor_render_cursor(EditorState* editor) {
     Vector2 pos = grid_to_pixel(&editor->grid, editor->hover_col, editor->hover_row);
 
     if (editor->mode == EDITOR_MODE_PLACE) {
-        // Draw preview of selected object
-        switch (editor->selected_object_type) {
-            case OBJECT_PEG:
-                // Draw peg preview (semi-transparent)
-                DrawCircleV(pos, PEG_RADIUS, CURSOR_VALID_COLOR);
-                DrawCircleLinesV(pos, PEG_RADIUS, GREEN);
-                break;
-            default:
-                break;
+        if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+            // Portal zone preview
+            float cell_size = editor->grid.cell_size;
+            Color portal_color;
+            if (editor->portal_direction == PORTAL_ENTRY) {
+                portal_color = (Color){50, 100, 255, 150};  // Blue
+            } else {
+                portal_color = (Color){255, 150, 50, 150};  // Orange
+            }
+
+            // Draw portal zone rectangle
+            DrawRectangle((int)(pos.x - cell_size/2), (int)(pos.y - cell_size/2),
+                         (int)cell_size, (int)cell_size, portal_color);
+            DrawRectangleLines((int)(pos.x - cell_size/2), (int)(pos.y - cell_size/2),
+                              (int)cell_size, (int)cell_size, WHITE);
+
+            // Draw direction indicator
+            if (editor->portal_direction == PORTAL_ENTRY) {
+                // Inward arrow
+                DrawTriangle(
+                    (Vector2){pos.x, pos.y + 10},
+                    (Vector2){pos.x + 8, pos.y - 5},
+                    (Vector2){pos.x - 8, pos.y - 5},
+                    WHITE
+                );
+            } else {
+                // Outward arrow
+                DrawTriangle(
+                    (Vector2){pos.x, pos.y - 10},
+                    (Vector2){pos.x - 8, pos.y + 5},
+                    (Vector2){pos.x + 8, pos.y + 5},
+                    WHITE
+                );
+            }
+
+            // Draw channel number
+            char ch_text[8];
+            snprintf(ch_text, sizeof(ch_text), "%d", editor->portal_channel);
+            int text_width = MeasureText(ch_text, 14);
+            DrawText(ch_text, (int)pos.x - text_width/2, (int)pos.y - 25, 14, WHITE);
+        } else {
+            // Object preview
+            switch (editor->selected_object_type) {
+                case OBJECT_PEG:
+                    // Draw peg preview (semi-transparent)
+                    DrawCircleV(pos, PEG_RADIUS, CURSOR_VALID_COLOR);
+                    DrawCircleLinesV(pos, PEG_RADIUS, GREEN);
+                    break;
+                default:
+                    break;
+            }
         }
     } else if (editor->mode == EDITOR_MODE_ERASE) {
         // Draw X mark for erase mode
@@ -978,29 +1099,42 @@ int editor_handle_placement(EditorState* editor) {
     int col = editor->hover_col;
     int row = editor->hover_row;
 
-    // Check if cell is occupied
-    if (board_data_has_object_at(editor->board_data, col, row)) {
-        printf("Cell (%d, %d) is occupied\n", col, row);
-        return 0;
-    }
-
-    // Add object based on selected type
     int success = 0;
-    switch (editor->selected_object_type) {
-        case OBJECT_PEG:
-            success = board_data_add_peg(editor->board_data, col, row);
-            if (success) printf("Placed peg at (%d, %d)\n", col, row);
-            break;
 
-        case OBJECT_LINE:
-            // LINE requires two-click placement (handled in 1110)
-            // For now, just print a message
-            printf("Line placement requires start and end points (use line tool)\n");
+    // Handle based on tool type
+    if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+        // Portal zone placement
+        success = board_data_add_portal(editor->board_data, col, row,
+                                        1, 1, editor->portal_channel,
+                                        editor->portal_direction);
+        if (success) {
+            const char* dir_name = (editor->portal_direction == PORTAL_ENTRY) ? "entry" : "exit";
+            printf("Placed portal %s (ch %d) at (%d, %d)\n",
+                   dir_name, editor->portal_channel, col, row);
+        }
+    } else {
+        // Object placement
+        // Check if cell is occupied by an object
+        if (board_data_has_object_at(editor->board_data, col, row)) {
+            printf("Cell (%d, %d) is occupied\n", col, row);
             return 0;
+        }
 
-        default:
-            printf("Unknown object type: %d\n", editor->selected_object_type);
-            return 0;
+        switch (editor->selected_object_type) {
+            case OBJECT_PEG:
+                success = board_data_add_peg(editor->board_data, col, row);
+                if (success) printf("Placed peg at (%d, %d)\n", col, row);
+                break;
+
+            case OBJECT_LINE:
+                // LINE requires two-click placement (handled in 1110)
+                printf("Line placement requires start and end points (use line tool)\n");
+                return 0;
+
+            default:
+                printf("Unknown object type: %d\n", editor->selected_object_type);
+                return 0;
+        }
     }
 
     if (success) {
@@ -1077,6 +1211,16 @@ void editor_sync_to_world(EditorState* editor) {
     // Regenerate bumpers based on new zone layout
     if (editor->world->zone_count > 0) {
         world_generate_bumpers(editor->world);
+    }
+
+    // Sync portals
+    // Create portal manager if needed
+    if (!editor->world->portals) {
+        editor->world->portals = portal_manager_create();
+    }
+    if (editor->world->portals) {
+        portal_manager_load_from_board(editor->world->portals,
+                                       editor->board_data, &editor->grid);
     }
 
     editor->board_modified = 0;

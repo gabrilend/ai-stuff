@@ -8,6 +8,7 @@
 
 #include "004-world.h"
 #include "014-stage.h"
+#include "028-portal.h"
 #include <raylib.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,6 +49,9 @@ World* world_create(int width, int height) {
 
     // Stage expansion system (NULL until first stage upgrade purchased)
     world->stages = NULL;
+
+    // Portal system (NULL until portals loaded)
+    world->portals = NULL;
 
     // Expansion tracking
     world->total_height = (float)height;
@@ -91,6 +95,11 @@ void world_destroy(World* world) {
         stage_manager_destroy(world->stages);
     }
 
+    // Free portal manager if active
+    if (world->portals) {
+        portal_manager_destroy(world->portals);
+    }
+
     // Free world structure
     free(world);
 }
@@ -118,6 +127,9 @@ void world_generate_pegs(World* world, int rows, int cols,
         return;
     }
 
+    // Default peg color (light steel - original look)
+    Color default_color = (Color){180, 180, 200, 255};
+
     // Generate staggered grid
     int idx = 0;
     for (int row = 0; row < rows; row++) {
@@ -128,6 +140,11 @@ void world_generate_pegs(World* world, int rows, int cols,
             world->pegs[idx].x = start_x + col * spacing + offset;
             world->pegs[idx].y = start_y + row * spacing;
             world->pegs[idx].radius = PEG_RADIUS;
+            // Initialize new properties with defaults
+            world->pegs[idx].restitution = DEFAULT_PEG_RESTITUTION;
+            world->pegs[idx].friction = DEFAULT_PEG_FRICTION;
+            world->pegs[idx].point_bonus = 0;
+            world->pegs[idx].color = default_color;
             idx++;
         }
     }
@@ -140,19 +157,17 @@ void world_render_pegs(World* world) {
         return;
     }
 
-    // Color palette for pegs - cohesive visual design
-    Color peg_color = (Color){180, 180, 200, 255};      // Light steel
-    Color peg_outline = (Color){100, 100, 120, 255};    // Darker outline
+    Color peg_outline = (Color){100, 100, 120, 255};  // Darker outline
 
     // Render each peg as a circle with outline
     for (int i = 0; i < world->peg_count; i++) {
-        // Draw filled circle
-        DrawCircle((int)world->pegs[i].x, (int)world->pegs[i].y,
-                   world->pegs[i].radius, peg_color);
+        Peg* peg = &world->pegs[i];
+
+        // Draw filled circle with peg's color
+        DrawCircle((int)peg->x, (int)peg->y, peg->radius, peg->color);
 
         // Draw outline for depth
-        DrawCircleLines((int)world->pegs[i].x, (int)world->pegs[i].y,
-                       world->pegs[i].radius, peg_outline);
+        DrawCircleLines((int)peg->x, (int)peg->y, peg->radius, peg_outline);
     }
 }
 // }}}
@@ -410,6 +425,9 @@ void world_generate_adversary_pegs(World* world, int rows, int cols, float spaci
     float start_x = world->table_x + (world->table_width - peg_grid_width) / 2.0f;
     float start_y = world->adversary_table_top + 50.0f;  // Margin below zones
 
+    // Default adversary peg color (reddish steel - original look)
+    Color adversary_color = (Color){180, 140, 140, 255};
+
     int idx = 0;
     for (int row = 0; row < rows; row++) {
         // Odd rows get half-spacing offset for staggered pattern
@@ -419,6 +437,11 @@ void world_generate_adversary_pegs(World* world, int rows, int cols, float spaci
             world->adversary_pegs[idx].x = start_x + col * spacing + offset;
             world->adversary_pegs[idx].y = start_y + row * spacing;
             world->adversary_pegs[idx].radius = PEG_RADIUS;
+            // Initialize new properties with defaults
+            world->adversary_pegs[idx].restitution = DEFAULT_PEG_RESTITUTION;
+            world->adversary_pegs[idx].friction = DEFAULT_PEG_FRICTION;
+            world->adversary_pegs[idx].point_bonus = 0;
+            world->adversary_pegs[idx].color = adversary_color;
             idx++;
         }
     }
@@ -431,19 +454,17 @@ void world_render_adversary_pegs(World* world) {
         return;
     }
 
-    // Adversary peg colors - red-tinted, dimmer than player pegs
-    Color peg_color = (Color){180, 140, 140, 255};      // Reddish steel
-    Color peg_outline = (Color){120, 80, 80, 255};      // Darker red outline
+    Color peg_outline = (Color){120, 80, 80, 255};  // Darker red outline
 
     // Render each peg as a circle with outline
     for (int i = 0; i < world->adversary_peg_count; i++) {
-        // Draw filled circle
-        DrawCircle((int)world->adversary_pegs[i].x, (int)world->adversary_pegs[i].y,
-                   world->adversary_pegs[i].radius, peg_color);
+        Peg* peg = &world->adversary_pegs[i];
+
+        // Draw filled circle with peg's color
+        DrawCircle((int)peg->x, (int)peg->y, peg->radius, peg->color);
 
         // Draw outline for depth
-        DrawCircleLines((int)world->adversary_pegs[i].x, (int)world->adversary_pegs[i].y,
-                       world->adversary_pegs[i].radius, peg_outline);
+        DrawCircleLines((int)peg->x, (int)peg->y, peg->radius, peg_outline);
     }
 }
 // }}}

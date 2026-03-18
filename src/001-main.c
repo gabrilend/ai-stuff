@@ -18,6 +18,7 @@
 #include "014-stage.h"
 #include "018-expansion-anim.h"
 #include "024-editor.h"
+#include "028-portal.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -656,6 +657,11 @@ int main(void) {
         // Draw stage expansion content (if stages have been purchased)
         if (world->stages) {
             stage_manager_render_all(world->stages);
+        }
+
+        // Draw portals (if any defined)
+        if (world->portals) {
+            portal_manager_render(world->portals);
         }
 
         // Draw spawn point indicator (pulsing circle at movable position)
