@@ -2189,9 +2189,19 @@ local function render_item(row, item_id, highlight, item_num, section_type)
                 }
 
                 -- Account for space between lines (becomes continuation marker or space before next line content)
+                -- Issue 10-008: Map the inter-token space to end of current line so cursor is visible
                 if line_idx < #lines and orig_pos <= #value then
-                    -- The space between this line's last token and next line's first token
-                    orig_pos = orig_pos + 1  -- Skip the inter-token space
+                    -- Map the inter-token space position to end of this line (after last char)
+                    -- This ensures cursor is visible when at end of a non-last line
+                    local gap_start_col = (line_idx == 1) and col or 1
+                    local line_content_end = content_end
+                    pos_map[orig_pos] = {
+                        line = line_idx,
+                        col = gap_start_col + line_content_end
+                    }
+                    -- Update line_range to include the gap position
+                    line_ranges[line_idx].end_pos = orig_pos
+                    orig_pos = orig_pos + 1
                 end
             end
             -- Map position past end of string (for cursor at end)
@@ -2280,6 +2290,20 @@ local function render_item(row, item_id, highlight, item_num, section_type)
                     end
 
                     tui.write_str(line_row, screen_col, c)
+                end
+
+                -- Issue 10-008: Show cursor at end of line for gap positions
+                -- Gap position is mapped to column past the rendered text
+                if pos_map[state.cmd_cursor] and pos_map[state.cmd_cursor].line == line_idx then
+                    local cursor_pos_info = pos_map[state.cmd_cursor]
+                    local start_col = (line_idx == 1) and col or 1
+                    local last_rendered_col = start_col + #line_text - 1
+                    -- If cursor column is past last rendered char, render cursor space
+                    if cursor_pos_info.col > last_rendered_col then
+                        tui.reset_style()
+                        tui.set_attrs(tui.ATTR_INVERSE)
+                        tui.write_str(line_row, cursor_pos_info.col, " ")
+                    end
                 end
 
                 rows_used = rows_used + 1
@@ -3710,6 +3734,7 @@ end
 -- {{{ menu.cmd_cursor_up
 -- Issue 10-008: Move cursor up one line in wrapped command preview
 -- Tries to maintain same column position on the previous line
+-- Returns: true if moved, false if at boundary (caller should leave preview)
 function menu.cmd_cursor_up()
     if not is_on_command_preview() then return false end
 
@@ -3727,13 +3752,13 @@ function menu.cmd_cursor_up()
         current_col = pos_map[cursor].col
     end
 
-    -- Can't go up from line 1
-    if current_line <= 1 then return true end
+    -- At line 1 boundary - signal caller to leave preview
+    if current_line <= 1 then return false end
 
     -- Move to previous line, same column if possible
     local prev_line = current_line - 1
     local prev_range = line_ranges[prev_line]
-    if not prev_range then return true end
+    if not prev_range then return false end
 
     -- Find position on previous line with closest column
     local best_pos = prev_range.start_pos
@@ -3762,6 +3787,7 @@ end
 -- {{{ menu.cmd_cursor_down
 -- Issue 10-008: Move cursor down one line in wrapped command preview
 -- Tries to maintain same column position on the next line
+-- Returns: true if moved, false if at boundary (caller should leave preview)
 function menu.cmd_cursor_down()
     if not is_on_command_preview() then return false end
 
@@ -3779,14 +3805,14 @@ function menu.cmd_cursor_down()
         current_col = pos_map[cursor].col
     end
 
-    -- Can't go down from last line
+    -- At last line boundary - signal caller to leave preview
     local num_lines = #line_ranges
-    if current_line >= num_lines then return true end
+    if current_line >= num_lines or num_lines == 0 then return false end
 
     -- Move to next line, same column if possible
     local next_line = current_line + 1
     local next_range = line_ranges[next_line]
-    if not next_range then return true end
+    if not next_range then return false end
 
     -- Find position on next line with closest column
     local best_pos = next_range.start_pos
@@ -4044,10 +4070,20 @@ function menu.run()
                     menu.cmd_cursor_right()
                 elseif key == "j" or key == "DOWN" then
                     -- Issue 10-008: Move down one wrapped line (j or down arrow)
-                    menu.cmd_cursor_down()
+                    -- If at last line, leave preview and navigate to next section
+                    if not menu.cmd_cursor_down() then
+                        state.cmd_cursor = 0
+                        collapse_files_in_command()
+                        menu.nav_down()
+                    end
                 elseif key == "k" or key == "UP" then
                     -- Issue 10-008: Move up one wrapped line (k or up arrow)
-                    menu.cmd_cursor_up()
+                    -- If at first line, leave preview and navigate to previous section
+                    if not menu.cmd_cursor_up() then
+                        state.cmd_cursor = 0
+                        collapse_files_in_command()
+                        menu.nav_up()
+                    end
                 elseif key == "i" or key == "I" then
                     -- Enter insert mode at current cursor position
                     -- If cursor is in file placeholder, expand it first

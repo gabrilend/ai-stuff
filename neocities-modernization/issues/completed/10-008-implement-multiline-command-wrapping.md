@@ -316,3 +316,33 @@ significant changes to cursor positioning across wrapped lines.
 5. **Backspace behavior** - Deletes and enters insert mode
 6. **I (capital)** - Enters insert mode (same as lowercase i)
 
+### 2026-03-18: Section Navigation and Input Fixes
+
+**Additional Fixes:**
+
+1. **K/J leave command preview at line boundaries**:
+   - `cmd_cursor_up()` and `cmd_cursor_down()` now return `false` at boundaries
+   - Key handlers check return value and call `nav_up()`/`nav_down()` when at edge
+   - Pressing K on first line leaves preview and goes to previous section
+   - Pressing J on last line leaves preview and goes to next section
+
+2. **End-of-line cursor visibility**:
+   - Gap positions (spaces between wrapped lines) now mapped to end of current line
+   - Added cursor rendering for positions past last rendered character
+   - Cursor visible when at end of any line, not just end of command
+
+3. **Arrow key single-tap fix**:
+   - Root cause: Lua's buffered I/O interfered with select()-based timeout
+   - When `io.read(1)` was called, Lua might buffer multiple bytes
+   - Then `select()` reported no data available (bytes in Lua's buffer, not kernel's)
+   - Fix: Added `tty_in:setvbuf("no")` to disable buffering
+   - Arrow key escape sequences now detected reliably on single taps
+
+**Files Modified:**
+- `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua`:
+  - Updated key handlers for j/k/UP/DOWN to leave preview at boundaries
+  - Added gap position mapping in position map construction
+  - Added cursor rendering for end-of-line positions
+- `/home/ritz/programming/ai-stuff/scripts/libs/tui.lua`:
+  - Added `setvbuf("no")` to disable input buffering
+
