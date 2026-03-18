@@ -8,13 +8,13 @@ Editor Modularization. Extract the board editor into a standalone application, r
 
 | ID   | Description                        | Status    |
 |------|------------------------------------|-----------|
-| 1201 | Standalone editor application      | Open      |
-| 1202 | Remove editor from game            | Open      |
+| 1201 | Standalone editor application      | Complete  |
+| 1202 | Remove editor from game            | Complete  |
 
 ## Progress Summary
 
-**Completed:** 0/2 issues (0%)
-**Status:** Not started
+**Completed:** 2/2 issues (100%)
+**Status:** Phase complete
 
 ## Design Overview
 
