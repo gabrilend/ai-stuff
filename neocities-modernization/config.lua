@@ -145,6 +145,7 @@ return {
                     external = {
                         source = "/home/ritz/pictures/things-i-almost-posted",
                     },
+                    randomize_order = false,
                 },
                 {
                     name = "poem-pictures",
@@ -161,6 +162,10 @@ return {
                     external = {
                         source = "/home/ritz/pictures/dnd-pictures",
                     },
+                    -- Issue 10-030: Randomize position of these images in timeline
+                    -- (they don't have meaningful dates, scatter throughout)
+                    randomize_order = true;
+
                 },
                 {
                     -- NOTE: external syncs to fediverse-stars, sources reads from here
@@ -171,10 +176,13 @@ return {
                     external = {
                         source = "/home/ritz/pictures/fediverse-backup",
                     },
+                    -- Issue 10-030: Randomize position of these images in timeline
+                    -- (they don't have meaningful dates, scatter throughout)
+                    randomize_order = true;
                 },
             },
             supported_formats = {"png", "jpg", "jpeg", "gif", "webp", "svg"},
-            max_file_size_mb = 100,
+            max_file_size_mb = 200,
             preserve_structure = true,
             overwrite_existing = false,
         },
@@ -336,7 +344,7 @@ return {
             name = "local",
             description = "Local Ollama instance",
             host = "localhost",
-            port = 11434,
+            port = 10265,
             model = "nomic-embed-text",
         },
     },
