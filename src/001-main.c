@@ -17,6 +17,7 @@
 #include "010-upgrades.h"
 #include "012-adversary.h"
 #include "014-stage.h"
+#include "016-ramp.h"
 #include "018-expansion-anim.h"
 #include "026-stage-pool.h"
 #include "020-board-data.h"
@@ -122,7 +123,7 @@ static void apply_board_data_to_stage(BoardData* data, Stage* stage) {
 // }}}
 
 // {{{ apply_initial_board_data
-// Applies BoardData to the world's initial player pegs.
+// Applies BoardData to the world's initial player pegs and ramps.
 // Creates a grid based on the board's dimensions and the world's peg area.
 // Returns 1 on success, 0 on failure.
 static int apply_initial_board_data(BoardData* data, World* world,
@@ -134,65 +135,98 @@ static int apply_initial_board_data(BoardData* data, World* world,
     Grid grid = grid_create(data->grid_cols, data->grid_rows, (float)data->cell_size,
                             peg_start_x, peg_start_y);
 
-    // Count pegs in board data
+    // Count pegs and lines in board data
     int peg_count = 0;
+    int line_count = 0;
     for (int i = 0; i < data->object_count; i++) {
         if (data->objects[i].type == OBJECT_PEG) peg_count++;
+        else if (data->objects[i].type == OBJECT_LINE) line_count++;
     }
-
-    if (peg_count == 0) return 0;
 
     // Free existing pegs
     if (world->pegs) free(world->pegs);
+    world->pegs = NULL;
+    world->peg_count = 0;
 
-    // Allocate peg array
-    world->pegs = (Peg*)malloc(sizeof(Peg) * peg_count);
-    if (!world->pegs) {
-        world->peg_count = 0;
-        return 0;
-    }
-    world->peg_count = peg_count;
+    // Free existing ramps
+    if (world->ramps) free(world->ramps);
+    world->ramps = NULL;
+    world->ramp_count = 0;
 
-    // Default player peg color (light steel)
-    Color default_color = (Color){180, 180, 200, 255};
-
-    // Convert BoardObjects to Pegs
-    int peg_idx = 0;
-    for (int i = 0; i < data->object_count; i++) {
-        BoardObject* obj = &data->objects[i];
-        if (obj->type != OBJECT_PEG) continue;
-
-        Peg* peg = &world->pegs[peg_idx];
-        peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
-        peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
-        peg->radius = PEG_RADIUS;
-        peg->restitution = property_to_float(obj->restitution);
-        peg->friction = property_to_float(obj->friction);
-        peg->point_bonus = obj->point_bonus;
-
-        // Use default color if no custom properties, otherwise tint based on properties
-        if (obj->restitution == DEFAULT_RESTITUTION &&
-            obj->friction == DEFAULT_FRICTION &&
-            obj->point_bonus == DEFAULT_POINT_BONUS) {
-            peg->color = default_color;
-        } else {
-            // Tint based on RGB properties
-            int red = 140 + (obj->restitution * 115 / 255);
-            int green = 140 + (obj->friction * 60 / 255);
-            int blue = 140 + (obj->point_bonus * 115 / 255);
-            peg->color = (Color){(unsigned char)red, (unsigned char)green,
-                                 (unsigned char)blue, 255};
+    // Allocate and populate pegs
+    if (peg_count > 0) {
+        world->pegs = (Peg*)malloc(sizeof(Peg) * peg_count);
+        if (!world->pegs) {
+            return 0;
         }
-        peg_idx++;
+        world->peg_count = peg_count;
+
+        // Default player peg color (light steel)
+        Color default_color = (Color){180, 180, 200, 255};
+
+        int peg_idx = 0;
+        for (int i = 0; i < data->object_count; i++) {
+            BoardObject* obj = &data->objects[i];
+            if (obj->type != OBJECT_PEG) continue;
+
+            Peg* peg = &world->pegs[peg_idx];
+            peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
+            peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
+            peg->radius = PEG_RADIUS;
+            peg->restitution = property_to_float(obj->restitution);
+            peg->friction = property_to_float(obj->friction);
+            peg->point_bonus = obj->point_bonus;
+
+            // Use default color if no custom properties, otherwise tint based on properties
+            if (obj->restitution == DEFAULT_RESTITUTION &&
+                obj->friction == DEFAULT_FRICTION &&
+                obj->point_bonus == DEFAULT_POINT_BONUS) {
+                peg->color = default_color;
+            } else {
+                // Tint based on RGB properties
+                int red = 140 + (obj->restitution * 115 / 255);
+                int green = 140 + (obj->friction * 60 / 255);
+                int blue = 140 + (obj->point_bonus * 115 / 255);
+                peg->color = (Color){(unsigned char)red, (unsigned char)green,
+                                     (unsigned char)blue, 255};
+            }
+            peg_idx++;
+        }
     }
 
-    return 1;
+    // Allocate and populate ramps from lines
+    if (line_count > 0) {
+        world->ramps = (Ramp*)malloc(sizeof(Ramp) * line_count);
+        if (!world->ramps) {
+            // Pegs were allocated, but we can continue without ramps
+            world->ramp_count = 0;
+        } else {
+            world->ramp_count = line_count;
+
+            int ramp_idx = 0;
+            for (int i = 0; i < data->object_count; i++) {
+                BoardObject* obj = &data->objects[i];
+                if (obj->type != OBJECT_LINE) continue;
+
+                float x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
+                float y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
+                float x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
+                float y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+
+                world->ramps[ramp_idx] = ramp_create_line(x1, y1, x2, y2, obj->thickness);
+                ramp_idx++;
+            }
+            printf("Created %d ramps from board lines\n", world->ramp_count);
+        }
+    }
+
+    return (peg_count > 0 || line_count > 0) ? 1 : 0;
 }
 // }}}
 
 // {{{ apply_adversary_board_data
-// Applies BoardData to the world's adversary pegs.
-// Positions pegs in the adversary area (below zones).
+// Applies BoardData to the world's adversary pegs and ramps.
+// Positions pegs/ramps in the adversary area (below zones).
 // Returns 1 on success, 0 on failure.
 static int apply_adversary_board_data(BoardData* data, World* world,
                                       float peg_start_x, float peg_start_y) {
@@ -203,59 +237,91 @@ static int apply_adversary_board_data(BoardData* data, World* world,
     Grid grid = grid_create(data->grid_cols, data->grid_rows, (float)data->cell_size,
                             peg_start_x, peg_start_y);
 
-    // Count pegs in board data
+    // Count pegs and lines in board data
     int peg_count = 0;
+    int line_count = 0;
     for (int i = 0; i < data->object_count; i++) {
         if (data->objects[i].type == OBJECT_PEG) peg_count++;
+        else if (data->objects[i].type == OBJECT_LINE) line_count++;
     }
-
-    if (peg_count == 0) return 0;
 
     // Free existing adversary pegs
     if (world->adversary_pegs) free(world->adversary_pegs);
+    world->adversary_pegs = NULL;
+    world->adversary_peg_count = 0;
 
-    // Allocate peg array
-    world->adversary_pegs = (Peg*)malloc(sizeof(Peg) * peg_count);
-    if (!world->adversary_pegs) {
-        world->adversary_peg_count = 0;
-        return 0;
-    }
-    world->adversary_peg_count = peg_count;
+    // Free existing adversary ramps
+    if (world->adversary_ramps) free(world->adversary_ramps);
+    world->adversary_ramps = NULL;
+    world->adversary_ramp_count = 0;
 
-    // Default adversary peg color (reddish steel)
-    Color default_color = (Color){180, 140, 140, 255};
-
-    // Convert BoardObjects to Pegs
-    int peg_idx = 0;
-    for (int i = 0; i < data->object_count; i++) {
-        BoardObject* obj = &data->objects[i];
-        if (obj->type != OBJECT_PEG) continue;
-
-        Peg* peg = &world->adversary_pegs[peg_idx];
-        peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
-        peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
-        peg->radius = PEG_RADIUS;
-        peg->restitution = property_to_float(obj->restitution);
-        peg->friction = property_to_float(obj->friction);
-        peg->point_bonus = obj->point_bonus;
-
-        // Use default adversary color if no custom properties, otherwise tint
-        if (obj->restitution == DEFAULT_RESTITUTION &&
-            obj->friction == DEFAULT_FRICTION &&
-            obj->point_bonus == DEFAULT_POINT_BONUS) {
-            peg->color = default_color;
-        } else {
-            // Reddish tint based on RGB properties
-            int red = 160 + (obj->restitution * 95 / 255);
-            int green = 100 + (obj->friction * 40 / 255);
-            int blue = 100 + (obj->point_bonus * 55 / 255);
-            peg->color = (Color){(unsigned char)red, (unsigned char)green,
-                                 (unsigned char)blue, 255};
+    // Allocate and populate pegs
+    if (peg_count > 0) {
+        world->adversary_pegs = (Peg*)malloc(sizeof(Peg) * peg_count);
+        if (!world->adversary_pegs) {
+            return 0;
         }
-        peg_idx++;
+        world->adversary_peg_count = peg_count;
+
+        // Default adversary peg color (reddish steel)
+        Color default_color = (Color){180, 140, 140, 255};
+
+        int peg_idx = 0;
+        for (int i = 0; i < data->object_count; i++) {
+            BoardObject* obj = &data->objects[i];
+            if (obj->type != OBJECT_PEG) continue;
+
+            Peg* peg = &world->adversary_pegs[peg_idx];
+            peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
+            peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
+            peg->radius = PEG_RADIUS;
+            peg->restitution = property_to_float(obj->restitution);
+            peg->friction = property_to_float(obj->friction);
+            peg->point_bonus = obj->point_bonus;
+
+            // Use default adversary color if no custom properties, otherwise tint
+            if (obj->restitution == DEFAULT_RESTITUTION &&
+                obj->friction == DEFAULT_FRICTION &&
+                obj->point_bonus == DEFAULT_POINT_BONUS) {
+                peg->color = default_color;
+            } else {
+                // Reddish tint based on RGB properties
+                int red = 160 + (obj->restitution * 95 / 255);
+                int green = 100 + (obj->friction * 40 / 255);
+                int blue = 100 + (obj->point_bonus * 55 / 255);
+                peg->color = (Color){(unsigned char)red, (unsigned char)green,
+                                     (unsigned char)blue, 255};
+            }
+            peg_idx++;
+        }
     }
 
-    return 1;
+    // Allocate and populate ramps from lines
+    if (line_count > 0) {
+        world->adversary_ramps = (Ramp*)malloc(sizeof(Ramp) * line_count);
+        if (!world->adversary_ramps) {
+            world->adversary_ramp_count = 0;
+        } else {
+            world->adversary_ramp_count = line_count;
+
+            int ramp_idx = 0;
+            for (int i = 0; i < data->object_count; i++) {
+                BoardObject* obj = &data->objects[i];
+                if (obj->type != OBJECT_LINE) continue;
+
+                float x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
+                float y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
+                float x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
+                float y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+
+                world->adversary_ramps[ramp_idx] = ramp_create_line(x1, y1, x2, y2, obj->thickness);
+                ramp_idx++;
+            }
+            printf("Created %d adversary ramps from board lines\n", world->adversary_ramp_count);
+        }
+    }
+
+    return (peg_count > 0 || line_count > 0) ? 1 : 0;
 }
 // }}}
 
@@ -372,17 +438,11 @@ static void on_stage_purchased(void* user_data) {
 
 // {{{ main
 int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
     int screen_width = 800;  // Initial horizontal size (updated on resize)
     int screen_height = 600;       // Will be adjusted to monitor
-
-    // Parse command line arguments (issue 1210)
-    int random_adversary_board = 0;
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--random-adversary") == 0) {
-            random_adversary_board = 1;
-            printf("Random adversary board enabled\n");
-        }
-    }
 
     // Seed random number generator for ball spawning
     srand((unsigned int)time(NULL));
@@ -433,10 +493,8 @@ int main(int argc, char* argv[]) {
 
     // Table dimensions - fixed width, dynamic height
     float table_width = 800.0f;  // Fixed table width
-    float peg_spacing = 60.0f;
     float peg_start_y = 150.0f;  // Large gap from spawn (SPAWN_Y=50) for ball clearance
     float zone_height = 40.0f;
-    float bottom_margin = 20.0f;
 
     // Set table bounds (centers table horizontally in window)
     world_set_table_bounds(world, table_width, peg_start_y, zone_height);
@@ -450,50 +508,50 @@ int main(int argc, char* argv[]) {
         printf("Stage pool initialized with %d stages\n", stage_pool_get_count(stage_pool));
     }
 
-    // Try to load a random board from the pool for the initial layout
-    // If no board is available, fall back to programmatic generation
+    // Load a random board from the pool (issue 1216 - JSON boards are required)
+    // All boards come from JSON files in boards/ directory
     BoardData* initial_board = NULL;
-    int use_random_board = 0;
 
-    if (stage_pool && stage_pool_get_count(stage_pool) > 0) {
-        const char* board_path = stage_pool_select_random(stage_pool);
-        if (board_path) {
-            initial_board = board_data_load_json(board_path);
-            if (initial_board) {
-                use_random_board = 1;
-                printf("Selected random initial board: %s\n", board_path);
-            }
-        }
+    if (!stage_pool || stage_pool_get_count(stage_pool) == 0) {
+        fprintf(stderr, "ERROR: No boards found in boards/ directory\n");
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
     }
 
-    // Calculate peg area parameters (used for both random and fallback)
-    float available_height = world_height_pixels - peg_start_y - zone_height - bottom_margin;
-    int peg_rows = (int)(available_height / peg_spacing);
-    if (peg_rows < 5) peg_rows = 5;    // Minimum 5 rows
-    if (peg_rows > 30) peg_rows = 30;  // Maximum 30 rows
-    int peg_cols = 8;
-    float peg_grid_width = peg_cols * peg_spacing;
-    float peg_start_x = world->table_x + (table_width - peg_grid_width) / 2.0f;
-
-    // Generate initial pegs - from random board or programmatic fallback
-    if (use_random_board && initial_board) {
-        // Use the board's grid dimensions, centered in table
-        float board_width = initial_board->grid_cols * initial_board->cell_size;
-        float board_start_x = world->table_x + (table_width - board_width) / 2.0f;
-
-        if (apply_initial_board_data(initial_board, world, board_start_x, peg_start_y)) {
-            printf("Applied random board: %d pegs\n", world->peg_count);
-        } else {
-            // Board application failed, fall back to programmatic
-            use_random_board = 0;
-            world_generate_pegs(world, peg_rows, peg_cols, peg_start_x, peg_start_y, peg_spacing);
-            printf("Board apply failed, generated peg grid: %d rows, %d cols\n", peg_rows, peg_cols);
-        }
-    } else {
-        // No random board available, use programmatic generation
-        world_generate_pegs(world, peg_rows, peg_cols, peg_start_x, peg_start_y, peg_spacing);
-        printf("Generated peg grid: %d rows, %d cols (scaled to window)\n", peg_rows, peg_cols);
+    const char* board_path = stage_pool_select_random(stage_pool);
+    if (!board_path) {
+        fprintf(stderr, "ERROR: Failed to select random board\n");
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
     }
+
+    initial_board = board_data_load_json(board_path);
+    if (!initial_board) {
+        fprintf(stderr, "ERROR: Failed to load board: %s\n", board_path);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    printf("Selected random initial board: %s\n", board_path);
+
+    // Apply the board data to the world (centered in table)
+    float board_width = initial_board->grid_cols * initial_board->cell_size;
+    float board_start_x = world->table_x + (table_width - board_width) / 2.0f;
+
+    if (!apply_initial_board_data(initial_board, world, board_start_x, peg_start_y)) {
+        fprintf(stderr, "ERROR: Failed to apply board data\n");
+        board_data_destroy(initial_board);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    printf("Applied board: %d pegs\n", world->peg_count);
 
     // Generate score zones (7 zones spanning table width)
     world_generate_zones(world, 7, zone_height);
@@ -539,63 +597,34 @@ int main(int argc, char* argv[]) {
     }
     printf("Upgrade manager created\n");
 
-    // Generate adversary board (issue 1209 + 1210)
-    // Default: mirror player's board (use same BoardData)
-    // With --random-adversary: select different random board for asymmetric play
-    BoardData* adversary_board = NULL;
-    int adversary_board_owned = 0;  // Track if we need to free adversary_board
-
-    if (random_adversary_board && stage_pool && stage_pool_get_count(stage_pool) > 0) {
-        // Select a different random board for adversary (issue 1210)
-        const char* adv_board_path = stage_pool_select_random(stage_pool);
-        if (adv_board_path) {
-            adversary_board = board_data_load_json(adv_board_path);
-            if (adversary_board) {
-                adversary_board_owned = 1;
-                printf("Selected random adversary board: %s\n", adv_board_path);
-            }
-        }
-    }
-
-    // Fall back to player's board if no separate adversary board loaded
-    if (!adversary_board && initial_board) {
-        adversary_board = initial_board;
-        adversary_board_owned = 0;  // Don't double-free
-    }
-
-    if (adversary_board) {
-        // Adversary area starts below the zones
-        float adv_board_width = adversary_board->grid_cols * adversary_board->cell_size;
+    // Apply the same board to adversary (mirrored position below zones)
+    // Adversary uses identical layout to player, just positioned below the gates
+    {
+        float adv_board_width = initial_board->grid_cols * initial_board->cell_size;
         float adv_board_start_x = world->table_x + (table_width - adv_board_width) / 2.0f;
         float adv_start_y = world->zones[0].y_max + 50.0f;  // Margin below zones
 
         // Calculate adversary board height for table bounds
-        float adv_board_height = adversary_board->grid_rows * adversary_board->cell_size;
+        float adv_board_height = initial_board->grid_rows * initial_board->cell_size;
 
         // Set adversary table bounds
         world->adversary_table_top = world->zones[0].y_max;
         world->adversary_table_bottom = world->adversary_table_top + adv_board_height + 100.0f;
 
-        if (apply_adversary_board_data(adversary_board, world, adv_board_start_x, adv_start_y)) {
-            printf("Applied adversary board: %d pegs\n", world->adversary_peg_count);
-        } else {
-            // Board application failed, fall back to programmatic
-            world_generate_adversary_pegs(world, peg_rows, peg_cols, peg_spacing);
-            printf("Adversary board apply failed, generated: %d pegs\n", world->adversary_peg_count);
+        if (!apply_adversary_board_data(initial_board, world, adv_board_start_x, adv_start_y)) {
+            fprintf(stderr, "ERROR: Failed to apply adversary board data\n");
+            board_data_destroy(initial_board);
+            world_destroy(world);
+            threadpool_destroy(pool);
+            CloseWindow();
+            return 1;
         }
-    } else {
-        world_generate_adversary_pegs(world, peg_rows, peg_cols, peg_spacing);
-        printf("Generated adversary pegs: %d\n", world->adversary_peg_count);
+        printf("Applied adversary board (mirrored): %d pegs\n", world->adversary_peg_count);
     }
 
     // Clean up board data
-    if (adversary_board_owned && adversary_board) {
-        board_data_destroy(adversary_board);
-    }
-    if (initial_board) {
-        board_data_destroy(initial_board);
-        initial_board = NULL;
-    }
+    board_data_destroy(initial_board);
+    initial_board = NULL;
 
     world_generate_adversary_bumpers(world);
     printf("Generated adversary bumpers: %d\n", world->adversary_bumper_count);
@@ -768,10 +797,11 @@ int main(int argc, char* argv[]) {
         // NOTE: Ball spawning moved to after physics/buffer swap
         // This ensures balls appear at spawn position on first frame
 
-        // Handle window resize - recalculate table centering and regenerate world
+        // Handle window resize - update screen size and camera (issue 1216)
+        // JSON boards are preserved; only dynamic elements (zones, bumpers) are updated
         if (IsWindowResized()) {
             screen_height = GetScreenHeight();
-            screen_width = GetScreenWidth();  // Update for UI anchoring
+            screen_width = GetScreenWidth();
 
             // Update world dimensions
             world->width = screen_width;
@@ -780,25 +810,9 @@ int main(int argc, char* argv[]) {
             // Recalculate table centering (width stays fixed at 800)
             world_set_table_bounds(world, table_width, peg_start_y, zone_height);
 
-            // Recalculate peg grid based on new height
-            float new_available_height = screen_height - peg_start_y - zone_height - bottom_margin;
-            int new_peg_rows = (int)(new_available_height / peg_spacing);
-            if (new_peg_rows < 5) new_peg_rows = 5;
-            if (new_peg_rows > 30) new_peg_rows = 30;
-
-            // Regenerate pegs centered in table
-            float new_peg_grid_width = peg_cols * peg_spacing;
-            float new_peg_start_x = world->table_x + (table_width - new_peg_grid_width) / 2.0f;
-            world_generate_pegs(world, new_peg_rows, peg_cols, new_peg_start_x, peg_start_y, peg_spacing);
-
-            // Regenerate zones (they use table bounds for positioning)
+            // Regenerate dynamic elements (gates are not part of JSON boards)
             world_generate_zones(world, 7, zone_height);
-
-            // Regenerate gate bumpers (must come after zones)
             world_generate_bumpers(world);
-
-            // Regenerate adversary board (mirrored below zones)
-            world_generate_adversary_pegs(world, new_peg_rows, peg_cols, peg_spacing);
             world_generate_adversary_bumpers(world);
 
             // Reset adversary position after resize
@@ -822,10 +836,10 @@ int main(int argc, char* argv[]) {
 
             // Update wrap zones for new screen size
             wrap_zones_update(wrap_zones, (float)screen_height);
-            stage_ctx.screen_height = (float)screen_height;  // Keep context in sync
+            stage_ctx.screen_height = (float)screen_height;
 
-            printf("Window resized: %dx%d, table_x=%.0f, peg_rows=%d\n",
-                   screen_width, screen_height, world->table_x, new_peg_rows);
+            printf("Window resized: %dx%d, table_x=%.0f\n",
+                   screen_width, screen_height, world->table_x);
         }
 
         // Handle reset input (R key)
@@ -1000,11 +1014,13 @@ int main(int argc, char* argv[]) {
         // Draw world elements (in camera space - scrollable)
         world_render_rails(world);
         world_render_pegs(world);
+        world_render_ramps(world);
         world_render_zones(world);
         world_render_bumpers(world);
 
         // Draw adversary board elements
         world_render_adversary_pegs(world);
+        world_render_adversary_ramps(world);
         world_render_adversary_bumpers(world);
         adversary_render(adversary);
 

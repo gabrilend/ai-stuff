@@ -13,6 +13,9 @@ typedef struct StageManager StageManager;
 // Forward declaration for portal system (defined in 028-portal.h)
 typedef struct PortalManager PortalManager;
 
+// Forward declaration for ramp (defined in 016-ramp.h)
+typedef struct Ramp Ramp;
+
 // Forward declaration for wrap zones (defined in 036-wrap-zones.h)
 typedef struct WrapZones WrapZones;
 
@@ -77,6 +80,8 @@ typedef struct World {
     // Player board (top)
     Peg* pegs;             // Array of player pegs
     int peg_count;         // Number of player pegs
+    Ramp* ramps;           // Array of player ramps (from JSON lines)
+    int ramp_count;        // Number of player ramps
     ScoreZone* zones;      // Array of score zones (shared)
     int zone_count;        // Number of zones
     Bumper* bumpers;       // Array of gate bumpers (top of zones)
@@ -87,6 +92,8 @@ typedef struct World {
     // Adversary board (bottom, mirrored)
     Peg* adversary_pegs;           // Array of adversary pegs
     int adversary_peg_count;       // Number of adversary pegs
+    Ramp* adversary_ramps;         // Array of adversary ramps (from JSON lines)
+    int adversary_ramp_count;      // Number of adversary ramps
     Bumper* adversary_bumpers;     // Array of gate bumpers (bottom of zones)
     int adversary_bumper_count;    // Number of bumpers (bottom)
 
@@ -258,6 +265,22 @@ void world_generate_adversary_bumpers(World* world);
 // Parameters:
 //   world: World instance
 void world_render_adversary_bumpers(World* world);
+// }}}
+
+// {{{ world_render_ramps
+// Renders all player ramps from JSON board.
+//
+// Parameters:
+//   world: World instance
+void world_render_ramps(World* world);
+// }}}
+
+// {{{ world_render_adversary_ramps
+// Renders all adversary ramps from JSON board.
+//
+// Parameters:
+//   world: World instance
+void world_render_adversary_ramps(World* world);
 // }}}
 
 // =============================================================================

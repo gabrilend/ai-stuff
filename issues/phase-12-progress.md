@@ -20,10 +20,11 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1213 | Editor clickable toolbar buttons    | Complete  |
 | 1214 | Save dialog cursor movement         | Complete  |
 | 1215 | Random board selection not working  | Complete  |
+| 1216 | JSON board overwritten on resize    | Complete  |
 
 ## Progress Summary
 
-**Completed:** 12/12 issues (100%)
+**Completed:** 13/13 issues (100%)
 **Status:** Complete
 
 ## Design Overview

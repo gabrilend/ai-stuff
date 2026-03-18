@@ -9,16 +9,10 @@ DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
 
 # Parse arguments
 COMPILE_FLAGS=""
-GAME_FLAGS=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         --recompile)
             COMPILE_FLAGS="--force"
-            shift
-            ;;
-        --random-adversary)
-            # Pass this flag to the game binary (issue 1210)
-            GAME_FLAGS="--random-adversary"
             shift
             ;;
         *)
@@ -52,8 +46,8 @@ echo ""
 # Change to project directory so relative paths (boards/) work correctly
 cd "${DIR}"
 
-# Run the binary with any game flags
-"${DIR}/bin/physics-sim" ${GAME_FLAGS}
+# Run the binary
+"${DIR}/bin/physics-sim"
 
 # Capture exit code
 EXIT_CODE=$?

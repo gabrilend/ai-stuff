@@ -8,6 +8,7 @@
 
 #include "004-world.h"
 #include "014-stage.h"
+#include "016-ramp.h"
 #include "028-portal.h"
 #include <raylib.h>
 #include <stdlib.h>
@@ -26,6 +27,8 @@ World* world_create(int width, int height) {
     world->height = height;
     world->pegs = NULL;
     world->peg_count = 0;
+    world->ramps = NULL;
+    world->ramp_count = 0;
     world->zones = NULL;
     world->zone_count = 0;
     world->bumpers = NULL;
@@ -36,6 +39,8 @@ World* world_create(int width, int height) {
     // Adversary board
     world->adversary_pegs = NULL;
     world->adversary_peg_count = 0;
+    world->adversary_ramps = NULL;
+    world->adversary_ramp_count = 0;
     world->adversary_bumpers = NULL;
     world->adversary_bumper_count = 0;
 
@@ -72,6 +77,11 @@ void world_destroy(World* world) {
         free(world->pegs);
     }
 
+    // Free ramp array if allocated
+    if (world->ramps) {
+        free(world->ramps);
+    }
+
     // Free zone array if allocated
     if (world->zones) {
         free(world->zones);
@@ -85,6 +95,9 @@ void world_destroy(World* world) {
     // Free adversary arrays
     if (world->adversary_pegs) {
         free(world->adversary_pegs);
+    }
+    if (world->adversary_ramps) {
+        free(world->adversary_ramps);
     }
     if (world->adversary_bumpers) {
         free(world->adversary_bumpers);
@@ -596,5 +609,25 @@ void world_expand_for_stages(World* world, float player_stage_height,
     // Update table_bottom to reflect new zone positions
     // (zones were shifted down by player_stage_height + gate_height)
     world->table_bottom += player_stage_height + gate_height;
+}
+// }}}
+
+// {{{ world_render_ramps
+void world_render_ramps(World* world) {
+    if (!world || !world->ramps) return;
+
+    for (int i = 0; i < world->ramp_count; i++) {
+        ramp_render(&world->ramps[i]);
+    }
+}
+// }}}
+
+// {{{ world_render_adversary_ramps
+void world_render_adversary_ramps(World* world) {
+    if (!world || !world->adversary_ramps) return;
+
+    for (int i = 0; i < world->adversary_ramp_count; i++) {
+        ramp_render_mirrored(&world->adversary_ramps[i]);
+    }
 }
 // }}}
