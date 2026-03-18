@@ -142,6 +142,42 @@ Typical layout:
 | 10 | 50 | 100 | 500 | 100 | 50 | 10 |
 ```
 
+## Additional Collision Types
+
+### Ramp Collision
+Ramps are line segments with thickness. Collision uses closest-point
+algorithm:
+
+```c
+// Find closest point on line segment to ball center
+// If distance < ball_radius + ramp_thickness/2, collision
+// Reflect velocity off the line normal
+```
+
+### Bumper Collision
+Bumpers are horizontal bars at gate row boundaries. They deflect balls
+with high restitution to prevent easy passage through gates.
+
+### Screen Wrapping
+Balls exiting the bottom reappear at the top (player balls) or vice
+versa (adversary balls). Position, velocity, and health are preserved.
+
+## Damage System
+
+Balls have health that decreases on collision:
+- High-speed impacts deal more damage
+- Low-speed impacts (below threshold) deal minimal damage
+- When health reaches zero, ball is destroyed with particle effects
+
+```c
+// Damage scales with impact velocity
+float impact_speed = sqrtf(vx*vx + vy*vy);
+if (impact_speed > LOW_SPEED_THRESHOLD) {
+    int damage = (int)(impact_speed * DAMAGE_SCALE);
+    ball->health -= damage;
+}
+```
+
 ## Collision Detection Optimization
 
 For many balls, spatial partitioning improves performance:
@@ -149,4 +185,4 @@ For many balls, spatial partitioning improves performance:
 - Only check pegs in nearby cells
 - Reduces O(balls * pegs) to O(balls * local_pegs)
 
-This optimization is deferred to Phase 3.
+This optimization is planned for a future phase.

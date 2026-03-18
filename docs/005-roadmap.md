@@ -146,7 +146,92 @@ Upgrade system and adversary opponent.
 
 ---
 
-## Phase 9: Optimization (Future)
+## Phase 9: Particle Parallelization
+
+Move particle updates to the threadpool architecture.
+
+### Deliverables
+- Double-buffered particle arrays
+- ParticleTaskData structure for thread-safe updates
+- Parallel simple/ripple particle updates
+- Parallel fragment collision detection
+- Synchronization with ball physics pipeline
+
+### Success Criteria
+- No visual changes to particle behavior
+- Reduced frame time with high particle counts
+- Thread-safe particle spawning from ball tasks
+
+---
+
+## Phase 10: Stage Expansion
+
+Dynamic stage system with purchasable board extensions.
+
+### Deliverables
+- Reticle toggle mouse control
+- Stage abstraction encapsulating board sections
+- Dynamic world vertical expansion
+- Multi-row gate system with multipliers
+- Ramp obstacle type with diagonal collision
+- Stage 2 ramp layout (converging funnel pattern)
+- Stage insertion animation with camera zoom
+- Next stage upgrade integration
+- Ball screen wrapping (top/bottom)
+- Low-speed impact damage reduction
+
+### Success Criteria
+- Players can purchase additional stages at runtime
+- Smooth animation during stage expansion
+- Ramps redirect balls horizontally
+- Balls wrap around screen edges preserving state
+
+---
+
+## Phase 11: Board Editor
+
+Visual editor for designing pachinko boards with JSON storage.
+
+### Deliverables
+- JSON-based board data format
+- Grid system architecture with snap-to-intersection
+- Board loader (JSON to game runtime)
+- Editor mode toggle (overlay on game)
+- Object palette UI (pegs, lines, portals)
+- Object placement and removal systems
+- Line drawing tool with variable thickness
+- Portal zone system (entry/exit channels)
+- Object property editor (RGB: restitution, friction, bonus)
+- Board save/load functionality
+- Stage pool system for random stage selection
+
+### Success Criteria
+- Create boards visually without code changes
+- Save/load boards as JSON files
+- Boards integrate with stage purchase system
+- Portal teleportation works correctly
+
+---
+
+## Phase 12: Editor Modularization
+
+Extract board editor into standalone application.
+
+### Deliverables
+- Standalone editor binary (bin/board-editor)
+- Editor removed from game binary
+- Shared components (board-data, grid, portal)
+- Full-window editor canvas
+
+### Success Criteria
+- Two separate executables (game and editor)
+- Reduced game binary size
+- Editor has full window for canvas
+- Both share board file format
+
+---
+
+## Future: Optimization
 
 Performance improvements for high ball counts.
 
