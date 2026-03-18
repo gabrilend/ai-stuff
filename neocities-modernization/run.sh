@@ -70,7 +70,7 @@ Stage Groups:
 Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
-  --force-stage=N     Force regenerate specific stage only (1-10)
+  --force-stage N     Force regenerate specific stage only (1-10)
   --model NAME        Embedding model name (default: embeddinggemma:latest)
 
 Pagination (HTML Generation):
@@ -234,7 +234,28 @@ while [[ $# -gt 0 ]]; do
             FORCE=true
             shift
             ;;
-        # Issue 10-016: Per-stage force regeneration
+        # Issue 10-016: Per-stage force regeneration (space-separated format)
+        --force-stage)
+            stage_num="$2"
+            case "$stage_num" in
+                1) FORCE_STAGE_1=true ;;
+                2) FORCE_STAGE_2=true ;;
+                3) FORCE_STAGE_3=true ;;
+                4) FORCE_STAGE_4=true ;;
+                5) FORCE_STAGE_5=true ;;
+                6) FORCE_STAGE_6=true ;;
+                7) FORCE_STAGE_7=true ;;
+                8) FORCE_STAGE_8=true ;;
+                9) FORCE_STAGE_9=true ;;
+                10) FORCE_STAGE_10=true ;;
+                *)
+                    echo "ERROR: Invalid stage number: $stage_num (valid: 1-10)" >&2
+                    exit 1
+                    ;;
+            esac
+            shift 2
+            ;;
+        # Issue 10-016: Per-stage force regeneration (= format for backward compatibility)
         --force-stage=*)
             stage_num="${1#*=}"
             case "$stage_num" in
@@ -811,7 +832,7 @@ run_generate_semantic_colors() {
     $FORCE_STAGE_6 && stage_force=true
 
     # Check freshness: poem_colors.json should be newer than embeddings.json
-    # With --force or --force-stage=6: always regenerate regardless of freshness
+    # With --force or --force-stage 6: always regenerate regardless of freshness
     if ! $stage_force && [ -f "$poem_colors_file" ] && [ -f "$embeddings_file" ]; then
         if [ "$poem_colors_file" -nt "$embeddings_file" ]; then
             log_info "   ⏭️  Semantic colors are fresh (newer than embeddings), skipping..."
@@ -1228,52 +1249,52 @@ interactive_mode_tui() {
     menu_add_item "stages" "update_words" "1. Update Words" "checkbox" "1" \
         "Sync input files from words repository" "" "--update-words"
     menu_add_item "stages" "force_update_words" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=1"
+        "Force regenerate this stage only" "" "--force-stage 1"
 
     menu_add_item "stages" "extract" "2. Extract" "checkbox" "1" \
         "Extract content from backup archives" "" "--extract"
     menu_add_item "stages" "force_extract" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=2"
+        "Force regenerate this stage only" "" "--force-stage 2"
 
     menu_add_item "stages" "parse" "3. Parse" "checkbox" "1" \
         "Parse poems from JSON sources into poems.json" "" "--parse"
     menu_add_item "stages" "force_parse" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=3"
+        "Force regenerate this stage only" "" "--force-stage 3"
 
     menu_add_item "stages" "validate" "4. Validate" "checkbox" "1" \
         "Run poem validation" "" "--validate"
     menu_add_item "stages" "force_validate" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=4"
+        "Force regenerate this stage only" "" "--force-stage 4"
 
     menu_add_item "stages" "catalog_images" "5. Catalog Images" "checkbox" "1" \
         "Catalog images from input directories" "" "--catalog-images"
     menu_add_item "stages" "force_catalog_images" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=5"
+        "Force regenerate this stage only" "" "--force-stage 5"
 
     menu_add_item "stages" "generate_embeddings" "6. Embeddings ⚠️" "checkbox" "0" \
         "Generate embeddings via Ollama (~2-3 hours)" "" "--generate-embeddings"
     menu_add_item "stages" "force_generate_embeddings" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=6"
+        "Force regenerate this stage only" "" "--force-stage 6"
 
     menu_add_item "stages" "generate_similarity" "7. Similarity ⚠️" "checkbox" "0" \
         "Build similarity matrix (~30 min)" "" "--generate-similarity"
     menu_add_item "stages" "force_generate_similarity" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=7"
+        "Force regenerate this stage only" "" "--force-stage 7"
 
     menu_add_item "stages" "generate_diversity" "8. Diversity ⚠️" "checkbox" "0" \
         "Pre-compute diversity cache (~42 hours)" "" "--generate-diversity"
     menu_add_item "stages" "force_generate_diversity" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=8"
+        "Force regenerate this stage only" "" "--force-stage 8"
 
     menu_add_item "stages" "generate_html" "9. Generate HTML" "checkbox" "1" \
         "Generate website HTML (chronological + similarity pages)" "" "--generate-html"
     menu_add_item "stages" "force_generate_html" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=9"
+        "Force regenerate this stage only" "" "--force-stage 9"
 
     menu_add_item "stages" "generate_index" "10. Generate Index" "checkbox" "1" \
         "Generate numeric similarity index" "" "--generate-index"
     menu_add_item "stages" "force_generate_index" "    ↳ Force regenerate" "checkbox" "0" \
-        "Force regenerate this stage only" "" "--force-stage=10"
+        "Force regenerate this stage only" "" "--force-stage 10"
 
     # Issue 10-016: Dependencies - per-stage force options disabled when global force is checked
     # invert=true means: enable per-stage force when global force is NOT checked
