@@ -27,7 +27,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-001 | Integrate TUI into phase-demo.sh | Open | High |
 | 10-002 | Integrate TUI into generate-embeddings | Open | Medium |
 | 10-003 | Consolidate config files into single source (umbrella) | Completed | Medium |
-| 10-008 | Implement multiline command wrapping | Open | Low |
+| 10-008 | Implement multiline command wrapping | Completed | Low |
 | 10-009 | Optimize incremental centroid updates for dataset expansion | Open | Medium |
 | 10-010 | Integrate test suites into development pipeline | Open | Medium |
 | 10-013 | Implement TUI config editor | Open | Medium |
@@ -67,6 +67,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-024 | Force flag should clear output directories | Completed | 2026-02-13 |
 | 10-025 | Diversity cache includes anchor poem | Completed | 2026-02-13 |
 | 10-026 | Merge sources and external_files config sections | Completed | 2026-02-18 |
+| 10-008 | Implement multiline command wrapping | Completed | 2026-03-18 |
 
 ## Issue Details
 
@@ -219,6 +220,16 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Optional `random_seed` for reproducible randomization (LCG-based)
 - Files modified: sources-loader.lua, image-manager.lua, config.lua
 - Verified: 199 images randomized (dnd-pictures + fediverse-stars)
+
+**10-008: Implement Multiline Command Wrapping** - COMPLETED (2026-03-18)
+- Token-aware wrapping with backslash continuation
+- Flag+argument pairs treated atomically (e.g., `--threads 4` never splits)
+- Multi-line editing with position-mapped cursor navigation
+- Per-token coloring preserved (yellow=radio/base, green=checkbox, cyan=other)
+- Cursor restricted to editable area (cannot reach ./run.sh)
+- Line-based navigation: j/k/UP/DOWN move between wrapped lines
+- Line-specific $, 0: end/start of current line; G/gg: end/start of command
+- Files modified: /home/ritz/programming/ai-stuff/scripts/libs/menu.lua
 
 **10-031: Embedding Model Evaluation Framework** - OPEN
 - Systematic comparison of embedding models (nomic, mxbai, etc.)

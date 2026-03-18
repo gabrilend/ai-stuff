@@ -43,6 +43,10 @@ local state = {
     -- Command preview inline editing state
     cmd_cursor = 0,                 -- Cursor position within command (0 = at end)
     cmd_invalid_ranges = {},        -- List of {start, end} for invalid flags to render red
+    -- Issue 10-008: Multi-line editing state
+    cmd_pos_map = {},               -- Maps orig_pos -> {line=N, col=N} for cursor positioning
+    cmd_line_ranges = {},           -- Maps line_idx -> {start_pos, end_pos} in original string
+    cmd_min_cursor_pos = 1,         -- Minimum cursor position (start of first flag, excludes ./run.sh)
     -- Input mode for command preview: "vim-nav", "insert", or "arrow"
     -- vim-nav: h/l move cursor, j/k navigate out, i/A enter insert mode
     -- insert: all printable chars insert, arrows move cursor, ESC exits
@@ -143,6 +147,10 @@ function menu.init(config)
     state.cmd_was_on_preview = false  -- Track when leaving command preview to sync checkboxes
     state.cmd_on_placeholder = false  -- Track when cursor is on the <N files> placeholder
     state.cmd_files_expanded = false  -- Track when files are expanded in command preview
+    state.cmd_preview_rows = 1  -- Issue 10-008: Track rows used by command preview (for multiline)
+    state.cmd_pos_map = {}  -- Issue 10-008: Maps orig_pos -> {line, col}
+    state.cmd_line_ranges = {}  -- Issue 10-008: Maps line_idx -> {start_pos, end_pos}
+    state.cmd_min_cursor_pos = 1  -- Issue 10-008: First editable position (excludes ./run.sh)
     -- Content sources for preview panel
     state.content_sources = config.content_sources or {}
     -- Content panel scrolling state
@@ -1149,6 +1157,118 @@ local function parse_command_tokens(cmd_text)
 end
 -- }}}
 
+-- {{{ local function wrap_command_to_lines
+-- Issue 10-008: Wrap a command to multiple lines with backslash continuation
+-- Arguments:
+--   cmd_text: The full command string
+--   max_width: Maximum characters per line (including backslash and space)
+--   first_line_offset: Column offset where first line starts (for "Command: " prefix)
+-- Returns: array of {text=string, is_continuation=bool}
+-- Continuation lines are indented to align with first flag (after script name)
+local function wrap_command_to_lines(cmd_text, max_width, first_line_offset)
+    if not cmd_text or cmd_text == "" then
+        return {{text = "", is_continuation = false}}
+    end
+
+    local tokens = parse_command_tokens(cmd_text)
+    if #tokens == 0 then
+        return {{text = cmd_text, is_continuation = false}}
+    end
+
+    -- Calculate indent for continuation lines: align to first flag position
+    -- First token is the script name, second token is the first flag
+    -- On line 1: flag is at position (#script + 2), rendered at column (col + #script + 1)
+    -- For continuation: flag at position (indent + 1), rendered at column (indent + 1)
+    -- So continuation_indent = col + #script to align properly
+    local base_indent = first_line_offset or 0
+    local continuation_indent = base_indent
+    if #tokens >= 2 then
+        -- Indent to where first flag starts (aligns with line 1's first flag)
+        continuation_indent = base_indent + #tokens[1].text
+    end
+
+    -- First line has less available space due to first_line_offset
+    local first_line_width = max_width - first_line_offset
+    local cont_line_width = max_width - continuation_indent
+
+    -- Reserve space for " \" continuation marker (2 chars)
+    local CONTINUATION_MARKER = " \\"
+
+    -- Pre-process tokens into "units" - a unit is either a single token or flag+argument pair
+    -- Flag+argument pairs (e.g., --threads 4) should never be split across lines
+    local units = {}
+    local i = 1
+    while i <= #tokens do
+        local token = tokens[i]
+        local is_flag = token.text:sub(1, 1) == "-"
+        local next_token = tokens[i + 1]
+        local next_is_value = next_token and next_token.text:sub(1, 1) ~= "-"
+
+        if is_flag and next_is_value then
+            -- Flag with argument: combine into single unit (e.g., "--threads 4")
+            table.insert(units, {text = token.text .. " " .. next_token.text})
+            i = i + 2
+        else
+            -- Standalone token (flag without arg, script name, or bare value)
+            table.insert(units, {text = token.text})
+            i = i + 1
+        end
+    end
+
+    local result = {}
+    local current_line = ""
+    local is_first_line = true
+
+    for _, unit in ipairs(units) do
+        local unit_text = unit.text
+        local space_needed = (#current_line > 0) and 1 or 0
+        local test_len = #current_line + space_needed + #unit_text
+
+        -- Check if we need to wrap (leave room for continuation marker on non-last lines)
+        local need_wrap = false
+        if is_first_line then
+            need_wrap = test_len > first_line_width - #CONTINUATION_MARKER
+        else
+            need_wrap = test_len > cont_line_width - #CONTINUATION_MARKER
+        end
+
+        -- Don't wrap if this is the only unit on the line (force it to fit)
+        if need_wrap and #current_line > 0 then
+            -- Wrap: end current line with continuation marker, start new line
+            table.insert(result, {
+                text = current_line .. CONTINUATION_MARKER,
+                is_continuation = not is_first_line
+            })
+            -- Start new continuation line with indent
+            current_line = string.rep(" ", continuation_indent) .. unit_text
+            is_first_line = false
+        else
+            -- Add unit to current line
+            if #current_line > 0 then
+                current_line = current_line .. " " .. unit_text
+            else
+                current_line = unit_text
+            end
+        end
+    end
+
+    -- Add final line (no continuation marker)
+    if #current_line > 0 then
+        table.insert(result, {
+            text = current_line,
+            is_continuation = not is_first_line
+        })
+    end
+
+    -- Handle empty result
+    if #result == 0 then
+        table.insert(result, {text = "", is_continuation = false})
+    end
+
+    return result
+end
+-- }}}
+
 -- Sync checkbox and flag states based on parsed command
 -- Returns list of invalid ranges {start, end} for flags that don't exist
 -- Also updates cmd_invalid_items for conflicting radio buttons
@@ -1976,19 +2096,16 @@ local function render_item(row, item_id, highlight, item_num, section_type)
         if highlight and is_cmd_preview then
             -- Inline editing mode: show with cursor and colored flags
             -- Radio button flags are yellow, checkbox flags are cyan, invalid are red
-            local truncated = false
-
-            if #display_val > max_len then
-                display_val = display_val:sub(1, max_len - 3)
-                truncated = true
-            end
-
-            -- Build flag position map for coloring
+            -- Issue 10-008: Multi-line editing with cursor navigation
+            local lines = wrap_command_to_lines(value, state.cols - 2, col)
             local flag_lookup = build_flag_lookup()
-            local tokens = parse_command_tokens(value)  -- Use original value for accurate positions
-            local radio_ranges = {}  -- Positions that are radio button flags (yellow)
-            local checkbox_ranges = {}  -- Positions that are checkbox flags (green)
-            local base_range = nil  -- Base command position (yellow, required)
+            local rows_used = 0
+
+            -- Build flag position map for coloring (on original string positions)
+            local tokens = parse_command_tokens(value)
+            local radio_ranges = {}
+            local checkbox_ranges = {}
+            local base_range = nil
 
             for _, token in ipairs(tokens) do
                 local flag_info = flag_lookup[token.text]
@@ -1999,7 +2116,6 @@ local function render_item(row, item_id, highlight, item_num, section_type)
                         table.insert(checkbox_ranges, {start_pos = token.start_pos, end_pos = token.end_pos})
                     end
                 elseif token.text == state.command_base or token.text == state.command_base_absolute then
-                    -- Base command is required (yellow)
                     base_range = {start_pos = token.start_pos, end_pos = token.end_pos}
                 end
             end
@@ -2023,171 +2139,278 @@ local function render_item(row, item_id, highlight, item_num, section_type)
             -- Get placeholder range for highlighting
             local placeholder_start, placeholder_end = get_file_placeholder_range(value)
 
-            -- Render character by character to support coloring and cursor
-            local char_col = col
-            for i = 1, #display_val do
-                local c = display_val:sub(i, i)
-                local in_invalid = in_ranges(i, state.cmd_invalid_ranges)
-                local in_radio = in_ranges(i, radio_ranges)
-                local in_checkbox = in_ranges(i, checkbox_ranges)
-                local in_base = in_range(i, base_range)
-                local in_placeholder = placeholder_start and i >= placeholder_start and i <= placeholder_end
+            -- Build mapping from original string position to (line_idx, column)
+            -- This allows cursor to be placed correctly in wrapped display
+            local pos_map = {}  -- pos_map[orig_pos] = {line = N, col = N}
+            local line_ranges = {}  -- line_ranges[line_idx] = {start_pos, end_pos} in original
+            local orig_pos = 1
+            for line_idx, line_data in ipairs(lines) do
+                local line_text = line_data.text
+                local is_continuation = line_data.is_continuation
 
-                -- Set color based on flag type
-                tui.reset_style()
-                if in_invalid then
-                    tui.set_fg(tui.FG_RED)
-                    tui.set_attrs(tui.ATTR_BOLD)
-                elseif in_radio or in_base then
-                    tui.set_fg(tui.FG_YELLOW)  -- Radio button flags and base command in yellow (required)
-                elseif in_checkbox then
-                    tui.set_fg(tui.FG_GREEN)   -- Checkbox flags in green
-                elseif in_placeholder then
-                    tui.set_fg(tui.FG_MAGENTA)  -- Placeholder in magenta
-                else
-                    tui.set_fg(tui.FG_CYAN)    -- Other text in cyan
+                -- Continuation lines have indent, then content
+                -- Line 1 has content starting at position 1
+                local indent_len = 0
+                if is_continuation then
+                    -- Count leading spaces
+                    indent_len = #(line_text:match("^%s*") or "")
                 end
 
-                -- Show cursor (inverse video at cursor position or entire placeholder)
-                if state.cmd_on_placeholder and in_placeholder then
-                    tui.set_attrs(tui.ATTR_INVERSE)
-                elseif i == state.cmd_cursor then
-                    tui.set_attrs(tui.ATTR_INVERSE)
+                -- Map positions within this line's content (after indent, before continuation marker)
+                local content_start = indent_len + 1
+                local content_end = #line_text
+                -- Remove continuation marker from mapping (last 2 chars " \")
+                if line_text:sub(-2) == " \\" then
+                    content_end = content_end - 2
                 end
 
-                tui.write_str(row, char_col, c)
-                char_col = char_col + 1
+                -- Track line range in original string
+                local line_start_orig = orig_pos
+
+                local start_col = (line_idx == 1) and col or 1
+                for line_pos = content_start, content_end do
+                    local c = line_text:sub(line_pos, line_pos)
+                    -- Skip spaces in continuation indent (they don't exist in original)
+                    if not (is_continuation and line_pos <= indent_len) then
+                        if orig_pos <= #value then
+                            pos_map[orig_pos] = {
+                                line = line_idx,
+                                col = start_col + line_pos - 1
+                            }
+                            orig_pos = orig_pos + 1
+                        end
+                    end
+                end
+
+                -- Store line range (positions in original string that map to this line)
+                line_ranges[line_idx] = {
+                    start_pos = line_start_orig,
+                    end_pos = orig_pos - 1
+                }
+
+                -- Account for space between lines (becomes continuation marker or space before next line content)
+                if line_idx < #lines and orig_pos <= #value then
+                    -- The space between this line's last token and next line's first token
+                    orig_pos = orig_pos + 1  -- Skip the inter-token space
+                end
+            end
+            -- Map position past end of string (for cursor at end)
+            if orig_pos <= #value + 1 then
+                local last_line = #lines
+                local last_line_text = lines[last_line].text
+                local last_col = (#lines == 1) and col or 1
+                pos_map[orig_pos] = {
+                    line = last_line,
+                    col = last_col + #last_line_text
+                }
             end
 
-            -- Show cursor at end if cursor is past last character
-            if state.cmd_cursor > #display_val or state.cmd_cursor == 0 then
+            -- Calculate minimum cursor position (start of first flag, excludes ./run.sh)
+            -- Find position of first space + 1 (start of first flag)
+            local min_cursor = 1
+            local first_space = value:find(" ")
+            if first_space then
+                min_cursor = first_space + 1
+            end
+
+            -- Store in state for cursor navigation functions
+            state.cmd_pos_map = pos_map
+            state.cmd_line_ranges = line_ranges
+            state.cmd_min_cursor_pos = min_cursor
+
+            -- Render each line with coloring and cursor
+            for line_idx, line_data in ipairs(lines) do
+                local line_row = row + line_idx - 1
+                local line_text = line_data.text
+
+                -- Clear row for continuation lines
+                if line_idx > 1 then
+                    tui.clear_row(line_row)
+                end
+
+                local start_col = (line_idx == 1) and col or 1
+
+                -- Render character by character with coloring
+                for line_pos = 1, #line_text do
+                    local c = line_text:sub(line_pos, line_pos)
+                    local screen_col = start_col + line_pos - 1
+
+                    -- Find original position for this screen position (reverse lookup)
+                    local orig_for_color = nil
+                    for opos, pdata in pairs(pos_map) do
+                        if pdata.line == line_idx and pdata.col == screen_col then
+                            orig_for_color = opos
+                            break
+                        end
+                    end
+
+                    local in_invalid = orig_for_color and in_ranges(orig_for_color, state.cmd_invalid_ranges)
+                    local in_radio = orig_for_color and in_ranges(orig_for_color, radio_ranges)
+                    local in_checkbox = orig_for_color and in_ranges(orig_for_color, checkbox_ranges)
+                    local in_base = orig_for_color and in_range(orig_for_color, base_range)
+                    local in_placeholder = orig_for_color and placeholder_start and
+                                          orig_for_color >= placeholder_start and orig_for_color <= placeholder_end
+
+                    -- Set color based on flag type
+                    tui.reset_style()
+                    if in_invalid then
+                        tui.set_fg(tui.FG_RED)
+                        tui.set_attrs(tui.ATTR_BOLD)
+                    elseif in_radio or in_base then
+                        tui.set_fg(tui.FG_YELLOW)
+                    elseif in_checkbox then
+                        tui.set_fg(tui.FG_GREEN)
+                    elseif in_placeholder then
+                        tui.set_fg(tui.FG_MAGENTA)
+                    elseif c == "\\" then
+                        tui.set_fg(tui.FG_DEFAULT)  -- Continuation marker dim
+                        tui.set_attrs(tui.ATTR_DIM)
+                    else
+                        tui.set_fg(tui.FG_CYAN)
+                    end
+
+                    -- Show cursor at correct position
+                    local cursor_here = pos_map[state.cmd_cursor] and
+                                       pos_map[state.cmd_cursor].line == line_idx and
+                                       pos_map[state.cmd_cursor].col == screen_col
+                    if state.cmd_on_placeholder and in_placeholder then
+                        tui.set_attrs(tui.ATTR_INVERSE)
+                    elseif cursor_here then
+                        tui.set_attrs(tui.ATTR_INVERSE)
+                    end
+
+                    tui.write_str(line_row, screen_col, c)
+                end
+
+                rows_used = rows_used + 1
+            end
+
+            -- Show cursor at end of last line if cursor is past last character
+            local cursor_at_end = state.cmd_cursor > #value or state.cmd_cursor == 0
+            if cursor_at_end then
+                local last_line = #lines
+                local last_text = lines[last_line].text
+                local last_start_col = (last_line == 1) and col or 1
+                local end_col = last_start_col + #last_text
+                local end_row = row + last_line - 1
                 tui.reset_style()
                 tui.set_attrs(tui.ATTR_INVERSE)
-                tui.write_str(row, char_col, " ")
-                char_col = char_col + 1
+                tui.write_str(end_row, end_col, " ")
             end
 
-            if truncated then
-                tui.reset_style()
-                tui.set_attrs(tui.ATTR_DIM)
-                tui.write_str(row, char_col, "...")
-            end
+            state.cmd_preview_rows = rows_used
         else
             -- Normal display mode (not highlighted) - still show colored flags
-            local truncated = false
-            if #display_val > max_len then
-                display_val = display_val:sub(1, max_len - 3)
-                truncated = true
-            end
+            -- Issue 10-008: Use multiline wrapping for command preview
+            if is_cmd_preview then
+                -- Wrap command to multiple lines with backslash continuation
+                local lines = wrap_command_to_lines(value, state.cols - 2, col)
+                local flag_lookup = build_flag_lookup()
+                local rows_used = 0
 
-            -- Build flag position map for coloring
-            local flag_lookup = build_flag_lookup()
-            local tokens = parse_command_tokens(value)
-            local radio_ranges = {}
-            local checkbox_ranges = {}
-            local base_range = nil
+                for line_idx, line_data in ipairs(lines) do
+                    local line_row = row + line_idx - 1
+                    local line_text = line_data.text
 
-            for _, token in ipairs(tokens) do
-                local flag_info = flag_lookup[token.text]
-                if flag_info then
-                    if flag_info.is_radio then
-                        table.insert(radio_ranges, {start_pos = token.start_pos, end_pos = token.end_pos})
-                    else
-                        table.insert(checkbox_ranges, {start_pos = token.start_pos, end_pos = token.end_pos})
+                    -- Clear row for continuation lines (first row already cleared)
+                    if line_idx > 1 then
+                        tui.clear_row(line_row)
                     end
-                elseif token.text == state.command_base or token.text == state.command_base_absolute then
-                    base_range = {start_pos = token.start_pos, end_pos = token.end_pos}
-                end
-            end
 
-            local function in_ranges(pos, ranges)
-                for _, range in ipairs(ranges) do
-                    if pos >= range.start_pos and pos <= range.end_pos then
-                        return true
-                    end
-                end
-                return false
-            end
+                    -- Parse tokens in this line for per-token coloring
+                    local line_tokens = parse_command_tokens(line_text)
 
-            local function in_range(pos, range)
-                if not range then return false end
-                return pos >= range.start_pos and pos <= range.end_pos
-            end
+                    -- Build position ranges for this line's tokens
+                    local radio_ranges = {}
+                    local checkbox_ranges = {}
+                    local base_range = nil
 
-            -- Issue 10-018: Helper to check animation highlight ranges
-            local function get_animation_color(pos)
-                for _, range in ipairs(state.animation.render_state.highlight_ranges or {}) do
-                    if pos >= range.start_pos and pos <= range.end_pos then
-                        return range.color
-                    end
-                end
-                return nil
-            end
-
-            -- Issue 10-018: Helper to check if position should be hidden (slide animation)
-            local function is_empty_range(pos)
-                for _, range in ipairs(state.animation.render_state.empty_ranges or {}) do
-                    if pos >= range.start_pos and pos <= range.end_pos then
-                        return true
-                    end
-                end
-                return false
-            end
-
-            -- Render character by character for colored flags
-            local char_col = col
-            for i = 1, #display_val do
-                local c = display_val:sub(i, i)
-
-                -- Issue 10-018: Skip characters in empty_ranges during slide animation
-                -- This creates the "closing gap" effect as remaining text shifts left
-                if is_empty_range(i) then
-                    -- Don't render this character, don't advance column
-                    -- (this naturally shifts remaining text left)
-                else
-                    local in_radio = in_ranges(i, radio_ranges)
-                    local in_checkbox = in_ranges(i, checkbox_ranges)
-                    local in_base = in_range(i, base_range)
-
-                    -- Issue 10-018: Check for animation highlight first
-                    local anim_color = get_animation_color(i)
-
-                    tui.reset_style()
-                    if anim_color then
-                        -- Animation highlight takes precedence
-                        tui.set_attrs(tui.ATTR_BOLD)
-                        if anim_color == "white" then
-                            tui.set_fg(tui.FG_WHITE)
-                        elseif anim_color == "cyan" then
-                            tui.set_fg(tui.FG_CYAN)
-                        elseif anim_color == "red" then
-                            tui.set_fg(tui.FG_RED)
+                    for _, token in ipairs(line_tokens) do
+                        local flag_info = flag_lookup[token.text]
+                        if flag_info then
+                            if flag_info.is_radio then
+                                table.insert(radio_ranges, {start_pos = token.start_pos, end_pos = token.end_pos})
+                            else
+                                table.insert(checkbox_ranges, {start_pos = token.start_pos, end_pos = token.end_pos})
+                            end
+                        elseif token.text == state.command_base or token.text == state.command_base_absolute then
+                            base_range = {start_pos = token.start_pos, end_pos = token.end_pos}
                         end
-                    else
+                    end
+
+                    local function in_ranges(pos, ranges)
+                        for _, range in ipairs(ranges) do
+                            if pos >= range.start_pos and pos <= range.end_pos then
+                                return true
+                            end
+                        end
+                        return false
+                    end
+
+                    local function in_range(pos, range)
+                        if not range then return false end
+                        return pos >= range.start_pos and pos <= range.end_pos
+                    end
+
+                    -- Determine starting column for this line
+                    local start_col = (line_idx == 1) and col or 1
+
+                    -- Render character by character with coloring
+                    for i = 1, #line_text do
+                        local c = line_text:sub(i, i)
+                        local char_col = start_col + i - 1
+
+                        local in_radio = in_ranges(i, radio_ranges)
+                        local in_checkbox = in_ranges(i, checkbox_ranges)
+                        local in_base = in_range(i, base_range)
+
+                        tui.reset_style()
                         tui.set_attrs(tui.ATTR_DIM)
+
                         if in_radio or in_base then
                             tui.set_fg(tui.FG_YELLOW)  -- Required (radio/base) in yellow
                         elseif in_checkbox then
-                            tui.set_fg(tui.FG_GREEN)
+                            tui.set_fg(tui.FG_GREEN)   -- Checkbox flags in green
+                        elseif c == "\\" then
+                            tui.set_fg(tui.FG_DEFAULT) -- Continuation marker
                         else
-                            tui.set_fg(tui.FG_CYAN)
+                            tui.set_fg(tui.FG_CYAN)    -- Other text in cyan
                         end
+
+                        tui.write_str(line_row, char_col, c)
                     end
 
-                    tui.write_str(row, char_col, c)
-                    char_col = char_col + 1
+                    rows_used = rows_used + 1
                 end
-            end
 
-            if truncated then
+                -- Store rows used for section rendering to adjust
+                state.cmd_preview_rows = rows_used
+            else
+                -- Non-command-preview text item: single line rendering
+                local truncated = false
+                if #display_val > max_len then
+                    display_val = display_val:sub(1, max_len - 3)
+                    truncated = true
+                end
+
                 tui.reset_style()
                 tui.set_attrs(tui.ATTR_DIM)
-                tui.write_str(row, char_col, "...")
+                tui.set_fg(tui.FG_CYAN)
+                tui.write_str(row, col, display_val)
+
+                if truncated then
+                    tui.set_attrs(tui.ATTR_DIM)
+                    tui.write_str(row, col + #display_val, "...")
+                end
             end
         end
     end
 
     tui.reset_style()
+
+    -- Issue 10-008: Return rows used (for command preview multiline support)
+    -- Default is 1 row, but command preview in non-highlighted mode may use more
+    return state.cmd_preview_rows or 1
 end
 
 local function render_section(section_idx, start_row, checkbox_idx_start)
@@ -2242,14 +2465,20 @@ local function render_section(section_idx, start_row, checkbox_idx_start)
         if i >= visible_start and i <= visible_end then
             local highlight = is_current and (i == state.current_item)
 
+            -- Issue 10-008: Reset cmd_preview_rows before rendering each item
+            -- This ensures we get fresh row count, especially for highlighted items
+            state.cmd_preview_rows = 1
+
             -- Only increment and pass checkbox index for checkbox items
+            local rows_used = 1
             if item_type == "checkbox" then
                 checkbox_idx = checkbox_idx + 1
-                render_item(row, item_id, highlight, checkbox_idx, section_type)
+                rows_used = render_item(row, item_id, highlight, checkbox_idx, section_type) or 1
             else
-                render_item(row, item_id, highlight, nil, section_type)
+                rows_used = render_item(row, item_id, highlight, nil, section_type) or 1
             end
-            row = row + 1
+            -- Issue 10-008: Use actual rows rendered (for multiline command preview)
+            row = row + rows_used
         elseif item_type == "checkbox" then
             -- Still count checkboxes even if not visible (for index navigation)
             checkbox_idx = checkbox_idx + 1
@@ -3351,6 +3580,7 @@ end
 -- {{{ menu.cmd_cursor_left
 -- Move cursor left in command preview
 -- Treats <N files> placeholder as a single unit
+-- Issue 10-008: Cursor cannot move before first flag (excludes ./run.sh)
 function menu.cmd_cursor_left()
     if not is_on_command_preview() then return false end
 
@@ -3358,7 +3588,9 @@ function menu.cmd_cursor_left()
     local cursor = state.cmd_cursor
     if cursor == 0 then cursor = #text + 1 end
 
-    if cursor <= 1 then return true end
+    -- Don't move left of minimum position (start of first flag)
+    local min_pos = state.cmd_min_cursor_pos or 1
+    if cursor <= min_pos then return true end
 
     -- Check if we're currently on the placeholder
     if state.cmd_on_placeholder then
@@ -3366,7 +3598,7 @@ function menu.cmd_cursor_left()
         local start_pos, _ = get_file_placeholder_range(text)
         if start_pos then
             state.cmd_cursor = start_pos - 1
-            if state.cmd_cursor < 1 then state.cmd_cursor = 1 end
+            if state.cmd_cursor < min_pos then state.cmd_cursor = min_pos end
             state.cmd_on_placeholder = false
         else
             state.cmd_cursor = cursor - 1
@@ -3386,7 +3618,7 @@ function menu.cmd_cursor_left()
     end
 
     -- Normal movement
-    state.cmd_cursor = cursor - 1
+    state.cmd_cursor = math.max(cursor - 1, min_pos)
     menu.render()
     return true
 end
@@ -3436,10 +3668,12 @@ end
 -- }}}
 
 -- {{{ menu.cmd_cursor_start
--- Move cursor to beginning of command
+-- Move cursor to beginning of command (first flag, excludes ./run.sh)
+-- Issue 10-008: Cursor starts at first flag, not at script name
 function menu.cmd_cursor_start()
     if not is_on_command_preview() then return false end
-    state.cmd_cursor = 1
+    state.cmd_cursor = state.cmd_min_cursor_pos or 1
+    state.cmd_on_placeholder = false
     menu.render()
     return true
 end
@@ -3470,6 +3704,171 @@ function menu.cmd_is_cursor_at_end()
     local text = get_command_text()
     local cursor = state.cmd_cursor
     return cursor == 0 or cursor > #text
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_up
+-- Issue 10-008: Move cursor up one line in wrapped command preview
+-- Tries to maintain same column position on the previous line
+function menu.cmd_cursor_up()
+    if not is_on_command_preview() then return false end
+
+    local pos_map = state.cmd_pos_map or {}
+    local line_ranges = state.cmd_line_ranges or {}
+    local cursor = state.cmd_cursor
+    local text = get_command_text()
+    if cursor == 0 then cursor = #text + 1 end
+
+    -- Find which line cursor is on
+    local current_line = 1
+    local current_col = nil
+    if pos_map[cursor] then
+        current_line = pos_map[cursor].line
+        current_col = pos_map[cursor].col
+    end
+
+    -- Can't go up from line 1
+    if current_line <= 1 then return true end
+
+    -- Move to previous line, same column if possible
+    local prev_line = current_line - 1
+    local prev_range = line_ranges[prev_line]
+    if not prev_range then return true end
+
+    -- Find position on previous line with closest column
+    local best_pos = prev_range.start_pos
+    local best_col_diff = 999999
+    for pos = prev_range.start_pos, prev_range.end_pos do
+        if pos_map[pos] and pos_map[pos].line == prev_line then
+            if current_col then
+                local diff = math.abs(pos_map[pos].col - current_col)
+                if diff < best_col_diff then
+                    best_col_diff = diff
+                    best_pos = pos
+                end
+            end
+        end
+    end
+
+    -- Ensure we don't go before min position
+    local min_pos = state.cmd_min_cursor_pos or 1
+    state.cmd_cursor = math.max(best_pos, min_pos)
+    state.cmd_on_placeholder = false
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_down
+-- Issue 10-008: Move cursor down one line in wrapped command preview
+-- Tries to maintain same column position on the next line
+function menu.cmd_cursor_down()
+    if not is_on_command_preview() then return false end
+
+    local pos_map = state.cmd_pos_map or {}
+    local line_ranges = state.cmd_line_ranges or {}
+    local cursor = state.cmd_cursor
+    local text = get_command_text()
+    if cursor == 0 then cursor = #text + 1 end
+
+    -- Find which line cursor is on
+    local current_line = 1
+    local current_col = nil
+    if pos_map[cursor] then
+        current_line = pos_map[cursor].line
+        current_col = pos_map[cursor].col
+    end
+
+    -- Can't go down from last line
+    local num_lines = #line_ranges
+    if current_line >= num_lines then return true end
+
+    -- Move to next line, same column if possible
+    local next_line = current_line + 1
+    local next_range = line_ranges[next_line]
+    if not next_range then return true end
+
+    -- Find position on next line with closest column
+    local best_pos = next_range.start_pos
+    local best_col_diff = 999999
+    for pos = next_range.start_pos, next_range.end_pos do
+        if pos_map[pos] and pos_map[pos].line == next_line then
+            if current_col then
+                local diff = math.abs(pos_map[pos].col - current_col)
+                if diff < best_col_diff then
+                    best_col_diff = diff
+                    best_pos = pos
+                end
+            end
+        end
+    end
+
+    state.cmd_cursor = best_pos
+    state.cmd_on_placeholder = false
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_line_start
+-- Issue 10-008: Move cursor to start of current line (vim 0 key)
+-- On line 1, goes to first flag (not ./run.sh)
+function menu.cmd_cursor_line_start()
+    if not is_on_command_preview() then return false end
+
+    local pos_map = state.cmd_pos_map or {}
+    local line_ranges = state.cmd_line_ranges or {}
+    local cursor = state.cmd_cursor
+    local text = get_command_text()
+    if cursor == 0 then cursor = #text + 1 end
+
+    -- Find which line cursor is on
+    local current_line = 1
+    if pos_map[cursor] then
+        current_line = pos_map[cursor].line
+    end
+
+    -- Get start of this line
+    local line_range = line_ranges[current_line]
+    if line_range then
+        local start_pos = line_range.start_pos
+        -- On line 1, don't go before first flag
+        local min_pos = state.cmd_min_cursor_pos or 1
+        state.cmd_cursor = math.max(start_pos, min_pos)
+    end
+
+    state.cmd_on_placeholder = false
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.cmd_cursor_line_end
+-- Issue 10-008: Move cursor to end of current line (vim $ key)
+function menu.cmd_cursor_line_end()
+    if not is_on_command_preview() then return false end
+
+    local pos_map = state.cmd_pos_map or {}
+    local line_ranges = state.cmd_line_ranges or {}
+    local cursor = state.cmd_cursor
+    local text = get_command_text()
+    if cursor == 0 then cursor = #text + 1 end
+
+    -- Find which line cursor is on
+    local current_line = 1
+    if pos_map[cursor] then
+        current_line = pos_map[cursor].line
+    end
+
+    -- Get end of this line
+    local line_range = line_ranges[current_line]
+    if line_range then
+        state.cmd_cursor = line_range.end_pos
+    end
+
+    state.cmd_on_placeholder = false
+    menu.render()
+    return true
 end
 -- }}}
 
@@ -3637,23 +4036,19 @@ function menu.run()
                     if cmd_nav_prev_editable() then
                         menu.render()
                     end
-                elseif key == "h" then
+                elseif key == "h" or key == "LEFT" then
+                    -- Move cursor left (h or left arrow)
                     menu.cmd_cursor_left()
-                elseif key == "l" then
+                elseif key == "l" or key == "RIGHT" then
+                    -- Move cursor right (l or right arrow)
                     menu.cmd_cursor_right()
-                elseif key == "j" then
-                    -- Navigate down, reset mode for next time
-                    state.cmd_cursor = 0
-                    state.cmd_input_mode = "vim-nav"
-                    collapse_files_in_command()  -- Auto-collapse when leaving command preview
-                    menu.nav_down()
-                elseif key == "k" then
-                    -- Navigate up, reset mode for next time
-                    state.cmd_cursor = 0
-                    state.cmd_input_mode = "vim-nav"
-                    collapse_files_in_command()  -- Auto-collapse when leaving command preview
-                    menu.nav_up()
-                elseif key == "i" then
+                elseif key == "j" or key == "DOWN" then
+                    -- Issue 10-008: Move down one wrapped line (j or down arrow)
+                    menu.cmd_cursor_down()
+                elseif key == "k" or key == "UP" then
+                    -- Issue 10-008: Move up one wrapped line (k or up arrow)
+                    menu.cmd_cursor_up()
+                elseif key == "i" or key == "I" then
                     -- Enter insert mode at current cursor position
                     -- If cursor is in file placeholder, expand it first
                     if is_cursor_in_file_placeholder() then
@@ -3663,39 +4058,33 @@ function menu.run()
                     menu.render()
                 elseif key == "A" then
                     -- Enter insert mode at end of line (append)
-                    menu.cmd_cursor_end()
+                    menu.cmd_cursor_line_end()
                     -- If cursor is now in/at file placeholder, expand it first
                     if is_cursor_in_file_placeholder() then
                         expand_files_in_command()
                     end
                     state.cmd_input_mode = "insert"
                     menu.render()
-                elseif key >= "0" and key <= "9" then
+                elseif key == "0" then
+                    -- Go to start of current line (vim 0)
+                    menu.cmd_cursor_line_start()
+                elseif key >= "1" and key <= "9" then
                     -- Insert digit (for editing values like --parallel 3)
                     menu.cmd_insert_char(key)
                 elseif key == "^" then
-                    -- Go to start of line (vim) - use ^ instead of 0 since 0 inserts digit
+                    -- Go to start of command (first flag)
                     menu.cmd_cursor_start()
                 elseif key == "$" then
-                    -- Go to end of line (vim)
+                    -- Go to end of current line (vim $)
+                    menu.cmd_cursor_line_end()
+                elseif key == "G" then
+                    -- Go to end of command (vim G)
                     menu.cmd_cursor_end()
-                elseif key == "LEFT" or key == "RIGHT" or key == "UP" or key == "DOWN" then
-                    -- Arrow keys switch to arrow mode
-                    state.cmd_input_mode = "arrow"
-                    if key == "LEFT" then
-                        menu.cmd_cursor_left()
-                    elseif key == "RIGHT" then
-                        menu.cmd_cursor_right()
-                    elseif key == "UP" then
-                        state.cmd_cursor = 0
-                        state.cmd_input_mode = "vim-nav"
-                        collapse_files_in_command()  -- Auto-collapse when leaving
-                        menu.nav_up()
-                    elseif key == "DOWN" then
-                        state.cmd_cursor = 0
-                        state.cmd_input_mode = "vim-nav"
-                        collapse_files_in_command()  -- Auto-collapse when leaving
-                        menu.nav_down()
+                elseif key == "g" then
+                    -- Wait for second g for gg (go to start)
+                    local next_key = tui.read_key()
+                    if next_key == "g" then
+                        menu.cmd_cursor_start()
                     end
                 elseif key == "HOME" or key == "CTRL_A" then
                     menu.cmd_cursor_start()
@@ -3717,11 +4106,13 @@ function menu.run()
                         state.status_message = "Clipboard error: " .. (err or "unknown")
                     end
                     menu.render()
-                elseif key == "x" then
+                elseif key == "x" or key == "DELETE" then
                     -- Delete char at cursor (vim x)
                     menu.cmd_delete()
-                elseif key == "BACKSPACE" or key == "DELETE" then
+                elseif key == "BACKSPACE" then
+                    -- Backspace deletes and enters insert mode
                     menu.cmd_backspace()
+                    state.cmd_input_mode = "insert"
                 elseif key == "SPACE" then
                     -- If on placeholder, expand files; otherwise insert a space
                     if state.cmd_on_placeholder then
@@ -3763,21 +4154,15 @@ function menu.run()
                 elseif key == "RIGHT" then
                     menu.cmd_cursor_right()
                 elseif key == "UP" then
-                    -- Navigate up, exit insert mode
-                    state.cmd_cursor = 0
-                    state.cmd_input_mode = "vim-nav"
-                    collapse_files_in_command()  -- Auto-collapse when leaving
-                    menu.nav_up()
+                    -- Issue 10-008: Move up one wrapped line (stays in insert mode)
+                    menu.cmd_cursor_up()
                 elseif key == "DOWN" then
-                    -- Navigate down, exit insert mode
-                    state.cmd_cursor = 0
-                    state.cmd_input_mode = "vim-nav"
-                    collapse_files_in_command()  -- Auto-collapse when leaving
-                    menu.nav_down()
+                    -- Issue 10-008: Move down one wrapped line (stays in insert mode)
+                    menu.cmd_cursor_down()
                 elseif key == "HOME" or key == "CTRL_A" then
-                    menu.cmd_cursor_start()
+                    menu.cmd_cursor_line_start()
                 elseif key == "END" or key == "CTRL_E" then
-                    menu.cmd_cursor_end()
+                    menu.cmd_cursor_line_end()
                 elseif key == "BACKSPACE" then
                     menu.cmd_backspace()
                 elseif key == "DELETE" then
@@ -3815,21 +4200,15 @@ function menu.run()
                 elseif key == "RIGHT" then
                     menu.cmd_cursor_right()
                 elseif key == "UP" then
-                    -- Navigate up, reset to vim-nav
-                    state.cmd_cursor = 0
-                    state.cmd_input_mode = "vim-nav"
-                    collapse_files_in_command()  -- Auto-collapse when leaving
-                    menu.nav_up()
+                    -- Issue 10-008: Move up one wrapped line
+                    menu.cmd_cursor_up()
                 elseif key == "DOWN" then
-                    -- Navigate down, reset to vim-nav
-                    state.cmd_cursor = 0
-                    state.cmd_input_mode = "vim-nav"
-                    collapse_files_in_command()  -- Auto-collapse when leaving
-                    menu.nav_down()
+                    -- Issue 10-008: Move down one wrapped line
+                    menu.cmd_cursor_down()
                 elseif key == "HOME" or key == "CTRL_A" then
-                    menu.cmd_cursor_start()
+                    menu.cmd_cursor_line_start()
                 elseif key == "END" or key == "CTRL_E" then
-                    menu.cmd_cursor_end()
+                    menu.cmd_cursor_line_end()
                 elseif key == "BACKSPACE" then
                     menu.cmd_backspace()
                 elseif key == "DELETE" then
