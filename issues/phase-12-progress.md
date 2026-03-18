@@ -23,10 +23,11 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1216 | JSON board overwritten on resize    | Complete  |
 | 1217 | Unify line and ramp abstraction     | Complete  |
 | 1218 | Editor file picker vim keybinds     | Open      |
+| 1219 | Line gravity assist wrong direction | Complete  |
 
 ## Progress Summary
 
-**Completed:** 14/15 issues (93%)
+**Completed:** 15/16 issues (94%)
 **Status:** In Progress
 
 ## Design Overview
