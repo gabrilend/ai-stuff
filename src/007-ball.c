@@ -585,9 +585,9 @@ static void ball_check_bounds(Ball* ball, World* world) {
         // Bottom of viewable area is adversary_table_bottom + world->height
         float bottom_bound = world->adversary_table_bottom + despawn_buffer;
         if (ball->y - ball->radius > bottom_bound) {
-            // Spawn at top edge of viewable area (matching how adversary spawns at bottom edge)
-            // Viewable top is table_top, so spawn just above it
-            ball->y = world->table_top - ball->radius;
+            // Spawn at very top of map (same Y where adversary balls disappear)
+            // This is symmetrical: player exits bottom -> appears at top
+            ball->y = world->table_top - despawn_buffer + ball->radius;
         }
     } else if (ball->owner == OWNER_ADVERSARY) {
         // Adversary ball floating up - wrap when completely above viewable area
