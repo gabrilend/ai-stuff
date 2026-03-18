@@ -17,9 +17,8 @@
 #define TOOLBAR_HEIGHT 80
 #define SIDEBAR_WIDTH 200
 #define FOOTER_HEIGHT 30
-#define EDITOR_GRID_COLS 12
-#define EDITOR_GRID_ROWS 20
-#define EDITOR_CELL_SIZE 50
+// Use shared grid dimensions from 022-grid.h for game/editor consistency (issue 1205)
+// DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, DEFAULT_GRID_CELL_SIZE are defined there
 #define PEG_RADIUS 12.0f
 #define DEFAULT_LINE_THICKNESS 10.0f
 #define MIN_LINE_THICKNESS 4.0f
@@ -86,8 +85,8 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     app->screen_width = screen_width;
     app->screen_height = screen_height;
 
-    // Create empty board
-    app->board = board_data_create(EDITOR_GRID_COLS, EDITOR_GRID_ROWS, EDITOR_CELL_SIZE);
+    // Create empty board using shared grid dimensions (issue 1205)
+    app->board = board_data_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, (int)DEFAULT_GRID_CELL_SIZE);
     if (!app->board) {
         free(app);
         return NULL;
@@ -269,7 +268,7 @@ void editor_app_new_board(EditorApp* app) {
         board_data_destroy(app->board);
     }
 
-    app->board = board_data_create(EDITOR_GRID_COLS, EDITOR_GRID_ROWS, EDITOR_CELL_SIZE);
+    app->board = board_data_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, (int)DEFAULT_GRID_CELL_SIZE);
     app->has_filename = 0;
     app->filename[0] = '\0';
     app->modified = 0;

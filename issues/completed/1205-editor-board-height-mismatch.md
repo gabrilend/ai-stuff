@@ -37,3 +37,30 @@ The issue likely stems from:
 ## Notes
 
 The goal is to make boards interchangeable between game and editor with consistent visual results.
+
+## Root Cause Found
+
+The editor had its own grid constants that differed from the game:
+- **Editor:** EDITOR_GRID_COLS=12, EDITOR_GRID_ROWS=20, EDITOR_CELL_SIZE=50
+- **Game:** DEFAULT_GRID_COLS=14, DEFAULT_GRID_ROWS=12, DEFAULT_GRID_CELL_SIZE=60
+
+Boards created in the editor had completely different dimensions than what the game expected.
+
+## Implementation
+
+Modified `src/032-editor-app.c`:
+
+1. Removed local EDITOR_GRID_COLS, EDITOR_GRID_ROWS, EDITOR_CELL_SIZE constants
+2. Now uses DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, DEFAULT_GRID_CELL_SIZE from `022-grid.h`
+3. Updated `editor_app_create()` and `editor_app_new_board()` to use shared constants
+
+The editor already includes `022-grid.h` via `031-editor-app.h`, so no new includes were needed.
+
+## Result
+
+Editor now creates boards with the same dimensions as the game (14×12 grid, 60px cells).
+Boards are hot-swappable between editor and game.
+
+## Status
+
+**Completed** - Editor uses shared grid dimensions.
