@@ -3,6 +3,7 @@
 # Compiles the physics simulator project using make
 # This script can be run from any directory and will compile the project
 # from the correct location. It accepts an optional directory argument.
+# Also generates the default board if it doesn't exist.
 #
 # Usage:
 #   ./scripts/compile              # Compile both game and editor (default)
@@ -15,6 +16,121 @@
 
 # Hard-coded project directory
 DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+
+# {{{ generate_default_board
+# Generates the default stage1 board JSON if it doesn't exist.
+# Creates a classic staggered peg grid with score zones at the bottom.
+generate_default_board() {
+    local boards_dir="${DIR}/boards"
+    local default_board="${boards_dir}/stage1-default.json"
+
+    # Create boards directory if needed
+    if [ ! -d "${boards_dir}" ]; then
+        echo "Creating boards directory..."
+        mkdir -p "${boards_dir}"
+    fi
+
+    # Generate default board if missing
+    if [ ! -f "${default_board}" ]; then
+        echo "Generating default board: stage1-default.json"
+        cat > "${default_board}" << 'BOARD_EOF'
+{
+  "version": 1,
+  "name": "Stage 1 - Classic Pegs",
+  "grid": {
+    "cell_size": 60,
+    "columns": 14,
+    "rows": 10
+  },
+  "board": {
+    "width": 840,
+    "height": 600
+  },
+  "objects": [
+    {"type": "peg", "col": 1, "row": 0},
+    {"type": "peg", "col": 3, "row": 0},
+    {"type": "peg", "col": 5, "row": 0},
+    {"type": "peg", "col": 7, "row": 0},
+    {"type": "peg", "col": 9, "row": 0},
+    {"type": "peg", "col": 11, "row": 0},
+    {"type": "peg", "col": 13, "row": 0},
+    {"type": "peg", "col": 0, "row": 1},
+    {"type": "peg", "col": 2, "row": 1},
+    {"type": "peg", "col": 4, "row": 1},
+    {"type": "peg", "col": 6, "row": 1},
+    {"type": "peg", "col": 8, "row": 1},
+    {"type": "peg", "col": 10, "row": 1},
+    {"type": "peg", "col": 12, "row": 1},
+    {"type": "peg", "col": 1, "row": 2},
+    {"type": "peg", "col": 3, "row": 2},
+    {"type": "peg", "col": 5, "row": 2},
+    {"type": "peg", "col": 7, "row": 2},
+    {"type": "peg", "col": 9, "row": 2},
+    {"type": "peg", "col": 11, "row": 2},
+    {"type": "peg", "col": 13, "row": 2},
+    {"type": "peg", "col": 0, "row": 3},
+    {"type": "peg", "col": 2, "row": 3},
+    {"type": "peg", "col": 4, "row": 3},
+    {"type": "peg", "col": 6, "row": 3},
+    {"type": "peg", "col": 8, "row": 3},
+    {"type": "peg", "col": 10, "row": 3},
+    {"type": "peg", "col": 12, "row": 3},
+    {"type": "peg", "col": 1, "row": 4},
+    {"type": "peg", "col": 3, "row": 4},
+    {"type": "peg", "col": 5, "row": 4},
+    {"type": "peg", "col": 7, "row": 4},
+    {"type": "peg", "col": 9, "row": 4},
+    {"type": "peg", "col": 11, "row": 4},
+    {"type": "peg", "col": 13, "row": 4},
+    {"type": "peg", "col": 0, "row": 5},
+    {"type": "peg", "col": 2, "row": 5},
+    {"type": "peg", "col": 4, "row": 5},
+    {"type": "peg", "col": 6, "row": 5},
+    {"type": "peg", "col": 8, "row": 5},
+    {"type": "peg", "col": 10, "row": 5},
+    {"type": "peg", "col": 12, "row": 5},
+    {"type": "peg", "col": 1, "row": 6},
+    {"type": "peg", "col": 3, "row": 6},
+    {"type": "peg", "col": 5, "row": 6},
+    {"type": "peg", "col": 7, "row": 6},
+    {"type": "peg", "col": 9, "row": 6},
+    {"type": "peg", "col": 11, "row": 6},
+    {"type": "peg", "col": 13, "row": 6},
+    {"type": "peg", "col": 0, "row": 7},
+    {"type": "peg", "col": 2, "row": 7},
+    {"type": "peg", "col": 4, "row": 7},
+    {"type": "peg", "col": 6, "row": 7},
+    {"type": "peg", "col": 8, "row": 7},
+    {"type": "peg", "col": 10, "row": 7},
+    {"type": "peg", "col": 12, "row": 7},
+    {"type": "peg", "col": 1, "row": 8},
+    {"type": "peg", "col": 3, "row": 8},
+    {"type": "peg", "col": 5, "row": 8},
+    {"type": "peg", "col": 7, "row": 8},
+    {"type": "peg", "col": 9, "row": 8},
+    {"type": "peg", "col": 11, "row": 8},
+    {"type": "peg", "col": 13, "row": 8}
+  ],
+  "zones": [
+    {"type": "score", "col": 0, "row": 9, "width": 1, "height": 1, "points": 10, "multiplier": 1},
+    {"type": "score", "col": 1, "row": 9, "width": 1, "height": 1, "points": 20, "multiplier": 1},
+    {"type": "score", "col": 2, "row": 9, "width": 1, "height": 1, "points": 30, "multiplier": 1},
+    {"type": "score", "col": 3, "row": 9, "width": 1, "height": 1, "points": 50, "multiplier": 1},
+    {"type": "score", "col": 4, "row": 9, "width": 1, "height": 1, "points": 100, "multiplier": 1},
+    {"type": "score", "col": 5, "row": 9, "width": 1, "height": 1, "points": 200, "multiplier": 1},
+    {"type": "score", "col": 6, "row": 9, "width": 1, "height": 1, "points": 500, "multiplier": 1},
+    {"type": "score", "col": 7, "row": 9, "width": 1, "height": 1, "points": 200, "multiplier": 1},
+    {"type": "score", "col": 8, "row": 9, "width": 1, "height": 1, "points": 100, "multiplier": 1},
+    {"type": "score", "col": 9, "row": 9, "width": 1, "height": 1, "points": 50, "multiplier": 1},
+    {"type": "score", "col": 10, "row": 9, "width": 1, "height": 1, "points": 30, "multiplier": 1},
+    {"type": "score", "col": 11, "row": 9, "width": 1, "height": 1, "points": 20, "multiplier": 1},
+    {"type": "score", "col": 12, "row": 9, "width": 1, "height": 1, "points": 10, "multiplier": 1}
+  ]
+}
+BOARD_EOF
+    fi
+}
+# }}}
 
 # Parse arguments
 CLEAN_ONLY=0
@@ -44,6 +160,9 @@ done
 
 # Navigate to project directory
 cd "${DIR}" || exit 1
+
+# Generate default board if missing (always check, even for clean)
+generate_default_board
 
 # Clean only if requested
 if [ ${CLEAN_ONLY} -eq 1 ]; then
