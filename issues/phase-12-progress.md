@@ -30,14 +30,14 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1223 | Portal improvements                 | Complete  |
 | 1224 | In-progress board flag              | Complete  |
 | 1225 | RGB property 10% increments         | Complete  |
-| 1226 | Drag-to-select and multi-edit       | Open      |
+| 1226 | Drag-to-select and multi-edit       | Complete  |
 | 1227 | Portal zones fill grid cell         | Complete  |
 | 1228 | Editor scroll and board sizing      | Complete  |
 
 ## Progress Summary
 
-**Completed:** 24/25 issues (96%)
-**Status:** In Progress
+**Completed:** 25/25 issues (100%)
+**Status:** Complete
 
 **Note:** Issue 1221 created the slot-based layout foundation. Full integration with stage expansion is Phase 13 work.
 

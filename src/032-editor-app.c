@@ -89,6 +89,147 @@ static int value_to_step(unsigned char value) {
 // }}}
 
 // =============================================================================
+// Multi-Selection Helpers (issue 1226)
+// =============================================================================
+
+// {{{ selection_clear
+// Clears all selected objects
+static void selection_clear(EditorApp* app) {
+    app->selection_count = 0;
+    app->selected_object_index = -1;
+    app->show_property_panel = 0;
+}
+// }}}
+
+// {{{ selection_contains
+// Returns 1 if object index is in selection, 0 otherwise
+static int selection_contains(EditorApp* app, int index) {
+    for (int i = 0; i < app->selection_count; i++) {
+        if (app->selected_indices[i] == index) return 1;
+    }
+    return 0;
+}
+// }}}
+
+// {{{ selection_add
+// Adds an object to selection (if not already selected)
+static void selection_add(EditorApp* app, int index) {
+    if (selection_contains(app, index)) return;
+
+    // Grow array if needed
+    if (app->selection_count >= app->selection_capacity) {
+        app->selection_capacity *= 2;
+        app->selected_indices = realloc(app->selected_indices,
+                                        app->selection_capacity * sizeof(int));
+    }
+
+    app->selected_indices[app->selection_count++] = index;
+
+    // Update legacy single selection for property panel compatibility
+    if (app->selection_count == 1) {
+        app->selected_object_index = index;
+    } else {
+        app->selected_object_index = -1;  // Multiple selected
+    }
+    app->show_property_panel = 1;
+}
+// }}}
+
+// {{{ selection_remove
+// Removes an object from selection
+static void selection_remove(EditorApp* app, int index) {
+    for (int i = 0; i < app->selection_count; i++) {
+        if (app->selected_indices[i] == index) {
+            // Shift remaining elements
+            for (int j = i; j < app->selection_count - 1; j++) {
+                app->selected_indices[j] = app->selected_indices[j + 1];
+            }
+            app->selection_count--;
+
+            // Update legacy single selection
+            if (app->selection_count == 1) {
+                app->selected_object_index = app->selected_indices[0];
+            } else if (app->selection_count == 0) {
+                app->selected_object_index = -1;
+                app->show_property_panel = 0;
+            } else {
+                app->selected_object_index = -1;
+            }
+            return;
+        }
+    }
+}
+// }}}
+
+// {{{ selection_toggle
+// Toggles object in/out of selection
+static void selection_toggle(EditorApp* app, int index) {
+    if (selection_contains(app, index)) {
+        selection_remove(app, index);
+    } else {
+        selection_add(app, index);
+    }
+}
+// }}}
+
+// {{{ selection_set_single
+// Sets selection to single object (clears existing, adds one)
+static void selection_set_single(EditorApp* app, int index) {
+    selection_clear(app);
+    if (index >= 0) {
+        selection_add(app, index);
+    }
+}
+// }}}
+
+// {{{ selection_select_all
+// Selects all objects
+static void selection_select_all(EditorApp* app) {
+    selection_clear(app);
+    for (int i = 0; i < app->board->object_count; i++) {
+        selection_add(app, i);
+    }
+}
+// }}}
+
+// {{{ selection_select_in_rect
+// Selects all objects within a screen-space rectangle (issue 1226)
+// If shift is held, adds to existing selection; otherwise replaces
+static void selection_select_in_rect(EditorApp* app, float x1, float y1, float x2, float y2) {
+    if (!app || !app->board) return;
+
+    int shift_held = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    if (!shift_held) {
+        selection_clear(app);
+    }
+
+    // Normalize rectangle bounds
+    float min_x = (x1 < x2) ? x1 : x2;
+    float max_x = (x1 > x2) ? x1 : x2;
+    float min_y = (y1 < y2) ? y1 : y2;
+    float max_y = (y1 > y2) ? y1 : y2;
+
+    // Convert screen bounds to world coordinates
+    Vector2 world_min = GetScreenToWorld2D((Vector2){min_x, min_y}, app->camera);
+    Vector2 world_max = GetScreenToWorld2D((Vector2){max_x, max_y}, app->camera);
+
+    // Check each object
+    for (int i = 0; i < app->board->object_count; i++) {
+        BoardObject* obj = &app->board->objects[i];
+
+        float obj_x = grid_to_pixel_x(&app->grid, obj->col, obj->row);
+        float obj_y = grid_to_pixel_y(&app->grid, obj->col, obj->row);
+
+        // Check if object center is within rectangle
+        if (obj_x >= world_min.x && obj_x <= world_max.x &&
+            obj_y >= world_min.y && obj_y <= world_max.y) {
+            selection_add(app, i);
+        }
+    }
+}
+// }}}
+
+// =============================================================================
 // Forward Declarations
 // =============================================================================
 
@@ -120,6 +261,9 @@ static void render_property_panel(EditorApp* app);
 static int handle_property_panel_input(EditorApp* app);
 static void render_slider(int x, int y, int width, unsigned char value,
                           const char* label, Color color_hint, int is_points);
+// Multi-selection functions (issue 1226)
+static void render_selection_highlights(EditorApp* app);
+static void render_drag_selection_rect(EditorApp* app);
 
 // =============================================================================
 // Lifecycle
@@ -152,6 +296,17 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     app->line_tool.min_thickness = MIN_LINE_THICKNESS;
     app->line_tool.max_thickness = MAX_LINE_THICKNESS;
 
+    // Multi-selection array (issue 1226)
+    app->selection_capacity = 64;  // Initial capacity
+    app->selected_indices = (int*)malloc(app->selection_capacity * sizeof(int));
+    if (!app->selected_indices) {
+        board_data_destroy(app->board);
+        free(app);
+        return NULL;
+    }
+    app->selection_count = 0;
+    app->is_drag_selecting = 0;
+
     // Setup camera (1:1, no zoom initially)
     app->camera.zoom = 1.0f;
     app->camera.rotation = 0.0f;
@@ -175,6 +330,11 @@ void editor_app_destroy(EditorApp* app) {
 
     if (app->load_dialog.file_list) {
         board_file_list_destroy(app->load_dialog.file_list);
+    }
+
+    // Free multi-selection array (issue 1226)
+    if (app->selected_indices) {
+        free(app->selected_indices);
     }
 
     free(app);
@@ -445,11 +605,10 @@ static void handle_input(EditorApp* app) {
         return;
     }
 
-    // ESC: Close property panel first, then quit (issue 1211)
+    // ESC: Close property panel first, then quit (issue 1211, 1226)
     if (IsKeyPressed(KEY_ESCAPE)) {
-        if (app->show_property_panel) {
-            app->show_property_panel = 0;
-            app->selected_object_index = -1;
+        if (app->show_property_panel || app->selection_count > 0) {
+            selection_clear(app);  // Clears selection and hides property panel
         } else {
             app->should_quit = 1;
         }
@@ -501,21 +660,49 @@ static void handle_input(EditorApp* app) {
         if (app->portal_channel < 1) app->portal_channel = 1;
     }
 
+    // Select all: Ctrl+A (issue 1226)
+    if (IsKeyPressed(KEY_A) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))) {
+        selection_select_all(app);
+    }
+
     // Canvas interaction
     if (app->hover_valid && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         handle_canvas_click(app);
     }
 
-    // Right-click handling (issue 1211)
+    // Right-click handling (issue 1211, 1226)
+    // Supports both click-to-select and drag-to-select
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
         // If line tool is active, cancel it
         if (app->tool == APP_TOOL_LINE && app->line_tool.state != LINE_STATE_IDLE) {
             app->line_tool.state = LINE_STATE_IDLE;
         } else {
-            // Otherwise, try to select an object for property editing
+            // Start potential drag selection
             Vector2 mouse = GetMousePosition();
+            app->is_drag_selecting = 1;
+            app->drag_start_x = mouse.x;
+            app->drag_start_y = mouse.y;
+        }
+    }
+
+    // Handle drag selection release (issue 1226)
+    if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON) && app->is_drag_selecting) {
+        Vector2 mouse = GetMousePosition();
+        float dx = mouse.x - app->drag_start_x;
+        float dy = mouse.y - app->drag_start_y;
+        float drag_dist = sqrtf(dx * dx + dy * dy);
+
+        // Threshold to distinguish click vs drag (10 pixels)
+        if (drag_dist > 10.0f) {
+            // Was a drag - select objects in rectangle
+            selection_select_in_rect(app, app->drag_start_x, app->drag_start_y,
+                                     mouse.x, mouse.y);
+        } else {
+            // Was a click - select single object
             handle_object_selection(app, mouse.x, mouse.y);
         }
+
+        app->is_drag_selecting = 0;
     }
 
     // Line tool: thickness adjustment with mouse wheel in thickness mode
@@ -1067,6 +1254,70 @@ static void render_footer(EditorApp* app) {
 }
 // }}}
 
+// {{{ render_selection_highlights
+// Renders highlight circles around selected objects (issue 1226)
+static void render_selection_highlights(EditorApp* app) {
+    if (!app || !app->board || app->selection_count == 0) return;
+
+    Color highlight_color = (Color){100, 200, 255, 120};
+    Color outline_color = (Color){100, 200, 255, 255};
+
+    for (int i = 0; i < app->selection_count; i++) {
+        int idx = app->selected_indices[i];
+        if (idx < 0 || idx >= app->board->object_count) continue;
+
+        BoardObject* obj = &app->board->objects[idx];
+        float x = grid_to_pixel_x(&app->grid, obj->col, obj->row);
+        float y = grid_to_pixel_y(&app->grid, obj->col, obj->row);
+
+        // Draw selection highlight based on object type
+        if (obj->type == OBJECT_PEG) {
+            float radius = PEG_RADIUS + 4.0f;
+            DrawCircle((int)x, (int)y, radius, highlight_color);
+            DrawCircleLines((int)x, (int)y, radius, outline_color);
+        } else if (obj->type == OBJECT_LINE) {
+            // Highlight both endpoints
+            float x2 = grid_to_pixel_x(&app->grid, obj->end_col, obj->end_row);
+            float y2 = grid_to_pixel_y(&app->grid, obj->end_col, obj->end_row);
+            float radius = obj->thickness / 2.0f + 4.0f;
+            DrawCircle((int)x, (int)y, radius, highlight_color);
+            DrawCircleLines((int)x, (int)y, radius, outline_color);
+            DrawCircle((int)x2, (int)y2, radius, highlight_color);
+            DrawCircleLines((int)x2, (int)y2, radius, outline_color);
+        }
+    }
+}
+// }}}
+
+// {{{ render_drag_selection_rect
+// Renders the drag selection rectangle while dragging (issue 1226)
+static void render_drag_selection_rect(EditorApp* app) {
+    if (!app || !app->is_drag_selecting) return;
+
+    Vector2 mouse = GetMousePosition();
+    float x1 = app->drag_start_x;
+    float y1 = app->drag_start_y;
+    float x2 = mouse.x;
+    float y2 = mouse.y;
+
+    // Normalize rectangle
+    float min_x = (x1 < x2) ? x1 : x2;
+    float max_x = (x1 > x2) ? x1 : x2;
+    float min_y = (y1 < y2) ? y1 : y2;
+    float max_y = (y1 > y2) ? y1 : y2;
+
+    // Draw filled rectangle
+    DrawRectangle((int)min_x, (int)min_y,
+                  (int)(max_x - min_x), (int)(max_y - min_y),
+                  (Color){100, 200, 255, 40});
+
+    // Draw outline
+    DrawRectangleLines((int)min_x, (int)min_y,
+                       (int)(max_x - min_x), (int)(max_y - min_y),
+                       (Color){100, 200, 255, 200});
+}
+// }}}
+
 // {{{ render_canvas
 static void render_canvas(EditorApp* app) {
     // Canvas background
@@ -1096,8 +1347,14 @@ static void render_canvas(EditorApp* app) {
         render_board_zones(app->board, &app->grid);
     }
 
+    // Selection highlights (issue 1226)
+    render_selection_highlights(app);
+
     // Cursor preview
     render_cursor_preview(app);
+
+    // Drag selection rectangle (issue 1226)
+    render_drag_selection_rect(app);
 
     // Restore original grid origin
     app->grid.origin_y = original_origin_y;
@@ -1363,9 +1620,13 @@ static void render_slider(int x, int y, int width, unsigned char value,
 
 // {{{ handle_object_selection
 // Handles right-click to select an object for property editing.
+// Supports shift-click to add/remove from multi-selection (issue 1226).
 // Returns 1 if an object was selected, 0 otherwise.
 static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y) {
     if (!app || !app->board) return 0;
+
+    // Check if shift is held for multi-select
+    int shift_held = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 
     // Convert screen coords to world coords
     Vector2 screen_pos = {mouse_x, mouse_y};
@@ -1394,28 +1655,39 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
         }
 
         if (dist <= click_radius) {
-            app->selected_object_index = i;
-            app->show_property_panel = 1;
+            // Object found under cursor
+            if (shift_held) {
+                // Shift-click: toggle in selection
+                selection_toggle(app, i);
+            } else {
+                // Normal click: replace selection with single object
+                selection_set_single(app, i);
+            }
             return 1;
         }
     }
 
-    // Clicked empty space - deselect
-    app->selected_object_index = -1;
-    app->show_property_panel = 0;
+    // Clicked empty space
+    if (!shift_held) {
+        // Only deselect if shift not held
+        selection_clear(app);
+    }
     return 0;
 }
 // }}}
 
 // {{{ render_property_panel
 // Renders the property editing panel on the right side of screen.
+// Supports multi-selection (issue 1226).
 static void render_property_panel(EditorApp* app) {
     if (!app || !app->show_property_panel) return;
-    if (app->selected_object_index < 0) return;
     if (!app->board) return;
-    if (app->selected_object_index >= app->board->object_count) return;
+    if (app->selection_count == 0) return;
 
-    BoardObject* obj = &app->board->objects[app->selected_object_index];
+    // Get the first selected object for display
+    int first_idx = app->selected_indices[0];
+    if (first_idx < 0 || first_idx >= app->board->object_count) return;
+    BoardObject* obj = &app->board->objects[first_idx];
 
     int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
     int panel_y = 100;
@@ -1426,9 +1698,15 @@ static void render_property_panel(EditorApp* app) {
     DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
                        (Color){100, 100, 120, 255});
 
-    // Title
-    const char* type_name = (obj->type == OBJECT_PEG) ? "Peg Properties" : "Line Properties";
-    DrawText(type_name, panel_x + 10, panel_y + 10, 16, TEXT_COLOR);
+    // Title - show count if multiple selected (issue 1226)
+    char title[64];
+    if (app->selection_count > 1) {
+        snprintf(title, sizeof(title), "Multiple (%d)", app->selection_count);
+    } else {
+        const char* type_name = (obj->type == OBJECT_PEG) ? "Peg" : "Line";
+        snprintf(title, sizeof(title), "%s Properties", type_name);
+    }
+    DrawText(title, panel_x + 10, panel_y + 10, 16, TEXT_COLOR);
 
     // Color preview swatch (shows resulting RGB color)
     Color preview = (Color){ obj->restitution, obj->friction, obj->point_bonus, 255 };
@@ -1464,12 +1742,12 @@ static void render_property_panel(EditorApp* app) {
 
 // {{{ handle_property_panel_input
 // Handles mouse input on the property panel sliders.
+// Applies changes to all selected objects (issue 1226).
 // Returns 1 if input was consumed (clicked on panel), 0 otherwise.
 static int handle_property_panel_input(EditorApp* app) {
     if (!app || !app->show_property_panel) return 0;
-    if (app->selected_object_index < 0) return 0;
     if (!app->board) return 0;
-    if (app->selected_object_index >= app->board->object_count) return 0;
+    if (app->selection_count == 0) return 0;
 
     // Check if mouse is over the panel
     int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
@@ -1488,8 +1766,6 @@ static int handle_property_panel_input(EditorApp* app) {
         return 1;  // Over panel but not clicking - still consume
     }
 
-    BoardObject* obj = &app->board->objects[app->selected_object_index];
-
     int slider_width = PROP_PANEL_WIDTH - 50;
     int content_x = panel_x + 10;
     int slider_x = content_x;
@@ -1503,11 +1779,6 @@ static int handle_property_panel_input(EditorApp* app) {
         base_y + 14,
         base_y + slider_spacing + 14,
         base_y + 2 * slider_spacing + 14
-    };
-    unsigned char* values[3] = {
-        &obj->restitution,
-        &obj->friction,
-        &obj->point_bonus
     };
 
     // Check each slider
@@ -1523,7 +1794,20 @@ static int handle_property_panel_input(EditorApp* app) {
             if (ratio > 1.0f) ratio = 1.0f;
             // Snap to 10% increments (issue 1225)
             unsigned char raw_value = (unsigned char)(ratio * 255.0f);
-            *values[i] = snap_to_increment(raw_value);
+            unsigned char snapped = snap_to_increment(raw_value);
+
+            // Apply to all selected objects (issue 1226)
+            for (int j = 0; j < app->selection_count; j++) {
+                int idx = app->selected_indices[j];
+                if (idx < 0 || idx >= app->board->object_count) continue;
+                BoardObject* obj = &app->board->objects[idx];
+
+                switch (i) {
+                    case 0: obj->restitution = snapped; break;
+                    case 1: obj->friction = snapped; break;
+                    case 2: obj->point_bonus = snapped; break;
+                }
+            }
             app->modified = 1;
             return 1;
         }

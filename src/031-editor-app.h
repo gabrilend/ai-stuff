@@ -118,7 +118,16 @@ typedef struct EditorApp {
     int hover_col, hover_row;
     int hover_valid;
 
-    // Selection/property editing
+    // Selection/property editing (issue 1226 - multi-select)
+    int* selected_indices;      // Array of selected object indices
+    int selection_count;        // Number of selected objects
+    int selection_capacity;     // Allocated capacity of selected_indices
+
+    // Drag selection state
+    int is_drag_selecting;      // Currently dragging to select
+    float drag_start_x, drag_start_y;  // Start position in pixels
+
+    // Legacy single selection (for property panel compatibility)
     int selected_object_index;
     int show_property_panel;
 
