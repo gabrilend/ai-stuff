@@ -5,11 +5,13 @@
 # from the correct location. It accepts an optional directory argument.
 #
 # Usage:
-#   ./scripts/compile              # Normal compilation
+#   ./scripts/compile              # Compile both game and editor (default)
+#   ./scripts/compile --game       # Compile game only
+#   ./scripts/compile --editor     # Compile editor only
 #   ./scripts/compile --clean      # Clean only (remove binaries)
 #   ./scripts/compile --force      # Clean rebuild (clean then compile)
 #   ./scripts/compile /custom/dir  # Compile from custom directory
-#   ./scripts/compile --force /custom/dir  # Clean rebuild at custom directory
+#   ./scripts/compile --force --game /custom/dir  # Clean rebuild game at custom dir
 
 # Hard-coded project directory
 DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
@@ -17,6 +19,7 @@ DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
 # Parse arguments
 CLEAN_ONLY=0
 FORCE_BUILD=0
+BUILD_TARGET="all"  # Default: build both game and editor
 
 for arg in "$@"; do
     case "$arg" in
@@ -25,6 +28,12 @@ for arg in "$@"; do
             ;;
         --force)
             FORCE_BUILD=1
+            ;;
+        --game)
+            BUILD_TARGET="game"
+            ;;
+        --editor)
+            BUILD_TARGET="editor"
             ;;
         *)
             # Assume it's a directory path
@@ -52,8 +61,20 @@ if [ ${FORCE_BUILD} -eq 1 ]; then
 fi
 
 # Compile the project
-echo "Compiling physics simulator from: ${DIR}"
-make
+case "${BUILD_TARGET}" in
+    game)
+        echo "Compiling game from: ${DIR}"
+        make game
+        ;;
+    editor)
+        echo "Compiling editor from: ${DIR}"
+        make editor
+        ;;
+    all)
+        echo "Compiling game and editor from: ${DIR}"
+        make all
+        ;;
+esac
 
 # Check compilation result
 if [ $? -eq 0 ]; then

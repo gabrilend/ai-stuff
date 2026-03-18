@@ -1,7 +1,7 @@
 #!/bin/bash
-# run
-# Compiles and runs the physics simulator
-# This script calls the compile script, then executes the resulting binary.
+# edit
+# Compiles and runs the standalone board editor
+# This script calls the compile script, then executes the editor binary.
 # Can be run from any directory with optional directory argument.
 
 # Hard-coded project directory
@@ -22,14 +22,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "=== Physics Simulator - Build and Run ==="
+echo "=== Board Editor - Build and Run ==="
 echo ""
 
-# Run compile script (game only)
+# Run compile script (editor only)
 if [ -n "$COMPILE_FLAGS" ]; then
-    "${DIR}/scripts/compile" "$COMPILE_FLAGS" --game "${DIR}"
+    "${DIR}/scripts/compile" "$COMPILE_FLAGS" --editor "${DIR}"
 else
-    "${DIR}/scripts/compile" --game "${DIR}"
+    "${DIR}/scripts/compile" --editor "${DIR}"
 fi
 
 # Check if compilation succeeded
@@ -40,11 +40,11 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
-echo "=== Running Physics Simulator ==="
+echo "=== Running Board Editor ==="
 echo ""
 
 # Run the binary
-"${DIR}/bin/physics-sim"
+"${DIR}/bin/board-editor"
 
 # Capture exit code
 EXIT_CODE=$?

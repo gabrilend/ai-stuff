@@ -1,0 +1,18 @@
+bug report: when a ball wraps from the bottom to the top, or from the top to the
+bottom, on their next pass through the gates they won't trigger the gate and do
+not award points. They should reset their variable that tracks that they've
+passed through a specific gate when they wrap.
+
+also, the editor should prompt for a name for the saved file.
+
+Also, the editor should let us place objects on the gridline intersections, not
+the center of a grid square.
+
+Also, the editor should allow us to scroll up and down.
+
+Also, in the editor, the guard rails should be visible - right now they're
+implied because the vertical lines are only present in the modifiable area, but
+if the guard rails were there too it'd make it more distinct.
+
+Also, the loading feature in the editor doesn't seem to work - the file is
+selected, but nothing displayed changes.
