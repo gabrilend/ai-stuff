@@ -10,6 +10,7 @@
 #include "004-world.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 // =============================================================================
 // Visual Constants
@@ -60,6 +61,13 @@ static PaletteItem palette_items[] = {
 // Forward declaration for palette click handler (defined in Palette Rendering section)
 static int editor_handle_palette_click(EditorState* editor);
 
+// Forward declarations for line tool functions (defined in Line Tool Functions section)
+static void line_tool_handle_cancel(EditorState* editor);
+static void line_tool_update_thickness(EditorState* editor, Vector2 mouse_world);
+static int line_tool_handle_click(EditorState* editor);
+static void line_tool_render_preview(EditorState* editor);
+static void line_tool_render_ui(EditorState* editor);
+
 // =============================================================================
 // Editor Lifecycle
 // =============================================================================
@@ -88,6 +96,20 @@ EditorState* editor_create(struct World* world) {
     // Screen dimensions (will be updated)
     editor->screen_width = 800;
     editor->screen_height = 600;
+
+    // Initialize line tool state
+    editor->line_tool.state = LINE_TOOL_IDLE;
+    editor->line_tool.start_col = 0;
+    editor->line_tool.start_row = 0;
+    editor->line_tool.end_col = 0;
+    editor->line_tool.end_row = 0;
+    editor->line_tool.start_x = 0;
+    editor->line_tool.start_y = 0;
+    editor->line_tool.end_x = 0;
+    editor->line_tool.end_y = 0;
+    editor->line_tool.thickness = 10.0f;
+    editor->line_tool.min_thickness = 6.0f;
+    editor->line_tool.max_thickness = 40.0f;
 
     // Setup grid based on world if provided
     if (world) {
@@ -209,16 +231,31 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
     // Check if hover is within grid bounds
     editor->hover_valid = grid_pixel_in_bounds(&editor->grid, mouse_world.x, mouse_world.y);
 
+    // Handle line tool escape (cancel operation)
+    line_tool_handle_cancel(editor);
+
+    // Update line tool thickness during width setting phase
+    line_tool_update_thickness(editor, mouse_world);
+
     // Handle object placement/removal (only if palette wasn't clicked)
     if (!palette_clicked) {
         if (editor->mode == EDITOR_MODE_PLACE) {
-            if (editor_handle_placement(editor)) {
-                // Sync changes to world for live preview
-                editor_sync_to_world(editor);
+            // Check if line tool handles the click first
+            if (editor->selected_object_type == OBJECT_LINE) {
+                if (line_tool_handle_click(editor)) {
+                    // Line tool consumed the click
+                    if (editor->board_modified) {
+                        editor_sync_to_world(editor);
+                    }
+                }
+            } else {
+                // Normal placement for non-line objects
+                if (editor_handle_placement(editor)) {
+                    editor_sync_to_world(editor);
+                }
             }
         } else if (editor->mode == EDITOR_MODE_ERASE) {
             if (editor_handle_erase(editor)) {
-                // Sync changes to world for live preview
                 editor_sync_to_world(editor);
             }
         }
@@ -431,12 +468,30 @@ void editor_render_ui(EditorState* editor) {
 
     // Draw object palette
     editor_render_palette(editor);
+
+    // Draw line tool status
+    line_tool_render_ui(editor);
 }
 // }}}
 
 // {{{ editor_render_cursor
 void editor_render_cursor(EditorState* editor) {
     if (!editor || editor->mode == EDITOR_MODE_DISABLED) return;
+
+    // Line tool has its own preview rendering for all states
+    if (editor->selected_object_type == OBJECT_LINE &&
+        editor->mode == EDITOR_MODE_PLACE) {
+        line_tool_render_preview(editor);
+        // Only render hover dot in idle state with valid hover
+        if (editor->line_tool.state == LINE_TOOL_IDLE && editor->hover_valid) {
+            Vector2 pos = grid_to_pixel(&editor->grid,
+                                         editor->hover_col, editor->hover_row);
+            DrawCircleV(pos, 8, CURSOR_VALID_COLOR);
+            DrawCircleLinesV(pos, 8, GREEN);
+        }
+        return;
+    }
+
     if (!editor->hover_valid) return;
 
     // Get pixel position of hovered cell
@@ -449,11 +504,6 @@ void editor_render_cursor(EditorState* editor) {
                 // Draw peg preview (semi-transparent)
                 DrawCircleV(pos, PEG_RADIUS, CURSOR_VALID_COLOR);
                 DrawCircleLinesV(pos, PEG_RADIUS, GREEN);
-                break;
-            case OBJECT_LINE:
-                // Draw line start indicator
-                DrawCircleV(pos, 8, CURSOR_VALID_COLOR);
-                DrawCircleLinesV(pos, 8, GREEN);
                 break;
             default:
                 break;
@@ -511,6 +561,298 @@ void editor_update_screen_size(EditorState* editor, int width, int height) {
     if (!editor) return;
     editor->screen_width = width;
     editor->screen_height = height;
+}
+// }}}
+
+// =============================================================================
+// Line Tool Functions
+// =============================================================================
+
+// {{{ line_tool_render_thick_line
+// Renders a thick line with rounded end caps
+static void line_tool_render_thick_line(float x1, float y1, float x2, float y2,
+                                         float thickness, Color color) {
+    // Calculate direction and perpendicular
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float len = sqrtf(dx * dx + dy * dy);
+
+    if (len < 0.001f) {
+        // Zero-length line - just draw a circle
+        DrawCircle((int)x1, (int)y1, thickness / 2.0f, color);
+        return;
+    }
+
+    // Normalize and get perpendicular
+    float nx = dx / len;
+    float ny = dy / len;
+    float px = -ny * (thickness / 2.0f);
+    float py = nx * (thickness / 2.0f);
+
+    // Draw rectangle body as two triangles
+    Vector2 points[4] = {
+        {x1 + px, y1 + py},
+        {x1 - px, y1 - py},
+        {x2 - px, y2 - py},
+        {x2 + px, y2 + py}
+    };
+
+    DrawTriangle(points[0], points[1], points[2], color);
+    DrawTriangle(points[0], points[2], points[3], color);
+
+    // Draw rounded end caps (circles at endpoints)
+    DrawCircle((int)x1, (int)y1, thickness / 2.0f, color);
+    DrawCircle((int)x2, (int)y2, thickness / 2.0f, color);
+}
+// }}}
+
+// {{{ line_tool_update_thickness
+// Calculates thickness based on perpendicular distance from line to mouse
+static void line_tool_update_thickness(EditorState* editor, Vector2 mouse_world) {
+    LineToolData* tool = &editor->line_tool;
+    if (tool->state != LINE_TOOL_SETTING_WIDTH) return;
+
+    // Calculate line direction vector
+    float dx = tool->end_x - tool->start_x;
+    float dy = tool->end_y - tool->start_y;
+    float line_length = sqrtf(dx * dx + dy * dy);
+
+    if (line_length < 0.001f) return;
+
+    // Normalize
+    dx /= line_length;
+    dy /= line_length;
+
+    // Calculate orthogonal vector (perpendicular to line)
+    float ortho_x = -dy;
+    float ortho_y = dx;
+
+    // Vector from line midpoint to mouse
+    float mid_x = (tool->start_x + tool->end_x) / 2.0f;
+    float mid_y = (tool->start_y + tool->end_y) / 2.0f;
+    float to_mouse_x = mouse_world.x - mid_x;
+    float to_mouse_y = mouse_world.y - mid_y;
+
+    // Project onto orthogonal vector (gives signed distance)
+    float ortho_dist = to_mouse_x * ortho_x + to_mouse_y * ortho_y;
+
+    // Use absolute distance for thickness (both directions work)
+    float abs_dist = fabsf(ortho_dist);
+
+    // Map distance to thickness (with limits)
+    tool->thickness = abs_dist * 2.0f;  // Multiply by 2 for more responsive feel
+    if (tool->thickness < tool->min_thickness) {
+        tool->thickness = tool->min_thickness;
+    }
+    if (tool->thickness > tool->max_thickness) {
+        tool->thickness = tool->max_thickness;
+    }
+}
+// }}}
+
+// {{{ line_tool_place_line
+// Places the current line in board_data
+static void line_tool_place_line(EditorState* editor) {
+    LineToolData* tool = &editor->line_tool;
+
+    // Ensure board_data exists
+    if (!editor->board_data) {
+        editor_create_board_data(editor);
+        if (!editor->board_data) {
+            printf("Failed to create board data for line placement\n");
+            return;
+        }
+    }
+
+    // Add line to board data
+    int success = board_data_add_line(editor->board_data,
+                                      tool->start_col, tool->start_row,
+                                      tool->end_col, tool->end_row,
+                                      tool->thickness);
+
+    if (success) {
+        printf("Placed line: (%d,%d) -> (%d,%d), thickness=%.0f\n",
+               tool->start_col, tool->start_row,
+               tool->end_col, tool->end_row,
+               tool->thickness);
+        editor->board_modified = 1;
+    } else {
+        printf("Failed to place line\n");
+    }
+}
+// }}}
+
+// {{{ line_tool_handle_click
+// Handles clicks for the line tool state machine
+// Returns 1 if click was consumed, 0 otherwise
+static int line_tool_handle_click(EditorState* editor) {
+    if (!editor) return 0;
+    if (editor->selected_object_type != OBJECT_LINE) return 0;
+    if (editor->mode != EDITOR_MODE_PLACE) return 0;
+    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return 0;
+    if (editor_is_over_ui(editor)) return 0;
+
+    LineToolData* tool = &editor->line_tool;
+
+    switch (tool->state) {
+        case LINE_TOOL_IDLE:
+            if (!editor->hover_valid) return 0;
+            // Set start point
+            tool->start_col = editor->hover_col;
+            tool->start_row = editor->hover_row;
+            {
+                Vector2 pos = grid_to_pixel(&editor->grid,
+                                            tool->start_col, tool->start_row);
+                tool->start_x = pos.x;
+                tool->start_y = pos.y;
+            }
+            tool->state = LINE_TOOL_PLACING_END;
+            printf("Line start: (%d, %d)\n", tool->start_col, tool->start_row);
+            return 1;
+
+        case LINE_TOOL_PLACING_END:
+            if (!editor->hover_valid) return 0;
+            // Set end point
+            tool->end_col = editor->hover_col;
+            tool->end_row = editor->hover_row;
+
+            // Don't allow zero-length lines
+            if (tool->start_col == tool->end_col &&
+                tool->start_row == tool->end_row) {
+                printf("Invalid: zero-length line\n");
+                return 1;  // Consume click but don't proceed
+            }
+
+            {
+                Vector2 pos = grid_to_pixel(&editor->grid,
+                                            tool->end_col, tool->end_row);
+                tool->end_x = pos.x;
+                tool->end_y = pos.y;
+            }
+            tool->thickness = tool->min_thickness;
+            tool->state = LINE_TOOL_SETTING_WIDTH;
+            printf("Line end: (%d, %d) - move mouse to set width\n",
+                   tool->end_col, tool->end_row);
+            return 1;
+
+        case LINE_TOOL_SETTING_WIDTH:
+            // Confirm and place line
+            line_tool_place_line(editor);
+            tool->state = LINE_TOOL_IDLE;
+            return 1;
+    }
+
+    return 0;
+}
+// }}}
+
+// {{{ line_tool_handle_cancel
+// Handles escape key to cancel line tool operation
+static void line_tool_handle_cancel(EditorState* editor) {
+    if (!editor) return;
+    if (editor->selected_object_type != OBJECT_LINE) return;
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        if (editor->line_tool.state != LINE_TOOL_IDLE) {
+            editor->line_tool.state = LINE_TOOL_IDLE;
+            printf("Line tool cancelled\n");
+        }
+    }
+}
+// }}}
+
+// {{{ line_tool_render_preview
+// Renders the line tool preview based on current state
+static void line_tool_render_preview(EditorState* editor) {
+    if (!editor) return;
+    if (editor->selected_object_type != OBJECT_LINE) return;
+    if (editor->mode != EDITOR_MODE_PLACE) return;
+
+    LineToolData* tool = &editor->line_tool;
+    Color preview_color = (Color){100, 200, 255, 180};
+    Color locked_color = (Color){100, 255, 100, 200};
+    Color joint_color = (Color){150, 220, 255, 220};
+
+    switch (tool->state) {
+        case LINE_TOOL_IDLE:
+            // Show dot at hover position (handled by editor_render_cursor)
+            break;
+
+        case LINE_TOOL_PLACING_END: {
+            // Show locked start point
+            DrawCircle((int)tool->start_x, (int)tool->start_y, 8, locked_color);
+            DrawCircleLinesV((Vector2){tool->start_x, tool->start_y}, 8, WHITE);
+
+            // Show preview line to hover if valid
+            if (editor->hover_valid) {
+                Vector2 hover_pos = grid_to_pixel(&editor->grid,
+                                                   editor->hover_col,
+                                                   editor->hover_row);
+                DrawLineEx(
+                    (Vector2){tool->start_x, tool->start_y},
+                    hover_pos,
+                    3.0f, preview_color
+                );
+                // Show end point preview
+                DrawCircle((int)hover_pos.x, (int)hover_pos.y, 6, preview_color);
+                DrawCircleLinesV(hover_pos, 6, WHITE);
+            }
+            break;
+        }
+
+        case LINE_TOOL_SETTING_WIDTH:
+            // Render full line preview with current thickness
+            line_tool_render_thick_line(
+                tool->start_x, tool->start_y,
+                tool->end_x, tool->end_y,
+                tool->thickness, preview_color
+            );
+
+            // Render ball joints at endpoints
+            DrawCircle((int)tool->start_x, (int)tool->start_y,
+                       tool->thickness / 2.0f, joint_color);
+            DrawCircle((int)tool->end_x, (int)tool->end_y,
+                       tool->thickness / 2.0f, joint_color);
+
+            // Outline the endpoints
+            DrawCircleLinesV((Vector2){tool->start_x, tool->start_y},
+                            tool->thickness / 2.0f, WHITE);
+            DrawCircleLinesV((Vector2){tool->end_x, tool->end_y},
+                            tool->thickness / 2.0f, WHITE);
+            break;
+    }
+}
+// }}}
+
+// {{{ line_tool_render_ui
+// Renders line tool status in screen space
+static void line_tool_render_ui(EditorState* editor) {
+    if (!editor) return;
+    if (editor->selected_object_type != OBJECT_LINE) return;
+    if (editor->mode != EDITOR_MODE_PLACE) return;
+
+    LineToolData* tool = &editor->line_tool;
+    const char* status = NULL;
+
+    switch (tool->state) {
+        case LINE_TOOL_IDLE:
+            status = "Line: Click to set start point";
+            break;
+        case LINE_TOOL_PLACING_END:
+            status = "Line: Click to set end point (ESC to cancel)";
+            break;
+        case LINE_TOOL_SETTING_WIDTH: {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "Line: Move mouse for width (%.0f) - Click to place",
+                     tool->thickness);
+            DrawText(buf, 10, 70, 14, YELLOW);
+            return;
+        }
+    }
+
+    if (status) {
+        DrawText(status, 10, 70, 14, YELLOW);
+    }
 }
 // }}}
 

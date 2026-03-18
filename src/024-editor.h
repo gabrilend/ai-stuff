@@ -34,6 +34,44 @@ typedef enum EditorMode {
 // }}}
 
 // =============================================================================
+// Line Tool State Machine
+// =============================================================================
+
+// {{{ LineToolState enum
+typedef enum LineToolState {
+    LINE_TOOL_IDLE,           // Waiting for first click
+    LINE_TOOL_PLACING_END,    // First point set, positioning end
+    LINE_TOOL_SETTING_WIDTH   // Both points set, adjusting thickness
+} LineToolState;
+// }}}
+
+// {{{ typedef struct LineToolData
+// State data for the multi-click line drawing tool
+typedef struct LineToolData {
+    LineToolState state;
+
+    // Start point (grid coords)
+    int start_col;
+    int start_row;
+
+    // End point (grid coords)
+    int end_col;
+    int end_row;
+
+    // Pixel positions (calculated from grid coords)
+    float start_x;
+    float start_y;
+    float end_x;
+    float end_y;
+
+    // Thickness settings
+    float thickness;
+    float min_thickness;
+    float max_thickness;
+} LineToolData;
+// }}}
+
+// =============================================================================
 // Editor State Structure
 // =============================================================================
 
@@ -69,6 +107,9 @@ typedef struct EditorState {
     // Screen dimensions for UI anchoring
     int screen_width;
     int screen_height;
+
+    // Line tool state (for multi-click line placement)
+    LineToolData line_tool;
 } EditorState;
 // }}}
 
