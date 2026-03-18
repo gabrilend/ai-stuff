@@ -11,9 +11,9 @@
 // Grid Constants
 // =============================================================================
 
-#define DEFAULT_GRID_CELL_SIZE 60.0f
-#define DEFAULT_GRID_COLS 14
-#define DEFAULT_GRID_ROWS 12
+#define DEFAULT_GRID_CELL_SIZE 50.0f
+#define DEFAULT_GRID_COLS 12
+#define DEFAULT_GRID_ROWS 20
 
 // Grid rendering colors
 #define GRID_LINE_COLOR (Color){60, 60, 80, 100}
@@ -52,7 +52,7 @@ Grid grid_create(int cols, int rows, float cell_size,
 // }}}
 
 // {{{ grid_create_default
-// Creates a grid with default dimensions (14x12, 60px cells).
+// Creates a grid with default dimensions (12x20, 50px cells).
 // Origin defaults to (0, 0).
 Grid grid_create_default(void);
 // }}}

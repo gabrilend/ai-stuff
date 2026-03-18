@@ -40,27 +40,42 @@ The goal is to make boards interchangeable between game and editor with consiste
 
 ## Root Cause Found
 
-The editor had its own grid constants that differed from the game:
-- **Editor:** EDITOR_GRID_COLS=12, EDITOR_GRID_ROWS=20, EDITOR_CELL_SIZE=50
-- **Game:** DEFAULT_GRID_COLS=14, DEFAULT_GRID_ROWS=12, DEFAULT_GRID_CELL_SIZE=60
+The DEFAULT_GRID constants in `022-grid.h` differed from what the editor used:
+- **Editor (correct):** 12 cols × 20 rows, 50px cells
+- **Game defaults (wrong):** 14 cols × 12 rows, 60px cells
 
-Boards created in the editor had completely different dimensions than what the game expected.
+The default board JSON and compile script also used the wrong dimensions.
 
 ## Implementation
 
-Modified `src/032-editor-app.c`:
+### Phase 1 (incorrect - reverted)
+Initially changed editor to use game's DEFAULT_GRID constants. This was backwards.
 
-1. Removed local EDITOR_GRID_COLS, EDITOR_GRID_ROWS, EDITOR_CELL_SIZE constants
-2. Now uses DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, DEFAULT_GRID_CELL_SIZE from `022-grid.h`
-3. Updated `editor_app_create()` and `editor_app_new_board()` to use shared constants
+### Phase 2 (correct fix)
+Updated the source of truth to match the editor's dimensions:
 
-The editor already includes `022-grid.h` via `031-editor-app.h`, so no new includes were needed.
+1. Modified `src/022-grid.h`:
+   - DEFAULT_GRID_CELL_SIZE: 60.0f → 50.0f
+   - DEFAULT_GRID_COLS: 14 → 12
+   - DEFAULT_GRID_ROWS: 12 → 20
+
+2. Updated `boards/stage1-default.json`:
+   - Grid: 12×20, 50px cells
+   - Board size: 600×1000 pixels
+   - Regenerated peg layout for 12-column staggered pattern
+   - Score zones at row 19
+
+3. Updated `scripts/compile`:
+   - Embedded default board JSON matches new dimensions
+
+4. Editor `src/032-editor-app.c`:
+   - Still uses DEFAULT_GRID constants (which now have correct values)
 
 ## Result
 
-Editor now creates boards with the same dimensions as the game (14×12 grid, 60px cells).
+All components now use consistent 12×20 grid with 50px cells.
 Boards are hot-swappable between editor and game.
 
 ## Status
 
-**Completed** - Editor uses shared grid dimensions.
+**Completed** - Unified grid dimensions across editor, game, and default boards.
