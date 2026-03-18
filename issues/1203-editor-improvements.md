@@ -4,6 +4,16 @@
 
 Several improvements and bug fixes needed for the standalone board editor (`bin/board-editor`).
 
+## Sub-Issues
+
+| ID | Description | Status |
+|----|-------------|--------|
+| 1203a | Loading feature broken | Open |
+| 1203b | Guard rails not visible | Open |
+| 1203c | Grid intersection snap | Open |
+| 1203d | Scrolling/panning | Open |
+| 1203e | Filename prompt on save | Open |
+
 ## Issues
 
 ### 1. Loading Feature Broken
