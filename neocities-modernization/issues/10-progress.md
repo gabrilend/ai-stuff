@@ -41,6 +41,8 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-027 | Fix golden poem trailing whitespace detection | Resolved (Mastodon limitation) | Medium |
 | 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |
 | 10-029 | TUI Ollama server selector dropdown | Open | Medium |
+| 10-030 | Image source position randomization | Open | Low |
+| 10-031 | Embedding model evaluation framework | Open | Medium |
 
 ### Completed Issues
 
@@ -210,6 +212,19 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Optional model dropdown filtered by server's `available_models`
 - Depends on: scripts/issues/017 (TUI dropdown component)
 - Builds on: 10-017 (Multi-Ollama server configuration)
+
+**10-030: Image Source Position Randomization** - OPEN
+- Add `randomize_order` config option to image source directories
+- Scatters images throughout timeline instead of clustering by source
+- Optional `random_seed` for reproducible randomization
+- Useful for miscellaneous images without meaningful dates
+
+**10-031: Embedding Model Evaluation Framework** - OPEN
+- Systematic comparison of embedding models (nomic, mxbai, etc.)
+- Generate similarity rankings for test anchor poems across models
+- Analyze model "personality" (semantic vs structural, verbs vs nouns)
+- Output: comparison report, similarity matrices, model profiles
+- Open questions: anchor selection, dimension interpretation, meta-models
 
 ## Completion Criteria
 
