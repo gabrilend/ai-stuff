@@ -82,6 +82,21 @@ local BOOST_COLOR_CONFIG = {
     content_text = "#c8b428" -- Yellow: The actual boosted text content
 }
 
+-- {{{ Issue 16-010: Monospace font enforcement
+-- Font stack prioritizes Hack Nerd Font (user's preference), then falls back
+-- to other popular monospace fonts for consistent rendering across browsers.
+-- Uses CSS font-stack approach (no external font files required).
+local FONT_STYLE = [[
+<style>
+body, pre {
+    font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono',
+                 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono',
+                 'Courier New', monospace;
+}
+</style>
+]]
+-- }}}
+
 -- Pagination configuration defaults
 -- Issue 10-003: These values are overridden by unified config (config.lua) if present
 -- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
@@ -2344,15 +2359,16 @@ end
 
 -- {{{ function M.generate_flat_poem_list_html_with_progress
 function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, use_progress)
-    -- Template uses pure HTML without CSS
+    -- Template uses pure HTML without CSS (except Issue 16-010 font-stack)
     -- Content is pre-wrapped to 80 chars, <pre> provides monospace formatting
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
+    -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
     local template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s</title>
-</head>
+]] .. FONT_STYLE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2492,12 +2508,13 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local download_links = generate_download_links(starting_poem_id, page_type)
 
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
+    -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
     local template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poems sorted by %s to: %s (Page %d of %d)</title>
-</head>
+]] .. FONT_STYLE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2720,6 +2737,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 
         -- Template with optional pagination navigation
         -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
+        -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
         local template
         if chronological_paginated and total_pages > 1 then
             template = string.format([[<!DOCTYPE html>
@@ -2727,7 +2745,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order (Page %d of %d)</title>
-</head>
+%s</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2742,14 +2760,14 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 </td></tr></table>
 <center>%s</center>
 </body>
-</html>]], page_num, total_pages, page_nav_html, page_nav_html)
+</html>]], page_num, total_pages, FONT_STYLE, page_nav_html, page_nav_html)
         else
             template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - Chronological Order</title>
-</head>
+]] .. FONT_STYLE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection</h1>
@@ -2908,12 +2926,13 @@ end
 -- {{{ function M.generate_simple_discovery_instructions
 function M.generate_simple_discovery_instructions(output_dir)
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
+    -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
     local template = [[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poetry Collection - How to Explore</title>
-</head>
+]] .. FONT_STYLE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poetry Collection - Exploration Guide</h1>
@@ -3987,9 +4006,12 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Build HTML content with full formatting
                     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
+                    -- Issue 16-010: Added inline font style for Hack Nerd Font font-stack
+                    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }</style>]]
                     local html_parts = {
                         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
                         '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
+                        font_style,
                         '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
                     }
 

@@ -100,6 +100,8 @@ Output Control:
   --verbose           Show detailed progress
   --dry-run           Show what would be executed without running
   --cpu-only          Force CPU execution (disable GPU acceleration)
+  --low-priority      Run compute-heavy stages at lower OS priority (nice -n 10)
+                      Keeps desktop/terminal responsive during long operations
 
 Interactive Mode:
   -I, --interactive   Launch TUI for interactive selection (with command preview)
@@ -167,6 +169,8 @@ QUIET=false
 VERBOSE=false
 DRY_RUN=false
 CPU_ONLY=false
+# Issue 10-028: Lower process priority for UI responsiveness
+LOW_PRIORITY=false
 MODEL_NAME="embeddinggemma:latest"
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
@@ -265,6 +269,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --cpu-only)
             CPU_ONLY=true
+            shift
+            ;;
+        # Issue 10-028: Lower process priority for UI responsiveness
+        --low-priority)
+            LOW_PRIORITY=true
             shift
             ;;
         --model)
@@ -461,6 +470,14 @@ if $FORCE; then
     FORCE_LUA="true"
 else
     FORCE_LUA="false"
+fi
+
+# Issue 10-028: Set up nice prefix for low priority execution
+# When enabled, heavy operations run at nice level 10 (lower priority)
+# This keeps the desktop/terminal responsive during long pipeline runs
+NICE_PREFIX=""
+if $LOW_PRIORITY; then
+    NICE_PREFIX="nice -n 10"
 fi
 # }}}
 
@@ -716,7 +733,8 @@ run_generate_embeddings() {
     log_info "   Output: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Mode: $(if $FORCE; then echo 'full regeneration'; else echo 'incremental (skip existing)'; fi)"
 
-    "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $ollama_arg "$DIR" || {
+    # Issue 10-028: Apply low priority to expensive embedding generation
+    $NICE_PREFIX "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $ollama_arg "$DIR" || {
         echo "Error: Embedding generation failed" >&2
         echo "Make sure Ollama is running with the $MODEL_NAME model" >&2
         exit 1
@@ -731,7 +749,7 @@ run_generate_embeddings() {
     elif [ -n "$WORDCLOUD_WORDS" ]; then
         wordcloud_args="--words $WORDCLOUD_WORDS"
     fi
-    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only $wordcloud_args || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only $wordcloud_args || {
         echo "Warning: Word embedding generation failed, continuing..." >&2
     }
 }
@@ -1030,7 +1048,8 @@ run_generate_diversity() {
             return 0
         fi
 
-        "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
+        # Issue 10-028: Apply low priority to expensive diversity generation
+        $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
             echo "Error: GPU diversity cache generation failed" >&2
             echo "Use --cpu-only flag to force CPU execution instead" >&2
             exit 1
@@ -1058,7 +1077,8 @@ run_generate_diversity() {
             return 0
         fi
 
-        luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" $pagination_args || {
+        # Issue 10-028: Apply low priority to expensive CPU diversity generation
+        $NICE_PREFIX luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" $pagination_args || {
             echo "Error: Diversity cache generation failed" >&2
             exit 1
         }
@@ -1134,19 +1154,20 @@ run_generate_html() {
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
+    # Issue 10-028: Apply low priority to HTML generation (parallel processing)
+    $NICE_PREFIX luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
         echo "Error: HTML generation failed" >&2
         exit 1
     }
 
     # Issue 8-043b: Generate word cloud pages (part of HTML stage)
     log_info "   Generating word cloud menu..."
-    luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_all_arg $wordcloud_words_arg || {
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_all_arg $wordcloud_words_arg || {
         echo "Warning: Word cloud menu generation failed, continuing..." >&2
     }
 
     log_info "   Generating word similarity pages..."
-    luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
     }
 }

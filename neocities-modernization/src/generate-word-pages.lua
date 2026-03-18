@@ -781,13 +781,15 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
     local chrono_link = chrono_center_link or (base_path .. "/chronological/index.html")
 
     -- Generate HTML
+    -- Issue 16-010: Added font style for Hack Nerd Font font-stack
+    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }</style>]]
     local html_parts = {}
     table.insert(html_parts, string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Poems similar to: %s</title>
-</head>
+%s</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
 <h1>Poems similar to: <i><font color="%s">%s</font></i></h1>
@@ -798,7 +800,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 <hr>
 <table align="center"><tr><td>
 <pre>
-]], word, header_color, word, #top_poems, base_path, chrono_link))
+]], word, font_style, header_color, word, #top_poems, base_path, chrono_link))
 
     -- Add ranked poems using box-drawing format
     for i, entry in ipairs(top_poems) do
