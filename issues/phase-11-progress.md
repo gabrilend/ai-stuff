@@ -21,11 +21,15 @@ Board Editor System. Create a visual editor for designing pachinko boards, with 
 | 1111 | Stage pool system                  | Complete  |
 | 1112 | Portal zone system                 | Complete  |
 | 1113 | Object property editor (RGB)       | Complete  |
+| 1114 | Editor overlay mode                | Open      |
 
 ## Progress Summary
 
-**Completed:** 13/13 issues (100%)
-**Phase 11:** COMPLETE! All board editor features implemented.
+**Completed:** 13/14 issues (93%)
+**Open:** 1 issue remaining
+
+### Issue 1114 - Editor Overlay Mode
+The current in-place editing approach causes game objects to disappear when the editor activates. Issue 1114 redesigns the editor to open as a separate overlay panel on top of the game, preserving game state. The user creates new boards in the overlay, saves them to `boards/`, and the stage pool system picks them up for stage purchases.
 
 ## Design Overview
 
