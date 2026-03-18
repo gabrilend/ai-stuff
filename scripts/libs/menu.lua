@@ -1120,12 +1120,19 @@ local function build_flag_lookup()
             for _, iid in ipairs(state.section_data[sid].items) do
                 local item = state.item_data[iid]
                 if item.flag and iid ~= state.command_preview_item then
-                    lookup[item.flag] = {
+                    local flag_info = {
                         section_id = sid,
                         item_id = iid,
                         type = item.type,
                         is_radio = (section_type == "single")  -- true for radio buttons
                     }
+                    lookup[item.flag] = flag_info
+                    -- Also store the flag prefix for flags with values (e.g., "--force-stage 1")
+                    -- This allows "--force-stage" to match and be colored correctly
+                    local flag_prefix = item.flag:match("^(%S+)%s")
+                    if flag_prefix then
+                        lookup[flag_prefix] = flag_info
+                    end
                 end
             end
         end
