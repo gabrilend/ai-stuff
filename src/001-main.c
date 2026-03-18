@@ -18,6 +18,9 @@
 #include "014-stage.h"
 #include "018-expansion-anim.h"
 #include "024-editor.h"
+#include "026-stage-pool.h"
+#include "020-board-data.h"
+#include "022-grid.h"
 #include "028-portal.h"
 
 // Visual constants - Color palette for cohesive visual design
@@ -39,7 +42,80 @@ typedef struct StagePurchaseContext {
     ExpansionAnimation* anim;
     Camera2D* camera;
     BallManager* ball_manager;
+    StagePool* stage_pool;  // Pool of custom stages from boards/
 } StagePurchaseContext;
+// }}}
+
+// {{{ apply_board_data_to_stage
+// Applies BoardData objects to a Stage.
+// Converts grid-based objects to stage-relative positions.
+static void apply_board_data_to_stage(BoardData* data, Stage* stage) {
+    if (!data || !stage) return;
+
+    // Create grid for coordinate conversion
+    Grid grid = grid_create(data->grid_cols, data->grid_rows, (float)data->cell_size,
+                            stage->table_x, stage->y_top);
+
+    // Count pegs and lines
+    int peg_count = 0;
+    int line_count = 0;
+    for (int i = 0; i < data->object_count; i++) {
+        if (data->objects[i].type == OBJECT_PEG) peg_count++;
+        else if (data->objects[i].type == OBJECT_LINE) line_count++;
+    }
+
+    // Allocate and populate pegs
+    if (peg_count > 0) {
+        if (stage->pegs) free(stage->pegs);
+        stage->pegs = (Peg*)malloc(sizeof(Peg) * peg_count);
+        stage->peg_count = 0;
+
+        if (stage->pegs) {
+            for (int i = 0; i < data->object_count; i++) {
+                BoardObject* obj = &data->objects[i];
+                if (obj->type != OBJECT_PEG) continue;
+
+                Peg* peg = &stage->pegs[stage->peg_count];
+                peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
+                peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
+                peg->radius = PEG_RADIUS;
+                peg->restitution = property_to_float(obj->restitution);
+                peg->friction = property_to_float(obj->friction);
+                peg->point_bonus = obj->point_bonus;
+                peg->color = (Color){ obj->restitution, obj->friction, obj->point_bonus, 255 };
+                stage->peg_count++;
+            }
+        }
+    }
+
+    // Allocate and populate ramps (from lines)
+    if (line_count > 0) {
+        if (stage->ramps) free(stage->ramps);
+        stage->ramps = (Ramp*)malloc(sizeof(Ramp) * line_count);
+        stage->ramp_count = 0;
+
+        if (stage->ramps) {
+            for (int i = 0; i < data->object_count; i++) {
+                BoardObject* obj = &data->objects[i];
+                if (obj->type != OBJECT_LINE) continue;
+
+                float x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
+                float y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
+                float x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
+                float y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+
+                // Create ramp from line endpoints
+                stage->ramps[stage->ramp_count] = ramp_create_line(
+                    x1, y1, x2, y2, obj->thickness
+                );
+                stage->ramp_count++;
+            }
+        }
+    }
+
+    printf("Applied BoardData: %d pegs, %d ramps to stage\n",
+           stage->peg_count, stage->ramp_count);
+}
 // }}}
 
 // {{{ on_stage_purchased
@@ -61,30 +137,67 @@ static void on_stage_purchased(void* user_data) {
         printf("Stage manager created\n");
     }
 
+    // Try to select a custom stage from the pool
+    const char* stage_path = NULL;
+    BoardData* stage_data = NULL;
+    int use_custom_stage = 0;
+
+    if (ctx->stage_pool) {
+        stage_path = stage_pool_select_random(ctx->stage_pool);
+        if (stage_path) {
+            stage_data = board_data_load_json(stage_path);
+            if (stage_data) {
+                use_custom_stage = 1;
+                printf("Using custom stage: %s\n", stage_path);
+            } else {
+                fprintf(stderr, "WARNING: Failed to load stage %s, using fallback\n", stage_path);
+            }
+        }
+    }
+
     // Calculate expansion dimensions
-    float player_stage_height = STAGE_2_HEIGHT;
-    float adversary_stage_height = STAGE_2_HEIGHT;
+    float player_stage_height = use_custom_stage ?
+        (float)stage_data->board_height : STAGE_2_HEIGHT;
+    float adversary_stage_height = player_stage_height;  // Mirror same height
     float gate_height = 50.0f;  // Height for gate rows
 
     float total_expansion = player_stage_height + adversary_stage_height +
                            gate_height * 2;  // Two gate rows
 
-    // Add player stage 2 (ramps)
-    int player_idx = stage_manager_add_player_stage(world->stages, STAGE_TYPE_RAMPS,
+    // Add player stage
+    StageType stage_type = use_custom_stage ? STAGE_TYPE_CUSTOM : STAGE_TYPE_RAMPS;
+    int player_idx = stage_manager_add_player_stage(world->stages, stage_type,
                                                     player_stage_height);
     if (player_idx >= 0) {
         Stage* player_stage = &world->stages->player_stages[player_idx];
-        stage_generate_ramps_stage2(player_stage);
-        printf("Added player stage 2 with %d ramps\n", player_stage->ramp_count);
+        if (use_custom_stage) {
+            apply_board_data_to_stage(stage_data, player_stage);
+        } else {
+            stage_generate_ramps_stage2(player_stage);
+        }
+        printf("Added player stage with %d pegs, %d ramps\n",
+               player_stage->peg_count, player_stage->ramp_count);
     }
 
-    // Add adversary stage 2 (mirrored ramps)
-    int adv_idx = stage_manager_add_adversary_stage(world->stages, STAGE_TYPE_RAMPS,
+    // Add adversary stage (mirrored)
+    int adv_idx = stage_manager_add_adversary_stage(world->stages, stage_type,
                                                     adversary_stage_height);
     if (adv_idx >= 0) {
         Stage* adv_stage = &world->stages->adversary_stages[adv_idx];
-        stage_generate_ramps_stage2_mirrored(adv_stage);
-        printf("Added adversary stage 2 with %d ramps\n", adv_stage->ramp_count);
+        if (use_custom_stage) {
+            // For adversary, apply same data but mirrored vertically
+            // (simplified: just use same layout for now)
+            apply_board_data_to_stage(stage_data, adv_stage);
+        } else {
+            stage_generate_ramps_stage2_mirrored(adv_stage);
+        }
+        printf("Added adversary stage with %d pegs, %d ramps\n",
+               adv_stage->peg_count, adv_stage->ramp_count);
+    }
+
+    // Clean up stage data
+    if (stage_data) {
+        board_data_destroy(stage_data);
     }
 
     // Add gate rows between stages with 2x multiplier
@@ -295,6 +408,12 @@ int main(void) {
     printf("Viewport initialized: %.0fx%.0f world, scrollable\n",
            (float)screen_width, world_height);
 
+    // Create stage pool for custom stages from boards/ directory
+    StagePool* stage_pool = stage_pool_create(STAGE_POOL_DIRECTORY);
+    if (stage_pool) {
+        printf("Stage pool initialized with %d stages\n", stage_pool_get_count(stage_pool));
+    }
+
     // Set up stage purchase callback context
     // This connects the upgrade system to the stage expansion system
     // Must be done after camera is created since we pass a pointer to it
@@ -302,7 +421,8 @@ int main(void) {
         .world = world,
         .anim = &expansion_anim,
         .camera = &camera,
-        .ball_manager = ball_manager
+        .ball_manager = ball_manager,
+        .stage_pool = stage_pool
     };
     upgrade_manager_set_stage_callback(upgrade_manager, on_stage_purchased, &stage_ctx);
     printf("Stage purchase callback configured\n");
@@ -776,6 +896,9 @@ int main(void) {
 
     editor_destroy(editor);
     printf("Editor destroyed\n");
+
+    stage_pool_destroy(stage_pool);
+    printf("Stage pool destroyed\n");
 
     upgrade_manager_destroy(upgrade_manager);
     printf("Upgrade manager destroyed\n");

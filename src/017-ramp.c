@@ -106,6 +106,61 @@ Ramp ramp_create(float x, float y, float width, float height, RampDirection dir)
 }
 // }}}
 
+// {{{ ramp_create_line
+Ramp ramp_create_line(float x1, float y1, float x2, float y2, float thickness) {
+    Ramp ramp;
+
+    // Store endpoints directly
+    ramp.x1 = x1;
+    ramp.y1 = y1;
+    ramp.x2 = x2;
+    ramp.y2 = y2;
+
+    // Calculate bounding box
+    ramp.x = (x1 < x2) ? x1 : x2;
+    ramp.y = (y1 < y2) ? y1 : y2;
+    ramp.width = fabsf(x2 - x1);
+    ramp.height = fabsf(y2 - y1);
+
+    // Determine direction from slope
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    ramp.dir = (dx > 0) ? RAMP_RIGHT : RAMP_LEFT;
+
+    // Calculate length
+    ramp.length = sqrtf(dx * dx + dy * dy);
+
+    // Calculate tangent (along ramp, normalized)
+    if (ramp.length > 0.0001f) {
+        ramp.tx = dx / ramp.length;
+        ramp.ty = dy / ramp.length;
+    } else {
+        ramp.tx = 1.0f;
+        ramp.ty = 0.0f;
+    }
+
+    // Calculate normal (perpendicular to surface)
+    ramp.nx = -ramp.ty;
+    ramp.ny = ramp.tx;
+
+    // Ensure normal points upward for consistent collision
+    if (ramp.ny > 0) {
+        ramp.nx = -ramp.nx;
+        ramp.ny = -ramp.ny;
+    }
+
+    // Store thickness in width if line is more vertical
+    // (thickness affects collision radius in ball code)
+    if (ramp.height > ramp.width) {
+        ramp.width = thickness;
+    } else {
+        ramp.height = thickness;
+    }
+
+    return ramp;
+}
+// }}}
+
 // {{{ ramp_render
 void ramp_render(Ramp* ramp) {
     if (!ramp) return;

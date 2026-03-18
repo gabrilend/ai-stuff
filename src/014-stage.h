@@ -17,8 +17,9 @@
 // {{{ StageType enum
 // Defines the type of obstacles in a stage
 typedef enum StageType {
-    STAGE_TYPE_PEGS,   // Standard peg grid (stage 1)
-    STAGE_TYPE_RAMPS,  // Horizontal ramps (stage 2)
+    STAGE_TYPE_PEGS,    // Standard peg grid (stage 1)
+    STAGE_TYPE_RAMPS,   // Horizontal ramps (stage 2)
+    STAGE_TYPE_CUSTOM,  // Custom stage loaded from JSON
     STAGE_TYPE_COUNT
 } StageType;
 // }}}

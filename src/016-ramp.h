@@ -54,6 +54,20 @@ typedef struct Ramp {
 Ramp ramp_create(float x, float y, float width, float height, RampDirection dir);
 // }}}
 
+// {{{ ramp_create_line
+// Creates a ramp from two endpoints and thickness.
+// Used for custom stages with line-based obstacles.
+//
+// Parameters:
+//   x1, y1: Start point of line
+//   x2, y2: End point of line
+//   thickness: Line thickness (used for collision radius)
+//
+// Returns:
+//   Initialized Ramp struct
+Ramp ramp_create_line(float x1, float y1, float x2, float y2, float thickness);
+// }}}
+
 // {{{ ramp_render
 // Renders a ramp as a filled wedge shape.
 // Color indicates direction (warm = right, cool = left).
