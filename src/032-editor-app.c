@@ -41,6 +41,53 @@
 #define PROP_PANEL_MARGIN 10
 #define PROP_SLIDER_HEIGHT 16
 
+// 10% increment values for RGB properties (issue 1225)
+// Maps 0-10 steps to 0-255 range
+static const unsigned char INCREMENT_VALUES[11] = {
+    0, 26, 51, 77, 102, 128, 153, 179, 204, 230, 255
+};
+
+// Point bonus mapping for blue channel (issue 1225)
+// Maps 0-10 steps to point values matching gate scoring
+static const int POINT_VALUES[11] = {
+    0, 10, 20, 50, 100, 500, 500, 500, 500, 500, 500
+};
+
+// {{{ snap_to_increment
+// Snaps a 0-255 value to nearest 10% increment (issue 1225)
+static unsigned char snap_to_increment(unsigned char value) {
+    // Find nearest step
+    int best_step = 0;
+    int best_diff = 255;
+    for (int i = 0; i < 11; i++) {
+        int diff = abs((int)value - (int)INCREMENT_VALUES[i]);
+        if (diff < best_diff) {
+            best_diff = diff;
+            best_step = i;
+        }
+    }
+    return INCREMENT_VALUES[best_step];
+}
+// }}}
+
+// {{{ value_to_step
+// Converts a 0-255 value to step index (0-10) (issue 1225)
+static int value_to_step(unsigned char value) {
+    for (int i = 0; i < 11; i++) {
+        if (INCREMENT_VALUES[i] >= value) {
+            // Check if previous step was closer
+            if (i > 0) {
+                int diff_curr = (int)INCREMENT_VALUES[i] - (int)value;
+                int diff_prev = (int)value - (int)INCREMENT_VALUES[i-1];
+                if (diff_prev < diff_curr) return i - 1;
+            }
+            return i;
+        }
+    }
+    return 10;
+}
+// }}}
+
 // =============================================================================
 // Forward Declarations
 // =============================================================================
@@ -72,7 +119,7 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
 static void render_property_panel(EditorApp* app);
 static int handle_property_panel_input(EditorApp* app);
 static void render_slider(int x, int y, int width, unsigned char value,
-                          const char* label, Color color_hint);
+                          const char* label, Color color_hint, int is_points);
 
 // =============================================================================
 // Lifecycle
@@ -1279,8 +1326,9 @@ static void render_notification(EditorApp* app) {
 
 // {{{ render_slider
 // Renders a single slider with label and value display.
+// is_points: if true, shows point value mapping for blue channel (issue 1225)
 static void render_slider(int x, int y, int width, unsigned char value,
-                          const char* label, Color color_hint) {
+                          const char* label, Color color_hint, int is_points) {
     // Label
     DrawText(label, x, y, 12, color_hint);
 
@@ -1298,9 +1346,16 @@ static void render_slider(int x, int y, int width, unsigned char value,
     DrawRectangleLines(x, slider_y, width, PROP_SLIDER_HEIGHT,
                        (Color){80, 80, 100, 255});
 
-    // Value text (to the right of slider)
-    char val_text[8];
-    snprintf(val_text, sizeof(val_text), "%d", value);
+    // Value text - show percentage and (for points) mapped value (issue 1225)
+    char val_text[24];
+    int step = value_to_step(value);
+    int percent = step * 10;
+    if (is_points) {
+        int points = POINT_VALUES[step];
+        snprintf(val_text, sizeof(val_text), "%d%% (%dpts)", percent, points);
+    } else {
+        snprintf(val_text, sizeof(val_text), "%d%%", percent);
+    }
     DrawText(val_text, x + width + 5, slider_y + 2, 12, TEXT_COLOR);
 }
 // }}}
@@ -1386,17 +1441,17 @@ static void render_property_panel(EditorApp* app) {
 
     // Restitution slider (R channel)
     render_slider(content_x, y, slider_width, obj->restitution,
-                  "Restitution (R)", (Color){255, 100, 100, 255});
+                  "Restitution (R)", (Color){255, 100, 100, 255}, 0);
     y += PROP_SLIDER_HEIGHT + 25;
 
     // Friction slider (G channel)
     render_slider(content_x, y, slider_width, obj->friction,
-                  "Friction (G)", (Color){100, 255, 100, 255});
+                  "Friction (G)", (Color){100, 255, 100, 255}, 0);
     y += PROP_SLIDER_HEIGHT + 25;
 
-    // Point Bonus slider (B channel)
+    // Point Bonus slider (B channel) - show point value mapping (issue 1225)
     render_slider(content_x, y, slider_width, obj->point_bonus,
-                  "Point Bonus (B)", (Color){100, 100, 255, 255});
+                  "Point Bonus (B)", (Color){100, 100, 255, 255}, 1);
 
     // Controls hint at bottom
     DrawText("RClick: Select object", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 35,
@@ -1465,7 +1520,9 @@ static int handle_property_panel_input(EditorApp* app) {
             float ratio = (mouse.x - slider_x) / slider_width;
             if (ratio < 0.0f) ratio = 0.0f;
             if (ratio > 1.0f) ratio = 1.0f;
-            *values[i] = (unsigned char)(ratio * 255.0f);
+            // Snap to 10% increments (issue 1225)
+            unsigned char raw_value = (unsigned char)(ratio * 255.0f);
+            *values[i] = snap_to_increment(raw_value);
             app->modified = 1;
             return 1;
         }
