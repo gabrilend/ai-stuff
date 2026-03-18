@@ -49,6 +49,9 @@ echo ""
 echo "=== Running Physics Simulator ==="
 echo ""
 
+# Change to project directory so relative paths (boards/) work correctly
+cd "${DIR}"
+
 # Run the binary with any game flags
 "${DIR}/bin/physics-sim" ${GAME_FLAGS}
 

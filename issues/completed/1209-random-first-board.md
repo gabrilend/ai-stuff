@@ -62,3 +62,7 @@ main()
 
 With only one board in boards/, the game will always start with that board.
 Multiple boards enable variety - each startup picks randomly.
+
+**Issue 1215 fix:** The run script was not changing to the project directory,
+causing the relative `boards/` path to fail. Fixed by adding `cd "${DIR}"`
+before executing the binary.
