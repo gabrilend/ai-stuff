@@ -290,3 +290,22 @@ void wrap_zones_render_debug(WrapZones* zones) {
 | Code clarity | Magic numbers | Clear bounds |
 | Debug visibility | None | Can render zones |
 | Maintenance | Error-prone | Self-updating |
+
+## Implementation Notes
+
+**Files Created:**
+- `src/036-wrap-zones.h` - WrapZones structure and API
+- `src/037-wrap-zones.c` - Dynamic zone positioning and ball wrapping
+
+**Files Modified:**
+- `src/004-world.h` - Added `WrapZones* wrap_zones` to World struct
+- `src/007-ball.c` - Call wrap_zones_check_ball in physics, updated top wall to use zone bounds
+- `src/001-main.c` - Create/update/destroy wrap zones, attach to world
+
+**Key Fix:**
+The original `ball_collide_with_walls` had a hardcoded top wall at `SPAWN_Y - 20` that clamped wrapped player balls back to the spawn area. Fixed by using wrap zone top position as the top wall boundary.
+
+**Debug Visualization:**
+Semi-transparent colored rectangles render at wrap zone positions (blue=top, red=bottom). Kept enabled since zones are offscreen during normal play.
+
+## Status: COMPLETE

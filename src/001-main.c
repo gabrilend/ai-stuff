@@ -22,6 +22,7 @@
 #include "020-board-data.h"
 #include "022-grid.h"
 #include "028-portal.h"
+#include "036-wrap-zones.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -43,6 +44,8 @@ typedef struct StagePurchaseContext {
     Camera2D* camera;
     BallManager* ball_manager;
     StagePool* stage_pool;  // Pool of custom stages from boards/
+    WrapZones* wrap_zones;  // Wrap zones to update after expansion
+    float screen_height;    // Current screen height for zone update
 } StagePurchaseContext;
 // }}}
 
@@ -220,6 +223,11 @@ static void on_stage_purchased(void* user_data) {
     expansion_animation_start(ctx->anim, total_expansion, expansion_y, 1,
                              current_zoom, current_target_y);
 
+    // Update wrap zones to account for new world bounds
+    if (ctx->wrap_zones) {
+        wrap_zones_update(ctx->wrap_zones, ctx->screen_height);
+    }
+
     printf("Stage expansion triggered: %.0f pixels total\n", total_expansion);
 }
 // }}}
@@ -389,6 +397,24 @@ int main(void) {
     editor_update_screen_size(editor, screen_width, screen_height);
     printf("Editor created\n");
 
+    // Create wrap zones for ball teleportation at screen edges
+    WrapZones* wrap_zones = wrap_zones_create(world, (float)screen_height);
+    if (!wrap_zones) {
+        fprintf(stderr, "ERROR: Failed to create wrap zones\n");
+        editor_destroy(editor);
+        adversary_destroy(adversary);
+        upgrade_manager_destroy(upgrade_manager);
+        particle_system_destroy(particle_system);
+        ball_manager_destroy(ball_manager);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    // Attach wrap zones to world so ball physics can access them
+    world->wrap_zones = wrap_zones;
+    printf("Wrap zones created\n");
+
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
     float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
@@ -422,7 +448,9 @@ int main(void) {
         .anim = &expansion_anim,
         .camera = &camera,
         .ball_manager = ball_manager,
-        .stage_pool = stage_pool
+        .stage_pool = stage_pool,
+        .wrap_zones = wrap_zones,
+        .screen_height = (float)screen_height
     };
     upgrade_manager_set_stage_callback(upgrade_manager, on_stage_purchased, &stage_ctx);
     printf("Stage purchase callback configured\n");
@@ -592,6 +620,10 @@ int main(void) {
             editor_update_screen_size(editor, screen_width, screen_height);
             editor_setup_grid(editor, world);
 
+            // Update wrap zones for new screen size
+            wrap_zones_update(wrap_zones, (float)screen_height);
+            stage_ctx.screen_height = (float)screen_height;  // Keep context in sync
+
             printf("Window resized: %dx%d, table_x=%.0f, peg_rows=%d\n",
                    screen_width, screen_height, world->table_x, new_peg_rows);
         }
@@ -735,6 +767,8 @@ int main(void) {
 
         ball_manager_finalize_update(ball_manager);
         ball_manager_swap_buffers(ball_manager);
+        // Wrap zone checking now happens in ball physics (see ball_physics_task)
+
         double physics_end = GetTime();
         physics_ms = (physics_end - physics_start) * 1000.0;
 
@@ -814,6 +848,9 @@ int main(void) {
         // Draw particles (after balls, before UI)
         particle_system_render(particle_system);
 
+        // Draw wrap zone debug visualization (in world space)
+        wrap_zones_render_debug(wrap_zones);
+
         // Editor overlay now renders in screen space, not world space
 
         // End camera mode - UI elements below are screen-fixed
@@ -892,6 +929,9 @@ int main(void) {
 
     editor_destroy(editor);
     printf("Editor destroyed\n");
+
+    wrap_zones_destroy(wrap_zones);
+    printf("Wrap zones destroyed\n");
 
     stage_pool_destroy(stage_pool);
     printf("Stage pool destroyed\n");

@@ -13,6 +13,9 @@ typedef struct StageManager StageManager;
 // Forward declaration for portal system (defined in 028-portal.h)
 typedef struct PortalManager PortalManager;
 
+// Forward declaration for wrap zones (defined in 036-wrap-zones.h)
+typedef struct WrapZones WrapZones;
+
 // Physics constants
 #define PEG_RADIUS 12.0f
 #define DEFAULT_PEG_ROWS 10
@@ -104,6 +107,9 @@ typedef struct World {
 
     // Portal system (NULL if no portals defined)
     PortalManager* portals;
+
+    // Wrap zones for ball teleportation at screen edges (NULL until created)
+    WrapZones* wrap_zones;
 
     // Expansion tracking for dynamic world growth
     float total_height;        // Current total world height (updated on expansion)

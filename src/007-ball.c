@@ -12,6 +12,7 @@
 #include "014-stage.h"
 #include "016-ramp.h"
 #include "028-portal.h"
+#include "036-wrap-zones.h"
 #include "raylib.h"
 
 // {{{ ball_manager_create
@@ -555,10 +556,18 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
     }
 
     // Top boundary (prevent player balls from escaping upward)
-    // Only applies to player balls - adversary balls pass through to despawn
-    // Must be above SPAWN_Y so balls can spawn without hitting the wall
+    // Only applies to player balls - adversary balls pass through to wrap zones
+    // Use wrap zone top if available, otherwise fall back to spawn position
+    // This allows wrapped balls to fall from the top zone into the viewable area
     if (ball->gravity_dir > 0) {
-        float top_wall = SPAWN_Y - BALL_RADIUS - 20.0f;  // Y=22, well above spawn
+        float top_wall;
+        if (world->wrap_zones) {
+            // Top wall is at top of the top wrap zone
+            top_wall = world->wrap_zones->top_zone_y;
+        } else {
+            // Fallback: above spawn point
+            top_wall = SPAWN_Y - BALL_RADIUS - 20.0f;
+        }
         if (ball->y - ball->radius < top_wall) {
             ball->y = top_wall + ball->radius;
             ball->vy = -ball->vy * WALL_RESTITUTION;
@@ -570,37 +579,8 @@ static void ball_collide_with_walls(Ball* ball, World* world) {
 }
 // }}}
 
-// {{{ ball_check_bounds
-// Internal function to wrap balls that exit the play area
-// Balls wrap to the opposite side of the screen, preserving x position, velocity, and health
-// Uses owner field (not gravity_dir) to differentiate ball types and prevent double-wrap
-// Viewable area is asymmetric: [table_top, adversary_table_bottom + height]
-// So spawn positions must also be asymmetric to match the viewable edges
-static void ball_check_bounds(Ball* ball, World* world) {
-    // Large despawn buffer ensures ball is completely off any viewable scroll position
-    float despawn_buffer = (float)world->height;
-
-    if (ball->owner == OWNER_PLAYER) {
-        // Player ball falling down - wrap when completely below viewable area
-        // Bottom of viewable area is adversary_table_bottom + world->height
-        float bottom_bound = world->adversary_table_bottom + despawn_buffer;
-        if (ball->y - ball->radius > bottom_bound) {
-            // Spawn at very top of map (same Y where adversary balls disappear)
-            // This is symmetrical: player exits bottom -> appears at top
-            ball->y = world->table_top - despawn_buffer + ball->radius;
-        }
-    } else if (ball->owner == OWNER_ADVERSARY) {
-        // Adversary ball floating up - wrap when completely above viewable area
-        // Top of viewable area is table_top
-        float top_bound = world->table_top - despawn_buffer;
-        if (ball->y + ball->radius < top_bound) {
-            // Spawn at bottom edge of viewable area (adversary_table_bottom + height)
-            // Large buffer since viewable bottom extends world->height past the board
-            ball->y = world->adversary_table_bottom + (float)world->height + ball->radius;
-        }
-    }
-}
-// }}}
+// NOTE: ball_check_bounds removed - wrapping now handled by WrapZones system
+// See 036-wrap-zones.h and wrap_zones_check_ball() for dynamic wrap zone implementation
 
 // {{{ ball_manager_update
 void ball_manager_update(BallManager* manager, World* world, float dt) {
@@ -622,7 +602,11 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
             ball_collide_with_bumpers(next, world);
             ball_collide_with_ramps(next, world);
             ball_collide_with_walls(next, world);
-            ball_check_bounds(next, world);
+
+            // Check wrap zones for ball teleportation at screen edges
+            if (world->wrap_zones) {
+                wrap_zones_check_ball(world->wrap_zones, next);
+            }
 
             // Count active balls
             if (next->active) {
@@ -817,7 +801,11 @@ void ball_update_task(void* data) {
         }
 
         ball_collide_with_walls(next, task->world);
-        ball_check_bounds(next, task->world);
+
+        // Check wrap zones for ball teleportation at screen edges
+        if (task->world->wrap_zones) {
+            wrap_zones_check_ball(task->world->wrap_zones, next);
+        }
 
         // Check portals for teleportation
         // Decrement cooldown each frame, then check for entry
