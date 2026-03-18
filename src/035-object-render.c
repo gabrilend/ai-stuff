@@ -204,17 +204,14 @@ void render_board_zones(BoardData* board, Grid* grid) {
     for (int i = 0; i < board->zone_count; i++) {
         BoardZone* zone = &board->zones[i];
 
-        // Convert grid coords to pixel coords
+        // Convert grid coords to pixel coords (issue 1227)
+        // Zone starts at cell top-left, not centered on intersection
         float x = grid_to_pixel_x(grid, zone->col, zone->row);
         float y = grid_to_pixel_y(grid, zone->col, zone->row);
 
         // Calculate size from grid
         float width = zone->width * grid->cell_size;
         float height = zone->height * grid->cell_size;
-
-        // Center the zone on the grid position
-        x -= width / 2.0f;
-        y -= height / 2.0f;
 
         if (zone->type == ZONE_PORTAL) {
             render_portal_zone(x, y, width, height, zone->direction, zone->channel);

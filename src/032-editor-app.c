@@ -1148,10 +1148,11 @@ static void render_cursor_preview(EditorApp* app) {
 
         case APP_TOOL_PORTAL_ENTRY:
         case APP_TOOL_PORTAL_EXIT: {
+            // Portal fills cell starting at intersection point (issue 1227)
             float w = DEFAULT_PORTAL_SIZE * app->grid.cell_size;
             float h = DEFAULT_PORTAL_SIZE * app->grid.cell_size;
             PortalDirection dir = (app->tool == APP_TOOL_PORTAL_ENTRY) ? PORTAL_ENTRY : PORTAL_EXIT;
-            render_portal_preview(x - w/2, y - h/2, w, h, dir, app->portal_channel);
+            render_portal_preview(x, y, w, h, dir, app->portal_channel);
             break;
         }
     }
