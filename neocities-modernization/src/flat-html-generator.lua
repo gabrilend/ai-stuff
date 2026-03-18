@@ -507,10 +507,14 @@ end
 -- {{{ local function get_poem_anchor_id
 -- Generates HTML anchor ID for linking to poems in chronological.html
 -- Issue 8-030: Add chronological anchor links
--- poem: poem object with id and category fields
--- Returns: anchor ID like "poem-fediverse-0042" or "poem-messages-0767"
+-- Issue 16-006: Changed to use poem_index for simpler, machine-readable format
+--               Old format: "poem-fediverse-0042" (leaked category info)
+--               New format: "poem-4625" (just the unique poem_index)
+-- poem: poem object with poem_index field
+-- Returns: anchor ID like "poem-4625"
 local function get_poem_anchor_id(poem)
-    return "poem-" .. get_unique_poem_filename_id(poem)
+    local poem_index = poem.poem_index or 0
+    return string.format("poem-%d", poem_index)
 end
 -- }}}
 
@@ -3566,9 +3570,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
                     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
                     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
-                    -- Issue 8-030 Fix: Must match chronological page anchors (full category name, not first letter)
-                    -- Chronological uses get_poem_anchor_id() → get_unique_poem_filename_id() → "category-NNNN"
-                    local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
+                    -- Issue 16-006: Use poem_index for simpler, machine-readable anchor format
+                    -- Old format: "poem-fediverse-0042" (leaked category info)
+                    -- New format: "poem-4625" (just the unique poem_index)
+                    local anchor_id = string.format("poem-%d", poem.poem_index or 0)
 
                     -- Issue 8-039: Chronological link points to subdirectory
                     local chrono_link
