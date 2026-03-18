@@ -180,6 +180,21 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
         printf("Selected: LINE\n");
     }
 
+    // Delete/Backspace to remove object at cursor (works in any mode)
+    if (IsKeyPressed(KEY_DELETE) || IsKeyPressed(KEY_BACKSPACE)) {
+        if (editor->hover_valid && editor->board_data) {
+            int removed = board_data_remove_object_at(editor->board_data,
+                                                       editor->hover_col,
+                                                       editor->hover_row);
+            if (removed) {
+                printf("Deleted object at (%d, %d)\n",
+                       editor->hover_col, editor->hover_row);
+                editor->board_modified = 1;
+                editor_sync_to_world(editor);
+            }
+        }
+    }
+
     // Handle palette clicks (consumes click if on palette)
     int palette_clicked = editor_handle_palette_click(editor);
 
@@ -393,7 +408,7 @@ void editor_render_ui(EditorState* editor) {
     DrawText(selected_text, sel_x, HELP_TEXT_Y, HELP_TEXT_FONT_SIZE, WHITE);
 
     // Draw help text at bottom
-    const char* help_text = "E=Exit | TAB=Mode | G=Grid | Click=Place/Erase";
+    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | Click=Place/Erase";
     int help_width = MeasureText(help_text, HELP_TEXT_FONT_SIZE);
     int help_x = (editor->screen_width - help_width) / 2;
     int help_y = editor->screen_height - HELP_TEXT_FONT_SIZE - 10;
@@ -594,10 +609,14 @@ int editor_handle_placement(EditorState* editor) {
 // }}}
 
 // {{{ editor_handle_erase
+// Track last erased position for drag removal
+// Prevents repeated removal at same cell during drag
+static int last_erase_col = -1;
+static int last_erase_row = -1;
+
 int editor_handle_erase(EditorState* editor) {
     if (!editor || editor->mode != EDITOR_MODE_ERASE) return 0;
     if (!editor->hover_valid) return 0;
-    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return 0;
 
     // Don't erase if clicking on UI
     if (editor_is_over_ui(editor)) return 0;
@@ -607,6 +626,30 @@ int editor_handle_erase(EditorState* editor) {
 
     int col = editor->hover_col;
     int row = editor->hover_row;
+
+    // Single click or start of drag
+    int should_erase = 0;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        should_erase = 1;
+        last_erase_col = col;
+        last_erase_row = row;
+    }
+    // Continue drag - only erase if moved to new cell
+    else if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        if (col != last_erase_col || row != last_erase_row) {
+            should_erase = 1;
+            last_erase_col = col;
+            last_erase_row = row;
+        }
+    }
+
+    // Reset tracking when mouse released
+    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+        last_erase_col = -1;
+        last_erase_row = -1;
+    }
+
+    if (!should_erase) return 0;
 
     // Try to remove object at position
     int success = board_data_remove_object_at(editor->board_data, col, row);
