@@ -107,10 +107,39 @@ If the user typed 1024 characters for poem 3738 but the raw HTML only produces 1
 
 ---
 
-**ISSUE STATUS: OPEN - INVESTIGATION IN PROGRESS**
+## Resolution (2026-03-18)
+
+**Root Cause Confirmed: Mastodon strips trailing whitespace in HTML export**
+
+This is NOT a bug in our code. The investigation conclusively shows:
+1. Our `clean_html()` function processes content correctly
+2. The character count accurately reflects what's in the exported data
+3. The "missing" characters (trailing spaces) are stripped by Mastodon before export
+
+**Decision**: Document as known limitation. No code changes needed.
+
+When a user types exactly 1024 characters ending with spaces, Mastodon:
+- Shows "1024/1024" in the character counter
+- Stores/exports the content WITHOUT trailing spaces
+- Results in a poem that counts as 1022 (or similar)
+
+**This is expected behavior**, not a bug. Users who want golden poems should:
+- End with visible characters, not spaces
+- Account for Mastodon's trailing whitespace stripping
+
+**Alternative considered but not implemented:**
+- "Near-golden" tolerance (1020-1024) - rejected because it would incorrectly
+  promote poems that weren't intended to be golden
+
+---
+
+**ISSUE STATUS: ✅ RESOLVED - DOCUMENTED AS MASTODON LIMITATION**
 
 **Created**: 2026-02-18
+**Resolved**: 2026-03-18
 
 **Priority**: Medium (affects user expectation of golden poem detection)
 
 **Reported by**: User investigation of poem 3738
+
+**Resolution**: No code changes. Documented as upstream limitation.
