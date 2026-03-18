@@ -18,10 +18,11 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1211 | Standalone editor property panel   | Complete  |
 | 1212 | Editor scroll breaks line placement | Complete  |
 | 1213 | Editor clickable toolbar buttons    | Complete  |
+| 1214 | Save dialog cursor movement         | Complete  |
 
 ## Progress Summary
 
-**Completed:** 10/10 issues (100%)
+**Completed:** 11/11 issues (100%)
 **Status:** Complete
 
 ## Design Overview

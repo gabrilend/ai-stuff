@@ -740,28 +740,65 @@ static void handle_save_dialog_input(EditorApp* app) {
         return;
     }
 
-    // Handle text input
+    int len = (int)strlen(app->save_dialog.filename);
+
+    // Cursor movement with arrow keys (issue 1214)
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
+        if (app->save_dialog.cursor_pos > 0) {
+            app->save_dialog.cursor_pos--;
+        }
+    }
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
+        if (app->save_dialog.cursor_pos < len) {
+            app->save_dialog.cursor_pos++;
+        }
+    }
+    // Home/End keys
+    if (IsKeyPressed(KEY_HOME)) {
+        app->save_dialog.cursor_pos = 0;
+    }
+    if (IsKeyPressed(KEY_END)) {
+        app->save_dialog.cursor_pos = len;
+    }
+
+    // Handle text input - insert at cursor position (issue 1214)
     int key = GetCharPressed();
     while (key > 0) {
         // Only allow alphanumeric, dash, underscore
         if ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z') ||
             (key >= '0' && key <= '9') || key == '-' || key == '_') {
-            int len = (int)strlen(app->save_dialog.filename);
             if (len < 63) {
-                app->save_dialog.filename[len] = (char)key;
-                app->save_dialog.filename[len + 1] = '\0';
-                app->save_dialog.cursor_pos = len + 1;
+                // Shift characters after cursor right
+                for (int i = len; i >= app->save_dialog.cursor_pos; i--) {
+                    app->save_dialog.filename[i + 1] = app->save_dialog.filename[i];
+                }
+                // Insert character at cursor
+                app->save_dialog.filename[app->save_dialog.cursor_pos] = (char)key;
+                app->save_dialog.cursor_pos++;
+                len++;
             }
         }
         key = GetCharPressed();
     }
 
-    // Backspace
+    // Backspace - delete character before cursor (issue 1214)
     if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
-        int len = (int)strlen(app->save_dialog.filename);
-        if (len > 0) {
-            app->save_dialog.filename[len - 1] = '\0';
-            app->save_dialog.cursor_pos = len - 1;
+        if (app->save_dialog.cursor_pos > 0) {
+            // Shift characters after cursor left
+            for (int i = app->save_dialog.cursor_pos - 1; i < len; i++) {
+                app->save_dialog.filename[i] = app->save_dialog.filename[i + 1];
+            }
+            app->save_dialog.cursor_pos--;
+        }
+    }
+
+    // Delete key - delete character at cursor (issue 1214)
+    if (IsKeyPressed(KEY_DELETE) || IsKeyPressedRepeat(KEY_DELETE)) {
+        if (app->save_dialog.cursor_pos < len) {
+            // Shift characters after cursor left
+            for (int i = app->save_dialog.cursor_pos; i < len; i++) {
+                app->save_dialog.filename[i] = app->save_dialog.filename[i + 1];
+            }
         }
     }
 }
@@ -1137,14 +1174,20 @@ static void render_save_dialog(EditorApp* app) {
     snprintf(display_text, sizeof(display_text), "%s.json", app->save_dialog.filename);
     DrawText(display_text, input_x + 5, input_y + 6, 16, TEXT_COLOR);
 
-    // Blinking cursor
+    // Blinking cursor at cursor_pos (issue 1214)
     if ((int)(GetTime() * 2) % 2 == 0) {
-        int cursor_x = input_x + 5 + MeasureText(app->save_dialog.filename, 16);
+        // Measure text up to cursor position
+        char temp[64];
+        int pos = app->save_dialog.cursor_pos;
+        if (pos > 63) pos = 63;
+        strncpy(temp, app->save_dialog.filename, pos);
+        temp[pos] = '\0';
+        int cursor_x = input_x + 5 + MeasureText(temp, 16);
         DrawLine(cursor_x, input_y + 4, cursor_x, input_y + input_h - 4, TEXT_COLOR);
     }
 
     // Instructions
-    DrawText("ENTER = save, ESC = cancel",
+    DrawText("ENTER = save, LEFT/RIGHT = move cursor, ESC = cancel",
              dialog_x + 20, dialog_y + dialog_h - 25, 14, TEXT_DIM);
 }
 // }}}
