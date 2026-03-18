@@ -79,6 +79,14 @@ typedef struct LoadDialogState {
 } LoadDialogState;
 // }}}
 
+// {{{ typedef struct SaveDialogState
+typedef struct SaveDialogState {
+    int visible;
+    char filename[64];
+    int cursor_pos;
+} SaveDialogState;
+// }}}
+
 // =============================================================================
 // Editor Application Structure
 // =============================================================================
@@ -112,6 +120,9 @@ typedef struct EditorApp {
 
     // Load dialog
     LoadDialogState load_dialog;
+
+    // Save dialog
+    SaveDialogState save_dialog;
 
     // Viewport
     Camera2D camera;

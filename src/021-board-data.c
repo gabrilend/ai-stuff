@@ -838,9 +838,15 @@ BoardFileList* board_scan_directory(const char* directory) {
                                                    sizeof(char*) * list->capacity);
             }
 
-            // Store filename
-            list->filenames[list->count] = strdup(name);
-            list->count++;
+            // Store full path (directory/filename)
+            size_t dir_len = strlen(directory);
+            size_t path_len = dir_len + 1 + len + 1;  // dir + '/' + name + '\0'
+            char* full_path = (char*)malloc(path_len);
+            if (full_path) {
+                snprintf(full_path, path_len, "%s/%s", directory, name);
+                list->filenames[list->count] = full_path;
+                list->count++;
+            }
         }
     }
 

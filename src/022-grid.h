@@ -63,31 +63,31 @@ Grid grid_create_default(void);
 
 // {{{ grid_to_pixel_x
 // Converts grid column to pixel X coordinate.
-// Returns the center of the grid cell.
+// Returns the grid line intersection point.
 float grid_to_pixel_x(Grid* grid, int col, int row);
 // }}}
 
 // {{{ grid_to_pixel_y
 // Converts grid row to pixel Y coordinate.
-// Returns the center of the grid cell.
+// Returns the grid line intersection point.
 float grid_to_pixel_y(Grid* grid, int col, int row);
 // }}}
 
 // {{{ grid_to_pixel
-// Converts grid coordinates to pixel position (cell center).
+// Converts grid coordinates to pixel position (intersection point).
 // Returns Vector2 with x and y.
 Vector2 grid_to_pixel(Grid* grid, int col, int row);
 // }}}
 
 // {{{ pixel_to_grid_col
-// Converts pixel X coordinate to nearest grid column.
-// Clamps to valid range [0, cols-1].
+// Converts pixel X coordinate to nearest grid intersection column.
+// Clamps to valid range [0, cols].
 int pixel_to_grid_col(Grid* grid, float x);
 // }}}
 
 // {{{ pixel_to_grid_row
-// Converts pixel Y coordinate to nearest grid row.
-// Clamps to valid range [0, rows-1].
+// Converts pixel Y coordinate to nearest grid intersection row.
+// Clamps to valid range [0, rows].
 int pixel_to_grid_row(Grid* grid, float y);
 // }}}
 
@@ -102,18 +102,18 @@ void pixel_to_grid(Grid* grid, float x, float y, int* out_col, int* out_row);
 // =============================================================================
 
 // {{{ snap_to_grid
-// Snaps a pixel position to the nearest grid cell center.
+// Snaps a pixel position to the nearest grid intersection.
 // Returns the snapped position.
 Vector2 snap_to_grid(Grid* grid, float x, float y);
 // }}}
 
 // {{{ snap_to_grid_x
-// Snaps a pixel X coordinate to the nearest grid cell center X.
+// Snaps a pixel X coordinate to the nearest grid intersection X.
 float snap_to_grid_x(Grid* grid, float x);
 // }}}
 
 // {{{ snap_to_grid_y
-// Snaps a pixel Y coordinate to the nearest grid cell center Y.
+// Snaps a pixel Y coordinate to the nearest grid intersection Y.
 float snap_to_grid_y(Grid* grid, float y);
 // }}}
 

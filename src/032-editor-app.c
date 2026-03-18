@@ -50,11 +50,15 @@ static void render_footer(EditorApp* app);
 static void render_canvas(EditorApp* app);
 static void render_cursor_preview(EditorApp* app);
 static void render_load_dialog(EditorApp* app);
+static void render_save_dialog(EditorApp* app);
 static void render_notification(EditorApp* app);
 static void place_object(EditorApp* app);
 static void erase_object(EditorApp* app);
 static void open_load_dialog(EditorApp* app);
 static void close_load_dialog(EditorApp* app);
+static void open_save_dialog(EditorApp* app);
+static void close_save_dialog(EditorApp* app);
+static void handle_save_dialog_input(EditorApp* app);
 static void setup_grid(EditorApp* app);
 
 // =============================================================================
@@ -153,6 +157,11 @@ void editor_app_render(EditorApp* app) {
     // Render load dialog if open
     if (app->load_dialog.visible) {
         render_load_dialog(app);
+    }
+
+    // Render save dialog if open
+    if (app->save_dialog.visible) {
+        render_save_dialog(app);
     }
 
     // Render notification
@@ -310,6 +319,12 @@ static void handle_input(EditorApp* app) {
         return;
     }
 
+    // Handle save dialog input if visible
+    if (app->save_dialog.visible) {
+        handle_save_dialog_input(app);
+        return;
+    }
+
     // Quit on ESC
     if (IsKeyPressed(KEY_ESCAPE)) {
         app->should_quit = 1;
@@ -326,9 +341,9 @@ static void handle_input(EditorApp* app) {
         app->line_tool.state = LINE_STATE_IDLE;
     }
 
-    // Save: S or Ctrl+S
+    // Save: S or Ctrl+S - opens save dialog for filename
     if (IsKeyPressed(KEY_S)) {
-        editor_app_save(app);
+        open_save_dialog(app);
     }
 
     // Load: L or Ctrl+O
@@ -372,6 +387,19 @@ static void handle_input(EditorApp* app) {
             if (app->line_tool.thickness > app->line_tool.max_thickness) {
                 app->line_tool.thickness = app->line_tool.max_thickness;
             }
+        }
+    } else {
+        // Canvas scrolling with mouse wheel (when not adjusting line thickness)
+        float scroll = GetMouseWheelMove();
+        if (scroll != 0) {
+            float scroll_speed = 40.0f;
+            app->camera.offset.y += scroll * scroll_speed;
+
+            // Clamp scroll to reasonable bounds
+            float max_scroll = 200.0f;
+            float min_scroll = -app->grid.height + app->canvas_height - 200.0f;
+            if (app->camera.offset.y > max_scroll) app->camera.offset.y = max_scroll;
+            if (app->camera.offset.y < min_scroll) app->camera.offset.y = min_scroll;
         }
     }
 }
@@ -457,11 +485,15 @@ static void update_hover(EditorApp* app) {
         return;
     }
 
+    // Adjust mouse Y for scroll offset
+    float adjusted_y = mouse.y - app->camera.offset.y;
+
     // Convert to grid coordinates
     // pixel_to_grid returns void, so we check bounds first
-    if (grid_pixel_in_bounds(&app->grid, mouse.x, mouse.y)) {
+    // Use adjusted coordinates that account for scroll
+    if (grid_pixel_in_bounds(&app->grid, mouse.x, adjusted_y)) {
         int col, row;
-        pixel_to_grid(&app->grid, mouse.x, mouse.y, &col, &row);
+        pixel_to_grid(&app->grid, mouse.x, adjusted_y, &col, &row);
         app->hover_col = col;
         app->hover_row = row;
         app->hover_valid = 1;
@@ -539,6 +571,91 @@ static void open_load_dialog(EditorApp* app) {
 // {{{ close_load_dialog
 static void close_load_dialog(EditorApp* app) {
     app->load_dialog.visible = 0;
+}
+// }}}
+
+// =============================================================================
+// Internal: Save Dialog
+// =============================================================================
+
+// {{{ open_save_dialog
+static void open_save_dialog(EditorApp* app) {
+    // Initialize with empty filename or existing filename (without path)
+    if (app->has_filename) {
+        const char* name = strrchr(app->filename, '/');
+        name = name ? name + 1 : app->filename;
+        // Remove .json extension for editing
+        strncpy(app->save_dialog.filename, name, 63);
+        app->save_dialog.filename[63] = '\0';
+        char* dot = strrchr(app->save_dialog.filename, '.');
+        if (dot) *dot = '\0';
+    } else {
+        app->save_dialog.filename[0] = '\0';
+    }
+    app->save_dialog.cursor_pos = (int)strlen(app->save_dialog.filename);
+    app->save_dialog.visible = 1;
+}
+// }}}
+
+// {{{ close_save_dialog
+static void close_save_dialog(EditorApp* app) {
+    app->save_dialog.visible = 0;
+}
+// }}}
+
+// {{{ handle_save_dialog_input
+static void handle_save_dialog_input(EditorApp* app) {
+    // Cancel on ESC
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        close_save_dialog(app);
+        return;
+    }
+
+    // Confirm on Enter
+    if (IsKeyPressed(KEY_ENTER)) {
+        if (strlen(app->save_dialog.filename) > 0) {
+            // Build full path
+            snprintf(app->filename, sizeof(app->filename), "boards/%s.json",
+                     app->save_dialog.filename);
+            app->has_filename = 1;
+
+            // Save with the new filename
+            if (board_data_save_json(app->board, app->filename)) {
+                app->modified = 0;
+                editor_app_notify(app, "Saved!", 2.0f);
+                printf("Saved board to: %s\n", app->filename);
+            } else {
+                editor_app_notify(app, "Save failed!", 2.0f);
+            }
+            close_save_dialog(app);
+        }
+        return;
+    }
+
+    // Handle text input
+    int key = GetCharPressed();
+    while (key > 0) {
+        // Only allow alphanumeric, dash, underscore
+        if ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z') ||
+            (key >= '0' && key <= '9') || key == '-' || key == '_') {
+            int len = (int)strlen(app->save_dialog.filename);
+            if (len < 63) {
+                app->save_dialog.filename[len] = (char)key;
+                app->save_dialog.filename[len + 1] = '\0';
+                app->save_dialog.cursor_pos = len + 1;
+            }
+        }
+        key = GetCharPressed();
+    }
+
+    // Backspace
+    if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
+        int len = (int)strlen(app->save_dialog.filename);
+        if (len > 0) {
+            app->save_dialog.filename[len - 1] = '\0';
+            app->save_dialog.cursor_pos = len - 1;
+        }
+    }
 }
 // }}}
 
@@ -722,9 +839,22 @@ static void render_canvas(EditorApp* app) {
     DrawRectangle((int)app->canvas_x, (int)app->canvas_y,
                   (int)app->canvas_width, (int)app->canvas_height, BG_COLOR);
 
+    // Apply scroll offset to grid temporarily
+    float original_origin_y = app->grid.origin_y;
+    app->grid.origin_y += app->camera.offset.y;
+
     // Grid
     render_grid(&app->grid, app->canvas_x, app->canvas_y,
                 app->canvas_width, app->canvas_height);
+
+    // Guard rails (vertical lines on left and right edges)
+    float rail_top = app->grid.origin_y;
+    float rail_bottom = app->grid.origin_y + app->grid.rows * app->grid.cell_size;
+    float left_rail_x = app->grid.origin_x;
+    float right_rail_x = app->grid.origin_x + app->grid.cols * app->grid.cell_size;
+    Color rail_color = (Color){100, 100, 120, 255};
+    DrawLineEx((Vector2){left_rail_x, rail_top}, (Vector2){left_rail_x, rail_bottom}, 4.0f, rail_color);
+    DrawLineEx((Vector2){right_rail_x, rail_top}, (Vector2){right_rail_x, rail_bottom}, 4.0f, rail_color);
 
     // Board objects and zones
     if (app->board) {
@@ -734,6 +864,9 @@ static void render_canvas(EditorApp* app) {
 
     // Cursor preview
     render_cursor_preview(app);
+
+    // Restore original grid origin
+    app->grid.origin_y = original_origin_y;
 }
 // }}}
 
@@ -831,6 +964,53 @@ static void render_load_dialog(EditorApp* app) {
     // Instructions
     DrawText("UP/DOWN = select, ENTER = load, ESC = cancel",
              dialog_x + 20, dialog_y + dialog_h - 35, 14, TEXT_DIM);
+}
+// }}}
+
+// {{{ render_save_dialog
+static void render_save_dialog(EditorApp* app) {
+    // Dim background
+    DrawRectangle(0, 0, app->screen_width, app->screen_height, (Color){0, 0, 0, 150});
+
+    // Dialog box
+    int dialog_w = 400;
+    int dialog_h = 150;
+    int dialog_x = (app->screen_width - dialog_w) / 2;
+    int dialog_y = (app->screen_height - dialog_h) / 2;
+
+    DrawRectangle(dialog_x, dialog_y, dialog_w, dialog_h, PANEL_COLOR);
+    DrawRectangleLines(dialog_x, dialog_y, dialog_w, dialog_h, TEXT_COLOR);
+
+    // Title
+    DrawText("Save Board", dialog_x + 20, dialog_y + 15, 20, TEXT_COLOR);
+    DrawLine(dialog_x + 10, dialog_y + 45, dialog_x + dialog_w - 10, dialog_y + 45, PANEL_BORDER);
+
+    // Filename label
+    DrawText("Filename:", dialog_x + 20, dialog_y + 60, 16, TEXT_COLOR);
+
+    // Text input box
+    int input_x = dialog_x + 20;
+    int input_y = dialog_y + 85;
+    int input_w = dialog_w - 40;
+    int input_h = 28;
+
+    DrawRectangle(input_x, input_y, input_w, input_h, BG_COLOR);
+    DrawRectangleLines(input_x, input_y, input_w, input_h, TEXT_COLOR);
+
+    // Filename text with cursor
+    char display_text[80];
+    snprintf(display_text, sizeof(display_text), "%s.json", app->save_dialog.filename);
+    DrawText(display_text, input_x + 5, input_y + 6, 16, TEXT_COLOR);
+
+    // Blinking cursor
+    if ((int)(GetTime() * 2) % 2 == 0) {
+        int cursor_x = input_x + 5 + MeasureText(app->save_dialog.filename, 16);
+        DrawLine(cursor_x, input_y + 4, cursor_x, input_y + input_h - 4, TEXT_COLOR);
+    }
+
+    // Instructions
+    DrawText("ENTER = save, ESC = cancel",
+             dialog_x + 20, dialog_y + dialog_h - 25, 14, TEXT_DIM);
 }
 // }}}
 

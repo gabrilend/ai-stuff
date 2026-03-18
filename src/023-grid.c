@@ -38,16 +38,16 @@ Grid grid_create_default(void) {
 // {{{ grid_to_pixel_x
 float grid_to_pixel_x(Grid* grid, int col, int row) {
     (void)row;  // Row doesn't affect X in this simple grid
-    // Return center of cell
-    return grid->origin_x + (col * grid->cell_size) + (grid->cell_size / 2.0f);
+    // Return grid line intersection (not cell center)
+    return grid->origin_x + (col * grid->cell_size);
 }
 // }}}
 
 // {{{ grid_to_pixel_y
 float grid_to_pixel_y(Grid* grid, int col, int row) {
     (void)col;  // Col doesn't affect Y in this simple grid
-    // Return center of cell
-    return grid->origin_y + (row * grid->cell_size) + (grid->cell_size / 2.0f);
+    // Return grid line intersection (not cell center)
+    return grid->origin_y + (row * grid->cell_size);
 }
 // }}}
 
@@ -63,11 +63,12 @@ Vector2 grid_to_pixel(Grid* grid, int col, int row) {
 // {{{ pixel_to_grid_col
 int pixel_to_grid_col(Grid* grid, float x) {
     float relative_x = x - grid->origin_x;
-    int col = (int)floorf(relative_x / grid->cell_size);
+    // Round to nearest intersection (not floor to cell)
+    int col = (int)roundf(relative_x / grid->cell_size);
 
-    // Clamp to valid range
+    // Clamp to valid range (0 to cols inclusive for intersections)
     if (col < 0) col = 0;
-    if (col >= grid->cols) col = grid->cols - 1;
+    if (col > grid->cols) col = grid->cols;
 
     return col;
 }
@@ -76,11 +77,12 @@ int pixel_to_grid_col(Grid* grid, float x) {
 // {{{ pixel_to_grid_row
 int pixel_to_grid_row(Grid* grid, float y) {
     float relative_y = y - grid->origin_y;
-    int row = (int)floorf(relative_y / grid->cell_size);
+    // Round to nearest intersection (not floor to cell)
+    int row = (int)roundf(relative_y / grid->cell_size);
 
-    // Clamp to valid range
+    // Clamp to valid range (0 to rows inclusive for intersections)
     if (row < 0) row = 0;
-    if (row >= grid->rows) row = grid->rows - 1;
+    if (row > grid->rows) row = grid->rows;
 
     return row;
 }
