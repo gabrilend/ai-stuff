@@ -123,4 +123,31 @@ end
 
 ## Implementation Log
 
-(To be filled during implementation)
+### Completed (2026-03-18)
+
+**Files Modified:**
+- `libs/sources-loader.lua` - Added `randomize_order` and `random_seed` fields to `get_directories()`
+- `src/image-manager.lua` - Added randomization logic:
+  - `create_seeded_rng()` - LCG-based deterministic random for reproducible builds
+  - `apply_randomization()` - Applies random timestamps to images from randomized sources
+  - Updated `load_config()` to return full directory objects
+  - Updated `scan_directory_for_images()` to track source config per image
+  - Updated `M.discover_images()` to apply randomization before final sort
+- `config.lua` - Added `randomize_order = true` to user-selected sources
+
+**Implementation Details:**
+- Randomization happens after all images are collected but before the final sort
+- Timeline range is determined from non-randomized images (min/max modification times)
+- Each randomized source can have its own `random_seed` for deterministic results
+- Images from randomized sources get a `randomized = true` flag for debugging
+- Uses linear congruential generator (LCG) with glibc parameters for seeded RNG
+
+**Verified Working:**
+```
+🔍 Scanning directory: ./input/media_attachments/dnd-pictures
+   📄 Processed: 83 images
+🔍 Scanning directory: ./input/media_attachments/fediverse-stars
+   📄 Processed: 116 images
+🎲 Randomized timestamps for 199 images
+✅ Image discovery complete: 1223 images found
+```
