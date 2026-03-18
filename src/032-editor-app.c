@@ -490,9 +490,14 @@ static void handle_input(EditorApp* app) {
             float scroll_speed = 40.0f;
             app->camera.offset.y += scroll * scroll_speed;
 
-            // Clamp scroll to reasonable bounds
-            float max_scroll = 200.0f;
-            float min_scroll = -app->grid.height + app->canvas_height - 200.0f;
+            // Scroll bounds (issue 1228):
+            // - Scroll UP (max): board top at canvas bottom (one row visible)
+            // - Scroll DOWN (min): board bottom at canvas top (one row visible)
+            // Positive offset moves grid DOWN, negative moves grid UP
+            float one_row = app->grid.cell_size;
+            float max_scroll = app->canvas_height - one_row;  // Board top near canvas bottom
+            float min_scroll = -app->grid.height + one_row;   // Board bottom near canvas top
+
             if (app->camera.offset.y > max_scroll) app->camera.offset.y = max_scroll;
             if (app->camera.offset.y < min_scroll) app->camera.offset.y = min_scroll;
         }
@@ -840,26 +845,24 @@ static void handle_save_dialog_input(EditorApp* app) {
 static void setup_grid(EditorApp* app) {
     if (!app || !app->board) return;
 
-    // Calculate cell size to fit canvas
-    float available_width = app->canvas_width - 40;  // Margin
-    float available_height = app->canvas_height - 40;
+    // Use fixed cell size from board data (issue 1228)
+    // Board dimensions stay constant regardless of window size
+    float cell_size = (float)app->board->cell_size;
+    if (cell_size < 20) cell_size = DEFAULT_GRID_CELL_SIZE;
 
-    float cell_w = available_width / app->board->grid_cols;
-    float cell_h = available_height / app->board->grid_rows;
-    float cell_size = (cell_w < cell_h) ? cell_w : cell_h;
-
-    // Limit cell size
-    if (cell_size < 20) cell_size = 20;
-    if (cell_size > 80) cell_size = 80;
-
-    // Center grid in canvas
+    // Calculate grid width for horizontal centering
     float grid_width = app->board->grid_cols * cell_size;
-    float grid_height = app->board->grid_rows * cell_size;
+
+    // Center grid horizontally in canvas
     float origin_x = app->canvas_x + (app->canvas_width - grid_width) / 2;
-    float origin_y = app->canvas_y + (app->canvas_height - grid_height) / 2;
+    // Start grid at top of canvas (scrolling will reveal more)
+    float origin_y = app->canvas_y;
 
     app->grid = grid_create(app->board->grid_cols, app->board->grid_rows,
                             cell_size, origin_x, origin_y);
+
+    // Reset scroll offset when grid changes
+    app->camera.offset.y = 0;
 }
 // }}}
 
