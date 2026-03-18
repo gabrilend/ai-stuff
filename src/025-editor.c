@@ -39,6 +39,13 @@
 #define PALETTE_SELECTED_COLOR (Color){80, 120, 200, 255}
 #define PALETTE_HOVER_COLOR (Color){60, 60, 80, 255}
 
+// Property panel constants
+#define PROP_PANEL_WIDTH 220
+#define PROP_PANEL_HEIGHT 200
+#define PROP_PANEL_MARGIN 10
+#define PROP_SLIDER_HEIGHT 16
+#define PROP_SLIDER_MARGIN 8
+
 // =============================================================================
 // Palette Data
 // =============================================================================
@@ -77,6 +84,11 @@ static void line_tool_render_ui(EditorState* editor);
 // Forward declarations for load dialog functions
 static void editor_handle_load_dialog_input(EditorState* editor);
 static void editor_render_load_dialog(EditorState* editor);
+
+// Forward declarations for property panel functions
+static int editor_handle_object_selection(EditorState* editor, Vector2 mouse_world);
+static void editor_render_property_panel(EditorState* editor);
+static int editor_handle_property_panel_input(EditorState* editor);
 
 // =============================================================================
 // Editor Lifecycle
@@ -137,6 +149,10 @@ EditorState* editor_create(struct World* world) {
     editor->tool_type = EDITOR_TOOL_OBJECT;
     editor->portal_direction = PORTAL_ENTRY;
     editor->portal_channel = 1;
+
+    // Initialize property editor state
+    editor->selected_object_index = -1;  // No object selected
+    editor->show_property_panel = 0;
 
     // Setup grid based on world if provided
     if (world) {
@@ -308,9 +324,19 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
     // Update line tool thickness during width setting phase
     line_tool_update_thickness(editor, mouse_world);
 
-    // Handle object placement/removal (only if palette wasn't clicked)
-    if (!palette_clicked) {
-        if (editor->mode == EDITOR_MODE_PLACE) {
+    // Handle property panel input (consumes clicks if panel is open)
+    int panel_clicked = editor_handle_property_panel_input(editor);
+
+    // Handle object placement/removal (only if palette and panel weren't clicked)
+    if (!palette_clicked && !panel_clicked) {
+        // Right-click to select existing objects for property editing
+        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+            if (editor_handle_object_selection(editor, mouse_world)) {
+                // Object selected, show property panel
+            }
+        }
+        // Left-click for placement/removal
+        else if (editor->mode == EDITOR_MODE_PLACE) {
             // Check if line tool handles the click first
             if (editor->selected_object_type == OBJECT_LINE) {
                 if (line_tool_handle_click(editor)) {
@@ -330,6 +356,12 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
                 editor_sync_to_world(editor);
             }
         }
+    }
+
+    // Close property panel with Escape
+    if (IsKeyPressed(KEY_ESCAPE) && editor->show_property_panel) {
+        editor->show_property_panel = 0;
+        editor->selected_object_index = -1;
     }
 }
 // }}}
@@ -561,7 +593,7 @@ void editor_render_ui(EditorState* editor) {
     DrawText(selected_text, sel_x, HELP_TEXT_Y, HELP_TEXT_FONT_SIZE, WHITE);
 
     // Draw help text at bottom
-    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | Ctrl+S=Save | Ctrl+O=Load";
+    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | RClick=Props | Ctrl+S/O=Save/Load";
     int help_width = MeasureText(help_text, HELP_TEXT_FONT_SIZE);
     int help_x = (editor->screen_width - help_width) / 2;
     int help_y = editor->screen_height - HELP_TEXT_FONT_SIZE - 10;
@@ -607,6 +639,9 @@ void editor_render_ui(EditorState* editor) {
                            notif_width + 30, 36, GREEN);
         DrawText(editor->notification_text, notif_x, notif_y, 16, GREEN);
     }
+
+    // Draw property panel (right side)
+    editor_render_property_panel(editor);
 
     // Draw load dialog (renders on top of everything else)
     editor_render_load_dialog(editor);
@@ -699,6 +734,24 @@ void editor_render_cursor(EditorState* editor) {
         DrawLineEx((Vector2){pos.x + size, pos.y - size},
                    (Vector2){pos.x - size, pos.y + size},
                    3.0f, CURSOR_ERASE_COLOR);
+    }
+
+    // Draw selection highlight for selected object
+    if (editor->show_property_panel && editor->selected_object_index >= 0 &&
+        editor->board_data && editor->selected_object_index < editor->board_data->object_count) {
+        BoardObject* sel_obj = &editor->board_data->objects[editor->selected_object_index];
+        Vector2 sel_pos = grid_to_pixel(&editor->grid, sel_obj->col, sel_obj->row);
+
+        // Draw pulsing selection ring
+        float pulse = sinf(GetTime() * 4.0f) * 0.5f + 0.5f;
+        Color select_color = (Color){255, 255, 100, (unsigned char)(100 + pulse * 100)};
+
+        if (sel_obj->type == OBJECT_PEG) {
+            DrawCircleLinesV(sel_pos, PEG_RADIUS + 4, select_color);
+            DrawCircleLinesV(sel_pos, PEG_RADIUS + 6, select_color);
+        } else if (sel_obj->type == OBJECT_LINE) {
+            DrawCircleLinesV(sel_pos, sel_obj->thickness / 2.0f + 4, select_color);
+        }
     }
 }
 // }}}
@@ -1077,7 +1130,24 @@ int editor_is_over_ui(EditorState* editor) {
         (float)(PALETTE_ITEM_COUNT * (PALETTE_ITEM_SIZE + PALETTE_ITEM_SPACING) + 35)
     };
 
-    return CheckCollisionPointRec(mouse, palette_rect);
+    if (CheckCollisionPointRec(mouse, palette_rect)) {
+        return 1;
+    }
+
+    // Check if over property panel (when visible)
+    if (editor->show_property_panel) {
+        Rectangle panel_rect = {
+            (float)(editor->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN),
+            100.0f,
+            (float)PROP_PANEL_WIDTH,
+            (float)PROP_PANEL_HEIGHT
+        };
+        if (CheckCollisionPointRec(mouse, panel_rect)) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 // }}}
 
@@ -1525,5 +1595,211 @@ static void editor_render_load_dialog(EditorState* editor) {
     // Controls hint
     DrawText("UP/DOWN: Select  ENTER: Load  ESC: Cancel",
              dialog_x + 20, dialog_y + dialog_height - 30, 12, GRAY);
+}
+// }}}
+
+// =============================================================================
+// Property Panel
+// =============================================================================
+
+// {{{ editor_handle_object_selection
+// Handles right-click to select an object for property editing.
+// Returns 1 if an object was selected, 0 otherwise.
+static int editor_handle_object_selection(EditorState* editor, Vector2 mouse_world) {
+    if (!editor || !editor->board_data) return 0;
+
+    // Search through objects to find one under cursor
+    for (int i = 0; i < editor->board_data->object_count; i++) {
+        BoardObject* obj = &editor->board_data->objects[i];
+
+        // Get object position in pixels
+        float obj_x = grid_to_pixel_x(&editor->grid, obj->col, obj->row);
+        float obj_y = grid_to_pixel_y(&editor->grid, obj->col, obj->row);
+
+        float dx = mouse_world.x - obj_x;
+        float dy = mouse_world.y - obj_y;
+        float dist = sqrtf(dx * dx + dy * dy);
+
+        // Click radius depends on object type
+        float click_radius;
+        if (obj->type == OBJECT_PEG) {
+            click_radius = PEG_RADIUS + 5.0f;  // Slightly larger than peg
+        } else if (obj->type == OBJECT_LINE) {
+            // For lines, check if click is near the start point
+            click_radius = obj->thickness / 2.0f + 10.0f;
+        } else {
+            click_radius = 20.0f;
+        }
+
+        if (dist <= click_radius) {
+            editor->selected_object_index = i;
+            editor->show_property_panel = 1;
+            printf("Selected object %d (type %d) for property editing\n",
+                   i, obj->type);
+            return 1;
+        }
+    }
+
+    // Clicked empty space - deselect
+    editor->selected_object_index = -1;
+    editor->show_property_panel = 0;
+    return 0;
+}
+// }}}
+
+// {{{ editor_render_slider
+// Renders a single slider and returns its value display.
+// x, y: position  width: slider width  value: 0-255  label: text label
+// color_hint: RGB color for the fill
+static void editor_render_slider(int x, int y, int width, unsigned char value,
+                                   const char* label, Color color_hint) {
+    // Label
+    DrawText(label, x, y, 12, color_hint);
+
+    int slider_y = y + 14;
+    float ratio = (float)value / 255.0f;
+    int fill_width = (int)(width * ratio);
+
+    // Background
+    DrawRectangle(x, slider_y, width, PROP_SLIDER_HEIGHT, (Color){30, 30, 40, 255});
+
+    // Fill bar
+    DrawRectangle(x, slider_y, fill_width, PROP_SLIDER_HEIGHT, color_hint);
+
+    // Border
+    DrawRectangleLines(x, slider_y, width, PROP_SLIDER_HEIGHT,
+                       (Color){80, 80, 100, 255});
+
+    // Value text (to the right of slider)
+    char val_text[8];
+    snprintf(val_text, sizeof(val_text), "%d", value);
+    DrawText(val_text, x + width + 5, slider_y + 2, 12, WHITE);
+}
+// }}}
+
+// {{{ editor_render_property_panel
+// Renders the property editing panel on the right side of screen.
+static void editor_render_property_panel(EditorState* editor) {
+    if (!editor || !editor->show_property_panel) return;
+    if (editor->selected_object_index < 0) return;
+    if (!editor->board_data) return;
+    if (editor->selected_object_index >= editor->board_data->object_count) return;
+
+    BoardObject* obj = &editor->board_data->objects[editor->selected_object_index];
+
+    int panel_x = editor->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+
+    // Background
+    DrawRectangle(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
+                  (Color){40, 40, 50, 240});
+    DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
+                       (Color){100, 100, 120, 255});
+
+    // Title
+    const char* type_name = (obj->type == OBJECT_PEG) ? "Peg Properties" : "Line Properties";
+    DrawText(type_name, panel_x + 10, panel_y + 10, 16, WHITE);
+
+    // Color preview swatch (shows resulting RGB color)
+    Color preview = (Color){ obj->restitution, obj->friction, obj->point_bonus, 255 };
+    int swatch_x = panel_x + PROP_PANEL_WIDTH - 40;
+    DrawRectangle(swatch_x, panel_y + 8, 30, 20, preview);
+    DrawRectangleLines(swatch_x, panel_y + 8, 30, 20, WHITE);
+
+    int slider_width = PROP_PANEL_WIDTH - 50;  // Leave room for value text
+    int content_x = panel_x + 10;
+    int y = panel_y + 40;
+
+    // Restitution slider (R channel)
+    editor_render_slider(content_x, y, slider_width, obj->restitution,
+                         "Restitution (R)", (Color){255, 100, 100, 255});
+    y += PROP_SLIDER_HEIGHT + 25;
+
+    // Friction slider (G channel)
+    editor_render_slider(content_x, y, slider_width, obj->friction,
+                         "Friction (G)", (Color){100, 255, 100, 255});
+    y += PROP_SLIDER_HEIGHT + 25;
+
+    // Point Bonus slider (B channel)
+    editor_render_slider(content_x, y, slider_width, obj->point_bonus,
+                         "Point Bonus (B)", (Color){100, 100, 255, 255});
+
+    // Controls hint at bottom
+    DrawText("Right-click: Select object", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 35,
+             10, GRAY);
+    DrawText("ESC: Close panel", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 20,
+             10, GRAY);
+}
+// }}}
+
+// {{{ editor_handle_property_panel_input
+// Handles mouse input on the property panel sliders.
+// Returns 1 if input was consumed (clicked on panel), 0 otherwise.
+static int editor_handle_property_panel_input(EditorState* editor) {
+    if (!editor || !editor->show_property_panel) return 0;
+    if (editor->selected_object_index < 0) return 0;
+    if (!editor->board_data) return 0;
+    if (editor->selected_object_index >= editor->board_data->object_count) return 0;
+
+    // Check if mouse is over the panel
+    int panel_x = editor->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+
+    Vector2 mouse = GetMousePosition();
+
+    // Check if mouse is within panel bounds
+    if (mouse.x < panel_x || mouse.x > panel_x + PROP_PANEL_WIDTH ||
+        mouse.y < panel_y || mouse.y > panel_y + PROP_PANEL_HEIGHT) {
+        return 0;  // Not over panel
+    }
+
+    // Panel is being interacted with
+    if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        return 1;  // Over panel but not clicking - still consume
+    }
+
+    BoardObject* obj = &editor->board_data->objects[editor->selected_object_index];
+
+    int slider_width = PROP_PANEL_WIDTH - 50;
+    int content_x = panel_x + 10;
+    int slider_x = content_x;
+
+    // Calculate slider Y positions (must match render function)
+    int base_y = panel_y + 40;
+    int slider_spacing = PROP_SLIDER_HEIGHT + 25;
+
+    // Slider rectangles (the actual draggable areas)
+    int slider_ys[3] = {
+        base_y + 14,                    // Restitution
+        base_y + slider_spacing + 14,   // Friction
+        base_y + 2 * slider_spacing + 14 // Point Bonus
+    };
+    unsigned char* values[3] = {
+        &obj->restitution,
+        &obj->friction,
+        &obj->point_bonus
+    };
+
+    // Check each slider
+    for (int i = 0; i < 3; i++) {
+        Rectangle slider_rect = {
+            (float)slider_x, (float)slider_ys[i],
+            (float)slider_width, (float)PROP_SLIDER_HEIGHT
+        };
+
+        if (CheckCollisionPointRec(mouse, slider_rect)) {
+            float ratio = (mouse.x - slider_x) / slider_width;
+            if (ratio < 0.0f) ratio = 0.0f;
+            if (ratio > 1.0f) ratio = 1.0f;
+            *values[i] = (unsigned char)(ratio * 255.0f);
+            editor->board_modified = 1;
+
+            // Sync to world for live preview
+            editor_sync_to_world(editor);
+            return 1;
+        }
+    }
+
+    return 1;  // Over panel, consumed
 }
 // }}}

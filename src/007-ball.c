@@ -210,8 +210,8 @@ static int ball_check_peg_collision(Ball* ball, Peg* peg,
 
 // {{{ ball_resolve_peg_collision
 // Internal function to resolve collision with a peg
-// Separates ball from peg and reflects velocity
-static void ball_resolve_peg_collision(Ball* ball, float nx, float ny,
+// Separates ball from peg and reflects velocity using peg's properties
+static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
                                         float depth) {
     // Separate ball from peg along collision normal
     ball->x += nx * (depth + COLLISION_BIAS);
@@ -222,10 +222,24 @@ static void ball_resolve_peg_collision(Ball* ball, float nx, float ny,
 
     // Only respond if moving into peg (negative means approaching)
     if (vn < 0) {
+        // Use peg's custom restitution (fallback to default if 0)
+        float restitution = (peg->restitution > 0.001f) ? peg->restitution : RESTITUTION;
+
         // Reflect velocity with restitution
         // Formula: v' = v - (1 + e) * (v · n) * n
-        ball->vx -= (1.0f + RESTITUTION) * vn * nx;
-        ball->vy -= (1.0f + RESTITUTION) * vn * ny;
+        ball->vx -= (1.0f + restitution) * vn * nx;
+        ball->vy -= (1.0f + restitution) * vn * ny;
+
+        // Apply friction to tangential velocity
+        if (peg->friction > 0.001f) {
+            // Tangent is perpendicular to normal
+            float tx = -ny;
+            float ty = nx;
+            float vt = ball->vx * tx + ball->vy * ty;  // Tangential velocity
+            float friction_factor = 1.0f - peg->friction * 0.5f;  // Scale friction effect
+            ball->vx -= vt * tx * (1.0f - friction_factor);
+            ball->vy -= vt * ty * (1.0f - friction_factor);
+        }
     }
 }
 // }}}
@@ -233,23 +247,24 @@ static void ball_resolve_peg_collision(Ball* ball, float nx, float ny,
 // {{{ ball_collide_with_pegs
 // Internal function to check and resolve collisions with all pegs
 // Checks both player pegs and adversary pegs
+// Uses per-peg restitution and friction properties
 static void ball_collide_with_pegs(Ball* ball, World* world) {
     float nx, ny, depth;
 
     // Check player pegs
     for (int i = 0; i < world->peg_count; i++) {
-        if (ball_check_peg_collision(ball, &world->pegs[i],
-                                      &nx, &ny, &depth)) {
-            ball_resolve_peg_collision(ball, nx, ny, depth);
+        Peg* peg = &world->pegs[i];
+        if (ball_check_peg_collision(ball, peg, &nx, &ny, &depth)) {
+            ball_resolve_peg_collision(ball, peg, nx, ny, depth);
         }
     }
 
     // Check adversary pegs
     if (world->adversary_pegs) {
         for (int i = 0; i < world->adversary_peg_count; i++) {
-            if (ball_check_peg_collision(ball, &world->adversary_pegs[i],
-                                          &nx, &ny, &depth)) {
-                ball_resolve_peg_collision(ball, nx, ny, depth);
+            Peg* peg = &world->adversary_pegs[i];
+            if (ball_check_peg_collision(ball, peg, &nx, &ny, &depth)) {
+                ball_resolve_peg_collision(ball, peg, nx, ny, depth);
             }
         }
     }

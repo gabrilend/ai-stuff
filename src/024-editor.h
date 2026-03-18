@@ -137,6 +137,10 @@ typedef struct EditorState {
     EditorToolType tool_type;       // Object vs zone placement
     PortalDirection portal_direction; // PORTAL_ENTRY or PORTAL_EXIT
     int portal_channel;             // Channel ID for linked portals (1-16)
+
+    // Property editor state
+    int selected_object_index;      // Index of selected object (-1 if none)
+    int show_property_panel;        // 1 if property panel is visible
 } EditorState;
 // }}}
 
