@@ -963,17 +963,22 @@ static void render_cursor_preview(EditorApp* app) {
                 // Show start point preview
                 DrawCircle((int)x, (int)y, 5, (Color){255, 255, 255, 150});
             } else if (app->line_tool.state == LINE_STATE_END) {
+                // Recalculate start position from grid coords (fixes scroll offset issue 1212)
+                float start_x = grid_to_pixel_x(&app->grid, app->line_tool.start_col, app->line_tool.start_row);
+                float start_y = grid_to_pixel_y(&app->grid, app->line_tool.start_col, app->line_tool.start_row);
                 // Show line from start to hover
-                render_line_preview(app->line_tool.start_x, app->line_tool.start_y,
-                                   x, y, app->line_tool.thickness);
+                render_line_preview(start_x, start_y, x, y, app->line_tool.thickness);
             } else if (app->line_tool.state == LINE_STATE_THICKNESS) {
+                // Recalculate positions from grid coords (fixes scroll offset issue 1212)
+                float start_x = grid_to_pixel_x(&app->grid, app->line_tool.start_col, app->line_tool.start_row);
+                float start_y = grid_to_pixel_y(&app->grid, app->line_tool.start_col, app->line_tool.start_row);
+                float end_x = grid_to_pixel_x(&app->grid, app->line_tool.end_col, app->line_tool.end_row);
+                float end_y = grid_to_pixel_y(&app->grid, app->line_tool.end_col, app->line_tool.end_row);
                 // Show line with current thickness (confirming)
-                render_line_preview(app->line_tool.start_x, app->line_tool.start_y,
-                                   app->line_tool.end_x, app->line_tool.end_y,
-                                   app->line_tool.thickness);
+                render_line_preview(start_x, start_y, end_x, end_y, app->line_tool.thickness);
                 // Show thickness indicator
                 DrawText("Click to confirm, scroll to adjust",
-                         (int)app->line_tool.end_x + 10, (int)app->line_tool.end_y - 20,
+                         (int)end_x + 10, (int)end_y - 20,
                          14, (Color){255, 255, 255, 200});
             }
             break;

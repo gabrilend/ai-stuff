@@ -16,12 +16,12 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1209 | Random first board selection       | Complete  |
 | 1210 | Random adversary board option      | Complete  |
 | 1211 | Standalone editor property panel   | Complete  |
-| 1212 | Editor scroll breaks line placement | Pending   |
+| 1212 | Editor scroll breaks line placement | Complete  |
 
 ## Progress Summary
 
-**Completed:** 8/9 issues (89%)
-**Status:** In progress
+**Completed:** 9/9 issues (100%)
+**Status:** Complete
 
 ## Design Overview
 

@@ -2,7 +2,7 @@
 
 ## Current Behavior
 
-After scrolling (panning) the editor view, line placement no longer aligns with grid intersections. The line endpoints appear at incorrect positions relative to where the user clicks.
+After scrolling (panning) the editor view, the line **preview** is displaced from the grid intersections. However, when the line placement is confirmed, it snaps to the correct location.
 
 Additionally, scrolling on a blank board causes visual glitches or broken behavior.
 
@@ -44,3 +44,27 @@ The line tool likely converts mouse position to grid coordinates without account
 ## Notes
 
 The property panel (issue 1211) correctly uses `GetScreenToWorld2D()` for object selection - this pattern should be applied to line tool placement as well.
+
+## Root Cause
+
+In `render_canvas()`, the grid origin is temporarily modified by the camera offset:
+```c
+app->grid.origin_y += app->camera.offset.y;
+```
+
+The `line_tool.start_x/y` values were calculated at click time (before this modification)
+but the preview was rendered after the modification, causing a mismatch.
+
+## Fix
+
+Modified `render_cursor_preview()` in `src/032-editor-app.c`:
+
+Instead of using stored `line_tool.start_x/y` and `end_x/y` pixel values, recalculate
+them from the stored grid coordinates (`start_col/row`, `end_col/row`) at render time.
+
+This ensures the preview always uses the current grid origin, which includes the
+scroll offset during rendering.
+
+## Status
+
+**Completed** - Line preview now stays aligned with grid after scrolling.
