@@ -166,6 +166,7 @@ void particle_spawn_splash(ParticleSystem* ps, float x, float y,
 // {{{ particle_spawn_fragments
 // Spawns explosion fragments that split into thirds, quarters, sixths, or eighths.
 // Fragments have physics, optional corkscrew motion, and iridescent trails.
+// All fragments fall downward regardless of ball owner (looks better visually).
 //
 // Parameters:
 //   ps: ParticleSystem instance

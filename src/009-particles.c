@@ -106,6 +106,121 @@ static void rgb_to_hsv(Color c, float* h, float* s, float* v) {
 }
 // }}}
 
+// {{{ line_segment_circle_collision
+// Checks if a line segment intersects a circle.
+// Returns 1 if collision, 0 otherwise.
+// If collision, closest_x/y contain the closest point on segment to circle center.
+// p1x,p1y -> p2x,p2y: line segment endpoints
+// cx,cy,r: circle center and radius
+static int line_segment_circle_collision(float p1x, float p1y, float p2x, float p2y,
+                                         float cx, float cy, float r,
+                                         float* closest_x, float* closest_y) {
+    // Vector from p1 to p2
+    float dx = p2x - p1x;
+    float dy = p2y - p1y;
+
+    // Vector from p1 to circle center
+    float fx = cx - p1x;
+    float fy = cy - p1y;
+
+    // Project circle center onto line, clamped to segment
+    float segment_len_sq = dx * dx + dy * dy;
+    if (segment_len_sq < 0.0001f) {
+        // Degenerate segment (point)
+        *closest_x = p1x;
+        *closest_y = p1y;
+    } else {
+        float t = (fx * dx + fy * dy) / segment_len_sq;
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+        *closest_x = p1x + t * dx;
+        *closest_y = p1y + t * dy;
+    }
+
+    // Check distance from closest point to circle center
+    float dist_x = cx - *closest_x;
+    float dist_y = cy - *closest_y;
+    float dist_sq = dist_x * dist_x + dist_y * dist_y;
+
+    return (dist_sq < r * r) ? 1 : 0;
+}
+// }}}
+
+// {{{ wedge_circle_collision
+// Checks if a pie-slice wedge collides with a circle.
+// Returns 1 if collision, 0 otherwise.
+// If collision, contact_x/y contain the contact point on the wedge.
+// Checks 3 elements: left side, right side, and chord (arc approximation).
+// Tip check is redundant - if tip is inside circle, a side must intersect.
+// tip_x,tip_y: wedge tip (center of original ball)
+// size: radius of wedge (distance from tip to arc)
+// angle: current rotation of wedge center
+// slice_angle: angular width of wedge
+// cx,cy,r: circle center and radius
+static int wedge_circle_collision(float tip_x, float tip_y, float size,
+                                  float angle, float slice_angle,
+                                  float cx, float cy, float r,
+                                  float* contact_x, float* contact_y) {
+    // Calculate the two corner points of the arc
+    float half_slice = slice_angle * 0.5f;
+    float left_angle = angle - half_slice;
+    float right_angle = angle + half_slice;
+
+    float left_x = tip_x + cosf(left_angle) * size;
+    float left_y = tip_y + sinf(left_angle) * size;
+    float right_x = tip_x + cosf(right_angle) * size;
+    float right_y = tip_y + sinf(right_angle) * size;
+
+    float closest_x, closest_y;
+    float best_dist_sq = 1e10f;
+    int hit = 0;
+
+    // Check 1: Left side (tip to left corner)
+    if (line_segment_circle_collision(tip_x, tip_y, left_x, left_y,
+                                      cx, cy, r, &closest_x, &closest_y)) {
+        float dx = cx - closest_x;
+        float dy = cy - closest_y;
+        float dist_sq = dx * dx + dy * dy;
+        if (!hit || dist_sq < best_dist_sq) {
+            hit = 1;
+            best_dist_sq = dist_sq;
+            *contact_x = closest_x;
+            *contact_y = closest_y;
+        }
+    }
+
+    // Check 2: Right side (tip to right corner)
+    if (line_segment_circle_collision(tip_x, tip_y, right_x, right_y,
+                                      cx, cy, r, &closest_x, &closest_y)) {
+        float dx = cx - closest_x;
+        float dy = cy - closest_y;
+        float dist_sq = dx * dx + dy * dy;
+        if (!hit || dist_sq < best_dist_sq) {
+            hit = 1;
+            best_dist_sq = dist_sq;
+            *contact_x = closest_x;
+            *contact_y = closest_y;
+        }
+    }
+
+    // Check 3: Chord (left corner to right corner, approximating arc)
+    if (line_segment_circle_collision(left_x, left_y, right_x, right_y,
+                                      cx, cy, r, &closest_x, &closest_y)) {
+        float dx = cx - closest_x;
+        float dy = cy - closest_y;
+        float dist_sq = dx * dx + dy * dy;
+        if (!hit || dist_sq < best_dist_sq) {
+            hit = 1;
+            best_dist_sq = dist_sq;
+            *contact_x = closest_x;
+            *contact_y = closest_y;
+        }
+    }
+
+    return hit;
+}
+// }}}
+
 // {{{ particle_system_create
 ParticleSystem* particle_system_create(int capacity) {
     ParticleSystem* ps = (ParticleSystem*)malloc(sizeof(ParticleSystem));
@@ -211,6 +326,7 @@ void particle_system_update_with_world(ParticleSystem* ps, World* world, float d
 
             case PARTICLE_FRAGMENT: {
                 // Fragment: gravity, movement, rotation, corkscrew, trail, collisions
+                // All fragments fall downward regardless of ball owner
                 p->vy += FRAGMENT_GRAVITY * dt;
 
                 // Calculate base movement
@@ -247,82 +363,100 @@ void particle_system_update_with_world(ParticleSystem* ps, World* world, float d
                 }
 
                 // Fragment collision with pegs (if world provided)
+                // Use wedge collision for accurate pie-slice shape detection
+                float contact_x, contact_y;
                 if (world) {
                     // Check player pegs
                     for (int j = 0; j < world->peg_count; j++) {
-                        float dx = p->x - world->pegs[j].x;
-                        float dy = p->y - world->pegs[j].y;
-                        float dist = sqrtf(dx * dx + dy * dy);
-                        float min_dist = world->pegs[j].radius + p->size;
-
-                        if (dist < min_dist && dist > 0.001f) {
-                            // Bounce off peg
-                            float nx = dx / dist;
-                            float ny = dy / dist;
-                            float dot = p->vx * nx + p->vy * ny;
-                            p->vx -= 2.0f * dot * nx * 0.6f;  // Damped bounce
-                            p->vy -= 2.0f * dot * ny * 0.6f;
-                            // Push out
-                            p->x = world->pegs[j].x + nx * min_dist;
-                            p->y = world->pegs[j].y + ny * min_dist;
+                        if (wedge_circle_collision(p->x, p->y, p->size, p->angle, p->slice_angle,
+                                                   world->pegs[j].x, world->pegs[j].y,
+                                                   world->pegs[j].radius,
+                                                   &contact_x, &contact_y)) {
+                            // Normal from peg center toward contact point
+                            float dx = contact_x - world->pegs[j].x;
+                            float dy = contact_y - world->pegs[j].y;
+                            float dist = sqrtf(dx * dx + dy * dy);
+                            if (dist > 0.001f) {
+                                float nx = dx / dist;
+                                float ny = dy / dist;
+                                float dot = p->vx * nx + p->vy * ny;
+                                p->vx -= 2.0f * dot * nx * 0.6f;  // Damped bounce
+                                p->vy -= 2.0f * dot * ny * 0.6f;
+                                // Push fragment out along normal
+                                float penetration = world->pegs[j].radius - dist;
+                                p->x += nx * (penetration + 1.0f);
+                                p->y += ny * (penetration + 1.0f);
+                            }
                         }
                     }
 
                     // Check adversary pegs
                     for (int j = 0; j < world->adversary_peg_count; j++) {
-                        float dx = p->x - world->adversary_pegs[j].x;
-                        float dy = p->y - world->adversary_pegs[j].y;
-                        float dist = sqrtf(dx * dx + dy * dy);
-                        float min_dist = world->adversary_pegs[j].radius + p->size;
-
-                        if (dist < min_dist && dist > 0.001f) {
-                            float nx = dx / dist;
-                            float ny = dy / dist;
-                            float dot = p->vx * nx + p->vy * ny;
-                            p->vx -= 2.0f * dot * nx * 0.6f;
-                            p->vy -= 2.0f * dot * ny * 0.6f;
-                            p->x = world->adversary_pegs[j].x + nx * min_dist;
-                            p->y = world->adversary_pegs[j].y + ny * min_dist;
+                        if (wedge_circle_collision(p->x, p->y, p->size, p->angle, p->slice_angle,
+                                                   world->adversary_pegs[j].x, world->adversary_pegs[j].y,
+                                                   world->adversary_pegs[j].radius,
+                                                   &contact_x, &contact_y)) {
+                            float dx = contact_x - world->adversary_pegs[j].x;
+                            float dy = contact_y - world->adversary_pegs[j].y;
+                            float dist = sqrtf(dx * dx + dy * dy);
+                            if (dist > 0.001f) {
+                                float nx = dx / dist;
+                                float ny = dy / dist;
+                                float dot = p->vx * nx + p->vy * ny;
+                                p->vx -= 2.0f * dot * nx * 0.6f;
+                                p->vy -= 2.0f * dot * ny * 0.6f;
+                                float penetration = world->adversary_pegs[j].radius - dist;
+                                p->x += nx * (penetration + 1.0f);
+                                p->y += ny * (penetration + 1.0f);
+                            }
                         }
                     }
 
                     // Check bumpers
                     for (int j = 0; j < world->bumper_count; j++) {
-                        float dx = p->x - world->bumpers[j].x;
-                        float dy = p->y - world->bumpers[j].y;
-                        float dist = sqrtf(dx * dx + dy * dy);
-                        float min_dist = world->bumpers[j].radius + p->size;
-
-                        if (dist < min_dist && dist > 0.001f) {
-                            float nx = dx / dist;
-                            float ny = dy / dist;
-                            float dot = p->vx * nx + p->vy * ny;
-                            p->vx -= 2.0f * dot * nx * 0.4f;  // Extra damped
-                            p->vy -= 2.0f * dot * ny * 0.4f;
-                            p->x = world->bumpers[j].x + nx * min_dist;
-                            p->y = world->bumpers[j].y + ny * min_dist;
+                        if (wedge_circle_collision(p->x, p->y, p->size, p->angle, p->slice_angle,
+                                                   world->bumpers[j].x, world->bumpers[j].y,
+                                                   world->bumpers[j].radius,
+                                                   &contact_x, &contact_y)) {
+                            float dx = contact_x - world->bumpers[j].x;
+                            float dy = contact_y - world->bumpers[j].y;
+                            float dist = sqrtf(dx * dx + dy * dy);
+                            if (dist > 0.001f) {
+                                float nx = dx / dist;
+                                float ny = dy / dist;
+                                float dot = p->vx * nx + p->vy * ny;
+                                p->vx -= 2.0f * dot * nx * 0.4f;  // Extra damped
+                                p->vy -= 2.0f * dot * ny * 0.4f;
+                                float penetration = world->bumpers[j].radius - dist;
+                                p->x += nx * (penetration + 1.0f);
+                                p->y += ny * (penetration + 1.0f);
+                            }
                         }
                     }
 
                     // Check adversary bumpers
                     for (int j = 0; j < world->adversary_bumper_count; j++) {
-                        float dx = p->x - world->adversary_bumpers[j].x;
-                        float dy = p->y - world->adversary_bumpers[j].y;
-                        float dist = sqrtf(dx * dx + dy * dy);
-                        float min_dist = world->adversary_bumpers[j].radius + p->size;
-
-                        if (dist < min_dist && dist > 0.001f) {
-                            float nx = dx / dist;
-                            float ny = dy / dist;
-                            float dot = p->vx * nx + p->vy * ny;
-                            p->vx -= 2.0f * dot * nx * 0.4f;
-                            p->vy -= 2.0f * dot * ny * 0.4f;
-                            p->x = world->adversary_bumpers[j].x + nx * min_dist;
-                            p->y = world->adversary_bumpers[j].y + ny * min_dist;
+                        if (wedge_circle_collision(p->x, p->y, p->size, p->angle, p->slice_angle,
+                                                   world->adversary_bumpers[j].x, world->adversary_bumpers[j].y,
+                                                   world->adversary_bumpers[j].radius,
+                                                   &contact_x, &contact_y)) {
+                            float dx = contact_x - world->adversary_bumpers[j].x;
+                            float dy = contact_y - world->adversary_bumpers[j].y;
+                            float dist = sqrtf(dx * dx + dy * dy);
+                            if (dist > 0.001f) {
+                                float nx = dx / dist;
+                                float ny = dy / dist;
+                                float dot = p->vx * nx + p->vy * ny;
+                                p->vx -= 2.0f * dot * nx * 0.4f;
+                                p->vy -= 2.0f * dot * ny * 0.4f;
+                                float penetration = world->adversary_bumpers[j].radius - dist;
+                                p->x += nx * (penetration + 1.0f);
+                                p->y += ny * (penetration + 1.0f);
+                            }
                         }
                     }
 
-                    // Wall bounces
+                    // Wall bounces (use size for wall collision since wedge can extend that far)
                     float wall_left = world->table_x;
                     float wall_right = world->table_x + world->table_width;
                     if (p->x - p->size < wall_left) {
@@ -765,6 +899,7 @@ void particle_update_task(void* data) {
 
         case PARTICLE_FRAGMENT: {
             // Fragment: gravity, movement, rotation, corkscrew, trail, collisions
+            // All fragments fall downward regardless of ball owner
             next->vy += FRAGMENT_GRAVITY * dt;
 
             // Calculate base movement
@@ -801,80 +936,98 @@ void particle_update_task(void* data) {
             }
 
             // Fragment collision with pegs (if world provided)
+            // Use wedge collision for accurate pie-slice shape detection
+            float contact_x, contact_y;
             if (world) {
                 // Check player pegs
                 for (int j = 0; j < world->peg_count; j++) {
-                    float dx = next->x - world->pegs[j].x;
-                    float dy = next->y - world->pegs[j].y;
-                    float dist = sqrtf(dx * dx + dy * dy);
-                    float min_dist = world->pegs[j].radius + next->size;
-
-                    if (dist < min_dist && dist > 0.001f) {
-                        float nx = dx / dist;
-                        float ny = dy / dist;
-                        float dot = next->vx * nx + next->vy * ny;
-                        next->vx -= 2.0f * dot * nx * 0.6f;
-                        next->vy -= 2.0f * dot * ny * 0.6f;
-                        next->x = world->pegs[j].x + nx * min_dist;
-                        next->y = world->pegs[j].y + ny * min_dist;
+                    if (wedge_circle_collision(next->x, next->y, next->size, next->angle, next->slice_angle,
+                                               world->pegs[j].x, world->pegs[j].y,
+                                               world->pegs[j].radius,
+                                               &contact_x, &contact_y)) {
+                        float dx = contact_x - world->pegs[j].x;
+                        float dy = contact_y - world->pegs[j].y;
+                        float dist = sqrtf(dx * dx + dy * dy);
+                        if (dist > 0.001f) {
+                            float nx = dx / dist;
+                            float ny = dy / dist;
+                            float dot = next->vx * nx + next->vy * ny;
+                            next->vx -= 2.0f * dot * nx * 0.6f;
+                            next->vy -= 2.0f * dot * ny * 0.6f;
+                            float penetration = world->pegs[j].radius - dist;
+                            next->x += nx * (penetration + 1.0f);
+                            next->y += ny * (penetration + 1.0f);
+                        }
                     }
                 }
 
                 // Check adversary pegs
                 for (int j = 0; j < world->adversary_peg_count; j++) {
-                    float dx = next->x - world->adversary_pegs[j].x;
-                    float dy = next->y - world->adversary_pegs[j].y;
-                    float dist = sqrtf(dx * dx + dy * dy);
-                    float min_dist = world->adversary_pegs[j].radius + next->size;
-
-                    if (dist < min_dist && dist > 0.001f) {
-                        float nx = dx / dist;
-                        float ny = dy / dist;
-                        float dot = next->vx * nx + next->vy * ny;
-                        next->vx -= 2.0f * dot * nx * 0.6f;
-                        next->vy -= 2.0f * dot * ny * 0.6f;
-                        next->x = world->adversary_pegs[j].x + nx * min_dist;
-                        next->y = world->adversary_pegs[j].y + ny * min_dist;
+                    if (wedge_circle_collision(next->x, next->y, next->size, next->angle, next->slice_angle,
+                                               world->adversary_pegs[j].x, world->adversary_pegs[j].y,
+                                               world->adversary_pegs[j].radius,
+                                               &contact_x, &contact_y)) {
+                        float dx = contact_x - world->adversary_pegs[j].x;
+                        float dy = contact_y - world->adversary_pegs[j].y;
+                        float dist = sqrtf(dx * dx + dy * dy);
+                        if (dist > 0.001f) {
+                            float nx = dx / dist;
+                            float ny = dy / dist;
+                            float dot = next->vx * nx + next->vy * ny;
+                            next->vx -= 2.0f * dot * nx * 0.6f;
+                            next->vy -= 2.0f * dot * ny * 0.6f;
+                            float penetration = world->adversary_pegs[j].radius - dist;
+                            next->x += nx * (penetration + 1.0f);
+                            next->y += ny * (penetration + 1.0f);
+                        }
                     }
                 }
 
                 // Check bumpers
                 for (int j = 0; j < world->bumper_count; j++) {
-                    float dx = next->x - world->bumpers[j].x;
-                    float dy = next->y - world->bumpers[j].y;
-                    float dist = sqrtf(dx * dx + dy * dy);
-                    float min_dist = world->bumpers[j].radius + next->size;
-
-                    if (dist < min_dist && dist > 0.001f) {
-                        float nx = dx / dist;
-                        float ny = dy / dist;
-                        float dot = next->vx * nx + next->vy * ny;
-                        next->vx -= 2.0f * dot * nx * 0.4f;
-                        next->vy -= 2.0f * dot * ny * 0.4f;
-                        next->x = world->bumpers[j].x + nx * min_dist;
-                        next->y = world->bumpers[j].y + ny * min_dist;
+                    if (wedge_circle_collision(next->x, next->y, next->size, next->angle, next->slice_angle,
+                                               world->bumpers[j].x, world->bumpers[j].y,
+                                               world->bumpers[j].radius,
+                                               &contact_x, &contact_y)) {
+                        float dx = contact_x - world->bumpers[j].x;
+                        float dy = contact_y - world->bumpers[j].y;
+                        float dist = sqrtf(dx * dx + dy * dy);
+                        if (dist > 0.001f) {
+                            float nx = dx / dist;
+                            float ny = dy / dist;
+                            float dot = next->vx * nx + next->vy * ny;
+                            next->vx -= 2.0f * dot * nx * 0.4f;
+                            next->vy -= 2.0f * dot * ny * 0.4f;
+                            float penetration = world->bumpers[j].radius - dist;
+                            next->x += nx * (penetration + 1.0f);
+                            next->y += ny * (penetration + 1.0f);
+                        }
                     }
                 }
 
                 // Check adversary bumpers
                 for (int j = 0; j < world->adversary_bumper_count; j++) {
-                    float dx = next->x - world->adversary_bumpers[j].x;
-                    float dy = next->y - world->adversary_bumpers[j].y;
-                    float dist = sqrtf(dx * dx + dy * dy);
-                    float min_dist = world->adversary_bumpers[j].radius + next->size;
-
-                    if (dist < min_dist && dist > 0.001f) {
-                        float nx = dx / dist;
-                        float ny = dy / dist;
-                        float dot = next->vx * nx + next->vy * ny;
-                        next->vx -= 2.0f * dot * nx * 0.4f;
-                        next->vy -= 2.0f * dot * ny * 0.4f;
-                        next->x = world->adversary_bumpers[j].x + nx * min_dist;
-                        next->y = world->adversary_bumpers[j].y + ny * min_dist;
+                    if (wedge_circle_collision(next->x, next->y, next->size, next->angle, next->slice_angle,
+                                               world->adversary_bumpers[j].x, world->adversary_bumpers[j].y,
+                                               world->adversary_bumpers[j].radius,
+                                               &contact_x, &contact_y)) {
+                        float dx = contact_x - world->adversary_bumpers[j].x;
+                        float dy = contact_y - world->adversary_bumpers[j].y;
+                        float dist = sqrtf(dx * dx + dy * dy);
+                        if (dist > 0.001f) {
+                            float nx = dx / dist;
+                            float ny = dy / dist;
+                            float dot = next->vx * nx + next->vy * ny;
+                            next->vx -= 2.0f * dot * nx * 0.4f;
+                            next->vy -= 2.0f * dot * ny * 0.4f;
+                            float penetration = world->adversary_bumpers[j].radius - dist;
+                            next->x += nx * (penetration + 1.0f);
+                            next->y += ny * (penetration + 1.0f);
+                        }
                     }
                 }
 
-                // Wall bounces
+                // Wall bounces (use size for wall collision since wedge can extend that far)
                 float wall_left = world->table_x;
                 float wall_right = world->table_x + world->table_width;
 
