@@ -154,8 +154,9 @@ int portal_manager_check_ball(PortalManager* manager, Ball* ball,
                            ch, exit_idx, *out_x, *out_y);
                     return 1;
                 } else {
-                    // Entry has no matching exits - log warning once
-                    printf("Portal: channel %d has no exits!\n", ch);
+                    // Entry has no matching exits - warn user
+                    printf("whoa hey there this channel %d doesn't have an out box! "
+                           "what the heck, go fix it you goober!~\n", ch);
                 }
             }
         }

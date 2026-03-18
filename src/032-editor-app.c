@@ -23,7 +23,7 @@
 #define DEFAULT_LINE_THICKNESS 10.0f
 #define MIN_LINE_THICKNESS 4.0f
 #define MAX_LINE_THICKNESS 30.0f
-#define DEFAULT_PORTAL_SIZE 2  // Grid cells
+#define DEFAULT_PORTAL_SIZE 1  // Grid cells (one square)
 
 // Colors
 #define BG_COLOR (Color){30, 30, 40, 255}
@@ -236,6 +236,15 @@ int editor_app_load(EditorApp* app, const char* filepath) {
 // {{{ editor_app_save
 int editor_app_save(EditorApp* app) {
     if (!app || !app->board) return 0;
+
+    // Validate portals before saving
+    int orphan_channel;
+    if (!board_data_validate_portals(app->board, &orphan_channel)) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "Channel %d has no exit!", orphan_channel);
+        editor_app_notify(app, msg, 3.0f);
+        return 0;
+    }
 
     // Generate filename if needed
     if (!app->has_filename) {
@@ -731,6 +740,16 @@ static void handle_save_dialog_input(EditorApp* app) {
     // Confirm on Enter
     if (IsKeyPressed(KEY_ENTER)) {
         if (strlen(app->save_dialog.filename) > 0) {
+            // Validate portals before saving
+            int orphan_channel;
+            if (!board_data_validate_portals(app->board, &orphan_channel)) {
+                char msg[64];
+                snprintf(msg, sizeof(msg), "Channel %d has no exit!", orphan_channel);
+                editor_app_notify(app, msg, 3.0f);
+                close_save_dialog(app);
+                return;
+            }
+
             // Build full path
             snprintf(app->filename, sizeof(app->filename), "boards/%s.json",
                      app->save_dialog.filename);

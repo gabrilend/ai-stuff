@@ -315,4 +315,18 @@ void board_data_apply_to_world(BoardData* data, struct World* world,
                                struct Grid* grid);
 // }}}
 
+// =============================================================================
+// Validation
+// =============================================================================
+
+// {{{ board_data_validate_portals
+// Validates portal channel consistency.
+// Checks that any channel with entry portals also has exit portals.
+// Parameters:
+//   data: Board data to validate
+//   orphan_channel: Output - first channel with entries but no exits (-1 if valid)
+// Returns: 1 if valid, 0 if orphan channel found
+int board_data_validate_portals(BoardData* data, int* orphan_channel);
+// }}}
+
 #endif // BOARD_DATA_H

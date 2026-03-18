@@ -867,3 +867,46 @@ void board_file_list_destroy(BoardFileList* list) {
     free(list);
 }
 // }}}
+
+// =============================================================================
+// Validation
+// =============================================================================
+
+// {{{ board_data_validate_portals
+int board_data_validate_portals(BoardData* data, int* orphan_channel) {
+    if (!data) {
+        if (orphan_channel) *orphan_channel = -1;
+        return 1;  // No data = valid
+    }
+
+    // Count entries and exits per channel
+    // Using 17 to account for channels 1-16 (index 0 unused)
+    int entry_count[17] = {0};
+    int exit_count[17] = {0};
+
+    for (int i = 0; i < data->zone_count; i++) {
+        BoardZone* zone = &data->zones[i];
+        if (zone->type != ZONE_PORTAL) continue;
+
+        int ch = zone->channel;
+        if (ch < 1 || ch > 16) continue;  // Invalid channel, skip
+
+        if (zone->direction == PORTAL_ENTRY) {
+            entry_count[ch]++;
+        } else {
+            exit_count[ch]++;
+        }
+    }
+
+    // Check for orphan channels (entries without exits)
+    for (int ch = 1; ch <= 16; ch++) {
+        if (entry_count[ch] > 0 && exit_count[ch] == 0) {
+            if (orphan_channel) *orphan_channel = ch;
+            return 0;  // Invalid - orphan channel found
+        }
+    }
+
+    if (orphan_channel) *orphan_channel = -1;
+    return 1;  // Valid
+}
+// }}}
