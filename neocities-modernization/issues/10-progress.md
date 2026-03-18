@@ -39,6 +39,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-025 | Diversity cache includes anchor poem | Completed | Medium |
 | 10-026 | Merge sources and external_files config sections | Completed | Low |
 | 10-027 | Fix golden poem trailing whitespace detection | Open | Medium |
+| 10-028 | Lower pipeline process priority for UI responsiveness | Completed | Low |
 
 ### Completed Issues
 
