@@ -14,12 +14,12 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1207 | Generate default board on compile  | Complete  |
 | 1208 | Editor file browser delete button  | Pending   |
 | 1209 | Random first board selection       | Complete  |
-| 1210 | Random adversary board option      | Pending   |
+| 1210 | Random adversary board option      | Complete  |
 | 1211 | Standalone editor property panel   | Pending   |
 
 ## Progress Summary
 
-**Completed:** 5/8 issues (63%)
+**Completed:** 6/8 issues (75%)
 **Status:** In progress
 
 ## Design Overview

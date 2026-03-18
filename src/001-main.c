@@ -7,6 +7,7 @@
 #include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <math.h>
 #include "003-threadpool.h"
@@ -370,9 +371,18 @@ static void on_stage_purchased(void* user_data) {
 // }}}
 
 // {{{ main
-int main(void) {
+int main(int argc, char* argv[]) {
     int screen_width = 800;  // Initial horizontal size (updated on resize)
     int screen_height = 600;       // Will be adjusted to monitor
+
+    // Parse command line arguments (issue 1210)
+    int random_adversary_board = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--random-adversary") == 0) {
+            random_adversary_board = 1;
+            printf("Random adversary board enabled\n");
+        }
+    }
 
     // Seed random number generator for ball spawning
     srand((unsigned int)time(NULL));
@@ -529,22 +539,44 @@ int main(void) {
     }
     printf("Upgrade manager created\n");
 
-    // Generate adversary board (mirrored below zones)
-    // Use same board data as player if random board was selected (issue 1209)
-    if (use_random_board && initial_board) {
+    // Generate adversary board (issue 1209 + 1210)
+    // Default: mirror player's board (use same BoardData)
+    // With --random-adversary: select different random board for asymmetric play
+    BoardData* adversary_board = NULL;
+    int adversary_board_owned = 0;  // Track if we need to free adversary_board
+
+    if (random_adversary_board && stage_pool && stage_pool_get_count(stage_pool) > 0) {
+        // Select a different random board for adversary (issue 1210)
+        const char* adv_board_path = stage_pool_select_random(stage_pool);
+        if (adv_board_path) {
+            adversary_board = board_data_load_json(adv_board_path);
+            if (adversary_board) {
+                adversary_board_owned = 1;
+                printf("Selected random adversary board: %s\n", adv_board_path);
+            }
+        }
+    }
+
+    // Fall back to player's board if no separate adversary board loaded
+    if (!adversary_board && initial_board) {
+        adversary_board = initial_board;
+        adversary_board_owned = 0;  // Don't double-free
+    }
+
+    if (adversary_board) {
         // Adversary area starts below the zones
-        float adv_board_width = initial_board->grid_cols * initial_board->cell_size;
+        float adv_board_width = adversary_board->grid_cols * adversary_board->cell_size;
         float adv_board_start_x = world->table_x + (table_width - adv_board_width) / 2.0f;
         float adv_start_y = world->zones[0].y_max + 50.0f;  // Margin below zones
 
         // Calculate adversary board height for table bounds
-        float adv_board_height = initial_board->grid_rows * initial_board->cell_size;
+        float adv_board_height = adversary_board->grid_rows * adversary_board->cell_size;
 
         // Set adversary table bounds
         world->adversary_table_top = world->zones[0].y_max;
         world->adversary_table_bottom = world->adversary_table_top + adv_board_height + 100.0f;
 
-        if (apply_adversary_board_data(initial_board, world, adv_board_start_x, adv_start_y)) {
+        if (apply_adversary_board_data(adversary_board, world, adv_board_start_x, adv_start_y)) {
             printf("Applied adversary board: %d pegs\n", world->adversary_peg_count);
         } else {
             // Board application failed, fall back to programmatic
@@ -556,7 +588,10 @@ int main(void) {
         printf("Generated adversary pegs: %d\n", world->adversary_peg_count);
     }
 
-    // Clean up initial board data (no longer needed)
+    // Clean up board data
+    if (adversary_board_owned && adversary_board) {
+        board_data_destroy(adversary_board);
+    }
     if (initial_board) {
         board_data_destroy(initial_board);
         initial_board = NULL;
