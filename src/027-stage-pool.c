@@ -10,6 +10,7 @@
 #define _POSIX_C_SOURCE 200809L  // For strdup
 
 #include "026-stage-pool.h"
+#include "020-board-data.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +53,7 @@ static void stage_pool_clear_files(StagePool* pool) {
 
 // {{{ stage_pool_scan_directory
 // Scans a directory for .json files and adds them to the pool.
+// Skips boards marked as in_progress (issue 1224).
 static void stage_pool_scan_directory(StagePool* pool, const char* directory) {
     DIR* dir = opendir(directory);
     if (!dir) {
@@ -73,10 +75,24 @@ static void stage_pool_scan_directory(StagePool* pool, const char* directory) {
 
             snprintf(path, path_len, "%s/%s", directory, name);
 
-            pool->stage_files[pool->total_count] = path;
-            pool->total_count++;
-
-            printf("Stage pool: added %s\n", name);
+            // Load board to check in_progress flag (issue 1224)
+            BoardData* board = board_data_load_json(path);
+            if (board) {
+                if (board->in_progress) {
+                    // Skip in-progress boards
+                    printf("Stage pool: skipping %s (in-progress)\n", name);
+                    free(path);
+                } else {
+                    pool->stage_files[pool->total_count] = path;
+                    pool->total_count++;
+                    printf("Stage pool: added %s\n", name);
+                }
+                board_data_destroy(board);
+            } else {
+                // Failed to load - skip this file
+                printf("Stage pool: skipping %s (load failed)\n", name);
+                free(path);
+            }
         }
     }
 

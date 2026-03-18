@@ -87,6 +87,7 @@ typedef struct SaveDialogState {
     int visible;
     char filename[64];
     int cursor_pos;
+    int in_progress;  // Checkbox state (issue 1224)
 } SaveDialogState;
 // }}}
 

@@ -28,7 +28,7 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1221 | Slot-based world layout system      | Complete (foundation) |
 | 1222 | Velocity-dependent restitution      | Complete  |
 | 1223 | Portal improvements                 | Complete  |
-| 1224 | In-progress board flag              | Open      |
+| 1224 | In-progress board flag              | Complete  |
 | 1225 | RGB property 10% increments         | Open      |
 | 1226 | Drag-to-select and multi-edit       | Open      |
 | 1227 | Portal zones fill grid cell         | Open      |
@@ -36,7 +36,7 @@ Editor Modularization. Extract the board editor into a standalone application, r
 
 ## Progress Summary
 
-**Completed:** 21/25 issues (84%)
+**Completed:** 22/25 issues (88%)
 **Status:** In Progress
 
 **Note:** Issue 1221 created the slot-based layout foundation. Full integration with stage expansion is Phase 13 work.

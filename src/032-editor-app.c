@@ -724,6 +724,8 @@ static void open_save_dialog(EditorApp* app) {
         app->save_dialog.filename[0] = '\0';
     }
     app->save_dialog.cursor_pos = (int)strlen(app->save_dialog.filename);
+    // Initialize checkbox from board data (issue 1224)
+    app->save_dialog.in_progress = app->board ? app->board->in_progress : 0;
     app->save_dialog.visible = 1;
 }
 // }}}
@@ -742,6 +744,12 @@ static void handle_save_dialog_input(EditorApp* app) {
         return;
     }
 
+    // Toggle in-progress checkbox with TAB (issue 1224)
+    if (IsKeyPressed(KEY_TAB)) {
+        app->save_dialog.in_progress = !app->save_dialog.in_progress;
+        return;
+    }
+
     // Confirm on Enter
     if (IsKeyPressed(KEY_ENTER)) {
         if (strlen(app->save_dialog.filename) > 0) {
@@ -754,6 +762,9 @@ static void handle_save_dialog_input(EditorApp* app) {
                 close_save_dialog(app);
                 return;
             }
+
+            // Apply in-progress flag to board data (issue 1224)
+            app->board->in_progress = app->save_dialog.in_progress;
 
             // Build full path
             snprintf(app->filename, sizeof(app->filename), "boards/%s.json",
@@ -1177,7 +1188,7 @@ static void render_save_dialog(EditorApp* app) {
 
     // Dialog box
     int dialog_w = 400;
-    int dialog_h = 150;
+    int dialog_h = 190;  // Taller to fit checkbox (issue 1224)
     int dialog_x = (app->screen_width - dialog_w) / 2;
     int dialog_y = (app->screen_height - dialog_h) / 2;
 
@@ -1217,8 +1228,27 @@ static void render_save_dialog(EditorApp* app) {
         DrawLine(cursor_x, input_y + 4, cursor_x, input_y + input_h - 4, TEXT_COLOR);
     }
 
+    // In-progress checkbox (issue 1224)
+    int checkbox_x = dialog_x + 20;
+    int checkbox_y = input_y + input_h + 12;
+    int checkbox_size = 18;
+
+    // Checkbox box
+    DrawRectangle(checkbox_x, checkbox_y, checkbox_size, checkbox_size, BG_COLOR);
+    DrawRectangleLines(checkbox_x, checkbox_y, checkbox_size, checkbox_size, TEXT_COLOR);
+
+    // Checkmark if checked
+    if (app->save_dialog.in_progress) {
+        DrawLine(checkbox_x + 3, checkbox_y + 9, checkbox_x + 7, checkbox_y + 13, TEXT_COLOR);
+        DrawLine(checkbox_x + 7, checkbox_y + 13, checkbox_x + 15, checkbox_y + 5, TEXT_COLOR);
+    }
+
+    // Label
+    DrawText("In-progress (exclude from random selection)",
+             checkbox_x + checkbox_size + 8, checkbox_y + 2, 14, TEXT_COLOR);
+
     // Instructions
-    DrawText("ENTER = save, LEFT/RIGHT = move cursor, ESC = cancel",
+    DrawText("ENTER = save, TAB = toggle checkbox, ESC = cancel",
              dialog_x + 20, dialog_y + dialog_h - 25, 14, TEXT_DIM);
 }
 // }}}

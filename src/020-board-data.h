@@ -107,6 +107,10 @@ typedef struct BoardData {
     int board_width;
     int board_height;
 
+    // Editor flag - board is work in progress (issue 1224)
+    // When true, board is excluded from random stage selection
+    int in_progress;
+
     // Objects (collision obstacles)
     BoardObject* objects;
     int object_count;

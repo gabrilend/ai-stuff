@@ -417,6 +417,12 @@ BoardData* board_data_load_json(const char* filename) {
         data->version = version->valueint;
     }
 
+    // Extract in_progress flag (issue 1224)
+    cJSON* in_progress = cJSON_GetObjectItem(root, "in_progress");
+    if (in_progress && cJSON_IsBool(in_progress)) {
+        data->in_progress = cJSON_IsTrue(in_progress) ? 1 : 0;
+    }
+
     // Parse objects array
     cJSON* objects = cJSON_GetObjectItem(root, "objects");
     if (objects && cJSON_IsArray(objects)) {
@@ -524,6 +530,11 @@ char* board_data_to_json_string(BoardData* data) {
     // Version and name
     cJSON_AddNumberToObject(root, "version", data->version);
     cJSON_AddStringToObject(root, "name", data->name);
+
+    // In-progress flag (issue 1224) - only write if true
+    if (data->in_progress) {
+        cJSON_AddBoolToObject(root, "in_progress", 1);
+    }
 
     // Grid settings
     cJSON* grid = cJSON_CreateObject();
