@@ -39,7 +39,7 @@ Phase 16 extends the neocities modernization project beyond local files to treat
 | 16-003 | Network file type integration | Open | High |
 | 16-004 | HTTPS with self-signed certificates | Open | Medium |
 | 16-005 | Trust warning intermediate page | Open | Medium |
-| 16-006 | Chronological position-aware back navigation | Open | Medium |
+| 16-006 | Chronological position-aware back navigation | Completed | Medium |
 | 16-007 | File scanning and metadata extraction | Open | High |
 | 16-008 | Torrent file generation for distribution | Open | Medium |
 | 16-009 | WebTorrent in-browser streaming (JS option) | Open | Low |
@@ -47,7 +47,14 @@ Phase 16 extends the neocities modernization project beyond local files to treat
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 16-006 | Chronological position-aware back navigation | Completed | 2026-03-18 |
 | 16-010 | Monospace font enforcement | Completed | 2026-03-18 |
+
+**16-006: Chronological Position-Aware Back Navigation** - COMPLETED (2026-03-18)
+- Changed anchor ID format from category-based (`poem-fediverse-0042`) to sequential (`poem-4625`)
+- Updated `get_poem_anchor_id()` to use `poem_index` directly
+- Updated parallel worker anchor generation to match
+- Design decision: Sequential IDs are machine+human readable without leaking metadata
 
 ## Key Concepts
 
