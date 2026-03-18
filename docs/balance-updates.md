@@ -46,3 +46,20 @@ Upgrade description updated from "+5 ball/sec max" to "+8 ball/sec max".
 | 400 px/sec | 40 | 48 |
 
 Hard hits now deal more damage than before, but gentle bumps are harmless. Balls survive longer in crowded situations but still die from meaningful collisions.
+
+---
+
+## 2026-03-18: Gravity Assist Terminal Velocity Cap
+
+**Rationale:** Balls sliding on lines could accelerate indefinitely as the gravity assist was applied every frame. This caused balls to reach unrealistic speeds on long diagonal lines.
+
+**Changes:**
+
+| Variable | File | Old Value | New Value |
+|----------|------|-----------|-----------|
+| TERMINAL_VELOCITY | 006-ball.h | (new) | 500.0f |
+
+**Effect:**
+- Gravity assist (30 px/sec boost) only applies when ball speed < 500 px/sec
+- Balls on lines naturally cap at a reasonable speed
+- Fast-moving balls (from falls or bounces) don't get additional acceleration

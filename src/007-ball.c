@@ -477,21 +477,25 @@ static void ball_collide_with_line(Ball* ball, Line* line) {
 
             // Add velocity along line direction (gravity assist)
             // Direction must point "downhill" based on ball's gravity direction
-            float lx = line->x2 - line->x1;
-            float ly = line->y2 - line->y1;
-            float len = sqrtf(lx * lx + ly * ly);
-            if (len > 0.0001f) {
-                float tx = lx / len;
-                float ty = ly / len;
-                // If tangent points against gravity (uphill), flip it
-                // Player: gravity_dir = +1, downhill = positive ty
-                // Adversary: gravity_dir = -1, downhill = negative ty
-                if (ty * ball->gravity_dir < 0) {
-                    tx = -tx;
-                    ty = -ty;
+            // Only apply if ball is below terminal velocity (prevents infinite acceleration)
+            float speed_sq = ball->vx * ball->vx + ball->vy * ball->vy;
+            if (speed_sq < TERMINAL_VELOCITY * TERMINAL_VELOCITY) {
+                float lx = line->x2 - line->x1;
+                float ly = line->y2 - line->y1;
+                float len = sqrtf(lx * lx + ly * ly);
+                if (len > 0.0001f) {
+                    float tx = lx / len;
+                    float ty = ly / len;
+                    // If tangent points against gravity (uphill), flip it
+                    // Player: gravity_dir = +1, downhill = positive ty
+                    // Adversary: gravity_dir = -1, downhill = negative ty
+                    if (ty * ball->gravity_dir < 0) {
+                        tx = -tx;
+                        ty = -ty;
+                    }
+                    ball->vx += tx * LINE_GRAVITY_ASSIST;
+                    ball->vy += ty * LINE_GRAVITY_ASSIST;
                 }
-                ball->vx += tx * LINE_GRAVITY_ASSIST;
-                ball->vy += ty * LINE_GRAVITY_ASSIST;
             }
 
             // Award points if line has bonus

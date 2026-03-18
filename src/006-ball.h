@@ -15,6 +15,7 @@ typedef struct ThreadPool ThreadPool;
 
 // Physics constants
 #define GRAVITY 980.0f        // Pixels per second squared
+#define TERMINAL_VELOCITY 500.0f  // Max speed before gravity assist stops
 #define DAMPING 0.98f         // Velocity damping factor
 #define MIN_VELOCITY 1.0f     // Threshold for stopping
 
