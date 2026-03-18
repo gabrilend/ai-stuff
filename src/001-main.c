@@ -788,24 +788,19 @@ int main(void) {
                        (Color){255, 255, 255, alpha});
 
         // Draw cooldown indicator (ring around spawn point)
-        // Uses consistent cyan color scheme (like adversary uses red)
-        // Shows progress as fill amount, not color change - prevents flickering
+        // Uses spawn_credits fractional part for continuous progress (like adversary)
+        // Always shows progress toward next spawn - never static
         // (issue 1118: player reticle display bug fix)
-        if (ball_manager->spawn_cooldown > 0) {
-            float cooldown_ratio = ball_manager->spawn_cooldown / SPAWN_COOLDOWN;
-            // Draw background ring (dim cyan) to show full circumference
-            DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                    0, 360, 32, (Color){60, 80, 100, 150});
-            // Draw remaining cooldown arc (bright cyan) - starts from top (-90)
-            // Arc shrinks as cooldown depletes (shows time remaining)
-            float arc_degrees = 360.0f * cooldown_ratio;
-            DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                    -90, -90 + arc_degrees, 32, (Color){100, 200, 255, 220});
-        } else {
-            // Ready to spawn - show full cyan ring (consistent with charging color)
-            DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                    0, 360, 32, (Color){100, 200, 255, 180});
-        }
+        float credits_frac = ball_manager->spawn_credits - (int)ball_manager->spawn_credits;
+
+        // Background ring (dim cyan)
+        DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
+                0, 360, 32, (Color){60, 80, 100, 150});
+
+        // Progress arc - always shows fractional progress toward next credit
+        float arc_degrees = 360.0f * credits_frac;
+        DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
+                -90, -90 + arc_degrees, 32, (Color){100, 200, 255, 220});
 
         // Draw balls
         ball_manager_render(ball_manager);

@@ -19,17 +19,23 @@ reticle shows progress as fill amount, not color change.
 
 ## Changes Made
 
-In `src/001-main.c` (lines 790-808):
+In `src/001-main.c` (lines 790-803):
 
 **Before:**
-- Background ring: (60, 60, 80) dim blue-gray
-- Charging arc: (100, 200, 255) cyan
-- Ready ring: (100, 255, 150) **green** ← color switch caused flickering
+- Used `spawn_cooldown` (legacy timer) for visual
+- Switched between cyan (charging) and green (ready)
+- Showed static "full" ring when ready to spawn
 
 **After:**
-- Background ring: (60, 80, 100) dim cyan
-- Charging arc: (100, 200, 255) cyan
-- Ready ring: (100, 200, 255) **cyan** ← consistent color, no flickering
+- Uses `spawn_credits` fractional part (like adversary)
+- Consistent cyan color throughout
+- Always shows progress toward next spawn - never static
+- Ring continuously animates regardless of spawn state
+
+```c
+float credits_frac = ball_manager->spawn_credits - (int)ball_manager->spawn_credits;
+// Always shows fractional progress, never a static "full" ring
+```
 
 ## Files Modified
 
