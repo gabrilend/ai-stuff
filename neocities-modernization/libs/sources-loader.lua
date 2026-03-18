@@ -148,8 +148,9 @@ end
 
 -- {{{ get_directories
 -- Get all directories for a source type
--- Returns: array of { name, path, optional, description }
+-- Returns: array of { name, path, optional, description, randomize_order, random_seed }
 -- Paths are resolved to absolute paths
+-- Issue 10-030: Added randomize_order and random_seed fields for image position randomization
 function M.get_directories(source_type)
     local source = M.get_source(source_type)
     if not source then
@@ -164,7 +165,10 @@ function M.get_directories(source_type)
             name = dir.name or "unnamed",
             path = resolve_path(dir.path),
             optional = dir.optional or false,
-            description = dir.description or ""
+            description = dir.description or "",
+            -- Issue 10-030: Randomization options for image sources
+            randomize_order = dir.randomize_order or false,
+            random_seed = dir.random_seed  -- nil means use system random
         })
     end
 

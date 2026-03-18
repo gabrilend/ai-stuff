@@ -75,6 +75,7 @@ local M = {}
 
 -- {{{ function load_config
 -- Issue 10-015a: Use sources-loader for image directories (replaces input_sources dependency)
+-- Issue 10-030: Now returns full directory objects (not just paths) for randomization support
 -- This is the "no fallbacks" design - errors if sources.images not configured
 local function load_config()
     -- Get image source configuration
@@ -84,12 +85,13 @@ local function load_config()
     end
 
     -- Build image_directories from sources.images.directories
+    -- Issue 10-030: Now returns full directory objects with randomize_order and random_seed
     local directories = sources_loader.get_directories("images")
     if #directories == 0 then
         error("sources.images.directories is empty in config.lua - no directories to scan")
     end
 
-    -- Extract just the paths (relative to project root, will be prefixed with DIR later)
+    -- Issue 10-030: Keep full directory objects, converting paths to relative
     local image_directories = {}
     for _, dir in ipairs(directories) do
         -- sources-loader returns absolute paths, convert to relative for consistency
@@ -97,7 +99,15 @@ local function load_config()
         if path:sub(1, #DIR) == DIR then
             path = path:sub(#DIR + 2)  -- Strip DIR prefix and leading slash
         end
-        table.insert(image_directories, path)
+        table.insert(image_directories, {
+            name = dir.name,
+            path = path,
+            optional = dir.optional,
+            description = dir.description,
+            -- Issue 10-030: Randomization options
+            randomize_order = dir.randomize_order or false,
+            random_seed = dir.random_seed
+        })
     end
 
     -- Build config from sources.images settings (with image_integration fallbacks for display settings)
@@ -210,37 +220,38 @@ end
 -- }}}
 
 -- {{{ function scan_directory_for_images
-local function scan_directory_for_images(directory, config)
+-- Issue 10-030: Now accepts dir_config (full directory object) for randomization tracking
+local function scan_directory_for_images(directory, config, dir_config)
     local images = {}
-    
+
     print("🔍 Scanning directory: " .. relative_path(directory))
-    
+
     -- Check if directory exists
     local check_cmd = string.format("test -d '%s'", shell_escape(directory))
     local exists = os.execute(check_cmd) == true or os.execute(check_cmd) == 0
-    
+
     if not exists then
         print("⚠️  Directory not found: " .. relative_path(directory))
         return images
     end
-    
+
     -- Find all files in directory
     local find_cmd = string.format("find '%s' -type f", shell_escape(directory))
     local handle = io.popen(find_cmd)
-    
+
     local processed_count = 0
     local skipped_count = 0
-    
+
     for file_path in handle:lines() do
         if is_supported_format(file_path, config.supported_formats) then
             local file_size = get_file_size(file_path)
             local max_size = (config.max_file_size_mb or 10) * 1024 * 1024
-            
+
             if file_size <= max_size then
                 local width, height = extract_image_dimensions(file_path)
                 local file_hash = generate_image_hash(file_path)
                 local mtime = get_file_mtime(file_path)
-                
+
                 local image_entry = {
                     file_path = file_path,
                     relative_path = file_path:gsub("^" .. DIR .. "/", ""),
@@ -254,7 +265,11 @@ local function scan_directory_for_images(directory, config)
                     hash = file_hash,
                     modification_time = mtime,
                     modification_date = os.date("%Y-%m-%dT%H:%M:%SZ", mtime),
-                    source_directory = directory
+                    source_directory = directory,
+                    -- Issue 10-030: Track source config for randomization
+                    source_name = dir_config and dir_config.name or nil,
+                    source_randomize = dir_config and dir_config.randomize_order or false,
+                    source_random_seed = dir_config and dir_config.random_seed or nil
                 }
                 
                 table.insert(images, image_entry)
@@ -276,33 +291,108 @@ local function scan_directory_for_images(directory, config)
 end
 -- }}}
 
+-- {{{ local function create_seeded_rng
+-- Issue 10-030: Create a seeded random number generator for reproducible randomization
+-- Uses a simple linear congruential generator (LCG) for deterministic results
+local function create_seeded_rng(seed)
+    local state = seed
+    return function()
+        -- LCG parameters (same as glibc)
+        state = (state * 1103515245 + 12345) % 2147483648
+        return state / 2147483648
+    end
+end
+-- }}}
+
+-- {{{ local function apply_randomization
+-- Issue 10-030: Apply randomized timestamps to images from randomized sources
+local function apply_randomization(all_images)
+    -- First, find the timeline range from non-randomized images
+    local min_time = nil
+    local max_time = nil
+
+    for _, image in ipairs(all_images) do
+        if not image.source_randomize then
+            local t = image.modification_time
+            if not min_time or t < min_time then min_time = t end
+            if not max_time or t > max_time then max_time = t end
+        end
+    end
+
+    -- If no non-randomized images, use current year as range
+    if not min_time then
+        local now = os.time()
+        min_time = now - 365 * 24 * 60 * 60  -- One year ago
+        max_time = now
+    end
+
+    local range = max_time - min_time
+    if range <= 0 then range = 1 end  -- Prevent division by zero
+
+    -- Group images by source for seeded randomization
+    local source_rngs = {}
+    local randomized_count = 0
+
+    for _, image in ipairs(all_images) do
+        if image.source_randomize then
+            -- Get or create RNG for this source
+            local source_name = image.source_name or "default"
+            if not source_rngs[source_name] then
+                if image.source_random_seed then
+                    source_rngs[source_name] = create_seeded_rng(image.source_random_seed)
+                else
+                    -- Use system random (non-deterministic)
+                    source_rngs[source_name] = math.random
+                end
+            end
+
+            local rng = source_rngs[source_name]
+            local random_offset = rng() * range
+            image.modification_time = math.floor(min_time + random_offset)
+            image.modification_date = os.date("%Y-%m-%dT%H:%M:%SZ", image.modification_time)
+            image.randomized = true  -- Mark as randomized for debugging
+            randomized_count = randomized_count + 1
+        end
+    end
+
+    return randomized_count
+end
+-- }}}
+
 -- {{{ function M.discover_images
 function M.discover_images()
     print("🖼️  Starting image discovery...")
-    
+
     local config = load_config()
     if not config.enabled then
         print("❌ Image integration disabled in configuration")
         return {}
     end
-    
+
     local all_images = {}
-    
-    for _, directory in ipairs(config.image_directories) do
-        local full_path = DIR .. "/" .. directory
-        local directory_images = scan_directory_for_images(full_path, config)
-        
+
+    -- Issue 10-030: Now iterates over directory objects (not just paths)
+    for _, dir_config in ipairs(config.image_directories) do
+        local full_path = DIR .. "/" .. dir_config.path
+        local directory_images = scan_directory_for_images(full_path, config, dir_config)
+
         -- Add directory images to main collection
         for _, image in ipairs(directory_images) do
             table.insert(all_images, image)
         end
     end
-    
+
+    -- Issue 10-030: Apply randomization before sorting
+    local randomized_count = apply_randomization(all_images)
+    if randomized_count > 0 then
+        print(string.format("🎲 Randomized timestamps for %d images", randomized_count))
+    end
+
     -- Sort by modification time (newest first)
     table.sort(all_images, function(a, b)
         return a.modification_time > b.modification_time
     end)
-    
+
     print(string.format("✅ Image discovery complete: %d images found", #all_images))
     return all_images
 end
