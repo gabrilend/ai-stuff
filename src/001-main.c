@@ -17,6 +17,7 @@
 #include "012-adversary.h"
 #include "014-stage.h"
 #include "018-expansion-anim.h"
+#include "024-editor.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -258,6 +259,22 @@ int main(void) {
     expansion_animation_init(&expansion_anim);
     printf("Expansion animation initialized\n");
 
+    // Create editor for board design
+    EditorState* editor = editor_create(world);
+    if (!editor) {
+        fprintf(stderr, "ERROR: Failed to create editor\n");
+        adversary_destroy(adversary);
+        upgrade_manager_destroy(upgrade_manager);
+        particle_system_destroy(particle_system);
+        ball_manager_destroy(ball_manager);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    editor_update_screen_size(editor, screen_width, screen_height);
+    printf("Editor created\n");
+
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
     float world_height = (float)world_height_pixels;  // Larger than screen enables scrolling
@@ -356,14 +373,29 @@ int main(void) {
         if (spawn_x < spawn_min_x) spawn_x = spawn_min_x;
         if (spawn_x > spawn_max_x) spawn_x = spawn_max_x;
 
-        // Handle auto-spawn toggle (A key) - only when menu is closed
-        if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open) {
+        // Handle auto-spawn toggle (A key) - only when menu is closed and editor inactive
+        if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open && !editor_is_active(editor)) {
             auto_spawn = !auto_spawn;
             printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
         }
 
+        // Handle editor toggle (E key) - only when menu is closed
+        if (IsKeyPressed(KEY_E) && !upgrade_manager->menu_open) {
+            editor_toggle(editor);
+        }
+
+        // Handle editor input when active
+        if (editor_is_active(editor)) {
+            editor_handle_input(editor, camera);
+            editor_update_notification(editor, GetFrameTime());
+        }
+
         // Handle upgrade menu input (returns 1 if ESC was consumed)
-        int esc_consumed = upgrade_manager_handle_input(upgrade_manager, &world->score);
+        // Only process when editor is not active
+        int esc_consumed = 0;
+        if (!editor_is_active(editor)) {
+            esc_consumed = upgrade_manager_handle_input(upgrade_manager, &world->score);
+        }
 
         // Handle quit: Q always quits, ESC quits only if not consumed by menu
         if (IsKeyPressed(KEY_Q)) {
@@ -435,6 +467,10 @@ int main(void) {
             camera.target = (Vector2){ (float)screen_width / 2.0f,
                                        (float)screen_height / 2.0f + viewport_offset_y };
 
+            // Update editor grid and screen size
+            editor_update_screen_size(editor, screen_width, screen_height);
+            editor_setup_grid(editor, world);
+
             printf("Window resized: %dx%d, table_x=%.0f, peg_rows=%d\n",
                    screen_width, screen_height, world->table_x, new_peg_rows);
         }
@@ -493,10 +529,10 @@ int main(void) {
             // Physics resumes automatically (physics_paused flag cleared)
         }
 
-        // Skip physics update when expansion animation is active
-        // Balls freeze in place during animation for visual clarity
+        // Skip physics update when expansion animation is active or editor is open
+        // Balls freeze in place during animation/editing for visual clarity
         double physics_ms = 0.0;  // Initialize before potential skip
-        if (expansion_anim.physics_paused) {
+        if (expansion_anim.physics_paused || editor_is_active(editor)) {
             // Still need to render, but skip physics
             goto skip_physics;
         }
@@ -586,8 +622,8 @@ int main(void) {
         // Spawn blocking prevents physics issues when balls overlap at spawn
         // Auto-spawn acts like SPACE is held down
         // Uses movable spawn_x position, fixed spawn_y height
-        // Spawning paused while upgrade menu is open
-        if (!upgrade_manager->menu_open &&
+        // Spawning paused while upgrade menu is open or editor is active
+        if (!upgrade_manager->menu_open && !editor_is_active(editor) &&
             (IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
             !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
             // Calculate ball radius with upgrade modifier
@@ -652,6 +688,12 @@ int main(void) {
         // Draw particles (after balls, before UI)
         particle_system_render(particle_system);
 
+        // Draw editor elements in world space (grid, cursor)
+        if (editor_is_active(editor)) {
+            editor_render_grid(editor);
+            editor_render_cursor(editor);
+        }
+
         // End camera mode - UI elements below are screen-fixed
         EndMode2D();
 
@@ -704,9 +746,16 @@ int main(void) {
             DrawText("[MOUSE AIM]", screen_width - 100, 179, 12, SKYBLUE);
         }
 
-        // Draw upgrade menu overlay (if open)
-        upgrade_manager_render(upgrade_manager, world->score,
-                              screen_width, screen_height);
+        // Draw editor UI overlay (if active)
+        if (editor_is_active(editor)) {
+            editor_render_ui(editor);
+        }
+
+        // Draw upgrade menu overlay (if open, only when editor is inactive)
+        if (!editor_is_active(editor)) {
+            upgrade_manager_render(upgrade_manager, world->score,
+                                  screen_width, screen_height);
+        }
 
         EndDrawing();
     }
@@ -718,6 +767,9 @@ int main(void) {
 
     adversary_destroy(adversary);
     printf("Adversary destroyed\n");
+
+    editor_destroy(editor);
+    printf("Editor destroyed\n");
 
     upgrade_manager_destroy(upgrade_manager);
     printf("Upgrade manager destroyed\n");

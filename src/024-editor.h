@@ -110,6 +110,14 @@ typedef struct EditorState {
 
     // Line tool state (for multi-click line placement)
     LineToolData line_tool;
+
+    // Save state
+    char current_filename[256];  // Currently loaded/saved file path
+    int has_filename;            // 1 if file has been saved before
+
+    // Notification message
+    char notification_text[64];
+    float notification_timer;    // Seconds remaining to show
 } EditorState;
 // }}}
 
@@ -234,6 +242,28 @@ void editor_sync_to_world(EditorState* editor);
 // Checks if mouse position is over editor UI (palette, etc.)
 // Returns 1 if over UI, 0 otherwise.
 int editor_is_over_ui(EditorState* editor);
+// }}}
+
+// =============================================================================
+// Save/Load Operations
+// =============================================================================
+
+// {{{ editor_save_board
+// Saves the current board to file.
+// Uses current_filename if set, otherwise saves to default location.
+// Returns 1 on success, 0 on failure.
+int editor_save_board(EditorState* editor);
+// }}}
+
+// {{{ editor_show_notification
+// Shows a temporary notification message.
+// Duration is in seconds.
+void editor_show_notification(EditorState* editor, const char* text, float duration);
+// }}}
+
+// {{{ editor_update_notification
+// Updates notification timer. Call each frame with delta time.
+void editor_update_notification(EditorState* editor, float dt);
 // }}}
 
 #endif // EDITOR_H

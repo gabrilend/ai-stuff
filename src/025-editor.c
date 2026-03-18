@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 // =============================================================================
 // Visual Constants
@@ -110,6 +111,12 @@ EditorState* editor_create(struct World* world) {
     editor->line_tool.thickness = 10.0f;
     editor->line_tool.min_thickness = 6.0f;
     editor->line_tool.max_thickness = 40.0f;
+
+    // Initialize save state
+    editor->current_filename[0] = '\0';
+    editor->has_filename = 0;
+    editor->notification_text[0] = '\0';
+    editor->notification_timer = 0.0f;
 
     // Setup grid based on world if provided
     if (world) {
@@ -215,6 +222,11 @@ void editor_handle_input(EditorState* editor, Camera2D camera) {
                 editor_sync_to_world(editor);
             }
         }
+    }
+
+    // Ctrl+S to save board
+    if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+        editor_save_board(editor);
     }
 
     // Handle palette clicks (consumes click if on palette)
@@ -445,7 +457,7 @@ void editor_render_ui(EditorState* editor) {
     DrawText(selected_text, sel_x, HELP_TEXT_Y, HELP_TEXT_FONT_SIZE, WHITE);
 
     // Draw help text at bottom
-    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | Click=Place/Erase";
+    const char* help_text = "E=Exit | TAB=Mode | G=Grid | DEL=Remove | Ctrl+S=Save";
     int help_width = MeasureText(help_text, HELP_TEXT_FONT_SIZE);
     int help_x = (editor->screen_width - help_width) / 2;
     int help_y = editor->screen_height - HELP_TEXT_FONT_SIZE - 10;
@@ -471,6 +483,26 @@ void editor_render_ui(EditorState* editor) {
 
     // Draw line tool status
     line_tool_render_ui(editor);
+
+    // Draw unsaved changes indicator
+    if (editor->board_modified && editor->board_data) {
+        const char* mod_text = "* Unsaved changes";
+        DrawText(mod_text, PALETTE_X, PALETTE_Y - 20, 12, YELLOW);
+    }
+
+    // Draw notification message
+    if (editor->notification_timer > 0) {
+        int notif_width = MeasureText(editor->notification_text, 16);
+        int notif_x = (editor->screen_width - notif_width) / 2;
+        int notif_y = editor->screen_height / 2 - 50;
+
+        // Background box
+        DrawRectangle(notif_x - 15, notif_y - 10,
+                      notif_width + 30, 36, (Color){20, 60, 20, 220});
+        DrawRectangleLines(notif_x - 15, notif_y - 10,
+                           notif_width + 30, 36, GREEN);
+        DrawText(editor->notification_text, notif_x, notif_y, 16, GREEN);
+    }
 }
 // }}}
 
@@ -1020,5 +1052,66 @@ void editor_sync_to_world(EditorState* editor) {
 
     editor->board_modified = 0;
     printf("Synced board changes to world\n");
+}
+// }}}
+
+// =============================================================================
+// Save/Load Operations
+// =============================================================================
+
+// {{{ editor_show_notification
+void editor_show_notification(EditorState* editor, const char* text, float duration) {
+    if (!editor || !text) return;
+    strncpy(editor->notification_text, text, sizeof(editor->notification_text) - 1);
+    editor->notification_text[sizeof(editor->notification_text) - 1] = '\0';
+    editor->notification_timer = duration;
+}
+// }}}
+
+// {{{ editor_update_notification
+void editor_update_notification(EditorState* editor, float dt) {
+    if (!editor) return;
+    if (editor->notification_timer > 0) {
+        editor->notification_timer -= dt;
+    }
+}
+// }}}
+
+// {{{ editor_save_board
+int editor_save_board(EditorState* editor) {
+    if (!editor) return 0;
+
+    // Create board data if it doesn't exist
+    if (!editor->board_data) {
+        editor_show_notification(editor, "Nothing to save", 2.0f);
+        return 0;
+    }
+
+    // Use current filename if set, otherwise use default
+    const char* filename;
+    if (editor->has_filename && editor->current_filename[0] != '\0') {
+        filename = editor->current_filename;
+    } else {
+        // Generate default filename
+        snprintf(editor->current_filename, sizeof(editor->current_filename),
+                 "boards/editor-board.json");
+        filename = editor->current_filename;
+        editor->has_filename = 1;
+    }
+
+    // Save to file
+    int success = board_data_save_json(editor->board_data, filename);
+    if (success) {
+        editor->board_modified = 0;
+        char msg[80];
+        snprintf(msg, sizeof(msg), "Saved: %s", filename);
+        editor_show_notification(editor, msg, 3.0f);
+        printf("Board saved to: %s\n", filename);
+    } else {
+        editor_show_notification(editor, "Save failed!", 3.0f);
+        fprintf(stderr, "ERROR: Failed to save board to %s\n", filename);
+    }
+
+    return success;
 }
 // }}}
