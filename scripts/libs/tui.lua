@@ -222,6 +222,14 @@ end
 local tty_out = io.open("/dev/tty", "w")
 local tty_in = io.open("/dev/tty", "r")
 
+-- Issue 10-008: Disable buffering on tty_in to fix arrow key single-tap issue
+-- Without this, Lua's buffered I/O can read multiple bytes into its buffer,
+-- causing select() to report no data available when bytes are actually buffered.
+-- This made escape sequences (arrow keys) fail on single taps but work on holds.
+if tty_in then
+    tty_in:setvbuf("no")
+end
+
 local function write_raw(s)
     if tty_out then
         tty_out:write(s)
