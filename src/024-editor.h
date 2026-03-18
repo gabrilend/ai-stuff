@@ -141,6 +141,24 @@ typedef struct EditorState {
     // Property editor state
     int selected_object_index;      // Index of selected object (-1 if none)
     int show_property_panel;        // 1 if property panel is visible
+
+    // Overlay mode state
+    int is_overlay_open;            // 1 if overlay panel is visible
+    BoardData* edit_board;          // Board being edited (separate from game)
+
+    // Overlay panel bounds (calculated each frame)
+    float panel_x, panel_y;         // Panel position
+    float panel_width, panel_height; // Panel size
+    float canvas_x, canvas_y;       // Canvas area within panel (below toolbar)
+    float canvas_width, canvas_height;
+
+    // Overlay grid (separate from world grid)
+    Grid overlay_grid;
+
+    // Overlay hover state
+    int overlay_hover_col;
+    int overlay_hover_row;
+    int overlay_hover_valid;
 } EditorState;
 // }}}
 
@@ -304,6 +322,27 @@ void editor_open_load_dialog(EditorState* editor);
 // {{{ editor_close_load_dialog
 // Closes the load dialog and frees the file list.
 void editor_close_load_dialog(EditorState* editor);
+// }}}
+
+// =============================================================================
+// Overlay Mode
+// =============================================================================
+
+// {{{ editor_is_overlay_open
+// Returns 1 if the editor overlay is open, 0 otherwise.
+int editor_is_overlay_open(EditorState* editor);
+// }}}
+
+// {{{ editor_render_overlay
+// Renders the editor overlay panel on top of the game.
+// Should be called after all game rendering is complete.
+void editor_render_overlay(EditorState* editor);
+// }}}
+
+// {{{ editor_handle_overlay_input
+// Handles input when overlay is open.
+// Returns 1 if input was consumed, 0 otherwise.
+int editor_handle_overlay_input(EditorState* editor);
 // }}}
 
 #endif // EDITOR_H

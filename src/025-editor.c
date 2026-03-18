@@ -154,6 +154,22 @@ EditorState* editor_create(struct World* world) {
     editor->selected_object_index = -1;  // No object selected
     editor->show_property_panel = 0;
 
+    // Initialize overlay state
+    editor->is_overlay_open = 0;
+    editor->edit_board = NULL;
+    editor->panel_x = 0;
+    editor->panel_y = 0;
+    editor->panel_width = 0;
+    editor->panel_height = 0;
+    editor->canvas_x = 0;
+    editor->canvas_y = 0;
+    editor->canvas_width = 0;
+    editor->canvas_height = 0;
+    editor->overlay_grid = grid_create_default();
+    editor->overlay_hover_col = 0;
+    editor->overlay_hover_row = 0;
+    editor->overlay_hover_valid = 0;
+
     // Setup grid based on world if provided
     if (world) {
         editor_setup_grid(editor, world);
@@ -172,6 +188,11 @@ void editor_destroy(EditorState* editor) {
         board_file_list_destroy(editor->available_boards);
     }
 
+    // Free overlay edit board if present
+    if (editor->edit_board) {
+        board_data_destroy(editor->edit_board);
+    }
+
     // Board data is not owned by editor, don't free it
     free(editor);
 }
@@ -185,17 +206,54 @@ void editor_destroy(EditorState* editor) {
 void editor_toggle(EditorState* editor) {
     if (!editor) return;
 
-    if (editor->mode == EDITOR_MODE_DISABLED) {
-        // Enter editor mode
+    if (!editor->is_overlay_open) {
+        // Open editor overlay with fresh board
+        editor->is_overlay_open = 1;
         editor->mode = EDITOR_MODE_PLACE;
         editor->show_grid = 1;
-        printf("Editor mode enabled (PLACE)\n");
+
+        // Create fresh board data for editing
+        if (editor->edit_board) {
+            board_data_destroy(editor->edit_board);
+        }
+        editor->edit_board = board_data_create(12, 20, 60);  // cols, rows, cell_size
+
+        // Reset overlay grid to match edit board
+        editor->overlay_grid.cell_size = 60.0f;
+        editor->overlay_grid.origin_x = 0;
+        editor->overlay_grid.origin_y = 0;
+        editor->overlay_grid.cols = 12;
+        editor->overlay_grid.rows = 20;
+
+        // Clear overlay hover state
+        editor->overlay_hover_col = 0;
+        editor->overlay_hover_row = 0;
+        editor->overlay_hover_valid = 0;
+
+        // Reset line tool state
+        editor->line_tool.state = LINE_TOOL_IDLE;
+
+        // Clear filename for new board
+        editor->current_filename[0] = '\0';
+        editor->has_filename = 0;
+        editor->board_modified = 0;
+
+        // Clear property panel
+        editor->selected_object_index = -1;
+        editor->show_property_panel = 0;
+
+        printf("Editor overlay opened (new board)\n");
     } else {
-        // Exit editor mode
+        // Close editor overlay
+        editor->is_overlay_open = 0;
         editor->mode = EDITOR_MODE_DISABLED;
         editor->show_grid = 0;
-        editor->hover_valid = 0;
-        printf("Editor mode disabled\n");
+        editor->overlay_hover_valid = 0;
+
+        // Note: Don't destroy edit_board here - keep it for potential reopening
+        // It will be destroyed when editor is destroyed or when opening again
+
+        printf("Editor overlay closed\n");
     }
 }
 // }}}
@@ -1801,5 +1859,697 @@ static int editor_handle_property_panel_input(EditorState* editor) {
     }
 
     return 1;  // Over panel, consumed
+}
+// }}}
+
+// =============================================================================
+// Overlay Mode Functions
+// =============================================================================
+
+// Overlay visual constants
+#define OVERLAY_MARGIN 40
+#define OVERLAY_TOOLBAR_HEIGHT 50
+#define OVERLAY_FOOTER_HEIGHT 40
+#define OVERLAY_BG_COLOR (Color){35, 35, 45, 255}
+#define OVERLAY_BORDER_COLOR (Color){80, 80, 100, 255}
+#define OVERLAY_GRID_BG_COLOR (Color){25, 25, 35, 255}
+#define OVERLAY_BUTTON_COLOR (Color){60, 60, 80, 255}
+#define OVERLAY_BUTTON_HOVER_COLOR (Color){80, 80, 110, 255}
+#define OVERLAY_BUTTON_WIDTH 80
+#define OVERLAY_BUTTON_HEIGHT 30
+
+// {{{ editor_is_overlay_open
+int editor_is_overlay_open(EditorState* editor) {
+    if (!editor) return 0;
+    return editor->is_overlay_open;
+}
+// }}}
+
+// {{{ overlay_draw_button
+// Draws a button and returns 1 if clicked
+static int overlay_draw_button(float x, float y, float w, float h, const char* text) {
+    Vector2 mouse = GetMousePosition();
+    Rectangle rect = { x, y, w, h };
+    int hover = CheckCollisionPointRec(mouse, rect);
+    int clicked = hover && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+    Color bg = hover ? OVERLAY_BUTTON_HOVER_COLOR : OVERLAY_BUTTON_COLOR;
+    DrawRectangleRec(rect, bg);
+    DrawRectangleLinesEx(rect, 1, OVERLAY_BORDER_COLOR);
+
+    int text_width = MeasureText(text, 16);
+    DrawText(text, x + (w - text_width) / 2, y + (h - 16) / 2, 16, WHITE);
+
+    return clicked;
+}
+// }}}
+
+// {{{ overlay_calculate_bounds
+// Calculates panel and canvas bounds based on screen size
+static void overlay_calculate_bounds(EditorState* editor) {
+    // Panel fills most of screen with margin
+    editor->panel_x = OVERLAY_MARGIN;
+    editor->panel_y = OVERLAY_MARGIN;
+    editor->panel_width = editor->screen_width - OVERLAY_MARGIN * 2;
+    editor->panel_height = editor->screen_height - OVERLAY_MARGIN * 2;
+
+    // Canvas is the grid area (between toolbar and footer)
+    editor->canvas_x = editor->panel_x + 10;
+    editor->canvas_y = editor->panel_y + OVERLAY_TOOLBAR_HEIGHT;
+    editor->canvas_width = editor->panel_width - 20;
+    editor->canvas_height = editor->panel_height - OVERLAY_TOOLBAR_HEIGHT - OVERLAY_FOOTER_HEIGHT;
+
+    // Update overlay grid origin to canvas position
+    editor->overlay_grid.origin_x = editor->canvas_x;
+    editor->overlay_grid.origin_y = editor->canvas_y;
+}
+// }}}
+
+// {{{ overlay_screen_to_canvas
+// Converts screen coordinates to canvas-relative coordinates
+static Vector2 overlay_screen_to_canvas(EditorState* editor, Vector2 screen_pos) {
+    return (Vector2){
+        screen_pos.x - editor->canvas_x,
+        screen_pos.y - editor->canvas_y
+    };
+}
+// }}}
+
+// {{{ overlay_is_mouse_in_canvas
+static int overlay_is_mouse_in_canvas(EditorState* editor) {
+    Vector2 mouse = GetMousePosition();
+    return mouse.x >= editor->canvas_x &&
+           mouse.x < editor->canvas_x + editor->canvas_width &&
+           mouse.y >= editor->canvas_y &&
+           mouse.y < editor->canvas_y + editor->canvas_height;
+}
+// }}}
+
+// {{{ overlay_render_grid
+// Renders the grid within the canvas area
+static void overlay_render_grid(EditorState* editor) {
+    if (!editor || !editor->show_grid) return;
+
+    Grid* g = &editor->overlay_grid;
+    float cell = g->cell_size;
+
+    // Calculate visible grid bounds within canvas
+    int visible_cols = (int)(editor->canvas_width / cell) + 1;
+    int visible_rows = (int)(editor->canvas_height / cell) + 1;
+    if (visible_cols > g->cols) visible_cols = g->cols;
+    if (visible_rows > g->rows) visible_rows = g->rows;
+
+    // Draw minor grid lines
+    Color minor_color = (Color){60, 60, 70, 255};
+    for (int c = 0; c <= visible_cols; c++) {
+        float x = editor->canvas_x + c * cell;
+        DrawLineV((Vector2){x, editor->canvas_y},
+                  (Vector2){x, editor->canvas_y + visible_rows * cell},
+                  minor_color);
+    }
+    for (int r = 0; r <= visible_rows; r++) {
+        float y = editor->canvas_y + r * cell;
+        DrawLineV((Vector2){editor->canvas_x, y},
+                  (Vector2){editor->canvas_x + visible_cols * cell, y},
+                  minor_color);
+    }
+
+    // Draw major grid lines (every 5 cells)
+    Color major_color = (Color){90, 90, 110, 255};
+    for (int c = 0; c <= visible_cols; c += 5) {
+        float x = editor->canvas_x + c * cell;
+        DrawLineEx((Vector2){x, editor->canvas_y},
+                   (Vector2){x, editor->canvas_y + visible_rows * cell},
+                   2.0f, major_color);
+    }
+    for (int r = 0; r <= visible_rows; r += 5) {
+        float y = editor->canvas_y + r * cell;
+        DrawLineEx((Vector2){editor->canvas_x, y},
+                   (Vector2){editor->canvas_x + visible_cols * cell, y},
+                   2.0f, major_color);
+    }
+}
+// }}}
+
+// {{{ overlay_render_objects
+// Renders all objects in the edit board
+static void overlay_render_objects(EditorState* editor) {
+    if (!editor || !editor->edit_board) return;
+
+    BoardData* board = editor->edit_board;
+    Grid* g = &editor->overlay_grid;
+
+    for (int i = 0; i < board->object_count; i++) {
+        BoardObject* obj = &board->objects[i];
+
+        // Convert grid coords to canvas pixel coords
+        float px = editor->canvas_x + (obj->col + 0.5f) * g->cell_size;
+        float py = editor->canvas_y + (obj->row + 0.5f) * g->cell_size;
+
+        // Draw based on object type
+        if (obj->type == OBJECT_PEG) {
+            // Draw peg as circle with RGB color
+            Color peg_color = (Color){obj->restitution, obj->friction, obj->point_bonus, 255};
+            DrawCircle((int)px, (int)py, 12.0f, peg_color);
+            DrawCircleLines((int)px, (int)py, 12.0f, WHITE);
+
+            // Highlight selected object
+            if (editor->show_property_panel && i == editor->selected_object_index) {
+                float pulse = sinf(GetTime() * 4.0f) * 0.5f + 0.5f;
+                Color select_color = (Color){255, 255, 100, (unsigned char)(100 + pulse * 100)};
+                DrawCircleLines((int)px, (int)py, 16.0f, select_color);
+            }
+        } else if (obj->type == OBJECT_LINE) {
+            // Draw line from start to end
+            float x1 = editor->canvas_x + (obj->col + 0.5f) * g->cell_size;
+            float y1 = editor->canvas_y + (obj->row + 0.5f) * g->cell_size;
+            float x2 = editor->canvas_x + (obj->end_col + 0.5f) * g->cell_size;
+            float y2 = editor->canvas_y + (obj->end_row + 0.5f) * g->cell_size;
+
+            Color line_color = (Color){obj->restitution, obj->friction, obj->point_bonus, 255};
+            DrawLineEx((Vector2){x1, y1}, (Vector2){x2, y2}, obj->thickness, line_color);
+
+            // Draw endpoint circles
+            DrawCircle((int)x1, (int)y1, obj->thickness / 2, line_color);
+            DrawCircle((int)x2, (int)y2, obj->thickness / 2, line_color);
+        }
+    }
+
+    // Render portal zones
+    for (int i = 0; i < board->zone_count; i++) {
+        BoardZone* zone = &board->zones[i];
+        if (zone->type == ZONE_PORTAL) {
+            float px = editor->canvas_x + (zone->col + 0.5f) * g->cell_size;
+            float py = editor->canvas_y + (zone->row + 0.5f) * g->cell_size;
+            // Calculate radius from zone size (assume square, use half of width)
+            float radius = (zone->width * g->cell_size) / 2.0f;
+            if (radius < 15.0f) radius = 15.0f;  // Minimum visible size
+
+            Color zone_color = (zone->direction == PORTAL_ENTRY)
+                ? (Color){50, 100, 255, 150}
+                : (Color){255, 150, 50, 150};
+
+            DrawCircle((int)px, (int)py, radius, zone_color);
+            DrawCircleLines((int)px, (int)py, radius, WHITE);
+
+            // Draw channel number
+            char ch_text[8];
+            snprintf(ch_text, sizeof(ch_text), "%d", zone->channel);
+            int text_w = MeasureText(ch_text, 14);
+            DrawText(ch_text, (int)(px - text_w/2), (int)(py - 7), 14, WHITE);
+        }
+    }
+}
+// }}}
+
+// {{{ overlay_render_cursor
+// Renders cursor preview at hover position in overlay
+static void overlay_render_cursor(EditorState* editor) {
+    if (!editor || !editor->overlay_hover_valid) return;
+    if (editor->mode == EDITOR_MODE_DISABLED) return;
+
+    Grid* g = &editor->overlay_grid;
+    float px = editor->canvas_x + (editor->overlay_hover_col + 0.5f) * g->cell_size;
+    float py = editor->canvas_y + (editor->overlay_hover_row + 0.5f) * g->cell_size;
+
+    if (editor->mode == EDITOR_MODE_PLACE) {
+        // Show preview of object to place
+        if (editor->tool_type == EDITOR_TOOL_OBJECT) {
+            if (editor->selected_object_type == OBJECT_PEG) {
+                DrawCircle((int)px, (int)py, 12.0f, CURSOR_VALID_COLOR);
+                DrawCircleLines((int)px, (int)py, 12.0f, WHITE);
+            } else if (editor->selected_object_type == OBJECT_LINE) {
+                // Line tool preview
+                if (editor->line_tool.state == LINE_TOOL_IDLE) {
+                    DrawCircle((int)px, (int)py, 6.0f, CURSOR_VALID_COLOR);
+                } else if (editor->line_tool.state == LINE_TOOL_PLACING_END) {
+                    // Draw line from start to current position
+                    float sx = editor->canvas_x + (editor->line_tool.start_col + 0.5f) * g->cell_size;
+                    float sy = editor->canvas_y + (editor->line_tool.start_row + 0.5f) * g->cell_size;
+                    DrawLineEx((Vector2){sx, sy}, (Vector2){px, py},
+                               editor->line_tool.thickness, CURSOR_VALID_COLOR);
+                    DrawCircle((int)sx, (int)sy, editor->line_tool.thickness / 2, CURSOR_VALID_COLOR);
+                    DrawCircle((int)px, (int)py, editor->line_tool.thickness / 2, CURSOR_VALID_COLOR);
+                }
+            }
+        } else if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+            Color zone_color = (editor->portal_direction == PORTAL_ENTRY)
+                ? (Color){50, 100, 255, 150}
+                : (Color){255, 150, 50, 150};
+            DrawCircle((int)px, (int)py, 25.0f, zone_color);
+            DrawCircleLines((int)px, (int)py, 25.0f, WHITE);
+        }
+    } else if (editor->mode == EDITOR_MODE_ERASE) {
+        // Show erase cursor (X mark)
+        float size = 10.0f;
+        DrawLineEx((Vector2){px - size, py - size}, (Vector2){px + size, py + size},
+                   3.0f, CURSOR_ERASE_COLOR);
+        DrawLineEx((Vector2){px - size, py + size}, (Vector2){px + size, py - size},
+                   3.0f, CURSOR_ERASE_COLOR);
+    }
+
+    // Draw grid coordinates near cursor
+    char coord_text[32];
+    snprintf(coord_text, sizeof(coord_text), "(%d, %d)",
+             editor->overlay_hover_col, editor->overlay_hover_row);
+    DrawText(coord_text, (int)px + 15, (int)py - 20, 12, (Color){200, 200, 200, 200});
+}
+// }}}
+
+// {{{ overlay_render_toolbar
+// Renders the toolbar at top of overlay
+static void overlay_render_toolbar(EditorState* editor) {
+    float toolbar_y = editor->panel_y + 5;
+
+    // Title
+    DrawText("BOARD EDITOR", (int)(editor->panel_x + 15), (int)(toolbar_y + 8), 24, WHITE);
+
+    // Mode indicator
+    const char* mode_text = (editor->mode == EDITOR_MODE_PLACE) ? "[PLACE]" : "[ERASE]";
+    Color mode_color = (editor->mode == EDITOR_MODE_PLACE) ? GREEN : RED;
+    DrawText(mode_text, (int)(editor->panel_x + 200), (int)(toolbar_y + 12), 16, mode_color);
+
+    // Selected tool
+    const char* tool_text = "";
+    if (editor->tool_type == EDITOR_TOOL_OBJECT) {
+        tool_text = (editor->selected_object_type == OBJECT_PEG) ? "Peg" : "Line";
+    } else {
+        tool_text = (editor->portal_direction == PORTAL_ENTRY) ? "Portal In" : "Portal Out";
+    }
+    DrawText(tool_text, (int)(editor->panel_x + 280), (int)(toolbar_y + 12), 16, LIGHTGRAY);
+
+    // Help text
+    DrawText("1=Peg 2=Line 3=Portal-In 4=Portal-Out  TAB=Mode  G=Grid",
+             (int)(editor->panel_x + 380), (int)(toolbar_y + 12), 12, (Color){150, 150, 150, 255});
+}
+// }}}
+
+// {{{ overlay_render_footer
+// Renders the footer with buttons
+static void overlay_render_footer(EditorState* editor) {
+    float footer_y = editor->panel_y + editor->panel_height - OVERLAY_FOOTER_HEIGHT + 5;
+    float btn_y = footer_y + 5;
+
+    // Left side: file info
+    if (editor->has_filename) {
+        DrawText(editor->current_filename, (int)(editor->panel_x + 15), (int)(footer_y + 10), 14, LIGHTGRAY);
+    } else {
+        DrawText("(unsaved)", (int)(editor->panel_x + 15), (int)(footer_y + 10), 14, (Color){150, 150, 150, 255});
+    }
+
+    // Modified indicator
+    if (editor->board_modified) {
+        DrawText("*", (int)(editor->panel_x + 15 + MeasureText(editor->has_filename ? editor->current_filename : "(unsaved)", 14) + 5),
+                 (int)(footer_y + 10), 14, YELLOW);
+    }
+
+    // Right side: buttons
+    float btn_x = editor->panel_x + editor->panel_width - OVERLAY_BUTTON_WIDTH - 15;
+
+    if (overlay_draw_button(btn_x, btn_y, OVERLAY_BUTTON_WIDTH, OVERLAY_BUTTON_HEIGHT, "Close")) {
+        editor_toggle(editor);  // Close overlay
+    }
+
+    btn_x -= OVERLAY_BUTTON_WIDTH + 10;
+    if (overlay_draw_button(btn_x, btn_y, OVERLAY_BUTTON_WIDTH, OVERLAY_BUTTON_HEIGHT, "Save")) {
+        // Save using edit_board instead of board_data
+        BoardData* old_board = editor->board_data;
+        editor->board_data = editor->edit_board;
+        editor_save_board(editor);
+        editor->board_data = old_board;
+    }
+
+    btn_x -= OVERLAY_BUTTON_WIDTH + 10;
+    if (overlay_draw_button(btn_x, btn_y, OVERLAY_BUTTON_WIDTH, OVERLAY_BUTTON_HEIGHT, "Load")) {
+        // Swap board_data temporarily for load dialog
+        BoardData* old_board = editor->board_data;
+        editor->board_data = editor->edit_board;
+        editor_open_load_dialog(editor);
+        editor->board_data = old_board;
+    }
+
+    btn_x -= OVERLAY_BUTTON_WIDTH + 10;
+    if (overlay_draw_button(btn_x, btn_y, OVERLAY_BUTTON_WIDTH, OVERLAY_BUTTON_HEIGHT, "New")) {
+        // Clear current board
+        if (editor->edit_board) {
+            board_data_destroy(editor->edit_board);
+        }
+        editor->edit_board = board_data_create(12, 20, 60);  // cols, rows, cell_size
+        editor->current_filename[0] = '\0';
+        editor->has_filename = 0;
+        editor->board_modified = 0;
+        editor->selected_object_index = -1;
+        editor->show_property_panel = 0;
+        editor_show_notification(editor, "New board created", 2.0f);
+    }
+
+    // Notification message
+    if (editor->notification_timer > 0) {
+        DrawText(editor->notification_text, (int)(editor->panel_x + 250), (int)(footer_y + 10), 14, GREEN);
+    }
+}
+// }}}
+
+// {{{ editor_render_overlay
+void editor_render_overlay(EditorState* editor) {
+    if (!editor || !editor->is_overlay_open) return;
+
+    // Calculate panel bounds each frame (in case of resize)
+    overlay_calculate_bounds(editor);
+
+    // Dim the background
+    DrawRectangle(0, 0, editor->screen_width, editor->screen_height, (Color){0, 0, 0, 180});
+
+    // Draw panel background
+    DrawRectangle((int)editor->panel_x, (int)editor->panel_y,
+                  (int)editor->panel_width, (int)editor->panel_height,
+                  OVERLAY_BG_COLOR);
+    DrawRectangleLinesEx((Rectangle){editor->panel_x, editor->panel_y,
+                                     editor->panel_width, editor->panel_height},
+                         2, OVERLAY_BORDER_COLOR);
+
+    // Draw canvas background
+    DrawRectangle((int)editor->canvas_x, (int)editor->canvas_y,
+                  (int)editor->canvas_width, (int)editor->canvas_height,
+                  OVERLAY_GRID_BG_COLOR);
+
+    // Clip to canvas area for grid and objects
+    BeginScissorMode((int)editor->canvas_x, (int)editor->canvas_y,
+                     (int)editor->canvas_width, (int)editor->canvas_height);
+
+    overlay_render_grid(editor);
+    overlay_render_objects(editor);
+    overlay_render_cursor(editor);
+
+    EndScissorMode();
+
+    // Render UI elements outside scissor
+    overlay_render_toolbar(editor);
+    overlay_render_footer(editor);
+
+    // Render load dialog if open
+    if (editor->show_load_dialog) {
+        // Temporarily swap board_data for the render function
+        BoardData* old_board = editor->board_data;
+        editor->board_data = editor->edit_board;
+        editor_render_load_dialog(editor);
+        editor->board_data = old_board;
+    }
+
+    // Render property panel if open
+    if (editor->show_property_panel && editor->selected_object_index >= 0) {
+        // Temporarily swap board_data for the render function
+        BoardData* old_board = editor->board_data;
+        editor->board_data = editor->edit_board;
+        editor_render_property_panel(editor);
+        editor->board_data = old_board;
+    }
+}
+// }}}
+
+// {{{ overlay_handle_placement
+// Handles object placement in overlay mode
+static int overlay_handle_placement(EditorState* editor) {
+    if (!editor || !editor->edit_board || !editor->overlay_hover_valid) return 0;
+    if (editor->mode != EDITOR_MODE_PLACE) return 0;
+
+    BoardData* board = editor->edit_board;
+
+    if (editor->tool_type == EDITOR_TOOL_OBJECT) {
+        if (editor->selected_object_type == OBJECT_PEG) {
+            // Check for existing object at position
+            for (int i = 0; i < board->object_count; i++) {
+                if (board->objects[i].col == editor->overlay_hover_col &&
+                    board->objects[i].row == editor->overlay_hover_row) {
+                    return 0;  // Already occupied
+                }
+            }
+
+            // Add new peg
+            if (board_data_add_peg(board,
+                                   editor->overlay_hover_col,
+                                   editor->overlay_hover_row)) {
+                editor->board_modified = 1;
+                return 1;
+            }
+        } else if (editor->selected_object_type == OBJECT_LINE) {
+            // Line tool state machine
+            if (editor->line_tool.state == LINE_TOOL_IDLE) {
+                editor->line_tool.start_col = editor->overlay_hover_col;
+                editor->line_tool.start_row = editor->overlay_hover_row;
+                editor->line_tool.state = LINE_TOOL_PLACING_END;
+                return 1;
+            } else if (editor->line_tool.state == LINE_TOOL_PLACING_END) {
+                editor->line_tool.end_col = editor->overlay_hover_col;
+                editor->line_tool.end_row = editor->overlay_hover_row;
+
+                // Add line object
+                if (board_data_add_line(board,
+                                        editor->line_tool.start_col,
+                                        editor->line_tool.start_row,
+                                        editor->line_tool.end_col,
+                                        editor->line_tool.end_row,
+                                        editor->line_tool.thickness)) {
+                    editor->board_modified = 1;
+                }
+
+                editor->line_tool.state = LINE_TOOL_IDLE;
+                return 1;
+            }
+        }
+    } else if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+        // Add portal zone (1x1 cell size)
+        if (board_data_add_portal(board,
+                                  editor->overlay_hover_col,
+                                  editor->overlay_hover_row,
+                                  1, 1,  // width, height in cells
+                                  editor->portal_channel,
+                                  editor->portal_direction)) {
+            editor->board_modified = 1;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+// }}}
+
+// {{{ overlay_handle_erase
+// Handles object removal in overlay mode
+static int overlay_handle_erase(EditorState* editor) {
+    if (!editor || !editor->edit_board || !editor->overlay_hover_valid) return 0;
+    if (editor->mode != EDITOR_MODE_ERASE) return 0;
+
+    BoardData* board = editor->edit_board;
+
+    // Check objects
+    for (int i = 0; i < board->object_count; i++) {
+        BoardObject* obj = &board->objects[i];
+
+        // Check if click is near this object
+        int match = 0;
+        if (obj->type == OBJECT_PEG) {
+            match = (obj->col == editor->overlay_hover_col &&
+                     obj->row == editor->overlay_hover_row);
+        } else if (obj->type == OBJECT_LINE) {
+            // Check either endpoint
+            match = ((obj->col == editor->overlay_hover_col &&
+                      obj->row == editor->overlay_hover_row) ||
+                     (obj->end_col == editor->overlay_hover_col &&
+                      obj->end_row == editor->overlay_hover_row));
+        }
+
+        if (match) {
+            // Use the col/row to remove at position
+            if (board_data_remove_object_at(board,
+                                            editor->overlay_hover_col,
+                                            editor->overlay_hover_row)) {
+                editor->board_modified = 1;
+
+                // Clear selection (index may have changed)
+                editor->selected_object_index = -1;
+                editor->show_property_panel = 0;
+
+                return 1;
+            }
+        }
+    }
+
+    // Check zones - use the hover position to remove
+    if (board_data_remove_zone_at(board,
+                                  editor->overlay_hover_col,
+                                  editor->overlay_hover_row)) {
+        editor->board_modified = 1;
+        return 1;
+    }
+
+    return 0;
+}
+// }}}
+
+// {{{ overlay_handle_object_selection
+// Handles right-click to select object for property editing
+static int overlay_handle_object_selection(EditorState* editor) {
+    if (!editor || !editor->edit_board || !editor->overlay_hover_valid) return 0;
+
+    BoardData* board = editor->edit_board;
+
+    for (int i = 0; i < board->object_count; i++) {
+        BoardObject* obj = &board->objects[i];
+
+        int match = 0;
+        if (obj->type == OBJECT_PEG) {
+            match = (obj->col == editor->overlay_hover_col &&
+                     obj->row == editor->overlay_hover_row);
+        } else if (obj->type == OBJECT_LINE) {
+            match = ((obj->col == editor->overlay_hover_col &&
+                      obj->row == editor->overlay_hover_row) ||
+                     (obj->end_col == editor->overlay_hover_col &&
+                      obj->end_row == editor->overlay_hover_row));
+        }
+
+        if (match) {
+            editor->selected_object_index = i;
+            editor->show_property_panel = 1;
+            return 1;
+        }
+    }
+
+    // Clicked empty space - deselect
+    editor->selected_object_index = -1;
+    editor->show_property_panel = 0;
+    return 0;
+}
+// }}}
+
+// {{{ editor_handle_overlay_input
+int editor_handle_overlay_input(EditorState* editor) {
+    if (!editor || !editor->is_overlay_open) return 0;
+
+    // ESC closes overlay
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        // Check if load dialog is open first
+        if (editor->show_load_dialog) {
+            editor_close_load_dialog(editor);
+            return 1;
+        }
+        // Check if property panel is open
+        if (editor->show_property_panel) {
+            editor->show_property_panel = 0;
+            editor->selected_object_index = -1;
+            return 1;
+        }
+        // Otherwise close overlay
+        editor_toggle(editor);
+        return 1;
+    }
+
+    // Handle load dialog input if open
+    if (editor->show_load_dialog) {
+        BoardData* old_board = editor->board_data;
+        editor->board_data = editor->edit_board;
+        editor_handle_load_dialog_input(editor);
+        editor->board_data = old_board;
+        return 1;
+    }
+
+    // Handle property panel input if open
+    if (editor->show_property_panel && editor->selected_object_index >= 0) {
+        BoardData* old_board = editor->board_data;
+        editor->board_data = editor->edit_board;
+        int consumed = editor_handle_property_panel_input(editor);
+        editor->board_data = old_board;
+        if (consumed) return 1;
+    }
+
+    // Mode toggle (TAB)
+    if (IsKeyPressed(KEY_TAB)) {
+        editor_toggle_submode(editor);
+    }
+
+    // Grid toggle (G)
+    if (IsKeyPressed(KEY_G)) {
+        editor->show_grid = !editor->show_grid;
+    }
+
+    // Tool selection
+    if (IsKeyPressed(KEY_ONE)) {
+        editor->tool_type = EDITOR_TOOL_OBJECT;
+        editor->selected_object_type = OBJECT_PEG;
+        editor->line_tool.state = LINE_TOOL_IDLE;
+    }
+    if (IsKeyPressed(KEY_TWO)) {
+        editor->tool_type = EDITOR_TOOL_OBJECT;
+        editor->selected_object_type = OBJECT_LINE;
+    }
+    if (IsKeyPressed(KEY_THREE)) {
+        editor->tool_type = EDITOR_TOOL_ZONE_PORTAL;
+        editor->portal_direction = PORTAL_ENTRY;
+        editor->line_tool.state = LINE_TOOL_IDLE;
+    }
+    if (IsKeyPressed(KEY_FOUR)) {
+        editor->tool_type = EDITOR_TOOL_ZONE_PORTAL;
+        editor->portal_direction = PORTAL_EXIT;
+        editor->line_tool.state = LINE_TOOL_IDLE;
+    }
+
+    // Portal channel adjustment
+    if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
+        if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_EQUAL)) {
+            editor->portal_channel++;
+            if (editor->portal_channel > 16) editor->portal_channel = 16;
+        }
+        if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_MINUS)) {
+            editor->portal_channel--;
+            if (editor->portal_channel < 1) editor->portal_channel = 1;
+        }
+    }
+
+    // Line tool cancel (right-click while placing)
+    if (editor->selected_object_type == OBJECT_LINE &&
+        editor->line_tool.state != LINE_TOOL_IDLE &&
+        IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+        editor->line_tool.state = LINE_TOOL_IDLE;
+        return 1;
+    }
+
+    // Update hover position
+    if (overlay_is_mouse_in_canvas(editor)) {
+        Vector2 mouse = GetMousePosition();
+        Vector2 canvas_pos = overlay_screen_to_canvas(editor, mouse);
+        Grid* g = &editor->overlay_grid;
+
+        // Convert to grid coords
+        int col = (int)(canvas_pos.x / g->cell_size);
+        int row = (int)(canvas_pos.y / g->cell_size);
+
+        // Bounds check
+        if (col >= 0 && col < g->cols && row >= 0 && row < g->rows) {
+            editor->overlay_hover_col = col;
+            editor->overlay_hover_row = row;
+            editor->overlay_hover_valid = 1;
+        } else {
+            editor->overlay_hover_valid = 0;
+        }
+    } else {
+        editor->overlay_hover_valid = 0;
+    }
+
+    // Handle clicks in canvas
+    if (overlay_is_mouse_in_canvas(editor)) {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            if (editor->mode == EDITOR_MODE_PLACE) {
+                overlay_handle_placement(editor);
+            } else if (editor->mode == EDITOR_MODE_ERASE) {
+                overlay_handle_erase(editor);
+            }
+        }
+
+        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+            overlay_handle_object_selection(editor);
+        }
+    }
+
+    return 1;  // Overlay consumes all input
 }
 // }}}

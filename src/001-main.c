@@ -495,26 +495,26 @@ int main(void) {
         if (spawn_x > spawn_max_x) spawn_x = spawn_max_x;
 
         // Handle auto-spawn toggle (A key) - only when menu is closed and editor inactive
-        if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open && !editor_is_active(editor)) {
+        if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open && !editor_is_overlay_open(editor)) {
             auto_spawn = !auto_spawn;
             printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
         }
 
         // Handle editor toggle (E key) - only when menu is closed
-        if (IsKeyPressed(KEY_E) && !upgrade_manager->menu_open) {
+        if (IsKeyPressed(KEY_E) && !upgrade_manager->menu_open && !editor_is_overlay_open(editor)) {
             editor_toggle(editor);
         }
 
-        // Handle editor input when active
-        if (editor_is_active(editor)) {
-            editor_handle_input(editor, camera);
+        // Handle editor overlay input when open (consumes all input including ESC)
+        if (editor_is_overlay_open(editor)) {
+            editor_handle_overlay_input(editor);
             editor_update_notification(editor, GetFrameTime());
         }
 
         // Handle upgrade menu input (returns 1 if ESC was consumed)
-        // Only process when editor is not active
+        // Only process when editor overlay is not open
         int esc_consumed = 0;
-        if (!editor_is_active(editor)) {
+        if (!editor_is_overlay_open(editor)) {
             esc_consumed = upgrade_manager_handle_input(upgrade_manager, &world->score);
         }
 
@@ -653,7 +653,7 @@ int main(void) {
         // Skip physics update when expansion animation is active or editor is open
         // Balls freeze in place during animation/editing for visual clarity
         double physics_ms = 0.0;  // Initialize before potential skip
-        if (expansion_anim.physics_paused || editor_is_active(editor)) {
+        if (expansion_anim.physics_paused || editor_is_overlay_open(editor)) {
             // Still need to render, but skip physics
             goto skip_physics;
         }
@@ -743,8 +743,8 @@ int main(void) {
         // Spawn blocking prevents physics issues when balls overlap at spawn
         // Auto-spawn acts like SPACE is held down
         // Uses movable spawn_x position, fixed spawn_y height
-        // Spawning paused while upgrade menu is open or editor is active
-        if (!upgrade_manager->menu_open && !editor_is_active(editor) &&
+        // Spawning paused while upgrade menu is open or editor overlay is open
+        if (!upgrade_manager->menu_open && !editor_is_overlay_open(editor) &&
             (IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
             !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
             // Calculate ball radius with upgrade modifier
@@ -814,11 +814,7 @@ int main(void) {
         // Draw particles (after balls, before UI)
         particle_system_render(particle_system);
 
-        // Draw editor elements in world space (grid, cursor)
-        if (editor_is_active(editor)) {
-            editor_render_grid(editor);
-            editor_render_cursor(editor);
-        }
+        // Editor overlay now renders in screen space, not world space
 
         // End camera mode - UI elements below are screen-fixed
         EndMode2D();
@@ -872,15 +868,15 @@ int main(void) {
             DrawText("[MOUSE AIM]", screen_width - 100, 179, 12, SKYBLUE);
         }
 
-        // Draw editor UI overlay (if active)
-        if (editor_is_active(editor)) {
-            editor_render_ui(editor);
-        }
-
-        // Draw upgrade menu overlay (if open, only when editor is inactive)
-        if (!editor_is_active(editor)) {
+        // Draw upgrade menu overlay (if open, only when editor overlay is not open)
+        if (!editor_is_overlay_open(editor)) {
             upgrade_manager_render(upgrade_manager, world->score,
                                   screen_width, screen_height);
+        }
+
+        // Draw editor overlay (on top of everything)
+        if (editor_is_overlay_open(editor)) {
+            editor_render_overlay(editor);
         }
 
         EndDrawing();
