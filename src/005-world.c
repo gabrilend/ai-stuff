@@ -206,10 +206,12 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     }
 
     // Calculate zone dimensions
-    // Zones span the table width (centered in window)
+    // Zones span the table width, centered between player and adversary boards
+    // gate_margin (50px) is added before and after gates
+    float gate_margin = 50.0f;
     float zone_width = world->table_width / zone_count;
-    float zone_y_min = (float)world->height - zone_height;
-    float zone_y_max = (float)world->height;
+    float zone_y_min = world->table_bottom + gate_margin;
+    float zone_y_max = world->table_bottom + gate_margin + zone_height;
 
     // Default point values (symmetric pattern: 10, 50, 100, 500, 100, 50, 10)
     // For 7 zones: center gets 500, working outward gets lower values

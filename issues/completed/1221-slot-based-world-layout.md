@@ -1,6 +1,6 @@
 # 1221 - Slot-Based World Layout System
 
-## Status: Open
+## Status: Complete
 
 ## Problem
 
@@ -104,6 +104,28 @@ Create a **slot-based layout system** where boards, gates, and reticles occupy p
 
 - 1220 - Pegs not anchored to guard rails (positioning bugs)
 - Current adversary reticle visibility bug (spawn_y calculation)
+
+## Implementation Notes
+
+**Completed:**
+- Created `src/038-slot-manager.h` with slot types, SlotManager struct, and API
+- Created `src/039-slot-manager.c` with full implementation
+- Added to Makefile's GAME_SRCS
+- Integrated into main.c for world initialization:
+  - Player/adversary board bounds from slot_manager
+  - Spawn Y positions from slot_manager_get_player_spawn_y/adversary
+  - Gate bounds from slot_manager_get_gates_bounds
+- Fixed adversary reticle positioning bug (was using garbage spawn_y values)
+- Fixed slot_manager_expand to produce correct symmetric layout
+
+**Standard slot heights:**
+- SLOT_RETICLE_HEIGHT: 150px
+- SLOT_BOARD_HEIGHT: 1000px
+- SLOT_GATE_HEIGHT: 40px + 50px margins = 140px total
+
+**Follow-up work:**
+- on_stage_purchased callback should call slot_manager_expand() and use slot positions
+- Current expansion still uses ad-hoc calculations; slot_manager_expand logic is ready
 
 ## Notes
 

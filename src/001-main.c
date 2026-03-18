@@ -23,6 +23,7 @@
 #include "022-grid.h"
 #include "028-portal.h"
 #include "036-wrap-zones.h"
+#include "038-slot-manager.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -530,9 +531,8 @@ int main(int argc, char* argv[]) {
     }
     printf("World created: %dx%d\n", screen_width, world_height_pixels);
 
-    // Peg area dimensions
-    float peg_start_y = 150.0f;  // Large gap from spawn (SPAWN_Y=50) for ball clearance
-    float zone_height = 40.0f;
+    // Zone height for gates (used by world_generate_zones)
+    float zone_height = SLOT_GATE_HEIGHT;
 
     // Create stage pool early for random first board selection (issue 1209)
     // This also provides the pool for stage purchase callbacks later
@@ -572,19 +572,44 @@ int main(int argc, char* argv[]) {
     }
     printf("Selected random initial board: %s\n", board_path);
 
-    // Calculate table width from board dimensions (issue 1220)
+    // Calculate table dimensions from board (issue 1220)
     // Board fills entire table - pegs at edges align with guard rails
     float table_width = initial_board->grid_cols * initial_board->cell_size;
 
-    // Set table bounds (centers table horizontally in window)
-    world_set_table_bounds(world, table_width, peg_start_y, zone_height);
-    printf("Table bounds: x=%.0f, width=%.0f, top=%.0f, bottom=%.0f\n",
+    // Create slot manager - single source of truth for vertical positioning (issue 1221)
+    // Centers table horizontally in window
+    float table_x = ((float)screen_width - table_width) / 2.0f;
+    SlotManager* slot_manager = slot_manager_create(table_x, table_width);
+    if (!slot_manager) {
+        fprintf(stderr, "ERROR: Failed to create slot manager\n");
+        board_data_destroy(initial_board);
+        world_destroy(world);
+        threadpool_destroy(pool);
+        CloseWindow();
+        return 1;
+    }
+    slot_manager_print_debug(slot_manager);
+
+    // Get positions from slot manager
+    float peg_start_y = slot_manager->player_board_top;
+
+    // Set world table bounds from slot manager
+    world->table_x = slot_manager->table_x;
+    world->table_width = slot_manager->table_width;
+    world->table_top = slot_manager->player_board_top;
+    world->table_bottom = slot_manager->player_board_bottom;
+    world->adversary_table_top = slot_manager->adversary_board_top;
+    world->adversary_table_bottom = slot_manager->adversary_board_bottom;
+    printf("Table bounds from slot manager: x=%.0f, width=%.0f, top=%.0f, bottom=%.0f\n",
            world->table_x, world->table_width, world->table_top, world->table_bottom);
+    printf("Adversary bounds: top=%.0f, bottom=%.0f\n",
+           world->adversary_table_top, world->adversary_table_bottom);
 
     // Apply the board data to the world
-    // Board starts at table_x (no centering offset - board fills table)
+    // Board starts at table_x and peg_start_y from slot manager
     if (!apply_initial_board_data(initial_board, world, world->table_x, peg_start_y)) {
         fprintf(stderr, "ERROR: Failed to apply board data\n");
+        slot_manager_destroy(slot_manager);
         board_data_destroy(initial_board);
         world_destroy(world);
         threadpool_destroy(pool);
@@ -638,27 +663,21 @@ int main(int argc, char* argv[]) {
     printf("Upgrade manager created\n");
 
     // Apply the same board to adversary (mirrored position below zones)
-    // Adversary uses identical layout to player, just positioned below the gates
+    // Adversary board position comes from slot manager (issue 1221)
     {
-        float adv_start_y = world->zones[0].y_max + 50.0f;  // Margin below zones
+        float adv_start_y = slot_manager->adversary_board_top;
 
-        // Calculate adversary board height for table bounds
-        float adv_board_height = initial_board->grid_rows * initial_board->cell_size;
-
-        // Set adversary table bounds
-        world->adversary_table_top = world->zones[0].y_max;
-        world->adversary_table_bottom = world->adversary_table_top + adv_board_height + 100.0f;
-
-        // Board starts at table_x (no centering offset - board fills table)
+        // Board starts at table_x and adv_start_y from slot manager
         if (!apply_adversary_board_data(initial_board, world, world->table_x, adv_start_y)) {
             fprintf(stderr, "ERROR: Failed to apply adversary board data\n");
+            slot_manager_destroy(slot_manager);
             board_data_destroy(initial_board);
             world_destroy(world);
             threadpool_destroy(pool);
             CloseWindow();
             return 1;
         }
-        printf("Applied adversary board (mirrored): %d pegs\n", world->adversary_peg_count);
+        printf("Applied adversary board at y=%.0f: %d pegs\n", adv_start_y, world->adversary_peg_count);
     }
 
     // Clean up board data
@@ -669,9 +688,11 @@ int main(int argc, char* argv[]) {
     printf("Generated adversary bumpers: %d\n", world->adversary_bumper_count);
 
     // Create adversary AI
+    // Spawn position comes from slot manager via world->adversary_table_bottom
     Adversary* adversary = adversary_create(world);
     if (!adversary) {
         fprintf(stderr, "ERROR: Failed to create adversary\n");
+        slot_manager_destroy(slot_manager);
         upgrade_manager_destroy(upgrade_manager);
         particle_system_destroy(particle_system);
         ball_manager_destroy(ball_manager);
@@ -680,7 +701,7 @@ int main(int argc, char* argv[]) {
         CloseWindow();
         return 1;
     }
-    printf("Adversary AI created\n");
+    printf("Adversary AI created: spawn_y=%.0f\n", adversary->spawn_y);
 
     // Initialize expansion animation system
     // Used when purchasing new stages to animate world expansion
@@ -746,9 +767,9 @@ int main(int argc, char* argv[]) {
     int auto_spawn = 0;
 
     // Spawn point position - single source of truth for spawn location
-    // spawn_x is movable via mouse/keyboard, spawn_y is fixed
-    float spawn_x = SPAWN_X;  // Start at center (movable)
-    float spawn_y = SPAWN_Y;  // Fixed vertical position
+    // spawn_x is movable via mouse/keyboard, spawn_y from slot manager (issue 1221)
+    float spawn_x = world->table_x + world->table_width / 2.0f;  // Start at table center
+    float spawn_y = slot_manager_get_player_spawn_y(slot_manager);  // From slot manager
     float spawn_nudge_speed = 200.0f;  // Pixels per second for keyboard control
     // Toggle-based mouse control: click to enable/disable mouse tracking
     // Default state: frozen (player must click to enable mouse control)
@@ -846,15 +867,16 @@ int main(int argc, char* argv[]) {
             world->width = screen_width;
             world->height = screen_height;
 
-            // Save old table_x before recalculating (issue 1220)
-            float old_table_x = world->table_x;
+            // Recalculate table centering via slot manager (issue 1221)
+            // Only table_x changes on resize, vertical positions stay the same
+            float old_table_x = slot_manager->table_x;
+            float new_table_x = ((float)screen_width - table_width) / 2.0f;
+            slot_manager_update_table_x(slot_manager, new_table_x);
+            world->table_x = new_table_x;
 
-            // Recalculate table centering
-            world_set_table_bounds(world, table_width, peg_start_y, zone_height);
-
-            // Shift pegs and lines by table_x delta (issue 1220)
+            // Shift pegs, lines, and spawn point by table_x delta (issue 1220)
             // Keeps them anchored to guard rails, not window
-            float dx = world->table_x - old_table_x;
+            float dx = new_table_x - old_table_x;
             if (dx != 0.0f) {
                 for (int i = 0; i < world->peg_count; i++) {
                     world->pegs[i].x += dx;
@@ -870,6 +892,8 @@ int main(int argc, char* argv[]) {
                     world->adversary_lines[i].x1 += dx;
                     world->adversary_lines[i].x2 += dx;
                 }
+                // Shift player spawn point to stay anchored to table
+                spawn_x += dx;
             }
 
             // Regenerate dynamic elements (gates are not part of JSON boards)
@@ -885,12 +909,13 @@ int main(int argc, char* argv[]) {
                                        (float)screen_height / 2.0f };
 
             // Clamp viewport offset and target to new valid range
-            float min_offset = world->table_top - (float)screen_height;
-            float max_offset = world->adversary_table_bottom;
-            if (viewport_target_y < min_offset) viewport_target_y = min_offset;
-            if (viewport_target_y > max_offset) viewport_target_y = max_offset;
-            if (viewport_offset_y < min_offset) viewport_offset_y = min_offset;
-            if (viewport_offset_y > max_offset) viewport_offset_y = max_offset;
+            // TEMP: Disabled for debugging (issue 1220 followup)
+            // float min_offset = world->table_top - (float)screen_height;
+            // float max_offset = world->adversary_table_bottom;
+            // if (viewport_target_y < min_offset) viewport_target_y = min_offset;
+            // if (viewport_target_y > max_offset) viewport_target_y = max_offset;
+            // if (viewport_offset_y < min_offset) viewport_offset_y = min_offset;
+            // if (viewport_offset_y > max_offset) viewport_offset_y = max_offset;
 
             // Update camera target
             camera.target = (Vector2){ (float)screen_width / 2.0f,
@@ -927,10 +952,11 @@ int main(int argc, char* argv[]) {
             viewport_target_y -= scroll * SCROLL_SPEED;
 
             // Clamp target to valid range
-            float min_offset = world->table_top - (float)screen_height;
-            float max_offset = world->adversary_table_bottom;
-            if (viewport_target_y < min_offset) viewport_target_y = min_offset;
-            if (viewport_target_y > max_offset) viewport_target_y = max_offset;
+            // TEMP: Disabled for debugging (issue 1220 followup)
+            // float min_offset = world->table_top - (float)screen_height;
+            // float max_offset = world->adversary_table_bottom;
+            // if (viewport_target_y < min_offset) viewport_target_y = min_offset;
+            // if (viewport_target_y > max_offset) viewport_target_y = max_offset;
         }
 
         // Smooth scroll lerping - runs every frame for gentle movement
@@ -1220,6 +1246,9 @@ int main(int argc, char* argv[]) {
 
     ball_manager_destroy(ball_manager);
     printf("Ball manager destroyed\n");
+
+    slot_manager_destroy(slot_manager);
+    printf("Slot manager destroyed\n");
 
     world_destroy(world);
     printf("World destroyed\n");
