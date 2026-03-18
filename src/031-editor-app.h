@@ -76,6 +76,9 @@ typedef struct LoadDialogState {
     BoardFileList* file_list;
     int selected_index;
     int scroll_offset;
+    // Delete confirmation (issue 1208)
+    int confirm_delete;      // 1 if confirmation dialog visible
+    int delete_index;        // Index of file to delete
 } LoadDialogState;
 // }}}
 

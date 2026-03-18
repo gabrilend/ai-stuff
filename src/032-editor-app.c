@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 
 // =============================================================================
@@ -35,6 +36,12 @@
 #define TEXT_COLOR (Color){200, 200, 220, 255}
 #define TEXT_DIM (Color){120, 120, 140, 255}
 
+// Property panel constants (issue 1211)
+#define PROP_PANEL_WIDTH 220
+#define PROP_PANEL_HEIGHT 200
+#define PROP_PANEL_MARGIN 10
+#define PROP_SLIDER_HEIGHT 16
+
 // =============================================================================
 // Forward Declarations
 // =============================================================================
@@ -60,6 +67,12 @@ static void open_save_dialog(EditorApp* app);
 static void close_save_dialog(EditorApp* app);
 static void handle_save_dialog_input(EditorApp* app);
 static void setup_grid(EditorApp* app);
+// Property panel functions (issue 1211)
+static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y);
+static void render_property_panel(EditorApp* app);
+static int handle_property_panel_input(EditorApp* app);
+static void render_slider(int x, int y, int width, unsigned char value,
+                          const char* label, Color color_hint);
 
 // =============================================================================
 // Lifecycle
@@ -153,6 +166,9 @@ void editor_app_render(EditorApp* app) {
     render_toolbar(app);
     render_sidebar(app);
     render_footer(app);
+
+    // Render property panel if object selected (issue 1211)
+    render_property_panel(app);
 
     // Render load dialog if open
     if (app->load_dialog.visible) {
@@ -294,6 +310,38 @@ void editor_app_notify(EditorApp* app, const char* message, float duration) {
 static void handle_input(EditorApp* app) {
     // Handle load dialog input first if visible
     if (app->load_dialog.visible) {
+        // Handle delete confirmation dialog (issue 1208)
+        if (app->load_dialog.confirm_delete) {
+            if (IsKeyPressed(KEY_Y) || IsKeyPressed(KEY_ENTER)) {
+                // Confirm delete
+                if (app->load_dialog.file_list &&
+                    app->load_dialog.delete_index >= 0 &&
+                    app->load_dialog.delete_index < app->load_dialog.file_list->count) {
+                    const char* path = app->load_dialog.file_list->filenames[app->load_dialog.delete_index];
+                    if (remove(path) == 0) {
+                        editor_app_notify(app, "File deleted", 2.0f);
+                        // Refresh file list
+                        board_file_list_destroy(app->load_dialog.file_list);
+                        app->load_dialog.file_list = board_scan_directory("boards");
+                        // Adjust selection if needed
+                        if (app->load_dialog.selected_index >= app->load_dialog.file_list->count) {
+                            app->load_dialog.selected_index = app->load_dialog.file_list->count - 1;
+                        }
+                        if (app->load_dialog.selected_index < 0) {
+                            app->load_dialog.selected_index = 0;
+                        }
+                    } else {
+                        editor_app_notify(app, "Delete failed", 2.0f);
+                    }
+                }
+                app->load_dialog.confirm_delete = 0;
+            } else if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+                // Cancel delete
+                app->load_dialog.confirm_delete = 0;
+            }
+            return;
+        }
+
         if (IsKeyPressed(KEY_ESCAPE)) {
             close_load_dialog(app);
             return;
@@ -306,6 +354,13 @@ static void handle_input(EditorApp* app) {
         if (IsKeyPressed(KEY_DOWN) && app->load_dialog.file_list &&
             app->load_dialog.selected_index < app->load_dialog.file_list->count - 1) {
             app->load_dialog.selected_index++;
+        }
+
+        // Delete selected file: DEL or X key (issue 1208)
+        if ((IsKeyPressed(KEY_DELETE) || IsKeyPressed(KEY_X)) &&
+            app->load_dialog.file_list && app->load_dialog.file_list->count > 0) {
+            app->load_dialog.confirm_delete = 1;
+            app->load_dialog.delete_index = app->load_dialog.selected_index;
         }
 
         // Load selected file
@@ -325,10 +380,20 @@ static void handle_input(EditorApp* app) {
         return;
     }
 
-    // Quit on ESC
+    // ESC: Close property panel first, then quit (issue 1211)
     if (IsKeyPressed(KEY_ESCAPE)) {
-        app->should_quit = 1;
+        if (app->show_property_panel) {
+            app->show_property_panel = 0;
+            app->selected_object_index = -1;
+        } else {
+            app->should_quit = 1;
+        }
         return;
+    }
+
+    // Property panel slider interaction (issue 1211)
+    if (handle_property_panel_input(app)) {
+        return;  // Panel consumed the input
     }
 
     // Tool selection: 1-4
@@ -371,9 +436,16 @@ static void handle_input(EditorApp* app) {
         handle_canvas_click(app);
     }
 
-    // Line tool: right-click cancels
-    if (app->tool == APP_TOOL_LINE && IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-        app->line_tool.state = LINE_STATE_IDLE;
+    // Right-click handling (issue 1211)
+    if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+        // If line tool is active, cancel it
+        if (app->tool == APP_TOOL_LINE && app->line_tool.state != LINE_STATE_IDLE) {
+            app->line_tool.state = LINE_STATE_IDLE;
+        } else {
+            // Otherwise, try to select an object for property editing
+            Vector2 mouse = GetMousePosition();
+            handle_object_selection(app, mouse.x, mouse.y);
+        }
     }
 
     // Line tool: thickness adjustment with mouse wheel in thickness mode
@@ -937,6 +1009,28 @@ static void render_load_dialog(EditorApp* app) {
     DrawText("Load Board", dialog_x + 20, dialog_y + 15, 20, TEXT_COLOR);
     DrawLine(dialog_x + 10, dialog_y + 45, dialog_x + dialog_w - 10, dialog_y + 45, PANEL_BORDER);
 
+    // Delete confirmation overlay (issue 1208)
+    if (app->load_dialog.confirm_delete) {
+        // Draw confirmation dialog on top
+        int conf_w = 300;
+        int conf_h = 100;
+        int conf_x = (app->screen_width - conf_w) / 2;
+        int conf_y = (app->screen_height - conf_h) / 2;
+
+        DrawRectangle(conf_x, conf_y, conf_w, conf_h, (Color){60, 40, 40, 255});
+        DrawRectangleLines(conf_x, conf_y, conf_w, conf_h, (Color){255, 100, 100, 255});
+
+        // Get filename for display
+        const char* path = app->load_dialog.file_list->filenames[app->load_dialog.delete_index];
+        const char* name = strrchr(path, '/');
+        name = name ? name + 1 : path;
+
+        DrawText("Delete this file?", conf_x + 20, conf_y + 15, 18, TEXT_COLOR);
+        DrawText(name, conf_x + 20, conf_y + 40, 14, (Color){255, 150, 150, 255});
+        DrawText("Y = delete, N/ESC = cancel", conf_x + 20, conf_y + 70, 14, TEXT_DIM);
+        return;
+    }
+
     // File list
     if (!app->load_dialog.file_list || app->load_dialog.file_list->count == 0) {
         DrawText("No boards found in boards/", dialog_x + 20, dialog_y + 60, 16, TEXT_DIM);
@@ -961,9 +1055,9 @@ static void render_load_dialog(EditorApp* app) {
         }
     }
 
-    // Instructions
-    DrawText("UP/DOWN = select, ENTER = load, ESC = cancel",
-             dialog_x + 20, dialog_y + dialog_h - 35, 14, TEXT_DIM);
+    // Instructions (updated for delete - issue 1208)
+    DrawText("UP/DOWN = select, ENTER = load, X/DEL = delete, ESC = cancel",
+             dialog_x + 10, dialog_y + dialog_h - 35, 12, TEXT_DIM);
 }
 // }}}
 
@@ -1031,5 +1125,207 @@ static void render_notification(EditorApp* app) {
     unsigned char a = (unsigned char)(alpha * 200);
     DrawRectangle(x - 20, y - 10, tw + 40, 40, (Color){0, 0, 0, a});
     DrawText(app->notification, x, y, 20, (Color){255, 255, 255, (unsigned char)(alpha * 255)});
+}
+// }}}
+
+// =============================================================================
+// Property Panel (issue 1211)
+// =============================================================================
+
+// {{{ render_slider
+// Renders a single slider with label and value display.
+static void render_slider(int x, int y, int width, unsigned char value,
+                          const char* label, Color color_hint) {
+    // Label
+    DrawText(label, x, y, 12, color_hint);
+
+    int slider_y = y + 14;
+    float ratio = (float)value / 255.0f;
+    int fill_width = (int)(width * ratio);
+
+    // Background
+    DrawRectangle(x, slider_y, width, PROP_SLIDER_HEIGHT, (Color){30, 30, 40, 255});
+
+    // Fill bar
+    DrawRectangle(x, slider_y, fill_width, PROP_SLIDER_HEIGHT, color_hint);
+
+    // Border
+    DrawRectangleLines(x, slider_y, width, PROP_SLIDER_HEIGHT,
+                       (Color){80, 80, 100, 255});
+
+    // Value text (to the right of slider)
+    char val_text[8];
+    snprintf(val_text, sizeof(val_text), "%d", value);
+    DrawText(val_text, x + width + 5, slider_y + 2, 12, TEXT_COLOR);
+}
+// }}}
+
+// {{{ handle_object_selection
+// Handles right-click to select an object for property editing.
+// Returns 1 if an object was selected, 0 otherwise.
+static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y) {
+    if (!app || !app->board) return 0;
+
+    // Convert screen coords to world coords
+    Vector2 screen_pos = {mouse_x, mouse_y};
+    Vector2 world_pos = GetScreenToWorld2D(screen_pos, app->camera);
+
+    // Search through objects to find one under cursor
+    for (int i = 0; i < app->board->object_count; i++) {
+        BoardObject* obj = &app->board->objects[i];
+
+        // Get object position in pixels
+        float obj_x = grid_to_pixel_x(&app->grid, obj->col, obj->row);
+        float obj_y = grid_to_pixel_y(&app->grid, obj->col, obj->row);
+
+        float dx = world_pos.x - obj_x;
+        float dy = world_pos.y - obj_y;
+        float dist = sqrtf(dx * dx + dy * dy);
+
+        // Click radius depends on object type
+        float click_radius;
+        if (obj->type == OBJECT_PEG) {
+            click_radius = PEG_RADIUS + 5.0f;
+        } else if (obj->type == OBJECT_LINE) {
+            click_radius = obj->thickness / 2.0f + 10.0f;
+        } else {
+            click_radius = 20.0f;
+        }
+
+        if (dist <= click_radius) {
+            app->selected_object_index = i;
+            app->show_property_panel = 1;
+            return 1;
+        }
+    }
+
+    // Clicked empty space - deselect
+    app->selected_object_index = -1;
+    app->show_property_panel = 0;
+    return 0;
+}
+// }}}
+
+// {{{ render_property_panel
+// Renders the property editing panel on the right side of screen.
+static void render_property_panel(EditorApp* app) {
+    if (!app || !app->show_property_panel) return;
+    if (app->selected_object_index < 0) return;
+    if (!app->board) return;
+    if (app->selected_object_index >= app->board->object_count) return;
+
+    BoardObject* obj = &app->board->objects[app->selected_object_index];
+
+    int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+
+    // Background
+    DrawRectangle(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
+                  (Color){40, 40, 50, 240});
+    DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
+                       (Color){100, 100, 120, 255});
+
+    // Title
+    const char* type_name = (obj->type == OBJECT_PEG) ? "Peg Properties" : "Line Properties";
+    DrawText(type_name, panel_x + 10, panel_y + 10, 16, TEXT_COLOR);
+
+    // Color preview swatch (shows resulting RGB color)
+    Color preview = (Color){ obj->restitution, obj->friction, obj->point_bonus, 255 };
+    int swatch_x = panel_x + PROP_PANEL_WIDTH - 40;
+    DrawRectangle(swatch_x, panel_y + 8, 30, 20, preview);
+    DrawRectangleLines(swatch_x, panel_y + 8, 30, 20, TEXT_COLOR);
+
+    int slider_width = PROP_PANEL_WIDTH - 50;
+    int content_x = panel_x + 10;
+    int y = panel_y + 40;
+
+    // Restitution slider (R channel)
+    render_slider(content_x, y, slider_width, obj->restitution,
+                  "Restitution (R)", (Color){255, 100, 100, 255});
+    y += PROP_SLIDER_HEIGHT + 25;
+
+    // Friction slider (G channel)
+    render_slider(content_x, y, slider_width, obj->friction,
+                  "Friction (G)", (Color){100, 255, 100, 255});
+    y += PROP_SLIDER_HEIGHT + 25;
+
+    // Point Bonus slider (B channel)
+    render_slider(content_x, y, slider_width, obj->point_bonus,
+                  "Point Bonus (B)", (Color){100, 100, 255, 255});
+
+    // Controls hint at bottom
+    DrawText("RClick: Select object", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 35,
+             10, TEXT_DIM);
+    DrawText("ESC: Close panel", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 20,
+             10, TEXT_DIM);
+}
+// }}}
+
+// {{{ handle_property_panel_input
+// Handles mouse input on the property panel sliders.
+// Returns 1 if input was consumed (clicked on panel), 0 otherwise.
+static int handle_property_panel_input(EditorApp* app) {
+    if (!app || !app->show_property_panel) return 0;
+    if (app->selected_object_index < 0) return 0;
+    if (!app->board) return 0;
+    if (app->selected_object_index >= app->board->object_count) return 0;
+
+    // Check if mouse is over the panel
+    int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+
+    Vector2 mouse = GetMousePosition();
+
+    // Check if mouse is within panel bounds
+    if (mouse.x < panel_x || mouse.x > panel_x + PROP_PANEL_WIDTH ||
+        mouse.y < panel_y || mouse.y > panel_y + PROP_PANEL_HEIGHT) {
+        return 0;
+    }
+
+    // Panel is being interacted with
+    if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        return 1;  // Over panel but not clicking - still consume
+    }
+
+    BoardObject* obj = &app->board->objects[app->selected_object_index];
+
+    int slider_width = PROP_PANEL_WIDTH - 50;
+    int content_x = panel_x + 10;
+    int slider_x = content_x;
+
+    // Calculate slider Y positions (must match render function)
+    int base_y = panel_y + 40;
+    int slider_spacing = PROP_SLIDER_HEIGHT + 25;
+
+    // Slider rectangles (the actual draggable areas)
+    int slider_ys[3] = {
+        base_y + 14,
+        base_y + slider_spacing + 14,
+        base_y + 2 * slider_spacing + 14
+    };
+    unsigned char* values[3] = {
+        &obj->restitution,
+        &obj->friction,
+        &obj->point_bonus
+    };
+
+    // Check each slider
+    for (int i = 0; i < 3; i++) {
+        Rectangle slider_rect = {
+            (float)slider_x, (float)slider_ys[i],
+            (float)slider_width, (float)PROP_SLIDER_HEIGHT
+        };
+
+        if (CheckCollisionPointRec(mouse, slider_rect)) {
+            float ratio = (mouse.x - slider_x) / slider_width;
+            if (ratio < 0.0f) ratio = 0.0f;
+            if (ratio > 1.0f) ratio = 1.0f;
+            *values[i] = (unsigned char)(ratio * 255.0f);
+            app->modified = 1;
+            return 1;
+        }
+    }
+
+    return 1;  // Over panel, consumed
 }
 // }}}
