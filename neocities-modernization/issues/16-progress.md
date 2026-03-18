@@ -43,11 +43,11 @@ Phase 16 extends the neocities modernization project beyond local files to treat
 | 16-007 | File scanning and metadata extraction | Open | High |
 | 16-008 | Torrent file generation for distribution | Open | Medium |
 | 16-009 | WebTorrent in-browser streaming (JS option) | Open | Low |
-| 16-010 | Monospace font enforcement | Open | Low |
-
 ### Completed Issues
 
-None yet.
+| Issue | Description | Status | Completed |
+|-------|-------------|--------|-----------|
+| 16-010 | Monospace font enforcement | Completed | 2026-03-18 |
 
 ## Key Concepts
 

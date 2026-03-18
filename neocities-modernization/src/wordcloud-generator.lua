@@ -359,13 +359,15 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     local poem_index = generate_poem_index(poems_data)
 
     -- Generate HTML page
+    -- Issue 16-010: Added font style for Hack Nerd Font font-stack
+    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }</style>]]
     local html = string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Menu - Poetry Collection</title>
-</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+%s</head>
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], font_style) .. string.format([[
 
 <center>
 <h1>Menu</h1>
