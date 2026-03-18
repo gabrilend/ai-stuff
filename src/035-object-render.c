@@ -150,17 +150,21 @@ void render_grid(Grid* grid, float canvas_x, float canvas_y,
 // }}}
 
 // {{{ render_grid_cursor
+// Highlights an intersection point for erase mode cursor
+// Uses intersection-based coordinates (col/row can be 0 to cols/rows inclusive)
 void render_grid_cursor(Grid* grid, int col, int row, Color color) {
     if (!grid) return;
-    if (col < 0 || col >= grid->cols || row < 0 || row >= grid->rows) return;
+    // Allow col == grid->cols and row == grid->rows (valid intersections)
+    if (col < 0 || col > grid->cols || row < 0 || row > grid->rows) return;
 
+    // Get intersection point
     float x = grid->origin_x + col * grid->cell_size;
     float y = grid->origin_y + row * grid->cell_size;
-    float size = grid->cell_size;
 
-    // Draw highlighted cell
-    DrawRectangle((int)x, (int)y, (int)size, (int)size, color);
-    DrawRectangleLines((int)x, (int)y, (int)size, (int)size, WHITE);
+    // Draw highlight centered on intersection point
+    float radius = grid->cell_size * 0.4f;
+    DrawCircle((int)x, (int)y, radius, color);
+    DrawCircleLines((int)x, (int)y, radius, WHITE);
 }
 // }}}
 
