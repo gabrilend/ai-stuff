@@ -121,6 +121,7 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
             ball->active = 1;
             ball->owner = owner;
             ball->passed_gate = 0;
+            ball->portal_cooldown = 0;  // Start with no portal cooldown
             manager->active_count++;
             return 1;
         }
@@ -212,6 +213,7 @@ static int ball_check_peg_collision(Ball* ball, Peg* peg,
 // {{{ ball_resolve_peg_collision
 // Internal function to resolve collision with a peg
 // Separates ball from peg and reflects velocity using peg's properties
+// Low-speed impacts: zero restitution, near-zero friction (slide instead of bounce)
 static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
                                         float depth) {
     // Separate ball from peg along collision normal
@@ -223,8 +225,19 @@ static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
 
     // Only respond if moving into peg (negative means approaching)
     if (vn < 0) {
-        // Use peg's custom restitution (fallback to default if 0)
-        float restitution = (peg->restitution > 0.001f) ? peg->restitution : RESTITUTION;
+        // Check closing speed for velocity-dependent response
+        float closing_speed = -vn;
+        float restitution, friction;
+
+        if (closing_speed < LOW_SPEED_THRESHOLD) {
+            // Low-speed impact: no bounce, minimal friction (encourages sliding)
+            restitution = 0.0f;
+            friction = LOW_SPEED_FRICTION;
+        } else {
+            // Normal impact: use peg's properties
+            restitution = (peg->restitution > 0.001f) ? peg->restitution : RESTITUTION;
+            friction = peg->friction;
+        }
 
         // Reflect velocity with restitution
         // Formula: v' = v - (1 + e) * (v · n) * n
@@ -232,12 +245,12 @@ static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
         ball->vy -= (1.0f + restitution) * vn * ny;
 
         // Apply friction to tangential velocity
-        if (peg->friction > 0.001f) {
+        if (friction > 0.001f) {
             // Tangent is perpendicular to normal
             float tx = -ny;
             float ty = nx;
             float vt = ball->vx * tx + ball->vy * ty;  // Tangential velocity
-            float friction_factor = 1.0f - peg->friction * 0.5f;  // Scale friction effect
+            float friction_factor = 1.0f - friction * 0.5f;  // Scale friction effect
             ball->vx -= vt * tx * (1.0f - friction_factor);
             ball->vy -= vt * ty * (1.0f - friction_factor);
         }
@@ -301,6 +314,7 @@ static int ball_check_bumper_collision(Ball* ball, Bumper* bumper,
 // {{{ ball_resolve_bumper_collision
 // Internal function to resolve collision with a bumper
 // Uses very low restitution for "donk" feel - ball slides into gate
+// Low-speed impacts: zero restitution (no bounce at all)
 static void ball_resolve_bumper_collision(Ball* ball, float nx, float ny,
                                            float depth) {
     // Separate ball from bumper along collision normal
@@ -312,17 +326,22 @@ static void ball_resolve_bumper_collision(Ball* ball, float nx, float ny,
 
     // Only respond if moving into bumper (negative means approaching)
     if (vn < 0) {
-        // Very low restitution - ball "sticks" briefly then slides
-        // Also dampen tangential velocity to reduce sideways bounce
-        ball->vx -= (1.0f + BUMPER_RESTITUTION) * vn * nx;
-        ball->vy -= (1.0f + BUMPER_RESTITUTION) * vn * ny;
+        // Check closing speed for velocity-dependent response
+        float closing_speed = -vn;
+        float restitution = (closing_speed < LOW_SPEED_THRESHOLD) ? 0.0f : BUMPER_RESTITUTION;
+
+        // Apply restitution
+        ball->vx -= (1.0f + restitution) * vn * nx;
+        ball->vy -= (1.0f + restitution) * vn * ny;
 
         // Additional damping to tangential velocity for "sticky" feel
-        // This makes the ball more likely to drop straight down
-        float tangent_damping = 0.7f;
-        float vt = ball->vx * (-ny) + ball->vy * nx;  // Tangent component
-        ball->vx -= (1.0f - tangent_damping) * vt * (-ny);
-        ball->vy -= (1.0f - tangent_damping) * vt * nx;
+        // Skip for low-speed impacts (let them slide freely)
+        if (closing_speed >= LOW_SPEED_THRESHOLD) {
+            float tangent_damping = 0.7f;
+            float vt = ball->vx * (-ny) + ball->vy * nx;  // Tangent component
+            ball->vx -= (1.0f - tangent_damping) * vt * (-ny);
+            ball->vy -= (1.0f - tangent_damping) * vt * nx;
+        }
     }
 }
 // }}}
@@ -421,6 +440,7 @@ static void line_closest_point(float px, float py,
 
 // {{{ ball_collide_with_line
 // Checks and resolves collision between ball and a single line
+// Low-speed impacts: zero restitution, near-zero friction (slide instead of bounce)
 static void ball_collide_with_line(Ball* ball, Line* line) {
     if (!ball || !line) return;
 
@@ -470,39 +490,23 @@ static void ball_collide_with_line(Ball* ball, Line* line) {
 
         // Only resolve if ball is moving into the line
         if (dot_normal < 0) {
-            // Remove normal component with line's restitution (low = sliding)
-            float bounce_factor = 1.0f + line->restitution;
+            // Check closing speed for velocity-dependent response
+            float closing_speed = -dot_normal;
+            float restitution;
+
+            if (closing_speed < LOW_SPEED_THRESHOLD) {
+                // Low-speed impact: no bounce, minimal friction (encourages sliding)
+                restitution = 0.0f;
+                // Note: line friction is already low by default, so we don't override it
+            } else {
+                // Normal impact: use line's restitution
+                restitution = line->restitution;
+            }
+
+            // Remove normal component with restitution
+            float bounce_factor = 1.0f + restitution;
             ball->vx -= bounce_factor * dot_normal * nx;
             ball->vy -= bounce_factor * dot_normal * ny;
-
-            // Add velocity along line direction (gravity assist)
-            // Direction must point "downhill" based on ball's gravity direction
-            // Only apply if ball is below terminal velocity (prevents infinite acceleration)
-            float speed_sq = ball->vx * ball->vx + ball->vy * ball->vy;
-            if (speed_sq < TERMINAL_VELOCITY * TERMINAL_VELOCITY) {
-                float lx = line->x2 - line->x1;
-                float ly = line->y2 - line->y1;
-                float len = sqrtf(lx * lx + ly * ly);
-                if (len > 0.0001f) {
-                    float tx = lx / len;
-                    float ty = ly / len;
-                    // If tangent points against gravity (uphill), flip it
-                    // Player: gravity_dir = +1, downhill = positive ty
-                    // Adversary: gravity_dir = -1, downhill = negative ty
-                    if (ty * ball->gravity_dir < 0) {
-                        tx = -tx;
-                        ty = -ty;
-                    }
-                    ball->vx += tx * LINE_GRAVITY_ASSIST;
-                    ball->vy += ty * LINE_GRAVITY_ASSIST;
-                }
-            }
-
-            // Award points if line has bonus
-            if (line->point_bonus > 0) {
-                // Points would be awarded here through world->score
-                // but we don't have direct access, so skip for now
-            }
         }
     }
 }
@@ -536,6 +540,9 @@ static void ball_collide_with_lines(Ball* ball, World* world) {
 // Outputs collision normal and penetration depth
 static int ball_check_ball_collision(Ball* ball_a, Ball* ball_b,
                                       float* nx, float* ny, float* depth) {
+    // Null check for safety
+    if (!ball_a || !ball_b) return 0;
+
     // Skip if either ball is inactive
     if (!ball_a->active || !ball_b->active) return 0;
 
@@ -562,9 +569,13 @@ static int ball_check_ball_collision(Ball* ball_a, Ball* ball_b,
 // {{{ ball_resolve_ball_collision
 // Internal function to resolve collision between two balls
 // Only applies response to ball_a (caller handles ball_b separately)
-// Cross-board collisions (player vs adversary) use 2x impulse strength
+// Cross-board collisions (player vs adversary) deal damage
+// Low-speed impacts: zero restitution (balls clump together instead of bouncing)
 static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
                                          float nx, float ny, float depth) {
+    // Null check for safety
+    if (!ball_a || !ball_b) return;
+
     // Each ball moves half the penetration distance
     ball_a->x += nx * (depth * 0.5f + COLLISION_BIAS);
     ball_a->y += ny * (depth * 0.5f + COLLISION_BIAS);
@@ -578,13 +589,13 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
 
     // Only respond if balls are approaching
     if (vn < 0) {
+        float closing_speed = -vn;
+
         // Check if this is a cross-board collision (player vs adversary)
         if (ball_a->owner != ball_b->owner) {
             // Calculate damage based on closing speed (velocity along collision normal)
             // Head-on collisions deal full damage, glancing blows deal little/none
-            // vn is negative when approaching, so use -vn for positive damage
             // Only deal damage above threshold (gentle bumps are harmless)
-            float closing_speed = -vn;
             if (closing_speed > DAMAGE_SPEED_THRESHOLD) {
                 float effective_speed = closing_speed - DAMAGE_SPEED_THRESHOLD;
                 float damage = effective_speed * DAMAGE_VELOCITY_SCALE;
@@ -592,9 +603,12 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
             }
         }
 
+        // Velocity-dependent restitution: low-speed impacts don't bounce
+        float restitution = (closing_speed < LOW_SPEED_THRESHOLD) ? 0.0f : RESTITUTION;
+
         // Equal mass elastic collision: swap velocity components along normal
         // For ball_a, we add the impulse; ball_b will be handled by its own task
-        float impulse = -(1.0f + RESTITUTION) * vn;
+        float impulse = -(1.0f + restitution) * vn;
         ball_a->vx += impulse * nx;
         ball_a->vy += impulse * ny;
     }
@@ -610,6 +624,10 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
 static void ball_collide_with_balls(Ball* ball, int ball_index,
                                      Ball* read_buffer, int capacity,
                                      float* collision_out) {
+    // Null and bounds check for safety
+    if (!ball || !read_buffer || capacity <= 0) return;
+    if (ball_index < 0 || ball_index >= capacity) return;
+
     float nx, ny, depth;
 
     // Initialize collision output
@@ -1065,6 +1083,7 @@ int ball_manager_collect_scores(BallManager* manager) {
 int ball_check_zone(Ball* ball, World* world) {
     if (!ball || !world) return -1;
     if (!ball->active) return -1;
+    if (!world->zones || world->zone_count <= 0) return -1;
 
     // Check each zone's actual bounds
     // This allows zones to be placed anywhere on the board

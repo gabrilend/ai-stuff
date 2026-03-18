@@ -69,7 +69,6 @@ typedef struct Bumper {
 // Line physics constants
 #define LINE_DEFAULT_RESTITUTION 0.1f   // Low - sliding behavior
 #define LINE_DEFAULT_FRICTION 0.3f      // Moderate grip
-#define LINE_GRAVITY_ASSIST 30.0f       // Extra velocity along line direction
 
 // {{{ typedef struct Line
 // Line represents a thick line segment obstacle.

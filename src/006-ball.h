@@ -15,13 +15,14 @@ typedef struct ThreadPool ThreadPool;
 
 // Physics constants
 #define GRAVITY 980.0f        // Pixels per second squared
-#define TERMINAL_VELOCITY 500.0f  // Max speed before gravity assist stops
 #define DAMPING 0.98f         // Velocity damping factor
 #define MIN_VELOCITY 1.0f     // Threshold for stopping
 
 // Collision constants
 #define RESTITUTION 0.7f      // Bounce energy retention (0-1)
 #define COLLISION_BIAS 0.1f   // Separation push to prevent sticking
+#define LOW_SPEED_THRESHOLD 75.0f  // Below this closing speed: no bounce, reduced friction
+#define LOW_SPEED_FRICTION 0.05f   // Near-zero friction for slow impacts (encourages sliding)
 
 // Bumper constants (gate divider caps)
 #define BUMPER_RADIUS 10.0f       // Slightly wider than dividers
