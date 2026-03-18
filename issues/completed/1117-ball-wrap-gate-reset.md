@@ -1,5 +1,7 @@
 # 1117 - Ball Wrap Gate Reset
 
+**Status:** Complete
+
 ## Current Behavior
 
 When a ball wraps from the bottom zone to the top zone (or vice versa), it does not trigger gates on its next pass through the scoring area. The ball appears to still have its "already passed through this gate" flag set from before the wrap.
@@ -63,3 +65,7 @@ ball->zone_triggered = -1;  // Reset to "no zone triggered"
 ## Notes
 
 This is a regression from the wrap zone implementation. The wrap logic needs to consider gameplay state that should reset on teleportation, not just position.
+
+## Resolution
+
+Added `ball->passed_gate = 0;` in `wrap_zones_check_ball()` after teleporting both player and adversary balls. This resets the gate tracking state so balls can trigger gates again after wrapping.

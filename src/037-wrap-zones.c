@@ -96,6 +96,8 @@ int wrap_zones_check_ball(WrapZones* zones, Ball* ball) {
             // Mirror position: spawn at same offset into top zone
             // Ball entering bottom zone at top appears at top of top zone
             ball->y = zones->top_zone_y + offset_in_zone;
+            // Reset gate tracking so ball can score again after wrap
+            ball->passed_gate = 0;
             return 1;
         }
     } else if (ball->owner == OWNER_ADVERSARY) {
@@ -108,6 +110,8 @@ int wrap_zones_check_ball(WrapZones* zones, Ball* ball) {
             // Mirror position: spawn at same offset from top of bottom zone
             // Ball entering top zone at bottom appears at bottom of bottom zone
             ball->y = zones->bottom_zone_y + zones->zone_height - offset_from_bottom;
+            // Reset gate tracking so ball can score again after wrap
+            ball->passed_gate = 0;
             return 1;
         }
     }
