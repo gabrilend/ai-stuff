@@ -347,13 +347,21 @@ static void handle_input(EditorApp* app) {
             return;
         }
 
-        // Navigate file list
-        if (IsKeyPressed(KEY_UP) && app->load_dialog.selected_index > 0) {
+        // Navigate file list (arrow keys and vim-style j/k - issue 1218)
+        if ((IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_K)) &&
+            app->load_dialog.selected_index > 0) {
             app->load_dialog.selected_index--;
         }
-        if (IsKeyPressed(KEY_DOWN) && app->load_dialog.file_list &&
+        if ((IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_J)) &&
+            app->load_dialog.file_list &&
             app->load_dialog.selected_index < app->load_dialog.file_list->count - 1) {
             app->load_dialog.selected_index++;
+        }
+
+        // Vim-style h to cancel/close (issue 1218)
+        if (IsKeyPressed(KEY_H)) {
+            close_load_dialog(app);
+            return;
         }
 
         // Delete selected file: DEL or X key (issue 1208)
@@ -363,8 +371,9 @@ static void handle_input(EditorApp* app) {
             app->load_dialog.delete_index = app->load_dialog.selected_index;
         }
 
-        // Load selected file
-        if (IsKeyPressed(KEY_ENTER) && app->load_dialog.file_list &&
+        // Load selected file (Enter or vim-style l - issue 1218)
+        if ((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_L)) &&
+            app->load_dialog.file_list &&
             app->load_dialog.file_list->count > 0) {
             const char* path = app->load_dialog.file_list->filenames[app->load_dialog.selected_index];
             editor_app_load(app, path);
@@ -1133,9 +1142,9 @@ static void render_load_dialog(EditorApp* app) {
         }
     }
 
-    // Instructions (updated for delete - issue 1208)
-    DrawText("UP/DOWN = select, ENTER = load, X/DEL = delete, ESC = cancel",
-             dialog_x + 10, dialog_y + dialog_h - 35, 12, TEXT_DIM);
+    // Instructions (updated for vim keybinds - issue 1218)
+    DrawText("j/k or UP/DOWN = select, l/ENTER = load, X/DEL = delete, h/ESC = cancel",
+             dialog_x + 10, dialog_y + dialog_h - 35, 11, TEXT_DIM);
 }
 // }}}
 
