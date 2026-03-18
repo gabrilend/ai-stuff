@@ -114,19 +114,30 @@ void adversary_render(Adversary* adversary) {
                    (Color){255, 150, 150, alpha});
 
     // Draw cooldown indicator
-    float cooldown_ratio = 1.0f - (adversary->spawn_credits - (int)adversary->spawn_credits);
-    if (adversary->spawn_credits < 1.0f) {
-        // Not ready - show depleting arc
-        DrawRing((Vector2){adversary->spawn_x, adversary->spawn_y}, 18.0f, 20.0f,
-                0, 360, 32, (Color){80, 60, 60, 150});
-        float arc_degrees = 360.0f * cooldown_ratio;
-        DrawRing((Vector2){adversary->spawn_x, adversary->spawn_y}, 18.0f, 20.0f,
-                -90, -90 + arc_degrees, 32, (Color){255, 150, 150, 220});
-    } else {
-        // Ready - show full red ring
-        DrawRing((Vector2){adversary->spawn_x, adversary->spawn_y}, 18.0f, 20.0f,
-                0, 360, 32, (Color){255, 150, 150, 180});
-    }
+    // Uses spawn_credits fractional part for continuous progress
+    // Colors invert on each spawn for visual continuity (issue 1119)
+    // - Odd phases: dim background, bright progress (fills up)
+    // - Even phases: bright background, dim progress (appears to empty)
+    int spawn_phase = (int)adversary->spawn_credits;
+    int inverted = spawn_phase % 2;
+    float credits_frac = adversary->spawn_credits - spawn_phase;
+
+    // Define color palette for adversary reticle (red scheme)
+    Color dim_red = (Color){80, 60, 60, 150};
+    Color bright_red = (Color){255, 150, 150, 220};
+
+    // Swap colors based on phase for seamless visual continuity
+    Color bg_color = inverted ? bright_red : dim_red;
+    Color arc_color = inverted ? dim_red : bright_red;
+
+    // Background ring (full circle)
+    DrawRing((Vector2){adversary->spawn_x, adversary->spawn_y}, 18.0f, 20.0f,
+            0, 360, 32, bg_color);
+
+    // Progress arc - always shows fractional progress toward next credit
+    float arc_degrees = 360.0f * credits_frac;
+    DrawRing((Vector2){adversary->spawn_x, adversary->spawn_y}, 18.0f, 20.0f,
+            -90, -90 + arc_degrees, 32, arc_color);
 }
 // }}}
 

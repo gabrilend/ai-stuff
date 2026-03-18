@@ -990,19 +990,30 @@ int main(void) {
                        (Color){255, 255, 255, alpha});
 
         // Draw cooldown indicator (ring around spawn point)
-        // Uses spawn_credits fractional part for continuous progress (like adversary)
-        // Always shows progress toward next spawn - never static
-        // (issue 1118: player reticle display bug fix)
-        float credits_frac = ball_manager->spawn_credits - (int)ball_manager->spawn_credits;
+        // Uses spawn_credits fractional part for continuous progress
+        // Colors invert on each spawn for visual continuity (issue 1119)
+        // - Odd phases: dim background, bright progress (fills up)
+        // - Even phases: bright background, dim progress (appears to empty)
+        int spawn_phase = (int)ball_manager->spawn_credits;
+        int inverted = spawn_phase % 2;
+        float credits_frac = ball_manager->spawn_credits - spawn_phase;
 
-        // Background ring (dim cyan)
+        // Define color palette for player reticle
+        Color dim_cyan = (Color){60, 80, 100, 150};
+        Color bright_cyan = (Color){100, 200, 255, 220};
+
+        // Swap colors based on phase for seamless visual continuity
+        Color bg_color = inverted ? bright_cyan : dim_cyan;
+        Color arc_color = inverted ? dim_cyan : bright_cyan;
+
+        // Background ring (full circle)
         DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                0, 360, 32, (Color){60, 80, 100, 150});
+                0, 360, 32, bg_color);
 
         // Progress arc - always shows fractional progress toward next credit
         float arc_degrees = 360.0f * credits_frac;
         DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                -90, -90 + arc_degrees, 32, (Color){100, 200, 255, 220});
+                -90, -90 + arc_degrees, 32, arc_color);
 
         // Draw balls
         ball_manager_render(ball_manager);
