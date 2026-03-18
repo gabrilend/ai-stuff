@@ -530,15 +530,9 @@ int main(int argc, char* argv[]) {
     }
     printf("World created: %dx%d\n", screen_width, world_height_pixels);
 
-    // Table dimensions - fixed width, dynamic height
-    float table_width = 800.0f;  // Fixed table width
+    // Peg area dimensions
     float peg_start_y = 150.0f;  // Large gap from spawn (SPAWN_Y=50) for ball clearance
     float zone_height = 40.0f;
-
-    // Set table bounds (centers table horizontally in window)
-    world_set_table_bounds(world, table_width, peg_start_y, zone_height);
-    printf("Table bounds: x=%.0f, width=%.0f, top=%.0f, bottom=%.0f\n",
-           world->table_x, world->table_width, world->table_top, world->table_bottom);
 
     // Create stage pool early for random first board selection (issue 1209)
     // This also provides the pool for stage purchase callbacks later
@@ -578,11 +572,18 @@ int main(int argc, char* argv[]) {
     }
     printf("Selected random initial board: %s\n", board_path);
 
-    // Apply the board data to the world (centered in table)
-    float board_width = initial_board->grid_cols * initial_board->cell_size;
-    float board_start_x = world->table_x + (table_width - board_width) / 2.0f;
+    // Calculate table width from board dimensions (issue 1220)
+    // Board fills entire table - pegs at edges align with guard rails
+    float table_width = initial_board->grid_cols * initial_board->cell_size;
 
-    if (!apply_initial_board_data(initial_board, world, board_start_x, peg_start_y)) {
+    // Set table bounds (centers table horizontally in window)
+    world_set_table_bounds(world, table_width, peg_start_y, zone_height);
+    printf("Table bounds: x=%.0f, width=%.0f, top=%.0f, bottom=%.0f\n",
+           world->table_x, world->table_width, world->table_top, world->table_bottom);
+
+    // Apply the board data to the world
+    // Board starts at table_x (no centering offset - board fills table)
+    if (!apply_initial_board_data(initial_board, world, world->table_x, peg_start_y)) {
         fprintf(stderr, "ERROR: Failed to apply board data\n");
         board_data_destroy(initial_board);
         world_destroy(world);
@@ -639,8 +640,6 @@ int main(int argc, char* argv[]) {
     // Apply the same board to adversary (mirrored position below zones)
     // Adversary uses identical layout to player, just positioned below the gates
     {
-        float adv_board_width = initial_board->grid_cols * initial_board->cell_size;
-        float adv_board_start_x = world->table_x + (table_width - adv_board_width) / 2.0f;
         float adv_start_y = world->zones[0].y_max + 50.0f;  // Margin below zones
 
         // Calculate adversary board height for table bounds
@@ -650,7 +649,8 @@ int main(int argc, char* argv[]) {
         world->adversary_table_top = world->zones[0].y_max;
         world->adversary_table_bottom = world->adversary_table_top + adv_board_height + 100.0f;
 
-        if (!apply_adversary_board_data(initial_board, world, adv_board_start_x, adv_start_y)) {
+        // Board starts at table_x (no centering offset - board fills table)
+        if (!apply_adversary_board_data(initial_board, world, world->table_x, adv_start_y)) {
             fprintf(stderr, "ERROR: Failed to apply adversary board data\n");
             board_data_destroy(initial_board);
             world_destroy(world);
@@ -846,8 +846,31 @@ int main(int argc, char* argv[]) {
             world->width = screen_width;
             world->height = screen_height;
 
-            // Recalculate table centering (width stays fixed at 800)
+            // Save old table_x before recalculating (issue 1220)
+            float old_table_x = world->table_x;
+
+            // Recalculate table centering
             world_set_table_bounds(world, table_width, peg_start_y, zone_height);
+
+            // Shift pegs and lines by table_x delta (issue 1220)
+            // Keeps them anchored to guard rails, not window
+            float dx = world->table_x - old_table_x;
+            if (dx != 0.0f) {
+                for (int i = 0; i < world->peg_count; i++) {
+                    world->pegs[i].x += dx;
+                }
+                for (int i = 0; i < world->line_count; i++) {
+                    world->lines[i].x1 += dx;
+                    world->lines[i].x2 += dx;
+                }
+                for (int i = 0; i < world->adversary_peg_count; i++) {
+                    world->adversary_pegs[i].x += dx;
+                }
+                for (int i = 0; i < world->adversary_line_count; i++) {
+                    world->adversary_lines[i].x1 += dx;
+                    world->adversary_lines[i].x2 += dx;
+                }
+            }
 
             // Regenerate dynamic elements (gates are not part of JSON boards)
             world_generate_zones(world, 7, zone_height);

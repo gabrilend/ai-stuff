@@ -24,10 +24,11 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1217 | Unify line and ramp abstraction     | Complete  |
 | 1218 | Editor file picker vim keybinds     | Open      |
 | 1219 | Line gravity assist wrong direction | Complete  |
+| 1220 | Pegs not anchored to guard rails    | Complete  |
 
 ## Progress Summary
 
-**Completed:** 15/16 issues (94%)
+**Completed:** 16/17 issues (94%)
 **Status:** In Progress
 
 ## Design Overview
