@@ -25,11 +25,14 @@ Editor Modularization. Extract the board editor into a standalone application, r
 | 1218 | Editor file picker vim keybinds     | Open      |
 | 1219 | Line gravity assist wrong direction | Complete  |
 | 1220 | Pegs not anchored to guard rails    | Complete  |
+| 1221 | Slot-based world layout system      | Open (Phase 13) |
 
 ## Progress Summary
 
-**Completed:** 16/17 issues (94%)
+**Completed:** 16/18 issues (89%)
 **Status:** In Progress
+
+**Note:** Issue 1221 is a significant architectural refactor planned for Phase 13.
 
 ## Design Overview
 
