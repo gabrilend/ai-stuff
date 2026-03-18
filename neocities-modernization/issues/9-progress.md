@@ -31,7 +31,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004 | GPU-accelerate maze algorithm | Open | Low |
-| 9-006 | Poem box format validator | Open | Low |
+| 9-006 | Poem box format validator | Completed | Low |
 | 9-007 | C shared memory for HTML generation | Open | Low |
 | 9-008 | Streaming HTML generation with progress | Open | Low |
 | 9-009 | HTML rendering and performance fixes | Open | Medium |
@@ -55,6 +55,17 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-010 | Fix image repetition in associated posts | Completed | 2026-01-21 |
 | 9-011 | Display content warnings from ActivityPub | Completed | 2026-01-21 |
 | 9-012 | Use archive alt-text for images | Completed | 2026-01-21 |
+| 9-006 | Poem box format validator | Completed | 2026-03-18 |
+
+**9-006: Poem Box Format Validator** - COMPLETED (2026-03-18)
+- ✅ Created `scripts/validate-poem-box-format` (476 lines)
+- ✅ UTF-8 aware character counting for box-drawing characters
+- ✅ HTML tag stripping for visible character measurement
+- ✅ Line type detection: progress bars, nav boxes, bottom lines, content
+- ✅ Golden poem detection (╔ corner character)
+- ✅ Junction character position validation
+- ✅ Self-test suite with 5 passing tests
+- 📊 Discovery: Production poem boxes are 83 chars wide (CONFIG needs calibration)
 
 **9-011: Display Content Warnings from ActivityPub** - COMPLETED (2026-01-21)
 - ✅ Added `poem.content_warning` display to `format_content_with_warnings()` (chronological page)

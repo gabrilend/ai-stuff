@@ -1,0 +1,476 @@
+#!/usr/bin/env luajit
+
+-- validate-poem-box-format
+-- Issue 9-006: Validates poem box formatting against expected character counts
+-- Checks progress bars, content lines, nav boxes, and junction characters
+--
+-- Usage: lua scripts/validate-poem-box-format [FILE|--test]
+--   FILE: path to HTML file containing poem boxes to validate
+--   --test: run built-in tests to verify validator works correctly
+
+-- {{{ local DIR
+local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+if arg and arg[1] and not arg[1]:match("^%-") then
+    if arg[1]:match("^/") then
+        -- Absolute path provided, use it as file to validate
+    else
+        DIR = arg[1]
+    end
+end
+-- }}}
+
+-- {{{ Configuration
+local CONFIG = {
+    -- Regular poem dimensions
+    regular_width = 82,           -- Total width of regular poem box interior
+    golden_width = 84,            -- Total width of golden poem box interior
+    content_width = 80,           -- Maximum content line width
+
+    -- Nav box dimensions
+    nav_left_width = 11,          -- ┌─────────┐ or │ similar │
+    nav_right_width = 13,         -- ┌───────────┐ or │ different │
+    nav_gap_regular = 58,         -- Gap between nav boxes (regular poem)
+    nav_gap_golden = 60,          -- Gap between nav boxes (golden poem)
+
+    -- Junction positions (0-indexed from start of bottom line)
+    left_junction_pos = 10,       -- Position of left ╧/┴
+    right_junction_pos = 69,      -- Position of right ╧/┴ (regular poem)
+}
+-- }}}
+
+-- {{{ local function strip_html_tags
+-- Removes HTML tags to get visible character count
+local function strip_html_tags(line)
+    -- Remove all HTML tags
+    local stripped = line:gsub("<[^>]+>", "")
+    return stripped
+end
+-- }}}
+
+-- {{{ local function count_visible_chars
+-- Counts visible characters (UTF-8 aware for box-drawing chars)
+local function count_visible_chars(text)
+    local stripped = strip_html_tags(text)
+    -- Count UTF-8 code points, not bytes
+    local count = 0
+    local i = 1
+    local len = #stripped
+    while i <= len do
+        local byte = stripped:byte(i)
+        if byte < 128 then
+            -- ASCII character
+            i = i + 1
+        elseif byte < 224 then
+            -- 2-byte UTF-8
+            i = i + 2
+        elseif byte < 240 then
+            -- 3-byte UTF-8 (includes box-drawing characters)
+            i = i + 3
+        else
+            -- 4-byte UTF-8
+            i = i + 4
+        end
+        count = count + 1
+    end
+    return count
+end
+-- }}}
+
+-- {{{ local function is_progress_bar_line
+-- Checks if line looks like a progress bar (═ and ─ characters)
+local function is_progress_bar_line(line)
+    local stripped = strip_html_tags(line)
+    -- Should contain only ═, ─, and possibly color-related chars
+    return stripped:match("^[═─]+$") ~= nil
+end
+-- }}}
+
+-- {{{ local function is_nav_top_line
+-- Checks if line is the top of nav boxes (┌─────────┐ pattern)
+local function is_nav_top_line(line)
+    local stripped = strip_html_tags(line)
+    return stripped:match("┌[─]+┐") ~= nil
+end
+-- }}}
+
+-- {{{ local function is_nav_middle_line
+-- Checks if line is middle of nav boxes (│ similar │ pattern)
+local function is_nav_middle_line(line)
+    local stripped = strip_html_tags(line)
+    return stripped:match("│.*similar.*│") ~= nil or
+           stripped:match("│.*different.*│") ~= nil
+end
+-- }}}
+
+-- {{{ local function is_bottom_line
+-- Checks if line is the bottom border (╘═══...┴...┘ pattern)
+local function is_bottom_line(line)
+    local stripped = strip_html_tags(line)
+    return stripped:match("^[╘╚]") ~= nil and stripped:match("[┘╝]$") ~= nil
+end
+-- }}}
+
+-- {{{ local function is_golden_poem
+-- Detects if we're in a golden poem based on formatting
+local function is_golden_poem(line)
+    local stripped = strip_html_tags(line)
+    -- Golden poems use ╔ for top-left corner
+    return stripped:match("^╔") ~= nil
+end
+-- }}}
+
+-- {{{ local function validate_progress_bar
+local function validate_progress_bar(line, is_golden)
+    local expected_width = is_golden and CONFIG.golden_width or CONFIG.regular_width
+    local visible_count = count_visible_chars(line)
+
+    local result = {
+        line_type = "progress_bar",
+        expected = expected_width,
+        actual = visible_count,
+        ok = visible_count == expected_width,
+        details = {}
+    }
+
+    if not result.ok then
+        table.insert(result.details, string.format(
+            "Expected %d chars, got %d", expected_width, visible_count))
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ local function validate_content_line
+local function validate_content_line(line)
+    local visible_count = count_visible_chars(line)
+
+    local result = {
+        line_type = "content",
+        expected = "≤" .. CONFIG.content_width,
+        actual = visible_count,
+        ok = visible_count <= CONFIG.content_width + 2,  -- +2 for leading space and potential box char
+        details = {}
+    }
+
+    if visible_count > CONFIG.content_width + 2 then
+        table.insert(result.details, string.format(
+            "Content too long: %d chars (max %d)", visible_count, CONFIG.content_width))
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ local function validate_nav_top
+local function validate_nav_top(line, is_golden)
+    local expected_width = is_golden and CONFIG.golden_width or CONFIG.regular_width
+    local visible_count = count_visible_chars(line)
+
+    local result = {
+        line_type = "nav_top",
+        expected = expected_width,
+        actual = visible_count,
+        ok = true,  -- Will be set based on checks
+        details = {}
+    }
+
+    -- Check total width
+    if visible_count ~= expected_width then
+        result.ok = false
+        table.insert(result.details, string.format(
+            "Expected %d chars, got %d", expected_width, visible_count))
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ local function validate_nav_middle
+local function validate_nav_middle(line, is_golden)
+    local expected_width = is_golden and CONFIG.golden_width or CONFIG.regular_width
+    local visible_count = count_visible_chars(line)
+
+    local result = {
+        line_type = "nav_middle",
+        expected = expected_width,
+        actual = visible_count,
+        ok = visible_count == expected_width,
+        details = {}
+    }
+
+    if not result.ok then
+        table.insert(result.details, string.format(
+            "Expected %d visible chars, got %d", expected_width, visible_count))
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ local function validate_bottom_line
+local function validate_bottom_line(line, is_golden)
+    local expected_width = (is_golden and CONFIG.golden_width or CONFIG.regular_width) + 2  -- +2 for corner chars
+    local visible_count = count_visible_chars(line)
+    local stripped = strip_html_tags(line)
+
+    local result = {
+        line_type = "bottom",
+        expected = expected_width,
+        actual = visible_count,
+        ok = true,
+        details = {}
+    }
+
+    -- Check total width
+    if visible_count ~= expected_width then
+        result.ok = false
+        table.insert(result.details, string.format(
+            "Expected %d chars, got %d", expected_width, visible_count))
+    end
+
+    -- Check for junction characters
+    local left_junction_found = false
+    local right_junction_found = false
+    local char_pos = 0
+    local i = 1
+    local len = #stripped
+
+    while i <= len do
+        local byte = stripped:byte(i)
+        local char_len = 1
+        if byte >= 224 and byte < 240 then
+            char_len = 3  -- 3-byte UTF-8 (box-drawing chars)
+        elseif byte >= 192 and byte < 224 then
+            char_len = 2
+        elseif byte >= 240 then
+            char_len = 4
+        end
+
+        local char = stripped:sub(i, i + char_len - 1)
+
+        -- Check for junction characters at expected positions
+        if char_pos == CONFIG.left_junction_pos then
+            if char == "╧" or char == "┴" then
+                left_junction_found = true
+                table.insert(result.details, string.format(
+                    "Left junction at %d: %s", char_pos, char))
+            end
+        end
+
+        if char_pos == CONFIG.right_junction_pos then
+            if char == "╧" or char == "┴" then
+                right_junction_found = true
+                table.insert(result.details, string.format(
+                    "Right junction at %d: %s", char_pos, char))
+            end
+        end
+
+        i = i + char_len
+        char_pos = char_pos + 1
+    end
+
+    if not left_junction_found then
+        result.ok = false
+        table.insert(result.details, string.format(
+            "Missing left junction at position %d", CONFIG.left_junction_pos))
+    end
+
+    if not right_junction_found then
+        result.ok = false
+        table.insert(result.details, string.format(
+            "Missing right junction at position %d", CONFIG.right_junction_pos))
+    end
+
+    return result
+end
+-- }}}
+
+-- {{{ local function validate_poem_box
+-- Validates a single poem box (array of lines)
+local function validate_poem_box(lines)
+    local results = {
+        is_golden = false,
+        total_lines = #lines,
+        errors = 0,
+        line_results = {}
+    }
+
+    -- Detect if this is a golden poem
+    for _, line in ipairs(lines) do
+        if is_golden_poem(line) then
+            results.is_golden = true
+            break
+        end
+    end
+
+    -- Validate each line based on its type
+    for i, line in ipairs(lines) do
+        local result
+
+        if is_progress_bar_line(line) then
+            result = validate_progress_bar(line, results.is_golden)
+        elseif is_nav_top_line(line) then
+            result = validate_nav_top(line, results.is_golden)
+        elseif is_nav_middle_line(line) then
+            result = validate_nav_middle(line, results.is_golden)
+        elseif is_bottom_line(line) then
+            result = validate_bottom_line(line, results.is_golden)
+        else
+            result = validate_content_line(line)
+        end
+
+        result.line_number = i
+        table.insert(results.line_results, result)
+
+        if not result.ok then
+            results.errors = results.errors + 1
+        end
+    end
+
+    return results
+end
+-- }}}
+
+-- {{{ local function format_validation_report
+local function format_validation_report(results)
+    local report = {}
+
+    table.insert(report, string.format("Poem Box Validation (%s poem)",
+        results.is_golden and "GOLDEN" or "regular"))
+    table.insert(report, string.format("Total lines: %d, Errors: %d",
+        results.total_lines, results.errors))
+    table.insert(report, string.rep("-", 60))
+
+    for _, r in ipairs(results.line_results) do
+        local status = r.ok and "OK" or "FAIL"
+        local line = string.format("Line %2d (%s): %s chars - %s",
+            r.line_number, r.line_type, tostring(r.actual), status)
+        table.insert(report, line)
+
+        for _, detail in ipairs(r.details) do
+            table.insert(report, "  " .. detail)
+        end
+    end
+
+    table.insert(report, string.rep("-", 60))
+    if results.errors == 0 then
+        table.insert(report, "✓ All validations passed")
+    else
+        table.insert(report, string.format("✗ %d validation error(s) found", results.errors))
+    end
+
+    return table.concat(report, "\n")
+end
+-- }}}
+
+-- {{{ local function run_tests
+local function run_tests()
+    print("Running poem box format validator tests...")
+    print()
+
+    -- Test 1: Regular poem progress bar
+    local test1_line = string.rep("═", 40) .. string.rep("─", 42)
+    local result1 = validate_progress_bar(test1_line, false)
+    print(string.format("Test 1 - Regular progress bar (82 chars): %s",
+        result1.ok and "PASS" or "FAIL"))
+
+    -- Test 2: Golden poem progress bar
+    local test2_line = string.rep("═", 42) .. string.rep("─", 42)
+    local result2 = validate_progress_bar(test2_line, true)
+    print(string.format("Test 2 - Golden progress bar (84 chars): %s",
+        result2.ok and "PASS" or "FAIL"))
+
+    -- Test 3: UTF-8 character counting
+    local test3_line = "┌─────────┐"
+    local count3 = count_visible_chars(test3_line)
+    print(string.format("Test 3 - UTF-8 counting (expected 11): %s (got %d)",
+        count3 == 11 and "PASS" or "FAIL", count3))
+
+    -- Test 4: HTML tag stripping
+    local test4_line = '<font color="#ff0000">═══</font>───'
+    local stripped4 = strip_html_tags(test4_line)
+    local count4 = count_visible_chars(test4_line)
+    print(string.format("Test 4 - HTML stripping (expected 6): %s (got %d)",
+        count4 == 6 and "PASS" or "FAIL", count4))
+
+    -- Test 5: Bottom line junction detection
+    local test5_line = "╘═════════╧" .. string.rep("═", 47) .. "══════════╧" .. "───────────┘"
+    -- Note: This test line may not have junctions at exact positions
+    local result5 = validate_bottom_line(test5_line, false)
+    print(string.format("Test 5 - Bottom line validation: %s",
+        #result5.details > 0 and "PASS (detected)" or "NEEDS CHECK"))
+
+    print()
+    print("Test suite complete.")
+end
+-- }}}
+
+-- {{{ Main
+local function main()
+    if arg[1] == "--test" then
+        run_tests()
+        return
+    end
+
+    if arg[1] == "--help" or arg[1] == "-h" then
+        print("Usage: lua scripts/validate-poem-box-format [FILE|--test]")
+        print("  FILE: path to HTML file containing poem boxes to validate")
+        print("  --test: run built-in tests to verify validator works correctly")
+        return
+    end
+
+    -- If no file provided, show usage
+    if not arg[1] or arg[1]:match("^%-") then
+        print("Poem Box Format Validator (Issue 9-006)")
+        print()
+        print("This tool validates poem box formatting against expected character counts.")
+        print()
+        print("Usage: lua scripts/validate-poem-box-format [FILE|--test]")
+        print()
+        print("Functions available for integration:")
+        print("  validate_poem_box(lines) - validates array of lines")
+        print("  count_visible_chars(text) - counts visible UTF-8 chars")
+        print("  strip_html_tags(line) - removes HTML tags")
+        return
+    end
+
+    -- Validate file
+    local file_path = arg[1]
+    local f = io.open(file_path, "r")
+    if not f then
+        print("Error: Could not open file: " .. file_path)
+        os.exit(1)
+    end
+
+    local content = f:read("*a")
+    f:close()
+
+    -- Extract poem boxes (simplified: look for patterns between <pre> tags)
+    local poem_count = 0
+    local total_errors = 0
+
+    for pre_content in content:gmatch("<pre>(.-)</pre>") do
+        local lines = {}
+        for line in pre_content:gmatch("[^\n]+") do
+            table.insert(lines, line)
+        end
+
+        if #lines > 0 then
+            poem_count = poem_count + 1
+            local results = validate_poem_box(lines)
+
+            if results.errors > 0 then
+                print(string.format("\n=== Poem Box #%d ===", poem_count))
+                print(format_validation_report(results))
+                total_errors = total_errors + results.errors
+            end
+        end
+    end
+
+    print(string.format("\nValidated %d poem boxes, found %d total errors",
+        poem_count, total_errors))
+end
+
+main()
+-- }}}

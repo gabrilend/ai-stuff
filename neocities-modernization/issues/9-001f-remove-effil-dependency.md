@@ -19,13 +19,28 @@ effil proved unsuitable due to catastrophic performance with shared table access
 
 ## Implementation Steps
 
-### Step 1: Audit effil Usage
-- [ ] List all files that import effil
-- [ ] Categorize by operation type (vector math vs I/O)
+### Step 1: Audit effil Usage ✅ COMPLETED (2026-03-18)
+- [x] List all files that import effil
+- [x] Categorize by operation type (vector math vs I/O)
 
-### Step 2: Replace Diversity Pre-computation
-- [ ] Port to Vulkan compute (via 9-001d)
-- [ ] Update `scripts/precompute-diversity-sequences` to use Vulkan
+**Active Runtime Files Using effil:**
+| File | Lines | Usage Type |
+|------|-------|------------|
+| `src/flat-html-generator.lua` | 41-48, 3153-4203 | Parallel HTML generation |
+| `src/similarity-engine-parallel.lua` | 24-57, 165-681 | Parallel validation/processing |
+| `scripts/generate-html-parallel` | 64-1614 | Full parallel HTML script |
+| `run.sh` | 970 | cpath setup |
+
+**Documentation/Install Files (keep for reference):**
+- `docs/effil-usage-patterns.md` - Usage guide
+- `docs/effil-vs-compute-shader-feasibility.md` - Feasibility analysis
+- `scripts/install-deps.sh` - Installation script
+- Various issue files documenting history
+
+### Step 2: Replace Diversity Pre-computation ✅ COMPLETED (via 9-001d, 9-001g)
+- [x] Port to Vulkan compute (via 9-001d)
+- [x] Update `scripts/precompute-diversity-sequences` to use Vulkan
+- Created `scripts/precompute-diversity-sequences-gpu` which replaces CPU effil approach
 
 ### Step 3: Replace HTML Generation Threading
 - [ ] Convert to process-based parallelism (fork + merge)

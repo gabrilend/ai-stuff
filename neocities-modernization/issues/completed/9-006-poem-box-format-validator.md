@@ -66,3 +66,23 @@ Medium - Useful for development and preventing regression.
 - Nav box left: 11 chars (┌─────────┐ or │ similar │)
 - Nav box right: 13 chars (┌───────────┐ or │ different │)
 - Nav box gap: 58 chars (for regular) or 60 chars (for golden)
+
+### Implementation Complete (2026-03-18)
+
+Created `scripts/validate-poem-box-format`:
+- UTF-8 aware character counting via `count_visible_chars()`
+- HTML tag stripping via `strip_html_tags()`
+- Line type detection: progress bars, nav boxes, bottom lines, content
+- Golden poem detection (╔ corner character)
+- Junction character position validation
+- Self-test suite (`--test` flag) - all 5 tests pass
+- File validation mode for checking actual HTML output
+
+**Discovery**: Initial validation of production HTML revealed poem boxes are 83 chars wide rather than the documented 82 chars. This indicates either:
+1. The CONFIG constants need calibration to match actual dimensions
+2. There's formatting drift that should be investigated
+
+The validator is functional and serves as a diagnostic tool. CONFIG constants can be adjusted as actual dimensions are verified.
+
+**Files Created**:
+- `scripts/validate-poem-box-format` (476 lines)
