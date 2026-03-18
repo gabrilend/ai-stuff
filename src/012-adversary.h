@@ -10,7 +10,7 @@ typedef struct World World;
 typedef struct BallManager BallManager;
 
 // Adversary AI constants
-#define ADVERSARY_SPAWN_RATE 4.0f     // Balls per second
+#define ADVERSARY_SPAWN_RATE 1.3f     // Balls per second
 #define ADVERSARY_MOVE_SPEED 120.0f   // Pixels per second for reticle
 #define ADVERSARY_SPAWN_Y_OFFSET 40.0f // Distance below adversary_table_bottom (matches player's 100px gap from pegs)
 
