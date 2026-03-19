@@ -29,9 +29,23 @@
 #include "050-material.h"  // Issue 610: material-based coloring
 #include "042-polygon.h"   // Issue 837: closed polygon collision
 #include "044-rotor.h"     // Issue 901c: rotor physics system
+#include "052-track-mover.h" // Issues 902c, 902d: track mover physics
+#include "000-config.h"    // Compile-time config
 
-// Visual constants - Color palette for cohesive visual design
-#define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
+// Background color presets (issue 413)
+// Index matches BACKGROUND_COLOR config value: 0=slate, 1=black, etc.
+static const Color BG_COLORS[] = {
+    {30, 35, 45, 255},     // 0: slate (default dark gray-blue)
+    {0, 0, 0, 255},        // 1: black
+    {180, 160, 130, 255},  // 2: tan (light wood)
+    {25, 50, 35, 255},     // 3: felt (pool table green)
+    {15, 25, 50, 255},     // 4: navy (deep blue)
+    {40, 25, 45, 255},     // 5: plum (dark purple)
+    {35, 35, 35, 255},     // 6: charcoal (neutral gray)
+    {60, 30, 25, 255},     // 7: mahogany (dark red-brown)
+};
+#define BG_COLOR_COUNT (sizeof(BG_COLORS) / sizeof(BG_COLORS[0]))
+#define BG_COLOR (BG_COLORS[BACKGROUND_COLOR < BG_COLOR_COUNT ? BACKGROUND_COLOR : 0])
 #define PEG_COLOR (Color){180, 180, 200, 255}      // Light steel peg fill
 #define PEG_OUTLINE (Color){100, 100, 120, 255}    // Darker peg outline
 #define BALL_COLOR (Color){255, 180, 50, 255}      // Warm orange ball
@@ -615,6 +629,16 @@ int main(int argc, char* argv[]) {
         printf("Rotor manager: %d rotors loaded\n", rotors_added);
     }
 
+    // Create track mover manager for physics (issues 902c, 902d)
+    // Must be created after apply_initial_board_data sets up lines/pegs
+    world->track_mover_manager = track_mover_manager_create(world);
+    if (world->track_mover_manager && initial_board->track_mover_count > 0) {
+        int movers_added = track_mover_manager_add_from_board(
+            world->track_mover_manager, initial_board,
+            world->table_x, peg_start_y, (float)initial_board->cell_size);
+        printf("Track mover manager: %d movers loaded\n", movers_added);
+    }
+
     // Generate score zones (7 zones spanning table width)
     world_generate_zones(world, 7, zone_height);
     printf("Generated score zones: 7 zones\n");
@@ -1099,6 +1123,15 @@ int main(int argc, char* argv[]) {
             rotor_manager_update(world->adversary_rotor_manager, dt);
         }
 
+        // Update track mover physics before ball collision (issues 902c, 902d)
+        // Moves movers along tracks and updates payload positions
+        if (world->track_mover_manager) {
+            track_mover_manager_update(world->track_mover_manager, dt);
+        }
+        if (world->adversary_track_mover_manager) {
+            track_mover_manager_update(world->adversary_track_mover_manager, dt);
+        }
+
         // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → spawn particles → collect scores → finalize → swap
         double physics_start = GetTime();
@@ -1115,18 +1148,24 @@ int main(int argc, char* argv[]) {
             if (!ball_manager->balls_current[i].active) continue;
 
             BallTaskData* task = &ball_manager->task_data[i];
+
+            // Issue 319: Get ball color for particle effects
+            // Use owner to select player or adversary color
+            Ball* ball = &ball_manager->balls_current[i];
+            unsigned char* ball_rgba = (ball->owner == OWNER_PLAYER)
+                ? ball_manager->player_color
+                : ball_manager->adversary_color;
+            Color ball_color = (Color){ball_rgba[0], ball_rgba[1], ball_rgba[2], ball_rgba[3]};
+
             if (task->scored) {
-                // Choose ripple color based on point value
-                Color ripple_color;
-                if (task->score_delta >= 500) {
-                    ripple_color = GOLD;
-                } else if (task->score_delta >= 100) {
-                    ripple_color = GREEN;
-                } else if (task->score_delta >= 50) {
-                    ripple_color = BLUE;
-                } else {
-                    ripple_color = GRAY;
-                }
+                // Issue 319: Use ball color for ripple, brightened for visibility
+                // Blend with white to make it pop against background
+                Color ripple_color = (Color){
+                    (unsigned char)((ball_rgba[0] + 255) / 2),
+                    (unsigned char)((ball_rgba[1] + 255) / 2),
+                    (unsigned char)((ball_rgba[2] + 255) / 2),
+                    255
+                };
 
                 // Spawn ripple effect at gate position (halo pulse)
                 particle_spawn_ripple(particle_system, task->score_pos_x,
@@ -1141,19 +1180,19 @@ int main(int argc, char* argv[]) {
                 // - Non-dominant ball (lower closing speed) = wall being hit
                 //   → shatters along impact tangent (FRAG_TANGENT)
                 FragmentMode frag_mode = task->death_was_dominant ? FRAG_AWAY : FRAG_TANGENT;
+                // Issue 319: Use ball color for explosion fragments
                 particle_spawn_fragments(particle_system, task->death_pos_x,
                                         task->death_pos_y, task->death_vx,
-                                        task->death_vy, MAGENTA, frag_mode,
+                                        task->death_vy, ball_color, frag_mode,
                                         task->death_nx, task->death_ny);
             }
 
             // Spawn splash for cross-owner ball collisions (skip if ball exploded)
             if (task->had_collision && !task->died_from_damage) {
-                // Small tangent splash at collision point
-                Color splash_color = (Color){255, 200, 100, 255};  // Warm spark
+                // Issue 319: Use ball color for splash particles
                 particle_spawn_splash(particle_system, task->collision_x,
                                      task->collision_y, task->collision_tx,
-                                     task->collision_ty, splash_color);
+                                     task->collision_ty, ball_color);
             }
         }
 
@@ -1408,6 +1447,17 @@ int main(int argc, char* argv[]) {
     if (world->adversary_rotor_manager) {
         rotor_manager_destroy(world->adversary_rotor_manager);
         printf("Adversary rotor manager destroyed\n");
+    }
+
+    // Track mover managers must be destroyed before world (issues 902c, 902d)
+    // They hold references to world's line/peg arrays
+    if (world->track_mover_manager) {
+        track_mover_manager_destroy(world->track_mover_manager);
+        printf("Track mover manager destroyed\n");
+    }
+    if (world->adversary_track_mover_manager) {
+        track_mover_manager_destroy(world->adversary_track_mover_manager);
+        printf("Adversary track mover manager destroyed\n");
     }
 
     world_destroy(world);

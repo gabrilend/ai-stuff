@@ -19,22 +19,36 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
 | 902b | Editor track drawing tool     | completed     | 902a ✓          |
-| 902c | Mover payload detection       | awaiting-work | 902a ✓          |
-| 902d | Track following physics       | awaiting-work | 902a ✓          |
-| 902e | Intersection path selection   | blocked       | 902d            |
-| 902f | Back and forth motion         | blocked       | 902d            |
-| 902g | Track ball interaction        | blocked       | 902d, 221e      |
+| 902c | Mover payload detection       | completed     | 902a ✓          |
+| 902d | Track following physics       | completed     | 902a ✓          |
+| 902e | Intersection path selection   | awaiting-work | 902d ✓          |
+| 902f | Back and forth motion         | awaiting-work | 902d ✓          |
+| 902g | Track ball interaction        | awaiting-work | 902d ✓, 221e ✓  |
 | 903  | Ball velocity statistics      | completed     | -               |
 
 ## Progress Summary
 
-**Completed:** 8/17 issues (901a, 901b, 901c, 901d, 901e, 902a, 902b, 903)
+**Completed:** 10/17 issues (901a, 901b, 901c, 901d, 901e, 902a, 902b, 902c, 902d, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 4 (901f, 901g, 902c, 902d)
-**Blocked:** 3 (902e, 902f, 902g)
+**Awaiting work:** 5 (901f, 901g, 902e, 902f, 902g)
+**Blocked:** 0
 **Phase status:** in-progress
 
 ## Recent Completions
+
+### 902d - Track following physics
+- Created `src/052-track-mover.h` and `src/053-track-mover.c`
+- `TrackMoverManager` provides centralized update for all movers
+- Position update along track segments using parametric 0-1 values
+- Segment transition with dead-end reversal and connectivity following
+- Integrated in main loop after rotor updates, before ball physics
+- Unblocked 902e, 902f, 902g
+
+### 902c - Mover payload detection
+- BFS algorithm finds connected objects from mover position
+- `MoverPayload` stores offsets and line geometry for runtime independence
+- No BoardData needed at runtime - geometry stored at detection
+- `update_payload_positions()` moves lines/pegs with mover each frame
 
 ### 901e - Collision modes (pass-through)
 - Added `is_dynamic` and `rotor_index` fields to BoardObject struct

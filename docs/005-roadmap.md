@@ -8,17 +8,45 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 
 ## Current Status Summary
 
-| Phase | Theme               | Complete | Awaiting | Blocked |
-|-------|---------------------|----------|----------|---------|
-| 1     | Core Infrastructure | 12/12    | 0        | 0       |
-| 2     | World & Physics     | 20/27    | 3        | 4       |
-| 3     | Feedback Systems    | 16/20    | 4        | 0       |
-| 4     | Display             | 8/12     | 3        | 1       |
-| 5     | Gameplay            | 10/11    | 1        | 0       |
-| 6     | Competition         | 9/11     | 2        | 0       |
-| 7     | Stages              | 11/11    | 0        | 0       |
-| 8     | Editor              | 36/39    | 3        | 0       |
-| 9     | Dynamic Systems     | 0/17     | 5        | 12      |
+| Phase | Theme               | Complete | In Progress | Awaiting | Blocked |
+|-------|---------------------|----------|-------------|----------|---------|
+| 1     | Core Infrastructure | 12/12    | 0           | 0        | 0       |
+| 2     | World & Physics     | 25/27    | 1           | 1        | 0       |
+| 3     | Feedback Systems    | 21/21    | 0           | 0        | 0       |
+| 4     | Display             | 11/13    | 0           | 2        | 0       |
+| 5     | Gameplay            | 11/11    | 0           | 0        | 0       |
+| 6     | Competition         | 12/12    | 0           | 0        | 0       |
+| 7     | Stages              | 11/11    | 0           | 0        | 0       |
+| 8     | Editor              | 37/40    | 1           | 2        | 0       |
+| 9     | Dynamic Systems     | 10/17    | 2           | 5        | 0       |
+
+**Overall: 150/164 issues complete (91%)**
+
+---
+
+## Sprint Report
+
+### Last Sprint Completed (9 issues across 4 phases)
+
+- **221b** - Sleep transition logic (Phase 2)
+- **221e** - Stress source distinction (Phase 2)
+- **316** - Multiple gate scoring (Phase 3)
+- **317** - GateRow scoring fix (Phase 3)
+- **610** - Remove adversary board tinting (Phase 6)
+- **612** - Adversary portal flow reversal (Phase 6)
+- **901b** - Editor rotor placement tool (Phase 9)
+- **901c** - Line rotation physics (Phase 9)
+- **902b** - Editor track drawing tool (Phase 9)
+
+### Phase 6: Competition - COMPLETE
+
+All 12 issues done.
+
+### New Issues Added
+
+- **321** - Fragment direction duplication (Phase 3) - FRAG_TANGENT bug fix
+- **413** - Background color options (Phase 4) - config/CLI color presets
+- **840** - Editor grid density sliders (Phase 8)
 
 ---
 
@@ -26,39 +54,41 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 
 ### Immediate (No Blockers)
 
-These issues can be picked up right now by different team members:
+These issues can be picked up right now:
 
 ```
 PHYSICS TEAM:
-  221a - Sleep state tracking (Phase 2)
-  221d - Soft collision response (Phase 2)
-  222  - Trajectory history (Phase 2)
+  221c - Wake conditions (Phase 2) [UNBLOCKED]
+  222  - Trajectory history (Phase 2) - partial
 
 FEEDBACK TEAM:
-  316  - Multiple gate scoring (Phase 3)
-  317  - GateRow scoring bug (Phase 3)
-  318  - Zone dispatch system (Phase 3) [solves 316+317]
-  319  - Random ball colors (Phase 3)
+  319  - Random ball colors (Phase 3) - includes particle color integration
+  321  - Fragment direction duplication (Phase 3) [NEW]
 
 UI TEAM:
-  406  - Editor panel UI system (Phase 4)
-  407  - Hide game UI keybind (Phase 4)
-  408  - Minimum window width (Phase 4)
-
-GAMEPLAY TEAM:
-  507  - Adversary spawn toggle (Phase 5)
-  609  - Separate player/adversary scores (Phase 6)
-  610  - Remove adversary board tinting (Phase 6)
+  409  - Collapsible drawer UI (Phase 4)
+  413  - Background color options (Phase 4) [NEW]
 
 EDITOR TEAM:
-  837  - Closed polygon detection (Phase 8)
-  838  - Standardize board dimensions (Phase 8)
-  839  - Material type selector (Phase 8)
+  838  - Remove redundant pixel data from JSON (Phase 8)
+  840  - Editor grid density sliders (Phase 8) [NEW]
 
 DYNAMIC SYSTEMS TEAM:
-  901a - Rotor data structure (Phase 9)
-  902a - Track data structure (Phase 9)
-  903  - Ball velocity statistics (Phase 9)
+  901d - Connected object detection (Phase 9)
+  901g - Direction config UI (Phase 9) [UNBLOCKED]
+  902c - Mover payload detection (Phase 9)
+  902d - Track following physics (Phase 9)
+```
+
+### In Progress
+
+Currently being worked on:
+
+```
+  221  - Ball sleep system (Phase 2) - parent issue
+  837  - Closed polygon detection (Phase 8) - testing phase
+  901  - Rotor system (Phase 9) - parent issue
+  902  - Track mover system (Phase 9) - parent issue
 ```
 
 ### After Dependencies Met
@@ -66,33 +96,16 @@ DYNAMIC SYSTEMS TEAM:
 These unlock once their blockers complete:
 
 ```
-After 221a:
-  → 221b (Sleep transition logic)
-  → 221c (Wake conditions)
-
-After 221d:
-  → 221e (Stress distinction) → unlocks 901f, 902g
-
-After 406 + 408:
-  → 409 (Collapsible drawer UI)
-
-After 901a:
-  → 901b, 901c, 901d (Editor tool, rotation, detection)
-
-After 902a:
-  → 902b, 902c, 902d (Editor tool, payload, physics)
-
-After 901c + 901d:
-  → 901e (Collision modes)
-
-After 901e + 221e:
-  → 901f (Ball crushing)
+After 901d:
+  → 901e (Collision modes) - 901c already done
 
 After 902d:
-  → 902e, 902f (Intersection selection, back-and-forth)
+  → 902e (Intersection path selection)
+  → 902f (Back and forth motion)
+  → 902g (Track ball interaction) - 221e already done
 
-After 902d + 221e:
-  → 902g (Track ball interaction)
+After 901e:
+  → 901f (Ball crushing) - 221e already done
 ```
 
 ---
@@ -101,141 +114,88 @@ After 902d + 221e:
 
 ### Phase 1: Core Infrastructure (Complete)
 
-Foundation: build system, threadpool, parallel processing, config.
-
-- Issues 101-112
-- All complete
+All 12 issues complete.
 
 ---
 
-### Phase 2: World & Physics
+### Phase 2: World & Physics (In Progress)
 
-World structure, ball physics, wrapping, sleep system.
+**Complete (24):** World state, pegs, physics, wrap zones, sleep state, soft collision, stress distinction
 
-**Complete (20):** World state, pegs, scoring, physics, collisions, wrap zones
+**In Progress:**
+- 221 - Ball sleep system (parent)
 
 **Awaiting Work:**
-- 221a - Sleep state tracking
-- 221d - Soft collision response
-- 222  - Trajectory history
-
-**Blocked:**
-- 221b, 221c (by 221a)
-- 221e (by 221d)
-
-**Cross-Phase Impact:** 221e blocks 901f and 902g (crushing mechanics)
+- 221c - Wake conditions [UNBLOCKED]
+- 222 - Trajectory history (partial)
 
 ---
 
-### Phase 3: Feedback Systems
+### Phase 3: Feedback Systems (Complete)
 
-Scoring, particles, visual feedback.
-
-**Complete (16):** Scoring, particles, double-buffering, parallelization
-
-**Awaiting Work (all independent):**
-- 316 - Multiple gate scoring
-- 317 - GateRow scoring bug
-- 318 - Zone dispatch system
-- 319 - Random ball colors
-
-**Note:** 318 provides comprehensive solution for 316 and 317
+All 21 issues complete.
 
 ---
 
 ### Phase 4: Display
 
-Viewport, UI, reticle.
-
-**Complete (8):** Scrolling, resize, reticle fixes
+**Complete (11):** Scrolling, resize, reticle, panel UI, hide keybind, min width
 
 **Awaiting Work:**
-- 406 - Editor panel UI system
-- 407 - Hide game UI keybind
-- 408 - Minimum window width
-
-**Blocked:**
-- 409 (by 406, 408)
+- 409 - Collapsible drawer UI
+- 413 - Background color options [NEW]
 
 ---
 
-### Phase 5: Gameplay
+### Phase 5: Gameplay (Complete)
 
-Spawn system, upgrades.
-
-**Complete (10):** Auto-spawn, movable spawn, buffering, upgrade system
-
-**Awaiting Work:**
-- 507 - Adversary spawn toggle keybind
+All 11 issues complete.
 
 ---
 
-### Phase 6: Competition
+### Phase 6: Competition (Complete)
 
-Adversary AI, combat, portals.
-
-**Complete (9):** Adversary board, AI, shared gates, damage system
-
-**Awaiting Work:**
-- 609 - Separate player/adversary scores
-- 610 - Remove adversary board tinting
+All 12 issues complete.
 
 ---
 
 ### Phase 7: Stages (Complete)
 
-Stage system, dynamic expansion, ramps.
-
-- Issues 701-711
-- All complete
+All 11 issues complete.
 
 ---
 
-### Phase 8: Editor
+### Phase 8: Editor (In Progress)
 
-Visual board editor with JSON storage.
+**Complete (37):** Full editor, standalone app, materials selector
 
-**Complete (36):** Full editor functionality, standalone app, file management
+**In Progress:**
+- 837 - Closed polygon detection (testing with various shapes)
 
-**Awaiting Work (all independent):**
-- 837 - Closed polygon detection and fill
-- 838 - Standardize board dimensions
-- 839 - Material type selector
+**Awaiting Work:**
+- 838 - Remove redundant pixel data from JSON
+- 840 - Editor grid density sliders [NEW]
+
+**Note:** 838 and 840 are complementary - fixed board size, calculated cell size.
 
 ---
 
-### Phase 9: Dynamic Systems
+### Phase 9: Dynamic Systems (In Progress)
 
-Rotors, track movers, analysis tools.
+**Complete (10):** 901a, 901b, 901c, 901d, 901e, 902a, 902b, 902c, 902d, 903
 
-**Entry Points (no blockers):**
-- 901a - Rotor data structure
-- 902a - Track data structure
-- 903  - Ball velocity statistics
+**In Progress:**
+- 901 - Rotor system (parent)
+- 902 - Track mover system (parent)
 
-**Dependency Chain - Rotors:**
-```
-901a → 901b (editor tool)
-     → 901c (rotation physics)
-     → 901d (connected detection)
-           ↓
-         901e (collision modes)
-           ↓
-         901f (ball crushing) ← also needs 221e
+**Awaiting Work (5):**
+- 901f - Ball crushing
+- 901g - Direction config UI
+- 902e - Intersection path selection [UNBLOCKED]
+- 902f - Back and forth motion [UNBLOCKED]
+- 902g - Track ball interaction [UNBLOCKED]
 
-901b → 901g (direction UI)
-```
-
-**Dependency Chain - Tracks:**
-```
-902a → 902b (editor tool)
-     → 902c (payload detection)
-     → 902d (following physics)
-           ↓
-         902e (intersection selection)
-         902f (back-and-forth)
-         902g (ball interaction) ← also needs 221e
-```
+**Blocked (0):** None
 
 ---
 
@@ -245,12 +205,39 @@ For maximum parallelization with 4 developers:
 
 | Developer | Primary Focus | Secondary |
 |-----------|---------------|-----------|
-| A | Phase 2 (221a/d, 222) | Phase 9 (903) |
-| B | Phase 3 (318) | Phase 4 (406, 407) |
-| C | Phase 8 (837, 839) | Phase 5/6 (507, 609) |
-| D | Phase 9 (901a, 902a) | Phase 4 (408) |
+| A | Phase 2: 221c | Phase 3: 319, 321 |
+| B | Phase 9: 901f, 901g | Phase 4: 409, 413 |
+| C | Phase 9: 902e, 902f, 902g | Phase 8: 840 |
+| D | Phase 8: 837 (finish), 838 | - |
 
-After initial work completes, reassign based on unblocked issues.
+**Critical Path:** 901d → 901e → 901f and 902d → 902e/f/g
+
+---
+
+## Sprint Velocity
+
+| Sprint | Completed | Phases Touched |
+|--------|-----------|----------------|
+| N-2    | 12        | 6              |
+| N-1    | 7         | 3              |
+| N      | 9         | 4              |
+
+**Remaining open issues:** 18
+- 10 awaiting work (can start now)
+- 4 in progress
+- 4 blocked
+
+At current velocity (~8 issues/sprint): ~2 sprints to completion.
+
+---
+
+## Phases Complete: 6/9 (67%)
+
+- Phase 1: Core Infrastructure
+- Phase 3: Feedback Systems
+- Phase 5: Gameplay
+- Phase 6: Competition
+- Phase 7: Stages
 
 ---
 

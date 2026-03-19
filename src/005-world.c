@@ -71,6 +71,10 @@ World* world_create(int width, int height) {
     world->rotor_manager = NULL;
     world->adversary_rotor_manager = NULL;
 
+    // Track mover physics system (issues 902c, 902d) - NULL until boards loaded
+    world->track_mover_manager = NULL;
+    world->adversary_track_mover_manager = NULL;
+
     // Expansion tracking
     world->total_height = (float)height;
     world->expansion_offset = 0.0f;
@@ -134,7 +138,7 @@ void world_destroy(World* world) {
         polygon_manager_destroy(world->adversary_polygon_manager);
     }
 
-    // Note: rotor managers are freed in main.c where they are created
+    // Note: rotor and track mover managers are freed in main.c where they are created
     // (they hold references to world's lines/pegs arrays, not copies)
 
     // Free world structure

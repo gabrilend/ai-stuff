@@ -25,6 +25,9 @@ typedef struct PolygonManager PolygonManager;
 // Forward declaration for rotor manager (defined in 044-rotor.h) - issue 901c
 typedef struct RotorManager RotorManager;
 
+// Forward declaration for track mover manager (defined in 052-track-mover.h) - issues 902c, 902d
+typedef struct TrackMoverManager TrackMoverManager;
+
 // Physics constants
 #define PEG_RADIUS 12.0f
 #define DEFAULT_PEG_ROWS 10
@@ -161,6 +164,11 @@ typedef struct World {
     // Rotors that spin lines and pegs around pivot points
     RotorManager* rotor_manager;               // Player board rotors
     RotorManager* adversary_rotor_manager;     // Adversary board rotors
+
+    // Track mover physics system (issues 902c, 902d)
+    // Platforms that move along tracks, carrying attached objects
+    TrackMoverManager* track_mover_manager;           // Player board movers
+    TrackMoverManager* adversary_track_mover_manager; // Adversary board movers
 
     // Expansion tracking for dynamic world growth
     float total_height;        // Current total world height (updated on expansion)
