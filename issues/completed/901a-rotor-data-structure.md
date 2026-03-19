@@ -1,6 +1,6 @@
 # 901a - Rotor Data Structure and Storage
 
-## Status: Open
+## Status: Completed
 
 ## Parent Issue: 901 - Rotor System
 
@@ -72,3 +72,40 @@ typedef struct BoardData {
 - Connection detection should happen when rotor is created and when connected objects change
 - Store object indices, not pointers, for serialization
 - Relative positions computed from current object positions at creation time
+
+## Implementation Complete
+
+### Changes Made
+
+1. Added `RotorConnection` and `Rotor` structs to `src/020-board-data.h`
+2. Added rotor array (rotors, rotor_count, rotor_capacity) to `BoardData`
+3. Implemented management functions:
+   - `board_data_add_rotor()` - Create rotor at grid position
+   - `board_data_remove_rotor()` - Remove rotor by index
+   - `board_data_rotor_add_connection()` - Manually add connection
+   - `board_data_rotor_clear_connections()` - Clear all connections
+   - `board_data_rotor_detect_connections()` - Auto-detect connected objects
+4. Added JSON serialization in `board_data_load_json()` and `board_data_to_json_string()`
+5. Updated `board_data_create()` and `board_data_destroy()` for memory management
+
+### JSON Format Implemented
+
+```json
+{
+  "rotors": [
+    {
+      "col": 5,
+      "row": 10,
+      "speed": 1.5,
+      "direction": "cw",
+      "connections": [3, 7, 12]
+    }
+  ]
+}
+```
+
+### Unblocks
+
+- 901b (Editor tool for rotor placement)
+- 901c (Rotation physics)
+- 901d (Connected object detection)

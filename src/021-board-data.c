@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <dirent.h>
 #include "020-board-data.h"
 #include "cJSON.h"
@@ -55,6 +56,51 @@ BoardData* board_data_create(int grid_cols, int grid_rows, int cell_size) {
     }
     data->zone_count = 0;
 
+    // Initialize rotor array (issue 901a)
+    data->rotor_capacity = 8;  // Smaller initial capacity, rotors are less common
+    data->rotors = (Rotor*)calloc(data->rotor_capacity, sizeof(Rotor));
+    if (!data->rotors) {
+        fprintf(stderr, "ERROR: Failed to allocate rotor array\n");
+        free(data->zones);
+        free(data->objects);
+        free(data);
+        return NULL;
+    }
+    data->rotor_count = 0;
+
+    // Initialize track segment array (issue 902a)
+    data->track_segment_capacity = 16;
+    data->track_segments = (TrackSegment*)calloc(data->track_segment_capacity,
+                                                  sizeof(TrackSegment));
+    if (!data->track_segments) {
+        fprintf(stderr, "ERROR: Failed to allocate track segment array\n");
+        free(data->rotors);
+        free(data->zones);
+        free(data->objects);
+        free(data);
+        return NULL;
+    }
+    data->track_segment_count = 0;
+
+    // Track intersections are computed, not allocated upfront
+    data->track_intersections = NULL;
+    data->track_intersection_count = 0;
+
+    // Initialize track mover array
+    data->track_mover_capacity = 8;
+    data->track_movers = (TrackMover*)calloc(data->track_mover_capacity,
+                                              sizeof(TrackMover));
+    if (!data->track_movers) {
+        fprintf(stderr, "ERROR: Failed to allocate track mover array\n");
+        free(data->track_segments);
+        free(data->rotors);
+        free(data->zones);
+        free(data->objects);
+        free(data);
+        return NULL;
+    }
+    data->track_mover_count = 0;
+
     return data;
 }
 // }}}
@@ -69,6 +115,68 @@ void board_data_destroy(BoardData* data) {
     if (data->zones) {
         free(data->zones);
     }
+
+    // Free rotor connections and rotors (issue 901a)
+    if (data->rotors) {
+        for (int i = 0; i < data->rotor_count; i++) {
+            if (data->rotors[i].connections) {
+                free(data->rotors[i].connections);
+            }
+        }
+        free(data->rotors);
+    }
+
+    // Free track segments and their connection arrays (issue 902a)
+    if (data->track_segments) {
+        for (int i = 0; i < data->track_segment_count; i++) {
+            if (data->track_segments[i].connections_start) {
+                free(data->track_segments[i].connections_start);
+            }
+            if (data->track_segments[i].connections_end) {
+                free(data->track_segments[i].connections_end);
+            }
+        }
+        free(data->track_segments);
+    }
+
+    // Free track intersections
+    if (data->track_intersections) {
+        for (int i = 0; i < data->track_intersection_count; i++) {
+            TrackIntersection* inter = &data->track_intersections[i];
+            if (inter->segment_indices) {
+                free(inter->segment_indices);
+            }
+            if (inter->approach_paths) {
+                for (int j = 0; j < inter->segment_count; j++) {
+                    if (inter->approach_paths[j]) {
+                        free(inter->approach_paths[j]);
+                    }
+                }
+                free(inter->approach_paths);
+            }
+            if (inter->approach_path_counts) {
+                free(inter->approach_path_counts);
+            }
+        }
+        free(data->track_intersections);
+    }
+
+    // Free track movers and their payloads
+    if (data->track_movers) {
+        for (int i = 0; i < data->track_mover_count; i++) {
+            if (data->track_movers[i].payload_indices) {
+                free(data->track_movers[i].payload_indices);
+            }
+            if (data->track_movers[i].payload_offsets_x) {
+                free(data->track_movers[i].payload_offsets_x);
+            }
+            if (data->track_movers[i].payload_offsets_y) {
+                free(data->track_movers[i].payload_offsets_y);
+            }
+        }
+        free(data->track_movers);
+    }
+
     free(data);
 }
 // }}}
@@ -115,6 +223,93 @@ static int ensure_zone_capacity(BoardData* data) {
 
     data->zones = new_zones;
     data->zone_capacity = new_capacity;
+    return 1;
+}
+// }}}
+
+// {{{ ensure_rotor_capacity
+// Ensures there's room for at least one more rotor.
+// Doubles capacity when full.
+static int ensure_rotor_capacity(BoardData* data) {
+    if (data->rotor_count < data->rotor_capacity) {
+        return 1;
+    }
+
+    int new_capacity = data->rotor_capacity * 2;
+    Rotor* new_rotors = (Rotor*)realloc(
+        data->rotors, new_capacity * sizeof(Rotor));
+
+    if (!new_rotors) {
+        fprintf(stderr, "ERROR: Failed to grow rotor array\n");
+        return 0;
+    }
+
+    data->rotors = new_rotors;
+    data->rotor_capacity = new_capacity;
+    return 1;
+}
+// }}}
+
+// {{{ ensure_rotor_connection_capacity
+// Ensures a rotor has room for at least one more connection.
+static int ensure_rotor_connection_capacity(Rotor* rotor) {
+    if (rotor->connection_count < rotor->connection_capacity) {
+        return 1;
+    }
+
+    int new_capacity = rotor->connection_capacity == 0 ? 4 : rotor->connection_capacity * 2;
+    RotorConnection* new_conns = (RotorConnection*)realloc(
+        rotor->connections, new_capacity * sizeof(RotorConnection));
+
+    if (!new_conns) {
+        fprintf(stderr, "ERROR: Failed to grow rotor connection array\n");
+        return 0;
+    }
+
+    rotor->connections = new_conns;
+    rotor->connection_capacity = new_capacity;
+    return 1;
+}
+// }}}
+
+// {{{ ensure_track_segment_capacity
+static int ensure_track_segment_capacity(BoardData* data) {
+    if (data->track_segment_count < data->track_segment_capacity) {
+        return 1;
+    }
+
+    int new_capacity = data->track_segment_capacity * 2;
+    TrackSegment* new_segments = (TrackSegment*)realloc(
+        data->track_segments, new_capacity * sizeof(TrackSegment));
+
+    if (!new_segments) {
+        fprintf(stderr, "ERROR: Failed to grow track segment array\n");
+        return 0;
+    }
+
+    data->track_segments = new_segments;
+    data->track_segment_capacity = new_capacity;
+    return 1;
+}
+// }}}
+
+// {{{ ensure_track_mover_capacity
+static int ensure_track_mover_capacity(BoardData* data) {
+    if (data->track_mover_count < data->track_mover_capacity) {
+        return 1;
+    }
+
+    int new_capacity = data->track_mover_capacity * 2;
+    TrackMover* new_movers = (TrackMover*)realloc(
+        data->track_movers, new_capacity * sizeof(TrackMover));
+
+    if (!new_movers) {
+        fprintf(stderr, "ERROR: Failed to grow track mover array\n");
+        return 0;
+    }
+
+    data->track_movers = new_movers;
+    data->track_mover_capacity = new_capacity;
     return 1;
 }
 // }}}
@@ -326,6 +521,497 @@ int board_data_remove_zone_at(BoardData* data, int col, int row) {
 // }}}
 
 // =============================================================================
+// Rotor Management (issue 901a)
+// =============================================================================
+
+// {{{ board_data_add_rotor
+int board_data_add_rotor(BoardData* data, int col, int row, float speed) {
+    if (!data) return -1;
+    if (!ensure_rotor_capacity(data)) return -1;
+
+    int index = data->rotor_count;
+    Rotor* rotor = &data->rotors[index];
+
+    rotor->col = col;
+    rotor->row = row;
+    rotor->rotation_speed = speed;
+    rotor->current_angle = 0.0f;
+    rotor->connections = NULL;
+    rotor->connection_count = 0;
+    rotor->connection_capacity = 0;
+
+    data->rotor_count++;
+    return index;
+}
+// }}}
+
+// {{{ board_data_remove_rotor
+int board_data_remove_rotor(BoardData* data, int rotor_index) {
+    if (!data) return 0;
+    if (rotor_index < 0 || rotor_index >= data->rotor_count) return 0;
+
+    // Free connections for the rotor being removed
+    if (data->rotors[rotor_index].connections) {
+        free(data->rotors[rotor_index].connections);
+    }
+
+    // Shift remaining rotors down
+    for (int i = rotor_index; i < data->rotor_count - 1; i++) {
+        data->rotors[i] = data->rotors[i + 1];
+    }
+    data->rotor_count--;
+    return 1;
+}
+// }}}
+
+// {{{ board_data_rotor_add_connection
+int board_data_rotor_add_connection(BoardData* data, int rotor_index,
+                                    int object_index, float relative_angle,
+                                    float relative_distance) {
+    if (!data) return 0;
+    if (rotor_index < 0 || rotor_index >= data->rotor_count) return 0;
+    if (object_index < 0 || object_index >= data->object_count) return 0;
+
+    Rotor* rotor = &data->rotors[rotor_index];
+    if (!ensure_rotor_connection_capacity(rotor)) return 0;
+
+    RotorConnection* conn = &rotor->connections[rotor->connection_count];
+    conn->object_index = object_index;
+    conn->relative_angle = relative_angle;
+    conn->relative_distance = relative_distance;
+
+    rotor->connection_count++;
+    return 1;
+}
+// }}}
+
+// {{{ board_data_rotor_clear_connections
+void board_data_rotor_clear_connections(BoardData* data, int rotor_index) {
+    if (!data) return;
+    if (rotor_index < 0 || rotor_index >= data->rotor_count) return;
+
+    Rotor* rotor = &data->rotors[rotor_index];
+    rotor->connection_count = 0;
+    // Keep allocated capacity for reuse
+}
+// }}}
+
+// {{{ board_data_rotor_detect_connections
+int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
+                                        int max_distance) {
+    if (!data) return 0;
+    if (rotor_index < 0 || rotor_index >= data->rotor_count) return 0;
+
+    // Clear existing connections
+    board_data_rotor_clear_connections(data, rotor_index);
+
+    Rotor* rotor = &data->rotors[rotor_index];
+    int rotor_col = rotor->col;
+    int rotor_row = rotor->row;
+
+    // Find all objects within max_distance of rotor
+    // Connection detection uses Manhattan distance for simplicity
+    for (int i = 0; i < data->object_count; i++) {
+        BoardObject* obj = &data->objects[i];
+        int obj_col = obj->col;
+        int obj_row = obj->row;
+
+        // Calculate grid distance
+        int dx = obj_col - rotor_col;
+        int dy = obj_row - rotor_row;
+        int distance = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+
+        // Skip objects at rotor center or outside max_distance
+        if (distance == 0) continue;
+        if (distance > max_distance) continue;
+
+        // Calculate relative angle and distance for connection
+        // atan2f for angle, sqrt for distance in grid units
+        float angle = atan2f((float)dy, (float)dx);
+        float dist = sqrtf((float)(dx * dx + dy * dy));
+
+        board_data_rotor_add_connection(data, rotor_index, i, angle, dist);
+    }
+
+    return rotor->connection_count;
+}
+// }}}
+
+// =============================================================================
+// Track Management (issue 902a)
+// =============================================================================
+
+// {{{ board_data_add_track_segment
+int board_data_add_track_segment(BoardData* data, int col1, int row1,
+                                 int col2, int row2) {
+    if (!data) return -1;
+    if (!ensure_track_segment_capacity(data)) return -1;
+
+    int index = data->track_segment_count;
+    TrackSegment* seg = &data->track_segments[index];
+
+    seg->id = index;
+    seg->col1 = col1;
+    seg->row1 = row1;
+    seg->col2 = col2;
+    seg->row2 = row2;
+
+    // Calculate length in grid units (will be scaled to pixels at runtime)
+    int dx = col2 - col1;
+    int dy = row2 - row1;
+    seg->length = sqrtf((float)(dx * dx + dy * dy));
+
+    // Initialize connectivity (computed later)
+    seg->connections_start = NULL;
+    seg->connections_start_count = 0;
+    seg->connections_end = NULL;
+    seg->connections_end_count = 0;
+
+    data->track_segment_count++;
+    return index;
+}
+// }}}
+
+// {{{ board_data_remove_track_segment
+int board_data_remove_track_segment(BoardData* data, int segment_index) {
+    if (!data) return 0;
+    if (segment_index < 0 || segment_index >= data->track_segment_count) return 0;
+
+    // Free connection arrays
+    TrackSegment* seg = &data->track_segments[segment_index];
+    if (seg->connections_start) free(seg->connections_start);
+    if (seg->connections_end) free(seg->connections_end);
+
+    // Shift remaining segments down
+    for (int i = segment_index; i < data->track_segment_count - 1; i++) {
+        data->track_segments[i] = data->track_segments[i + 1];
+    }
+    data->track_segment_count--;
+
+    // Update segment IDs and any references in movers
+    for (int i = segment_index; i < data->track_segment_count; i++) {
+        data->track_segments[i].id = i;
+    }
+    // Update mover references to segments
+    for (int i = 0; i < data->track_mover_count; i++) {
+        if (data->track_movers[i].current_segment > segment_index) {
+            data->track_movers[i].current_segment--;
+        } else if (data->track_movers[i].current_segment == segment_index) {
+            // Mover was on removed segment - place on segment 0 or mark invalid
+            data->track_movers[i].current_segment = 0;
+            data->track_movers[i].position_on_segment = 0.0f;
+        }
+    }
+
+    return 1;
+}
+// }}}
+
+// {{{ board_data_add_track_mover
+int board_data_add_track_mover(BoardData* data, int segment_index,
+                               float position, float speed) {
+    if (!data) return -1;
+    if (segment_index < 0 || segment_index >= data->track_segment_count) return -1;
+    if (!ensure_track_mover_capacity(data)) return -1;
+
+    int index = data->track_mover_count;
+    TrackMover* mover = &data->track_movers[index];
+
+    mover->id = index;
+    mover->current_segment = segment_index;
+    mover->position_on_segment = position;
+    mover->direction = 1;  // Start moving toward end
+    mover->speed = speed;
+    mover->payload_indices = NULL;
+    mover->payload_count = 0;
+    mover->payload_offsets_x = NULL;
+    mover->payload_offsets_y = NULL;
+
+    data->track_mover_count++;
+    return index;
+}
+// }}}
+
+// {{{ board_data_remove_track_mover
+int board_data_remove_track_mover(BoardData* data, int mover_index) {
+    if (!data) return 0;
+    if (mover_index < 0 || mover_index >= data->track_mover_count) return 0;
+
+    // Free payload arrays
+    TrackMover* mover = &data->track_movers[mover_index];
+    if (mover->payload_indices) free(mover->payload_indices);
+    if (mover->payload_offsets_x) free(mover->payload_offsets_x);
+    if (mover->payload_offsets_y) free(mover->payload_offsets_y);
+
+    // Shift remaining movers down
+    for (int i = mover_index; i < data->track_mover_count - 1; i++) {
+        data->track_movers[i] = data->track_movers[i + 1];
+    }
+    data->track_mover_count--;
+
+    // Update mover IDs
+    for (int i = mover_index; i < data->track_mover_count; i++) {
+        data->track_movers[i].id = i;
+    }
+
+    return 1;
+}
+// }}}
+
+// {{{ board_data_track_mover_add_payload
+int board_data_track_mover_add_payload(BoardData* data, int mover_index,
+                                       int object_index, float offset_x,
+                                       float offset_y) {
+    if (!data) return 0;
+    if (mover_index < 0 || mover_index >= data->track_mover_count) return 0;
+    if (object_index < 0 || object_index >= data->object_count) return 0;
+
+    TrackMover* mover = &data->track_movers[mover_index];
+    int new_count = mover->payload_count + 1;
+
+    // Reallocate arrays
+    int* new_indices = (int*)realloc(mover->payload_indices, new_count * sizeof(int));
+    float* new_x = (float*)realloc(mover->payload_offsets_x, new_count * sizeof(float));
+    float* new_y = (float*)realloc(mover->payload_offsets_y, new_count * sizeof(float));
+
+    if (!new_indices || !new_x || !new_y) {
+        fprintf(stderr, "ERROR: Failed to grow mover payload arrays\n");
+        return 0;
+    }
+
+    mover->payload_indices = new_indices;
+    mover->payload_offsets_x = new_x;
+    mover->payload_offsets_y = new_y;
+
+    mover->payload_indices[mover->payload_count] = object_index;
+    mover->payload_offsets_x[mover->payload_count] = offset_x;
+    mover->payload_offsets_y[mover->payload_count] = offset_y;
+    mover->payload_count = new_count;
+
+    return 1;
+}
+// }}}
+
+// {{{ board_data_compute_track_connectivity
+void board_data_compute_track_connectivity(BoardData* data) {
+    if (!data) return;
+
+    // Clear existing connectivity
+    for (int i = 0; i < data->track_segment_count; i++) {
+        TrackSegment* seg = &data->track_segments[i];
+        if (seg->connections_start) {
+            free(seg->connections_start);
+            seg->connections_start = NULL;
+        }
+        if (seg->connections_end) {
+            free(seg->connections_end);
+            seg->connections_end = NULL;
+        }
+        seg->connections_start_count = 0;
+        seg->connections_end_count = 0;
+    }
+
+    // For each segment, find other segments that share endpoints
+    for (int i = 0; i < data->track_segment_count; i++) {
+        TrackSegment* seg_i = &data->track_segments[i];
+
+        // Count connections at each endpoint first
+        int start_conns = 0;
+        int end_conns = 0;
+
+        for (int j = 0; j < data->track_segment_count; j++) {
+            if (i == j) continue;
+            TrackSegment* seg_j = &data->track_segments[j];
+
+            // Check if seg_j connects to seg_i's start point
+            if ((seg_j->col1 == seg_i->col1 && seg_j->row1 == seg_i->row1) ||
+                (seg_j->col2 == seg_i->col1 && seg_j->row2 == seg_i->row1)) {
+                start_conns++;
+            }
+            // Check if seg_j connects to seg_i's end point
+            if ((seg_j->col1 == seg_i->col2 && seg_j->row1 == seg_i->row2) ||
+                (seg_j->col2 == seg_i->col2 && seg_j->row2 == seg_i->row2)) {
+                end_conns++;
+            }
+        }
+
+        // Allocate and fill connection arrays
+        if (start_conns > 0) {
+            seg_i->connections_start = (int*)malloc(start_conns * sizeof(int));
+            int idx = 0;
+            for (int j = 0; j < data->track_segment_count; j++) {
+                if (i == j) continue;
+                TrackSegment* seg_j = &data->track_segments[j];
+                if ((seg_j->col1 == seg_i->col1 && seg_j->row1 == seg_i->row1) ||
+                    (seg_j->col2 == seg_i->col1 && seg_j->row2 == seg_i->row1)) {
+                    seg_i->connections_start[idx++] = j;
+                }
+            }
+            seg_i->connections_start_count = start_conns;
+        }
+
+        if (end_conns > 0) {
+            seg_i->connections_end = (int*)malloc(end_conns * sizeof(int));
+            int idx = 0;
+            for (int j = 0; j < data->track_segment_count; j++) {
+                if (i == j) continue;
+                TrackSegment* seg_j = &data->track_segments[j];
+                if ((seg_j->col1 == seg_i->col2 && seg_j->row1 == seg_i->row2) ||
+                    (seg_j->col2 == seg_i->col2 && seg_j->row2 == seg_i->row2)) {
+                    seg_i->connections_end[idx++] = j;
+                }
+            }
+            seg_i->connections_end_count = end_conns;
+        }
+    }
+}
+// }}}
+
+// {{{ board_data_compute_track_intersections
+void board_data_compute_track_intersections(BoardData* data) {
+    if (!data) return;
+
+    // Free existing intersections
+    if (data->track_intersections) {
+        for (int i = 0; i < data->track_intersection_count; i++) {
+            TrackIntersection* inter = &data->track_intersections[i];
+            if (inter->segment_indices) free(inter->segment_indices);
+            if (inter->approach_paths) {
+                for (int j = 0; j < inter->segment_count; j++) {
+                    if (inter->approach_paths[j]) free(inter->approach_paths[j]);
+                }
+                free(inter->approach_paths);
+            }
+            if (inter->approach_path_counts) free(inter->approach_path_counts);
+        }
+        free(data->track_intersections);
+        data->track_intersections = NULL;
+        data->track_intersection_count = 0;
+    }
+
+    // First pass: count unique intersection points
+    // An intersection is any point where 3+ segment endpoints meet
+    // (2 endpoints = simple connection, not an intersection)
+
+    // Collect all endpoints
+    int endpoint_capacity = data->track_segment_count * 2;
+    int* ep_cols = (int*)malloc(endpoint_capacity * sizeof(int));
+    int* ep_rows = (int*)malloc(endpoint_capacity * sizeof(int));
+    int* ep_counts = (int*)calloc(endpoint_capacity, sizeof(int));
+    int ep_count = 0;
+
+    if (!ep_cols || !ep_rows || !ep_counts) {
+        if (ep_cols) free(ep_cols);
+        if (ep_rows) free(ep_rows);
+        if (ep_counts) free(ep_counts);
+        return;
+    }
+
+    // Helper to find or add endpoint
+    for (int i = 0; i < data->track_segment_count; i++) {
+        TrackSegment* seg = &data->track_segments[i];
+
+        // Process start point
+        int found_start = -1;
+        for (int j = 0; j < ep_count; j++) {
+            if (ep_cols[j] == seg->col1 && ep_rows[j] == seg->row1) {
+                found_start = j;
+                break;
+            }
+        }
+        if (found_start >= 0) {
+            ep_counts[found_start]++;
+        } else {
+            ep_cols[ep_count] = seg->col1;
+            ep_rows[ep_count] = seg->row1;
+            ep_counts[ep_count] = 1;
+            ep_count++;
+        }
+
+        // Process end point
+        int found_end = -1;
+        for (int j = 0; j < ep_count; j++) {
+            if (ep_cols[j] == seg->col2 && ep_rows[j] == seg->row2) {
+                found_end = j;
+                break;
+            }
+        }
+        if (found_end >= 0) {
+            ep_counts[found_end]++;
+        } else {
+            ep_cols[ep_count] = seg->col2;
+            ep_rows[ep_count] = seg->row2;
+            ep_counts[ep_count] = 1;
+            ep_count++;
+        }
+    }
+
+    // Count intersections (points with 3+ segments)
+    int intersection_count = 0;
+    for (int i = 0; i < ep_count; i++) {
+        if (ep_counts[i] >= 3) intersection_count++;
+    }
+
+    if (intersection_count == 0) {
+        free(ep_cols);
+        free(ep_rows);
+        free(ep_counts);
+        return;
+    }
+
+    // Allocate intersections
+    data->track_intersections = (TrackIntersection*)calloc(intersection_count,
+                                                            sizeof(TrackIntersection));
+    data->track_intersection_count = intersection_count;
+
+    // Fill intersection data
+    int inter_idx = 0;
+    for (int i = 0; i < ep_count; i++) {
+        if (ep_counts[i] < 3) continue;
+
+        TrackIntersection* inter = &data->track_intersections[inter_idx];
+        inter->col = ep_cols[i];
+        inter->row = ep_rows[i];
+        inter->segment_count = ep_counts[i];
+        inter->segment_indices = (int*)malloc(ep_counts[i] * sizeof(int));
+        inter->approach_paths = (int**)calloc(ep_counts[i], sizeof(int*));
+        inter->approach_path_counts = (int*)calloc(ep_counts[i], sizeof(int));
+
+        // Find all segments at this point
+        int seg_idx = 0;
+        for (int j = 0; j < data->track_segment_count; j++) {
+            TrackSegment* seg = &data->track_segments[j];
+            if ((seg->col1 == ep_cols[i] && seg->row1 == ep_rows[i]) ||
+                (seg->col2 == ep_cols[i] && seg->row2 == ep_rows[i])) {
+                inter->segment_indices[seg_idx++] = j;
+            }
+        }
+
+        // Compute approach paths:
+        // When approaching from segment A, valid exits are all other segments
+        for (int a = 0; a < inter->segment_count; a++) {
+            int exit_count = inter->segment_count - 1;
+            inter->approach_paths[a] = (int*)malloc(exit_count * sizeof(int));
+            inter->approach_path_counts[a] = exit_count;
+
+            int exit_idx = 0;
+            for (int b = 0; b < inter->segment_count; b++) {
+                if (a != b) {
+                    inter->approach_paths[a][exit_idx++] = inter->segment_indices[b];
+                }
+            }
+        }
+
+        inter_idx++;
+    }
+
+    free(ep_cols);
+    free(ep_rows);
+    free(ep_counts);
+}
+// }}}
+
+// =============================================================================
 // Property Conversion
 // =============================================================================
 
@@ -509,9 +1195,117 @@ BoardData* board_data_load_json(const char* filename) {
         }
     }
 
+    // Parse rotors array (issue 901a)
+    cJSON* rotors = cJSON_GetObjectItem(root, "rotors");
+    if (rotors && cJSON_IsArray(rotors)) {
+        cJSON* rotor_json;
+        cJSON_ArrayForEach(rotor_json, rotors) {
+            cJSON* col_json = cJSON_GetObjectItem(rotor_json, "col");
+            cJSON* row_json = cJSON_GetObjectItem(rotor_json, "row");
+            cJSON* speed_json = cJSON_GetObjectItem(rotor_json, "speed");
+            cJSON* dir_json = cJSON_GetObjectItem(rotor_json, "direction");
+
+            int col = col_json ? col_json->valueint : 0;
+            int row = row_json ? row_json->valueint : 0;
+            float speed = speed_json ? (float)speed_json->valuedouble : 1.0f;
+
+            // Direction "ccw" makes speed negative
+            if (dir_json && cJSON_IsString(dir_json)) {
+                if (strcmp(dir_json->valuestring, "ccw") == 0) {
+                    speed = -fabsf(speed);
+                }
+            }
+
+            int rotor_idx = board_data_add_rotor(data, col, row, speed);
+
+            // Parse connections array
+            cJSON* connections = cJSON_GetObjectItem(rotor_json, "connections");
+            if (connections && cJSON_IsArray(connections) && rotor_idx >= 0) {
+                cJSON* conn_json;
+                cJSON_ArrayForEach(conn_json, connections) {
+                    if (cJSON_IsNumber(conn_json)) {
+                        // Simple format: just object index (auto-detect relative position)
+                        int obj_idx = conn_json->valueint;
+                        if (obj_idx >= 0 && obj_idx < data->object_count) {
+                            // Calculate relative position from object and rotor coords
+                            BoardObject* obj = &data->objects[obj_idx];
+                            int dx = obj->col - col;
+                            int dy = obj->row - row;
+                            float angle = atan2f((float)dy, (float)dx);
+                            float dist = sqrtf((float)(dx * dx + dy * dy));
+                            board_data_rotor_add_connection(data, rotor_idx, obj_idx, angle, dist);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse tracks object (issue 902a)
+    cJSON* tracks = cJSON_GetObjectItem(root, "tracks");
+    if (tracks && cJSON_IsObject(tracks)) {
+        // Parse segments array
+        cJSON* segments = cJSON_GetObjectItem(tracks, "segments");
+        if (segments && cJSON_IsArray(segments)) {
+            cJSON* seg_json;
+            cJSON_ArrayForEach(seg_json, segments) {
+                cJSON* start = cJSON_GetObjectItem(seg_json, "start");
+                cJSON* end = cJSON_GetObjectItem(seg_json, "end");
+
+                if (start && end && cJSON_IsArray(start) && cJSON_IsArray(end)) {
+                    int col1 = cJSON_GetArrayItem(start, 0)->valueint;
+                    int row1 = cJSON_GetArrayItem(start, 1)->valueint;
+                    int col2 = cJSON_GetArrayItem(end, 0)->valueint;
+                    int row2 = cJSON_GetArrayItem(end, 1)->valueint;
+
+                    board_data_add_track_segment(data, col1, row1, col2, row2);
+                }
+            }
+        }
+
+        // Parse movers array
+        cJSON* movers = cJSON_GetObjectItem(tracks, "movers");
+        if (movers && cJSON_IsArray(movers)) {
+            cJSON* mover_json;
+            cJSON_ArrayForEach(mover_json, movers) {
+                cJSON* segment_json = cJSON_GetObjectItem(mover_json, "segment");
+                cJSON* position_json = cJSON_GetObjectItem(mover_json, "position");
+                cJSON* speed_json = cJSON_GetObjectItem(mover_json, "speed");
+
+                int segment = segment_json ? segment_json->valueint : 0;
+                float position = position_json ? (float)position_json->valuedouble : 0.0f;
+                float speed = speed_json ? (float)speed_json->valuedouble : 50.0f;
+
+                int mover_idx = board_data_add_track_mover(data, segment, position, speed);
+
+                // Parse payload array
+                cJSON* payload = cJSON_GetObjectItem(mover_json, "payload");
+                if (payload && cJSON_IsArray(payload) && mover_idx >= 0) {
+                    cJSON* payload_json;
+                    cJSON_ArrayForEach(payload_json, payload) {
+                        if (cJSON_IsNumber(payload_json)) {
+                            // Simple format: just object index (offset computed from positions)
+                            int obj_idx = payload_json->valueint;
+                            if (obj_idx >= 0 && obj_idx < data->object_count) {
+                                // Compute offset from mover position to object
+                                // For now, use 0,0 offset - proper offsets computed at runtime
+                                board_data_track_mover_add_payload(data, mover_idx, obj_idx, 0.0f, 0.0f);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Compute track connectivity and intersections after loading
+        board_data_compute_track_connectivity(data);
+        board_data_compute_track_intersections(data);
+    }
+
     cJSON_Delete(root);
-    printf("Loaded board: %s (%d objects, %d zones)\n",
-           data->name, data->object_count, data->zone_count);
+    printf("Loaded board: %s (%d objects, %d zones, %d rotors, %d track segments)\n",
+           data->name, data->object_count, data->zone_count,
+           data->rotor_count, data->track_segment_count);
 
     return data;
 }
@@ -611,6 +1405,88 @@ char* board_data_to_json_string(BoardData* data) {
         cJSON_AddItemToArray(zones, zone_json);
     }
     cJSON_AddItemToObject(root, "zones", zones);
+
+    // Rotors array (issue 901a)
+    if (data->rotor_count > 0) {
+        cJSON* rotors = cJSON_CreateArray();
+        for (int i = 0; i < data->rotor_count; i++) {
+            Rotor* rotor = &data->rotors[i];
+            cJSON* rotor_json = cJSON_CreateObject();
+
+            cJSON_AddNumberToObject(rotor_json, "col", rotor->col);
+            cJSON_AddNumberToObject(rotor_json, "row", rotor->row);
+            cJSON_AddNumberToObject(rotor_json, "speed", fabsf(rotor->rotation_speed));
+            cJSON_AddStringToObject(rotor_json, "direction",
+                rotor->rotation_speed >= 0 ? "cw" : "ccw");
+
+            // Serialize connections as simple object indices
+            if (rotor->connection_count > 0) {
+                cJSON* connections = cJSON_CreateArray();
+                for (int j = 0; j < rotor->connection_count; j++) {
+                    cJSON_AddItemToArray(connections,
+                        cJSON_CreateNumber(rotor->connections[j].object_index));
+                }
+                cJSON_AddItemToObject(rotor_json, "connections", connections);
+            }
+
+            cJSON_AddItemToArray(rotors, rotor_json);
+        }
+        cJSON_AddItemToObject(root, "rotors", rotors);
+    }
+
+    // Tracks object (issue 902a)
+    if (data->track_segment_count > 0 || data->track_mover_count > 0) {
+        cJSON* tracks = cJSON_CreateObject();
+
+        // Serialize segments
+        if (data->track_segment_count > 0) {
+            cJSON* segments = cJSON_CreateArray();
+            for (int i = 0; i < data->track_segment_count; i++) {
+                TrackSegment* seg = &data->track_segments[i];
+                cJSON* seg_json = cJSON_CreateObject();
+
+                cJSON* start = cJSON_CreateArray();
+                cJSON_AddItemToArray(start, cJSON_CreateNumber(seg->col1));
+                cJSON_AddItemToArray(start, cJSON_CreateNumber(seg->row1));
+                cJSON_AddItemToObject(seg_json, "start", start);
+
+                cJSON* end = cJSON_CreateArray();
+                cJSON_AddItemToArray(end, cJSON_CreateNumber(seg->col2));
+                cJSON_AddItemToArray(end, cJSON_CreateNumber(seg->row2));
+                cJSON_AddItemToObject(seg_json, "end", end);
+
+                cJSON_AddItemToArray(segments, seg_json);
+            }
+            cJSON_AddItemToObject(tracks, "segments", segments);
+        }
+
+        // Serialize movers
+        if (data->track_mover_count > 0) {
+            cJSON* movers = cJSON_CreateArray();
+            for (int i = 0; i < data->track_mover_count; i++) {
+                TrackMover* mover = &data->track_movers[i];
+                cJSON* mover_json = cJSON_CreateObject();
+
+                cJSON_AddNumberToObject(mover_json, "segment", mover->current_segment);
+                cJSON_AddNumberToObject(mover_json, "position", mover->position_on_segment);
+                cJSON_AddNumberToObject(mover_json, "speed", mover->speed);
+
+                if (mover->payload_count > 0) {
+                    cJSON* payload = cJSON_CreateArray();
+                    for (int j = 0; j < mover->payload_count; j++) {
+                        cJSON_AddItemToArray(payload,
+                            cJSON_CreateNumber(mover->payload_indices[j]));
+                    }
+                    cJSON_AddItemToObject(mover_json, "payload", payload);
+                }
+
+                cJSON_AddItemToArray(movers, mover_json);
+            }
+            cJSON_AddItemToObject(tracks, "movers", movers);
+        }
+
+        cJSON_AddItemToObject(root, "tracks", tracks);
+    }
 
     // Generate formatted JSON string
     char* json_string = cJSON_Print(root);

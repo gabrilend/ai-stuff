@@ -1,6 +1,6 @@
 # 408 - Minimum Window Width Constraint
 
-## Status: awaiting-work
+## Status: Completed
 
 ## Depends on
 
@@ -116,3 +116,25 @@ Note: This may conflict with tiled WMs. Need to test behavior.
 - Height has no minimum - very short windows are fine (just clips the board)
 - This primarily protects against accidental resize making game unplayable
 - Tiled WM users are power users who can handle edge cases
+
+## Implementation Complete
+
+### Changes Made
+
+1. Added minimum window size constants to `src/001-main.c`:
+   - `MIN_WINDOW_WIDTH 600` - Typical minimum board width
+   - `MIN_WINDOW_HEIGHT 100` - Minimal height (user can resize short)
+
+2. Added `SetWindowMinSize()` call after `InitWindow()` in:
+   - `src/001-main.c` - Game (600x100 minimum)
+   - `src/030-editor-main.c` - Editor (800x100 minimum, extra width for panels)
+
+### Behavior
+
+- Windowed mode: Raylib enforces minimum, preventing resize below these dimensions
+- Tiled WMs: May override these limits, which is expected behavior for power users
+- Height: Minimal constraint allows users to make window as short as they want
+
+### Unblocks
+
+- 409 (Collapsible drawer UI) - Now has stable window handling to build on

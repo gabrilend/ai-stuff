@@ -25,6 +25,7 @@
 #include "036-wrap-zones.h"
 #include "038-slot-manager.h"
 #include "040-spawner.h"
+#include "045-zone-dispatch.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -36,6 +37,12 @@
 // Scrolling viewport constants
 #define SCROLL_SPEED 120.0f   // Pixels per scroll wheel notch (tripled for faster panning)
 #define SCROLL_LERP_SPEED 8.0f // Lerp factor for smooth scrolling (higher = snappier)
+
+// Minimum window dimensions (issue 408)
+// Width enforced to keep board visible; height has no minimum (user can make it short)
+// 600px = typical minimum board width (10 columns * 60px cell size)
+#define MIN_WINDOW_WIDTH 600
+#define MIN_WINDOW_HEIGHT 100  // Minimal height, user can resize as short as they want
 
 // {{{ typedef struct StagePurchaseContext
 // Context passed to stage purchase callback
@@ -519,6 +526,12 @@ int main(int argc, char* argv[]) {
     SetTargetFPS(60);
     SetExitKey(0);  // Disable default ESC-to-quit, we handle it manually
 
+    // Set minimum window size to prevent board from going off-screen (issue 408)
+    // Note: Tiled WMs (i3, sway) may override this, which is expected behavior
+    // for power users who know what they're doing
+    SetWindowMinSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+    printf("Minimum window size set: %dx%d\n", MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+
     // Detect monitor size and scale window vertically
     // Works on X11 (i3, dwm) and Wayland (sway) via raylib abstraction
     int monitor = GetCurrentMonitor();
@@ -738,6 +751,31 @@ int main(int argc, char* argv[]) {
     // Attach wrap zones to world so ball physics can access them
     world->wrap_zones = wrap_zones;
     printf("Wrap zones created\n");
+
+    // Create zone dispatch grid (issue 318)
+    // Maps grid cells to zone types for unified zone handling
+    // Uses same cell size as regular grid, spans maximum expandable area
+    ZoneGrid* zone_grid = zone_grid_create(
+        world->table_x,      // Origin X (left edge of table)
+        world->table_top,    // Origin Y (top of player area)
+        DEFAULT_GRID_CELL_SIZE,
+        DEFAULT_GRID_COLS,
+        ZONE_GRID_MAX_ROWS,  // Max rows to accommodate expansion
+        world
+    );
+    if (zone_grid) {
+        // Set up initial gate row at the zone position
+        // Convert zone Y position to grid row
+        int gate_row = (int)((world->table_bottom - world->table_top) / DEFAULT_GRID_CELL_SIZE);
+        zone_grid_set_gate_row(zone_grid, gate_row, 0);  // No multiplier initially
+
+        world->zone_grid = zone_grid;
+        printf("Zone dispatch grid created: %d cols, %d max rows, gate row %d\n",
+               DEFAULT_GRID_COLS, ZONE_GRID_MAX_ROWS, gate_row);
+    } else {
+        printf("WARNING: Zone grid creation failed, using fallback zone system\n");
+        world->zone_grid = NULL;
+    }
 
     // Initialize scrolling viewport
     // World height can be larger than screen for scrollable areas
@@ -1223,6 +1261,12 @@ int main(int argc, char* argv[]) {
 
     wrap_zones_destroy(wrap_zones);
     printf("Wrap zones destroyed\n");
+
+    // Zone grid destruction (issue 318)
+    if (zone_grid) {
+        zone_grid_destroy(zone_grid);
+        printf("Zone dispatch grid destroyed\n");
+    }
 
     stage_pool_destroy(stage_pool);
     printf("Stage pool destroyed\n");

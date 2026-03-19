@@ -15,7 +15,7 @@ Display systems: viewport, window management, UI elements, and reticle.
 | 405 | Escape key behavior                | completed     | -          |
 | 406 | Editor panel UI system             | awaiting-work | -          |
 | 407 | Hide game UI keybind               | awaiting-work | -          |
-| 408 | Minimum window width               | awaiting-work | -          |
+| 408 | Minimum window width               | completed     | -          |
 | 409 | Collapsible drawer UI              | blocked       | 406        |
 | 410 | Reticle toggle mouse control       | completed     | -          |
 | 411 | Player reticle display bug         | completed     | -          |
@@ -23,8 +23,8 @@ Display systems: viewport, window management, UI elements, and reticle.
 
 ## Progress Summary
 
-**Completed:** 8/12 issues
-**Awaiting work:** 3 (406, 407, 408)
+**Completed:** 9/12 issues
+**Awaiting work:** 2 (406, 407)
 **Blocked:** 1 (409)
 **Phase status:** awaiting-work
 
