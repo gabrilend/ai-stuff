@@ -194,9 +194,66 @@ void ball_update_with_substeps(Ball* ball, float dt) {
 - `src/007-ball.c` - Add stats recording in update
 - `src/001-main.c` - Add debug overlay rendering
 
+## Relationship to Issue 1311
+
+Issue 1311 (Trajectory History) stores per-ball position/velocity history in a circular buffer. This system can be leveraged for velocity statistics:
+
+```c
+// In ball_record_trajectory (issue 1311), also update velocity stats
+void ball_record_trajectory(Ball* ball) {
+    // Existing trajectory recording...
+    ball->history_x[ball->history_index] = ball->x;
+    ball->history_y[ball->history_index] = ball->y;
+    ball->history_vx[ball->history_index] = ball->vx;
+    ball->history_vy[ball->history_index] = ball->vy;
+
+    // Velocity statistics (issue 1322)
+    float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+    record_velocity_stats_for_ball(ball, speed);
+
+    ball->history_index = (ball->history_index + 1) % TRAJECTORY_HISTORY_FRAMES;
+}
+```
+
+The trajectory history provides:
+- Per-frame velocity samples for averaging
+- Historical context for when max speed occurred
+- Pattern detection (was ball accelerating or decelerating?)
+
+## Investigation Findings (2024-01-XX)
+
+Analysis of gate scoring system revealed:
+
+### Zone Dimensions
+- Zones are 40px tall (SLOT_GATE_HEIGHT)
+- At 60 FPS, balls moving >2400 px/s could tunnel through in one frame
+- Free-falling ball from top of 946px player board could exceed this velocity
+
+### Tunneling Risk Calculation
+```
+v = sqrt(2 * g * h)
+With game gravity ~500 px/s² and h = 946px:
+v = sqrt(2 * 500 * 946) ≈ 973 px/s
+
+With higher gravity (1000 px/s²):
+v = sqrt(2 * 1000 * 946) ≈ 1375 px/s
+
+With bouncing acceleration (multiple bounces adding energy):
+Velocities can exceed 2000+ px/s
+```
+
+### Root Cause Hypothesis
+Balls that have accumulated significant downward velocity (from long falls or multiple bounces) can pass through the 40px zone detection area in a single physics frame, causing `ball_check_zone()` to never detect them as "inside" the zone.
+
+### Recommended Priority
+1. **High**: Implement velocity statistics to confirm tunneling is occurring
+2. **Medium**: Add velocity clamping as immediate fix (cap at MAX_SAFE_SPEED)
+3. **Low**: Implement swept collision for proper long-term solution
+
 ## Notes
 
 - Start with just tracking, don't change physics yet
 - Collect data first, then decide on solution
 - Per-ball tracking could help identify specific problematic scenarios
 - Frame rate drops could temporarily increase tunneling risk
+- Integration with issue 1311 reduces redundant per-ball tracking code

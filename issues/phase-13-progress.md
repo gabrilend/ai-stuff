@@ -49,10 +49,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1320  | Remove adversary board tinting     | Open      |
 | 1321  | Allow multiple gate scoring        | Open      |
 | 1322  | Ball velocity statistics           | Open      |
+| 1323  | GateRow scoring never called       | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/38 issues (16%)
+**Completed:** 6/39 issues (15%)
 **Status:** In Progress
 
 ## Major Features
