@@ -742,6 +742,7 @@ static int object_touches_point(BoardObject* obj, int col, int row, float thresh
 // BFS-based connection detection (issue 901d)
 // Finds objects that touch the rotor center, then transitively finds
 // all objects touching those objects.
+// Issue 901e: Also sets is_dynamic and rotor_index flags on connected objects.
 int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
                                         int max_distance) {
     if (!data) return 0;
@@ -750,6 +751,15 @@ int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
 
     // Clear existing connections
     board_data_rotor_clear_connections(data, rotor_index);
+
+    // Issue 901e: Reset dynamic flags for objects previously connected to this rotor
+    // before detecting new connections
+    for (int i = 0; i < data->object_count; i++) {
+        if (data->objects[i].rotor_index == rotor_index) {
+            data->objects[i].is_dynamic = 0;
+            data->objects[i].rotor_index = -1;
+        }
+    }
 
     Rotor* rotor = &data->rotors[rotor_index];
     int rotor_col = rotor->col;
@@ -773,6 +783,10 @@ int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
         if (object_touches_point(&data->objects[i], rotor_col, rotor_row, TOUCH_THRESHOLD)) {
             visited[i] = 1;
             queue[queue_tail++] = i;
+
+            // Issue 901e: Mark object as dynamic and attached to this rotor
+            data->objects[i].is_dynamic = 1;
+            data->objects[i].rotor_index = rotor_index;
 
             // Calculate relative position for this object
             BoardObject* obj = &data->objects[i];
@@ -803,6 +817,10 @@ int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
             if (objects_touch(current, &data->objects[i], TOUCH_THRESHOLD)) {
                 visited[i] = 1;
                 queue[queue_tail++] = i;
+
+                // Issue 901e: Mark object as dynamic and attached to this rotor
+                data->objects[i].is_dynamic = 1;
+                data->objects[i].rotor_index = rotor_index;
 
                 // Calculate relative position
                 BoardObject* obj = &data->objects[i];

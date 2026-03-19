@@ -12,9 +12,9 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901a | Rotor data structure          | completed     | -               |
 | 901b | Editor rotor placement tool   | completed     | 901a ✓          |
 | 901c | Line rotation physics         | completed     | 901a ✓          |
-| 901d | Connected object detection    | awaiting-work | 901a ✓          |
-| 901e | Collision modes               | awaiting-work | 901c ✓, 901d    |
-| 901f | Ball crushing                 | blocked       | 901e, 221e      |
+| 901d | Connected object detection    | completed     | 901a ✓          |
+| 901e | Collision modes               | completed     | 901c ✓, 901d ✓  |
+| 901f | Ball crushing                 | awaiting-work | 901e ✓, 221e ✓  |
 | 901g | Direction config UI           | awaiting-work | 901b ✓          |
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
@@ -28,13 +28,28 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Progress Summary
 
-**Completed:** 6/17 issues (901a, 901b, 901c, 902a, 902b, 903)
+**Completed:** 8/17 issues (901a, 901b, 901c, 901d, 901e, 902a, 902b, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 5 (901d, 901e, 901g, 902c, 902d)
-**Blocked:** 4 (901f, 902e, 902f, 902g)
+**Awaiting work:** 4 (901f, 901g, 902c, 902d)
+**Blocked:** 3 (902e, 902f, 902g)
 **Phase status:** in-progress
 
 ## Recent Completions
+
+### 901e - Collision modes (pass-through)
+- Added `is_dynamic` and `rotor_index` fields to BoardObject struct
+- Initialize fields to 0/-1 when objects created in add_peg_ex and add_line_ex
+- Set flags when rotor connections computed via BFS detection
+- Engine architecture already supports pass-through (objects don't collide with each other)
+- Flags prepared for future use in 901f (ball crushing detection)
+- Unblocked 901f (Ball crushing)
+
+### 901d - Connected object detection
+- Implemented BFS-based touch detection algorithm
+- Added geometry helpers: point_to_segment_distance_sq, segments_intersect_or_close
+- Objects touching rotor center are detected, then transitively connected objects
+- Uses TOUCH_THRESHOLD (0.5 grid units) for proximity detection
+- Replaced simple Manhattan distance with proper geometric touch testing
 
 ### 901c - Line rotation physics
 - Created `src/044-rotor.h` and `src/044-rotor.c` - rotor physics module

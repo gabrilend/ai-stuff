@@ -142,6 +142,11 @@ typedef struct BoardObject {
     unsigned char restitution;  // R: bounciness (0=dead, 255=super bounce)
     unsigned char friction;     // G: surface grip (0=ice, 255=sticky)
     unsigned char point_bonus;  // B: points awarded on hit
+
+    // Dynamic object flags (issue 901e)
+    // Used for collision filtering with rotating/moving objects
+    int is_dynamic;     // 1 if part of a rotor or track mover, 0 otherwise
+    int rotor_index;    // Index of rotor this object is attached to (-1 if none)
 } BoardObject;
 // }}}
 
