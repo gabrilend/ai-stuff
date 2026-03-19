@@ -1,30 +1,27 @@
 // src/012-adversary.h
 // Adversary AI system for spawning and controlling enemy balls
 // The adversary has a mirrored board below the player with reversed gravity
+// Refactored to use unified Spawner system (issue 1309)
 
 #ifndef ADVERSARY_H
 #define ADVERSARY_H
+
+#include "040-spawner.h"
 
 // Forward declarations
 typedef struct World World;
 typedef struct BallManager BallManager;
 
 // Adversary AI constants
-#define ADVERSARY_SPAWN_RATE 1.3f     // Balls per second
 #define ADVERSARY_MOVE_SPEED 120.0f   // Pixels per second for reticle
 #define ADVERSARY_SPAWN_Y_OFFSET 40.0f // Distance below adversary_table_bottom (matches player's 100px gap from pegs)
 
 // {{{ typedef struct Adversary
 // Adversary holds the AI state for the enemy spawner.
-// Moves reticle back and forth, spawning balls at regular intervals.
+// Uses unified Spawner for spawn mechanics (issue 1309).
+// AI controller oscillates reticle back and forth.
 typedef struct Adversary {
-    float spawn_x;           // Current horizontal spawn position
-    float spawn_y;           // Vertical spawn position (fixed)
-    float spawn_direction;   // +1.0 (right) or -1.0 (left)
-    float spawn_credits;     // Accumulated spawn credits
-    float spawn_rate;        // Balls per second
-    float move_speed;        // Reticle movement speed
-    int spawn_count;         // Total spawns for progress bar color (issue 1303)
+    Spawner spawner;  // Unified spawner handles credits, position, rendering
 } Adversary;
 // }}}
 

@@ -25,9 +25,7 @@ BallManager* ball_manager_create(int capacity) {
 
     manager->capacity = capacity;
     manager->active_count = 0;
-    manager->spawn_cooldown = 0.0f;
-    manager->spawn_credits = 1.0f;  // Start with one credit (ready to spawn)
-    manager->spawn_count = 0;       // Total spawns for progress bar color (issue 1303)
+    // NOTE: spawn_credits moved to Spawner struct (issue 1309)
 
     // Allocate current buffer
     manager->balls_current = (Ball*)calloc(capacity, sizeof(Ball));
@@ -844,79 +842,10 @@ void ball_manager_render(BallManager* manager) {
 }
 // }}}
 
-// {{{ ball_manager_update_cooldown
-void ball_manager_update_cooldown(BallManager* manager, float dt) {
-    if (!manager) return;
-
-    // Accumulate spawn credits over time (capped)
-    // Credits accumulate even when spawn is blocked, saving for later
-    manager->spawn_credits += SPAWN_RATE * dt;
-    if (manager->spawn_credits > MAX_SPAWN_CREDITS) {
-        manager->spawn_credits = MAX_SPAWN_CREDITS;
-    }
-
-    // Update visual cooldown indicator
-    if (manager->spawn_cooldown > 0) {
-        manager->spawn_cooldown -= dt;
-    }
-}
-// }}}
-
-// {{{ ball_manager_can_spawn
-int ball_manager_can_spawn(BallManager* manager) {
-    if (!manager) return 0;
-
-    // Check credits (>= 1.0 means can spawn) and capacity
-    return manager->spawn_credits >= 1.0f &&
-           manager->active_count < manager->capacity;
-}
-// }}}
-
-// {{{ ball_manager_reset_cooldown
-void ball_manager_reset_cooldown(BallManager* manager) {
-    if (!manager) return;
-
-    // Consume one credit for spawning
-    manager->spawn_credits -= 1.0f;
-    if (manager->spawn_credits < 0.0f) {
-        manager->spawn_credits = 0.0f;
-    }
-
-    // Reset visual cooldown indicator
-    manager->spawn_cooldown = SPAWN_COOLDOWN;
-}
-// }}}
-
-// {{{ ball_manager_spawn_blocked
-// Checks circular distance from reticle center (spawn_x, spawn_y).
-// Balls with initial horizontal velocity will quickly exit the blocking zone,
-// allowing the next ball to spawn - no need to wait for vertical clearance.
-int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_y) {
-    if (!manager) return 0;
-
-    for (int i = 0; i < manager->capacity; i++) {
-        Ball* ball = &manager->balls_current[i];
-        if (!ball->active) continue;
-
-        // Dynamic margin based on ball radius (supports future size upgrades)
-        // 1.5x ball radius is minimum clearance to prevent overlap
-        float spawn_margin = ball->radius * 1.5f;
-
-        // Circular distance check centered on reticle position
-        // Balls moving left/right exit blocking zone quickly via horizontal distance
-        float dx = ball->x - spawn_x;
-        float dy = ball->y - spawn_y;
-        float dist_sq = dx * dx + dy * dy;
-        float min_dist = spawn_margin + ball->radius;
-
-        if (dist_sq < min_dist * min_dist) {
-            return 1;  // Spawn is blocked by ball within reticle zone
-        }
-    }
-
-    return 0;  // Spawn area is clear
-}
-// }}}
+// NOTE: Spawn cooldown functions removed (issue 1309)
+// Spawn credits now managed by Spawner struct in 040-spawner.h
+// Removed: ball_manager_update_cooldown, ball_manager_can_spawn,
+//          ball_manager_reset_cooldown, ball_manager_spawn_blocked
 
 // {{{ ball_manager_prepare_tasks
 void ball_manager_prepare_tasks(BallManager* manager, World* world, float dt) {

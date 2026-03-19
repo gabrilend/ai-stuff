@@ -43,7 +43,8 @@ GAME_SRCS = src/001-main.c \
             src/027-stage-pool.c \
             src/029-portal.c \
             src/037-wrap-zones.c \
-            src/039-slot-manager.c
+            src/039-slot-manager.c \
+            src/041-spawner.c
 
 GAME_OBJS = $(GAME_SRCS:.c=.o)
 GAME_BIN = bin/physics-sim

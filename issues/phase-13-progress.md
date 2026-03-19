@@ -35,14 +35,14 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1307d | - Soft collision response          | Open      |
 | 1307e | - Stress source distinction        | Open      |
 | 1308  | Expand grid dimensions             | Open      |
-| 1309  | Unified spawner system             | Open      |
+| 1309  | Unified spawner system             | Complete  |
 | 1310  | Compile-time config system         | Open      |
 | 1311  | Trajectory history and overlap nudge | Open    |
 | 1312  | Closed polygon detection and fill  | Open      |
 
 ## Progress Summary
 
-**Completed:** 4/28 issues (14%)
+**Completed:** 5/28 issues (18%)
 **Status:** In Progress
 
 ## Major Features

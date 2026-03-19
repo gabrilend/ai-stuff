@@ -104,14 +104,12 @@ typedef struct BallTaskData {
 // {{{ typedef struct BallManager
 // BallManager holds and manages a collection of balls.
 // Maintains two buffers for double-buffered physics updates.
+// Note: Spawn credits moved to Spawner struct (issue 1309)
 typedef struct BallManager {
     Ball* balls_current;     // Current frame state (read-only during update)
     Ball* balls_next;        // Next frame state (write during update)
     int capacity;            // Maximum number of balls
     int active_count;        // Number of currently active balls
-    float spawn_cooldown;    // Visual indicator timing (legacy)
-    float spawn_credits;     // Accumulated spawn credits (1.0 = can spawn)
-    int spawn_count;         // Total spawns for progress bar color phase (issue 1303)
     BallTaskData* task_data; // Pre-allocated task data for parallel processing
 
     // Ball colors (issue 1301 - random complementary colors)
@@ -203,52 +201,9 @@ void ball_manager_update(BallManager* manager, World* world, float dt);
 void ball_manager_render(BallManager* manager);
 // }}}
 
-// {{{ ball_manager_update_cooldown
-// Updates spawn system each frame.
-// Accumulates spawn credits (capped at MAX_SPAWN_CREDITS).
-// Also updates visual cooldown indicator.
-//
-// Parameters:
-//   manager: BallManager instance
-//   dt: Delta time in seconds
-void ball_manager_update_cooldown(BallManager* manager, float dt);
-// }}}
-
-// {{{ ball_manager_can_spawn
-// Checks if the manager can spawn a new ball.
-// Returns 1 if credits >= 1.0 and capacity not reached.
-//
-// Parameters:
-//   manager: BallManager instance
-//
-// Returns:
-//   1 if can spawn, 0 otherwise
-int ball_manager_can_spawn(BallManager* manager);
-// }}}
-
-// {{{ ball_manager_spawn_blocked
-// Checks if the spawn area is blocked by any active balls.
-// Returns 1 if any ball is within the spawn area, preventing spawning.
-// Uses a safety margin (3x ball radius) to prevent physics issues.
-//
-// Parameters:
-//   manager: BallManager instance
-//   spawn_x: Spawn point X coordinate
-//   spawn_y: Spawn point Y coordinate
-//
-// Returns:
-//   1 if spawn blocked, 0 if area is clear
-int ball_manager_spawn_blocked(BallManager* manager, float spawn_x, float spawn_y);
-// }}}
-
-// {{{ ball_manager_reset_cooldown
-// Consumes one spawn credit and resets visual cooldown.
-// Call after successfully spawning a ball.
-//
-// Parameters:
-//   manager: BallManager instance
-void ball_manager_reset_cooldown(BallManager* manager);
-// }}}
+// NOTE: Spawn cooldown functions removed (issue 1309)
+// Spawn credits now managed by Spawner struct in 040-spawner.h
+// Use spawner_update() and spawner_try_spawn() instead
 
 // {{{ ball_manager_prepare_tasks
 // Prepares task data for parallel ball updates.

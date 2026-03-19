@@ -24,6 +24,7 @@
 #include "028-portal.h"
 #include "036-wrap-zones.h"
 #include "038-slot-manager.h"
+#include "040-spawner.h"
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -713,7 +714,7 @@ int main(int argc, char* argv[]) {
         CloseWindow();
         return 1;
     }
-    printf("Adversary AI created: spawn_y=%.0f\n", adversary->spawn_y);
+    printf("Adversary AI created: spawn_y=%.0f\n", adversary->spawner.y);
 
     // Initialize expansion animation system
     // Used when purchasing new stages to animate world expansion
@@ -778,11 +779,26 @@ int main(int argc, char* argv[]) {
     // Auto-spawn toggle state
     int auto_spawn = 0;
 
-    // Spawn point position - single source of truth for spawn location
-    // spawn_x is movable via mouse/keyboard, spawn_y from slot manager (issue 1221)
-    float spawn_x = world->table_x + world->table_width / 2.0f;  // Start at table center
-    float spawn_y = slot_manager_get_player_spawn_y(slot_manager);  // From slot manager
-    float spawn_nudge_speed = 200.0f;  // Pixels per second for keyboard control
+    // Player spawner - unified spawn system (issue 1309)
+    // Position controlled via mouse/keyboard, spawner handles credits and rendering
+    float player_spawn_y = slot_manager_get_player_spawn_y(slot_manager);
+    Spawner player_spawner = spawner_create(
+        world->table_x + world->table_width / 2.0f,  // Start at table center
+        player_spawn_y,
+        SPAWN_RATE,  // Base rate from ball.h
+        OWNER_PLAYER,
+        1.0f  // Gravity down
+    );
+    // Set player reticle colors (cyan scheme)
+    spawner_set_colors(&player_spawner, 60, 80, 100, 150, 100, 200, 255, 220);
+    // Set spawn bounds for clamping
+    float spawn_margin = BALL_RADIUS + 5.0f;
+    spawner_set_bounds(&player_spawner,
+        world->table_x + spawn_margin,
+        world->table_x + world->table_width - spawn_margin,
+        200.0f  // Nudge speed for keyboard
+    );
+
     // Toggle-based mouse control: click to enable/disable mouse tracking
     // Default state: frozen (player must click to enable mouse control)
     int mouse_controls_reticle = 0;  // 0 = frozen, 1 = follows mouse
@@ -797,27 +813,21 @@ int main(int argc, char* argv[]) {
         // Get delta time for physics
         float dt = GetFrameTime();
 
-        // Update spawn cooldown (base rate)
-        ball_manager_update_cooldown(ball_manager, dt);
+        // Update player spawner credits (base rate via spawner_update)
+        // Pass NULL controller - position handled manually below for input flexibility
+        spawner_update(&player_spawner, NULL, NULL, dt);
 
-        // Add bonus spawn credits from upgrades
+        // Add bonus spawn credits from upgrades (issue 1309)
         float spawn_rate_bonus = upgrade_get_spawn_rate_bonus(upgrade_manager);
         if (spawn_rate_bonus > 0.0f) {
-            ball_manager->spawn_credits += spawn_rate_bonus * dt;
-            if (ball_manager->spawn_credits > MAX_SPAWN_CREDITS) {
-                ball_manager->spawn_credits = MAX_SPAWN_CREDITS;
-            }
+            player_spawner.credits = spawner_accumulate(
+                player_spawner.credits, spawn_rate_bonus, dt, SPAWNER_MAX_CREDITS);
         }
 
         // Particle system now updated in parallel after ball physics
         // (see particle_system_prepare_tasks/submit_tasks/finalize/swap below)
 
         // Handle spawn point movement - toggle-based mouse control
-        // Calculate spawn bounds (keep ball radius away from rails)
-        float spawn_margin = BALL_RADIUS + 5.0f;
-        float spawn_min_x = world->table_x + spawn_margin;
-        float spawn_max_x = world->table_x + world->table_width - spawn_margin;
-
         // Toggle mouse control on left click (when menu is closed)
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !upgrade_manager->menu_open) {
             mouse_controls_reticle = !mouse_controls_reticle;
@@ -827,20 +837,20 @@ int main(int argc, char* argv[]) {
         if (mouse_controls_reticle) {
             Vector2 mouse_screen = { (float)GetMouseX(), (float)GetMouseY() };
             Vector2 mouse_world = GetScreenToWorld2D(mouse_screen, camera);
-            spawn_x = mouse_world.x;
+            player_spawner.x = mouse_world.x;
         }
 
         // Arrow keys always work (independent of mouse toggle)
         if (IsKeyDown(KEY_LEFT)) {
-            spawn_x -= spawn_nudge_speed * dt;
+            player_spawner.x -= player_spawner.move_speed * dt;
         }
         if (IsKeyDown(KEY_RIGHT)) {
-            spawn_x += spawn_nudge_speed * dt;
+            player_spawner.x += player_spawner.move_speed * dt;
         }
 
-        // Clamp spawn_x to table bounds
-        if (spawn_x < spawn_min_x) spawn_x = spawn_min_x;
-        if (spawn_x > spawn_max_x) spawn_x = spawn_max_x;
+        // Clamp spawn position to table bounds
+        if (player_spawner.x < player_spawner.min_x) player_spawner.x = player_spawner.min_x;
+        if (player_spawner.x > player_spawner.max_x) player_spawner.x = player_spawner.max_x;
 
         // Handle auto-spawn toggle (A key) - only when menu is closed
         if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open) {
@@ -904,8 +914,10 @@ int main(int argc, char* argv[]) {
                     world->adversary_lines[i].x1 += dx;
                     world->adversary_lines[i].x2 += dx;
                 }
-                // Shift player spawn point to stay anchored to table
-                spawn_x += dx;
+                // Shift player spawner position to stay anchored to table
+                player_spawner.x += dx;
+                player_spawner.min_x += dx;
+                player_spawner.max_x += dx;
             }
 
             // Regenerate dynamic elements (gates are not part of JSON boards)
@@ -1087,20 +1099,13 @@ int main(int argc, char* argv[]) {
         physics_ms = (physics_end - physics_start) * 1000.0;
 
         // Handle ball spawning input (after buffer swap so balls render at spawn position)
-        // Check cooldown AND that no balls are blocking the spawn area
-        // Spawn blocking prevents physics issues when balls overlap at spawn
+        // spawner_try_spawn checks credits, blocking, and capacity internally
         // Auto-spawn acts like SPACE is held down
-        // Uses movable spawn_x position, fixed spawn_y height
-        // Spawning paused while upgrade menu is open
-        if (!upgrade_manager->menu_open &&
-            (IsKeyDown(KEY_SPACE) || auto_spawn) && ball_manager_can_spawn(ball_manager) &&
-            !ball_manager_spawn_blocked(ball_manager, spawn_x, spawn_y)) {
+        // Spawning paused while upgrade menu is open (issue 1309)
+        if (!upgrade_manager->menu_open && (IsKeyDown(KEY_SPACE) || auto_spawn)) {
             // Calculate ball radius with upgrade modifier
             float ball_radius = BALL_RADIUS + upgrade_get_ball_radius_modifier(upgrade_manager);
-            ball_manager_spawn(ball_manager, spawn_x, spawn_y, ball_radius,
-                             OWNER_PLAYER, 1.0f);  // Player ball, gravity down
-            ball_manager_reset_cooldown(ball_manager);
-            ball_manager->spawn_count++;  // Track total spawns for color phase (issue 1303)
+            spawner_try_spawn(&player_spawner, ball_manager, ball_radius);
         }
 
     skip_physics:  // Label for expansion animation physics skip
@@ -1135,36 +1140,8 @@ int main(int argc, char* argv[]) {
             portal_manager_render(world->portals);
         }
 
-        // Draw spawn point indicator (pulsing circle at movable position)
-        float pulse = sinf((float)GetTime() * 4.0f) * 0.5f + 0.5f;  // Oscillates 0-1
-        unsigned char alpha = (unsigned char)(pulse * 150.0f + 50.0f);  // Range: 50-200
-        DrawCircleLines((int)spawn_x, (int)spawn_y, 15.0f,
-                       (Color){255, 255, 255, alpha});
-
-        // Draw cooldown indicator (ring around spawn point)
-        // Uses spawn_credits fractional part for continuous progress
-        // Colors invert on each spawn for visual continuity (issue 1303)
-        // - Odd spawn count: dim background, bright progress (fills up)
-        // - Even spawn count: bright background, dim progress (appears to empty)
-        int inverted = ball_manager->spawn_count % 2;
-        float credits_frac = ball_manager->spawn_credits - (int)ball_manager->spawn_credits;
-
-        // Define color palette for player reticle
-        Color dim_cyan = (Color){60, 80, 100, 150};
-        Color bright_cyan = (Color){100, 200, 255, 220};
-
-        // Swap colors based on phase for seamless visual continuity
-        Color bg_color = inverted ? bright_cyan : dim_cyan;
-        Color arc_color = inverted ? dim_cyan : bright_cyan;
-
-        // Background ring (full circle)
-        DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                0, 360, 32, bg_color);
-
-        // Progress arc - always shows fractional progress toward next credit
-        float arc_degrees = 360.0f * credits_frac;
-        DrawRing((Vector2){spawn_x, spawn_y}, 18.0f, 20.0f,
-                -90, -90 + arc_degrees, 32, arc_color);
+        // Draw player spawner reticle (issue 1309 - unified spawner system)
+        spawner_render(&player_spawner);
 
         // Draw balls
         ball_manager_render(ball_manager);
