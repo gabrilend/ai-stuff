@@ -1,6 +1,6 @@
 # 221b - Sleep Transition Logic
 
-## Status: blocked
+## Status: complete
 
 ## Depends on
 
@@ -136,3 +136,36 @@ void game_update() {
 - SLEEP_FRAME_DELAY provides hysteresis
 - Zeroing velocity prevents drift after sleep
 - May need to tune thresholds based on gameplay feel
+
+---
+
+## Implementation Notes (2026-03-19)
+
+### What Was Implemented
+
+Added sleep transition logic to `src/007-ball.c`:
+
+1. **`ball_enter_sleep()`** - New function that transitions ball to sleeping state:
+   - Records pre-sleep velocity for debugging/statistics
+   - Zeroes velocity to prevent drift
+   - Sets `is_sleeping = 1`
+
+2. **Updated `ball_update_sleep_tracking()`** - Modified to trigger sleep transition:
+   - Now calls `ball_enter_sleep()` when `frames_at_rest >= SLEEP_FRAME_DELAY`
+   - Skips processing for already-sleeping balls (wake handled by 221c)
+
+### Integration Points
+
+- Sleep transition happens automatically after collision resolution in both:
+  - `ball_manager_update()` (single-threaded path)
+  - `ball_update_task()` (parallel path)
+- Physics already skipped for sleeping balls in `ball_update_physics()`
+
+### Constants Used
+
+- `SLEEP_VELOCITY_THRESHOLD = 0.5f` - Below this = "at rest"
+- `SLEEP_FRAME_DELAY = 30` - Frames at rest before sleeping (~0.5s at 60fps)
+
+### Unblocks
+
+- 221c (Wake conditions) - Can now implement wake logic

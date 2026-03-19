@@ -283,19 +283,47 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
 }
 // }}}
 
+// {{{ ball_enter_sleep
+// Transitions ball to sleeping state (issue 221b).
+// Zeroes velocity to prevent drift, records pre-sleep speed for debugging.
+// Sleeping balls are "frozen in place" until woken by external force.
+static void ball_enter_sleep(Ball* ball) {
+    if (!ball || !ball->active) return;
+    if (ball->is_sleeping) return;  // Already sleeping
+
+    // Record pre-sleep velocity for debugging/statistics
+    ball->pre_sleep_velocity = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+
+    // Zero velocity to prevent any drift
+    ball->vx = 0.0f;
+    ball->vy = 0.0f;
+
+    // Enter sleep state
+    ball->is_sleeping = 1;
+}
+// }}}
+
 // {{{ ball_update_sleep_tracking
-// Internal function to track frames at rest for sleep system (issue 221a)
+// Internal function to track frames at rest and transition to sleep (issue 221a, 221b).
 // Called each frame after collision resolution to update sleep tracking state.
-// Does NOT transition to sleep - that's handled by issue 221b.
+// Transitions to sleep when ball is at rest for SLEEP_FRAME_DELAY frames.
 // Returns current speed for use by caller.
 static float ball_update_sleep_tracking(Ball* ball) {
     if (!ball || !ball->active) return 0.0f;
+
+    // Sleeping balls handled separately (wake conditions in 221c)
+    if (ball->is_sleeping) return 0.0f;
 
     float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
 
     if (speed < SLEEP_VELOCITY_THRESHOLD) {
         // Ball is at rest - increment counter
         ball->frames_at_rest++;
+
+        // Issue 221b: Transition to sleep when threshold reached
+        if (ball->frames_at_rest >= SLEEP_FRAME_DELAY) {
+            ball_enter_sleep(ball);
+        }
     } else {
         // Ball is moving - reset counter
         ball->frames_at_rest = 0;
