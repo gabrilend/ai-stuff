@@ -1,6 +1,6 @@
 # 222 - Trajectory History and Overlap Nudge
 
-## Status: awaiting-work
+## Status: partial - trajectory complete, nudging pending
 
 ## Depends on
 
@@ -271,3 +271,32 @@ NUDGE_STRENGTH=0.5
 - Could visualize as motion blur or trails
 - Could predict collisions for better response
 - Spatial hash useful for other optimizations too
+
+## Implementation Notes (2026-03-19)
+
+### Phase 1 Complete: Trajectory History Foundation
+
+1. **config.txt**:
+   - Added `TRAJECTORY_HISTORY_FRAMES=4`
+
+2. **src/006-ball.h**:
+   - Added trajectory constants: `SLOW_BALL_THRESHOLD`, `OVERLAP_RADIUS_MULT`, `NUDGE_STRENGTH`
+   - Added Ball struct fields: `history_x[]`, `history_y[]`, `history_vx[]`, `history_vy[]`, `history_index`
+
+3. **src/007-ball.c**:
+   - Updated `ball_manager_create()` to initialize trajectory history in both buffers
+   - Updated `ball_manager_spawn()` to initialize history at spawn position/velocity
+   - Updated `ball_update_physics()` to copy trajectory history during double-buffering
+   - Added `ball_record_trajectory()` to record state each frame
+   - Added `ball_get_average_trajectory()` for computing average movement direction
+   - Called trajectory recording in both `ball_manager_update()` and `ball_update_task()`
+
+### Remaining Work: Spatial Hash and Nudging
+
+The following are pending:
+- SpatialHash structure for O(1) ball lookup
+- Grid cell ball lists (rebuilt each frame)
+- check_slow_ball_overlaps() with adjacent cell checks
+- check_and_nudge_pair() using trajectory-informed direction
+
+These are optimizations that can be added later when pile behavior needs improvement.

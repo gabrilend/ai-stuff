@@ -9,3 +9,10 @@ MAX_PARTICLES=1024
 
 # Spawning limits
 MAX_SPAWN_CREDITS=3
+
+# Trajectory history (issue 222)
+TRAJECTORY_HISTORY_FRAMES=4
+
+# Editor settings
+# 0 = material presets (standard mode), 1 = raw RGB editing (advanced mode)
+EDITOR_ADVANCED_MODE=0
