@@ -1,6 +1,6 @@
 # 221a - Ball Sleep State Tracking
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
@@ -97,3 +97,25 @@ Sleeping balls are "frozen in place" - they don't move or push. But they CAN be 
 - Sleep state is binary for simplicity
 - Could extend to "drowsy" intermediate state later
 - frames_at_rest provides hysteresis (prevents flicker)
+
+## Implementation Notes (2026-03-19)
+
+### Changes Made
+
+1. **src/006-ball.h**:
+   - Added sleep system constants: `SLEEP_VELOCITY_THRESHOLD`, `SLEEP_FRAME_DELAY`, `WAKE_VELOCITY_THRESHOLD`
+   - Extended Ball struct with: `is_sleeping`, `frames_at_rest`, `pre_sleep_velocity`
+
+2. **src/007-ball.c**:
+   - Updated `ball_manager_create()` to initialize sleep fields in both buffers
+   - Updated `ball_manager_spawn()` to initialize sleep fields for newly spawned balls
+   - Updated `ball_update_physics()` to copy sleep state and skip physics for sleeping balls
+   - Added `ball_update_sleep_tracking()` helper to track frames_at_rest based on velocity
+   - Called sleep tracking in both `ball_manager_update()` and `ball_update_task()`
+
+### Design Decisions
+
+- Sleeping balls maintain position with zero velocity (frozen in place)
+- Sleep tracking runs after all collision resolution so velocity is final for the frame
+- The actual transition to sleep (setting is_sleeping=1) is deferred to issue 221b
+- This allows 221d (soft collision) to proceed independently since it only needs the state to exist

@@ -26,6 +26,13 @@ typedef struct ThreadPool ThreadPool;
 #define LOW_SPEED_THRESHOLD 75.0f  // Below this closing speed: no bounce, reduced friction
 #define LOW_SPEED_FRICTION 0.05f   // Near-zero friction for slow impacts (encourages sliding)
 
+// Sleep system constants (issue 221a)
+// Sleeping balls are "frozen in place" - no gravity, no forces applied.
+// They can be pushed by awake balls, which wakes them up.
+#define SLEEP_VELOCITY_THRESHOLD 0.5f   // Below this magnitude = "at rest"
+#define SLEEP_FRAME_DELAY 30            // Frames at rest before sleeping (~0.5s at 60fps)
+#define WAKE_VELOCITY_THRESHOLD 1.0f    // Above this = instant wake (from external force)
+
 // Bumper constants (gate divider caps)
 #define BUMPER_RADIUS 10.0f       // Slightly wider than dividers
 #define BUMPER_RESTITUTION 0.15f  // Very low bounce for "donk" feel
@@ -69,6 +76,18 @@ typedef struct Ball {
     int owner;         // OWNER_PLAYER or OWNER_ADVERSARY
     int passed_gate;   // 1 if ball has passed through gate (prevents double-scoring)
     int portal_cooldown; // Frames until portal can trigger again (prevents re-entry)
+
+    // Sleep system (issue 221a)
+    // Sleeping balls don't apply gravity or forces, but can be pushed by awake balls.
+    int is_sleeping;         // 1 = sleeping (frozen), 0 = awake (active physics)
+    int frames_at_rest;      // Consecutive frames below SLEEP_VELOCITY_THRESHOLD
+    float pre_sleep_velocity; // Speed when sleep started (debugging/statistics)
+
+    // Zone dispatch fields (issue 318)
+    // pending_score is set by zone handlers and collected by main loop
+    int pending_score;   // Points to award (0 if none, processed by main loop)
+    float score_x;       // Position where score occurred
+    float score_y;
 } Ball;
 // }}}
 

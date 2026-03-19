@@ -61,11 +61,20 @@ BallManager* ball_manager_create(int capacity) {
         manager->balls_current[i].gravity_dir = 1.0f;
         manager->balls_current[i].owner = OWNER_PLAYER;
         manager->balls_current[i].passed_gate = 0;
+        // Sleep system (issue 221a): newly spawned balls start awake
+        manager->balls_current[i].is_sleeping = 0;
+        manager->balls_current[i].frames_at_rest = 0;
+        manager->balls_current[i].pre_sleep_velocity = 0.0f;
+
         manager->balls_next[i].active = 0;
         manager->balls_next[i].radius = BALL_RADIUS;
         manager->balls_next[i].gravity_dir = 1.0f;
         manager->balls_next[i].owner = OWNER_PLAYER;
         manager->balls_next[i].passed_gate = 0;
+        // Sleep system (issue 221a)
+        manager->balls_next[i].is_sleeping = 0;
+        manager->balls_next[i].frames_at_rest = 0;
+        manager->balls_next[i].pre_sleep_velocity = 0.0f;
 
         // Initialize task data with immutable ball_index
         manager->task_data[i].ball_index = i;
@@ -144,6 +153,10 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
             ball->owner = owner;
             ball->passed_gate = 0;
             ball->portal_cooldown = 0;  // Start with no portal cooldown
+            // Sleep system (issue 221a): spawned balls start awake with full velocity
+            ball->is_sleeping = 0;
+            ball->frames_at_rest = 0;
+            ball->pre_sleep_velocity = 0.0f;
             manager->active_count++;
             return 1;
         }
@@ -179,6 +192,7 @@ void ball_manager_deactivate(BallManager* manager, int index) {
 
 // {{{ ball_update_physics
 // Internal function to update a single ball's physics
+// Sleep system (issue 221a): sleeping balls skip gravity and position updates
 static void ball_update_physics(Ball* current, Ball* next, float dt) {
     // Copy constant properties
     next->active = current->active;
@@ -188,8 +202,22 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
     next->owner = current->owner;
     next->passed_gate = current->passed_gate;
     next->portal_cooldown = current->portal_cooldown;
+    // Sleep system (issue 221a): copy sleep state
+    next->is_sleeping = current->is_sleeping;
+    next->frames_at_rest = current->frames_at_rest;
+    next->pre_sleep_velocity = current->pre_sleep_velocity;
 
     if (!current->active) return;
+
+    // Sleep system (issue 221a): sleeping balls don't move or accelerate
+    // They maintain position but can still receive collision forces
+    if (current->is_sleeping) {
+        next->x = current->x;
+        next->y = current->y;
+        next->vx = 0.0f;
+        next->vy = 0.0f;
+        return;
+    }
 
     // Semi-implicit Euler integration
     // Update velocity first (using gravity in ball's direction)
@@ -203,6 +231,28 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
     // Update position using new velocity
     next->x = current->x + next->vx * dt;
     next->y = current->y + next->vy * dt;
+}
+// }}}
+
+// {{{ ball_update_sleep_tracking
+// Internal function to track frames at rest for sleep system (issue 221a)
+// Called each frame after collision resolution to update sleep tracking state.
+// Does NOT transition to sleep - that's handled by issue 221b.
+// Returns current speed for use by caller.
+static float ball_update_sleep_tracking(Ball* ball) {
+    if (!ball || !ball->active) return 0.0f;
+
+    float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+
+    if (speed < SLEEP_VELOCITY_THRESHOLD) {
+        // Ball is at rest - increment counter
+        ball->frames_at_rest++;
+    } else {
+        // Ball is moving - reset counter
+        ball->frames_at_rest = 0;
+    }
+
+    return speed;
 }
 // }}}
 
@@ -786,6 +836,9 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
                 wrap_zones_check_ball(world->wrap_zones, next);
             }
 
+            // Sleep system (issue 221a): update frames_at_rest tracking
+            ball_update_sleep_tracking(next);
+
             // Count active balls
             if (next->active) {
                 manager->active_count++;
@@ -938,6 +991,10 @@ void ball_update_task(void* data) {
                 next->portal_cooldown = PORTAL_COOLDOWN_FRAMES;
             }
         }
+
+        // Sleep system (issue 221a): update frames_at_rest tracking
+        // Called after all collisions resolved so velocity is final for this frame
+        ball_update_sleep_tracking(next);
 
         // Check if ball died from cross-board collision damage
         if (next->active && next->health <= 0) {
