@@ -32,7 +32,8 @@ typedef enum EditorAppTool {
     APP_TOOL_LINE,         // Draw lines
     APP_TOOL_PORTAL_ENTRY, // Place entry portals
     APP_TOOL_PORTAL_EXIT,  // Place exit portals
-    APP_TOOL_ROTOR         // Place rotors (issue 901b)
+    APP_TOOL_ROTOR,        // Place rotors (issue 901b)
+    APP_TOOL_TRACK         // Draw track segments (issue 902b)
 } EditorAppTool;
 // }}}
 
@@ -42,6 +43,13 @@ typedef enum LineToolState {
     LINE_STATE_END,        // First point set, positioning end
     LINE_STATE_THICKNESS   // Both points set, adjusting thickness
 } LineToolState;
+// }}}
+
+// {{{ TrackToolState enum (issue 902b)
+typedef enum TrackToolState {
+    TRACK_STATE_IDLE,      // Waiting for first click
+    TRACK_STATE_END        // First point set, positioning end
+} TrackToolState;
 // }}}
 
 // =============================================================================
@@ -67,6 +75,27 @@ typedef struct AppLineToolData {
     float min_thickness;
     float max_thickness;
 } AppLineToolData;
+// }}}
+
+// =============================================================================
+// Track Tool Data (issue 902b)
+// =============================================================================
+
+// {{{ typedef struct AppTrackToolData
+// Track tool for drawing mover paths (simpler than lines, no thickness)
+typedef struct AppTrackToolData {
+    TrackToolState state;
+
+    // Start point (grid coords)
+    int start_col, start_row;
+
+    // End point (grid coords)
+    int end_col, end_row;
+
+    // Calculated pixel positions
+    float start_x, start_y;
+    float end_x, end_y;
+} AppTrackToolData;
 // }}}
 
 // =============================================================================
@@ -117,6 +146,9 @@ typedef struct EditorApp {
     // Line tool state
     AppLineToolData line_tool;
 
+    // Track tool state (issue 902b)
+    AppTrackToolData track_tool;
+
     // Hover state
     int hover_col, hover_row;
     int hover_valid;
@@ -160,6 +192,8 @@ typedef struct EditorApp {
     // Polygons are auto-detected when lines form closed loops
     PolygonManager* polygon_manager;
     int polygons_dirty;  // 1 = need to rebuild polygon detection
+    int selected_polygon_index;  // -1 = no polygon selected, else index into polygon_manager
+    int show_polygon_panel;      // 1 = show polygon properties panel
 
     // UI Panel system (issue 406)
     // Tools panel on left side for object placement tools

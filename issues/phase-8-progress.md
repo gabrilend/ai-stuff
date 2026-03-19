@@ -49,16 +49,17 @@ Visual board editor with JSON-based data storage.
 | 834  | Drag select multi edit             | completed     | -          |
 | 835  | Portal zone fill cell              | completed     | -          |
 | 836  | Editor scroll broken               | completed     | -          |
-| 837  | Closed polygon detection and fill  | awaiting-work | -          |
+| 837  | Closed polygon detection and fill  | in-progress   | -          |
 | 838  | Standardize board dimensions       | awaiting-work | -          |
-| 839  | Material type selector             | awaiting-work | -          |
+| 839  | Material type selector             | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 36/39 issues
-**Awaiting work:** 3 (837, 838, 839)
+**Completed:** 37/39 issues
+**In progress:** 1 (837)
+**Awaiting work:** 1 (838)
 **Blocked:** 0
-**Phase status:** awaiting-work
+**Phase status:** in-progress
 
 ## Technical Notes
 
@@ -76,10 +77,22 @@ Visual board editor with JSON-based data storage.
 - Property panel for object editing
 - Comprehensive polish and bug fixes
 
-### Pending (837-839)
-- Polygon detection and fill
+### In Progress (837)
+- Polygon detection and fill - core infrastructure implemented
+- Graph building with intersection detection
+- Cycle detection and triangulated rendering
+- Ball-polygon collision integrated into game physics
+- Click-to-select polygon and properties panel added to editor
+- Polygons render in both game and editor with proper world coordinates
+- Remaining: Testing with various polygon shapes
+
+### Pending (838)
 - Board dimension standardization
-- Material type selector
+
+### Recently Completed (839)
+- Material type selector with 8 presets (Stone, Ice, Rubber, Sticky, Bouncy, Glass, Metal, Custom)
+- Standard mode shows material buttons, advanced mode shows RGB sliders
+- F12 toggles between modes at runtime
 
 ## Issue-Level Dependencies
 

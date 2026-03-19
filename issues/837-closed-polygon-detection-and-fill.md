@@ -1,6 +1,6 @@
 # 837 - Closed Polygon Detection and Fill
 
-## Status: awaiting-work
+## Status: in-progress
 
 ## Depends on
 
@@ -493,3 +493,74 @@ int vertices_same(Vector2 a, Vector2 b) {
 - Could use library like poly2tri for complex cases
 - Consider: allow "hollow" polygons (just visual, no physics)?
 - Consider: polygon "layers" for overlapping shapes?
+
+## Implementation Progress
+
+**Started 2026-03-19**
+
+### Completed
+
+1. **src/042-polygon.h** - Created with:
+   - PolyVertex, PolySegment, LineGraph structs for graph representation
+   - Polygon struct with triangulation, bounding data, and visual properties
+   - PolygonManager for managing detected polygons
+
+2. **src/043-polygon.c** - Implemented:
+   - Line graph building with line-line intersection detection
+   - Guard rails as virtual lines for polygon closure
+   - Cycle detection using face-finding algorithm (always turn right)
+   - Ear-clipping triangulation for polygon fill rendering
+   - Point-in-polygon test using ray casting
+   - Ball-polygon collision detection with ejection computation
+   - Polygon rendering via triangulated fill
+
+3. **src/031-editor-app.h** - Added PolygonManager field to EditorApp
+
+4. **src/032-editor-app.c** - Integrated polygon system:
+   - Create/destroy polygon manager in lifecycle
+   - Rebuild polygons when lines added/removed
+   - Render detected polygons behind board objects
+
+5. **Makefile** - Added 043-polygon.c to both game and editor builds
+
+### Completed Work (Latest Session)
+
+1. **Ball-polygon collision in game physics (step 9)**
+   - Added `ball_collide_with_polygons()` function in `src/007-ball.c`
+   - Integrated into both sequential and parallel physics updates
+   - Balls are ejected from polygon interior and bounce off edges
+   - Physics use polygon's restitution property for bounce
+
+2. **Click-to-select polygon in editor (step 11)**
+   - Updated `handle_object_selection()` in `src/032-editor-app.c`
+   - Right-click inside polygon area selects the polygon
+   - Object selection takes priority over polygon selection
+   - Selected polygon is highlighted with yellow outline
+
+3. **Polygon properties panel UI (steps 12-15)**
+   - Added `render_polygon_panel()` function in editor
+   - Shows polygon info (vertices, triangles)
+   - Displays restitution and friction values
+   - Shows fill color preview
+   - ESC key clears polygon selection
+
+4. **Game integration**
+   - Added PolygonManager fields to World struct (`src/004-world.h`)
+   - Created polygon managers after applying board data in `src/001-main.c`
+   - Added `polygon_manager_rebuild_offset()` for world coordinate support
+   - Polygons render behind board objects in game
+
+5. **JSON serialization (step 16)**
+   - Using Option B: detect polygons at load time from lines
+   - No explicit polygon storage needed in JSON
+   - Polygon properties derived from constituent lines
+
+### Remaining Work
+
+- Testing with various polygon shapes (steps 17-21)
+- (Optional) Add explicit polygon property editing in editor
+- (Optional) Add Option A JSON storage if property overrides needed
+
+### Technical Notes
+
+The cycle detection algorithm walks directed edges, always turning "right" (smallest counter-clockwise angle) to find minimal cycles. CW cycles become filled polygons; CCW cycles (exterior boundary) are skipped.

@@ -243,6 +243,7 @@ static void handle_canvas_click(EditorApp* app);
 static void handle_tool_selection(EditorApp* app);
 static int handle_toolbar_click(EditorApp* app);
 static void handle_line_tool(EditorApp* app);
+static void handle_track_tool(EditorApp* app);  // Issue 902b
 static void update_hover(EditorApp* app);
 static void render_toolbar(EditorApp* app);
 static void render_sidebar(EditorApp* app);
@@ -264,6 +265,8 @@ static void setup_grid(EditorApp* app);
 static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y);
 static void render_property_panel(EditorApp* app);
 static int handle_property_panel_input(EditorApp* app);
+// Polygon panel functions (issue 837)
+static void render_polygon_panel(EditorApp* app);
 static void render_slider(int x, int y, int width, unsigned char value,
                           const char* label, Color color_hint, int is_points);
 // Material selector functions (issue 839)
@@ -304,6 +307,9 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     app->line_tool.min_thickness = MIN_LINE_THICKNESS;
     app->line_tool.max_thickness = MAX_LINE_THICKNESS;
 
+    // Track tool defaults (issue 902b)
+    app->track_tool.state = TRACK_STATE_IDLE;
+
     // Multi-selection array (issue 1226)
     app->selection_capacity = 64;  // Initial capacity
     app->selected_indices = (int*)malloc(app->selection_capacity * sizeof(int));
@@ -330,6 +336,8 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
         (float)app->board->board_height
     );
     app->polygons_dirty = 1;  // Rebuild on first update
+    app->selected_polygon_index = -1;  // No polygon selected
+    app->show_polygon_panel = 0;
 
     // Create tools panel (issue 406)
     // Panel positioned on left side below toolbar
@@ -437,6 +445,9 @@ void editor_app_render(EditorApp* app) {
     // Render property panel if object selected (issue 1211)
     render_property_panel(app);
 
+    // Render polygon panel if polygon selected (issue 837)
+    render_polygon_panel(app);
+
     // Render load dialog if open
     if (app->load_dialog.visible) {
         render_load_dialog(app);
@@ -514,6 +525,8 @@ int editor_app_load(EditorApp* app, const char* filepath) {
         (float)new_board->board_height
     );
     app->polygons_dirty = 1;
+    app->selected_polygon_index = -1;  // Clear polygon selection
+    app->show_polygon_panel = 0;
 
     editor_app_notify(app, "Board loaded", 2.0f);
     return 1;
@@ -582,6 +595,8 @@ void editor_app_new_board(EditorApp* app) {
         (float)app->board->board_height
     );
     app->polygons_dirty = 1;
+    app->selected_polygon_index = -1;  // Clear polygon selection
+    app->show_polygon_panel = 0;
 
     editor_app_notify(app, "New board", 1.5f);
 }
@@ -696,10 +711,14 @@ static void handle_input(EditorApp* app) {
         return;
     }
 
-    // ESC: Close property panel first, then quit (issue 1211, 1226)
+    // ESC: Close property panel first, then polygon panel, then quit (issue 1211, 1226, 837)
     if (IsKeyPressed(KEY_ESCAPE)) {
         if (app->show_property_panel || app->selection_count > 0) {
             selection_clear(app);  // Clears selection and hides property panel
+        } else if (app->show_polygon_panel || app->selected_polygon_index >= 0) {
+            // Clear polygon selection (issue 837)
+            app->selected_polygon_index = -1;
+            app->show_polygon_panel = 0;
         } else {
             app->should_quit = 1;
         }
@@ -795,12 +814,15 @@ static void handle_input(EditorApp* app) {
         handle_canvas_click(app);
     }
 
-    // Right-click handling (issue 1211, 1226)
+    // Right-click handling (issue 1211, 1226, 902b)
     // Supports both click-to-select and drag-to-select
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
         // If line tool is active, cancel it
         if (app->tool == APP_TOOL_LINE && app->line_tool.state != LINE_STATE_IDLE) {
             app->line_tool.state = LINE_STATE_IDLE;
+        // Issue 902b: If track tool is active, cancel it
+        } else if (app->tool == APP_TOOL_TRACK && app->track_tool.state != TRACK_STATE_IDLE) {
+            app->track_tool.state = TRACK_STATE_IDLE;
         } else {
             // Start potential drag selection
             Vector2 mouse = GetMousePosition();
@@ -869,23 +891,34 @@ static void handle_tool_selection(EditorApp* app) {
     if (IsKeyPressed(KEY_ONE)) {
         app->tool = APP_TOOL_PEG;
         app->line_tool.state = LINE_STATE_IDLE;
+        app->track_tool.state = TRACK_STATE_IDLE;
     }
     if (IsKeyPressed(KEY_TWO)) {
         app->tool = APP_TOOL_LINE;
         app->line_tool.state = LINE_STATE_IDLE;
+        app->track_tool.state = TRACK_STATE_IDLE;
     }
     if (IsKeyPressed(KEY_THREE)) {
         app->tool = APP_TOOL_PORTAL_ENTRY;
         app->line_tool.state = LINE_STATE_IDLE;
+        app->track_tool.state = TRACK_STATE_IDLE;
     }
     if (IsKeyPressed(KEY_FOUR)) {
         app->tool = APP_TOOL_PORTAL_EXIT;
         app->line_tool.state = LINE_STATE_IDLE;
+        app->track_tool.state = TRACK_STATE_IDLE;
     }
     // Rotor tool: key 5 (issue 901b)
     if (IsKeyPressed(KEY_FIVE)) {
         app->tool = APP_TOOL_ROTOR;
         app->line_tool.state = LINE_STATE_IDLE;
+        app->track_tool.state = TRACK_STATE_IDLE;
+    }
+    // Track tool: key 6 (issue 902b)
+    if (IsKeyPressed(KEY_SIX)) {
+        app->tool = APP_TOOL_TRACK;
+        app->line_tool.state = LINE_STATE_IDLE;
+        app->track_tool.state = TRACK_STATE_IDLE;
     }
 }
 // }}}
@@ -905,13 +938,15 @@ static int handle_toolbar_click(EditorApp* app) {
     int btn_h = 30;
     int btn_spacing = 8;
 
-    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT, APP_TOOL_ROTOR};
+    // Issue 902b: Added track tool to toolbar
+    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT, APP_TOOL_ROTOR, APP_TOOL_TRACK};
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         if (mouse.x >= btn_x && mouse.x < btn_x + btn_w &&
             mouse.y >= btn_y && mouse.y < btn_y + btn_h) {
             app->tool = tool_values[i];
             app->line_tool.state = LINE_STATE_IDLE;
+            app->track_tool.state = TRACK_STATE_IDLE;
             return 1;
         }
         btn_x += btn_w + btn_spacing;
@@ -926,6 +961,9 @@ static void handle_canvas_click(EditorApp* app) {
     if (app->mode == APP_MODE_PLACE) {
         if (app->tool == APP_TOOL_LINE) {
             handle_line_tool(app);
+        } else if (app->tool == APP_TOOL_TRACK) {
+            // Issue 902b: Track tool uses two-click placement like lines
+            handle_track_tool(app);
         } else {
             place_object(app);
         }
@@ -965,6 +1003,47 @@ static void handle_line_tool(EditorApp* app) {
             app->modified = 1;
             app->polygons_dirty = 1;  // Rebuild polygon detection (issue 837)
             app->line_tool.state = LINE_STATE_IDLE;
+            break;
+    }
+}
+// }}}
+
+// {{{ handle_track_tool
+// Issue 902b: Track tool for drawing mover paths
+// Simpler than line tool - no thickness adjustment, just two clicks
+static void handle_track_tool(EditorApp* app) {
+    switch (app->track_tool.state) {
+        case TRACK_STATE_IDLE:
+            // Set start point
+            app->track_tool.start_col = app->hover_col;
+            app->track_tool.start_row = app->hover_row;
+            app->track_tool.start_x = grid_to_pixel_x(&app->grid, app->hover_col, app->hover_row);
+            app->track_tool.start_y = grid_to_pixel_y(&app->grid, app->hover_col, app->hover_row);
+            app->track_tool.state = TRACK_STATE_END;
+            break;
+
+        case TRACK_STATE_END:
+            // Set end point and add track segment
+            app->track_tool.end_col = app->hover_col;
+            app->track_tool.end_row = app->hover_row;
+            app->track_tool.end_x = grid_to_pixel_x(&app->grid, app->hover_col, app->hover_row);
+            app->track_tool.end_y = grid_to_pixel_y(&app->grid, app->hover_col, app->hover_row);
+
+            // Add track segment to board
+            int seg_idx = board_data_add_track_segment(app->board,
+                app->track_tool.start_col, app->track_tool.start_row,
+                app->track_tool.end_col, app->track_tool.end_row);
+
+            if (seg_idx >= 0) {
+                app->modified = 1;
+                // Recompute connectivity after adding segment
+                board_data_compute_track_connectivity(app->board);
+                editor_app_notify(app, "Track segment added", 1.0f);
+            } else {
+                editor_app_notify(app, "Failed to add track segment", 2.0f);
+            }
+
+            app->track_tool.state = TRACK_STATE_IDLE;
             break;
     }
 }
@@ -1288,17 +1367,17 @@ static void render_toolbar(EditorApp* app) {
     // Title
     DrawText("BOARD EDITOR", 20, 15, 24, TEXT_COLOR);
 
-    // Tool buttons (issue 901b: added rotor tool)
+    // Tool buttons (issue 901b: rotor, issue 902b: track)
     int btn_x = 200;
     int btn_y = 10;
     int btn_w = 70;
     int btn_h = 30;
     int btn_spacing = 8;
 
-    const char* tools[] = {"1:Peg", "2:Line", "3:In", "4:Out", "5:Rotor"};
-    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT, APP_TOOL_ROTOR};
+    const char* tools[] = {"1:Peg", "2:Line", "3:In", "4:Out", "5:Rotor", "6:Track"};
+    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT, APP_TOOL_ROTOR, APP_TOOL_TRACK};
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         Color btn_color = (app->tool == tool_values[i]) ? BUTTON_ACTIVE : BUTTON_COLOR;
         DrawRectangle(btn_x, btn_y, btn_w, btn_h, btn_color);
         DrawRectangleLines(btn_x, btn_y, btn_w, btn_h, PANEL_BORDER);
@@ -1342,9 +1421,9 @@ static void render_sidebar(EditorApp* app) {
     DrawText("Properties", x + 15, y + 15, 18, TEXT_COLOR);
     DrawLine(x + 10, y + 40, x + SIDEBAR_WIDTH - 10, y + 40, PANEL_BORDER);
 
-    // Current tool info (issue 901b: added rotor)
+    // Current tool info (issue 901b: rotor, issue 902b: track)
     int info_y = y + 55;
-    const char* tool_names[] = {"Peg", "Line", "Portal Entry", "Portal Exit", "Rotor"};
+    const char* tool_names[] = {"Peg", "Line", "Portal Entry", "Portal Exit", "Rotor", "Track"};
     DrawText("Tool:", x + 15, info_y, 14, TEXT_DIM);
     DrawText(tool_names[app->tool], x + 60, info_y, 14, TEXT_COLOR);
 
@@ -1513,13 +1592,26 @@ static void render_canvas(EditorApp* app) {
     // Detected polygons (render behind objects) (issue 837)
     if (app->polygon_manager) {
         polygon_manager_render_all(app->polygon_manager);
+
+        // Highlight selected polygon (issue 837)
+        if (app->selected_polygon_index >= 0 &&
+            app->selected_polygon_index < app->polygon_manager->polygon_count) {
+            Polygon* sel = &app->polygon_manager->polygons[app->selected_polygon_index];
+            // Draw polygon outline in highlight color
+            for (int i = 0; i < sel->vertex_count; i++) {
+                int j = (i + 1) % sel->vertex_count;
+                DrawLineEx(sel->vertices[i], sel->vertices[j], 3.0f,
+                          (Color){255, 255, 100, 255});  // Yellow highlight
+            }
+        }
     }
 
-    // Board objects, zones, and rotors
+    // Board objects, zones, rotors, and tracks
     if (app->board) {
         render_board_objects(app->board, &app->grid);
         render_board_zones(app->board, &app->grid);
         render_board_rotors(app->board, &app->grid);  // Issue 901b
+        render_board_tracks(app->board, &app->grid);  // Issue 902b
     }
 
     // Selection highlights (issue 1226)
@@ -1591,6 +1683,20 @@ static void render_cursor_preview(EditorApp* app) {
         // Rotor preview (issue 901b)
         case APP_TOOL_ROTOR:
             render_rotor_preview(x, y, PEG_RADIUS);
+            break;
+
+        case APP_TOOL_TRACK:
+            // Issue 902b: Track tool preview
+            if (app->track_tool.state == TRACK_STATE_IDLE) {
+                // Show start point preview
+                DrawCircle((int)x, (int)y, 5, (Color){80, 200, 220, 150});
+            } else if (app->track_tool.state == TRACK_STATE_END) {
+                // Recalculate start position from grid coords
+                float start_x = grid_to_pixel_x(&app->grid, app->track_tool.start_col, app->track_tool.start_row);
+                float start_y = grid_to_pixel_y(&app->grid, app->track_tool.start_col, app->track_tool.start_row);
+                // Show track from start to hover
+                render_track_preview(start_x, start_y, x, y);
+            }
             break;
     }
 }
@@ -1836,6 +1942,10 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
 
         if (dist <= click_radius) {
             // Object found under cursor
+            // Clear polygon selection when selecting regular object (issue 837)
+            app->selected_polygon_index = -1;
+            app->show_polygon_panel = 0;
+
             if (shift_held) {
                 // Shift-click: toggle in selection
                 selection_toggle(app, i);
@@ -1847,10 +1957,33 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
         }
     }
 
+    // No object found - check if clicking inside a polygon (issue 837)
+    if (app->polygon_manager && !shift_held) {
+        Polygon* poly = polygon_manager_get_polygon_at(
+            app->polygon_manager, world_pos.x, world_pos.y
+        );
+        if (poly) {
+            // Find polygon index
+            for (int i = 0; i < app->polygon_manager->polygon_count; i++) {
+                if (&app->polygon_manager->polygons[i] == poly) {
+                    app->selected_polygon_index = i;
+                    app->show_polygon_panel = 1;
+                    // Clear object selection when selecting polygon
+                    selection_clear(app);
+                    app->show_property_panel = 0;
+                    return 1;
+                }
+            }
+        }
+    }
+
     // Clicked empty space
     if (!shift_held) {
         // Only deselect if shift not held
         selection_clear(app);
+        // Also clear polygon selection
+        app->selected_polygon_index = -1;
+        app->show_polygon_panel = 0;
     }
     return 0;
 }
@@ -1936,6 +2069,67 @@ static void render_property_panel(EditorApp* app) {
     DrawText("RClick: Select object", panel_x + 10, panel_y + panel_h - 35,
              10, TEXT_DIM);
     DrawText("ESC: Close panel", panel_x + 10, panel_y + panel_h - 20,
+             10, TEXT_DIM);
+}
+// }}}
+
+// {{{ render_polygon_panel
+// Renders the polygon properties panel when a polygon is selected (issue 837).
+// Shows polygon info and allows editing fill color and physics properties.
+static void render_polygon_panel(EditorApp* app) {
+    if (!app || !app->show_polygon_panel) return;
+    if (!app->polygon_manager) return;
+    if (app->selected_polygon_index < 0 ||
+        app->selected_polygon_index >= app->polygon_manager->polygon_count) return;
+
+    Polygon* poly = &app->polygon_manager->polygons[app->selected_polygon_index];
+
+    // Panel dimensions (same position as property panel)
+    int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+    int panel_h = 180;
+
+    // Background
+    DrawRectangle(panel_x, panel_y, PROP_PANEL_WIDTH, panel_h, PANEL_COLOR);
+    DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, panel_h, PANEL_BORDER);
+
+    // Title
+    DrawText("Polygon", panel_x + 10, panel_y + 8, 14, TEXT_COLOR);
+
+    // Polygon info
+    char info[64];
+    snprintf(info, sizeof(info), "Vertices: %d", poly->vertex_count);
+    DrawText(info, panel_x + 10, panel_y + 30, 10, TEXT_DIM);
+
+    snprintf(info, sizeof(info), "Triangles: %d", poly->triangle_count);
+    DrawText(info, panel_x + 10, panel_y + 45, 10, TEXT_DIM);
+
+    // Restitution slider
+    int slider_y = panel_y + 70;
+    float restitution = poly->restitution / 255.0f;
+    snprintf(info, sizeof(info), "Bounce: %.0f%%", restitution * 100);
+    DrawText(info, panel_x + 10, slider_y, 10, TEXT_COLOR);
+    DrawRectangle(panel_x + 80, slider_y, 100, 12, (Color){60, 60, 80, 255});
+    DrawRectangle(panel_x + 80, slider_y, (int)(100 * restitution), 12,
+                  (Color){100, 200, 100, 255});
+
+    // Friction slider
+    slider_y += 25;
+    float friction = poly->friction / 255.0f;
+    snprintf(info, sizeof(info), "Friction: %.0f%%", friction * 100);
+    DrawText(info, panel_x + 10, slider_y, 10, TEXT_COLOR);
+    DrawRectangle(panel_x + 80, slider_y, 100, 12, (Color){60, 60, 80, 255});
+    DrawRectangle(panel_x + 80, slider_y, (int)(100 * friction), 12,
+                  (Color){200, 150, 100, 255});
+
+    // Fill color preview
+    slider_y += 25;
+    DrawText("Fill:", panel_x + 10, slider_y, 10, TEXT_COLOR);
+    DrawRectangle(panel_x + 80, slider_y, 100, 20, poly->fill_color);
+    DrawRectangleLines(panel_x + 80, slider_y, 100, 20, TEXT_DIM);
+
+    // Instructions
+    DrawText("ESC: Deselect", panel_x + 10, panel_y + panel_h - 20,
              10, TEXT_DIM);
 }
 // }}}

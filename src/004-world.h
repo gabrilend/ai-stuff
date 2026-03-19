@@ -19,6 +19,12 @@ typedef struct WrapZones WrapZones;
 // Forward declaration for zone dispatch grid (defined in 045-zone-dispatch.h)
 typedef struct ZoneGrid ZoneGrid;
 
+// Forward declaration for polygon manager (defined in 042-polygon.h)
+typedef struct PolygonManager PolygonManager;
+
+// Forward declaration for rotor manager (defined in 044-rotor.h) - issue 901c
+typedef struct RotorManager RotorManager;
+
 // Physics constants
 #define PEG_RADIUS 12.0f
 #define DEFAULT_PEG_ROWS 10
@@ -145,6 +151,16 @@ typedef struct World {
     // Zone dispatch grid for unified zone handling (issue 318)
     // When active, replaces fragmented zone checks with grid-based dispatch
     ZoneGrid* zone_grid;
+
+    // Polygon collision system (issue 837)
+    // Detects closed shapes formed by lines and provides solid fill collision
+    PolygonManager* polygon_manager;           // Player board polygons
+    PolygonManager* adversary_polygon_manager; // Adversary board polygons
+
+    // Rotor physics system (issue 901c)
+    // Rotors that spin lines and pegs around pivot points
+    RotorManager* rotor_manager;               // Player board rotors
+    RotorManager* adversary_rotor_manager;     // Adversary board rotors
 
     // Expansion tracking for dynamic world growth
     float total_height;        // Current total world height (updated on expansion)

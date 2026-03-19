@@ -26,6 +26,8 @@
 #include "038-slot-manager.h"
 #include "040-spawner.h"
 #include "045-zone-dispatch.h"
+#include "050-material.h"  // Issue 610: material-based coloring
+#include "042-polygon.h"   // Issue 837: closed polygon collision
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -175,9 +177,6 @@ static int apply_initial_board_data(BoardData* data, World* world,
         }
         world->peg_count = peg_count;
 
-        // Default player peg color (light steel)
-        Color default_color = (Color){180, 180, 200, 255};
-
         int peg_idx = 0;
         for (int i = 0; i < data->object_count; i++) {
             BoardObject* obj = &data->objects[i];
@@ -191,19 +190,10 @@ static int apply_initial_board_data(BoardData* data, World* world,
             peg->friction = property_to_float(obj->friction);
             peg->point_bonus = obj->point_bonus;
 
-            // Use default color if no custom properties, otherwise tint based on properties
-            if (obj->restitution == DEFAULT_RESTITUTION &&
-                obj->friction == DEFAULT_FRICTION &&
-                obj->point_bonus == DEFAULT_POINT_BONUS) {
-                peg->color = default_color;
-            } else {
-                // Tint based on RGB properties
-                int red = 140 + (obj->restitution * 115 / 255);
-                int green = 140 + (obj->friction * 60 / 255);
-                int blue = 140 + (obj->point_bonus * 115 / 255);
-                peg->color = (Color){(unsigned char)red, (unsigned char)green,
-                                     (unsigned char)blue, 255};
-            }
+            // Issue 610: Use material display color for visual consistency
+            // Same approach as editor (issue 839) - both boards identical
+            int mat_index = find_closest_material(obj->restitution, obj->friction, obj->point_bonus);
+            peg->color = material_get_display_color(mat_index);
             peg_idx++;
         }
     }
@@ -216,9 +206,6 @@ static int apply_initial_board_data(BoardData* data, World* world,
             world->line_count = 0;
         } else {
             world->line_count = line_count;
-
-            // Default line color (warm orange)
-            Color default_line_color = (Color){255, 160, 80, 255};
 
             int line_idx = 0;
             for (int i = 0; i < data->object_count; i++) {
@@ -235,19 +222,10 @@ static int apply_initial_board_data(BoardData* data, World* world,
                 line->friction = property_to_float(obj->friction);
                 line->point_bonus = obj->point_bonus;
 
-                // Use default color if no custom properties, otherwise tint
-                if (obj->restitution == DEFAULT_RESTITUTION &&
-                    obj->friction == DEFAULT_FRICTION &&
-                    obj->point_bonus == DEFAULT_POINT_BONUS) {
-                    line->color = default_line_color;
-                } else {
-                    // Tint based on RGB properties
-                    int red = 180 + (obj->restitution * 75 / 255);
-                    int green = 100 + (obj->friction * 60 / 255);
-                    int blue = 40 + (obj->point_bonus * 40 / 255);
-                    line->color = (Color){(unsigned char)red, (unsigned char)green,
-                                          (unsigned char)blue, 255};
-                }
+                // Issue 610: Use material display color for visual consistency
+                // Same approach as editor (issue 839) - both boards identical
+                int mat_index = find_closest_material(obj->restitution, obj->friction, obj->point_bonus);
+                line->color = material_get_display_color(mat_index);
                 line_idx++;
             }
             printf("Created %d lines from board data\n", world->line_count);
@@ -297,8 +275,8 @@ static int apply_adversary_board_data(BoardData* data, World* world,
         }
         world->adversary_peg_count = peg_count;
 
-        // Default adversary peg color (reddish steel)
-        Color default_color = (Color){180, 140, 140, 255};
+        // Issue 610: Use material-based colors (same as player board)
+        // Removed red tinting - both boards now render with true material colors
 
         int peg_idx = 0;
         for (int i = 0; i < data->object_count; i++) {
@@ -316,19 +294,10 @@ static int apply_adversary_board_data(BoardData* data, World* world,
             peg->friction = property_to_float(obj->friction);
             peg->point_bonus = obj->point_bonus;
 
-            // Use default adversary color if no custom properties, otherwise tint
-            if (obj->restitution == DEFAULT_RESTITUTION &&
-                obj->friction == DEFAULT_FRICTION &&
-                obj->point_bonus == DEFAULT_POINT_BONUS) {
-                peg->color = default_color;
-            } else {
-                // Reddish tint based on RGB properties
-                int red = 160 + (obj->restitution * 95 / 255);
-                int green = 100 + (obj->friction * 40 / 255);
-                int blue = 100 + (obj->point_bonus * 55 / 255);
-                peg->color = (Color){(unsigned char)red, (unsigned char)green,
-                                     (unsigned char)blue, 255};
-            }
+            // Issue 610: Use material display color for visual consistency
+            // Same approach as player board and editor (issue 839)
+            int mat_index = find_closest_material(obj->restitution, obj->friction, obj->point_bonus);
+            peg->color = material_get_display_color(mat_index);
             peg_idx++;
         }
     }
@@ -341,8 +310,8 @@ static int apply_adversary_board_data(BoardData* data, World* world,
         } else {
             world->adversary_line_count = line_count;
 
-            // Default adversary line color (reddish orange)
-            Color default_line_color = (Color){220, 120, 80, 255};
+            // Issue 610: Use material-based colors (same as player board)
+            // Removed red tinting - both boards now render with true material colors
 
             int line_idx = 0;
             for (int i = 0; i < data->object_count; i++) {
@@ -363,19 +332,10 @@ static int apply_adversary_board_data(BoardData* data, World* world,
                 line->friction = property_to_float(obj->friction);
                 line->point_bonus = obj->point_bonus;
 
-                // Use default color if no custom properties, otherwise tint
-                if (obj->restitution == DEFAULT_RESTITUTION &&
-                    obj->friction == DEFAULT_FRICTION &&
-                    obj->point_bonus == DEFAULT_POINT_BONUS) {
-                    line->color = default_line_color;
-                } else {
-                    // Reddish tint based on RGB properties
-                    int red = 180 + (obj->restitution * 75 / 255);
-                    int green = 80 + (obj->friction * 40 / 255);
-                    int blue = 40 + (obj->point_bonus * 40 / 255);
-                    line->color = (Color){(unsigned char)red, (unsigned char)green,
-                                          (unsigned char)blue, 255};
-                }
+                // Issue 610: Use material display color for visual consistency
+                // Same approach as player board and editor (issue 839)
+                int mat_index = find_closest_material(obj->restitution, obj->friction, obj->point_bonus);
+                line->color = material_get_display_color(mat_index);
                 line_idx++;
             }
             printf("Created %d adversary lines from board data\n", world->adversary_line_count);
@@ -704,6 +664,38 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         printf("Applied adversary board at y=%.0f: %d pegs\n", adv_start_y, world->adversary_peg_count);
+
+        // Create adversary polygon manager (issue 837)
+        // Must be done before board_data_destroy while we still have BoardData
+        world->adversary_polygon_manager = polygon_manager_create(
+            initial_board->grid_cols * (float)initial_board->cell_size,
+            initial_board->grid_rows * (float)initial_board->cell_size
+        );
+        if (world->adversary_polygon_manager) {
+            polygon_manager_rebuild_offset(
+                world->adversary_polygon_manager, initial_board,
+                initial_board->cell_size,
+                world->table_x, adv_start_y
+            );
+            printf("Adversary polygon manager: %d polygons\n",
+                   world->adversary_polygon_manager->polygon_count);
+        }
+    }
+
+    // Create player polygon manager (issue 837)
+    // Must be done before board_data_destroy while we still have BoardData
+    world->polygon_manager = polygon_manager_create(
+        initial_board->grid_cols * (float)initial_board->cell_size,
+        initial_board->grid_rows * (float)initial_board->cell_size
+    );
+    if (world->polygon_manager) {
+        polygon_manager_rebuild_offset(
+            world->polygon_manager, initial_board,
+            initial_board->cell_size,
+            world->table_x, peg_start_y
+        );
+        printf("Player polygon manager: %d polygons\n",
+               world->polygon_manager->polygon_count);
     }
 
     // Clean up board data
@@ -1200,6 +1192,15 @@ int main(int argc, char* argv[]) {
 
         // Draw world elements (in camera space - scrollable)
         world_render_rails(world);
+
+        // Draw polygon fills behind other board objects (issue 837)
+        if (world->polygon_manager) {
+            polygon_manager_render_all(world->polygon_manager);
+        }
+        if (world->adversary_polygon_manager) {
+            polygon_manager_render_all(world->adversary_polygon_manager);
+        }
+
         world_render_pegs(world);
         world_render_lines(world);
         world_render_zones(world);

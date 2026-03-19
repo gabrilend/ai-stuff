@@ -9,6 +9,7 @@
 #include "004-world.h"
 #include "014-stage.h"
 #include "028-portal.h"
+#include "042-polygon.h"
 #include <raylib.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -61,6 +62,14 @@ World* world_create(int width, int height) {
     // Wrap zones and zone dispatch (NULL until created in main.c)
     world->wrap_zones = NULL;
     world->zone_grid = NULL;
+
+    // Polygon collision system (issue 837) - NULL until boards loaded
+    world->polygon_manager = NULL;
+    world->adversary_polygon_manager = NULL;
+
+    // Rotor physics system (issue 901c) - NULL until boards loaded
+    world->rotor_manager = NULL;
+    world->adversary_rotor_manager = NULL;
 
     // Expansion tracking
     world->total_height = (float)height;
@@ -116,6 +125,17 @@ void world_destroy(World* world) {
     if (world->portals) {
         portal_manager_destroy(world->portals);
     }
+
+    // Free polygon managers (issue 837)
+    if (world->polygon_manager) {
+        polygon_manager_destroy(world->polygon_manager);
+    }
+    if (world->adversary_polygon_manager) {
+        polygon_manager_destroy(world->adversary_polygon_manager);
+    }
+
+    // Note: rotor managers are freed in main.c where they are created
+    // (they hold references to world's lines/pegs arrays, not copies)
 
     // Free world structure
     free(world);
