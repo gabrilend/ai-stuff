@@ -11,7 +11,9 @@
 // Grid Constants
 // =============================================================================
 
-#define DEFAULT_GRID_CELL_SIZE 50.0f
+// Cell size 43px with 14x22 grid = 602x946 pixels (close to 600x1000 target)
+// Denser grid allows more level design options in same space
+#define DEFAULT_GRID_CELL_SIZE 43.0f
 #define DEFAULT_GRID_COLS 14
 #define DEFAULT_GRID_ROWS 22
 
