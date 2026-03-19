@@ -34,7 +34,7 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1307c | - Wake conditions                  | Open      |
 | 1307d | - Soft collision response          | Open      |
 | 1307e | - Stress source distinction        | Open      |
-| 1308  | Expand grid dimensions             | Open      |
+| 1308  | Expand grid dimensions             | Complete  |
 | 1309  | Unified spawner system             | Complete  |
 | 1310  | Compile-time config system         | Complete  |
 | 1311  | Trajectory history and overlap nudge | Open    |
@@ -42,7 +42,7 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 
 ## Progress Summary
 
-**Completed:** 6/28 issues (21%)
+**Completed:** 7/28 issues (25%)
 **Status:** In Progress
 
 ## Major Features

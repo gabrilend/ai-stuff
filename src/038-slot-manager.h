@@ -19,7 +19,7 @@
 // Reticle height provides clearance for ball trajectory before hitting pegs
 // Current layout: spawn at y~75, pegs at y=150, so 150px reticle gives good clearance
 #define SLOT_RETICLE_HEIGHT 150.0f
-#define SLOT_BOARD_HEIGHT 1000.0f   // 20 rows x 50px cell size
+#define SLOT_BOARD_HEIGHT 1100.0f   // 22 rows x 50px cell size
 #define SLOT_GATE_HEIGHT 40.0f      // Gate zone height
 #define SLOT_GATE_MARGIN 50.0f      // Margin above and below gates
 

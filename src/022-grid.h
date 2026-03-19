@@ -12,8 +12,8 @@
 // =============================================================================
 
 #define DEFAULT_GRID_CELL_SIZE 50.0f
-#define DEFAULT_GRID_COLS 12
-#define DEFAULT_GRID_ROWS 20
+#define DEFAULT_GRID_COLS 14
+#define DEFAULT_GRID_ROWS 22
 
 // Grid rendering colors
 #define GRID_LINE_COLOR (Color){60, 60, 80, 100}

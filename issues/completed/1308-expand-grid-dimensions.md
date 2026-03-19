@@ -1,6 +1,6 @@
 # 1308 - Expand Grid Dimensions
 
-## Status: Open
+## Status: Complete
 
 ## Parent Phase: Phase 13
 
