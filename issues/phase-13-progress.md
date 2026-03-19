@@ -39,10 +39,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1310  | Compile-time config system         | Complete  |
 | 1311  | Trajectory history and overlap nudge | Open    |
 | 1312  | Closed polygon detection and fill  | Open      |
+| 1313  | Standardize board dimensions       | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/28 issues (21%)
+**Completed:** 6/29 issues (21%)
 **Status:** In Progress
 
 ## Major Features
