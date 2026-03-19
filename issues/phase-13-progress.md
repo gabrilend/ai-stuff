@@ -51,10 +51,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1322  | Ball velocity statistics           | Open      |
 | 1323  | GateRow scoring never called       | Open      |
 | 1324  | Grid-based zone dispatch system    | Open      |
+| 1325  | Adversary spawn toggle keybind     | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/40 issues (15%)
+**Completed:** 6/41 issues (15%)
 **Status:** In Progress
 
 ## Major Features
