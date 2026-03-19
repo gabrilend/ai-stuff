@@ -29,40 +29,81 @@ Lines in the editor can form closed shapes (triangles, quadrilaterals, complex p
 
 ### Phase 1: Closed Loop Detection
 
-Lines form a graph where endpoints are nodes and lines are edges.
-Endpoints are considered connected if within proximity threshold (not exact match).
+Lines form a graph where vertices come from TWO sources:
+1. Line endpoints
+2. Line-line intersection points (where lines cross)
+
+This allows closed regions to form even when no endpoints share coordinates.
+
+**Example: Fish/X shape**
+```
+    \   /
+     \ /
+      X  <-- intersection creates vertex here (no endpoint exists)
+     / \
+    /   \
+   *-----*  <-- endpoints converge here
+```
+Result: 1 closed triangle (bottom), 3 open areas (top/sides)
 
 ```c
-#define ENDPOINT_CONNECT_THRESHOLD 10.0f  // Pixels
-
 typedef struct LineGraph {
-    // Adjacency list representation
-    // Each unique endpoint maps to lines connected to it
-    // Endpoints within threshold are merged into same vertex
-    Vector2* vertices;      // Unique endpoints (merged by proximity)
+    // Vertices from endpoints AND intersections
+    Vector2* vertices;
     int vertex_count;
 
-    int** adjacency;        // adjacency[v] = list of line indices touching vertex v
+    // Each vertex knows which line segments connect to it
+    int** adjacency;
     int* adjacency_counts;
 } LineGraph;
 
-// Build graph from board lines (merges nearby endpoints)
+// Build graph: find all intersections, split lines, build adjacency
 LineGraph* build_line_graph(BoardData* board);
 
-// Find all cycles (closed polygons) in the graph
-// Returns array of vertex index loops
+// Find all minimal cycles (closed polygons)
 Polygon* find_closed_polygons(LineGraph* graph, int* out_count);
 ```
 
 **Graph building algorithm:**
-1. Collect all line endpoints
-2. Merge endpoints within ENDPOINT_CONNECT_THRESHOLD into single vertices
-3. Build adjacency list from merged vertices
+1. Find all line-line intersections
+2. Split lines at intersection points into sub-segments
+3. Collect all vertices (original endpoints + intersection points)
+4. Merge vertices within proximity threshold (for near-misses)
+5. Build adjacency list from segments
+
+**Line-line intersection:**
+```c
+// Returns 1 if lines intersect, stores intersection point in out_point
+int line_intersection(Vector2 a1, Vector2 a2, Vector2 b1, Vector2 b2,
+                      Vector2* out_point) {
+    float d = (a1.x - a2.x) * (b1.y - b2.y) - (a1.y - a2.y) * (b1.x - b2.x);
+    if (fabsf(d) < 0.0001f) return 0;  // Parallel
+
+    float t = ((a1.x - b1.x) * (b1.y - b2.y) - (a1.y - b1.y) * (b1.x - b2.x)) / d;
+    float u = -((a1.x - a2.x) * (a1.y - b1.y) - (a1.y - a2.y) * (a1.x - b1.x)) / d;
+
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+        out_point->x = a1.x + t * (a2.x - a1.x);
+        out_point->y = a1.y + t * (a2.y - a1.y);
+        return 1;
+    }
+    return 0;  // Intersection outside segments
+}
+```
+
+**Line splitting:**
+```c
+// After finding all intersections for a line, sort by parameter t
+// Split original line into segments between consecutive points
+// Example: line A-B with intersections at P1, P2
+// Becomes segments: A-P1, P1-P2, P2-B
+```
 
 **Cycle detection algorithm:**
-1. Use DFS to find all simple cycles
+1. Use DFS to find all simple cycles in planar graph
 2. Filter to minimal cycles (no nested shortcuts)
 3. Order vertices clockwise/counter-clockwise
+4. Each minimal cycle = one filled polygon
 
 ### Phase 2: Polygon Data Structure
 
@@ -266,30 +307,35 @@ Recommend Option A for determinism.
 - Ball might fully contain polygon
 - Skip physics for tiny polygons? Or eject forcefully?
 
-### Endpoint Proximity Detection
-- Endpoints do NOT need to be at exact same coordinates
-- Use proximity threshold (e.g., half grid cell or line thickness)
-- Two endpoints within threshold are considered "connected"
-- This allows freehand drawing without precise snapping
-- Grid snapping still helps but is not required
+### Line Intersections Create Vertices
+- Lines crossing in the middle create implicit vertices
+- No endpoint needs to exist at the crossing point
+- Algorithm detects all pairwise intersections
+- Lines are split at intersection points for graph building
+
+### Proximity Threshold for Near-Misses
+- After finding intersections, vertices within threshold are merged
+- Handles floating point imprecision
+- Also catches "almost touching" endpoints
 
 ```c
-#define ENDPOINT_CONNECT_THRESHOLD 10.0f  // Pixels
+#define VERTEX_MERGE_THRESHOLD 2.0f  // Pixels (small, just for precision)
 
-int endpoints_connected(Vector2 a, Vector2 b) {
+int vertices_same(Vector2 a, Vector2 b) {
     float dx = a.x - b.x;
     float dy = a.y - b.y;
-    return (dx * dx + dy * dy) < (ENDPOINT_CONNECT_THRESHOLD * ENDPOINT_CONNECT_THRESHOLD);
+    return (dx * dx + dy * dy) < (VERTEX_MERGE_THRESHOLD * VERTEX_MERGE_THRESHOLD);
 }
 ```
 
 ## Troubleshooting
 
 ### "Polygon not detected"
-- Line endpoints too far apart (beyond ENDPOINT_CONNECT_THRESHOLD)
-- Increase threshold or move lines closer
-- Verify lines actually form closed loop (check adjacency graph)
-- Debug: render vertex merge groups to visualize connections
+- Lines don't actually form a closed loop
+- Check that lines intersect (not just near each other)
+- Verify intersection detection is finding crossing points
+- Debug: render all vertices (endpoints + intersections) to visualize graph
+- Check cycle detection is finding the minimal cycle
 
 ### "Ball phases through polygon edge"
 - Ball moving too fast (tunneling)
