@@ -12,42 +12,34 @@ Currently both player and adversary balls use fixed colors. This makes the game 
 
 ## Implementation Summary
 
-Ball colors are now fully integrated with particle effects:
+Ball colors are now integrated with appropriate particle effects:
 
 1. Ball colors randomly generated on game start using HSV color space
 2. Player and adversary use 180° complementary hues
-3. Particle effects (ripples, fragments, splash) now use ball colors
+3. Death fragments and collision splash use ball colors
+4. Score ripples use gate/zone color (based on point value)
 
 ### Changes Made
 
 **src/001-main.c:**
-- Modified zone dispatch callback to retrieve ball color from BallManager
-- Ripple particles use ball color brightened by blending with white (for visibility)
-- Fragment particles use ball color directly when ball dies
+- Modified particle spawning to retrieve ball color from BallManager
+- Fragment particles use ball color when ball dies
 - Splash particles use ball color on collision
+- Ripple particles use gate color (GOLD/GREEN/BLUE/GRAY based on score_delta)
 
-### Code Pattern
+### Particle Color Assignment
 
-```c
-// Get ball color from manager
-Ball* ball = &ball_manager->balls_current[i];
-unsigned char* ball_rgba = (ball->owner == OWNER_PLAYER)
-    ? ball_manager->player_color
-    : ball_manager->adversary_color;
-Color ball_color = (Color){ball_rgba[0], ball_rgba[1], ball_rgba[2], ball_rgba[3]};
-
-// Use for particles
-particle_spawn_ripple(mgr, x, y, ball_color);
-particle_spawn_fragments(mgr, x, y, fragments, ball_color);
-particle_spawn_splash(mgr, x, y, count, ball_color);
-```
+| Particle Type | Color Source | Rationale |
+|---------------|--------------|-----------|
+| Ripple | Gate/zone points | Visual feedback for scoring zone value |
+| Fragments | Ball owner | Shows which ball was destroyed |
+| Splash | Ball owner | Shows which ball caused collision |
 
 ### Visual Results
 
-- Player balls spawn player-colored particles
-- Adversary balls spawn complementary-colored particles
-- Ripples are brightened for visibility against backgrounds
-- Death fragments clearly show which ball type died
+- Death fragments clearly show which ball type died (player vs adversary color)
+- Splash particles match the colliding ball's color
+- Score ripples match gate color (GOLD=500+, GREEN=100+, BLUE=50+, GRAY=other)
 
 ## Files Modified
 

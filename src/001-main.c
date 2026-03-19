@@ -1158,14 +1158,18 @@ int main(int argc, char* argv[]) {
             Color ball_color = (Color){ball_rgba[0], ball_rgba[1], ball_rgba[2], ball_rgba[3]};
 
             if (task->scored) {
-                // Issue 319: Use ball color for ripple, brightened for visibility
-                // Blend with white to make it pop against background
-                Color ripple_color = (Color){
-                    (unsigned char)((ball_rgba[0] + 255) / 2),
-                    (unsigned char)((ball_rgba[1] + 255) / 2),
-                    (unsigned char)((ball_rgba[2] + 255) / 2),
-                    255
-                };
+                // Ripple color based on gate/zone point value (not ball color)
+                // Matches the visual color of the scoring zone
+                Color ripple_color;
+                if (task->score_delta >= 500) {
+                    ripple_color = GOLD;
+                } else if (task->score_delta >= 100) {
+                    ripple_color = GREEN;
+                } else if (task->score_delta >= 50) {
+                    ripple_color = BLUE;
+                } else {
+                    ripple_color = GRAY;
+                }
 
                 // Spawn ripple effect at gate position (halo pulse)
                 particle_spawn_ripple(particle_system, task->score_pos_x,
