@@ -41,10 +41,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1312  | Closed polygon detection and fill  | Open      |
 | 1313  | Standardize board dimensions       | Open      |
 | 1314  | Editor panel UI system             | Open      |
+| 1315  | Hide game UI keybind               | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/30 issues (20%)
+**Completed:** 6/31 issues (19%)
 **Status:** In Progress
 
 ## Major Features
