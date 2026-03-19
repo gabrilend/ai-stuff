@@ -1,6 +1,6 @@
 # 221e - Stress Source Distinction (Static vs Dynamic)
 
-## Status: blocked
+## Status: complete
 
 ## Depends on
 
@@ -184,3 +184,50 @@ void render_ball(Ball* ball) {
 - This is foundational for 901f and 902g
 - Static stress visual feedback is optional polish
 - Consider: static stress could cause temporary "flatten" visual without crushing
+
+---
+
+## Implementation Notes (2026-03-19)
+
+### What Was Implemented
+
+Added stress tracking infrastructure to `src/006-ball.h` and `src/007-ball.c`:
+
+1. **Ball struct additions:**
+   - `static_stress` - harmless stress from ball-ball, peg, wall collisions
+   - `dynamic_stress` - dangerous stress from rotors/movers (causes crushing)
+   - `contact_count` - tracks contacts per frame for decay logic
+
+2. **New constants:**
+   - `MAX_STATIC_STRESS = 100.0f` - cap for static stress
+   - `STATIC_STRESS_DECAY = 0.9f` - per-frame decay when not in contact
+   - `DYNAMIC_STRESS_DECAY = 0.8f` - faster decay for momentary forces
+   - `CRUSH_THRESHOLD = 50.0f` - dynamic stress threshold for crushing (used in 901f)
+
+3. **New functions:**
+   - `ball_accumulate_static_stress()` - called from peg/ball collisions
+   - `ball_accumulate_dynamic_stress()` - for rotors/movers (placeholder, used in 901f)
+   - `ball_update_stress_decay()` - per-frame decay called after collision resolution
+
+### Integration Points
+
+- Stress accumulation called from:
+  - `ball_resolve_peg_collision()` - static stress
+  - `ball_resolve_pile_collision()` - static stress
+  - `ball_resolve_ball_collision()` - static stress
+- Stress decay called from:
+  - `ball_manager_update()` - single-threaded path
+  - `ball_update_task()` - parallel path
+
+### Deliberate Unused Code
+
+`ball_accumulate_dynamic_stress()` is intentionally unused - it's foundation for:
+- 901f (Ball crushing by rotors)
+- 902g (Track ball interaction)
+
+These features require rotors/movers (901c, 902d) which don't exist yet.
+
+### Unblocks
+
+- 901f (Ball crushing) - can now detect dynamic stress from rotors
+- 902g (Track ball interaction) - can now detect dynamic stress from movers

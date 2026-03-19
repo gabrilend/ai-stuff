@@ -14,6 +14,7 @@
 #include "028-portal.h"
 #include "036-wrap-zones.h"
 #include "045-zone-dispatch.h"
+#include "042-polygon.h"
 #include "raylib.h"
 
 // Forward declaration for velocity statistics (issue 903)
@@ -82,6 +83,10 @@ BallManager* ball_manager_create(int capacity) {
             manager->balls_current[i].history_vy[j] = 0.0f;
         }
         manager->balls_current[i].history_index = 0;
+        // Stress tracking (issue 221e)
+        manager->balls_current[i].static_stress = 0.0f;
+        manager->balls_current[i].dynamic_stress = 0.0f;
+        manager->balls_current[i].contact_count = 0;
 
         manager->balls_next[i].active = 0;
         manager->balls_next[i].radius = BALL_RADIUS;
@@ -104,6 +109,10 @@ BallManager* ball_manager_create(int capacity) {
             manager->balls_next[i].history_vy[j] = 0.0f;
         }
         manager->balls_next[i].history_index = 0;
+        // Stress tracking (issue 221e)
+        manager->balls_next[i].static_stress = 0.0f;
+        manager->balls_next[i].dynamic_stress = 0.0f;
+        manager->balls_next[i].contact_count = 0;
 
         // Initialize task data with immutable ball_index
         manager->task_data[i].ball_index = i;
@@ -198,6 +207,10 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
                 ball->history_vy[j] = ball->vy;
             }
             ball->history_index = 0;
+            // Stress tracking (issue 221e): spawned balls have no stress
+            ball->static_stress = 0.0f;
+            ball->dynamic_stress = 0.0f;
+            ball->contact_count = 0;
             manager->active_count++;
             return 1;
         }
@@ -255,6 +268,10 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
         next->history_vy[i] = current->history_vy[i];
     }
     next->history_index = current->history_index;
+    // Stress tracking (issue 221e): copy stress and reset contact_count for this frame
+    next->static_stress = current->static_stress;
+    next->dynamic_stress = current->dynamic_stress;
+    next->contact_count = 0;  // Reset each frame, collisions increment it
 
     if (!current->active) return;
 
@@ -300,6 +317,65 @@ static void ball_enter_sleep(Ball* ball) {
 
     // Enter sleep state
     ball->is_sleeping = 1;
+}
+// }}}
+
+// {{{ ball_accumulate_static_stress
+// Accumulates static stress from ball-ball, peg, wall, or line collisions (issue 221e).
+// Static stress is harmless - balls can have infinite static stress without crushing.
+// Used for visual feedback and physics damping in piles.
+static void ball_accumulate_static_stress(Ball* ball, float pressure) {
+    if (!ball || !ball->active) return;
+
+    ball->static_stress += pressure;
+    ball->contact_count++;
+
+    // Cap to prevent overflow
+    if (ball->static_stress > MAX_STATIC_STRESS) {
+        ball->static_stress = MAX_STATIC_STRESS;
+    }
+}
+// }}}
+
+// {{{ ball_accumulate_dynamic_stress
+// Accumulates dynamic stress from rotors, movers (issue 221e).
+// Dynamic stress CAN cause crushing when threshold exceeded.
+// Note: Crushing check implemented in 901f when rotors exist.
+static void ball_accumulate_dynamic_stress(Ball* ball, float pressure) {
+    if (!ball || !ball->active) return;
+
+    ball->dynamic_stress += pressure;
+    ball->contact_count++;
+
+    // Note: Crushing check will be in 901f - for now just accumulate
+    // if (ball->dynamic_stress > CRUSH_THRESHOLD) {
+    //     crush_ball(ball);
+    // }
+}
+// }}}
+
+// {{{ ball_update_stress_decay
+// Decays stress values each frame (issue 221e).
+// Static stress decays when not in contact. Dynamic stress always decays.
+// Called each frame after collision resolution.
+static void ball_update_stress_decay(Ball* ball) {
+    if (!ball || !ball->active) return;
+
+    // Static stress decays when not under pressure
+    if (ball->contact_count == 0) {
+        ball->static_stress *= STATIC_STRESS_DECAY;
+    }
+
+    // Dynamic stress always decays (momentary force)
+    ball->dynamic_stress *= DYNAMIC_STRESS_DECAY;
+
+    // Snap to zero below minimum threshold
+    if (ball->static_stress < STRESS_MIN_THRESHOLD) {
+        ball->static_stress = 0.0f;
+    }
+    if (ball->dynamic_stress < STRESS_MIN_THRESHOLD) {
+        ball->dynamic_stress = 0.0f;
+    }
 }
 // }}}
 
@@ -429,6 +505,10 @@ static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
     if (vn < 0) {
         // Check closing speed for velocity-dependent response
         float closing_speed = -vn;
+
+        // Issue 221e: Peg collisions accumulate static stress (harmless)
+        ball_accumulate_static_stress(ball, closing_speed * 0.1f);
+
         float restitution, friction;
 
         if (closing_speed < LOW_SPEED_THRESHOLD) {
@@ -736,6 +816,60 @@ static void ball_collide_with_lines(Ball* ball, World* world) {
 }
 // }}}
 
+// {{{ ball_collide_with_polygons
+// Internal function to check and resolve collisions with closed polygons (issue 837)
+// Polygons are detected from lines and provide solid fill collision.
+// Ball inside polygon interior is ejected to nearest edge.
+static void ball_collide_with_polygons(Ball* ball, World* world) {
+    if (!world || !ball) return;
+
+    float push_x, push_y, push_dist;
+
+    // Check player polygons
+    if (world->polygon_manager) {
+        for (int i = 0; i < world->polygon_manager->polygon_count; i++) {
+            Polygon* poly = &world->polygon_manager->polygons[i];
+            if (polygon_check_ball_collision(poly, ball->x, ball->y, ball->radius,
+                                              &push_x, &push_y, &push_dist)) {
+                // Push ball out of polygon
+                ball->x += push_x * push_dist;
+                ball->y += push_y * push_dist;
+
+                // Reflect velocity off the ejection normal
+                float vn = ball->vx * push_x + ball->vy * push_y;
+                if (vn < 0) {
+                    // Use polygon's restitution for bounce
+                    float restitution = poly->restitution / 255.0f;
+                    ball->vx -= (1.0f + restitution) * vn * push_x;
+                    ball->vy -= (1.0f + restitution) * vn * push_y;
+                }
+            }
+        }
+    }
+
+    // Check adversary polygons
+    if (world->adversary_polygon_manager) {
+        for (int i = 0; i < world->adversary_polygon_manager->polygon_count; i++) {
+            Polygon* poly = &world->adversary_polygon_manager->polygons[i];
+            if (polygon_check_ball_collision(poly, ball->x, ball->y, ball->radius,
+                                              &push_x, &push_y, &push_dist)) {
+                // Push ball out of polygon
+                ball->x += push_x * push_dist;
+                ball->y += push_y * push_dist;
+
+                // Reflect velocity off the ejection normal
+                float vn = ball->vx * push_x + ball->vy * push_y;
+                if (vn < 0) {
+                    float restitution = poly->restitution / 255.0f;
+                    ball->vx -= (1.0f + restitution) * vn * push_x;
+                    ball->vy -= (1.0f + restitution) * vn * push_y;
+                }
+            }
+        }
+    }
+}
+// }}}
+
 // {{{ ball_check_ball_collision
 // Internal function to check circle-circle collision between two balls
 // Returns 1 if collision detected, 0 otherwise
@@ -783,6 +917,10 @@ static void ball_resolve_pile_collision(Ball* ball_a, Ball* ball_b,
 
     ball_a->x += nx * push;
     ball_a->y += ny * push;
+
+    // Issue 221e: Pile contacts accumulate static stress (harmless)
+    // Use penetration depth as pressure - more overlap = more weight
+    ball_accumulate_static_stress(ball_a, depth);
 
     // No velocity change - this is the key difference from standard collision
     // Velocity naturally drains via damping, allowing pile to settle
@@ -838,6 +976,10 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
                 ball_a->health -= damage;
             }
         }
+
+        // Issue 221e: Ball-ball collisions accumulate static stress (harmless)
+        // Use closing speed as pressure - harder impacts = more stress
+        ball_accumulate_static_stress(ball_a, closing_speed * 0.1f);
 
         // Blend between soft and standard collision for intermediate speeds (issue 221d)
         // This provides smooth transition instead of jarring behavior change
@@ -1005,6 +1147,7 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
             ball_collide_with_bumpers(next, world);
             ball_collide_with_ramps(next, world);
             ball_collide_with_lines(next, world);
+            ball_collide_with_polygons(next, world);  // Issue 837: closed polygon collision
             ball_collide_with_walls(next, world);
 
             // Check wrap zones for ball teleportation at screen edges
@@ -1014,6 +1157,9 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
 
             // Sleep system (issue 221a): update frames_at_rest tracking
             ball_update_sleep_tracking(next);
+
+            // Stress decay (issue 221e): decay stress after collisions resolved
+            ball_update_stress_decay(next);
 
             // Trajectory history (issue 222): record current state
             ball_record_trajectory(next);
@@ -1131,6 +1277,7 @@ void ball_update_task(void* data) {
         ball_collide_with_bumpers(next, task->world);
         ball_collide_with_ramps(next, task->world);
         ball_collide_with_lines(next, task->world);
+        ball_collide_with_polygons(next, task->world);  // Issue 837: closed polygon collision
 
         // Track cross-owner ball collisions for splash particles and explosion direction
         float collision_info[9] = {0};
@@ -1186,6 +1333,9 @@ void ball_update_task(void* data) {
         // Sleep system (issue 221a): update frames_at_rest tracking
         // Called after all collisions resolved so velocity is final for this frame
         ball_update_sleep_tracking(next);
+
+        // Stress decay (issue 221e): decay stress after collisions resolved
+        ball_update_stress_decay(next);
 
         // Trajectory history (issue 222): record current state after collision resolution
         ball_record_trajectory(next);

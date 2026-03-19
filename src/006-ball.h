@@ -88,6 +88,16 @@ typedef struct ThreadPool ThreadPool;
 #define MAX_SAFE_SPEED 1200.0f          // Above this, tunneling risk increases
 #define TUNNEL_WARNING_THRESHOLD 0.5f   // Warn if distance/frame > zone_height * this
 
+// Stress tracking constants (issue 221e)
+// Balls accumulate stress from collisions. Static stress (from other balls, walls)
+// is harmless. Dynamic stress (from rotors, movers) can cause crushing.
+// This distinction prevents balls from crushing each other in piles.
+#define MAX_STATIC_STRESS 100.0f        // Cap for static stress accumulation
+#define STATIC_STRESS_DECAY 0.9f        // Per-frame decay when not in contact
+#define DYNAMIC_STRESS_DECAY 0.8f       // Per-frame decay (faster than static)
+#define STRESS_MIN_THRESHOLD 0.01f      // Below this, snap to zero
+#define CRUSH_THRESHOLD 50.0f           // Dynamic stress above this = crush (used in 901f)
+
 // {{{ typedef struct VelocityStats
 // Global velocity statistics for debugging and tunneling detection.
 // Tracks maximum velocities observed and potential tunneling events.
@@ -154,6 +164,14 @@ typedef struct Ball {
     float history_vx[TRAJECTORY_HISTORY_FRAMES];
     float history_vy[TRAJECTORY_HISTORY_FRAMES];
     int history_index;  // Current write position (circular buffer)
+
+    // Stress tracking (issue 221e)
+    // Static stress: from ball-ball collisions, static geometry (walls, pegs)
+    // Dynamic stress: from rotors, movers (causes crushing when threshold exceeded)
+    // This distinction prevents balls from crushing under pile weight.
+    float static_stress;    // Harmless accumulation from static sources
+    float dynamic_stress;   // Dangerous accumulation from moving objects
+    int contact_count;      // Number of active contacts this frame (for decay logic)
 } Ball;
 // }}}
 
