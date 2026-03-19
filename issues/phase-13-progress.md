@@ -50,10 +50,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1321  | Allow multiple gate scoring        | Open      |
 | 1322  | Ball velocity statistics           | Open      |
 | 1323  | GateRow scoring never called       | Open      |
+| 1324  | Grid-based zone dispatch system    | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/39 issues (15%)
+**Completed:** 6/40 issues (15%)
 **Status:** In Progress
 
 ## Major Features
