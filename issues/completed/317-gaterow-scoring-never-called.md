@@ -1,6 +1,6 @@
 # 317 - GateRow Scoring Never Called
 
-## Status: awaiting-work
+## Status: complete
 
 ## Depends on
 
@@ -170,3 +170,46 @@ int check_all_zones(Ball* ball, World* world) {
 ## Discovery Context
 
 Found during investigation of "balls passing through gates without triggering ring particle effect". Initial hypothesis was tunneling (issue 903 may help diagnose), but analysis revealed this architectural issue with GateRow zones never being checked.
+
+---
+
+## Implementation Notes (2026-03-19)
+
+### Solution Implemented: Option B
+
+Added call to `stage_manager_check_ball_score()` in `ball_update_task()` after the zone dispatch scoring check.
+
+### Code Added (src/007-ball.c)
+
+```c
+// Issue 317: Check GateRow zones (from stage expansion)
+// GateRows have their own ScoreZone arrays separate from zone_grid.
+// This supplements zone_dispatch which only knows about main gates.
+if (!task->scored && task->world->stages && !next->passed_gate) {
+    int gate_points = stage_manager_check_ball_score(task->world->stages, next);
+    if (gate_points > 0) {
+        task->score_delta = gate_points;
+        task->scored = 1;
+        task->score_pos_x = next->x;
+        task->score_pos_y = next->y;
+        next->passed_gate = 1;  // Prevent double-scoring
+    }
+}
+```
+
+### Logic Flow
+
+1. Zone dispatch (issue 318) checks main gates via zone_grid
+2. If no score from zone dispatch AND stages exist AND not already scored:
+3. Check GateRow zones via `stage_manager_check_ball_score()`
+4. Award points if ball is in any GateRow's ScoreZone
+
+### Integration Notes
+
+- GateRows maintain their own ScoreZone arrays (set up in `gate_row_init()`)
+- The `passed_gate` flag prevents double-scoring across both systems
+- Ring particle effects will trigger since `task->scored` is set
+
+### Future Consideration
+
+For a cleaner architecture, GateRow zones could be integrated into the zone_grid when created. This would allow zone dispatch to handle all scoring uniformly. However, Option B is sufficient and avoids architectural changes.

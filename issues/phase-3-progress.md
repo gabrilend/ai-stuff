@@ -24,15 +24,15 @@ Scoring, particle effects, and visual feedback systems.
 | 314 | Fix persistent splash particles    | completed     | -          |
 | 315 | Directional explosion fragments    | completed     | -          |
 | 316 | Allow multiple gate scoring        | completed     | 318        |
-| 317 | GateRow scoring never called       | awaiting-work | -          |
+| 317 | GateRow scoring never called       | completed     | -          |
 | 318 | Grid zone dispatch system          | completed     | -          |
 | 319 | Random ball colors                 | awaiting-work | -          |
 | 320 | Progress bar color flip            | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 18/20 issues
-**Awaiting work:** 2 (317, 319)
+**Completed:** 19/20 issues
+**Awaiting work:** 1 (319)
 **Blocked:** 0
 **Phase status:** awaiting-work
 
@@ -65,7 +65,9 @@ Scoring, particle effects, and visual feedback systems.
 - Multiple gate scoring support (316) - COMPLETED via 318
   - Background zone handler resets passed_gate flag
   - Balls can score multiple times after exiting gate zone
-- GateRow scoring fix (317) - awaiting work
+- GateRow scoring fix (317) - COMPLETED
+  - Added stage_manager_check_ball_score call in ball_update_task
+  - GateRow ScoreZones now checked after zone_dispatch
 
 ## Issue-Level Dependencies
 

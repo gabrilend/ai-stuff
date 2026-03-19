@@ -1384,6 +1384,20 @@ void ball_update_task(void* data) {
                     next->passed_gate = 1;  // Mark as scored, ball continues through
                 }
             }
+
+            // Issue 317: Check GateRow zones (from stage expansion)
+            // GateRows have their own ScoreZone arrays separate from zone_grid.
+            // This supplements zone_dispatch which only knows about main gates.
+            if (!task->scored && task->world->stages && !next->passed_gate) {
+                int gate_points = stage_manager_check_ball_score(task->world->stages, next);
+                if (gate_points > 0) {
+                    task->score_delta = gate_points;
+                    task->scored = 1;
+                    task->score_pos_x = next->x;
+                    task->score_pos_y = next->y;
+                    next->passed_gate = 1;  // Prevent double-scoring
+                }
+            }
         }
     }
 }
