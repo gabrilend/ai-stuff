@@ -8,7 +8,7 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 
 | ID    | Description                        | Status    |
 |-------|------------------------------------|-----------|
-| 1301  | Random ball colors                 | Complete  |
+| 1301  | Random ball colors                 | Re-opened |
 | 1302  | Adversary board flip axis          | Complete  |
 | 1303  | Progress bar color flip            | Complete  |
 | 1304  | Stage spawn mechanic broken        | Complete  |
@@ -42,15 +42,15 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 
 ## Progress Summary
 
-**Completed:** 7/28 issues (25%)
+**Completed:** 6/28 issues (21%)
 **Status:** In Progress
 
 ## Major Features
 
-### Bug Fixes (1301-1304) ✓ COMPLETE
+### Bug Fixes (1301-1304)
 
 Quick fixes for existing issues:
-- **1301**: ✓ Random HSV colors with complementary hue for adversary balls
+- **1301**: Re-opened - Ball colors work, but particles need color integration
 - **1302**: ✓ Vertical flip for adversary board (X-axis mirror)
 - **1303**: ✓ Spawn count tracking for visual continuity (instead of credits floor)
 - **1304**: ✓ Stage spawn flipping for adversary stages
