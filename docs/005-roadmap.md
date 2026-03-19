@@ -1,245 +1,269 @@
 # 005 - Project Roadmap
 
-## Phase 1: Foundation
+## Overview
 
-Establish the core infrastructure: build system, threadpool, and basic
-raylib window.
+The project is organized into 9 functional phases representing team workstreams.
+Phases are NOT sequential - they can be worked on in parallel based on issue-level
+dependencies. See `issues/phase-X-progress.md` for detailed status.
 
-### Deliverables
-- Makefile with proper linking
-- Threadpool implementation with task queue
-- Empty raylib window that opens and closes cleanly
-- Basic project structure
+## Current Status Summary
 
-### Success Criteria
-- `make` produces working executable
-- Threadpool unit test passes
-- Window opens at 60fps, responds to close
-
----
-
-## Phase 2: Static World
-
-Create the pachinko machine structure without moving balls.
-
-### Deliverables
-- Peg grid generation and rendering
-- Score zone layout and rendering
-- World state structure
-- Visual pachinko board display
-
-### Success Criteria
-- Pegs render in staggered grid pattern
-- Score zones visible at bottom
-- Clean visual layout
+| Phase | Theme               | Complete | Awaiting | Blocked |
+|-------|---------------------|----------|----------|---------|
+| 1     | Core Infrastructure | 12/12    | 0        | 0       |
+| 2     | World & Physics     | 20/27    | 3        | 4       |
+| 3     | Feedback Systems    | 16/20    | 4        | 0       |
+| 4     | Display             | 8/12     | 3        | 1       |
+| 5     | Gameplay            | 10/11    | 1        | 0       |
+| 6     | Competition         | 9/11     | 2        | 0       |
+| 7     | Stages              | 11/11    | 0        | 0       |
+| 8     | Editor              | 36/39    | 3        | 0       |
+| 9     | Dynamic Systems     | 0/17     | 5        | 12      |
 
 ---
 
-## Phase 3: Ball Physics
+## Parallelization Opportunities
 
-Implement ball spawning, movement, and collision.
+### Immediate (No Blockers)
 
-### Deliverables
-- Ball state and double-buffering
-- Gravity and velocity integration
-- Peg collision detection and response
-- Boundary collision handling
-- Ball launching input
+These issues can be picked up right now by different team members:
 
-### Success Criteria
-- Balls fall under gravity
-- Balls bounce off pegs realistically
-- Balls bounce off walls
-- Space key launches new balls
+```
+PHYSICS TEAM:
+  221a - Sleep state tracking (Phase 2)
+  221d - Soft collision response (Phase 2)
+  222  - Trajectory history (Phase 2)
 
----
+FEEDBACK TEAM:
+  316  - Multiple gate scoring (Phase 3)
+  317  - GateRow scoring bug (Phase 3)
+  318  - Zone dispatch system (Phase 3) [solves 316+317]
+  319  - Random ball colors (Phase 3)
 
-## Phase 4: Parallel Processing
+UI TEAM:
+  406  - Editor panel UI system (Phase 4)
+  407  - Hide game UI keybind (Phase 4)
+  408  - Minimum window width (Phase 4)
 
-Integrate threadpool with ball physics updates.
+GAMEPLAY TEAM:
+  507  - Adversary spawn toggle (Phase 5)
+  609  - Separate player/adversary scores (Phase 6)
+  610  - Remove adversary board tinting (Phase 6)
 
-### Deliverables
-- Task data structures for ball updates
-- Parallel ball physics submission
-- Buffer swapping synchronization
-- Thread-safe ball state management
+EDITOR TEAM:
+  837  - Closed polygon detection (Phase 8)
+  838  - Standardize board dimensions (Phase 8)
+  839  - Material type selector (Phase 8)
 
-### Success Criteria
-- Multiple balls update in parallel
-- No race conditions or visual glitches
-- Performance scales with thread count
+DYNAMIC SYSTEMS TEAM:
+  901a - Rotor data structure (Phase 9)
+  902a - Track data structure (Phase 9)
+  903  - Ball velocity statistics (Phase 9)
+```
 
----
+### After Dependencies Met
 
-## Phase 5: Scoring and Polish
+These unlock once their blockers complete:
 
-Complete gameplay loop and visual refinement.
+```
+After 221a:
+  → 221b (Sleep transition logic)
+  → 221c (Wake conditions)
 
-### Deliverables
-- Score zone detection and scoring
-- Score display and tracking
-- Ball deactivation when captured
-- Visual polish (colors, effects)
-- Performance statistics display
+After 221d:
+  → 221e (Stress distinction) → unlocks 901f, 902g
 
-### Success Criteria
-- Balls score when landing in zones
-- Score accumulates correctly
-- Smooth gameplay with 100+ balls
-- FPS counter shows stable 60fps
+After 406 + 408:
+  → 409 (Collapsible drawer UI)
 
----
+After 901a:
+  → 901b, 901c, 901d (Editor tool, rotation, detection)
 
-## Phase 6: Viewport and Window
+After 902a:
+  → 902b, 902c, 902d (Editor tool, payload, physics)
 
-Viewport management and window handling.
+After 901c + 901d:
+  → 901e (Collision modes)
 
-### Deliverables
-- Scrolling viewport with Camera2D
-- Dynamic window resize handling
-- Scroll limits to keep table visible
-- UI repositioning on resize
+After 901e + 221e:
+  → 901f (Ball crushing)
 
-### Success Criteria
-- Smooth scrolling through game world
-- Window resizes handled gracefully
-- UI elements stay properly positioned
+After 902d:
+  → 902e, 902f (Intersection selection, back-and-forth)
 
----
-
-## Phase 7: Spawn System and UI
-
-Spawn system improvements and UI polish.
-
-### Deliverables
-- Auto-spawn toggle (A key)
-- Movable spawn point (mouse/keyboard)
-- Improved spawn visual display
-- Credit-based spawn buffering
-- UI repositioned for better visibility
-
-### Success Criteria
-- Consistent spawn rate regardless of input method
-- Intuitive spawn point control
-- Clear visual feedback for spawn state
+After 902d + 221e:
+  → 902g (Track ball interaction)
+```
 
 ---
 
-## Phase 8: Game Mechanics
+## Phase Details
 
-Upgrade system and adversary opponent.
+### Phase 1: Core Infrastructure (Complete)
 
-### Deliverables
-- Upgrade menu system (spend points on improvements)
-- Spawn rate upgrade
-- Ball radius upgrade
-- Adversary board (mirrored below player)
-- Adversary AI (oscillating reticle, auto-spawn)
-- Shared gates (balls pass through to opposite board)
-- Cross-board ball physics (reversed gravity, momentum transfer)
+Foundation: build system, threadpool, parallel processing, config.
 
-### Success Criteria
-- Upgrades purchasable and functional
-- Enemy board renders correctly (flipped orientation)
-- Balls pass through shared gates to opposite board
-- Cross-board collisions transfer momentum correctly
+- Issues 101-112
+- All complete
 
 ---
 
-## Phase 9: Particle Parallelization
+### Phase 2: World & Physics
 
-Move particle updates to the threadpool architecture.
+World structure, ball physics, wrapping, sleep system.
 
-### Deliverables
-- Double-buffered particle arrays
-- ParticleTaskData structure for thread-safe updates
-- Parallel simple/ripple particle updates
-- Parallel fragment collision detection
-- Synchronization with ball physics pipeline
+**Complete (20):** World state, pegs, scoring, physics, collisions, wrap zones
 
-### Success Criteria
-- No visual changes to particle behavior
-- Reduced frame time with high particle counts
-- Thread-safe particle spawning from ball tasks
+**Awaiting Work:**
+- 221a - Sleep state tracking
+- 221d - Soft collision response
+- 222  - Trajectory history
 
----
+**Blocked:**
+- 221b, 221c (by 221a)
+- 221e (by 221d)
 
-## Phase 10: Stage Expansion
-
-Dynamic stage system with purchasable board extensions.
-
-### Deliverables
-- Reticle toggle mouse control
-- Stage abstraction encapsulating board sections
-- Dynamic world vertical expansion
-- Multi-row gate system with multipliers
-- Ramp obstacle type with diagonal collision
-- Stage 2 ramp layout (converging funnel pattern)
-- Stage insertion animation with camera zoom
-- Next stage upgrade integration
-- Ball screen wrapping (top/bottom)
-- Low-speed impact damage reduction
-
-### Success Criteria
-- Players can purchase additional stages at runtime
-- Smooth animation during stage expansion
-- Ramps redirect balls horizontally
-- Balls wrap around screen edges preserving state
+**Cross-Phase Impact:** 221e blocks 901f and 902g (crushing mechanics)
 
 ---
 
-## Phase 11: Board Editor
+### Phase 3: Feedback Systems
 
-Visual editor for designing pachinko boards with JSON storage.
+Scoring, particles, visual feedback.
 
-### Deliverables
-- JSON-based board data format
-- Grid system architecture with snap-to-intersection
-- Board loader (JSON to game runtime)
-- Editor mode toggle (overlay on game)
-- Object palette UI (pegs, lines, portals)
-- Object placement and removal systems
-- Line drawing tool with variable thickness
-- Portal zone system (entry/exit channels)
-- Object property editor (RGB: restitution, friction, bonus)
-- Board save/load functionality
-- Stage pool system for random stage selection
+**Complete (16):** Scoring, particles, double-buffering, parallelization
 
-### Success Criteria
-- Create boards visually without code changes
-- Save/load boards as JSON files
-- Boards integrate with stage purchase system
-- Portal teleportation works correctly
+**Awaiting Work (all independent):**
+- 316 - Multiple gate scoring
+- 317 - GateRow scoring bug
+- 318 - Zone dispatch system
+- 319 - Random ball colors
+
+**Note:** 318 provides comprehensive solution for 316 and 317
 
 ---
 
-## Phase 12: Editor Modularization
+### Phase 4: Display
 
-Extract board editor into standalone application.
+Viewport, UI, reticle.
 
-### Deliverables
-- Standalone editor binary (bin/board-editor)
-- Editor removed from game binary
-- Shared components (board-data, grid, portal)
-- Full-window editor canvas
+**Complete (8):** Scrolling, resize, reticle fixes
 
-### Success Criteria
-- Two separate executables (game and editor)
-- Reduced game binary size
-- Editor has full window for canvas
-- Both share board file format
+**Awaiting Work:**
+- 406 - Editor panel UI system
+- 407 - Hide game UI keybind
+- 408 - Minimum window width
+
+**Blocked:**
+- 409 (by 406, 408)
 
 ---
 
-## Future: Optimization
+### Phase 5: Gameplay
 
-Performance improvements for high ball counts.
+Spawn system, upgrades.
 
-### Deliverables
+**Complete (10):** Auto-spawn, movable spawn, buffering, upgrade system
+
+**Awaiting Work:**
+- 507 - Adversary spawn toggle keybind
+
+---
+
+### Phase 6: Competition
+
+Adversary AI, combat, portals.
+
+**Complete (9):** Adversary board, AI, shared gates, damage system
+
+**Awaiting Work:**
+- 609 - Separate player/adversary scores
+- 610 - Remove adversary board tinting
+
+---
+
+### Phase 7: Stages (Complete)
+
+Stage system, dynamic expansion, ramps.
+
+- Issues 701-711
+- All complete
+
+---
+
+### Phase 8: Editor
+
+Visual board editor with JSON storage.
+
+**Complete (36):** Full editor functionality, standalone app, file management
+
+**Awaiting Work (all independent):**
+- 837 - Closed polygon detection and fill
+- 838 - Standardize board dimensions
+- 839 - Material type selector
+
+---
+
+### Phase 9: Dynamic Systems
+
+Rotors, track movers, analysis tools.
+
+**Entry Points (no blockers):**
+- 901a - Rotor data structure
+- 902a - Track data structure
+- 903  - Ball velocity statistics
+
+**Dependency Chain - Rotors:**
+```
+901a → 901b (editor tool)
+     → 901c (rotation physics)
+     → 901d (connected detection)
+           ↓
+         901e (collision modes)
+           ↓
+         901f (ball crushing) ← also needs 221e
+
+901b → 901g (direction UI)
+```
+
+**Dependency Chain - Tracks:**
+```
+902a → 902b (editor tool)
+     → 902c (payload detection)
+     → 902d (following physics)
+           ↓
+         902e (intersection selection)
+         902f (back-and-forth)
+         902g (ball interaction) ← also needs 221e
+```
+
+---
+
+## Recommended Team Assignments
+
+For maximum parallelization with 4 developers:
+
+| Developer | Primary Focus | Secondary |
+|-----------|---------------|-----------|
+| A | Phase 2 (221a/d, 222) | Phase 9 (903) |
+| B | Phase 3 (318) | Phase 4 (406, 407) |
+| C | Phase 8 (837, 839) | Phase 5/6 (507, 609) |
+| D | Phase 9 (901a, 902a) | Phase 4 (408) |
+
+After initial work completes, reassign based on unblocked issues.
+
+---
+
+## Future Considerations
+
+### Optimization (not scheduled)
 - Spatial partitioning for collision
 - SIMD physics calculations
 - Memory pool for ball allocation
+- Target: 500+ balls at 60fps
 
-### Success Criteria
-- 500+ balls at 60fps
-- Reduced collision check overhead
+### Potential New Features
+- Sound system integration
+- Additional obstacle types
+- Multiplayer networking
+- Mobile/touch support
