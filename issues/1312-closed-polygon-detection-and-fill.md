@@ -27,11 +27,28 @@ Lines in the editor can form closed shapes (triangles, quadrilaterals, complex p
 
 ## Design
 
+### Guard Rails as Lines
+
+Board guard rails (left, right, and bottom walls) should count as line segments for polygon detection. This allows polygons to close against the board edges without requiring explicit line placement at walls.
+
+```c
+// Virtual lines representing board boundaries
+// These are implicit - not stored in board data, generated at detection time
+Line guard_rails[3] = {
+    { {0, 0}, {0, BOARD_HEIGHT} },           // Left wall
+    { {BOARD_WIDTH, 0}, {BOARD_WIDTH, BOARD_HEIGHT} },  // Right wall
+    { {0, BOARD_HEIGHT}, {BOARD_WIDTH, BOARD_HEIGHT} }  // Bottom
+};
+```
+
+When building the line graph, include guard rails as additional line segments. Polygons can form by connecting to these implicit edges.
+
 ### Phase 1: Closed Loop Detection
 
-Lines form a graph where vertices come from TWO sources:
+Lines form a graph where vertices come from TWO sources (THREE with guard rails):
 1. Line endpoints
 2. Line-line intersection points (where lines cross)
+3. Guard rail endpoints and intersections with lines
 
 This allows closed regions to form even when no endpoints share coordinates.
 
@@ -120,10 +137,37 @@ typedef struct Polygon {
     Vector2 centroid;       // Center point
     float bounding_radius;  // For broad-phase rejection
 
-    // Properties inherited from constituent lines
+    // Visual properties (fill is purely cosmetic)
+    Color fill_color;       // Interior fill color
+    int fill_visible;       // 0 = invisible fill, 1 = visible fill
+
+    // Line properties (affects physics)
+    Color line_color;       // Edge color - determines physics behavior
+    unsigned char restitution;  // Derived from line_color
+    unsigned char friction;     // Derived from line_color
+
+    // Line indices that form this polygon (for editing)
+    int* line_indices;
+    int line_count;
+} Polygon;
+
+// Line color to physics mapping
+// Different colors = different materials with different bounce/friction
+typedef struct LineMaterial {
+    Color color;
     unsigned char restitution;
     unsigned char friction;
-} Polygon;
+    const char* name;  // For editor display
+} LineMaterial;
+
+// Predefined materials
+static const LineMaterial LINE_MATERIALS[] = {
+    { {128, 128, 128, 255}, 180, 50, "Stone" },      // Gray - standard bounce
+    { {200, 100, 50, 255},  220, 30, "Rubber" },     // Orange - high bounce
+    { {100, 150, 200, 255}, 100, 80, "Ice" },        // Blue - low friction
+    { {50, 50, 50, 255},    50, 90, "Sticky" },      // Dark - absorbs energy
+    { {255, 200, 50, 255},  250, 20, "Bouncy" },     // Yellow - maximum bounce
+};
 ```
 
 ### Phase 3: Rendering Fill
@@ -225,12 +269,71 @@ void check_ball_polygon_collision(Ball* ball, Polygon* poly) {
 - When a closed polygon is formed, highlight it briefly
 - Show filled preview when hovering over enclosed area
 - Different fill color for selected polygons
+- Polygons against guard rails render with edge touching the wall
+
+### Click-to-Select Polygon
+
+When clicking inside a filled polygon area in the editor:
+1. Point-in-polygon test determines which polygon was clicked
+2. Selected polygon gets highlighted border
+3. Properties panel appears with editable fields
+
+```c
+Polygon* editor_get_polygon_at_point(float x, float y) {
+    for (int i = 0; i < polygon_count; i++) {
+        if (point_in_polygon(x, y, &polygons[i])) {
+            return &polygons[i];
+        }
+    }
+    return NULL;  // No polygon at this point
+}
+```
 
 ### Polygon Properties Panel
 
-- Display "Polygon detected" when lines form closure
-- Allow setting fill color/opacity
-- Allow toggling physics fill on/off per polygon
+When a polygon is selected, show editable properties:
+
+```
+┌─────────────────────────────────┐
+│ Polygon Properties              │
+├─────────────────────────────────┤
+│ Fill Color:  [████] [Pick...]   │  ← Visual only, no physics effect
+│ ☑ Fill Visible                  │  ← Checkbox to hide fill
+│                                 │
+│ Line Color:  [████] [Pick...]   │  ← Affects physics (restitution/friction)
+│ Material: [Rubber ▼]            │  ← Preset or custom
+│   Restitution: 220              │  ← Auto-set from material
+│   Friction: 30                  │  ← Auto-set from material
+│                                 │
+│ [Delete Polygon]                │
+└─────────────────────────────────┘
+```
+
+**Fill Color** - Purely cosmetic, changes interior rendering only
+**Fill Visible** - Checkbox to toggle fill visibility (physics still active)
+**Line Color** - Changes edge color AND physics properties
+**Material Presets** - Quick selection of predefined physics behaviors
+
+### Line Color → Physics Mapping
+
+Changing line color automatically updates physics:
+```c
+void polygon_set_line_color(Polygon* poly, Color color) {
+    poly->line_color = color;
+
+    // Find closest matching material
+    const LineMaterial* mat = find_closest_material(color);
+    poly->restitution = mat->restitution;
+    poly->friction = mat->friction;
+
+    // Update all constituent lines to match
+    for (int i = 0; i < poly->line_count; i++) {
+        Line* line = &board->lines[poly->line_indices[i]];
+        line->color = color;
+        line->restitution = mat->restitution;
+    }
+}
+```
 
 ### Line Deletion Behavior
 
@@ -241,18 +344,31 @@ void check_ball_polygon_collision(Ball* ball, Polygon* poly) {
 
 ## Data Storage (Board JSON)
 
-Option A: Store polygons explicitly
+Option A: Store polygons explicitly (Recommended)
 ```json
 {
   "polygons": [
     {
       "line_indices": [0, 3, 5, 2],
+      "uses_guard_rail": true,
+      "guard_rail_side": "left",
       "fill_color": [100, 100, 150, 128],
+      "fill_visible": true,
+      "line_color": [200, 100, 50, 255],
       "physics_solid": true
     }
   ]
 }
 ```
+
+**Field descriptions:**
+- `line_indices` - Indices into the board's line array
+- `uses_guard_rail` - True if polygon closes against a board edge
+- `guard_rail_side` - Which edge: "left", "right", "bottom"
+- `fill_color` - RGBA for interior (visual only)
+- `fill_visible` - False to hide fill while keeping physics active
+- `line_color` - RGBA for edges (determines physics properties)
+- `physics_solid` - True if balls collide with interior
 
 Option B: Detect polygons at load time from lines
 - Simpler JSON format
@@ -264,18 +380,26 @@ Recommend Option A for determinism.
 ## Implementation Steps
 
 1. Implement line endpoint graph builder
-2. Implement cycle detection (DFS-based)
-3. Create Polygon data structure
-4. Implement ear-clipping triangulation for rendering
-5. Implement polygon fill rendering
-6. Implement point-in-polygon test
-7. Implement ball-polygon collision with ejection
-8. Add polygon detection to editor (real-time as lines drawn)
-9. Add visual feedback for detected polygons
-10. Update board JSON format to store polygon data
-11. Test with convex polygons (triangles, rectangles)
-12. Test with concave polygons (L-shapes, stars)
-13. Test ball collisions at various angles and speeds
+2. Add guard rails as virtual lines in graph building
+3. Implement cycle detection (DFS-based)
+4. Create Polygon data structure with fill/line color separation
+5. Implement LineMaterial system for color→physics mapping
+6. Implement ear-clipping triangulation for rendering
+7. Implement polygon fill rendering with fill_visible toggle
+8. Implement point-in-polygon test
+9. Implement ball-polygon collision with ejection
+10. Add polygon detection to editor (real-time as lines drawn)
+11. Add click-to-select polygon functionality
+12. Implement polygon properties panel UI
+13. Add fill color picker (visual only)
+14. Add line color picker with material presets
+15. Add "Fill Visible" checkbox
+16. Update board JSON format to store polygon data
+17. Test with convex polygons (triangles, rectangles)
+18. Test with concave polygons (L-shapes, stars)
+19. Test polygons closed against guard rails
+20. Test ball collisions at various angles and speeds
+21. Test invisible fill with active physics
 
 ## Files to Create
 
