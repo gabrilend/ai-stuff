@@ -46,10 +46,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1317  | Collapsible drawer UI              | Open      |
 | 1318  | Separate player/adversary scores   | Open      |
 | 1319  | Material type selector             | Open      |
+| 1320  | Remove adversary board tinting     | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/35 issues (17%)
+**Completed:** 6/36 issues (17%)
 **Status:** In Progress
 
 ## Major Features
