@@ -36,10 +36,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1307e | - Stress source distinction        | Open      |
 | 1308  | Expand grid dimensions             | Open      |
 | 1309  | Unified spawner system             | Open      |
+| 1310  | Compile-time config system         | Open      |
 
 ## Progress Summary
 
-**Completed:** 0/25 issues (0%)
+**Completed:** 0/26 issues (0%)
 **Status:** In Progress
 
 ## Major Features
