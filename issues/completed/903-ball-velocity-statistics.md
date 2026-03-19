@@ -1,6 +1,6 @@
 # 903 - Ball Velocity Statistics
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
@@ -264,3 +264,21 @@ Balls that have accumulated significant downward velocity (from long falls or mu
 - Per-ball tracking could help identify specific problematic scenarios
 - Frame rate drops could temporarily increase tunneling risk
 - Integration with issue 222 reduces redundant per-ball tracking code
+
+## Implementation Notes (2026-03-19)
+
+### Implementation Complete
+
+All functionality has been implemented:
+
+1. **VelocityStats struct**: Tracks max speeds, gate entry speeds, and tunnel counts
+2. **velocity_stats_reset()**: Clears all statistics
+3. **velocity_stats_record()**: Records per-ball velocity each frame
+4. **velocity_stats_record_gate_entry()**: Tracks speeds when entering gates
+5. **velocity_stats_check_tunnel()**: Warns when distance/frame exceeds threshold
+6. **velocity_stats_get()**: Returns read-only stats for debug overlay
+7. **ball_manager_record_velocity_stats()**: Main thread entry point
+
+### Location
+
+All implementation in `src/007-ball.c` after line 1355.

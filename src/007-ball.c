@@ -16,6 +16,10 @@
 #include "045-zone-dispatch.h"
 #include "raylib.h"
 
+// Forward declaration for velocity statistics (issue 903)
+// Defined at end of file, called from ball_manager_collect_scores_split
+void velocity_stats_record_gate_entry(Ball* ball);
+
 // {{{ ball_manager_create
 BallManager* ball_manager_create(int capacity) {
     BallManager* manager = (BallManager*)malloc(sizeof(BallManager));
@@ -1292,6 +1296,9 @@ void ball_manager_collect_scores_split(BallManager* manager,
             } else if (owner == OWNER_ADVERSARY) {
                 adversary_total += score;
             }
+
+            // Record gate entry speed for velocity statistics (issue 903)
+            velocity_stats_record_gate_entry(&manager->balls_current[i]);
         }
 
         // Reset scoring and death tracking fields for next frame
@@ -1346,6 +1353,130 @@ void ball_manager_handle_expansion(BallManager* manager, float offset,
         if (manager->balls_next[i].active &&
             manager->balls_next[i].y > expansion_y_start) {
             manager->balls_next[i].y += offset;
+        }
+    }
+}
+// }}}
+
+// =============================================================================
+// Velocity Statistics (issue 903)
+// =============================================================================
+
+// Global velocity statistics instance
+// Thread-safe: only written from main thread after parallel phase completes
+static VelocityStats g_velocity_stats = {0};
+
+// {{{ velocity_stats_reset
+void velocity_stats_reset(void) {
+    memset(&g_velocity_stats, 0, sizeof(VelocityStats));
+    TraceLog(LOG_INFO, "Velocity statistics reset");
+}
+// }}}
+
+// {{{ velocity_stats_record
+void velocity_stats_record(Ball* ball, int frame) {
+    if (!ball || !ball->active) return;
+
+    float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+
+    // Update max speed if exceeded
+    if (speed > g_velocity_stats.max_speed) {
+        g_velocity_stats.max_speed = speed;
+        g_velocity_stats.max_vx = ball->vx;
+        g_velocity_stats.max_vy = ball->vy;
+        g_velocity_stats.max_speed_x = ball->x;
+        g_velocity_stats.max_speed_y = ball->y;
+        g_velocity_stats.max_speed_frame = frame;
+    }
+
+    // Track individual component maximums (absolute values)
+    float abs_vx = fabsf(ball->vx);
+    float abs_vy = fabsf(ball->vy);
+
+    if (abs_vx > fabsf(g_velocity_stats.max_vx)) {
+        g_velocity_stats.max_vx = ball->vx;
+    }
+    if (abs_vy > fabsf(g_velocity_stats.max_vy)) {
+        g_velocity_stats.max_vy = ball->vy;
+    }
+}
+// }}}
+
+// {{{ velocity_stats_record_gate_entry
+void velocity_stats_record_gate_entry(Ball* ball) {
+    if (!ball) return;
+
+    float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+
+    // Update max gate entry speed
+    if (speed > g_velocity_stats.max_gate_entry_speed) {
+        g_velocity_stats.max_gate_entry_speed = speed;
+    }
+
+    // Running average: avg = avg * ((n-1)/n) + new_value/n
+    g_velocity_stats.gate_entries++;
+    float n = (float)g_velocity_stats.gate_entries;
+    g_velocity_stats.avg_gate_entry_speed =
+        g_velocity_stats.avg_gate_entry_speed * ((n - 1.0f) / n) + speed / n;
+}
+// }}}
+
+// {{{ velocity_stats_check_tunnel
+void velocity_stats_check_tunnel(Ball* ball, float dt, float zone_height) {
+    if (!ball || !ball->active || dt <= 0.0f) return;
+
+    float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+    float distance_per_frame = speed * dt;
+
+    // Check if ball could skip over half the zone in one frame
+    // (if ball center moves > zone_height/2, it could miss detection)
+    float threshold = zone_height * TUNNEL_WARNING_THRESHOLD;
+
+    if (distance_per_frame > threshold) {
+        g_velocity_stats.potential_tunnels++;
+
+        // Limit warning spam (only log first 10, then every 100th)
+        if (g_velocity_stats.tunnel_warnings_logged < 10 ||
+            g_velocity_stats.potential_tunnels % 100 == 0) {
+            TraceLog(LOG_WARNING,
+                "Potential tunnel: speed=%.0f px/s, dist/frame=%.1f px (threshold=%.1f) at (%.0f, %.0f)",
+                speed, distance_per_frame, threshold, ball->x, ball->y);
+            g_velocity_stats.tunnel_warnings_logged++;
+        }
+    }
+}
+// }}}
+
+// {{{ velocity_stats_get
+const VelocityStats* velocity_stats_get(void) {
+    return &g_velocity_stats;
+}
+// }}}
+
+// {{{ velocity_stats_increment_frame
+// Internal: Called once per frame to track session duration.
+// Not in header - only used internally.
+void velocity_stats_increment_frame(void) {
+    g_velocity_stats.total_frames++;
+}
+// }}}
+
+// {{{ ball_manager_record_velocity_stats
+void ball_manager_record_velocity_stats(BallManager* manager, int frame,
+                                        float dt, float zone_height) {
+    if (!manager) return;
+
+    // Increment frame counter once per frame
+    velocity_stats_increment_frame();
+
+    // Record statistics for all active balls in current buffer
+    // Called from main thread after parallel phase, so this is safe
+    for (int i = 0; i < manager->capacity; i++) {
+        Ball* ball = &manager->balls_current[i];
+
+        if (ball->active) {
+            velocity_stats_record(ball, frame);
+            velocity_stats_check_tunnel(ball, dt, zone_height);
         }
     }
 }

@@ -24,13 +24,13 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 902e | Intersection path selection   | blocked       | 902d            |
 | 902f | Back and forth motion         | blocked       | 902d            |
 | 902g | Track ball interaction        | blocked       | 902d, 221e      |
-| 903  | Ball velocity statistics      | awaiting-work | -               |
+| 903  | Ball velocity statistics      | completed     | -               |
 
 ## Progress Summary
 
-**Completed:** 2/17 issues (901a, 902a)
+**Completed:** 3/17 issues (901a, 902a, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 7 (901b, 901c, 901d, 902b, 902c, 902d, 903)
+**Awaiting work:** 6 (901b, 901c, 901d, 902b, 902c, 902d)
 **Blocked:** 6 (901e, 901f, 901g, 902e, 902f, 902g)
 **Phase status:** in-progress
 

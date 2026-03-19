@@ -821,6 +821,11 @@ int main(int argc, char* argv[]) {
     // Press H to hide/show score panel and controls panel
     int ui_visible = 1;
 
+    // Velocity debug overlay toggle (issue 903)
+    // Press F10 to show/hide velocity statistics overlay
+    int show_velocity_debug = 0;
+    int frame_counter = 0;  // Frame counter for velocity stats
+
     // Player spawner - unified spawn system (issue 1309)
     // Position controlled via mouse/keyboard, spawner handles credits and rendering
     float player_spawn_y = slot_manager_get_player_spawn_y(slot_manager);
@@ -911,6 +916,16 @@ int main(int argc, char* argv[]) {
         if (IsKeyPressed(KEY_H) && !upgrade_manager->menu_open) {
             ui_visible = !ui_visible;
             printf("UI: %s\n", ui_visible ? "visible" : "hidden");
+        }
+
+        // Handle velocity debug toggle (F10 key) - issue 903
+        // Shows velocity statistics overlay for debugging tunneling
+        if (IsKeyPressed(KEY_F10)) {
+            show_velocity_debug = !show_velocity_debug;
+            printf("Velocity debug: %s\n", show_velocity_debug ? "ON" : "OFF");
+            if (show_velocity_debug) {
+                velocity_stats_reset();  // Reset stats when enabling
+            }
         }
 
         // Handle upgrade menu input (returns 1 if ESC was consumed)
@@ -1150,6 +1165,14 @@ int main(int argc, char* argv[]) {
         }
 
         ball_manager_finalize_update(ball_manager);
+
+        // Record velocity statistics for debugging (issue 903)
+        // Functions implemented in src/007-ball.c
+        if (show_velocity_debug) {
+            frame_counter++;
+            ball_manager_record_velocity_stats(ball_manager, frame_counter, dt, SLOT_GATE_HEIGHT);
+        }
+
         ball_manager_swap_buffers(ball_manager);
         // Wrap zone checking now happens in ball physics (see ball_physics_task)
 
@@ -1279,6 +1302,46 @@ int main(int argc, char* argv[]) {
         // Draw upgrade menu overlay (if open)
         upgrade_manager_render(upgrade_manager, world->score,
                               screen_width, screen_height);
+
+        // Draw velocity debug overlay (issue 903)
+        // Functions implemented in src/007-ball.c
+        if (show_velocity_debug) {
+            const VelocityStats* vstats = velocity_stats_get();
+            int vy = 220;
+
+            DrawRectangle(5, vy - 5, 220, 140, (Color){0, 0, 0, 180});
+            DrawText("Velocity Stats (F10)", 10, vy, 14, YELLOW);
+            vy += 20;
+
+            char vtext[64];
+            sprintf(vtext, "Max Speed: %.0f px/s", vstats->max_speed);
+            DrawText(vtext, 10, vy, 12, WHITE);
+            vy += 16;
+
+            sprintf(vtext, "Max Vy: %.0f px/s", fabsf(vstats->max_vy));
+            DrawText(vtext, 10, vy, 12, WHITE);
+            vy += 16;
+
+            sprintf(vtext, "Safe Threshold: %.0f px/s", MAX_SAFE_SPEED);
+            DrawText(vtext, 10, vy, 12, GRAY);
+            vy += 16;
+
+            sprintf(vtext, "Gate Entry Avg: %.0f px/s", vstats->avg_gate_entry_speed);
+            DrawText(vtext, 10, vy, 12, WHITE);
+            vy += 16;
+
+            sprintf(vtext, "Gate Entry Max: %.0f px/s", vstats->max_gate_entry_speed);
+            DrawText(vtext, 10, vy, 12, WHITE);
+            vy += 16;
+
+            sprintf(vtext, "Potential Tunnels: %d", vstats->potential_tunnels);
+            Color tunnel_color = vstats->potential_tunnels > 0 ? RED : GREEN;
+            DrawText(vtext, 10, vy, 12, tunnel_color);
+            vy += 16;
+
+            sprintf(vtext, "Frames: %d", vstats->total_frames);
+            DrawText(vtext, 10, vy, 12, GRAY);
+        }
 
         EndDrawing();
     }

@@ -46,6 +46,11 @@ typedef struct ThreadPool ThreadPool;
 #define OVERLAP_RADIUS_MULT 2.0f        // Check within 2x ball radius
 #define NUDGE_STRENGTH 0.5f             // How strong the nudge push is
 
+// Velocity statistics constants (issue 903)
+// For tracking max velocities and diagnosing tunneling issues
+#define ZONE_APPROX_HEIGHT 43.0f        // Approximate zone height for tunnel detection
+#define MAX_SAFE_SPEED 1200.0f          // Max speed before tunneling risk (px/s)
+
 // Bumper constants (gate divider caps)
 #define BUMPER_RADIUS 10.0f       // Slightly wider than dividers
 #define BUMPER_RESTITUTION 0.15f  // Very low bounce for "donk" feel
@@ -75,6 +80,45 @@ typedef struct ThreadPool ThreadPool;
 // Wrap buffer - distance past board edge before ball wraps to opposite side
 // Balls wrap around the screen instead of being destroyed
 #define WRAP_BUFFER 50.0f
+
+// Velocity statistics constants (issue 903)
+// Diagnostic tool for detecting tunneling and analyzing ball physics.
+// At 60 FPS, dt ≈ 0.0167s. Zone height ≈ 40px.
+// Max safe speed = (zone_height / 2) / dt ≈ 1200 px/s
+#define MAX_SAFE_SPEED 1200.0f          // Above this, tunneling risk increases
+#define TUNNEL_WARNING_THRESHOLD 0.5f   // Warn if distance/frame > zone_height * this
+
+// {{{ typedef struct VelocityStats
+// Global velocity statistics for debugging and tunneling detection.
+// Tracks maximum velocities observed and potential tunneling events.
+// Reset per session (not saved between runs).
+typedef struct VelocityStats {
+    // All-time maximums this session
+    float max_speed;            // Highest speed observed (magnitude)
+    float max_vx;               // Highest horizontal velocity component
+    float max_vy;               // Highest vertical velocity component
+
+    // Context for when max speed occurred
+    float max_speed_x;          // X position when max speed observed
+    float max_speed_y;          // Y position when max speed observed
+    int max_speed_frame;        // Frame number when max speed observed
+
+    // Gate-related statistics
+    float avg_gate_entry_speed; // Average speed when entering gates
+    float max_gate_entry_speed; // Fastest gate entry observed
+    int gate_entries;           // Count for averaging
+
+    // Tunneling detection
+    int potential_tunnels;      // Count of frames where ball could skip zones
+    int tunnel_warnings_logged; // How many warnings we've printed (limit spam)
+
+    // Session tracking
+    int total_frames;           // Frames since stats reset
+} VelocityStats;
+// }}}
+
+// Note: Velocity stats function declarations are below BallManager struct
+// because they depend on Ball* and BallManager* types.
 
 // {{{ typedef struct Ball
 // Ball represents a single ball in the pachinko machine.
@@ -162,6 +206,70 @@ typedef struct BallManager {
     unsigned char adversary_color[4];   // Adversary ball base color
     unsigned char adversary_highlight[4]; // Adversary ball highlight color
 } BallManager;
+// }}}
+
+// {{{ velocity_stats_reset
+// Resets all velocity statistics to zero.
+// Call at session start or when user requests reset.
+void velocity_stats_reset(void);
+// }}}
+
+// {{{ velocity_stats_record
+// Records velocity data from a ball for statistics tracking.
+// Updates max speed, max vx/vy, and position/frame context.
+//
+// Parameters:
+//   ball: Ball to record velocity from
+//   frame: Current frame number
+void velocity_stats_record(Ball* ball, int frame);
+// }}}
+
+// {{{ velocity_stats_record_gate_entry
+// Records a ball's speed when entering a gate zone.
+// Used for analyzing typical entry velocities.
+//
+// Parameters:
+//   ball: Ball entering the gate
+void velocity_stats_record_gate_entry(Ball* ball);
+// }}}
+
+// {{{ velocity_stats_check_tunnel
+// Checks if a ball's speed could cause tunneling through zones.
+// Logs warnings if speed exceeds safe threshold.
+//
+// Parameters:
+//   ball: Ball to check
+//   dt: Delta time in seconds
+//   zone_height: Approximate zone height for tunnel detection
+void velocity_stats_check_tunnel(Ball* ball, float dt, float zone_height);
+// }}}
+
+// {{{ velocity_stats_get
+// Returns pointer to global velocity statistics struct.
+// Read-only access to current statistics.
+//
+// Returns:
+//   Const pointer to VelocityStats
+const VelocityStats* velocity_stats_get(void);
+// }}}
+
+// {{{ velocity_stats_increment_frame
+// Increments the frame counter in velocity statistics.
+// Call once per physics frame.
+void velocity_stats_increment_frame(void);
+// }}}
+
+// {{{ ball_manager_record_velocity_stats
+// Records velocity statistics for all active balls in manager.
+// Convenience function that iterates through balls and calls velocity_stats_record.
+//
+// Parameters:
+//   manager: BallManager instance
+//   frame: Current frame number
+//   dt: Delta time in seconds
+//   zone_height: Approximate zone height for tunnel detection
+void ball_manager_record_velocity_stats(BallManager* manager, int frame,
+                                         float dt, float zone_height);
 // }}}
 
 // {{{ ball_manager_create
