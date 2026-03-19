@@ -1,4 +1,4 @@
-# 1203 - Editor Improvements
+# 817 - Editor Improvements
 
 ## Overview
 
@@ -8,11 +8,11 @@ Several improvements and bug fixes needed for the standalone board editor (`bin/
 
 | ID | Description | Status |
 |----|-------------|--------|
-| 1203a | Loading feature broken | Open |
-| 1203b | Guard rails not visible | Open |
-| 1203c | Grid intersection snap | Open |
-| 1203d | Scrolling/panning | Open |
-| 1203e | Filename prompt on save | Open |
+| 817a | Loading feature broken | Open |
+| 817b | Guard rails not visible | Open |
+| 817c | Grid intersection snap | Open |
+| 817d | Scrolling/panning | Open |
+| 817e | Filename prompt on save | Open |
 
 ## Issues
 

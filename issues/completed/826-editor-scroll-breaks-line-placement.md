@@ -1,4 +1,4 @@
-# 1212 - Editor Scroll Breaks Line Placement
+# 826 - Editor Scroll Breaks Line Placement
 
 ## Current Behavior
 

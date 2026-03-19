@@ -1,4 +1,4 @@
-# 1303 - Progress Bar Color Flip on Ball Spawn
+# 320 - Progress Bar Color Flip on Ball Spawn
 
 ## Status: Open
 

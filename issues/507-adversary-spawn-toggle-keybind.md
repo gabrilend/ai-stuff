@@ -1,8 +1,8 @@
-# 1325 - Adversary Spawn Toggle Keybind
+# 507 - Adversary Spawn Toggle Keybind
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

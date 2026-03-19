@@ -1,4 +1,4 @@
-# 1008 - Next Stage Upgrade Menu Integration
+# 707 - Next Stage Upgrade Menu Integration
 
 ## Current Behavior
 

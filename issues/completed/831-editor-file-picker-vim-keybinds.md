@@ -1,4 +1,4 @@
-# 1218 - Editor File Picker Vim Keybinds
+# 831 - Editor File Picker Vim Keybinds
 
 ## Status: Complete
 

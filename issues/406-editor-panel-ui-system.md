@@ -1,8 +1,8 @@
-# 1314 - Editor Panel UI System
+# 406 - Editor Panel UI System
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

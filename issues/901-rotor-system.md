@@ -1,6 +1,6 @@
-# 1305 - Rotor System
+# 901 - Rotor System
 
-## Status: Open
+## Status: awaiting-work
 
 ## Problem
 
@@ -10,26 +10,28 @@ The game currently only supports static geometry. Adding rotating structures wou
 
 A rotor is a central pivot point from which lines extend and rotate. Any objects (pegs, other lines) connected to those lines rotate with them. Disconnected objects are passed through as if the rotating structure is a phantom.
 
-## Key Mechanics
+## Requirements
 
-1. **Central Rotor Peg**: Acts as the pivot point. Visually can remain static.
-2. **Connected Lines**: Lines drawn from the rotor pivot rotate around it.
-3. **Connected Objects**: Pegs/lines that intersect with rotor lines rotate with the structure.
-4. **Disconnected Objects**: Static objects not connected to the rotor are passed through (no collision during rotation).
-5. **Ball Interaction**: Balls collide with rotating structure. Under intense stress (crushing), balls are destroyed.
-6. **Direction Control**: Right-click menu to configure rotation direction (clockwise/counter-clockwise).
+- [ ] 1. Define rotor data structure (depends on: 901a)
+- [ ] 2. Add rotor array to BoardData JSON schema (depends on: 901a)
+- [ ] 3. Editor tool for placing rotors (depends on: 901b, req 1-2)
+- [ ] 4. Implement line rotation physics (depends on: 901c, req 1)
+- [ ] 5. Connected object detection algorithm (depends on: 901d, req 1)
+- [ ] 6. Collision modes (solid vs pass-through) (depends on: 901e, req 4-5)
+- [ ] 7. Ball crushing mechanics (depends on: 901f, 221 for sleep/stress)
+- [ ] 8. Direction configuration UI (depends on: 901g, req 3)
 
 ## Sub-Issues
 
-| ID    | Description                           | Status |
-|-------|---------------------------------------|--------|
-| 1305a | Rotor data structure and storage      | Open   |
-| 1305b | Editor rotor placement tool           | Open   |
-| 1305c | Line rotation physics                 | Open   |
-| 1305d | Connected object detection            | Open   |
-| 1305e | Collision mode (solid vs pass-through)| Open   |
-| 1305f | Ball stress and crushing              | Open   |
-| 1305g | Direction configuration UI            | Open   |
+| ID   | Description                            | Status        | Depends on |
+|------|----------------------------------------|---------------|------------|
+| 901a | Rotor data structure and storage       | awaiting-work | -          |
+| 901b | Editor rotor placement tool            | blocked       | 901a       |
+| 901c | Line rotation physics                  | blocked       | 901a       |
+| 901d | Connected object detection             | blocked       | 901a       |
+| 901e | Collision mode (solid vs pass-through) | blocked       | 901c, 901d |
+| 901f | Ball stress and crushing               | blocked       | 901e, 221  |
+| 901g | Direction configuration UI             | blocked       | 901b       |
 
 ## Technical Considerations
 
@@ -63,5 +65,6 @@ A rotor is a central pivot point from which lines extend and rotate. Any objects
 
 ## Dependencies
 
-- Issue 1306 (Track Movers) shares ball crushing mechanics
-- May want to implement shared "dynamic geometry" system first
+- 902 (Track Movers) shares ball crushing mechanics with 901f
+- 221 (Ball Sleep System) provides stress source distinction needed for 901f
+- Consider implementing shared "dynamic geometry" system across 901 and 902

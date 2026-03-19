@@ -1,8 +1,8 @@
-# 1322 - Ball Velocity Statistics
+# 903 - Ball Velocity Statistics
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

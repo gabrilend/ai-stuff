@@ -1,8 +1,8 @@
-# 1324 - Grid-Based Zone Dispatch System
+# 318 - Grid-Based Zone Dispatch System
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

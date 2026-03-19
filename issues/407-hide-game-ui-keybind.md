@@ -1,8 +1,8 @@
-# 1315 - Hide Game UI Keybind
+# 407 - Hide Game UI Keybind
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

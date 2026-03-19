@@ -1,8 +1,8 @@
-# 1305b - Editor Rotor Placement Tool
+# 901b - Editor Rotor Placement Tool
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

@@ -1,8 +1,8 @@
-# 1309 - Unified Spawner System
+# 506 - Unified Spawner System
 
 ## Status: Complete
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

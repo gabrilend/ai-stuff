@@ -1,4 +1,4 @@
-# 1215 - Random Board Selection Not Working
+# 829 - Random Board Selection Not Working
 
 ## Current Behavior (Fixed)
 

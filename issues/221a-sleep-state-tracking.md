@@ -1,8 +1,8 @@
-# 1307a - Ball Sleep State Tracking
+# 221a - Ball Sleep State Tracking
 
 ## Status: Open
 
-## Parent Issue: 1307 - Ball Sleep System
+## Parent Issue: 221 - Ball Sleep System
 
 ## Problem
 

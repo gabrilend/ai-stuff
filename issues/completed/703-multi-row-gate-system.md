@@ -1,4 +1,4 @@
-# 1004 - Multi-Row Gate System with Value Multipliers
+# 703 - Multi-Row Gate System with Value Multipliers
 
 ## Current Behavior
 

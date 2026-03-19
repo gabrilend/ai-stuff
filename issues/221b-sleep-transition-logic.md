@@ -1,8 +1,8 @@
-# 1307b - Sleep Transition Logic
+# 221b - Sleep Transition Logic
 
 ## Status: Open
 
-## Parent Issue: 1307 - Ball Sleep System
+## Parent Issue: 221 - Ball Sleep System
 
 ## Problem
 

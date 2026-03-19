@@ -1,4 +1,4 @@
-# 1118 - Player Reticle Display Bug
+# 411 - Player Reticle Display Bug
 
 ## Status: COMPLETE
 

@@ -1,8 +1,8 @@
-# 1320 - Remove Adversary Board Tinting
+# 610 - Remove Adversary Board Tinting
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Dependencies
 

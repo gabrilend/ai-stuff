@@ -1,4 +1,4 @@
-# 1216 - JSON Board Overwritten on Window Resize
+# 830 - JSON Board Overwritten on Window Resize
 
 ## Status: COMPLETE
 

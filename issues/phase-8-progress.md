@@ -6,57 +6,59 @@ Visual board editor with JSON-based data storage.
 
 ## Issues
 
-| ID   | Description                        | Status    |
-|------|------------------------------------|-----------|
-| 801  | Board data format JSON schema      | Complete  |
-| 802  | Grid system architecture           | Complete  |
-| 803  | Board loader JSON to game          | Complete  |
-| 804  | Editor mode toggle                 | Complete  |
-| 805  | Object palette UI                  | Complete  |
-| 806  | Object placement system            | Complete  |
-| 807  | Object removal system              | Complete  |
-| 808  | Board save functionality           | Complete  |
-| 809  | Board load functionality           | Complete  |
-| 810  | Line drawing tool                  | Complete  |
-| 811  | Stage pool system                  | Complete  |
-| 812  | Portal zone system                 | Complete  |
-| 813  | Object property editor             | Complete  |
-| 814  | Editor overlay mode                | Complete  |
-| 815  | Standalone editor application      | Complete  |
-| 816  | Remove editor from game            | Complete  |
-| 817  | Editor improvements                | Complete  |
-| 817a | Editor loading broken              | Complete  |
-| 817b | Editor guard rails                 | Complete  |
-| 817c | Editor grid intersection snap      | Complete  |
-| 817d | Editor scrolling                   | Complete  |
-| 817e | Editor filename prompt             | Complete  |
-| 818  | Erase cursor intersection snap     | Complete  |
-| 819  | Editor board height mismatch       | Complete  |
-| 820  | Documentation update               | Complete  |
-| 821  | Generate default board on compile  | Complete  |
-| 822  | Editor file browser delete         | Complete  |
-| 823  | Random first board                 | Complete  |
-| 824  | Random adversary board             | Complete  |
-| 825  | Standalone editor property panel   | Complete  |
-| 826  | Editor scroll breaks line placement| Complete  |
-| 827  | Editor clickable toolbar buttons   | Complete  |
-| 828  | Save dialog cursor movement        | Complete  |
-| 829  | Random board selection not working | Complete  |
-| 830  | JSON board overwritten on resize   | Complete  |
-| 831  | Editor file picker vim keybinds    | Complete  |
-| 832  | In progress board flag             | Complete  |
-| 833  | RGB property increments            | Complete  |
-| 834  | Drag select multi edit             | Complete  |
-| 835  | Portal zone fill cell              | Complete  |
-| 836  | Editor scroll broken               | Complete  |
-| 837  | Closed polygon detection and fill  | Open      |
-| 838  | Standardize board dimensions       | Open      |
-| 839  | Material type selector             | Open      |
+| ID   | Description                        | Status        | Depends on |
+|------|------------------------------------|---------------|------------|
+| 801  | Board data format JSON schema      | completed     | -          |
+| 802  | Grid system architecture           | completed     | -          |
+| 803  | Board loader JSON to game          | completed     | -          |
+| 804  | Editor mode toggle                 | completed     | -          |
+| 805  | Object palette UI                  | completed     | -          |
+| 806  | Object placement system            | completed     | -          |
+| 807  | Object removal system              | completed     | -          |
+| 808  | Board save functionality           | completed     | -          |
+| 809  | Board load functionality           | completed     | -          |
+| 810  | Line drawing tool                  | completed     | -          |
+| 811  | Stage pool system                  | completed     | -          |
+| 812  | Portal zone system                 | completed     | -          |
+| 813  | Object property editor             | completed     | -          |
+| 814  | Editor overlay mode                | completed     | -          |
+| 815  | Standalone editor application      | completed     | -          |
+| 816  | Remove editor from game            | completed     | -          |
+| 817  | Editor improvements                | completed     | -          |
+| 817a | Editor loading broken              | completed     | -          |
+| 817b | Editor guard rails                 | completed     | -          |
+| 817c | Editor grid intersection snap      | completed     | -          |
+| 817d | Editor scrolling                   | completed     | -          |
+| 817e | Editor filename prompt             | completed     | -          |
+| 818  | Erase cursor intersection snap     | completed     | -          |
+| 819  | Editor board height mismatch       | completed     | -          |
+| 820  | Documentation update               | completed     | -          |
+| 821  | Generate default board on compile  | completed     | -          |
+| 822  | Editor file browser delete         | completed     | -          |
+| 823  | Random first board                 | completed     | -          |
+| 824  | Random adversary board             | completed     | -          |
+| 825  | Standalone editor property panel   | completed     | -          |
+| 826  | Editor scroll breaks line placement| completed     | -          |
+| 827  | Editor clickable toolbar buttons   | completed     | -          |
+| 828  | Save dialog cursor movement        | completed     | -          |
+| 829  | Random board selection not working | completed     | -          |
+| 830  | JSON board overwritten on resize   | completed     | -          |
+| 831  | Editor file picker vim keybinds    | completed     | -          |
+| 832  | In progress board flag             | completed     | -          |
+| 833  | RGB property increments            | completed     | -          |
+| 834  | Drag select multi edit             | completed     | -          |
+| 835  | Portal zone fill cell              | completed     | -          |
+| 836  | Editor scroll broken               | completed     | -          |
+| 837  | Closed polygon detection and fill  | awaiting-work | -          |
+| 838  | Standardize board dimensions       | awaiting-work | -          |
+| 839  | Material type selector             | awaiting-work | -          |
 
 ## Progress Summary
 
-**Completed:** 36/39 issues (92%)
-**Status:** In Progress
+**Completed:** 36/39 issues
+**Awaiting work:** 3 (837, 838, 839)
+**Blocked:** 0
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -79,6 +81,7 @@ Visual board editor with JSON-based data storage.
 - Board dimension standardization
 - Material type selector
 
-## Dependencies
+## Issue-Level Dependencies
 
-Phase 7 must be complete (stage system).
+- 837, 838, 839 are independent and can be worked on in parallel
+- 901b, 902b (Phase 9 editor tools) depend on editor infrastructure (801-814)

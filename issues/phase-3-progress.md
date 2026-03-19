@@ -6,33 +6,35 @@ Scoring, particle effects, and visual feedback systems.
 
 ## Issues
 
-| ID  | Description                        | Status    |
-|-----|------------------------------------|-----------|
-| 301 | Implement score zone detection     | Complete  |
-| 302 | Implement scoring ball capture     | Complete  |
-| 303 | Add visual polish colors           | Complete  |
-| 304 | Add particle effects               | Complete  |
-| 305 | Final gameplay polish              | Complete  |
-| 306 | Fix ball scoring bug               | Complete  |
-| 307 | Improve particle effects           | Complete  |
-| 308 | Particle system double buffering   | Complete  |
-| 309 | Particle task data structure       | Complete  |
-| 310 | Parallel simple ripple update      | Complete  |
-| 311 | Parallel fragment collision        | Complete  |
-| 312 | Particle integration sync          | Complete  |
-| 313 | Particle effects overhaul          | Complete  |
-| 314 | Fix persistent splash particles    | Complete  |
-| 315 | Directional explosion fragments    | Complete  |
-| 316 | Allow multiple gate scoring        | Open      |
-| 317 | GateRow scoring never called       | Open      |
-| 318 | Grid zone dispatch system          | Open      |
-| 319 | Random ball colors                 | Open      |
-| 320 | Progress bar color flip            | Complete  |
+| ID  | Description                        | Status        | Depends on |
+|-----|------------------------------------|---------------|------------|
+| 301 | Implement score zone detection     | completed     | -          |
+| 302 | Implement scoring ball capture     | completed     | -          |
+| 303 | Add visual polish colors           | completed     | -          |
+| 304 | Add particle effects               | completed     | -          |
+| 305 | Final gameplay polish              | completed     | -          |
+| 306 | Fix ball scoring bug               | completed     | -          |
+| 307 | Improve particle effects           | completed     | -          |
+| 308 | Particle system double buffering   | completed     | -          |
+| 309 | Particle task data structure       | completed     | -          |
+| 310 | Parallel simple ripple update      | completed     | -          |
+| 311 | Parallel fragment collision        | completed     | -          |
+| 312 | Particle integration sync          | completed     | -          |
+| 313 | Particle effects overhaul          | completed     | -          |
+| 314 | Fix persistent splash particles    | completed     | -          |
+| 315 | Directional explosion fragments    | completed     | -          |
+| 316 | Allow multiple gate scoring        | awaiting-work | -          |
+| 317 | GateRow scoring never called       | awaiting-work | -          |
+| 318 | Grid zone dispatch system          | awaiting-work | -          |
+| 319 | Random ball colors                 | awaiting-work | -          |
+| 320 | Progress bar color flip            | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 16/20 issues (80%)
-**Status:** In Progress
+**Completed:** 16/20 issues
+**Awaiting work:** 4 (316, 317, 318, 319)
+**Blocked:** 0
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -58,6 +60,7 @@ Scoring, particle effects, and visual feedback systems.
 - Function pointer dispatch for zone handlers
 - Multiple gate scoring support
 
-## Dependencies
+## Issue-Level Dependencies
 
-Phase 2 must be complete (world structure, ball physics).
+- 316, 317, 318 are independent and can be worked on in parallel
+- 319 (random ball colors) may benefit from 318 (zone dispatch) for particle color integration

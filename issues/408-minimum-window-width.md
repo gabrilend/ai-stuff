@@ -1,8 +1,8 @@
-# 1316 - Minimum Window Width Constraint
+# 408 - Minimum Window Width Constraint
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

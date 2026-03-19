@@ -1,8 +1,8 @@
-# 1305a - Rotor Data Structure and Storage
+# 901a - Rotor Data Structure and Storage
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

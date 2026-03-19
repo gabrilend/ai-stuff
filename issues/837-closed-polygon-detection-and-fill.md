@@ -1,8 +1,8 @@
-# 1312 - Closed Polygon Detection and Fill
+# 837 - Closed Polygon Detection and Fill
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

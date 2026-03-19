@@ -1,4 +1,4 @@
-# 1228 - Editor Scroll and Board Sizing Refactor
+# 836 - Editor Scroll and Board Sizing Refactor
 
 ## Status: Complete
 

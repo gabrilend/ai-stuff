@@ -1,4 +1,4 @@
-# 1304 - Stage Spawning Mechanic Investigation
+# 710 - Stage Spawning Mechanic Investigation
 
 ## Status: Open
 

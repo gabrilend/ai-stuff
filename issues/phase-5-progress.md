@@ -6,24 +6,26 @@ Gameplay mechanics: spawn system, player interaction, and upgrades.
 
 ## Issues
 
-| ID  | Description                        | Status    |
-|-----|------------------------------------|-----------|
-| 501 | Auto spawn toggle                  | Complete  |
-| 502 | Move info boxes to top             | Complete  |
-| 503 | Movable spawn point                | Complete  |
-| 504 | Improve spawn visual               | Complete  |
-| 505 | Spawn buffering system             | Complete  |
-| 506 | Unified spawner system             | Complete  |
-| 507 | Adversary spawn toggle keybind     | Open      |
-| 508 | Upgrade system framework           | Complete  |
-| 509 | Spawn rate upgrade                 | Complete  |
-| 510 | Ball radius upgrade                | Complete  |
-| 511 | Granular upgrade levels            | Complete  |
+| ID  | Description                        | Status        | Depends on |
+|-----|------------------------------------|---------------|------------|
+| 501 | Auto spawn toggle                  | completed     | -          |
+| 502 | Move info boxes to top             | completed     | -          |
+| 503 | Movable spawn point                | completed     | -          |
+| 504 | Improve spawn visual               | completed     | -          |
+| 505 | Spawn buffering system             | completed     | -          |
+| 506 | Unified spawner system             | completed     | -          |
+| 507 | Adversary spawn toggle keybind     | awaiting-work | -          |
+| 508 | Upgrade system framework           | completed     | -          |
+| 509 | Spawn rate upgrade                 | completed     | -          |
+| 510 | Ball radius upgrade                | completed     | -          |
+| 511 | Granular upgrade levels            | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 10/11 issues (91%)
-**Status:** In Progress
+**Completed:** 10/11 issues
+**Awaiting work:** 1 (507)
+**Blocked:** 0
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -44,6 +46,6 @@ Gameplay mechanics: spawn system, player interaction, and upgrades.
 ### Pending (507)
 - Keybind to pause/resume adversary spawning
 
-## Dependencies
+## Issue-Level Dependencies
 
-Phase 4 must be complete (display systems).
+- 507 is independent with no blockers

@@ -1,8 +1,8 @@
-# 1308 - Expand Grid Dimensions
+# 711 - Expand Grid Dimensions
 
 ## Status: Complete
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

@@ -1,4 +1,4 @@
-# 1307 - Ball Sleep System and Pile Stability
+# 221 - Ball Sleep System and Pile Stability
 
 ## Status: Open
 
@@ -31,11 +31,11 @@ When balls collect in a V-shaped bucket or pile up, they experience instability:
 
 | ID    | Description                           | Status |
 |-------|---------------------------------------|--------|
-| 1307a | Ball sleep state tracking             | Open   |
-| 1307b | Sleep transition logic                | Open   |
-| 1307c | Wake conditions                       | Open   |
-| 1307d | Soft collision response for piles     | Open   |
-| 1307e | Stress source distinction             | Open   |
+| 221a | Ball sleep state tracking             | Open   |
+| 221b | Sleep transition logic                | Open   |
+| 221c | Wake conditions                       | Open   |
+| 221d | Soft collision response for piles     | Open   |
+| 221e | Stress source distinction             | Open   |
 
 ## Rollback Plan
 

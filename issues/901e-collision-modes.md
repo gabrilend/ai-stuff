@@ -1,8 +1,8 @@
-# 1305e - Collision Mode (Solid vs Pass-Through)
+# 901e - Collision Mode (Solid vs Pass-Through)
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

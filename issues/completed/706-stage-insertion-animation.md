@@ -1,4 +1,4 @@
-# 1007 - Stage Insertion Animation
+# 706 - Stage Insertion Animation
 
 ## Current Behavior
 

@@ -1,8 +1,8 @@
-# 1321 - Allow Multiple Gate Scoring
+# 316 - Allow Multiple Gate Scoring
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

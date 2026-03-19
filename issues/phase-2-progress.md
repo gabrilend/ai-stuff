@@ -6,40 +6,42 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 
 ## Issues
 
-| ID   | Description                        | Status    |
-|------|------------------------------------|-----------|
-| 201  | Create world state structure       | Complete  |
-| 202  | Implement peg grid generation      | Complete  |
-| 203  | Implement score zones              | Complete  |
-| 204  | Integrate world rendering          | Complete  |
-| 205  | Center table in window             | Complete  |
-| 206  | Add guard rails                    | Complete  |
-| 207  | Create ball state structure        | Complete  |
-| 208  | Implement ball physics             | Complete  |
-| 209  | Implement peg collision            | Complete  |
-| 210  | Implement boundary collision       | Complete  |
-| 211  | Implement ball spawning input      | Complete  |
-| 212  | Add ball collisions                | Complete  |
-| 213  | Fix player ball wrap position      | Complete  |
-| 214  | Dynamic wrap zones                 | Complete  |
-| 215  | Ball wrap gate reset               | Complete  |
-| 216  | Unify line ramp abstraction        | Complete  |
-| 217  | Line gravity assist wrong direction| Complete  |
-| 218  | Pegs not anchored to guard rails   | Complete  |
-| 219  | Slot based world layout            | Complete  |
-| 220  | Velocity dependent restitution     | Complete  |
-| 221  | Ball sleep system                  | Open      |
-| 221a | Sleep state tracking               | Open      |
-| 221b | Sleep transition logic             | Open      |
-| 221c | Wake conditions                    | Open      |
-| 221d | Soft collision response            | Open      |
-| 221e | Stress source distinction          | Open      |
-| 222  | Trajectory history overlap nudge   | Open      |
+| ID   | Description                        | Status        | Depends on |
+|------|------------------------------------|---------------|------------|
+| 201  | Create world state structure       | completed     | -          |
+| 202  | Implement peg grid generation      | completed     | -          |
+| 203  | Implement score zones              | completed     | -          |
+| 204  | Integrate world rendering          | completed     | -          |
+| 205  | Center table in window             | completed     | -          |
+| 206  | Add guard rails                    | completed     | -          |
+| 207  | Create ball state structure        | completed     | -          |
+| 208  | Implement ball physics             | completed     | -          |
+| 209  | Implement peg collision            | completed     | -          |
+| 210  | Implement boundary collision       | completed     | -          |
+| 211  | Implement ball spawning input      | completed     | -          |
+| 212  | Add ball collisions                | completed     | -          |
+| 213  | Fix player ball wrap position      | completed     | -          |
+| 214  | Dynamic wrap zones                 | completed     | -          |
+| 215  | Ball wrap gate reset               | completed     | -          |
+| 216  | Unify line ramp abstraction        | completed     | -          |
+| 217  | Line gravity assist wrong direction| completed     | -          |
+| 218  | Pegs not anchored to guard rails   | completed     | -          |
+| 219  | Slot based world layout            | completed     | -          |
+| 220  | Velocity dependent restitution     | completed     | -          |
+| 221  | Ball sleep system                  | awaiting-work | -          |
+| 221a | Sleep state tracking               | awaiting-work | -          |
+| 221b | Sleep transition logic             | blocked       | 221a       |
+| 221c | Wake conditions                    | blocked       | 221b       |
+| 221d | Soft collision response            | blocked       | 221a       |
+| 221e | Stress source distinction          | blocked       | 221d       |
+| 222  | Trajectory history overlap nudge   | awaiting-work | -          |
 
 ## Progress Summary
 
-**Completed:** 20/27 issues (74%)
-**Status:** In Progress
+**Completed:** 20/27 issues
+**Awaiting work:** 3 (221, 221a, 222)
+**Blocked:** 4 (221b-e)
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -70,6 +72,10 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 - Sleep state for stationary balls
 - Trajectory history for stuck detection
 
-## Dependencies
+## Issue-Level Dependencies
 
-Phase 1 must be complete (core infrastructure).
+- 221b depends on 221a (sleep state tracking must exist before transition logic)
+- 221c depends on 221b (wake conditions need transition logic)
+- 221d depends on 221a (soft collision needs sleep state)
+- 221e depends on 221d (stress distinction builds on soft collision)
+- 901f, 902g (Phase 9) depend on 221e for crushing mechanics

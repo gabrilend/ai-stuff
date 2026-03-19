@@ -6,30 +6,32 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Issues
 
-| ID   | Description                        | Status    |
-|------|------------------------------------|-----------|
-| 901  | Rotor system                       | Open      |
-| 901a | Rotor data structure               | Open      |
-| 901b | Editor rotor placement tool        | Open      |
-| 901c | Line rotation physics              | Open      |
-| 901d | Connected object detection         | Open      |
-| 901e | Collision modes                    | Open      |
-| 901f | Ball crushing                      | Open      |
-| 901g | Direction config UI                | Open      |
-| 902  | Track mover system                 | Open      |
-| 902a | Track data structure               | Open      |
-| 902b | Editor track drawing tool          | Open      |
-| 902c | Mover payload detection            | Open      |
-| 902d | Track following physics            | Open      |
-| 902e | Intersection path selection        | Open      |
-| 902f | Back and forth motion              | Open      |
-| 902g | Track ball interaction             | Open      |
-| 903  | Ball velocity statistics           | Open      |
+| ID   | Description                   | Status        | Depends on      |
+|------|-------------------------------|---------------|-----------------|
+| 901  | Rotor system                  | awaiting-work | -               |
+| 901a | Rotor data structure          | awaiting-work | -               |
+| 901b | Editor rotor placement tool   | blocked       | 901a            |
+| 901c | Line rotation physics         | blocked       | 901a            |
+| 901d | Connected object detection    | blocked       | 901a            |
+| 901e | Collision modes               | blocked       | 901c, 901d      |
+| 901f | Ball crushing                 | blocked       | 901e, 221       |
+| 901g | Direction config UI           | blocked       | 901b            |
+| 902  | Track mover system            | awaiting-work | -               |
+| 902a | Track data structure          | awaiting-work | -               |
+| 902b | Editor track drawing tool     | blocked       | 902a            |
+| 902c | Mover payload detection       | blocked       | 902a            |
+| 902d | Track following physics       | blocked       | 902a            |
+| 902e | Intersection path selection   | blocked       | 902d            |
+| 902f | Back and forth motion         | blocked       | 902d            |
+| 902g | Track ball interaction        | blocked       | 902d, 221       |
+| 903  | Ball velocity statistics      | awaiting-work | -               |
 
 ## Progress Summary
 
-**Completed:** 0/17 issues (0%)
-**Status:** Not Started
+**Completed:** 0/17 issues
+**Awaiting work:** 5 (901, 901a, 902, 902a, 903)
+**Blocked:** 12
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -49,6 +51,8 @@ Dynamic systems: rotors, track movers, and analysis tools.
 ### Analysis (903)
 - Ball velocity statistics for debugging
 
-## Dependencies
+## Issue-Level Dependencies
 
-Phase 8 must be complete (editor).
+- 901f, 902g depend on 221 (Ball Sleep System) for stress source distinction
+- 901b, 902b require editor infrastructure (801-814 complete)
+- 901 and 902 share crushing mechanics - consider shared implementation

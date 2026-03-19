@@ -1,4 +1,4 @@
-# 1225 - RGB Property 10% Increments
+# 833 - RGB Property 10% Increments
 
 ## Status: Complete
 

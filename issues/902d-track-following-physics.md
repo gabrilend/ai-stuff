@@ -1,8 +1,8 @@
-# 1306d - Track Following Physics
+# 902d - Track Following Physics
 
 ## Status: Open
 
-## Parent Issue: 1306 - Track Mover System
+## Parent Issue: 902 - Track Mover System
 
 ## Problem
 

@@ -1,4 +1,4 @@
-# 1003 - Dynamic World Vertical Expansion
+# 702 - Dynamic World Vertical Expansion
 
 ## Current Behavior
 

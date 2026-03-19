@@ -1,8 +1,8 @@
-# 1306e - Intersection Detection and Path Selection
+# 902e - Intersection Detection and Path Selection
 
 ## Status: Open
 
-## Parent Issue: 1306 - Track Mover System
+## Parent Issue: 902 - Track Mover System
 
 ## Problem
 

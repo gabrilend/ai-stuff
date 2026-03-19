@@ -1,8 +1,8 @@
-# 1311 - Trajectory History and Overlap Nudge
+# 222 - Trajectory History and Overlap Nudge
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

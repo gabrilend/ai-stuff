@@ -1,8 +1,8 @@
-# 1307c - Wake Conditions
+# 221c - Wake Conditions
 
 ## Status: Open
 
-## Parent Issue: 1307 - Ball Sleep System
+## Parent Issue: 221 - Ball Sleep System
 
 ## Problem
 

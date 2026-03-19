@@ -1,4 +1,4 @@
-# 1222 - Velocity-Dependent Restitution
+# 220 - Velocity-Dependent Restitution
 
 ## Status: Complete
 

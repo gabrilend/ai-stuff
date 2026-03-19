@@ -1,4 +1,4 @@
-# 1210 - Random Adversary Board Option
+# 824 - Random Adversary Board Option
 
 ## Status: COMPLETE
 

@@ -1,4 +1,4 @@
-# 1005 - Ramp Obstacle Type
+# 704 - Ramp Obstacle Type
 
 ## Current Behavior
 

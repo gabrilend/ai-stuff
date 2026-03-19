@@ -1,8 +1,8 @@
-# 1305g - Rotor Direction Configuration UI
+# 901g - Rotor Direction Configuration UI
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

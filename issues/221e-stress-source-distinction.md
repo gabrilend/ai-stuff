@@ -1,8 +1,8 @@
-# 1307e - Stress Source Distinction (Static vs Dynamic)
+# 221e - Stress Source Distinction (Static vs Dynamic)
 
 ## Status: Open
 
-## Parent Issue: 1307 - Ball Sleep System
+## Parent Issue: 221 - Ball Sleep System
 
 ## Problem
 

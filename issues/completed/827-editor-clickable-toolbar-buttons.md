@@ -1,4 +1,4 @@
-# 1213 - Editor Clickable Toolbar Buttons
+# 827 - Editor Clickable Toolbar Buttons
 
 ## Current Behavior
 

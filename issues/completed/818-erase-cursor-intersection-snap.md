@@ -1,4 +1,4 @@
-# 1204 - Erase Cursor Intersection Snap
+# 818 - Erase Cursor Intersection Snap
 
 ## Current Behavior (Fixed)
 

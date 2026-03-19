@@ -1,4 +1,4 @@
-# 1207 - Generate Default Board on Compile
+# 821 - Generate Default Board on Compile
 
 ## Current Behavior
 

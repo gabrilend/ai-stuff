@@ -1,4 +1,4 @@
-# 1226 - Drag-to-Select and Multi-Edit
+# 834 - Drag-to-Select and Multi-Edit
 
 ## Status: Complete
 

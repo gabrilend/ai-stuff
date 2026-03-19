@@ -1,8 +1,8 @@
-# 1305d - Connected Object Detection
+# 901d - Connected Object Detection
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

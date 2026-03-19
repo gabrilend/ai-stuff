@@ -1,4 +1,4 @@
-# 1208 - Editor File Browser Delete Button
+# 822 - Editor File Browser Delete Button
 
 ## Status: COMPLETE
 

@@ -1,4 +1,4 @@
-# 1301 - Random Ball Colors with Complementary Opponent
+# 319 - Random Ball Colors with Complementary Opponent
 
 ## Status: Re-opened
 

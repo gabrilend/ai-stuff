@@ -1,8 +1,8 @@
-# 1306c - Mover Placement and Payload Detection
+# 902c - Mover Placement and Payload Detection
 
 ## Status: Open
 
-## Parent Issue: 1306 - Track Mover System
+## Parent Issue: 902 - Track Mover System
 
 ## Problem
 

@@ -1,4 +1,4 @@
-# 1211 - Standalone Editor Property Panel
+# 825 - Standalone Editor Property Panel
 
 ## Current Behavior
 

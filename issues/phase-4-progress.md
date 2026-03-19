@@ -6,25 +6,27 @@ Display systems: viewport, window management, UI elements, and reticle.
 
 ## Issues
 
-| ID  | Description                        | Status    |
-|-----|------------------------------------|-----------|
-| 401 | Add scrolling viewport             | Complete  |
-| 402 | Dynamic window resize              | Complete  |
-| 403 | Scroll limits                      | Complete  |
-| 404 | Fix info box resize                | Complete  |
-| 405 | Escape key behavior                | Complete  |
-| 406 | Editor panel UI system             | Open      |
-| 407 | Hide game UI keybind               | Open      |
-| 408 | Minimum window width               | Open      |
-| 409 | Collapsible drawer UI              | Open      |
-| 410 | Reticle toggle mouse control       | Complete  |
-| 411 | Player reticle display bug         | Complete  |
-| 412 | Reticle color inversion            | Complete  |
+| ID  | Description                        | Status        | Depends on |
+|-----|------------------------------------|---------------|------------|
+| 401 | Add scrolling viewport             | completed     | -          |
+| 402 | Dynamic window resize              | completed     | -          |
+| 403 | Scroll limits                      | completed     | -          |
+| 404 | Fix info box resize                | completed     | -          |
+| 405 | Escape key behavior                | completed     | -          |
+| 406 | Editor panel UI system             | awaiting-work | -          |
+| 407 | Hide game UI keybind               | awaiting-work | -          |
+| 408 | Minimum window width               | awaiting-work | -          |
+| 409 | Collapsible drawer UI              | blocked       | 406        |
+| 410 | Reticle toggle mouse control       | completed     | -          |
+| 411 | Player reticle display bug         | completed     | -          |
+| 412 | Reticle color inversion            | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 8/12 issues (67%)
-**Status:** In Progress
+**Completed:** 8/12 issues
+**Awaiting work:** 3 (406, 407, 408)
+**Blocked:** 1 (409)
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -49,6 +51,7 @@ Display systems: viewport, window management, UI elements, and reticle.
 - Minimum window width enforcement
 - Collapsible sidebar drawers
 
-## Dependencies
+## Issue-Level Dependencies
 
-Phase 3 must be complete (feedback systems).
+- 409 (collapsible drawer) depends on 406 (panel UI system)
+- 406, 407, 408 are independent and can be worked on in parallel

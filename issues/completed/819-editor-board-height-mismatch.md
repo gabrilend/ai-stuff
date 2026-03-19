@@ -1,4 +1,4 @@
-# 1205 - Editor Board Height Mismatch
+# 819 - Editor Board Height Mismatch
 
 ## Current Behavior
 

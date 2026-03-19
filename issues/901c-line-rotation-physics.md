@@ -1,8 +1,8 @@
-# 1305c - Line Rotation Physics
+# 901c - Line Rotation Physics
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

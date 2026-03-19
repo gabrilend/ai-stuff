@@ -1,8 +1,8 @@
-# 1323 - GateRow Scoring Never Called
+# 317 - GateRow Scoring Never Called
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

@@ -1,8 +1,8 @@
-# 1306b - Editor Track Drawing Tool
+# 902b - Editor Track Drawing Tool
 
 ## Status: Open
 
-## Parent Issue: 1306 - Track Mover System
+## Parent Issue: 902 - Track Mover System
 
 ## Problem
 

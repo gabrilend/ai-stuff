@@ -1,8 +1,8 @@
-# 1318 - Separate Player and Adversary Scores
+# 609 - Separate Player and Adversary Scores
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

@@ -1,4 +1,4 @@
-# 1302 - Adversary Board Flip Axis Correction
+# 608 - Adversary Board Flip Axis Correction
 
 ## Status: Open
 

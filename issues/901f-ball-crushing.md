@@ -1,8 +1,8 @@
-# 1305f - Ball Stress and Crushing
+# 901f - Ball Stress and Crushing
 
 ## Status: Open
 
-## Parent Issue: 1305 - Rotor System
+## Parent Issue: 901 - Rotor System
 
 ## Problem
 

@@ -1,8 +1,8 @@
-# 1313 - Standardize Board Dimensions
+# 838 - Standardize Board Dimensions
 
 ## Status: Open
 
-## Parent Phase: Phase 13
+## Parent Phase: See phase progress file
 
 ## Problem
 

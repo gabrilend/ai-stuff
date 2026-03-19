@@ -1,8 +1,8 @@
-# 1307d - Soft Collision Response for Piles
+# 221d - Soft Collision Response for Piles
 
 ## Status: Open
 
-## Parent Issue: 1307 - Ball Sleep System
+## Parent Issue: 221 - Ball Sleep System
 
 ## Problem
 
