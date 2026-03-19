@@ -25,14 +25,14 @@ Scoring, particle effects, and visual feedback systems.
 | 315 | Directional explosion fragments    | completed     | -          |
 | 316 | Allow multiple gate scoring        | awaiting-work | -          |
 | 317 | GateRow scoring never called       | awaiting-work | -          |
-| 318 | Grid zone dispatch system          | awaiting-work | -          |
+| 318 | Grid zone dispatch system          | completed     | -          |
 | 319 | Random ball colors                 | awaiting-work | -          |
 | 320 | Progress bar color flip            | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 16/20 issues
-**Awaiting work:** 4 (316, 317, 318, 319)
+**Completed:** 17/20 issues
+**Awaiting work:** 3 (316, 317, 319)
 **Blocked:** 0
 **Phase status:** awaiting-work
 
@@ -55,10 +55,15 @@ Scoring, particle effects, and visual feedback systems.
 - Random ball color variation
 - Progress bar color handling
 
-### Zone Dispatch (316-318) [Pending]
-- Grid-based zone type detection
-- Function pointer dispatch for zone handlers
-- Multiple gate scoring support
+### Zone Dispatch (316-318)
+- Grid-based zone type detection (318) - COMPLETED
+  - ZoneGrid structure with dispatch table
+  - DispatchZoneType enum for zone classification
+  - O(1) lookup via grid cell mapping
+  - Fallback to legacy system when zone_grid is NULL
+- Function pointer dispatch for zone handlers (318) - COMPLETED
+- Multiple gate scoring support (316) - awaiting work
+- GateRow scoring fix (317) - awaiting work
 
 ## Issue-Level Dependencies
 

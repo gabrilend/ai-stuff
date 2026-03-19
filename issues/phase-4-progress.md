@@ -13,19 +13,19 @@ Display systems: viewport, window management, UI elements, and reticle.
 | 403 | Scroll limits                      | completed     | -          |
 | 404 | Fix info box resize                | completed     | -          |
 | 405 | Escape key behavior                | completed     | -          |
-| 406 | Editor panel UI system             | awaiting-work | -          |
-| 407 | Hide game UI keybind               | awaiting-work | -          |
+| 406 | Editor panel UI system             | completed     | -          |
+| 407 | Hide game UI keybind               | completed     | -          |
 | 408 | Minimum window width               | completed     | -          |
-| 409 | Collapsible drawer UI              | blocked       | 406        |
+| 409 | Collapsible drawer UI              | awaiting-work | 406        |
 | 410 | Reticle toggle mouse control       | completed     | -          |
 | 411 | Player reticle display bug         | completed     | -          |
 | 412 | Reticle color inversion            | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 9/12 issues
-**Awaiting work:** 2 (406, 407)
-**Blocked:** 1 (409)
+**Completed:** 11/12 issues
+**Awaiting work:** 1 (409)
+**Blocked:** 0
 **Phase status:** awaiting-work
 
 ## Technical Notes
@@ -45,11 +45,16 @@ Display systems: viewport, window management, UI elements, and reticle.
 - Display bug fixes
 - Color inversion for visibility
 
-### UI Systems (406-409) [Pending]
-- Panel-based UI architecture
-- Keybind to hide game UI
-- Minimum window width enforcement
-- Collapsible sidebar drawers
+### UI Systems (406-409)
+- Panel-based UI architecture with widget system (406) - COMPLETED
+  - Widget types: label, button, checkbox, slider, number field, separator
+  - Panel container with scrolling and scissor clipping
+  - Integrated as tools panel in editor left side
+- Keybind to hide game UI (407) - COMPLETED
+  - H key toggles UI visibility
+  - Affects controls panel, upgrade hint, and debug overlays
+- Minimum window width enforcement (408) - COMPLETED
+- Collapsible sidebar drawers (409) - awaiting work
 
 ## Issue-Level Dependencies
 

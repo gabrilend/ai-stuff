@@ -4,6 +4,10 @@
 
 #include "031-editor-app.h"
 #include "034-object-render.h"
+#include "050-material.h"
+#include "048-ui-widget.h"
+#include "051-ui-panel.h"
+#include "000-config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +21,7 @@
 #define TOOLBAR_HEIGHT 80
 #define SIDEBAR_WIDTH 200
 #define FOOTER_HEIGHT 30
+#define TOOLS_PANEL_WIDTH 150  // Left side tools panel (issue 406)
 // Use shared grid dimensions from 022-grid.h for game/editor consistency (issue 1205)
 // DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, DEFAULT_GRID_CELL_SIZE are defined there
 #define PEG_RADIUS 12.0f
@@ -261,6 +266,9 @@ static void render_property_panel(EditorApp* app);
 static int handle_property_panel_input(EditorApp* app);
 static void render_slider(int x, int y, int width, unsigned char value,
                           const char* label, Color color_hint, int is_points);
+// Material selector functions (issue 839)
+static void render_material_selector(EditorApp* app, int x, int y, int width);
+static int handle_material_selector_input(EditorApp* app, int panel_x, int panel_y);
 // Multi-selection functions (issue 1226)
 static void render_selection_highlights(EditorApp* app);
 static void render_drag_selection_rect(EditorApp* app);
@@ -316,6 +324,35 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     // Calculate canvas bounds and setup grid
     editor_app_resize(app, screen_width, screen_height);
 
+    // Create polygon manager for closed shape detection (issue 837)
+    app->polygon_manager = polygon_manager_create(
+        (float)app->board->board_width,
+        (float)app->board->board_height
+    );
+    app->polygons_dirty = 1;  // Rebuild on first update
+
+    // Create tools panel (issue 406)
+    // Panel positioned on left side below toolbar
+    Rectangle tools_bounds = {
+        0, TOOLBAR_HEIGHT,
+        TOOLS_PANEL_WIDTH, screen_height - TOOLBAR_HEIGHT - FOOTER_HEIGHT
+    };
+    app->tools_panel = panel_create("Tools", tools_bounds);
+    if (app->tools_panel) {
+        // Add tool buttons to panel
+        // Button callbacks are set to NULL - we handle input via tool state
+        panel_add_widget(app->tools_panel, widget_label("Placement"));
+        panel_add_widget(app->tools_panel, widget_separator());
+        panel_add_widget(app->tools_panel, widget_button("1: Peg", NULL, NULL));
+        panel_add_widget(app->tools_panel, widget_button("2: Line", NULL, NULL));
+        panel_add_widget(app->tools_panel, widget_button("3: Portal In", NULL, NULL));
+        panel_add_widget(app->tools_panel, widget_button("4: Portal Out", NULL, NULL));
+        panel_add_widget(app->tools_panel, widget_separator());
+        panel_add_widget(app->tools_panel, widget_label("Mode"));
+        panel_add_widget(app->tools_panel, widget_separator());
+        panel_add_widget(app->tools_panel, widget_button("TAB: Toggle", NULL, NULL));
+    }
+
     return app;
 }
 // }}}
@@ -335,6 +372,16 @@ void editor_app_destroy(EditorApp* app) {
     // Free multi-selection array (issue 1226)
     if (app->selected_indices) {
         free(app->selected_indices);
+    }
+
+    // Free polygon manager (issue 837)
+    if (app->polygon_manager) {
+        polygon_manager_destroy(app->polygon_manager);
+    }
+
+    // Free tools panel (issue 406)
+    if (app->tools_panel) {
+        panel_destroy(app->tools_panel);
     }
 
     free(app);
@@ -359,6 +406,13 @@ void editor_app_update(EditorApp* app) {
 
     // Update hover position
     update_hover(app);
+
+    // Rebuild polygon detection if lines changed (issue 837)
+    if (app->polygons_dirty && app->polygon_manager) {
+        polygon_manager_rebuild(app->polygon_manager, app->board,
+                                app->board->cell_size);
+        app->polygons_dirty = 0;
+    }
 }
 // }}}
 
@@ -373,6 +427,11 @@ void editor_app_render(EditorApp* app) {
     render_toolbar(app);
     render_sidebar(app);
     render_footer(app);
+
+    // Render tools panel (issue 406)
+    if (app->tools_panel) {
+        panel_render(app->tools_panel);
+    }
 
     // Render property panel if object selected (issue 1211)
     render_property_panel(app);
@@ -399,11 +458,21 @@ void editor_app_resize(EditorApp* app, int width, int height) {
     app->screen_width = width;
     app->screen_height = height;
 
-    // Calculate canvas area (between toolbar, sidebar, footer)
-    app->canvas_x = 0;
+    // Calculate canvas area (between tools panel, sidebar, toolbar, footer)
+    // Canvas starts after tools panel on left side (issue 406)
+    app->canvas_x = TOOLS_PANEL_WIDTH;
     app->canvas_y = TOOLBAR_HEIGHT;
-    app->canvas_width = width - SIDEBAR_WIDTH;
+    app->canvas_width = width - SIDEBAR_WIDTH - TOOLS_PANEL_WIDTH;
     app->canvas_height = height - TOOLBAR_HEIGHT - FOOTER_HEIGHT;
+
+    // Update tools panel bounds (issue 406)
+    if (app->tools_panel) {
+        Rectangle tools_bounds = {
+            0, TOOLBAR_HEIGHT,
+            TOOLS_PANEL_WIDTH, height - TOOLBAR_HEIGHT - FOOTER_HEIGHT
+        };
+        panel_set_bounds(app->tools_panel, tools_bounds);
+    }
 
     // Setup grid to fit canvas
     setup_grid(app);
@@ -434,6 +503,16 @@ int editor_app_load(EditorApp* app, const char* filepath) {
 
     // Reconfigure grid for new board dimensions
     setup_grid(app);
+
+    // Rebuild polygon manager for new board dimensions (issue 837)
+    if (app->polygon_manager) {
+        polygon_manager_destroy(app->polygon_manager);
+    }
+    app->polygon_manager = polygon_manager_create(
+        (float)new_board->board_width,
+        (float)new_board->board_height
+    );
+    app->polygons_dirty = 1;
 
     editor_app_notify(app, "Board loaded", 2.0f);
     return 1;
@@ -492,6 +571,17 @@ void editor_app_new_board(EditorApp* app) {
     app->selected_object_index = -1;
 
     setup_grid(app);
+
+    // Rebuild polygon manager for new board (issue 837)
+    if (app->polygon_manager) {
+        polygon_manager_destroy(app->polygon_manager);
+    }
+    app->polygon_manager = polygon_manager_create(
+        (float)app->board->board_width,
+        (float)app->board->board_height
+    );
+    app->polygons_dirty = 1;
+
     editor_app_notify(app, "New board", 1.5f);
 }
 // }}}
@@ -620,6 +710,33 @@ static void handle_input(EditorApp* app) {
         return;  // Panel consumed the input
     }
 
+    // Tools panel input handling (issue 406)
+    if (app->tools_panel) {
+        Vector2 mouse = GetMousePosition();
+        int pressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        int released = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
+        float wheel = GetMouseWheelMove();
+        if (panel_handle_input(app->tools_panel, mouse, pressed, released, wheel)) {
+            // Panel consumed input - check if a tool button was clicked
+            // Buttons are at widget indices 2,3,4,5 (after label and separator)
+            // We don't use callbacks, so manually check which button is pressed
+            for (int i = 2; i <= 5; i++) {
+                Widget* w = panel_get_widget(app->tools_panel, i);
+                if (w && w->type == WIDGET_BUTTON && w->data.button.pressed) {
+                    app->tool = (EditorAppTool)(i - 2);  // 0=PEG, 1=LINE, 2=ENTRY, 3=EXIT
+                    app->line_tool.state = LINE_STATE_IDLE;
+                }
+            }
+            // Check mode toggle button (index 9)
+            Widget* mode_btn = panel_get_widget(app->tools_panel, 9);
+            if (mode_btn && mode_btn->type == WIDGET_BUTTON && mode_btn->data.button.pressed) {
+                app->mode = (app->mode == APP_MODE_PLACE) ? APP_MODE_ERASE : APP_MODE_PLACE;
+                app->line_tool.state = LINE_STATE_IDLE;
+            }
+            return;
+        }
+    }
+
     // Toolbar button clicks (issue 1213)
     if (handle_toolbar_click(app)) {
         return;  // Toolbar consumed the click
@@ -663,6 +780,13 @@ static void handle_input(EditorApp* app) {
     // Select all: Ctrl+A (issue 1226)
     if (IsKeyPressed(KEY_A) && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))) {
         selection_select_all(app);
+    }
+
+    // Toggle advanced/standard mode: F12 (issue 839)
+    if (IsKeyPressed(KEY_F12)) {
+        int new_mode = editor_app_toggle_advanced_mode(app);
+        const char* mode_name = new_mode ? "Advanced (RGB)" : "Standard (Materials)";
+        editor_app_notify(app, mode_name, 1.5f);
     }
 
     // Canvas interaction
@@ -833,6 +957,7 @@ static void handle_line_tool(EditorApp* app) {
                                app->line_tool.end_col, app->line_tool.end_row,
                                app->line_tool.thickness);
             app->modified = 1;
+            app->polygons_dirty = 1;  // Rebuild polygon detection (issue 837)
             app->line_tool.state = LINE_STATE_IDLE;
             break;
     }
@@ -906,6 +1031,7 @@ static void erase_object(EditorApp* app) {
     // Try to remove object at hover position
     if (board_data_remove_object_at(app->board, app->hover_col, app->hover_row)) {
         app->modified = 1;
+        app->polygons_dirty = 1;  // Rebuild polygon detection (issue 837)
         return;
     }
 
@@ -1341,6 +1467,11 @@ static void render_canvas(EditorApp* app) {
     DrawLineEx((Vector2){left_rail_x, rail_top}, (Vector2){left_rail_x, rail_bottom}, 4.0f, rail_color);
     DrawLineEx((Vector2){right_rail_x, rail_top}, (Vector2){right_rail_x, rail_bottom}, 4.0f, rail_color);
 
+    // Detected polygons (render behind objects) (issue 837)
+    if (app->polygon_manager) {
+        polygon_manager_render_all(app->polygon_manager);
+    }
+
     // Board objects and zones
     if (app->board) {
         render_board_objects(app->board, &app->grid);
@@ -1679,6 +1810,7 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
 // {{{ render_property_panel
 // Renders the property editing panel on the right side of screen.
 // Supports multi-selection (issue 1226).
+// Issue 839: Shows material selector in standard mode, sliders in advanced mode.
 static void render_property_panel(EditorApp* app) {
     if (!app || !app->show_property_panel) return;
     if (!app->board) return;
@@ -1692,10 +1824,13 @@ static void render_property_panel(EditorApp* app) {
     int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
     int panel_y = 100;
 
+    // Panel height varies by mode (standard mode needs more space for material grid)
+    int panel_h = app->advanced_mode ? PROP_PANEL_HEIGHT : (PROP_PANEL_HEIGHT + 40);
+
     // Background
-    DrawRectangle(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
+    DrawRectangle(panel_x, panel_y, PROP_PANEL_WIDTH, panel_h,
                   (Color){40, 40, 50, 240});
-    DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, PROP_PANEL_HEIGHT,
+    DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, panel_h,
                        (Color){100, 100, 120, 255});
 
     // Title - show count if multiple selected (issue 1226)
@@ -1708,34 +1843,50 @@ static void render_property_panel(EditorApp* app) {
     }
     DrawText(title, panel_x + 10, panel_y + 10, 16, TEXT_COLOR);
 
-    // Color preview swatch (shows resulting RGB color)
-    Color preview = (Color){ obj->restitution, obj->friction, obj->point_bonus, 255 };
-    int swatch_x = panel_x + PROP_PANEL_WIDTH - 40;
-    DrawRectangle(swatch_x, panel_y + 8, 30, 20, preview);
-    DrawRectangleLines(swatch_x, panel_y + 8, 30, 20, TEXT_COLOR);
+    // Mode indicator (issue 839)
+    const char* mode_label = app->advanced_mode ? "[ADV]" : "[STD]";
+    Color mode_color = app->advanced_mode ? (Color){255, 200, 100, 255} : (Color){100, 200, 255, 255};
+    DrawText(mode_label, panel_x + PROP_PANEL_WIDTH - 50, panel_y + 12, 12, mode_color);
 
-    int slider_width = PROP_PANEL_WIDTH - 50;
     int content_x = panel_x + 10;
-    int y = panel_y + 40;
+    int content_width = PROP_PANEL_WIDTH - 20;
+    int y = panel_y + 35;
 
-    // Restitution slider (R channel)
-    render_slider(content_x, y, slider_width, obj->restitution,
-                  "Restitution (R)", (Color){255, 100, 100, 255}, 0);
-    y += PROP_SLIDER_HEIGHT + 25;
+    if (app->advanced_mode) {
+        // Advanced mode: RGB sliders (original behavior)
+        // Color preview swatch
+        Color preview = (Color){ obj->restitution, obj->friction, obj->point_bonus, 255 };
+        int swatch_x = panel_x + PROP_PANEL_WIDTH - 40;
+        DrawRectangle(swatch_x, panel_y + 8, 30, 20, preview);
+        DrawRectangleLines(swatch_x, panel_y + 8, 30, 20, TEXT_COLOR);
 
-    // Friction slider (G channel)
-    render_slider(content_x, y, slider_width, obj->friction,
-                  "Friction (G)", (Color){100, 255, 100, 255}, 0);
-    y += PROP_SLIDER_HEIGHT + 25;
+        int slider_width = PROP_PANEL_WIDTH - 50;
+        y += 5;
 
-    // Point Bonus slider (B channel) - show point value mapping (issue 1225)
-    render_slider(content_x, y, slider_width, obj->point_bonus,
-                  "Point Bonus (B)", (Color){100, 100, 255, 255}, 1);
+        // Restitution slider (R channel)
+        render_slider(content_x, y, slider_width, obj->restitution,
+                      "Restitution (R)", (Color){255, 100, 100, 255}, 0);
+        y += PROP_SLIDER_HEIGHT + 25;
+
+        // Friction slider (G channel)
+        render_slider(content_x, y, slider_width, obj->friction,
+                      "Friction (G)", (Color){100, 255, 100, 255}, 0);
+        y += PROP_SLIDER_HEIGHT + 25;
+
+        // Point Bonus slider (B channel)
+        render_slider(content_x, y, slider_width, obj->point_bonus,
+                      "Point Bonus (B)", (Color){100, 100, 255, 255}, 1);
+    } else {
+        // Standard mode: Material selector (issue 839)
+        render_material_selector(app, content_x, y, content_width);
+    }
 
     // Controls hint at bottom
-    DrawText("RClick: Select object", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 35,
+    DrawText("F12: Toggle mode", panel_x + 10, panel_y + panel_h - 50,
              10, TEXT_DIM);
-    DrawText("ESC: Close panel", panel_x + 10, panel_y + PROP_PANEL_HEIGHT - 20,
+    DrawText("RClick: Select object", panel_x + 10, panel_y + panel_h - 35,
+             10, TEXT_DIM);
+    DrawText("ESC: Close panel", panel_x + 10, panel_y + panel_h - 20,
              10, TEXT_DIM);
 }
 // }}}
@@ -1743,6 +1894,7 @@ static void render_property_panel(EditorApp* app) {
 // {{{ handle_property_panel_input
 // Handles mouse input on the property panel sliders.
 // Applies changes to all selected objects (issue 1226).
+// Issue 839: Handles both material selector (standard) and sliders (advanced).
 // Returns 1 if input was consumed (clicked on panel), 0 otherwise.
 static int handle_property_panel_input(EditorApp* app) {
     if (!app || !app->show_property_panel) return 0;
@@ -1753,15 +1905,24 @@ static int handle_property_panel_input(EditorApp* app) {
     int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
     int panel_y = 100;
 
+    // Panel height varies by mode
+    int panel_h = app->advanced_mode ? PROP_PANEL_HEIGHT : (PROP_PANEL_HEIGHT + 40);
+
     Vector2 mouse = GetMousePosition();
 
     // Check if mouse is within panel bounds
     if (mouse.x < panel_x || mouse.x > panel_x + PROP_PANEL_WIDTH ||
-        mouse.y < panel_y || mouse.y > panel_y + PROP_PANEL_HEIGHT) {
+        mouse.y < panel_y || mouse.y > panel_y + panel_h) {
         return 0;
     }
 
-    // Panel is being interacted with
+    // Handle material selector in standard mode (issue 839)
+    if (!app->advanced_mode) {
+        return handle_material_selector_input(app, panel_x, panel_y) ? 1 : 1;
+        // Always return 1 when over panel to prevent canvas interaction
+    }
+
+    // Advanced mode: handle slider input
     if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
         return 1;  // Over panel but not clicking - still consume
     }
@@ -1814,5 +1975,159 @@ static int handle_property_panel_input(EditorApp* app) {
     }
 
     return 1;  // Over panel, consumed
+}
+// }}}
+
+// =============================================================================
+// Material Selector (issue 839)
+// =============================================================================
+
+// Material button layout constants
+#define MATERIAL_BTN_SIZE 45
+#define MATERIAL_BTN_SPACING 5
+#define MATERIAL_COLS 4
+
+// {{{ render_material_selector
+// Renders a grid of material buttons for standard mode.
+// Shows current material highlighted, allows clicking to change.
+static void render_material_selector(EditorApp* app, int x, int y, int width) {
+    (void)width;  // Currently unused, may be used for future layout
+    if (!app || !app->board || app->selection_count == 0) return;
+
+    // Get first selected object to show current material
+    int first_idx = app->selected_indices[0];
+    if (first_idx < 0 || first_idx >= app->board->object_count) return;
+    BoardObject* obj = &app->board->objects[first_idx];
+
+    // Determine current material from object's RGB values
+    int current_mat = find_closest_material(obj->restitution, obj->friction, obj->point_bonus);
+
+    // Label
+    DrawText("Material:", x, y, 14, TEXT_COLOR);
+    y += 20;
+
+    // Material grid (2 rows x 4 columns)
+    Vector2 mouse = GetMousePosition();
+
+    for (int i = 0; i < MATERIAL_COUNT; i++) {
+        int col = i % MATERIAL_COLS;
+        int row = i / MATERIAL_COLS;
+
+        int btn_x = x + col * (MATERIAL_BTN_SIZE + MATERIAL_BTN_SPACING);
+        int btn_y = y + row * (MATERIAL_BTN_SIZE + MATERIAL_BTN_SPACING);
+
+        Rectangle btn_rect = { (float)btn_x, (float)btn_y,
+                               (float)MATERIAL_BTN_SIZE, (float)MATERIAL_BTN_SIZE };
+
+        // Button color based on selection state
+        Color bg_color;
+        if (i == current_mat) {
+            bg_color = (Color){100, 150, 200, 255};  // Selected
+        } else if (CheckCollisionPointRec(mouse, btn_rect)) {
+            bg_color = (Color){80, 90, 110, 255};    // Hover
+        } else {
+            bg_color = (Color){50, 55, 70, 255};     // Normal
+        }
+
+        // Draw button background
+        DrawRectangle(btn_x, btn_y, MATERIAL_BTN_SIZE, MATERIAL_BTN_SIZE, bg_color);
+
+        // Draw material color swatch
+        Color mat_color = material_get_display_color(i);
+        int swatch_margin = 4;
+        int swatch_size = MATERIAL_BTN_SIZE - swatch_margin * 2;
+        DrawRectangle(btn_x + swatch_margin, btn_y + swatch_margin,
+                      swatch_size, swatch_size - 14, mat_color);
+
+        // Draw material name (abbreviated)
+        const char* name = material_get_name(i);
+        int text_width = MeasureText(name, 10);
+        int text_x = btn_x + (MATERIAL_BTN_SIZE - text_width) / 2;
+        DrawText(name, text_x, btn_y + MATERIAL_BTN_SIZE - 14, 10, TEXT_COLOR);
+
+        // Button border
+        Color border = (i == current_mat) ? (Color){150, 200, 255, 255} : (Color){70, 75, 90, 255};
+        DrawRectangleLines(btn_x, btn_y, MATERIAL_BTN_SIZE, MATERIAL_BTN_SIZE, border);
+    }
+
+    // Show current material description below grid
+    int desc_y = y + 2 * (MATERIAL_BTN_SIZE + MATERIAL_BTN_SPACING) + 5;
+    const char* desc = material_get_description(current_mat);
+    DrawText(desc, x, desc_y, 12, TEXT_DIM);
+
+    // Show physics values
+    int values_y = desc_y + 18;
+    char values_text[64];
+    snprintf(values_text, sizeof(values_text), "R:%d G:%d B:%d",
+             obj->restitution, obj->friction, obj->point_bonus);
+    DrawText(values_text, x, values_y, 10, TEXT_DIM);
+}
+// }}}
+
+// {{{ handle_material_selector_input
+// Handles clicks on material buttons.
+// Returns 1 if input was consumed, 0 otherwise.
+static int handle_material_selector_input(EditorApp* app, int panel_x, int panel_y) {
+    if (!app || app->advanced_mode) return 0;  // Only in standard mode
+    if (!app->board || app->selection_count == 0) return 0;
+
+    Vector2 mouse = GetMousePosition();
+
+    // Calculate button grid position (must match render function)
+    int grid_x = panel_x + 10;
+    int grid_y = panel_y + 35 + 20;  // After "Material:" label
+
+    // Check each material button
+    for (int i = 0; i < MATERIAL_COUNT; i++) {
+        int col = i % MATERIAL_COLS;
+        int row = i / MATERIAL_COLS;
+
+        int btn_x = grid_x + col * (MATERIAL_BTN_SIZE + MATERIAL_BTN_SPACING);
+        int btn_y = grid_y + row * (MATERIAL_BTN_SIZE + MATERIAL_BTN_SPACING);
+
+        Rectangle btn_rect = { (float)btn_x, (float)btn_y,
+                               (float)MATERIAL_BTN_SIZE, (float)MATERIAL_BTN_SIZE };
+
+        if (CheckCollisionPointRec(mouse, btn_rect)) {
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                // Apply material to all selected objects
+                for (int j = 0; j < app->selection_count; j++) {
+                    int idx = app->selected_indices[j];
+                    if (idx < 0 || idx >= app->board->object_count) continue;
+                    BoardObject* obj = &app->board->objects[idx];
+
+                    material_apply_to_object(i, &obj->restitution, &obj->friction, NULL);
+                }
+                app->modified = 1;
+
+                // Show notification with material name
+                char notify_text[64];
+                snprintf(notify_text, sizeof(notify_text), "Material: %s", material_get_name(i));
+                editor_app_notify(app, notify_text, 1.0f);
+            }
+            return 1;  // Consumed (hovering over button)
+        }
+    }
+
+    return 0;
+}
+// }}}
+
+// =============================================================================
+// Material Mode (issue 839)
+// =============================================================================
+
+// {{{ editor_app_set_advanced_mode
+void editor_app_set_advanced_mode(EditorApp* app, int advanced) {
+    if (!app) return;
+    app->advanced_mode = advanced ? 1 : 0;
+}
+// }}}
+
+// {{{ editor_app_toggle_advanced_mode
+int editor_app_toggle_advanced_mode(EditorApp* app) {
+    if (!app) return 0;
+    app->advanced_mode = !app->advanced_mode;
+    return app->advanced_mode;
 }
 // }}}

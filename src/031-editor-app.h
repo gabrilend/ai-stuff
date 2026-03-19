@@ -12,6 +12,8 @@
 #include "raylib.h"
 #include "020-board-data.h"
 #include "022-grid.h"
+#include "042-polygon.h"
+#include "051-ui-panel.h"
 
 // =============================================================================
 // Editor Mode Enumerations
@@ -149,6 +151,19 @@ typedef struct EditorApp {
     char notification[80];
     float notification_timer;
 
+    // Material system (issue 839)
+    // 0 = standard mode (material presets), 1 = advanced mode (raw RGB)
+    int advanced_mode;
+
+    // Polygon detection (issue 837)
+    // Polygons are auto-detected when lines form closed loops
+    PolygonManager* polygon_manager;
+    int polygons_dirty;  // 1 = need to rebuild polygon detection
+
+    // UI Panel system (issue 406)
+    // Tools panel on left side for object placement tools
+    Panel* tools_panel;
+
     // Quit flag
     int should_quit;
 } EditorApp;
@@ -228,6 +243,24 @@ int editor_app_should_quit(EditorApp* app);
 // {{{ editor_app_notify
 // Shows a temporary notification message.
 void editor_app_notify(EditorApp* app, const char* message, float duration);
+// }}}
+
+// =============================================================================
+// Material Mode (issue 839)
+// =============================================================================
+
+// {{{ editor_app_set_advanced_mode
+// Sets whether the editor uses advanced mode (raw RGB) or standard mode (material presets).
+// Parameters:
+//   app: Editor application
+//   advanced: 1 for advanced mode (raw RGB), 0 for standard mode (material presets)
+void editor_app_set_advanced_mode(EditorApp* app, int advanced);
+// }}}
+
+// {{{ editor_app_toggle_advanced_mode
+// Toggles between advanced and standard modes.
+// Returns new mode state (1 = advanced, 0 = standard).
+int editor_app_toggle_advanced_mode(EditorApp* app);
 // }}}
 
 #endif // EDITOR_APP_H
