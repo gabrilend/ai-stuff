@@ -1,8 +1,0 @@
-There seems to be a display bug with the player's reticle. The adversary reticle
-is working fine, and could be used as a guide when solving this problem. The
-issue is that the reticle flashes between blue and green states - the blue
-state is the progress state, and it goes by too quick. Then, there's the green
-state, which persists for a moment. The adversary reticle by comparison only
-has one color, red (with a gradient) - the progress feels more smooth and fluid
-in comparison. Can we change the player's reticle to feel more similar to the
-adversary's?

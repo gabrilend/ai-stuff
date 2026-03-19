@@ -2,82 +2,86 @@
 
 ## Phase Goal
 
-Particle system parallelization. Move particle updates to the threadpool
-architecture using double-buffering, matching the ball physics pattern.
+Visual board editor with JSON-based data storage.
 
 ## Issues
 
-| ID  | Description                        | Status   |
-|-----|------------------------------------|---------|| 901 | Particle system double-buffering   | Complete |
-| 902 | ParticleTaskData structure         | Complete |
-| 903 | Parallel simple/ripple update      | Complete |
-| 904 | Parallel fragment collision        | Complete |
-| 905 | Integration and synchronization    | Complete |
+| ID   | Description                        | Status    |
+|------|------------------------------------|-----------|
+| 901  | Board data format JSON schema      | Complete  |
+| 902  | Grid system architecture           | Complete  |
+| 903  | Board loader JSON to game          | Complete  |
+| 904  | Editor mode toggle                 | Complete  |
+| 905  | Object palette UI                  | Complete  |
+| 906  | Object placement system            | Complete  |
+| 907  | Object removal system              | Complete  |
+| 908  | Board save functionality           | Complete  |
+| 909  | Board load functionality           | Complete  |
+| 910  | Line drawing tool                  | Complete  |
+| 911  | Stage pool system                  | Complete  |
+| 912  | Portal zone system                 | Complete  |
+| 913  | Object property editor             | Complete  |
+| 914  | Editor overlay mode                | Complete  |
+| 915  | Fix player ball wrap position      | Complete  |
+| 916  | Dynamic wrap zones                 | Complete  |
+| 917  | Ball wrap gate reset               | Complete  |
+| 918  | Player reticle display bug         | Complete  |
+| 919  | Reticle color inversion            | Complete  |
+| 920  | Standalone editor application      | Complete  |
+| 921  | Remove editor from game            | Complete  |
+| 922  | Editor improvements                | Complete  |
+| 922a | Editor loading broken              | Complete  |
+| 922b | Editor guard rails                 | Complete  |
+| 922c | Editor grid intersection snap      | Complete  |
+| 922d | Editor scrolling                   | Complete  |
+| 922e | Editor filename prompt             | Complete  |
+| 923  | Erase cursor intersection snap     | Complete  |
+| 924  | Editor board height mismatch       | Complete  |
+| 925  | Documentation update               | Complete  |
+| 926  | Generate default board on compile  | Complete  |
+| 927  | Editor file browser delete         | Complete  |
+| 928  | Random first board                 | Complete  |
+| 929  | Random adversary board             | Complete  |
+| 930  | Standalone editor property panel   | Complete  |
+| 931  | Editor scroll breaks line placement| Complete  |
+| 932  | Editor clickable toolbar buttons   | Complete  |
+| 933  | Save dialog cursor movement        | Complete  |
+| 934  | Random board selection not working | Complete  |
+| 935  | JSON board overwritten on resize   | Complete  |
+| 936  | Unify line ramp abstraction        | Complete  |
+| 937  | Editor file picker vim keybinds    | Complete  |
+| 938  | Line gravity assist wrong direction| Complete  |
+| 939  | Pegs not anchored to guard rails   | Complete  |
+| 940  | Slot based world layout            | Complete  |
+| 941  | Velocity dependent restitution     | Complete  |
+| 942  | Portal improvements                | Complete  |
+| 943  | In progress board flag             | Complete  |
+| 944  | RGB property increments            | Complete  |
+| 945  | Drag select multi edit             | Complete  |
+| 946  | Portal zone fill cell              | Complete  |
+| 947  | Editor scroll broken               | Complete  |
 
 ## Progress Summary
 
-**Completed:** 5/5 issues (100%)
-**Phase 9:** Complete
+**Completed:** 47/47 issues (100%)
+**Status:** Complete
 
-## Notes
+## Technical Notes
 
-The current particle system is single-threaded, running on the main thread
-after ball physics complete. With high particle counts (explosions, many
-collisions), this becomes a bottleneck.
+### Editor Core (901-919)
+- JSON-based board data schema
+- Grid system with cell-based coordinates
+- Board loader converts JSON to game objects
+- Object palette and placement tools
+- Portal zone teleportation system
 
-**Current architecture:**
-- ParticleSystem holds single particle array
-- `particle_system_update_with_world()` iterates sequentially
-- Fragment particles check collision with all pegs/bumpers each frame
-
-**Target architecture:**
-- Double-buffered particle arrays (particles_current, particles_next)
-- Pre-allocated ParticleTaskData array
-- One task per active particle submitted to threadpool
-- Fragment collision detection runs in parallel
-- Main thread waits, then swaps buffers
-
-Success is measured by:
-- No visual changes to particle behavior
-- Reduced frame time with high particle counts
-- Thread-safe particle spawning from ball task results
+### Standalone Editor (920-947)
+- Separated editor into standalone application
+- Vim-style keybinds in file picker
+- Random board selection for variety
+- Property panel for object editing
+- Comprehensive polish and bug fixes
 
 ## Dependencies
 
-Phase 8 must be complete (particle effects overhaul provides the system to parallelize).
-
-## Implementation Log
-
-### Issues 901-905 - Particle System Parallelization (Complete)
-
-Implemented complete parallel particle system matching ball physics architecture:
-
-**Issue 901 - Double-Buffering:**
-- ParticleSystem now has `particles_current` and `particles_next` arrays
-- Spawn functions write to current buffer (visible immediately)
-- Update tasks read from current, write to next
-- `particle_system_swap_buffers()` swaps pointers after update
-
-**Issue 902 - ParticleTaskData:**
-- Pre-allocated task data array at system creation
-- Contains: particle_index (immutable), read/write buffer pointers, world, dt
-- Avoids runtime allocation during gameplay
-
-**Issue 903 - Parallel Simple/Ripple Update:**
-- `particle_update_task()` handles all particle types
-- Simple particles: gravity + velocity integration
-- Ripple particles: radius expansion
-- Each particle task writes only to its own slot in next buffer
-
-**Issue 904 - Parallel Fragment Collision:**
-- Fragment collision with pegs/bumpers runs in parallel
-- World data is read-only (thread-safe)
-- Corkscrew motion, trail updates, wall bounces all in task
-
-**Issue 905 - Integration:**
-- Main loop sequence: ball physics → spawn particles → particle physics
-- `particle_system_prepare_tasks()` sets up task data, propagates inactive state
-- `particle_system_submit_tasks()` submits active particles to threadpool
-- `threadpool_wait_all()` synchronizes before finalize/swap
-
-Files: 008-particles.h, 009-particles.c, 001-main.c
+Phase 8 must be complete (stage system).
