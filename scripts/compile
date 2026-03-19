@@ -39,13 +39,8 @@ generate_default_board() {
   "version": 1,
   "name": "Stage 1 - Classic Pegs",
   "grid": {
-    "cell_size": 43,
     "columns": 14,
     "rows": 22
-  },
-  "board": {
-    "width": 602,
-    "height": 946
   },
   "objects": [
     {"type": "peg", "col": 6, "row": 2},

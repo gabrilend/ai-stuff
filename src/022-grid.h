@@ -11,11 +11,20 @@
 // Grid Constants
 // =============================================================================
 
-// Cell size 43px with 14x22 grid = 602x946 pixels (close to 600x1000 target)
-// Denser grid allows more level design options in same space
-#define DEFAULT_GRID_CELL_SIZE 43.0f
+// Fixed board dimensions (issue 838)
+// All boards use same canvas size - cell size is calculated from grid density
+// 602x946 is the standard board size (14x22 grid at 43px cells originally)
+#define BOARD_WIDTH 602.0f
+#define BOARD_HEIGHT 946.0f
+
+// Default grid density (cells per board)
+// Cell size is calculated: cell_size = BOARD_WIDTH / columns (or BOARD_HEIGHT / rows)
+// With default 14x22 grid on 602x946 board, cell_size = 43px (square cells)
 #define DEFAULT_GRID_COLS 14
 #define DEFAULT_GRID_ROWS 22
+
+// Calculated default cell size for reference (not used in new boards)
+#define DEFAULT_GRID_CELL_SIZE 43.0f
 
 // Grid rendering colors
 #define GRID_LINE_COLOR (Color){60, 60, 80, 100}

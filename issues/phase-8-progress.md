@@ -50,14 +50,15 @@ Visual board editor with JSON-based data storage.
 | 835  | Portal zone fill cell              | completed     | -          |
 | 836  | Editor scroll broken               | completed     | -          |
 | 837  | Closed polygon detection and fill  | in-progress   | -          |
-| 838  | Standardize board dimensions       | awaiting-work | -          |
+| 838  | Standardize board dimensions       | completed     | -          |
 | 839  | Material type selector             | completed     | -          |
+| 840  | Editor grid scaling                | awaiting-work | -          |
 
 ## Progress Summary
 
-**Completed:** 37/39 issues
+**Completed:** 38/40 issues
 **In progress:** 1 (837)
-**Awaiting work:** 1 (838)
+**Awaiting work:** 1 (840)
 **Blocked:** 0
 **Phase status:** in-progress
 
@@ -86,8 +87,10 @@ Visual board editor with JSON-based data storage.
 - Polygons render in both game and editor with proper world coordinates
 - Remaining: Testing with various polygon shapes
 
-### Pending (838)
-- Board dimension standardization
+### Recently Completed (838)
+- Board dimension standardization - JSON now stores only columns/rows
+- Fixed BOARD_WIDTH (602) and BOARD_HEIGHT (946) constants in code
+- Cell size calculated at load time from board dimensions / grid counts
 
 ### Recently Completed (839)
 - Material type selector with 8 presets (Stone, Ice, Rubber, Sticky, Bouncy, Glass, Metal, Custom)
@@ -96,5 +99,8 @@ Visual board editor with JSON-based data storage.
 
 ## Issue-Level Dependencies
 
-- 837, 838, 839 are independent and can be worked on in parallel
+- 837, 838, 840 are independent and can be worked on in parallel
+- 838 and 840 are complementary (fixed board size, calculated cell size):
+  - 838: Removes redundant pixel data from JSON (cell_size, board width/height)
+  - 840: Adds editor UI for grid density (columns/rows sliders)
 - 901b, 902b (Phase 9 editor tools) depend on editor infrastructure (801-814)

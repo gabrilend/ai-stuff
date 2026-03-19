@@ -1,93 +1,114 @@
-# 838 - Standardize Board Dimensions
+# 838 - Standardize Pixel Dimensions
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
 None - cleanup/refactor task.
 
+## Related Issues
+
+- 840 (Editor grid scaling) - complementary, not conflicting
+  - 838: Removes redundant pixel data from JSON
+  - 840: Allows custom grid dimensions (columns, rows per-board)
+
 ## Problem
 
-Board JSON files currently contain explicit dimension data (cell_size, columns, rows, width, height) that duplicates constants defined in source code. This creates maintenance burden and potential inconsistencies when dimensions change.
+Board JSON files currently contain explicit pixel dimension data (cell_size, board width, board height) that is redundant. Board size is fixed in code, and cell size is calculated from board size and grid dimensions.
 
 ## Current Behavior
 
 Each board file contains:
 ```json
 "grid": {
-    "cell_size": 43,
-    "columns": 14,
-    "rows": 22
+    "cell_size": 43,      // Redundant - calculated from board/grid
+    "columns": 14,        // Per-board, keep in JSON
+    "rows": 22            // Per-board, keep in JSON
 },
 "board": {
-    "width": 602,
-    "height": 946
+    "width": 602,         // Redundant - fixed in code
+    "height": 946         // Redundant - fixed in code
 }
 ```
 
-Source code defines the same values:
-- `src/022-grid.h`: DEFAULT_GRID_CELL_SIZE, DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS
-- `src/038-slot-manager.h`: SLOT_BOARD_HEIGHT
-
-When dimensions change (as in issue 711), every board file must be manually updated.
-
 ## Intended Behavior
 
-Single source of truth for board dimensions. Options:
+Board dimensions are FIXED (same for all boards). Cell size is CALCULATED.
 
-### Option A: Remove from JSON, Use Code Constants
-- Board files only contain objects and zones
-- Grid/board dimensions come from code constants
-- Simplest approach, all boards identical size
+```
+cell_width  = BOARD_WIDTH  / columns
+cell_height = BOARD_HEIGHT / rows
+```
 
-### Option B: Optional Override in JSON
-- Code constants provide defaults
-- Board files can optionally override (for special boards)
-- More flexible but adds complexity
+- More columns/rows = smaller cells
+- Fewer columns/rows = larger cells
+- Board canvas size never changes
 
-### Option C: Separate Dimensions Config
-- Create `boards/dimensions.json` with shared settings
-- Board files reference it or inherit automatically
-- Good separation but adds indirection
-
-**Recommendation:** Option A for simplicity. All boards should use the same dimensions for consistent gameplay.
+JSON only needs to store:
+```json
+"grid": {
+    "columns": 14,
+    "rows": 22
+}
+```
 
 ## Suggested Implementation
 
 1. Update `board_data_load()` in `src/021-board-data.c`:
-   - Ignore grid/board fields in JSON if present
-   - Use DEFAULT_GRID_* constants from grid.h
-   - Calculate board dimensions from grid constants
+   - Read `columns` and `rows` from JSON (required fields)
+   - Use fixed BOARD_WIDTH and BOARD_HEIGHT from code
+   - Calculate `cell_width = BOARD_WIDTH / columns`
+   - Calculate `cell_height = BOARD_HEIGHT / rows`
+   - Note: cells may be rectangular if column/row ratio differs from board aspect ratio
 
-2. Update `board_data_save()` (if exists):
-   - Don't write grid/board dimensions to JSON
-   - Or write them as comments for reference only
+2. Update `board_data_save()`:
+   - Write only `columns` and `rows` to grid section
+   - Don't write `cell_size`, `board.width`, or `board.height`
 
-3. Remove dimension fields from all board JSON files:
-   - `boards/stage1-default.json`
-   - `boards/in-and-out.json`
-   - `boards/stage1-variant.json`
-   - `boards/stage1-variant-2.json`
+3. Clean up existing board JSON files:
+   - Remove `cell_size` from grid section
+   - Remove entire `board` section (width/height)
+   - Keep only `columns` and `rows`
 
 4. Update `scripts/compile` default board generator:
-   - Remove hardcoded dimensions from generated JSON
+   - Only generate `columns` and `rows`
 
 ## Files to Modify
 
-- `src/021-board-data.c` - Load function to use constants
-- `src/020-board-data.h` - Remove dimension fields from BoardData struct (if stored)
-- `boards/*.json` - Remove grid/board sections
+- `src/021-board-data.c` - Load/save with calculated cell size
+- `src/022-grid.h` - Ensure BOARD_WIDTH/HEIGHT constants exist
+- `boards/*.json` - Remove redundant pixel dimension fields
 - `scripts/compile` - Update default board generator
 
 ## Benefits
 
-- Single source of truth for dimensions
-- No manual updates to boards when dimensions change
-- Smaller, cleaner board JSON files
-- Eliminates inconsistency bugs
+- Board size is single source of truth (code constant)
+- Cell size adapts to grid density automatically
+- Cleaner, smaller board JSON files
+- Enables variable grid densities (see 840)
 
 ## Notes
 
-- This is a breaking change for existing board files
-- Editor may need updates if it writes dimension data
-- Consider migration path for user-created boards
+- No backwards compatibility needed - clean up all existing board files
+- Cell dimensions may be non-integer if board doesn't divide evenly by grid count
+- Cells may be rectangular (cell_width != cell_height) depending on column/row ratio
+- Grid struct should store cell_width and cell_height separately, not a single cell_size
+
+## Completion
+
+**Implemented:**
+1. Added `BOARD_WIDTH` (602.0f) and `BOARD_HEIGHT` (946.0f) constants to `src/022-grid.h`
+2. Updated `board_data_load_json()` in `src/021-board-data.c` to:
+   - Ignore `cell_size` from JSON (calculate instead)
+   - Calculate cell_size from board dimensions / grid counts
+   - Use minimum of width/cols and height/rows for square cells
+3. Updated `board_data_to_json_string()` to not write:
+   - `cell_size` in grid section
+   - Entire `board` section (width/height)
+4. Updated `scripts/compile` default board generator
+5. Cleaned all existing board JSON files in `boards/` directory
+
+**Result:**
+- Board JSON files now only store `columns` and `rows` in grid section
+- All boards use fixed 602x946 canvas dimensions
+- Cell size is calculated at load time based on grid density

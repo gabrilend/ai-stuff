@@ -10,6 +10,7 @@
 #include <math.h>
 #include <dirent.h>
 #include "020-board-data.h"
+#include "022-grid.h"  // For BOARD_WIDTH, BOARD_HEIGHT (issue 838)
 #include "cJSON.h"
 
 #define INITIAL_CAPACITY 32
@@ -345,6 +346,10 @@ int board_data_add_peg_ex(BoardData* data, int col, int row,
     obj->restitution = restitution;
     obj->friction = friction;
     obj->point_bonus = point_bonus;
+    // Issue 901e: Initialize dynamic object flags
+    // Objects start as static; set is_dynamic=1 when attached to rotor
+    obj->is_dynamic = 0;
+    obj->rotor_index = -1;
 
     data->object_count++;
     return 1;
@@ -381,6 +386,10 @@ int board_data_add_line_ex(BoardData* data, int start_col, int start_row,
     obj->restitution = restitution;
     obj->friction = friction;
     obj->point_bonus = point_bonus;
+    // Issue 901e: Initialize dynamic object flags
+    // Objects start as static; set is_dynamic=1 when attached to rotor
+    obj->is_dynamic = 0;
+    obj->rotor_index = -1;
 
     data->object_count++;
     return 1;
@@ -596,11 +605,148 @@ void board_data_rotor_clear_connections(BoardData* data, int rotor_index) {
 }
 // }}}
 
+// =============================================================================
+// Touch Detection Helpers (issue 901d)
+// =============================================================================
+
+// Touch threshold in grid units - objects within this distance are "touching"
+#define TOUCH_THRESHOLD 0.5f
+
+// {{{ point_to_segment_distance_sq
+// Returns squared distance from point (px, py) to line segment (x1,y1)-(x2,y2)
+static float point_to_segment_distance_sq(float px, float py,
+                                          float x1, float y1,
+                                          float x2, float y2) {
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float len_sq = dx * dx + dy * dy;
+
+    if (len_sq < 0.0001f) {
+        // Degenerate segment (point)
+        float dpx = px - x1;
+        float dpy = py - y1;
+        return dpx * dpx + dpy * dpy;
+    }
+
+    // Project point onto line, clamped to segment
+    float t = ((px - x1) * dx + (py - y1) * dy) / len_sq;
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+
+    float proj_x = x1 + t * dx;
+    float proj_y = y1 + t * dy;
+
+    float dpx = px - proj_x;
+    float dpy = py - proj_y;
+    return dpx * dpx + dpy * dpy;
+}
+// }}}
+
+// {{{ segments_intersect_or_close
+// Returns 1 if two line segments intersect or are within threshold distance
+static int segments_intersect_or_close(float ax1, float ay1, float ax2, float ay2,
+                                       float bx1, float by1, float bx2, float by2,
+                                       float threshold) {
+    float thresh_sq = threshold * threshold;
+
+    // Check if any endpoint of A is close to segment B
+    if (point_to_segment_distance_sq(ax1, ay1, bx1, by1, bx2, by2) <= thresh_sq) return 1;
+    if (point_to_segment_distance_sq(ax2, ay2, bx1, by1, bx2, by2) <= thresh_sq) return 1;
+
+    // Check if any endpoint of B is close to segment A
+    if (point_to_segment_distance_sq(bx1, by1, ax1, ay1, ax2, ay2) <= thresh_sq) return 1;
+    if (point_to_segment_distance_sq(bx2, by2, ax1, ay1, ax2, ay2) <= thresh_sq) return 1;
+
+    // Check for actual intersection (cross product method)
+    float d1x = ax2 - ax1, d1y = ay2 - ay1;
+    float d2x = bx2 - bx1, d2y = by2 - by1;
+    float cross = d1x * d2y - d1y * d2x;
+
+    if (fabsf(cross) < 0.0001f) return 0;  // Parallel
+
+    float t = ((bx1 - ax1) * d2y - (by1 - ay1) * d2x) / cross;
+    float u = ((bx1 - ax1) * d1y - (by1 - ay1) * d1x) / cross;
+
+    return (t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f);
+}
+// }}}
+
+// {{{ objects_touch
+// Returns 1 if two board objects are touching (within threshold distance)
+static int objects_touch(BoardObject* a, BoardObject* b, float threshold) {
+    float thresh_sq = threshold * threshold;
+
+    if (a->type == OBJECT_PEG && b->type == OBJECT_PEG) {
+        // Peg to peg: check center distance
+        float dx = (float)(b->col - a->col);
+        float dy = (float)(b->row - a->row);
+        return (dx * dx + dy * dy) <= thresh_sq;
+    }
+
+    if (a->type == OBJECT_PEG && b->type == OBJECT_LINE) {
+        // Peg to line: check distance from peg center to line segment
+        float dist_sq = point_to_segment_distance_sq(
+            (float)a->col, (float)a->row,
+            (float)b->col, (float)b->row,
+            (float)b->end_col, (float)b->end_row);
+        return dist_sq <= thresh_sq;
+    }
+
+    if (a->type == OBJECT_LINE && b->type == OBJECT_PEG) {
+        // Line to peg: same as peg to line
+        float dist_sq = point_to_segment_distance_sq(
+            (float)b->col, (float)b->row,
+            (float)a->col, (float)a->row,
+            (float)a->end_col, (float)a->end_row);
+        return dist_sq <= thresh_sq;
+    }
+
+    if (a->type == OBJECT_LINE && b->type == OBJECT_LINE) {
+        // Line to line: check intersection or close endpoints
+        return segments_intersect_or_close(
+            (float)a->col, (float)a->row, (float)a->end_col, (float)a->end_row,
+            (float)b->col, (float)b->row, (float)b->end_col, (float)b->end_row,
+            threshold);
+    }
+
+    return 0;
+}
+// }}}
+
+// {{{ object_touches_point
+// Returns 1 if object touches the given grid point (within threshold)
+static int object_touches_point(BoardObject* obj, int col, int row, float threshold) {
+    float thresh_sq = threshold * threshold;
+    float px = (float)col;
+    float py = (float)row;
+
+    if (obj->type == OBJECT_PEG) {
+        float dx = (float)obj->col - px;
+        float dy = (float)obj->row - py;
+        return (dx * dx + dy * dy) <= thresh_sq;
+    }
+
+    if (obj->type == OBJECT_LINE) {
+        float dist_sq = point_to_segment_distance_sq(
+            px, py,
+            (float)obj->col, (float)obj->row,
+            (float)obj->end_col, (float)obj->end_row);
+        return dist_sq <= thresh_sq;
+    }
+
+    return 0;
+}
+// }}}
+
 // {{{ board_data_rotor_detect_connections
+// BFS-based connection detection (issue 901d)
+// Finds objects that touch the rotor center, then transitively finds
+// all objects touching those objects.
 int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
                                         int max_distance) {
     if (!data) return 0;
     if (rotor_index < 0 || rotor_index >= data->rotor_count) return 0;
+    (void)max_distance;  // Now using touch detection, not distance limit
 
     // Clear existing connections
     board_data_rotor_clear_connections(data, rotor_index);
@@ -609,29 +755,74 @@ int board_data_rotor_detect_connections(BoardData* data, int rotor_index,
     int rotor_col = rotor->col;
     int rotor_row = rotor->row;
 
-    // Find all objects within max_distance of rotor
-    // Connection detection uses Manhattan distance for simplicity
-    for (int i = 0; i < data->object_count; i++) {
-        BoardObject* obj = &data->objects[i];
-        int obj_col = obj->col;
-        int obj_row = obj->row;
+    // visited[i] = 1 if object i has been added to connections
+    int* visited = (int*)calloc(data->object_count, sizeof(int));
+    if (!visited) return 0;
 
-        // Calculate grid distance
-        int dx = obj_col - rotor_col;
-        int dy = obj_row - rotor_row;
-        int distance = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
-
-        // Skip objects at rotor center or outside max_distance
-        if (distance == 0) continue;
-        if (distance > max_distance) continue;
-
-        // Calculate relative angle and distance for connection
-        // atan2f for angle, sqrt for distance in grid units
-        float angle = atan2f((float)dy, (float)dx);
-        float dist = sqrtf((float)(dx * dx + dy * dy));
-
-        board_data_rotor_add_connection(data, rotor_index, i, angle, dist);
+    // BFS queue: indices of objects to process
+    int* queue = (int*)malloc(sizeof(int) * data->object_count);
+    if (!queue) {
+        free(visited);
+        return 0;
     }
+    int queue_head = 0;
+    int queue_tail = 0;
+
+    // Seed: find all objects that directly touch the rotor center
+    for (int i = 0; i < data->object_count; i++) {
+        if (object_touches_point(&data->objects[i], rotor_col, rotor_row, TOUCH_THRESHOLD)) {
+            visited[i] = 1;
+            queue[queue_tail++] = i;
+
+            // Calculate relative position for this object
+            BoardObject* obj = &data->objects[i];
+            float dx, dy;
+            if (obj->type == OBJECT_PEG) {
+                dx = (float)(obj->col - rotor_col);
+                dy = (float)(obj->row - rotor_row);
+            } else {
+                // For lines, use the start point
+                dx = (float)(obj->col - rotor_col);
+                dy = (float)(obj->row - rotor_row);
+            }
+            float angle = atan2f(dy, dx);
+            float dist = sqrtf(dx * dx + dy * dy);
+            board_data_rotor_add_connection(data, rotor_index, i, angle, dist);
+        }
+    }
+
+    // BFS: find all transitively connected objects
+    while (queue_head < queue_tail) {
+        int current_idx = queue[queue_head++];
+        BoardObject* current = &data->objects[current_idx];
+
+        // Check all other objects for touching
+        for (int i = 0; i < data->object_count; i++) {
+            if (visited[i]) continue;
+
+            if (objects_touch(current, &data->objects[i], TOUCH_THRESHOLD)) {
+                visited[i] = 1;
+                queue[queue_tail++] = i;
+
+                // Calculate relative position
+                BoardObject* obj = &data->objects[i];
+                float dx, dy;
+                if (obj->type == OBJECT_PEG) {
+                    dx = (float)(obj->col - rotor_col);
+                    dy = (float)(obj->row - rotor_row);
+                } else {
+                    dx = (float)(obj->col - rotor_col);
+                    dy = (float)(obj->row - rotor_row);
+                }
+                float angle = atan2f(dy, dx);
+                float dist = sqrtf(dx * dx + dy * dy);
+                board_data_rotor_add_connection(data, rotor_index, i, angle, dist);
+            }
+        }
+    }
+
+    free(visited);
+    free(queue);
 
     return rotor->connection_count;
 }
@@ -1075,13 +1266,18 @@ BoardData* board_data_load_json(const char* filename) {
         return NULL;
     }
 
-    cJSON* cell_size_json = cJSON_GetObjectItem(grid, "cell_size");
     cJSON* cols_json = cJSON_GetObjectItem(grid, "columns");
     cJSON* rows_json = cJSON_GetObjectItem(grid, "rows");
 
-    int cell_size = cell_size_json ? cell_size_json->valueint : 60;
-    int cols = cols_json ? cols_json->valueint : 14;
-    int rows = rows_json ? rows_json->valueint : 12;
+    int cols = cols_json ? cols_json->valueint : DEFAULT_GRID_COLS;
+    int rows = rows_json ? rows_json->valueint : DEFAULT_GRID_ROWS;
+
+    // Issue 838: Calculate cell_size from fixed board dimensions
+    // Board dimensions are constant, cell size adapts to grid density
+    // Use minimum of width/cols and height/rows to ensure square cells that fit
+    int cell_width = (int)(BOARD_WIDTH / cols);
+    int cell_height = (int)(BOARD_HEIGHT / rows);
+    int cell_size = (cell_width < cell_height) ? cell_width : cell_height;
 
     // Create board data
     BoardData* data = board_data_create(cols, rows, cell_size);
@@ -1330,18 +1526,15 @@ char* board_data_to_json_string(BoardData* data) {
         cJSON_AddBoolToObject(root, "in_progress", 1);
     }
 
-    // Grid settings
+    // Grid settings (issue 838: only store columns and rows)
+    // Board dimensions and cell_size are calculated at load time from constants
     cJSON* grid = cJSON_CreateObject();
-    cJSON_AddNumberToObject(grid, "cell_size", data->cell_size);
     cJSON_AddNumberToObject(grid, "columns", data->grid_cols);
     cJSON_AddNumberToObject(grid, "rows", data->grid_rows);
     cJSON_AddItemToObject(root, "grid", grid);
 
-    // Board dimensions
-    cJSON* board = cJSON_CreateObject();
-    cJSON_AddNumberToObject(board, "width", data->board_width);
-    cJSON_AddNumberToObject(board, "height", data->board_height);
-    cJSON_AddItemToObject(root, "board", board);
+    // Note: board dimensions section removed (issue 838)
+    // Board size is fixed - all boards use BOARD_WIDTH x BOARD_HEIGHT
 
     // Objects array
     cJSON* objects = cJSON_CreateArray();
