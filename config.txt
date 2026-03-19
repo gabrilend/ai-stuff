@@ -16,3 +16,7 @@ TRAJECTORY_HISTORY_FRAMES=4
 # Editor settings
 # 0 = material presets (standard mode), 1 = raw RGB editing (advanced mode)
 EDITOR_ADVANCED_MODE=0
+
+# Background color (issue 413)
+# 0=slate (default), 1=black, 2=tan, 3=felt, 4=navy, 5=plum, 6=charcoal, 7=mahogany
+BACKGROUND_COLOR=0

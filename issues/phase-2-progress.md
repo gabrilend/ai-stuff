@@ -69,9 +69,13 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 - Slot-based world layout
 - Velocity-dependent restitution
 
-### Ball Sleep (221, 222) [Pending]
-- Sleep state for stationary balls
-- Trajectory history for stuck detection
+### Ball Sleep (221, 222)
+- Sleep state tracking (221a) - frames_at_rest counter, is_sleeping flag
+- Sleep transition (221b) - ball_enter_sleep() when threshold reached
+- Wake conditions (221c) - ball_wake(), ball_wake_with_impulse() on collision
+- Soft collision response (221d) - gentle push instead of rigid collision for piles
+- Stress distinction (221e) - static vs dynamic stress tracking for crushing
+- Trajectory history (222) - partial, overlap nudge for stuck detection
 
 ## Issue-Level Dependencies
 

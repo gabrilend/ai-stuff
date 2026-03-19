@@ -20,10 +20,11 @@ Display systems: viewport, window management, UI elements, and reticle.
 | 410 | Reticle toggle mouse control       | completed     | -          |
 | 411 | Player reticle display bug         | completed     | -          |
 | 412 | Reticle color inversion            | completed     | -          |
+| 413 | Background color options           | completed     | 112 ✓      |
 
 ## Progress Summary
 
-**Completed:** 11/12 issues
+**Completed:** 12/13 issues
 **Awaiting work:** 1 (409)
 **Blocked:** 0
 **Phase status:** awaiting-work
@@ -56,7 +57,13 @@ Display systems: viewport, window management, UI elements, and reticle.
 - Minimum window width enforcement (408) - COMPLETED
 - Collapsible sidebar drawers (409) - awaiting work
 
+### Background Colors (413) - COMPLETED
+- 8 preset background colors via compile-time config
+- Config option: `BACKGROUND_COLOR=0` (0-7 index)
+- Colors: slate, black, tan, felt, navy, plum, charcoal, mahogany
+- Shared lookup table in main.c, editor-main.c, editor-app.c
+
 ## Issue-Level Dependencies
 
-- 409 (collapsible drawer) depends on 406 (panel UI system)
-- 406, 407, 408 are independent and can be worked on in parallel
+- 409 (collapsible drawer) depends on 406 (panel UI system) - 406 complete
+- 413 (background colors) depends on 112 (config system) - 112 complete, 413 complete

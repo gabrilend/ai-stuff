@@ -12,6 +12,21 @@
 #include "031-editor-app.h"
 #include "000-config.h"
 
+// Background color presets (issue 413)
+// Index matches BACKGROUND_COLOR config value: 0=slate, 1=black, etc.
+static const Color BG_COLORS[] = {
+    {30, 35, 45, 255},     // 0: slate (default dark gray-blue)
+    {0, 0, 0, 255},        // 1: black
+    {180, 160, 130, 255},  // 2: tan (light wood)
+    {25, 50, 35, 255},     // 3: felt (pool table green)
+    {15, 25, 50, 255},     // 4: navy (deep blue)
+    {40, 25, 45, 255},     // 5: plum (dark purple)
+    {35, 35, 35, 255},     // 6: charcoal (neutral gray)
+    {60, 30, 25, 255},     // 7: mahogany (dark red-brown)
+};
+#define BG_COLOR_COUNT (sizeof(BG_COLORS) / sizeof(BG_COLORS[0]))
+#define BG_COLOR (BG_COLORS[BACKGROUND_COLOR < BG_COLOR_COUNT ? BACKGROUND_COLOR : 0])
+
 // {{{ parse_args
 // Parses command line arguments for flags and filename.
 // Parameters:
@@ -104,7 +119,7 @@ int main(int argc, char* argv[]) {
 
         // Render
         BeginDrawing();
-        ClearBackground((Color){30, 30, 40, 255});
+        ClearBackground(BG_COLOR);
         editor_app_render(app);
         EndDrawing();
     }

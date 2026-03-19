@@ -30,8 +30,20 @@
 #define MAX_LINE_THICKNESS 30.0f
 #define DEFAULT_PORTAL_SIZE 1  // Grid cells (one square)
 
-// Colors
-#define BG_COLOR (Color){30, 30, 40, 255}
+// Background color presets (issue 413)
+// Index matches BACKGROUND_COLOR config value: 0=slate, 1=black, etc.
+static const Color BG_COLORS[] = {
+    {30, 35, 45, 255},     // 0: slate (default dark gray-blue)
+    {0, 0, 0, 255},        // 1: black
+    {180, 160, 130, 255},  // 2: tan (light wood)
+    {25, 50, 35, 255},     // 3: felt (pool table green)
+    {15, 25, 50, 255},     // 4: navy (deep blue)
+    {40, 25, 45, 255},     // 5: plum (dark purple)
+    {35, 35, 35, 255},     // 6: charcoal (neutral gray)
+    {60, 30, 25, 255},     // 7: mahogany (dark red-brown)
+};
+#define BG_COLOR_COUNT (sizeof(BG_COLORS) / sizeof(BG_COLORS[0]))
+#define BG_COLOR (BG_COLORS[BACKGROUND_COLOR < BG_COLOR_COUNT ? BACKGROUND_COLOR : 0])
 #define PANEL_COLOR (Color){40, 40, 55, 255}
 #define PANEL_BORDER (Color){60, 60, 80, 255}
 #define BUTTON_COLOR (Color){60, 70, 90, 255}
@@ -267,6 +279,9 @@ static void render_property_panel(EditorApp* app);
 static int handle_property_panel_input(EditorApp* app);
 // Polygon panel functions (issue 837)
 static void render_polygon_panel(EditorApp* app);
+// Rotor panel functions (issue 901g)
+static void render_rotor_panel(EditorApp* app);
+static int handle_rotor_panel_input(EditorApp* app);
 static void render_slider(int x, int y, int width, unsigned char value,
                           const char* label, Color color_hint, int is_points);
 // Material selector functions (issue 839)
@@ -338,6 +353,10 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     app->polygons_dirty = 1;  // Rebuild on first update
     app->selected_polygon_index = -1;  // No polygon selected
     app->show_polygon_panel = 0;
+
+    // Initialize rotor selection (issue 901g)
+    app->selected_rotor_index = -1;
+    app->show_rotor_panel = 0;
 
     // Create tools panel (issue 406)
     // Panel positioned on left side below toolbar
@@ -448,6 +467,9 @@ void editor_app_render(EditorApp* app) {
     // Render polygon panel if polygon selected (issue 837)
     render_polygon_panel(app);
 
+    // Render rotor panel if rotor selected (issue 901g)
+    render_rotor_panel(app);
+
     // Render load dialog if open
     if (app->load_dialog.visible) {
         render_load_dialog(app);
@@ -527,6 +549,8 @@ int editor_app_load(EditorApp* app, const char* filepath) {
     app->polygons_dirty = 1;
     app->selected_polygon_index = -1;  // Clear polygon selection
     app->show_polygon_panel = 0;
+    app->selected_rotor_index = -1;    // Clear rotor selection (issue 901g)
+    app->show_rotor_panel = 0;
 
     editor_app_notify(app, "Board loaded", 2.0f);
     return 1;
@@ -597,6 +621,8 @@ void editor_app_new_board(EditorApp* app) {
     app->polygons_dirty = 1;
     app->selected_polygon_index = -1;  // Clear polygon selection
     app->show_polygon_panel = 0;
+    app->selected_rotor_index = -1;    // Clear rotor selection (issue 901g)
+    app->show_rotor_panel = 0;
 
     editor_app_notify(app, "New board", 1.5f);
 }
@@ -711,7 +737,7 @@ static void handle_input(EditorApp* app) {
         return;
     }
 
-    // ESC: Close property panel first, then polygon panel, then quit (issue 1211, 1226, 837)
+    // ESC: Close panels in order: property, polygon, rotor, then quit
     if (IsKeyPressed(KEY_ESCAPE)) {
         if (app->show_property_panel || app->selection_count > 0) {
             selection_clear(app);  // Clears selection and hides property panel
@@ -719,6 +745,10 @@ static void handle_input(EditorApp* app) {
             // Clear polygon selection (issue 837)
             app->selected_polygon_index = -1;
             app->show_polygon_panel = 0;
+        } else if (app->show_rotor_panel || app->selected_rotor_index >= 0) {
+            // Clear rotor selection (issue 901g)
+            app->selected_rotor_index = -1;
+            app->show_rotor_panel = 0;
         } else {
             app->should_quit = 1;
         }
@@ -727,6 +757,11 @@ static void handle_input(EditorApp* app) {
 
     // Property panel slider interaction (issue 1211)
     if (handle_property_panel_input(app)) {
+        return;  // Panel consumed the input
+    }
+
+    // Rotor panel input handling (issue 901g)
+    if (handle_rotor_panel_input(app)) {
         return;  // Panel consumed the input
     }
 
@@ -1946,9 +1981,11 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
 
         if (dist <= click_radius) {
             // Object found under cursor
-            // Clear polygon selection when selecting regular object (issue 837)
+            // Clear polygon and rotor selection when selecting regular object
             app->selected_polygon_index = -1;
             app->show_polygon_panel = 0;
+            app->selected_rotor_index = -1;
+            app->show_rotor_panel = 0;
 
             if (shift_held) {
                 // Shift-click: toggle in selection
@@ -1975,8 +2012,35 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
                     // Clear object selection when selecting polygon
                     selection_clear(app);
                     app->show_property_panel = 0;
+                    app->selected_rotor_index = -1;
+                    app->show_rotor_panel = 0;
                     return 1;
                 }
+            }
+        }
+    }
+
+    // Check if clicking on a rotor (issue 901g)
+    if (!shift_held) {
+        for (int i = 0; i < app->board->rotor_count; i++) {
+            Rotor* rotor = &app->board->rotors[i];
+            float rotor_x = grid_to_pixel_x(&app->grid, rotor->col, rotor->row);
+            float rotor_y = grid_to_pixel_y(&app->grid, rotor->col, rotor->row);
+
+            float dx = world_pos.x - rotor_x;
+            float dy = world_pos.y - rotor_y;
+            float dist = sqrtf(dx * dx + dy * dy);
+
+            // Rotor click radius (outer gear radius is ~15.6, use ~20 for easy clicking)
+            if (dist <= 20.0f) {
+                app->selected_rotor_index = i;
+                app->show_rotor_panel = 1;
+                // Clear other selections
+                selection_clear(app);
+                app->show_property_panel = 0;
+                app->selected_polygon_index = -1;
+                app->show_polygon_panel = 0;
+                return 1;
             }
         }
     }
@@ -1985,9 +2049,11 @@ static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y)
     if (!shift_held) {
         // Only deselect if shift not held
         selection_clear(app);
-        // Also clear polygon selection
+        // Also clear polygon and rotor selection
         app->selected_polygon_index = -1;
         app->show_polygon_panel = 0;
+        app->selected_rotor_index = -1;
+        app->show_rotor_panel = 0;
     }
     return 0;
 }
@@ -2135,6 +2201,106 @@ static void render_polygon_panel(EditorApp* app) {
     // Instructions
     DrawText("ESC: Deselect", panel_x + 10, panel_y + panel_h - 20,
              10, TEXT_DIM);
+}
+// }}}
+
+// {{{ render_rotor_panel
+// Renders the rotor properties panel when a rotor is selected (issue 901g).
+// Shows direction toggle, speed slider, and connected object count.
+static void render_rotor_panel(EditorApp* app) {
+    if (!app || !app->show_rotor_panel) return;
+    if (!app->board) return;
+    if (app->selected_rotor_index < 0 ||
+        app->selected_rotor_index >= app->board->rotor_count) return;
+
+    Rotor* rotor = &app->board->rotors[app->selected_rotor_index];
+
+    // Panel dimensions (same position as other property panels)
+    int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+    int panel_h = 200;
+
+    // Background
+    DrawRectangle(panel_x, panel_y, PROP_PANEL_WIDTH, panel_h, PANEL_COLOR);
+    DrawRectangleLines(panel_x, panel_y, PROP_PANEL_WIDTH, panel_h, PANEL_BORDER);
+
+    // Title
+    DrawText("Rotor", panel_x + 10, panel_y + 8, 14, TEXT_COLOR);
+
+    char info[64];
+    int y = panel_y + 30;
+
+    // Direction toggle buttons
+    int is_cw = (rotor->rotation_speed >= 0);
+    int btn_width = 60;
+    int btn_height = 22;
+    int btn_x_cw = panel_x + 10;
+    int btn_x_ccw = btn_x_cw + btn_width + 10;
+
+    // CW button
+    Color cw_bg = is_cw ? (Color){80, 150, 80, 255} : (Color){60, 60, 80, 255};
+    Color cw_border = is_cw ? (Color){120, 200, 120, 255} : (Color){80, 80, 100, 255};
+    DrawRectangle(btn_x_cw, y, btn_width, btn_height, cw_bg);
+    DrawRectangleLines(btn_x_cw, y, btn_width, btn_height, cw_border);
+    DrawText("CW", btn_x_cw + 20, y + 5, 12, TEXT_COLOR);
+
+    // CCW button
+    Color ccw_bg = !is_cw ? (Color){80, 150, 80, 255} : (Color){60, 60, 80, 255};
+    Color ccw_border = !is_cw ? (Color){120, 200, 120, 255} : (Color){80, 80, 100, 255};
+    DrawRectangle(btn_x_ccw, y, btn_width, btn_height, ccw_bg);
+    DrawRectangleLines(btn_x_ccw, y, btn_width, btn_height, ccw_border);
+    DrawText("CCW", btn_x_ccw + 16, y + 5, 12, TEXT_COLOR);
+
+    y += btn_height + 15;
+
+    // Speed slider
+    float max_speed = 6.28f;  // ~1 rotation per second max
+    float speed_abs = fabsf(rotor->rotation_speed);
+    float speed_pct = speed_abs / max_speed;
+    if (speed_pct > 1.0f) speed_pct = 1.0f;
+
+    DrawText("Speed:", panel_x + 10, y, 10, TEXT_COLOR);
+    y += 14;
+
+    int slider_width = PROP_PANEL_WIDTH - 40;
+    int slider_x = panel_x + 10;
+    DrawRectangle(slider_x, y, slider_width, 12, (Color){60, 60, 80, 255});
+    DrawRectangle(slider_x, y, (int)(slider_width * speed_pct), 12,
+                  (Color){200, 180, 100, 255});
+    DrawRectangleLines(slider_x, y, slider_width, 12, (Color){80, 80, 100, 255});
+
+    snprintf(info, sizeof(info), "%.0f%%", speed_pct * 100);
+    DrawText(info, slider_x + slider_width + 5, y, 10, TEXT_DIM);
+
+    y += 25;
+
+    // Connected objects count
+    snprintf(info, sizeof(info), "Connected: %d objects", rotor->connection_count);
+    DrawText(info, panel_x + 10, y, 10, TEXT_DIM);
+
+    y += 20;
+
+    // Current angle display
+    float angle_deg = rotor->current_angle * (180.0f / 3.14159f);
+    while (angle_deg < 0) angle_deg += 360.0f;
+    while (angle_deg >= 360.0f) angle_deg -= 360.0f;
+    snprintf(info, sizeof(info), "Angle: %.0f deg", angle_deg);
+    DrawText(info, panel_x + 10, y, 10, TEXT_DIM);
+
+    // Instructions
+    DrawText("R: Reverse direction", panel_x + 10, panel_y + panel_h - 35,
+             10, TEXT_DIM);
+    DrawText("ESC: Deselect", panel_x + 10, panel_y + panel_h - 20,
+             10, TEXT_DIM);
+}
+// }}}
+
+// {{{ handle_rotor_panel_input
+// Stub for rotor panel input handling (issue 901g - not yet implemented).
+// Returns 1 if input was consumed, 0 otherwise.
+static int handle_rotor_panel_input(EditorApp* app) {
+    (void)app;  // Stub - to be implemented in 901g
+    return 0;
 }
 // }}}
 

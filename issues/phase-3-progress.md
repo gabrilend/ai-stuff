@@ -26,15 +26,16 @@ Scoring, particle effects, and visual feedback systems.
 | 316 | Allow multiple gate scoring        | completed     | 318        |
 | 317 | GateRow scoring never called       | completed     | -          |
 | 318 | Grid zone dispatch system          | completed     | -          |
-| 319 | Random ball colors                 | awaiting-work | -          |
+| 319 | Random ball colors                 | completed     | -          |
 | 320 | Progress bar color flip            | completed     | -          |
+| 321 | Fragment direction duplication     | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 19/20 issues
-**Awaiting work:** 1 (319)
+**Completed:** 21/21 issues
+**Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** awaiting-work
+**Phase status:** complete
 
 ## Technical Notes
 
@@ -71,6 +72,6 @@ Scoring, particle effects, and visual feedback systems.
 
 ## Issue-Level Dependencies
 
-- 317 is independent
-- 318 (zone dispatch) solved 316
-- 319 (random ball colors) may benefit from 318 for particle color integration
+- 319 (random ball colors) includes particle color integration
+- 321 (fragment direction) is independent bug fix
+- Both 319 and 321 can be worked on in parallel

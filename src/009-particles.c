@@ -740,14 +740,13 @@ void particle_spawn_fragments(ParticleSystem* ps, float x, float y,
         float outward_angle;
         switch (mode) {
             case FRAG_TANGENT:
-                // "Wall" ball shatters along impact tangent in both directions
-                // Fragments spread ±90° from tangent with some randomness
+                // "Wall" ball shatters along impact tangent direction
+                // Issue 321: Fixed - spread around tangent, not ±90° which rotates to normal
                 {
-                    // Alternate sides: even fragments go one way, odd the other
-                    float side = (spawned % 2 == 0) ? 1.0f : -1.0f;
-                    // Spread within ±45° of tangent direction
-                    float spread = ((float)(rand() % 100) / 100.0f - 0.5f) * 1.5708f;
-                    outward_angle = tangent_angle + side * 1.5708f + spread;
+                    // Distribute fragments evenly across ±60° spread around tangent
+                    float spread = ((float)spawned / (float)num_fragments - 0.5f) * 2.0f;  // -1 to 1
+                    float spread_angle = spread * 1.0472f;  // ±60° spread (π/3)
+                    outward_angle = tangent_angle + spread_angle;
                 }
                 break;
 
