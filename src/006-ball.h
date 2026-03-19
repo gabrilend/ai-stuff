@@ -33,6 +33,13 @@ typedef struct ThreadPool ThreadPool;
 #define SLEEP_FRAME_DELAY 30            // Frames at rest before sleeping (~0.5s at 60fps)
 #define WAKE_VELOCITY_THRESHOLD 1.0f    // Above this = instant wake (from external force)
 
+// Soft collision constants (issue 221d)
+// For slow-moving balls in piles, use position-based separation instead of
+// velocity impulses. This prevents energy from being added to the system.
+#define SOFT_COLLISION_THRESHOLD 2.0f   // Below this speed: use soft collision
+#define BLEND_THRESHOLD 5.0f            // Full standard collision above this
+#define PILE_PUSH_FACTOR 0.3f           // How fast to separate overlapping balls (0.1-0.5)
+
 // Bumper constants (gate divider caps)
 #define BUMPER_RADIUS 10.0f       // Slightly wider than dividers
 #define BUMPER_RESTITUTION 0.15f  // Very low bounce for "donk" feel

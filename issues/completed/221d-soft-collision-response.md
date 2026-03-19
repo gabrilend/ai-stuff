@@ -1,10 +1,10 @@
 # 221d - Soft Collision Response for Piles
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
-None - can be implemented independently. Works best in conjunction with 221a-c but is not blocked by them.
+None - implemented independently. Works in conjunction with 221a-c sleep system.
 
 ## Parent Issue: 221 - Ball Sleep System
 
@@ -153,3 +153,29 @@ void resolve_collision_blended(Ball* a, Ball* b) {
 - Without it, balls may explode before sleep threshold
 - Works in conjunction with sleep system, not replacement
 - Consider: soft collision might be enough without sleep for small piles
+
+## Implementation Notes (2026-03-19)
+
+### Changes Made
+
+1. **src/006-ball.h**:
+   - Added soft collision constants: `SOFT_COLLISION_THRESHOLD`, `BLEND_THRESHOLD`, `PILE_PUSH_FACTOR`
+
+2. **src/007-ball.c**:
+   - Added `ball_resolve_pile_collision()` function for position-based separation
+   - Modified `ball_resolve_ball_collision()` to route between soft and standard collision
+   - Implemented velocity-based blending for smooth transition between modes
+
+### Design Decisions
+
+- Soft collision uses position-based separation only (no velocity impulses)
+- Speed threshold of 2.0 px/s for pure soft collision
+- Blend threshold of 5.0 px/s for transition to full standard collision
+- Linear blending between thresholds scales impulse magnitude
+- Push factor of 0.3 provides gentle separation without jitter
+
+### Blocking Bug Fix
+
+Also fixed compilation errors in zone-dispatch.h/c (issue 318):
+- Renamed ZoneType to DispatchZoneType to avoid conflict with board-data.h
+- Added missing #include <stdint.h> for uint8_t type

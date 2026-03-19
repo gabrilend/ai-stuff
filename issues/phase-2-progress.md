@@ -32,15 +32,15 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 | 221a | Sleep state tracking               | completed     | -          |
 | 221b | Sleep transition logic             | awaiting-work | 221a       |
 | 221c | Wake conditions                    | blocked       | 221b       |
-| 221d | Soft collision response            | awaiting-work | -          |
-| 221e | Stress source distinction          | blocked       | 221d       |
+| 221d | Soft collision response            | completed     | -          |
+| 221e | Stress source distinction          | awaiting-work | 221d       |
 | 222  | Trajectory history overlap nudge   | awaiting-work | -          |
 
 ## Progress Summary
 
-**Completed:** 21/27 issues
-**Awaiting work:** 3 (221b, 221d, 222)
-**Blocked:** 2 (221c, 221e)
+**Completed:** 22/27 issues
+**Awaiting work:** 3 (221b, 221e, 222)
+**Blocked:** 1 (221c)
 **In progress:** 1 (221 parent issue)
 **Phase status:** in-progress
 

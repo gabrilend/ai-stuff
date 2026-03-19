@@ -13,6 +13,7 @@
 #include "016-ramp.h"
 #include "028-portal.h"
 #include "036-wrap-zones.h"
+#include "045-zone-dispatch.h"
 #include "raylib.h"
 
 // {{{ ball_manager_create
@@ -65,6 +66,10 @@ BallManager* ball_manager_create(int capacity) {
         manager->balls_current[i].is_sleeping = 0;
         manager->balls_current[i].frames_at_rest = 0;
         manager->balls_current[i].pre_sleep_velocity = 0.0f;
+        // Zone dispatch fields (issue 318)
+        manager->balls_current[i].pending_score = 0;
+        manager->balls_current[i].score_x = 0.0f;
+        manager->balls_current[i].score_y = 0.0f;
 
         manager->balls_next[i].active = 0;
         manager->balls_next[i].radius = BALL_RADIUS;
@@ -75,6 +80,10 @@ BallManager* ball_manager_create(int capacity) {
         manager->balls_next[i].is_sleeping = 0;
         manager->balls_next[i].frames_at_rest = 0;
         manager->balls_next[i].pre_sleep_velocity = 0.0f;
+        // Zone dispatch fields (issue 318)
+        manager->balls_next[i].pending_score = 0;
+        manager->balls_next[i].score_x = 0.0f;
+        manager->balls_next[i].score_y = 0.0f;
 
         // Initialize task data with immutable ball_index
         manager->task_data[i].ball_index = i;
@@ -157,6 +166,10 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
             ball->is_sleeping = 0;
             ball->frames_at_rest = 0;
             ball->pre_sleep_velocity = 0.0f;
+            // Zone dispatch fields (issue 318): no pending score at spawn
+            ball->pending_score = 0;
+            ball->score_x = 0.0f;
+            ball->score_y = 0.0f;
             manager->active_count++;
             return 1;
         }
@@ -638,16 +651,50 @@ static int ball_check_ball_collision(Ball* ball_a, Ball* ball_b,
 }
 // }}}
 
+// {{{ ball_resolve_pile_collision
+// Soft collision for slow-moving balls (issue 221d)
+// Uses position-based separation instead of velocity impulses.
+// This prevents energy from being added to piles of stationary balls.
+// Only applies response to ball_a (caller handles ball_b separately).
+static void ball_resolve_pile_collision(Ball* ball_a, Ball* ball_b,
+                                         float nx, float ny, float depth) {
+    if (!ball_a || !ball_b) return;
+
+    // Soft push using position adjustment, not velocity
+    // Split separation between both balls (each moves half)
+    float push = depth * PILE_PUSH_FACTOR * 0.5f;
+
+    ball_a->x += nx * push;
+    ball_a->y += ny * push;
+
+    // No velocity change - this is the key difference from standard collision
+    // Velocity naturally drains via damping, allowing pile to settle
+}
+// }}}
+
 // {{{ ball_resolve_ball_collision
 // Internal function to resolve collision between two balls
 // Only applies response to ball_a (caller handles ball_b separately)
 // Cross-board collisions (player vs adversary) deal damage
-// Low-speed impacts: zero restitution (balls clump together instead of bouncing)
+// Routes to soft or standard collision based on ball speeds (issue 221d)
 static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
                                          float nx, float ny, float depth) {
     // Null check for safety
     if (!ball_a || !ball_b) return;
 
+    // Calculate speeds for routing decision (issue 221d)
+    float speed_a = sqrtf(ball_a->vx * ball_a->vx + ball_a->vy * ball_a->vy);
+    float speed_b = sqrtf(ball_b->vx * ball_b->vx + ball_b->vy * ball_b->vy);
+    float max_speed = (speed_a > speed_b) ? speed_a : speed_b;
+
+    // Both balls nearly stationary - use soft collision (issue 221d)
+    // This prevents pile explosions from accumulated impulses
+    if (max_speed < SOFT_COLLISION_THRESHOLD) {
+        ball_resolve_pile_collision(ball_a, ball_b, nx, ny, depth);
+        return;
+    }
+
+    // Standard collision with position separation and velocity impulse
     // Each ball moves half the penetration distance
     ball_a->x += nx * (depth * 0.5f + COLLISION_BIAS);
     ball_a->y += ny * (depth * 0.5f + COLLISION_BIAS);
@@ -675,12 +722,24 @@ static void ball_resolve_ball_collision(Ball* ball_a, Ball* ball_b,
             }
         }
 
+        // Blend between soft and standard collision for intermediate speeds (issue 221d)
+        // This provides smooth transition instead of jarring behavior change
+        float blend = 1.0f;  // 1.0 = full standard collision
+        if (max_speed < BLEND_THRESHOLD) {
+            // Linear blend: 0 at SOFT_COLLISION_THRESHOLD, 1 at BLEND_THRESHOLD
+            blend = (max_speed - SOFT_COLLISION_THRESHOLD) /
+                    (BLEND_THRESHOLD - SOFT_COLLISION_THRESHOLD);
+            if (blend < 0.0f) blend = 0.0f;
+            if (blend > 1.0f) blend = 1.0f;
+        }
+
         // Velocity-dependent restitution: low-speed impacts don't bounce
         float restitution = (closing_speed < LOW_SPEED_THRESHOLD) ? 0.0f : RESTITUTION;
 
         // Equal mass elastic collision: swap velocity components along normal
         // For ball_a, we add the impulse; ball_b will be handled by its own task
-        float impulse = -(1.0f + restitution) * vn;
+        // Scale impulse by blend factor for smooth transition (issue 221d)
+        float impulse = -(1.0f + restitution) * vn * blend;
         ball_a->vx += impulse * nx;
         ball_a->vy += impulse * ny;
     }
@@ -969,9 +1028,21 @@ void ball_update_task(void* data) {
 
         ball_collide_with_walls(next, task->world);
 
-        // Check wrap zones for ball teleportation at screen edges
-        if (task->world->wrap_zones) {
-            wrap_zones_check_ball(task->world->wrap_zones, next);
+        // Zone dispatch system (issue 318)
+        // When zone_grid is active, use unified dispatch for wrap zones and scoring
+        // This replaces separate wrap_zones_check_ball and ball_check_zone calls
+        if (task->world->zone_grid) {
+            // Reset pending_score before dispatch
+            next->pending_score = 0;
+
+            // Dispatch handles: background (reset passed_gate), gates (scoring),
+            // wrap zones (teleportation), walls (reflection)
+            zone_dispatch(next, task->world->zone_grid);
+        } else {
+            // Fallback: Check wrap zones for ball teleportation at screen edges
+            if (task->world->wrap_zones) {
+                wrap_zones_check_ball(task->world->wrap_zones, next);
+            }
         }
 
         // Check portals for teleportation
@@ -1018,14 +1089,27 @@ void ball_update_task(void* data) {
         // Balls pass through gates (don't deactivate) for adversary mode
         // passed_gate flag prevents double-scoring
         if (next->active) {
-            int zone_index = ball_check_zone(next, task->world);
-            if (zone_index >= 0 && !next->passed_gate) {
-                // Ball entered zone for first time - award points
-                task->score_delta = task->world->zones[zone_index].points;
-                task->scored = 1;
-                task->score_pos_x = next->x;
-                task->score_pos_y = next->y;
-                next->passed_gate = 1;  // Mark as scored, ball continues through
+            if (task->world->zone_grid) {
+                // Zone dispatch system (issue 318): scoring set via pending_score
+                // zone_dispatch already called above, which set pending_score if in gate
+                if (next->pending_score > 0) {
+                    task->score_delta = next->pending_score;
+                    task->scored = 1;
+                    task->score_pos_x = next->score_x;
+                    task->score_pos_y = next->score_y;
+                    // passed_gate already set by zone handler
+                }
+            } else {
+                // Fallback: old zone checking system
+                int zone_index = ball_check_zone(next, task->world);
+                if (zone_index >= 0 && !next->passed_gate) {
+                    // Ball entered zone for first time - award points
+                    task->score_delta = task->world->zones[zone_index].points;
+                    task->scored = 1;
+                    task->score_pos_x = next->x;
+                    task->score_pos_y = next->y;
+                    next->passed_gate = 1;  // Mark as scored, ball continues through
+                }
             }
         }
     }
