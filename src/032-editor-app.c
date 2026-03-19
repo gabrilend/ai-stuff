@@ -1651,6 +1651,17 @@ static void render_canvas(EditorApp* app) {
         render_board_zones(app->board, &app->grid);
         render_board_rotors(app->board, &app->grid);  // Issue 901b
         render_board_tracks(app->board, &app->grid);  // Issue 902b
+
+        // Highlight selected rotor (issue 901g)
+        if (app->selected_rotor_index >= 0 &&
+            app->selected_rotor_index < app->board->rotor_count) {
+            Rotor* sel = &app->board->rotors[app->selected_rotor_index];
+            float rx = grid_to_pixel_x(&app->grid, sel->col, sel->row);
+            float ry = grid_to_pixel_y(&app->grid, sel->col, sel->row);
+            // Draw yellow highlight ring around selected rotor
+            DrawCircleLines((int)rx, (int)ry, 20.0f, (Color){255, 255, 100, 255});
+            DrawCircleLines((int)rx, (int)ry, 22.0f, (Color){255, 255, 100, 180});
+        }
     }
 
     // Selection highlights (issue 1226)
@@ -2296,11 +2307,101 @@ static void render_rotor_panel(EditorApp* app) {
 // }}}
 
 // {{{ handle_rotor_panel_input
-// Stub for rotor panel input handling (issue 901g - not yet implemented).
+// Handles mouse input on the rotor panel (issue 901g).
 // Returns 1 if input was consumed, 0 otherwise.
 static int handle_rotor_panel_input(EditorApp* app) {
-    (void)app;  // Stub - to be implemented in 901g
-    return 0;
+    if (!app || !app->show_rotor_panel) return 0;
+    if (!app->board) return 0;
+    if (app->selected_rotor_index < 0 ||
+        app->selected_rotor_index >= app->board->rotor_count) return 0;
+
+    Rotor* rotor = &app->board->rotors[app->selected_rotor_index];
+
+    // Panel bounds
+    int panel_x = app->screen_width - PROP_PANEL_WIDTH - PROP_PANEL_MARGIN;
+    int panel_y = 100;
+    int panel_h = 200;
+
+    Vector2 mouse = GetMousePosition();
+
+    // Handle R key for direction reversal when rotor selected
+    if (IsKeyPressed(KEY_R)) {
+        rotor->rotation_speed = -rotor->rotation_speed;
+        app->modified = 1;
+        return 1;
+    }
+
+    // Check if mouse is within panel bounds
+    if (mouse.x < panel_x || mouse.x > panel_x + PROP_PANEL_WIDTH ||
+        mouse.y < panel_y || mouse.y > panel_y + panel_h) {
+        return 0;
+    }
+
+    // Direction button bounds
+    int btn_width = 60;
+    int btn_height = 22;
+    int btn_y = panel_y + 30;
+    int btn_x_cw = panel_x + 10;
+    int btn_x_ccw = btn_x_cw + btn_width + 10;
+
+    // Check CW button click
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (mouse.x >= btn_x_cw && mouse.x < btn_x_cw + btn_width &&
+            mouse.y >= btn_y && mouse.y < btn_y + btn_height) {
+            // Set direction to clockwise
+            if (rotor->rotation_speed < 0) {
+                rotor->rotation_speed = -rotor->rotation_speed;
+                app->modified = 1;
+            }
+            return 1;
+        }
+
+        // Check CCW button click
+        if (mouse.x >= btn_x_ccw && mouse.x < btn_x_ccw + btn_width &&
+            mouse.y >= btn_y && mouse.y < btn_y + btn_height) {
+            // Set direction to counter-clockwise
+            if (rotor->rotation_speed >= 0) {
+                rotor->rotation_speed = -rotor->rotation_speed;
+                // Handle zero speed case
+                if (rotor->rotation_speed == 0) {
+                    rotor->rotation_speed = -0.01f;  // Small CCW value
+                }
+                app->modified = 1;
+            }
+            return 1;
+        }
+    }
+
+    // Speed slider handling
+    int slider_y = btn_y + btn_height + 29;  // y after buttons + label height
+    int slider_width = PROP_PANEL_WIDTH - 40;
+    int slider_x = panel_x + 10;
+    int slider_height = 12;
+
+    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        if (mouse.x >= slider_x && mouse.x <= slider_x + slider_width &&
+            mouse.y >= slider_y && mouse.y <= slider_y + slider_height + 4) {
+            // Calculate new speed from mouse position
+            float t = (mouse.x - slider_x) / (float)slider_width;
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+
+            float max_speed = 6.28f;
+            float new_speed = t * max_speed;
+
+            // Preserve direction
+            if (rotor->rotation_speed < 0) {
+                rotor->rotation_speed = -new_speed;
+            } else {
+                rotor->rotation_speed = new_speed;
+            }
+            app->modified = 1;
+            return 1;
+        }
+    }
+
+    // Always consume input when over panel
+    return 1;
 }
 // }}}
 

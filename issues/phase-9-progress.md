@@ -15,7 +15,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901d | Connected object detection    | completed     | 901a ✓          |
 | 901e | Collision modes               | completed     | 901c ✓, 901d ✓  |
 | 901f | Ball crushing                 | awaiting-work | 901e ✓, 221e ✓  |
-| 901g | Direction config UI           | awaiting-work | 901b ✓          |
+| 901g | Direction config UI           | completed     | 901b ✓          |
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
 | 902b | Editor track drawing tool     | completed     | 902a ✓          |
@@ -28,13 +28,22 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Progress Summary
 
-**Completed:** 10/17 issues (901a, 901b, 901c, 901d, 901e, 902a, 902b, 902c, 902d, 903)
+**Completed:** 11/17 issues (901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 5 (901f, 901g, 902e, 902f, 902g)
+**Awaiting work:** 4 (901f, 902e, 902f, 902g)
 **Blocked:** 0
 **Phase status:** in-progress
 
 ## Recent Completions
+
+### 901g - Direction config UI
+- Right-click rotor to open property panel
+- CW/CCW direction toggle buttons (green highlight on active)
+- Speed slider (0-100% mapped to 0-6.28 rad/s rotation)
+- Connected objects count and current angle display
+- R key reverses direction while rotor selected
+- Yellow highlight ring around selected rotor
+- ESC closes rotor panel
 
 ### 902d - Track following physics
 - Created `src/052-track-mover.h` and `src/053-track-mover.c`

@@ -195,6 +195,11 @@ typedef struct EditorApp {
     int selected_polygon_index;  // -1 = no polygon selected, else index into polygon_manager
     int show_polygon_panel;      // 1 = show polygon properties panel
 
+    // Rotor selection (issue 901g)
+    // Selected rotor for property editing (direction, speed)
+    int selected_rotor_index;    // -1 = no rotor selected, else index into board->rotors
+    int show_rotor_panel;        // 1 = show rotor properties panel
+
     // UI Panel system (issue 406)
     // Tools panel on left side for object placement tools
     Panel* tools_panel;
