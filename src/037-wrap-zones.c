@@ -71,8 +71,9 @@ void wrap_zones_update(WrapZones* zones, float screen_height) {
     zones->zone_x = world->table_x;
     zones->zone_width = world->table_width;
 
-    printf("Wrap zones updated: viewable=[%.0f, %.0f], top_zone=%.0f, bottom_zone=%.0f\n",
-           viewable_top, viewable_bottom, zones->top_zone_y, zones->bottom_zone_y);
+    printf("Wrap zones updated: viewable=[%.0f, %.0f], top_zone=%.0f, bottom_zone=%.0f, x=%.0f, width=%.0f\n",
+           viewable_top, viewable_bottom, zones->top_zone_y, zones->bottom_zone_y,
+           zones->zone_x, zones->zone_width);
 }
 // }}}
 
