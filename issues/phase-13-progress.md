@@ -45,10 +45,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1316  | Minimum window width               | Open      |
 | 1317  | Collapsible drawer UI              | Open      |
 | 1318  | Separate player/adversary scores   | Open      |
+| 1319  | Material type selector             | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/34 issues (18%)
+**Completed:** 6/35 issues (17%)
 **Status:** In Progress
 
 ## Major Features
