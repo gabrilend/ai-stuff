@@ -1,6 +1,6 @@
 # 221c - Wake Conditions
 
-## Status: blocked
+## Status: complete
 
 ## Depends on
 
@@ -155,3 +155,55 @@ void handle_ball_rotor_collision(Ball* ball, Rotor* rotor) {
 - Conservative approach: only wake direct collision contacts
 - Aggressive approach: cascade wake with radius
 - Start conservative, add cascade if piles feel "sticky"
+
+---
+
+## Implementation Notes (2026-03-19)
+
+### What Was Implemented
+
+Added wake logic to `src/007-ball.c`:
+
+1. **`ball_wake()`** - Basic wake function:
+   - Sets `is_sleeping = 0`
+   - Resets `frames_at_rest = 0`
+   - Velocity stays at zero (gravity acts next frame)
+
+2. **`ball_wake_with_impulse()`** - Wake with collision impulse:
+   - Calls `ball_wake()`
+   - Adds impulse to velocity
+
+3. **Modified `ball_collide_with_balls()`** - Sleep-aware collision:
+   - Skip collision if both balls sleeping (frozen pile)
+   - Wake sleeping ball when hit by awake ball
+   - Apply impulse in collision normal direction (half of closing speed)
+
+### Conservative Approach Taken
+
+Following the recommendation, implemented direct-contact wake only:
+- No cascade wake (didn't implement WAKE_RADIUS)
+- Only the directly collided ball wakes
+- If piles feel "sticky", cascade can be added later
+
+### Integration Points
+
+Wake logic in `ball_collide_with_balls()` at lines 1067-1092:
+```c
+// Both sleeping: skip collision entirely (frozen pile)
+if (ball->is_sleeping && other->is_sleeping) {
+    continue;
+}
+// Wake sleeping ball when hit by awake ball
+if (ball->is_sleeping && !other->is_sleeping) {
+    ball_wake_with_impulse(ball, ...);
+}
+```
+
+### Behavior Summary
+
+| Scenario | Result |
+|----------|--------|
+| Awake hits sleeping | Sleeping wakes with impulse |
+| Sleeping hits sleeping | No collision (frozen pile) |
+| Awake hits awake | Normal collision |
+| Sleeping vs static geometry | No wake (just position correction) |

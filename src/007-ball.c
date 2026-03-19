@@ -379,6 +379,32 @@ static void ball_update_stress_decay(Ball* ball) {
 }
 // }}}
 
+// {{{ ball_wake
+// Wakes a sleeping ball (issue 221c).
+// Called when ball is disturbed by awake ball collision or dynamic object.
+// Ball starts with zero velocity; gravity acts next frame.
+static void ball_wake(Ball* ball) {
+    if (!ball || !ball->active) return;
+    if (!ball->is_sleeping) return;  // Already awake
+
+    ball->is_sleeping = 0;
+    ball->frames_at_rest = 0;
+    // Velocity stays at zero (was zeroed when entering sleep)
+    // Gravity will act next frame, or collision provides impulse
+}
+// }}}
+
+// {{{ ball_wake_with_impulse
+// Wakes a sleeping ball and applies collision impulse (issue 221c).
+// Used when awake ball collides with sleeping ball.
+static void ball_wake_with_impulse(Ball* ball, float impulse_x, float impulse_y) {
+    ball_wake(ball);
+    if (!ball) return;
+    ball->vx += impulse_x;
+    ball->vy += impulse_y;
+}
+// }}}
+
 // {{{ ball_update_sleep_tracking
 // Internal function to track frames at rest and transition to sleep (issue 221a, 221b).
 // Called each frame after collision resolution to update sleep tracking state.
@@ -1038,12 +1064,32 @@ static void ball_collide_with_balls(Ball* ball, int ball_index,
 
         Ball* other = &read_buffer[i];
         if (ball_check_ball_collision(ball, other, &nx, &ny, &depth)) {
+            // Issue 221c: Sleep state handling for collisions
+            // Both sleeping: skip collision entirely (frozen pile)
+            if (ball->is_sleeping && other->is_sleeping) {
+                continue;
+            }
+
             // Use READ buffer velocities for both balls to compare same time point
             // (write buffer has gravity applied, read buffer is last frame)
             Ball* current_ball = &read_buffer[ball_index];
             float rel_vx = current_ball->vx - other->vx;
             float rel_vy = current_ball->vy - other->vy;
             float vn = rel_vx * nx + rel_vy * ny;
+
+            // Issue 221c: Wake sleeping ball when hit by awake ball
+            // Calculate impulse before collision resolution
+            if (ball->is_sleeping && !other->is_sleeping) {
+                // This ball is sleeping, other is awake - wake this ball
+                float closing_speed = -vn;
+                if (closing_speed > 0) {
+                    // Apply impulse in collision normal direction
+                    float wake_impulse = closing_speed * 0.5f;  // Half of closing speed
+                    ball_wake_with_impulse(ball, -nx * wake_impulse, -ny * wake_impulse);
+                } else {
+                    ball_wake(ball);
+                }
+            }
 
             ball_resolve_ball_collision(ball, other, nx, ny, depth);
 
