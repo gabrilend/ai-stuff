@@ -63,6 +63,18 @@ void render_portal_preview(float x, float y, float width, float height,
                            PortalDirection direction, int channel);
 // }}}
 
+// {{{ render_rotor
+// Renders a rotor pivot point at pixel coordinates. (issue 901b)
+// Draws a gear-shaped marker to distinguish from regular pegs.
+// Direction indicator shows CW (clockwise) or CCW rotation.
+void render_rotor(float x, float y, float radius, float current_angle, int cw);
+// }}}
+
+// {{{ render_rotor_preview
+// Renders a semi-transparent rotor preview (for cursor).
+void render_rotor_preview(float x, float y, float radius);
+// }}}
+
 // =============================================================================
 // Grid Rendering
 // =============================================================================
@@ -90,6 +102,12 @@ void render_board_objects(BoardData* board, Grid* grid);
 // {{{ render_board_zones
 // Renders all zones in a BoardData using the given grid.
 void render_board_zones(BoardData* board, Grid* grid);
+// }}}
+
+// {{{ render_board_rotors
+// Renders all rotors in a BoardData using the given grid. (issue 901b)
+// Rotors appear as gear-shaped markers with rotation indicators.
+void render_board_rotors(BoardData* board, Grid* grid);
 // }}}
 
 #endif // OBJECT_RENDER_H

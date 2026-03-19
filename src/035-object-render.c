@@ -3,7 +3,15 @@
 // Used by both game and standalone editor
 
 #include "034-object-render.h"
+#include "050-material.h"
 #include <stdio.h>
+#include <math.h>
+
+// Rotor rendering constants (issue 901b)
+#define ROTOR_CENTER_COLOR (Color){200, 150, 50, 255}
+#define ROTOR_TOOTH_COLOR (Color){180, 130, 40, 255}
+#define ROTOR_OUTLINE_COLOR (Color){100, 80, 30, 255}
+#define ROTOR_TEETH_COUNT 8
 
 // =============================================================================
 // Object Rendering
@@ -118,6 +126,82 @@ void render_portal_preview(float x, float y, float width, float height,
 }
 // }}}
 
+// {{{ render_rotor
+// Renders a rotor as a gear-shaped marker (issue 901b).
+// current_angle: current rotation in radians (for visual animation)
+// cw: 1 for clockwise, 0 for counter-clockwise (affects arrow direction)
+void render_rotor(float x, float y, float radius, float current_angle, int cw) {
+    // Draw gear teeth around the center
+    // Teeth are small triangles pointing outward
+    float inner_radius = radius * 0.7f;
+    float outer_radius = radius * 1.3f;
+    float tooth_half_angle = (float)(3.14159f / ROTOR_TEETH_COUNT / 2.5f);
+
+    for (int i = 0; i < ROTOR_TEETH_COUNT; i++) {
+        float angle = current_angle + (float)i * (2.0f * 3.14159f / ROTOR_TEETH_COUNT);
+
+        // Tooth corners
+        float cos_a = cosf(angle);
+        float sin_a = sinf(angle);
+        float cos_left = cosf(angle - tooth_half_angle);
+        float sin_left = sinf(angle - tooth_half_angle);
+        float cos_right = cosf(angle + tooth_half_angle);
+        float sin_right = sinf(angle + tooth_half_angle);
+
+        Vector2 tip = { x + outer_radius * cos_a, y + outer_radius * sin_a };
+        Vector2 left = { x + inner_radius * cos_left, y + inner_radius * sin_left };
+        Vector2 right = { x + inner_radius * cos_right, y + inner_radius * sin_right };
+
+        DrawTriangle(tip, left, right, ROTOR_TOOTH_COLOR);
+    }
+
+    // Draw center circle
+    DrawCircle((int)x, (int)y, inner_radius, ROTOR_CENTER_COLOR);
+
+    // Draw outline rings
+    DrawCircleLines((int)x, (int)y, inner_radius, ROTOR_OUTLINE_COLOR);
+    DrawCircleLines((int)x, (int)y, radius, ROTOR_OUTLINE_COLOR);
+
+    // Draw rotation direction arrow (small arc with arrowhead)
+    // Arrow indicates which way the rotor spins
+    float arrow_radius = radius * 0.5f;
+    float arrow_start = current_angle + 0.3f;
+    float arrow_end = current_angle + 1.5f;
+
+    // Draw arc segments
+    int segments = 8;
+    for (int i = 0; i < segments; i++) {
+        float t0 = arrow_start + (arrow_end - arrow_start) * (float)i / segments;
+        float t1 = arrow_start + (arrow_end - arrow_start) * (float)(i + 1) / segments;
+        Vector2 p0 = { x + arrow_radius * cosf(t0), y + arrow_radius * sinf(t0) };
+        Vector2 p1 = { x + arrow_radius * cosf(t1), y + arrow_radius * sinf(t1) };
+        DrawLineEx(p0, p1, 2.0f, WHITE);
+    }
+
+    // Arrowhead at end of arc
+    float head_angle = cw ? arrow_end : arrow_start;
+    float head_dir = cw ? (head_angle + 1.5f) : (head_angle - 1.5f);
+    Vector2 head_pos = { x + arrow_radius * cosf(head_angle), y + arrow_radius * sinf(head_angle) };
+    Vector2 head_tip = { head_pos.x + 6.0f * cosf(head_dir), head_pos.y + 6.0f * sinf(head_dir) };
+    DrawLineEx(head_pos, head_tip, 2.0f, WHITE);
+}
+// }}}
+
+// {{{ render_rotor_preview
+// Renders a semi-transparent rotor preview for cursor placement (issue 901b)
+void render_rotor_preview(float x, float y, float radius) {
+    Color preview = (Color){200, 150, 50, 100};
+    Color preview_light = (Color){180, 130, 40, 80};
+
+    // Draw simplified gear shape (no teeth, just rings)
+    DrawCircle((int)x, (int)y, radius * 1.3f, preview_light);
+    DrawCircle((int)x, (int)y, radius * 0.7f, preview);
+    DrawCircleLines((int)x, (int)y, radius * 0.7f, (Color){255, 255, 255, 150});
+    DrawCircleLines((int)x, (int)y, radius, (Color){255, 255, 255, 150});
+    DrawCircleLines((int)x, (int)y, radius * 1.3f, (Color){255, 255, 255, 100});
+}
+// }}}
+
 // =============================================================================
 // Grid Rendering
 // =============================================================================
@@ -173,6 +257,8 @@ void render_grid_cursor(Grid* grid, int col, int row, Color color) {
 // =============================================================================
 
 // {{{ render_board_objects
+// Issue 839: Objects now render with material display colors for visual consistency.
+// Material is determined from RGB physics properties (restitution, friction, point_bonus).
 void render_board_objects(BoardData* board, Grid* grid) {
     if (!board || !grid) return;
 
@@ -183,8 +269,10 @@ void render_board_objects(BoardData* board, Grid* grid) {
         float x = grid_to_pixel_x(grid, obj->col, obj->row);
         float y = grid_to_pixel_y(grid, obj->col, obj->row);
 
-        // Create color from RGB properties
-        Color color = (Color){obj->restitution, obj->friction, obj->point_bonus, 255};
+        // Determine color from material (issue 839)
+        // Find closest material and use its display color for visual consistency
+        int mat_index = find_closest_material(obj->restitution, obj->friction, obj->point_bonus);
+        Color color = material_get_display_color(mat_index);
 
         if (obj->type == OBJECT_PEG) {
             render_peg(x, y, 12.0f, color);
@@ -216,6 +304,29 @@ void render_board_zones(BoardData* board, Grid* grid) {
         if (zone->type == ZONE_PORTAL) {
             render_portal_zone(x, y, width, height, zone->direction, zone->channel);
         }
+    }
+}
+// }}}
+
+// {{{ render_board_rotors
+// Renders all rotors in the board (issue 901b)
+void render_board_rotors(BoardData* board, Grid* grid) {
+    if (!board || !grid) return;
+
+    for (int i = 0; i < board->rotor_count; i++) {
+        Rotor* rotor = &board->rotors[i];
+
+        // Convert grid coords to pixel coords
+        float x = grid_to_pixel_x(grid, rotor->col, rotor->row);
+        float y = grid_to_pixel_y(grid, rotor->col, rotor->row);
+
+        // Rotor radius matches peg radius for visual consistency
+        float radius = 12.0f;
+
+        // cw = 1 if rotation_speed >= 0 (positive = clockwise)
+        int cw = (rotor->rotation_speed >= 0) ? 1 : 0;
+
+        render_rotor(x, y, radius, rotor->current_angle, cw);
     }
 }
 // }}}

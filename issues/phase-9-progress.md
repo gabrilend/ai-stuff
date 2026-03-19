@@ -10,12 +10,12 @@ Dynamic systems: rotors, track movers, and analysis tools.
 |------|-------------------------------|---------------|-----------------|
 | 901  | Rotor system                  | in-progress   | -               |
 | 901a | Rotor data structure          | completed     | -               |
-| 901b | Editor rotor placement tool   | awaiting-work | 901a ✓          |
+| 901b | Editor rotor placement tool   | completed     | 901a ✓          |
 | 901c | Line rotation physics         | awaiting-work | 901a ✓          |
 | 901d | Connected object detection    | awaiting-work | 901a ✓          |
 | 901e | Collision modes               | blocked       | 901c, 901d      |
 | 901f | Ball crushing                 | blocked       | 901e, 221e      |
-| 901g | Direction config UI           | blocked       | 901b            |
+| 901g | Direction config UI           | awaiting-work | 901b ✓          |
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
 | 902b | Editor track drawing tool     | awaiting-work | 902a ✓          |
@@ -28,11 +28,19 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Progress Summary
 
-**Completed:** 3/17 issues (901a, 902a, 903)
+**Completed:** 4/17 issues (901a, 901b, 902a, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 6 (901b, 901c, 901d, 902b, 902c, 902d)
-**Blocked:** 6 (901e, 901f, 901g, 902e, 902f, 902g)
+**Awaiting work:** 6 (901c, 901d, 901g, 902b, 902c, 902d)
+**Blocked:** 5 (901e, 901f, 902e, 902f, 902g)
 **Phase status:** in-progress
+
+## Recent Completions
+
+### 901b - Editor rotor placement tool
+- Added `APP_TOOL_ROTOR` enum value and key 5 binding
+- Gear-shaped visual with rotation direction indicator
+- Placement, erasing, and board stats integration
+- Unblocked 901g (Direction config UI)
 
 ## Technical Notes
 

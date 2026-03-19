@@ -339,7 +339,7 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     };
     app->tools_panel = panel_create("Tools", tools_bounds);
     if (app->tools_panel) {
-        // Add tool buttons to panel
+        // Add tool buttons to panel (issue 901b: added rotor)
         // Button callbacks are set to NULL - we handle input via tool state
         panel_add_widget(app->tools_panel, widget_label("Placement"));
         panel_add_widget(app->tools_panel, widget_separator());
@@ -347,6 +347,7 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
         panel_add_widget(app->tools_panel, widget_button("2: Line", NULL, NULL));
         panel_add_widget(app->tools_panel, widget_button("3: Portal In", NULL, NULL));
         panel_add_widget(app->tools_panel, widget_button("4: Portal Out", NULL, NULL));
+        panel_add_widget(app->tools_panel, widget_button("5: Rotor", NULL, NULL));
         panel_add_widget(app->tools_panel, widget_separator());
         panel_add_widget(app->tools_panel, widget_label("Mode"));
         panel_add_widget(app->tools_panel, widget_separator());
@@ -710,7 +711,7 @@ static void handle_input(EditorApp* app) {
         return;  // Panel consumed the input
     }
 
-    // Tools panel input handling (issue 406)
+    // Tools panel input handling (issue 406, 901b: added rotor button)
     if (app->tools_panel) {
         Vector2 mouse = GetMousePosition();
         int pressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
@@ -718,17 +719,17 @@ static void handle_input(EditorApp* app) {
         float wheel = GetMouseWheelMove();
         if (panel_handle_input(app->tools_panel, mouse, pressed, released, wheel)) {
             // Panel consumed input - check if a tool button was clicked
-            // Buttons are at widget indices 2,3,4,5 (after label and separator)
-            // We don't use callbacks, so manually check which button is pressed
-            for (int i = 2; i <= 5; i++) {
+            // Buttons are at widget indices 2,3,4,5,6 (after label and separator)
+            // 2=PEG, 3=LINE, 4=ENTRY, 5=EXIT, 6=ROTOR
+            for (int i = 2; i <= 6; i++) {
                 Widget* w = panel_get_widget(app->tools_panel, i);
                 if (w && w->type == WIDGET_BUTTON && w->data.button.pressed) {
-                    app->tool = (EditorAppTool)(i - 2);  // 0=PEG, 1=LINE, 2=ENTRY, 3=EXIT
+                    app->tool = (EditorAppTool)(i - 2);  // 0=PEG, 1=LINE, 2=ENTRY, 3=EXIT, 4=ROTOR
                     app->line_tool.state = LINE_STATE_IDLE;
                 }
             }
-            // Check mode toggle button (index 9)
-            Widget* mode_btn = panel_get_widget(app->tools_panel, 9);
+            // Check mode toggle button (index 10 after adding rotor)
+            Widget* mode_btn = panel_get_widget(app->tools_panel, 10);
             if (mode_btn && mode_btn->type == WIDGET_BUTTON && mode_btn->data.button.pressed) {
                 app->mode = (app->mode == APP_MODE_PLACE) ? APP_MODE_ERASE : APP_MODE_PLACE;
                 app->line_tool.state = LINE_STATE_IDLE;
@@ -881,11 +882,16 @@ static void handle_tool_selection(EditorApp* app) {
         app->tool = APP_TOOL_PORTAL_EXIT;
         app->line_tool.state = LINE_STATE_IDLE;
     }
+    // Rotor tool: key 5 (issue 901b)
+    if (IsKeyPressed(KEY_FIVE)) {
+        app->tool = APP_TOOL_ROTOR;
+        app->line_tool.state = LINE_STATE_IDLE;
+    }
 }
 // }}}
 
 // {{{ handle_toolbar_click
-// Handles mouse clicks on toolbar buttons (issue 1213)
+// Handles mouse clicks on toolbar buttons (issue 1213, 901b: added rotor)
 // Returns 1 if click was consumed, 0 otherwise
 static int handle_toolbar_click(EditorApp* app) {
     if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return 0;
@@ -895,13 +901,13 @@ static int handle_toolbar_click(EditorApp* app) {
     // Button layout (must match render_toolbar)
     int btn_x = 200;
     int btn_y = 10;
-    int btn_w = 80;
+    int btn_w = 70;
     int btn_h = 30;
-    int btn_spacing = 10;
+    int btn_spacing = 8;
 
-    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT};
+    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT, APP_TOOL_ROTOR};
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         if (mouse.x >= btn_x && mouse.x < btn_x + btn_w &&
             mouse.y >= btn_y && mouse.y < btn_y + btn_h) {
             app->tool = tool_values[i];
@@ -993,6 +999,9 @@ static void update_hover(EditorApp* app) {
 }
 // }}}
 
+// Default rotor speed: 1.0 radians per second (clockwise)
+#define DEFAULT_ROTOR_SPEED 1.0f
+
 // {{{ place_object
 static void place_object(EditorApp* app) {
     if (!app->hover_valid) return;
@@ -1020,7 +1029,30 @@ static void place_object(EditorApp* app) {
                                   app->portal_channel, PORTAL_EXIT);
             app->modified = 1;
             break;
+
+        // Rotor placement (issue 901b)
+        case APP_TOOL_ROTOR:
+            board_data_add_rotor(app->board, app->hover_col, app->hover_row,
+                                 DEFAULT_ROTOR_SPEED);
+            app->modified = 1;
+            break;
     }
+}
+// }}}
+
+// {{{ erase_rotor_at
+// Removes a rotor at the given grid position (issue 901b)
+// Returns 1 if a rotor was removed, 0 otherwise
+static int erase_rotor_at(EditorApp* app, int col, int row) {
+    if (!app || !app->board) return 0;
+
+    for (int i = 0; i < app->board->rotor_count; i++) {
+        if (app->board->rotors[i].col == col && app->board->rotors[i].row == row) {
+            board_data_remove_rotor(app->board, i);
+            return 1;
+        }
+    }
+    return 0;
 }
 // }}}
 
@@ -1037,6 +1069,12 @@ static void erase_object(EditorApp* app) {
 
     // Try to remove zone at hover position
     if (board_data_remove_zone_at(app->board, app->hover_col, app->hover_row)) {
+        app->modified = 1;
+        return;
+    }
+
+    // Try to remove rotor at hover position (issue 901b)
+    if (erase_rotor_at(app, app->hover_col, app->hover_row)) {
         app->modified = 1;
     }
 }
@@ -1250,17 +1288,17 @@ static void render_toolbar(EditorApp* app) {
     // Title
     DrawText("BOARD EDITOR", 20, 15, 24, TEXT_COLOR);
 
-    // Tool buttons
+    // Tool buttons (issue 901b: added rotor tool)
     int btn_x = 200;
     int btn_y = 10;
-    int btn_w = 80;
+    int btn_w = 70;
     int btn_h = 30;
-    int btn_spacing = 10;
+    int btn_spacing = 8;
 
-    const char* tools[] = {"1:Peg", "2:Line", "3:In", "4:Out"};
-    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT};
+    const char* tools[] = {"1:Peg", "2:Line", "3:In", "4:Out", "5:Rotor"};
+    EditorAppTool tool_values[] = {APP_TOOL_PEG, APP_TOOL_LINE, APP_TOOL_PORTAL_ENTRY, APP_TOOL_PORTAL_EXIT, APP_TOOL_ROTOR};
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         Color btn_color = (app->tool == tool_values[i]) ? BUTTON_ACTIVE : BUTTON_COLOR;
         DrawRectangle(btn_x, btn_y, btn_w, btn_h, btn_color);
         DrawRectangleLines(btn_x, btn_y, btn_w, btn_h, PANEL_BORDER);
@@ -1304,9 +1342,9 @@ static void render_sidebar(EditorApp* app) {
     DrawText("Properties", x + 15, y + 15, 18, TEXT_COLOR);
     DrawLine(x + 10, y + 40, x + SIDEBAR_WIDTH - 10, y + 40, PANEL_BORDER);
 
-    // Current tool info
+    // Current tool info (issue 901b: added rotor)
     int info_y = y + 55;
-    const char* tool_names[] = {"Peg", "Line", "Portal Entry", "Portal Exit"};
+    const char* tool_names[] = {"Peg", "Line", "Portal Entry", "Portal Exit", "Rotor"};
     DrawText("Tool:", x + 15, info_y, 14, TEXT_DIM);
     DrawText(tool_names[app->tool], x + 60, info_y, 14, TEXT_COLOR);
 
@@ -1339,6 +1377,11 @@ static void render_sidebar(EditorApp* app) {
 
     info_y += 20;
     snprintf(stat_text, sizeof(stat_text), "Zones: %d", app->board ? app->board->zone_count : 0);
+    DrawText(stat_text, x + 15, info_y, 14, TEXT_COLOR);
+
+    // Rotor count (issue 901b)
+    info_y += 20;
+    snprintf(stat_text, sizeof(stat_text), "Rotors: %d", app->board ? app->board->rotor_count : 0);
     DrawText(stat_text, x + 15, info_y, 14, TEXT_COLOR);
 
     info_y += 20;
@@ -1472,10 +1515,11 @@ static void render_canvas(EditorApp* app) {
         polygon_manager_render_all(app->polygon_manager);
     }
 
-    // Board objects and zones
+    // Board objects, zones, and rotors
     if (app->board) {
         render_board_objects(app->board, &app->grid);
         render_board_zones(app->board, &app->grid);
+        render_board_rotors(app->board, &app->grid);  // Issue 901b
     }
 
     // Selection highlights (issue 1226)
@@ -1543,6 +1587,11 @@ static void render_cursor_preview(EditorApp* app) {
             render_portal_preview(x, y, w, h, dir, app->portal_channel);
             break;
         }
+
+        // Rotor preview (issue 901b)
+        case APP_TOOL_ROTOR:
+            render_rotor_preview(x, y, PEG_RADIUS);
+            break;
     }
 }
 // }}}

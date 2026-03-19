@@ -31,7 +31,8 @@ typedef enum EditorAppTool {
     APP_TOOL_PEG,          // Place pegs
     APP_TOOL_LINE,         // Draw lines
     APP_TOOL_PORTAL_ENTRY, // Place entry portals
-    APP_TOOL_PORTAL_EXIT   // Place exit portals
+    APP_TOOL_PORTAL_EXIT,  // Place exit portals
+    APP_TOOL_ROTOR         // Place rotors (issue 901b)
 } EditorAppTool;
 // }}}
 
