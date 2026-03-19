@@ -42,10 +42,12 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1313  | Standardize board dimensions       | Open      |
 | 1314  | Editor panel UI system             | Open      |
 | 1315  | Hide game UI keybind               | Open      |
+| 1316  | Minimum window width               | Open      |
+| 1317  | Collapsible drawer UI              | Open      |
 
 ## Progress Summary
 
-**Completed:** 6/31 issues (19%)
+**Completed:** 6/33 issues (18%)
 **Status:** In Progress
 
 ## Major Features
