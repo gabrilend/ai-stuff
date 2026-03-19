@@ -638,7 +638,7 @@ int main(int argc, char* argv[]) {
     printf("Ball manager created: %d capacity\n", MAX_BALLS);
 
     // Create particle system
-    ParticleSystem* particle_system = particle_system_create(256);
+    ParticleSystem* particle_system = particle_system_create(1024);
     if (!particle_system) {
         fprintf(stderr, "ERROR: Failed to create particle system\n");
         ball_manager_destroy(ball_manager);

@@ -63,3 +63,22 @@ Hard hits now deal more damage than before, but gentle bumps are harmless. Balls
 - Gravity assist (30 px/sec boost) only applies when ball speed < 500 px/sec
 - Balls on lines naturally cap at a reasonable speed
 - Fast-moving balls (from falls or bounces) don't get additional acceleration
+
+---
+
+## 2026-03-18: Ball Durability and System Capacity Increases
+
+**Rationale:** Balls were dying too quickly from accumulated collision damage, especially in crowded situations. System capacities were also too low for larger boards and intense gameplay.
+
+**Changes:**
+
+| Variable | File | Old Value | New Value |
+|----------|------|-----------|-----------|
+| BALL_MAX_HEALTH | 006-ball.h | 100.0f | 200.0f |
+| MAX_BALLS | 006-ball.h | 256 | 1024 |
+| particle capacity | 001-main.c | 256 | 1024 |
+
+**Effect:**
+- Balls now survive twice as many collisions before dying
+- System can support 4x more balls simultaneously (up to 1024)
+- Particle effects capacity increased to match ball capacity

@@ -11,7 +11,7 @@ typedef struct ThreadPool ThreadPool;
 
 // Ball constants
 #define BALL_RADIUS 8.0f
-#define MAX_BALLS 256
+#define MAX_BALLS 1024
 
 // Physics constants
 #define GRAVITY 980.0f        // Pixels per second squared
@@ -46,7 +46,7 @@ typedef struct ThreadPool ThreadPool;
 #define OWNER_ADVERSARY 1
 
 // Health system constants
-#define BALL_MAX_HEALTH 100.0f       // Starting health for all balls
+#define BALL_MAX_HEALTH 200.0f       // Starting health for all balls (doubled for durability)
 #define DAMAGE_VELOCITY_SCALE 0.15f  // Damage = relative_velocity * scale (increased to compensate for threshold)
 #define DAMAGE_SPEED_THRESHOLD 80.0f // No damage below this closing speed (gentle bumps harmless)
 
