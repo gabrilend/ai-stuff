@@ -30,19 +30,23 @@ Lines in the editor can form closed shapes (triangles, quadrilaterals, complex p
 ### Phase 1: Closed Loop Detection
 
 Lines form a graph where endpoints are nodes and lines are edges.
+Endpoints are considered connected if within proximity threshold (not exact match).
 
 ```c
+#define ENDPOINT_CONNECT_THRESHOLD 10.0f  // Pixels
+
 typedef struct LineGraph {
     // Adjacency list representation
     // Each unique endpoint maps to lines connected to it
-    Vector2* vertices;      // Unique endpoints
+    // Endpoints within threshold are merged into same vertex
+    Vector2* vertices;      // Unique endpoints (merged by proximity)
     int vertex_count;
 
     int** adjacency;        // adjacency[v] = list of line indices touching vertex v
     int* adjacency_counts;
 } LineGraph;
 
-// Build graph from board lines
+// Build graph from board lines (merges nearby endpoints)
 LineGraph* build_line_graph(BoardData* board);
 
 // Find all cycles (closed polygons) in the graph
@@ -50,11 +54,15 @@ LineGraph* build_line_graph(BoardData* board);
 Polygon* find_closed_polygons(LineGraph* graph, int* out_count);
 ```
 
+**Graph building algorithm:**
+1. Collect all line endpoints
+2. Merge endpoints within ENDPOINT_CONNECT_THRESHOLD into single vertices
+3. Build adjacency list from merged vertices
+
 **Cycle detection algorithm:**
-1. Build adjacency list from line endpoints
-2. Use DFS to find all simple cycles
-3. Filter to minimal cycles (no nested shortcuts)
-4. Order vertices clockwise/counter-clockwise
+1. Use DFS to find all simple cycles
+2. Filter to minimal cycles (no nested shortcuts)
+3. Order vertices clockwise/counter-clockwise
 
 ### Phase 2: Polygon Data Structure
 
@@ -183,10 +191,12 @@ void check_ball_polygon_collision(Ball* ball, Polygon* poly) {
 - Allow setting fill color/opacity
 - Allow toggling physics fill on/off per polygon
 
-### Line Deletion Warning
+### Line Deletion Behavior
 
-- When deleting a line that's part of a polygon, warn user
-- "This will break the closed shape. Continue?"
+- When deleting a line that's part of a polygon, delete the entire polygon
+- No warning needed - polygon simply ceases to exist
+- Remaining lines stay as individual line segments
+- User can reform polygon by reconnecting lines
 
 ## Data Storage (Board JSON)
 
@@ -256,17 +266,30 @@ Recommend Option A for determinism.
 - Ball might fully contain polygon
 - Skip physics for tiny polygons? Or eject forcefully?
 
-### Lines Not Quite Connected
-- Endpoints close but not exact (floating point)
-- Use epsilon tolerance for "connected" endpoints
-- Grid snapping in editor helps prevent this
+### Endpoint Proximity Detection
+- Endpoints do NOT need to be at exact same coordinates
+- Use proximity threshold (e.g., half grid cell or line thickness)
+- Two endpoints within threshold are considered "connected"
+- This allows freehand drawing without precise snapping
+- Grid snapping still helps but is not required
+
+```c
+#define ENDPOINT_CONNECT_THRESHOLD 10.0f  // Pixels
+
+int endpoints_connected(Vector2 a, Vector2 b) {
+    float dx = a.x - b.x;
+    float dy = a.y - b.y;
+    return (dx * dx + dy * dy) < (ENDPOINT_CONNECT_THRESHOLD * ENDPOINT_CONNECT_THRESHOLD);
+}
+```
 
 ## Troubleshooting
 
 ### "Polygon not detected"
-- Line endpoints not exactly coincident
-- Check epsilon tolerance for vertex matching
-- Verify lines actually form closed loop
+- Line endpoints too far apart (beyond ENDPOINT_CONNECT_THRESHOLD)
+- Increase threshold or move lines closer
+- Verify lines actually form closed loop (check adjacency graph)
+- Debug: render vertex merge groups to visualize connections
 
 ### "Ball phases through polygon edge"
 - Ball moving too fast (tunneling)
