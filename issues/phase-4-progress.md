@@ -2,7 +2,7 @@
 
 ## Phase Goal
 
-Display systems: viewport, window management, and UI elements.
+Display systems: viewport, window management, UI elements, and reticle.
 
 ## Issues
 
@@ -17,10 +17,13 @@ Display systems: viewport, window management, and UI elements.
 | 407 | Hide game UI keybind               | Open      |
 | 408 | Minimum window width               | Open      |
 | 409 | Collapsible drawer UI              | Open      |
+| 410 | Reticle toggle mouse control       | Complete  |
+| 411 | Player reticle display bug         | Complete  |
+| 412 | Reticle color inversion            | Complete  |
 
 ## Progress Summary
 
-**Completed:** 5/9 issues (56%)
+**Completed:** 8/12 issues (67%)
 **Status:** In Progress
 
 ## Technical Notes
@@ -34,6 +37,11 @@ Display systems: viewport, window management, and UI elements.
 
 ### Input Handling (405)
 - Escape key closes menus before exiting
+
+### Reticle (410-412)
+- Toggle-based mouse control
+- Display bug fixes
+- Color inversion for visibility
 
 ### UI Systems (406-409) [Pending]
 - Panel-based UI architecture

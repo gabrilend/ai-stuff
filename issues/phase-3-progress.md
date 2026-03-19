@@ -26,10 +26,12 @@ Scoring, particle effects, and visual feedback systems.
 | 316 | Allow multiple gate scoring        | Open      |
 | 317 | GateRow scoring never called       | Open      |
 | 318 | Grid zone dispatch system          | Open      |
+| 319 | Random ball colors                 | Open      |
+| 320 | Progress bar color flip            | Complete  |
 
 ## Progress Summary
 
-**Completed:** 15/18 issues (83%)
+**Completed:** 16/20 issues (80%)
 **Status:** In Progress
 
 ## Technical Notes
@@ -46,6 +48,10 @@ Scoring, particle effects, and visual feedback systems.
 - ParticleTaskData for per-particle updates
 - Fragment collision runs in parallel
 - Directional explosion based on impact angle
+
+### Visual Feedback (319-320)
+- Random ball color variation
+- Progress bar color handling
 
 ### Zone Dispatch (316-318) [Pending]
 - Grid-based zone type detection
