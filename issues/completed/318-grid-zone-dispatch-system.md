@@ -1,6 +1,6 @@
 # 318 - Grid-Based Zone Dispatch System
 
-## Status: awaiting-work
+## Status: completed (2026-03-19)
 
 ## Depends on
 
@@ -404,6 +404,32 @@ ZONE_GRID_MAX_ROWS=100
     // ...
 #endif
 ```
+
+## Implementation Notes (2026-03-19)
+
+### Files Created
+- `src/045-zone-dispatch.h` - DispatchZoneType enum (renamed from ZoneType to avoid conflict with board-data.h), ZoneGrid struct, function declarations
+- `src/046-zone-dispatch.c` - Zone handler implementations, dispatch table, grid functions
+
+### Files Modified
+- `src/006-ball.h` - Added `pending_score`, `score_x`, `score_y` fields to Ball struct (existing `passed_gate` serves as `has_scored`)
+- `src/007-ball.c` - Integrated zone_dispatch into ball_update_task with fallback to old system when zone_grid is NULL
+- `src/004-world.h` - Added `ZoneGrid* zone_grid` field to World struct
+- `src/005-world.c` - Initialize zone_grid to NULL in world_create
+- `src/001-main.c` - Create and destroy zone_grid, set initial gate row
+- `Makefile` - Added src/046-zone-dispatch.c to GAME_SRCS
+
+### Design Decisions
+- Enum renamed to `DispatchZoneType` with `DISPATCH_ZONE_` prefix to avoid conflict with existing `ZoneType` in `020-board-data.h`
+- Zone grid uses fixed max size (100 rows) to avoid reallocation during expansion
+- Fallback system: when zone_grid is NULL, uses existing wrap_zones_check_ball and ball_check_zone
+- Zone dispatch called after wall collisions but before portal checks
+
+### Migration Status
+- New zone_dispatch system implemented and compiles
+- Old zone checking system preserved as fallback
+- Testing needed to verify scoring works correctly
+- Old wrap_zones code NOT removed yet (retained for fallback)
 
 ## Notes
 

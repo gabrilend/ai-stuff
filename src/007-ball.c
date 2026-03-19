@@ -70,6 +70,14 @@ BallManager* ball_manager_create(int capacity) {
         manager->balls_current[i].pending_score = 0;
         manager->balls_current[i].score_x = 0.0f;
         manager->balls_current[i].score_y = 0.0f;
+        // Trajectory history (issue 222)
+        for (int j = 0; j < TRAJECTORY_HISTORY_FRAMES; j++) {
+            manager->balls_current[i].history_x[j] = 0.0f;
+            manager->balls_current[i].history_y[j] = 0.0f;
+            manager->balls_current[i].history_vx[j] = 0.0f;
+            manager->balls_current[i].history_vy[j] = 0.0f;
+        }
+        manager->balls_current[i].history_index = 0;
 
         manager->balls_next[i].active = 0;
         manager->balls_next[i].radius = BALL_RADIUS;
@@ -84,6 +92,14 @@ BallManager* ball_manager_create(int capacity) {
         manager->balls_next[i].pending_score = 0;
         manager->balls_next[i].score_x = 0.0f;
         manager->balls_next[i].score_y = 0.0f;
+        // Trajectory history (issue 222)
+        for (int j = 0; j < TRAJECTORY_HISTORY_FRAMES; j++) {
+            manager->balls_next[i].history_x[j] = 0.0f;
+            manager->balls_next[i].history_y[j] = 0.0f;
+            manager->balls_next[i].history_vx[j] = 0.0f;
+            manager->balls_next[i].history_vy[j] = 0.0f;
+        }
+        manager->balls_next[i].history_index = 0;
 
         // Initialize task data with immutable ball_index
         manager->task_data[i].ball_index = i;
@@ -170,6 +186,14 @@ int ball_manager_spawn(BallManager* manager, float x, float y, float radius,
             ball->pending_score = 0;
             ball->score_x = 0.0f;
             ball->score_y = 0.0f;
+            // Trajectory history (issue 222): initialize at spawn position
+            for (int j = 0; j < TRAJECTORY_HISTORY_FRAMES; j++) {
+                ball->history_x[j] = x;
+                ball->history_y[j] = y;
+                ball->history_vx[j] = ball->vx;
+                ball->history_vy[j] = ball->vy;
+            }
+            ball->history_index = 0;
             manager->active_count++;
             return 1;
         }
@@ -219,6 +243,14 @@ static void ball_update_physics(Ball* current, Ball* next, float dt) {
     next->is_sleeping = current->is_sleeping;
     next->frames_at_rest = current->frames_at_rest;
     next->pre_sleep_velocity = current->pre_sleep_velocity;
+    // Trajectory history (issue 222): copy history buffer
+    for (int i = 0; i < TRAJECTORY_HISTORY_FRAMES; i++) {
+        next->history_x[i] = current->history_x[i];
+        next->history_y[i] = current->history_y[i];
+        next->history_vx[i] = current->history_vx[i];
+        next->history_vy[i] = current->history_vy[i];
+    }
+    next->history_index = current->history_index;
 
     if (!current->active) return;
 
@@ -266,6 +298,59 @@ static float ball_update_sleep_tracking(Ball* ball) {
     }
 
     return speed;
+}
+// }}}
+
+// {{{ ball_record_trajectory
+// Records current ball state to trajectory history buffer (issue 222).
+// Circular buffer allows tracking past N frames of movement.
+// Called each frame after physics update.
+static void ball_record_trajectory(Ball* ball) {
+    if (!ball || !ball->active) return;
+
+    // Write current state to circular buffer
+    int idx = ball->history_index;
+    ball->history_x[idx] = ball->x;
+    ball->history_y[idx] = ball->y;
+    ball->history_vx[idx] = ball->vx;
+    ball->history_vy[idx] = ball->vy;
+
+    // Advance circular buffer index
+    ball->history_index = (ball->history_index + 1) % TRAJECTORY_HISTORY_FRAMES;
+}
+// }}}
+
+// {{{ ball_get_average_trajectory
+// Returns average velocity direction over trajectory history (issue 222).
+// Useful for determining nudge direction for overlapping slow balls.
+// Returns unit vector in average direction, or (0,0) if stationary.
+static void ball_get_average_trajectory(Ball* ball, float* out_vx, float* out_vy) {
+    if (!ball) {
+        *out_vx = 0.0f;
+        *out_vy = 0.0f;
+        return;
+    }
+
+    // Sum all velocity samples in history
+    float sum_vx = 0.0f, sum_vy = 0.0f;
+    for (int i = 0; i < TRAJECTORY_HISTORY_FRAMES; i++) {
+        sum_vx += ball->history_vx[i];
+        sum_vy += ball->history_vy[i];
+    }
+
+    float avg_vx = sum_vx / TRAJECTORY_HISTORY_FRAMES;
+    float avg_vy = sum_vy / TRAJECTORY_HISTORY_FRAMES;
+
+    // Normalize to unit vector
+    float mag = sqrtf(avg_vx * avg_vx + avg_vy * avg_vy);
+    if (mag < 0.001f) {
+        *out_vx = 0.0f;
+        *out_vy = 0.0f;
+        return;
+    }
+
+    *out_vx = avg_vx / mag;
+    *out_vy = avg_vy / mag;
 }
 // }}}
 
@@ -898,6 +983,9 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
             // Sleep system (issue 221a): update frames_at_rest tracking
             ball_update_sleep_tracking(next);
 
+            // Trajectory history (issue 222): record current state
+            ball_record_trajectory(next);
+
             // Count active balls
             if (next->active) {
                 manager->active_count++;
@@ -1067,6 +1155,9 @@ void ball_update_task(void* data) {
         // Called after all collisions resolved so velocity is final for this frame
         ball_update_sleep_tracking(next);
 
+        // Trajectory history (issue 222): record current state after collision resolution
+        ball_record_trajectory(next);
+
         // Check if ball died from cross-board collision damage
         if (next->active && next->health <= 0) {
             task->died_from_damage = 1;
@@ -1174,6 +1265,43 @@ int ball_manager_collect_scores(BallManager* manager) {
     }
 
     return total;
+}
+// }}}
+
+// {{{ ball_manager_collect_scores_split
+// Issue 609: Collect scores separated by ball owner
+void ball_manager_collect_scores_split(BallManager* manager,
+                                        int* player_points,
+                                        int* adversary_points) {
+    if (!manager) {
+        if (player_points) *player_points = 0;
+        if (adversary_points) *adversary_points = 0;
+        return;
+    }
+
+    int player_total = 0;
+    int adversary_total = 0;
+
+    for (int i = 0; i < manager->capacity; i++) {
+        int score = manager->task_data[i].score_delta;
+        if (score > 0) {
+            // Check ball owner from the current buffer (ball that scored)
+            int owner = manager->balls_current[i].owner;
+            if (owner == OWNER_PLAYER) {
+                player_total += score;
+            } else if (owner == OWNER_ADVERSARY) {
+                adversary_total += score;
+            }
+        }
+
+        // Reset scoring and death tracking fields for next frame
+        manager->task_data[i].score_delta = 0;
+        manager->task_data[i].scored = 0;
+        manager->task_data[i].died_from_damage = 0;
+    }
+
+    if (player_points) *player_points = player_total;
+    if (adversary_points) *adversary_points = adversary_total;
 }
 // }}}
 

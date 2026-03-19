@@ -1,6 +1,6 @@
 # 407 - Hide Game UI Keybind
 
-## Status: awaiting-work
+## Status: completed (2026-03-19)
 
 ## Depends on
 
@@ -50,6 +50,21 @@ if (ui_visible) {
 
 - `src/001-main.c` - Add ui_visible state and H key handling
 - Render functions for score panel and keybind reference
+
+## Implementation Notes (2026-03-19)
+
+### Changes Made
+- Added `ui_visible` state variable in main.c
+- Added H key handling to toggle ui_visible (only when upgrade menu is closed)
+- Wrapped title bar, score panel, controls panel, and status indicators in if (ui_visible) block
+- Added "H - Hide UI" to controls panel text
+- Extended controls panel height to accommodate new keybind text
+
+### Behavior
+- Press H to toggle UI visibility
+- Title bar, score panel, controls panel, status indicators all hide/show together
+- Upgrade menu overlay is NOT affected (stays visible when open)
+- State resets to visible on game restart (not saved to config)
 
 ## Notes
 

@@ -40,6 +40,12 @@ typedef struct ThreadPool ThreadPool;
 #define BLEND_THRESHOLD 5.0f            // Full standard collision above this
 #define PILE_PUSH_FACTOR 0.3f           // How fast to separate overlapping balls (0.1-0.5)
 
+// Trajectory history and overlap nudge constants (issue 222)
+// TRAJECTORY_HISTORY_FRAMES defined in 000-config.h
+#define SLOW_BALL_THRESHOLD 5.0f        // Only check balls moving slower than this
+#define OVERLAP_RADIUS_MULT 2.0f        // Check within 2x ball radius
+#define NUDGE_STRENGTH 0.5f             // How strong the nudge push is
+
 // Bumper constants (gate divider caps)
 #define BUMPER_RADIUS 10.0f       // Slightly wider than dividers
 #define BUMPER_RESTITUTION 0.15f  // Very low bounce for "donk" feel
@@ -95,6 +101,15 @@ typedef struct Ball {
     int pending_score;   // Points to award (0 if none, processed by main loop)
     float score_x;       // Position where score occurred
     float score_y;
+
+    // Trajectory history (issue 222)
+    // Circular buffer of past positions/velocities for informed physics decisions.
+    // Used for overlap nudging direction and potential sleep detection.
+    float history_x[TRAJECTORY_HISTORY_FRAMES];
+    float history_y[TRAJECTORY_HISTORY_FRAMES];
+    float history_vx[TRAJECTORY_HISTORY_FRAMES];
+    float history_vy[TRAJECTORY_HISTORY_FRAMES];
+    int history_index;  // Current write position (circular buffer)
 } Ball;
 // }}}
 
@@ -277,6 +292,19 @@ void ball_manager_finalize_update(BallManager* manager);
 // Returns:
 //   Total points scored this frame
 int ball_manager_collect_scores(BallManager* manager);
+// }}}
+
+// {{{ ball_manager_collect_scores_split
+// Collects score deltas separated by ball owner (issue 609).
+// Call after threadpool_wait_all() and before finalize_update().
+//
+// Parameters:
+//   manager: BallManager instance
+//   player_points: Output for player score (can be NULL)
+//   adversary_points: Output for adversary score (can be NULL)
+void ball_manager_collect_scores_split(BallManager* manager,
+                                        int* player_points,
+                                        int* adversary_points);
 // }}}
 
 // {{{ ball_update_task

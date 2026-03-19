@@ -817,6 +817,10 @@ int main(int argc, char* argv[]) {
     // Auto-spawn toggle state
     int auto_spawn = 0;
 
+    // UI visibility toggle (issue 407)
+    // Press H to hide/show score panel and controls panel
+    int ui_visible = 1;
+
     // Player spawner - unified spawn system (issue 1309)
     // Position controlled via mouse/keyboard, spawner handles credits and rendering
     float player_spawn_y = slot_manager_get_player_spawn_y(slot_manager);
@@ -894,6 +898,19 @@ int main(int argc, char* argv[]) {
         if (IsKeyPressed(KEY_A) && !upgrade_manager->menu_open) {
             auto_spawn = !auto_spawn;
             printf("Auto-spawn: %s\n", auto_spawn ? "ON" : "OFF");
+        }
+
+        // Handle adversary spawn toggle (P key) - issue 507
+        // When paused, adversary credits accumulate but no balls spawn
+        if (IsKeyPressed(KEY_P) && !upgrade_manager->menu_open) {
+            adversary_toggle_spawning(adversary);
+        }
+
+        // Handle UI visibility toggle (H key) - issue 407
+        // Hides score panel and controls panel for clean screenshots/recording
+        if (IsKeyPressed(KEY_H) && !upgrade_manager->menu_open) {
+            ui_visible = !ui_visible;
+            printf("UI: %s\n", ui_visible ? "visible" : "hidden");
         }
 
         // Handle upgrade menu input (returns 1 if ESC was consumed)
@@ -993,8 +1010,9 @@ int main(int argc, char* argv[]) {
 
         // Handle reset input (R key)
         if (IsKeyPressed(KEY_R)) {
-            // Reset score
+            // Reset scores (issue 609)
             world->score = 0;
+            world->adversary_score = 0;
 
             // Deactivate all balls
             for (int i = 0; i < ball_manager->capacity; i++) {
@@ -1120,11 +1138,13 @@ int main(int argc, char* argv[]) {
         particle_system_finalize_update(particle_system);
         particle_system_swap_buffers(particle_system);
 
-        // Collect scores and reset scoring fields
-        int points = ball_manager_collect_scores(ball_manager);
-        world->score += points;
+        // Collect scores separated by owner (issue 609)
+        int player_points, adversary_points;
+        ball_manager_collect_scores_split(ball_manager, &player_points, &adversary_points);
+        world->score += player_points;
+        world->adversary_score += adversary_points;
 
-        // Update high score if current score exceeds it
+        // Update high score if current player score exceeds it
         if (world->score > world->high_score) {
             world->high_score = world->score;
         }
@@ -1195,53 +1215,65 @@ int main(int argc, char* argv[]) {
         // End camera mode - UI elements below are screen-fixed
         EndMode2D();
 
-        // Draw title with semi-transparent background (fixed to screen)
-        DrawRectangle(5, 5, 360, 30, (Color){0, 0, 0, 100});
-        DrawText("Physics Simulator - Pachinko", 10, 10, 20, LIGHTGRAY);
+        // UI visibility toggle (issue 407)
+        // Press H to hide score panel and controls panel for clean screenshots
+        if (ui_visible) {
+            // Draw title with semi-transparent background (fixed to screen)
+            DrawRectangle(5, 5, 360, 30, (Color){0, 0, 0, 100});
+            DrawText("Physics Simulator - Pachinko", 10, 10, 20, LIGHTGRAY);
 
-        // Draw score panel (top-left, below title)
-        // Moved from bottom to top so gates/zones area is unobstructed
-        DrawRectangle(5, 40, 180, 115, (Color){0, 0, 0, 150});
-        char score_text[64];
-        sprintf(score_text, "Score: %d", world->score);
-        DrawText(score_text, 10, 45, 18, WHITE);
+            // Draw score panel (top-left, below title)
+            // Issue 609: Show both player and adversary scores
+            DrawRectangle(5, 40, 180, 135, (Color){0, 0, 0, 150});
+            char score_text[64];
 
-        sprintf(score_text, "High: %d", world->high_score);
-        DrawText(score_text, 10, 68, 16, GOLD);
+            // Player score in blue
+            sprintf(score_text, "YOU: %d", world->score);
+            DrawText(score_text, 10, 45, 18, SKYBLUE);
 
-        char ball_text[64];
-        sprintf(ball_text, "Balls: %d", ball_manager->active_count);
-        DrawText(ball_text, 10, 92, 16, WHITE);
+            // Adversary score in orange
+            sprintf(score_text, "THEM: %d", world->adversary_score);
+            DrawText(score_text, 10, 68, 18, ORANGE);
 
-        // Draw performance statistics
-        char perf_text[64];
-        sprintf(perf_text, "FPS: %d", GetFPS());
-        DrawText(perf_text, 10, 116, 14, LIGHTGRAY);
+            // High score
+            sprintf(score_text, "High: %d", world->high_score);
+            DrawText(score_text, 10, 91, 16, GOLD);
 
-        sprintf(perf_text, "Physics: %.2f ms", physics_ms);
-        DrawText(perf_text, 10, 134, 14, LIGHTGRAY);
+            char ball_text[64];
+            sprintf(ball_text, "Balls: %d", ball_manager->active_count);
+            DrawText(ball_text, 10, 112, 16, WHITE);
 
-        sprintf(perf_text, "Threads: %d", pool->thread_count);
-        DrawText(perf_text, 10, 152, 14, LIGHTGRAY);
+            // Draw performance statistics
+            char perf_text[64];
+            sprintf(perf_text, "FPS: %d", GetFPS());
+            DrawText(perf_text, 10, 136, 14, LIGHTGRAY);
 
-        // Draw controls panel (top-right, below title)
-        // Moved from bottom to top so gates/zones area is unobstructed
-        DrawRectangle(screen_width - 205, 40, 200, 150,
-                     (Color){0, 0, 0, 150});
-        DrawText("Controls:", screen_width - 200, 45, 16, LIGHTGRAY);
-        DrawText("CLICK - Toggle mouse aim", screen_width - 200, 65, 14, WHITE);
-        DrawText("SPACE - Spawn ball", screen_width - 200, 81, 14, WHITE);
-        DrawText("A - Toggle auto-spawn", screen_width - 200, 97, 14, WHITE);
-        DrawText("TAB - Upgrades", screen_width - 200, 113, 14, WHITE);
-        DrawText("SCROLL - Pan view", screen_width - 200, 129, 14, WHITE);
-        DrawText("R - Reset game", screen_width - 200, 145, 14, WHITE);
-        DrawText("ESC - Exit", screen_width - 200, 161, 14, WHITE);
-        // Status indicators
-        if (auto_spawn) {
-            DrawText("[AUTO-SPAWN]", screen_width - 200, 179, 12, GREEN);
-        }
-        if (mouse_controls_reticle) {
-            DrawText("[MOUSE AIM]", screen_width - 100, 179, 12, SKYBLUE);
+            sprintf(perf_text, "Physics: %.2f ms", physics_ms);
+            DrawText(perf_text, 10, 154, 14, LIGHTGRAY);
+
+            sprintf(perf_text, "Threads: %d", pool->thread_count);
+            DrawText(perf_text, 10, 172, 14, LIGHTGRAY);
+
+            // Draw controls panel (top-right, below title)
+            // Moved from bottom to top so gates/zones area is unobstructed
+            DrawRectangle(screen_width - 205, 40, 200, 160,
+                         (Color){0, 0, 0, 150});
+            DrawText("Controls:", screen_width - 200, 45, 16, LIGHTGRAY);
+            DrawText("CLICK - Toggle mouse aim", screen_width - 200, 65, 14, WHITE);
+            DrawText("SPACE - Spawn ball", screen_width - 200, 81, 14, WHITE);
+            DrawText("A - Toggle auto-spawn", screen_width - 200, 97, 14, WHITE);
+            DrawText("TAB - Upgrades", screen_width - 200, 113, 14, WHITE);
+            DrawText("SCROLL - Pan view", screen_width - 200, 129, 14, WHITE);
+            DrawText("H - Hide UI", screen_width - 200, 145, 14, WHITE);
+            DrawText("R - Reset game", screen_width - 200, 161, 14, WHITE);
+            DrawText("ESC - Exit", screen_width - 200, 177, 14, WHITE);
+            // Status indicators
+            if (auto_spawn) {
+                DrawText("[AUTO-SPAWN]", screen_width - 200, 195, 12, GREEN);
+            }
+            if (mouse_controls_reticle) {
+                DrawText("[MOUSE AIM]", screen_width - 100, 195, 12, SKYBLUE);
+            }
         }
 
         // Draw upgrade menu overlay (if open)

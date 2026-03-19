@@ -16,6 +16,9 @@ typedef struct PortalManager PortalManager;
 // Forward declaration for wrap zones (defined in 036-wrap-zones.h)
 typedef struct WrapZones WrapZones;
 
+// Forward declaration for zone dispatch grid (defined in 045-zone-dispatch.h)
+typedef struct ZoneGrid ZoneGrid;
+
 // Physics constants
 #define PEG_RADIUS 12.0f
 #define DEFAULT_PEG_ROWS 10
@@ -107,6 +110,7 @@ typedef struct World {
     Bumper* bumpers;       // Array of gate bumpers (top of zones)
     int bumper_count;      // Number of bumpers (top)
     int score;             // Current player score
+    int adversary_score;   // Current adversary score (issue 609)
     int high_score;        // Session high score
 
     // Adversary board (bottom, mirrored)
@@ -137,6 +141,10 @@ typedef struct World {
 
     // Wrap zones for ball teleportation at screen edges (NULL until created)
     WrapZones* wrap_zones;
+
+    // Zone dispatch grid for unified zone handling (issue 318)
+    // When active, replaces fragmented zone checks with grid-based dispatch
+    ZoneGrid* zone_grid;
 
     // Expansion tracking for dynamic world growth
     float total_height;        // Current total world height (updated on expansion)

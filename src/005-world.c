@@ -33,6 +33,7 @@ World* world_create(int width, int height) {
     world->bumpers = NULL;
     world->bumper_count = 0;
     world->score = 0;
+    world->adversary_score = 0;  // Issue 609: separate adversary score
     world->high_score = 0;
 
     // Adversary board
@@ -56,6 +57,10 @@ World* world_create(int width, int height) {
 
     // Portal system (NULL until portals loaded)
     world->portals = NULL;
+
+    // Wrap zones and zone dispatch (NULL until created in main.c)
+    world->wrap_zones = NULL;
+    world->zone_grid = NULL;
 
     // Expansion tracking
     world->total_height = (float)height;
