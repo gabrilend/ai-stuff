@@ -28,10 +28,16 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1306e | - Intersection path selection      | Open      |
 | 1306f | - Back-and-forth motion            | Open      |
 | 1306g | - Ball interaction and crushing    | Open      |
+| 1307  | Ball sleep system                  | Open      |
+| 1307a | - Sleep state tracking             | Open      |
+| 1307b | - Sleep transition logic           | Open      |
+| 1307c | - Wake conditions                  | Open      |
+| 1307d | - Soft collision response          | Open      |
+| 1307e | - Stress source distinction        | Open      |
 
 ## Progress Summary
 
-**Completed:** 0/18 issues (0%)
+**Completed:** 0/23 issues (0%)
 **Status:** In Progress
 
 ## Major Features
@@ -61,6 +67,17 @@ Moving platforms that travel along defined tracks:
 - Back-and-forth motion with random path selection at junctions
 - Ball pushing and crushing for clearing clogs
 - Editor tools for track drawing and mover placement
+
+### Ball Sleep System (1307)
+
+Solves pile instability where balls explode from accumulated energy:
+- Sleeping balls don't apply gravity or forces to each other
+- Sleeping balls still receive collisions (wake up when hit)
+- Soft collision response for nearly-stationary balls
+- Distinguishes static stress (ball weight) from dynamic stress (rotors/movers)
+- Only dynamic stress causes crushing
+
+**Rollback available:** If system makes things worse, use `git checkout phase12-complete-stable`
 
 ## Technical Notes
 
