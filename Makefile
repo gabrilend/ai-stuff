@@ -46,7 +46,9 @@ GAME_SRCS = src/001-main.c \
             src/039-slot-manager.c \
             src/041-spawner.c \
             src/043-polygon.c \
-            src/046-zone-dispatch.c
+            src/044-rotor.c \
+            src/046-zone-dispatch.c \
+            src/050-material.c
 
 GAME_OBJS = $(GAME_SRCS:.c=.o)
 GAME_BIN = bin/physics-sim

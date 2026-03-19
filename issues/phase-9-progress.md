@@ -11,14 +11,14 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901  | Rotor system                  | in-progress   | -               |
 | 901a | Rotor data structure          | completed     | -               |
 | 901b | Editor rotor placement tool   | completed     | 901a ✓          |
-| 901c | Line rotation physics         | awaiting-work | 901a ✓          |
+| 901c | Line rotation physics         | completed     | 901a ✓          |
 | 901d | Connected object detection    | awaiting-work | 901a ✓          |
-| 901e | Collision modes               | blocked       | 901c, 901d      |
+| 901e | Collision modes               | awaiting-work | 901c ✓, 901d    |
 | 901f | Ball crushing                 | blocked       | 901e, 221e      |
 | 901g | Direction config UI           | awaiting-work | 901b ✓          |
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
-| 902b | Editor track drawing tool     | awaiting-work | 902a ✓          |
+| 902b | Editor track drawing tool     | completed     | 902a ✓          |
 | 902c | Mover payload detection       | awaiting-work | 902a ✓          |
 | 902d | Track following physics       | awaiting-work | 902a ✓          |
 | 902e | Intersection path selection   | blocked       | 902d            |
@@ -28,13 +28,30 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Progress Summary
 
-**Completed:** 4/17 issues (901a, 901b, 902a, 903)
+**Completed:** 6/17 issues (901a, 901b, 901c, 902a, 902b, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 6 (901c, 901d, 901g, 902b, 902c, 902d)
-**Blocked:** 5 (901e, 901f, 902e, 902f, 902g)
+**Awaiting work:** 5 (901d, 901e, 901g, 902c, 902d)
+**Blocked:** 4 (901f, 902e, 902f, 902g)
 **Phase status:** in-progress
 
 ## Recent Completions
+
+### 901c - Line rotation physics
+- Created `src/044-rotor.h` and `src/044-rotor.c` - rotor physics module
+- `RotorPhysics` struct stores runtime state: center, angle, connected objects
+- `RotorManager` provides update/query interface for all rotors
+- Added `RotorManager*` fields to World structure
+- Integrated `rotor_manager_update()` in main loop before ball physics
+- Connected lines and pegs rotate around rotor centers
+- Unblocked 901e (Collision modes)
+
+### 902b - Editor track drawing tool
+- Added `APP_TOOL_TRACK` enum value and key 6 binding
+- Cyan track segments with endpoint circle markers (3px line, 4px radius circles)
+- Two-click placement like line tool, right-click to cancel
+- Rendering functions in 035-object-render.c
+- Tracks render distinctly from collision lines (cyan vs orange)
+- Also fixed bug in 044-rotor.c (wrong struct member names)
 
 ### 901b - Editor rotor placement tool
 - Added `APP_TOOL_ROTOR` enum value and key 5 binding

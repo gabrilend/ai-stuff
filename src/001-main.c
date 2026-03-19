@@ -28,6 +28,7 @@
 #include "045-zone-dispatch.h"
 #include "050-material.h"  // Issue 610: material-based coloring
 #include "042-polygon.h"   // Issue 837: closed polygon collision
+#include "044-rotor.h"     // Issue 901c: rotor physics system
 
 // Visual constants - Color palette for cohesive visual design
 #define BG_COLOR (Color){30, 30, 40, 255}          // Dark blue-gray background
@@ -604,6 +605,16 @@ int main(int argc, char* argv[]) {
     }
     printf("Applied board: %d pegs\n", world->peg_count);
 
+    // Create rotor manager for physics (issue 901c)
+    // Must be created after apply_initial_board_data sets up lines/pegs
+    world->rotor_manager = rotor_manager_create(world);
+    if (world->rotor_manager && initial_board->rotor_count > 0) {
+        int rotors_added = rotor_manager_add_from_board(
+            world->rotor_manager, initial_board,
+            world->table_x, peg_start_y, (float)initial_board->cell_size);
+        printf("Rotor manager: %d rotors loaded\n", rotors_added);
+    }
+
     // Generate score zones (7 zones spanning table width)
     world_generate_zones(world, 7, zone_height);
     printf("Generated score zones: 7 zones\n");
@@ -1079,6 +1090,15 @@ int main(int argc, char* argv[]) {
             goto skip_physics;
         }
 
+        // Update rotor physics before ball collision (issue 901c)
+        // Rotates connected lines and pegs to new positions
+        if (world->rotor_manager) {
+            rotor_manager_update(world->rotor_manager, dt);
+        }
+        if (world->adversary_rotor_manager) {
+            rotor_manager_update(world->adversary_rotor_manager, dt);
+        }
+
         // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → spawn particles → collect scores → finalize → swap
         double physics_start = GetTime();
@@ -1378,6 +1398,17 @@ int main(int argc, char* argv[]) {
 
     slot_manager_destroy(slot_manager);
     printf("Slot manager destroyed\n");
+
+    // Rotor managers must be destroyed before world (issue 901c)
+    // They hold references to world's line/peg arrays
+    if (world->rotor_manager) {
+        rotor_manager_destroy(world->rotor_manager);
+        printf("Rotor manager destroyed\n");
+    }
+    if (world->adversary_rotor_manager) {
+        rotor_manager_destroy(world->adversary_rotor_manager);
+        printf("Adversary rotor manager destroyed\n");
+    }
 
     world_destroy(world);
     printf("World destroyed\n");
