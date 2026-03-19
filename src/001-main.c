@@ -53,7 +53,8 @@ typedef struct StagePurchaseContext {
 // {{{ apply_board_data_to_stage
 // Applies BoardData objects to a Stage.
 // Converts grid-based objects to stage-relative positions.
-static void apply_board_data_to_stage(BoardData* data, Stage* stage) {
+// If flip_vertical is true, mirrors over X-axis for adversary stages (issue 1304).
+static void apply_board_data_to_stage(BoardData* data, Stage* stage, int flip_vertical) {
     if (!data || !stage) return;
 
     // Create grid for coordinate conversion
@@ -80,8 +81,10 @@ static void apply_board_data_to_stage(BoardData* data, Stage* stage) {
                 if (obj->type != OBJECT_PEG) continue;
 
                 Peg* peg = &stage->pegs[stage->peg_count];
-                peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
-                peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
+                // Flip row for adversary stages (issue 1304)
+                int row = flip_vertical ? (data->grid_rows - obj->row) : obj->row;
+                peg->x = grid_to_pixel_x(&grid, obj->col, row);
+                peg->y = grid_to_pixel_y(&grid, obj->col, row);
                 peg->radius = PEG_RADIUS;
                 peg->restitution = property_to_float(obj->restitution);
                 peg->friction = property_to_float(obj->friction);
@@ -103,10 +106,13 @@ static void apply_board_data_to_stage(BoardData* data, Stage* stage) {
                 BoardObject* obj = &data->objects[i];
                 if (obj->type != OBJECT_LINE) continue;
 
-                float x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
-                float y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
-                float x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
-                float y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+                // Flip rows for adversary stages (issue 1304)
+                int row1 = flip_vertical ? (data->grid_rows - obj->row) : obj->row;
+                int row2 = flip_vertical ? (data->grid_rows - obj->end_row) : obj->end_row;
+                float x1 = grid_to_pixel_x(&grid, obj->col, row1);
+                float y1 = grid_to_pixel_y(&grid, obj->col, row1);
+                float x2 = grid_to_pixel_x(&grid, obj->end_col, row2);
+                float y2 = grid_to_pixel_y(&grid, obj->end_col, row2);
 
                 // Create ramp from line endpoints
                 stage->ramps[stage->ramp_count] = ramp_create_line(
@@ -292,8 +298,11 @@ static int apply_adversary_board_data(BoardData* data, World* world,
             if (obj->type != OBJECT_PEG) continue;
 
             Peg* peg = &world->adversary_pegs[peg_idx];
-            peg->x = grid_to_pixel_x(&grid, obj->col, obj->row);
-            peg->y = grid_to_pixel_y(&grid, obj->col, obj->row);
+            // Flip vertically (X-axis mirror): row → (grid_rows - row)
+            // This creates "opponent facing you" layout (issue 1302)
+            int flipped_row = data->grid_rows - obj->row;
+            peg->x = grid_to_pixel_x(&grid, obj->col, flipped_row);
+            peg->y = grid_to_pixel_y(&grid, obj->col, flipped_row);
             peg->radius = PEG_RADIUS;
             peg->restitution = property_to_float(obj->restitution);
             peg->friction = property_to_float(obj->friction);
@@ -333,10 +342,14 @@ static int apply_adversary_board_data(BoardData* data, World* world,
                 if (obj->type != OBJECT_LINE) continue;
 
                 Line* line = &world->adversary_lines[line_idx];
-                line->x1 = grid_to_pixel_x(&grid, obj->col, obj->row);
-                line->y1 = grid_to_pixel_y(&grid, obj->col, obj->row);
-                line->x2 = grid_to_pixel_x(&grid, obj->end_col, obj->end_row);
-                line->y2 = grid_to_pixel_y(&grid, obj->end_col, obj->end_row);
+                // Flip vertically (X-axis mirror): row → (grid_rows - row)
+                // Both endpoints need flipping (issue 1302)
+                int flipped_row1 = data->grid_rows - obj->row;
+                int flipped_row2 = data->grid_rows - obj->end_row;
+                line->x1 = grid_to_pixel_x(&grid, obj->col, flipped_row1);
+                line->y1 = grid_to_pixel_y(&grid, obj->col, flipped_row1);
+                line->x2 = grid_to_pixel_x(&grid, obj->end_col, flipped_row2);
+                line->y2 = grid_to_pixel_y(&grid, obj->end_col, flipped_row2);
                 line->thickness = obj->thickness;
                 line->restitution = property_to_float(obj->restitution);
                 line->friction = property_to_float(obj->friction);
@@ -418,7 +431,7 @@ static void on_stage_purchased(void* user_data) {
     if (player_idx >= 0) {
         Stage* player_stage = &world->stages->player_stages[player_idx];
         if (use_custom_stage) {
-            apply_board_data_to_stage(stage_data, player_stage);
+            apply_board_data_to_stage(stage_data, player_stage, 0);  // No flip
         } else {
             stage_generate_ramps_stage2(player_stage);
         }
@@ -432,9 +445,8 @@ static void on_stage_purchased(void* user_data) {
     if (adv_idx >= 0) {
         Stage* adv_stage = &world->stages->adversary_stages[adv_idx];
         if (use_custom_stage) {
-            // For adversary, apply same data but mirrored vertically
-            // (simplified: just use same layout for now)
-            apply_board_data_to_stage(stage_data, adv_stage);
+            // Flip vertically for adversary (issue 1304)
+            apply_board_data_to_stage(stage_data, adv_stage, 1);
         } else {
             stage_generate_ramps_stage2_mirrored(adv_stage);
         }
@@ -1088,6 +1100,7 @@ int main(int argc, char* argv[]) {
             ball_manager_spawn(ball_manager, spawn_x, spawn_y, ball_radius,
                              OWNER_PLAYER, 1.0f);  // Player ball, gravity down
             ball_manager_reset_cooldown(ball_manager);
+            ball_manager->spawn_count++;  // Track total spawns for color phase (issue 1303)
         }
 
     skip_physics:  // Label for expansion animation physics skip
@@ -1130,12 +1143,11 @@ int main(int argc, char* argv[]) {
 
         // Draw cooldown indicator (ring around spawn point)
         // Uses spawn_credits fractional part for continuous progress
-        // Colors invert on each spawn for visual continuity (issue 1119)
-        // - Odd phases: dim background, bright progress (fills up)
-        // - Even phases: bright background, dim progress (appears to empty)
-        int spawn_phase = (int)ball_manager->spawn_credits;
-        int inverted = spawn_phase % 2;
-        float credits_frac = ball_manager->spawn_credits - spawn_phase;
+        // Colors invert on each spawn for visual continuity (issue 1303)
+        // - Odd spawn count: dim background, bright progress (fills up)
+        // - Even spawn count: bright background, dim progress (appears to empty)
+        int inverted = ball_manager->spawn_count % 2;
+        float credits_frac = ball_manager->spawn_credits - (int)ball_manager->spawn_credits;
 
         // Define color palette for player reticle
         Color dim_cyan = (Color){60, 80, 100, 150};

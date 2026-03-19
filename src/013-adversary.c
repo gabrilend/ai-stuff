@@ -28,6 +28,7 @@ Adversary* adversary_create(World* world) {
     adversary->spawn_credits = 0.0f;    // Start with no credits
     adversary->spawn_rate = ADVERSARY_SPAWN_RATE;
     adversary->move_speed = ADVERSARY_MOVE_SPEED;
+    adversary->spawn_count = 0;         // Track spawns for color phase (issue 1303)
 
     return adversary;
 }
@@ -97,6 +98,7 @@ void adversary_update(Adversary* adversary, World* world,
             ball_manager_spawn(ball_manager, adversary->spawn_x, adversary->spawn_y,
                              BALL_RADIUS, OWNER_ADVERSARY, -1.0f);
             adversary->spawn_credits -= 1.0f;
+            adversary->spawn_count++;  // Track for color phase (issue 1303)
         }
     }
 }
@@ -115,12 +117,11 @@ void adversary_render(Adversary* adversary) {
 
     // Draw cooldown indicator
     // Uses spawn_credits fractional part for continuous progress
-    // Colors invert on each spawn for visual continuity (issue 1119)
-    // - Odd phases: dim background, bright progress (fills up)
-    // - Even phases: bright background, dim progress (appears to empty)
-    int spawn_phase = (int)adversary->spawn_credits;
-    int inverted = spawn_phase % 2;
-    float credits_frac = adversary->spawn_credits - spawn_phase;
+    // Colors invert on each spawn for visual continuity (issue 1303)
+    // - Odd spawn count: dim background, bright progress (fills up)
+    // - Even spawn count: bright background, dim progress (appears to empty)
+    int inverted = adversary->spawn_count % 2;
+    float credits_frac = adversary->spawn_credits - (int)adversary->spawn_credits;
 
     // Define color palette for adversary reticle (red scheme)
     Color dim_red = (Color){80, 60, 60, 150};

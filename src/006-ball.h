@@ -111,7 +111,15 @@ typedef struct BallManager {
     int active_count;        // Number of currently active balls
     float spawn_cooldown;    // Visual indicator timing (legacy)
     float spawn_credits;     // Accumulated spawn credits (1.0 = can spawn)
+    int spawn_count;         // Total spawns for progress bar color phase (issue 1303)
     BallTaskData* task_data; // Pre-allocated task data for parallel processing
+
+    // Ball colors (issue 1301 - random complementary colors)
+    // Note: Color is a raylib type, included transitively via world.h
+    unsigned char player_color[4];      // Player ball base color (RGBA)
+    unsigned char player_highlight[4];  // Player ball highlight color
+    unsigned char adversary_color[4];   // Adversary ball base color
+    unsigned char adversary_highlight[4]; // Adversary ball highlight color
 } BallManager;
 // }}}
 

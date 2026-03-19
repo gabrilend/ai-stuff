@@ -24,6 +24,7 @@ typedef struct Adversary {
     float spawn_credits;     // Accumulated spawn credits
     float spawn_rate;        // Balls per second
     float move_speed;        // Reticle movement speed
+    int spawn_count;         // Total spawns for progress bar color (issue 1303)
 } Adversary;
 // }}}
 

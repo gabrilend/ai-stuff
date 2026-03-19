@@ -27,6 +27,7 @@ BallManager* ball_manager_create(int capacity) {
     manager->active_count = 0;
     manager->spawn_cooldown = 0.0f;
     manager->spawn_credits = 1.0f;  // Start with one credit (ready to spawn)
+    manager->spawn_count = 0;       // Total spawns for progress bar color (issue 1303)
 
     // Allocate current buffer
     manager->balls_current = (Ball*)calloc(capacity, sizeof(Ball));
@@ -71,6 +72,29 @@ BallManager* ball_manager_create(int capacity) {
         // Initialize task data with immutable ball_index
         manager->task_data[i].ball_index = i;
     }
+
+    // Initialize random ball colors (issue 1301)
+    // Generate random hue for player, complementary hue for adversary
+    float player_hue = (float)(rand() % 360);
+    float adversary_hue = fmodf(player_hue + 180.0f, 360.0f);
+
+    // Player colors: random hue, high saturation, good brightness
+    Color pc = ColorFromHSV(player_hue, 0.8f, 0.95f);
+    Color ph = ColorFromHSV(player_hue, 0.4f, 1.0f);  // Lighter highlight
+
+    // Adversary colors: complementary hue
+    Color ac = ColorFromHSV(adversary_hue, 0.8f, 0.95f);
+    Color ah = ColorFromHSV(adversary_hue, 0.4f, 1.0f);  // Lighter highlight
+
+    // Store colors as RGBA byte arrays
+    manager->player_color[0] = pc.r; manager->player_color[1] = pc.g;
+    manager->player_color[2] = pc.b; manager->player_color[3] = pc.a;
+    manager->player_highlight[0] = ph.r; manager->player_highlight[1] = ph.g;
+    manager->player_highlight[2] = ph.b; manager->player_highlight[3] = ph.a;
+    manager->adversary_color[0] = ac.r; manager->adversary_color[1] = ac.g;
+    manager->adversary_color[2] = ac.b; manager->adversary_color[3] = ac.a;
+    manager->adversary_highlight[0] = ah.r; manager->adversary_highlight[1] = ah.g;
+    manager->adversary_highlight[2] = ah.b; manager->adversary_highlight[3] = ah.a;
 
     return manager;
 }
@@ -777,11 +801,15 @@ void ball_manager_update(BallManager* manager, World* world, float dt) {
 void ball_manager_render(BallManager* manager) {
     if (!manager) return;
 
-    // Color palettes for player and adversary balls
-    Color player_color = (Color){255, 180, 50, 255};        // Warm orange
-    Color player_highlight = (Color){255, 220, 150, 255};   // Lighter highlight
-    Color adversary_color = (Color){255, 80, 80, 255};      // Red
-    Color adversary_highlight = (Color){255, 150, 150, 255}; // Light red
+    // Unpack stored colors (issue 1301 - random complementary colors)
+    Color player_color = {manager->player_color[0], manager->player_color[1],
+                          manager->player_color[2], manager->player_color[3]};
+    Color player_highlight = {manager->player_highlight[0], manager->player_highlight[1],
+                              manager->player_highlight[2], manager->player_highlight[3]};
+    Color adversary_color = {manager->adversary_color[0], manager->adversary_color[1],
+                             manager->adversary_color[2], manager->adversary_color[3]};
+    Color adversary_highlight = {manager->adversary_highlight[0], manager->adversary_highlight[1],
+                                 manager->adversary_highlight[2], manager->adversary_highlight[3]};
 
     for (int i = 0; i < manager->capacity; i++) {
         Ball* ball = &manager->balls_current[i];
