@@ -1,8 +1,10 @@
 # 838 - Standardize Board Dimensions
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - cleanup/refactor task.
 
 ## Problem
 
@@ -27,7 +29,7 @@ Source code defines the same values:
 - `src/022-grid.h`: DEFAULT_GRID_CELL_SIZE, DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS
 - `src/038-slot-manager.h`: SLOT_BOARD_HEIGHT
 
-When dimensions change (as in issue 1308), every board file must be manually updated.
+When dimensions change (as in issue 711), every board file must be manually updated.
 
 ## Intended Behavior
 

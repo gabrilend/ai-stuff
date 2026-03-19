@@ -1,8 +1,10 @@
 # 407 - Hide Game UI Keybind
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - simple toggle feature.
 
 ## Problem
 

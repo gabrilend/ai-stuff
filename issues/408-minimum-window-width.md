@@ -1,8 +1,14 @@
 # 408 - Minimum Window Width Constraint
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - can be implemented independently.
+
+## Dependents
+
+- 409 (Collapsible drawer) depends on this for window handling
 
 ## Problem
 

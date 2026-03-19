@@ -1,8 +1,15 @@
 # 316 - Allow Multiple Gate Scoring
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - self-contained feature change.
+
+## Related Issues
+
+- 317 (GateRow scoring bug) - related scoring behavior
+- 318 (Zone dispatch) - would provide cleaner solution for this
 
 ## Problem
 

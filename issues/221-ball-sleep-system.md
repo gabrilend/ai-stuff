@@ -1,6 +1,10 @@
 # 221 - Ball Sleep System and Pile Stability
 
-## Status: Open
+## Status: awaiting-work
+
+## Depends on
+
+None - this is a foundational physics feature.
 
 ## Problem
 
@@ -29,13 +33,13 @@ When balls collect in a V-shaped bucket or pile up, they experience instability:
 
 ## Sub-Issues
 
-| ID    | Description                           | Status |
-|-------|---------------------------------------|--------|
-| 221a | Ball sleep state tracking             | Open   |
-| 221b | Sleep transition logic                | Open   |
-| 221c | Wake conditions                       | Open   |
-| 221d | Soft collision response for piles     | Open   |
-| 221e | Stress source distinction             | Open   |
+| ID   | Description                       | Status        | Depends on |
+|------|-----------------------------------|---------------|------------|
+| 221a | Ball sleep state tracking         | awaiting-work | -          |
+| 221b | Sleep transition logic            | blocked       | 221a       |
+| 221c | Wake conditions                   | blocked       | 221a       |
+| 221d | Soft collision response for piles | awaiting-work | -          |
+| 221e | Stress source distinction         | blocked       | 221d       |
 
 ## Rollback Plan
 
@@ -120,6 +124,11 @@ SLEEPING → wake_condition → AWAKE
 
 ## Notes
 
-- This is foundational for 1305f/1306g (crushing) - only dynamic stress crushes
+- This is foundational for 901f/902g (crushing) - only dynamic stress crushes
 - May want visual indicator for sleeping balls (subtle glow dim?)
 - Consider sound design - sleeping pile is quiet, wake is soft rustle
+
+## Dependents
+
+- 901f (Ball crushing) depends on 221e
+- 902g (Track ball interaction) depends on 221e

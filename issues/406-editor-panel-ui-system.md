@@ -1,8 +1,14 @@
 # 406 - Editor Panel UI System
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - foundational UI infrastructure.
+
+## Dependents
+
+- 409 (Collapsible drawer) depends on this for panel system
 
 ## Problem
 

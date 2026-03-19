@@ -1,8 +1,16 @@
 # 317 - GateRow Scoring Never Called
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - bug fix.
+
+## Related Issues
+
+- 316 (Multiple gate scoring) - related scoring behavior
+- 318 (Zone dispatch) - would solve this more comprehensively
+- 903 (Velocity statistics) - may help diagnose tunneling
 
 ## Problem
 
@@ -156,9 +164,9 @@ int check_all_zones(Ball* ball, World* world) {
 
 ## Related Issues
 
-- **Issue 1322** (Ball Velocity Statistics): May also be related - tunneling through zones
-- **Issue 1321** (Multiple Gate Scoring): Scoring flag reset behavior
+- **903** (Ball Velocity Statistics): May help diagnose tunneling through zones
+- **316** (Multiple Gate Scoring): Scoring flag reset behavior
 
 ## Discovery Context
 
-Found during investigation of "balls passing through gates without triggering ring particle effect". Initial hypothesis was tunneling (issue 1322), but analysis revealed this architectural issue with GateRow zones never being checked.
+Found during investigation of "balls passing through gates without triggering ring particle effect". Initial hypothesis was tunneling (issue 903 may help diagnose), but analysis revealed this architectural issue with GateRow zones never being checked.

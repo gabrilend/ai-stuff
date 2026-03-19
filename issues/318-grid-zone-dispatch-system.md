@@ -1,15 +1,27 @@
 # 318 - Grid-Based Zone Dispatch System
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - architectural refactor that can be implemented independently.
+
+## Solves
+
+- 316 (Allow multiple gate scoring) - has_scored reset in background zones
+- 317 (GateRow scoring never called) - unified dispatch handles all zones
+
+## Future Extensions
+
+- 901 (Rotor system) - can add ZONE_ROTOR type
+- 902 (Track mover system) - can add ZONE_MOVER type
 
 ## Problem
 
 Zone handling is fragmented across multiple systems:
 - `ball_check_zone()` checks `world->zones` for scoring
 - `wrap_zones_check_ball()` checks wrap zones for teleportation
-- `stage_manager_check_ball_score()` exists but is never called (issue 1323)
+- `stage_manager_check_ball_score()` exists but is never called (issue 317)
 - Future zones (portals, rotors) would add more if-check branches
 
 This leads to bugs (GateRow scoring never triggered) and performance issues (multiple zone checks per ball per frame).
@@ -299,7 +311,7 @@ void zone_grid_expand(ZoneGrid* grid, int new_rows_above, int new_rows_below) {
 typedef struct Ball {
     // ... existing fields ...
 
-    // Zone dispatch fields (issue 1324)
+    // Zone dispatch fields (issue 318)
     int has_scored;      // 1 if scored at current gate, 0 otherwise
     int pending_score;   // Points to award (processed by main loop)
     float score_x;       // Position where score occurred
@@ -311,7 +323,7 @@ typedef struct Ball {
 
 Add to config.txt:
 ```
-# Zone dispatch (issue 1324)
+# Zone dispatch (issue 318)
 ZONE_GRID_MAX_ROWS=100
 ```
 
@@ -366,15 +378,15 @@ ZONE_GRID_MAX_ROWS=100
 - [ ] Wrap zones reset has_scored
 - [ ] Particles spawn at correct positions
 - [ ] Expansion updates zone grid correctly
-- [ ] No scoring at GateRow positions (issue 1323 resolved)
+- [ ] No scoring at GateRow positions (issue 317 resolved)
 
 ## Related Issues
 
-- **1323** (GateRow scoring never called): Solved by unified dispatch
-- **1321** (Allow multiple gate scoring): Solved by has_scored reset in background
-- **1322** (Ball velocity statistics): Could add zone entry speed tracking
-- **1306** (Track mover system): Could add ZONE_MOVER type
-- **1305** (Rotor system): Could add ZONE_ROTOR type
+- **317** (GateRow scoring never called): Solved by unified dispatch
+- **316** (Allow multiple gate scoring): Solved by has_scored reset in background
+- **903** (Ball velocity statistics): Could add zone entry speed tracking
+- **902** (Track mover system): Could add ZONE_MOVER type
+- **901** (Rotor system): Could add ZONE_ROTOR type
 
 ## Migration Strategy
 

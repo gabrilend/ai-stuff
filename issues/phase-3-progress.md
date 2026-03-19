@@ -62,5 +62,6 @@ Scoring, particle effects, and visual feedback systems.
 
 ## Issue-Level Dependencies
 
-- 316, 317, 318 are independent and can be worked on in parallel
-- 319 (random ball colors) may benefit from 318 (zone dispatch) for particle color integration
+- 316, 317, 318 are independent - can be worked on in parallel
+- 318 (zone dispatch) would solve both 316 and 317 more comprehensively
+- 319 (random ball colors) may benefit from 318 for particle color integration

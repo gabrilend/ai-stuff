@@ -1,6 +1,10 @@
 # 221d - Soft Collision Response for Piles
 
-## Status: Open
+## Status: awaiting-work
+
+## Depends on
+
+None - can be implemented independently. Works best in conjunction with 221a-c but is not blocked by them.
 
 ## Parent Issue: 221 - Ball Sleep System
 

@@ -1,6 +1,10 @@
 # 221a - Ball Sleep State Tracking
 
-## Status: Open
+## Status: awaiting-work
+
+## Depends on
+
+None - this is the foundational sub-issue.
 
 ## Parent Issue: 221 - Ball Sleep System
 
@@ -16,7 +20,7 @@ Need to track whether each ball is sleeping (at rest) or awake (active physics).
 typedef struct Ball {
     // ... existing fields ...
 
-    // Sleep system (issue 1307)
+    // Sleep system (issue 221)
     int is_sleeping;              // 1 = sleeping, 0 = awake
     int frames_at_rest;           // Consecutive frames below velocity threshold
     float pre_sleep_velocity;     // Velocity when sleep started (for debugging)

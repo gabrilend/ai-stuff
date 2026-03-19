@@ -1,8 +1,14 @@
 # 837 - Closed Polygon Detection and Fill
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - can be implemented independently.
+
+## Related Issues
+
+- 839 (Material type selector) - provides material system for polygon edges
 
 ## Problem
 

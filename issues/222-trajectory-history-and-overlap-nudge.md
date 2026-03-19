@@ -1,8 +1,16 @@
 # 222 - Trajectory History and Overlap Nudge
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - independent feature. Can be implemented in parallel with 221.
+
+## Related Issues
+
+- 221d (Soft collision) - complementary approaches to pile stability
+- 221a (Sleep state) - trajectory useful for sleep detection
+- 112 (Compile time config) - uses config.txt for constants
 
 ## Problem
 
@@ -37,7 +45,7 @@ TRAJECTORY_HISTORY_FRAMES=4
 typedef struct Ball {
     // ... existing fields ...
 
-    // Trajectory history (issue 1311)
+    // Trajectory history (issue 222)
     // Circular buffer of past positions/velocities
     float history_x[TRAJECTORY_HISTORY_FRAMES];
     float history_y[TRAJECTORY_HISTORY_FRAMES];
@@ -192,7 +200,7 @@ void check_and_nudge_pair(Ball* a, Ball* b) {
 
 ## Config Values
 
-Add to config.txt (issue 1310):
+Add to config.txt (issue 112):
 ```
 TRAJECTORY_HISTORY_FRAMES=4
 SLOW_BALL_THRESHOLD=5
@@ -231,9 +239,9 @@ NUDGE_STRENGTH=0.5
 
 ## Relationship to Other Issues
 
-- **1307d (Soft Collision)**: Complementary - this handles slow ball overlap, 1307d handles collision response
-- **1307a (Sleep State)**: Trajectory history useful for sleep detection (stationary for N frames)
-- **1307e (Stress Distinction)**: Trajectory can help identify dynamic vs static pressure
+- **221d (Soft Collision)**: Complementary - this handles slow ball overlap, 221d handles collision response
+- **221a (Sleep State)**: Trajectory history useful for sleep detection (stationary for N frames)
+- **221e (Stress Distinction)**: Trajectory can help identify dynamic vs static pressure
 
 ## Troubleshooting
 

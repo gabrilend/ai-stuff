@@ -1,8 +1,15 @@
 # 903 - Ball Velocity Statistics
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - debugging/diagnostic tool.
+
+## Related Issues
+
+- 222 (Trajectory history) - can leverage trajectory data for statistics
+- 317 (GateRow scoring) - may help diagnose tunneling issues
 
 ## Problem
 
@@ -194,12 +201,12 @@ void ball_update_with_substeps(Ball* ball, float dt) {
 - `src/007-ball.c` - Add stats recording in update
 - `src/001-main.c` - Add debug overlay rendering
 
-## Relationship to Issue 1311
+## Relationship to Issue 222
 
-Issue 1311 (Trajectory History) stores per-ball position/velocity history in a circular buffer. This system can be leveraged for velocity statistics:
+Issue 222 (Trajectory History) stores per-ball position/velocity history in a circular buffer. This system can be leveraged for velocity statistics:
 
 ```c
-// In ball_record_trajectory (issue 1311), also update velocity stats
+// In ball_record_trajectory (issue 222), also update velocity stats
 void ball_record_trajectory(Ball* ball) {
     // Existing trajectory recording...
     ball->history_x[ball->history_index] = ball->x;
@@ -207,7 +214,7 @@ void ball_record_trajectory(Ball* ball) {
     ball->history_vx[ball->history_index] = ball->vx;
     ball->history_vy[ball->history_index] = ball->vy;
 
-    // Velocity statistics (issue 1322)
+    // Velocity statistics (issue 903)
     float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
     record_velocity_stats_for_ball(ball, speed);
 
@@ -256,4 +263,4 @@ Balls that have accumulated significant downward velocity (from long falls or mu
 - Collect data first, then decide on solution
 - Per-ball tracking could help identify specific problematic scenarios
 - Frame rate drops could temporarily increase tunneling risk
-- Integration with issue 1311 reduces redundant per-ball tracking code
+- Integration with issue 222 reduces redundant per-ball tracking code

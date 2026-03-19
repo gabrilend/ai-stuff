@@ -1,6 +1,10 @@
 # 221c - Wake Conditions
 
-## Status: Open
+## Status: blocked
+
+## Depends on
+
+- 221a (Sleep state tracking) - needs is_sleeping field to check and modify
 
 ## Parent Issue: 221 - Ball Sleep System
 

@@ -1,6 +1,10 @@
 # 221b - Sleep Transition Logic
 
-## Status: Open
+## Status: blocked
+
+## Depends on
+
+- 221a (Sleep state tracking) - needs is_sleeping and frames_at_rest fields
 
 ## Parent Issue: 221 - Ball Sleep System
 
@@ -125,7 +129,7 @@ void game_update() {
 ### "Pile still unstable before sleeping"
 - Sleep delay may be too long
 - Balls explode before reaching sleep threshold
-- Need soft collision (1307d) to stabilize pre-sleep
+- Need soft collision (221d) to stabilize pre-sleep
 
 ## Notes
 

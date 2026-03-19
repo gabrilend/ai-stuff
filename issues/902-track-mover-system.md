@@ -1,6 +1,22 @@
 # 902 - Track Mover System
 
-## Status: Open
+## Status: awaiting-work
+
+## Depends on
+
+None - can be implemented independently.
+
+## Sub-Issue Dependencies
+
+| ID   | Status        | Depends on      |
+|------|---------------|-----------------|
+| 902a | awaiting-work | -               |
+| 902b | blocked       | 902a            |
+| 902c | blocked       | 902a            |
+| 902d | blocked       | 902a            |
+| 902e | blocked       | 902d            |
+| 902f | blocked       | 902d            |
+| 902g | blocked       | 902d, 221e      |
 
 ## Problem
 
@@ -65,9 +81,10 @@ At intersection:
 - `src/0XX-track.h/c` - New track system
 - `src/020-board-data.h/c` - Track storage in board format
 - `src/032-editor-app.c` - Editor track tool
-- `src/007-ball.c` - Shared crushing mechanics with 1305
+- `src/007-ball.c` - Shared crushing mechanics with 901
 
-## Dependencies
+## Related Issues
 
-- Issue 1305f (Ball Crushing) - shared mechanic
-- Issue 1305e (Collision Modes) - similar pass-through logic
+- 901f (Ball Crushing) - shared mechanic
+- 901e (Collision Modes) - similar pass-through logic
+- 221e (Stress source distinction) - required for crushing mechanics

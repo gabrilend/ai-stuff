@@ -14,7 +14,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901c | Line rotation physics         | blocked       | 901a            |
 | 901d | Connected object detection    | blocked       | 901a            |
 | 901e | Collision modes               | blocked       | 901c, 901d      |
-| 901f | Ball crushing                 | blocked       | 901e, 221       |
+| 901f | Ball crushing                 | blocked       | 901e, 221e      |
 | 901g | Direction config UI           | blocked       | 901b            |
 | 902  | Track mover system            | awaiting-work | -               |
 | 902a | Track data structure          | awaiting-work | -               |
@@ -23,7 +23,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 902d | Track following physics       | blocked       | 902a            |
 | 902e | Intersection path selection   | blocked       | 902d            |
 | 902f | Back and forth motion         | blocked       | 902d            |
-| 902g | Track ball interaction        | blocked       | 902d, 221       |
+| 902g | Track ball interaction        | blocked       | 902d, 221e      |
 | 903  | Ball velocity statistics      | awaiting-work | -               |
 
 ## Progress Summary
@@ -53,6 +53,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Issue-Level Dependencies
 
-- 901f, 902g depend on 221 (Ball Sleep System) for stress source distinction
+- 901f, 902g depend on 221e (Stress source distinction) for crushing mechanics
 - 901b, 902b require editor infrastructure (801-814 complete)
 - 901 and 902 share crushing mechanics - consider shared implementation
+- 903 can leverage 222 (Trajectory history) for velocity data

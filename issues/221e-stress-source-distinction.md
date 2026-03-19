@@ -1,12 +1,21 @@
 # 221e - Stress Source Distinction (Static vs Dynamic)
 
-## Status: Open
+## Status: blocked
+
+## Depends on
+
+- 221d (Soft collision response) - provides collision framework for stress tracking
+
+## Dependents
+
+- 901f (Ball crushing) - needs stress distinction to know what can crush
+- 902g (Track ball interaction) - needs stress distinction for crushing
 
 ## Parent Issue: 221 - Ball Sleep System
 
 ## Problem
 
-When implementing ball crushing (1305f, 1306g), we need to distinguish between:
+When implementing ball crushing (901f, 902g), we need to distinguish between:
 - **Static stress**: Weight of other balls, pile pressure → Should NOT crush
 - **Dynamic stress**: Rotor, mover, moving objects → SHOULD crush
 
@@ -22,7 +31,7 @@ Balls piling up in a bucket should rest peacefully, not get crushed by their own
 typedef struct Ball {
     // ... existing fields ...
 
-    // Stress tracking (issue 1307e)
+    // Stress tracking (issue 221e)
     float static_stress;      // From ball weight, static geometry
     float dynamic_stress;     // From rotors, movers
     float stress_decay_rate;  // How fast stress decreases when free
@@ -172,6 +181,6 @@ void render_ball(Ball* ball) {
 
 ## Notes
 
-- This is foundational for 1305f and 1306g
+- This is foundational for 901f and 902g
 - Static stress visual feedback is optional polish
 - Consider: static stress could cause temporary "flatten" visual without crushing

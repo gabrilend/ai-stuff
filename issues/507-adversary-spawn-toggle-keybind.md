@@ -1,8 +1,10 @@
 # 507 - Adversary Spawn Toggle Keybind
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - simple keybind feature.
 
 ## Problem
 

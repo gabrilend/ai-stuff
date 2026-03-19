@@ -1,13 +1,11 @@
 # 409 - Collapsible Drawer UI
 
-## Status: Open
+## Status: blocked
 
-## Parent Phase: See phase progress file
+## Depends on
 
-## Dependencies
-
-- Issue 1316 (Minimum window width) - need to handle small windows gracefully
-- Issue 1314 (Editor panel UI system) - the panels being collapsed
+- 406 (Editor panel UI system) - needs panels to exist before collapsing them
+- 408 (Minimum window width) - needs window handling for layout decisions
 
 ## Problem
 

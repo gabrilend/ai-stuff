@@ -1,6 +1,10 @@
 # 319 - Random Ball Colors with Complementary Opponent
 
-## Status: Re-opened
+## Status: awaiting-work
+
+## Depends on
+
+None - visual feature, can be implemented independently.
 
 ## Problem
 
@@ -23,7 +27,7 @@ Currently both player and adversary balls use fixed colors. This makes the game 
 
 ## Completed Implementation
 
-- Ball colors stored in BallManager as RGBA byte arrays (issue 1301 original)
+- Ball colors stored in BallManager as RGBA byte arrays (issue 319 original implementation)
 - HSV generation with 180° complementary offset for adversary
 - Colors applied in ball_manager_render()
 

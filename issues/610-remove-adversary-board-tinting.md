@@ -1,16 +1,18 @@
 # 610 - Remove Adversary Board Tinting
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
 
-## Dependencies
+None - can be implemented independently.
 
-- Issue 1319 (Material type selector) - materials provide visual distinction
+## Related Issues
+
+- 839 (Material type selector) - materials provide alternative visual distinction
 
 ## Problem
 
-The adversary board is currently tinted red to distinguish it from the player's board. With the material system (issue 1319), objects already have distinct colors based on their material type. The red tint is redundant and muddies the material colors.
+The adversary board is currently tinted red to distinguish it from the player's board. With the material system (issue 839), objects already have distinct colors based on their material type. The red tint is redundant and muddies the material colors.
 
 ## Current Behavior
 

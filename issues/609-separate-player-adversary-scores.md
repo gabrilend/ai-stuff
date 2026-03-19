@@ -1,8 +1,10 @@
 # 609 - Separate Player and Adversary Scores
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - can be implemented independently.
 
 ## Problem
 

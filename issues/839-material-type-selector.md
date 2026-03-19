@@ -1,8 +1,15 @@
 # 839 - Material Type Selector
 
-## Status: Open
+## Status: awaiting-work
 
-## Parent Phase: See phase progress file
+## Depends on
+
+None - can be implemented independently.
+
+## Dependents
+
+- 610 (Remove adversary tinting) - materials provide visual distinction
+- 837 (Polygon detection) - uses material system for edge properties
 
 ## Problem
 
