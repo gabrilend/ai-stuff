@@ -1,0 +1,11 @@
+# config.txt - Central configuration for compile-time constants
+# Generated into src/000-config.h by scripts/generate-config.sh
+# Format: KEY=VALUE (no spaces around =)
+# Lines starting with # are comments
+
+# System capacities
+MAX_BALLS=1024
+MAX_PARTICLES=1024
+
+# Spawning limits
+MAX_SPAWN_CREDITS=3

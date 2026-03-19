@@ -127,11 +127,7 @@ generate_default_board() {
     {"type": "line", "col": 0, "row": 0, "end_col": 3, "end_row": 2, "thickness": 6},
     {"type": "line", "col": 3, "row": 2, "end_col": 0, "end_row": 4, "thickness": 6},
     {"type": "line", "col": 9, "row": 2, "end_col": 12, "end_row": 0, "thickness": 6},
-    {"type": "line", "col": 9, "row": 2, "end_col": 12, "end_row": 4, "thickness": 6},
-    {"type": "line", "col": 12, "row": 20, "end_col": 9, "end_row": 18, "thickness": 6},
-    {"type": "line", "col": 9, "row": 18, "end_col": 12, "end_row": 16, "thickness": 6},
-    {"type": "line", "col": 0, "row": 20, "end_col": 3, "end_row": 18, "thickness": 6},
-    {"type": "line", "col": 3, "row": 18, "end_col": 0, "end_row": 16, "thickness": 6}
+    {"type": "line", "col": 9, "row": 2, "end_col": 12, "end_row": 4, "thickness": 6}
   ],
   "zones": [
     {"type": "score", "col": 0, "row": 19, "width": 1, "height": 1, "points": 10, "multiplier": 1},
@@ -198,6 +194,9 @@ if [ ${FORCE_BUILD} -eq 1 ]; then
     make clean
     echo ""
 fi
+
+# Generate config header from config.txt (issue 1310)
+"${DIR}/scripts/generate-config.sh" "${DIR}"
 
 # Compile the project
 case "${BUILD_TARGET}" in

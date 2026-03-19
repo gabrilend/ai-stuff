@@ -651,7 +651,7 @@ int main(int argc, char* argv[]) {
     printf("Ball manager created: %d capacity\n", MAX_BALLS);
 
     // Create particle system
-    ParticleSystem* particle_system = particle_system_create(1024);
+    ParticleSystem* particle_system = particle_system_create(MAX_PARTICLES);
     if (!particle_system) {
         fprintf(stderr, "ERROR: Failed to create particle system\n");
         ball_manager_destroy(ball_manager);
@@ -821,7 +821,7 @@ int main(int argc, char* argv[]) {
         float spawn_rate_bonus = upgrade_get_spawn_rate_bonus(upgrade_manager);
         if (spawn_rate_bonus > 0.0f) {
             player_spawner.credits = spawner_accumulate(
-                player_spawner.credits, spawn_rate_bonus, dt, SPAWNER_MAX_CREDITS);
+                player_spawner.credits, spawn_rate_bonus, dt, MAX_SPAWN_CREDITS);
         }
 
         // Particle system now updated in parallel after ball physics

@@ -5,16 +5,16 @@
 #ifndef SPAWNER_H
 #define SPAWNER_H
 
+#include "000-config.h"  // MAX_SPAWN_CREDITS (issue 1310)
+
 // Forward declarations
 typedef struct BallManager BallManager;
 typedef struct Ball Ball;
 typedef struct World World;
 
-// Maximum spawn credits (shared between player and adversary)
-#define SPAWNER_MAX_CREDITS 3.0f
-
 // Default spawn rate (balls per second)
 #define SPAWNER_DEFAULT_RATE 1.7f
+// MAX_SPAWN_CREDITS defined in 000-config.h
 
 // {{{ typedef struct Spawner
 // Spawner manages reticle position, credit accumulation, and ball spawning.

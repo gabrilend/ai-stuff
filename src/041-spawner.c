@@ -134,7 +134,7 @@ void spawner_update(Spawner* spawner, SpawnerController controller,
 
     // Accumulate spawn credits
     spawner->credits = spawner_accumulate(
-        spawner->credits, spawner->rate, dt, SPAWNER_MAX_CREDITS);
+        spawner->credits, spawner->rate, dt, MAX_SPAWN_CREDITS);
 
     // Update position via controller (if provided)
     if (controller) {

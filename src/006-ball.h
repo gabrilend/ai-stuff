@@ -5,13 +5,15 @@
 #ifndef BALL_H
 #define BALL_H
 
+#include "000-config.h"  // MAX_BALLS, MAX_SPAWN_CREDITS (issue 1310)
+
 // Forward declarations
 typedef struct World World;
 typedef struct ThreadPool ThreadPool;
 
 // Ball constants
 #define BALL_RADIUS 8.0f
-#define MAX_BALLS 1024
+// MAX_BALLS defined in 000-config.h
 
 // Physics constants
 #define GRAVITY 980.0f        // Pixels per second squared
@@ -39,7 +41,7 @@ typedef struct ThreadPool ThreadPool;
 #define SPAWN_VY_INITIAL 50.0f // Initial downward velocity
 #define SPAWN_COOLDOWN 0.2f   // Visual indicator timing
 #define SPAWN_RATE 1.7f       // Credits accumulated per second (base rate, upgrades add more)
-#define MAX_SPAWN_CREDITS 3.0f // Maximum stored credits (prevents burst)
+// MAX_SPAWN_CREDITS defined in 000-config.h
 
 // Ball owner constants
 #define OWNER_PLAYER 0
