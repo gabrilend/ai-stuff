@@ -38,10 +38,11 @@ Game polish, bug fixes, and major new dynamic geometry features (rotors and trac
 | 1309  | Unified spawner system             | Open      |
 | 1310  | Compile-time config system         | Open      |
 | 1311  | Trajectory history and overlap nudge | Open    |
+| 1312  | Closed polygon detection and fill  | Open      |
 
 ## Progress Summary
 
-**Completed:** 0/27 issues (0%)
+**Completed:** 0/28 issues (0%)
 **Status:** In Progress
 
 ## Major Features
