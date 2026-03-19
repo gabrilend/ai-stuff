@@ -116,6 +116,10 @@ void portal_manager_load_from_board(PortalManager* manager, BoardData* data,
 // =============================================================================
 
 // {{{ portal_manager_check_ball
+// Issue 612: Adversary balls use reversed portal flow.
+// Player balls: enter through ENTRY portals, exit from EXIT portals
+// Adversary balls: enter through EXIT portals, exit from ENTRY portals
+// This creates opposite flow directions matching the reversed gravity gameplay.
 int portal_manager_check_ball(PortalManager* manager, Ball* ball,
                               float* out_x, float* out_y) {
     if (!manager || !ball || !out_x || !out_y) return 0;
@@ -125,38 +129,54 @@ int portal_manager_check_ball(PortalManager* manager, Ball* ball,
         return 0;
     }
 
-    // Check all entry portals
+    // Issue 612: Determine flow direction based on ball ownership
+    // Player (owner=0): entry -> exit
+    // Adversary (owner=1): exit -> entry (reversed)
+    int is_adversary = (ball->owner == OWNER_ADVERSARY);
+
+    // Check all channels
     for (int ch = 0; ch < MAX_PORTAL_CHANNELS; ch++) {
         PortalChannel* channel = &manager->channels[ch];
 
-        for (int i = 0; i < channel->entry_count; i++) {
-            Portal* entry = &channel->entries[i];
+        // Source portals: entries for player, exits for adversary
+        Portal* sources = is_adversary ? channel->exits : channel->entries;
+        int source_count = is_adversary ? channel->exit_count : channel->entry_count;
 
-            // Check if ball center is inside entry portal bounds
-            float half_w = entry->width / 2;
-            float half_h = entry->height / 2;
+        // Destination portals: exits for player, entries for adversary
+        Portal* destinations = is_adversary ? channel->entries : channel->exits;
+        int dest_count = is_adversary ? channel->entry_count : channel->exit_count;
 
-            if (ball->x >= entry->x - half_w &&
-                ball->x <= entry->x + half_w &&
-                ball->y >= entry->y - half_h &&
-                ball->y <= entry->y + half_h) {
+        for (int i = 0; i < source_count; i++) {
+            Portal* source = &sources[i];
 
-                // Ball is inside entry portal - find exit
-                if (channel->exit_count > 0) {
-                    // Select random exit portal
-                    int exit_idx = rand() % channel->exit_count;
-                    Portal* exit = &channel->exits[exit_idx];
+            // Check if ball center is inside source portal bounds
+            float half_w = source->width / 2;
+            float half_h = source->height / 2;
 
-                    *out_x = exit->x;
-                    *out_y = exit->y;
+            if (ball->x >= source->x - half_w &&
+                ball->x <= source->x + half_w &&
+                ball->y >= source->y - half_h &&
+                ball->y <= source->y + half_h) {
 
-                    printf("Portal: ch %d, teleporting to exit %d (%.0f, %.0f)\n",
-                           ch, exit_idx, *out_x, *out_y);
+                // Ball is inside source portal - find destination
+                if (dest_count > 0) {
+                    // Select random destination portal
+                    int dest_idx = rand() % dest_count;
+                    Portal* dest = &destinations[dest_idx];
+
+                    *out_x = dest->x;
+                    *out_y = dest->y;
+
+                    printf("Portal: ch %d, %s ball teleporting to %s %d (%.0f, %.0f)\n",
+                           ch, is_adversary ? "adversary" : "player",
+                           is_adversary ? "entry" : "exit",
+                           dest_idx, *out_x, *out_y);
                     return 1;
                 } else {
-                    // Entry has no matching exits - warn user
-                    printf("whoa hey there this channel %d doesn't have an out box! "
-                           "what the heck, go fix it you goober!~\n", ch);
+                    // Source has no matching destinations - warn user
+                    printf("Portal warning: channel %d has no %s portals for %s ball\n",
+                           ch, is_adversary ? "entry" : "exit",
+                           is_adversary ? "adversary" : "player");
                 }
             }
         }

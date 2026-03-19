@@ -1115,6 +1115,10 @@ static void place_object(EditorApp* app) {
                                  DEFAULT_ROTOR_SPEED);
             app->modified = 1;
             break;
+
+        // Track tool (issue 902b) - handled by track tool state machine
+        case APP_TOOL_TRACK:
+            break;
     }
 }
 // }}}

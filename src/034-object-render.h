@@ -110,4 +110,25 @@ void render_board_zones(BoardData* board, Grid* grid);
 void render_board_rotors(BoardData* board, Grid* grid);
 // }}}
 
+// =============================================================================
+// Track Rendering (issue 902b)
+// =============================================================================
+
+// {{{ render_track_segment
+// Renders a single track segment with endpoint markers.
+// Tracks are paths for movers, distinct from collision lines (thinner, cyan).
+void render_track_segment(float x1, float y1, float x2, float y2);
+// }}}
+
+// {{{ render_track_preview
+// Renders a semi-transparent track segment preview (for cursor).
+void render_track_preview(float x1, float y1, float x2, float y2);
+// }}}
+
+// {{{ render_board_tracks
+// Renders all track segments in a BoardData using the given grid. (issue 902b)
+// Track segments are displayed as cyan lines with endpoint markers.
+void render_board_tracks(BoardData* board, Grid* grid);
+// }}}
+
 #endif // OBJECT_RENDER_H

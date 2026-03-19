@@ -330,3 +330,60 @@ void render_board_rotors(BoardData* board, Grid* grid) {
     }
 }
 // }}}
+
+// =============================================================================
+// Track Rendering (issue 902b)
+// =============================================================================
+
+// Track visual constants
+#define TRACK_COLOR (Color){80, 200, 220, 255}       // Cyan/teal
+#define TRACK_PREVIEW_COLOR (Color){80, 200, 220, 120}
+#define TRACK_THICKNESS 3.0f
+#define TRACK_ENDPOINT_RADIUS 4.0f
+
+// {{{ render_track_segment
+// Renders a single track segment with endpoint markers
+void render_track_segment(float x1, float y1, float x2, float y2) {
+    // Draw the track line
+    DrawLineEx((Vector2){x1, y1}, (Vector2){x2, y2}, TRACK_THICKNESS, TRACK_COLOR);
+
+    // Draw endpoint circles to show connection points
+    DrawCircle((int)x1, (int)y1, TRACK_ENDPOINT_RADIUS, TRACK_COLOR);
+    DrawCircle((int)x2, (int)y2, TRACK_ENDPOINT_RADIUS, TRACK_COLOR);
+
+    // Draw thin outline on endpoints for visibility
+    DrawCircleLines((int)x1, (int)y1, TRACK_ENDPOINT_RADIUS, WHITE);
+    DrawCircleLines((int)x2, (int)y2, TRACK_ENDPOINT_RADIUS, WHITE);
+}
+// }}}
+
+// {{{ render_track_preview
+// Renders a track segment preview (semi-transparent)
+void render_track_preview(float x1, float y1, float x2, float y2) {
+    // Draw the track line preview
+    DrawLineEx((Vector2){x1, y1}, (Vector2){x2, y2}, TRACK_THICKNESS, TRACK_PREVIEW_COLOR);
+
+    // Draw endpoint circles
+    DrawCircle((int)x1, (int)y1, TRACK_ENDPOINT_RADIUS, TRACK_PREVIEW_COLOR);
+    DrawCircle((int)x2, (int)y2, TRACK_ENDPOINT_RADIUS, TRACK_PREVIEW_COLOR);
+}
+// }}}
+
+// {{{ render_board_tracks
+// Renders all track segments in the board (issue 902b)
+void render_board_tracks(BoardData* board, Grid* grid) {
+    if (!board || !grid) return;
+
+    for (int i = 0; i < board->track_segment_count; i++) {
+        TrackSegment* seg = &board->track_segments[i];
+
+        // Convert grid coords to pixel coords
+        float x1 = grid_to_pixel_x(grid, seg->col1, seg->row1);
+        float y1 = grid_to_pixel_y(grid, seg->col1, seg->row1);
+        float x2 = grid_to_pixel_x(grid, seg->col2, seg->row2);
+        float y2 = grid_to_pixel_y(grid, seg->col2, seg->row2);
+
+        render_track_segment(x1, y1, x2, y2);
+    }
+}
+// }}}

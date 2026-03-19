@@ -16,16 +16,17 @@ Adversary AI, competitive gameplay, and portal mechanics.
 | 606 | Ball health damage system          | completed     | -          |
 | 607 | Glancing collision damage scaling  | completed     | -          |
 | 608 | Adversary board flip axis          | completed     | -          |
-| 609 | Separate player adversary scores   | awaiting-work | -          |
-| 610 | Remove adversary board tinting     | awaiting-work | -          |
+| 609 | Separate player adversary scores   | completed     | -          |
+| 610 | Remove adversary board tinting     | completed     | -          |
 | 611 | Portal improvements                | completed     | -          |
+| 612 | Adversary portal flow reversal     | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 9/11 issues
-**Awaiting work:** 2 (609, 610)
+**Completed:** 12/12 issues
+**Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** awaiting-work
+**Phase status:** Complete
 
 ## Technical Notes
 
@@ -44,10 +45,27 @@ Adversary AI, competitive gameplay, and portal mechanics.
 ### Portal System (611)
 - Portal zone improvements
 
-### Pending (609-610)
-- Separate score tracking per player
-- Remove visual tinting on adversary board
+### Score System (609)
+- Separate score tracking per player implemented
+- "YOU:" (blue) and "THEM:" (orange) display in stats panel
 
-## Issue-Level Dependencies
+### Visual Consistency (610)
+- Removed red tinting from adversary board
+- Both boards now use material-based colors (same as editor)
+- Player and adversary boards visually identical (distinguished by position)
+- Added 050-material.c to game build
 
-- 609 and 610 are independent and can be worked on in parallel
+### Portal Flow (612)
+- Adversary balls now use reversed portal flow
+- Player balls: enter entry (blue) → exit exit (orange)
+- Adversary balls: enter exit (orange) → exit entry (blue)
+- Creates opposite flow directions matching reversed gravity gameplay
+
+## Phase Completion Notes
+
+Phase 6 (Competition) is now complete. All adversary and competitive gameplay features are implemented:
+- Adversary AI with reversed gravity
+- Cross-board ball physics and combat
+- Separate scoring for player and adversary
+- Portal flow reversal for adversary balls
+- Visual consistency between boards (material colors)
