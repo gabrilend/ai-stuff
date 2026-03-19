@@ -23,7 +23,7 @@ Scoring, particle effects, and visual feedback systems.
 | 313 | Particle effects overhaul          | completed     | -          |
 | 314 | Fix persistent splash particles    | completed     | -          |
 | 315 | Directional explosion fragments    | completed     | -          |
-| 316 | Allow multiple gate scoring        | awaiting-work | -          |
+| 316 | Allow multiple gate scoring        | completed     | 318        |
 | 317 | GateRow scoring never called       | awaiting-work | -          |
 | 318 | Grid zone dispatch system          | completed     | -          |
 | 319 | Random ball colors                 | awaiting-work | -          |
@@ -31,8 +31,8 @@ Scoring, particle effects, and visual feedback systems.
 
 ## Progress Summary
 
-**Completed:** 17/20 issues
-**Awaiting work:** 3 (316, 317, 319)
+**Completed:** 18/20 issues
+**Awaiting work:** 2 (317, 319)
 **Blocked:** 0
 **Phase status:** awaiting-work
 
@@ -62,11 +62,13 @@ Scoring, particle effects, and visual feedback systems.
   - O(1) lookup via grid cell mapping
   - Fallback to legacy system when zone_grid is NULL
 - Function pointer dispatch for zone handlers (318) - COMPLETED
-- Multiple gate scoring support (316) - awaiting work
+- Multiple gate scoring support (316) - COMPLETED via 318
+  - Background zone handler resets passed_gate flag
+  - Balls can score multiple times after exiting gate zone
 - GateRow scoring fix (317) - awaiting work
 
 ## Issue-Level Dependencies
 
-- 316, 317, 318 are independent - can be worked on in parallel
-- 318 (zone dispatch) would solve both 316 and 317 more comprehensively
+- 317 is independent
+- 318 (zone dispatch) solved 316
 - 319 (random ball colors) may benefit from 318 for particle color integration

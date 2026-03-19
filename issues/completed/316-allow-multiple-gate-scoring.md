@@ -1,6 +1,6 @@
 # 316 - Allow Multiple Gate Scoring
 
-## Status: awaiting-work
+## Status: complete
 
 ## Depends on
 
@@ -151,3 +151,32 @@ if (zone_index >= 0) {
 - High-bounce materials near gates become more valuable
 - Could add bonus multiplier for "return trips" (2x on second pass?)
 - Ring particle effect will trigger each time, providing feedback
+
+---
+
+## Resolution Notes (2026-03-19)
+
+### Already Fixed by Issue 318 (Zone Dispatch System)
+
+This issue was resolved as part of the zone dispatch system implementation (318).
+
+The zone dispatch system uses a grid-based approach where different zones have different handlers:
+
+1. **Background zones** reset `passed_gate = 0` when ball passes through
+2. **Gate zones** score only if `!passed_gate`, then set `passed_gate = 1`
+3. **Wrap zones** also reset `passed_gate = 0`
+
+This means balls can score multiple times:
+- Ball enters gate from background → scores, `passed_gate = 1`
+- Ball exits gate back into background → `passed_gate = 0`
+- Ball re-enters gate → scores again!
+
+See `src/046-zone-dispatch.c`:
+- Line 72-76: `zone_background()` handler with comment "This is the key to fixing issue 316"
+- Line 159, 183: Wrap zone handlers also reset `passed_gate`
+
+### Implementation: Option B (Exit-Based Reset)
+
+The zone dispatch system effectively implements "Option B" from this issue - the ball must exit the gate zone (entering background or wrap zone) before it can score again.
+
+No code changes were required - just verification that 318's implementation solves 316.
