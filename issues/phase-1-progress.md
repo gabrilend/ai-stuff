@@ -20,13 +20,14 @@ Core infrastructure: build system, threadpool, parallel processing, and configur
 | 110 | Integrate parallel updates main    | completed | -          |
 | 111 | Create performance benchmark       | completed | -          |
 | 112 | Compile time config                | completed | -          |
+| 113 | Config file self-edit              | awaiting-work | 112 ✓      |
 
 ## Progress Summary
 
-**Completed:** 12/12 issues
-**Awaiting work:** 0
+**Completed:** 12/13 issues
+**Awaiting work:** 1 (113)
 **Blocked:** 0
-**Phase status:** up-to-date
+**Phase status:** awaiting-work
 
 ## Technical Notes
 
@@ -47,10 +48,11 @@ Core infrastructure: build system, threadpool, parallel processing, and configur
 - Double-buffering prevents race conditions
 - Performance benchmark validates scaling
 
-### Configuration (112)
-- Compile-time configuration options
+### Configuration (112, 113)
+- Compile-time configuration options (112)
+- Config file self-edit: running `./config` opens it in $EDITOR (113)
 
 ## Issue-Level Dependencies
 
-- All issues complete, no blocking dependencies
+- 113 depends on 112 (compile-time config system) - 112 complete
 - Foundation phase - provides infrastructure for all other phases

@@ -10,7 +10,7 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 
 | Phase | Theme               | Complete | In Progress | Awaiting | Blocked |
 |-------|---------------------|----------|-------------|----------|---------|
-| 1     | Core Infrastructure | 12/12    | 0           | 0        | 0       |
+| 1     | Core Infrastructure | 12/13    | 0           | 1        | 0       |
 | 2     | World & Physics     | 25/27    | 1           | 1        | 0       |
 | 3     | Feedback Systems    | 21/21    | 0           | 0        | 0       |
 | 4     | Display             | 12/13    | 0           | 1        | 0       |
@@ -20,7 +20,7 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 | 8     | Editor              | 38/40    | 1           | 1        | 0       |
 | 9     | Dynamic Systems     | 11/19    | 2           | 6        | 0       |
 
-**Overall: 153/166 issues complete (92%)**
+**Overall: 153/167 issues complete (92%)**
 
 ---
 
@@ -52,6 +52,9 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 These issues can be picked up right now:
 
 ```
+INFRASTRUCTURE:
+  113  - Config file self-edit (Phase 1) [NEW]
+
 PHYSICS TEAM:
   221c - Wake conditions (Phase 2) [UNBLOCKED]
   222  - Trajectory history (Phase 2) - partial
@@ -94,9 +97,12 @@ Currently being worked on:
 
 ## Phase Details
 
-### Phase 1: Core Infrastructure (Complete)
+### Phase 1: Core Infrastructure
 
-All 12 issues complete.
+**Complete (12):** Build system, threadpool, parallel processing, compile-time config
+
+**Awaiting Work:**
+- 113 - Config file self-edit (rename config.txt, make executable with $EDITOR)
 
 ---
 
@@ -203,8 +209,8 @@ For maximum parallelization with 4 developers:
 | N-1    | 7         | 3              |
 | N      | 9         | 4              |
 
-**Remaining open issues:** 13
-- 8 awaiting work (can start now)
+**Remaining open issues:** 14
+- 9 awaiting work (can start now)
 - 4 in progress
 - 0 blocked
 
@@ -212,9 +218,8 @@ At current velocity (~8 issues/sprint): ~2 sprints to completion.
 
 ---
 
-## Phases Complete: 6/9 (67%)
+## Phases Complete: 5/9 (56%)
 
-- Phase 1: Core Infrastructure
 - Phase 3: Feedback Systems
 - Phase 5: Gameplay
 - Phase 6: Competition
