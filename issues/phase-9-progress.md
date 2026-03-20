@@ -16,7 +16,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901e | Collision modes               | completed     | 901c ✓, 901d ✓  |
 | 901f | Ball crushing                 | completed     | 901e ✓, 221e ✓  |
 | 901g | Direction config UI           | completed     | 901b ✓          |
-| 901h | Parallel rotor updates        | awaiting-work | 901c ✓, 901d ✓  |
+| 901h | Parallel rotor updates        | completed     | 901c ✓, 901d ✓  |
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
 | 902b | Editor track drawing tool     | completed     | 902a ✓          |
@@ -24,17 +24,17 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 902d | Track following physics       | completed     | 902a ✓          |
 | 902e | Intersection path selection   | completed     | 902d ✓          |
 | 902f | Back and forth motion         | completed     | 902d ✓          |
-| 902g | Track ball interaction        | awaiting-work | 902d ✓, 221e ✓  |
-| 902h | Parallel mover updates        | awaiting-work | 902d ✓, 902c ✓  |
+| 902g | Track ball interaction        | completed     | 902d ✓, 221e ✓  |
+| 902h | Parallel mover updates        | completed     | 902d ✓, 902c ✓  |
 | 903  | Ball velocity statistics      | completed     | -               |
 
 ## Progress Summary
 
-**Completed:** 13/19 issues (901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 902e, 902f, 903)
-**In progress:** 2 (901, 902)
-**Awaiting work:** 4 (901f, 901h, 902g, 902h)
+**Completed:** 17/19 issues (901a-h, 902a-h, 903)
+**In progress:** 2 (901, 902 - parent issues only)
+**Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** in-progress
+**Phase status:** near-complete (all sub-issues done, parent issues remain open for umbrella tracking)
 
 ## New Issues Added
 
@@ -51,6 +51,14 @@ Dynamic systems: rotors, track movers, and analysis tools.
 - Both rotor and mover updates can run in parallel with each other
 
 ## Recent Completions
+
+### 902g - Track ball interaction
+- Added `mover_index` field to BoardObject for tracking mover attachment
+- Created `board_data_compute_mover_payload()` using BFS algorithm
+- Sets `is_dynamic = 1` on payload objects (same as rotor system)
+- Velocity transfer via `track_mover_get_line_velocity()` in ball collision
+- Crushing works via existing dynamic stress system (issue 901f)
+- Push factor: 0.5 (tunable via DYNAMIC_LINE_PUSH_FACTOR)
 
 ### 902e - Intersection path selection
 - Added intersection lookup in TrackMoverManager

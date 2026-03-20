@@ -15,6 +15,8 @@
 #include "036-wrap-zones.h"
 #include "045-zone-dispatch.h"
 #include "042-polygon.h"
+#include "044-rotor.h"           // Issue 902g: rotor velocity for dynamic lines
+#include "052-track-mover.h"     // Issue 902g: mover velocity for dynamic lines
 #include "raylib.h"
 
 // Forward declaration for velocity statistics (issue 903)
@@ -921,11 +923,16 @@ static void line_closest_point(float px, float py,
 }
 // }}}
 
+// Velocity push factor for dynamic lines (issue 902g)
+// How much of the mover/rotor velocity is transferred to the ball
+#define DYNAMIC_LINE_PUSH_FACTOR 0.5f
+
 // {{{ ball_collide_with_line
 // Checks and resolves collision between ball and a single line
 // Low-speed impacts: zero restitution, near-zero friction (slide instead of bounce)
 // Issue 901f: Accumulates dynamic stress when colliding with rotor-attached lines.
-static void ball_collide_with_line(Ball* ball, Line* line) {
+// Issue 902g: Adds velocity transfer from moving lines (rotors/movers) to balls.
+static void ball_collide_with_line(Ball* ball, Line* line, World* world, int line_index) {
     if (!ball || !line) return;
 
     // Find closest point on line segment to ball center
@@ -993,8 +1000,33 @@ static void ball_collide_with_line(Ball* ball, Line* line) {
             ball->vy -= bounce_factor * dot_normal * ny;
         }
 
+        // Issue 902g: Add velocity transfer from dynamic lines
+        // Dynamic lines are attached to rotors or movers
+        if (line->is_dynamic && world) {
+            float line_vx = 0.0f, line_vy = 0.0f;
+            int got_velocity = 0;
+
+            // Try rotor first
+            if (world->rotor_manager) {
+                got_velocity = rotor_get_line_velocity(
+                    world->rotor_manager, line_index, px, py, &line_vx, &line_vy);
+            }
+
+            // Try mover if not attached to rotor
+            if (!got_velocity && world->track_mover_manager) {
+                got_velocity = track_mover_get_line_velocity(
+                    world->track_mover_manager, line_index, px, py, &line_vx, &line_vy);
+            }
+
+            // Add line velocity to ball (pushing effect)
+            if (got_velocity) {
+                ball->vx += line_vx * DYNAMIC_LINE_PUSH_FACTOR;
+                ball->vy += line_vy * DYNAMIC_LINE_PUSH_FACTOR;
+            }
+        }
+
         // Issue 901f: Accumulate stress based on penetration
-        // Dynamic lines (attached to rotors) cause crushing stress
+        // Dynamic lines (attached to rotors/movers) cause crushing stress
         float pressure = penetration * 2.0f;  // Scale penetration to stress
         if (line->is_dynamic) {
             ball_accumulate_dynamic_stress(ball, pressure);
@@ -1008,20 +1040,26 @@ static void ball_collide_with_line(Ball* ball, Line* line) {
 // {{{ ball_collide_with_lines
 // Internal function to check and resolve collisions with lines in world
 // Checks both player lines and adversary lines
+// Issue 902g: Passes line index for velocity lookup from rotor/mover managers
 static void ball_collide_with_lines(Ball* ball, World* world) {
     if (!world) return;
 
     // Check player lines
     if (world->lines) {
         for (int i = 0; i < world->line_count; i++) {
-            ball_collide_with_line(ball, &world->lines[i]);
+            ball_collide_with_line(ball, &world->lines[i], world, i);
         }
     }
 
     // Check adversary lines
+    // Note: adversary lines use adversary managers (separate index space)
     if (world->adversary_lines) {
         for (int i = 0; i < world->adversary_line_count; i++) {
-            ball_collide_with_line(ball, &world->adversary_lines[i]);
+            // For adversary lines, we need to check adversary managers
+            // but current ball_collide_with_line uses player managers
+            // Pass NULL for world to skip velocity transfer for adversary
+            // TODO: Add adversary manager support in future
+            ball_collide_with_line(ball, &world->adversary_lines[i], NULL, i);
         }
     }
 }

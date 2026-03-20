@@ -346,10 +346,11 @@ int board_data_add_peg_ex(BoardData* data, int col, int row,
     obj->restitution = restitution;
     obj->friction = friction;
     obj->point_bonus = point_bonus;
-    // Issue 901e: Initialize dynamic object flags
-    // Objects start as static; set is_dynamic=1 when attached to rotor
+    // Issue 901e, 902g: Initialize dynamic object flags
+    // Objects start as static; set is_dynamic=1 when attached to rotor/mover
     obj->is_dynamic = 0;
     obj->rotor_index = -1;
+    obj->mover_index = -1;
 
     data->object_count++;
     return 1;
@@ -386,10 +387,11 @@ int board_data_add_line_ex(BoardData* data, int start_col, int start_row,
     obj->restitution = restitution;
     obj->friction = friction;
     obj->point_bonus = point_bonus;
-    // Issue 901e: Initialize dynamic object flags
-    // Objects start as static; set is_dynamic=1 when attached to rotor
+    // Issue 901e, 902g: Initialize dynamic object flags
+    // Objects start as static; set is_dynamic=1 when attached to rotor/mover
     obj->is_dynamic = 0;
     obj->rotor_index = -1;
+    obj->mover_index = -1;
 
     data->object_count++;
     return 1;
@@ -1220,6 +1222,115 @@ void board_data_compute_track_intersections(BoardData* data) {
 }
 // }}}
 
+// {{{ mover_position_touches_object
+// Checks if mover position touches an object (for payload detection).
+// Uses grid proximity similar to rotor detection.
+static int mover_position_touches_object(int mover_col, int mover_row,
+                                          BoardObject* obj, float threshold) {
+    if (obj->type == OBJECT_PEG) {
+        int dx = abs(obj->col - mover_col);
+        int dy = abs(obj->row - mover_row);
+        return (dx <= threshold && dy <= threshold);
+    } else if (obj->type == OBJECT_LINE) {
+        // Check both endpoints
+        int dx1 = abs(obj->col - mover_col);
+        int dy1 = abs(obj->row - mover_row);
+        int dx2 = abs(obj->end_col - mover_col);
+        int dy2 = abs(obj->end_row - mover_row);
+        return (dx1 <= threshold && dy1 <= threshold) ||
+               (dx2 <= threshold && dy2 <= threshold);
+    }
+    return 0;
+}
+// }}}
+
+// {{{ board_data_compute_mover_payload
+void board_data_compute_mover_payload(BoardData* data) {
+    if (!data) return;
+
+    // Reset mover indices on all objects
+    for (int i = 0; i < data->object_count; i++) {
+        if (data->objects[i].mover_index >= 0) {
+            // Only reset is_dynamic if not connected to a rotor
+            if (data->objects[i].rotor_index < 0) {
+                data->objects[i].is_dynamic = 0;
+            }
+            data->objects[i].mover_index = -1;
+        }
+    }
+
+    // For each mover, find connected objects using BFS
+    for (int m = 0; m < data->track_mover_count; m++) {
+        TrackMover* mover = &data->track_movers[m];
+
+        // Get mover position on track segment
+        if (mover->current_segment < 0 ||
+            mover->current_segment >= data->track_segment_count) continue;
+
+        TrackSegment* seg = &data->track_segments[mover->current_segment];
+
+        // Calculate mover grid position (interpolate along segment)
+        float t = mover->position_on_segment;
+        int mover_col = (int)(seg->col1 + (seg->col2 - seg->col1) * t + 0.5f);
+        int mover_row = (int)(seg->row1 + (seg->row2 - seg->row1) * t + 0.5f);
+
+        // BFS to find connected objects
+        int* visited = (int*)calloc(data->object_count, sizeof(int));
+        int* queue = (int*)malloc(sizeof(int) * data->object_count);
+        if (!visited || !queue) {
+            if (visited) free(visited);
+            if (queue) free(queue);
+            continue;
+        }
+        int queue_head = 0;
+        int queue_tail = 0;
+
+        // Seed: find objects touching mover position
+        for (int i = 0; i < data->object_count; i++) {
+            // Skip objects already connected to rotors
+            if (data->objects[i].rotor_index >= 0) continue;
+
+            if (mover_position_touches_object(mover_col, mover_row,
+                                               &data->objects[i], 1.5f)) {
+                visited[i] = 1;
+                queue[queue_tail++] = i;
+
+                // Mark as dynamic and attached to mover (issue 902g)
+                data->objects[i].is_dynamic = 1;
+                data->objects[i].mover_index = m;
+            }
+        }
+
+        // BFS: find transitively connected objects
+        while (queue_head < queue_tail) {
+            int current_idx = queue[queue_head++];
+            BoardObject* current = &data->objects[current_idx];
+
+            for (int i = 0; i < data->object_count; i++) {
+                if (visited[i]) continue;
+                // Skip rotor-connected objects
+                if (data->objects[i].rotor_index >= 0) continue;
+
+                if (objects_touch(current, &data->objects[i], TOUCH_THRESHOLD)) {
+                    visited[i] = 1;
+                    queue[queue_tail++] = i;
+
+                    // Mark as dynamic and attached to mover (issue 902g)
+                    data->objects[i].is_dynamic = 1;
+                    data->objects[i].mover_index = m;
+                }
+            }
+        }
+
+        free(visited);
+        free(queue);
+
+        printf("Mover %d payload: computed %d objects in BoardData\n",
+               m, queue_tail);
+    }
+}
+// }}}
+
 // =============================================================================
 // Property Conversion
 // =============================================================================
@@ -1514,6 +1625,9 @@ BoardData* board_data_load_json(const char* filename) {
         // Compute track connectivity and intersections after loading
         board_data_compute_track_connectivity(data);
         board_data_compute_track_intersections(data);
+
+        // Compute mover payload to set is_dynamic flags (issue 902g)
+        board_data_compute_mover_payload(data);
     }
 
     cJSON_Delete(root);

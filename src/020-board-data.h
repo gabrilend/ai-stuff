@@ -143,10 +143,11 @@ typedef struct BoardObject {
     unsigned char friction;     // G: surface grip (0=ice, 255=sticky)
     unsigned char point_bonus;  // B: points awarded on hit
 
-    // Dynamic object flags (issue 901e)
+    // Dynamic object flags (issue 901e, 902g)
     // Used for collision filtering with rotating/moving objects
     int is_dynamic;     // 1 if part of a rotor or track mover, 0 otherwise
     int rotor_index;    // Index of rotor this object is attached to (-1 if none)
+    int mover_index;    // Index of track mover this object is attached to (-1 if none)
 } BoardObject;
 // }}}
 
@@ -409,6 +410,14 @@ void board_data_compute_track_intersections(BoardData* data);
 // Computes segment connectivity (which segments connect at endpoints).
 // Call after loading or modifying segments.
 void board_data_compute_track_connectivity(BoardData* data);
+// }}}
+
+// {{{ board_data_compute_mover_payload
+// Detects objects connected to each track mover (issue 902g).
+// Uses BFS to find objects touching mover position.
+// Sets is_dynamic=1 and mover_index on connected objects.
+// Call after loading board or modifying mover positions.
+void board_data_compute_mover_payload(BoardData* data);
 // }}}
 
 // =============================================================================
