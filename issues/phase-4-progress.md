@@ -16,7 +16,7 @@ Display systems: viewport, window management, UI elements, and reticle.
 | 406 | Editor panel UI system             | completed     | -          |
 | 407 | Hide game UI keybind               | completed     | -          |
 | 408 | Minimum window width               | completed     | -          |
-| 409 | Collapsible drawer UI              | awaiting-work | 406        |
+| 409 | Collapsible drawer UI              | completed     | 406        |
 | 410 | Reticle toggle mouse control       | completed     | -          |
 | 411 | Player reticle display bug         | completed     | -          |
 | 412 | Reticle color inversion            | completed     | -          |
@@ -24,10 +24,10 @@ Display systems: viewport, window management, UI elements, and reticle.
 
 ## Progress Summary
 
-**Completed:** 12/13 issues
-**Awaiting work:** 1 (409)
+**Completed:** 13/13 issues
+**Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** awaiting-work
+**Phase status:** complete
 
 ## Technical Notes
 
@@ -55,7 +55,12 @@ Display systems: viewport, window management, UI elements, and reticle.
   - H key toggles UI visibility
   - Affects controls panel, upgrade hint, and debug overlays
 - Minimum window width enforcement (408) - COMPLETED
-- Collapsible sidebar drawers (409) - awaiting work
+- Collapsible sidebar drawers (409) - COMPLETED
+  - Responsive layout: LAYOUT_FULL (842px+), LAYOUT_LANDSCAPE, LAYOUT_PORTRAIT
+  - Bottom toolbar with Tools/Inspector buttons in collapsed mode
+  - Animated slide-out drawers with lerp animation
+  - T/I keybinds and click-outside-to-close
+  - Canvas bounds adjust based on layout mode
 
 ### Background Colors (413) - COMPLETED
 - 8 preset background colors via compile-time config
@@ -65,5 +70,5 @@ Display systems: viewport, window management, UI elements, and reticle.
 
 ## Issue-Level Dependencies
 
-- 409 (collapsible drawer) depends on 406 (panel UI system) - 406 complete
-- 413 (background colors) depends on 112 (config system) - 112 complete, 413 complete
+- 409 (collapsible drawer) depends on 406 (panel UI system) - both complete
+- 413 (background colors) depends on 112 (config system) - both complete

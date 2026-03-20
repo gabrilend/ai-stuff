@@ -14,6 +14,7 @@
 #include "022-grid.h"
 #include "042-polygon.h"
 #include "051-ui-panel.h"
+#include "054-ui-drawer.h"
 
 // =============================================================================
 // Editor Mode Enumerations
@@ -203,6 +204,10 @@ typedef struct EditorApp {
     // UI Panel system (issue 406)
     // Tools panel on left side for object placement tools
     Panel* tools_panel;
+
+    // Drawer layout system (issue 409)
+    // Responsive layout that collapses panels into slide-out drawers
+    DrawerLayout drawer_layout;
 
     // Quit flag
     int should_quit;

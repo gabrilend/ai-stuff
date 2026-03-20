@@ -64,6 +64,7 @@ EDITOR_SRCS = src/030-editor-main.c \
               src/043-polygon.c \
               src/049-ui-widget.c \
               src/052-ui-panel.c \
+              src/055-ui-drawer.c \
               src/050-material.c \
               src/021-board-data.c \
               src/023-grid.c

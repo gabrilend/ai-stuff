@@ -1,11 +1,35 @@
 # 409 - Collapsible Drawer UI
 
-## Status: blocked
+## Status: completed
 
 ## Depends on
 
-- 406 (Editor panel UI system) - needs panels to exist before collapsing them
-- 408 (Minimum window width) - needs window handling for layout decisions
+- 406 (Editor panel UI system) - completed
+- 408 (Minimum window width) - completed
+
+## Implementation Notes
+
+Created responsive drawer layout system in `src/054-ui-drawer.h` and `src/055-ui-drawer.c`:
+
+- **LayoutMode detection**: LAYOUT_FULL (842px+), LAYOUT_LANDSCAPE (narrow+wide), LAYOUT_PORTRAIT (tall)
+- **Drawer animation**: Smooth lerp animation (8.0 speed) for slide in/out
+- **Bottom toolbar**: Tools/Inspector buttons with hover states, visible in collapsed modes
+- **DrawerLayout struct**: Manages both tools and inspector drawers, plus toolbar state
+- **Input handling**: T/I keybinds, button clicks, click-outside-to-close
+- **Panel visibility**: Panels shown/hidden automatically based on mode
+- **Overlay rendering**: Semi-transparent overlay when drawer is open
+
+Integration in `src/032-editor-app.c`:
+- DrawerLayout field added to EditorApp struct
+- drawer_layout_init called in editor_app_create
+- drawer_layout_update called early in update (before main input)
+- drawer_layout_handle_input intercepts input in collapsed mode
+- drawer_layout_render called before dialogs
+- editor_app_resize adjusts canvas bounds based on layout mode
+
+Files created:
+- `src/054-ui-drawer.h` - Drawer structures and API
+- `src/055-ui-drawer.c` - Drawer implementation
 
 ## Problem
 

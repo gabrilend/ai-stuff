@@ -381,6 +381,10 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
         panel_add_widget(app->tools_panel, widget_button("TAB: Toggle", NULL, NULL));
     }
 
+    // Initialize drawer layout system (issue 409)
+    // Passes tools_panel as tools drawer, NULL for inspector (not yet implemented)
+    drawer_layout_init(&app->drawer_layout, app->tools_panel, NULL);
+
     return app;
 }
 // }}}
@@ -424,9 +428,20 @@ void editor_app_destroy(EditorApp* app) {
 void editor_app_update(EditorApp* app) {
     if (!app) return;
 
+    float dt = GetFrameTime();
+
     // Update notification timer
     if (app->notification_timer > 0) {
-        app->notification_timer -= GetFrameTime();
+        app->notification_timer -= dt;
+    }
+
+    // Update drawer layout system (issue 409)
+    // Must be called before handle_input so drawer can intercept input
+    drawer_layout_update(&app->drawer_layout, app->screen_width, app->screen_height, dt);
+
+    // Handle drawer input first - if consumed, skip main input handling
+    if (drawer_layout_handle_input(&app->drawer_layout, app->screen_width, app->screen_height)) {
+        return;  // Input was consumed by drawer system
     }
 
     // Handle input
@@ -470,6 +485,10 @@ void editor_app_render(EditorApp* app) {
     // Render rotor panel if rotor selected (issue 901g)
     render_rotor_panel(app);
 
+    // Render drawer overlays and toolbar (issue 409)
+    // Must be after main content but before dialogs
+    drawer_layout_render(&app->drawer_layout, app->screen_width, app->screen_height);
+
     // Render load dialog if open
     if (app->load_dialog.visible) {
         render_load_dialog(app);
@@ -492,20 +511,33 @@ void editor_app_resize(EditorApp* app, int width, int height) {
     app->screen_width = width;
     app->screen_height = height;
 
-    // Calculate canvas area (between tools panel, sidebar, toolbar, footer)
-    // Canvas starts after tools panel on left side (issue 406)
-    app->canvas_x = TOOLS_PANEL_WIDTH;
-    app->canvas_y = TOOLBAR_HEIGHT;
-    app->canvas_width = width - SIDEBAR_WIDTH - TOOLS_PANEL_WIDTH;
-    app->canvas_height = height - TOOLBAR_HEIGHT - FOOTER_HEIGHT;
+    // Determine layout mode for responsive canvas sizing (issue 409)
+    LayoutMode layout_mode = get_layout_mode(width, height);
 
-    // Update tools panel bounds (issue 406)
-    if (app->tools_panel) {
-        Rectangle tools_bounds = {
-            0, TOOLBAR_HEIGHT,
-            TOOLS_PANEL_WIDTH, height - TOOLBAR_HEIGHT - FOOTER_HEIGHT
-        };
-        panel_set_bounds(app->tools_panel, tools_bounds);
+    // Calculate canvas area based on layout mode
+    if (layout_mode == LAYOUT_FULL) {
+        // Full mode: permanent side panels visible
+        // Canvas between tools panel, sidebar, toolbar, footer
+        app->canvas_x = TOOLS_PANEL_WIDTH;
+        app->canvas_y = TOOLBAR_HEIGHT;
+        app->canvas_width = width - SIDEBAR_WIDTH - TOOLS_PANEL_WIDTH;
+        app->canvas_height = height - TOOLBAR_HEIGHT - FOOTER_HEIGHT;
+
+        // Update tools panel bounds (issue 406)
+        if (app->tools_panel) {
+            Rectangle tools_bounds = {
+                0, TOOLBAR_HEIGHT,
+                TOOLS_PANEL_WIDTH, height - TOOLBAR_HEIGHT - FOOTER_HEIGHT
+            };
+            panel_set_bounds(app->tools_panel, tools_bounds);
+        }
+    } else {
+        // Collapsed mode: panels hidden, drawers overlay canvas
+        // Canvas spans full width, footer replaced by drawer toolbar
+        app->canvas_x = 0;
+        app->canvas_y = TOOLBAR_HEIGHT;
+        app->canvas_width = width - SIDEBAR_WIDTH;
+        app->canvas_height = height - TOOLBAR_HEIGHT - (int)DRAWER_TOOLBAR_HEIGHT;
     }
 
     // Setup grid to fit canvas
