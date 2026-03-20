@@ -1,6 +1,6 @@
 # 609 - Separate Player and Adversary Scores
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
@@ -86,3 +86,32 @@ void render_score_panel(void) {
 - Could add point difference display: "+360" or "-120"
 - Sound effect when adversary scores? Visual flash?
 - End-game summary showing final scores
+
+## Completion Notes
+
+**Implemented 2026-03-19**
+
+### Changes Made
+
+1. **src/004-world.h** - Added `adversary_score` field to World struct alongside existing `score` field
+
+2. **src/006-ball.h** - Added `ball_manager_collect_scores_split()` function declaration to separate score collection by ball owner
+
+3. **src/007-ball.c** - Implemented `ball_manager_collect_scores_split()` which iterates task data and separates points by checking `balls_current[i].owner` (OWNER_PLAYER vs OWNER_ADVERSARY)
+
+4. **src/001-main.c**:
+   - Changed score collection from single total to split by owner
+   - Updated score panel UI to show "YOU:" (SKYBLUE) and "THEM:" (ORANGE)
+   - Added adversary_score reset on R key press
+
+### UI Layout
+
+Used the side-by-side format from the issue spec:
+```
+YOU: 1250    (SKYBLUE)
+THEM: 890    (ORANGE)
+```
+
+### Future Enhancements
+
+The notes section items (lead indicator, point difference, sound effects) were deferred as nice-to-haves for a future polish pass.

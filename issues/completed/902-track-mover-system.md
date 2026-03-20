@@ -1,6 +1,6 @@
 # 902 - Track Mover System
 
-## Status: in-progress
+## Status: completed
 
 ## Depends on
 
@@ -14,10 +14,10 @@ None - can be implemented independently.
 | 902b | completed     | 902a ✓          |
 | 902c | completed     | 902a ✓          |
 | 902d | completed     | 902a ✓          |
-| 902e | awaiting-work | 902d ✓          |
-| 902f | awaiting-work | 902d ✓          |
-| 902g | awaiting-work | 902d ✓, 221e ✓  |
-| 902h | awaiting-work | 902d ✓, 902c ✓  |
+| 902e | completed     | 902d ✓          |
+| 902f | completed     | 902d ✓          |
+| 902g | completed     | 902d ✓, 221e ✓  |
+| 902h | completed     | 902d ✓, 902c ✓  |
 
 ## Problem
 
@@ -49,15 +49,15 @@ The mover travels back and forth along the track. At intersections, it randomly 
 | 902b | Editor track drawing tool             | completed     | 902a ✓          |
 | 902c | Mover placement and payload detection | completed     | 902a ✓          |
 | 902d | Track following physics               | completed     | 902a ✓          |
-| 902e | Intersection detection and path select| awaiting-work | 902d ✓          |
-| 902f | Back-and-forth motion logic           | awaiting-work | 902d ✓          |
-| 902g | Ball interaction and crushing         | awaiting-work | 902d ✓, 221e ✓  |
-| 902h | Parallel mover updates                | awaiting-work | 902d ✓, 902c ✓  |
+| 902e | Intersection detection and path select| completed     | 902d ✓          |
+| 902f | Back-and-forth motion logic           | completed     | 902d ✓          |
+| 902g | Ball interaction and crushing         | completed     | 902d ✓, 221e ✓  |
+| 902h | Parallel mover updates                | completed     | 902d ✓, 902c ✓  |
 
 ## Progress Summary
 
-**Completed:** 4/8 sub-issues (902a, 902b, 902c, 902d)
-**Awaiting work:** 4 (902e, 902f, 902g, 902h)
+**Completed:** 8/8 sub-issues
+**Awaiting work:** 0
 
 ## Technical Considerations
 

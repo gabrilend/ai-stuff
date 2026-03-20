@@ -1,6 +1,6 @@
 # 507 - Adversary Spawn Toggle Keybind
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
@@ -128,3 +128,29 @@ ADVERSARY_SPAWN_ENABLED=1
 - Consider: Should accumulated credits have a cap?
 - Consider: Audio feedback when toggling?
 - Consider: Should this be available in all game modes or just debug/sandbox?
+
+## Completion Notes
+
+**Completed:** 2026-03-19
+
+### Implementation Summary
+
+Added `spawning_enabled` flag to Adversary struct. When paused, credits continue to accumulate but no balls spawn. Visual "[PAUSED]" indicator appears above the adversary reticle.
+
+### Keybind
+
+Used **P** key (not A, which was already used for auto-spawn toggle). The toggle only works when the upgrade menu is closed.
+
+### Files Modified
+
+- `src/012-adversary.h` - Added `spawning_enabled` field, `adversary_toggle_spawning()`, `adversary_is_spawning_enabled()`
+- `src/013-adversary.c` - Added initialization, conditional spawn logic, paused indicator, toggle/getter functions
+- `src/001-main.c` - Added KEY_P keybind handler
+
+### Behavior
+
+1. Press P to toggle adversary spawning
+2. When paused, "[PAUSED]" text appears in yellow above the adversary reticle
+3. Credits continue to accumulate while paused
+4. When re-enabled, spawning resumes with accumulated credits
+5. Console prints "Adversary spawning: ENABLED/PAUSED" on toggle

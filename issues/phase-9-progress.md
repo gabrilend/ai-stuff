@@ -8,7 +8,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 | ID   | Description                   | Status        | Depends on      |
 |------|-------------------------------|---------------|-----------------|
-| 901  | Rotor system                  | in-progress   | -               |
+| 901  | Rotor system                  | completed     | -               |
 | 901a | Rotor data structure          | completed     | -               |
 | 901b | Editor rotor placement tool   | completed     | 901a ✓          |
 | 901c | Line rotation physics         | completed     | 901a ✓          |
@@ -17,7 +17,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901f | Ball crushing                 | completed     | 901e ✓, 221e ✓  |
 | 901g | Direction config UI           | completed     | 901b ✓          |
 | 901h | Parallel rotor updates        | completed     | 901c ✓, 901d ✓  |
-| 902  | Track mover system            | in-progress   | -               |
+| 902  | Track mover system            | completed     | -               |
 | 902a | Track data structure          | completed     | -               |
 | 902b | Editor track drawing tool     | completed     | 902a ✓          |
 | 902c | Mover payload detection       | completed     | 902a ✓          |
@@ -30,11 +30,11 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Progress Summary
 
-**Completed:** 17/19 issues (901a-h, 902a-h, 903)
-**In progress:** 2 (901, 902 - parent issues only)
+**Completed:** 19/19 issues (901, 901a-h, 902, 902a-h, 903)
+**In progress:** 0
 **Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** near-complete (all sub-issues done, parent issues remain open for umbrella tracking)
+**Phase status:** completed
 
 ## New Issues Added
 

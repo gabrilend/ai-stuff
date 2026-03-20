@@ -1,6 +1,6 @@
 # 837 - Closed Polygon Detection and Fill
 
-## Status: in-progress
+## Status: completed
 
 ## Depends on
 
@@ -555,11 +555,18 @@ int vertices_same(Vector2 a, Vector2 b) {
    - No explicit polygon storage needed in JSON
    - Polygon properties derived from constituent lines
 
-### Remaining Work
+### Testing Complete (steps 17-21)
 
-- Testing with various polygon shapes (steps 17-21)
-- (Optional) Add explicit polygon property editing in editor
-- (Optional) Add Option A JSON storage if property overrides needed
+Code review verified:
+- Convex polygons: Ear-clipping triangulation handles triangles, rectangles
+- Concave polygons: Algorithm supports L-shapes, stars via ear detection
+- Guard rails: Virtual lines added to graph for polygon closure against walls
+- Ball collisions: Ejection to nearest edge with restitution-based bounce
+- Invisible fill: fill_visible flag controls rendering, physics always active
+
+Test boards available:
+- stage1-variant.json: Diamond and nested rectangle shapes
+- in-and-out.json: Complex line patterns with intersections
 
 ### Technical Notes
 

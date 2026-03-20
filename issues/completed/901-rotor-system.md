@@ -1,6 +1,6 @@
 # 901 - Rotor System
 
-## Status: in-progress
+## Status: completed
 
 ## Problem
 
@@ -18,9 +18,9 @@ A rotor is a central pivot point from which lines extend and rotate. Any objects
 - [x] 4. Implement line rotation physics (901c ✓)
 - [x] 5. Connected object detection algorithm (901d ✓)
 - [x] 6. Collision modes (solid vs pass-through) (901e ✓)
-- [ ] 7. Ball crushing mechanics (901f)
+- [x] 7. Ball crushing mechanics (901f ✓)
 - [x] 8. Direction configuration UI (901g ✓)
-- [ ] 9. Parallel rotor updates (901h - NEW)
+- [x] 9. Parallel rotor updates (901h ✓)
 
 ## Sub-Issues
 
@@ -31,14 +31,14 @@ A rotor is a central pivot point from which lines extend and rotate. Any objects
 | 901c | Line rotation physics                  | completed     | 901a ✓          |
 | 901d | Connected object detection             | completed     | 901a ✓          |
 | 901e | Collision mode (solid vs pass-through) | completed     | 901c ✓, 901d ✓  |
-| 901f | Ball stress and crushing               | awaiting-work | 901e ✓, 221e ✓  |
+| 901f | Ball stress and crushing               | completed     | 901e ✓, 221e ✓  |
 | 901g | Direction configuration UI             | completed     | 901b ✓          |
-| 901h | Parallel rotor updates                 | awaiting-work | 901c ✓, 901d ✓  |
+| 901h | Parallel rotor updates                 | completed     | 901c ✓, 901d ✓  |
 
 ## Progress Summary
 
-**Completed:** 6/8 sub-issues (901a, 901b, 901c, 901d, 901e, 901g)
-**Awaiting work:** 2 (901f, 901h)
+**Completed:** 8/8 sub-issues
+**Awaiting work:** 0
 
 ## Technical Considerations
 

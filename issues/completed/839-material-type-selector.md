@@ -1,6 +1,6 @@
 # 839 - Material Type Selector
 
-## Status: awaiting-work
+## Status: completed
 
 ## Depends on
 
@@ -359,3 +359,37 @@ This gives visual consistency: all "Ice" lines look icy blue, all "Rubber" lines
 - Consider allowing custom material definitions in a materials.json file
 - Sound effects could be tied to materials in the future (B channel)
 - Particle effects on collision could vary by material
+
+## Completion Notes
+
+**Completed:** 2026-03-19
+
+### Implementation Summary
+
+Created a material system with 8 presets (Stone, Ice, Rubber, Sticky, Bouncy, Glass, Metal, Custom). The editor now has two modes:
+
+- **Standard Mode (default):** Shows a 4x2 grid of material buttons. Clicking a material applies its physics properties to selected objects. Current material is highlighted.
+- **Advanced Mode:** Shows the original RGB sliders for direct value editing.
+
+### Files Created
+
+- `src/050-material.h` - PhysMaterial struct (renamed to avoid raylib conflict) and function declarations
+- `src/050-material.c` - Material definitions and lookup functions
+
+### Files Modified
+
+- `config.txt` - Added EDITOR_ADVANCED_MODE option
+- `src/000-config.h` - Auto-regenerated
+- `Makefile` - Added src/050-material.c to editor sources
+- `src/030-editor-main.c` - Added --advanced / -a command line flag parsing
+- `src/031-editor-app.h` - Added advanced_mode field and toggle functions
+- `src/032-editor-app.c` - Added material selector UI, F12 toggle, mode indicator
+- `src/035-object-render.c` - Objects now render with material display colors
+
+### Key Design Decisions
+
+1. Named struct "PhysMaterial" to avoid conflict with raylib's Material struct
+2. Material display color is used for rendering instead of raw RGB values for visual consistency
+3. F12 keybind toggles between standard and advanced modes at runtime
+4. Property panel shows "[STD]" or "[ADV]" indicator for current mode
+5. Material preset threshold of 100 (squared distance) for "close match" detection

@@ -14,7 +14,7 @@ Gameplay mechanics: spawn system, player interaction, and upgrades.
 | 504 | Improve spawn visual               | completed     | -          |
 | 505 | Spawn buffering system             | completed     | -          |
 | 506 | Unified spawner system             | completed     | -          |
-| 507 | Adversary spawn toggle keybind     | awaiting-work | -          |
+| 507 | Adversary spawn toggle keybind     | completed     | -          |
 | 508 | Upgrade system framework           | completed     | -          |
 | 509 | Spawn rate upgrade                 | completed     | -          |
 | 510 | Ball radius upgrade                | completed     | -          |
@@ -22,10 +22,10 @@ Gameplay mechanics: spawn system, player interaction, and upgrades.
 
 ## Progress Summary
 
-**Completed:** 10/11 issues
-**Awaiting work:** 1 (507)
+**Completed:** 11/11 issues
+**Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** awaiting-work
+**Phase status:** complete
 
 ## Technical Notes
 
@@ -43,9 +43,11 @@ Gameplay mechanics: spawn system, player interaction, and upgrades.
 - Cost scaling per level
 - Granular progression steps
 
-### Pending (507)
-- Keybind to pause/resume adversary spawning
+### Recently Completed (507)
+- P key toggles adversary spawning on/off
+- "[PAUSED]" indicator shown when disabled
+- Credits continue accumulating while paused
 
 ## Issue-Level Dependencies
 
-- 507 is independent with no blockers
+- All phase 5 issues complete
