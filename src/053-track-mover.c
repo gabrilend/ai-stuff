@@ -82,6 +82,132 @@ static void interpolate_position(float x1, float y1, float x2, float y2,
 }
 // }}}
 
+// {{{ find_intersection_at_point
+// Finds intersection at given grid coordinates.
+// Returns pointer to intersection or NULL if not found.
+// Issue 902e: Intersection lookup for path selection.
+static TrackIntersection* find_intersection_at_point(TrackMoverManager* manager,
+                                                      int col, int row) {
+    for (int i = 0; i < manager->intersection_count; i++) {
+        if (manager->intersections[i].col == col &&
+            manager->intersections[i].row == row) {
+            return &manager->intersections[i];
+        }
+    }
+    return NULL;
+}
+// }}}
+
+// {{{ get_segment_direction
+// Gets normalized direction vector for a segment at an endpoint.
+// If at_start=1, returns direction from start toward end.
+// If at_start=0, returns direction from end toward start.
+static void get_segment_direction(TrackSegment* seg, int at_start, float cell_size,
+                                   float* out_dx, float* out_dy) {
+    float dx = (seg->col2 - seg->col1) * cell_size;
+    float dy = (seg->row2 - seg->row1) * cell_size;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 0.001f) {
+        *out_dx = 0.0f;
+        *out_dy = 0.0f;
+        return;
+    }
+    if (at_start) {
+        // At start, direction points outward (toward end)
+        *out_dx = dx / len;
+        *out_dy = dy / len;
+    } else {
+        // At end, direction points outward (toward start)
+        *out_dx = -dx / len;
+        *out_dy = -dy / len;
+    }
+}
+// }}}
+
+// {{{ is_valid_exit_direction
+// Checks if exit direction is within 90° of approach direction.
+// Returns 1 if valid, 0 otherwise.
+// Issue 902e: Direction filtering for path selection.
+static int is_valid_exit_direction(float approach_dx, float approach_dy,
+                                    float exit_dx, float exit_dy) {
+    // Dot product > 0 means angle < 90°
+    float dot = approach_dx * exit_dx + approach_dy * exit_dy;
+    return dot > 0.0f;
+}
+// }}}
+
+// {{{ select_intersection_exit
+// Selects a random valid exit segment at an intersection.
+// Uses 90° direction filtering and random selection.
+// Returns exit segment index or -1 if no valid exits (dead end).
+// Issue 902e: Random path selection at intersections.
+static int select_intersection_exit(TrackMoverManager* manager,
+                                     TrackIntersection* inter,
+                                     int approach_segment,
+                                     int approach_direction) {
+    TrackSegment* approach_seg = &manager->segments[approach_segment];
+
+    // Determine which end of approach segment we exited from
+    int at_end;
+    if (approach_direction > 0) {
+        // Moving toward end, so we exit at the end
+        at_end = 1;
+    } else {
+        // Moving toward start, so we exit at the start
+        at_end = 0;
+    }
+
+    // Get approach direction (direction we were traveling)
+    float approach_dx, approach_dy;
+    if (at_end) {
+        // Approaching from end: direction is col2-col1, row2-row1
+        get_segment_direction(approach_seg, 1, manager->cell_size,
+                              &approach_dx, &approach_dy);
+    } else {
+        // Approaching from start: direction is col1-col2, row1-row2
+        get_segment_direction(approach_seg, 0, manager->cell_size,
+                              &approach_dx, &approach_dy);
+    }
+
+    // Collect valid exits
+    int valid_exits[16];  // Max reasonable intersection size
+    int valid_count = 0;
+
+    for (int i = 0; i < inter->segment_count && valid_count < 16; i++) {
+        int exit_seg_idx = inter->segment_indices[i];
+        if (exit_seg_idx == approach_segment) continue;  // Can't go back same way
+
+        TrackSegment* exit_seg = &manager->segments[exit_seg_idx];
+
+        // Determine which end of exit segment is at the intersection
+        int exit_at_start;
+        if (exit_seg->col1 == inter->col && exit_seg->row1 == inter->row) {
+            exit_at_start = 1;  // Intersection is at exit segment's start
+        } else {
+            exit_at_start = 0;  // Intersection is at exit segment's end
+        }
+
+        // Get exit direction (direction we would travel on exit segment)
+        float exit_dx, exit_dy;
+        get_segment_direction(exit_seg, exit_at_start, manager->cell_size,
+                              &exit_dx, &exit_dy);
+
+        // Check if exit is within 90° of approach
+        if (is_valid_exit_direction(approach_dx, approach_dy, exit_dx, exit_dy)) {
+            valid_exits[valid_count++] = exit_seg_idx;
+        }
+    }
+
+    if (valid_count == 0) {
+        return -1;  // No valid exits, will cause reversal
+    }
+
+    // Random selection from valid exits
+    int choice = rand() % valid_count;
+    return valid_exits[choice];
+}
+// }}}
+
 // {{{ point_touches_object
 // Checks if a point (mover position) touches a board object.
 // Uses grid proximity for pegs, segment proximity for lines.
@@ -309,9 +435,15 @@ TrackMoverManager* track_mover_manager_create(World* world) {
     manager->world = world;
     manager->segments = NULL;
     manager->segment_count = 0;
+    manager->intersections = NULL;  // Issue 902e
+    manager->intersection_count = 0;
     manager->origin_x = 0.0f;
     manager->origin_y = 0.0f;
     manager->cell_size = 43.0f;
+
+    // Issue 902h: Initialize task data for parallel updates
+    manager->task_data = NULL;
+    manager->task_data_capacity = 0;
 
     return manager;
 }
@@ -324,6 +456,10 @@ void track_mover_manager_destroy(TrackMoverManager* manager) {
     track_mover_manager_clear(manager);
     if (manager->movers) {
         free(manager->movers);
+    }
+    // Issue 902h: Free task data
+    if (manager->task_data) {
+        free(manager->task_data);
     }
     free(manager);
 }
@@ -339,6 +475,8 @@ void track_mover_manager_clear(TrackMoverManager* manager) {
     manager->mover_count = 0;
     manager->segments = NULL;
     manager->segment_count = 0;
+    manager->intersections = NULL;  // Issue 902e
+    manager->intersection_count = 0;
 }
 // }}}
 
@@ -355,6 +493,10 @@ int track_mover_manager_add_from_board(TrackMoverManager* manager, BoardData* bo
     // Store segment references
     manager->segments = board->track_segments;
     manager->segment_count = board->track_segment_count;
+
+    // Store intersection references (issue 902e)
+    manager->intersections = board->track_intersections;
+    manager->intersection_count = board->track_intersection_count;
 
     // Ensure capacity
     int needed = manager->mover_count + board->track_mover_count;
@@ -438,18 +580,39 @@ static void handle_segment_transition(MoverPhysics* mover, TrackMoverManager* ma
         return;
     }
 
-    // Select next segment (for now, just take first connection)
-    // Issue 902e will add proper intersection path selection
-    int next_segment = connections[0];
+    // Get endpoint coordinates
+    int end_col = (endpoint == 1) ? seg->col2 : seg->col1;
+    int end_row = (endpoint == 1) ? seg->row2 : seg->row1;
+
+    // Check if this is an intersection (3+ segments meeting)
+    // Issue 902e: Use intersection data for random path selection
+    TrackIntersection* inter = find_intersection_at_point(manager, end_col, end_row);
+    int next_segment;
+
+    if (inter != NULL) {
+        // At intersection - use direction filtering and random selection
+        next_segment = select_intersection_exit(manager, inter,
+                                                 mover->current_segment,
+                                                 mover->direction);
+        if (next_segment < 0) {
+            // No valid exits within 90° - reverse direction
+            mover->direction = -mover->direction;
+            mover->position_on_segment = (endpoint == 1) ? 1.0f : 0.0f;
+            return;
+        }
+    } else {
+        // Simple 2-way junction - take the only connection
+        next_segment = connections[0];
+    }
+
     TrackSegment* next = &manager->segments[next_segment];
 
     // Determine which end of the new segment we're entering from
     int entry_end;
-    float seg_end_col = (endpoint == 1) ? seg->col2 : seg->col1;
-    float seg_end_row = (endpoint == 1) ? seg->row2 : seg->row1;
+    // (end_col, end_row already defined above)
 
     // Check if we enter at start or end of next segment
-    if (next->col1 == seg_end_col && next->row1 == seg_end_row) {
+    if (next->col1 == end_col && next->row1 == end_row) {
         // Entering at start of next segment
         entry_end = 0;
         mover->position_on_segment = 0.0f;

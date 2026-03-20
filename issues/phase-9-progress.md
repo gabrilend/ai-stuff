@@ -14,7 +14,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901c | Line rotation physics         | completed     | 901a ✓          |
 | 901d | Connected object detection    | completed     | 901a ✓          |
 | 901e | Collision modes               | completed     | 901c ✓, 901d ✓  |
-| 901f | Ball crushing                 | awaiting-work | 901e ✓, 221e ✓  |
+| 901f | Ball crushing                 | completed     | 901e ✓, 221e ✓  |
 | 901g | Direction config UI           | completed     | 901b ✓          |
 | 901h | Parallel rotor updates        | awaiting-work | 901c ✓, 901d ✓  |
 | 902  | Track mover system            | in-progress   | -               |
@@ -22,17 +22,17 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 902b | Editor track drawing tool     | completed     | 902a ✓          |
 | 902c | Mover payload detection       | completed     | 902a ✓          |
 | 902d | Track following physics       | completed     | 902a ✓          |
-| 902e | Intersection path selection   | awaiting-work | 902d ✓          |
-| 902f | Back and forth motion         | awaiting-work | 902d ✓          |
+| 902e | Intersection path selection   | completed     | 902d ✓          |
+| 902f | Back and forth motion         | completed     | 902d ✓          |
 | 902g | Track ball interaction        | awaiting-work | 902d ✓, 221e ✓  |
 | 902h | Parallel mover updates        | awaiting-work | 902d ✓, 902c ✓  |
 | 903  | Ball velocity statistics      | completed     | -               |
 
 ## Progress Summary
 
-**Completed:** 11/19 issues (901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 903)
+**Completed:** 13/19 issues (901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 902e, 902f, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 6 (901f, 901h, 902e, 902f, 902g, 902h)
+**Awaiting work:** 4 (901f, 901h, 902g, 902h)
 **Blocked:** 0
 **Phase status:** in-progress
 
@@ -51,6 +51,19 @@ Dynamic systems: rotors, track movers, and analysis tools.
 - Both rotor and mover updates can run in parallel with each other
 
 ## Recent Completions
+
+### 902e - Intersection path selection
+- Added intersection lookup in TrackMoverManager
+- Helper functions: `find_intersection_at_point`, `get_segment_direction`, `is_valid_exit_direction`, `select_intersection_exit`
+- 90° direction filtering: exit must be within 90° of approach direction (dot product > 0)
+- Random selection from valid exits at intersections (3+ segments meeting)
+- Falls back to reversal if no valid exits
+
+### 902f - Back and forth motion
+- Already implemented in 902d's `handle_segment_transition()`
+- Dead end detection: `connection_count == 0` triggers reversal
+- Position clamped to 0.0 or 1.0 on reversal
+- Also triggers when 902e finds no valid directional exits
 
 ### 901g - Direction config UI
 - Right-click rotor to open property panel

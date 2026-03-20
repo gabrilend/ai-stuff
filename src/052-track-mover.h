@@ -11,6 +11,7 @@
 #include "020-board-data.h"
 #include "004-world.h"
 #include "022-grid.h"
+#include "003-threadpool.h"
 
 // {{{ MoverPayload
 // Payload item attached to a mover.
@@ -54,6 +55,19 @@ typedef struct MoverPhysics {
 } MoverPhysics;
 // }}}
 
+// Forward declaration for task data
+struct TrackMoverManager;
+
+// {{{ MoverTaskData
+// Per-mover task data for parallel updates (issue 902h)
+// Each task updates a single mover's position and payload
+typedef struct MoverTaskData {
+    MoverPhysics* mover;              // Mover to update
+    struct TrackMoverManager* manager; // Manager for segment/world access
+    float dt;                          // Delta time for this frame
+} MoverTaskData;
+// }}}
+
 // {{{ TrackMoverManager
 // Manages all track movers in the game world.
 // Provides centralized update and query interface.
@@ -69,10 +83,18 @@ typedef struct TrackMoverManager {
     TrackSegment* segments;
     int segment_count;
 
+    // Intersection data for path selection (issue 902e)
+    TrackIntersection* intersections;
+    int intersection_count;
+
     // Grid data for coordinate conversion
     float origin_x;
     float origin_y;
     float cell_size;
+
+    // Parallel task data (issue 902h)
+    MoverTaskData* task_data;
+    int task_data_capacity;
 } TrackMoverManager;
 // }}}
 
@@ -105,7 +127,22 @@ int track_mover_manager_add_from_board(TrackMoverManager* manager, BoardData* bo
 // Updates all mover positions along tracks and moves payload.
 // Call once per physics frame before ball collision checks.
 // dt: Delta time in seconds
+// NOTE: For sequential update. Use prepare/submit/wait pattern for parallel.
 void track_mover_manager_update(TrackMoverManager* manager, float dt);
+// }}}
+
+// {{{ track_mover_manager_prepare_tasks
+// Prepares task data for parallel mover updates (issue 902h).
+// Sets up mover pointers, manager reference, and dt for each task.
+// Call once per frame before submitting tasks to threadpool.
+void track_mover_manager_prepare_tasks(TrackMoverManager* manager, float dt);
+// }}}
+
+// {{{ track_mover_manager_submit_tasks
+// Submits mover update tasks to the threadpool (issue 902h).
+// Each task updates a single mover independently.
+// Call after prepare_tasks, before threadpool_wait_all.
+void track_mover_manager_submit_tasks(TrackMoverManager* manager, ThreadPool* pool);
 // }}}
 
 // {{{ track_mover_get_world_position

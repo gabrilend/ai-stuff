@@ -10,6 +10,7 @@
 
 #include "020-board-data.h"
 #include "004-world.h"
+#include "003-threadpool.h"
 
 // {{{ RotorPhysics
 // Runtime rotor state for physics simulation.
@@ -39,6 +40,16 @@ typedef struct RotorPhysics {
 } RotorPhysics;
 // }}}
 
+// {{{ RotorTaskData
+// Per-rotor task data for parallel updates (issue 901h)
+// Each task updates a single rotor's angle and connected object positions
+typedef struct RotorTaskData {
+    RotorPhysics* rotor;  // Rotor to update
+    World* world;         // World containing lines/pegs to move
+    float dt;             // Delta time for this frame
+} RotorTaskData;
+// }}}
+
 // {{{ RotorManager
 // Manages all rotors in the game world.
 // Provides centralized update and query interface.
@@ -49,6 +60,10 @@ typedef struct RotorManager {
 
     // Reference to world for updating line/peg positions
     World* world;
+
+    // Parallel task data (issue 901h)
+    RotorTaskData* task_data;
+    int task_data_capacity;
 } RotorManager;
 // }}}
 
@@ -81,7 +96,22 @@ int rotor_manager_add_from_board(RotorManager* manager, BoardData* board,
 // Updates all rotor angles and connected object positions.
 // Call once per physics frame before ball collision checks.
 // dt: Delta time in seconds
+// NOTE: For sequential update. Use prepare/submit/wait pattern for parallel.
 void rotor_manager_update(RotorManager* manager, float dt);
+// }}}
+
+// {{{ rotor_manager_prepare_tasks
+// Prepares task data for parallel rotor updates (issue 901h).
+// Sets up rotor pointers, world reference, and dt for each task.
+// Call once per frame before submitting tasks to threadpool.
+void rotor_manager_prepare_tasks(RotorManager* manager, float dt);
+// }}}
+
+// {{{ rotor_manager_submit_tasks
+// Submits rotor update tasks to the threadpool (issue 901h).
+// Each task updates a single rotor independently.
+// Call after prepare_tasks, before threadpool_wait_all.
+void rotor_manager_submit_tasks(RotorManager* manager, ThreadPool* pool);
 // }}}
 
 // {{{ rotor_get_line_velocity
