@@ -28,7 +28,7 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 | 218  | Pegs not anchored to guard rails   | completed     | -          |
 | 219  | Slot based world layout            | completed     | -          |
 | 220  | Velocity dependent restitution     | completed     | -          |
-| 221  | Ball sleep system                  | in-progress   | -          |
+| 221  | Ball sleep system                  | completed     | -          |
 | 221a | Sleep state tracking               | completed     | -          |
 | 221b | Sleep transition logic             | completed     | 221a       |
 | 221c | Wake conditions                    | completed     | 221b       |
@@ -38,11 +38,11 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 
 ## Progress Summary
 
-**Completed:** 25/27 issues
+**Completed:** 26/27 issues
 **Awaiting work:** 1 (222)
 **Blocked:** 0
-**In progress:** 1 (221 parent issue)
-**Phase status:** in-progress
+**In progress:** 0
+**Phase status:** awaiting-work
 
 ## Technical Notes
 

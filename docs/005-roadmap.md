@@ -11,7 +11,7 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 | Phase | Theme               | Complete | In Progress | Awaiting | Blocked |
 |-------|---------------------|----------|-------------|----------|---------|
 | 1     | Core Infrastructure | 12/13    | 0           | 1        | 0       |
-| 2     | World & Physics     | 25/27    | 1           | 1        | 0       |
+| 2     | World & Physics     | 26/27    | 0           | 1        | 0       |
 | 3     | Feedback Systems    | 21/21    | 0           | 0        | 0       |
 | 4     | Display             | 12/13    | 0           | 1        | 0       |
 | 5     | Gameplay            | 11/11    | 0           | 0        | 0       |
@@ -20,20 +20,40 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 | 8     | Editor              | 38/40    | 1           | 1        | 0       |
 | 9     | Dynamic Systems     | 11/19    | 2           | 6        | 0       |
 
-**Overall: 153/167 issues complete (92%)**
+**Overall: 154/167 issues complete (92%)**
 
 ---
 
 ## Sprint Report
 
-### New Issues Added
+### Current Sprint Goals
 
-- **901h** - Parallel rotor updates (Phase 9) - parallelize rotor_manager_update
-- **902h** - Parallel mover updates (Phase 9) - parallelize track_mover_manager_update
+**Team A - Infrastructure (3 issues)**
+- 113: Config file self-edit and validation
+- 901h: Parallel rotor updates
+- 902h: Parallel mover updates
 
-### Previous Sprint Completed (9 issues across 4 phases)
+**Team B - Physics (2 issues)**
+- 222: Trajectory history
+- 901f: Ball crushing
 
+**Team C - Track Movers (3 issues)**
+- 902e: Intersection path selection
+- 902f: Back and forth motion
+- 902g: Track ball interaction
+
+**Team D - UI/Editor (3 issues)**
+- 837: Finish polygon testing
+- 409: Collapsible drawer UI
+- 840: Editor grid density sliders
+
+**Sprint Target:** 11 issues (ambitious but achievable)
+
+### Previous Sprint Completed (10 issues)
+
+- **221** - Ball sleep system complete (Phase 2) - all sub-issues done
 - **221b** - Sleep transition logic (Phase 2)
+- **221c** - Wake conditions (Phase 2)
 - **221e** - Stress source distinction (Phase 2)
 - **316** - Multiple gate scoring (Phase 3)
 - **317** - GateRow scoring fix (Phase 3)
@@ -42,6 +62,12 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 - **901b** - Editor rotor placement tool (Phase 9)
 - **901c** - Line rotation physics (Phase 9)
 - **902b** - Editor track drawing tool (Phase 9)
+
+### New Issues Added This Session
+
+- **113** - Config file self-edit (Phase 1)
+- **901h** - Parallel rotor updates (Phase 9)
+- **902h** - Parallel mover updates (Phase 9)
 
 ---
 
@@ -53,25 +79,22 @@ These issues can be picked up right now:
 
 ```
 INFRASTRUCTURE:
-  113  - Config file self-edit (Phase 1) [NEW]
+  113  - Config file self-edit (Phase 1) - rename to ./config, add validation
 
 PHYSICS TEAM:
-  221c - Wake conditions (Phase 2) [UNBLOCKED]
-  222  - Trajectory history (Phase 2) - partial
+  222  - Trajectory history (Phase 2) - overlap nudge for stuck balls
 
 UI TEAM:
   409  - Collapsible drawer UI (Phase 4)
-
-EDITOR TEAM:
   840  - Editor grid density sliders (Phase 8)
 
 DYNAMIC SYSTEMS TEAM:
-  901f - Ball crushing (Phase 9) [UNBLOCKED]
-  901h - Parallel rotor updates (Phase 9) [NEW]
-  902e - Intersection path selection (Phase 9) [UNBLOCKED]
-  902f - Back and forth motion (Phase 9) [UNBLOCKED]
-  902g - Track ball interaction (Phase 9) [UNBLOCKED]
-  902h - Parallel mover updates (Phase 9) [NEW]
+  901f - Ball crushing (Phase 9) - uses 221e stress system
+  901h - Parallel rotor updates (Phase 9) - follows ball/particle pattern
+  902e - Intersection path selection (Phase 9)
+  902f - Back and forth motion (Phase 9)
+  902g - Track ball interaction (Phase 9) - uses 221e stress system
+  902h - Parallel mover updates (Phase 9) - follows ball/particle pattern
 ```
 
 ### In Progress
@@ -79,10 +102,9 @@ DYNAMIC SYSTEMS TEAM:
 Currently being worked on:
 
 ```
-  221  - Ball sleep system (Phase 2) - parent issue
   837  - Closed polygon detection (Phase 8) - testing phase
-  901  - Rotor system (Phase 9) - parent issue
-  902  - Track mover system (Phase 9) - parent issue
+  901  - Rotor system (Phase 9) - parent issue, 6/8 sub-issues done
+  902  - Track mover system (Phase 9) - parent issue, 4/8 sub-issues done
 ```
 
 ### Parallelization Priority
@@ -106,16 +128,12 @@ Currently being worked on:
 
 ---
 
-### Phase 2: World & Physics (In Progress)
+### Phase 2: World & Physics
 
-**Complete (25):** World state, pegs, physics, wrap zones, sleep state, soft collision, stress distinction
-
-**In Progress:**
-- 221 - Ball sleep system (parent)
+**Complete (26):** World state, pegs, physics, wrap zones, sleep system (221 + all sub-issues), stress distinction
 
 **Awaiting Work:**
-- 221c - Wake conditions [UNBLOCKED]
-- 222 - Trajectory history (partial)
+- 222 - Trajectory history (partial) - overlap nudge for stuck balls
 
 ---
 
@@ -188,16 +206,37 @@ All 11 issues complete.
 
 ## Recommended Team Assignments
 
-For maximum parallelization with 4 developers:
+For maximum parallelization with 4 teams:
 
-| Developer | Primary Focus | Secondary |
-|-----------|---------------|-----------|
-| A | Phase 2: 221c | Phase 9: 901h, 902h (parallelization) |
-| B | Phase 9: 901f | Phase 4: 409 |
-| C | Phase 9: 902e, 902f, 902g | Phase 8: 840 |
-| D | Phase 8: 837 (finish) | - |
+| Team | Primary Focus | Issues | Est. Complexity |
+|------|---------------|--------|-----------------|
+| A - Infrastructure | Config + Parallelization | 113, 901h, 902h | Low-Medium |
+| B - Physics | Ball behavior | 222, 901f | Medium-High |
+| C - Track Movers | Complete track system | 902e, 902f, 902g | Medium |
+| D - UI/Editor | Polish and tools | 837 (finish), 409, 840 | Medium |
 
-**Parallelization Priority:** 901h and 902h can be done together as they share the same pattern.
+### Team A - Infrastructure
+- **113**: Config file self-edit with validation (quick win)
+- **901h**: Parallel rotor updates (follows existing pattern)
+- **902h**: Parallel mover updates (same pattern as 901h)
+- *Note: 901h and 902h can share implementation approach*
+
+### Team B - Physics
+- **222**: Trajectory history for stuck ball detection
+- **901f**: Ball crushing mechanics (builds on 221e stress system)
+- *Note: Both involve ball state tracking*
+
+### Team C - Track Movers
+- **902e**: Intersection path selection
+- **902f**: Back and forth motion
+- **902g**: Track ball interaction (needs 901f crushing shared code)
+- *Note: Sequential dependencies, but can start 902e/f in parallel*
+
+### Team D - UI/Editor
+- **837**: Finish polygon detection testing
+- **409**: Collapsible drawer UI
+- **840**: Editor grid density sliders
+- *Note: Independent issues, can parallelize*
 
 ---
 
@@ -209,9 +248,9 @@ For maximum parallelization with 4 developers:
 | N-1    | 7         | 3              |
 | N      | 9         | 4              |
 
-**Remaining open issues:** 14
-- 9 awaiting work (can start now)
-- 4 in progress
+**Remaining open issues:** 13
+- 10 awaiting work (can start now)
+- 3 in progress (837, 901, 902)
 - 0 blocked
 
 At current velocity (~8 issues/sprint): ~2 sprints to completion.
