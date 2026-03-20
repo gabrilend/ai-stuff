@@ -21,6 +21,157 @@
 // Defined at end of file, called from ball_manager_collect_scores_split
 void velocity_stats_record_gate_entry(Ball* ball);
 
+// =============================================================================
+// Spatial Hash Implementation (issue 222)
+// =============================================================================
+
+// Forward declaration for ball_get_average_trajectory (defined below)
+static void ball_get_average_trajectory(Ball* ball, float* out_vx, float* out_vy);
+
+// {{{ spatial_hash_create
+// Creates and initializes a spatial hash grid for ball neighbor lookup.
+// Allocates cell array with fixed dimensions.
+static SpatialHash* spatial_hash_create(void) {
+    SpatialHash* hash = (SpatialHash*)malloc(sizeof(SpatialHash));
+    if (!hash) {
+        fprintf(stderr, "ERROR: Failed to allocate spatial hash\n");
+        return NULL;
+    }
+
+    hash->cols = SPATIAL_HASH_COLS;
+    hash->rows = SPATIAL_HASH_ROWS;
+    hash->cell_count = hash->cols * hash->rows;
+    hash->cell_size = SPATIAL_HASH_CELL_SIZE;
+    hash->origin_x = 0.0f;
+    hash->origin_y = 0.0f;
+
+    hash->cells = (SpatialHashCell*)calloc(hash->cell_count, sizeof(SpatialHashCell));
+    if (!hash->cells) {
+        fprintf(stderr, "ERROR: Failed to allocate spatial hash cells\n");
+        free(hash);
+        return NULL;
+    }
+
+    // Initialize all cells as empty
+    for (int i = 0; i < hash->cell_count; i++) {
+        hash->cells[i].count = 0;
+    }
+
+    return hash;
+}
+// }}}
+
+// {{{ spatial_hash_destroy
+// Frees spatial hash and all associated memory.
+static void spatial_hash_destroy(SpatialHash* hash) {
+    if (!hash) return;
+    if (hash->cells) {
+        free(hash->cells);
+    }
+    free(hash);
+}
+// }}}
+
+// {{{ spatial_hash_clear
+// Clears all cells in the spatial hash (resets count to 0).
+// Called each frame before rebuilding.
+static void spatial_hash_clear(SpatialHash* hash) {
+    if (!hash || !hash->cells) return;
+    for (int i = 0; i < hash->cell_count; i++) {
+        hash->cells[i].count = 0;
+    }
+}
+// }}}
+
+// {{{ spatial_hash_get_cell_index
+// Converts ball position to cell index.
+// Returns -1 if position is outside grid bounds.
+static int spatial_hash_get_cell_index(SpatialHash* hash, float x, float y) {
+    if (!hash) return -1;
+
+    int col = (int)((x - hash->origin_x) / hash->cell_size);
+    int row = (int)((y - hash->origin_y) / hash->cell_size);
+
+    // Clamp to grid bounds
+    if (col < 0) col = 0;
+    if (col >= hash->cols) col = hash->cols - 1;
+    if (row < 0) row = 0;
+    if (row >= hash->rows) row = hash->rows - 1;
+
+    return row * hash->cols + col;
+}
+// }}}
+
+// {{{ spatial_hash_add_ball
+// Adds a ball index to the appropriate cell based on position.
+// Does nothing if cell is full (MAX_PER_CELL reached).
+static void spatial_hash_add_ball(SpatialHash* hash, int ball_index, float x, float y) {
+    if (!hash || !hash->cells) return;
+
+    int cell_idx = spatial_hash_get_cell_index(hash, x, y);
+    if (cell_idx < 0 || cell_idx >= hash->cell_count) return;
+
+    SpatialHashCell* cell = &hash->cells[cell_idx];
+    if (cell->count < SPATIAL_HASH_MAX_PER_CELL) {
+        cell->ball_indices[cell->count] = ball_index;
+        cell->count++;
+    }
+    // If cell is full, ball is not added - this is acceptable for overlap nudging
+    // since we don't need perfect coverage, just good enough acceleration
+}
+// }}}
+
+// {{{ check_and_nudge_pair
+// Checks if two slow balls overlap and nudges them apart.
+// Uses trajectory history to determine push direction when balls coincide.
+// Only processes if both balls are below SLOW_BALL_THRESHOLD.
+static void check_and_nudge_pair(Ball* a, Ball* b) {
+    if (!a || !b) return;
+    if (!a->active || !b->active) return;
+
+    // Both balls must be slow
+    float speed_a = sqrtf(a->vx * a->vx + a->vy * a->vy);
+    float speed_b = sqrtf(b->vx * b->vx + b->vy * b->vy);
+    if (speed_a > SLOW_BALL_THRESHOLD || speed_b > SLOW_BALL_THRESHOLD) return;
+
+    // Check overlap distance
+    float dx = b->x - a->x;
+    float dy = b->y - a->y;
+    float dist_sq = dx * dx + dy * dy;
+
+    // Overlap check radius: 2 * BALL_RADIUS (touching or overlapping)
+    float overlap_dist = BALL_RADIUS * OVERLAP_RADIUS_MULT;
+    if (dist_sq >= overlap_dist * overlap_dist) return;  // Not overlapping
+
+    float dist = sqrtf(dist_sq);
+
+    if (dist < 0.001f) {
+        // Balls exactly on top of each other - use trajectory to separate
+        float traj_ax, traj_ay, traj_bx, traj_by;
+        ball_get_average_trajectory(a, &traj_ax, &traj_ay);
+        ball_get_average_trajectory(b, &traj_bx, &traj_by);
+
+        // Push opposite to each ball's trajectory
+        a->x -= traj_ax * NUDGE_STRENGTH;
+        a->y -= traj_ay * NUDGE_STRENGTH;
+        b->x -= traj_bx * NUDGE_STRENGTH;
+        b->y -= traj_by * NUDGE_STRENGTH;
+    } else {
+        // Push along separation axis
+        float nx = dx / dist;
+        float ny = dy / dist;
+
+        float overlap = overlap_dist - dist;
+        float push = overlap * NUDGE_STRENGTH * 0.5f;
+
+        a->x -= nx * push;
+        a->y -= ny * push;
+        b->x += nx * push;
+        b->y += ny * push;
+    }
+}
+// }}}
+
 // {{{ ball_manager_create
 BallManager* ball_manager_create(int capacity) {
     BallManager* manager = (BallManager*)malloc(sizeof(BallManager));
@@ -141,6 +292,13 @@ BallManager* ball_manager_create(int capacity) {
     manager->adversary_highlight[0] = ah.r; manager->adversary_highlight[1] = ah.g;
     manager->adversary_highlight[2] = ah.b; manager->adversary_highlight[3] = ah.a;
 
+    // Create spatial hash for slow ball overlap detection (issue 222)
+    manager->spatial_hash = spatial_hash_create();
+    if (!manager->spatial_hash) {
+        fprintf(stderr, "WARNING: Failed to create spatial hash, overlap nudging disabled\n");
+        // Non-fatal - continue without spatial hash
+    }
+
     return manager;
 }
 // }}}
@@ -157,6 +315,10 @@ void ball_manager_destroy(BallManager* manager) {
     }
     if (manager->task_data) {
         free(manager->task_data);
+    }
+    // Destroy spatial hash (issue 222)
+    if (manager->spatial_hash) {
+        spatial_hash_destroy(manager->spatial_hash);
     }
     free(manager);
 }
@@ -339,18 +501,25 @@ static void ball_accumulate_static_stress(Ball* ball, float pressure) {
 
 // {{{ ball_accumulate_dynamic_stress
 // Accumulates dynamic stress from rotors, movers (issue 221e).
-// Dynamic stress CAN cause crushing when threshold exceeded.
-// Note: Crushing check implemented in 901f when rotors exist.
-static void ball_accumulate_dynamic_stress(Ball* ball, float pressure) {
-    if (!ball || !ball->active) return;
+// Dynamic stress CAN cause crushing when threshold exceeded (issue 901f).
+// Returns 1 if ball was crushed, 0 otherwise.
+static int ball_accumulate_dynamic_stress(Ball* ball, float pressure) {
+    if (!ball || !ball->active) return 0;
 
     ball->dynamic_stress += pressure;
     ball->contact_count++;
 
-    // Note: Crushing check will be in 901f - for now just accumulate
-    // if (ball->dynamic_stress > CRUSH_THRESHOLD) {
-    //     crush_ball(ball);
-    // }
+    // Issue 901f: Check for crushing when stress exceeds threshold
+    // Ball is crushed when trapped between dynamic and static objects
+    if (ball->dynamic_stress > CRUSH_THRESHOLD) {
+        // Ball is crushed - deactivate it
+        // Note: Particle effect will be spawned by caller when ball becomes inactive
+        ball->active = 0;
+        ball->health = 0;
+        return 1;  // Ball was crushed
+    }
+
+    return 0;  // Ball survives
 }
 // }}}
 
@@ -518,6 +687,7 @@ static int ball_check_peg_collision(Ball* ball, Peg* peg,
 // Internal function to resolve collision with a peg
 // Separates ball from peg and reflects velocity using peg's properties
 // Low-speed impacts: zero restitution, near-zero friction (slide instead of bounce)
+// Issue 901f: Dynamic pegs cause crushing stress instead of static stress.
 static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
                                         float depth) {
     // Separate ball from peg along collision normal
@@ -532,8 +702,13 @@ static void ball_resolve_peg_collision(Ball* ball, Peg* peg, float nx, float ny,
         // Check closing speed for velocity-dependent response
         float closing_speed = -vn;
 
-        // Issue 221e: Peg collisions accumulate static stress (harmless)
-        ball_accumulate_static_stress(ball, closing_speed * 0.1f);
+        // Issue 901f: Dynamic pegs cause crushing stress, static pegs cause harmless stress
+        float pressure = closing_speed * 0.1f;
+        if (peg->is_dynamic) {
+            ball_accumulate_dynamic_stress(ball, pressure);
+        } else {
+            ball_accumulate_static_stress(ball, pressure);
+        }
 
         float restitution, friction;
 
@@ -749,6 +924,7 @@ static void line_closest_point(float px, float py,
 // {{{ ball_collide_with_line
 // Checks and resolves collision between ball and a single line
 // Low-speed impacts: zero restitution, near-zero friction (slide instead of bounce)
+// Issue 901f: Accumulates dynamic stress when colliding with rotor-attached lines.
 static void ball_collide_with_line(Ball* ball, Line* line) {
     if (!ball || !line) return;
 
@@ -815,6 +991,15 @@ static void ball_collide_with_line(Ball* ball, Line* line) {
             float bounce_factor = 1.0f + restitution;
             ball->vx -= bounce_factor * dot_normal * nx;
             ball->vy -= bounce_factor * dot_normal * ny;
+        }
+
+        // Issue 901f: Accumulate stress based on penetration
+        // Dynamic lines (attached to rotors) cause crushing stress
+        float pressure = penetration * 2.0f;  // Scale penetration to stress
+        if (line->is_dynamic) {
+            ball_accumulate_dynamic_stress(ball, pressure);
+        } else {
+            ball_accumulate_static_stress(ball, pressure);
         }
     }
 }
@@ -1591,6 +1776,76 @@ void ball_manager_handle_expansion(BallManager* manager, float offset,
         if (manager->balls_next[i].active &&
             manager->balls_next[i].y > expansion_y_start) {
             manager->balls_next[i].y += offset;
+        }
+    }
+}
+// }}}
+
+// =============================================================================
+// Spatial Hash Overlap Checking (issue 222)
+// =============================================================================
+
+// {{{ ball_manager_check_slow_overlaps
+void ball_manager_check_slow_overlaps(BallManager* manager) {
+    if (!manager || !manager->spatial_hash) return;
+
+    SpatialHash* hash = manager->spatial_hash;
+    Ball* balls = manager->balls_next;  // Work on next buffer (post-physics)
+
+    // Step 1: Clear and rebuild spatial hash with current ball positions
+    spatial_hash_clear(hash);
+
+    for (int i = 0; i < manager->capacity; i++) {
+        Ball* ball = &balls[i];
+        if (!ball->active) continue;
+
+        // Only add slow balls to the hash (optimization)
+        float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+        if (speed <= SLOW_BALL_THRESHOLD) {
+            spatial_hash_add_ball(hash, i, ball->x, ball->y);
+        }
+    }
+
+    // Step 2: Check each slow ball against neighbors in adjacent cells
+    for (int i = 0; i < manager->capacity; i++) {
+        Ball* ball = &balls[i];
+        if (!ball->active) continue;
+
+        // Only check slow balls
+        float speed = sqrtf(ball->vx * ball->vx + ball->vy * ball->vy);
+        if (speed > SLOW_BALL_THRESHOLD) continue;
+
+        int cell_idx = spatial_hash_get_cell_index(hash, ball->x, ball->y);
+        if (cell_idx < 0) continue;
+
+        // Calculate row and column of this cell
+        int col = cell_idx % hash->cols;
+        int row = cell_idx / hash->cols;
+
+        // Check this cell and 8 adjacent cells
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int neighbor_col = col + dx;
+                int neighbor_row = row + dy;
+
+                // Skip if out of bounds
+                if (neighbor_col < 0 || neighbor_col >= hash->cols) continue;
+                if (neighbor_row < 0 || neighbor_row >= hash->rows) continue;
+
+                int neighbor_idx = neighbor_row * hash->cols + neighbor_col;
+                SpatialHashCell* cell = &hash->cells[neighbor_idx];
+
+                // Check all balls in this cell
+                for (int j = 0; j < cell->count; j++) {
+                    int other_idx = cell->ball_indices[j];
+
+                    // Skip self and avoid duplicate pairs (only check i < other_idx)
+                    if (other_idx <= i) continue;
+
+                    Ball* other = &balls[other_idx];
+                    check_and_nudge_pair(ball, other);
+                }
+            }
         }
     }
 }

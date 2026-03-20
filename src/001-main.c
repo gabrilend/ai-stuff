@@ -1242,6 +1242,10 @@ int main(int argc, char* argv[]) {
             world->high_score = world->score;
         }
 
+        // Issue 222: Check for overlapping slow balls and nudge them apart
+        // Uses spatial hash for efficient neighbor lookup after physics update
+        ball_manager_check_slow_overlaps(ball_manager);
+
         ball_manager_finalize_update(ball_manager);
 
         // Record velocity statistics for debugging (issue 903)

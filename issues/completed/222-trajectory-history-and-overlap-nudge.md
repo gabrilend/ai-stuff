@@ -1,6 +1,6 @@
 # 222 - Trajectory History and Overlap Nudge
 
-## Status: partial - trajectory complete, nudging pending
+## Status: completed
 
 ## Depends on
 
@@ -291,12 +291,34 @@ NUDGE_STRENGTH=0.5
    - Added `ball_get_average_trajectory()` for computing average movement direction
    - Called trajectory recording in both `ball_manager_update()` and `ball_update_task()`
 
-### Remaining Work: Spatial Hash and Nudging
+### Phase 2 Complete: Spatial Hash and Nudging (2026-03-19)
 
-The following are pending:
-- SpatialHash structure for O(1) ball lookup
-- Grid cell ball lists (rebuilt each frame)
-- check_slow_ball_overlaps() with adjacent cell checks
-- check_and_nudge_pair() using trajectory-informed direction
+1. **src/006-ball.h**:
+   - Added `SpatialHashCell` struct with fixed-size ball_indices array
+   - Added `SpatialHash` struct with grid parameters and cell array
+   - Added spatial hash constants: `SPATIAL_HASH_CELL_SIZE`, `SPATIAL_HASH_COLS`, `SPATIAL_HASH_ROWS`, `SPATIAL_HASH_MAX_PER_CELL`
+   - Added `SpatialHash*` to BallManager struct
+   - Added `ball_manager_check_slow_overlaps()` declaration
 
-These are optimizations that can be added later when pile behavior needs improvement.
+2. **src/007-ball.c**:
+   - Added `spatial_hash_create()` - allocates hash grid
+   - Added `spatial_hash_destroy()` - frees hash grid
+   - Added `spatial_hash_clear()` - resets cell counts
+   - Added `spatial_hash_get_cell_index()` - converts position to cell
+   - Added `spatial_hash_add_ball()` - adds ball to appropriate cell
+   - Added `check_and_nudge_pair()` - nudges overlapping slow balls using trajectory
+   - Added `ball_manager_check_slow_overlaps()` - rebuilds hash and checks neighbors
+   - Updated `ball_manager_create()` to create spatial hash
+   - Updated `ball_manager_destroy()` to free spatial hash
+
+3. **src/001-main.c**:
+   - Added call to `ball_manager_check_slow_overlaps()` after physics update
+
+### Implementation Summary
+
+- Spatial hash provides O(n) rebuild and O(n*k) overlap checks (k = balls per neighborhood)
+- Only slow balls (speed < SLOW_BALL_THRESHOLD=5) are added to hash and checked
+- Adjacent 9 cells checked for each slow ball
+- Overlapping balls nudged apart along separation axis
+- Coincident balls (same position) use trajectory history to determine push direction
+- Cell size (32px) optimized for 2x overlap radius (16px) lookups

@@ -34,15 +34,15 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 | 221c | Wake conditions                    | completed     | 221b       |
 | 221d | Soft collision response            | completed     | -          |
 | 221e | Stress source distinction          | completed     | 221d       |
-| 222  | Trajectory history overlap nudge   | partial       | -          |
+| 222  | Trajectory history overlap nudge   | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 26/27 issues
-**Awaiting work:** 1 (222)
+**Completed:** 27/27 issues
+**Awaiting work:** 0
 **Blocked:** 0
 **In progress:** 0
-**Phase status:** awaiting-work
+**Phase status:** completed
 
 ## Technical Notes
 
@@ -75,7 +75,7 @@ World structure, ball physics, wrap behavior, and sleep optimization.
 - Wake conditions (221c) - ball_wake(), ball_wake_with_impulse() on collision
 - Soft collision response (221d) - gentle push instead of rigid collision for piles
 - Stress distinction (221e) - static vs dynamic stress tracking for crushing
-- Trajectory history (222) - partial, overlap nudge for stuck detection
+- Trajectory history (222) - circular buffer for past N frames, spatial hash for O(n*k) overlap checks, trajectory-informed nudging for coincident balls
 
 ## Issue-Level Dependencies
 

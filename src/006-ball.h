@@ -98,6 +98,39 @@ typedef struct ThreadPool ThreadPool;
 #define STRESS_MIN_THRESHOLD 0.01f      // Below this, snap to zero
 #define CRUSH_THRESHOLD 50.0f           // Dynamic stress above this = crush (used in 901f)
 
+// Spatial hash constants (issue 222)
+// Grid-based acceleration structure for slow ball overlap detection.
+// Cells sized ~2x overlap check radius for efficient neighbor lookup.
+#define SPATIAL_HASH_CELL_SIZE 32.0f    // Cell size in pixels (2 * BALL_RADIUS * 2)
+#define SPATIAL_HASH_COLS 32            // Columns in hash grid (~1024px width)
+#define SPATIAL_HASH_ROWS 48            // Rows in hash grid (~1536px height)
+#define SPATIAL_HASH_MAX_PER_CELL 16    // Max balls per cell (dense pile limit)
+
+// {{{ typedef struct SpatialHashCell
+// Single cell in the spatial hash grid (issue 222).
+// Stores indices of balls that fall within this cell's bounds.
+// Fixed-size array to avoid per-frame allocation.
+typedef struct SpatialHashCell {
+    int ball_indices[SPATIAL_HASH_MAX_PER_CELL];
+    int count;                          // Number of balls in this cell
+} SpatialHashCell;
+// }}}
+
+// {{{ typedef struct SpatialHash
+// Grid-based spatial hash for efficient ball neighbor lookup (issue 222).
+// Used to accelerate slow ball overlap detection - only check adjacent cells.
+// Rebuilt each frame after physics update.
+typedef struct SpatialHash {
+    SpatialHashCell* cells;             // Array of cell_count cells
+    int cols;                           // Number of columns in grid
+    int rows;                           // Number of rows in grid
+    int cell_count;                     // Total cells (cols * rows)
+    float cell_size;                    // Size of each cell in pixels
+    float origin_x;                     // Grid origin X (typically 0)
+    float origin_y;                     // Grid origin Y (typically 0)
+} SpatialHash;
+// }}}
+
 // {{{ typedef struct VelocityStats
 // Global velocity statistics for debugging and tunneling detection.
 // Tracks maximum velocities observed and potential tunneling events.
@@ -223,6 +256,10 @@ typedef struct BallManager {
     unsigned char player_highlight[4];  // Player ball highlight color
     unsigned char adversary_color[4];   // Adversary ball base color
     unsigned char adversary_highlight[4]; // Adversary ball highlight color
+
+    // Spatial hash for slow ball overlap detection (issue 222)
+    // Rebuilt each frame after physics, used to accelerate overlap checks
+    SpatialHash* spatial_hash;
 } BallManager;
 // }}}
 
@@ -469,6 +506,21 @@ int ball_check_zone(Ball* ball, World* world);
 //   expansion_y_start: Y position where expansion begins (balls below this shift)
 void ball_manager_handle_expansion(BallManager* manager, float offset,
                                    float expansion_y_start);
+// }}}
+
+// =============================================================================
+// Spatial Hash Functions (issue 222)
+// =============================================================================
+
+// {{{ ball_manager_check_slow_overlaps
+// Checks for overlapping slow balls and nudges them apart (issue 222).
+// Uses spatial hash for efficient neighbor lookup.
+// Only processes balls below SLOW_BALL_THRESHOLD speed.
+// Call after physics update, before buffer swap.
+//
+// Parameters:
+//   manager: BallManager instance
+void ball_manager_check_slow_overlaps(BallManager* manager);
 // }}}
 
 #endif // BALL_H
