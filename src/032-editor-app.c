@@ -273,6 +273,9 @@ static void open_save_dialog(EditorApp* app);
 static void close_save_dialog(EditorApp* app);
 static void handle_save_dialog_input(EditorApp* app);
 static void setup_grid(EditorApp* app);
+// Grid settings functions (issue 840)
+static void change_grid_dimensions(EditorApp* app, int new_cols, int new_rows);
+static int handle_grid_settings_input(EditorApp* app);
 // Property panel functions (issue 1211)
 static int handle_object_selection(EditorApp* app, float mouse_x, float mouse_y);
 static void render_property_panel(EditorApp* app);
@@ -795,6 +798,11 @@ static void handle_input(EditorApp* app) {
     // Rotor panel input handling (issue 901g)
     if (handle_rotor_panel_input(app)) {
         return;  // Panel consumed the input
+    }
+
+    // Grid settings input handling (issue 840)
+    if (handle_grid_settings_input(app)) {
+        return;  // Grid settings consumed the input
     }
 
     // Tools panel input handling (issue 406, 901b: added rotor button)
@@ -1426,6 +1434,162 @@ static void setup_grid(EditorApp* app) {
 // }}}
 
 // =============================================================================
+// Grid Settings (issue 840)
+// =============================================================================
+
+// Grid dimension limits
+#define GRID_MIN_COLS 8
+#define GRID_MAX_COLS 24
+#define GRID_MIN_ROWS 12
+#define GRID_MAX_ROWS 36
+
+// {{{ change_grid_dimensions
+// Changes board grid dimensions and repositions objects
+// Objects outside new bounds are clamped to nearest valid position
+static void change_grid_dimensions(EditorApp* app, int new_cols, int new_rows) {
+    if (!app || !app->board) return;
+
+    // Clamp to valid range
+    if (new_cols < GRID_MIN_COLS) new_cols = GRID_MIN_COLS;
+    if (new_cols > GRID_MAX_COLS) new_cols = GRID_MAX_COLS;
+    if (new_rows < GRID_MIN_ROWS) new_rows = GRID_MIN_ROWS;
+    if (new_rows > GRID_MAX_ROWS) new_rows = GRID_MAX_ROWS;
+
+    // No change needed
+    if (new_cols == app->board->grid_cols && new_rows == app->board->grid_rows) {
+        return;
+    }
+
+    int old_cols = app->board->grid_cols;
+    int old_rows = app->board->grid_rows;
+
+    // Update board dimensions
+    app->board->grid_cols = new_cols;
+    app->board->grid_rows = new_rows;
+
+    // Calculate new cell size from fixed board dimensions
+    // Cell size = board dimension / grid count
+    float cell_w = BOARD_WIDTH / new_cols;
+    float cell_h = BOARD_HEIGHT / new_rows;
+    // Use smaller dimension to ensure cells fit both ways
+    float new_cell_size = (cell_w < cell_h) ? cell_w : cell_h;
+    app->board->cell_size = (int)new_cell_size;
+
+    // Update board pixel dimensions to match actual grid coverage
+    app->board->board_width = (int)(new_cols * new_cell_size);
+    app->board->board_height = (int)(new_rows * new_cell_size);
+
+    // Clamp objects to new grid bounds
+    // Objects store grid coordinates, clamp to [0, max-1]
+    for (int i = 0; i < app->board->object_count; i++) {
+        BoardObject* obj = &app->board->objects[i];
+        if (obj->col >= new_cols) obj->col = new_cols - 1;
+        if (obj->row >= new_rows) obj->row = new_rows - 1;
+    }
+
+    // Clamp zones to new bounds
+    for (int i = 0; i < app->board->zone_count; i++) {
+        BoardZone* zone = &app->board->zones[i];
+        if (zone->col >= new_cols) zone->col = new_cols - 1;
+        if (zone->row >= new_rows) zone->row = new_rows - 1;
+        // Clamp zone size so it doesn't extend past grid
+        if (zone->col + zone->width > new_cols) {
+            zone->width = new_cols - zone->col;
+        }
+        if (zone->row + zone->height > new_rows) {
+            zone->height = new_rows - zone->row;
+        }
+    }
+
+    // Clamp rotors to new bounds (issue 901b)
+    for (int i = 0; i < app->board->rotor_count; i++) {
+        Rotor* rotor = &app->board->rotors[i];
+        if (rotor->col >= new_cols) rotor->col = new_cols - 1;
+        if (rotor->row >= new_rows) rotor->row = new_rows - 1;
+    }
+
+    // Rebuild polygon manager for new dimensions (issue 837)
+    if (app->polygon_manager) {
+        polygon_manager_destroy(app->polygon_manager);
+        app->polygon_manager = polygon_manager_create(
+            (float)app->board->board_width,
+            (float)app->board->board_height
+        );
+        app->polygons_dirty = 1;
+    }
+
+    // Rebuild grid with new dimensions
+    setup_grid(app);
+
+    // Mark board as modified
+    app->modified = 1;
+
+    // Clear selection since objects may have moved
+    selection_clear(app);
+
+    // Notify user
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Grid: %dx%d -> %dx%d", old_cols, old_rows, new_cols, new_rows);
+    editor_app_notify(app, msg, 1.5f);
+}
+// }}}
+
+// {{{ handle_grid_settings_input
+// Handles clicks on grid settings buttons in sidebar
+// Returns 1 if input was consumed, 0 otherwise
+static int handle_grid_settings_input(EditorApp* app) {
+    if (!app || !app->board) return 0;
+    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) return 0;
+
+    Vector2 mouse = GetMousePosition();
+
+    // Calculate button positions (must match render_sidebar)
+    int x = app->screen_width - SIDEBAR_WIDTH;
+    int y = TOOLBAR_HEIGHT;
+
+    // Trace through render_sidebar to find Grid Settings position:
+    // y + 55 = tool info, y + 150 = Board Stats header
+    // y + 185 = objects, y + 205 = zones, y + 225 = rotors, y + 245 = grid
+    // y + 280 = Grid Settings header, y + 315 = first row buttons
+    int info_y = y + 315;  // First row of buttons (columns)
+
+    int btn_size = 20;
+    int value_width = 30;
+    int cols_x = x + 60;
+    int rows_x = x + 60;
+
+    // Columns buttons
+    Rectangle cols_minus = { (float)cols_x, (float)info_y, (float)btn_size, (float)btn_size };
+    Rectangle cols_plus = { (float)(cols_x + btn_size + value_width), (float)info_y, (float)btn_size, (float)btn_size };
+
+    if (CheckCollisionPointRec(mouse, cols_minus)) {
+        change_grid_dimensions(app, app->board->grid_cols - 1, app->board->grid_rows);
+        return 1;
+    }
+    if (CheckCollisionPointRec(mouse, cols_plus)) {
+        change_grid_dimensions(app, app->board->grid_cols + 1, app->board->grid_rows);
+        return 1;
+    }
+
+    // Rows buttons (28 pixels below cols)
+    info_y += 28;
+    Rectangle rows_minus = { (float)rows_x, (float)info_y, (float)btn_size, (float)btn_size };
+    Rectangle rows_plus = { (float)(rows_x + btn_size + value_width), (float)info_y, (float)btn_size, (float)btn_size };
+
+    if (CheckCollisionPointRec(mouse, rows_minus)) {
+        change_grid_dimensions(app, app->board->grid_cols, app->board->grid_rows - 1);
+        return 1;
+    }
+    if (CheckCollisionPointRec(mouse, rows_plus)) {
+        change_grid_dimensions(app, app->board->grid_cols, app->board->grid_rows + 1);
+        return 1;
+    }
+
+    return 0;
+}
+// }}}
+
+// =============================================================================
 // Internal: Rendering
 // =============================================================================
 
@@ -1539,6 +1703,56 @@ static void render_sidebar(EditorApp* app) {
              app->board ? app->board->grid_cols : 0,
              app->board ? app->board->grid_rows : 0);
     DrawText(stat_text, x + 15, info_y, 14, TEXT_COLOR);
+
+    // Grid Settings section (issue 840)
+    info_y += 35;
+    DrawText("Grid Settings", x + 15, info_y, 16, TEXT_COLOR);
+    DrawLine(x + 10, info_y + 22, x + SIDEBAR_WIDTH - 10, info_y + 22, PANEL_BORDER);
+
+    info_y += 35;
+    int btn_size = 20;
+    int value_width = 30;
+
+    // Columns: [-] value [+]
+    DrawText("Cols:", x + 15, info_y + 3, 14, TEXT_DIM);
+    int cols_x = x + 60;
+    // Minus button
+    Rectangle cols_minus = { (float)cols_x, (float)info_y, (float)btn_size, (float)btn_size };
+    DrawRectangleRec(cols_minus, BUTTON_COLOR);
+    DrawText("-", cols_x + 6, info_y + 3, 14, TEXT_COLOR);
+    // Value
+    snprintf(stat_text, sizeof(stat_text), "%d", app->board ? app->board->grid_cols : 0);
+    DrawText(stat_text, cols_x + btn_size + 8, info_y + 3, 14, TEXT_COLOR);
+    // Plus button
+    Rectangle cols_plus = { (float)(cols_x + btn_size + value_width), (float)info_y, (float)btn_size, (float)btn_size };
+    DrawRectangleRec(cols_plus, BUTTON_COLOR);
+    DrawText("+", cols_x + btn_size + value_width + 5, info_y + 3, 14, TEXT_COLOR);
+
+    info_y += 28;
+
+    // Rows: [-] value [+]
+    DrawText("Rows:", x + 15, info_y + 3, 14, TEXT_DIM);
+    int rows_x = x + 60;
+    // Minus button
+    Rectangle rows_minus = { (float)rows_x, (float)info_y, (float)btn_size, (float)btn_size };
+    DrawRectangleRec(rows_minus, BUTTON_COLOR);
+    DrawText("-", rows_x + 6, info_y + 3, 14, TEXT_COLOR);
+    // Value
+    snprintf(stat_text, sizeof(stat_text), "%d", app->board ? app->board->grid_rows : 0);
+    DrawText(stat_text, rows_x + btn_size + 8, info_y + 3, 14, TEXT_COLOR);
+    // Plus button
+    Rectangle rows_plus = { (float)(rows_x + btn_size + value_width), (float)info_y, (float)btn_size, (float)btn_size };
+    DrawRectangleRec(rows_plus, BUTTON_COLOR);
+    DrawText("+", rows_x + btn_size + value_width + 5, info_y + 3, 14, TEXT_COLOR);
+
+    // Show calculated cell size
+    info_y += 28;
+    if (app->board) {
+        float cell_w = BOARD_WIDTH / app->board->grid_cols;
+        float cell_h = BOARD_HEIGHT / app->board->grid_rows;
+        snprintf(stat_text, sizeof(stat_text), "Cell: %.0fx%.0f px", cell_w, cell_h);
+        DrawText(stat_text, x + 15, info_y, 12, TEXT_DIM);
+    }
 }
 // }}}
 

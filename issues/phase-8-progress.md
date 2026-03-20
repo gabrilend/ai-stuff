@@ -49,18 +49,18 @@ Visual board editor with JSON-based data storage.
 | 834  | Drag select multi edit             | completed     | -          |
 | 835  | Portal zone fill cell              | completed     | -          |
 | 836  | Editor scroll broken               | completed     | -          |
-| 837  | Closed polygon detection and fill  | in-progress   | -          |
+| 837  | Closed polygon detection and fill  | completed     | -          |
 | 838  | Standardize board dimensions       | completed     | -          |
 | 839  | Material type selector             | completed     | -          |
-| 840  | Editor grid scaling                | awaiting-work | -          |
+| 840  | Editor grid scaling                | completed     | -          |
 
 ## Progress Summary
 
-**Completed:** 38/40 issues
-**In progress:** 1 (837)
-**Awaiting work:** 1 (840)
+**Completed:** 40/40 issues
+**In progress:** 0
+**Awaiting work:** 0
 **Blocked:** 0
-**Phase status:** in-progress
+**Phase status:** complete
 
 ## Technical Notes
 
@@ -78,14 +78,14 @@ Visual board editor with JSON-based data storage.
 - Property panel for object editing
 - Comprehensive polish and bug fixes
 
-### In Progress (837)
-- Polygon detection and fill - core infrastructure implemented
-- Graph building with intersection detection
-- Cycle detection and triangulated rendering
-- Ball-polygon collision integrated into game physics
-- Click-to-select polygon and properties panel added to editor
-- Polygons render in both game and editor with proper world coordinates
-- Remaining: Testing with various polygon shapes
+### Recently Completed (837)
+- Polygon detection and fill - fully implemented and tested
+- Graph building with line-line intersection detection
+- Cycle detection using face-finding algorithm (always turn right)
+- Ear-clipping triangulation for rendering
+- Ball-polygon collision with ejection and bounce physics
+- Click-to-select polygon and properties panel in editor
+- Guard rails as virtual lines for polygon closure against walls
 
 ### Recently Completed (838)
 - Board dimension standardization - JSON now stores only columns/rows
@@ -97,10 +97,16 @@ Visual board editor with JSON-based data storage.
 - Standard mode shows material buttons, advanced mode shows RGB sliders
 - F12 toggles between modes at runtime
 
+### Recently Completed (840)
+- Grid scaling UI in editor sidebar with +/- buttons for columns (8-24) and rows (12-36)
+- Cell size calculated dynamically from fixed board dimensions (602x946)
+- Object/zone/rotor positions clamped when grid shrinks
+- Polygon manager rebuilt on grid resize
+
 ## Issue-Level Dependencies
 
-- 837, 838, 840 are independent and can be worked on in parallel
+- 837, 838, 840 are all complete
 - 838 and 840 are complementary (fixed board size, calculated cell size):
-  - 838: Removes redundant pixel data from JSON (cell_size, board width/height)
-  - 840: Adds editor UI for grid density (columns/rows sliders)
+  - 838: Removes redundant pixel data from JSON (cell_size, board width/height) - complete
+  - 840: Adds editor UI for grid density (columns/rows buttons) - complete
 - 901b, 902b (Phase 9 editor tools) depend on editor infrastructure (801-814)
