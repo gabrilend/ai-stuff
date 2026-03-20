@@ -52,6 +52,10 @@ typedef struct Peg {
 
     // Visual color (derived from properties)
     Color color;
+
+    // Dynamic object flag (issue 901f)
+    // 1 if attached to rotor/mover, 0 if static. Dynamic objects cause crushing stress.
+    int is_dynamic;
 } Peg;
 // }}}
 
@@ -98,6 +102,10 @@ typedef struct Line {
 
     // Visual color (derived from properties)
     Color color;
+
+    // Dynamic object flag (issue 901f)
+    // 1 if attached to rotor/mover, 0 if static. Dynamic objects cause crushing stress.
+    int is_dynamic;
 } Line;
 // }}}
 

@@ -21,7 +21,8 @@ typedef struct BallManager BallManager;
 // Uses unified Spawner for spawn mechanics (issue 1309).
 // AI controller oscillates reticle back and forth.
 typedef struct Adversary {
-    Spawner spawner;  // Unified spawner handles credits, position, rendering
+    Spawner spawner;      // Unified spawner handles credits, position, rendering
+    int spawning_enabled; // 1 = spawning active, 0 = paused (credits accumulate) (issue 507)
 } Adversary;
 // }}}
 
@@ -73,6 +74,29 @@ void adversary_render(Adversary* adversary);
 //   adversary: Adversary instance
 //   world: World for bounds
 void adversary_reset(Adversary* adversary, World* world);
+// }}}
+
+// {{{ adversary_toggle_spawning
+// Toggles adversary spawning on/off (issue 507).
+// When spawning is disabled, credits continue to accumulate but no balls spawn.
+//
+// Parameters:
+//   adversary: Adversary instance
+//
+// Returns:
+//   New spawning state (1 = enabled, 0 = paused)
+int adversary_toggle_spawning(Adversary* adversary);
+// }}}
+
+// {{{ adversary_is_spawning_enabled
+// Returns whether adversary spawning is currently enabled.
+//
+// Parameters:
+//   adversary: Adversary instance
+//
+// Returns:
+//   1 if spawning enabled, 0 if paused
+int adversary_is_spawning_enabled(Adversary* adversary);
 // }}}
 
 #endif // ADVERSARY_H

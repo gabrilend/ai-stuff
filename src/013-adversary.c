@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "raylib.h"
 #include "012-adversary.h"
 #include "004-world.h"
 #include "006-ball.h"
@@ -42,6 +43,9 @@ Adversary* adversary_create(World* world) {
         ADVERSARY_MOVE_SPEED
     );
 
+    // Enable spawning by default (issue 507)
+    adversary->spawning_enabled = 1;
+
     return adversary;
 }
 // }}}
@@ -67,10 +71,14 @@ void adversary_update(Adversary* adversary, World* world,
     adversary->spawner.max_x = world->table_x + world->table_width - margin;
 
     // Update spawner with AI track controller (handles credits and oscillation)
+    // Credits accumulate regardless of spawning_enabled state (issue 507)
     spawner_update(&adversary->spawner, controller_ai_track, NULL, dt);
 
-    // Attempt to spawn (controller already moved position)
-    spawner_try_spawn(&adversary->spawner, ball_manager, BALL_RADIUS);
+    // Only spawn if spawning is enabled (issue 507)
+    // When paused, credits accumulate but no balls spawn
+    if (adversary->spawning_enabled) {
+        spawner_try_spawn(&adversary->spawner, ball_manager, BALL_RADIUS);
+    }
 }
 // }}}
 
@@ -78,6 +86,15 @@ void adversary_update(Adversary* adversary, World* world,
 void adversary_render(Adversary* adversary) {
     if (!adversary) return;
     spawner_render(&adversary->spawner);
+
+    // Show paused indicator when spawning is disabled (issue 507)
+    if (!adversary->spawning_enabled) {
+        float x = adversary->spawner.x;
+        float y = adversary->spawner.y - 25;
+        const char* text = "[PAUSED]";
+        int text_width = MeasureText(text, 14);
+        DrawText(text, (int)(x - text_width / 2), (int)y, 14, YELLOW);
+    }
 }
 // }}}
 
@@ -94,5 +111,22 @@ void adversary_reset(Adversary* adversary, World* world) {
     float margin = BALL_RADIUS + 5.0f;
     adversary->spawner.min_x = world->table_x + margin;
     adversary->spawner.max_x = world->table_x + world->table_width - margin;
+}
+// }}}
+
+// {{{ adversary_toggle_spawning
+int adversary_toggle_spawning(Adversary* adversary) {
+    if (!adversary) return 0;
+    adversary->spawning_enabled = !adversary->spawning_enabled;
+    printf("Adversary spawning: %s\n",
+           adversary->spawning_enabled ? "ENABLED" : "PAUSED");
+    return adversary->spawning_enabled;
+}
+// }}}
+
+// {{{ adversary_is_spawning_enabled
+int adversary_is_spawning_enabled(Adversary* adversary) {
+    if (!adversary) return 0;
+    return adversary->spawning_enabled;
 }
 // }}}
