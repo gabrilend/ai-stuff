@@ -57,6 +57,10 @@ RotorManager* rotor_manager_create(World* world) {
     manager->rotor_capacity = 0;
     manager->world = world;
 
+    // Issue 901h: Initialize task data for parallel updates
+    manager->task_data = NULL;
+    manager->task_data_capacity = 0;
+
     return manager;
 }
 // }}}
@@ -68,6 +72,10 @@ void rotor_manager_destroy(RotorManager* manager) {
     rotor_manager_clear(manager);
     if (manager->rotors) {
         free(manager->rotors);
+    }
+    // Issue 901h: Free task data
+    if (manager->task_data) {
+        free(manager->task_data);
     }
     free(manager);
 }
@@ -332,5 +340,103 @@ int rotor_get_line_velocity(RotorManager* manager, int line_index,
     }
 
     return 0;
+}
+// }}}
+
+// {{{ rotor_update_task
+// Task function for parallel rotor updates (issue 901h)
+// Updates a single rotor's angle and all connected object positions
+static void rotor_update_task(void* data) {
+    RotorTaskData* task = (RotorTaskData*)data;
+    if (!task || !task->rotor || !task->world) return;
+
+    RotorPhysics* rotor = task->rotor;
+    World* world = task->world;
+    float dt = task->dt;
+
+    // Update angle
+    rotor->current_angle += rotor->rotation_speed * dt;
+
+    // Keep angle in reasonable range to avoid float precision issues
+    while (rotor->current_angle > 6.283185f) rotor->current_angle -= 6.283185f;
+    while (rotor->current_angle < 0.0f) rotor->current_angle += 6.283185f;
+
+    // Update connected line positions
+    for (int i = 0; i < rotor->connected_line_count; i++) {
+        int line_idx = rotor->connected_line_indices[i];
+        if (line_idx < 0 || line_idx >= world->line_count) continue;
+
+        Line* line = &world->lines[line_idx];
+
+        // Get original polar coordinates
+        int data_idx = i * 4;
+        float dist1 = rotor->line_endpoint_data[data_idx];
+        float orig_angle1 = rotor->line_endpoint_data[data_idx + 1];
+        float dist2 = rotor->line_endpoint_data[data_idx + 2];
+        float orig_angle2 = rotor->line_endpoint_data[data_idx + 3];
+
+        // Calculate new cartesian positions
+        float new_angle1 = orig_angle1 + rotor->current_angle;
+        float new_angle2 = orig_angle2 + rotor->current_angle;
+
+        line->x1 = rotor->center_x + dist1 * cosf(new_angle1);
+        line->y1 = rotor->center_y + dist1 * sinf(new_angle1);
+        line->x2 = rotor->center_x + dist2 * cosf(new_angle2);
+        line->y2 = rotor->center_y + dist2 * sinf(new_angle2);
+    }
+
+    // Update connected peg positions
+    for (int i = 0; i < rotor->connected_peg_count; i++) {
+        int peg_idx = rotor->connected_peg_indices[i];
+        if (peg_idx < 0 || peg_idx >= world->peg_count) continue;
+
+        Peg* peg = &world->pegs[peg_idx];
+
+        // Get original polar coordinates
+        int data_idx = i * 2;
+        float dist = rotor->peg_position_data[data_idx];
+        float orig_angle = rotor->peg_position_data[data_idx + 1];
+
+        // Calculate new cartesian position
+        float new_angle = orig_angle + rotor->current_angle;
+        peg->x = rotor->center_x + dist * cosf(new_angle);
+        peg->y = rotor->center_y + dist * sinf(new_angle);
+    }
+}
+// }}}
+
+// {{{ rotor_manager_prepare_tasks
+void rotor_manager_prepare_tasks(RotorManager* manager, float dt) {
+    if (!manager) return;
+
+    // Ensure task_data array has sufficient capacity
+    if (manager->rotor_count > manager->task_data_capacity) {
+        RotorTaskData* new_data = (RotorTaskData*)realloc(
+            manager->task_data,
+            sizeof(RotorTaskData) * manager->rotor_count
+        );
+        if (!new_data) return;  // Allocation failed, fall back to sequential
+        manager->task_data = new_data;
+        manager->task_data_capacity = manager->rotor_count;
+    }
+
+    // Populate task data for each rotor
+    for (int r = 0; r < manager->rotor_count; r++) {
+        manager->task_data[r].rotor = &manager->rotors[r];
+        manager->task_data[r].world = manager->world;
+        manager->task_data[r].dt = dt;
+    }
+}
+// }}}
+
+// {{{ rotor_manager_submit_tasks
+void rotor_manager_submit_tasks(RotorManager* manager, ThreadPool* pool) {
+    if (!manager || !pool) return;
+
+    // Submit a task for each rotor
+    // Each rotor writes to disjoint sets of lines/pegs, so no conflicts
+    for (int r = 0; r < manager->rotor_count; r++) {
+        threadpool_submit(pool, rotor_update_task, &manager->task_data[r]);
+    }
 }
 // }}}

@@ -204,6 +204,8 @@ static int apply_initial_board_data(BoardData* data, World* world,
             peg->restitution = property_to_float(obj->restitution);
             peg->friction = property_to_float(obj->friction);
             peg->point_bonus = obj->point_bonus;
+            // Issue 901f: Copy dynamic flag for crushing detection
+            peg->is_dynamic = obj->is_dynamic;
 
             // Issue 610: Use material display color for visual consistency
             // Same approach as editor (issue 839) - both boards identical
@@ -236,6 +238,8 @@ static int apply_initial_board_data(BoardData* data, World* world,
                 line->restitution = property_to_float(obj->restitution);
                 line->friction = property_to_float(obj->friction);
                 line->point_bonus = obj->point_bonus;
+                // Issue 901f: Copy dynamic flag for crushing detection
+                line->is_dynamic = obj->is_dynamic;
 
                 // Issue 610: Use material display color for visual consistency
                 // Same approach as editor (issue 839) - both boards identical
@@ -308,6 +312,8 @@ static int apply_adversary_board_data(BoardData* data, World* world,
             peg->restitution = property_to_float(obj->restitution);
             peg->friction = property_to_float(obj->friction);
             peg->point_bonus = obj->point_bonus;
+            // Issue 901f: Copy dynamic flag for crushing detection
+            peg->is_dynamic = obj->is_dynamic;
 
             // Issue 610: Use material display color for visual consistency
             // Same approach as player board and editor (issue 839)
@@ -346,6 +352,8 @@ static int apply_adversary_board_data(BoardData* data, World* world,
                 line->restitution = property_to_float(obj->restitution);
                 line->friction = property_to_float(obj->friction);
                 line->point_bonus = obj->point_bonus;
+                // Issue 901f: Copy dynamic flag for crushing detection
+                line->is_dynamic = obj->is_dynamic;
 
                 // Issue 610: Use material display color for visual consistency
                 // Same approach as player board and editor (issue 839)
@@ -1114,23 +1122,38 @@ int main(int argc, char* argv[]) {
             goto skip_physics;
         }
 
-        // Update rotor physics before ball collision (issue 901c)
-        // Rotates connected lines and pegs to new positions
+        // Update rotor and mover physics before ball collision (issues 901h, 902h)
+        // Both systems update in parallel since they write to disjoint object sets
+        // Prepare tasks for all rotor/mover managers
         if (world->rotor_manager) {
-            rotor_manager_update(world->rotor_manager, dt);
+            rotor_manager_prepare_tasks(world->rotor_manager, dt);
         }
         if (world->adversary_rotor_manager) {
-            rotor_manager_update(world->adversary_rotor_manager, dt);
+            rotor_manager_prepare_tasks(world->adversary_rotor_manager, dt);
         }
-
-        // Update track mover physics before ball collision (issues 902c, 902d)
-        // Moves movers along tracks and updates payload positions
         if (world->track_mover_manager) {
-            track_mover_manager_update(world->track_mover_manager, dt);
+            track_mover_manager_prepare_tasks(world->track_mover_manager, dt);
         }
         if (world->adversary_track_mover_manager) {
-            track_mover_manager_update(world->adversary_track_mover_manager, dt);
+            track_mover_manager_prepare_tasks(world->adversary_track_mover_manager, dt);
         }
+
+        // Submit all rotor/mover tasks to threadpool
+        if (world->rotor_manager) {
+            rotor_manager_submit_tasks(world->rotor_manager, pool);
+        }
+        if (world->adversary_rotor_manager) {
+            rotor_manager_submit_tasks(world->adversary_rotor_manager, pool);
+        }
+        if (world->track_mover_manager) {
+            track_mover_manager_submit_tasks(world->track_mover_manager, pool);
+        }
+        if (world->adversary_track_mover_manager) {
+            track_mover_manager_submit_tasks(world->adversary_track_mover_manager, pool);
+        }
+
+        // Wait for all rotor/mover updates to complete before ball physics
+        threadpool_wait_all(pool);
 
         // Parallel ball physics update with performance timing
         // Sequence: prepare → submit → wait → spawn particles → collect scores → finalize → swap

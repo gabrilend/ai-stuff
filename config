@@ -1,14 +1,17 @@
-# config.txt - Central configuration for compile-time constants
-# Generated into src/000-config.h by scripts/generate-config.sh
-# Format: KEY=VALUE (no spaces around =)
-# Lines starting with # are comments
+#!/bin/bash
+# config - Compile-time configuration for physics-sim
+# Run this file to edit: ./config
+# Parsed by scripts/generate-config.sh → src/000-config.h
+exec ${EDITOR:-${VISUAL:-vi}} "$0"
+exit
+# --- Configuration below ---
 
 # System capacities
 MAX_BALLS=1024
 MAX_PARTICLES=1024
 
 # Spawning limits
-MAX_SPAWN_CREDITS=3
+MAX_SPAWN_CREDITS=30
 
 # Trajectory history (issue 222)
 TRAJECTORY_HISTORY_FRAMES=4

@@ -788,3 +788,93 @@ int track_mover_get_line_velocity(TrackMoverManager* manager, int line_index,
     return 0;
 }
 // }}}
+
+// {{{ mover_update_task
+// Task function for parallel mover updates (issue 902h)
+// Updates a single mover's position and all payload positions
+static void mover_update_task(void* data) {
+    MoverTaskData* task = (MoverTaskData*)data;
+    if (!task || !task->mover || !task->manager) return;
+
+    MoverPhysics* mover = task->mover;
+    TrackMoverManager* manager = task->manager;
+    float dt = task->dt;
+
+    if (!manager->world || manager->segment_count == 0) return;
+
+    // Get current segment
+    if (mover->current_segment < 0 ||
+        mover->current_segment >= manager->segment_count) return;
+
+    TrackSegment* seg = &manager->segments[mover->current_segment];
+
+    // Calculate segment length
+    float seg_length = segment_get_length(seg, manager->cell_size);
+    if (seg_length < 0.001f) return;
+
+    // Advance position along segment
+    // Issue 902d: Track following physics
+    float distance = mover->speed * dt;
+    float position_delta = distance / seg_length;
+    mover->position_on_segment += position_delta * mover->direction;
+
+    // Check for segment end
+    if (mover->position_on_segment > 1.0f) {
+        handle_segment_transition(mover, manager, 1);
+    } else if (mover->position_on_segment < 0.0f) {
+        handle_segment_transition(mover, manager, 0);
+    }
+
+    // Clamp position (in case of edge cases)
+    if (mover->position_on_segment < 0.0f) mover->position_on_segment = 0.0f;
+    if (mover->position_on_segment > 1.0f) mover->position_on_segment = 1.0f;
+
+    // Update world position
+    float x1, y1, x2, y2;
+    segment_get_world_endpoints(&manager->segments[mover->current_segment],
+                                manager->origin_x, manager->origin_y,
+                                manager->cell_size, &x1, &y1, &x2, &y2);
+    interpolate_position(x1, y1, x2, y2, mover->position_on_segment,
+                        &mover->world_x, &mover->world_y);
+
+    // Update payload positions (issue 902c)
+    // Uses stored geometry data - no BoardData needed at runtime
+    update_payload_positions(mover, manager->world);
+}
+// }}}
+
+// {{{ track_mover_manager_prepare_tasks
+void track_mover_manager_prepare_tasks(TrackMoverManager* manager, float dt) {
+    if (!manager) return;
+
+    // Ensure task_data array has sufficient capacity
+    if (manager->mover_count > manager->task_data_capacity) {
+        MoverTaskData* new_data = (MoverTaskData*)realloc(
+            manager->task_data,
+            sizeof(MoverTaskData) * manager->mover_count
+        );
+        if (!new_data) return;  // Allocation failed, fall back to sequential
+        manager->task_data = new_data;
+        manager->task_data_capacity = manager->mover_count;
+    }
+
+    // Populate task data for each mover
+    for (int m = 0; m < manager->mover_count; m++) {
+        manager->task_data[m].mover = &manager->movers[m];
+        manager->task_data[m].manager = manager;
+        manager->task_data[m].dt = dt;
+    }
+}
+// }}}
+
+// {{{ track_mover_manager_submit_tasks
+void track_mover_manager_submit_tasks(TrackMoverManager* manager, ThreadPool* pool) {
+    if (!manager || !pool) return;
+
+    // Submit a task for each mover
+    // Each mover writes to disjoint sets of lines/pegs, so no conflicts
+    for (int m = 0; m < manager->mover_count; m++) {
+        threadpool_submit(pool, mover_update_task, &manager->task_data[m]);
+    }
+}
+// }}}
