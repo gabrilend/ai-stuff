@@ -13,20 +13,25 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 | 1     | Core Infrastructure | 12/12    | 0           | 0        | 0       |
 | 2     | World & Physics     | 25/27    | 1           | 1        | 0       |
 | 3     | Feedback Systems    | 21/21    | 0           | 0        | 0       |
-| 4     | Display             | 11/13    | 0           | 2        | 0       |
+| 4     | Display             | 12/13    | 0           | 1        | 0       |
 | 5     | Gameplay            | 11/11    | 0           | 0        | 0       |
 | 6     | Competition         | 12/12    | 0           | 0        | 0       |
 | 7     | Stages              | 11/11    | 0           | 0        | 0       |
-| 8     | Editor              | 37/40    | 1           | 2        | 0       |
-| 9     | Dynamic Systems     | 10/17    | 2           | 5        | 0       |
+| 8     | Editor              | 38/40    | 1           | 1        | 0       |
+| 9     | Dynamic Systems     | 11/19    | 2           | 6        | 0       |
 
-**Overall: 150/164 issues complete (91%)**
+**Overall: 153/166 issues complete (92%)**
 
 ---
 
 ## Sprint Report
 
-### Last Sprint Completed (9 issues across 4 phases)
+### New Issues Added
+
+- **901h** - Parallel rotor updates (Phase 9) - parallelize rotor_manager_update
+- **902h** - Parallel mover updates (Phase 9) - parallelize track_mover_manager_update
+
+### Previous Sprint Completed (9 issues across 4 phases)
 
 - **221b** - Sleep transition logic (Phase 2)
 - **221e** - Stress source distinction (Phase 2)
@@ -37,16 +42,6 @@ dependencies. See `issues/phase-X-progress.md` for detailed status.
 - **901b** - Editor rotor placement tool (Phase 9)
 - **901c** - Line rotation physics (Phase 9)
 - **902b** - Editor track drawing tool (Phase 9)
-
-### Phase 6: Competition - COMPLETE
-
-All 12 issues done.
-
-### New Issues Added
-
-- **321** - Fragment direction duplication (Phase 3) - FRAG_TANGENT bug fix
-- **413** - Background color options (Phase 4) - config/CLI color presets
-- **840** - Editor grid density sliders (Phase 8)
 
 ---
 
@@ -61,23 +56,19 @@ PHYSICS TEAM:
   221c - Wake conditions (Phase 2) [UNBLOCKED]
   222  - Trajectory history (Phase 2) - partial
 
-FEEDBACK TEAM:
-  319  - Random ball colors (Phase 3) - includes particle color integration
-  321  - Fragment direction duplication (Phase 3) [NEW]
-
 UI TEAM:
   409  - Collapsible drawer UI (Phase 4)
-  413  - Background color options (Phase 4) [NEW]
 
 EDITOR TEAM:
-  838  - Remove redundant pixel data from JSON (Phase 8)
-  840  - Editor grid density sliders (Phase 8) [NEW]
+  840  - Editor grid density sliders (Phase 8)
 
 DYNAMIC SYSTEMS TEAM:
-  901d - Connected object detection (Phase 9)
-  901g - Direction config UI (Phase 9) [UNBLOCKED]
-  902c - Mover payload detection (Phase 9)
-  902d - Track following physics (Phase 9)
+  901f - Ball crushing (Phase 9) [UNBLOCKED]
+  901h - Parallel rotor updates (Phase 9) [NEW]
+  902e - Intersection path selection (Phase 9) [UNBLOCKED]
+  902f - Back and forth motion (Phase 9) [UNBLOCKED]
+  902g - Track ball interaction (Phase 9) [UNBLOCKED]
+  902h - Parallel mover updates (Phase 9) [NEW]
 ```
 
 ### In Progress
@@ -91,22 +82,13 @@ Currently being worked on:
   902  - Track mover system (Phase 9) - parent issue
 ```
 
-### After Dependencies Met
+### Parallelization Priority
 
-These unlock once their blockers complete:
-
-```
-After 901d:
-  → 901e (Collision modes) - 901c already done
-
-After 902d:
-  → 902e (Intersection path selection)
-  → 902f (Back and forth motion)
-  → 902g (Track ball interaction) - 221e already done
-
-After 901e:
-  → 901f (Ball crushing) - 221e already done
-```
+901h and 902h can be implemented together:
+- Both follow the same task pattern (prepare → submit → wait_all)
+- Rotor and mover updates write to disjoint object sets
+- Can share a single sync point before ball physics
+- Reference: ball/particle parallelization in src/007-ball.c, src/009-particles.c
 
 ---
 
@@ -120,7 +102,7 @@ All 12 issues complete.
 
 ### Phase 2: World & Physics (In Progress)
 
-**Complete (24):** World state, pegs, physics, wrap zones, sleep state, soft collision, stress distinction
+**Complete (25):** World state, pegs, physics, wrap zones, sleep state, soft collision, stress distinction
 
 **In Progress:**
 - 221 - Ball sleep system (parent)
@@ -139,11 +121,10 @@ All 21 issues complete.
 
 ### Phase 4: Display
 
-**Complete (11):** Scrolling, resize, reticle, panel UI, hide keybind, min width
+**Complete (12):** Scrolling, resize, reticle, panel UI, hide keybind, min width, background colors
 
 **Awaiting Work:**
 - 409 - Collapsible drawer UI
-- 413 - Background color options [NEW]
 
 ---
 
@@ -167,33 +148,33 @@ All 11 issues complete.
 
 ### Phase 8: Editor (In Progress)
 
-**Complete (37):** Full editor, standalone app, materials selector
+**Complete (38):** Full editor, standalone app, materials selector, board standardization
 
 **In Progress:**
 - 837 - Closed polygon detection (testing with various shapes)
 
 **Awaiting Work:**
-- 838 - Remove redundant pixel data from JSON
-- 840 - Editor grid density sliders [NEW]
+- 840 - Editor grid density sliders
 
-**Note:** 838 and 840 are complementary - fixed board size, calculated cell size.
+**Note:** 838 (board standardization) complete. 840 adds UI for grid density.
 
 ---
 
 ### Phase 9: Dynamic Systems (In Progress)
 
-**Complete (10):** 901a, 901b, 901c, 901d, 901e, 902a, 902b, 902c, 902d, 903
+**Complete (11):** 901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 903
 
 **In Progress:**
 - 901 - Rotor system (parent)
 - 902 - Track mover system (parent)
 
-**Awaiting Work (5):**
-- 901f - Ball crushing
-- 901g - Direction config UI
+**Awaiting Work (6):**
+- 901f - Ball crushing [UNBLOCKED]
+- 901h - Parallel rotor updates [NEW]
 - 902e - Intersection path selection [UNBLOCKED]
 - 902f - Back and forth motion [UNBLOCKED]
 - 902g - Track ball interaction [UNBLOCKED]
+- 902h - Parallel mover updates [NEW]
 
 **Blocked (0):** None
 
@@ -205,12 +186,12 @@ For maximum parallelization with 4 developers:
 
 | Developer | Primary Focus | Secondary |
 |-----------|---------------|-----------|
-| A | Phase 2: 221c | Phase 3: 319, 321 |
-| B | Phase 9: 901f, 901g | Phase 4: 409, 413 |
+| A | Phase 2: 221c | Phase 9: 901h, 902h (parallelization) |
+| B | Phase 9: 901f | Phase 4: 409 |
 | C | Phase 9: 902e, 902f, 902g | Phase 8: 840 |
-| D | Phase 8: 837 (finish), 838 | - |
+| D | Phase 8: 837 (finish) | - |
 
-**Critical Path:** 901d → 901e → 901f and 902d → 902e/f/g
+**Parallelization Priority:** 901h and 902h can be done together as they share the same pattern.
 
 ---
 
@@ -222,10 +203,10 @@ For maximum parallelization with 4 developers:
 | N-1    | 7         | 3              |
 | N      | 9         | 4              |
 
-**Remaining open issues:** 18
-- 10 awaiting work (can start now)
+**Remaining open issues:** 13
+- 8 awaiting work (can start now)
 - 4 in progress
-- 4 blocked
+- 0 blocked
 
 At current velocity (~8 issues/sprint): ~2 sprints to completion.
 

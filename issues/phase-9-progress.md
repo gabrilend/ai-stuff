@@ -16,6 +16,7 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 901e | Collision modes               | completed     | 901c ✓, 901d ✓  |
 | 901f | Ball crushing                 | awaiting-work | 901e ✓, 221e ✓  |
 | 901g | Direction config UI           | completed     | 901b ✓          |
+| 901h | Parallel rotor updates        | awaiting-work | 901c ✓, 901d ✓  |
 | 902  | Track mover system            | in-progress   | -               |
 | 902a | Track data structure          | completed     | -               |
 | 902b | Editor track drawing tool     | completed     | 902a ✓          |
@@ -24,15 +25,30 @@ Dynamic systems: rotors, track movers, and analysis tools.
 | 902e | Intersection path selection   | awaiting-work | 902d ✓          |
 | 902f | Back and forth motion         | awaiting-work | 902d ✓          |
 | 902g | Track ball interaction        | awaiting-work | 902d ✓, 221e ✓  |
+| 902h | Parallel mover updates        | awaiting-work | 902d ✓, 902c ✓  |
 | 903  | Ball velocity statistics      | completed     | -               |
 
 ## Progress Summary
 
-**Completed:** 11/17 issues (901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 903)
+**Completed:** 11/19 issues (901a, 901b, 901c, 901d, 901e, 901g, 902a, 902b, 902c, 902d, 903)
 **In progress:** 2 (901, 902)
-**Awaiting work:** 4 (901f, 902e, 902f, 902g)
+**Awaiting work:** 6 (901f, 901h, 902e, 902f, 902g, 902h)
 **Blocked:** 0
 **Phase status:** in-progress
+
+## New Issues Added
+
+### 901h - Parallel rotor updates
+- `rotor_manager_update()` currently runs sequentially
+- Each rotor update is independent (writes to disjoint line/peg sets)
+- Follow ball/particle task pattern: prepare → submit → wait_all
+- Can run in parallel with track mover updates
+
+### 902h - Parallel mover updates
+- `track_mover_manager_update()` currently runs sequentially
+- Each mover update is independent (writes to disjoint line/peg sets)
+- Same pattern as 901h
+- Both rotor and mover updates can run in parallel with each other
 
 ## Recent Completions
 
@@ -99,21 +115,29 @@ Dynamic systems: rotors, track movers, and analysis tools.
 
 ## Technical Notes
 
-### Rotor System (901, 901a-g)
+### Rotor System (901, 901a-h)
 - Rotating line segments attached to pivot points
 - Connected object detection for rotation
 - Collision modes and ball crushing
 - Direction configuration in editor
+- Parallelizable per-rotor updates
 
-### Track Mover System (902, 902a-g)
+### Track Mover System (902, 902a-h)
 - Objects that follow predefined paths
 - Track drawing in editor
 - Payload detection and attachment
 - Back-and-forth motion modes
 - Ball interaction with moving platforms
+- Parallelizable per-mover updates
 
 ### Analysis (903)
 - Ball velocity statistics for debugging
+
+### Parallelization Architecture (901h, 902h)
+- Both rotor and mover updates are independent per-object
+- Each writes to disjoint line/peg index sets (enforced by BFS detection)
+- Can run rotor and mover tasks concurrently with single sync point
+- Must complete before ball physics starts (balls read line/peg positions)
 
 ## Issue-Level Dependencies
 
@@ -121,3 +145,4 @@ Dynamic systems: rotors, track movers, and analysis tools.
 - 901b, 902b require editor infrastructure (801-814 complete)
 - 901 and 902 share crushing mechanics - consider shared implementation
 - 903 can leverage 222 (Trajectory history) for velocity data
+- 901h and 902h are independent and can be worked in parallel
