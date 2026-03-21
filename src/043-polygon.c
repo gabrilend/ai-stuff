@@ -28,7 +28,8 @@ static int line_graph_find_vertex(LineGraph* graph, float x, float y);
 static int line_graph_add_segment(LineGraph* graph, int va, int vb, int source_line, int is_guard_rail);
 static void vertex_add_segment(PolyVertex* vertex, int segment_index);
 
-static void find_all_intersections(LineGraph* graph, BoardData* board, int cell_size,
+static void find_all_intersections(LineGraph* graph, BoardData* board,
+                                   float cell_width, float cell_height,
                                    float board_width, float board_height);
 static void detect_cycles(PolygonManager* manager, LineGraph* graph);
 static int is_ear(Vector2* verts, int n, int prev, int curr, int next);
@@ -275,7 +276,9 @@ int line_intersection(Vector2 a1, Vector2 a2, Vector2 b1, Vector2 b2,
 // {{{ find_all_intersections
 // Builds the line graph from BoardData lines, finding all intersections
 // and splitting lines at intersection points.
-static void find_all_intersections(LineGraph* graph, BoardData* board, int cell_size,
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
+static void find_all_intersections(LineGraph* graph, BoardData* board,
+                                   float cell_width, float cell_height,
                                    float board_width, float board_height) {
     if (!graph || !board) return;
 
@@ -301,15 +304,16 @@ static void find_all_intersections(LineGraph* graph, BoardData* board, int cell_
     // Collect board lines
     // Use same coordinate system as grid_to_pixel: no half-cell offset (issue 1001b)
     // Previously added cell_size/2 which caused polygon fills to be offset from lines
+    // Issue 1003: Use cell_width for X, cell_height for Y
     int li = 0;
     for (int i = 0; i < board->object_count; i++) {
         BoardObject* obj = &board->objects[i];
         if (obj->type != OBJECT_LINE) continue;
 
-        lines[li].start.x = obj->col * cell_size;
-        lines[li].start.y = obj->row * cell_size;
-        lines[li].end.x = obj->end_col * cell_size;
-        lines[li].end.y = obj->end_row * cell_size;
+        lines[li].start.x = obj->col * cell_width;
+        lines[li].start.y = obj->row * cell_height;
+        lines[li].end.x = obj->end_col * cell_width;
+        lines[li].end.y = obj->end_row * cell_height;
         lines[li].board_index = i;
         li++;
     }
@@ -630,8 +634,10 @@ static void detect_cycles(PolygonManager* manager, LineGraph* graph) {
 
 // {{{ polygon_manager_rebuild_internal
 // Internal rebuild function with optional origin offset.
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
 static void polygon_manager_rebuild_internal(PolygonManager* manager, BoardData* board,
-                                              int cell_size, float origin_x, float origin_y) {
+                                              float cell_width, float cell_height,
+                                              float origin_x, float origin_y) {
     if (!manager || !board) return;
 
     // Clear existing
@@ -642,7 +648,7 @@ static void polygon_manager_rebuild_internal(PolygonManager* manager, BoardData*
     if (!manager->graph) return;
 
     // Build graph with intersections
-    find_all_intersections(manager->graph, board, cell_size,
+    find_all_intersections(manager->graph, board, cell_width, cell_height,
                            manager->board_width, manager->board_height);
 
     // Detect cycles to find polygons
@@ -667,15 +673,19 @@ static void polygon_manager_rebuild_internal(PolygonManager* manager, BoardData*
 // }}}
 
 // {{{ polygon_manager_rebuild
-void polygon_manager_rebuild(PolygonManager* manager, BoardData* board, int cell_size) {
-    polygon_manager_rebuild_internal(manager, board, cell_size, 0.0f, 0.0f);
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
+void polygon_manager_rebuild(PolygonManager* manager, BoardData* board,
+                             float cell_width, float cell_height) {
+    polygon_manager_rebuild_internal(manager, board, cell_width, cell_height, 0.0f, 0.0f);
 }
 // }}}
 
 // {{{ polygon_manager_rebuild_offset
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
 void polygon_manager_rebuild_offset(PolygonManager* manager, BoardData* board,
-                                     int cell_size, float origin_x, float origin_y) {
-    polygon_manager_rebuild_internal(manager, board, cell_size, origin_x, origin_y);
+                                     float cell_width, float cell_height,
+                                     float origin_x, float origin_y) {
+    polygon_manager_rebuild_internal(manager, board, cell_width, cell_height, origin_x, origin_y);
 }
 // }}}
 

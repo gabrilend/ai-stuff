@@ -642,11 +642,11 @@ int main(int argc, char* argv[]) {
     // Must be created after apply_initial_board_data sets up lines/pegs
     world->rotor_manager = rotor_manager_create(world);
     if (world->rotor_manager && initial_board->rotor_count > 0) {
-        // Issue 1003: Pass cell_width for X coordinate calculations
-        // TODO: Rotor system needs update for rectangular cells (Y uses cell_height)
+        // Issue 1003: Pass cell_width and cell_height for rectangular cells
         int rotors_added = rotor_manager_add_from_board(
             world->rotor_manager, initial_board,
-            world->table_x, peg_start_y, initial_board->cell_width);
+            world->table_x, peg_start_y,
+            initial_board->cell_width, initial_board->cell_height);
         printf("Rotor manager: %d rotors loaded\n", rotors_added);
     }
 
@@ -654,11 +654,11 @@ int main(int argc, char* argv[]) {
     // Must be created after apply_initial_board_data sets up lines/pegs
     world->track_mover_manager = track_mover_manager_create(world);
     if (world->track_mover_manager && initial_board->track_mover_count > 0) {
-        // Issue 1003: Pass cell_width for X coordinate calculations
-        // TODO: Track mover system needs update for rectangular cells (Y uses cell_height)
+        // Issue 1003: Pass cell_width and cell_height for rectangular cell support
         int movers_added = track_mover_manager_add_from_board(
             world->track_mover_manager, initial_board,
-            world->table_x, peg_start_y, initial_board->cell_width);
+            world->table_x, peg_start_y,
+            initial_board->cell_width, initial_board->cell_height);
         printf("Track mover manager: %d movers loaded\n", movers_added);
     }
 
@@ -731,11 +731,10 @@ int main(int argc, char* argv[]) {
             (float)initial_board->board_height
         );
         if (world->adversary_polygon_manager) {
-            // Issue 1003: Pass cell_width for coordinate calculations
-            // TODO: Polygon system needs update for rectangular cells
+            // Issue 1003: Pass cell_width and cell_height for rectangular cells
             polygon_manager_rebuild_offset(
                 world->adversary_polygon_manager, initial_board,
-                (int)initial_board->cell_width,
+                initial_board->cell_width, initial_board->cell_height,
                 world->table_x, adv_start_y
             );
             printf("Adversary polygon manager: %d polygons\n",
@@ -751,11 +750,10 @@ int main(int argc, char* argv[]) {
         (float)initial_board->board_height
     );
     if (world->polygon_manager) {
-        // Issue 1003: Pass cell_width for coordinate calculations
-        // TODO: Polygon system needs update for rectangular cells
+        // Issue 1003: Pass cell_width and cell_height for rectangular cells
         polygon_manager_rebuild_offset(
             world->polygon_manager, initial_board,
-            (int)initial_board->cell_width,
+            initial_board->cell_width, initial_board->cell_height,
             world->table_x, peg_start_y
         );
         printf("Player polygon manager: %d polygons\n",

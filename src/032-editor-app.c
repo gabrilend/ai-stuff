@@ -457,10 +457,9 @@ void editor_app_update(EditorApp* app) {
 
     // Rebuild polygon detection if lines changed (issue 837)
     if (app->polygons_dirty && app->polygon_manager) {
-        // Issue 1003: Pass cell_width for coordinate calculations
-        // TODO: Polygon system needs update for rectangular cells
+        // Issue 1003: Pass cell_width and cell_height for rectangular cells
         polygon_manager_rebuild(app->polygon_manager, app->board,
-                                (int)app->board->cell_width);
+                                app->board->cell_width, app->board->cell_height);
         app->polygons_dirty = 0;
     }
 }

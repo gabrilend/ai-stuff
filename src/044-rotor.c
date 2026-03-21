@@ -101,8 +101,10 @@ static void cart_to_polar(float dx, float dy, float* out_dist, float* out_angle)
 // }}}
 
 // {{{ rotor_manager_add_from_board
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
 int rotor_manager_add_from_board(RotorManager* manager, BoardData* board,
-                                  float origin_x, float origin_y, float cell_size) {
+                                  float origin_x, float origin_y,
+                                  float cell_width, float cell_height) {
     if (!manager || !board || board->rotor_count == 0) return 0;
 
     // Ensure capacity
@@ -124,8 +126,9 @@ int rotor_manager_add_from_board(RotorManager* manager, BoardData* board,
         rotor_physics_init(dst);
 
         // Convert grid coords to pixel coords
-        dst->center_x = origin_x + src->col * cell_size;
-        dst->center_y = origin_y + src->row * cell_size;
+        // Issue 1003: Use cell_width for X, cell_height for Y
+        dst->center_x = origin_x + src->col * cell_width;
+        dst->center_y = origin_y + src->row * cell_height;
         dst->rotation_speed = src->rotation_speed;
         dst->current_angle = src->current_angle;
 
@@ -184,10 +187,11 @@ int rotor_manager_add_from_board(RotorManager* manager, BoardData* board,
                     dst->connected_line_indices[connected_line_idx] = world_line_idx;
 
                     // Calculate endpoint positions relative to rotor center
-                    float x1 = origin_x + obj->col * cell_size;
-                    float y1 = origin_y + obj->row * cell_size;
-                    float x2 = origin_x + obj->end_col * cell_size;
-                    float y2 = origin_y + obj->end_row * cell_size;
+                    // Issue 1003: Use cell_width for X, cell_height for Y
+                    float x1 = origin_x + obj->col * cell_width;
+                    float y1 = origin_y + obj->row * cell_height;
+                    float x2 = origin_x + obj->end_col * cell_width;
+                    float y2 = origin_y + obj->end_row * cell_height;
 
                     float dx1 = x1 - dst->center_x;
                     float dy1 = y1 - dst->center_y;
@@ -210,8 +214,9 @@ int rotor_manager_add_from_board(RotorManager* manager, BoardData* board,
                     dst->connected_peg_indices[connected_peg_idx] = world_peg_idx;
 
                     // Calculate peg position relative to rotor center
-                    float x = origin_x + obj->col * cell_size;
-                    float y = origin_y + obj->row * cell_size;
+                    // Issue 1003: Use cell_width for X, cell_height for Y
+                    float x = origin_x + obj->col * cell_width;
+                    float y = origin_y + obj->row * cell_height;
                     float dx = x - dst->center_x;
                     float dy = y - dst->center_y;
 

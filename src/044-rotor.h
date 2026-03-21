@@ -87,9 +87,11 @@ void rotor_manager_clear(RotorManager* manager);
 // Adds rotors from BoardData to the manager.
 // Converts grid coordinates to pixel positions using the provided grid.
 // Detects connections and stores original positions.
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
 // Returns number of rotors added.
 int rotor_manager_add_from_board(RotorManager* manager, BoardData* board,
-                                  float origin_x, float origin_y, float cell_size);
+                                  float origin_x, float origin_y,
+                                  float cell_width, float cell_height);
 // }}}
 
 // {{{ rotor_manager_update

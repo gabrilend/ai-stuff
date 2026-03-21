@@ -142,8 +142,9 @@ void polygon_manager_destroy(PolygonManager* manager);
 // Parameters:
 //   manager: PolygonManager instance
 //   board: BoardData containing line objects
-//   cell_size: Grid cell size for coordinate conversion
-void polygon_manager_rebuild(PolygonManager* manager, BoardData* board, int cell_size);
+//   cell_width, cell_height: Grid cell dimensions for coordinate conversion (issue 1003)
+void polygon_manager_rebuild(PolygonManager* manager, BoardData* board,
+                             float cell_width, float cell_height);
 // }}}
 
 // {{{ polygon_manager_rebuild_offset
@@ -153,10 +154,11 @@ void polygon_manager_rebuild(PolygonManager* manager, BoardData* board, int cell
 // Parameters:
 //   manager: PolygonManager instance
 //   board: BoardData containing line objects
-//   cell_size: Grid cell size for coordinate conversion
+//   cell_width, cell_height: Grid cell dimensions for coordinate conversion (issue 1003)
 //   origin_x, origin_y: Offset to add to all vertex positions
 void polygon_manager_rebuild_offset(PolygonManager* manager, BoardData* board,
-                                     int cell_size, float origin_x, float origin_y);
+                                     float cell_width, float cell_height,
+                                     float origin_x, float origin_y);
 // }}}
 
 // {{{ polygon_manager_clear

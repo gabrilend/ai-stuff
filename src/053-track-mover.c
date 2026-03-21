@@ -54,21 +54,23 @@ static void mover_physics_cleanup(MoverPhysics* mover) {
 
 // {{{ segment_get_world_endpoints
 // Gets the world pixel coordinates for a track segment's endpoints.
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
 static void segment_get_world_endpoints(TrackSegment* seg, float origin_x, float origin_y,
-                                        float cell_size, float* x1, float* y1,
-                                        float* x2, float* y2) {
-    *x1 = origin_x + seg->col1 * cell_size;
-    *y1 = origin_y + seg->row1 * cell_size;
-    *x2 = origin_x + seg->col2 * cell_size;
-    *y2 = origin_y + seg->row2 * cell_size;
+                                        float cell_width, float cell_height,
+                                        float* x1, float* y1, float* x2, float* y2) {
+    *x1 = origin_x + seg->col1 * cell_width;
+    *y1 = origin_y + seg->row1 * cell_height;
+    *x2 = origin_x + seg->col2 * cell_width;
+    *y2 = origin_y + seg->row2 * cell_height;
 }
 // }}}
 
 // {{{ segment_get_length
 // Calculates segment length in pixels.
-static float segment_get_length(TrackSegment* seg, float cell_size) {
-    float dx = (seg->col2 - seg->col1) * cell_size;
-    float dy = (seg->row2 - seg->row1) * cell_size;
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
+static float segment_get_length(TrackSegment* seg, float cell_width, float cell_height) {
+    float dx = (seg->col2 - seg->col1) * cell_width;
+    float dy = (seg->row2 - seg->row1) * cell_height;
     return sqrtf(dx * dx + dy * dy);
 }
 // }}}
@@ -102,10 +104,12 @@ static TrackIntersection* find_intersection_at_point(TrackMoverManager* manager,
 // Gets normalized direction vector for a segment at an endpoint.
 // If at_start=1, returns direction from start toward end.
 // If at_start=0, returns direction from end toward start.
-static void get_segment_direction(TrackSegment* seg, int at_start, float cell_size,
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support
+static void get_segment_direction(TrackSegment* seg, int at_start,
+                                   float cell_width, float cell_height,
                                    float* out_dx, float* out_dy) {
-    float dx = (seg->col2 - seg->col1) * cell_size;
-    float dy = (seg->row2 - seg->row1) * cell_size;
+    float dx = (seg->col2 - seg->col1) * cell_width;
+    float dy = (seg->row2 - seg->row1) * cell_height;
     float len = sqrtf(dx * dx + dy * dy);
     if (len < 0.001f) {
         *out_dx = 0.0f;
@@ -158,14 +162,15 @@ static int select_intersection_exit(TrackMoverManager* manager,
     }
 
     // Get approach direction (direction we were traveling)
+    // Issue 1003: Use cell_width and cell_height for rectangular cells
     float approach_dx, approach_dy;
     if (at_end) {
         // Approaching from end: direction is col2-col1, row2-row1
-        get_segment_direction(approach_seg, 1, manager->cell_size,
+        get_segment_direction(approach_seg, 1, manager->cell_width, manager->cell_height,
                               &approach_dx, &approach_dy);
     } else {
         // Approaching from start: direction is col1-col2, row1-row2
-        get_segment_direction(approach_seg, 0, manager->cell_size,
+        get_segment_direction(approach_seg, 0, manager->cell_width, manager->cell_height,
                               &approach_dx, &approach_dy);
     }
 
@@ -188,8 +193,10 @@ static int select_intersection_exit(TrackMoverManager* manager,
         }
 
         // Get exit direction (direction we would travel on exit segment)
+        // Issue 1003: Use cell_width and cell_height for rectangular cells
         float exit_dx, exit_dy;
-        get_segment_direction(exit_seg, exit_at_start, manager->cell_size,
+        get_segment_direction(exit_seg, exit_at_start,
+                              manager->cell_width, manager->cell_height,
                               &exit_dx, &exit_dy);
 
         // Check if exit is within 90° of approach
@@ -211,24 +218,27 @@ static int select_intersection_exit(TrackMoverManager* manager,
 // {{{ point_touches_object
 // Checks if a point (mover position) touches a board object.
 // Uses grid proximity for pegs, segment proximity for lines.
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
 // Returns 1 if touching, 0 otherwise.
 static int point_touches_object(float px, float py, BoardObject* obj,
-                                float origin_x, float origin_y, float cell_size) {
-    // Tolerance for "touching" in grid units (1 = adjacent cell)
-    float tolerance = cell_size * 1.1f;
+                                float origin_x, float origin_y,
+                                float cell_width, float cell_height) {
+    // Tolerance for "touching" - use minimum cell dimension
+    float min_cell = (cell_width < cell_height) ? cell_width : cell_height;
+    float tolerance = min_cell * 1.1f;
 
     if (obj->type == OBJECT_PEG) {
-        float ox = origin_x + obj->col * cell_size;
-        float oy = origin_y + obj->row * cell_size;
+        float ox = origin_x + obj->col * cell_width;
+        float oy = origin_y + obj->row * cell_height;
         float dx = px - ox;
         float dy = py - oy;
         return (dx * dx + dy * dy) <= (tolerance * tolerance);
     } else if (obj->type == OBJECT_LINE) {
         // Check if point is near either endpoint or along the line
-        float x1 = origin_x + obj->col * cell_size;
-        float y1 = origin_y + obj->row * cell_size;
-        float x2 = origin_x + obj->end_col * cell_size;
-        float y2 = origin_y + obj->end_row * cell_size;
+        float x1 = origin_x + obj->col * cell_width;
+        float y1 = origin_y + obj->row * cell_height;
+        float x2 = origin_x + obj->end_col * cell_width;
+        float y2 = origin_y + obj->end_row * cell_height;
 
         // Check endpoints
         float d1_sq = (px - x1) * (px - x1) + (py - y1) * (py - y1);
@@ -258,9 +268,11 @@ static int point_touches_object(float px, float py, BoardObject* obj,
 // Detects connected objects using BFS from mover position.
 // Sets connected arrays in the mover physics struct.
 // Issue 902c: Payload detection algorithm
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
 static void detect_payload_bfs(MoverPhysics* mover, BoardData* board,
                                float mover_x, float mover_y,
-                               float origin_x, float origin_y, float cell_size) {
+                               float origin_x, float origin_y,
+                               float cell_width, float cell_height) {
     // Track which objects are connected
     int* visited = (int*)calloc(board->object_count, sizeof(int));
     if (!visited) return;
@@ -278,7 +290,7 @@ static void detect_payload_bfs(MoverPhysics* mover, BoardData* board,
     for (int i = 0; i < board->object_count; i++) {
         BoardObject* obj = &board->objects[i];
         if (point_touches_object(mover_x, mover_y, obj,
-                                 origin_x, origin_y, cell_size)) {
+                                 origin_x, origin_y, cell_width, cell_height)) {
             visited[i] = 1;
             queue[queue_tail++] = i;
         }
@@ -292,12 +304,12 @@ static void detect_payload_bfs(MoverPhysics* mover, BoardData* board,
         // Get current object's world position
         float cx, cy;
         if (current->type == OBJECT_PEG) {
-            cx = origin_x + current->col * cell_size;
-            cy = origin_y + current->row * cell_size;
+            cx = origin_x + current->col * cell_width;
+            cy = origin_y + current->row * cell_height;
         } else {
             // For lines, use midpoint
-            cx = origin_x + (current->col + current->end_col) * 0.5f * cell_size;
-            cy = origin_y + (current->row + current->end_row) * 0.5f * cell_size;
+            cx = origin_x + (current->col + current->end_col) * 0.5f * cell_width;
+            cy = origin_y + (current->row + current->end_row) * 0.5f * cell_height;
         }
 
         // Check all other objects for adjacency
@@ -309,15 +321,15 @@ static void detect_payload_bfs(MoverPhysics* mover, BoardData* board,
             int touches = 0;
             if (current->type == OBJECT_LINE) {
                 // Line endpoints
-                float lx1 = origin_x + current->col * cell_size;
-                float ly1 = origin_y + current->row * cell_size;
-                float lx2 = origin_x + current->end_col * cell_size;
-                float ly2 = origin_y + current->end_row * cell_size;
-                touches = point_touches_object(lx1, ly1, obj, origin_x, origin_y, cell_size) ||
-                          point_touches_object(lx2, ly2, obj, origin_x, origin_y, cell_size);
+                float lx1 = origin_x + current->col * cell_width;
+                float ly1 = origin_y + current->row * cell_height;
+                float lx2 = origin_x + current->end_col * cell_width;
+                float ly2 = origin_y + current->end_row * cell_height;
+                touches = point_touches_object(lx1, ly1, obj, origin_x, origin_y, cell_width, cell_height) ||
+                          point_touches_object(lx2, ly2, obj, origin_x, origin_y, cell_width, cell_height);
             } else {
                 // Peg center
-                touches = point_touches_object(cx, cy, obj, origin_x, origin_y, cell_size);
+                touches = point_touches_object(cx, cy, obj, origin_x, origin_y, cell_width, cell_height);
             }
 
             if (touches) {
@@ -369,12 +381,12 @@ static void detect_payload_bfs(MoverPhysics* mover, BoardData* board,
                 mover->connected_line_indices[connected_line_idx] = world_line_idx;
 
                 // Store payload offset (line midpoint relative to mover)
-                float lx = origin_x + (obj->col + obj->end_col) * 0.5f * cell_size;
-                float ly = origin_y + (obj->row + obj->end_row) * 0.5f * cell_size;
+                float lx = origin_x + (obj->col + obj->end_col) * 0.5f * cell_width;
+                float ly = origin_y + (obj->row + obj->end_row) * 0.5f * cell_height;
 
                 // Calculate line half dimensions for runtime reconstruction
-                float half_dx = (obj->end_col - obj->col) * 0.5f * cell_size;
-                float half_dy = (obj->end_row - obj->row) * 0.5f * cell_size;
+                float half_dx = (obj->end_col - obj->col) * 0.5f * cell_width;
+                float half_dy = (obj->end_row - obj->row) * 0.5f * cell_height;
 
                 MoverPayload* pl = &mover->payload[mover->payload_count++];
                 pl->object_index = i;
@@ -392,8 +404,8 @@ static void detect_payload_bfs(MoverPhysics* mover, BoardData* board,
                 mover->connected_peg_indices[connected_peg_idx] = world_peg_idx;
 
                 // Store payload offset (peg center relative to mover)
-                float px = origin_x + obj->col * cell_size;
-                float py = origin_y + obj->row * cell_size;
+                float px = origin_x + obj->col * cell_width;
+                float py = origin_y + obj->row * cell_height;
 
                 MoverPayload* pl = &mover->payload[mover->payload_count++];
                 pl->object_index = i;
@@ -439,7 +451,8 @@ TrackMoverManager* track_mover_manager_create(World* world) {
     manager->intersection_count = 0;
     manager->origin_x = 0.0f;
     manager->origin_y = 0.0f;
-    manager->cell_size = 43.0f;
+    manager->cell_width = 43.0f;
+    manager->cell_height = 43.0f;
 
     // Issue 902h: Initialize task data for parallel updates
     manager->task_data = NULL;
@@ -481,14 +494,17 @@ void track_mover_manager_clear(TrackMoverManager* manager) {
 // }}}
 
 // {{{ track_mover_manager_add_from_board
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
 int track_mover_manager_add_from_board(TrackMoverManager* manager, BoardData* board,
-                                        float origin_x, float origin_y, float cell_size) {
+                                        float origin_x, float origin_y,
+                                        float cell_width, float cell_height) {
     if (!manager || !board || board->track_mover_count == 0) return 0;
 
     // Store grid parameters
     manager->origin_x = origin_x;
     manager->origin_y = origin_y;
-    manager->cell_size = cell_size;
+    manager->cell_width = cell_width;
+    manager->cell_height = cell_height;
 
     // Store segment references
     manager->segments = board->track_segments;
@@ -520,7 +536,10 @@ int track_mover_manager_add_from_board(TrackMoverManager* manager, BoardData* bo
         dst->current_segment = src->current_segment;
         dst->position_on_segment = src->position_on_segment;
         dst->direction = src->direction;
-        dst->speed = src->speed * cell_size;  // Convert grid units/sec to pixels/sec
+        // Convert grid units/sec to pixels/sec
+        // Issue 1003: Use average cell dimension for speed conversion
+        float avg_cell = (cell_width + cell_height) * 0.5f;
+        dst->speed = src->speed * avg_cell;
 
         // Validate segment index
         if (dst->current_segment < 0 || dst->current_segment >= board->track_segment_count) {
@@ -532,14 +551,14 @@ int track_mover_manager_add_from_board(TrackMoverManager* manager, BoardData* bo
         // Calculate initial world position
         TrackSegment* seg = &board->track_segments[dst->current_segment];
         float x1, y1, x2, y2;
-        segment_get_world_endpoints(seg, origin_x, origin_y, cell_size,
+        segment_get_world_endpoints(seg, origin_x, origin_y, cell_width, cell_height,
                                     &x1, &y1, &x2, &y2);
         interpolate_position(x1, y1, x2, y2, dst->position_on_segment,
                             &dst->world_x, &dst->world_y);
 
         // Detect payload (issue 902c)
         detect_payload_bfs(dst, board, dst->world_x, dst->world_y,
-                          origin_x, origin_y, cell_size);
+                          origin_x, origin_y, cell_width, cell_height);
 
         manager->mover_count++;
         added++;
@@ -698,7 +717,7 @@ void track_mover_manager_update(TrackMoverManager* manager, float dt) {
         TrackSegment* seg = &manager->segments[mover->current_segment];
 
         // Calculate segment length
-        float seg_length = segment_get_length(seg, manager->cell_size);
+        float seg_length = segment_get_length(seg, manager->cell_width, manager->cell_height);
         if (seg_length < 0.001f) continue;
 
         // Advance position along segment
@@ -722,7 +741,8 @@ void track_mover_manager_update(TrackMoverManager* manager, float dt) {
         float x1, y1, x2, y2;
         segment_get_world_endpoints(&manager->segments[mover->current_segment],
                                     manager->origin_x, manager->origin_y,
-                                    manager->cell_size, &x1, &y1, &x2, &y2);
+                                    manager->cell_width, manager->cell_height,
+                                    &x1, &y1, &x2, &y2);
         interpolate_position(x1, y1, x2, y2, mover->position_on_segment,
                             &mover->world_x, &mover->world_y);
 
@@ -770,8 +790,8 @@ int track_mover_get_line_velocity(TrackMoverManager* manager, int line_index,
                 TrackSegment* seg = &manager->segments[mover->current_segment];
 
                 // Segment direction vector (normalized)
-                float dx = (seg->col2 - seg->col1) * manager->cell_size;
-                float dy = (seg->row2 - seg->row1) * manager->cell_size;
+                float dx = (seg->col2 - seg->col1) * manager->cell_width;
+                float dy = (seg->row2 - seg->row1) * manager->cell_height;
                 float len = sqrtf(dx * dx + dy * dy);
                 if (len < 0.001f) return 0;
 
@@ -809,7 +829,7 @@ static void mover_update_task(void* data) {
     TrackSegment* seg = &manager->segments[mover->current_segment];
 
     // Calculate segment length
-    float seg_length = segment_get_length(seg, manager->cell_size);
+    float seg_length = segment_get_length(seg, manager->cell_width, manager->cell_height);
     if (seg_length < 0.001f) return;
 
     // Advance position along segment
@@ -833,7 +853,8 @@ static void mover_update_task(void* data) {
     float x1, y1, x2, y2;
     segment_get_world_endpoints(&manager->segments[mover->current_segment],
                                 manager->origin_x, manager->origin_y,
-                                manager->cell_size, &x1, &y1, &x2, &y2);
+                                manager->cell_width, manager->cell_height,
+                                &x1, &y1, &x2, &y2);
     interpolate_position(x1, y1, x2, y2, mover->position_on_segment,
                         &mover->world_x, &mover->world_y);
 

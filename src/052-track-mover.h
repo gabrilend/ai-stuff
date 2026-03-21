@@ -88,9 +88,11 @@ typedef struct TrackMoverManager {
     int intersection_count;
 
     // Grid data for coordinate conversion
+    // Issue 1003: Supports rectangular cells
     float origin_x;
     float origin_y;
-    float cell_size;
+    float cell_width;
+    float cell_height;
 
     // Parallel task data (issue 902h)
     MoverTaskData* task_data;
@@ -118,9 +120,11 @@ void track_mover_manager_clear(TrackMoverManager* manager);
 // Adds movers from BoardData to the manager.
 // Converts grid coordinates to pixel positions using provided parameters.
 // Detects payload connections and stores initial offsets.
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
 // Returns number of movers added.
 int track_mover_manager_add_from_board(TrackMoverManager* manager, BoardData* board,
-                                        float origin_x, float origin_y, float cell_size);
+                                        float origin_x, float origin_y,
+                                        float cell_width, float cell_height);
 // }}}
 
 // {{{ track_mover_manager_update
