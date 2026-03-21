@@ -20,7 +20,9 @@
 // =============================================================================
 
 // {{{ board_data_create
-BoardData* board_data_create(int grid_cols, int grid_rows, int cell_size) {
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
+BoardData* board_data_create(int grid_cols, int grid_rows,
+                             float cell_width, float cell_height) {
     BoardData* data = (BoardData*)calloc(1, sizeof(BoardData));
     if (!data) {
         fprintf(stderr, "ERROR: Failed to allocate BoardData\n");
@@ -30,11 +32,13 @@ BoardData* board_data_create(int grid_cols, int grid_rows, int cell_size) {
     data->version = 1;
     strcpy(data->name, "Untitled");
 
-    data->cell_size = cell_size;
+    // Issue 1003: Store separate cell dimensions for rectangular cells
+    data->cell_width = cell_width;
+    data->cell_height = cell_height;
     data->grid_cols = grid_cols;
     data->grid_rows = grid_rows;
-    data->board_width = grid_cols * cell_size;
-    data->board_height = grid_rows * cell_size;
+    data->board_width = (int)(grid_cols * cell_width);
+    data->board_height = (int)(grid_rows * cell_height);
 
     // Allocate object array
     data->object_capacity = INITIAL_CAPACITY;
@@ -1401,15 +1405,15 @@ BoardData* board_data_load_json(const char* filename) {
     int cols = cols_json ? cols_json->valueint : DEFAULT_GRID_COLS;
     int rows = rows_json ? rows_json->valueint : DEFAULT_GRID_ROWS;
 
-    // Issue 838: Calculate cell_size from fixed board dimensions
-    // Board dimensions are constant, cell size adapts to grid density
-    // Use minimum of width/cols and height/rows to ensure square cells that fit
-    int cell_width = (int)(BOARD_WIDTH / cols);
-    int cell_height = (int)(BOARD_HEIGHT / rows);
-    int cell_size = (cell_width < cell_height) ? cell_width : cell_height;
+    // Issue 1003: Calculate cell dimensions from fixed board size
+    // Board dimensions are constant (BOARD_WIDTH x BOARD_HEIGHT)
+    // Cell dimensions are calculated as: cell_width = BOARD_WIDTH / cols
+    // Cells can be rectangular if cols/rows ratio differs from BOARD_WIDTH/BOARD_HEIGHT ratio
+    float cell_width = BOARD_WIDTH / (float)cols;
+    float cell_height = BOARD_HEIGHT / (float)rows;
 
     // Create board data
-    BoardData* data = board_data_create(cols, rows, cell_size);
+    BoardData* data = board_data_create(cols, rows, cell_width, cell_height);
     if (!data) {
         cJSON_Delete(root);
         return NULL;
@@ -1980,13 +1984,14 @@ void board_data_apply_zones_to_world(BoardData* data, struct World* world,
 
         // Convert grid bounds to pixel bounds
         // Zone starts at top-left of grid cell
-        float cell_x = grid->origin_x + bz->col * grid->cell_size;
-        float cell_y = grid->origin_y + bz->row * grid->cell_size;
+        // Issue 1003: Use cell_width for X, cell_height for Y (rectangular cells)
+        float cell_x = grid->origin_x + bz->col * grid->cell_width;
+        float cell_y = grid->origin_y + bz->row * grid->cell_height;
 
         sz->x_min = cell_x;
-        sz->x_max = cell_x + bz->width * grid->cell_size;
+        sz->x_max = cell_x + bz->width * grid->cell_width;
         sz->y_min = cell_y;
-        sz->y_max = cell_y + bz->height * grid->cell_size;
+        sz->y_max = cell_y + bz->height * grid->cell_height;
         sz->points = bz->points * bz->multiplier;
 
         zone_idx++;

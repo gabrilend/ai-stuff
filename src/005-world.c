@@ -239,10 +239,11 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     // Zones span the table width, positioned to align with zone_grid scoring (issue 1002)
     // Use same grid-aligned calculation as zone_grid_set_gate_row to ensure
     // rendering and scoring happen at the same Y position
-    float cell_size = DEFAULT_GRID_CELL_SIZE;
-    int gate_row = (int)((world->table_bottom - world->table_top) / cell_size);
+    // Issue 1003: Use DEFAULT_GRID_CELL_HEIGHT for Y calculations
+    float cell_height = DEFAULT_GRID_CELL_HEIGHT;
+    int gate_row = (int)((world->table_bottom - world->table_top) / cell_height);
     float zone_width = world->table_width / zone_count;
-    float zone_y_min = world->table_top + gate_row * cell_size;
+    float zone_y_min = world->table_top + gate_row * cell_height;
     float zone_y_max = zone_y_min + zone_height;
 
     // Default point values (symmetric pattern: 10, 50, 100, 500, 100, 50, 10)

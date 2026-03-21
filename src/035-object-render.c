@@ -212,8 +212,9 @@ void render_grid(Grid* grid, float canvas_x, float canvas_y,
     if (!grid) return;
 
     // Draw vertical lines
+    // Issue 1003: Use cell_width for X spacing
     for (int col = 0; col <= grid->cols; col++) {
-        float x = grid->origin_x + col * grid->cell_size;
+        float x = grid->origin_x + col * grid->cell_width;
         if (x < canvas_x || x > canvas_x + canvas_width) continue;
 
         // Major line every 5 cells
@@ -222,8 +223,9 @@ void render_grid(Grid* grid, float canvas_x, float canvas_y,
     }
 
     // Draw horizontal lines
+    // Issue 1003: Use cell_height for Y spacing
     for (int row = 0; row <= grid->rows; row++) {
-        float y = grid->origin_y + row * grid->cell_size;
+        float y = grid->origin_y + row * grid->cell_height;
         if (y < canvas_y || y > canvas_y + canvas_height) continue;
 
         // Major line every 5 cells
@@ -242,11 +244,14 @@ void render_grid_cursor(Grid* grid, int col, int row, Color color) {
     if (col < 0 || col > grid->cols || row < 0 || row > grid->rows) return;
 
     // Get intersection point
-    float x = grid->origin_x + col * grid->cell_size;
-    float y = grid->origin_y + row * grid->cell_size;
+    // Issue 1003: Use cell_width for X, cell_height for Y
+    float x = grid->origin_x + col * grid->cell_width;
+    float y = grid->origin_y + row * grid->cell_height;
 
     // Draw highlight centered on intersection point
-    float radius = grid->cell_size * 0.4f;
+    // Use minimum of cell dimensions for consistent circular highlight
+    float min_cell = (grid->cell_width < grid->cell_height) ? grid->cell_width : grid->cell_height;
+    float radius = min_cell * 0.4f;
     DrawCircle((int)x, (int)y, radius, color);
     DrawCircleLines((int)x, (int)y, radius, WHITE);
 }
@@ -298,8 +303,9 @@ void render_board_zones(BoardData* board, Grid* grid) {
         float y = grid_to_pixel_y(grid, zone->col, zone->row);
 
         // Calculate size from grid
-        float width = zone->width * grid->cell_size;
-        float height = zone->height * grid->cell_size;
+        // Issue 1003: Use cell_width for width, cell_height for height
+        float width = zone->width * grid->cell_width;
+        float height = zone->height * grid->cell_height;
 
         if (zone->type == ZONE_PORTAL) {
             render_portal_zone(x, y, width, height, zone->direction, zone->channel);

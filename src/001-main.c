@@ -83,7 +83,9 @@ static void apply_board_data_to_stage(BoardData* data, Stage* stage, int flip_ve
     if (!data || !stage) return;
 
     // Create grid for coordinate conversion
-    Grid grid = grid_create(data->grid_cols, data->grid_rows, (float)data->cell_size,
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    Grid grid = grid_create(data->grid_cols, data->grid_rows,
+                            data->cell_width, data->cell_height,
                             stage->table_x, stage->y_top);
 
     // Count pegs and lines
@@ -165,7 +167,9 @@ static int apply_initial_board_data(BoardData* data, World* world,
 
     // Create grid for coordinate conversion
     // Origin is at top-left of peg area
-    Grid grid = grid_create(data->grid_cols, data->grid_rows, (float)data->cell_size,
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    Grid grid = grid_create(data->grid_cols, data->grid_rows,
+                            data->cell_width, data->cell_height,
                             peg_start_x, peg_start_y);
 
     // Count pegs and lines in board data
@@ -267,7 +271,9 @@ static int apply_adversary_board_data(BoardData* data, World* world,
 
     // Create grid for coordinate conversion
     // Origin is at top-left of adversary peg area
-    Grid grid = grid_create(data->grid_cols, data->grid_rows, (float)data->cell_size,
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    Grid grid = grid_create(data->grid_cols, data->grid_rows,
+                            data->cell_width, data->cell_height,
                             peg_start_x, peg_start_y);
 
     // Count pegs and lines in board data
@@ -585,9 +591,10 @@ int main(int argc, char* argv[]) {
     }
     printf("Selected random initial board: %s\n", board_path);
 
-    // Calculate table dimensions from board (issue 1220)
+    // Calculate table dimensions from board (issue 1220, 1003)
     // Board fills entire table - pegs at edges align with guard rails
-    float table_width = initial_board->grid_cols * initial_board->cell_size;
+    // Issue 1003: Use pre-computed board_width which accounts for cell_width
+    float table_width = (float)initial_board->board_width;
 
     // Create slot manager - single source of truth for vertical positioning (issue 1221)
     // Centers table horizontally in window
@@ -635,9 +642,11 @@ int main(int argc, char* argv[]) {
     // Must be created after apply_initial_board_data sets up lines/pegs
     world->rotor_manager = rotor_manager_create(world);
     if (world->rotor_manager && initial_board->rotor_count > 0) {
+        // Issue 1003: Pass cell_width for X coordinate calculations
+        // TODO: Rotor system needs update for rectangular cells (Y uses cell_height)
         int rotors_added = rotor_manager_add_from_board(
             world->rotor_manager, initial_board,
-            world->table_x, peg_start_y, (float)initial_board->cell_size);
+            world->table_x, peg_start_y, initial_board->cell_width);
         printf("Rotor manager: %d rotors loaded\n", rotors_added);
     }
 
@@ -645,9 +654,11 @@ int main(int argc, char* argv[]) {
     // Must be created after apply_initial_board_data sets up lines/pegs
     world->track_mover_manager = track_mover_manager_create(world);
     if (world->track_mover_manager && initial_board->track_mover_count > 0) {
+        // Issue 1003: Pass cell_width for X coordinate calculations
+        // TODO: Track mover system needs update for rectangular cells (Y uses cell_height)
         int movers_added = track_mover_manager_add_from_board(
             world->track_mover_manager, initial_board,
-            world->table_x, peg_start_y, (float)initial_board->cell_size);
+            world->table_x, peg_start_y, initial_board->cell_width);
         printf("Track mover manager: %d movers loaded\n", movers_added);
     }
 
@@ -714,14 +725,17 @@ int main(int argc, char* argv[]) {
 
         // Create adversary polygon manager (issue 837)
         // Must be done before board_data_destroy while we still have BoardData
+        // Issue 1003: Use pre-computed board dimensions
         world->adversary_polygon_manager = polygon_manager_create(
-            initial_board->grid_cols * (float)initial_board->cell_size,
-            initial_board->grid_rows * (float)initial_board->cell_size
+            (float)initial_board->board_width,
+            (float)initial_board->board_height
         );
         if (world->adversary_polygon_manager) {
+            // Issue 1003: Pass cell_width for coordinate calculations
+            // TODO: Polygon system needs update for rectangular cells
             polygon_manager_rebuild_offset(
                 world->adversary_polygon_manager, initial_board,
-                initial_board->cell_size,
+                (int)initial_board->cell_width,
                 world->table_x, adv_start_y
             );
             printf("Adversary polygon manager: %d polygons\n",
@@ -731,14 +745,17 @@ int main(int argc, char* argv[]) {
 
     // Create player polygon manager (issue 837)
     // Must be done before board_data_destroy while we still have BoardData
+    // Issue 1003: Use pre-computed board dimensions
     world->polygon_manager = polygon_manager_create(
-        initial_board->grid_cols * (float)initial_board->cell_size,
-        initial_board->grid_rows * (float)initial_board->cell_size
+        (float)initial_board->board_width,
+        (float)initial_board->board_height
     );
     if (world->polygon_manager) {
+        // Issue 1003: Pass cell_width for coordinate calculations
+        // TODO: Polygon system needs update for rectangular cells
         polygon_manager_rebuild_offset(
             world->polygon_manager, initial_board,
-            initial_board->cell_size,
+            (int)initial_board->cell_width,
             world->table_x, peg_start_y
         );
         printf("Player polygon manager: %d polygons\n",
@@ -793,19 +810,20 @@ int main(int argc, char* argv[]) {
 
     // Create zone dispatch grid (issue 318)
     // Maps grid cells to zone types for unified zone handling
-    // Uses same cell size as regular grid, spans maximum expandable area
+    // Issue 1003: Uses separate cell_width and cell_height for rectangular cells
     ZoneGrid* zone_grid = zone_grid_create(
-        world->table_x,      // Origin X (left edge of table)
-        world->table_top,    // Origin Y (top of player area)
-        DEFAULT_GRID_CELL_SIZE,
+        world->table_x,           // Origin X (left edge of table)
+        world->table_top,         // Origin Y (top of player area)
+        DEFAULT_GRID_CELL_WIDTH,  // Cell width (BOARD_WIDTH / cols)
+        DEFAULT_GRID_CELL_HEIGHT, // Cell height (BOARD_HEIGHT / rows)
         DEFAULT_GRID_COLS,
-        ZONE_GRID_MAX_ROWS,  // Max rows to accommodate expansion
+        ZONE_GRID_MAX_ROWS,       // Max rows to accommodate expansion
         world
     );
     if (zone_grid) {
         // Set up initial gate row at the zone position
-        // Convert zone Y position to grid row
-        int gate_row = (int)((world->table_bottom - world->table_top) / DEFAULT_GRID_CELL_SIZE);
+        // Convert zone Y position to grid row (use cell_height for Y calculations)
+        int gate_row = (int)((world->table_bottom - world->table_top) / DEFAULT_GRID_CELL_HEIGHT);
         zone_grid_set_gate_row(zone_grid, gate_row, 0);  // No multiplier initially
 
         world->zone_grid = zone_grid;

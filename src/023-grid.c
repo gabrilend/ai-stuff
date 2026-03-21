@@ -10,16 +10,18 @@
 // =============================================================================
 
 // {{{ grid_create
-Grid grid_create(int cols, int rows, float cell_size,
+// Issue 1003: Takes separate cell_width and cell_height for rectangular cells
+Grid grid_create(int cols, int rows, float cell_width, float cell_height,
                  float origin_x, float origin_y) {
     Grid grid;
     grid.cols = cols;
     grid.rows = rows;
-    grid.cell_size = cell_size;
+    grid.cell_width = cell_width;
+    grid.cell_height = cell_height;
     grid.origin_x = origin_x;
     grid.origin_y = origin_y;
-    grid.width = cols * cell_size;
-    grid.height = rows * cell_size;
+    grid.width = cols * cell_width;
+    grid.height = rows * cell_height;
     return grid;
 }
 // }}}
@@ -27,7 +29,8 @@ Grid grid_create(int cols, int rows, float cell_size,
 // {{{ grid_create_default
 Grid grid_create_default(void) {
     return grid_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS,
-                       DEFAULT_GRID_CELL_SIZE, 0.0f, 0.0f);
+                       DEFAULT_GRID_CELL_WIDTH, DEFAULT_GRID_CELL_HEIGHT,
+                       0.0f, 0.0f);
 }
 // }}}
 
@@ -39,7 +42,8 @@ Grid grid_create_default(void) {
 float grid_to_pixel_x(Grid* grid, int col, int row) {
     (void)row;  // Row doesn't affect X in this simple grid
     // Return grid line intersection (not cell center)
-    return grid->origin_x + (col * grid->cell_size);
+    // Issue 1003: Use cell_width for X calculations
+    return grid->origin_x + (col * grid->cell_width);
 }
 // }}}
 
@@ -47,7 +51,8 @@ float grid_to_pixel_x(Grid* grid, int col, int row) {
 float grid_to_pixel_y(Grid* grid, int col, int row) {
     (void)col;  // Col doesn't affect Y in this simple grid
     // Return grid line intersection (not cell center)
-    return grid->origin_y + (row * grid->cell_size);
+    // Issue 1003: Use cell_height for Y calculations
+    return grid->origin_y + (row * grid->cell_height);
 }
 // }}}
 
@@ -64,7 +69,8 @@ Vector2 grid_to_pixel(Grid* grid, int col, int row) {
 int pixel_to_grid_col(Grid* grid, float x) {
     float relative_x = x - grid->origin_x;
     // Round to nearest intersection (not floor to cell)
-    int col = (int)roundf(relative_x / grid->cell_size);
+    // Issue 1003: Use cell_width for X calculations
+    int col = (int)roundf(relative_x / grid->cell_width);
 
     // Clamp to valid range (0 to cols inclusive for intersections)
     if (col < 0) col = 0;
@@ -78,7 +84,8 @@ int pixel_to_grid_col(Grid* grid, float x) {
 int pixel_to_grid_row(Grid* grid, float y) {
     float relative_y = y - grid->origin_y;
     // Round to nearest intersection (not floor to cell)
-    int row = (int)roundf(relative_y / grid->cell_size);
+    // Issue 1003: Use cell_height for Y calculations
+    int row = (int)roundf(relative_y / grid->cell_height);
 
     // Clamp to valid range (0 to rows inclusive for intersections)
     if (row < 0) row = 0;
@@ -149,8 +156,9 @@ int grid_pixel_in_bounds(Grid* grid, float x, float y) {
 // {{{ grid_render
 void grid_render(Grid* grid) {
     // Draw vertical lines
+    // Issue 1003: Use cell_width for X spacing
     for (int col = 0; col <= grid->cols; col++) {
-        float x = grid->origin_x + (col * grid->cell_size);
+        float x = grid->origin_x + (col * grid->cell_width);
         float y1 = grid->origin_y;
         float y2 = grid->origin_y + grid->height;
 
@@ -161,10 +169,11 @@ void grid_render(Grid* grid) {
     }
 
     // Draw horizontal lines
+    // Issue 1003: Use cell_height for Y spacing
     for (int row = 0; row <= grid->rows; row++) {
         float x1 = grid->origin_x;
         float x2 = grid->origin_x + grid->width;
-        float y = grid->origin_y + (row * grid->cell_size);
+        float y = grid->origin_y + (row * grid->cell_height);
 
         Color color = (row % GRID_MAJOR_INTERVAL == 0) ?
             GRID_MAJOR_LINE_COLOR : GRID_LINE_COLOR;
@@ -188,15 +197,16 @@ void grid_render(Grid* grid) {
 void grid_render_cell_highlight(Grid* grid, int col, int row, Color color) {
     if (!grid_in_bounds(grid, col, row)) return;
 
-    float x = grid->origin_x + (col * grid->cell_size);
-    float y = grid->origin_y + (row * grid->cell_size);
+    // Issue 1003: Use cell_width for X, cell_height for Y
+    float x = grid->origin_x + (col * grid->cell_width);
+    float y = grid->origin_y + (row * grid->cell_height);
 
     // Draw filled rectangle with transparency
-    DrawRectangle((int)x, (int)y, (int)grid->cell_size, (int)grid->cell_size, color);
+    DrawRectangle((int)x, (int)y, (int)grid->cell_width, (int)grid->cell_height, color);
 
     // Draw border
     Color border = color;
     border.a = 200;
-    DrawRectangleLines((int)x, (int)y, (int)grid->cell_size, (int)grid->cell_size, border);
+    DrawRectangleLines((int)x, (int)y, (int)grid->cell_width, (int)grid->cell_height, border);
 }
 // }}}

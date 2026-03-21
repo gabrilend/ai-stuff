@@ -216,10 +216,13 @@ void editor_toggle(EditorState* editor) {
         if (editor->edit_board) {
             board_data_destroy(editor->edit_board);
         }
-        editor->edit_board = board_data_create(12, 20, 60);  // cols, rows, cell_size
+        // Issue 1003: Use cell_width and cell_height for rectangular cell support
+        editor->edit_board = board_data_create(12, 20, 60.0f, 60.0f);  // cols, rows, cell_width, cell_height
 
         // Reset overlay grid to match edit board
-        editor->overlay_grid.cell_size = 60.0f;
+        // Issue 1003: Use cell_width and cell_height
+        editor->overlay_grid.cell_width = 60.0f;
+        editor->overlay_grid.cell_height = 60.0f;
         editor->overlay_grid.origin_x = 0;
         editor->overlay_grid.origin_y = 0;
         editor->overlay_grid.cols = 12;
@@ -733,7 +736,9 @@ void editor_render_cursor(EditorState* editor) {
     if (editor->mode == EDITOR_MODE_PLACE) {
         if (editor->tool_type == EDITOR_TOOL_ZONE_PORTAL) {
             // Portal zone preview
-            float cell_size = editor->grid.cell_size;
+            // Issue 1003: Use cell_width and cell_height for rectangular cell support
+            float cell_w = editor->grid.cell_width;
+            float cell_h = editor->grid.cell_height;
             Color portal_color;
             if (editor->portal_direction == PORTAL_ENTRY) {
                 portal_color = (Color){50, 100, 255, 150};  // Blue
@@ -742,10 +747,10 @@ void editor_render_cursor(EditorState* editor) {
             }
 
             // Draw portal zone rectangle
-            DrawRectangle((int)(pos.x - cell_size/2), (int)(pos.y - cell_size/2),
-                         (int)cell_size, (int)cell_size, portal_color);
-            DrawRectangleLines((int)(pos.x - cell_size/2), (int)(pos.y - cell_size/2),
-                              (int)cell_size, (int)cell_size, WHITE);
+            DrawRectangle((int)(pos.x - cell_w/2), (int)(pos.y - cell_h/2),
+                         (int)cell_w, (int)cell_h, portal_color);
+            DrawRectangleLines((int)(pos.x - cell_w/2), (int)(pos.y - cell_h/2),
+                              (int)cell_w, (int)cell_h, WHITE);
 
             // Draw direction indicator
             if (editor->portal_direction == PORTAL_ENTRY) {
@@ -830,9 +835,10 @@ void editor_setup_grid(EditorState* editor, struct World* world) {
     float grid_height = world->table_bottom - world->table_top;
 
     // Use 60px cells (matching DEFAULT_PEG_SPACING)
-    float cell_size = 60.0f;
-    int cols = (int)(grid_width / cell_size);
-    int rows = (int)(grid_height / cell_size);
+    // Issue 1003: Calculate cell dimensions separately for rectangular cell support
+    float target_cell_size = 60.0f;
+    int cols = (int)(grid_width / target_cell_size);
+    int rows = (int)(grid_height / target_cell_size);
 
     // Clamp to reasonable limits
     if (cols < 5) cols = 5;
@@ -840,8 +846,12 @@ void editor_setup_grid(EditorState* editor, struct World* world) {
     if (rows < 5) rows = 5;
     if (rows > 50) rows = 50;
 
+    // Issue 1003: Calculate actual cell dimensions from grid size
+    float cell_width = grid_width / (float)cols;
+    float cell_height = grid_height / (float)rows;
+
     // Create grid with origin at table top-left
-    editor->grid = grid_create(cols, rows, cell_size,
+    editor->grid = grid_create(cols, rows, cell_width, cell_height,
                                world->table_x, world->table_top);
 
     printf("Editor grid setup: %dx%d cells, origin=(%.0f, %.0f)\n",
@@ -1163,8 +1173,9 @@ void editor_create_board_data(EditorState* editor) {
     }
 
     // Create new board data with current grid dimensions
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
     editor->board_data = board_data_create(editor->grid.cols, editor->grid.rows,
-                                           (int)editor->grid.cell_size);
+                                           editor->grid.cell_width, editor->grid.cell_height);
     if (editor->board_data) {
         snprintf(editor->board_data->name, 64, "New Board");
         printf("Created new board data: %dx%d grid\n",
@@ -1484,8 +1495,9 @@ int editor_load_board(EditorState* editor, const char* filepath) {
     editor->board_modified = 0;
 
     // Update grid from loaded data
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
     editor->grid = grid_create(new_data->grid_cols, new_data->grid_rows,
-                               (float)new_data->cell_size,
+                               new_data->cell_width, new_data->cell_height,
                                editor->grid.origin_x, editor->grid.origin_y);
 
     // Sync to world
@@ -1951,41 +1963,43 @@ static void overlay_render_grid(EditorState* editor) {
     if (!editor || !editor->show_grid) return;
 
     Grid* g = &editor->overlay_grid;
-    float cell = g->cell_size;
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    float cell_w = g->cell_width;
+    float cell_h = g->cell_height;
 
     // Calculate visible grid bounds within canvas
-    int visible_cols = (int)(editor->canvas_width / cell) + 1;
-    int visible_rows = (int)(editor->canvas_height / cell) + 1;
+    int visible_cols = (int)(editor->canvas_width / cell_w) + 1;
+    int visible_rows = (int)(editor->canvas_height / cell_h) + 1;
     if (visible_cols > g->cols) visible_cols = g->cols;
     if (visible_rows > g->rows) visible_rows = g->rows;
 
     // Draw minor grid lines
     Color minor_color = (Color){60, 60, 70, 255};
     for (int c = 0; c <= visible_cols; c++) {
-        float x = editor->canvas_x + c * cell;
+        float x = editor->canvas_x + c * cell_w;
         DrawLineV((Vector2){x, editor->canvas_y},
-                  (Vector2){x, editor->canvas_y + visible_rows * cell},
+                  (Vector2){x, editor->canvas_y + visible_rows * cell_h},
                   minor_color);
     }
     for (int r = 0; r <= visible_rows; r++) {
-        float y = editor->canvas_y + r * cell;
+        float y = editor->canvas_y + r * cell_h;
         DrawLineV((Vector2){editor->canvas_x, y},
-                  (Vector2){editor->canvas_x + visible_cols * cell, y},
+                  (Vector2){editor->canvas_x + visible_cols * cell_w, y},
                   minor_color);
     }
 
     // Draw major grid lines (every 5 cells)
     Color major_color = (Color){90, 90, 110, 255};
     for (int c = 0; c <= visible_cols; c += 5) {
-        float x = editor->canvas_x + c * cell;
+        float x = editor->canvas_x + c * cell_w;
         DrawLineEx((Vector2){x, editor->canvas_y},
-                   (Vector2){x, editor->canvas_y + visible_rows * cell},
+                   (Vector2){x, editor->canvas_y + visible_rows * cell_h},
                    2.0f, major_color);
     }
     for (int r = 0; r <= visible_rows; r += 5) {
-        float y = editor->canvas_y + r * cell;
+        float y = editor->canvas_y + r * cell_h;
         DrawLineEx((Vector2){editor->canvas_x, y},
-                   (Vector2){editor->canvas_x + visible_cols * cell, y},
+                   (Vector2){editor->canvas_x + visible_cols * cell_w, y},
                    2.0f, major_color);
     }
 }
@@ -1998,13 +2012,16 @@ static void overlay_render_objects(EditorState* editor) {
 
     BoardData* board = editor->edit_board;
     Grid* g = &editor->overlay_grid;
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    float cw = g->cell_width;
+    float ch = g->cell_height;
 
     for (int i = 0; i < board->object_count; i++) {
         BoardObject* obj = &board->objects[i];
 
         // Convert grid coords to canvas pixel coords
-        float px = editor->canvas_x + (obj->col + 0.5f) * g->cell_size;
-        float py = editor->canvas_y + (obj->row + 0.5f) * g->cell_size;
+        float px = editor->canvas_x + (obj->col + 0.5f) * cw;
+        float py = editor->canvas_y + (obj->row + 0.5f) * ch;
 
         // Draw based on object type
         if (obj->type == OBJECT_PEG) {
@@ -2021,10 +2038,10 @@ static void overlay_render_objects(EditorState* editor) {
             }
         } else if (obj->type == OBJECT_LINE) {
             // Draw line from start to end
-            float x1 = editor->canvas_x + (obj->col + 0.5f) * g->cell_size;
-            float y1 = editor->canvas_y + (obj->row + 0.5f) * g->cell_size;
-            float x2 = editor->canvas_x + (obj->end_col + 0.5f) * g->cell_size;
-            float y2 = editor->canvas_y + (obj->end_row + 0.5f) * g->cell_size;
+            float x1 = editor->canvas_x + (obj->col + 0.5f) * cw;
+            float y1 = editor->canvas_y + (obj->row + 0.5f) * ch;
+            float x2 = editor->canvas_x + (obj->end_col + 0.5f) * cw;
+            float y2 = editor->canvas_y + (obj->end_row + 0.5f) * ch;
 
             Color line_color = (Color){obj->restitution, obj->friction, obj->point_bonus, 255};
             DrawLineEx((Vector2){x1, y1}, (Vector2){x2, y2}, obj->thickness, line_color);
@@ -2039,10 +2056,10 @@ static void overlay_render_objects(EditorState* editor) {
     for (int i = 0; i < board->zone_count; i++) {
         BoardZone* zone = &board->zones[i];
         if (zone->type == ZONE_PORTAL) {
-            float px = editor->canvas_x + (zone->col + 0.5f) * g->cell_size;
-            float py = editor->canvas_y + (zone->row + 0.5f) * g->cell_size;
-            // Calculate radius from zone size (assume square, use half of width)
-            float radius = (zone->width * g->cell_size) / 2.0f;
+            float px = editor->canvas_x + (zone->col + 0.5f) * cw;
+            float py = editor->canvas_y + (zone->row + 0.5f) * ch;
+            // Calculate radius from zone size using cell_width
+            float radius = (zone->width * cw) / 2.0f;
             if (radius < 15.0f) radius = 15.0f;  // Minimum visible size
 
             Color zone_color = (zone->direction == PORTAL_ENTRY)
@@ -2069,8 +2086,11 @@ static void overlay_render_cursor(EditorState* editor) {
     if (editor->mode == EDITOR_MODE_DISABLED) return;
 
     Grid* g = &editor->overlay_grid;
-    float px = editor->canvas_x + (editor->overlay_hover_col + 0.5f) * g->cell_size;
-    float py = editor->canvas_y + (editor->overlay_hover_row + 0.5f) * g->cell_size;
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    float cw = g->cell_width;
+    float cell_h = g->cell_height;
+    float px = editor->canvas_x + (editor->overlay_hover_col + 0.5f) * cw;
+    float py = editor->canvas_y + (editor->overlay_hover_row + 0.5f) * cell_h;
 
     if (editor->mode == EDITOR_MODE_PLACE) {
         // Show preview of object to place
@@ -2084,8 +2104,8 @@ static void overlay_render_cursor(EditorState* editor) {
                     DrawCircle((int)px, (int)py, 6.0f, CURSOR_VALID_COLOR);
                 } else if (editor->line_tool.state == LINE_TOOL_PLACING_END) {
                     // Draw line from start to current position
-                    float sx = editor->canvas_x + (editor->line_tool.start_col + 0.5f) * g->cell_size;
-                    float sy = editor->canvas_y + (editor->line_tool.start_row + 0.5f) * g->cell_size;
+                    float sx = editor->canvas_x + (editor->line_tool.start_col + 0.5f) * cw;
+                    float sy = editor->canvas_y + (editor->line_tool.start_row + 0.5f) * cell_h;
                     DrawLineEx((Vector2){sx, sy}, (Vector2){px, py},
                                editor->line_tool.thickness, CURSOR_VALID_COLOR);
                     DrawCircle((int)sx, (int)sy, editor->line_tool.thickness / 2, CURSOR_VALID_COLOR);
@@ -2194,7 +2214,8 @@ static void overlay_render_footer(EditorState* editor) {
         if (editor->edit_board) {
             board_data_destroy(editor->edit_board);
         }
-        editor->edit_board = board_data_create(12, 20, 60);  // cols, rows, cell_size
+        // Issue 1003: Use cell_width and cell_height for rectangular cell support
+        editor->edit_board = board_data_create(12, 20, 60.0f, 60.0f);  // cols, rows, cell_width, cell_height
         editor->current_filename[0] = '\0';
         editor->has_filename = 0;
         editor->board_modified = 0;
@@ -2520,8 +2541,9 @@ int editor_handle_overlay_input(EditorState* editor) {
         Grid* g = &editor->overlay_grid;
 
         // Convert to grid coords
-        int col = (int)(canvas_pos.x / g->cell_size);
-        int row = (int)(canvas_pos.y / g->cell_size);
+        // Issue 1003: Use cell_width for X, cell_height for Y
+        int col = (int)(canvas_pos.x / g->cell_width);
+        int row = (int)(canvas_pos.y / g->cell_height);
 
         // Bounds check
         if (col >= 0 && col < g->cols && row >= 0 && row < g->rows) {

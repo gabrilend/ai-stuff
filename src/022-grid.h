@@ -18,12 +18,19 @@
 #define BOARD_HEIGHT 946.0f
 
 // Default grid density (cells per board)
-// Cell size is calculated: cell_size = BOARD_WIDTH / columns (or BOARD_HEIGHT / rows)
-// With default 14x22 grid on 602x946 board, cell_size = 43px (square cells)
+// Cell dimensions are calculated: cell_width = BOARD_WIDTH / cols, cell_height = BOARD_HEIGHT / rows
+// With default 14x22 grid on 602x946 board: cell_width = 43px, cell_height = 43px (square)
+// Other grid dimensions will have rectangular cells
 #define DEFAULT_GRID_COLS 14
 #define DEFAULT_GRID_ROWS 22
 
-// Calculated default cell size for reference (not used in new boards)
+// Default cell dimensions for 14x22 grid (issue 1003)
+// These are only equal because 602/14 = 946/22 = 43
+#define DEFAULT_GRID_CELL_WIDTH (BOARD_WIDTH / DEFAULT_GRID_COLS)
+#define DEFAULT_GRID_CELL_HEIGHT (BOARD_HEIGHT / DEFAULT_GRID_ROWS)
+
+// Legacy constant for backwards compatibility during refactor (issue 1003)
+// TODO: Remove once all code uses cell_width/cell_height
 #define DEFAULT_GRID_CELL_SIZE 43.0f
 
 // Grid rendering colors
@@ -38,16 +45,18 @@
 // {{{ typedef struct Grid
 // Grid defines the coordinate space for object placement.
 // Provides conversion between grid cells and pixel coordinates.
+// Issue 1003: Supports rectangular cells (cell_width != cell_height)
 typedef struct Grid {
-    float cell_size;      // Size of each grid cell in pixels
+    float cell_width;     // Width of each grid cell in pixels (BOARD_WIDTH / cols)
+    float cell_height;    // Height of each grid cell in pixels (BOARD_HEIGHT / rows)
     int cols;             // Number of columns
     int rows;             // Number of rows
 
     float origin_x;       // Pixel position of grid origin (top-left)
     float origin_y;
 
-    float width;          // Total width in pixels (cols * cell_size)
-    float height;         // Total height in pixels (rows * cell_size)
+    float width;          // Total width in pixels (cols * cell_width)
+    float height;         // Total height in pixels (rows * cell_height)
 } Grid;
 // }}}
 
@@ -58,7 +67,8 @@ typedef struct Grid {
 // {{{ grid_create
 // Creates a grid with the given dimensions.
 // Origin is the top-left corner of the grid in pixel coordinates.
-Grid grid_create(int cols, int rows, float cell_size,
+// Issue 1003: Takes separate cell_width and cell_height for rectangular cells
+Grid grid_create(int cols, int rows, float cell_width, float cell_height,
                  float origin_x, float origin_y);
 // }}}
 

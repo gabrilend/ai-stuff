@@ -181,8 +181,9 @@ typedef struct BoardData {
     int version;
     char name[64];
 
-    // Grid settings
-    int cell_size;
+    // Grid settings (Issue 1003: supports rectangular cells)
+    float cell_width;   // BOARD_WIDTH / grid_cols
+    float cell_height;  // BOARD_HEIGHT / grid_rows
     int grid_cols;
     int grid_rows;
 
@@ -231,8 +232,10 @@ typedef struct BoardData {
 
 // {{{ board_data_create
 // Creates an empty board with the given grid dimensions.
+// Issue 1003: Takes cell_width and cell_height for rectangular cell support.
 // Returns NULL on allocation failure.
-BoardData* board_data_create(int grid_cols, int grid_rows, int cell_size);
+BoardData* board_data_create(int grid_cols, int grid_rows,
+                             float cell_width, float cell_height);
 // }}}
 
 // {{{ board_data_destroy

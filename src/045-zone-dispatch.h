@@ -74,6 +74,7 @@ typedef enum DispatchZoneType {
 // Maps grid cells to zone types for fast dispatch.
 // Uses fixed maximum size to avoid reallocation during expansion.
 // Grid fits in L1 cache: 100x14 = 1400 bytes for cells + 1400 for multipliers.
+// Issue 1003: Supports rectangular cells (cell_width != cell_height)
 typedef struct ZoneGrid {
     // Zone type per cell (indexed [row][col])
     uint8_t cells[ZONE_GRID_MAX_ROWS][ZONE_GRID_MAX_COLS];
@@ -85,7 +86,8 @@ typedef struct ZoneGrid {
     // Grid parameters (for coordinate conversion)
     float origin_x;
     float origin_y;
-    float cell_size;
+    float cell_width;   // Width of each cell (BOARD_WIDTH / cols) - Issue 1003
+    float cell_height;  // Height of each cell (BOARD_HEIGHT / rows) - Issue 1003
     int cols;
     int rows;
 
@@ -120,14 +122,16 @@ typedef int (*ZoneFunc)(Ball* ball, ZoneGrid* grid, int col, int row);
 // {{{ zone_grid_create
 // Allocates and initializes a zone grid.
 // All cells start as ZONE_BACKGROUND.
+// Issue 1003: Takes separate cell_width and cell_height for rectangular cells
 // Parameters:
 //   origin_x, origin_y: Grid origin in pixels
-//   cell_size: Size of each cell in pixels
+//   cell_width, cell_height: Dimensions of each cell in pixels
 //   cols, rows: Grid dimensions (clamped to max)
 //   world: World reference for wrap zone calculations
 // Returns:
 //   Allocated ZoneGrid, or NULL on failure
-ZoneGrid* zone_grid_create(float origin_x, float origin_y, float cell_size,
+ZoneGrid* zone_grid_create(float origin_x, float origin_y,
+                           float cell_width, float cell_height,
                            int cols, int rows, World* world);
 // }}}
 

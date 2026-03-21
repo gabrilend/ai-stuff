@@ -306,8 +306,10 @@ EditorApp* editor_app_create(int screen_width, int screen_height) {
     app->screen_width = screen_width;
     app->screen_height = screen_height;
 
-    // Create empty board using shared grid dimensions (issue 1205)
-    app->board = board_data_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, (int)DEFAULT_GRID_CELL_SIZE);
+    // Create empty board using shared grid dimensions (issue 1205, 1003)
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    app->board = board_data_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS,
+                                   DEFAULT_GRID_CELL_WIDTH, DEFAULT_GRID_CELL_HEIGHT);
     if (!app->board) {
         free(app);
         return NULL;
@@ -455,8 +457,10 @@ void editor_app_update(EditorApp* app) {
 
     // Rebuild polygon detection if lines changed (issue 837)
     if (app->polygons_dirty && app->polygon_manager) {
+        // Issue 1003: Pass cell_width for coordinate calculations
+        // TODO: Polygon system needs update for rectangular cells
         polygon_manager_rebuild(app->polygon_manager, app->board,
-                                app->board->cell_size);
+                                (int)app->board->cell_width);
         app->polygons_dirty = 0;
     }
 }
@@ -637,7 +641,9 @@ void editor_app_new_board(EditorApp* app) {
         board_data_destroy(app->board);
     }
 
-    app->board = board_data_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS, (int)DEFAULT_GRID_CELL_SIZE);
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    app->board = board_data_create(DEFAULT_GRID_COLS, DEFAULT_GRID_ROWS,
+                                   DEFAULT_GRID_CELL_WIDTH, DEFAULT_GRID_CELL_HEIGHT);
     app->has_filename = 0;
     app->filename[0] = '\0';
     app->modified = 0;
@@ -950,7 +956,8 @@ static void handle_input(EditorApp* app) {
             // - Scroll UP (max): board top at canvas bottom (one row visible)
             // - Scroll DOWN (min): board bottom at canvas top (one row visible)
             // Positive offset moves grid DOWN, negative moves grid UP
-            float one_row = app->grid.cell_size;
+            // Issue 1003: Use cell_height for vertical scroll bounds
+            float one_row = app->grid.cell_height;
             float max_scroll = app->canvas_height - one_row;  // Board top near canvas bottom
             float min_scroll = -app->grid.height + one_row;   // Board bottom near canvas top
 
@@ -1412,13 +1419,16 @@ static void handle_save_dialog_input(EditorApp* app) {
 static void setup_grid(EditorApp* app) {
     if (!app || !app->board) return;
 
-    // Use fixed cell size from board data (issue 1228)
+    // Use fixed cell dimensions from board data (issue 1228, 1003)
     // Board dimensions stay constant regardless of window size
-    float cell_size = (float)app->board->cell_size;
-    if (cell_size < 20) cell_size = DEFAULT_GRID_CELL_SIZE;
+    // Issue 1003: Use cell_width and cell_height for rectangular cell support
+    float cell_width = app->board->cell_width;
+    float cell_height = app->board->cell_height;
+    if (cell_width < 20) cell_width = DEFAULT_GRID_CELL_WIDTH;
+    if (cell_height < 20) cell_height = DEFAULT_GRID_CELL_HEIGHT;
 
     // Calculate grid width for horizontal centering
-    float grid_width = app->board->grid_cols * cell_size;
+    float grid_width = app->board->grid_cols * cell_width;
 
     // Center grid horizontally in canvas
     float origin_x = app->canvas_x + (app->canvas_width - grid_width) / 2;
@@ -1426,7 +1436,7 @@ static void setup_grid(EditorApp* app) {
     float origin_y = app->canvas_y;
 
     app->grid = grid_create(app->board->grid_cols, app->board->grid_rows,
-                            cell_size, origin_x, origin_y);
+                            cell_width, cell_height, origin_x, origin_y);
 
     // Reset scroll offset when grid changes
     app->camera.offset.y = 0;
@@ -1467,17 +1477,17 @@ static void change_grid_dimensions(EditorApp* app, int new_cols, int new_rows) {
     app->board->grid_cols = new_cols;
     app->board->grid_rows = new_rows;
 
-    // Calculate new cell size from fixed board dimensions
-    // Cell size = board dimension / grid count
-    float cell_w = BOARD_WIDTH / new_cols;
-    float cell_h = BOARD_HEIGHT / new_rows;
-    // Use smaller dimension to ensure cells fit both ways
-    float new_cell_size = (cell_w < cell_h) ? cell_w : cell_h;
-    app->board->cell_size = (int)new_cell_size;
+    // Issue 1003: Calculate cell dimensions for rectangular cells
+    // Cell dimensions are calculated from fixed board size divided by grid count
+    // Cells can be rectangular if cols/rows ratio differs from BOARD_WIDTH/BOARD_HEIGHT
+    float new_cell_width = BOARD_WIDTH / (float)new_cols;
+    float new_cell_height = BOARD_HEIGHT / (float)new_rows;
+    app->board->cell_width = new_cell_width;
+    app->board->cell_height = new_cell_height;
 
-    // Update board pixel dimensions to match actual grid coverage
-    app->board->board_width = (int)(new_cols * new_cell_size);
-    app->board->board_height = (int)(new_rows * new_cell_size);
+    // Update board pixel dimensions from cell dimensions
+    app->board->board_width = (int)(new_cols * new_cell_width);
+    app->board->board_height = (int)(new_rows * new_cell_height);
 
     // Clamp objects to new grid bounds
     // Objects store grid coordinates, clamp to [0, max-1]
@@ -1866,10 +1876,11 @@ static void render_canvas(EditorApp* app) {
                 app->canvas_width, app->canvas_height);
 
     // Guard rails (vertical lines on left and right edges)
+    // Issue 1003: Use cell_width for X, cell_height for Y
     float rail_top = app->grid.origin_y;
-    float rail_bottom = app->grid.origin_y + app->grid.rows * app->grid.cell_size;
+    float rail_bottom = app->grid.origin_y + app->grid.rows * app->grid.cell_height;
     float left_rail_x = app->grid.origin_x;
-    float right_rail_x = app->grid.origin_x + app->grid.cols * app->grid.cell_size;
+    float right_rail_x = app->grid.origin_x + app->grid.cols * app->grid.cell_width;
     Color rail_color = (Color){100, 100, 120, 255};
     DrawLineEx((Vector2){left_rail_x, rail_top}, (Vector2){left_rail_x, rail_bottom}, 4.0f, rail_color);
     DrawLineEx((Vector2){right_rail_x, rail_top}, (Vector2){right_rail_x, rail_bottom}, 4.0f, rail_color);
@@ -1969,8 +1980,9 @@ static void render_cursor_preview(EditorApp* app) {
         case APP_TOOL_PORTAL_ENTRY:
         case APP_TOOL_PORTAL_EXIT: {
             // Portal fills cell starting at intersection point (issue 1227)
-            float w = DEFAULT_PORTAL_SIZE * app->grid.cell_size;
-            float h = DEFAULT_PORTAL_SIZE * app->grid.cell_size;
+            // Issue 1003: Use cell_width for width, cell_height for height
+            float w = DEFAULT_PORTAL_SIZE * app->grid.cell_width;
+            float h = DEFAULT_PORTAL_SIZE * app->grid.cell_height;
             PortalDirection dir = (app->tool == APP_TOOL_PORTAL_ENTRY) ? PORTAL_ENTRY : PORTAL_EXIT;
             render_portal_preview(x, y, w, h, dir, app->portal_channel);
             break;

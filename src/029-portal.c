@@ -94,10 +94,11 @@ void portal_manager_load_from_board(PortalManager* manager, BoardData* data,
 
         // Convert grid coordinates to pixel position
         // Portal center is at center of the zone area
-        float x1 = grid->origin_x + zone->col * grid->cell_size;
-        float y1 = grid->origin_y + zone->row * grid->cell_size;
-        float width = zone->width * grid->cell_size;
-        float height = zone->height * grid->cell_size;
+        // Issue 1003: Use cell_width for X, cell_height for Y
+        float x1 = grid->origin_x + zone->col * grid->cell_width;
+        float y1 = grid->origin_y + zone->row * grid->cell_height;
+        float width = zone->width * grid->cell_width;
+        float height = zone->height * grid->cell_height;
 
         // Center position
         float cx = x1 + width / 2;

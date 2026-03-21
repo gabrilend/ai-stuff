@@ -152,7 +152,8 @@ static int zone_wrap_to_bottom(Ball* ball, ZoneGrid* grid, int col, int row) {
         ball->y = wz->top_zone_y + offset_in_zone;
     } else {
         // Fallback: simple wrap based on grid
-        float world_height = grid->rows * grid->cell_size;
+        // Issue 1003: Use cell_height for Y calculations
+        float world_height = grid->rows * grid->cell_height;
         ball->y -= world_height;
     }
 
@@ -176,7 +177,8 @@ static int zone_wrap_to_top(Ball* ball, ZoneGrid* grid, int col, int row) {
         ball->y = wz->bottom_zone_y + wz->zone_height - offset_from_bottom;
     } else {
         // Fallback
-        float world_height = grid->rows * grid->cell_size;
+        // Issue 1003: Use cell_height for Y calculations
+        float world_height = grid->rows * grid->cell_height;
         ball->y += world_height;
     }
 
@@ -206,7 +208,8 @@ static int zone_wall_left(Ball* ball, ZoneGrid* grid, int col, int row) {
 static int zone_wall_right(Ball* ball, ZoneGrid* grid, int col, int row) {
     (void)col; (void)row;
 
-    float right_wall = grid->origin_x + (grid->cols * grid->cell_size);
+    // Issue 1003: Use cell_width for X calculations
+    float right_wall = grid->origin_x + (grid->cols * grid->cell_width);
     if (ball->x + ball->radius > right_wall) {
         ball->x = right_wall - ball->radius;
         ball->vx = -ball->vx * 0.6f;
@@ -220,7 +223,9 @@ static int zone_wall_right(Ball* ball, ZoneGrid* grid, int col, int row) {
 // =============================================================================
 
 // {{{ zone_grid_create
-ZoneGrid* zone_grid_create(float origin_x, float origin_y, float cell_size,
+// Issue 1003: Takes separate cell_width and cell_height for rectangular cells
+ZoneGrid* zone_grid_create(float origin_x, float origin_y,
+                           float cell_width, float cell_height,
                            int cols, int rows, World* world) {
     ZoneGrid* grid = (ZoneGrid*)malloc(sizeof(ZoneGrid));
     if (!grid) {
@@ -234,7 +239,8 @@ ZoneGrid* zone_grid_create(float origin_x, float origin_y, float cell_size,
 
     grid->origin_x = origin_x;
     grid->origin_y = origin_y;
-    grid->cell_size = cell_size;
+    grid->cell_width = cell_width;
+    grid->cell_height = cell_height;
     grid->cols = cols;
     grid->rows = rows;
     grid->world = world;
@@ -242,8 +248,9 @@ ZoneGrid* zone_grid_create(float origin_x, float origin_y, float cell_size,
     // Initialize to all background
     zone_grid_init(grid);
 
-    printf("Zone grid created: %dx%d cells, origin=(%.0f, %.0f), cell_size=%.0f\n",
-           grid->cols, grid->rows, grid->origin_x, grid->origin_y, grid->cell_size);
+    printf("Zone grid created: %dx%d cells, origin=(%.0f, %.0f), cell=%.1fx%.1f\n",
+           grid->cols, grid->rows, grid->origin_x, grid->origin_y,
+           grid->cell_width, grid->cell_height);
 
     return grid;
 }
@@ -348,8 +355,9 @@ int zone_dispatch(Ball* ball, ZoneGrid* grid) {
     if (!ball->active) return 1;
 
     // Convert ball position to grid cell
-    int col = (int)((ball->x - grid->origin_x) / grid->cell_size);
-    int row = (int)((ball->y - grid->origin_y) / grid->cell_size);
+    // Issue 1003: Use cell_width for X, cell_height for Y
+    int col = (int)((ball->x - grid->origin_x) / grid->cell_width);
+    int row = (int)((ball->y - grid->origin_y) / grid->cell_height);
 
     // Bounds check - out of grid is treated as background
     if (col < 0 || col >= grid->cols || row < 0 || row >= grid->rows) {
@@ -485,7 +493,9 @@ void zone_grid_render_debug(ZoneGrid* grid) {
         [DISPATCH_ZONE_MOVER_AREA]     = {200, 200, 50, 60},     // Yellow
     };
 
-    float cell_size = grid->cell_size;
+    // Issue 1003: Use cell_width for X, cell_height for Y
+    float cell_w = grid->cell_width;
+    float cell_h = grid->cell_height;
 
     for (int r = 0; r < grid->rows; r++) {
         for (int c = 0; c < grid->cols; c++) {
@@ -493,10 +503,10 @@ void zone_grid_render_debug(ZoneGrid* grid) {
             if (type == DISPATCH_ZONE_BACKGROUND) continue;
 
             Color color = zone_colors[type];
-            float x = grid->origin_x + c * cell_size;
-            float y = grid->origin_y + r * cell_size;
+            float x = grid->origin_x + c * cell_w;
+            float y = grid->origin_y + r * cell_h;
 
-            DrawRectangle((int)x, (int)y, (int)cell_size, (int)cell_size, color);
+            DrawRectangle((int)x, (int)y, (int)cell_w, (int)cell_h, color);
 
             // Draw multiplier indicator for gate zones
             if (type >= DISPATCH_ZONE_GATE_10 && type <= DISPATCH_ZONE_GATE_500) {
