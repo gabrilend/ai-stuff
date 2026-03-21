@@ -19,6 +19,10 @@
 - [009 - Stage System](009-stage-system.md)
 - [010 - Board Editor](010-board-editor.md)
 
+### Maintenance
+- [Balance Updates](balance-updates.md) - Gameplay tuning history
+- [Sprint Remediation Report](sprint-remediation-report.md) - Phase 9 bug analysis
+
 ### Issue Tracking
 - [Phase 1 Progress](../issues/phase-1-progress.md) - Foundation (Complete)
 - [Phase 2 Progress](../issues/phase-2-progress.md) - Static World (Complete)
