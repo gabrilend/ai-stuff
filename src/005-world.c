@@ -8,6 +8,7 @@
 
 #include "004-world.h"
 #include "014-stage.h"
+#include "022-grid.h"  // For DEFAULT_GRID_CELL_SIZE (issue 1002)
 #include "028-portal.h"
 #include "042-polygon.h"
 #include <raylib.h>
@@ -235,12 +236,14 @@ void world_generate_zones(World* world, int zone_count, float zone_height) {
     }
 
     // Calculate zone dimensions
-    // Zones span the table width, centered between player and adversary boards
-    // gate_margin (50px) is added before and after gates
-    float gate_margin = 50.0f;
+    // Zones span the table width, positioned to align with zone_grid scoring (issue 1002)
+    // Use same grid-aligned calculation as zone_grid_set_gate_row to ensure
+    // rendering and scoring happen at the same Y position
+    float cell_size = DEFAULT_GRID_CELL_SIZE;
+    int gate_row = (int)((world->table_bottom - world->table_top) / cell_size);
     float zone_width = world->table_width / zone_count;
-    float zone_y_min = world->table_bottom + gate_margin;
-    float zone_y_max = world->table_bottom + gate_margin + zone_height;
+    float zone_y_min = world->table_top + gate_row * cell_size;
+    float zone_y_max = zone_y_min + zone_height;
 
     // Default point values (symmetric pattern: 10, 50, 100, 500, 100, 50, 10)
     // For 7 zones: center gets 500, working outward gets lower values
