@@ -1,6 +1,6 @@
 # 1001d - Debug Rendering Cleanup
 
-## Status: Complete
+## Status: Complete (Consolidated into Issue 837)
 
 ## Parent Issue: 1001 - Sprint Remediation
 

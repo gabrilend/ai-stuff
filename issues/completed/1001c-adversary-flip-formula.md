@@ -1,6 +1,6 @@
 # 1001c - Adversary Board Vertical Flip Formula
 
-## Status: Complete
+## Status: Complete (Consolidated into Issue 602)
 
 ## Parent Issue: 1001 - Sprint Remediation
 

@@ -1,6 +1,6 @@
 # 1001b - Coordinate System Unification
 
-## Status: Complete
+## Status: Complete (Consolidated into Issue 802)
 
 ## Parent Issue: 1001 - Sprint Remediation
 

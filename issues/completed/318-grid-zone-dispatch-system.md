@@ -438,3 +438,58 @@ ZONE_GRID_MAX_ROWS=100
 - Background zone handler is minimal (just reset flag, return 1)
 - Future zones (portals, rotors) can be added without modifying dispatch logic
 - Consider: Should zone handlers receive dt for time-based effects?
+
+---
+
+## Post-Implementation Bug Fixes
+
+### Issue 1001e - Wrap Zone Positioning (Phase 10)
+
+**Problem:** Adversary balls not removed when reaching top wrap zone. Balls continued upward past expected boundary.
+
+**Root Cause:** When zone_dispatch was added, it replaced the wrap zone check:
+```c
+if (task->world->zone_grid) {
+    zone_dispatch(next, task->world->zone_grid);
+} else {
+    wrap_zones_check_ball(task->world->wrap_zones, next);
+}
+```
+
+Wrap zones are positioned OUTSIDE the zone_grid bounds (above table_top, below adversary_table_bottom). When balls entered wrap zones, zone_dispatch treated them as "out of bounds" and returned without wrapping.
+
+**Fix:** Changed to call wrap_zones_check_ball unconditionally after zone_dispatch:
+```c
+// Zone dispatch handles gates and scoring within playable area
+if (task->world->zone_grid) {
+    zone_dispatch(next, task->world->zone_grid);
+}
+// Wrap zones must be checked separately - positioned outside zone_grid
+if (task->world->wrap_zones) {
+    wrap_zones_check_ball(task->world->wrap_zones, next);
+}
+```
+
+**Files Modified:** src/007-ball.c
+
+### Issue 1002 - Gate Rendering/Scoring Position Mismatch (Phase 10)
+
+**Problem:** Gates rendered at different Y position than their scoring zones. Visual gates appeared below where balls actually scored.
+
+**Root Cause:** Two systems used different position calculations:
+- World zones (rendering): Used `world->table_bottom + 50` (gate_margin)
+- ZoneGrid (scoring): Used grid-aligned `world->table_top + gate_row * cell_size`
+
+The 50px margin caused a half-cell offset between rendering and scoring.
+
+**Fix:** Modified `world_generate_zones()` to use same grid-aligned formula:
+```c
+// Before (misaligned):
+float zone_y_min = world->table_bottom + gate_margin;
+
+// After (aligned with zone_grid):
+int gate_row = (int)((world->table_bottom - world->table_top) / cell_size);
+float zone_y_min = world->table_top + gate_row * cell_size;
+```
+
+**Files Modified:** src/005-world.c

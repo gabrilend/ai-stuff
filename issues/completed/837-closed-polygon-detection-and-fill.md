@@ -571,3 +571,19 @@ Test boards available:
 ### Technical Notes
 
 The cycle detection algorithm walks directed edges, always turning "right" (smallest counter-clockwise angle) to find minimal cycles. CW cycles become filled polygons; CCW cycles (exterior boundary) are skipped.
+
+---
+
+## Post-Implementation Bug Fixes
+
+### Issue 1001d - Debug Rendering Cleanup (Phase 10)
+
+**Problem:** Debug visualizations were enabled by default, causing visual clutter:
+- Wrap zones: Blue/red rectangles rendered at screen edges
+- Set in `src/037-wrap-zones.c:31`: `zones->debug_visible = 1`
+
+**Fix:** Changed `debug_visible = 1` to `debug_visible = 0` in wrap zones initialization.
+
+**Files Modified:** src/037-wrap-zones.c
+
+**Note:** Debug can still be toggled with D key at runtime. Track segments are only rendered in the editor application, not in the game.

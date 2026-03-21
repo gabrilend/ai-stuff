@@ -151,3 +151,39 @@ Compilation tested: No warnings.
 ## Status
 
 - [x] Complete
+
+---
+
+## Post-Implementation Bug Fixes
+
+### Issue 1001f - Particle Effect Positioning (Phase 10)
+
+**Problem:** Particle effects had multiple issues:
+1. Only spawned on the left side of the map
+2. Sometimes spawned multiple times after exiting a gate
+3. Ring particles appeared but only for some gates
+
+**Root Cause:** zone_grid->origin_x was not updated when window was resized. After resize, zone dispatch used stale coordinates, causing zone detection to fail for gates on the right side.
+
+**Fix:** Added zone grid origin update in resize handler:
+```c
+// Update zone grid origin to match new table position
+if (zone_grid) {
+    zone_grid->origin_x = world->table_x;
+}
+```
+
+Also added polygon vertex shifting on resize to keep polygon fills aligned:
+```c
+if (world->polygon_manager) {
+    for (int p = 0; p < world->polygon_manager->polygon_count; p++) {
+        Polygon* poly = &world->polygon_manager->polygons[p];
+        for (int v = 0; v < poly->vertex_count; v++) {
+            poly->vertices[v].x += dx;
+        }
+        poly->centroid.x += dx;
+    }
+}
+```
+
+**Files Modified:** src/001-main.c

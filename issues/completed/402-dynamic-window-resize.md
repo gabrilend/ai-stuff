@@ -53,3 +53,40 @@ When resize detected:
 
 Existing balls are preserved during resize - they continue physics simulation
 with new table bounds. Balls out of bounds will collide with new rail positions.
+
+---
+
+## Post-Implementation Bug Fixes
+
+### Issue 1001h - Window Resize Affects Ball Physics (Phase 10)
+
+**Problem:** Resizing window caused unexpected ball physics changes:
+- Balls jumped to different positions
+- Balls collided with objects at wrong positions
+- Balls phased through obstacles they shouldn't
+
+**Root Cause:** The resize handler shifted pegs and lines by `dx` (horizontal offset change), but balls were NOT shifted. This meant:
+- Ball positions stayed at old X coordinates
+- Peg/line collision targets moved to new X coordinates
+- Collision detection failed or produced wrong results
+
+**Fix:** Added ball and particle shifting in resize handler after peg/line shifting:
+```c
+// Shift all active balls to maintain relative position
+for (int i = 0; i < ball_manager->capacity; i++) {
+    if (ball_manager->balls_current[i].active) {
+        ball_manager->balls_current[i].x += dx;
+        ball_manager->balls_next[i].x += dx;
+    }
+}
+
+// Shift active particles for visual continuity
+for (int i = 0; i < particle_system->capacity; i++) {
+    if (particle_system->particles_current[i].life > 0) {
+        particle_system->particles_current[i].x += dx;
+        particle_system->particles_next[i].x += dx;
+    }
+}
+```
+
+**Files Modified:** src/001-main.c

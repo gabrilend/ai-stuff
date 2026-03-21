@@ -1,6 +1,6 @@
 # 1001e - Wrap Zone Positioning
 
-## Status: Complete
+## Status: Complete (Consolidated into Issue 318)
 
 ## Parent Issue: 1001 - Sprint Remediation
 

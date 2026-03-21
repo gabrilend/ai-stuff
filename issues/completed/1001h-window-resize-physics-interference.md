@@ -1,6 +1,6 @@
 # 1001h - Window Resize Affects Ball Physics
 
-## Status: Complete
+## Status: Complete (Consolidated into Issue 402)
 
 ## Parent Issue: 1001 - Sprint Remediation
 

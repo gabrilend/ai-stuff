@@ -73,3 +73,31 @@ No adversary exists. Only player can spawn balls.
 - adversary_render() draws reticle and cooldown arc
 - adversary_reset() called on R key press and window resize
 - Uses ball_manager_spawn() with OWNER_ADVERSARY and gravity_dir=-1.0
+
+---
+
+## Post-Implementation Bug Fixes
+
+### Issue 1001c - Adversary Board Vertical Flip Formula (Phase 10)
+
+**Problem:** Adversary board objects positioned incorrectly due to off-by-one error in vertical flip formula.
+
+Original code: `int flipped_row = data->grid_rows - obj->row;`
+
+For a 22-row grid (rows 0-21):
+- Row 0 became row 22 (beyond grid bounds)
+- Row 21 became row 1
+- Row 10 became row 12
+
+**Intended Behavior:** Proper vertical mirroring:
+- Row 0 → Row 21 (top becomes bottom)
+- Row 21 → Row 0 (bottom becomes top)
+- Row 10 → Row 11 (center stays near center)
+
+**Fix:** Changed formula to `flipped_row = data->grid_rows - 1 - obj->row`
+
+**Files Modified:** src/001-main.c
+- Line 111: `apply_board_data_to_stage()` peg flipping
+- Line 137-138: `apply_board_data_to_stage()` line endpoint flipping
+- Line 311: `apply_adversary_board_data()` peg flipping
+- Line 349-350: `apply_adversary_board_data()` line endpoint flipping

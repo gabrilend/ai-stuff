@@ -4,48 +4,33 @@
 
 Bug remediation and infrastructure improvements after Phase 9 rapid development.
 
-## Issues
+## Status: Completed (Consolidated)
 
-| ID   | Description                   | Status        | Depends on      |
-|------|-------------------------------|---------------|-----------------|
-| 1001 | Sprint remediation            | in progress   | -               |
-| 1001a | Player spawn failure         | closed        | (not a bug)     |
-| 1001b | Coordinate system unification | completed    | -               |
-| 1001c | Adversary flip formula       | completed     | 1001b           |
-| 1001d | Debug rendering cleanup      | completed     | -               |
-| 1001e | Wrap zone positioning        | completed     | 1001b           |
-| 1001f | Particle effect positioning  | completed     | 1001b           |
-| 1001g | Polygon fill alignment       | completed     | merged 1001b    |
-| 1001h | Window resize physics        | completed     | -               |
-| 1002 | Gate position mismatch        | completed     | 1001b           |
-| 1003 | Rectangular grid cells        | completed     | 1002            |
+Phase 10 bug fixes have been consolidated into their original feature issues:
 
-## Progress Summary
+| Bug Fix | Consolidated Into | Feature |
+|---------|-------------------|---------|
+| 1001a | N/A | Not a bug (user error) |
+| 1001b | Issue 802 | Grid System Architecture |
+| 1001c | Issue 602 | Adversary Spawning AI |
+| 1001d | Issue 837 | Closed Polygon Detection |
+| 1001e | Issue 318 | Grid-Based Zone Dispatch |
+| 1001f | Issue 304 | Add Particle Effects |
+| 1001g | Issue 802 | Grid System Architecture (via 1001b) |
+| 1001h | Issue 402 | Dynamic Window Resize |
+| 1002 | Issue 318 | Grid-Based Zone Dispatch |
+| 1003 | Issue 802 | Grid System Architecture |
 
-**Completed:** 10/11 issues (1001a-h, 1002, 1003)
-**In progress:** 1 (1001 parent issue awaiting final review)
-**Awaiting work:** 0
-**Blocked:** 0
-**Phase status:** near completion
+## Consolidation Summary
 
-## Recent Completions
+Bug fixes have been appended to their original feature issues as "Post-Implementation Bug Fixes" sections. This keeps related information together:
 
-### 1003 - Rectangular grid cells
-- Updated Grid, ZoneGrid, BoardData structs with cell_width and cell_height
-- Changed single cell_size to separate dimensions throughout codebase
-- X calculations use cell_width, Y calculations use cell_height
-- Updated polygon manager, rotor manager, and track mover manager
-- Default 14x22 grid has square cells (43x43) but other sizes vary
-
-### 1002 - Gate position mismatch
-- Fixed zone_dispatch scoring to use grid-aligned gate positions
-- Removed half-cell offset from rendering
-- Scoring now matches visual gate positions
-
-### 1001b - Coordinate system unification
-- Unified grid-to-pixel conversion across all systems
-- Central grid_to_pixel_x/y functions used consistently
-- Fixed polygon manager coordinate calculations
+- **Issue 802** now includes coordinate system unification, polygon fill alignment, and rectangular grid cells
+- **Issue 318** now includes wrap zone positioning fix and gate position mismatch fix
+- **Issue 304** now includes particle effect positioning fix
+- **Issue 402** now includes window resize physics interference fix
+- **Issue 602** now includes adversary board flip formula fix
+- **Issue 837** now includes debug rendering cleanup
 
 ## Technical Notes
 
@@ -55,9 +40,8 @@ Bug remediation and infrastructure improvements after Phase 9 rapid development.
 - Default 14x22 grid: 602/14 = 43, 946/22 = 43 (square by coincidence)
 - Other configurations may have non-square cells
 
-### Affected Systems
-- Core grid rendering and collision
-- Zone dispatch scoring
-- Polygon fill detection
-- Rotor physics and connected object positions
-- Track mover physics and payload positions
+### Key Lessons Learned
+- Coordinate system mismatches can manifest as multiple seemingly unrelated bugs
+- Resize handlers must shift all dynamic objects (balls, particles) along with static geometry
+- Zone systems outside grid bounds need separate handling from zone dispatch
+- Debug visualizations should default to off in release builds

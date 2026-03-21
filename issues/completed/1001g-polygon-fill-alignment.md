@@ -1,6 +1,6 @@
 # 1001g - Polygon Fill Alignment
 
-## Status: Complete (merged with 1001b)
+## Status: Complete (Consolidated into Issue 802 via 1001b)
 
 ## Parent Issue: 1001 - Sprint Remediation
 

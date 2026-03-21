@@ -1,6 +1,6 @@
 # 1001f - Particle Effect Positioning
 
-## Status: Complete
+## Status: Complete (Consolidated into Issue 304)
 
 ## Parent Issue: 1001 - Sprint Remediation
 
