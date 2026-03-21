@@ -1044,6 +1044,27 @@ int main(int argc, char* argv[]) {
                         particle_system->particles_next[i].x += dx;
                     }
                 }
+
+                // Shift polygon fill vertices (issue 1001f)
+                // Without this, polygon fills stay at old positions after resize
+                if (world->polygon_manager) {
+                    for (int p = 0; p < world->polygon_manager->polygon_count; p++) {
+                        Polygon* poly = &world->polygon_manager->polygons[p];
+                        for (int v = 0; v < poly->vertex_count; v++) {
+                            poly->vertices[v].x += dx;
+                        }
+                        poly->centroid.x += dx;
+                    }
+                }
+                if (world->adversary_polygon_manager) {
+                    for (int p = 0; p < world->adversary_polygon_manager->polygon_count; p++) {
+                        Polygon* poly = &world->adversary_polygon_manager->polygons[p];
+                        for (int v = 0; v < poly->vertex_count; v++) {
+                            poly->vertices[v].x += dx;
+                        }
+                        poly->centroid.x += dx;
+                    }
+                }
             }
 
             // Regenerate dynamic elements (gates are not part of JSON boards)
@@ -1074,6 +1095,12 @@ int main(int argc, char* argv[]) {
             // Update wrap zones for new screen size
             wrap_zones_update(wrap_zones, (float)screen_height);
             stage_ctx.screen_height = (float)screen_height;
+
+            // Update zone grid origin to match new table position (issue 1001f)
+            // Without this, zone dispatch uses stale coordinates after resize
+            if (zone_grid) {
+                zone_grid->origin_x = world->table_x;
+            }
 
             printf("Window resized: %dx%d, table_x=%.0f\n",
                    screen_width, screen_height, world->table_x);

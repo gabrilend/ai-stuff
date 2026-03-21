@@ -1,6 +1,6 @@
 # 1001f - Particle Effect Positioning
 
-## Status: Needs Testing (likely fixed by 1001b)
+## Status: Complete
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -85,3 +85,37 @@ work correctly across the entire board.
 - Drop ball into each of the 7 gates
 - Verify particle spawns at correct visual position for each
 - Verify exactly one particle burst per gate passage
+
+## Resolution
+
+The root cause was zone_grid->origin_x not being updated when the window was resized.
+
+### Fix Applied (src/001-main.c)
+
+Added zone grid origin update in resize handler:
+
+```c
+// Update zone grid origin to match new table position (issue 1001f)
+// Without this, zone dispatch uses stale coordinates after resize
+if (zone_grid) {
+    zone_grid->origin_x = world->table_x;
+}
+```
+
+Also added polygon vertex shifting on resize:
+
+```c
+// Shift polygon fill vertices (issue 1001f)
+// Without this, polygon fills stay at old positions after resize
+if (world->polygon_manager) {
+    for (int p = 0; p < world->polygon_manager->polygon_count; p++) {
+        Polygon* poly = &world->polygon_manager->polygons[p];
+        for (int v = 0; v < poly->vertex_count; v++) {
+            poly->vertices[v].x += dx;
+        }
+        poly->centroid.x += dx;
+    }
+}
+```
+
+With these fixes, zone detection and particle positioning work correctly across all gates.
