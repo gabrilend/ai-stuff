@@ -13,6 +13,7 @@ After several Phase 9 sprints without review, the physics simulator has accumula
 5. Lines all over the place that don't belong
 6. Wrap zones not working (adversary balls not removed from top)
 7. Particle effects broken (only left side, multiple spawns)
+8. Window resize affects ball physics (balls don't shift with table)
 
 ## Root Cause
 
@@ -41,6 +42,7 @@ The primary root cause appears to be a **coordinate system mismatch** introduced
 | 1001e | Wrap zone positioning | Open |
 | 1001f | Particle effect positioning | Open |
 | 1001g | Polygon fill alignment | Open |
+| 1001h | Window resize affects physics | Open |
 
 ## Intended Behavior
 
