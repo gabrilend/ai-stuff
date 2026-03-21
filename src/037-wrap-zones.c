@@ -28,7 +28,7 @@ WrapZones* wrap_zones_create(World* world, float screen_height) {
 
     zones->world = world;
     zones->zone_height = DEFAULT_ZONE_HEIGHT;
-    zones->debug_visible = 1;  // Start with debug ON for testing
+    zones->debug_visible = 0;  // Debug OFF by default (issue 1001d)
 
     // Initial position calculation
     wrap_zones_update(zones, screen_height);

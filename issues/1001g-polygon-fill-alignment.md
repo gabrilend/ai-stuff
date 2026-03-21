@@ -1,6 +1,6 @@
 # 1001g - Polygon Fill Alignment
 
-## Status: Open
+## Status: Complete (merged with 1001b)
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -65,10 +65,14 @@ lines[li].start.y = obj->row * cell_size;
 
 Then update guard rail positions to use actual board offset.
 
-## Files to Modify
+## Resolution
 
-- `src/043-polygon.c` - Coordinate calculation
-- `src/042-polygon.h` - May need to pass grid or origin offset
+Fixed as part of 1001b - removed `cell_size / 2.0f` offset from polygon vertex calculations
+in `find_all_intersections()`. Now uses same coordinate system as `grid_to_pixel()`.
+
+## Files Modified
+
+- `src/043-polygon.c` - Vertex calculation in `find_all_intersections()`
 
 ## Testing
 

@@ -1,6 +1,6 @@
 # 1001h - Window Resize Affects Ball Physics
 
-## Status: Open
+## Status: Complete
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -109,9 +109,31 @@ Store ball positions relative to table origin, not absolute window coordinates. 
 
 **Option A** is the simplest and most direct fix. Balls should move with the table.
 
-## Files to Modify
+## Implementation
 
-- `src/001-main.c` - Add ball shifting in resize handler
+Added ball and particle shifting in the resize handler after peg/line shifting:
+
+```c
+// Shift all active balls to maintain relative position (issue 1001h)
+for (int i = 0; i < ball_manager->capacity; i++) {
+    if (ball_manager->balls_current[i].active) {
+        ball_manager->balls_current[i].x += dx;
+        ball_manager->balls_next[i].x += dx;
+    }
+}
+
+// Shift active particles for visual continuity (issue 1001h)
+for (int i = 0; i < particle_system->capacity; i++) {
+    if (particle_system->particles_current[i].life > 0) {
+        particle_system->particles_current[i].x += dx;
+        particle_system->particles_next[i].x += dx;
+    }
+}
+```
+
+## Files Modified
+
+- `src/001-main.c` - Added ball and particle shifting in resize handler
 
 ## Testing
 

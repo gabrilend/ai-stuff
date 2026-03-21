@@ -1,6 +1,9 @@
 # 1001a - Player Ball Spawn Failure
 
-## Status: Open
+## Status: Closed (Not a Bug)
+
+## Resolution
+Player spawning works correctly. User must press SPACE to spawn balls or press A to enable auto-spawn. Initial report was due to forgetting to provide input during testing.
 
 ## Parent Issue: 1001 - Sprint Remediation
 

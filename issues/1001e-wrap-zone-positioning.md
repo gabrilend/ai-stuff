@@ -1,6 +1,6 @@
 # 1001e - Wrap Zone Positioning
 
-## Status: Open
+## Status: Needs Testing (likely fixed by 1001c)
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -61,6 +61,17 @@ Comment in main.c:1259 says wrap checking happens in ball physics, but need to v
 - `src/007-ball.c` - Verify wrap check is called
 - `src/001-main.c` - Verify wrap zones attached to world
 
+## Analysis
+
+After reviewing the code:
+- `wrap_zones_check_ball()` is correctly called in ball physics (ball.c:1424)
+- `world->wrap_zones` is correctly attached in main.c:791
+- Zone calculations look mathematically correct
+
+The wrap zone failure was likely a downstream effect of the adversary board flip formula bug (1001c).
+With objects at correct positions, balls should now travel to wrap zones correctly.
+
 ## Related Issues
 
+- Issue 1001c: Adversary flip formula fix (likely root cause)
 - Issue 1221: Slot manager positioning

@@ -299,15 +299,17 @@ static void find_all_intersections(LineGraph* graph, BoardData* board, int cell_
     if (!lines) return;
 
     // Collect board lines
+    // Use same coordinate system as grid_to_pixel: no half-cell offset (issue 1001b)
+    // Previously added cell_size/2 which caused polygon fills to be offset from lines
     int li = 0;
     for (int i = 0; i < board->object_count; i++) {
         BoardObject* obj = &board->objects[i];
         if (obj->type != OBJECT_LINE) continue;
 
-        lines[li].start.x = obj->col * cell_size + cell_size / 2.0f;
-        lines[li].start.y = obj->row * cell_size + cell_size / 2.0f;
-        lines[li].end.x = obj->end_col * cell_size + cell_size / 2.0f;
-        lines[li].end.y = obj->end_row * cell_size + cell_size / 2.0f;
+        lines[li].start.x = obj->col * cell_size;
+        lines[li].start.y = obj->row * cell_size;
+        lines[li].end.x = obj->end_col * cell_size;
+        lines[li].end.y = obj->end_row * cell_size;
         lines[li].board_index = i;
         li++;
     }

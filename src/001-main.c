@@ -107,7 +107,8 @@ static void apply_board_data_to_stage(BoardData* data, Stage* stage, int flip_ve
 
                 Peg* peg = &stage->pegs[stage->peg_count];
                 // Flip row for adversary stages (issue 1304)
-                int row = flip_vertical ? (data->grid_rows - obj->row) : obj->row;
+                // Fix off-by-one: row 0 should map to row (grid_rows-1), not grid_rows (issue 1001c)
+                int row = flip_vertical ? (data->grid_rows - 1 - obj->row) : obj->row;
                 peg->x = grid_to_pixel_x(&grid, obj->col, row);
                 peg->y = grid_to_pixel_y(&grid, obj->col, row);
                 peg->radius = PEG_RADIUS;
@@ -132,8 +133,9 @@ static void apply_board_data_to_stage(BoardData* data, Stage* stage, int flip_ve
                 if (obj->type != OBJECT_LINE) continue;
 
                 // Flip rows for adversary stages (issue 1304)
-                int row1 = flip_vertical ? (data->grid_rows - obj->row) : obj->row;
-                int row2 = flip_vertical ? (data->grid_rows - obj->end_row) : obj->end_row;
+                // Fix off-by-one: proper vertical flip for lines (issue 1001c)
+                int row1 = flip_vertical ? (data->grid_rows - 1 - obj->row) : obj->row;
+                int row2 = flip_vertical ? (data->grid_rows - 1 - obj->end_row) : obj->end_row;
                 float x1 = grid_to_pixel_x(&grid, obj->col, row1);
                 float y1 = grid_to_pixel_y(&grid, obj->col, row1);
                 float x2 = grid_to_pixel_x(&grid, obj->end_col, row2);
@@ -303,9 +305,10 @@ static int apply_adversary_board_data(BoardData* data, World* world,
             if (obj->type != OBJECT_PEG) continue;
 
             Peg* peg = &world->adversary_pegs[peg_idx];
-            // Flip vertically (X-axis mirror): row → (grid_rows - row)
+            // Flip vertically (X-axis mirror): row → (grid_rows - 1 - row)
             // This creates "opponent facing you" layout (issue 1302)
-            int flipped_row = data->grid_rows - obj->row;
+            // Fixed off-by-one: row 0 maps to row (grid_rows-1), not grid_rows (issue 1001c)
+            int flipped_row = data->grid_rows - 1 - obj->row;
             peg->x = grid_to_pixel_x(&grid, obj->col, flipped_row);
             peg->y = grid_to_pixel_y(&grid, obj->col, flipped_row);
             peg->radius = PEG_RADIUS;
@@ -340,10 +343,11 @@ static int apply_adversary_board_data(BoardData* data, World* world,
                 if (obj->type != OBJECT_LINE) continue;
 
                 Line* line = &world->adversary_lines[line_idx];
-                // Flip vertically (X-axis mirror): row → (grid_rows - row)
+                // Flip vertically (X-axis mirror): row → (grid_rows - 1 - row)
                 // Both endpoints need flipping (issue 1302)
-                int flipped_row1 = data->grid_rows - obj->row;
-                int flipped_row2 = data->grid_rows - obj->end_row;
+                // Fixed off-by-one for proper mirroring (issue 1001c)
+                int flipped_row1 = data->grid_rows - 1 - obj->row;
+                int flipped_row2 = data->grid_rows - 1 - obj->end_row;
                 line->x1 = grid_to_pixel_x(&grid, obj->col, flipped_row1);
                 line->y1 = grid_to_pixel_y(&grid, obj->col, flipped_row1);
                 line->x2 = grid_to_pixel_x(&grid, obj->end_col, flipped_row2);
@@ -1023,6 +1027,23 @@ int main(int argc, char* argv[]) {
                 player_spawner.x += dx;
                 player_spawner.min_x += dx;
                 player_spawner.max_x += dx;
+
+                // Shift all active balls to maintain relative position (issue 1001h)
+                // Without this, balls stay at old X while pegs move, breaking physics
+                for (int i = 0; i < ball_manager->capacity; i++) {
+                    if (ball_manager->balls_current[i].active) {
+                        ball_manager->balls_current[i].x += dx;
+                        ball_manager->balls_next[i].x += dx;
+                    }
+                }
+
+                // Shift active particles for visual continuity (issue 1001h)
+                for (int i = 0; i < particle_system->capacity; i++) {
+                    if (particle_system->particles_current[i].life > 0) {
+                        particle_system->particles_current[i].x += dx;
+                        particle_system->particles_next[i].x += dx;
+                    }
+                }
             }
 
             // Regenerate dynamic elements (gates are not part of JSON boards)

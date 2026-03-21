@@ -1,6 +1,6 @@
 # 1001f - Particle Effect Positioning
 
-## Status: Open
+## Status: Needs Testing (likely fixed by 1001b)
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -60,11 +60,25 @@ Task data should be reset each frame before physics. If `task->scored` persists 
 3. Compare to actual gate visual positions
 4. Print when `passed_gate` is set and reset
 
-## Files to Modify
+## Analysis
+
+After reviewing the code:
+- `score_x` and `score_y` are correctly set to `ball->x` and `ball->y` in zone handlers
+- `passed_gate` flag prevents double-scoring
+- Task data is reset each frame (`task->scored = 0`)
+
+The issue of particles only spawning on the left side was likely caused by:
+1. Coordinate system mismatch (fixed in 1001b)
+2. Zone boundaries being miscalculated due to polygon offset
+
+With the polygon coordinate fix (removing the half-cell offset), zone detection should now
+work correctly across the entire board.
+
+## Files to Check
 
 - `src/007-ball.c` - Zone detection, score position tracking
-- `src/001-main.c` - Task data initialization
-- `src/005-world.c` - Zone generation bounds
+- `src/046-zone-dispatch.c` - Zone handlers correctly use ball position
+- `src/001-main.c` - Task data initialization (correctly resets each frame)
 
 ## Testing
 

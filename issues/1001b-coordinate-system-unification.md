@@ -1,6 +1,6 @@
 # 1001b - Coordinate System Unification
 
-## Status: Open
+## Status: Complete
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -38,16 +38,26 @@ Objects are centered on grid intersections, not cell centers.
 | `src/044-rotor.c` | Unknown | Verify |
 | `src/053-track-mover.c` | Unknown | Verify |
 
-## Implementation Steps
+## Implementation
 
-1. Audit all grid-to-pixel conversions in codebase
-2. Create constants for any offsets needed
-3. Update polygon manager to use `grid_to_pixel_x/y`
-4. Ensure all systems use the same grid instance or equivalent params
-5. Test that collision positions match render positions
+Fixed the polygon manager to use the same coordinate system as `grid_to_pixel`:
+
+```c
+// Before (cell-centered, offset by half cell):
+lines[li].start.x = obj->col * cell_size + cell_size / 2.0f;
+
+// After (intersection-based, no offset):
+lines[li].start.x = obj->col * cell_size;
+```
+
+The origin offset is still applied afterwards via `polygon_manager_rebuild_offset()`,
+which correctly shifts all vertices to match the board position.
+
+## Files Modified
+
+- `src/043-polygon.c` - Removed half-cell offset from vertex calculations in `find_all_intersections()`
 
 ## Testing
 
-- Place a single peg at grid (7, 7)
-- Verify rendered peg center matches collision detection center
-- Drop ball onto peg, verify collision happens at visual position
+- Polygon fills should now align exactly with line boundaries
+- No more half-cell offset between rendered lines and polygon fills

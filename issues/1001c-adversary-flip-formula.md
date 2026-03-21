@@ -1,6 +1,6 @@
 # 1001c - Adversary Board Vertical Flip Formula
 
-## Status: Open
+## Status: Complete
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -59,9 +59,13 @@ int row = flip_vertical ? (data->grid_rows - obj->row) : obj->row;
 int row = flip_vertical ? (data->grid_rows - 1 - obj->row) : obj->row;
 ```
 
-## Files to Modify
+## Files Modified
 
-- `src/001-main.c` - All vertical flip calculations
+- `src/001-main.c` - Fixed all 4 instances of vertical flip calculations:
+  - Line 111: `apply_board_data_to_stage()` peg flipping
+  - Line 137-138: `apply_board_data_to_stage()` line endpoint flipping
+  - Line 311: `apply_adversary_board_data()` peg flipping
+  - Line 349-350: `apply_adversary_board_data()` line endpoint flipping
 
 ## Testing
 

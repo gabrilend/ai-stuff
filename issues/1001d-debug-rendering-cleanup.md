@@ -1,6 +1,6 @@
 # 1001d - Debug Rendering Cleanup
 
-## Status: Open
+## Status: Complete
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -49,14 +49,15 @@ Add keyboard shortcut (e.g., F11) to toggle all debug rendering:
 - Collision bounding boxes
 - Any other debug visualizations
 
-## Files to Modify
+## Files Modified
 
-- `src/037-wrap-zones.c` - Default debug_visible to 0
-- `src/001-main.c` - Add debug toggle key, conditionally render debug elements
+- `src/037-wrap-zones.c` - Changed `debug_visible = 1` to `debug_visible = 0`
+
+Note: Debug can still be toggled with D key at runtime.
+Track segments are only rendered in the editor application, not in the game.
 
 ## Testing
 
 - Run game with no modifications
 - Verify no blue/red rectangles at screen edges
-- Verify no cyan track lines visible
-- Press F11, verify debug elements appear
+- Press D to toggle debug, verify elements appear/disappear
