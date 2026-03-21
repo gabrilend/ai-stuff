@@ -39,7 +39,7 @@ The primary root cause appears to be a **coordinate system mismatch** introduced
 | 1001b | Coordinate system unification | Complete |
 | 1001c | Adversary board flip formula | Complete |
 | 1001d | Debug rendering cleanup | Complete |
-| 1001e | Wrap zone positioning | Needs Testing |
+| 1001e | Wrap zone positioning | Complete |
 | 1001f | Particle effect positioning | Complete |
 | 1001g | Polygon fill alignment | Complete (merged with 1001b) |
 | 1001h | Window resize affects physics | Complete |

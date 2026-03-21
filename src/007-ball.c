@@ -1565,20 +1565,22 @@ void ball_update_task(void* data) {
         ball_collide_with_walls(next, task->world);
 
         // Zone dispatch system (issue 318)
-        // When zone_grid is active, use unified dispatch for wrap zones and scoring
-        // This replaces separate wrap_zones_check_ball and ball_check_zone calls
+        // Zone grid handles gates and scoring within the playable area
         if (task->world->zone_grid) {
             // Reset pending_score before dispatch
             next->pending_score = 0;
 
-            // Dispatch handles: background (reset passed_gate), gates (scoring),
-            // wrap zones (teleportation), walls (reflection)
+            // Dispatch handles: background (reset passed_gate), gates (scoring)
+            // Note: wrap zones are outside grid bounds, handled separately below
             zone_dispatch(next, task->world->zone_grid);
-        } else {
-            // Fallback: Check wrap zones for ball teleportation at screen edges
-            if (task->world->wrap_zones) {
-                wrap_zones_check_ball(task->world->wrap_zones, next);
-            }
+        }
+
+        // Wrap zone check (issue 1001e)
+        // Must be called separately because wrap zones are positioned outside
+        // the zone_grid bounds (above table_top, below adversary_table_bottom)
+        // This check must happen regardless of whether zone_grid exists
+        if (task->world->wrap_zones) {
+            wrap_zones_check_ball(task->world->wrap_zones, next);
         }
 
         // Check portals for teleportation

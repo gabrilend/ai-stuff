@@ -1,6 +1,6 @@
 # 1001e - Wrap Zone Positioning
 
-## Status: Needs Testing (likely fixed by 1001c)
+## Status: Complete
 
 ## Parent Issue: 1001 - Sprint Remediation
 
@@ -75,3 +75,46 @@ With objects at correct positions, balls should now travel to wrap zones correct
 
 - Issue 1001c: Adversary flip formula fix (likely root cause)
 - Issue 1221: Slot manager positioning
+
+## Resolution
+
+The root cause was an architectural bug in the ball physics update task.
+
+### Problem
+
+When the zone dispatch grid (issue 318) was added, it replaced the wrap zone check:
+
+```c
+if (task->world->zone_grid) {
+    zone_dispatch(next, task->world->zone_grid);
+} else {
+    // Fallback - only called when zone_grid doesn't exist
+    wrap_zones_check_ball(task->world->wrap_zones, next);
+}
+```
+
+The zone_grid covers the playable area (table_top to adversary_table_bottom), but wrap zones
+are positioned OUTSIDE this area. When balls enter wrap zones, zone_dispatch treats them as
+"out of bounds" and returns without wrapping.
+
+### Fix Applied (src/007-ball.c)
+
+Changed to call wrap_zones_check_ball unconditionally after zone_dispatch:
+
+```c
+// Zone dispatch system (issue 318)
+// Zone grid handles gates and scoring within the playable area
+if (task->world->zone_grid) {
+    next->pending_score = 0;
+    zone_dispatch(next, task->world->zone_grid);
+}
+
+// Wrap zone check (issue 1001e)
+// Must be called separately because wrap zones are positioned outside
+// the zone_grid bounds (above table_top, below adversary_table_bottom)
+if (task->world->wrap_zones) {
+    wrap_zones_check_ball(task->world->wrap_zones, next);
+}
+```
+
+Now balls correctly wrap when they exit the playable area.
