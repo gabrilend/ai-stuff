@@ -43,6 +43,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-029 | TUI Ollama server selector dropdown | Open | Medium |
 | 10-030 | Image source position randomization | Completed | Low |
 | 10-031 | Embedding model evaluation framework | Open | Medium |
+| 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
 
 ### Completed Issues
 
@@ -68,6 +69,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-025 | Diversity cache includes anchor poem | Completed | 2026-02-13 |
 | 10-026 | Merge sources and external_files config sections | Completed | 2026-02-18 |
 | 10-008 | Implement multiline command wrapping | Completed | 2026-03-18 |
+| 10-032 | Fix shared flag prefix collision in TUI sync | Completed | 2026-03-23 |
 
 ## Issue Details
 
@@ -237,6 +239,15 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Analyze model "personality" (semantic vs structural, verbs vs nouns)
 - Output: comparison report, similarity matrices, model profiles
 - Open questions: anchor selection, dimension interpretation, meta-models
+
+**10-032: Fix Shared Flag Prefix Collision in TUI Sync** - COMPLETED (2026-03-23)
+- Bug: Moving cursor from command preview deselected `--force-stage N` checkboxes
+- Root cause: All `--force-stage N` flags share prefix `--force-stage`
+- In `build_flag_lookup()`, the prefix key gets overwritten by each subsequent item
+- When parsing command text, prefix `--force-stage` matched wrong item (last registered)
+- Fix: Check if combining prefix token with next token creates full flag match
+- Added lookahead in `sync_checkboxes_from_command()` to prioritize full matches
+- Files modified: /home/ritz/programming/ai-stuff/scripts/libs/menu.lua
 
 ## Completion Criteria
 

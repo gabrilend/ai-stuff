@@ -1305,6 +1305,21 @@ local function sync_checkboxes_from_command(cmd_text)
         local token = tokens[i]
         local flag_info = flag_lookup[token.text]
 
+        -- Issue 10-008b: Check if combining with next token creates a full flag match
+        -- This handles flags like "--force-stage 9" where the prefix "--force-stage"
+        -- might match the wrong item due to multiple items sharing the same prefix.
+        -- We prioritize the full match (e.g., "--force-stage 9") over prefix match.
+        if flag_info and i < #tokens then
+            local next_token = tokens[i + 1]
+            local combined_flag = token.text .. " " .. next_token.text
+            local full_flag_info = flag_lookup[combined_flag]
+            if full_flag_info then
+                -- Full flag match found - use it instead of prefix match
+                flag_info = full_flag_info
+                i = i + 1  -- Skip the value token since it's part of the flag
+            end
+        end
+
         if flag_info then
             -- Valid flag found
             found_flags[flag_info.item_id] = true
@@ -1690,53 +1705,70 @@ local function get_expanded_command(use_absolute, use_backslash_newlines)
 end
 -- }}}
 
--- Copy text to system clipboard using xclip, xsel (X11), or wl-copy (Wayland)
+-- Copy text to system clipboard using wl-copy (Wayland), xclip, or xsel (X11)
 -- Copies to both PRIMARY (middle-click) and CLIPBOARD (Ctrl+V) selections
 -- Returns true on success, false with error message on failure
 -- {{{ local function copy_to_clipboard
 local function copy_to_clipboard(text)
-    -- Try xclip first (most common on Linux, works on X11 and XWayland)
-    local handle = io.popen("which xclip >/dev/null 2>&1 && echo 'xclip'", "r")
-    local result = handle:read("*a")
-    handle:close()
-
+    local handle, result
     local tool = nil
-    if result:match("xclip") then
-        tool = "xclip"
-    else
-        -- Try xsel as fallback
-        handle = io.popen("which xsel >/dev/null 2>&1 && echo 'xsel'", "r")
+
+    -- Check environment to determine display server
+    -- WAYLAND_DISPLAY set = native Wayland session, prefer wl-copy
+    -- DISPLAY set without WAYLAND_DISPLAY = pure X11, use xclip/xsel
+    local wayland_display = os.getenv("WAYLAND_DISPLAY")
+    local x_display = os.getenv("DISPLAY")
+
+    if wayland_display then
+        -- Wayland session: try wl-copy first
+        handle = io.popen("which wl-copy >/dev/null 2>&1 && echo 'wl-copy'", "r")
         result = handle:read("*a")
         handle:close()
-        if result:match("xsel") then
-            tool = "xsel"
+        if result:match("wl%-copy") then
+            tool = "wl-copy"
+        end
+    end
+
+    -- If not Wayland or wl-copy not found, try X11 tools
+    if not tool and x_display then
+        handle = io.popen("which xclip >/dev/null 2>&1 && echo 'xclip'", "r")
+        result = handle:read("*a")
+        handle:close()
+        if result:match("xclip") then
+            tool = "xclip"
         else
-            -- Try wl-copy for pure Wayland
-            handle = io.popen("which wl-copy >/dev/null 2>&1 && echo 'wl-copy'", "r")
+            handle = io.popen("which xsel >/dev/null 2>&1 && echo 'xsel'", "r")
             result = handle:read("*a")
             handle:close()
-            if result:match("wl%-copy") then
-                tool = "wl-copy"
-            else
-                return false, "No clipboard tool found (install xclip or xsel)"
+            if result:match("xsel") then
+                tool = "xsel"
             end
         end
     end
 
+    if not tool then
+        return false, "No clipboard tool found (install wl-copy for Wayland or xclip for X11)"
+    end
+
+    -- Use temp file approach for reliable piping (avoids Lua buffering issues)
+    local tmpfile = os.tmpname()
+    local f = io.open(tmpfile, "w")
+    if not f then
+        return false, "Failed to create temp file"
+    end
+    f:write(text)
+    f:close()
+
     -- Wayland: wl-copy
     if tool == "wl-copy" then
-        handle = io.popen("wl-copy", "w")
-        if not handle then
-            return false, "Failed to open wl-copy"
+        local ret = os.execute("wl-copy < " .. tmpfile .. " 2>/dev/null")
+        if ret ~= 0 and ret ~= true then
+            os.remove(tmpfile)
+            return false, "wl-copy failed"
         end
-        handle:write(text)
-        handle:close()
         -- Also copy to primary selection
-        handle = io.popen("wl-copy --primary", "w")
-        if handle then
-            handle:write(text)
-            handle:close()
-        end
+        os.execute("wl-copy --primary < " .. tmpfile .. " 2>/dev/null")
+        os.remove(tmpfile)
         return true, ""
     end
 
@@ -1745,19 +1777,18 @@ local function copy_to_clipboard(text)
     for _, sel in ipairs(selections) do
         local cmd
         if tool == "xclip" then
-            cmd = "xclip -selection " .. sel
+            cmd = "xclip -selection " .. sel .. " < " .. tmpfile .. " 2>/dev/null"
         else
-            cmd = "xsel --" .. sel .. " --input"
+            cmd = "xsel --" .. sel .. " --input < " .. tmpfile .. " 2>/dev/null"
         end
-
-        handle = io.popen(cmd, "w")
-        if not handle then
-            return false, "Failed to open clipboard"
+        local ret = os.execute(cmd)
+        if ret ~= 0 and ret ~= true then
+            os.remove(tmpfile)
+            return false, tool .. " failed for " .. sel
         end
-        handle:write(text)
-        handle:close()
     end
 
+    os.remove(tmpfile)
     return true, ""
 end
 -- }}}
