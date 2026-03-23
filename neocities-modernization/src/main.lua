@@ -545,19 +545,25 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return false
     end
 
-    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
-    if not utils.file_exists(embeddings_file) then
-        utils.log_error("Embeddings file not found. Run generate-embeddings.sh first.")
+    -- Issue 10-033: Check that pre-computed caches exist (these are what actually get used)
+    -- The similarity_matrix.json and embeddings.json are NOT loaded anymore - saves 739MB RAM
+    local embeddings_dir = utils.embeddings_dir("embeddinggemma_latest")
+    local diversity_cache_file = embeddings_dir .. "/diversity_cache.json"
+    local similarity_cache_file = embeddings_dir .. "/similarity_rankings_cache.json"
+
+    if not utils.file_exists(diversity_cache_file) then
+        utils.log_error("Diversity cache not found. Run: ./run.sh --generate-diversity")
         return false
     end
 
-    local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
-    if not utils.file_exists(similarity_file) then
-        utils.log_error("Similarity matrix not found. Run generate-embeddings.sh first.")
+    if not utils.file_exists(similarity_cache_file) then
+        utils.log_error("Similarity rankings cache not found. Run: ./run.sh --generate-similarity")
         return false
     end
 
-    -- Load required data
+    -- Load only poems data (12MB) - caches are loaded inside generator as needed
+    -- Issue 10-033: Skip loading embeddings.json (77MB) and similarity_matrix.json (662MB)
+    -- These are never used - generator functions use pre-computed caches exclusively
     utils.log_info("Loading poems data...")
     local poems_data = utils.read_json_file(poems_file)
     if not poems_data then
@@ -565,19 +571,10 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return false
     end
 
-    utils.log_info("Loading embeddings...")
-    local embeddings_data = utils.read_json_file(embeddings_file)
-    if not embeddings_data then
-        utils.log_error("Failed to load embeddings")
-        return false
-    end
-
-    utils.log_info("Loading similarity matrix...")
-    local similarity_data = utils.read_json_file(similarity_file)
-    if not similarity_data then
-        utils.log_error("Failed to load similarity matrix")
-        return false
-    end
+    -- Note: similarity_data and embeddings_data parameters below are nil
+    -- This is safe because generator functions use cache lookups (Issue 10-033)
+    local similarity_data = nil
+    local embeddings_data = nil
 
     local output_dir = DIR .. "/output"
 

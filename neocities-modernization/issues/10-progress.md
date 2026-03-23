@@ -44,6 +44,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-030 | Image source position randomization | Completed | Low |
 | 10-031 | Embedding model evaluation framework | Open | Medium |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
+| 10-033 | Fix HTML generation memory exhaustion | Completed | Critical |
 
 ### Completed Issues
 
@@ -70,6 +71,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-026 | Merge sources and external_files config sections | Completed | 2026-02-18 |
 | 10-008 | Implement multiline command wrapping | Completed | 2026-03-18 |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | 2026-03-23 |
+| 10-033 | Fix HTML generation memory exhaustion | Completed | 2026-03-23 |
 
 ## Issue Details
 
@@ -248,6 +250,15 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Fix: Check if combining prefix token with next token creates full flag match
 - Added lookahead in `sync_checkboxes_from_command()` to prioritize full matches
 - Files modified: /home/ritz/programming/ai-stuff/scripts/libs/menu.lua
+
+**10-033: Fix HTML Generation Memory Exhaustion** - COMPLETED (2026-03-23)
+- Bug: HTML generation with 4 threads caused system OOM (14+ GB RAM usage)
+- Root cause 1: Main thread loaded similarity_matrix.json (662MB) + embeddings.json (77MB) that were never used
+- Root cause 2: Each effil worker thread independently loaded 700MB+ of cache data
+- Fix 1: Skip loading unused files in main.lua - generator uses pre-computed caches
+- Fix 2: Changed default thread count from 4 to 1 (single-threaded mode)
+- Expected memory usage after fix: ~2-3GB (down from 14+ GB)
+- Files modified: src/main.lua, run.sh
 
 ## Completion Criteria
 
