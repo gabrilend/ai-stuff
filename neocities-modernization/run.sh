@@ -1323,8 +1323,11 @@ interactive_mode_tui() {
     # Section 2: Configuration Options
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "config" "multi" "Configuration"
-    menu_add_item "config" "threads" "Thread Count" "flag" "4:2" \
-        "Thread count for parallel HTML generation (type 1-16)" "" "--threads"
+    # Issue 10-033: Default to 1 thread to avoid memory exhaustion
+    # Each parallel worker loads 700MB+ of JSON data independently
+    # With 4 threads, total RAM usage can exceed 14GB and cause OOM
+    menu_add_item "config" "threads" "Thread Count" "flag" "1:2" \
+        "Threads for HTML gen (1=safe, 2+=high RAM)" "" "--threads"
     # Issue 8-022: Pagination options for HTML generation
     menu_add_item "config" "pages" "Pages per Poem" "flag" ":2" \
         "Pages to generate per poem (default: from config, 1)" "" "--pages"
