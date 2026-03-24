@@ -1,0 +1,703 @@
+#!/usr/bin/env luajit
+
+-- HTML page generation using pthreads-based parallel file writing
+-- Generates similarity and difference pages with parallel I/O via libhtmlgen.so
+--
+-- This replaces the effil-based generate-html-parallel script.
+-- HTML generation happens sequentially in Lua (fast in LuaJIT),
+-- file writing happens in parallel via C pthreads.
+
+-- {{{ Early help check (before any requires)
+for i = 1, #arg do
+    if arg[i] == "--help" or arg[i] == "-h" then
+        print([[
+Usage: generate-html-pthreads [DIR] [OPTIONS]
+
+Options:
+  --test             Generate only first 10 poems (for quick testing)
+  --similar-only     Generate only similarity pages
+  --different-only   Generate only difference pages
+  --incremental      Skip poems that already have HTML files
+  --threads=N        Number of parallel write threads (default: 8)
+
+Pagination Options:
+  --pages=N          Number of pages worth of poems to include (default: from config)
+  --poems-per-page=N Poems per page (default: from config, 100)
+                     Total poems shown = pages × poems-per-page
+
+  -h, --help         Show this help message
+
+Examples:
+  generate-html-pthreads                      # Default: 8 threads, all poems
+  generate-html-pthreads . --threads=4        # 4 threads for file I/O
+  generate-html-pthreads . --incremental      # Skip existing files
+  generate-html-pthreads . --similar-only     # Only similarity pages
+]])
+        os.exit(0)
+    end
+end
+-- }}}
+
+-- {{{ Setup paths
+local function setup_dir_path(provided_dir)
+    if provided_dir then return provided_dir end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+
+local function find_dir_arg(args)
+    for i = 1, #args do
+        local a = args[i]
+        if a:sub(1, 1) ~= "-" and a:match("^%d+$") == nil then
+            return a
+        end
+    end
+    return nil
+end
+
+local DIR = setup_dir_path(find_dir_arg(arg))
+-- }}}
+
+-- {{{ Package paths
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" ..
+               DIR .. "/libs/html-threaded/lua/?.lua;" .. package.path
+-- }}}
+
+-- {{{ Requires
+local utils = require("utils")
+local dkjson = require("dkjson")
+local htmlgen = require("html_gen")
+
+-- Config loader
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local config = config_loader.load()
+-- }}}
+
+-- {{{ Helper: count table entries
+local function table_count(t)
+    if not t then return 0 end
+    local count = 0
+    for _ in pairs(t) do count = count + 1 end
+    return count
+end
+-- }}}
+
+-- {{{ Argument parsing
+local function parse_args(args)
+    local opts = {
+        dir = nil,
+        threads = 8,
+        test = false,
+        similar_only = false,
+        different_only = false,
+        incremental = false,
+        pages = nil,
+        poems_per_page = nil,
+    }
+
+    for i, a in ipairs(args) do
+        if a == "--test" then
+            opts.test = true
+        elseif a == "--similar-only" then
+            opts.similar_only = true
+        elseif a == "--different-only" then
+            opts.different_only = true
+        elseif a == "--incremental" then
+            opts.incremental = true
+        elseif a:match("^%-%-threads=") then
+            opts.threads = tonumber(a:match("=(%d+)")) or 8
+        elseif a:match("^%-%-pages=") then
+            opts.pages = tonumber(a:match("=(%d+)"))
+        elseif a:match("^%-%-poems%-per%-page=") then
+            opts.poems_per_page = tonumber(a:match("=(%d+)"))
+        elseif a:sub(1, 1) ~= "-" then
+            opts.dir = a
+        end
+    end
+
+    return opts
+end
+
+local OPTS = parse_args(arg)
+local NUM_THREADS = OPTS.threads
+local TEST_MODE = OPTS.test
+local SIMILARITY_ONLY = OPTS.similar_only
+local DIFFERENCE_ONLY = OPTS.different_only
+local INCREMENTAL = OPTS.incremental
+-- }}}
+
+-- {{{ Color configuration
+local COLOR_HEX = {
+    red = "#dc3c3c", blue = "#3c78dc", green = "#3cb45a",
+    purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
+}
+
+local BOOST_COLORS = {
+    arrow = "#dc3c3c",
+    outer_frame = "#3c78dc",
+    inner_box = "#3cb45a",
+    content_text = "#f0f0f0",
+}
+-- }}}
+
+-- {{{ Boost formatting helpers
+local function boost_top_border(progress_percent, colors)
+    local BAR_WIDTH = 78
+    local LABEL = "[BOOST]"
+    local LABEL_LEN = 7
+    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+    if progress_chars < LABEL_LEN + 2 then progress_chars = LABEL_LEN + 2 end
+
+    local label_center = math.floor(progress_chars / 2)
+    local label_start = label_center - math.floor(LABEL_LEN / 2)
+    if label_start < 1 then label_start = 1 end
+
+    local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', colors.arrow)
+    local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', colors.outer_frame)
+    local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', colors.outer_frame)
+
+    local colored_bar = ""
+    for i = 1, BAR_WIDTH do
+        if i >= label_start and i < label_start + LABEL_LEN then
+            local char = LABEL:sub(i - label_start + 1, i - label_start + 1)
+            colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', colors.arrow, char)
+        elseif i <= progress_chars then
+            colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+        else
+            colored_bar = colored_bar .. string.format('<font color="%s">─</font>', colors.outer_frame)
+        end
+    end
+
+    return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
+end
+-- }}}
+
+-- {{{ boost_inner_top
+local function boost_inner_top(colors)
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+    local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', colors.inner_box)
+    local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', colors.inner_box)
+    local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+end
+-- }}}
+
+-- {{{ boost_inner_bottom
+local function boost_inner_bottom(colors)
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+    local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', colors.inner_box)
+    local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', colors.inner_box)
+    local inner_dash = string.format('<font color="%s">─</font>', colors.inner_box)
+    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
+end
+-- }}}
+
+-- {{{ boost_content_line
+local function boost_content_line(line, colors)
+    local CONTENT_WIDTH = 74
+    local visible_length = #line
+    local padded_line = visible_length >= CONTENT_WIDTH and line or (line .. string.rep(" ", CONTENT_WIDTH - visible_length))
+
+    local outer_wall = string.format('<font color="%s"><b>║</b></font>', colors.outer_frame)
+    local inner_wall = string.format('<font color="%s"><b>│</b></font>', colors.inner_box)
+    local colored_content = string.format('<font color="%s">%s</font>', colors.content_text, padded_line)
+
+    return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
+end
+-- }}}
+
+-- {{{ boost_bottom_border
+local function boost_bottom_border(progress_percent, colors)
+    local BAR_WIDTH = 78
+    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
+
+    local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', colors.outer_frame)
+    local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', colors.outer_frame)
+    local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', colors.arrow)
+
+    local bar_str = ""
+    for i = 1, BAR_WIDTH do
+        if i <= progress_chars then
+            bar_str = bar_str .. string.format('<font color="%s"><b>═</b></font>', colors.outer_frame)
+        else
+            bar_str = bar_str .. string.format('<font color="%s">─</font>', colors.outer_frame)
+        end
+    end
+
+    return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
+end
+-- }}}
+
+-- {{{ apply_boost_formatting
+local function apply_boost_formatting(content, progress_percent, colors)
+    local lines = {}
+    table.insert(lines, boost_top_border(progress_percent, colors))
+    table.insert(lines, boost_inner_top(colors))
+
+    for line in (content .. "\n"):gmatch("(.-)\n") do
+        table.insert(lines, boost_content_line(line, colors))
+    end
+
+    table.insert(lines, boost_inner_bottom(colors))
+    table.insert(lines, boost_bottom_border(progress_percent, colors))
+
+    return table.concat(lines, "\n")
+end
+-- }}}
+
+-- {{{ generate_similarity_html
+-- Generate HTML for a similarity page (returns string, does not write file)
+local function generate_similarity_html(poem_id, poem_content, poem_category, is_boost,
+                                         similarities, all_poems, poem_colors, max_poem_id,
+                                         max_poems_to_show)
+    -- Build ranked list
+    local ranked_poems = {{
+        id = poem_id,
+        content = poem_content,
+        category = poem_category,
+        is_boost = is_boost,
+        similarity = 1.0
+    }}
+
+    -- Collect other poems with scores
+    local other_poems = {}
+    for other_id, other_poem in pairs(all_poems) do
+        if other_id ~= poem_id then
+            local sim_score = similarities[tostring(other_id)] or 0
+            table.insert(other_poems, {
+                id = other_id,
+                content = other_poem.content or "",
+                category = other_poem.category or "unknown",
+                is_boost = other_poem.metadata and other_poem.metadata.is_boost,
+                similarity = sim_score
+            })
+        end
+    end
+
+    -- Sort by similarity
+    table.sort(other_poems, function(a, b) return a.similarity > b.similarity end)
+
+    -- Limit results
+    local limit = max_poems_to_show > 0 and (max_poems_to_show - 1) or #other_poems
+    for i = 1, math.min(limit, #other_poems) do
+        table.insert(ranked_poems, other_poems[i])
+    end
+
+    -- Generate content
+    local content_parts = {}
+    for _, poem_info in ipairs(ranked_poems) do
+        local pid = poem_info.id
+        local progress_decimal = pid / max_poem_id
+        local progress_chars = math.floor(progress_decimal * 80)
+        local remaining_chars = 80 - progress_chars
+
+        local color_name = poem_colors[tostring(pid)] or "gray"
+        local hex_color = COLOR_HEX[color_name] or "#787878"
+
+        table.insert(content_parts, string.format(" -> file: %s/%s.txt\n",
+            poem_info.category or "unknown", pid))
+
+        if poem_info.is_boost then
+            local formatted = apply_boost_formatting(poem_info.content or "", progress_decimal, BOOST_COLORS)
+            table.insert(content_parts, formatted .. "\n\n")
+        else
+            local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+                hex_color, string.rep("═", progress_chars), string.rep("─", remaining_chars))
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n',
+                color_name, progress_bar))
+            table.insert(content_parts, (poem_info.content or "") .. "\n")
+            table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n',
+                color_name, progress_bar))
+        end
+    end
+
+    local html_content = table.concat(content_parts)
+
+    -- Wrap in HTML template
+    return string.format([[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Poems sorted by similarity to: %s #%d</title>
+</head>
+<body>
+<center>
+<h1>Poetry Collection</h1>
+<p>All poems sorted by similarity to: %s #%d</p>
+<pre>
+%s
+</pre>
+</center>
+</body>
+</html>]], poem_category, poem_id, poem_category, poem_id, html_content)
+end
+-- }}}
+
+-- {{{ generate_diversity_html
+-- Generate HTML for a diversity page using cached sequence
+local function generate_diversity_html(poem_id, diversity_sequence, all_poems,
+                                        poem_colors, max_poem_id, max_poems_to_show)
+    -- Get starting poem info
+    local starting_poem = all_poems[poem_id]
+    if not starting_poem then return nil end
+
+    local poem_category = starting_poem.category or "unknown"
+    local limit = max_poems_to_show > 0 and max_poems_to_show or #diversity_sequence
+
+    -- Generate content
+    local content_parts = {}
+    for i = 1, math.min(limit, #diversity_sequence) do
+        local pid = diversity_sequence[i]
+        local poem_info = all_poems[pid]
+        if poem_info then
+            local progress_decimal = pid / max_poem_id
+            local progress_chars = math.floor(progress_decimal * 80)
+            local remaining_chars = 80 - progress_chars
+
+            local color_name = poem_colors[tostring(pid)] or "gray"
+            local hex_color = COLOR_HEX[color_name] or "#787878"
+
+            table.insert(content_parts, string.format(" -> file: %s/%s.txt\n",
+                poem_info.category or "unknown", pid))
+
+            local is_boost = poem_info.metadata and poem_info.metadata.is_boost
+            if is_boost then
+                local formatted = apply_boost_formatting(poem_info.content or "", progress_decimal, BOOST_COLORS)
+                table.insert(content_parts, formatted .. "\n\n")
+            else
+                local progress_bar = string.format('<font color="%s"><b>%s</b></font>%s',
+                    hex_color, string.rep("═", progress_chars), string.rep("─", remaining_chars))
+                table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n',
+                    color_name, progress_bar))
+                table.insert(content_parts, (poem_info.content or "") .. "\n")
+                table.insert(content_parts, string.format('<div aria-label="eighty dashes. %s.">%s</div>\n\n',
+                    color_name, progress_bar))
+            end
+        end
+    end
+
+    local html_content = table.concat(content_parts)
+
+    return string.format([[<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Poems sorted by difference from: %s #%d</title>
+</head>
+<body>
+<center>
+<h1>Poetry Collection</h1>
+<p>All poems sorted by maximum difference from: %s #%d</p>
+<pre>
+%s
+</pre>
+</center>
+</body>
+</html>]], poem_category, poem_id, poem_category, poem_id, html_content)
+end
+-- }}}
+
+-- {{{ relative_path helper
+local function relative_path(absolute_path)
+    if absolute_path == DIR or absolute_path == DIR .. "/" then
+        return DIR:match("([^/]+)/?$") .. "/"
+    end
+    if absolute_path:sub(1, #DIR) == DIR then
+        local rel = absolute_path:sub(#DIR + 1)
+        if rel:sub(1, 1) == "/" then rel = rel:sub(2) end
+        return "./" .. rel
+    end
+    return absolute_path
+end
+-- }}}
+
+-- {{{ Main execution
+print("═══════════════════════════════════════════════════════════════════════════════")
+print("  HTML Generator (pthreads)")
+print("═══════════════════════════════════════════════════════════════════════════════")
+print("")
+print("📁 Project directory: " .. relative_path(DIR))
+print("🧵 Write threads: " .. NUM_THREADS)
+
+-- Load poem data
+print("\n📖 Loading poem data...")
+local poems_file = DIR .. "/assets/poems.json"
+local poems_data = utils.read_json_file(poems_file)
+if not poems_data then
+    print("❌ Error: Could not load " .. poems_file)
+    os.exit(1)
+end
+
+-- Build lookup tables
+local all_poems = {}
+local valid_poem_ids = {}
+local max_poem_id = 0
+for _, poem in ipairs(poems_data.poems or poems_data) do
+    local pid = poem.poem_index or poem.id
+    if pid then
+        all_poems[pid] = poem
+        table.insert(valid_poem_ids, pid)
+        if pid > max_poem_id then max_poem_id = pid end
+    end
+end
+
+-- Test mode: limit to first 10
+if TEST_MODE then
+    local limited = {}
+    for i = 1, math.min(10, #valid_poem_ids) do
+        limited[i] = valid_poem_ids[i]
+    end
+    valid_poem_ids = limited
+    print("   🧪 TEST MODE: Limited to " .. #valid_poem_ids .. " poems")
+end
+
+print(string.format("   ✅ Loaded %d poems (max ID: %d)", #valid_poem_ids, max_poem_id))
+
+-- {{{ Load similarity files for specific poems
+local function load_similarities_for_poems(sim_dir, poem_ids)
+    local similarities = {}
+    local loaded_count = 0
+    local total = #poem_ids
+
+    print(string.format("   Loading similarity files for %d poems...", total))
+
+    for i, poem_id in ipairs(poem_ids) do
+        local filepath = sim_dir .. "poem_" .. poem_id .. ".json"
+        local sim_data = utils.read_json_file(filepath)
+        if sim_data and sim_data.metadata and sim_data.similarities then
+            local poem_sims = {}
+            for _, entry in ipairs(sim_data.similarities) do
+                if entry.id then
+                    poem_sims[tostring(entry.id)] = entry.similarity
+                end
+            end
+            similarities[tostring(poem_id)] = poem_sims
+            loaded_count = loaded_count + 1
+        end
+
+        if total >= 100 and i % math.max(1, math.floor(total / 10)) == 0 then
+            print(string.format("      Loaded %d/%d files (%.0f%%)...", i, total, i * 100 / total))
+        end
+    end
+
+    return similarities, loaded_count
+end
+-- }}}
+
+-- Load similarities
+local similarities = {}
+local sim_dir = DIR .. "/assets/embeddings/embeddinggemma_latest/similarities/"
+if not DIFFERENCE_ONLY then
+    print("\n📊 Loading similarity data...")
+    local loaded
+    similarities, loaded = load_similarities_for_poems(sim_dir, valid_poem_ids)
+    similarities = similarities or {}
+    print(string.format("   ✅ Loaded similarities for %d poems", loaded or 0))
+end
+
+-- Load colors
+print("\n🎨 Loading color assignments...")
+local colors_file = DIR .. "/assets/embeddings/embeddinggemma_latest/poem_colors.json"
+local poem_colors = utils.read_json_file(colors_file) or {}
+print(string.format("   ✅ Loaded %d color assignments", table_count(poem_colors)))
+
+-- Load diversity cache
+print("\n🔀 Loading diversity cache...")
+local diversity_cache = nil
+local cache_file = DIR .. "/assets/embeddings/embeddinggemma_latest/diversity_cache.json"
+diversity_cache = utils.read_json_file(cache_file)
+if diversity_cache and diversity_cache.sequences then
+    print(string.format("   ✅ Loaded %d cached sequences", table_count(diversity_cache.sequences)))
+else
+    print("   ⚠️  No diversity cache found")
+end
+
+-- Pagination settings
+local pages = OPTS.pages or config.pagination.pages or 5
+local poems_per_page = OPTS.poems_per_page or config.pagination.poems_per_page or 100
+local MAX_POEMS_TO_SHOW = pages * poems_per_page
+
+print(string.format("\n📄 Pagination: %d pages × %d poems = %d max poems per file",
+    pages, poems_per_page, MAX_POEMS_TO_SHOW))
+
+-- Create output directories
+local output_dir = DIR .. "/output"
+os.execute("mkdir -p " .. output_dir .. "/similar")
+os.execute("mkdir -p " .. output_dir .. "/different")
+
+-- {{{ Generate similarity pages
+if not DIFFERENCE_ONLY then
+    print("\n🚀 Generating similarity pages...")
+    local start_time = os.clock()
+
+    local BATCH_SIZE = 200  -- Write every N files to limit memory usage
+    local ctx = htmlgen.init(NUM_THREADS)
+    local batch_count = 0
+    local total_generated = 0
+    local total_skipped = 0
+    local total_written = 0
+    local total_write_time = 0
+
+    for i, poem_id in ipairs(valid_poem_ids) do
+        local poem = all_poems[poem_id]
+        local category = poem.category or "unknown"
+        local unique_id = string.format("%s-%04d", category, poem_id)
+        local filename = string.format("%s/similar/%s.html", output_dir, unique_id)
+
+        -- Check if already exists (incremental mode)
+        if INCREMENTAL then
+            local ef = io.open(filename, "r")
+            if ef then
+                ef:close()
+                total_skipped = total_skipped + 1
+                goto continue_sim
+            end
+        end
+
+        -- Get similarities for this poem
+        local poem_sims = similarities[tostring(poem_id)] or {}
+        local is_boost = poem.metadata and poem.metadata.is_boost
+
+        -- Generate HTML
+        local html = generate_similarity_html(
+            poem_id, poem.content or "", category, is_boost,
+            poem_sims, all_poems, poem_colors, max_poem_id, MAX_POEMS_TO_SHOW
+        )
+
+        -- Add to write queue
+        htmlgen.add_file(ctx, filename, html)
+        batch_count = batch_count + 1
+        total_generated = total_generated + 1
+
+        -- Write batch when full
+        if batch_count >= BATCH_SIZE then
+            htmlgen.write_all(ctx)
+            local stats = htmlgen.get_stats(ctx)
+            total_written = total_written + stats.files_written
+            total_write_time = total_write_time + stats.elapsed_seconds
+            print(string.format("   Progress: %d/%d generated, %d written...",
+                total_generated, #valid_poem_ids - total_skipped, total_written))
+            htmlgen.clear(ctx)
+            batch_count = 0
+        end
+
+        ::continue_sim::
+    end
+
+    -- Write remaining files
+    if batch_count > 0 then
+        htmlgen.write_all(ctx)
+        local stats = htmlgen.get_stats(ctx)
+        total_written = total_written + stats.files_written
+        total_write_time = total_write_time + stats.elapsed_seconds
+    end
+
+    htmlgen.destroy(ctx)
+
+    local elapsed = os.clock() - start_time
+    print(string.format("\n✅ Similarity pages: %d generated, %d written, %d skipped",
+        total_generated, total_written, total_skipped))
+    print(string.format("   Total time: %.1f seconds (%.1f pages/sec)",
+        elapsed, total_written / math.max(elapsed, 0.001)))
+    print(string.format("   Write time: %.2f seconds (%.1f files/sec)",
+        total_write_time, total_written / math.max(total_write_time, 0.001)))
+else
+    print("\n⏭️  Skipping similarity pages (--different-only)")
+end
+-- }}}
+
+-- {{{ Generate diversity pages
+if not SIMILARITY_ONLY and diversity_cache and diversity_cache.sequences then
+    print("\n🚀 Generating diversity pages...")
+    local start_time = os.clock()
+
+    local BATCH_SIZE = 200
+    local ctx = htmlgen.init(NUM_THREADS)
+    local batch_count = 0
+    local total_generated = 0
+    local total_skipped = 0
+    local total_written = 0
+    local total_write_time = 0
+
+    for i, poem_id in ipairs(valid_poem_ids) do
+        local poem = all_poems[poem_id]
+        local category = poem.category or "unknown"
+        local unique_id = string.format("%s-%04d", category, poem_id)
+        local filename = string.format("%s/different/%s.html", output_dir, unique_id)
+
+        -- Check if already exists (incremental mode)
+        if INCREMENTAL then
+            local ef = io.open(filename, "r")
+            if ef then
+                ef:close()
+                total_skipped = total_skipped + 1
+                goto continue_div
+            end
+        end
+
+        -- Get cached sequence
+        local sequence = diversity_cache.sequences[tostring(poem_id)]
+        if not sequence then
+            goto continue_div
+        end
+
+        -- Generate HTML
+        local html = generate_diversity_html(
+            poem_id, sequence, all_poems, poem_colors, max_poem_id, MAX_POEMS_TO_SHOW
+        )
+
+        if html then
+            htmlgen.add_file(ctx, filename, html)
+            batch_count = batch_count + 1
+            total_generated = total_generated + 1
+        end
+
+        -- Write batch when full
+        if batch_count >= BATCH_SIZE then
+            htmlgen.write_all(ctx)
+            local stats = htmlgen.get_stats(ctx)
+            total_written = total_written + stats.files_written
+            total_write_time = total_write_time + stats.elapsed_seconds
+            print(string.format("   Progress: %d/%d generated, %d written...",
+                total_generated, #valid_poem_ids - total_skipped, total_written))
+            htmlgen.clear(ctx)
+            batch_count = 0
+        end
+
+        ::continue_div::
+    end
+
+    -- Write remaining files
+    if batch_count > 0 then
+        htmlgen.write_all(ctx)
+        local stats = htmlgen.get_stats(ctx)
+        total_written = total_written + stats.files_written
+        total_write_time = total_write_time + stats.elapsed_seconds
+    end
+
+    htmlgen.destroy(ctx)
+
+    local elapsed = os.clock() - start_time
+    print(string.format("\n✅ Diversity pages: %d generated, %d written, %d skipped",
+        total_generated, total_written, total_skipped))
+    print(string.format("   Total time: %.1f seconds (%.1f pages/sec)",
+        elapsed, total_written / math.max(elapsed, 0.001)))
+    print(string.format("   Write time: %.2f seconds (%.1f files/sec)",
+        total_write_time, total_written / math.max(total_write_time, 0.001)))
+elseif not SIMILARITY_ONLY then
+    print("\n⚠️  Skipping diversity pages (no cache found)")
+else
+    print("\n⏭️  Skipping diversity pages (--similar-only)")
+end
+-- }}}
+
+print("\n═══════════════════════════════════════════════════════════════════════════════")
+print("📖 Output directory: " .. relative_path(output_dir))
+if not DIFFERENCE_ONLY then
+    print("   Similar: firefox " .. relative_path(output_dir) .. "/similar/fediverse-0001.html")
+end
+if not SIMILARITY_ONLY then
+    print("   Different: firefox " .. relative_path(output_dir) .. "/different/fediverse-0001.html")
+end
+print("═══════════════════════════════════════════════════════════════════════════════")
+-- }}}
