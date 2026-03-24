@@ -85,7 +85,7 @@ return {
             archives = {
                 {
                     name = "messages-zip",
-                    source = "/home/ritz/backups/messages-to-myself/input-zip-file/and-so-i-do-long.zip",
+                    source = "/home/ritz/backups/messages-to-myself/input-zip-file/consider-me-blaspheme.zip",
                     extract_to = "input",  -- Extracts to input/ root (archive contains messages/ dir)
                 },
             },

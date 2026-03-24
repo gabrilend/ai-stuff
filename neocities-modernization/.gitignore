@@ -12,6 +12,10 @@ input/*/files/poems.json
 # Extracted media files (regenerated from ZIP archives by run-messages)
 input/messages/images/
 
+# Input content files (synced from external sources, not tracked here)
+input/images/
+input/notes/
+
 # Validation reports (generated during pipeline runs)
 validation_reports/
 

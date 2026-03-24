@@ -346,3 +346,23 @@ significant changes to cursor positioning across wrapped lines.
 - `/home/ritz/programming/ai-stuff/scripts/libs/tui.lua`:
   - Added `setvbuf("no")` to disable input buffering
 
+### 2026-03-18: Clipboard Fix (Phase 4 Completed)
+
+**Issue**: The `~` key clipboard copy wasn't working on Wayland systems.
+
+**Root Cause**: The clipboard code checked if `xclip` was installed and used it first,
+but xclip doesn't work on pure Wayland sessions (only with XWayland). Also, using
+`io.popen(cmd, "w")` with Lua's buffered I/O sometimes failed to deliver data.
+
+**Fixes Applied:**
+
+1. **Environment detection**: Check `$WAYLAND_DISPLAY` first to detect Wayland sessions
+2. **Tool priority**: Use wl-copy on Wayland (even if xclip is installed)
+3. **Temp file approach**: Write text to temp file, use shell redirection (`< tmpfile`)
+   instead of Lua pipe mode to avoid buffering issues
+4. **Fall back to X11**: Only use xclip/xsel if not on Wayland or wl-copy unavailable
+
+**Files Modified:**
+- `/home/ritz/programming/ai-stuff/scripts/libs/menu.lua`:
+  - Rewrote `copy_to_clipboard()` function (lines 1697-1778)
+
