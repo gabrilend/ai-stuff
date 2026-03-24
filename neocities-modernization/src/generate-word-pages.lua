@@ -928,7 +928,8 @@ function M.generate_word_html(options)
     utils.log_info(string.format("Loaded %d word embeddings", word_count))
 
     -- Issue 8-043c: Load poem colors for semantic coloring
-    local poem_colors_file = utils.asset_path("poem_colors.json")
+    -- Issue 10-034: Fixed path - poem_colors.json is in embeddings directory, not assets root
+    local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
     local poem_colors = {}
     if poem_colors_data and poem_colors_data.poem_colors then

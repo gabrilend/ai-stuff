@@ -45,6 +45,8 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-031 | Embedding model evaluation framework | Open | Medium |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | High |
 | 10-033 | Fix HTML generation memory exhaustion | Completed | Critical |
+| 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
+| 10-035 | Parallelize word page generation | Open | Medium |
 
 ### Completed Issues
 
@@ -72,6 +74,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-008 | Implement multiline command wrapping | Completed | 2026-03-18 |
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | 2026-03-23 |
 | 10-033 | Fix HTML generation memory exhaustion | Completed | 2026-03-23 |
+| 10-034 | Lazy loading orchestrator for parallel HTML | Completed | 2026-03-23 |
 
 ## Issue Details
 
@@ -259,6 +262,20 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Fix 2: Changed default thread count from 4 to 1 (single-threaded mode)
 - Expected memory usage after fix: ~2-3GB (down from 14+ GB)
 - Files modified: src/main.lua, run.sh
+
+**10-034: Lazy Loading Orchestrator for Parallel HTML** - COMPLETED (2026-03-23)
+- Implemented orchestrator pattern: main thread serves 80KB work slices
+- Workers no longer load 700MB caches (saves ~2.8GB with 4 threads)
+- Added message types: REQUEST_WORK, WORK_SLICE, WORK_DONE, SHUTDOWN
+- Test result: 15 threads, 8275 poems in 102s (81.1 poems/sec)
+- Memory usage stayed under 3GB (vs 14GB+ before)
+- Files modified: src/flat-html-generator.lua, run.sh
+
+**10-035: Parallelize Word Page Generation** - OPEN
+- Word pages currently generated sequentially (7135 words)
+- Each word requires similarity against all 8275 poems (~59M calculations)
+- Two options: on-the-fly parallel (workers load embeddings) or pre-compute cache
+- Related fix: poem colors path corrected in generate-word-pages.lua
 
 ## Completion Criteria
 
