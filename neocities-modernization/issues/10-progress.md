@@ -47,6 +47,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-033 | Fix HTML generation memory exhaustion | Completed | Critical |
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
 | 10-035 | Parallelize word page generation | Open | Medium |
+| 10-036 | Fix word page chronological links | Completed | Medium |
 
 ### Completed Issues
 
@@ -75,6 +76,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-032 | Fix shared flag prefix collision in TUI sync | Completed | 2026-03-23 |
 | 10-033 | Fix HTML generation memory exhaustion | Completed | 2026-03-23 |
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | 2026-03-23 |
+| 10-036 | Fix word page chronological links | Completed | 2026-03-23 |
 
 ## Issue Details
 
@@ -276,6 +278,13 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Each word requires similarity against all 8275 poems (~59M calculations)
 - Two options: on-the-fly parallel (workers load embeddings) or pre-compute cache
 - Related fix: poem colors path corrected in generate-word-pages.lua
+
+**10-036: Fix Word Page Chronological Links** - COMPLETED (2026-03-23)
+- Bug: Per-poem chrono links pointed to `index.html` (a redirect that loses anchors)
+- Root cause: `chrono_page_map` used "index" for page 1, and wasn't passed to formatting function
+- Fix: Changed to "01" format, passed `chrono_page_map` through call chain
+- Files modified: src/generate-word-pages.lua
+- Note: Similar bug exists in flat-html-generator.lua:2171 (separate issue)
 
 ## Completion Criteria
 

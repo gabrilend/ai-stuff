@@ -518,9 +518,10 @@ end
 
 -- {{{ local function format_poem_for_word_page
 -- Issue 8-043c: Format poem entry using same box-drawing style as similar/different pages
+-- Issue 10-036: Added chrono_page_map for correct per-poem pagination links
 -- Uses CHRONOLOGICAL position for progress bar (same as similar/different pages)
 -- This helps users orient themselves in the timeline/story
-local function format_poem_for_word_page(poem, rank, similarity, poem_colors, color_config, chrono_map)
+local function format_poem_for_word_page(poem, rank, similarity, poem_colors, color_config, chrono_map, chrono_page_map)
     local poem_idx = poem.poem_index or 0
 
     -- Get semantic color for this poem (default to gray)
@@ -561,7 +562,9 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
     local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
-    local chrono_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
+    -- Issue 10-036: Use chrono_page_map for correct paginated link (index.html is redirect that loses anchors)
+    local chrono_page = chrono_page_map and chrono_page_map[poem_idx] or "01"
+    local chrono_link = string.format("<a href='%s/chronological/%s.html#%s'>chronological</a>", base_path, chrono_page, anchor_id)
 
     -- Word-wrap content to 80 chars
     local content = poem.content or ""
@@ -759,8 +762,9 @@ end
 -- Issue 8-043c: Now uses same box-drawing format as similar/different pages
 -- Issue 8-050c: Word color shown in header, per-poem colors for progress bars
 -- Issue 8-050e: Chronological link points to centroid-based location in timeline
+-- Issue 10-036: Added chrono_page_map for correct per-poem pagination links
 -- Progress bar shows CHRONOLOGICAL position (not similarity) to orient readers
-local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link)
+local function generate_word_page(word, ranked_poems, output_dir, poems_per_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link, chrono_page_map)
     local safe_word = word:lower():gsub("[^%w]", "")
     local output_file = output_dir .. "/wordcloud/" .. safe_word .. ".html"
 
@@ -803,8 +807,9 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 ]], word, font_style, header_color, word, #top_poems, base_path, chrono_link))
 
     -- Add ranked poems using box-drawing format
+    -- Issue 10-036: Pass chrono_page_map for correct per-poem pagination links
     for i, entry in ipairs(top_poems) do
-        local formatted = format_poem_for_word_page(entry.poem, i, entry.similarity, poem_colors, color_config, chrono_map)
+        local formatted = format_poem_for_word_page(entry.poem, i, entry.similarity, poem_colors, color_config, chrono_map, chrono_page_map)
         table.insert(html_parts, formatted)
         table.insert(html_parts, "\n")
     end
@@ -1006,8 +1011,9 @@ function M.generate_word_html(options)
                     total_poems = total_poems
                 }
                 -- Issue 8-050e: Map poem to chronological page
+                -- Issue 10-036: Use "01" format for page 1 (index.html is a redirect that loses anchors)
                 local page_num = math.ceil(position / chrono_per_page)
-                local page_str = page_num == 1 and "index" or string.format("%02d", page_num)
+                local page_str = string.format("%02d", page_num)
                 chrono_page_map[poem.poem_index] = page_str
             end
         end
@@ -1091,7 +1097,8 @@ function M.generate_word_html(options)
                             center_poem.category or "unknown",
                             center_poem.id or 0)
                         -- Get chronological page for this poem
-                        local chrono_page = chrono_page_map[center_poem.poem_index] or "index"
+                        -- Issue 10-036: Use "01" fallback instead of "index" (redirect loses anchors)
+                        local chrono_page = chrono_page_map[center_poem.poem_index] or "01"
                         -- Build full link
                         local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
                         chrono_center_link = string.format("%s/chronological/%s.html#%s",
@@ -1101,7 +1108,8 @@ function M.generate_word_html(options)
             end
 
             -- Generate page with semantic colors and chronological position
-            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link) then
+            -- Issue 10-036: Pass chrono_page_map for correct per-poem pagination links
+            if generate_word_page(word, ranked_poems, output_dir, CONFIG.poems_per_word_page, poem_colors, color_config, chrono_map, word_hex_color, chrono_center_link, chrono_page_map) then
                 pages_generated = pages_generated + 1
             end
         else
