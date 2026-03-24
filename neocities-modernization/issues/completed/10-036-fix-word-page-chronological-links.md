@@ -31,21 +31,24 @@ Evidence:
 
 ## Files Modified
 
-- `src/generate-word-pages.lua`: All changes above
+- `src/generate-word-pages.lua`: Full fix with chrono_page_map threading
+- `src/flat-html-generator.lua`: Partial fix (line 2171)
 
 ## Related Issues
 
 - Issue 8-050e: Original chronological page mapping implementation
 - Issue 8-039: Chronological pagination (created the redirect issue)
 
-## Note: Similar Bug in flat-html-generator.lua
+## flat-html-generator.lua Fix Details
 
-Line 2171 has the same hardcoded `index.html` bug for similar/different pages:
-```lua
-local chronological_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
-```
+Line 2171 in `format_single_poem_with_progress_and_color()` had the same `index.html` bug.
 
-This is a separate bug that should be addressed in a follow-up issue if needed. The similar/different pages may also be affected.
+**Code path analysis:**
+- This function is only used by test functions, HTML archives (disabled), and interactive mode
+- The production path uses parallel workers with `format_poem_entry()` which already has correct pagination
+- Full chrono_page_map threading not implemented for this path (low priority)
+
+**Fix applied:** Changed `index.html` to `01.html` - preserves anchor even though it may land on wrong page. This is acceptable for non-production paths.
 
 ## Status
 
