@@ -53,7 +53,10 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-039 | Render external boost URLs as clickable links | Open | Low |
 | 10-040 | Boost styling inconsistency across page types | Open | Medium |
 | 10-041 | Malformed boost box alignment | Open | Medium |
-| 10-042 | Integrate standalone images into site | Open | Medium |
+| 10-042 | Integrate standalone images into site (umbrella) | Open | Medium |
+| 10-042a | Gallery pages for standalone images | Open | Medium |
+| 10-042b | Chronological interleaving of images | Open | Medium |
+| 10-042c | Filename embeddings for similar/different | Open | Low |
 
 ### Completed Issues
 
@@ -321,13 +324,15 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Width calculations inconsistent between sections
 - Foundational fix needed before 10-040 (style propagation)
 
-**10-042: Integrate Standalone Images Into Site** - OPEN
-- Image-manager catalogs images but they're never displayed
-- Standalone sources: my-art, things-I-almost-posted, poem-pictures, dnd-pictures, fediverse-stars
-- Three integration points:
-  1. Gallery pages (one per source) linked from chronological header
-  2. Chronological interleaving by file timestamp
-  3. Similar/different integration via filename embedding
+**10-042: Integrate Standalone Images Into Site** - OPEN (umbrella)
+- Image-manager catalogs 664 images but they're never displayed
+- Excludes fediverse-media (520) which are already inline with poems
+- Standalone sources: my-art (135), things-I-almost-posted (120), poem-pictures (211), dnd-pictures (82), fediverse-stars (116)
+- Three integration points via sub-issues:
+  - 10-042a: Gallery pages (one per source) linked from wordcloud.html menu
+  - 10-042b: Chronological interleaving by file timestamp
+  - 10-042c: Similar/different integration via filename embedding
+- Design decisions: Use `img-{source}-{hash8}` ID format, gallery-only nav until embeddings exist
 - Future: Vision model or OCR-based embeddings for richer semantics
 - Depends on: 6-017 (image catalog), 10-030 (randomize_order)
 
