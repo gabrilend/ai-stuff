@@ -49,6 +49,13 @@ local success, err = pcall(function()
     has_threading = true
 end)
 
+-- Issue 10-034: Orchestrator message types for lazy loading parallel HTML generation
+-- Main thread acts as cache server, sending 80KB work slices instead of workers loading 700MB
+local MSG_REQUEST_WORK = "get_work"   -- Worker → Main: "give me a poem to process"
+local MSG_WORK_SLICE = "work"         -- Main → Worker: poem_index + rankings
+local MSG_WORK_DONE = "done"          -- Worker → Main: "finished poem X"
+local MSG_SHUTDOWN = "shutdown"       -- Main → Worker: "no more work, exit"
+
 local M = {}
 
 -- Mock color assignment for testing (until we have real embeddings)
@@ -3153,21 +3160,24 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     local use_parallel = num_threads > 1 and has_threading and effil
 
     if use_parallel then
-        -- {{{ Parallel processing with effil threads
-        utils.log_info(string.format("Using parallel processing with %d threads", num_threads))
+        -- {{{ Parallel processing with effil threads (Issue 10-034: Orchestrator pattern)
+        -- Main thread acts as cache server, sending 80KB work slices instead of workers loading 700MB
+        utils.log_info(string.format("Using parallel processing with %d threads (orchestrator mode)", num_threads))
 
-        -- Create progress channel for thread communication
-        local progress_channel = effil.channel()
-
-        -- Split poem indices into batches (round-robin for load balancing)
-        local batches = {}
+        -- Issue 10-034: Create channels for orchestrator communication
+        -- Workers request work → main sends slices → workers report completion
+        local work_request_channel = effil.channel()  -- Workers → Main: work requests + completions
+        local work_response_channels = {}              -- Main → Worker[i]: work slices or shutdown
         for t = 1, num_threads do
-            batches[t] = {}
+            work_response_channels[t] = effil.channel()
         end
-        for i, poem_index in ipairs(poem_indices) do
-            local thread_id = ((i - 1) % num_threads) + 1
-            table.insert(batches[thread_id], poem_index)
+
+        -- Issue 10-034: Build work queue (all poem indices that need processing)
+        local work_queue = {}
+        for _, poem_index in ipairs(poem_indices) do
+            table.insert(work_queue, poem_index)
         end
+        local total_work = #work_queue
 
         -- Issue 9-003 Fix D: Compute chronological mapping for full formatting
         -- This allows workers to generate correct progress bars and chronological links
@@ -3214,9 +3224,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         local threads = {}
         local start_time = os.time()
 
-        for thread_id, batch in pairs(batches) do
+        -- Issue 10-034: Launch workers that request work from orchestrator
+        for thread_id = 1, num_threads do
             -- effil.thread creates a new Lua state that runs the function
-            local thread_func = effil.thread(function(batch_indices, config, tid, prog_channel)
+            -- Workers receive work slices via channels instead of loading full caches
+            local thread_func = effil.thread(function(config, tid, request_channel, response_channel)
                 -- Set up package paths in thread context
                 package.path = config.dir .. "/libs/?.lua;" .. config.dir .. "/src/?.lua;" .. package.path
 
@@ -3242,20 +3254,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     end
                 end
 
-                -- Load caches
-                local diversity_cache_file = t_utils.embeddings_dir("embeddinggemma_latest") .. "/diversity_cache.json"
-                local diversity_cache = t_utils.read_json_file(diversity_cache_file)
-                if not diversity_cache or not diversity_cache.sequences then
-                    error("Thread " .. tid .. ": Failed to load diversity_cache.json")
-                end
+                -- Issue 10-034: Caches NOT loaded here - orchestrator sends work slices
+                -- This saves 700MB RAM per worker thread
 
-                local similarity_cache_file = t_utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_rankings_cache.json"
-                local similarity_cache = t_utils.read_json_file(similarity_cache_file)
-                if not similarity_cache or not similarity_cache.rankings then
-                    error("Thread " .. tid .. ": Failed to load similarity_rankings_cache.json")
-                end
-
-                -- Load poem colors
+                -- Load poem colors (small file: ~900KB, acceptable per-worker)
                 local poem_colors_file = t_utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
                 local poem_colors_data = t_utils.read_json_file(poem_colors_file)
                 local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
@@ -3334,12 +3336,12 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
                 local poem_by_index = build_poem_by_index()
 
-                -- Local helper: Convert similarity ranking to poem objects
-                local function get_similarity_ranking(source_poem_index)
-                    local cached_ranking = similarity_cache.rankings[tostring(source_poem_index)]
-                    if not cached_ranking then return {} end
+                -- Issue 10-034: Convert similarity ranking (raw indices) to poem objects
+                -- ranking_data is an array of poem indices received from orchestrator
+                local function convert_similarity_ranking(ranking_data, source_poem_index)
+                    if not ranking_data then return {} end
                     local result = {}
-                    for i, neighbor_index in ipairs(cached_ranking) do
+                    for i, neighbor_index in ipairs(ranking_data) do
                         local neighbor_poem = poem_by_index[neighbor_index]
                         if neighbor_poem then
                             table.insert(result, {
@@ -3351,13 +3353,13 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     return result
                 end
 
-                -- Local helper: Convert diversity sequence to poem objects
+                -- Issue 10-034: Convert diversity sequence (raw indices) to poem objects
+                -- sequence_data is an array of poem indices received from orchestrator
                 -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
-                local function get_diversity_sequence(source_poem_index)
-                    local cached_seq = diversity_cache.sequences[tostring(source_poem_index)]
-                    if not cached_seq then return {} end
+                local function convert_diversity_sequence(sequence_data, source_poem_index)
+                    if not sequence_data then return {} end
                     local result = {}
-                    for step, neighbor_index in ipairs(cached_seq) do
+                    for step, neighbor_index in ipairs(sequence_data) do
                         if neighbor_index ~= source_poem_index then
                             local neighbor_poem = poem_by_index[neighbor_index]
                             if neighbor_poem then
@@ -4052,129 +4054,169 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     return nil
                 end
 
-                -- Process batch
+                -- Issue 10-034: Orchestrator request/response loop
+                -- Workers request work, receive slices, generate pages, report completion
                 local similarity_count = 0
                 local diversity_count = 0
                 local processed = 0
 
-                for _, poem_index in ipairs(batch_indices) do
-                    local poem = poem_lookup[poem_index]
-                    if poem then
-                        local unique_id = get_unique_id(poem)
+                while true do
+                    -- Request work from orchestrator
+                    request_channel:push({
+                        type = "get_work",
+                        worker_id = tid
+                    })
 
-                        -- Get rankings from caches
-                        local similar_ranking = get_similarity_ranking(poem_index)
-                        local diverse_sequence = get_diversity_sequence(poem_index)
+                    -- Wait for response (blocks until data available)
+                    local work = response_channel:pop()
 
-                        -- Generate similarity pages (page 1 only, respecting config)
-                        -- Issue 9-003 Fix D: Pass chrono_mapping and chrono_paginated for full formatting
-                        local max_pages = config.pages_is_all and 1 or (config.pages_list and #config.pages_list or 1)
-                        for page_num = 1, max_pages do
-                            local page_file = generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
-                            if page_file then similarity_count = similarity_count + 1 end
-                        end
+                    if not work then
+                        -- Channel closed or error
+                        break
+                    end
 
-                        -- Generate diversity pages
-                        for page_num = 1, max_pages do
-                            local page_file = generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
-                            if page_file then diversity_count = diversity_count + 1 end
-                        end
+                    if work.type == "shutdown" then
+                        -- No more work, exit loop
+                        break
+                    end
 
-                        processed = processed + 1
+                    if work.type == "work" then
+                        local poem_index = work.poem_index
+                        local poem = poem_lookup[poem_index]
 
-                        -- Report progress every 50 poems
-                        if processed % 50 == 0 then
-                            prog_channel:push(tid, processed)
+                        if poem then
+                            -- Convert raw index arrays to poem objects using data from orchestrator
+                            local similar_ranking = convert_similarity_ranking(work.similarity_ranking, poem_index)
+                            local diverse_sequence = convert_diversity_sequence(work.diversity_sequence, poem_index)
+
+                            -- Generate similarity pages (page 1 only, respecting config)
+                            -- Issue 9-003 Fix D: Pass chrono_mapping and chrono_paginated for full formatting
+                            local max_pages = config.pages_is_all and 1 or (config.pages_list and #config.pages_list or 1)
+                            for page_num = 1, max_pages do
+                                local page_file = generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
+                                if page_file then similarity_count = similarity_count + 1 end
+                            end
+
+                            -- Generate diversity pages
+                            for page_num = 1, max_pages do
+                                local page_file = generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
+                                if page_file then diversity_count = diversity_count + 1 end
+                            end
+
+                            processed = processed + 1
+
+                            -- Report completion to orchestrator
+                            request_channel:push({
+                                type = "done",
+                                worker_id = tid,
+                                poem_index = poem_index
+                            })
                         end
                     end
                 end
 
-                -- Final progress report
-                prog_channel:push(tid, processed)
-
                 return similarity_count, diversity_count, processed
             end)
 
-            -- Launch thread with its batch
-            threads[thread_id] = thread_func(batch, thread_config, thread_id, progress_channel)
+            -- Launch thread with channels for orchestrator communication
+            threads[thread_id] = thread_func(thread_config, thread_id, work_request_channel, work_response_channels[thread_id])
         end
 
-        -- Monitor progress by counting files in output directories
-        -- This is simpler and more accurate than thread synchronization
-        local similar_dir = output_dir .. "/similar"
-        local different_dir = output_dir .. "/different"
+        -- Issue 10-034: Orchestrator loop - serves work slices to workers
+        -- Main thread holds caches, sends ~80KB slices instead of workers loading 700MB
+        utils.log_info(string.format("Orchestrator ready: %d poems to process", total_work))
 
-        -- Helper: count HTML files in a directory
-        local function count_html_files(dir)
-            local handle = io.popen('find "' .. dir .. '" -name "*.html" 2>/dev/null | wc -l')
-            if handle then
-                local count = tonumber(handle:read("*a")) or 0
-                handle:close()
-                return count
-            end
-            return 0
+        -- Track work state
+        local work_queue_idx = 1           -- Next poem index to assign
+        local completed_count = 0           -- Number of poems completed
+        local workers_active = num_threads  -- Number of workers still running
+        local workers_shutdown = {}         -- Track which workers have been told to shut down
+        for t = 1, num_threads do
+            workers_shutdown[t] = false
         end
 
-        -- Capture initial file counts (from previous runs)
-        local initial_similar = count_html_files(similar_dir)
-        local initial_different = count_html_files(different_dir)
-        local initial_total = initial_similar + initial_different
-        if initial_total > 0 then
-            utils.log_info(string.format("Note: %d existing files found (will show NEW files only)", initial_total))
-        end
+        -- Get references to caches loaded in main thread (lines 3092-3096)
+        -- DIVERSITY_CACHE and SIMILARITY_RANKINGS_CACHE are module-level variables
+        local similarity_cache = SIMILARITY_RANKINGS_CACHE
+        local diversity_cache = DIVERSITY_CACHE
 
-        -- Expected NEW files (2 per poem: similarity + diversity)
-        local expected_total = total_poems * 2  -- 1 similarity page + 1 diversity page per poem
+        -- Progress tracking
+        local last_progress_time = os.time()
+        local progress_interval = 1  -- Update progress every 1 second
 
-        -- Wait for all threads to complete with file-based progress updates
-        local all_done = false
-        local last_count = 0
-        while not all_done do
-            all_done = true
-            for tid, thread in pairs(threads) do
-                local status = thread:status()
-                if status ~= "completed" and status ~= "failed" then
-                    all_done = false
+        -- Orchestrator main loop: process requests until all work done and all workers shut down
+        while workers_active > 0 do
+            -- Non-blocking receive with short timeout (100ms)
+            local msg = work_request_channel:pop(100)
+
+            if msg then
+                if msg.type == "get_work" then
+                    local worker_id = msg.worker_id
+
+                    if work_queue_idx <= total_work then
+                        -- Get next poem index from queue
+                        local poem_index = work_queue[work_queue_idx]
+                        work_queue_idx = work_queue_idx + 1
+
+                        -- Extract work slice from caches (~80KB: similarity ranking + diversity sequence)
+                        local similarity_ranking = similarity_cache.rankings[tostring(poem_index)]
+                        local diversity_sequence = diversity_cache.sequences[tostring(poem_index)]
+
+                        -- Send work slice to worker
+                        work_response_channels[worker_id]:push({
+                            type = "work",
+                            poem_index = poem_index,
+                            similarity_ranking = similarity_ranking,
+                            diversity_sequence = diversity_sequence
+                        })
+                    else
+                        -- No more work - tell worker to shut down
+                        if not workers_shutdown[worker_id] then
+                            work_response_channels[worker_id]:push({
+                                type = "shutdown"
+                            })
+                            workers_shutdown[worker_id] = true
+                            workers_active = workers_active - 1
+                        end
+                    end
+
+                elseif msg.type == "done" then
+                    -- Worker completed a poem
+                    completed_count = completed_count + 1
                 end
             end
 
-            if not all_done then
-                -- Count files in output directories (subtract initial to show NEW files only)
-                local similar_files = count_html_files(similar_dir) - initial_similar
-                local different_files = count_html_files(different_dir) - initial_different
-                local total_files = similar_files + different_files
+            -- Update progress display periodically
+            local now = os.time()
+            if now - last_progress_time >= progress_interval then
+                last_progress_time = now
 
-                -- Calculate rate based on NEW files only
-                local elapsed = os.time() - start_time
-                local rate = elapsed > 0 and (total_files / elapsed) or 0
-                local remaining = expected_total - total_files
+                local elapsed = now - start_time
+                local rate = elapsed > 0 and (completed_count / elapsed) or 0
+                local remaining = total_work - completed_count
                 local eta = rate > 0 and math.floor(remaining / rate) or 0
+                local pct = (completed_count / total_work) * 100
 
-                -- Show progress with NEW file counts and percentage
-                local pct = (total_files / expected_total) * 100
-                io.write(string.format("\r   [%d threads] %d/%d NEW files (%.1f%%) | %d similar + %d different | %.1f files/sec | ETA: %ds    ",
-                    num_threads, total_files, expected_total, pct, similar_files, different_files, rate, eta))
+                -- Show orchestrator progress
+                io.write(string.format("\r   [%d threads] %d/%d poems (%.1f%%) | %.1f poems/sec | ETA: %ds | Queue: %d    ",
+                    num_threads, completed_count, total_work, pct, rate, eta, total_work - work_queue_idx + 1))
                 io.flush()
-
-                -- Brief pause between progress checks (1 second)
-                os.execute("sleep 1")
             end
         end
 
-        -- Final count (NEW files only)
-        local final_similar = count_html_files(similar_dir) - initial_similar
-        local final_different = count_html_files(different_dir) - initial_different
-        io.write(string.format("\r   [%d threads] Complete: %d NEW similar + %d NEW different = %d files                    \n",
-            num_threads, final_similar, final_different, final_similar + final_different))
+        -- Final progress message
+        local elapsed = os.time() - start_time
+        io.write(string.format("\r   [%d threads] Complete: %d poems in %ds (%.1f poems/sec)                              \n",
+            num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
-        -- Collect results from all threads
-        -- Note: effil thread:get() returns the thread function's return values directly
+        -- Wait for all threads to fully complete and collect results
         local total_similarity = 0
         local total_diversity = 0
         local total_processed = 0
 
         for tid, thread in pairs(threads) do
-            local status = thread:status()
+            -- Wait for thread completion (may already be done)
+            local status = thread:wait()
             if status == "completed" then
                 local sim_count, div_count, proc_count = thread:get()
                 total_similarity = total_similarity + (sim_count or 0)
