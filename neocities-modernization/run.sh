@@ -1323,11 +1323,11 @@ interactive_mode_tui() {
     # Section 2: Configuration Options
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "config" "multi" "Configuration"
-    # Issue 10-033: Default to 1 thread to avoid memory exhaustion
-    # Each parallel worker loads 700MB+ of JSON data independently
-    # With 4 threads, total RAM usage can exceed 14GB and cause OOM
-    menu_add_item "config" "threads" "Thread Count" "flag" "1:2" \
-        "Threads for HTML gen (1=safe, 2+=high RAM)" "" "--threads"
+    # Issue 10-034: Orchestrator pattern enables parallel HTML with low memory
+    # Main thread sends 80KB work slices instead of workers loading 700MB caches
+    # Expected memory: ~2.5GB total (vs 14GB+ before fix)
+    menu_add_item "config" "threads" "Thread Count" "flag" "4:8" \
+        "Threads for HTML gen (orchestrator mode)" "" "--threads"
     # Issue 8-022: Pagination options for HTML generation
     menu_add_item "config" "pages" "Pages per Poem" "flag" ":2" \
         "Pages to generate per poem (default: from config, 1)" "" "--pages"
@@ -1485,9 +1485,12 @@ interactive_mode_tui() {
 # {{{ Main execution
 
 # Handle interactive mode
+EXECUTED_COMMAND=""  # Store command for post-run display
 if $INTERACTIVE; then
     log_info "🎛️ Launching interactive mode with command preview..."
     interactive_mode_tui
+    # Save the command preview for display after execution
+    EXECUTED_COMMAND=$(menu_get_value "cmd_preview")
     # After TUI, fall through to execute selected stages
 fi
 
@@ -1559,5 +1562,12 @@ $GENERATE_INDEX && run_generate_index
 if ! $QUIET; then
     echo ""
     echo -e "$(symbol_success "✅") Pipeline completed successfully"
+
+    # Print the executed command for easy re-running (copy-paste friendly)
+    if [[ -n "$EXECUTED_COMMAND" ]]; then
+        echo ""
+        echo -e "$(symbol_info "📋") Command executed:"
+        echo "  $EXECUTED_COMMAND"
+    fi
 fi
 # }}}
