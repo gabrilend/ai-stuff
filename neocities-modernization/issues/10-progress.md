@@ -48,6 +48,12 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
 | 10-035 | Parallelize word page generation | Open | Medium |
 | 10-036 | Fix word page chronological links | Completed | Medium |
+| 10-037 | Blank fediverse_boost content | Open | Medium |
+| 10-038 | Separate ID numbering for fediverse_boost | Open | Low |
+| 10-039 | Render external boost URLs as clickable links | Open | Low |
+| 10-040 | Boost styling inconsistency across page types | Open | Medium |
+| 10-041 | Malformed boost box alignment | Open | Medium |
+| 10-042 | Integrate standalone images into site | Open | Medium |
 
 ### Completed Issues
 
@@ -285,6 +291,45 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Fix: Changed to "01" format, passed `chrono_page_map` through call chain
 - Files modified: src/generate-word-pages.lua
 - Note: Similar bug exists in flat-html-generator.lua:2171 (separate issue)
+
+**10-037: Blank fediverse_boost Content** - OPEN
+- Some fediverse_boost entries render with empty content areas
+- Example: fediverse_boost/6358 shows blank space between header and navigation
+- May indicate extraction issue with certain boost types
+- Related to Issue 6-027b (Boost extraction)
+
+**10-038: Separate ID Numbering for fediverse_boost** - OPEN
+- fediverse_boost currently shares ID iterator with fediverse category
+- Results in interleaved IDs (fediverse/6355, fediverse_boost/6356, fediverse/6359)
+- Should have independent numbering like other categories (notes, messages)
+- Breaking change requiring cache regeneration
+
+**10-039: Render External Boost URLs as Links** - OPEN
+- External boost entries display URLs as plain text
+- "External post: https://..." should be clickable
+- Allows users to view original boosted content on fediverse
+
+**10-040: Boost Styling Inconsistency Across Page Types** - OPEN
+- Boosts use different styling on chronological vs similar/different pages
+- Chronological: basic formatting (same as regular posts)
+- Similar/different: fancy [BOOST] box with colored frames
+- Should use [BOOST] styling consistently across all page types
+
+**10-041: Malformed Boost Box Alignment** - OPEN
+- [BOOST] box formatting has misaligned box-drawing characters
+- Right-side frame characters don't form straight vertical line
+- Width calculations inconsistent between sections
+- Foundational fix needed before 10-040 (style propagation)
+
+**10-042: Integrate Standalone Images Into Site** - OPEN
+- Image-manager catalogs images but they're never displayed
+- Standalone sources: my-art, things-I-almost-posted, poem-pictures, dnd-pictures, fediverse-stars
+- Three integration points:
+  1. Gallery pages (one per source) linked from chronological header
+  2. Chronological interleaving by file timestamp
+  3. Similar/different integration via filename embedding
+- Future: Vision model or OCR-based embeddings for richer semantics
+- Depends on: 6-017 (image catalog), 10-030 (randomize_order)
 
 ## Completion Criteria
 
