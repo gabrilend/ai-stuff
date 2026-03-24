@@ -2168,7 +2168,9 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
     -- Issue 8-039: Chronological now in subdirectory
-    local chronological_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
+    -- Issue 10-036: Use 01.html instead of index.html (redirect loses anchors)
+    -- Note: Full chrono_page_map not available in this code path (test/archive only)
+    local chronological_link = string.format("<a href='%s/chronological/01.html#%s'>chronological</a>", base_path, anchor_id)
 
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
