@@ -2140,7 +2140,8 @@ end
 -- }}}
 
 -- {{{ function format_single_poem_with_progress_and_color
-local function format_single_poem_with_progress_and_color(poem, total_poems, poem_colors)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+local function format_single_poem_with_progress_and_color(poem, total_poems, poem_colors, chrono_mapping)
     local formatted = ""
 
     -- Get semantic color for this poem (key by poem_index, NOT poem.id)
@@ -2168,9 +2169,10 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
     -- Issue 8-039: Chronological now in subdirectory
-    -- Issue 10-036: Use 01.html instead of index.html (redirect loses anchors)
-    -- Note: Full chrono_page_map not available in this code path (test/archive only)
-    local chronological_link = string.format("<a href='%s/chronological/01.html#%s'>chronological</a>", base_path, anchor_id)
+    -- Issue 10-036: Use chrono_mapping for correct paginated link (index.html redirect loses anchors)
+    local chrono_info = chrono_mapping and chrono_mapping[poem_index]
+    local chrono_page = chrono_info and string.format("%02d", chrono_info.page_number) or "01"
+    local chronological_link = string.format("<a href='%s/chronological/%s.html#%s'>chronological</a>", base_path, chrono_page, anchor_id)
 
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
@@ -2311,21 +2313,22 @@ end
 -- }}}
 
 -- {{{ function format_all_poems_with_progress_and_color
-local function format_all_poems_with_progress_and_color(starting_poem, sorted_poems, total_poems, poem_colors)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+local function format_all_poems_with_progress_and_color(starting_poem, sorted_poems, total_poems, poem_colors, chrono_mapping)
     local content = ""
-    
+
     -- Add starting poem first with progress visualization
-    local formatted_starting = format_single_poem_with_progress_and_color(starting_poem, total_poems, poem_colors)
+    local formatted_starting = format_single_poem_with_progress_and_color(starting_poem, total_poems, poem_colors, chrono_mapping)
     content = content .. formatted_starting.content .. "\n\n"
-    
+
     -- Add all other poems sorted by similarity/diversity
     for _, poem_info in ipairs(sorted_poems) do
         if poem_info.id ~= starting_poem.id then  -- Skip starting poem since we already added it
-            local formatted_poem = format_single_poem_with_progress_and_color(poem_info.poem, total_poems, poem_colors)
+            local formatted_poem = format_single_poem_with_progress_and_color(poem_info.poem, total_poems, poem_colors, chrono_mapping)
             content = content .. formatted_poem.content .. "\n\n"
         end
     end
-    
+
     return content
 end
 -- }}}
@@ -2371,7 +2374,8 @@ end
 -- }}}
 
 -- {{{ function M.generate_flat_poem_list_html_with_progress
-function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, use_progress)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, use_progress, chrono_mapping)
     -- Template uses pure HTML without CSS (except Issue 16-010 font-stack)
     -- Content is pre-wrapped to 80 chars, <pre> provides monospace formatting
     -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
@@ -2414,8 +2418,9 @@ function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poem
         end
         
         local total_poems = max_poem_id
-        
-        formatted_content = format_all_poems_with_progress_and_color(starting_poem, sorted_poems, total_poems, poem_colors)
+
+        -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
+        formatted_content = format_all_poems_with_progress_and_color(starting_poem, sorted_poems, total_poems, poem_colors, chrono_mapping)
     else
         -- Use standard formatting with content warnings
         formatted_content = format_all_poems_with_content_warnings(starting_poem, sorted_poems)
@@ -2434,9 +2439,10 @@ end
 -- }}}
 
 -- {{{ function M.generate_flat_poem_list_html
-function M.generate_flat_poem_list_html(starting_poem, sorted_poems, page_type, starting_poem_id)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+function M.generate_flat_poem_list_html(starting_poem, sorted_poems, page_type, starting_poem_id, chrono_mapping)
     -- Default to using progress bars
-    return M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, true)
+    return M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, true, chrono_mapping)
 end
 -- }}}
 
@@ -2471,9 +2477,11 @@ end
 -- page_num: 1-indexed page number
 -- total_pages: total number of pages (may be capped by max_pages_per_poem)
 -- total_corpus: optional - total poems in full corpus (for storage context display)
+-- chrono_mapping: optional - poem_index → {page_number, ...} for correct chronological links
 -- Returns: HTML string for this specific page
 -- Updated for Issue 8-020: Passes total_corpus to navigation for storage constraint messaging
-function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages, total_corpus)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages, total_corpus, chrono_mapping)
     -- Ensure pagination config is loaded
     load_pagination_config()
 
@@ -2509,8 +2517,9 @@ function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_t
     local corpus_total = max_poem_id
 
     -- Format the poems for this page
+    -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
     local formatted_content = format_all_poems_with_progress_and_color(
-        starting_poem, page_poems, corpus_total, poem_colors)
+        starting_poem, page_poems, corpus_total, poem_colors, chrono_mapping)
 
     -- Build the page
     local page_type_desc = (page_type == "similar") and "similarity" or "difference"
@@ -3022,11 +3031,12 @@ end
 -- }}}
 
 -- {{{ function generate_similarity_html_archive
-function generate_similarity_html_archive(starting_poem, sorted_poems, output_file)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+function generate_similarity_html_archive(starting_poem, sorted_poems, output_file, chrono_mapping)
     -- Generate HTML archive for similarity-sorted poems (full corpus with images)
     -- Unlike paginated pages, this is a single file with ALL poems
     -- Use poem_index (globally unique) for consistency
-    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "similar", starting_poem.poem_index)
+    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "similar", starting_poem.poem_index, chrono_mapping)
     return utils.write_file(output_file, html) and output_file or nil
 end
 -- }}}
@@ -3044,11 +3054,12 @@ end
 -- }}}
 
 -- {{{ function generate_diversity_html_archive
-function generate_diversity_html_archive(starting_poem, sorted_poems, output_file)
+-- Issue 10-036: Added chrono_mapping for correct paginated chronological links
+function generate_diversity_html_archive(starting_poem, sorted_poems, output_file, chrono_mapping)
     -- Generate HTML archive for diversity-sorted poems (full corpus with images)
     -- Unlike paginated pages, this is a single file with ALL poems
     -- Use poem_index (globally unique) for consistency
-    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "different", starting_poem.poem_index)
+    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "different", starting_poem.poem_index, chrono_mapping)
     return utils.write_file(output_file, html) and output_file or nil
 end
 -- }}}
@@ -3158,6 +3169,17 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     end
     table.sort(poem_indices)  -- Ensure consistent ordering across runs
 
+    -- Issue 10-036: Compute chrono_mapping before parallel/sequential split so both paths can use it
+    local chronological_paginated = PAGINATION_CONFIG.chronological_paginated
+    local chrono_poems_per_page_config = PAGINATION_CONFIG.chronological_poems_per_page or 500
+    local effective_chrono_per_page = chrono_poems_per_page_config
+    if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
+        effective_chrono_per_page = chrono_per_page
+        chronological_paginated = true
+    end
+    utils.log_info("Computing chronological mapping for formatting...")
+    local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
+
     -- Check if parallel processing is available and requested
     local use_parallel = num_threads > 1 and has_threading and effil
 
@@ -3181,22 +3203,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         end
         local total_work = #work_queue
 
-        -- Issue 9-003 Fix D: Compute chronological mapping for full formatting
-        -- This allows workers to generate correct progress bars and chronological links
-        local chrono_poems_per_page_config = PAGINATION_CONFIG.chronological_poems_per_page or 500
-        local chronological_paginated = PAGINATION_CONFIG.chronological_paginated or false
-
-        -- Issue 9-003: Apply CLI override for chronological poems per page
-        local effective_chrono_per_page = chrono_poems_per_page_config
-        if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
-            utils.log_info(string.format("CLI override: parallel worker chrono mapping uses %d poems/page (was %d)", chrono_per_page, effective_chrono_per_page))
-            effective_chrono_per_page = chrono_per_page
-            chronological_paginated = true  -- Enable pagination if CLI override provided
-        end
-
-        utils.log_info("Computing chronological mapping for full formatting...")
-        local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
-        utils.log_info(string.format("Chronological mapping computed for %d poems", #poem_indices))
+        -- Issue 10-036: chrono_mapping is now computed before parallel/sequential split
+        -- (see Issue 9-003 Fix D for original rationale)
+        utils.log_info(string.format("Using pre-computed chronological mapping for %d poems", #poem_indices))
 
         -- Prepare shared config for threads (serializable data only)
         local thread_config = {
@@ -4290,9 +4299,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             end
 
             -- Generate HTML archive version (full corpus export with images - not paginated)
+            -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
             if PAGINATION_CONFIG.generate_html_archives then
                 local similar_archive = generate_similarity_html_archive(poem_data, similar_ranking,
-                                                               string.format("%s/similar/%s-archive.html", output_dir, unique_id))
+                                                               string.format("%s/similar/%s-archive.html", output_dir, unique_id), chrono_mapping)
                 if similar_archive then
                     table.insert(results.html_archives, similar_archive)
                 end
@@ -4326,9 +4336,10 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
             end
 
             -- Generate HTML archive version (full corpus export with images - not paginated)
+            -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
             if PAGINATION_CONFIG.generate_html_archives then
                 local diverse_archive = generate_diversity_html_archive(poem_data, diverse_sequence,
-                                                              string.format("%s/different/%s-archive.html", output_dir, unique_id))
+                                                              string.format("%s/different/%s-archive.html", output_dir, unique_id), chrono_mapping)
                 if diverse_archive then
                     table.insert(results.html_archives, diverse_archive)
                 end
@@ -4411,7 +4422,8 @@ function M.main(interactive_mode)
                     
                     if poem_data then
                         local ranking = M.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities)
-                        local html = M.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id)
+                        -- Issue 10-036: Pass nil for chrono_mapping in interactive test (uses "01" fallback)
+                        local html = M.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id, nil)
                         local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
                         os.execute("mkdir -p " .. output_dir)
                         utils.write_file(test_file, html)
@@ -4437,7 +4449,8 @@ function M.main(interactive_mode)
 
                     if poem_data then
                         local sequence = M.generate_maximum_diversity_sequence(poem_id, poems_data, embeddings_data)
-                        local html = M.generate_flat_poem_list_html(poem_data, sequence, "different", poem_id)
+                        -- Issue 10-036: Pass nil for chrono_mapping in interactive test (uses "01" fallback)
+                        local html = M.generate_flat_poem_list_html(poem_data, sequence, "different", poem_id, nil)
                         local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
                         os.execute("mkdir -p " .. output_dir)
                         utils.write_file(test_file, html)
