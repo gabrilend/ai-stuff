@@ -1,0 +1,25 @@
+#!/bin/bash
+# config - Compile-time configuration for physics-sim
+# Run this file to edit: ./config
+# Parsed by scripts/generate-config.sh → src/000-config.h
+exec ${EDITOR:-${VISUAL:-vi}} "$0"
+exit
+# --- Configuration below ---
+
+# System capacities
+MAX_BALLS=1024
+MAX_PARTICLES=1024
+
+# Spawning limits
+MAX_SPAWN_CREDITS=30
+
+# Trajectory history (issue 222)
+TRAJECTORY_HISTORY_FRAMES=4
+
+# Editor settings
+# 0 = material presets (standard mode), 1 = raw RGB editing (advanced mode)
+EDITOR_ADVANCED_MODE=0
+
+# Background color (issue 413)
+# 0=slate (default), 1=black, 2=tan, 3=felt, 4=navy, 5=plum, 6=charcoal, 7=mahogany
+BACKGROUND_COLOR=0

@@ -1,0 +1,70 @@
+# Physics Simulator - Pachinko Machine
+
+## Vision
+
+A 2D physics simulator displaying a pachinko machine, built with raylib
+for rendering and a custom threadpool architecture for parallel ball
+physics processing.
+
+## Core Concept
+
+The simulator displays a pachinko machine with balls bouncing off pegs
+and obstacles. Each ball's physics is processed independently in a
+threadpool, demonstrating concurrent game physics patterns.
+
+## Key Technical Goals
+
+1. **Raylib Rendering**: Use raylib for 2D graphics, window management,
+   and input handling.
+
+2. **Threadpool Architecture**: A pool of worker threads processes ball
+   physics each tick. Each task in the pool consists of:
+   - A function pointer to the physics update function
+   - Associated data (ball position, velocity, collision state)
+   - A dedicated memory region per task for thread-safe operation
+
+3. **Pachinko Mechanics**:
+   - Ball launching mechanism
+   - Peg grid for ball deflection
+   - Gravity and collision physics
+   - Score zones at the bottom
+
+## Architecture Overview
+
+```
++------------------+
+|   Main Thread    |
+|  (Raylib Loop)   |
++--------+---------+
+         |
+         v
++------------------+
+|   Task Queue     |
+| (Ball Updates)   |
++--------+---------+
+         |
+    +----+----+
+    |         |
+    v         v
++-------+ +-------+
+|Worker1| |Worker2| ...
++-------+ +-------+
+```
+
+## Language Choice
+
+C with raylib. The threadpool requires direct memory management and
+function pointers, which are native C constructs.
+
+## Dependencies
+
+- raylib: Graphics and window management
+- pthreads: Thread pool implementation
+- Standard C library: Memory management, math
+
+## Success Criteria
+
+- Smooth 60fps rendering with 100+ balls
+- Thread-safe physics updates
+- Visual pachinko machine with working mechanics
+- Clean separation between rendering and physics threads
