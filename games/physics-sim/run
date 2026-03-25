@@ -1,0 +1,57 @@
+#!/bin/bash
+# run
+# Compiles and runs the physics simulator
+# This script calls the compile script, then executes the resulting binary.
+# Can be run from any directory with optional directory argument.
+
+# Hard-coded project directory
+DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+
+# Parse arguments
+COMPILE_FLAGS=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --recompile)
+            COMPILE_FLAGS="--force"
+            shift
+            ;;
+        *)
+            DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+echo "=== Physics Simulator - Build and Run ==="
+echo ""
+
+# Run compile script (game only)
+if [ -n "$COMPILE_FLAGS" ]; then
+    "${DIR}/scripts/compile" "$COMPILE_FLAGS" --game "${DIR}"
+else
+    "${DIR}/scripts/compile" --game "${DIR}"
+fi
+
+# Check if compilation succeeded
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "Build failed. Exiting."
+    exit 1
+fi
+
+echo ""
+echo "=== Running Physics Simulator ==="
+echo ""
+
+# Change to project directory so relative paths (boards/) work correctly
+cd "${DIR}"
+
+# Run the binary
+"${DIR}/bin/physics-sim"
+
+# Capture exit code
+EXIT_CODE=$?
+
+echo ""
+echo "=== Program exited with code ${EXIT_CODE} ==="
+exit ${EXIT_CODE}

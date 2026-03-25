@@ -1,0 +1,54 @@
+#!/bin/bash
+# edit
+# Compiles and runs the standalone board editor
+# This script calls the compile script, then executes the editor binary.
+# Can be run from any directory with optional directory argument.
+
+# Hard-coded project directory
+DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+
+# Parse arguments
+COMPILE_FLAGS=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --recompile)
+            COMPILE_FLAGS="--force"
+            shift
+            ;;
+        *)
+            DIR="$1"
+            shift
+            ;;
+    esac
+done
+
+echo "=== Board Editor - Build and Run ==="
+echo ""
+
+# Run compile script (editor only)
+if [ -n "$COMPILE_FLAGS" ]; then
+    "${DIR}/scripts/compile" "$COMPILE_FLAGS" --editor "${DIR}"
+else
+    "${DIR}/scripts/compile" --editor "${DIR}"
+fi
+
+# Check if compilation succeeded
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "Build failed. Exiting."
+    exit 1
+fi
+
+echo ""
+echo "=== Running Board Editor ==="
+echo ""
+
+# Run the binary
+"${DIR}/bin/board-editor"
+
+# Capture exit code
+EXIT_CODE=$?
+
+echo ""
+echo "=== Program exited with code ${EXIT_CODE} ==="
+exit ${EXIT_CODE}
