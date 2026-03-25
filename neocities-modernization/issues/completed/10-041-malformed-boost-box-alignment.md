@@ -173,6 +173,29 @@ Note: Exact character counts in this example are illustrative. Implementation sh
 
 **Phase**: 10 - Developer Experience & Tooling
 
+## Implementation Notes (2026-03-25)
+
+**Issues fixed**:
+
+1. **Nav separator gap** (main cause of misalignment):
+   - **src/flat-html-generator.lua:1943-1948** - Changed gap from 60 to 58 spaces
+   - **src/flat-html-generator.lua:3496-3503** - Worker thread: same fix
+   - Total width now matches other lines at 82 characters
+
+2. **Long content wrapping** (content overflow):
+   - **src/flat-html-generator.lua:2206-2217** - Main thread: wrap embedded boost content to 74 chars using `text_formatter.wrap_preserving_indent()`
+   - **src/flat-html-generator.lua:3665-3677** - Worker thread: same wrapping logic
+   - External post URLs kept intact (not wrapped) to preserve clickability
+
+**Width verification**:
+- Top border: ◀(1) + ─(1) + ╔(1) + bar(78) + ╗(1) = 82 ✓
+- Inner box top/bottom: ║(1) + space(1) + ┌(1) + dashes(76) + ┐(1) + space(1) + ║(1) = 82 ✓
+- Content line: ║(1) + space(1) + │(1) + space(1) + content(74) + space(1) + │(1) + space(1) + ║(1) = 82 ✓
+- Nav separator: ╠(1) + dashes(9) + ┐(1) + spaces(58) + ┌(1) + dashes(11) + ╣(1) = 82 ✓ (FIXED)
+- Bottom border: ╚(1) + bar(78) + ╝(1) + ─(1) + ▶(1) = 82 ✓
+
+**Status**: Ready for testing. Regenerate HTML to verify boost boxes align properly and long content wraps within the frame.
+
 ## Reference: Original Design
 
 From `/notes/boost post image style.png` design reference (referenced in code comments):

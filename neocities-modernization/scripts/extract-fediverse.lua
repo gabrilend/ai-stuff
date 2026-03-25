@@ -371,7 +371,9 @@ local function extract_boost_content(announce_activity)
         local cache = load_boost_content_cache()
         local cached = cache[boosted_object]
 
-        if cached and cached.content then
+        -- Issue 10-037: Check for non-empty content (empty string "" is truthy in Lua)
+        -- Cache entries with empty content should fall back to "External post:" format
+        if cached and cached.content and cached.content ~= "" then
             -- Use cached scraped content instead of placeholder
             -- The cached content is HTML that will be processed by clean_html later
             return {
@@ -410,9 +412,10 @@ local function extract_boost_content(announce_activity)
     end
     
     -- If object is embedded, extract full content
-    if type(boosted_object) == "table" and boosted_object.content then
+    -- Issue 10-037: Also check for non-empty embedded content
+    if type(boosted_object) == "table" and boosted_object.content and boosted_object.content ~= "" then
         return {
-            type = "embedded_boost", 
+            type = "embedded_boost",
             content = boosted_object.content,
             original_author = boosted_object.attributedTo,
             boost_timestamp = announce_activity.published,
@@ -426,7 +429,26 @@ local function extract_boost_content(announce_activity)
             }
         }
     end
-    
+
+    -- Issue 10-037: Fallback for embedded objects with empty content
+    -- Extract URI from the object's id field and create placeholder entry
+    if type(boosted_object) == "table" and boosted_object.id then
+        return {
+            type = "external_boost",
+            uri = boosted_object.id,
+            boost_timestamp = announce_activity.published,
+            content = "External post: " .. boosted_object.id,
+            metadata = {
+                is_boost = true,
+                boost_type = "embedded_empty",
+                original_uri = boosted_object.id,
+                original_author = boosted_object.attributedTo,
+                boost_date = announce_activity.published,
+                content_unavailable = true
+            }
+        }
+    end
+
     return nil
 end
 -- }}}

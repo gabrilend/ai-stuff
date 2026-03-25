@@ -48,15 +48,16 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | High |
 | 10-035 | Parallelize word page generation | Open | Medium |
 | 10-036 | Fix word page chronological links | Completed | Medium |
-| 10-037 | Blank fediverse_boost content | Open | Medium |
+| 10-037 | Blank fediverse_boost content | Completed | Medium |
 | 10-038 | Separate ID numbering for fediverse_boost | Open | Low |
-| 10-039 | Render external boost URLs as clickable links | Open | Low |
-| 10-040 | Boost styling inconsistency across page types | Open | Medium |
-| 10-041 | Malformed boost box alignment | Open | Medium |
+| 10-039 | Render external boost URLs as clickable links | Completed | Low |
+| 10-040 | Boost styling inconsistency across page types | Completed | Medium |
+| 10-041 | Malformed boost box alignment | Completed | Medium |
 | 10-042 | Integrate standalone images into site (umbrella) | Open | Medium |
 | 10-042a | Gallery pages for standalone images | Open | Medium |
 | 10-042b | Chronological interleaving of images | Open | Medium |
 | 10-042c | Filename embeddings for similar/different | Open | Low |
+| 10-043 | Dual checkbox pipeline stage selection | Open | Medium |
 
 ### Completed Issues
 
@@ -86,6 +87,10 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-033 | Fix HTML generation memory exhaustion | Completed | 2026-03-23 |
 | 10-034 | Lazy loading orchestrator for parallel HTML | Completed | 2026-03-23 |
 | 10-036 | Fix word page chronological links | Completed | 2026-03-23 |
+| 10-037 | Blank fediverse_boost content | Completed | 2026-03-25 |
+| 10-039 | Render external boost URLs as clickable links | Completed | 2026-03-25 |
+| 10-040 | Boost styling inconsistency across page types | Completed | 2026-03-25 |
+| 10-041 | Malformed boost box alignment | Completed | 2026-03-25 |
 
 ## Issue Details
 
@@ -335,6 +340,15 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 - Design decisions: Use `img-{source}-{hash8}` ID format, gallery-only nav until embeddings exist
 - Future: Vision model or OCR-based embeddings for richer semantics
 - Depends on: 6-017 (image catalog), 10-030 (randomize_order)
+
+**10-043: Dual Checkbox Pipeline Stage Selection** - OPEN
+- Replace current dual-item layout (stage + indented force) with dual-checkbox-per-line
+- Visual: `[*][*]` where first checkbox = regenerate (green), second = force (red)
+- Four-state toggle cycle: off → regen → regen+force → regen → off
+- "All stages" line controls all 10 stages collectively with bidirectional sync
+- Left/right keys navigate between sub-checkboxes; rapid right-right to force
+- Reduces stage section from 21 items to 11 items (52% reduction)
+- Builds on: 10-016 (per-stage regeneration), menu.lua dual-checkbox type extension
 
 ## Completion Criteria
 
