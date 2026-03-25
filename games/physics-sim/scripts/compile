@@ -1,0 +1,243 @@
+#!/bin/bash
+# scripts/compile
+# Compiles the physics simulator project using make
+# This script can be run from any directory and will compile the project
+# from the correct location. It accepts an optional directory argument.
+# Also generates the default board if it doesn't exist.
+#
+# Usage:
+#   ./scripts/compile              # Compile both game and editor (default)
+#   ./scripts/compile --game       # Compile game only
+#   ./scripts/compile --editor     # Compile editor only
+#   ./scripts/compile --clean      # Clean only (remove binaries)
+#   ./scripts/compile --force      # Clean rebuild (clean then compile)
+#   ./scripts/compile /custom/dir  # Compile from custom directory
+#   ./scripts/compile --force --game /custom/dir  # Clean rebuild game at custom dir
+
+# Hard-coded project directory
+DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+
+# {{{ generate_default_board
+# Generates the default stage1 board JSON if it doesn't exist.
+# Creates a classic staggered peg grid with score zones at the bottom.
+generate_default_board() {
+    local boards_dir="${DIR}/boards"
+    local default_board="${boards_dir}/stage1-default.json"
+
+    # Create boards directory if needed
+    if [ ! -d "${boards_dir}" ]; then
+        echo "Creating boards directory..."
+        mkdir -p "${boards_dir}"
+    fi
+
+    # Generate default board if missing
+    # This should match the canonical boards/stage1-default.json layout
+    if [ ! -f "${default_board}" ]; then
+        echo "Generating default board: stage1-default.json"
+        cat > "${default_board}" << 'BOARD_EOF'
+{
+  "version": 1,
+  "name": "Stage 1 - Classic Pegs",
+  "grid": {
+    "columns": 14,
+    "rows": 22
+  },
+  "objects": [
+    {"type": "peg", "col": 6, "row": 2},
+    {"type": "peg", "col": 8, "row": 2},
+    {"type": "peg", "col": 5, "row": 3},
+    {"type": "peg", "col": 7, "row": 3},
+    {"type": "peg", "col": 9, "row": 3},
+    {"type": "peg", "col": 4, "row": 4},
+    {"type": "peg", "col": 6, "row": 4},
+    {"type": "peg", "col": 8, "row": 4},
+    {"type": "peg", "col": 10, "row": 4},
+    {"type": "peg", "col": 3, "row": 5},
+    {"type": "peg", "col": 5, "row": 5},
+    {"type": "peg", "col": 7, "row": 5},
+    {"type": "peg", "col": 9, "row": 5},
+    {"type": "peg", "col": 11, "row": 5},
+    {"type": "peg", "col": 2, "row": 6},
+    {"type": "peg", "col": 4, "row": 6},
+    {"type": "peg", "col": 6, "row": 6},
+    {"type": "peg", "col": 8, "row": 6},
+    {"type": "peg", "col": 10, "row": 6},
+    {"type": "peg", "col": 12, "row": 6},
+    {"type": "peg", "col": 1, "row": 7},
+    {"type": "peg", "col": 3, "row": 7},
+    {"type": "peg", "col": 5, "row": 7},
+    {"type": "peg", "col": 7, "row": 7},
+    {"type": "peg", "col": 9, "row": 7},
+    {"type": "peg", "col": 11, "row": 7},
+    {"type": "peg", "col": 13, "row": 7},
+    {"type": "peg", "col": 2, "row": 8},
+    {"type": "peg", "col": 4, "row": 8},
+    {"type": "peg", "col": 6, "row": 8},
+    {"type": "peg", "col": 8, "row": 8},
+    {"type": "peg", "col": 10, "row": 8},
+    {"type": "peg", "col": 12, "row": 8},
+    {"type": "peg", "col": 1, "row": 9},
+    {"type": "peg", "col": 3, "row": 9},
+    {"type": "peg", "col": 5, "row": 9},
+    {"type": "peg", "col": 7, "row": 9},
+    {"type": "peg", "col": 9, "row": 9},
+    {"type": "peg", "col": 11, "row": 9},
+    {"type": "peg", "col": 13, "row": 9},
+    {"type": "peg", "col": 2, "row": 10},
+    {"type": "peg", "col": 4, "row": 10},
+    {"type": "peg", "col": 6, "row": 10},
+    {"type": "peg", "col": 8, "row": 10},
+    {"type": "peg", "col": 10, "row": 10},
+    {"type": "peg", "col": 12, "row": 10},
+    {"type": "peg", "col": 1, "row": 11},
+    {"type": "peg", "col": 3, "row": 11},
+    {"type": "peg", "col": 5, "row": 11},
+    {"type": "peg", "col": 7, "row": 11},
+    {"type": "peg", "col": 9, "row": 11},
+    {"type": "peg", "col": 11, "row": 11},
+    {"type": "peg", "col": 13, "row": 11},
+    {"type": "peg", "col": 2, "row": 12},
+    {"type": "peg", "col": 4, "row": 12},
+    {"type": "peg", "col": 6, "row": 12},
+    {"type": "peg", "col": 8, "row": 12},
+    {"type": "peg", "col": 10, "row": 12},
+    {"type": "peg", "col": 12, "row": 12},
+    {"type": "peg", "col": 1, "row": 13},
+    {"type": "peg", "col": 3, "row": 13},
+    {"type": "peg", "col": 5, "row": 13},
+    {"type": "peg", "col": 7, "row": 13},
+    {"type": "peg", "col": 9, "row": 13},
+    {"type": "peg", "col": 11, "row": 13},
+    {"type": "peg", "col": 13, "row": 13},
+    {"type": "peg", "col": 2, "row": 14},
+    {"type": "peg", "col": 4, "row": 14},
+    {"type": "peg", "col": 6, "row": 14},
+    {"type": "peg", "col": 8, "row": 14},
+    {"type": "peg", "col": 10, "row": 14},
+    {"type": "peg", "col": 12, "row": 14},
+    {"type": "peg", "col": 1, "row": 15},
+    {"type": "peg", "col": 3, "row": 15},
+    {"type": "peg", "col": 5, "row": 15},
+    {"type": "peg", "col": 7, "row": 15},
+    {"type": "peg", "col": 9, "row": 15},
+    {"type": "peg", "col": 11, "row": 15},
+    {"type": "peg", "col": 13, "row": 15},
+    {"type": "peg", "col": 2, "row": 16},
+    {"type": "peg", "col": 4, "row": 16},
+    {"type": "peg", "col": 6, "row": 16},
+    {"type": "peg", "col": 8, "row": 16},
+    {"type": "peg", "col": 10, "row": 16},
+    {"type": "peg", "col": 12, "row": 16},
+    {"type": "peg", "col": 3, "row": 17},
+    {"type": "peg", "col": 5, "row": 17},
+    {"type": "peg", "col": 7, "row": 17},
+    {"type": "peg", "col": 9, "row": 17},
+    {"type": "peg", "col": 11, "row": 17},
+    {"type": "peg", "col": 4, "row": 18},
+    {"type": "peg", "col": 6, "row": 18},
+    {"type": "peg", "col": 8, "row": 18},
+    {"type": "peg", "col": 10, "row": 18},
+    {"type": "peg", "col": 5, "row": 19},
+    {"type": "peg", "col": 7, "row": 19},
+    {"type": "peg", "col": 9, "row": 19},
+    {"type": "line", "col": 0, "row": 0, "end_col": 3, "end_row": 2, "thickness": 6},
+    {"type": "line", "col": 3, "row": 2, "end_col": 0, "end_row": 4, "thickness": 6},
+    {"type": "line", "col": 11, "row": 2, "end_col": 14, "end_row": 0, "thickness": 6},
+    {"type": "line", "col": 11, "row": 2, "end_col": 14, "end_row": 4, "thickness": 6}
+  ],
+  "zones": [
+    {"type": "score", "col": 0, "row": 21, "width": 1, "height": 1, "points": 10, "multiplier": 1},
+    {"type": "score", "col": 1, "row": 21, "width": 1, "height": 1, "points": 20, "multiplier": 1},
+    {"type": "score", "col": 2, "row": 21, "width": 1, "height": 1, "points": 50, "multiplier": 1},
+    {"type": "score", "col": 3, "row": 21, "width": 1, "height": 1, "points": 100, "multiplier": 1},
+    {"type": "score", "col": 4, "row": 21, "width": 1, "height": 1, "points": 100, "multiplier": 1},
+    {"type": "score", "col": 5, "row": 21, "width": 1, "height": 1, "points": 200, "multiplier": 1},
+    {"type": "score", "col": 6, "row": 21, "width": 1, "height": 1, "points": 500, "multiplier": 1},
+    {"type": "score", "col": 7, "row": 21, "width": 1, "height": 1, "points": 500, "multiplier": 1},
+    {"type": "score", "col": 8, "row": 21, "width": 1, "height": 1, "points": 200, "multiplier": 1},
+    {"type": "score", "col": 9, "row": 21, "width": 1, "height": 1, "points": 100, "multiplier": 1},
+    {"type": "score", "col": 10, "row": 21, "width": 1, "height": 1, "points": 100, "multiplier": 1},
+    {"type": "score", "col": 11, "row": 21, "width": 1, "height": 1, "points": 50, "multiplier": 1},
+    {"type": "score", "col": 12, "row": 21, "width": 1, "height": 1, "points": 20, "multiplier": 1},
+    {"type": "score", "col": 13, "row": 21, "width": 1, "height": 1, "points": 10, "multiplier": 1}
+  ]
+}
+BOARD_EOF
+    fi
+}
+# }}}
+
+# Parse arguments
+CLEAN_ONLY=0
+FORCE_BUILD=0
+BUILD_TARGET="all"  # Default: build both game and editor
+
+for arg in "$@"; do
+    case "$arg" in
+        --clean)
+            CLEAN_ONLY=1
+            ;;
+        --force)
+            FORCE_BUILD=1
+            ;;
+        --game)
+            BUILD_TARGET="game"
+            ;;
+        --editor)
+            BUILD_TARGET="editor"
+            ;;
+        *)
+            # Assume it's a directory path
+            DIR="$arg"
+            ;;
+    esac
+done
+
+# Navigate to project directory
+cd "${DIR}" || exit 1
+
+# Generate default board if missing (always check, even for clean)
+generate_default_board
+
+# Clean only if requested
+if [ ${CLEAN_ONLY} -eq 1 ]; then
+    echo "Cleaning previous build from: ${DIR}"
+    make clean
+    echo "Clean complete"
+    exit 0
+fi
+
+# Clean before force build
+if [ ${FORCE_BUILD} -eq 1 ]; then
+    echo "Cleaning previous build from: ${DIR}"
+    make clean
+    echo ""
+fi
+
+# Generate config header from config.txt (issue 1310)
+"${DIR}/scripts/generate-config.sh" "${DIR}"
+
+# Compile the project
+case "${BUILD_TARGET}" in
+    game)
+        echo "Compiling game from: ${DIR}"
+        make game
+        ;;
+    editor)
+        echo "Compiling editor from: ${DIR}"
+        make editor
+        ;;
+    all)
+        echo "Compiling game and editor from: ${DIR}"
+        make all
+        ;;
+esac
+
+# Check compilation result
+if [ $? -eq 0 ]; then
+    echo "Compilation successful"
+    exit 0
+else
+    echo "Compilation failed"
+    exit 1
+fi
