@@ -98,3 +98,24 @@ The issue may be:
 **Priority**: Medium - Visual consistency issue
 
 **Phase**: 10 - Developer Experience & Tooling
+
+## Implementation Notes (2026-03-25)
+
+**Root cause**: The chronological page generator (`generate_chronological_index_with_navigation`) didn't check for `is_boost_poem()`. It used `format_content_with_warnings` for all poems, treating boosts like regular posts.
+
+**Fixes applied**:
+
+1. **src/flat-html-generator.lua:2876** - Added `is_boost_poem(poem)` check in chronological generator
+2. **src/flat-html-generator.lua:2891-2940** - Added complete boost handling block:
+   - Issue 10-037: Blank content fallback
+   - Issue 10-039: Clickable external URLs
+   - Issue 10-041: Content wrapping
+   - Calls `apply_boost_poem_formatting()` for consistent [BOOST] box styling
+3. **src/flat-html-generator.lua:2980-2988** - Skip standard bottom progress bar for boosts (they have their own bottom border)
+
+**Result**: Boosts now display with the same [BOOST] box formatting on:
+- ✓ Chronological pages (NEW)
+- ✓ Similar pages
+- ✓ Different pages
+
+**Status**: Ready for testing. Regenerate chronological HTML to verify boost styling consistency.

@@ -1932,7 +1932,7 @@ end
 
 -- {{{ function generate_boost_nav_separator
 local function generate_boost_nav_separator()
-    -- Navigation separator: ╠─────────┐                                                          ┌───────────╣
+    -- Navigation separator: ╠─────────┐                                                        ┌───────────╣
     -- Adapts the golden poem corner box separator for boost outer frame
     local outer_wall_left = string.format('<font color="%s"><b>╠</b></font>', BOOST_COLOR_CONFIG.outer_frame)
     local outer_wall_right = string.format('<font color="%s"><b>╣</b></font>', BOOST_COLOR_CONFIG.outer_frame)
@@ -1940,10 +1940,12 @@ local function generate_boost_nav_separator()
     local corner_right = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLOR_CONFIG.inner_box)
     local dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
 
-    -- Layout: ╠(1) + dashes(9) + ┐(1) + spaces(60) + ┌(1) + dashes(11) + ╣(1) = 84
+    -- Issue 10-041: Fixed width calculation
+    -- Layout: ╠(1) + dashes(9) + ┐(1) + spaces(58) + ┌(1) + dashes(11) + ╣(1) = 82
+    -- Matches other lines: top border (82), content (82), bottom border (82)
     local left_box = outer_wall_left .. string.rep(dash, 9) .. corner_left
     local right_box = corner_right .. string.rep(dash, 11) .. outer_wall_right
-    local gap = string.rep(" ", 60)
+    local gap = string.rep(" ", 58)
 
     return left_box .. gap .. right_box
 end
@@ -2182,6 +2184,39 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
     if is_boost then
         -- Escape HTML and apply markdown to content
         local text = escape_html(poem.content or "")
+
+        -- Issue 10-037: Defensive fallback for blank boost content
+        -- If content is empty, display the original URI or diagnostic message
+        if text == "" or text:match("^%s*$") then
+            local original_uri = poem.metadata and poem.metadata.original_uri
+            if original_uri then
+                text = "External post: " .. escape_html(original_uri)
+            else
+                text = "(Boost content unavailable)"
+            end
+        end
+
+        -- Issue 10-039: Make external boost URLs clickable
+        -- Pattern: "External post: https://..." -> wrap URL in anchor tag
+        local external_pattern = "^External post: (https?://[^%s]+)$"
+        local external_url = text:match(external_pattern)
+        if external_url then
+            text = string.format('External post: <a href="%s" target="_blank" rel="noopener">%s</a>',
+                external_url, external_url)
+        else
+            -- Issue 10-041: Wrap long embedded content to fit boost box (74 char content width)
+            -- Only wrap non-external-post content (external posts keep URLs intact)
+            local BOOST_CONTENT_WIDTH = 74
+            local wrapped_lines = {}
+            for line in (text .. "\n"):gmatch("(.-)\n") do
+                local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
+                for _, wrapped_line in ipairs(wrapped) do
+                    table.insert(wrapped_lines, wrapped_line)
+                end
+            end
+            text = table.concat(wrapped_lines, "\n")
+        end
+
         text = apply_markdown_formatting(text)
 
         -- Calculate progress as decimal (0-1) for boost functions
@@ -2838,6 +2873,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
             local poem_color_data = poem_colors[poem_id]
             local semantic_color = poem_color_data and poem_color_data.color or "gray"
             local is_golden = is_golden_poem(poem)
+            local is_boost = is_boost_poem(poem)  -- Issue 10-040: Check for boosts
             local anchor_id = get_poem_anchor_id(poem)
             local poem_index = poem.poem_index or 0
 
@@ -2852,47 +2888,104 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
             local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
             local chronological_link = nil  -- Issue 9-003 Fix C: No chronological link on chronological pages
 
-            -- Generate top progress bar
-            local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
-            content = content .. string.format('<span %s>%s</span>\n',
-                                              top_dashes.accessibility,
-                                              top_dashes.visual)
+            -- Issue 10-040: Apply boost formatting consistently on chronological pages
+            -- Uses same boost box styling as similar/different pages
+            if is_boost then
+                -- Escape HTML and apply markdown to content
+                local text = escape_html(poem.content or "")
 
-            -- Add poem content
-            local hex_color = COLOR_CONFIG[semantic_color] or COLOR_CONFIG["gray"]
-            local formatted_content = format_content_with_warnings(
-                poem.content or "", poem.category, poem,
-                is_golden and similar_link or nil,
-                is_golden and different_link or nil,
-                is_golden and chronological_link or nil,
-                is_golden and hex_color or nil
-            )
-            content = content .. formatted_content
+                -- Issue 10-037: Defensive fallback for blank boost content
+                if text == "" or text:match("^%s*$") then
+                    local original_uri = poem.metadata and poem.metadata.original_uri
+                    if original_uri then
+                        text = "External post: " .. escape_html(original_uri)
+                    else
+                        text = "(Boost content unavailable)"
+                    end
+                end
 
-            -- Add images if present
-            -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
-            if poem.attachments and #poem.attachments > 0 then
-                content = content .. render_attachment_images(poem.attachments)
-            end
+                -- Issue 10-039: Make external boost URLs clickable
+                local external_pattern = "^External post: (https?://[^%s]+)$"
+                local external_url = text:match(external_pattern)
+                if external_url then
+                    text = string.format('External post: <a href="%s" target="_blank" rel="noopener">%s</a>',
+                        external_url, external_url)
+                else
+                    -- Issue 10-041: Wrap long embedded content to fit boost box
+                    local BOOST_CONTENT_WIDTH = 74
+                    local wrapped_lines = {}
+                    for line in (text .. "\n"):gmatch("(.-)\n") do
+                        local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
+                        for _, wrapped_line in ipairs(wrapped) do
+                            table.insert(wrapped_lines, wrapped_line)
+                        end
+                    end
+                    text = table.concat(wrapped_lines, "\n")
+                end
 
-            -- Add navigation box for regular poems
-            if not is_golden then
-                -- Issue 8-035: Calculate progress_chars for nav box colorization
-                local total_chars = LAYOUT.REGULAR_POEM_WIDTH
-                local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
+                text = apply_markdown_formatting(text)
 
-                content = content .. "\n"
-                content = content .. generate_regular_corner_box_top(progress_chars, hex_color) .. "\n"
-                content = content .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color) .. "\n"
+                -- Calculate progress as decimal (0-1) for boost functions
+                local progress_decimal = progress_info.percentage / 100
+
+                -- Apply complete boost formatting (includes all frame elements)
+                local boost_formatted = apply_boost_poem_formatting(
+                    text, progress_decimal, similar_link, different_link, chronological_link
+                )
+                content = content .. boost_formatted .. "\n"
+
+                -- Render attached images after boost frame
+                if poem.attachments then
+                    content = content .. render_attachment_images(poem.attachments)
+                end
             else
-                content = content .. "\n"
+                -- Standard formatting for golden and regular poems
+                -- Generate top progress bar
+                local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
+                content = content .. string.format('<span %s>%s</span>\n',
+                                                  top_dashes.accessibility,
+                                                  top_dashes.visual)
+
+                -- Add poem content
+                local hex_color = COLOR_CONFIG[semantic_color] or COLOR_CONFIG["gray"]
+                local formatted_content = format_content_with_warnings(
+                    poem.content or "", poem.category, poem,
+                    is_golden and similar_link or nil,
+                    is_golden and different_link or nil,
+                    is_golden and chronological_link or nil,
+                    is_golden and hex_color or nil
+                )
+                content = content .. formatted_content
+
+                -- Add images if present
+                -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
+                if poem.attachments and #poem.attachments > 0 then
+                    content = content .. render_attachment_images(poem.attachments)
+                end
+
+                -- Add navigation box for regular poems
+                if not is_golden then
+                    -- Issue 8-035: Calculate progress_chars for nav box colorization
+                    local total_chars = LAYOUT.REGULAR_POEM_WIDTH
+                    local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
+
+                    content = content .. "\n"
+                    content = content .. generate_regular_corner_box_top(progress_chars, hex_color) .. "\n"
+                    content = content .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color) .. "\n"
+                else
+                    content = content .. "\n"
+                end
             end
 
-            -- Generate bottom progress bar
-            local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
-            content = content .. string.format('<span %s>%s</span>\n\n',
-                                              bottom_dashes.accessibility,
-                                              bottom_dashes.visual)
+            -- Generate bottom progress bar (skip for boosts - they have their own bottom border)
+            if not is_boost then
+                local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
+                content = content .. string.format('<span %s>%s</span>\n\n',
+                                                  bottom_dashes.accessibility,
+                                                  bottom_dashes.visual)
+            else
+                content = content .. "\n"  -- Just add spacing between poems
+            end
         end
 
         -- Write page file
@@ -3458,13 +3551,14 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 end
 
                 -- Worker: Generate nav separator for boost
+                -- Issue 10-041: Fixed gap from 60 to 58 chars to match 82-char total width
                 local function worker_boost_nav_separator()
                     local outer_wall_left = string.format('<font color="%s"><b>╠</b></font>', BOOST_COLORS.outer_frame)
                     local outer_wall_right = string.format('<font color="%s"><b>╣</b></font>', BOOST_COLORS.outer_frame)
                     local corner_left = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLORS.inner_box)
                     local corner_right = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLORS.inner_box)
                     local dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
-                    return outer_wall_left .. string.rep(dash, 9) .. corner_left .. string.rep(" ", 60) .. corner_right .. string.rep(dash, 11) .. outer_wall_right
+                    return outer_wall_left .. string.rep(dash, 9) .. corner_left .. string.rep(" ", 58) .. corner_right .. string.rep(dash, 11) .. outer_wall_right
                 end
 
                 -- Worker: Generate nav line for boost
@@ -3605,6 +3699,41 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         local boost_content = poem.content or ""
                         -- Escape HTML in content
                         boost_content = boost_content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+
+                        -- Issue 10-037: Defensive fallback for blank boost content (worker thread)
+                        -- If content is empty, display the original URI or diagnostic message
+                        if boost_content == "" or boost_content:match("^%s*$") then
+                            local original_uri = poem.metadata and poem.metadata.original_uri
+                            if original_uri then
+                                -- Escape HTML in URI
+                                local safe_uri = original_uri:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+                                boost_content = "External post: " .. safe_uri
+                            else
+                                boost_content = "(Boost content unavailable)"
+                            end
+                        end
+
+                        -- Issue 10-039: Make external boost URLs clickable (worker thread)
+                        -- Pattern: "External post: https://..." -> wrap URL in anchor tag
+                        local external_pattern = "^External post: (https?://[^%s]+)$"
+                        local external_url = boost_content:match(external_pattern)
+                        if external_url then
+                            boost_content = string.format('External post: <a href="%s" target="_blank" rel="noopener">%s</a>',
+                                external_url, external_url)
+                        else
+                            -- Issue 10-041: Wrap long embedded content to fit boost box (74 char content width)
+                            -- Only wrap non-external-post content (external posts keep URLs intact)
+                            local BOOST_CONTENT_WIDTH = 74
+                            local wrapped_lines = {}
+                            for line in (boost_content .. "\n"):gmatch("(.-)\n") do
+                                local wrapped = t_text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
+                                for _, wrapped_line in ipairs(wrapped) do
+                                    table.insert(wrapped_lines, wrapped_line)
+                                end
+                            end
+                            boost_content = table.concat(wrapped_lines, "\n")
+                        end
+
                         -- Calculate progress as decimal (0-1)
                         local progress_decimal = progress_pct / 100
 

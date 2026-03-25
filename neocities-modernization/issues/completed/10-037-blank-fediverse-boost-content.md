@@ -64,3 +64,17 @@ This issue should be investigated before other boost rendering issues, as the bl
 **Priority**: Medium - Data quality issue affecting user experience
 
 **Phase**: 10 - Developer Experience & Tooling
+
+## Implementation Notes (2026-03-25)
+
+**Root cause identified**: The boost content cache (`assets/boost-content-cache.json`) contains entries with `"content":""` (empty strings). The check `if cached and cached.content then` passed because empty strings are truthy in Lua.
+
+**Fixes applied**:
+
+1. **scripts/extract-fediverse.lua:374-376** - Added `and cached.content ~= ""` check for cached external boosts
+2. **scripts/extract-fediverse.lua:416** - Added `and boosted_object.content ~= ""` check for embedded boosts
+3. **scripts/extract-fediverse.lua:433-450** - Added fallback case for embedded objects with empty content (uses `boosted_object.id` as URI)
+4. **src/flat-html-generator.lua:2186-2195** - Added defensive rendering (main thread): displays `original_uri` if content is blank
+5. **src/flat-html-generator.lua:3621-3632** - Added defensive rendering (worker thread): same fallback logic
+
+**Status**: Ready for testing. Re-extract fediverse data to apply extraction fix, then regenerate HTML to verify blank boosts now show "External post: {URL}".

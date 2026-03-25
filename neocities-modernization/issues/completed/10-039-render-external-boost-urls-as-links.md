@@ -89,3 +89,18 @@ end
 **Priority**: Low - Enhancement for external boost usability
 
 **Phase**: 10 - Developer Experience & Tooling
+
+## Implementation Notes (2026-03-25)
+
+**Approach**: Render-time detection (Option B from suggested implementation)
+
+**Fixes applied**:
+
+1. **src/flat-html-generator.lua:2197-2204** - Main thread: Detect "External post: https://..." pattern and wrap URL in anchor tag with `target="_blank" rel="noopener"`
+2. **src/flat-html-generator.lua:3643-3650** - Worker thread: Same URL detection and wrapping
+
+**Pattern used**: `^External post: (https?://[^%s]+)$`
+
+**Coverage**: Works for all 358 existing "External post:" entries in poems.json, plus any newly generated fallback entries from Issue 10-037.
+
+**Status**: Ready for testing. Regenerate HTML to verify external boost URLs are now clickable links.
