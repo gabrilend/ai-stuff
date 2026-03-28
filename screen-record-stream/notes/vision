@@ -1,0 +1,55 @@
+# Screen Record Stream - Vision Document
+
+## Purpose
+
+A bidirectional screen-sharing system where two computers running the same HTTP server can see each other's screens in real-time. The focus is on the raw byte-level exchange - making visible the actual encoding happening in each TCP round-trip.
+
+## Core Concept
+
+Two developers working together, each running an HTTP server that:
+1. Captures their current screen
+2. Encodes it as a byte stream
+3. Serves it to their peer
+4. Receives and displays their peer's screen
+5. Shows the encoding/decoding process visually
+
+## Technical Approach
+
+- **Language**: Lua (LuaJIT compatible)
+- **HTTP**: luasocket for TCP/HTTP handling
+- **Screen Capture**: ffmpeg or scrot for grabbing frames
+- **Encoding**: Raw bytes initially, then optional compression (JPEG/PNG)
+- **Display**: Terminal-based ASCII preview + raw hex dump of bytes, or browser-based viewer
+
+## Key Features
+
+1. **Symmetric Architecture**: Same code runs on both ends
+2. **Byte Visibility**: Show the actual bytes being transmitted
+3. **Round-trip Timing**: Display latency and packet sizes
+4. **Minimal Dependencies**: Lean stack, easy to understand
+
+## Phases
+
+### Phase 1: Foundation
+- Basic HTTP server in Lua
+- Single screenshot capture and serve
+- Receive and save remote screenshot
+
+### Phase 2: Streaming
+- Continuous capture loop
+- Frame differencing (send only changes)
+- Live display of remote screen
+
+### Phase 3: Byte Visibility
+- Hex dump overlay showing transmitted data
+- Encoding statistics (compression ratio, frame size)
+- Round-trip timing display
+
+### Phase 4: Polish
+- Configuration file for resolution, framerate, peer address
+- Auto-discovery on local network
+- Connection resilience
+
+## Philosophy
+
+This is about understanding the wire. Not hiding the protocol behind abstractions, but making visible exactly what flows between machines when we share screens.
