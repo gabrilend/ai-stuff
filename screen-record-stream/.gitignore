@@ -1,0 +1,9 @@
+# Temporary and output directories
+tmp/
+output/
+
+# Lua bytecode
+*.luac
+
+# OS files
+.DS_Store
