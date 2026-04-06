@@ -3,6 +3,8 @@
 -- All settings are validated against actual script usage as of 2026-01-21.
 -- Sections are organized with vimfolds for easy navigation.
 --
+-- For detailed field documentation, see: docs/config-reference.md (Issue 10-019)
+--
 -- Usage:
 --   local config = require("config-loader")
 --   local assets_root = config.asset_paths.assets_root
