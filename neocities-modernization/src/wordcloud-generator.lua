@@ -371,7 +371,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
 <center>
 <h1>Menu</h1>
-<p><a href="explore.html">Explore</a> │ <a href="chronological/index.html">Chronological Index</a></p>
+<p><a href="explore.html">Explore</a> │ <a href="chronological/index.html">Chronological Index</a> │ <a href="gallery/index.html">Gallery</a></p>
 <hr>
 <h2>Word Cloud</h2>
 <p>Words sized by frequency across %d poems (click to explore similar poems)</p>
