@@ -49,7 +49,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-035 | Parallelize word page generation | Open | Medium |
 | 10-036 | Fix word page chronological links | Completed | Medium |
 | 10-037 | Blank fediverse_boost content | Completed | Medium |
-| 10-038 | Separate ID numbering for fediverse_boost | Open | Low |
+| 10-038 | Separate ID numbering for fediverse_boost | Completed | Low |
 | 10-039 | Render external boost URLs as clickable links | Completed | Low |
 | 10-040 | Boost styling inconsistency across page types | Completed | Medium |
 | 10-041 | Malformed boost box alignment | Completed | Medium |
@@ -91,6 +91,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-039 | Render external boost URLs as clickable links | Completed | 2026-03-25 |
 | 10-040 | Boost styling inconsistency across page types | Completed | 2026-03-25 |
 | 10-041 | Malformed boost box alignment | Completed | 2026-03-25 |
+| 10-038 | Separate ID numbering for fediverse_boost | Completed | 2026-04-06 |
 
 ## Issue Details
 

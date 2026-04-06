@@ -587,6 +587,9 @@ local boost_count = 0
 local original_count = 0
 local attachment_count = 0
 local excluded_count = 0  -- Issue 6-031: Track excluded poems
+-- Issue 10-038: Separate ID numbering for fediverse_boost category
+-- Boosts get their own sequential IDs starting from 0001, independent of fediverse posts
+local boost_id_counter = 1
 
 print("🔄 Processing activities with privacy mode: " .. privacy_config.mode)
 print("🔄 Include boosts: " .. tostring(privacy_config.include_boosts))
@@ -647,8 +650,12 @@ for key, activity in pairs(data.orderedItems) do
         end
         
     elseif activity_type == "boost" and privacy_config.include_boosts then
-        -- Issue 6-031: Check exclusion filter for boosts too
-        if poem_exclusions:is_excluded("fediverse", poem_id) then
+        -- Issue 10-038: Generate separate boost ID using boost_id_counter
+        -- Boosts have their own ID sequence: fediverse_boost/0001, 0002, etc.
+        local boost_id = string.format("%04d", boost_id_counter)
+
+        -- Issue 6-031: Check exclusion filter for boosts (using boost-specific ID)
+        if poem_exclusions:is_excluded("fediverse_boost", boost_id) then
             excluded_count = excluded_count + 1
             goto continue
         end
@@ -660,7 +667,7 @@ for key, activity in pairs(data.orderedItems) do
             local processed_boost = process_fediverse_content(boost_content.content, "", privacy_config.mode)
             if processed_boost then
                 local boost_entry = {
-                    id = poem_id,
+                    id = boost_id,
                     category = "fediverse_boost",
                     source_file = "outbox.json",
                     creation_date = extract_full_date(activity.published),
@@ -677,6 +684,8 @@ for key, activity in pairs(data.orderedItems) do
                 
                 table.insert(poems_json, boost_entry)
                 boost_count = boost_count + 1
+                -- Issue 10-038: Increment boost ID counter for next boost
+                boost_id_counter = boost_id_counter + 1
             end
         end
     end

@@ -76,6 +76,40 @@ Benefits:
 
 ---
 
+## Implementation Progress
+
+### 2026-04-06: Completed
+
+**Changes made to `scripts/extract-fediverse.lua`:**
+
+1. **Line 590-592**: Added `boost_id_counter` variable initialized to 1
+   - Separate from the main `key` iterator used for original posts
+   - Comment explains purpose: boosts get their own ID sequence
+
+2. **Line 652-655**: Generate boost-specific ID using new counter
+   - `local boost_id = string.format("%04d", boost_id_counter)`
+   - Boosts now get IDs like `fediverse_boost/0001`, `0002`, etc.
+
+3. **Line 657-660**: Updated exclusion filter to use boost-specific category and ID
+   - Changed from `is_excluded("fediverse", poem_id)` to `is_excluded("fediverse_boost", boost_id)`
+   - Allows independent exclusion of boosts
+
+4. **Line 687-688**: Increment counter after successful boost processing
+   - Placed alongside `boost_count = boost_count + 1`
+
+**Result:**
+- Boosts now have their own ID sequence starting from 0001
+- Original posts continue using the activity index from outbox.json
+- Exclusion filter works correctly with boost-specific IDs
+
+**Pending user action:**
+- Re-run extraction with `--include-boosts` to generate new IDs
+- Full pipeline re-run with `--force` to regenerate caches
+
+---
+
 **Priority**: Low - Quality of life improvement, not a bug
 
 **Phase**: 10 - Developer Experience & Tooling
+
+**Status**: ✅ COMPLETED - 2026-04-06
