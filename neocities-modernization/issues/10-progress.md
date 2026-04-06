@@ -54,7 +54,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-040 | Boost styling inconsistency across page types | Completed | Medium |
 | 10-041 | Malformed boost box alignment | Completed | Medium |
 | 10-042 | Integrate standalone images into site (umbrella) | Open | Medium |
-| 10-042a | Gallery pages for standalone images | Open | Medium |
+| 10-042a | Gallery pages for standalone images | Completed | Medium |
 | 10-042b | Chronological interleaving of images | Open | Medium |
 | 10-042c | Filename embeddings for similar/different | Open | Low |
 | 10-043 | Dual checkbox pipeline stage selection | Open | Medium |
@@ -93,6 +93,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-041 | Malformed boost box alignment | Completed | 2026-03-25 |
 | 10-038 | Separate ID numbering for fediverse_boost | Completed | 2026-04-06 |
 | 10-019 | Document config structure and field usage | Completed | 2026-04-06 |
+| 10-042a | Gallery pages for standalone images | Completed | 2026-04-06 |
 
 ## Issue Details
 

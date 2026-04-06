@@ -105,4 +105,37 @@ Add gallery generation option to CLI menu.
 
 ## Status
 
-**OPEN** - Created 2026-03-23
+**COMPLETED** - 2026-04-06
+
+---
+
+## Implementation Progress
+
+### 2026-04-06: Completed
+
+**Created:**
+- `src/generate-gallery-pages.lua` - Gallery page generator (~350 lines)
+  - Loads image-catalog.json and filters to standalone images only
+  - Groups images by source (my-art, poem-pictures, things-i-almost-posted, dnd-pictures, fediverse-stars)
+  - Generates grid layout using HTML tables with lazy-loaded thumbnails
+  - Creates index page with representative thumbnails and image counts
+  - Creates per-source gallery pages with 4-column grid layout
+  - Follows existing patterns: vimfolds, config loading, dark theme
+
+**Modified:**
+- `src/wordcloud-generator.lua` (line 374) - Added "Gallery" link to navigation menu
+
+**Output files generated:**
+- `output/gallery/index.html` - Gallery index (664 images, 5 collections)
+- `output/gallery/my-art.html` - 135 images
+- `output/gallery/things-i-almost-posted.html` - 120 images
+- `output/gallery/poem-pictures.html` - 211 images
+- `output/gallery/dnd-pictures.html` - 82 images
+- `output/gallery/fediverse-stars.html` - 116 images
+
+**Features:**
+- Excludes fediverse-media (520 images inline with poems)
+- Lazy loading for performance
+- Click thumbnail to view full-size image
+- Filename extracted as alt text
+- Responsive to html_theme config
