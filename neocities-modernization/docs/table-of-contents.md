@@ -14,6 +14,7 @@ This document provides a hierarchical view of all project documentation.
 - `/docs/phase-2-completion-summary.md` - Phase 2 similarity engine development results
 
 ### 🔧 Technical Guides
+- `/docs/config-reference.md` - Complete reference for config.lua structure and field usage (Issue 10-019)
 - `/docs/data-flow-architecture.md` - Complete data flow architecture and seven-stage pipeline documentation
 - `/docs/words-pdf-integration.md` - Integration guide for words-pdf PDF generation system
 - `/docs/centroids-for-hope-cards.md` - Using centroid system for semantic hope card selection
