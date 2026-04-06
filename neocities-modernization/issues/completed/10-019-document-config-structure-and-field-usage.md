@@ -252,3 +252,31 @@ During documentation, note which fields are:
 
 This creates a roadmap for a potential 10-020 issue to simplify config ergonomics.
 
+---
+
+## Implementation Progress
+
+### 2026-04-06: Completed
+
+**Created:**
+- `docs/config-reference.md` - Comprehensive reference document (~450 lines)
+  - Section-by-section documentation with priority levels
+  - Field tables for all complex sections (sources, ollama_servers, centroids, etc.)
+  - ID format reference for excluded_poems by category
+  - Common customization task examples
+  - Deprecated sections list
+
+**Modified:**
+- `config.lua` - Added reference to docs/config-reference.md in header comment
+- `docs/table-of-contents.md` - Added config-reference.md to Technical Guides section
+
+**Scope:**
+- Focused on reference documentation rather than inline comments (config.lua was already well-commented)
+- Documented all 17 config sections with field tables
+- Included CLI override flags where applicable
+- Added "Read by" annotations showing which scripts consume each section
+
+---
+
+**Status**: ✅ COMPLETED - 2026-04-06
+
