@@ -58,6 +58,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-042b | Chronological interleaving of images | Open | Medium |
 | 10-042c | Filename embeddings for similar/different | Open | Low |
 | 10-043 | Dual checkbox pipeline stage selection | Open | Medium |
+| 10-044 | Integrate conversation-starters as unified source | Open | Medium |
 
 ### Completed Issues
 
