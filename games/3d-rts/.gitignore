@@ -1,14 +1,21 @@
-# Build artifacts — produced by Makefile, not part of source.
-build/
-
 # Local temp directory — convention: tmp/ is project-scoped, ignored.
+# In this project tmp/ is a symlink to /tmp/3d-rts/ so the build
+# artifacts live in volatile storage; the symlink itself is also
+# ignored to keep developer machine-specific paths out of the repo.
 # Note: issue 114 (coroutine pool) deferred whether to promote
 # tmp/test-coroutine-pool.c to a tracked location; until then it lives
 # here uncommitted by design.
+tmp
 tmp/
 
 # Claude Code workspace settings — user-local, not project content.
 .claude/
+
+# Runtime program output. The directory itself is tracked via
+# output/.gitkeep so it exists on a fresh checkout (the program needs
+# it to write goodbye.txt); the goodbye file itself rewrites every
+# run and is not worth versioning.
+output/goodbye.txt
 
 # Editor cruft.
 *.swp
