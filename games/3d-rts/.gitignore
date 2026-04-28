@@ -17,6 +17,11 @@ tmp/
 # run and is not worth versioning.
 output/goodbye.txt
 
+# Vendored raylib source and build artifacts. The pinned version
+# lives in libs/sources; scripts/deps/fetch-raylib.sh re-creates the
+# directory on a fresh checkout. We do not version the upstream code.
+libs/raylib/
+
 # Editor cruft.
 *.swp
 *.swo
