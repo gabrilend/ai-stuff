@@ -20,7 +20,7 @@ exercises all of it.
 | DONE   | 103 | Window & 3D camera                   |
 | DONE   | 104 | Heightmap terrain                    |
 | DONE   | 105 | Terrain ray-pick                     |
-| TODO   | 106 | Unit entity & box rendering          |
+| DONE   | 106 | Unit entity & box rendering          |
 | TODO   | 107 | Unit movement on terrain surface     |
 | TODO   | 108 | Box selection                        |
 | TODO   | 109 | Right-click single move order        |
@@ -56,6 +56,17 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-27 — 106 Unit entity & box rendering
+
+`src/050-units.{h,c}` — fixed pool of 256 units, sparse, indexed-
+as-id. Six initial spawns (3 blue + 3 red) at fixed positions for
+reproducibility. Render is per-cube + black wireframe outline,
+base flush on terrain. Pool reads go directly through accessor
+functions today; 102's snapshot will sit in front of them later
+without changing the read sites. Iterators **must skip dead**
+entries — pool is sparse on purpose so ids stay stable across
+issues that hold them (orders, projectiles, miss-memory).
 
 ### 2026-04-27 — 105 Terrain ray-pick
 
