@@ -17,7 +17,7 @@ exercises all of it.
 | ------ | --- | ------------------------------------ |
 | DONE   | 101 | Build system & raylib bootstrap      |
 | TODO   | 102 | Threading model (pthreads)           |
-| TODO   | 103 | Window & 3D camera                   |
+| DONE   | 103 | Window & 3D camera                   |
 | TODO   | 104 | Heightmap terrain                    |
 | TODO   | 105 | Terrain ray-pick                     |
 | TODO   | 106 | Unit entity & box rendering          |
@@ -56,6 +56,19 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-27 — 103 Window & 3D camera
+
+Singleton camera at `src/030-camera.{h,c}`: target / yaw / pitch /
+distance recomputed into a raylib `Camera3D` per frame. WASD +
+middle-drag pan, Q / E yaw, scroll zoom, all scaled by current
+distance for uniform feel. Established **Z-up** as the world
+convention to match the vision text; raylib's heightmap helpers
+assume Y-up so 104 will roll terrain mesh generation by hand.
+Middle-drag input feel needed two rounds of sign tweaks; final
+mapping is `apply_pan(d.y, -d.x)` — log in
+`docs/balance-updates.md`. Placeholder grid + axis markers in
+`001-main.c` are scaffolding, removed by 104 and 106.
 
 ### 2026-04-27 — 101 Build system & raylib bootstrap
 

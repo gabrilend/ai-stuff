@@ -10,6 +10,8 @@ documents here when you create them.
 - [003 — Tech Stack](003-tech-stack.md) — language, renderer, threading.
 - [004 — Architecture](004-architecture.md) — modules and threads.
 - [005 — Roadmap](005-roadmap.md) — phases and issue listing.
+- [Balance Updates](balance-updates.md) — append-only log of feel and
+  numeric tweaks that don't warrant a full issue.
 
 ## notes/
 
