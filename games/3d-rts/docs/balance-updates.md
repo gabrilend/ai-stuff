@@ -5,6 +5,21 @@ Each entry is dated and gives the change plus the reasoning. Larger
 behavioral changes belong in issue files — this log is for the kind of
 "turn the knob" adjustments that do not warrant their own ticket.
 
+## 2026-04-27 — issue 107 unit movement feel
+
+- **Turn-before-walk model (round 1)**: units rotate toward their
+  target at `UNIT_TURN_RATE = 2.0 rad/s` (~115°/s) and scale forward
+  speed by `cos(angular_error)`. Movement follows current heading
+  (not target vector), so the path is a curve whenever the unit
+  starts turned away from its destination.
+
+- **Turn-before-walk model (round 2)**: with plain `cos`, 45° off
+  was still 70% speed — too forgiving for the "tank/person can't
+  move sideways" feel. Tightened to `cos²` (45° → 50%, 60° → 25%,
+  90° → 0%) and slowed the turn rate to `1.5 rad/s` (~86°/s) so
+  the rotate-first-then-walk sequence is visible. Implementation
+  in `src/050-units.c::units_tick`.
+
 ## 2026-04-27 — issue 103 camera input feel
 
 - **Middle-mouse drag pan**: settled on a *mixed* mapping after two

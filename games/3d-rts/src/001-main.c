@@ -112,7 +112,27 @@ int main(void)
 	units_init();
 
 	while (!WindowShouldClose()) {
-		camera_update(GetFrameTime());
+		float dt = GetFrameTime();
+		camera_update(dt);
+
+		// TODO(issue-109): remove once right-click move orders land.
+		// Scatter test — T sets every alive unit's target to a random
+		// X/Y in [-30, 30]. Scaffolding to validate movement before
+		// selection + orders exist.
+		if (IsKeyPressed(KEY_T)) {
+			int n = units_count();
+			const Unit *pool = units_pool();
+			for (int i = 0; i < n; i++) {
+				if (!pool[i].alive) continue;
+				Vector2 target = {
+					(float)GetRandomValue(-30, 30),
+					(float)GetRandomValue(-30, 30),
+				};
+				units_set_target(pool[i].id, target);
+			}
+		}
+
+		units_tick(dt);
 
 		BeginDrawing();
 		ClearBackground((Color){ 30, 32, 40, 255 });
@@ -147,10 +167,11 @@ int main(void)
 		}
 		EndMode3D();
 
-		DrawText("3d-rts — issue 106 units", 20, 20, 22, RAYWHITE);
+		DrawText("3d-rts — issue 107 unit movement", 20, 20, 22, RAYWHITE);
 		DrawText("WASD pan  •  Q/E rotate  •  scroll zoom  •  mid-drag pan",
 		         20, 50, 14, LIGHTGRAY);
-		DrawText("close the window to exit", 20, 70, 12, LIGHTGRAY);
+		DrawText("T = scatter all units to random points", 20, 70, 14, LIGHTGRAY);
+		DrawText("close the window to exit", 20, 90, 12, LIGHTGRAY);
 		DrawFPS(20, 740);
 		EndDrawing();
 	}

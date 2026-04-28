@@ -21,7 +21,7 @@ exercises all of it.
 | DONE   | 104 | Heightmap terrain                    |
 | DONE   | 105 | Terrain ray-pick                     |
 | DONE   | 106 | Unit entity & box rendering          |
-| TODO   | 107 | Unit movement on terrain surface     |
+| DONE   | 107 | Unit movement on terrain surface     |
 | TODO   | 108 | Box selection                        |
 | TODO   | 109 | Right-click single move order        |
 | TODO   | 110 | Shift-chained waypoint orders        |
@@ -35,6 +35,7 @@ exercises all of it.
 | TODO   | 118 | Shift-chained rally points           |
 | TODO   | 119 | Selected-unit chain splitting        |
 | TODO   | 120 | Phase 1 demo capstone                |
+| TODO   | 121 | raylib build flag manifest           |
 
 Counts and percentages should be derived by reading this table — not
 hard-coded into other documents.
@@ -52,10 +53,51 @@ cross-unit effects) so the pool can be adopted later without redesign.
 The architectural pattern is in `docs/004-architecture.md` under
 "Parallel batching pattern."
 
+Each issue's "Task pool integration" section names the priority its
+work would run at if the pool is adopted. Quick reference:
+
+| Priority | Class                          | Issues using it                      |
+| -------- | ------------------------------ | ------------------------------------ |
+| 1        | Most time-critical per-tick    | 112 projectile-arc, 113 damage merge |
+| 2        | Per-tick gameplay              | 107 movement, 111 LoS, 113 firing, 115 variance read |
+| 3        | Input handlers (one-shot)      | 108, 109, 110, 117 commit, 118, 119  |
+| 4        | Slow per-tick gameplay         | 113 HP regen                         |
+| 5        | Production timers              | 116 factory production               |
+| 6        | Live drag visual feedback      | 117/118/401 drag-move                |
+| 8        | Demo / stats sampling          | 120 stats sampler                    |
+| 9        | UI display refresh             | 116 production-percentage display    |
+
+Lower priority numbers run more often per the cycler pattern
+`1; 1,2; 1,2,3; ...; 1..10`. A priority-1 task gets scheduled
+roughly 9× as often as a priority-10 task. A priority-9 UI refresh
+will visibly happen, just not on every tick.
+
 When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-27 — 107 Unit movement on terrain
+
+`units_tick(dt)` in `src/050-units.c`: per-unit walk toward
+optional `target_xy` with **turn-before-walk** behavior. Unit yaw
+slews toward `atan2(dy, dx)` at `UNIT_TURN_RATE = 1.5 rad/s`, and
+forward speed scales by `cos²(angular_error)` so units can't
+glide sideways — they pivot in place when sharply off-axis and
+arc into their target on small course corrections. Z resnaps to
+the surface every step so units hug hills.
+
+Renderer wraps each cube in `rlPushMatrix` + `rlTranslatef` +
+`rlRotatef` around Z so the body actually rotates with yaw, plus
+a small dark "nose" cube on the +X face so rotation is visible
+even from above (a square is rotation-symmetric in silhouette).
+
+Temporary `T` key in `001-main.c` scatters all units to random
+points; flagged `// TODO(issue-109)` for removal when right-click
+orders land.
+
+Tunables landed via two rounds of feel testing — full log in
+`docs/balance-updates.md` (`UNIT_TURN_RATE`, `cos²` falloff).
 
 ### 2026-04-27 — 106 Unit entity & box rendering
 
