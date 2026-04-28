@@ -1,0 +1,16 @@
+# Build artifacts — produced by Makefile, not part of source.
+build/
+
+# Local temp directory — convention: tmp/ is project-scoped, ignored.
+# Note: issue 114 (coroutine pool) deferred whether to promote
+# tmp/test-coroutine-pool.c to a tracked location; until then it lives
+# here uncommitted by design.
+tmp/
+
+# Claude Code workspace settings — user-local, not project content.
+.claude/
+
+# Editor cruft.
+*.swp
+*.swo
+.DS_Store
