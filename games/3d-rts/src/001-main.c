@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "020-terrain.h"
 #include "030-camera.h"
 
 // GAME_DIR is provided by the Makefile so the binary knows where the
@@ -89,46 +90,6 @@ static void write_goodbye(const char *root)
 }
 // }}}
 
-// {{{ static void draw_ground_grid()
-// Draws a flat grid in the world's X/Y plane (Z=0) so the camera
-// has something to look at before terrain (issue 104) and units
-// (issue 106) exist. The Y=0 and X=0 lines are drawn darker so the
-// user can orient themselves while spinning the camera. This entire
-// function is scaffolding and goes away when terrain lands.
-static void draw_ground_grid(int slices, float spacing)
-{
-	int half = slices / 2;
-	Color light = (Color){ 200, 200, 200, 255 };
-	Color dark  = (Color){ 100, 100, 100, 255 };
-	for (int i = -half; i <= half; i++) {
-		Color c = (i == 0) ? dark : light;
-		// Lines parallel to X axis (constant Y)
-		DrawLine3D((Vector3){ -half * spacing, i * spacing, 0.0f },
-		           (Vector3){  half * spacing, i * spacing, 0.0f }, c);
-		// Lines parallel to Y axis (constant X)
-		DrawLine3D((Vector3){ i * spacing, -half * spacing, 0.0f },
-		           (Vector3){ i * spacing,  half * spacing, 0.0f }, c);
-	}
-}
-// }}}
-
-// {{{ static void draw_axis_markers()
-// Colored cubes at the origin and a unit out along +X/+Y/+Z, plus a
-// few spread-out markers so panning has visible effect. Helps the
-// user verify camera orientation while testing controls. Scaffolding,
-// removed when units land.
-static void draw_axis_markers(void)
-{
-	DrawCube((Vector3){ 0.0f, 0.0f, 0.5f }, 1.0f, 1.0f, 1.0f, GRAY);   // origin
-	DrawCube((Vector3){ 5.0f, 0.0f, 0.5f }, 1.0f, 1.0f, 1.0f, RED);    // +X
-	DrawCube((Vector3){ 0.0f, 5.0f, 0.5f }, 1.0f, 1.0f, 1.0f, GREEN);  // +Y
-	DrawCube((Vector3){ 0.0f, 0.0f, 5.0f }, 1.0f, 1.0f, 1.0f, BLUE);   // +Z
-	DrawCube((Vector3){ 15.0f,  10.0f, 1.0f }, 2.0f, 2.0f, 2.0f, ORANGE);
-	DrawCube((Vector3){-12.0f, -18.0f, 1.0f }, 2.0f, 2.0f, 2.0f, PURPLE);
-	DrawCube((Vector3){ 22.0f, -22.0f, 1.0f }, 2.0f, 2.0f, 2.0f, MAROON);
-}
-// }}}
-
 // {{{ int main()
 int main(void)
 {
@@ -146,6 +107,7 @@ int main(void)
 	InitWindow(1024, 768, "3d-rts");
 	SetTargetFPS(60);
 	camera_init();
+	terrain_init();
 
 	while (!WindowShouldClose()) {
 		camera_update(GetFrameTime());
@@ -154,11 +116,10 @@ int main(void)
 		ClearBackground((Color){ 30, 32, 40, 255 });
 
 		BeginMode3D(camera_get());
-		draw_ground_grid(64, 1.0f);
-		draw_axis_markers();
+		terrain_draw();
 		EndMode3D();
 
-		DrawText("3d-rts — issue 103 camera", 20, 20, 22, RAYWHITE);
+		DrawText("3d-rts — issue 104 terrain", 20, 20, 22, RAYWHITE);
 		DrawText("WASD pan  •  Q/E rotate  •  scroll zoom  •  mid-drag pan",
 		         20, 50, 14, LIGHTGRAY);
 		DrawText("close the window to exit", 20, 70, 12, LIGHTGRAY);
@@ -166,6 +127,10 @@ int main(void)
 		EndDrawing();
 	}
 
+	// Shut down GPU resources before CloseWindow tears down the GL
+	// context — UnloadMesh calls into rlgl which needs the context
+	// alive.
+	terrain_shutdown();
 	CloseWindow();
 
 	// Last: write goodbye.
