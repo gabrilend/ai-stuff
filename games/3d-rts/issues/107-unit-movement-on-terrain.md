@@ -340,3 +340,23 @@ This is one of the things "the snapshot" in the architecture doc
 is supposed to abstract; until 102's snapshot lands, the render
 thread reads the unit pool directly with this extrapolation
 inline.
+
+## Session resume — 2026-04-28
+
+**Blocked on 114** — implement priority-demotion-on-block in
+`libs/900-task-pool.c` first (114's 2026-04-28 addendum has the
+sketch and a test target). Then re-open this issue's Shape B
+transition with both behaviors baked in:
+
+1. `Unit` gains `last_update_t` (double, seconds).
+2. `units_set_target` resets `last_update_t = now` and spawns a
+   movement task at priority 2.
+3. Movement task action chain (per the Shape B section above)
+   reads `now`, computes elapsed, advances by `speed * elapsed
+   * cos²(err)`, writes `now` back, reschedules self.
+4. `units_render` extrapolates between task updates for visual
+   smoothness (snippet in the 2026-04-28 addendum).
+5. Remove the serial `units_tick` (and its call site in
+   `001-main.c`).
+
+**Do not start on 107 before 114's library change is in.**
