@@ -1,0 +1,122 @@
+// 001-main.c — entry point for the 3d-rts game.
+//
+// Issue 101 lands this file as the smallest program that proves the
+// build works end to end: open a raylib window, draw a status line so a
+// viewer can see the link succeeded, and exit cleanly when the window
+// closes. Subsequent issues add the simulation thread, the terrain, the
+// units, the projectiles, the factory, and the input queue.
+//
+// The mono-repo convention is that programs read input/ first and write
+// a goodbye to output/ last. Phase 1 has nothing to consume from
+// input/, so the read just enumerates and reports a count — the call
+// site is here so future phases can hook in without changing the
+// lifecycle. The reason this matters: lifecycle drift between programs
+// is one of the things the convention is trying to prevent, and
+// retrofitting input/ reads later means every program in the mono-repo
+// has slightly different startup behavior.
+
+#include <raylib.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// GAME_DIR is provided by the Makefile so the binary knows where the
+// project root is regardless of which directory it is launched from.
+// The fallback to "." exists only so a hand-compiled build (no Make)
+// still produces a runnable binary; the Makefile path is the supported
+// one.
+#ifndef GAME_DIR
+#define GAME_DIR "."
+#endif
+
+// {{{ static int count_input_files()
+// Counts the non-hidden entries in <root>/input. Returns -1 if the
+// directory cannot be opened — a fresh checkout might not yet have
+// the directory populated, and that is not an error worth aborting
+// the bootstrap over. Future phases will replace this with a real
+// input parse and may choose stricter behavior at that point.
+static int count_input_files(const char *root)
+{
+	char path[1024];
+	int n = snprintf(path, sizeof(path), "%s/input", root);
+	if (n < 0 || (size_t)n >= sizeof(path)) {
+		fprintf(stderr, "error: input path too long\n");
+		return -1;
+	}
+
+	DIR *d = opendir(path);
+	if (!d) {
+		return -1;
+	}
+
+	int count = 0;
+	struct dirent *e;
+	while ((e = readdir(d)) != NULL) {
+		if (e->d_name[0] == '.') {
+			continue;
+		}
+		count++;
+	}
+	closedir(d);
+	return count;
+}
+// }}}
+
+// {{{ static void write_goodbye()
+// Writes "goodbye\n" to <root>/output/goodbye.txt. Per mono-repo
+// convention this is the last thing the program does. A failure to
+// write is logged but not fatal — the program is already on its way
+// out the door at this point.
+static void write_goodbye(const char *root)
+{
+	char path[1024];
+	int n = snprintf(path, sizeof(path), "%s/output/goodbye.txt", root);
+	if (n < 0 || (size_t)n >= sizeof(path)) {
+		fprintf(stderr, "warning: goodbye path too long\n");
+		return;
+	}
+
+	FILE *f = fopen(path, "w");
+	if (f == NULL) {
+		fprintf(stderr, "warning: could not open %s for writing\n", path);
+		return;
+	}
+	fputs("goodbye\n", f);
+	fclose(f);
+}
+// }}}
+
+// {{{ int main()
+int main(void)
+{
+	const char *root = GAME_DIR;
+
+	// First: read input/. There is nothing to act on yet, but the
+	// call site is in place for future phases.
+	int input_count = count_input_files(root);
+	if (input_count < 0) {
+		fprintf(stderr, "note: input/ not readable at %s; proceeding\n", root);
+	} else {
+		printf("input/ files at %s: %d\n", root, input_count);
+	}
+
+	InitWindow(800, 600, "3d-rts");
+	SetTargetFPS(60);
+
+	while (!WindowShouldClose()) {
+		BeginDrawing();
+		ClearBackground(RAYWHITE);
+		DrawText("raylib OK — issue 101 bootstrap", 20, 20, 22, DARKGRAY);
+		DrawText("close the window to exit",        20, 56, 14, GRAY);
+		DrawFPS(20, 580);
+		EndDrawing();
+	}
+
+	CloseWindow();
+
+	// Last: write goodbye.
+	write_goodbye(root);
+	return 0;
+}
+// }}}
