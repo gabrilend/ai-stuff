@@ -21,7 +21,7 @@ exercises all of it.
 | DONE   | 104 | Heightmap terrain                    |
 | DONE   | 105 | Terrain ray-pick                     |
 | DONE   | 106 | Unit entity & box rendering          |
-| DONE   | 107 | Unit movement on terrain surface     |
+| TODO   | 107 | Unit movement on terrain surface (re-opened to transition to task pool) |
 | TODO   | 108 | Box selection                        |
 | TODO   | 109 | Right-click single move order        |
 | TODO   | 110 | Shift-chained waypoint orders        |
@@ -36,6 +36,7 @@ exercises all of it.
 | TODO   | 119 | Selected-unit chain splitting        |
 | TODO   | 120 | Phase 1 demo capstone                |
 | TODO   | 121 | raylib build flag manifest           |
+| TODO   | 122 | Task pool: game build integration    |
 
 Counts and percentages should be derived by reading this table — not
 hard-coded into other documents.
@@ -76,6 +77,43 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-28 — session-end note: iteration 4 of task pool pending
+
+Conversation in flight on a fourth iteration of the task pool
+design. Agreed scope:
+
+- Remove waiting queue + scanner + scanner_running flag.
+- ACT_BLOCK re-pushes at min(10, priority+1) on the ready queue.
+- pool_spawn_after kept; reimplemented by injecting a synthetic
+  check-deps-or-BLOCK first action.
+- New optional `promote_if_late` flag for self-rescheduling
+  periodics — auto-promote one priority level when wall-time
+  gap exceeds the priority's expected gap.
+
+Full design captured in 114's "Addendum 2026-04-28: priority
+demotion on block (iteration 4 design pending)" section; that
+section also lists the implementation steps. Issue 107's
+"Addendum (2026-04-28)" already gates its Shape B transition on
+this iteration landing first, so the work order is:
+**iteration 4 → 107's transition → 122 adoption.**
+
+Resume next session by promoting 114's pending section into a
+proper "Iteration 4" subsection under "Design evolution" and
+then doing the code change.
+
+### 2026-04-27 — 107 re-opened: transition to task pool
+
+107 shipped the same day as a serial implementation (entry below)
+and was re-opened immediately to transition to
+`libs/900-task-pool` per the user's "self-rescheduling for things
+like walking toward a location" framing. The serial implementation
+remains in 107's "Completion log" as the reference; the new
+"Re-opened: transition to task pool" section in 107 describes the
+Shape B (per-unit self-rescheduling) plan. Observable behavior is
+intended to be identical — the difference is structural (the sim
+thread no longer iterates the unit pool for movement; moving units
+own their own per-tick task chain).
 
 ### 2026-04-27 — 107 Unit movement on terrain
 
@@ -158,3 +196,17 @@ goodbye-write lifecycle is wired in at the bootstrap stage to spare
 later phases a retrofit. raylib is statically linked on this machine
 (`/usr/local/lib/libraylib.a`), which surprised nothing but is worth
 remembering when reading `ldd` output later.
+
+## Session resume — 2026-04-28
+
+Pick up here, in this order:
+
+1. **114** — implement priority-demotion-on-block per its
+   2026-04-28 addendum. Add `tests/007-...`. Library-only.
+2. **122** — close out (move to `completed/`, commit). Work is
+   done; only paperwork is pending.
+3. **107 (re-opened)** — Shape B transition with timestamp-based
+   motion. See 107's 2026-04-28 addendum.
+
+After 107 lands, the gameplay road resumes at **108 (box
+selection)**.

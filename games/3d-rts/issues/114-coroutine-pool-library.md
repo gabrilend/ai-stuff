@@ -514,3 +514,16 @@ update") or extrapolated for sub-task smoothness:
 Both ideas — demotion + timestamp motion — go in together when
 107's re-open transitions movement to the pool. See 107's "Shape
 B" section for the action chain that consumes them.
+
+## Session resume — 2026-04-28
+
+**Where to pick up:** the priority-demotion-on-block design is
+captured in the 2026-04-28 addendum above but **not yet
+implemented** in `libs/900-task-pool.c`. Implementation sketch is
+in that addendum. A matching test belongs at
+`tests/007-task-pool-block-demotes-priority.c`.
+
+**Why this is next:** issue 107 (re-opened) wants movement on the
+pool with this behavior in place from day one. Doing 114's
+library change first means 107's adoption inherits demotion
+semantics rather than retrofitting them later.
