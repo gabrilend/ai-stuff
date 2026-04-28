@@ -1,0 +1,20 @@
+# libs/sources — pinned versions of vendored libraries.
+#
+# Format, one library per non-comment line:
+#     <name>  <version>  <fetch-method>  <url-or-path>
+#
+#  - <name>          short identifier (also the directory under libs/)
+#  - <version>       upstream tag, commit, or local marker
+#  - <fetch-method>  "git-tag" | "git-commit" | "local"
+#  - <url-or-path>   git URL, or the literal "-" for local libs
+#
+# The build system reads this file as the source of truth for "what
+# version we want." If the version recorded in libs/<name>/.installed-
+# version differs from what is listed here, the fetch script re-checks
+# out and rebuilds. A content-hash check (libs/<name>/.installed-hash)
+# also catches manual edits to vendored sources between fetch and build.
+#
+# Lines starting with # are comments and are ignored. Blank lines too.
+
+raylib     5.5  git-tag  https://github.com/raysan5/raylib.git
+task-pool  0.0  local    -

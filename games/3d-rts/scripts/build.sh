@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
-# build.sh — Build the 3d-rts game.
+# build.sh — Build everything the 3d-rts game needs, then build the game.
 #
-# What it does, in plain words: compiles the source code into a
-# runnable game binary. It can be run from any directory. By default
-# it builds the project at the hard-coded path below; passing a
-# different path as the first argument builds *that* project instead
-# (the mono-repo's standard "DIR override" convention). Any further
-# arguments are forwarded to `make` (e.g. `bash build.sh "" run` to
-# build and launch using the default DIR).
+# What it does in plain words: ensures every vendored library is at
+# the version listed in libs/sources, builds those libraries if they
+# are out of date, then builds the game binary. Any extra arguments
+# are forwarded to `make` so a caller can do e.g.
+# `bash build.sh "" clean` (the empty first arg means "default DIR").
+#
+# Each step is its own script so the orchestration here stays a
+# linear list of steps — easy to read, easy to add to.
 
 set -euo pipefail
 
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/games/3d-rts}"
 shift || true
 
-# If the first argument was empty, treat as "use default DIR". This
-# pattern lets a caller forward extra make arguments without having
-# to repeat the directory.
+# Empty first arg means "use default DIR" — lets callers forward
+# extra make arguments without having to repeat the directory.
 if [[ -z "${DIR}" ]]; then
 	DIR="/mnt/mtwo/programming/ai-stuff/games/3d-rts"
 fi
 
+DEPS_DIR="${DIR}/scripts/deps"
+
+# Step 1: vendored raylib.
+bash "${DEPS_DIR}/fetch-raylib.sh"   "${DIR}"
+bash "${DEPS_DIR}/build-raylib.sh"   "${DIR}"
+
+# Step 2: in-tree task-pool (placeholder until threading work lands).
+bash "${DEPS_DIR}/build-task-pool.sh" "${DIR}"
+
+# Step 3: the game itself.
 make -C "${DIR}" "$@"
