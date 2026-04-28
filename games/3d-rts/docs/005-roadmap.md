@@ -70,3 +70,18 @@ walk a path but engage on sight), hold-position, possibly stance toggles
 primitive established in Phase 1.
 
 The roadmap will be revisited at the end of Phase 1 to refine these.
+
+## Phase 4 — Rendering polish (placeholder)
+
+Visual enhancements that do not change gameplay. Seeded with one
+issue today:
+
+- [401](../issues/401-point-light-system.md) — movable point light
+  system. Sits on top of the static sun-bake from 104. Requires a
+  custom shader since raylib's default is unlit.
+
+Future Phase 4 candidates: dynamic shadows, particle effects for
+projectile hits, post-processing for the unit-selection silhouette.
+None of these are commitments yet — Phase 4 will be revisited when
+the gameplay phases are deep enough for polish to be the obvious
+next move.
