@@ -15,7 +15,7 @@ exercises all of it.
 
 | Status | ID  | Title                                |
 | ------ | --- | ------------------------------------ |
-| TODO   | 101 | Build system & raylib bootstrap      |
+| DONE   | 101 | Build system & raylib bootstrap      |
 | TODO   | 102 | Threading model (pthreads)           |
 | TODO   | 103 | Window & 3D camera                   |
 | TODO   | 104 | Heightmap terrain                    |
@@ -57,4 +57,14 @@ line so future readers can see the path the project took.
 
 ## Retrospective log
 
-*(empty — no issues completed yet)*
+### 2026-04-27 — 101 Build system & raylib bootstrap
+
+Toolchain wired up: Makefile + `scripts/build.sh` + top-level `run`.
+Compiles `src/*.c` into `tmp/3d-rts` (which is a symlink to
+`/tmp/3d-rts/` on this machine — volatile scratch by design).
+`GAME_DIR` baked in via `-D` so the binary resolves `input/`/`output/`
+no matter where it is launched from. Mono-repo's input-read /
+goodbye-write lifecycle is wired in at the bootstrap stage to spare
+later phases a retrofit. raylib is statically linked on this machine
+(`/usr/local/lib/libraylib.a`), which surprised nothing but is worth
+remembering when reading `ldd` output later.

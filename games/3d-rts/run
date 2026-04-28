@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# run — Build (if needed) and launch the 3d-rts game.
+#
+# What it does in plain words: ensures the game binary is up to date
+# with the source, then runs the game. Can be invoked from any
+# directory. By default it operates on the hard-coded project root
+# below; pass an alternate root as the first positional argument to
+# operate on a different copy of the project (the mono-repo's standard
+# DIR-override convention).
+#
+# The build is incremental: `make all` does nothing if the binary is
+# already current, so the script is cheap to run repeatedly during
+# development. The binary lives in tmp/, which on this machine is a
+# symlink to /tmp/3d-rts/ — see the Makefile header for why.
+
+set -euo pipefail
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/games/3d-rts}"
+
+# Build first. If sources are unchanged, this is a no-op aside from
+# Make's own bookkeeping output.
+make -C "${DIR}" all
+
+# Launch the binary. Exec-replace this shell so signals (Ctrl-C) and
+# the exit code go directly to/from the game without an extra layer.
+exec "${DIR}/tmp/3d-rts"
