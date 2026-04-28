@@ -127,3 +127,97 @@ finds either form.
 - Headless launch (no `xvfb-run` available on the machine). Not a
   defect — the bootstrap is a graphical program and only needs to
   run with a display.
+
+## Addendum (2026-04-27): Vendored, deterministic build
+
+### Why
+
+The original 101 leaned on the system-installed raylib at
+`/usr/local/lib/libraylib.a`, which means a build is only as
+reproducible as the user's machine state. Two developers with
+different raylib versions can hit different bugs that look
+identical in our source code. The fix is to **vendor** raylib at a
+pinned upstream version, build it locally, and link against that
+local archive — so every developer compiles against the same code.
+
+pthreads cannot be vendored. It is not an independent library; on
+Linux it is part of glibc and ultimately the kernel's `clone()`
+syscall. We continue linking `-lpthread` from the system and
+document the fact in `docs/003-tech-stack.md`.
+
+The task-pool library at `libs/900-task-pool.{h,c}` (the threading
+work in flight elsewhere) is acknowledged but not built into the
+game yet — placeholder only.
+
+### What changes
+
+- A new manifest file `libs/sources` lists every vendored library
+  with its pinned version. The build system reads this as the
+  source of truth for "what version we want."
+- `scripts/deps/fetch-raylib.sh` clones (or fetches into an
+  existing checkout) raylib at the pinned tag and writes
+  `libs/raylib/.installed-version` plus a content hash
+  `libs/raylib/.installed-hash` of the source tree.
+- `scripts/deps/build-raylib.sh` rebuilds raylib if and only if
+  `libs/raylib/build-stamp` does not match the installed
+  version + hash. The hash check catches manual edits to vendored
+  sources that the version pin alone would not.
+- `scripts/build.sh` orchestrates: fetch deps → build deps →
+  build game.
+- `Makefile` links the local archive `libs/raylib/src/libraylib.a`
+  directly (no `-lraylib` lookup), with raylib's required system
+  libs (`-lGL -lpthread -lm -ldl -lrt -lX11`) named explicitly.
+- `scripts/deps/build-task-pool.sh` is a stub awaiting the
+  threading work landing in `libs/`.
+- `.gitignore` excludes `libs/raylib/` (vendored, not source).
+
+### Validation strategy
+
+For "as deterministic as we can make it":
+
+1. **Pinned version** — `libs/sources` tag is the single source
+   of truth. Bumping it triggers a refetch + rebuild.
+2. **Content hash** — every fetch records a SHA-256 of the
+   sorted source file tree. A `build-stamp` mismatch (different
+   version *or* different hash) triggers a rebuild.
+3. **No system raylib** — the linker is given an explicit archive
+   path, not `-lraylib`. The system copy is ignored even if
+   present.
+
+Things still outside our control: compiler version, host CPU
+flags, glibc version, X11 / OpenGL drivers. Those would need
+container or toolchain pinning to address — out of scope for
+this addendum.
+
+### What was implemented (Phase 5 build infra)
+
+- `libs/sources` — pinned-version manifest.
+- `scripts/deps/fetch-raylib.sh` — version-aware fetch +
+  source-hash record.
+- `scripts/deps/build-raylib.sh` — stamp-based skip/rebuild.
+- `scripts/deps/build-task-pool.sh` — placeholder stub.
+- Updated `scripts/build.sh` and `Makefile` accordingly.
+- `.gitignore` updated.
+- `docs/003-tech-stack.md` updated with vendoring notes.
+
+### What was tested
+
+- Cold build (no `libs/raylib/`): fetch + raylib build + game
+  build all run from a clean state.
+- Warm rebuild: `scripts/build.sh` after a successful cold build
+  is a no-op for raylib (build-stamp matches).
+- Source tampering: editing a raylib source file changes the
+  hash and triggers a raylib rebuild.
+- Version bump: changing the tag in `libs/sources` triggers a
+  refetch.
+- Resulting binary's `ldd` does not list `libraylib` — confirms
+  the local static archive is in use.
+
+### What was not tested
+
+- Cross-machine reproducibility (same source → same binary on a
+  different host). Compiler flags and host libc differences make
+  this very unlikely to be bit-identical even with vendored
+  raylib; out of scope for this addendum.
+- Behavior on a system without `git` available. Fetch fails
+  loudly — the user's mono-repo expects git.

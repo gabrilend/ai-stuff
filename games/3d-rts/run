@@ -8,18 +8,21 @@
 # operate on a different copy of the project (the mono-repo's standard
 # DIR-override convention).
 #
-# The build is incremental: `make all` does nothing if the binary is
-# already current, so the script is cheap to run repeatedly during
-# development. The binary lives in tmp/, which on this machine is a
-# symlink to /tmp/3d-rts/ — see the Makefile header for why.
+# The build is incremental: scripts/build.sh skips fetched deps and
+# `make all` does nothing if the game's sources are unchanged, so
+# the script is cheap to run repeatedly during development. The
+# binary lives in tmp/, which on this machine is a symlink to
+# /tmp/3d-rts/ — see the Makefile header for why.
 
 set -euo pipefail
 
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/games/3d-rts}"
 
-# Build first. If sources are unchanged, this is a no-op aside from
-# Make's own bookkeeping output.
-make -C "${DIR}" all
+# Build via scripts/build.sh so a fresh checkout (no vendored deps
+# yet) is handled in one shot. On a warm tree this is the same
+# amount of work as `make all` plus a couple of stat() calls for
+# the dep stamps.
+bash "${DIR}/scripts/build.sh" "${DIR}" all
 
 # Launch the binary. Exec-replace this shell so signals (Ctrl-C) and
 # the exit code go directly to/from the game without an extra layer.

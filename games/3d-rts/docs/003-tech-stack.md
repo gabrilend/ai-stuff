@@ -30,11 +30,26 @@ Specific uses:
 
 - `rlgl`-level access only when a built-in primitive is missing.
 - `Camera3D` for the player's view.
-- `Image`/`Mesh` for the heightmap (raylib has heightmap helpers — use them).
-- `DrawCube`/`DrawCubeWires` for units, `DrawCylinderEx` for javelins.
+- `Image`/`Mesh` for the heightmap. raylib's `GenMeshHeightmap`
+  assumes Y-up and so is **not** used; the mesh is built by hand.
+- `DrawCube`/`DrawCubeWires` for units, `DrawCylinderEx` for
+  javelins.
 
 If raylib is missing something we need (e.g. picking a point on a
 heightmap from a screen ray), we write a small helper, not a fork.
+
+raylib is **vendored**: the source is fetched from upstream at the
+version pinned in `libs/sources` and built locally into
+`libs/raylib/src/libraylib.a`. Linking is against that explicit
+archive path — never `-lraylib`, which would risk picking up a
+system copy at a different version. The fetch + build flow is
+orchestrated by `scripts/build.sh` calling
+`scripts/deps/fetch-raylib.sh` and `scripts/deps/build-raylib.sh`.
+
+Why vendor: same source on every machine means every developer hits
+the same raylib bugs (or doesn't), so misbehaviors are about *our*
+code, not about whose system raylib is which. See the addendum on
+issue 101 for the full validation strategy.
 
 ## Threading: pthreads
 
@@ -49,6 +64,19 @@ because they shape every other decision:
 - Mutexes guard the snapshot publication and the input queue. Nothing
   else needs locks if the boundary is respected.
 
+**pthreads cannot be vendored.** It is part of glibc on Linux —
+`libpthread.so` ships with the system C library and ultimately
+delegates to the kernel's `clone()` syscall. There is no upstream
+"pthreads project" to pin, so we link `-lpthread` from the system
+and treat the system libc as part of the platform. raylib is
+vendored; pthreads cannot be.
+
+The in-tree task-pool library (under `libs/`, currently the
+threading work in flight) is *additional* to pthreads, not a
+replacement for it. Its build is wired up in
+`scripts/deps/build-task-pool.sh` (placeholder until the source
+stabilises).
+
 ## Build
 
 A hand-written `Makefile` is the primary build. It must:
@@ -57,12 +85,15 @@ A hand-written `Makefile` is the primary build. It must:
   override mechanism so the file works when invoked from any directory.
 - Build, clean, run, and run-with-debug targets.
 - Compile with `-Wall -Wextra -Wpedantic`, treat warnings seriously, and
-  link against raylib and pthread.
-- Place objects in a separate `build/` directory so `src/` stays clean.
+  link against the **vendored** raylib archive (explicit path) plus
+  the system `-lpthread -lm -lGL -ldl -lrt -lX11`.
+- Place build artifacts in `tmp/` (which is a symlink to volatile
+  scratch storage) so `src/` stays clean and a reboot is a hard reset.
 
-The Phase 1 build script lives at `scripts/build.sh` and is itself a
-thin wrapper around `make` that respects the same `${DIR}` convention
-required of all scripts in this mono-repo.
+`scripts/build.sh` is the entry point: it runs each dependency
+fetch + build in turn, then invokes `make`. Each step lives in its
+own script under `scripts/deps/` so the orchestration in
+`build.sh` is a flat list — easy to read, easy to extend.
 
 ## What we do not use
 
