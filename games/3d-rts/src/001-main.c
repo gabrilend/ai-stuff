@@ -23,6 +23,7 @@
 
 #include "020-terrain.h"
 #include "030-camera.h"
+#include "050-units.h"
 
 // GAME_DIR is provided by the Makefile so the binary knows where the
 // project root is regardless of which directory it is launched from.
@@ -108,6 +109,7 @@ int main(void)
 	SetTargetFPS(60);
 	camera_init();
 	terrain_init();
+	units_init();
 
 	while (!WindowShouldClose()) {
 		camera_update(GetFrameTime());
@@ -127,6 +129,7 @@ int main(void)
 
 		BeginMode3D(camera_get());
 		terrain_draw();
+		units_render();
 		if (pick_ok) {
 			// A flat wireframe circle on the ground plus a tiny
 			// floating sphere makes the pick easy to see at any
@@ -144,7 +147,7 @@ int main(void)
 		}
 		EndMode3D();
 
-		DrawText("3d-rts — issue 105 terrain raypick", 20, 20, 22, RAYWHITE);
+		DrawText("3d-rts — issue 106 units", 20, 20, 22, RAYWHITE);
 		DrawText("WASD pan  •  Q/E rotate  •  scroll zoom  •  mid-drag pan",
 		         20, 50, 14, LIGHTGRAY);
 		DrawText("close the window to exit", 20, 70, 12, LIGHTGRAY);
