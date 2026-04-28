@@ -18,7 +18,7 @@ exercises all of it.
 | DONE   | 101 | Build system & raylib bootstrap      |
 | TODO   | 102 | Threading model (pthreads)           |
 | DONE   | 103 | Window & 3D camera                   |
-| TODO   | 104 | Heightmap terrain                    |
+| DONE   | 104 | Heightmap terrain                    |
 | TODO   | 105 | Terrain ray-pick                     |
 | TODO   | 106 | Unit entity & box rendering          |
 | TODO   | 107 | Unit movement on terrain surface     |
@@ -56,6 +56,19 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-27 — 104 Heightmap terrain
+
+`src/020-terrain.{h,c}` — 64×64 tile heightmap, indexed mesh built
+by hand (raylib's `GenMeshHeightmap` is Y-up). Procedural noise is
+three sine octaves with phase offsets; per-vertex lighting against
+a fixed sun direction baked into vertex colors at build time. The
+result is readable shaded terrain even though raylib's default
+shader is unlit. `terrain_height_at` (bilinear) and
+`terrain_segment_blocked` (half-tile sampling) declared but not yet
+exercised — 105 and 111 are the first callers. Caveat for future:
+any *dynamic* lighting needs a custom shader; tracked as new issue
+401 in a freshly-added Phase 4 (rendering polish).
 
 ### 2026-04-27 — 103 Window & 3D camera
 

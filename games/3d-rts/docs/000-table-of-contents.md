@@ -20,9 +20,10 @@ documents here when you create them.
 ## issues/
 
 - `phase-1-progress.md` — current Phase 1 status.
-- `101-…` through `119-…` — Phase 1 work items.
-- `completed/` — finished issues, preserved for reconstructing the project
-  from issues alone.
+- `101-…` through `120-…` — Phase 1 work items.
+- `401-point-light-system.md` — Phase 4 seed issue (rendering polish).
+- `completed/` — finished issues, preserved for reconstructing the
+  project from issues alone.
 
 ## libs/
 
