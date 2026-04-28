@@ -19,7 +19,7 @@ exercises all of it.
 | TODO   | 102 | Threading model (pthreads)           |
 | DONE   | 103 | Window & 3D camera                   |
 | DONE   | 104 | Heightmap terrain                    |
-| TODO   | 105 | Terrain ray-pick                     |
+| DONE   | 105 | Terrain ray-pick                     |
 | TODO   | 106 | Unit entity & box rendering          |
 | TODO   | 107 | Unit movement on terrain surface     |
 | TODO   | 108 | Box selection                        |
@@ -56,6 +56,17 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-27 — 105 Terrain ray-pick
+
+`terrain_pick(camera, mouse, out)` in `src/020-terrain.{h,c}`:
+ray-march the cursor ray at 0.5-unit steps, binary-search the
+above→below crossing, snap final Z to `terrain_height_at`. Miss is
+the bool return value, not a sentinel in `*out`. Debug marker
+(yellow circle + small sphere) wired into `001-main.c` and tracks
+the cursor smoothly. Note for later: raylib's `DrawCircle3D` draws
+in local X/Y, which is the ground in our Z-up world — no rotation
+needed; rotating around X tips the circle onto its edge.
 
 ### 2026-04-27 — 104 Heightmap terrain
 

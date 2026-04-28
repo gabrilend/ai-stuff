@@ -115,11 +115,36 @@ int main(void)
 		BeginDrawing();
 		ClearBackground((Color){ 30, 32, 40, 255 });
 
+		// Cursor-on-terrain pick. Recomputed every frame because the
+		// camera and mouse may both be moving; the cost is one
+		// ray-march of the heightmap, which is cheap. Result is
+		// rendered as a small wireframe disc on the surface so the
+		// pick is visible. Future issues (selection, move orders,
+		// factory placement, rally drag) all reuse this same pick.
+		Vector3 pick_pt;
+		bool pick_ok = terrain_pick(camera_get(), GetMousePosition(),
+		                             &pick_pt);
+
 		BeginMode3D(camera_get());
 		terrain_draw();
+		if (pick_ok) {
+			// A flat wireframe circle on the ground plus a tiny
+			// floating sphere makes the pick easy to see at any
+			// camera angle. raylib's DrawCircle3D draws in the
+			// local X/Y plane, which is the ground in our Z-up
+			// world — so no rotation is needed (axis ignored when
+			// angle is 0). The 0.05 Z lift avoids z-fighting with
+			// the terrain surface.
+			DrawCircle3D((Vector3){ pick_pt.x, pick_pt.y, pick_pt.z + 0.05f },
+			             0.5f,
+			             (Vector3){ 0.0f, 0.0f, 1.0f },
+			             0.0f,
+			             YELLOW);
+			DrawSphereWires(pick_pt, 0.15f, 6, 6, YELLOW);
+		}
 		EndMode3D();
 
-		DrawText("3d-rts — issue 104 terrain", 20, 20, 22, RAYWHITE);
+		DrawText("3d-rts — issue 105 terrain raypick", 20, 20, 22, RAYWHITE);
 		DrawText("WASD pan  •  Q/E rotate  •  scroll zoom  •  mid-drag pan",
 		         20, 50, 14, LIGHTGRAY);
 		DrawText("close the window to exit", 20, 70, 12, LIGHTGRAY);

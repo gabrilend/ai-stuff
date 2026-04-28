@@ -28,4 +28,12 @@ void terrain_draw(void);
 float terrain_height_at(float x, float y);
 bool  terrain_segment_blocked(Vector3 a, Vector3 b);
 
+// Casts the cursor ray (camera through screen-space mouse) against
+// the heightmap. On hit, fills *out with a point lying on the
+// terrain surface and returns true. On miss (ray points away from
+// the terrain or escapes the world), returns false and leaves *out
+// untouched. The "miss" channel is explicitly the return value, not
+// a sentinel inside *out — see issue 105 for why.
+bool  terrain_pick(Camera3D camera, Vector2 mouse, Vector3 *out);
+
 #endif

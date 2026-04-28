@@ -264,6 +264,74 @@ float terrain_height_at(float x, float y)
 }
 // }}}
 
+// {{{ bool terrain_pick()
+// March the cursor ray through the world and return the first point
+// where it crosses below the heightmap. Strategy:
+//   1. Walk the ray in fixed steps. At each step decide whether the
+//      current sample is above or below terrain.
+//   2. The instant a sample flips from above to below, the crossing
+//      is between (prev, cur) — binary-search to refine.
+//   3. After the search, snap the Y/Z to the terrain so the result
+//      is *exactly* on the surface (the search converges close but
+//      not perfectly because of the bilinear interpolation).
+//
+// The march stops at PICK_MAX_DIST, which is chosen comfortably past
+// the camera's max distance plus the world's diagonal so a ray
+// pointing into the map always finds the surface before the cap.
+// A ray pointing away from the world (cursor above the horizon)
+// hits the cap with no crossing and the function returns false —
+// which is the correct "miss" signal.
+bool terrain_pick(Camera3D camera, Vector2 mouse, Vector3 *out)
+{
+	const float PICK_STEP     = 0.5f;
+	const float PICK_MAX_DIST = 500.0f;
+	const int   REFINE_ITERS  = 24;
+
+	Ray r = GetMouseRay(mouse, camera);
+
+	Vector3 prev    = r.position;
+	float   prev_h  = terrain_height_at(prev.x, prev.y);
+	bool    prev_up = prev.z >= prev_h;
+
+	for (float t = PICK_STEP; t < PICK_MAX_DIST; t += PICK_STEP) {
+		Vector3 cur = {
+			r.position.x + r.direction.x * t,
+			r.position.y + r.direction.y * t,
+			r.position.z + r.direction.z * t,
+		};
+		float cur_h  = terrain_height_at(cur.x, cur.y);
+		bool  cur_up = cur.z >= cur_h;
+
+		if (prev_up && !cur_up) {
+			// Crossed. Binary-search between prev (above) and cur
+			// (below) for the X/Y where ray.z meets terrain.z.
+			Vector3 lo = prev;
+			Vector3 hi = cur;
+			for (int i = 0; i < REFINE_ITERS; i++) {
+				Vector3 mid = {
+					(lo.x + hi.x) * 0.5f,
+					(lo.y + hi.y) * 0.5f,
+					(lo.z + hi.z) * 0.5f,
+				};
+				float h = terrain_height_at(mid.x, mid.y);
+				if (mid.z >= h) lo = mid;
+				else            hi = mid;
+			}
+			float fx = (lo.x + hi.x) * 0.5f;
+			float fy = (lo.y + hi.y) * 0.5f;
+			out->x = fx;
+			out->y = fy;
+			out->z = terrain_height_at(fx, fy);
+			return true;
+		}
+
+		prev    = cur;
+		prev_up = cur_up;
+	}
+	return false;
+}
+// }}}
+
 // {{{ bool terrain_segment_blocked()
 bool terrain_segment_blocked(Vector3 a, Vector3 b)
 {
