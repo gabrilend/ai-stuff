@@ -20,19 +20,27 @@
 #define UNITS_MAX 256
 
 typedef struct Unit {
-	int     id;        // pool index, stable for the unit's lifetime
+	int     id;          // pool index, stable for the unit's lifetime
 	bool    alive;
 	uint8_t team;
-	Vector3 position;  // x,y world; z is terrain_height_at(x,y), kept in sync
-	float   yaw;       // facing direction in radians
+	Vector3 position;    // x,y world; z is terrain_height_at(x,y), kept in sync
+	float   yaw;         // facing direction in radians
+	bool    has_target;
+	Vector2 target_xy;   // when has_target, walk toward this point
 } Unit;
 
 void units_init(void);
+void units_tick(float dt);
 void units_render(void);
 
 // Returns the new unit's id on success, -1 if the pool is full.
 // Z is set from terrain_height_at(x, y) at spawn time.
 int  units_spawn(uint8_t team, float x, float y, float yaw);
+
+// Assigns a movement target. The unit walks toward (target.x, target.y)
+// at UNIT_SPEED until within UNIT_REACH_RADIUS, at which point the
+// target is cleared. No-op for invalid id or dead units.
+void units_set_target(int id, Vector2 target);
 
 // Read-only access for queries (LoS, combat targeting, selection,
 // etc.). Pointer into the pool, valid for the lifetime of the
