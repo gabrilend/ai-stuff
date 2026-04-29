@@ -24,11 +24,14 @@
 #include "050-units.h"
 
 #include <math.h>
+#include <pthread.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <rlgl.h>
 
 #include "020-terrain.h"
+#include "040-game-pool.h"
 
 // Local conversion to avoid including all of raymath.h just for one
 // macro. atan2f produces radians, raylib's rlRotatef expects degrees.
@@ -73,6 +76,20 @@ static struct {
 	int  count;
 } g_units;
 
+// Serializes the read-decide-spawn sequence around movement task
+// lifecycle. Without it there is a race between `units_set_target`
+// (main thread) and the movement task's reschedule action (worker
+// thread) for the `movement_task_id` and `has_target` fields:
+//
+//   - Main: sees movement_task_id != NONE, skips spawn, sets has_target=true.
+//   - Task: was about to clear movement_task_id (saw has_target=false
+//     a moment ago), then clears it. Unit ends up has_target=true with
+//     movement_task_id = NONE → stalled.
+//
+// One process-wide mutex is fine at Phase 1's unit count. Per-unit
+// mutexes are an obvious upgrade if it ever shows up in a profile.
+static pthread_mutex_t g_movement_mu = PTHREAD_MUTEX_INITIALIZER;
+
 // {{{ static int alloc_slot()
 // First dead slot scan. Linear because UNITS_MAX is small (256) and
 // the pool is sparse but rarely full; a free-list would be premature
@@ -114,105 +131,162 @@ int units_spawn(uint8_t team, float x, float y, float yaw)
 	int slot = alloc_slot();
 	if (slot < 0) return -1;
 	Unit *u = &g_units.pool[slot];
-	u->id         = slot;
-	u->alive      = true;
-	u->team       = team;
-	u->position.x = x;
-	u->position.y = y;
-	u->position.z = terrain_height_at(x, y);
-	u->yaw        = yaw;
-	u->has_target = false;
+	u->id               = slot;
+	u->alive            = true;
+	u->team             = team;
+	u->position.x       = x;
+	u->position.y       = y;
+	u->position.z       = terrain_height_at(x, y);
+	u->yaw              = yaw;
+	u->has_target       = false;
+	u->last_update_t    = 0.0;
+	u->movement_task_id = TASK_ID_NONE;
 	if (slot >= g_units.count) g_units.count = slot + 1;
 	return slot;
 }
 // }}}
 
+// ─── movement task (Shape B: per-unit self-rescheduling) ────────────
+//
+// Each moving unit owns a movement task that runs the chain
+// [move_advance, move_reschedule]. The advance action does one
+// timestamp-based step of motion; the reschedule action either
+// spawns the next iteration (if the unit still has a target) or
+// clears `movement_task_id` (if it doesn't).
+//
+// Args plumbing: each action's `args` is the unit id stuffed into a
+// void* via intptr_t, so there is no per-task heap allocation.
+//
+// Concurrency: g_movement_mu protects movement_task_id + has_target
+// transitions in `units_set_target` and `move_reschedule`. Position
+// reads from the renderer are racy but visually tolerable; the
+// snapshot pattern in 102 will make them not-racy later.
+
+// Forward decl so move_reschedule can spawn another iteration whose
+// actions[] points at these names.
+static action_result_t move_advance   (task_ctx_t *ctx);
+static action_result_t move_reschedule(task_ctx_t *ctx);
+
+// {{{ static void spawn_movement_task()
+// Spawn a fresh movement task for unit `id`. Caller holds
+// g_movement_mu. Updates u->movement_task_id with the new GUID
+// (or TASK_ID_NONE on failure — pool unavailable, registry full).
+static void spawn_movement_task(int id, task_pool_t *pool)
+{
+	static action_fn_t acts[2] = { move_advance, move_reschedule };
+	void *args[2] = { (void *)(intptr_t)id, (void *)(intptr_t)id };
+	g_units.pool[id].movement_task_id = pool_spawn(pool, acts, args, 2,
+	                                                /*priority=*/2);
+}
+// }}}
+
+// {{{ static action_result_t move_advance()
+// One timestamp-based step. Reads now → elapsed since
+// last_update_t → advances yaw + position by speed*elapsed*cos²(err).
+// Always returns ACT_ADVANCE so move_reschedule runs and handles
+// movement_task_id bookkeeping; an arrival just sets has_target=false
+// and lets reschedule do the cleanup.
+static action_result_t move_advance(task_ctx_t *ctx)
+{
+	int id = (int)(intptr_t)ctx->args;
+	if (id < 0 || id >= UNITS_MAX) return ACT_ADVANCE;
+	Unit *u = &g_units.pool[id];
+	if (!u->alive)      return ACT_ADVANCE;
+	if (!u->has_target) return ACT_ADVANCE;
+
+	double now = GetTime();
+	float  dt  = (float)(now - u->last_update_t);
+	if (dt < 0.0f) dt = 0.0f;
+	u->last_update_t = now;
+
+	float dx = u->target_xy.x - u->position.x;
+	float dy = u->target_xy.y - u->position.y;
+	float dist_sq = dx * dx + dy * dy;
+
+	if (dist_sq <= UNIT_REACH_RADIUS_SQ) {
+		u->has_target = false;
+		return ACT_ADVANCE;
+	}
+
+	float desired_yaw = atan2f(dy, dx);
+	float ang_err     = desired_yaw - u->yaw;
+	if (ang_err >  UNITS_PI) ang_err -= 2.0f * UNITS_PI;
+	if (ang_err < -UNITS_PI) ang_err += 2.0f * UNITS_PI;
+
+	float max_yaw_step = UNIT_TURN_RATE * dt;
+	float yaw_step     = ang_err;
+	if (yaw_step >  max_yaw_step) yaw_step =  max_yaw_step;
+	if (yaw_step < -max_yaw_step) yaw_step = -max_yaw_step;
+	u->yaw += yaw_step;
+	if (u->yaw >  UNITS_PI) u->yaw -= 2.0f * UNITS_PI;
+	if (u->yaw < -UNITS_PI) u->yaw += 2.0f * UNITS_PI;
+
+	// Squared-cosine alignment falloff for the "tanks/people" feel
+	// (kept identical to the as-shipped serial version; tuning log
+	// is in docs/balance-updates.md).
+	float align = cosf(ang_err);
+	if (align < 0.0f) align = 0.0f;
+	align = align * align;
+	float dist = sqrtf(dist_sq);
+	float step = UNIT_SPEED * dt * align;
+	if (step > dist) step = dist;
+
+	float fx = cosf(u->yaw);
+	float fy = sinf(u->yaw);
+	u->position.x += fx * step;
+	u->position.y += fy * step;
+	u->position.z  = terrain_height_at(u->position.x, u->position.y);
+
+	return ACT_ADVANCE;
+}
+// }}}
+
+// {{{ static action_result_t move_reschedule()
+// Decide whether to spawn the next iteration or terminate the
+// movement chain. Holds g_movement_mu so the
+// "check has_target then spawn-or-clear movement_task_id" sequence
+// is atomic against units_set_target on the main thread.
+static action_result_t move_reschedule(task_ctx_t *ctx)
+{
+	int id = (int)(intptr_t)ctx->args;
+	if (id < 0 || id >= UNITS_MAX) return ACT_DONE;
+	Unit *u = &g_units.pool[id];
+
+	pthread_mutex_lock(&g_movement_mu);
+	if (u->alive && u->has_target) {
+		spawn_movement_task(id, ctx->pool);
+	} else {
+		u->movement_task_id = TASK_ID_NONE;
+	}
+	pthread_mutex_unlock(&g_movement_mu);
+	return ACT_DONE;
+}
+// }}}
+
 // {{{ void units_set_target()
+// Set or update a unit's movement target. Idempotent w.r.t. the
+// movement task — if a task is already alive for this unit, just
+// updating target_xy is enough; the running task's next move_advance
+// reads target_xy fresh and redirects smoothly.
 void units_set_target(int id, Vector2 target)
 {
 	if (id < 0 || id >= UNITS_MAX) return;
 	Unit *u = &g_units.pool[id];
 	if (!u->alive) return;
-	u->target_xy  = target;
-	u->has_target = true;
-}
-// }}}
 
-// {{{ void units_tick()
-// Per-tick movement. Each alive unit with a target:
-//   1. Computes the desired yaw to face the target (atan2 of the
-//      delta vector).
-//   2. Rotates yaw toward the desired yaw at most UNIT_TURN_RATE
-//      radians per tick.
-//   3. Moves forward in its current facing direction with speed
-//      scaled by cos(remaining_angular_error). This is the
-//      "tanks/people" feel: a unit aimed dead-on moves at full
-//      speed, a sideways unit barely moves, a backwards unit (>90°
-//      off) doesn't move at all (cos clamped to 0). Naturally
-//      gives a "rotate first, then walk" pacing without needing a
-//      hard threshold.
-//   4. Snaps Z to the surface so the unit hugs hills.
-//
-// Each unit's update reads/writes only its own slot —
-// slice-disjoint per the architecture doc. Adopting the task pool
-// later is a `for(slice) pool_spawn(...)` swap, no redesign.
-void units_tick(float dt)
-{
-	for (int i = 0; i < g_units.count; i++) {
-		Unit *u = &g_units.pool[i];
-		if (!u->alive)      continue;
-		if (!u->has_target) continue;
-
-		float dx = u->target_xy.x - u->position.x;
-		float dy = u->target_xy.y - u->position.y;
-		float dist_sq = dx * dx + dy * dy;
-
-		if (dist_sq <= UNIT_REACH_RADIUS_SQ) {
-			u->has_target = false;
-			continue;
-		}
-
-		// Desired heading and signed shortest-path angular error.
-		// Both atan2 results are in (-π, π], so the raw difference
-		// is in (-2π, 2π); a single 2π fold brings it to (-π, π].
-		float desired_yaw = atan2f(dy, dx);
-		float ang_err     = desired_yaw - u->yaw;
-		if (ang_err >  UNITS_PI) ang_err -= 2.0f * UNITS_PI;
-		if (ang_err < -UNITS_PI) ang_err += 2.0f * UNITS_PI;
-
-		// Apply turn, capped by the per-tick rate.
-		float max_yaw_step = UNIT_TURN_RATE * dt;
-		float yaw_step     = ang_err;
-		if (yaw_step >  max_yaw_step) yaw_step =  max_yaw_step;
-		if (yaw_step < -max_yaw_step) yaw_step = -max_yaw_step;
-		u->yaw += yaw_step;
-		if (u->yaw >  UNITS_PI) u->yaw -= 2.0f * UNITS_PI;
-		if (u->yaw < -UNITS_PI) u->yaw += 2.0f * UNITS_PI;
-
-		// Forward speed scales with how aligned we already are.
-		// Squared cosine (rather than plain cos) makes the falloff
-		// sharper: 30° off = 75% speed, 45° = 50%, 60° = 25%, 90° =
-		// 0. This is what gives the "tanks/people" feel — units
-		// can't move well until they've nearly finished turning.
-		// Plain cos felt too forgiving; logged in
-		// docs/balance-updates.md.
-		float align = cosf(ang_err);
-		if (align < 0.0f) align = 0.0f;
-		align = align * align;
-		float dist = sqrtf(dist_sq);
-		float step = UNIT_SPEED * dt * align;
-		if (step > dist) step = dist;
-
-		// Move along current heading, not along the target vector.
-		// While turning, current heading is not the target vector,
-		// so the unit traces a curve toward its destination — the
-		// tank-style arc-in motion.
-		float fx = cosf(u->yaw);
-		float fy = sinf(u->yaw);
-		u->position.x += fx * step;
-		u->position.y += fy * step;
-		u->position.z  = terrain_height_at(u->position.x, u->position.y);
+	pthread_mutex_lock(&g_movement_mu);
+	u->target_xy     = target;
+	u->has_target    = true;
+	// Reset the timestamp so the first step under the new target
+	// isn't "all the time since the last walk." Without this, a unit
+	// idle for ten seconds and then given a target would teleport
+	// half its first step.
+	u->last_update_t = GetTime();
+	if (u->movement_task_id == TASK_ID_NONE) {
+		task_pool_t *pool = game_pool();
+		if (pool) spawn_movement_task(id, pool);
 	}
+	pthread_mutex_unlock(&g_movement_mu);
 }
 // }}}
 

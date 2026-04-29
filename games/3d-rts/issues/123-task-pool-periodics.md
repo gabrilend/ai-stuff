@@ -2,12 +2,16 @@
 
 ## Status
 
-**Future work.** Captured during the iteration-4 design conversation
-(2026-04-28); not part of iter4 itself. The original `promote_if_late`
-flag idea on `pool_spawn` was deferred to here because the library
-role wasn't yet clear and no real caller exists. Once issue 107's
-movement task or another periodic shows what it actually needs, this
-issue defines the interface.
+**Superseded by issue 127.** Captured during the iter4 design
+conversation (2026-04-28). After 107's snap problem surfaced
+(2026-04-29), the design pivoted from a dedicated "periodics"
+abstraction to a more general **frame-ring scheduling** model
+(issue 127). Periodics fall out for free under that design as a
+one-line idiom: a self-rescheduling task calls
+`pool_spawn_in(N, ...)` in its reschedule action to run every N
+frames.
+
+The remainder of this file is preserved as design history.
 
 ## Why frames, not microseconds
 
