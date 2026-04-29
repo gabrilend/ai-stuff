@@ -240,6 +240,66 @@ Why this iteration shipped:
    copy of itself) becomes a one-line idiom for per-frame update
    loops without holding a worker hostage.
 
+### Iteration 4 — drop the scanner; demote on block (built, then superseded by 4.5)
+
+Removed the waiting queue, scanner task, and `scanner_running` flag.
+ACT_BLOCK no longer parked tasks on a separate queue; instead it
+demoted the running task one priority level and re-pushed onto the
+ready queue. Cross-task waits became user-driven via
+`pool_result_slot` reads inside actions paired with ACT_BLOCK,
+removing `deps[]` / `n_deps` from `pool_spawn`'s signature. The
+queue data structure changed from linked-list to array-per-priority
+with swap-with-last splice (O(1) removal from any position via a
+per-task `queue_position` field; no `q_prev` / `q_next`).
+Result-slot semantics gained a parallel `result_filled[]` bool
+array exposed via a new `slot_status_t` enum, so callers can
+distinguish "action k hasn't run" from "action k ran and chose to
+write NULL." `task_pool_t *pool` and the task's current `priority`
+were added to `task_ctx_t`.
+
+Why this iteration shipped (briefly): one mechanism instead of
+two (ready queue only, no waiting queue), one mutex on the hot
+path, no scanner race window, no global polling structure.
+
+Why this iteration was superseded: tests showed that a task
+demote-and-respinning at priority 10 in an otherwise-idle pool
+burned tens of thousands of retry cycles during another task's
+50ms work window — correct behavior, but real CPU and `qlk`
+contention.
+
+### Iteration 4.5 — per-task waiters list (built, shipped)
+
+Each task gained a `waiters[]` list and a `TASK_PARKED` state.
+ACT_BLOCK now parks the task on its blocker's waiters list (zero
+CPU until woken). When the blocker reaches DONE, the worker walks
+the waiters list and pushes each entry back to the ready queue.
+Promote-on-blocked-target stays (promoting B means parked A
+unparks sooner). Demote-on-block is **deleted** — parked tasks
+consume no CPU, so there's no cost to control. ACT_BLOCK's
+`block_on` field becomes a hard contract: it must be a valid id
+of a non-self task, or the library aborts with a diagnostic. Lock
+order across all sites is normalized to `reg_lk → qlk`. The state
+field becomes atomic to eliminate cross-lock data races.
+
+Why this iteration shipped:
+
+1. Zero polling. A parked task is in no queue and uses no CPU;
+   tests 002/003 went from ~100k BLOCK retries to exactly 1.
+2. No `qlk` contention from spinners.
+3. Distributed event-driven wake without re-introducing a global
+   waiting queue or scanner. Each task self-services its own
+   waiters on completion; surface area smaller than iter3's
+   scanner.
+4. Hard ACT_BLOCK contract pushes "I'm blocked but don't know on
+   what" patterns into compile/runtime errors rather than silent
+   spinning fallbacks.
+5. Demote logic deleted alongside the spin path; one fewer
+   mutable invariant on the task struct.
+
+Test 009 (50 tasks parking on one blocker) verifies the
+many-waiter burst path: all 50 waiters wake when the blocker
+finishes; no waiter is dropped or duplicated.
+
 ## Final delivered design
 
 The library is at `libs/900-task-pool.{h,c,info.md}`. Major
@@ -527,3 +587,259 @@ in that addendum. A matching test belongs at
 pool with this behavior in place from day one. Doing 114's
 library change first means 107's adoption inherits demotion
 semantics rather than retrofitting them later.
+
+## Iteration 4 — locked scope (2026-04-28, ready to implement)
+
+After several rounds of design conversation, the iteration-4 scope
+diverged meaningfully from the original 2026-04-28 addendum. The
+addendum above remains for design history; this section is the
+authoritative scope at implementation time.
+
+### Behavioral changes
+
+1. **Delete** the waiting queue, scanner task, `scanner_running`
+   flag, `wlk` mutex, and `TASK_WAITING` state. The whole
+   scanner-based dependency mechanism exits the library.
+2. **Delete `wait_set` / `n_wait`** from the task struct. **Delete
+   `deps[]` / `n_deps`** parameters from `pool_spawn`. Cross-task
+   waits are handled at runtime via `pool_result_slot` reads
+   inside actions, paired with `ACT_BLOCK` returns. No library
+   notion of "pre-declared dependencies" remains.
+3. **Single `priority` field** on the task — no `priority_floor`,
+   no `inherited_floor`. The field is mutated by demote-on-block
+   and promote-on-blocked-requester; it is never reset. Tasks
+   are short-lived (game systems re-spawn them with fresh defaults
+   each tick), so accumulation is bounded by lifetime.
+4. **`ACT_BLOCK` handler in worker** does three things atomically
+   under `qlk`:
+   - Demote self: `priority = min(N, priority + 1)`.
+   - Promote `block_on`: if that task is in the ready queue,
+     `priority = max(1, priority - 1)`. If RUNNING or DONE, skip
+     the promotion (already running flat-out, or already done).
+   - Re-push self onto its new (higher-numbered) priority queue.
+5. **`ACT_ADVANCE` does not reset priority** (no floor exists).
+   The task simply runs its next action at whatever priority it
+   currently has.
+
+### Result-slot semantics (NULL/0 disambiguation)
+
+6. **Parallel `bool *result_filled` array** on the task struct,
+   length `n_actions`, initialized to all-false. Set to `true`
+   by the worker after action k returns `ACT_ADVANCE`,
+   `ACT_JUMP`, or `ACT_DONE`. **Not** set on `ACT_BLOCK` (the
+   action didn't complete this attempt).
+   `result_filled[k] = true` means "action k has run to
+   completion at least once"; the value at `result_slots[k]` is
+   meaningful regardless of whether it's NULL or non-NULL.
+7. **`pool_result_slot` returns a `slot_status_t` enum** plus an
+   out-pointer:
+
+   ```c
+   typedef enum {
+       SLOT_PENDING,        // action k has not yet completed.
+       SLOT_FILLED,         // action k completed; *out is its value.
+       SLOT_OUT_OF_RANGE,   // slot < 0 or slot >= n_actions.
+       SLOT_UNKNOWN_ID,     // id not in registry.
+   } slot_status_t;
+   slot_status_t pool_result_slot(task_pool_t *pool,
+                                   task_id_t id,
+                                   int slot,
+                                   void **out);
+   ```
+
+   `SLOT_UNKNOWN_ID` is the soft variant of the
+   "abort on unknown id" hardening suggestion in the earlier
+   addendum; the abort version lands later. For iter4 it returns
+   as a value so callers can react.
+
+### Queue data structure
+
+8. **Replace the linked-list ready queues with arrays-per-priority.**
+   Each priority p has `task_t **queues[p]` plus
+   `int queue_lens[p]` and `int queue_caps[p]`. Push appends in
+   O(1) (growing the array via realloc on overflow). Splice from
+   middle is O(1) via swap-with-last using a new
+   `int queue_position` field on the task. Pop is "take index 0,
+   swap-with-last to fill the hole."
+9. **No `q_prev` / `q_next`** on the task. The single
+   `queue_position` int is the only queue bookkeeping per task.
+10. **FIFO ordering within a priority is not preserved.** This is
+    intentional: priority is the throttle, not order. Within a
+    single priority the cycler dictates *how often* that priority
+    is consulted; the order of tasks among that priority is
+    "whatever the swap-with-last shuffling produces."
+
+### Action context addition
+
+11. **`task_pool_t *pool` is added to `task_ctx_t`** so that
+    actions can call `pool_result_slot` (and any future query
+    function) without needing to be passed the pool pointer
+    through `args`.
+
+### Two named promote/demote helpers
+
+12. **Internal functions `task_demote_one(pool, t)` and
+    `task_promote_one_if_ready(pool, id)`** encapsulate the
+    queue-move + priority-mutate logic. The worker's `ACT_BLOCK`
+    handler dispatches through them; nothing else manipulates
+    queue arrays directly.
+
+### What's explicitly out of scope
+
+- `promote_if_late` flag — deferred until a real periodic caller
+  shows what it actually needs. The whole periodics concept is
+  spun out to issue 123.
+- Index-based task storage with a stable `int slot` per task,
+  free-list management, and queue-storage of slot indices — this
+  is iter5, captured in issue 124.
+- Hard-aborting on unknown ids — captured in this issue's earlier
+  hardening pass split out to issue 125; lands separately.
+- Wrapper functions for park/unpark — also in the hardening
+  addendum.
+
+### Test plan
+
+- **Rewrite** `tests/002-task-pool-spawn-time-deps.c` →
+  `tests/002-task-pool-cross-task-result-wait.c`. Spawn task A
+  that reads task B's result-slot via `pool_result_slot` and
+  ACT_BLOCKs while pending. Assert A eventually unblocks once B
+  finishes.
+- **Strengthen** `tests/003-task-pool-mid-task-block.c` to assert
+  that the second invocation of the blocking action runs at a
+  higher priority number than the first.
+- **Add** `tests/007-task-pool-block-promotes-blocker.c`. Spawn B
+  at priority 8, then spawn A at priority 3 that blocks on B.
+  Assert B's priority is reduced (toward 1) by the block, and
+  that A's priority is increased (toward 10) by the block.
+- **Add** `tests/008-task-pool-result-filled.c`. An action that
+  legitimately writes NULL to its slot. Reader sees SLOT_FILLED
+  with `*out == NULL`, not SLOT_PENDING.
+
+### Source-file note
+
+When iter4 lands, the `Bugs found and fixed during initial
+implementation` section above and the iter1-3 design history
+remain accurate as historical record. A new "Iteration 4"
+subsection should be appended to the "Design evolution" section
+once the implementation settles, mirroring the structure of
+iterations 1-3 (Components / Why / What's gained).
+
+## Iteration 4.5 — per-task waiters list (parking)
+
+Discovered during iter4 testing: tests 002 and 003 reported
+70k–113k retries of A's block-action during B's 50ms work
+window. Iter4 is correct (the task does eventually advance), but
+a parked-but-not-actually-parked task at priority 10 spins
+through tens of thousands of demote+repush+block cycles, burning
+CPU and contending on `qlk`. This addendum is the fix.
+
+### What's changing
+
+1. **Add a `waiters[]` list per task.** Field `task_id_t *waiters`
+   plus `int n_waiters`, `int cap_waiters` on `task_t`. NULL by
+   default. Owned by the task; freed when the task is freed.
+2. **Add a `TASK_PARKED` state.** A parked task is in no priority
+   queue; it sits in the registry, attached to the `waiters[]`
+   array of the task it's waiting on.
+3. **`ACT_BLOCK` handler is rewritten:**
+   - `block_on` must be a valid id of a non-self task. If
+     `block_on == TASK_ID_NONE` or `block_on == ctx->self_id` or
+     the lookup misses, the library prints a diagnostic and
+     `abort()`s. Per the project rule "prefer error messages and
+     breaking functionality over fallbacks." Returning ACT_BLOCK
+     without a concrete target is a programming bug.
+   - If the looked-up task is already DONE: re-push self onto
+     the ready queue at current priority (no point parking on a
+     finished task). The action runs again immediately.
+   - Otherwise: append self's id to that task's `waiters[]`, set
+     self's state to `TASK_PARKED`, and **do not push** self to
+     any queue. If the blocker is in the ready queue and not
+     already at priority 1, splice + promote it (same as iter4).
+4. **Task DONE path walks `waiters[]`.** When a task's last
+   action returns (ADVANCE / DONE / fall-through), the worker
+   walks the task's waiters[] under reg_lk: for each id, look up
+   the waiter; if it's still PARKED, push it onto its current
+   priority's queue (state → READY). Free the waiters[] array.
+5. **Demote-on-block is deleted.** With parking, a blocked task
+   uses zero CPU; demoting it accomplishes nothing observable.
+   The `task_demote_one` helper goes away. The `priority` field
+   stays on the task — promote-on-blocked-target still mutates
+   it — but the demote path is gone.
+
+### Why drop demote
+
+Demote-on-block was iter4's CPU-cost-control measure for a
+spinning task: less attention from the cycler when the task
+keeps reporting "no progress." Parking eliminates the spin
+entirely, so there is no CPU cost to control. Keeping demote
+would only penalize tasks whose dependencies happened to be slow,
+making them less responsive on resume for no benefit.
+
+Promote-on-block, by contrast, still earns its keep: when A
+parks waiting on B, B might be sitting in priority 7's queue
+behind a stack of priority-3 work. Promoting B (7 → 6) means
+B's actual work runs sooner, which means A unparks sooner.
+
+### Lock order normalization
+
+Iter4's BLOCK handler took `qlk` first then `reg_lk` inside
+(for the registry lookup of `block_on`). The new BLOCK handler
+needs `reg_lk` first (to look up and modify the blocker's
+waiters[]) then optionally `qlk` (to splice/promote the blocker
+in the ready queue). The DONE handler also needs `reg_lk` first
+(to walk waiters[]) then `qlk` (to push each waiter).
+
+So **lock order is normalized to `reg_lk → qlk`** across all
+sites. The few places that took `qlk` alone still do so (no
+nested reg_lk under them).
+
+### Atomic state
+
+Because state is now read under one lock (`reg_lk` in the BLOCK
+handler) but written under another (`qlk` in `queue_push`), and
+the PARKED transition specifically happens under `reg_lk` while
+queue_push under qlk sets READY, the `state` field is changed
+to `_Atomic task_state_t` to eliminate the data race on
+state-field reads. Memory order: relaxed is sufficient because
+the surrounding mutex acquires/releases provide ordering.
+
+### What stays the same
+
+- Public API: `pool_spawn`, `pool_result_slot`, `pool_is_done`,
+  `pool_ref`, `pool_unref`. Same signatures.
+- The `task_ctx_t` fields. Actions still set `ctx->block_on`
+  and return ACT_BLOCK.
+- `slot_status_t` enum, result_filled[] semantics.
+- Promote-on-blocked-target via `task_promote_one_if_ready`.
+- Cycler, array-per-priority queue layout, swap-with-last splice.
+
+### Wait cycles
+
+If A parks on B and B parks on A, both park forever. The library
+does not detect cycles. Callers must avoid them. Documented in
+the header.
+
+### Test impact
+
+- `tests/002`: the "blocked >= 1" assertion still passes, but the
+  count drops from 113k to exactly 1. Test message updated.
+- `tests/003`: the "second invocation at strictly higher priority"
+  assertion is **inverted** — with parking, the second invocation
+  runs at the same priority. Assertion changes to "second priority
+  equals first."
+- `tests/007`: the "A demoted (advance_priority > 3)" assertion
+  is **inverted** — A's priority does not change. Only B's
+  promotion is verified.
+- `tests/009` (new): spawn 50 waiters on one B; assert all 50
+  wake and run after B completes.
+
+### Implementation order
+
+1. Update task struct: add `waiters[]`, atomic state, TASK_PARKED.
+2. Delete `task_demote_one`; keep `task_promote_one_if_ready`.
+3. Rewrite ACT_BLOCK handler (reg_lk first; park or repush;
+   conditionally promote).
+4. Add wake-on-DONE pass (walk waiters[], push each).
+5. Update `task_free` to free waiters[].
+6. Tests + info.md.
+

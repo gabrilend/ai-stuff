@@ -28,7 +28,7 @@ exercises all of it.
 | TODO   | 111 | Line of sight                        |
 | TODO   | 112 | Javelin projectile                   |
 | TODO   | 113 | Combat targeting, firing, HP & regen |
-| TODO   | 114 | Coroutine pool library (M:N)         |
+| DONE   | 114 | Task pool library (action-array, parking) |
 | TODO   | 115 | Aiming variance per (shooter,target) |
 | TODO   | 116 | Factory placement & production       |
 | TODO   | 117 | Single rally point with X/Y drag     |
@@ -78,29 +78,56 @@ line so future readers can see the path the project took.
 
 ## Retrospective log
 
-### 2026-04-28 — session-end note: iteration 4 of task pool pending
+### 2026-04-28 — 114 Task pool library (iter4 + iter4.5 landed together)
 
-Conversation in flight on a fourth iteration of the task pool
-design. Agreed scope:
+The task pool moved from iter3's scanner-based design through two
+further iterations in the same session, landing as iter4.5. The
+shipped shape:
 
-- Remove waiting queue + scanner + scanner_running flag.
-- ACT_BLOCK re-pushes at min(10, priority+1) on the ready queue.
-- pool_spawn_after kept; reimplemented by injecting a synthetic
-  check-deps-or-BLOCK first action.
-- New optional `promote_if_late` flag for self-rescheduling
-  periodics — auto-promote one priority level when wall-time
-  gap exceeds the priority's expected gap.
+- Single ready-queue mechanism (no waiting queue, no scanner).
+  Cross-task waits are user-driven: an action reads another task's
+  result slot via `pool_result_slot`, sets `ctx->block_on`, and
+  returns ACT_BLOCK.
+- ACT_BLOCK parks the task on the blocker's `waiters[]` list (zero
+  CPU until woken). When the blocker reaches DONE, the worker
+  walks waiters and pushes each back to the ready queue.
+- Promote-on-blocked-target stays — promoting B means parked A
+  unparks sooner. Demote-on-block was deleted (parked tasks burn
+  no CPU, so demotion has no purpose).
+- ACT_BLOCK's `block_on` is a hard contract: invalid id → abort.
+- Result-slot reads return a `slot_status_t` enum
+  (PENDING / FILLED / OUT_OF_RANGE / UNKNOWN_ID) plus an
+  out-pointer, distinguishing "not yet written" from "written, value
+  is NULL." Backed by a parallel `result_filled[]` bool array.
+- Ready queues are arrays-per-priority with O(1) swap-with-last
+  splice via `queue_position`. No linked-list `q_prev`/`q_next`.
+- Lock order normalized to `reg_lk → qlk` everywhere. State
+  field made atomic to eliminate cross-lock data races.
 
-Full design captured in 114's "Addendum 2026-04-28: priority
-demotion on block (iteration 4 design pending)" section; that
-section also lists the implementation steps. Issue 107's
-"Addendum (2026-04-28)" already gates its Shape B transition on
-this iteration landing first, so the work order is:
-**iteration 4 → 107's transition → 122 adoption.**
+Tests grew from 6 to 9, all passing. Tests 002/003 went from
+~100k BLOCK retries to exactly 1 (the parking proof). Test 009
+verifies a 50-waiter burst all wakes correctly when the blocker
+finishes.
 
-Resume next session by promoting 114's pending section into a
-proper "Iteration 4" subsection under "Design evolution" and
-then doing the code change.
+Three follow-up issues split out before 114 moved:
+- **123** — frame-based periodics (the deferred `promote_if_late`
+  idea, generalized).
+- **124** — iter5 stable-index task storage (replaces the
+  tombstone-based registry with a dense pointer array).
+- **125** — API hardening pass (abort on unknown id, ref-ownership
+  contract, park/wake wrapper).
+
+Lessons:
+- "We deleted the scanner and got polling" was the surprising
+  cost. Adding event-driven wakeup back in the form of per-task
+  waiters lists was the right move; it's a smaller surface area
+  than the global scanner (no global queue, no `scanner_running`
+  flag) but achieves the same effect.
+- The ACT_BLOCK contract sharpening (abort on invalid id) cost
+  one line of fallback path and bought a clearer mental model.
+- Tests as design feedback worked: the 113k retry counter
+  surfaced the polling problem before any real caller had to
+  trip over it.
 
 ### 2026-04-27 — 107 re-opened: transition to task pool
 
@@ -197,16 +224,16 @@ later phases a retrofit. raylib is statically linked on this machine
 (`/usr/local/lib/libraylib.a`), which surprised nothing but is worth
 remembering when reading `ldd` output later.
 
-## Session resume — 2026-04-28
+## Session resume — 2026-04-28 (post-114)
 
 Pick up here, in this order:
 
-1. **114** — implement priority-demotion-on-block per its
-   2026-04-28 addendum. Add `tests/007-...`. Library-only.
-2. **122** — close out (move to `completed/`, commit). Work is
-   done; only paperwork is pending.
-3. **107 (re-opened)** — Shape B transition with timestamp-based
-   motion. See 107's 2026-04-28 addendum.
+1. **122** — task pool game-build integration. Library is now
+   shipped; 122 wires it into the game binary and sets up the
+   `040-game-pool` singleton wrapper.
+2. **107 (re-opened)** — Shape B transition with timestamp-based
+   motion. See 107's 2026-04-28 addendum. Will exercise the
+   parked-blocker wake path in real game code for the first time.
 
 After 107 lands, the gameplay road resumes at **108 (box
 selection)**.
