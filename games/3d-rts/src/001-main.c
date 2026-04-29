@@ -23,7 +23,13 @@
 
 #include "020-terrain.h"
 #include "030-camera.h"
+#include "040-game-pool.h"
 #include "050-units.h"
+
+// Number of worker threads in the process-wide task pool. Hand-
+// picked default; typical desktops have 4–16 cores. Future tuning
+// lives here. See issue 122 for rationale.
+#define GAME_POOL_WORKERS 4
 
 // GAME_DIR is provided by the Makefile so the binary knows where the
 // project root is regardless of which directory it is launched from.
@@ -110,6 +116,7 @@ int main(void)
 	camera_init();
 	terrain_init();
 	units_init();
+	game_pool_init(GAME_POOL_WORKERS);
 
 	while (!WindowShouldClose()) {
 		float dt = GetFrameTime();
@@ -175,6 +182,14 @@ int main(void)
 		DrawFPS(20, 740);
 		EndDrawing();
 	}
+
+	// Shut down the task pool before CloseWindow so any tasks still
+	// scheduled (movement-related, once 107 re-adopts the pool)
+	// finish or are cleanly leaked per pool_destroy's contract.
+	// Order between this and terrain_shutdown does not matter today
+	// — neither uses the other's resources — but this comes first
+	// to match the inverse of init order.
+	game_pool_shutdown();
 
 	// Shut down GPU resources before CloseWindow tears down the GL
 	// context — UnloadMesh calls into rlgl which needs the context
