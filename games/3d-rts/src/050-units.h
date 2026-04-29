@@ -17,20 +17,28 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "900-task-pool.h"
+
 #define UNITS_MAX 256
 
 typedef struct Unit {
-	int     id;          // pool index, stable for the unit's lifetime
-	bool    alive;
-	uint8_t team;
-	Vector3 position;    // x,y world; z is terrain_height_at(x,y), kept in sync
-	float   yaw;         // facing direction in radians
-	bool    has_target;
-	Vector2 target_xy;   // when has_target, walk toward this point
+	int       id;                 // pool index, stable for the unit's lifetime
+	bool      alive;
+	uint8_t   team;
+	Vector3   position;           // x,y world; z is terrain_height_at(x,y), kept in sync
+	float     yaw;                // facing direction in radians
+	bool      has_target;
+	Vector2   target_xy;          // when has_target, walk toward this point
+	double    last_update_t;      // seconds (raylib GetTime); timestamp-based motion
+	                              //   so the movement task can run at any cadence
+	                              //   and still cover the right total distance.
+	task_id_t movement_task_id;   // TASK_ID_NONE when no task is alive for this
+	                              //   unit's movement. Set when units_set_target
+	                              //   spawns a task; cleared by the task's last
+	                              //   reschedule action when has_target=false.
 } Unit;
 
 void units_init(void);
-void units_tick(float dt);
 void units_render(void);
 
 // Returns the new unit's id on success, -1 if the pool is full.

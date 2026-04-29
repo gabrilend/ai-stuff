@@ -21,7 +21,7 @@ exercises all of it.
 | DONE   | 104 | Heightmap terrain                    |
 | DONE   | 105 | Terrain ray-pick                     |
 | DONE   | 106 | Unit entity & box rendering          |
-| TODO   | 107 | Unit movement on terrain surface (re-opened to transition to task pool) |
+| DONE   | 107 | Unit movement on terrain surface (Shape B on task pool) |
 | TODO   | 108 | Box selection                        |
 | TODO   | 109 | Right-click single move order        |
 | TODO   | 110 | Shift-chained waypoint orders        |
@@ -77,6 +77,42 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-29 — 107 Unit movement Shape B (with known snap)
+
+Movement transitioned from the serial `units_tick(dt)` to per-unit
+self-rescheduling tasks on the pool. Each moving unit owns a
+2-action chain `[move_advance, move_reschedule]` at priority 2;
+`units_set_target` spawns the chain (or just updates target_xy if
+a chain is already alive). All bookkeeping serialized through
+`g_movement_mu`. `units_tick` is gone; main loop no longer
+iterates units.
+
+**Cycler bug fixed alongside.** The cycler was starting at
+level=2 and wrapping to level=2, silently tying p1 with p2. Now
+starts at level=1 and wraps to level=1 — p1 strictly outranks p2
+(10 consultations per period vs 9). Period length grew from 54 to
+55 steps. All nine task-pool tests still pass.
+
+**Known issue: snap.** Under CPU contention, occasional units
+visibly teleport rather than walking. Root cause is `move_advance`
+capturing `now = GetTime()` at the start of the action and writing
+that captured value back as `last_update_t` at the end — if the
+worker is preempted in between, `last_update_t` ends up stale,
+producing a large `dt` next iteration. Both obvious band-aids
+("write GetTime() at end" / "cap dt") drop physical correctness
+(unit covers less distance than real time elapsed). The accurate
+fix is bounded cadence, captured in issue 127 (frame-ring
+scheduling). 107 ships with the snap; 127 is next.
+
+Also created/updated:
+- **127** new — frame-ring scheduling, the architectural answer
+  to the snap. Snap repro and root cause captured there.
+- **123** marked superseded by 127 — periodics fall out for free
+  under frame-ring as `pool_spawn_in(N, ...)`.
+- **124** marked exploratory / uncommitted — stable-index task
+  storage is no longer "iter5 plan," just a possibility if a
+  concrete need arises.
 
 ### 2026-04-28 — 122 Task pool game-build integration
 
@@ -250,16 +286,17 @@ later phases a retrofit. raylib is statically linked on this machine
 (`/usr/local/lib/libraylib.a`), which surprised nothing but is worth
 remembering when reading `ldd` output later.
 
-## Session resume — 2026-04-28 (post-114)
+## Session resume — 2026-04-29 (post-107)
 
 Pick up here, in this order:
 
-1. **122** — task pool game-build integration. Library is now
-   shipped; 122 wires it into the game binary and sets up the
-   `040-game-pool` singleton wrapper.
-2. **107 (re-opened)** — Shape B transition with timestamp-based
-   motion. See 107's 2026-04-28 addendum. Will exercise the
-   parked-blocker wake path in real game code for the first time.
+1. **127** — frame-ring scheduling. Architectural fix for the
+   snap visible in 107. Removes the polling cost and gives
+   bounded `dt`, which makes timestamp motion work without
+   compromise.
+2. **108 (box selection)** — gameplay continues. Independent of
+   127; can interleave or follow.
 
-After 107 lands, the gameplay road resumes at **108 (box
-selection)**.
+127 is the more interesting and load-bearing of the two. 108 is
+straightforward UI work. Either order is fine; 127 first means
+movement looks polished by the time selection lands.
