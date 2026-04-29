@@ -139,7 +139,13 @@ int main(void)
 			}
 		}
 
-		units_tick(dt);
+		// Movement is no longer driven from the main thread: each
+		// moving unit owns a self-rescheduling task on the pool
+		// (see 050-units.c). Main thread reads positions during
+		// units_render below; no explicit sync point is needed for
+		// Phase 1 — visual tearing on Vector3 reads is tolerable
+		// until the snapshot pattern in 102 lands.
+		(void)dt;
 
 		BeginDrawing();
 		ClearBackground((Color){ 30, 32, 40, 255 });

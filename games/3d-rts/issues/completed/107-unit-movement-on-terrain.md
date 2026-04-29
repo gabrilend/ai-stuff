@@ -2,11 +2,12 @@
 
 ## Status
 
-TODO — re-opened 2026-04-27 to transition the serial implementation
-to the task pool (`libs/900-task-pool`). Original serial version
-shipped earlier the same day; see "Completion log" below for the
-as-shipped reference, and "Re-opened: transition to task pool" at
-the bottom for what changes.
+DONE — 2026-04-29. Shape B per-unit self-rescheduling movement
+landed on the task pool. Known issue: visible "snap" on a subset
+of units when CPU is contended. Root cause and architectural fix
+are captured in issue 127 (frame-ring scheduling); 107 ships as-is
+because the snap is a symptom of the polling architecture itself,
+not a movement-specific bug.
 
 ## Current behavior
 
@@ -360,3 +361,108 @@ transition with both behaviors baked in:
    `001-main.c`).
 
 **Do not start on 107 before 114's library change is in.**
+
+## Completion log — Shape B (2026-04-29)
+
+### What was implemented
+
+- `Unit` struct gained `task_id_t movement_task_id` (TASK_ID_NONE
+  when no chain is alive) and `double last_update_t` (seconds via
+  raylib's `GetTime()`, used for timestamp-based motion).
+- `units_set_target` now spawns a movement task at priority 2 if
+  no chain is currently alive for the unit. If a chain is already
+  alive, it just updates `target_xy` + `has_target` + resets
+  `last_update_t`; the running chain picks up the new target on
+  its next `move_advance` and redirects smoothly. All under a
+  single shared mutex `g_movement_mu` to serialize the
+  read-decide-spawn-or-clear sequence against `move_reschedule`.
+- The movement task is a 2-action chain `[move_advance,
+  move_reschedule]`:
+  - `move_advance` — reads `now = GetTime()`, computes
+    `dt = now - last_update_t`, applies turn (`UNIT_TURN_RATE *
+    dt`, capped by remaining angular error), forward step
+    (`UNIT_SPEED * dt * cos²(error)`), Z resnap to terrain
+    surface, arrival check (clears `has_target` within
+    `UNIT_REACH_RADIUS`). Always returns `ACT_ADVANCE`.
+  - `move_reschedule` — under the mutex, decides: if the unit
+    is alive and still has a target, spawn the next iteration
+    of the same chain. Otherwise, set `movement_task_id =
+    TASK_ID_NONE`. Returns `ACT_DONE`.
+- `units_tick(float dt)` is removed entirely. Its prototype is
+  out of `050-units.h`; main loop's per-frame call is gone.
+  `001-main.c` casts the `dt` it gets from `GetFrameTime()` to
+  `(void)` since no main-thread sim consumer remains.
+- Scaffolding `T` key in main.c works unchanged (it just calls
+  `units_set_target` for each alive unit).
+
+### Concurrency notes
+
+- `move_advance` does NOT acquire `g_movement_mu`. Reads of
+  `target_xy` and writes of `position` are racy against main and
+  against future renderers, but visually tolerable: per-step
+  position deltas are small.
+- Renderer (`units_render`) reads `position` without any sync.
+  Tearing on `Vector3` reads is theoretically possible but
+  visually invisible at Phase 1's update rate. Issue 102's
+  snapshot pattern will make these reads not-racy when it lands.
+- Lock order across the codebase remains `g_movement_mu →
+  pool's reg_lk → pool's qlk` (the pool's locks are taken by
+  `pool_spawn` from inside `move_reschedule` which is holding
+  the movement mutex).
+
+### Known issue: visible "snap" on a subset of units
+
+Reproduction: with 6 units active, pressing T to scatter them
+causes 5 to move smoothly but 1 to stay visually stationary for
+1-3 seconds, then teleport (translate + rotate) to a new
+position. Fans run at full speed during movement.
+
+Root cause: `move_advance` captures `now = GetTime()` at the
+start, runs its arithmetic, and writes `u->last_update_t = now`
+at the end. If the OS preempts the worker thread between the
+capture and the write — common on a contended system — real
+time advances during the preemption but the captured `now` does
+not. The next iteration sees `dt = GetTime() - last_update_t`
+of 1-3 seconds and computes a correct-but-large step.
+
+Fixes that were considered and rejected:
+- "Read `GetTime()` at end of action" — drops the preempted
+  time; unit covers less than physically correct distance.
+- "Cap `dt` at 100ms" — same, more aggressively. Bad for
+  combat and hit-detection correctness.
+
+The accurate fix is to bound how often the action runs. Frame-
+locked scheduling makes `dt ≈ frame_time` (~16.67ms at 60Hz)
+with only small jitter. That's the design captured in **issue
+127 (frame-ring scheduling)**, which is the next concrete piece
+of work.
+
+### Why we shipped 107 with the snap
+
+- The snap is real and visible, but the pool is being exercised.
+- The architectural fix (frame-ring) is substantial and deserves
+  its own issue, not a band-aid in 107.
+- Closing 107 as-is unblocks downstream gameplay work that
+  doesn't depend on perfect movement smoothness (selection,
+  orders, LoS).
+- 127 is queued as the next concrete piece of work. When it
+  lands, movement gets smooth without losing distance correctness.
+
+### Files changed
+
+- `src/050-units.h` — added `last_update_t`, `movement_task_id`;
+  included `900-task-pool.h`; removed `units_tick` prototype.
+- `src/050-units.c` — implementation of the action chain,
+  `units_set_target` rewrite, mutex addition, removal of
+  `units_tick`.
+- `src/001-main.c` — removed `units_tick(dt)` call.
+- (Already in: `src/040-game-pool.{c,h}`, `Makefile` task-pool
+  wiring, `libs/900-task-pool` itself — all from 122.)
+
+### What 109 (right-click move orders) inherits
+
+- `units_set_target(int id, Vector2 target)` is the single entry
+  point for assigning a movement target. 109 just needs to wire
+  picked-terrain-point → selected-unit ids → this function.
+- The `T` scatter key in `001-main.c` should be removed when 109
+  lands (already flagged with `// TODO(issue-109)`).

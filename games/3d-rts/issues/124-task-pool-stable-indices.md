@@ -2,10 +2,18 @@
 
 ## Status
 
-**Future work.** Captured during the iteration-4 design conversation
-(2026-04-28). Iter4 keeps the registry's open-addressed hash with
-tombstoning; this issue replaces it with a dense-pointer-array +
-free-list scheme. Land iter4 first, then this.
+**Exploratory — not committed work.** Captured during the iter4
+design conversation (2026-04-28) as one possible refactor of task
+storage. As of 2026-04-29 the user has explicitly pushed back on
+pre-planning this: whether to actually do it should be decided
+based on a concrete need, not as part of a multi-iteration roadmap.
+
+Possible drivers if it ever becomes real work:
+- Cheap iteration over live tasks (registry walk + tombstone skip
+  is replaced by a dense `for i in 0..n_live` loop).
+- Removing the tombstone accumulation in the open-addressed hash.
+
+For now: not blocked, not committed, not next.
 
 ## Why this exists separately
 
