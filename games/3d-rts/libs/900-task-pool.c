@@ -62,10 +62,14 @@
 #define QUEUE_INITIAL_CAP 8
 
 // Cycler attempt count = one full period of the pattern
-// 1; 1,2; 1,2,3; ...; 1..N. Period length = sum(k=2..N) =
-// N*(N+1)/2 - 1 = 54 for N=10. Within one period every priority
-// p in [1..N] is consulted at least once.
-#define CYCLER_PERIOD_STEPS ((N_PRIORITIES * (N_PRIORITIES + 1) / 2) - 1)
+// 1; 1,2; 1,2,3; ...; 1..N. Period length = sum(k=1..N) =
+// N*(N+1)/2 = 55 for N=10. Within one period every priority
+// p in [1..N] is consulted at least once, with priority 1
+// consulted N times, priority 2 (N-1) times, ..., priority N
+// once. (Earlier implementations skipped the lone "1" cycle and
+// thus tied p1 with p2 — fixed; doc-intended behavior is "p1
+// strictly outranks p2.")
+#define CYCLER_PERIOD_STEPS (N_PRIORITIES * (N_PRIORITIES + 1) / 2)
 
 // ─── internal types ──────────────────────────────────────────────
 
@@ -244,14 +248,16 @@ static void task_free(struct task *t) {
 // {{{ static void advance_cycler(task_pool_t *pool)
 //
 // Implements the pattern: 1; 1,2; 1,2,3; ...; 1..N; then back to
-// 1; 1,2; 1,2,3; ... as `level` resets to 2 and grows again. Caller
-// holds qlk.
+// 1; 1,2; 1,2,3; ... as `level` wraps to 1. The lone "1" cycle is
+// what gives priority 1 strictly more attention than priority 2:
+// over one full period, p1 is consulted N times while p2 is
+// consulted (N-1) times. Caller holds qlk.
 static void advance_cycler(task_pool_t *pool) {
     pool->step++;
     if (pool->step > pool->level) {
         pool->step = 1;
         pool->level++;
-        if (pool->level > N_PRIORITIES) pool->level = 2;
+        if (pool->level > N_PRIORITIES) pool->level = 1;
     }
 }
 // }}}
@@ -606,10 +612,11 @@ task_pool_t *pool_create(int n_workers) {
 
     atomic_store(&pool->next_id, 1);  // 0 is reserved as TASK_ID_NONE.
 
-    // Cycler initial state: (level=2, step=1) so the first ten
-    // pops produce the sequence 1, 2 (first cycle), 1, 2, 3
-    // (second), and so on — matching the documented pattern.
-    pool->level = 2;
+    // Cycler initial state: (level=1, step=1) so the very first
+    // pop produces priority 1 alone (the lone "1" cycle), then
+    // 1,2; then 1,2,3; etc. — matching the documented
+    // 1; 1,2; 1,2,3; ...; 1..N pattern.
+    pool->level = 1;
     pool->step  = 1;
 
     // Per-priority queues are lazily allocated on first push to
