@@ -36,7 +36,7 @@ exercises all of it.
 | TODO   | 119 | Selected-unit chain splitting        |
 | TODO   | 120 | Phase 1 demo capstone                |
 | TODO   | 121 | raylib build flag manifest           |
-| TODO   | 122 | Task pool: game build integration    |
+| DONE   | 122 | Task pool: game build integration    |
 
 Counts and percentages should be derived by reading this table — not
 hard-coded into other documents.
@@ -77,6 +77,32 @@ When an issue is completed, append a short retrospective entry below this
 line so future readers can see the path the project took.
 
 ## Retrospective log
+
+### 2026-04-28 — 122 Task pool game-build integration
+
+Three small pieces of infrastructure to make `libs/900-task-pool`
+reachable from game code:
+
+- `Makefile`: `LIBS_SRCS` now includes the task-pool source;
+  `LIBS_INCL := -I$(DIR)/libs` so headers resolve by bare name;
+  `-D_XOPEN_SOURCE=600` matches the test runner's view of
+  `<pthread.h>`; `-lpthread` already in `LDFLAGS`.
+- `src/040-game-pool.{h,c}`: file-static singleton wrapping the
+  pool. `game_pool_init(N)` is idempotent (no-op if already
+  initialized), `game_pool_shutdown()` likewise. `game_pool()`
+  returns the handle (NULL before init / after shutdown).
+- `src/001-main.c`: `game_pool_init(GAME_POOL_WORKERS=4)` after
+  the world modules; `game_pool_shutdown()` before the GPU
+  shutdown / `CloseWindow`. Pool exists for the entirety of the
+  raylib loop.
+
+The 4-worker default is a hand-picked guess; future tuning is
+one constant in `001-main.c`. No game code spawns tasks yet —
+that's per-issue adoption (107 movement first, then combat,
+projectiles, factory, etc.).
+
+Verified build clean under `-Wall -Wextra -Wpedantic -std=c11`;
+binary launches with raylib 6.0; clean shutdown.
 
 ### 2026-04-28 — 114 Task pool library (iter4 + iter4.5 landed together)
 

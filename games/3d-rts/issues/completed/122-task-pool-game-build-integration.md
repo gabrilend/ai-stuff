@@ -2,7 +2,9 @@
 
 ## Status
 
-TODO
+DONE — 2026-04-28. Pool wired into game build; `game_pool_init` /
+`game_pool_shutdown` bracket the raylib loop in `001-main.c`.
+First adopter is 107 (re-opened) — Shape B per-unit movement.
 
 ## Current behavior
 
