@@ -7,11 +7,13 @@ TODO
 ## Current behavior
 
 The task pool library at `libs/900-task-pool.{h,c}` is complete and
-tested (`tests/000-index.md` lists 6 passing test programs covering
-sequential actions, deps, mid-task block, self-rescheduling, priority
-cycling, and result slots). But the library is **not** part of the
-game build. Game source files cannot `#include "900-task-pool.h"`,
-no pool is created at startup, and in-game code cannot spawn tasks.
+tested (`tests/000-index.md` lists 9 passing test programs covering
+sequential actions, cross-task result-slot waits, mid-task park /
+wake, self-rescheduling, priority cycling, result slots, parking
+promote semantics, slot-status disambiguation, and many-waiter
+bursts). But the library is **not** part of the game build. Game
+source files cannot `#include "900-task-pool.h"`, no pool is
+created at startup, and in-game code cannot spawn tasks.
 
 ## Intended behavior
 
