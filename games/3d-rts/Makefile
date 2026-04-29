@@ -25,7 +25,12 @@ CC      := cc
 CSTD    := -std=c11
 WARN    := -Wall -Wextra -Wpedantic
 OPT     := -O2 -g
-DEFS    := -DGAME_DIR=\"$(DIR)\"
+
+# _XOPEN_SOURCE=600 enables the POSIX 2001 thread primitives the task
+# pool library leans on (clock_gettime + CLOCK_MONOTONIC, and so on).
+# It matches the feature-test macro used by tests/run-all.sh, so the
+# game build sees the same view of <pthread.h> the tests do.
+DEFS    := -DGAME_DIR=\"$(DIR)\" -D_XOPEN_SOURCE=600
 
 # Vendored raylib (see scripts/deps/fetch-raylib.sh and the addendum
 # on issue 101). Including the archive by absolute path rather than
@@ -34,7 +39,13 @@ RAYLIB_DIR  := $(DIR)/libs/raylib
 RAYLIB_ARCH := $(RAYLIB_DIR)/src/libraylib.a
 RAYLIB_INCL := -I$(RAYLIB_DIR)/src
 
-CFLAGS  := $(CSTD) $(WARN) $(OPT) $(DEFS) $(RAYLIB_INCL)
+# In-tree libraries (currently: 900-task-pool). -I$(DIR)/libs lets
+# game source files include them by name (`#include "900-task-pool.h"`)
+# without ../ paths.
+LIBS_INCL := -I$(DIR)/libs
+LIBS_SRCS := $(DIR)/libs/900-task-pool.c
+
+CFLAGS  := $(CSTD) $(WARN) $(OPT) $(DEFS) $(RAYLIB_INCL) $(LIBS_INCL)
 
 # raylib's static archive needs its system deps named explicitly.
 # Order matters: the archive comes first, then the libraries it
@@ -45,7 +56,7 @@ LDFLAGS := $(RAYLIB_ARCH) -lGL -lpthread -lm -ldl -lrt -lX11
 SRC_DIR := $(DIR)/src
 OUT     := $(DIR)/tmp
 BIN     := $(OUT)/3d-rts
-SRCS    := $(wildcard $(SRC_DIR)/*.c)
+SRCS    := $(wildcard $(SRC_DIR)/*.c) $(LIBS_SRCS)
 
 .PHONY: all clean run
 
