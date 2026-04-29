@@ -27,10 +27,25 @@ documents here when you create them.
 
 ## libs/
 
-- [900 — Coroutine Pool](../libs/900-coroutine-pool.h) — M:N coroutine
-  scheduler over pthreads. Available, not yet adopted by the game; see
-  `issues/114-coroutine-pool-library.md` for the rationale.
-- `900-coroutine-pool.info.md` — external API summary for the above.
+- [900 — Task Pool](../libs/900-task-pool.h) — action-array task pool
+  with priorities, parking on blocked-target's waiters list,
+  promote-on-blocked-requester, and a write-once result-slot table
+  with explicit pending/filled disambiguation. Workers run "tasks"
+  composed of small atomic action functions. Available, not yet
+  adopted by the game; see
+  `issues/completed/114-coroutine-pool-library.md` (kept under its
+  original filename per append-only convention; the "Design
+  evolution" section inside that file documents the four iterations
+  from coroutines to the current parked-action-array shape) for the
+  rationale.
+- `900-task-pool.info.md` — external API summary for the above.
+
+## tests/
+
+- [tests index](../tests/000-index.md) — what's tested and what
+  isn't. New tests go here, one per behavior, named after the
+  behavior they exercise.
+- `run-all.sh` — compile and run every test in numeric order.
 
 ## scripts/
 
