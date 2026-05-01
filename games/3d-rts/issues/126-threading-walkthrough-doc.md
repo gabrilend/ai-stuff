@@ -113,3 +113,54 @@ issue alone describes the plan, not the reality. The supporting
 issues — design history, integration paper trail, adopter shape
 decisions, bugs that forced redesigns — are the other half of the
 picture and must be read before writing the narrative.
+
+## Rewrite log (2026-05-01)
+
+The rewrite at commit (this commit) replaces parts 4–6 of the
+initial draft and threads explicit status markers through every
+part. The user contributed the modifier-ring design pattern in the
+same conversation that surfaced the gaps in the initial draft.
+
+Concrete corrections applied:
+
+- **Pool primitives.** Replaced the M:N coroutine description with
+  the action-array + parking-on-waiters[] iter4.5 design from
+  issue 114. Documented the priority cycler pattern, the
+  `slot_status_t` result-slot semantics, the self-rescheduling
+  idiom, and the design history's deletion of demote-on-block.
+- **Phase 1 reality.** Removed claims that the sim is fully
+  serial. Documented that issue 122 wired the pool into the game
+  build and that issue 107 (Shape B) put movement on the pool.
+- **Adopted parallel pattern.** Replaced slice-by-tenths-as-the-pattern
+  with a Shape A vs Shape B framing. Slice-by-tenths is still the
+  right shape for systems where every entity needs updating every
+  tick (HP regen, LoS scan); per-unit self-rescheduling won for
+  movement because stationary units consume zero scheduler time.
+- **The snap and the fix.** Added a Part 4 subsection explaining
+  the snap reproduction from 107's completion log (OS preempts
+  worker between `now` capture and `last_update_t` write), the
+  rejected band-aids, and the frame-ring redesign in issue 127.
+- **Status markers.** Each part now opens with an explicit status
+  line distinguishing designed-but-not-built (102), built and
+  shipped (114, 122, 107), and bug-driven redesign in flight
+  (127).
+- **Part 5 (new).** Modifier-ring batching as the user described it:
+  a frame-ring slot per modifier intent set, accumulated during
+  frame N's parallel pass, applied single-threaded at frame N+1
+  start, with the ring period providing a free deadline for
+  long-running modifier computations. Positioned as the modifier-
+  domain extension of the merge-step pattern from
+  `004-architecture.md`.
+- **Part 6 (compressed).** Combined the original parts 5–6 into a
+  single tighter section. Kept the implications (replay,
+  determinism, headless sim, sim-rate decoupling, snapshot as
+  save format, intent pattern generalization). Replaced the
+  serial-to-parallel migration code blocks (now wrong for
+  movement) with a "what's actually been tested" table sourced
+  from `tests/000-index.md`. Refreshed the instrumentation list
+  with cadence-relevant counters (tick duration histogram,
+  frame-budget overrun, parked-task census).
+
+Files touched in the rewrite: only `docs/006-threading-walkthrough.md`
+itself. No code changes; no other docs altered. Issue 126 (this
+file) updated alongside.

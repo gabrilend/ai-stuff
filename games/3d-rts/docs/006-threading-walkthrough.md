@@ -1,25 +1,34 @@
 # 006 — Threading Architecture Walkthrough
 
-A six-part guided tour of the threading model defined in
-`004-architecture.md` and seeded by issue 102. Read 004 first for the
-authoritative spec; this document is the companion narrative — the same
-material chunked for a reader building intuition step by step. Parts
-1–4 walk the design as committed for Phase 1; parts 5–6 explore what
-that design enables (implications) and how to actually build and test
-it (implementations).
+A six-part guided tour of the threading model. `004-architecture.md`
+is the spec; this document is the narrative companion that threads
+through the spec, the issue files, and the implementation library
+in the order a new reader needs to build mental model.
+
+Each part begins with a **status line** distinguishing what's
+*designed but not built*, what's *built and adopted*, and what's
+*being redesigned to fix a bug*. The threading model is not a
+single deliverable — it's a stack of decisions, some of which are
+real on disk today and some of which are still on paper. Readers
+who skip the status lines will conflate the plan with the reality.
 
 The six parts:
 
-1. The two-thread split and the boundary
-2. The snapshot handoff (double-buffer + swap)
-3. The input queue (semantic events + shift-chain IDs)
-4. Slice-by-tenths parallel batching + merge step (pool-readiness)
-5. Implications — what this design buys you downstream
-6. Implementations — how to actually build and test it
+1. The two-thread split and the boundary — *designed (102), not built*
+2. The snapshot handoff — *designed (102), not built*
+3. The input queue — *designed (102), not built*
+4. The task pool reality — *built (114, 122) and adopted (107); redesign in flight (127)*
+5. Modifier-ring batching — *design pattern, not yet built; aligns with 127*
+6. Implications and implementation — *running notes*
 
 ---
 
-## Part 1/4 — Two threads, one boundary
+## Part 1/6 — Two threads, one boundary
+
+**Status:** Designed in `issues/102-threading-model.md`. **Not yet
+built.** The current binary runs everything on the main thread;
+issue 102's two-pthread split is what *will* exist. Movement
+nevertheless already runs on the task pool today — see Part 4.
 
 The whole design starts from a single decision: **the renderer and the simulation must not share game state directly.** Everything else is consequence.
 
@@ -36,39 +45,51 @@ There are *three threads of attention but two real OS threads*:
 - **Simulation thread** — owns *all* game state. Runs a fixed-rate tick loop (`SIM_TICK_HZ` in `010-config.h`, e.g. 60Hz). Each tick:
   1. drains the input queue,
   2. applies events to state,
-  3. runs systems (movement, combat, projectiles, factories),
+  3. runs systems (movement, combat, projectiles, factories) — possibly delegating per-unit work to the task pool from Part 4,
   4. builds a fresh snapshot in a back buffer,
   5. swaps front/back snapshot pointers under a lock,
   6. sleeps until the next tick boundary.
 
 The "third thread of attention" is the input pipeline — it's logically its own flow, but it lives inside the main thread's frame loop; it doesn't need its own OS thread.
 
-### The boundary: exactly two locks
+### The boundary: exactly two locks (at this layer)
 
-This is the part worth memorizing, because it's the entire concurrency surface of the program:
+This is the part worth memorizing, because it's the entire concurrency surface of the *main↔sim* boundary:
 
 - **Mutex 1 — input queue** (`040-input.c`). Main thread holds it briefly to push; sim thread holds it briefly to drain. Fixed-capacity ring; producer never blocks meaningfully.
 - **Mutex 2 — snapshot pointer swap** (`110-snapshot.c`). Sim thread holds it for the duration of a *pointer swap* (front ↔ back). Main thread holds it just long enough to grab the front pointer. The actual snapshot bytes are never copied across threads — only ownership of which buffer is "current" flips.
 
-That's it. Nothing else is shared. The terrain heightmap is built once at startup and treated as read-only thereafter; raylib's GL state lives entirely on the main thread; simulation arrays live entirely on the sim thread. There is no third synchronization primitive anywhere in Phase 1.
+The task pool (Part 4) introduces additional locks *inside the sim
+side* of the boundary — `reg_lk` (registry) and `qlk` (ready queue),
+plus per-task atomics. Those don't cross the main↔sim boundary;
+they're internal to the sim's own execution model.
+
+Beyond those, nothing is shared. The terrain heightmap is built once at startup and treated as read-only thereafter; raylib's GL state lives entirely on the main thread; simulation arrays live entirely on the sim thread (with the pool's worker threads being part of "the sim side" of the boundary).
 
 ### Why this shape
 
-The properties that fall out of these two threads + two locks:
+The properties that fall out of two threads + two locks:
 
 - **Render decouples from sim load.** If a tick stalls (the issue suggests deliberately `usleep`-ing 100ms inside one tick as a sanity test), the main thread still has a valid front snapshot to render — the marker pauses for a tick, but camera/zoom stay smooth. That test is the litmus that the decoupling actually holds.
 - **No dropped inputs.** The queue absorbs bursts; the sim drains whatever accumulated since last tick.
-- **Every tick is a pure function of `(prior state, drained input events)`.** This is what makes future replay/test harnesses possible without redesign — and it's also what makes the slice-by-tenths parallelization (part 4) safe.
+- **Every tick is a pure function of `(prior state, drained input events)`.** This is what makes future replay/test harnesses possible without redesign — and it's also what makes the parallel work inside the sim (Part 4) safe.
 
 ### What's *not* in this part
 
-- The shape of the snapshot struct itself — that's part 2.
-- Why input events carry `shift_chain_id` — part 3.
-- How the sim tick internally splits work across (eventual) pool workers — part 4. In Phase 1 the sim thread does all the work serially; the pool (`libs/900-task-pool.h`) exists but issue 102 explicitly does *not* use it. The two pthreads here are the *containers* a pool would later live inside, not callers of it.
+- The shape of the snapshot struct itself — Part 2.
+- Why input events carry `shift_chain_id` — Part 3.
+- *How* the sim tick internally executes work — Part 4 (and it's not the slice-by-tenths shape `004-architecture.md` originally documented; the project chose a different shape, see Part 4).
 
 ---
 
-## Part 2/4 — The snapshot handoff
+## Part 2/6 — The snapshot handoff
+
+**Status:** Designed in `issues/102-threading-model.md`. **Not yet
+built.** As of 107's completion log, the renderer reads unit state
+directly from the unit pool with inline extrapolation between task
+updates (`render_pos = u->position + heading * speed * cos²(err) * (render_now - last_update_t)`).
+This is acknowledged-temporary; the snapshot indirection from this
+part replaces it when 102 lands.
 
 The snapshot is the **only** mechanism by which simulation state crosses to the renderer. If you understand this one struct and its swap, you understand half the program.
 
@@ -110,7 +131,7 @@ Crucially: the renderer can hold onto its front pointer for an entire frame with
 
 ### "Possibly one tick old, which is fine"
 
-The architecture doc calls this out explicitly: the front snapshot the renderer sees might be from the tick that just ended, or from one tick ago if the sim is mid-write. Either way, the renderer never blocks waiting for fresh data, and never sees a torn half-written snapshot. At 60Hz sim and 144Hz render, several frames will redraw the same snapshot — that's the expected, correct behavior. Interpolation between snapshots is a *future* optimization, not part of Phase 1.
+The architecture doc calls this out explicitly: the front snapshot the renderer sees might be from the tick that just ended, or from one tick ago if the sim is mid-write. Either way, the renderer never blocks waiting for fresh data, and never sees a torn half-written snapshot. At 60Hz sim and 144Hz render, several frames will redraw the same snapshot — that's the expected, correct behavior. Interpolation between snapshots is a *future* optimization; the inline extrapolation 107 ships today is the placeholder until the snapshot itself lands.
 
 ### What it protects against
 
@@ -128,7 +149,12 @@ This is what `src/110-snapshot.c` / `.h` will own per issue 102, step 2: the buf
 
 ---
 
-## Part 3/4 — The input queue and shift-chain IDs
+## Part 3/6 — The input queue and shift-chain IDs
+
+**Status:** Designed in `issues/102-threading-model.md`. **Not yet
+built.** The current binary's main loop reads input and acts on
+state inline. Phase 1 gameplay issues 108–119 will demand semantic
+events as they land; that's the trigger that pulls 102 forward.
 
 If part 2 is "how state flows sim→render," part 3 is the mirror: **how intent flows main→sim**. Same shape (one mutex, fixed-capacity buffer, no shared pointers), different content.
 
@@ -173,7 +199,7 @@ The beauty: the main thread holds **no game state** to do this. It tracks one in
 
 The same scheme generalizes to rally-chain dragging on factories (`RALLY_DRAG_*` events share a `shift_chain_id` for shift-extending an existing rally chain).
 
-### What the boundary looks like end-to-end
+### What the boundary looks like end-to-end (once 102 lands)
 
 Putting parts 1–3 together, one full round trip:
 
@@ -185,262 +211,521 @@ Putting parts 1–3 together, one full round trip:
 3. Some milliseconds later, the sim thread starts a tick:
    - takes the input-queue mutex, drains all pending events into a local list, releases,
    - sees the `MOVE_ORDER`, recognizes the chain id, appends a waypoint to the chain for the currently-selected units,
-   - runs movement / combat / projectiles,
+   - dispatches per-unit work to the task pool (Part 4),
    - writes a new snapshot to back, swaps front/back under the snapshot mutex.
 4. The next render frame:
    - takes the snapshot mutex, grabs the front pointer, releases,
    - draws units at their new positions and the order chain as a polyline.
 
-Two locks, both held for trivial durations, and a clean data boundary. That's the whole concurrency story for Phase 1.
+Two locks at the boundary, both held for trivial durations, and a clean data boundary. That's the concurrency story for the *main↔sim split*. The story *inside* the sim is Part 4.
+
+---
+
+## Part 4/6 — The task pool reality
+
+**Status:** Library shipped (`libs/900-task-pool.{h,c}`, issue 114
+iter4.5). Wired into the game build as a process-wide singleton
+(issue 122, `src/040-game-pool`, 4 workers). Adopted by movement
+in Shape B (issue 107 re-open, completion 2026-04-29). **Bug-driven
+redesign in flight (issue 127):** Shape B exposed a "snap"
+problem when the OS preempts a worker mid-action; the fix is to
+make the pool *frame-locked* rather than free-running.
+
+This is the part where the original walkthrough (commit
+`b2207e86`, drafted from issue 102 alone) got most things wrong.
+The pool isn't coroutines, the sim isn't fully serial, and the
+adopted parallel pattern isn't slice-by-tenths.
+
+### What the pool actually is
+
+Five iterations of design (recorded in issue 114's "Design
+evolution" section) landed at: **action-array tasks with parking
+on a per-blocker waiters list.** Concretely:
+
+- **A task is a flat array of small atomic functions.** Each
+  function ("action") returns one of `ACT_ADVANCE` (next
+  index), `ACT_JUMP` (to a named index), `ACT_BLOCK` (suspend
+  on another task's GUID; resume at the same index when woken),
+  `ACT_DONE` (skip remaining actions). The "resume point" is a
+  single `unsigned int current_index` — trivially serializable,
+  naturally re-enterable. No `swapcontext`, no per-task stacks,
+  no trampoline. Standard C function calls only.
+- **Per-action arguments and per-action results** live in
+  parallel arrays alongside the actions array. Each result slot
+  is write-once by convention; reading uses
+  `pool_result_slot(pool, id, slot, &out)` which returns a
+  `slot_status_t` enum (`SLOT_PENDING`, `SLOT_FILLED`,
+  `SLOT_OUT_OF_RANGE`, `SLOT_UNKNOWN_ID`) so callers can
+  distinguish "action k hasn't run yet" from "action k ran and
+  legitimately wrote NULL."
+- **A GUID registry** (open-addressed hashmap, capacity 4096)
+  maps `task_id_t` (uint64) to `task_t *` with refcounts. Every
+  external handle is a GUID; the pool never hands out raw
+  pointers.
+- **Ten priority queues**, indexed 1 (highest) to 10 (lowest).
+  A *cycler* picks which queue to consult next, following the
+  pattern `1; 1,2; 1,2,3; …; 1..10` and repeating. Period is
+  54 steps. High priorities dominate without starving low ones.
+  Empty queues at the current step are skipped; the cycler
+  still advances.
+- **Parking on waiters[].** When an action returns `ACT_BLOCK`
+  with a target GUID, the worker appends the blocked task's id
+  to the *target's* waiters[] array and sets the blocked
+  task's state to `TASK_PARKED`. The parked task is in no
+  queue and consumes zero CPU. When the target eventually
+  reaches DONE, the worker walks the waiters[] and pushes
+  each waiter back onto its priority queue. Iter4.5 tests
+  reduced parking-related polling from ~113k retries to
+  exactly 1.
+- **Promote-on-blocked-target.** When task A parks on B, if B
+  is in the ready queue at priority p > 1, the worker promotes
+  B to p−1 (toward higher priority). A unparks sooner because
+  B runs sooner. Demote-on-block was tried (iter4) and deleted
+  (iter4.5) — parking made it pointless.
+- **Self-rescheduling pattern.** A task's last action enqueues
+  a fresh copy of itself via `pool_spawn`. One-line idiom for
+  per-frame update loops without holding a worker hostage.
+
+The library has no dependency on raylib or game state. It's
+exercised by 9 tests in `tests/` covering sequential actions,
+cross-task result-slot waits, mid-task park/wake, self-
+rescheduling, priority cycling, result slots, parking promote
+semantics, slot-status disambiguation, and many-waiter bursts.
+
+### How the pool is integrated
+
+Issue 122 (completed 2026-04-28) wired the library into the game
+build. `Makefile` now compiles `libs/900-task-pool.c` alongside
+`src/*.c` and adds `-I.../libs -D_XOPEN_SOURCE=600`. A thin
+wrapper `src/040-game-pool.{h,c}` exposes a process-wide
+singleton:
+
+- `game_pool_init(N)` — called once after `units_init`. Creates
+  the pool with N workers. Default N=4 (typical desktop has
+  4–16 cores; profiling will dictate any change).
+- `game_pool()` — returns the singleton handle.
+- `game_pool_shutdown()` — destroys it before
+  `terrain_shutdown` / `CloseWindow`.
+
+This issue deliberately did *not* migrate any game system to use
+the pool. The first migration (issue 107 re-open) followed
+immediately; subsequent adoptions land with the issues that
+introduce their systems (113 combat / HP regen, 112 projectile
+arc, 116 factory production).
+
+### Shape A vs Shape B — and why Shape B won for movement
+
+`docs/004-architecture.md` describes a slice-by-tenths
+parallel-for pattern: split a per-unit pass into ~10 contiguous
+slices, dispatch each slice as a task, run the merge step after
+join. That's Shape A — the originally-planned shape, still the
+right choice for a per-tick batched system.
+
+Issue 107 (Shape B) shipped a different shape for movement:
+**per-unit self-rescheduling tasks.** Each unit with an active
+target owns a movement task that re-enqueues itself each tick:
+
+```
+movement_task_actions = [
+    [0] move_advance       // read target, slew yaw, step forward, resnap Z, arrival check
+    [1] move_reschedule    // if still moving: spawn next iteration; else clear movement_task_id
+]
+```
+
+Why Shape B was chosen for movement:
+
+- The user's stated preference for "self-rescheduling for things
+  like walking toward a location" is direct guidance.
+- **Stationary units consume zero scheduler time.** A
+  slice-by-tenths pass iterates every unit every tick whether
+  it's moving or not; per-unit tasks only exist for units with
+  active orders.
+- The per-tick task-struct overhead (one `task_t` per moving
+  unit per tick) is bounded and acceptable at Phase 1 unit
+  counts (six initially; hundreds after factory production).
+- Switching to Shape A later is mechanical — the action
+  body is already a function of (unit, dt) — if profiling
+  ever shows per-unit task overhead dominating.
+
+Shape A remains the right fit for systems where every entity
+*does* need updating every tick (HP regen on all units; LoS
+scans). Shape B is the right fit for systems where only a
+fraction of entities are active in any given tick. Adoption is
+per-system; future migrations will pick a shape per their
+profile.
+
+### Timestamp-based motion
+
+Shape B's movement task uses `last_update_t` (double, seconds,
+via raylib's `GetTime()`):
+
+```
+move_advance:
+    now = GetTime()
+    dt = now - u->last_update_t
+    apply turn (UNIT_TURN_RATE * dt, capped by remaining error)
+    apply forward step (UNIT_SPEED * dt * cos²(angular_error))
+    resnap Z to terrain
+    arrival check (clears has_target within UNIT_REACH_RADIUS)
+    u->last_update_t = now
+    return ACT_ADVANCE
+```
+
+The point of timestamp-based motion: a task that runs every
+tick at priority 2 produces the same total displacement as a
+task that runs every fifth tick at priority 10 — it just steps
+in larger chunks. Scheduler-induced cadence variation is
+absorbed by the math.
+
+### The snap — and why timestamp-based motion alone isn't enough
+
+Shape B shipped with a known issue: with 6 units and `T` to
+scatter, 5 move smoothly while 1 stays visually stationary for
+1–3 seconds, then teleports. Fans run at full speed during
+movement.
+
+Root cause: `move_advance` captures `now = GetTime()` at the
+*start* of the action, runs its arithmetic, and writes
+`u->last_update_t = now` at the *end*. If the OS preempts the
+worker thread between the capture and the write, real time
+advances during the preemption but the captured `now` does not.
+The next iteration sees `dt = GetTime() - last_update_t` of
+1–3 seconds and computes a correct-but-large step.
+
+This isn't a movement bug — it's the *architecture* announcing
+that "poll as fast as possible, math will fix it" doesn't work
+when the underlying scheduling is non-uniform. Two band-aids
+considered and rejected:
+
+- "Read `GetTime()` at end of action" → drops the preempted
+  time; unit covers less than physically correct distance.
+- "Cap dt at 100ms" → same, more aggressively. Bad for combat
+  hit-detection correctness.
+
+The accurate fix is to bound how often the action runs. That's
+issue 127.
+
+### Frame-ring scheduling (issue 127, in flight)
+
+Replace the single set of priority queues with a **ring of
+frame slots**, each containing its own ten priority queues.
+Workers only pop from `frames[current_frame]`. Spawns default
+to `frames[(current_frame + 1) % SIZE]`. Three spawn variants:
+
+- `pool_spawn(...)` — implicit "schedule for next frame."
+  Cannot land in the current frame.
+- `pool_spawn_in(N, ...)` — schedule N frames out (relative).
+  N=1 is the default. N=0 is rejected.
+- `pool_spawn_in_current(...)` — escape hatch for input
+  handlers that legitimately need to react this frame.
+
+Main thread calls `pool_advance_frame(pool)` after
+`EndDrawing()`. The call **stalls** until the current slot is
+fully drained (empty across all priorities AND no parked
+tasks waiting on tasks in this slot). Only then does
+`current_frame` advance.
+
+What this fixes:
+
+- Movement runs exactly once per frame. With `SetTargetFPS(60)`,
+  `dt ≈ 16.67ms ± small jitter`. No 1–3 second snaps; lost
+  preemption time becomes part of the next normally-sized
+  frame's `dt`, capped by the frame budget itself.
+- The cycler still runs *within* a single frame's queues —
+  same logic, scoped per-slot.
+- Periodics ("run every N frames") become a one-line idiom:
+  the reschedule action calls `pool_spawn_in(N, ...)`. Issue
+  123's dedicated periodics design is **superseded** by this.
+- The same stall semantics make lockstep multiplayer
+  determinism a natural fit later: every client agrees on
+  end-of-frame-N state before exchanging inputs for N+1.
+
+What stays the same:
+
+- Action-array tasks, GUIDs, refcounts.
+- Parking on waiters[], promote-on-blocked-target.
+- Result slots and `slot_status_t`.
+- Self-rescheduling pattern (just calls `pool_spawn_in(1, ...)`
+  instead of `pool_spawn(...)`).
+
+### The other open task-pool issues
+
+- **123 — periodics.** Superseded by 127.
+- **124 — stable-index task storage.** Exploratory iter5;
+  user explicitly pushed back on pre-planning it. May land if
+  cheap live-task iteration becomes a real need.
+- **125 — API hardening.** Future pass: abort-on-unknown-id
+  for `pool_is_done`/`pool_ref`/`pool_unref`/`pool_result_slot`,
+  wrapper-struct `task_id_t` to enforce move-vs-clone, hide
+  `park`/`wake` behind named internal helpers. None of these
+  change mechanics; they sharpen edges.
 
 ### What's *not* in this part
 
-- *Inside* the sim tick, how the per-unit work (movement, LoS, firing, projectile integration) is structured so it can later be parallelized across pool workers without locks. That's part 4 — slice-by-tenths and the merge step.
+- The merge step from `004-architecture.md` (intent records,
+  deterministic sort, single-threaded apply). Movement under
+  Shape B doesn't use it — the action is slice-disjoint to
+  begin with (each task touches one unit). Combat and damage
+  in 113/112 will need it because cross-unit effects are
+  unavoidable. The intent-records pattern is the right shape
+  for those passes; it just hasn't been exercised yet.
+- The modifier-domain extension of intent records — Part 5.
 
 ---
 
-## Part 4/4 — Slice-by-tenths and the merge step
-
-This is the part that's **not yet in use** in Phase 1, but every per-unit subsystem is *designed* so adopting it later is a mechanical change instead of a redesign. The lever already exists — `libs/900-task-pool.h` shipped via issue 122 — issue 102 just doesn't pull it.
-
-### The orchestrator vs. the executor
-
-Recap: the sim thread is one OS thread that owns all game state. But "owning" doesn't mean "doing all the work." The sim thread is the **orchestrator** of a tick — it decides what runs when, owns the mutation order, and runs the merge step. It doesn't have to be the sole *executor*.
-
-When the pool is adopted, "the sim" becomes a logical group of N+1 threads:
-
-- 1 orchestrator (the original sim thread — still owns the snapshot publish, still drains the input queue, still runs the merge),
-- N pool workers (run parallel-for slices and self-rescheduling per-entity tasks).
-
-The orchestrator-vs-workers split is purely internal to the sim side of the boundary. The main thread doesn't notice and doesn't need the pool — its work (raylib polling, rendering) is inherently single-threaded.
-
-### Split-by-tenths
-
-When the sim runs a per-unit pass over `N` units, the pass is structured as ~10 independent task closures, each operating on a contiguous slice of the unit array — `[0, N/10)`, `[N/10, 2N/10)`, …, `[9N/10, N)`. Each task only touches its own slice (and per-task scratch memory).
-
-Why ten and not "one task per unit"? Two reasons:
-
-1. **Amortizes scheduling overhead.** A pool dispatch costs more than processing a single unit; ten chunky tasks beat 1000 tiny ones for cache and dispatch cost.
-2. **Keeps the slicing trivial.** Ten is a knob, not a load-balancing algorithm. If a slice is uneven, the next tick rebalances naturally because units don't move between slots.
-
-In Phase 1 the iteration code is already slice-shaped — it just runs serially. The change to parallelize is `for (slice) { ... }` → `for (slice) { task_pool_spawn(...) } task_pool_join_all()`. That's the win the design is buying.
-
-### The two rules that make slice-disjoint safe
-
-For zero-lock parallel work, every per-unit subsystem must obey:
-
-1. **Slice-disjoint writes.** A task may only mutate the unit whose slot it is processing, plus its own per-task scratch buffer. Cross-unit writes — "shooter A causes target B to take damage" — are *not* allowed inside the parallel pass.
-2. **Read-only shared input.** The terrain heightmap, the previous tick's snapshot (used for LoS / target acquisition reads), and any tick-constant data are read-only during the pass.
-
-Rule 1 is the hard one, because real game logic *is* full of cross-unit effects. The escape hatch: **intent records.**
-
-### Intent records
-
-When unit A does something that affects unit B, the slice processing A doesn't write to B's slot. Instead it appends a small intent record to its **per-task scratch buffer**:
-
-- "Apply 1 damage to unit B at projectile lifetime t" → damage intent.
-- "Spawn a projectile from unit A toward (x,y)" → projectile-spawn intent.
-- "Mark unit A as having no valid target this tick" → miss-memory intent.
-
-Each task writes only into its own scratch list. Different tasks may emit intents pointing at the *same* target B, but they don't collide because each task writes to its own list.
-
-After all tasks finish, the orchestrator collects every per-task scratch list, **sorts the combined intents deterministically** (e.g. by `(shooter_id, target_id, projectile_id)`), and applies them in order — single-threaded.
-
-### The merge step
-
-This single-threaded pass at the end of each tick is where every cross-unit mutation actually lands:
-
-- damage intents → subtract HP, set kill flags,
-- projectile-spawn intents → flush into the projectile pool,
-- death intents → free unit slots / mark for cleanup.
-
-Two properties fall out of doing it this way:
-
-1. **Determinism independent of dispatch order.** Because intents are sorted before application, it doesn't matter whether worker 3 finished slice 7 before or after worker 1 finished slice 2. The final state is identical regardless of how the pool happened to schedule the slices. This is what preserves the "tick = pure function of (prior state, drained input)" property that makes replay possible.
-2. **No locks during application.** Only one thread is running during the merge — the orchestrator. So the "expensive" mutations (HP, kill flags, projectile-array growth) need no synchronization either. The cost is one extra pass; the gain is the entire parallel pass needing zero locks.
-
-### Concrete subsystems in Phase 1
-
-The doc lays this out as a table — these are the parallel-pass passes per tick:
-
-| Subsystem              | Per-tick work                              | Cross-unit effect (→ intent)          |
-| ---------------------- | ------------------------------------------ | ------------------------------------- |
-| Movement               | Advance toward chain head                  | None — slice-disjoint                |
-| HP regeneration        | +0.02 HP per regen tick boundary           | None — slice-disjoint                |
-| LoS / target acquisition | For each unit, find nearest visible enemy | Reads only — slice-disjoint          |
-| Firing                 | Decide whether to spawn a projectile       | Per-task projectile-spawn list        |
-| Projectile integration | Advance, hit-check                         | Per-task damage-intent list           |
-| Apply damage           | (the merge step itself)                    | Single-threaded, mutates HP / deaths |
-
-Movement and HP regen are pure slice-disjoint — they don't even need the intent mechanism, because they only mutate `units[i]`. LoS reads enemy positions but writes only to `units[i].current_target`. Firing and projectile integration are the two that emit intents.
-
-### Why this is the *whole* design
-
-The two-thread architecture (parts 1–3) gives you a clean boundary between sim and render with two trivial locks. The slice-by-tenths design (part 4) gives you a path to scale the sim across cores **without** introducing any new locks or synchronization beyond what the pool already provides internally — because the parallel pass is read-only-shared + slice-disjoint-write, and all cross-cutting mutation is funneled through a single-threaded merge.
-
-So the lock count, end-to-end:
-
-- 1 mutex for the input queue (main ↔ sim),
-- 1 mutex for the snapshot pointer swap (sim ↔ main),
-- 0 additional locks for the eventual parallel sim work.
-
-That last zero is the entire point of designing the per-unit subsystems this way from the start, even when they run serially in Phase 1. Retrofitting locks into a system that wasn't designed slice-disjoint is painful; designing slice-disjoint and then *not yet* parallelizing is free.
-
----
-
-## Part 5/6 — Implications: what this design buys you downstream
-
-Parts 1–4 described the architecture as it serves Phase 1 — render decoupled from sim, two locks, pool-ready slicing. The deeper payoff is the doors this design leaves open. None of these are committed work, but each one becomes *cheap* because of decisions made now.
-
-### Determinism as a load-bearing property
-
-"Each tick is a pure function of `(prior state, drained input events)`" reads like a nice-to-have, but it's the property that unlocks four separate features:
-
-- **Replay.** Record `(initial state, input event log)` to disk; replay later by re-running the sim against the same events. The renderer doesn't need to be involved — replays can be regenerated headlessly to make new gameplay videos at higher render quality, or to debug a player report frame-by-frame.
-- **Regression tests.** A test harness can spin up a sim thread, feed it a scripted event log, and assert against the resulting snapshot. No raylib, no window, no human. Combat balance changes ("does javelin TTK still equal 4 ticks at range R?") become unit tests.
-- **Network rollback.** If/when multiplayer happens, the sim's purity means lockstep or rollback netcode is a natural fit. Each peer runs the same deterministic sim against the same input event stream. Rollback = restore prior snapshot, replay events with a corrected late-arriving event mixed in. The architecture is already shaped for this; you'd add network code as another producer to the input queue.
-- **AI training environments.** Headless sim ticks as fast as the CPU allows because nothing waits on the GPU. A bot training loop could run thousands of matches per minute against scripted input streams.
-
-The cost of preserving determinism is real (no `time(NULL)` in sim code, no thread-id-dependent ordering, no float NaN drift between platforms). But the architecture has already paid that cost in its design — the merge step's deterministic intent sort is the load-bearing piece.
-
-### Sim rate as a tuning dial
-
-Because render is decoupled from sim, `SIM_TICK_HZ` becomes a true tunable, not an architectural commitment:
-
-- A 30Hz sim with render-side interpolation looks identical to a 60Hz sim at 144Hz render, but burns half the simulation cost. Useful on lower-end hardware or when unit counts grow.
-- A 120Hz sim makes fast projectiles feel cleaner (the javelin spends more ticks in flight, hit-checks are tighter) at the cost of doubled sim work.
-- Even a *variable* sim rate is possible — render never notices, since it always reads the latest snapshot.
-
-This is the opposite of game architectures that bake the sim rate into rendering (e.g. running physics inside the render loop). Decoupling early is what keeps this dial real.
-
-### Headless sim as a first-class artifact
-
-The sim thread doesn't link against raylib. That's not an accident; it's a commitment. Two consequences:
-
-- **The sim binary can ship without graphics.** A `sim-only` build target — same `120-sim.c`, same `010-config.h`, but `001-main.c` replaced with a tiny driver that pipes events from stdin and snapshots to stdout — gives you a CLI sim. Test harnesses, AI evaluators, and dedicated multiplayer servers all reuse the same simulation code.
-- **The simulation never accidentally calls a render function.** The compiler enforces it: `100-render.c` is the only file that includes raylib's drawing API. If `050-units.c` ever tried to call `DrawCube`, the link would fail before the bug reached a player. The thread boundary is also a *build boundary*.
-
-### The snapshot as a serialization format
-
-A snapshot is already a flat, copyable struct sized for `MAX_UNITS`. That makes it almost trivially:
-
-- **A save format.** Writing a snapshot to disk is `fwrite(front_snapshot, sizeof(snapshot_t), 1, fp);`. Loading is the inverse plus rebuilding any derived state (which there shouldn't be much of — the snapshot is meant to be self-contained for rendering, and "self-contained for rendering" extrapolates well to "self-contained for resume").
-- **A network packet shape.** UDP-friendly because it's bounded in size. Even compressed delta-encoded, the baseline of "a snapshot is N kilobytes" is the unit of network sync work.
-- **A debug oracle.** Dump snapshots every K ticks, diff them against expected fixtures, find the exact tick where divergence began.
-
-None of this is Phase 1 work, but the architecture made it possible without redesign.
-
-### The intent pattern generalizes
-
-The "produce intents in a parallel pass, sort and apply single-threaded" pattern from part 4 isn't unique to combat damage. Anywhere a parallel pass needs to cause a cross-cutting effect, the same shape applies:
-
-- **Factory production** — each factory's per-tick task emits a "spawn unit" intent into a per-task list; the merge applies them in deterministic order (which matters for slot-allocation determinism if multiple factories complete on the same tick).
-- **Pathfinding requests** — a unit decides "I need a path from A to B" → emits a path-request intent → the merge step (or a dedicated pathing pass) services them, possibly in parallel itself with a different slicing.
-- **Audio events** — "play 'unit takes damage' sample" → intent → main thread reads them off a separate ring queue and dispatches to the audio system.
-
-Once you see the pattern, it's hard to unsee. It's the same shape as message-passing concurrency, but applied within a single thread's view of the sim — communication via append-only buffers, mutation via a single sequencer.
-
-### Backpressure and load behavior
-
-A nice property of this design is what *doesn't* happen under load:
-
-- **Render slowdown ≠ sim slowdown.** If the GPU is saturated and frames take 50ms each, the sim still ticks at 60Hz. Nothing in the gameplay simulation cares.
-- **Sim slowdown ≠ render slowdown.** If a tick takes 80ms (longer than the 16.67ms tick budget at 60Hz), the renderer keeps drawing the most recent snapshot. The game *feels* paused for that tick rather than freezing the whole window.
-- **Input burst ≠ dropped inputs.** Up to the queue's capacity, bursts are absorbed. Beyond capacity (which would require thousands of queued events — implausible from a single human user) you have a real problem, but it's a single number to monitor and tune.
-
-Compare to the failure modes of a single-threaded "render and sim in the same loop" design: GPU stalls cause input lag, sim work skips frames, and the user sees stutter. The decoupling here means failure modes are *isolated* to the affected subsystem.
-
----
-
-## Part 6/6 — Implementations: how to actually build and test it
-
-Now for the concrete how. Parts 1–5 described shapes; this is sizes, code patterns, and the things to instrument when you turn the design on.
-
-### Sizing the snapshot
-
-Every snapshot field has a fixed cap from `010-config.h`. A worked example:
-
-- `MAX_UNITS = 1024`, per-unit struct ≈ 64 bytes (position, orientation, hp, type, target_id, current_order_idx, etc.) → 64 KB unit array.
-- `MAX_PROJECTILES = 4096`, per-projectile ≈ 32 bytes → 128 KB projectile array.
-- Order chains: `MAX_UNITS × MAX_WAYPOINTS_PER_CHAIN` (say 32) × 8 bytes per waypoint → 256 KB.
-- Selection bitmap: `MAX_UNITS / 8` = 128 bytes.
-- Factories: small fixed cap, negligible.
-
-Total: under a megabyte per snapshot, two snapshots = under 2 MB. That fits in L2 on a modern CPU. The point isn't the absolute number — it's that you can compute it from `010-config.h` constants and budget for it deterministically. A snapshot that grows unboundedly with play time is a snapshot that will eventually break the design.
-
-### Sizing intent scratch buffers
-
-Each pool task gets a per-task scratch buffer for its intents. Sizing rule: **the worst-case intent count for the slice's units in one tick.**
-
-- Damage intents: at most one per projectile that hit something this tick. Per-task cap = `MAX_PROJECTILES / N_TASKS` × safety margin.
-- Spawn intents: at most one per unit that fired this tick. Per-task cap = slice size (every unit in the slice firing).
-- Sized at task creation, never grown during the pass. If a task overflows, it's a bug in the cap math, and it should assert loudly rather than silently drop or realloc.
-
-Intent buffers are *per-task*, allocated when the task is dispatched and freed (or returned to a pool) when it completes. This keeps allocation off the per-tick hot path and avoids any cross-task contention on a shared allocator.
-
-### The serial-to-parallel migration
-
-In Phase 1, every per-unit subsystem runs serially but is already shaped for slicing. The code today looks like:
-
-```c
-for (int slice = 0; slice < N_SLICES; slice++) {
-    int lo = slice * MAX_UNITS / N_SLICES;
-    int hi = (slice + 1) * MAX_UNITS / N_SLICES;
-    movement_pass(units, lo, hi, intent_scratch[slice]);
-}
-merge_intents(intent_scratch, N_SLICES);
+## Part 5/6 — Modifier-ring batching
+
+**Status:** Design pattern, captured here. **Not yet built.**
+Aligns naturally with the frame-ring delivery from Part 4 (issue
+127). The pattern generalizes the merge-step from
+`004-architecture.md` to the *modifier* domain (e.g. "+20%
+speed," "1.3× damage," "regen rate +0.05/s").
+
+### The pattern
+
+Each tick, the totals of modifiers being applied to each unit are
+*accumulated* during the frame's parallel pass and *applied* at
+the start of the next frame. Modifier intents are written to a
+**separate memory location**, one slot per frame index in the
+frame ring, so accumulation in frame N doesn't perturb the
+modifiers being applied to units mid-frame N.
+
+Conceptually, alongside the frame ring's task queues:
+
+```
+struct frame_slot {
+    /* (existing) ten priority queues for tasks scheduled this frame */
+    /* ... */
+
+    /* (new) modifier intents accumulated by tasks running in this frame */
+    modifier_intent_t *intents;
+    int                n_intents;
+    int                cap_intents;
+};
 ```
 
-When the pool is adopted (a future issue, not 102), it becomes:
+The flow:
 
-```c
-for (int slice = 0; slice < N_SLICES; slice++) {
-    int lo = slice * MAX_UNITS / N_SLICES;
-    int hi = (slice + 1) * MAX_UNITS / N_SLICES;
-    task_pool_spawn(pool, movement_pass_task, &args[slice]);
-}
-task_pool_join_all(pool);
-merge_intents(intent_scratch, N_SLICES);
-```
+1. During frame N execution, any task that wants to apply a
+   modifier (e.g., a "speed boost" buff task, a "damage taken
+   modifier" effect) appends an intent into `frames[N].intents`.
+   Each intent is small: `{ target_unit_id, modifier_kind,
+   value }`.
+2. At the start of frame N+1 (just after `pool_advance_frame`
+   has stalled-and-flipped), a single-threaded sweep folds
+   `frames[N].intents` into per-unit modifier sums. Multiple
+   `+X%` intents into the same target sum naturally; conflicts
+   between modifier kinds resolve via a fixed application
+   order.
+3. Frame N+1's tasks read the freshly-applied modifiers when
+   they run. They emit their *own* intents into
+   `frames[N+1].intents` for frame N+2 to consume.
 
-The merge step is unchanged. The pass function is unchanged. Only the dispatch loop changed. This is the *mechanical* migration the design protects.
+This is the merge-step pattern from `004-architecture.md`
+(produce intents in a parallel pass, apply single-threaded)
+delivered through the frame ring instead of through a
+within-tick collect-and-merge.
 
-The one thing to watch in the migration: `movement_pass` must already not capture state across slice boundaries. If it accidentally reads `units[hi]` at the boundary of the *next* slice (e.g., for "look at neighbor" logic), it reads correctly serially but breaks under parallel dispatch. Static analysis or a debug-build assertion that tracks read addresses against `[lo, hi)` catches this early.
+### Why a *ring* (not just "next tick")
 
-### Where the orchestrator lives in code
+The frame ring is already a circular structure (Part 4). Use the
+same circular indexing for modifier accumulation, and a
+nice-to-have property falls out: **long-running modifier
+computations get a free deadline equal to the ring period.**
 
-Today, "the orchestrator" is just the body of `sim_thread_main()` in `120-sim.c`. After pool adoption, it stays exactly that — the function that calls `task_pool_spawn` and `task_pool_join_all`, then runs the merge. This matters because it means the pool isn't a separate "sim subsystem" with its own lifecycle; it's a tool the existing sim thread reaches for during a pass and puts back when the pass is done.
+Concrete: suppose computing a particular modifier is
+unexpectedly expensive — say, an AoE damage modifier that walks
+nearby units. The task computing it spans more than one frame.
+The modifier ring's slots are stable for `FRAME_RING_SIZE`
+frames; by the time the ring has cycled back to the same slot
+index, the long-running computation is "probably done." The
+sweep at apply-time does a cheap "are you done?" check on the
+intent. If yes, fold it in. If no — for the genuinely
+restricted cases — it continues into the next ring revolution
+and slots in then. Long-tasked projects ring-cycle quicker and
+sooner; short ones finish before their slot is needed.
 
-The pool itself is created once at startup (in `001-main.c` or `120-sim.c`'s init) and lives for the program's lifetime. Workers are persistent threads. No per-tick thread creation, no per-tick allocation.
+This is the user's framing: *"write to a different memory
+location ring buffer style and it works out easy. The long ones
+will be done by the time it's back to the beginning of the ring
+buffer. Odds are, if they aren't completed, it's just a quick
+check to validate — are you done? if no, because it was one of
+the restricted ones, then they'll continue on their way."*
 
-### Testing the design
+### Why this is the right shape for "+X%" modifiers specifically
 
-A handful of tests are cheap and high-signal:
+- **Commutative and associative within a frame.** Three sources
+  of "+10% speed" applied in any order produce the same result.
+  Accumulating into a sum is the natural operation; no
+  tie-breaking needed.
+- **Bounded blast radius per modifier kind.** A speed modifier
+  doesn't interact with a damage modifier; per-kind sums in
+  the apply sweep are independent.
+- **Deterministic.** Sums of floats committed in the same
+  application order produce the same result on every machine.
+  The sweep applies in `(target_id, modifier_kind)` order;
+  iterating intents is incidental, the *fold* is canonical.
 
-1. **The 100ms usleep test.** From issue 102's notes: deliberately `usleep(100000)` inside one sim tick. Camera should remain smooth, marker should pause for one tick. If camera stutters, the snapshot/lock design is wrong.
-2. **Replay equivalence.** Run the sim with input log L → snapshot S1 at tick T. Run again with the same L → snapshot S2 at tick T. `memcmp(S1, S2) == 0`. If it ever isn't, you have non-determinism (uninitialized field, hash-table iteration order, float associativity from parallel reduction, etc.).
-3. **Slice-count invariance.** Run with `N_SLICES = 1` (effectively serial) → snapshot S1. Run with `N_SLICES = 10` → snapshot S2. `memcmp(S1, S2) == 0`. This proves the merge sort is canonical and the parallel pass has no order dependencies leaking through.
-4. **Queue overflow behavior.** Push events faster than the sim drains them until the queue saturates. The producer should block briefly (or assert), never silently drop. Whichever choice the implementation makes, the test pins it.
-5. **Snapshot age bound.** Instrument "ticks since last snapshot publish" on the render side. Under normal load this should be 0–1. If it climbs into double digits, the sim is falling behind and something is wrong.
+### Concrete fits
 
-### What to instrument from day one
+- **Speed modifiers.** Buffs ("+20% speed for 5 seconds"),
+  debuffs (slow on hit), terrain effects (mud halves speed).
+- **Damage multipliers.** Crit chance, armor piercing,
+  distance falloff — anything that scales projectile damage
+  before HP application.
+- **Regen rate modifiers.** Stacked regen buffs from multiple
+  factories.
+- **Accuracy bonuses.** Stationary aim bonus, supporting-fire
+  bonus from nearby units.
 
-The design's failure modes are mostly *invisible* without instrumentation, because both threads keep running. Cheap counters that pay for themselves:
+All of these are "+X%" or "×K" effects; all of them
+naturally sum or multiply into a per-unit, per-kind slot.
 
-- **Tick duration histogram.** Each tick records its wall-clock duration. A sudden bimodal distribution (most ticks at 5ms, occasional tick at 80ms) usually means GC-style pressure somewhere — a list growing, a buffer reallocating, a cache miss explosion.
-- **Input queue high-water mark.** Largest queue depth observed since startup. If it ever crosses ~50% of capacity, the queue cap needs to grow or an upstream rate-limit is missing.
-- **Snapshot publish rate.** Snapshots published per wall-clock second. Should equal `SIM_TICK_HZ` ± noise. Drops indicate sim stalls.
-- **Render frame rate.** Already free from raylib. Compare against snapshot publish rate to spot decoupling failures.
+### How it differs from the existing intent-records pattern
 
-These are four integers. They cost nothing to maintain and make the difference between "the game feels weird" and "tick 4127 took 92ms because the projectile array hit its cap and we silently allocated."
+`docs/004-architecture.md` describes intents that target
+*single fields* (HP delta, kill flag, projectile spawn).
+Modifier-ring intents target *modifier accumulators* —
+they don't decide a final value, they contribute to one. The
+apply sweep doesn't choose; it sums.
 
-### Edge cases worth pre-thinking
+This means modifier intents *can* be applied in any order
+without changing the result, which is what makes them
+parallelization-friendly. The only ordered sweep is the
+single-threaded one at frame-N+1 start, and even there the
+order is canonical (target_id, kind), not arrival.
 
-- **Unit death during a tick.** A damage intent kills unit B. Other intents in the same tick might target B. Resolution: the merge step processes intents in deterministic order; later intents targeting a dead unit see HP = 0 and skip. The unit slot isn't reused until the *next* tick at earliest.
-- **Projectile array fills up.** If `MAX_PROJECTILES` is exceeded, spawn intents at the merge step are dropped (with a debug-build assert). The cap should be sized for worst-case sustained fire across `MAX_UNITS`, with margin.
-- **Input queue full.** Either block the producer (back-pressure into the input thread, which is the main thread — bad, causes frame stutter) or drop with logging (loses inputs, but main thread keeps drawing). The right answer depends on policy; pick one and stick to it. Sizing the queue for ~1 second of bursty input avoids hitting either case in practice.
-- **Sim falls behind.** If a tick takes longer than the budget, do you skip a tick to catch up, or run them back-to-back? "Run back-to-back, but cap the catch-up at 4 ticks per render frame" is a common middle ground — recovers from brief spikes without entering a death spiral where catching up makes catching up harder.
+### What's *not* in this part
 
-### The minimum to call it done
+- The implementation. No code yet. Issue 127 is the natural
+  carrier for the modifier ring's data structures (since it
+  already adds the frame ring); a follow-up issue will
+  formalize the modifier intent struct and the apply sweep
+  when the first concrete consumer arrives. Likely candidates:
+  speed buffs (Phase 2 ability work), damage multipliers
+  (issue 113 combat).
 
-Issue 102's bar is modest: a placeholder marker moves in a circle, driven by the sim thread, while camera input stays responsive. That's the smallest test of the architecture. Everything in this walkthrough is what the design *makes possible* once that bar is met — but the bar itself is achievable in a few hundred lines of code, because the design's surface area is small. Two threads, two locks, two snapshot buffers, one input queue. The complexity lives in the *discipline* of using it correctly, not in the primitives themselves.
+---
+
+## Part 6/6 — Implications and implementation notes
+
+### What this design buys you downstream
+
+- **Determinism is load-bearing.** Each tick is a pure function
+  of `(prior state, drained input events)`. That property
+  unlocks replay (record events, replay later), regression
+  tests (scripted event log → assert against snapshot), network
+  rollback (lockstep multiplayer is a natural fit; the
+  frame-ring stall in Part 4 is exactly the synchronization
+  point lockstep needs), and AI training environments (headless
+  sim ticks as fast as the CPU allows).
+
+- **Sim rate is a tuning dial.** Render is decoupled from sim
+  (Part 1). `SIM_TICK_HZ` and the frame-ring period (Part 4)
+  are independent levers. A 30Hz sim with render-side
+  interpolation looks identical to a 60Hz sim at 144Hz render
+  but burns half the simulation cost. Useful as unit counts
+  grow.
+
+- **Headless sim as a first-class artifact.** The sim thread
+  doesn't link against raylib. A `sim-only` build target
+  reuses `120-sim.c` + `010-config.h` + the task pool with a
+  driver that pipes events from stdin and snapshots to stdout.
+  Test harnesses, AI evaluators, and dedicated multiplayer
+  servers all share simulation code.
+
+- **The snapshot as a serialization format.** Once 102 lands,
+  the snapshot is a flat copyable struct sized for `MAX_UNITS`.
+  Save/load is `fwrite`/`fread`. UDP-friendly because bounded
+  in size. Diffable for debug oracles ("dump every K ticks,
+  find the tick where divergence began").
+
+- **The intent / modifier patterns generalize.** Combat damage
+  intents (Part 4 caveat), modifier-ring sums (Part 5), audio
+  events (a separate ring queue main-thread-bound), pathfinding
+  requests (per-unit task emits a request intent; a dedicated
+  pathing pass services them). Once you see "produce intents
+  in parallel, apply single-threaded in a deterministic
+  order," it's hard to unsee.
+
+### What's actually been tested
+
+Pool library (`tests/` in the project, all passing as of
+2026-04-29):
+
+| Test | Behavior covered |
+| --- | --- |
+| 001 | N-action task runs in order; args route correctly |
+| 002 | Cross-task result-slot wait via `pool_result_slot` + `ACT_BLOCK` |
+| 003 | Mid-task block parks, wakes, resumes at same `current_index` |
+| 004 | Self-rescheduling pattern reaches its termination condition |
+| 005 | Priority cycler: high priorities complete sooner on average |
+| 006 | Result slots readable by next action and externally |
+| 007 | Block promotes blocker; A's priority unchanged (parking, not demote) |
+| 008 | `result_filled` distinguishes "ran and wrote NULL" from "didn't run" |
+| 009 | 50 waiters on one blocker — all 50 wake when blocker finishes |
+
+Game integration: build is clean under `-Wall -Wextra
+-Wpedantic -std=c11`; binary launches; raylib reports 6.0; no
+crash on shutdown (issue 122 verification). Movement under
+Shape B: visual confirmation of smooth turn-then-walk on six
+units; the snap is the one known regression (driving 127).
+
+What's *not* tested yet:
+
+- 102's two-pthread split (issue still TODO).
+- Snapshot publish/acquire (same — issue 102 prerequisite).
+- Frame-ring scheduling (issue 127 in flight).
+- Modifier-ring batching (Part 5 — pattern only).
+- Mass scatter under load (only six units exist; 116's factory
+  production will populate the test).
+
+### What to instrument when 102 + 127 land
+
+Cheap counters that pay for themselves:
+
+- **Tick duration histogram.** Each sim tick records its
+  wall-clock duration. Bimodal distributions usually mean
+  GC-style pressure — a list growing, a buffer reallocating,
+  a cache miss explosion.
+- **Frame-budget overrun.** When `pool_advance_frame` stalls,
+  log how long it stalled. Persistent overruns mean a frame
+  is too expensive; profiling tells you which task.
+- **Cadence histogram per task type.** For self-rescheduling
+  tasks, the gap between consecutive runs of the same task.
+  Under the frame-ring, this should be exactly one frame
+  ± jitter; outliers are the bug 127 was built to surface.
+- **Parked task census.** Number of tasks in `TASK_PARKED`
+  state. A growing parked count means dependency chains are
+  serializing; might be load, might be a missing wakeup.
+- **Input queue high-water mark.** Largest queue depth
+  observed since startup. Crossing 50% capacity means the
+  cap needs to grow or an upstream rate-limit is missing.
+- **Snapshot publish rate vs render frame rate.** Should
+  equal `SIM_TICK_HZ` ± noise. Drops indicate sim stalls
+  the renderer is hiding via stale-snapshot redraws.
+
+### The minimum to call the architecture done
+
+A reader who's followed parts 1–5 should be able to point at
+each issue's status line in this document and tell whether
+it's plan, build, or fix-in-flight. The architecture is
+"done" when:
+
+- 102 lands → boundary becomes real, snapshot exists,
+  semantic events flow.
+- 127 lands → cadence is bounded, the snap is gone,
+  periodics are a one-line idiom.
+- Modifier-ring (Part 5) lands when its first concrete
+  consumer arrives — likely a speed buff or damage modifier
+  in Phase 2 or issue 113's combat.
+- 124 / 125 land *if and when* profiling or operational
+  experience justifies them.
+
+The complexity lives in the *discipline* of using these
+primitives correctly, not in the primitives themselves. Two
+threads, two boundary locks, two snapshot buffers, one input
+queue, an action-array task pool with parking, a frame ring
+that bounds cadence, and a modifier ring that delivers
+"+X%" effects with one-frame latency. That is the whole
+architecture, and most of it is already real.
