@@ -82,10 +82,35 @@ the work is too large for any single issue:
   not-break-software-mostly elsewhere. Specifically a comprehensive
   regression suite per manager.
 
+## sub-issues
+
+Split by Toolbox manager, in dependency order (foundational
+managers first; UI managers depend on them; integration managers
+depend on UI):
+
+- `1104a-toolbox-arm-memory-manager.md` — heap, handles, pointers
+- `1104b-toolbox-arm-resource-manager.md` — resource forks
+- `1104c-toolbox-arm-loader.md` — OMF executable loading
+- `1104d-toolbox-arm-event-manager.md` — event queue and dispatch
+- `1104e-toolbox-arm-quickdraw-ii.md` — graphics (largest single
+  sub-issue; itself may further split internally)
+- `1104f-toolbox-arm-window-manager.md` — windows
+- `1104g-toolbox-arm-menu-manager.md` — menu bars and items
+- `1104h-toolbox-arm-control-manager.md` — buttons, scroll bars
+- `1104i-toolbox-arm-dialog-manager.md` — modal / modeless dialogs
+- `1104j-toolbox-arm-standard-file.md` — Open / Save dialogs
+- `1104k-toolbox-arm-sound-manager.md` — sound + Ensoniq sim
+- `1104l-toolbox-arm-scrap-manager.md` — clipboard
+- `1104m-toolbox-arm-process-manager.md` — app launch / switch
+- `1104n-toolbox-arm-print-manager.md` — print to virtual printer
+
+This issue (1104) remains as the umbrella; the sub-issues are the
+actual work units. Each may further split internally as
+implementation reveals natural seams.
+
 ## notes
 
-- Multi-year. Estimate: 18–36 months of focused work to port the
-  entire Toolbox, depending on team size (likely just gabrilend
-  + me).
-- This is the issue where the project's identity locks in. After
-  this, Apple IIds is a real OS, not a port project.
+- Multi-year. Estimate: 18–36 months of focused work across all 14
+  sub-issues, depending on team size (likely just gabrilend + me).
+- This is the issue cluster where the project's identity locks in.
+  After all 14 land, Apple IIds is a real OS, not a port project.

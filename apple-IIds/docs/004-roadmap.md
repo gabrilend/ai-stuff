@@ -182,7 +182,8 @@ Three approaches that can be combined:
   per device: SD card, panels, digitizers, sticks, buttons, audio,
   Hall switch, gyro, vibration)
 - 1103 — first module ported (smallest GS/OS subsystem)
-- 1104 — Apple //gs Toolbox in ARM assembly (the multi-year subproject)
+- 1104 — Apple //gs Toolbox in ARM assembly (the multi-year subproject;
+  split 1104a–1104n per Toolbox manager)
 - 1105 — threading primitives in ARM assembly (re-port of phase 9
   routines from 65C816)
 - 1106 — broker becomes a kernel component, not a Linux process
