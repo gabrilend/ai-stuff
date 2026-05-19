@@ -76,11 +76,27 @@ what the same hardware could do natively.
   matching the IIds contract. The hardware-accel question is
   worth its own follow-up.
 
+## sub-issues
+
+This issue is split into five sub-issues by API surface. Tackle
+roughly in order — primitives first (the easiest, useful on their
+own), then regions (a building block other ops depend on), then
+blits (the performance-critical big one), then text, then palette.
+
+- `604a-quickdraw-primitives.md` — lines, rectangles, ovals,
+  polygons, arcs
+- `604b-quickdraw-regions.md` — region data type and ops
+  (intersect, union, etc.)
+- `604c-quickdraw-blits.md` — `CopyBits` and friends, the
+  performance-critical bitmap copies
+- `604d-quickdraw-text.md` — text rendering and measurement
+- `604e-quickdraw-palette.md` — color tables and palette management
+
+This issue (604) remains as the umbrella; sub-issues land
+incrementally and each becomes a completable unit on its own.
+
 ## notes
 
-- This is by far the largest of the phase 6 issues. Easily a
-  multi-month subproject. Worth splitting into sub-issues
-  (604a, 604b, ...) once detailed planning begins.
 - Successful completion of native QuickDraw II is one of the
   project's most visible wins — the device suddenly feels much
   faster.

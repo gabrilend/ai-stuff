@@ -67,10 +67,30 @@ audio, etc.) is gone; we need to write the equivalents.
   requires concurrent access. Each driver owns a lock per-device-
   instance and serializes access.
 
+## sub-issues
+
+This issue is split into nine sub-issues, one per device. The order
+below is foundation-first: SD card and panels first (without these
+the device can't boot to a visible state), then input devices
+(digitizers, sticks, buttons), then audio and the smaller sensors.
+
+- `1102a-hal-sd-card.md` — block-level SD card I/O (the gating
+  driver for everything)
+- `1102b-hal-panels.md` — the two 640×480 IPS panels
+- `1102c-hal-digitizers.md` — multi-touch + stylus on both panels
+- `1102d-hal-analog-sticks.md` — the two clickable sticks
+- `1102e-hal-buttons.md` — d-pad, face, shoulder, dual Start /
+  Select, volume, power
+- `1102f-hal-audio.md` — DAC and PCM playback
+- `1102g-hal-hall-switch.md` — sleep / wake sensor
+- `1102h-hal-gyro.md` — six-axis IMU
+- `1102i-hal-vibration.md` — haptic motor
+
+This issue (1102) remains as the umbrella; the sub-issues are the
+actual deliverables.
+
 ## notes
 
-- This is many weeks of work. Worth splitting into sub-issues per
-  driver. The order of completion matters: panels and SD card
-  first (so we can boot to something useful), then digitizers and
-  buttons (so we can interact), then audio / gyro / vibration
-  (polish).
+- All nine drivers are individually tractable. The complexity is in
+  the SD card and panels (each is its own week of work); the
+  others are days.

@@ -97,7 +97,7 @@ planning, not started until upstream threading primitives at
 - 601 — Scrap Manager native (clipboard, easiest seam)
 - 602 — File Manager native (shared FS without virtual-disk fiction)
 - 603 — Event Manager native (radial input flows through native events)
-- 604 — QuickDraw II native (the big one)
+- 604 — QuickDraw II native (the big one; split 604a–604e by API surface)
 - 620 — phase 6 demo
 
 ## phase 7 — GS/OS modification foundation
@@ -178,8 +178,9 @@ Three approaches that can be combined:
   that can't be statically translated. Last resort.
 
 - 1101 — bare-metal boot (RK3568 boots into our bootloader, not Linux)
-- 1102 — hardware abstraction layer (panels, digitizers, sticks, audio,
-  Hall switch, gyro, vibration) in ARM assembly
+- 1102 — hardware abstraction layer in ARM assembly (split 1102a–1102i
+  per device: SD card, panels, digitizers, sticks, buttons, audio,
+  Hall switch, gyro, vibration)
 - 1103 — first module ported (smallest GS/OS subsystem)
 - 1104 — Apple //gs Toolbox in ARM assembly (the multi-year subproject)
 - 1105 — threading primitives in ARM assembly (re-port of phase 9
