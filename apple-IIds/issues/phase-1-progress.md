@@ -16,10 +16,16 @@ Status as of 2026-05-19: **planning** (no code yet)
 
 ## phase goal
 
-One Apple IIgs, booting GS/OS on screen A of the Anbernic RG DS, mouseable
-by touch and stylus, with the ability to insert and eject disk images at
-runtime — and crucially, **booting from a GS/OS image we built ourselves
-from Apple's publicly released source**. Closed by issue 120's demo.
+One Apple //gs (the staging-ground machine), booting GS/OS on screen A
+of the Anbernic RG DS, mouseable by touch and stylus, with the ability
+to insert and eject disk images at runtime — and crucially, **booting
+from a GS/OS image we built ourselves from Apple's publicly released
+source**. Closed by issue 120's demo.
+
+Phase 1 is the foundation of the **staging-ground** half of the project
+(phases 1–10 run on Linux with GSplus emulators). The **destination**
+half (phases 11–12) is bare-metal Apple IIds on the RK3568 with no
+Linux, and is its own multi-year undertaking.
 
 ## open hardware questions (block 101)
 
@@ -47,6 +53,23 @@ from Apple's publicly released source**. Closed by issue 120's demo.
   Correction worth recording: the IIgs is the *most colorful* pre-Mac-II
   Apple, **not** the *earliest* color Apple — the original Apple II had
   color from 1977.
+- **2026-05-19** — project name renamed to **Apple IIds** (a pun on the
+  RG DS hardware). Dir renamed `handheld-iigs` → `apple-IIds`. The
+  product is the modernized GS/OS we're shipping; the historical Apple
+  //gs (1986) keeps the IIgs spelling. The two are distinct in docs.
+- **2026-05-19** — **bare-metal port** confirmed as a core constraint
+  of the project, not aspirational. The destination is the Apple IIds
+  OS running natively on the RK3568 with no Linux underneath. Threading
+  primitives are lifted wholesale from soramech (minus its language-
+  spec system); all threading work is in assembly. After bare-metal,
+  the in-device IDE is soramech's editor, which emits ARM assembly.
+  Roadmap grew from 9 phases to 13 to capture this (new phases 8, 9,
+  11, 12).
+- **2026-05-19** — smaller decisions encoded: suspend-to-RAM only (no
+  SD writes for sleep state); audio mixer with per-program stereo
+  channel ownership; one boot chime per startup despite two emulators;
+  cross-machine file locking option A (second opener gets an error);
+  third-party-deployment license posture (default-deny non-OSI code).
 - **2026-05-19** — pinned hardware target: **Anbernic RG DS**.
   RK3568 quad-core A55 @ 2 GHz, 3 GB RAM, two 4″ IPS panels at 640×480
   with multi-touch + stylus, two clickable analog sticks, dual Start /

@@ -6,7 +6,7 @@ for those. The eventual HTML rendering at `docs/HTML/` will mirror this
 tree with clickable cross-references between every page.
 
 ```
-handheld-iigs/
+apple-IIds/
 ├── notes/
 │   └── vision/
 │       └── 000-vision.md ............ the project's reason for existing
@@ -16,7 +16,7 @@ handheld-iigs/
 │   ├── 001-architecture-overview.md . three-layer Option C architecture
 │   ├── 002-hardware-target.md ....... Anbernic RG DS specs (pinned 2026-05-19)
 │   ├── 003-input-system.md .......... radial dual-stick keyboard + touch + stylus
-│   ├── 004-roadmap.md ............... phases of development (1 → 9+)
+│   ├── 004-roadmap.md ............... phases of development (1 → 12+, staging → bare-metal)
 │   ├── 005-patch-conventions.md ..... apply/unapply discipline for upstream code
 │   └── balance-updates.md ........... append-only log of knob-turning (not yet started)
 │
