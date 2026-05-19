@@ -6,7 +6,7 @@ for those. The eventual HTML rendering at `docs/HTML/` will mirror this
 tree with clickable cross-references between every page.
 
 ```
-handheld-mac-plus/    (directory name pending rename → handheld-iigs)
+handheld-iigs/
 ├── notes/
 │   └── vision/
 │       └── 000-vision.md ............ the project's reason for existing
