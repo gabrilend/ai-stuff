@@ -60,8 +60,36 @@ single-thread assumption that a lock wrapper is not enough.
   (e.g., what happens if a task is killed mid-routine). Document
   these.
 
+## sub-issues
+
+Split per Toolbox manager, with the same letter mapping as 905x and
+1104x. Each sub-issue's actual scope is heavily audit-dependent —
+some sub-issues may turn out to be no-ops, others may be the most
+significant refactor in phase 9.
+
+- `906a-reentrancy-hard-memory-manager.md` — high-impact
+- `906b-reentrancy-hard-resource-manager.md` — lock-during-I/O
+- `906c-reentrancy-hard-loader.md` — likely modest
+- `906d-reentrancy-hard-event-manager.md` — **highest-impact**
+  (per-task event queues)
+- `906e-reentrancy-hard-quickdraw.md` — **second-highest** (per-task
+  shadow GrafPorts)
+- `906f-reentrancy-hard-window-manager.md` — update-region work
+- `906g-reentrancy-hard-menu-manager.md` — likely empty
+- `906h-reentrancy-hard-control-manager.md` — likely empty
+- `906i-reentrancy-hard-dialog-manager.md` — modeless dialogs
+- `906j-reentrancy-hard-standard-file.md` — likely empty
+- `906k-reentrancy-hard-sound-manager.md` — IRQ-path latency
+- `906l-reentrancy-hard-scrap-manager.md` — likely empty (601
+  supersedes)
+- `906m-reentrancy-hard-process-manager.md` — scheduler unification
+- `906n-reentrancy-hard-print-manager.md` — likely empty
+
+This issue (906) remains as the umbrella. Patches land in the
+250-299 range.
+
 ## notes
 
 - This is the hardest part of phase 9. Easily months of work
-  spread across many small refactors. Worth splitting into
-  sub-issues by manager once the audit document scopes it.
+  spread across the 14 sub-issues. Many are likely no-ops; the
+  big ones (906a, 906d, 906e) carry the load.
