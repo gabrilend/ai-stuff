@@ -117,9 +117,14 @@ be re-read and corrected once the upstream primitives stabilize.
 - Native boot to two GS/OS desktops
 - Real IIgs software running unmodified (games, productivity, music tools)
 - A modified GS/OS that knows about the second desktop and the radial input
-- Custom games and applications written **for this OS specifically**,
-  exploiting both screens, the radial input, the stylus, and (eventually)
-  the gyroscope and vibration motor
+- Custom games and applications written **for this OS specifically**.
+  When a feature wants "both screens at once" the model is a
+  **coordinated pair** of programs — one ordinary IIgs application per
+  screen — talking through the broker's IPC channel. No single program
+  ever renders on both screens; that's a hard rule (see "what is not in
+  scope" below). The radial input, the stylus, and (eventually) the
+  gyroscope and vibration motor are all exploitable from within an
+  ordinary single-screen IIgs program.
 - Patches to the IIgs Toolbox ROM where the source-level approach can't
   reach (the Toolbox lives in ROM, not in GS/OS proper)
 - A documentation site (HTML at `docs/HTML/`) that lets a reader hop from
@@ -127,6 +132,15 @@ be re-read and corrected once the upstream primitives stabilize.
 
 ## what is not in scope
 
+- **Programs that span both screens.** Each screen runs a self-contained
+  IIgs with its own GS/OS and its own Window Manager; a single program
+  rendering across both would require modifying the ROM-resident Window
+  Manager to know cross-screen geometry, which is the deepest, hardest
+  modification surface available. We don't need it: every dual-screen
+  experience we want can be built as a **coordinated pair of programs**
+  (one per screen, talking through the broker IPC) instead. This
+  constraint is load-bearing — it's what keeps the broker architecture
+  honest.
 - Hardware-accelerated 3D. The original IIgs rendered everything in
   software to its 320×200 framebuffer; that is the contract we keep.
 - Networking the device to other machines off the handheld. The RG DS has
