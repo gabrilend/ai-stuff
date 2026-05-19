@@ -40,16 +40,30 @@ A thin LuaJIT process that owns the device. It does five things:
    images and becomes a first-class GS/OS device driver.
 3. **Owns the shared clipboard.** Copy on screen A, paste on screen B.
    Talks to each emulator's Scrap Manager through a stub we add to GS/OS.
-4. **Routes input.** Touches on a screen go to that screen's emulator.
-   Stylus input is treated the same as touch (the RG DS exposes both
-   through the same digitizer). Stick input routes to whichever screen
-   currently has keyboard focus. The radial-keyboard renderer is also
-   broker-side (it draws onto the bottom panel as an overlay, not inside
-   the emulated IIgs).
+4. **Routes input and tracks the last-input target.** Touches on a
+   screen go to that screen's emulator. Stylus input is treated the
+   same as touch (the RG DS exposes both through the same digitizer).
+   Stick input routes to whichever screen is the current last-input
+   target — a (screen, window, program) triplet the broker updates
+   on every input event. The radial-keyboard renderer draws its
+   overlay on the **inactive** screen (the one *not* receiving input),
+   so the user can see the guide without obscuring the thing they're
+   typing into. See `docs/003-input-system.md` for details.
 5. **Implements an IPC channel** between the two emulators so that
    custom-written applications can coordinate explicitly across screens.
    The channel is modeled on AppleTalk but rides on a Unix-domain socket
    underneath; both endpoints look like network sockets to GS/OS code.
+6. **Mixes audio.** Each emulated program owns its own stereo channel.
+   The broker mixes the two Ensoniq 5503 outputs (one per emulator)
+   plus per-program panning into the device's stereo speakers or
+   headphone jack. Defaults: each emulator's programs pan slightly
+   left/right based on which screen they live on, but this is fully
+   configurable. The two Ensoniqs running in parallel give 64 total
+   wavetable voices.
+7. **Plays the boot chime exactly once.** On power-on the broker plays
+   the //gs boot chime through the mixer, then suppresses the second
+   emulator's chime by muting its audio output for ~2 seconds during
+   boot. The user hears the iconic chime, not a double-chime.
 
 The broker is single-threaded today and one cooperative scheduler tick per
 frame is enough for everything it does. **Pending soramech**, the broker
@@ -95,24 +109,31 @@ likely sequence:
 Each native subsystem coexists with the still-emulated remainder; the
 broker arbitrates calls across the boundary.
 
-## two parallel modification surfaces
+## modification surfaces
 
-We can modify the stack at two levels at once:
+We can modify the stack at four levels:
 
-- **At the GS/OS source level.** Apple's release covers the bulk of the OS
-  above the Toolbox. We rebuild from source under our own toolchain
+- **At the GS/OS source level.** Apple's release covers the bulk of the
+  OS above the Toolbox. We rebuild from source under our own toolchain
   (ca65 or merlin32 for 65C816 assembly), package as a disk image, boot
-  it in GSplus. This is the primary modification surface.
+  it in GSplus. This is the primary modification surface during staging.
 - **At the Toolbox ROM level.** The Toolbox lives in ROM, not in GS/OS.
   Apple did not release Toolbox source. Modifications here require
-  disassembly and binary patching. We do this only where the source-level
-  approach can't reach.
+  disassembly and binary patching. Reserved narrowly.
 - **At the emulator level.** GSplus itself is C and we can add new
   device emulations (the broker-as-peripheral), new framebuffer outputs
   (RG DS panels), or short-circuit specific Toolbox traps natively.
+- **At the bare-metal level (eventual destination).** After phase 11,
+  the entire system runs in ARM assembly on the RK3568 with no Linux
+  underneath. The 65C816 modifications from staging become ARM
+  assembly. Threading primitives are imported wholesale from soramech.
+  This is the destination the project converges on; see
+  `docs/004-roadmap.md` phases 11–12.
 
-These three surfaces are coordinated by always going through the broker as
-the integration point.
+The four surfaces are coordinated by always going through the broker as
+the integration point. The patch-convention discipline
+(`docs/005-patch-conventions.md`) keeps each surface independently
+modifiable and the cross-surface coordination explicit.
 
 ## diagram (ascii)
 
@@ -186,3 +207,33 @@ the model is **two cooperating programs**, one running on each IIgs,
 exchanging state through the broker IPC channel. The user sees a unified
 dual-screen experience; the two IIgses see two ordinary programs that
 happen to coordinate.
+
+## operational constraints
+
+A small collection of constraints that shape the system at every layer
+and are worth stating explicitly so they don't get rediscovered:
+
+- **Suspend to RAM, never to SD.** The Hall sleep switch pauses both
+  emulators; on wake, they resume from in-memory state. We never
+  serialize emulator state to disk for sleep, because the SD card has
+  a finite write lifetime and our threading model gives us no good
+  moment to flush atomically.
+- **Minimize SD-card writes generally.** Frequent small writes shorten
+  the card's life and create latency spikes. `tmp/` is RAM-backed (a
+  symlink to `/tmp/apple-IIds`). The broker coalesces writes and
+  flushes only when necessary. A future analysis
+  (`issues/pending/iigs-write-frequency-analysis.md`) will profile
+  GS/OS's own write patterns and inform what we can intercept.
+- **Cross-machine file locking is option A.** If screen A has `MyDoc`
+  open for write, screen B's attempt to open the same file gets a
+  clear error. No silent read-only, no diverging copies, no
+  Google-Docs-style live co-editing (at least not yet).
+- **License posture: third-party-deployment-ready.** We assume someone
+  else will build the image on their own RG DS. Anything with a
+  non-OSI-approved or otherwise unclear license stays out of git.
+  Apple's GS/OS source release terms get audited before any of it
+  lands. This biases us toward permissive (BSD, MIT, Apache) over
+  copyleft for our own code.
+- **Boot chime exactly once.** Two emulators want to play the //gs
+  chime on boot; the broker suppresses one. See broker responsibility
+  7 above.
