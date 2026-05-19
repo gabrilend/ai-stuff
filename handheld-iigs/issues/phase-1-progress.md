@@ -39,6 +39,7 @@ from Apple's publicly released source**. Closed by issue 120's demo.
 - **2026-05-18 (yesterday)** — initial pick was Mac Plus; project dir
   was named `handheld-apple-II` then renamed to `handheld-mac-plus`.
 - **2026-05-19** — switched target from Mac Plus to **Apple IIgs**.
+  Project dir renamed `handheld-mac-plus` → `handheld-iigs`.
   Reasons: color (Super Hi-Res 320×200 with 16-from-4096-palette per-line),
   Ensoniq 5503 sound, real GUI OS (GS/OS) with a Finder and a Toolbox,
   Apple released the GS/OS system software source publicly (so OS-level

@@ -11,9 +11,6 @@ of what a personal computer feels like when you carry two coordinated color
 desktops in your hands, both of which you can crack open and rewrite at the
 OS level.
 
-(The directory is still named `handheld-mac-plus` from the prior planning
-day; that's a historical fossil and will get renamed when we settle.)
-
 ## the shape of the machine
 
 Two screens. Two desktops. One person.
