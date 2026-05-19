@@ -1,0 +1,8 @@
+tmp
+tmp/
+assets/rom/*.rom
+assets/disks/*.dsk
+assets/disks/*.img
+*.o
+*.so
+*.a
