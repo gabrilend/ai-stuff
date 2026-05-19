@@ -36,17 +36,29 @@ binary, not the project itself.
 2. Have it invoke the aarch64 cross-toolchain from issue 101 to compile
    GSplus without modification first; confirm the binary runs on the
    device.
-3. Add a `patches/` directory at project root. Each RG DS-specific
-   adjustment to GSplus becomes a numbered patch file applied during
-   build. No in-tree forks of upstream code. (This honors the
-   "paired apply/unapply patches, never in-tree forks" convention from
-   the multi-target strategy used elsewhere in the wider monorepo.)
-4. Cross-compile LuaJIT for aarch64. Record the LuaJIT version. If
+3. Add a `patches/` directory at project root following the **patch
+   convention defined in `docs/005-patch-conventions.md`**: flat layout,
+   numbered prefixes shared across surfaces, files named like
+   `NNN-feature-name.{gsplus,gsos.s,tbox}.patch`. The corresponding
+   broker-side modules live at `src/broker/NNN-feature-name.lua`.
+4. Implement the **apply / unapply discipline** in `build.sh`. Each
+   build stage applies only the patches relevant to its layer, runs
+   the layer's tool (assembler, compiler), then reverts the patches.
+   Upstream trees (`libs/gsplus/`, `libs/gsos-src/`) stay pristine
+   between stages. A sentinel file in `tmp/` written on apply and
+   removed on revert lets the next invocation detect a crashed or
+   interrupted build and clean up.
+5. Write `develop.sh` for interactive sessions: `develop.sh gsplus`
+   applies the GSplus patches and leaves them applied so a developer
+   can edit the patched source for hours; `develop.sh freeze` captures
+   the new diff back into the appropriate `patches/*.patch` file;
+   `develop.sh revert` returns the tree to pristine.
+6. Cross-compile LuaJIT for aarch64. Record the LuaJIT version. If
    cross-compilation proves troublesome, document the failure and create
    a new issue describing the blocker — **do not silently fall back to
    vanilla Lua**.
-5. Write the manifest emitter as a small Lua script under `src/build/`.
-6. Write `deploy.sh`. Test the round-trip: edit a file locally, run
+7. Write the manifest emitter as a small Lua script under `src/build/`.
+8. Write `deploy.sh`. Test the round-trip: edit a file locally, run
    `build.sh && deploy.sh`, see the change on the device.
 
 ## related documents
@@ -54,6 +66,8 @@ binary, not the project itself.
 - `docs/001-architecture-overview.md`
 - `docs/002-hardware-target.md` — note the two USB-C ports; deploy.sh may
   use either depending on which is the host-mode port
+- `docs/005-patch-conventions.md` — the authoritative source for how
+  patches are laid out, named, and applied
 - global convention: scripts must have hard-coded `${DIR}` and accept an
   override argument
 

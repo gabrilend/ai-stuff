@@ -156,3 +156,33 @@ the integration point.
   the seam clean.
 - Layer 1 is unaware that layer 2 exists; the broker runs as an ordinary
   Linux process.
+
+## what this architecture explicitly does not support
+
+**Programs that render on both screens at once.** Each screen is its own
+self-contained IIgs with its own GS/OS, its own Window Manager, its own
+applications. A single program cannot draw on the other screen's
+framebuffer, because from its perspective the other screen does not
+exist — there is only "its" IIgs and a broker peripheral.
+
+This is a deliberate constraint, not a limitation we plan to lift. Two
+reasons:
+
+1. **It keeps the broker architecture honest.** The two emulators are
+   peers; neither is master, neither has a privileged view of the
+   other's framebuffer. If we wanted spanning programs, the broker
+   would have to become a compositor, and the symmetry would break.
+2. **It avoids touching the ROM-resident Window Manager.** Cross-screen
+   geometry would require modifying the Toolbox ROM's windowing code,
+   which is the hardest modification surface available (Apple never
+   released the Toolbox source; it would have to be disassembled and
+   binary-patched).
+
+When a feature wants "both screens at once" — a game where one screen
+is the map and the other is the action view, a music app where one
+screen is the keyboard and the other is the sequencer, a journal where
+one screen holds the page and the other holds the radial keyboard —
+the model is **two cooperating programs**, one running on each IIgs,
+exchanging state through the broker IPC channel. The user sees a unified
+dual-screen experience; the two IIgses see two ordinary programs that
+happen to coordinate.
