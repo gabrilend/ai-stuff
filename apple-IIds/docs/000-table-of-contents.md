@@ -18,6 +18,7 @@ apple-IIds/
 │   ├── 003-input-system.md .......... radial dual-stick keyboard + touch + stylus
 │   ├── 004-roadmap.md ............... phases of development (1 → 12+, staging → bare-metal)
 │   ├── 005-patch-conventions.md ..... apply/unapply discipline for upstream code
+│   ├── 006-soramech-thread-pool-report.md . research note on soramech threading (snapshot 2026-05-19)
 │   └── balance-updates.md ........... append-only log of knob-turning (not yet started)
 │
 └── issues/
