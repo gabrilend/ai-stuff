@@ -51,10 +51,36 @@ Without the lock, concurrent calls produce silent corruption.
 - `issues/902-locks-atomics.md` — the primitives we're using
 - `issues/906-toolbox-reentrancy-fixes-hard.md` — the harder pass
 
+## sub-issues
+
+Split per Toolbox manager. The letters map to the same managers as
+1104a–1104n (and 906a–906n), so a manager's port + reentrancy work
+share a letter:
+
+- `905a-reentrancy-easy-memory-manager.md` — heap, handles
+- `905b-reentrancy-easy-resource-manager.md` — resource forks
+- `905c-reentrancy-easy-loader.md` — segment loading
+- `905d-reentrancy-easy-event-manager.md` — event queue
+- `905e-reentrancy-easy-quickdraw.md` — graphics state
+- `905f-reentrancy-easy-window-manager.md` — window list
+- `905g-reentrancy-easy-menu-manager.md` — menu bar
+- `905h-reentrancy-easy-control-manager.md` — controls per window
+- `905i-reentrancy-easy-dialog-manager.md` — modal/modeless dialogs
+- `905j-reentrancy-easy-standard-file.md` — Open/Save
+- `905k-reentrancy-easy-sound-manager.md` — sound + IRQ
+- `905l-reentrancy-easy-scrap-manager.md` — clipboard (may no-op)
+- `905m-reentrancy-easy-process-manager.md` — process table
+- `905n-reentrancy-easy-print-manager.md` — print queue
+
+This issue (905) remains as the umbrella; sub-issues land per
+manager. Patches land in the 200-249 range (one numeric block per
+manager).
+
 ## notes
 
-- This is many small patches. They naturally form their own
-  numeric range under the patch convention (e.g., 200-249).
+- Many small patches across 14 sub-issues. Order of attack follows
+  dependency depth: Memory Manager first, UI managers next, Print
+  last.
 - Per-manager locks are coarse. For phase 9 they're good enough;
   phase 11's ARM port can refine to per-routine where contention
   warrants.

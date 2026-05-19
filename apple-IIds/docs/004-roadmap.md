@@ -142,8 +142,10 @@ its language-spec system is not lifted.
 - 902 — locks and atomic operations
 - 903 — channels and message passing
 - 904 — Toolbox reentrancy audit (which routines hold shared state?)
-- 905 — Toolbox reentrancy fixes (pass 1: the easy half)
-- 906 — Toolbox reentrancy fixes (pass 2: the hard half)
+- 905 — Toolbox reentrancy fixes (pass 1: the easy half; split
+  905a–905n per Toolbox manager)
+- 906 — Toolbox reentrancy fixes (pass 2: the hard half; split
+  906a–906n per Toolbox manager, same letter mapping as 905)
 - 907 — preemptive task switching in GS/OS Event Manager
 - 920 — phase 9 demo
 
