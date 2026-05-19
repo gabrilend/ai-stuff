@@ -106,15 +106,35 @@ patches that the source approach genuinely cannot achieve.
 ## phase 9+ — applications and games
 
 Goal: software written **for** this OS, exploiting its dual-screen,
-radial-input, modified-GS/OS nature.
+radial-input, modified-GS/OS nature. Per the architectural rule that no
+single program spans both screens, every "dual-screen" application in
+this phase is actually a **coordinated pair of programs** — one
+ordinary IIgs application per screen, talking through the broker IPC.
 
-- a game that uses both screens simultaneously (e.g. one is the map, the
-  other is the action view)
-- a text editor that uses the radial keyboard as its primary input and
-  the stylus for selection
-- a music app exploiting the Ensoniq 5503 (× 2!)
-- a sketch app, a journal app — each picked for how well it exercises the
-  dual-screen architecture
+Candidate pairings:
+
+- **a game pair**: map + action view. The map program runs on one screen
+  showing the world overview and unit positions; the action program runs
+  on the other showing the close-up combat. They exchange unit state
+  and player input through the broker. Each is a normal IIgs program
+  to its own GS/OS.
+- **a music pair**: keyboard + sequencer. The keyboard program runs on
+  one screen rendering a piano keyboard you tap with the stylus; the
+  sequencer program runs on the other screen recording and editing.
+  Two Ensoniq 5503 chips means real polyphonic layering between them.
+- **a journal pair**: page + radial keyboard reference. The page program
+  shows the current entry; the reference program (on the other screen)
+  shows the radial-keyboard layout in training mode, plus snippets and
+  a thesaurus.
+- **a sketch pair**: canvas + palette. The canvas program holds the
+  drawing; the palette program holds the color picker, tool selection,
+  and layer list. The stylus on the canvas screen does the drawing; the
+  stylus on the palette screen does the configuration.
+
+Single-screen applications also belong here — a text editor that uses
+the radial keyboard as its primary input doesn't need a second screen
+at all to be valuable. The dual-screen capability is an option, not a
+requirement.
 
 Specific issue files for phase 9+ will be written as ideas firm up.
 
