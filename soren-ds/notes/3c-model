@@ -1,0 +1,27 @@
+picture a 3d model where you placed vertex nodes on a 3d grid that you could
+move up and down like translating a math origin by modifying every other
+placed point - you could make a 3d model, export it, and then import it into a
+game or application, all on-device. You could change the color of faces, but
+not vertexes - tap to select, radial-menu to apply color or roughness of texture
+
+dynamic merging of models, for like equipment or lego-style construction is just
+as simple as merging the math-plots of the rendering points. Moving them into
+one single datastructure. One threadpool task to render per framerate. could
+remove the interior points, the ones that (for example) are on the inside of the
+hand while holding an object, or perhaps between the head and the chest-plate-
+-helmet, or it could leave them to remain. Whichever is less memory allocation.
+Or if one is requested over the other, in cases where (for example) they are to
+separate [one day/in twain]. 
+
+[just wrote something in a national geographic]
+/
+[stack overflowed]
+
+... well... sometimes that happens.
+
+anyway, I like the idea of an on-device game engine, too bad you never survive
+the whole race. jesus was the one casualty of a war that was never fought. He
+changed the other side's minds. They gave forgiveness, and so, so did he.
+
+would you die for a cause? I'd die for nearly anything. though I think I am
+more beloved while alive.
