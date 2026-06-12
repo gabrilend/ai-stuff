@@ -1,0 +1,38 @@
+# Soren DS — documentation table of contents
+
+The vision document lives at `notes/vision/000-vision.md`.
+
+Other notes:
+
+- `notes/safety/000-bricking-and-recovery.md` — every way the
+  device could be made unrecoverable during development, why each
+  scenario happens, and the design rule that prevents it. Read
+  before any low-level flashing work.
+- `notes/3c-model` — the original artistic seed for the modeller
+  app. The formal spec grown out of it lives at
+  `docs/010-modeller.md`.
+
+## Reading order
+
+Each doc assumes the previous ones. Read top to bottom for a full
+tour; jump in by topic if you already know where you're going.
+
+- `001-architecture-overview.md` — the system at a glance.
+- `002-roadmap.md` — ten phases, lowest layer first. Nine for the
+  launch system, one more for the first post-launch app.
+- `003-threading-model.md` — task firing, ring buffers, atomics,
+  memory ordering on ARM.
+- `004-input-model.md` — touch screens, buttons, handedness,
+  radial menu, drawers, inter-app links.
+- `005-display-and-compositor.md` — two framebuffers, per-screen
+  surfaces, damage tracking, drawer overlays, link transitions.
+- `006-transport-and-networking.md` — USB-C, ad-hoc radio, rmail,
+  peer-based addressing.
+- `007-memory-model.md` — graduated path from flat memory to
+  memory protection.
+- `008-apps-overview.md` — the four launch apps, what they share,
+  and the links between them.
+- `009-deferred-work.md` — what we explicitly chose not to build,
+  and why.
+- `010-modeller.md` — the first post-launch app, sketched now so
+  the platform can be designed to host it.
