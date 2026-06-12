@@ -36,3 +36,14 @@ tour; jump in by topic if you already know where you're going.
   and why.
 - `010-modeller.md` — the first post-launch app, sketched now so
   the platform can be designed to host it.
+- `011-filesystem.md` — what the SD card hardware demands, what
+  the launch system pointedly does not need from it, and the
+  five box kinds that expose paths to apps.
+- `012-soramech-runtime.md` — which pieces of soramech proper
+  the launch system keeps, which it cuts, and how boxes get
+  statically linked into the kernel image instead of dynamically
+  loaded from disk.
+- `013-background-app-lifecycle.md` — the foreground, background,
+  and asleep states, the per-app work queue, and the
+  always-on-input-box suppression mechanism that makes
+  foreground/background a single-bit distinction.

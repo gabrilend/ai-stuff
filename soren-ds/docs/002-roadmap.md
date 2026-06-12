@@ -43,32 +43,63 @@ project. The demo is a torture test: spin up millions of tiny tasks
 across all cores and prove zero races, zero lost fires, zero
 double-fires. Not visual but load-bearing.
 
-## Phase 3 — Display and input drivers
+## Phase 3 — Soramech runtime
 
-Two framebuffers already up from phase 1; phase 3 adds the layer
-on top. A 60Hz polling loop reads the buttons, the analog sticks,
-and the two touch panels. The event boxes emit button-down events
-on press, button-up events on release with the press duration
-attached, and the radial-menu chord events that the editor and
-the drawers depend on. The demo lets you touch the screens and
-push buttons and see something change.
+The runtime comes right after the threading core because every
+driver, every middle layer, every app above this point is a
+soramech map; the runtime is what lets those maps exist. Phase 3
+builds the box descriptor table, the box loader, the wire
+connector, the encapsulation splicer that flattens sub-maps at
+load time, the task instantiator that turns a fired box into a
+task struct on the phase 2 thread pool's work queue, and the
+gathering function that decides when a box is ready to fire. The
+initial box library is statically linked into the kernel image
+— the routing-kind boxes (`plain`, `comparator`, `iterator`,
+`randomizer`, `weighted`, `distributor`, `nonlinearity`), the
+debug-write box that wraps `110`'s CDC-ACM channel, and a small
+set of testing boxes. The compile pipeline and hot-swap
+mechanism follow once the filesystem exists in phase 4 so that
+compile output has somewhere to land.
 
-## Phase 4 — Filesystem
+The demo wires a few statically-linked boxes into a small map
+and runs it through the runtime, with the output flowing out the
+CDC-ACM stream to the laptop terminal — the first thing the
+project does that isn't pure hardware bring-up.
 
-SD card driver, FAT-compatible reader and writer, a file
-abstraction exposed as soramech boxes that read and write paths.
-Persistent state becomes possible — the device can remember which
-app was last open on each screen. The demo writes a file, reboots
-the device, reads it back.
+## Phase 4 — SD card and filesystem
 
-## Phase 5 — Soramech runtime
+The block driver brings the SD card up. The FAT layer above
+it parses the partition, reads directory entries, walks chains.
+The six filesystem box kinds described in `011-filesystem.md`
+(`read-path`, `write-path`, `list-directory`, `delete-path`,
+`path-exists`, `make-symlink`) get added to the runtime's box
+library. Persistent state becomes possible — the device can
+remember which app was last open on each screen.
 
-The box loader reads JSON box files from the SD card. The wire
-connector links them. The task instantiator turns a fired box into
-a task struct on the thread pool's work queue. Now you can drop a
-soramech map onto an SD card and the device runs it. The demo runs
-the original soramech "hello, world" map from the handheld instead
-of from a desktop.
+This is also the phase where the compile pipeline lands, because
+the artifact tree needs the filesystem to exist (artifacts live
+under `tmp/compiled/<map>/<generation>/` on the RAM-backed
+symlink, but the source they compile from lives on the SD card).
+The reference-counted artifact system and the hot-swap mechanism
+both come up here.
+
+The demo writes a file through `write-path`, reboots the device,
+reads it back through `read-path`, then edits a box's source
+through a tiny test harness, recompiles, and watches the running
+map pick up the new code without losing its state.
+
+## Phase 5 — Input drivers
+
+Button, stick, and touch input — all as soramech maps with C
+leaf boxes for the hardware register reads. A 60Hz polling map
+fires once per frame, reads the raw state of every input
+surface, compares against the previous frame, and emits
+button-down events on press, button-up events on release (with
+press duration attached), and touch events with screen ID and
+position. The radial-menu chord boxes — D-pad direction plus
+face button — assemble from the underlying button events. The
+demo lets you touch the screens and push buttons and see a
+counter increment in the CDC-ACM stream and on the framebuffer.
 
 ## Phase 6 — Compositor, drawers, and inter-app linkage
 
@@ -151,12 +182,17 @@ with a second model to make a third.
 
 ## Shape of the work
 
-Phases 1 and 2 are the load-bearing walls. Phases 3 through 8 are
-mostly composition of what phases 1 and 2 already gave us: drivers
-are threads, the filesystem is a driver, the runtime is a thread
-pool with a loader, the apps are maps. Phase 9 is the gate for a
-genuinely user-extensible system. Phase 10 is the first proof that
-extension actually works.
+Phases 1 through 3 are the load-bearing walls — the C bottom
+(boot, USB, screens, memory), the threading core, and the
+soramech runtime that lets everything above this point exist as
+maps. Phases 4 through 8 are composition: the filesystem is a
+small set of boxes on top of a block driver, the input drivers
+are a polling map, the compositor is a surface map, the radio
+stack is a transport map, the apps are maps of maps. Phase 9 is
+the gate for a genuinely user-extensible system: the MMU
+isolates user-written boxes from the kernel they share an address
+space with. Phase 10 is the first proof that the extension
+actually works.
 
 The phase that ships the launch apps is phase 8; the phase that
 makes Soren DS a platform rather than a product is phase 9; the
