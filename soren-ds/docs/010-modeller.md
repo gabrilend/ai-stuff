@@ -19,7 +19,8 @@ have to land first.
   vertex boxes connected by face wires. Merging two models — for
   equipment, for lego-style construction, for joining a sword to a
   hand — is a graph operation on the two maps. The runtime that
-  makes graph operations safe and fast is phase 5.
+  makes graph operations safe and fast is phase 3, and the
+  encapsulation splicer the merge leans on lives there.
 - **The compositor.** The modeller draws to both screens at once —
   perspective view on one, an inspector on the other. Phase 6.
 - **The radial menu.** Already provided by the editor in phase 8.

@@ -50,16 +50,6 @@ Full VM is the answer to "more apps than fit in RAM" or "apps need
 private address spaces for reasons other than isolation." We are
 not facing either of those problems yet.
 
-## Encapsulated sub-maps
-
-Soramech proper supports encapsulating a sub-map into a single
-box, so a complex graph can be reused as a building block. We
-defer this feature because it requires nailing down the sub-map
-calling convention, which is its own design problem. The four
-launch apps can be built without it. Re-evaluate when the modeller
-arrives in phase 10, because the modeller's model-merge operation
-is the first thing in the project that actually wants this.
-
 ## Lua in the kernel
 
 Not in scope, ever. Soramech proper supports Lua, C, and Bash box
