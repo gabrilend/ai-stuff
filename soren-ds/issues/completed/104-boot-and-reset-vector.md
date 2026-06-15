@@ -2,11 +2,26 @@
 
 ## Current behavior
 
-The build system from 103 produces a kernel image, but the image
-contains no code that knows how to take control after the device's
-firmware hands off. There is no defined entry point at the
-load address, no stack pointer setup, and no transition from the
-chip's reset state to a state where C code is safe to run.
+The kernel's entry point is in place. `src/001-boot.s` defines
+`_start` at the linker-script's load address — the first thing
+the firmware reaches. It masks Debug / SError / IRQ / FIQ
+through DAIFSet, loads the stack pointer from `__stack_top` (a
+16 KB region the linker reserves above .bss), zeroes the .bss
+section between `__bss_start` and `__bss_end`, and branches into
+`kernel_main` in `src/002-main.c`. If `kernel_main` ever
+returns, the boot code spins in WFI rather than letting
+execution fall off into undefined bytes.
+
+`kernel_main` itself is the simplest possible function:
+an infinite WFI loop. Every later phase 1 issue adds something
+inside it or in code it calls. The kernel image is 88 bytes —
+the boot setup, the kernel_main body, and the linker-pinned
+pool of address constants.
+
+Disassembly confirms `_start` sits at exactly the load address
+(`0x00280000`), `kernel_main` is reachable from the boot code,
+and the stack top symbol resolves to 16 KB above .bss as the
+linker script specifies.
 
 ## Intended behavior
 
