@@ -34,8 +34,10 @@ CFLAGS := -ffreestanding -nostdlib -nostartfiles \
 
 LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib
 
-SRCS := $(shell find $(SRC_DIR) -name '*.c' 2>/dev/null)
-OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
+C_SRCS := $(shell find $(SRC_DIR) -name '*.c' 2>/dev/null)
+S_SRCS := $(shell find $(SRC_DIR) -name '*.s' 2>/dev/null)
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SRCS)) \
+        $(patsubst $(SRC_DIR)/%.s,$(BUILD_DIR)/%.o,$(S_SRCS))
 
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_IMG := $(OUTPUT_DIR)/kernel.img
@@ -61,6 +63,11 @@ $(KERNEL_ELF): $(OBJS) $(LINKER_SCRIPT) | $(BUILD_DIR)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | check-toolchain
 	@mkdir -p $(dir $@)
 	@echo "compiling $(notdir $<)..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.s | check-toolchain
+	@mkdir -p $(dir $@)
+	@echo "assembling $(notdir $<)..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR) $(OUTPUT_DIR):
