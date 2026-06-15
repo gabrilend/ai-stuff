@@ -83,49 +83,76 @@ Two distinct storage devices in the system:
   card is inserted, the Rockchip boot ROM checks it before the
   eMMC and loads the loader from there if it finds one.
 
-The two devices use two distinct controllers inside the SoC. The
-RK3568 has multiple SDMMC controllers; on the standard reference
-design SDMMC0 owns the external microSD slot and SDMMC2 owns the
-eMMC. We expect Anbernic to follow that convention but will
-confirm against the device tree.
+The two devices use two distinct controllers inside the SoC.
+The eMMC sits on the RK3568's **dedicated SDHCI controller**
+(the SDIO/MMC host designed specifically for the soldered
+eMMC), configured for an 8-bit bus running up to 200 MHz, with
+the `non-removable` property set so the kernel does not poll
+it for hot-swap. The external microSD sits on **SDMMC0**
+configured for a 4-bit bus and UHS-SDR104 mode, with the
+card-detect signal on GPIO0 PA4. (This corrects an earlier
+guess in this document that put eMMC on SDMMC2; SDMMC2 actually
+hosts the WiFi SDIO module — see the WiFi section.)
 
 This is the foundation of the install path we adopted in the
 section below.
 
 **Known unknowns:** the exact eMMC manufacturer and part number,
 the exact partition layout Anbernic shipped (the names and
-offsets of the rest of `mmcblk2p1` through `mmcblk2pN`), the
-SDMMC clock configuration Anbernic chose.
+offsets of the rest of `mmcblk2p1` through `mmcblk2pN`).
 
 ## Displays — dual 4-inch 640×480 IPS, capacitive touch
 
 Two identical IPS panels, each 4 inches and 640×480 (4:3 each,
 not "480p"). OCA full-lamination. Capacitive multi-touch on each,
-with capacitive-stylus support advertised. Driven by the RK3568's
-integrated VOP2 (Video Output Processor v2) display controller,
-which has two independent video output paths (VP0 and VP1) — one
-controller fans out to both screens, which is what
-`docs/005-display-and-compositor.md` and issues 111a/111b assume.
+with capacitive-stylus support advertised.
 
-**Known unknowns:** the panel's driver IC and its full
-initialization register sequence (the long table of writes issue
-111a depends on), the touch controller's chip and I2C address,
-the backlight PWM channel and its rated maximum current.
+**Panel IC: Jadard JD9365DA-H3** on both screens, driven over
+MIPI DSI. The bottom panel hangs off the RK3568's DSI0
+controller; the top panel off DSI1. The shared VOP2 (Video
+Output Processor v2) display controller fans video data to both
+DSI lanes simultaneously — one controller, two output paths, two
+panels, which matches what `docs/005-display-and-compositor.md`
+and issues 111a/111b assume.
+
+**Panel reset GPIOs:** bottom panel on GPIO0 PB3, top panel on
+GPIO0 PB4. Each panel must be reset (pulled low, held, released)
+during bring-up; the JD9365DA-H3 datasheet specifies the timing.
+
+**Touch controllers: Goodix GT911** on each panel, one per
+screen, both at I2C address `0x14`. The bottom panel's GT911
+sits on I2C bus 3 (RK3568 i2c3), the top panel's on I2C bus 5
+(i2c5). Identical part on identical-looking address but on two
+separate buses, so they don't collide.
+
+**Known unknowns:** the JD9365DA-H3's full initialization
+register sequence (long table of MIPI DSI command writes; the
+panel's datasheet has it, but we have not pulled the datasheet
+yet — 111a will), the backlight PWM channel and its rated
+maximum current, the touch controllers' reset and interrupt
+GPIOs (pinctrl groups in the DTS name them but the summary
+didn't expose the exact pins — pull on demand when 504 work
+starts).
 
 ## Sensors and switches
 
-- **Six-axis gyroscope.** Mentioned on Anbernic's product page.
-  Probably an InvenSense / TDK MPU-6xxx or STMicro LSM6 family
-  part on the I2C bus. Not used by the launch apps but available
-  to the modeller (phase 10) or any future app that wants
-  orientation.
-- **Hall switch for cover-closed sleep.** Mentioned on Anbernic's
-  product page. Trips when the clamshell is shut. Wired to a
-  GPIO that the kernel reads. This is exactly the signal phase 9
-  issue 908 ("asleep and wake signals") needs.
+- **Hall switch for cover-closed sleep.** Labeled "LID" in the
+  device tree. Wired to **GPIO0 PC3**, active low, with the
+  `wakeup-source` property set so it can pull the device out of
+  PMIC sleep. This is exactly the signal phase 9 issue 908
+  ("asleep and wake signals") needs, and it doubles as the
+  wake-on-open input the PMIC's sleep mode lists.
+- **Six-axis gyroscope.** Listed on Anbernic's product page but
+  **not present in the mainline device tree**. Either Anbernic's
+  own kernel includes it on a bus not pulled into upstream yet,
+  or the spec sheet is aspirational and there is no gyro. The
+  modeller (phase 10) is the only launch-or-near-launch
+  consumer; deferring until we have a reason to confirm. Note
+  that probing for it later means scanning I2C0 / I2C2 / I2C3 /
+  I2C5 for addresses other than the ones already named below.
 
-**Known unknowns:** the exact gyro and Hall switch parts, their
-GPIO/I2C wiring.
+**Known unknowns:** whether the gyro physically exists; if so,
+its I2C bus and address.
 
 ## Buttons and analog sticks
 
@@ -134,24 +161,51 @@ side. Four center buttons in a row at the bottom of the lower
 screen: `[start1][select1][select2][start2]`. Two clickable
 analog sticks. Power and volume on the side edges.
 
-Each digital button is wired to a GPIO pin (high or low depending
-on whether the pull is configured). The analog sticks are routed
-through an ADC for X and Y axes per stick. The exact GPIO and
-ADC channel mappings are not in any public source we found —
-they will come from the ROCKNIX device tree.
+All digital buttons are direct GPIO inputs (no I2C input
+expander), all active low. The full mapping, from the device
+tree:
 
-**Known unknowns:** the entire GPIO map of every button. The ADC
-channel assignment of every analog axis. Whether any of the
-buttons are wired through an I2C input expander instead of
-direct GPIO. The exact location of the **Maskrom trigger button**
-inside the case (the button or pad that, when held during power-
-on, forces the chip ROM into recovery mode regardless of what is
-on storage). Public sources do not name a hold-this-key recovery
-combo for the RG DS specifically; either Anbernic exposed one and
-no one has documented it, or there isn't one outside the case and
-Maskrom can only be reached by removing the eMMC's boot signature
-or by the running-OS path described in
-`notes/safety/000-bricking-and-recovery.md`.
+| Button       | GPIO        |
+| ------------ | ----------- |
+| A (EAST)     | GPIO3 PB7   |
+| B (SOUTH)    | GPIO3 PC0   |
+| X (NORTH)    | GPIO3 PA7   |
+| Y (WEST)     | GPIO3 PB0   |
+| D-pad UP     | GPIO2 PD4   |
+| D-pad DOWN   | GPIO2 PD5   |
+| D-pad LEFT   | GPIO2 PD7   |
+| D-pad RIGHT  | GPIO2 PD6   |
+| L1 (TL)      | GPIO3 PA3   |
+| L2 (TL2)     | GPIO3 PA4   |
+| R1 (TR)      | GPIO3 PA5   |
+| R2 (TR2)     | GPIO3 PA6   |
+| START        | GPIO3 PB1   |
+| SELECT       | GPIO3 PB2   |
+| Left stick click  (THUMBL) | GPIO2 PD2 |
+| Right stick click (THUMBR) | GPIO2 PD3 |
+| HOME (Menu)  | GPIO2 PD1   |
+| Volume Up    | GPIO3 PA1   |
+| Volume Down  | GPIO3 PA2   |
+
+Two more inputs are routed through the SAR-ADC rather than
+through GPIO: a HOME button on **SAR-ADC channel 0** and a PLAY
+button on **SAR-ADC channel 2**. The vision (`004-input-model`)
+maps these against the four center buttons; the device tree's
+HOME and PLAY labels are Anbernic's labels and we are free to
+rebind in the input driver.
+
+The two analog sticks themselves are not in the discrete
+section of the device tree we read; they're handled through the
+joystick-mux pinctrl group, which suggests two SAR-ADC channels
+multiplexed across the two stick axes. Issue 503 (analog stick
+surface) will confirm the wiring when it gets there.
+
+**Known unknowns:** the analog-stick SAR-ADC channels and the
+mux-select GPIO; the exact location of the **Maskrom trigger
+button** inside the case (the button or pad that, when held
+during power-on, forces the chip ROM into recovery mode
+regardless of what is on storage — still nothing public for the
+RG DS specifically).
 
 ## USB-C controller
 
@@ -175,62 +229,113 @@ detection is handled in the chip or in a separate USB-C PHY chip.
 ## WiFi and Bluetooth
 
 802.11a/b/g/n/ac (WiFi 5, dual-band 2.4 / 5 GHz) and Bluetooth
-4.2. The actual chip is not named on Anbernic's spec sheet. On
-similar-era handhelds the WiFi/BT combo chip is typically a
-Realtek RTL8821 or RTL8852, an AIC AIC8800, or a SDIO module
-that wraps one of those. The Rockchip reference designs route
-WiFi over an SDIO controller (SDMMC1 in the standard pinout) so
-that is the likely path.
+4.2.
 
-The vision (phase 7) requires the radio to support **IBSS mode**
-(ad-hoc, no router). Not every consumer WiFi chip supports IBSS;
-Realtek chips generally do, AIC chips mostly do, but it is not
-guaranteed. This is the single biggest hardware-side risk in
-phase 7 and we should confirm IBSS support before phase 7 work
-begins.
+**WiFi: a Realtek chip on SDMMC2** (the RK3568's secondary
+SDMMC controller, here used as an SDIO bus rather than as a
+storage host — `sdio_wifi` at SDIO address 1). The device tree
+does not name the exact Realtek part number, but the Bluetooth
+side (below) is RTL8821CS, and Realtek's RTL8821CS-equivalent
+WiFi half is the matching radio in the same package. Treating
+the WiFi as RTL8821CS pending confirmation.
 
-**Known unknowns:** the actual WiFi/Bluetooth chip part number,
-whether it sits on SDIO or PCIe or UART, whether the driver in
-the ROCKNIX device tree supports IBSS for it, the BT antenna
-sharing arrangement.
+**Bluetooth: Realtek RTL8821CS on UART1**, enabled by GPIO0 PD5
+(the BT module's power-on / wake line). This is the same
+package as the WiFi above; one chip serves both radios, with
+WiFi over SDIO and Bluetooth over UART, which is the standard
+Realtek combo configuration.
+
+**IBSS support.** Realtek WiFi parts of the 882x family
+generally support IBSS through the in-kernel rtl88xx-au driver,
+though some firmware revisions disable it. Confirming on real
+hardware is a phase 7 task; it remains the single biggest
+hardware-side risk for that phase.
+
+**Known unknowns:** the exact Realtek WiFi part number (almost
+certainly RTL8821CS based on the BT pairing, but the device
+tree doesn't quote it); whether the shipped firmware
+specifically enables IBSS or whether we will need to swap a
+firmware blob.
 
 ## Audio
 
-Stereo speakers, 3.5 mm headphone jack. The RK3568 has integrated
-I2S/PCM controllers; an external audio codec sits on the I2S bus
-and drives the analog outputs. On Rockchip reference designs the
-codec is usually a Realtek ALC5640/RT5651, an Everest ES8316, or
-Rockchip's own RK817 PMIC's combined audio block. Phase 1 does
-not bring up audio. Phase 8's apps don't make sound either.
-Audio is therefore deferred until something needs it; this
-section exists so we know which I2C address ranges and I2S clocks
-are claimed already.
+Stereo speakers, 3.5 mm headphone jack.
 
-**Known unknowns:** the codec part and its register surface. The
-speaker amplifier (if any) and its enable GPIO.
+**Audio codec: the RK817 PMIC's integrated codec block.** The
+same chip that handles voltage regulation also contains a
+combined ADC/DAC for audio. The codec lives on I2C0 at the
+same address as the PMIC itself (`0x20`); they are two
+sub-functions of one physical part. The DSP path is `RK817 codec
+→ I2S → SoC`.
+
+**Speaker amplifiers: two Awinic AW87391** parts, one per
+channel — left at I2C2 address `0x58`, right at `0x5b`. These
+are class-D mono amplifiers; the codec produces the analog
+signal, the AW87391s amplify it to drive the speakers. The
+headphone jack bypasses them and is driven directly by the
+codec.
+
+Phase 1 does not bring up audio. Phase 8's apps don't make
+sound either. Audio is deferred; this section exists so the I2C
+addresses are accounted for and a future audio issue knows the
+chain.
 
 ## Power management
 
-A separate PMIC handles the voltage rails, charging, and battery
-gauging. On Rockchip RK3568 reference designs the PMIC is almost
-always the Rockchip RK809 (a sibling part designed to pair with
-the SoC). The PMIC sits on the chip's main I2C bus, exposes
-register access to its rails and to battery percentage / USB
-power presence / temperature, and is the source of the safety
-rules in `notes/safety/000-bricking-and-recovery.md` scenario S5
-("never write voltage-setting registers") and S7 ("monitor
-battery voltage every few seconds").
+Two regulator chips share the work:
+
+- **Rockchip RK817 PMIC** at I2C0 address `0x20`. Handles
+  most rails (DCDC and LDOs for I/O voltages, RTC, GPIO,
+  audio codec, battery monitor, charging). This is the chip the
+  safety doc's scenario S5 ("never write voltage-setting
+  registers") refers to.
+- **SYR827 CPU regulator** at I2C0 address `0x40`. A high-current
+  DC-DC dedicated to powering the four Cortex-A55 cores'
+  voltage rail. Separate from the PMIC because the CPU rail
+  needs more current than the RK817's internal DC-DCs can
+  deliver. Same safety rule applies — we read it, we don't write
+  it.
+- A **CW2015** fuel gauge sits at I2C0 address `0x62` but is
+  marked `disabled` in the device tree, which suggests Anbernic
+  uses the RK817's own battery-monitor block instead.
 
 The battery is a 4000 mAh polymer lithium cell, sealed.
 Replacement requires opening the case, which the project rules
 forbid. Battery monitoring and safe-shutdown thresholds are
 therefore mandatory, not optional.
 
-**Known unknowns:** PMIC part confirmation (RK809 expected, not
-verified), the I2C address of the PMIC, the wake source list
-(which signals can pull the device out of PMIC sleep — the power
-button at minimum, ideally also USB-connect and the Hall switch
-re-opening).
+Wake sources for PMIC sleep mode include at least the power
+button (always present), the USB-connect event (visible via
+PMIC USB-detect bit), and the Hall switch re-opening (GPIO0 PC3
+is marked `wakeup-source` in the device tree, so the kernel can
+configure it as a wake input).
+
+**Known unknowns:** the exact battery-gauge register surface of
+the RK817 vs the disabled CW2015 — likely irrelevant unless we
+re-enable CW2015, which we won't.
+
+## LEDs — three PWM-driven indicators
+
+Three discrete LEDs, each tied to a PWM channel rather than a
+plain GPIO. PWM is used so the brightness can be controlled
+smoothly, but for on/off purposes we can drive 0% duty cycle
+(off) and 100% duty cycle (on) — or, more often on Rockchip
+parts, repurpose the pin as a GPIO output through the pinctrl
+mux. Either path is fine; the PWM path is what the mainline
+device tree uses.
+
+| LED   | PWM channel | Function (per the DTS) | Default at boot |
+| ----- | ----------- | ---------------------- | --------------- |
+| Green | PWM5        | POWER indicator        | on              |
+| Amber | PWM6        | CHARGING indicator     | off (auto)      |
+| Red   | PWM7        | STATUS indicator       | off             |
+
+This is the data issue 106 (LED earliest boot signal) needs to
+move from blocked to implementable. The boot-stage encoding it
+proposes maps naturally onto the three colors — green for
+healthy progress, amber for in-progress slow operations, red for
+panic — but the exact pattern table belongs in
+`notes/diagnostics/000-led-codes.md` once 106 lands.
 
 ## Stock OS — Android 14 (we do not run it)
 
@@ -324,24 +429,30 @@ These items are not blockers for starting issue 102 (cross-
 compilation toolchain) and beyond, but each one will be needed
 by a specific later issue. Tracked here so they don't get lost.
 
-- **Pull the ROCKNIX device tree for the RG DS** and harvest
-  the GPIO map, the WiFi chip identification, the touch
-  controller, the audio codec, the gyro part, and the Hall
-  switch wiring. Single biggest win for known-unknowns reduction.
-- **Confirm IBSS support** on the WiFi chip identified above.
-  Affects whether phase 7's plan needs adjustment.
+- ~~**Pull the ROCKNIX device tree for the RG DS**~~ — done.
+  Source pulled from Heiko Stuebner's linux-rockchip `for-next`
+  branch (the staging tree where Rockchip ARM device trees
+  upstream into mainline). Harvested into every section above:
+  LEDs, button GPIO map, Hall switch, touch controllers, panel
+  IC, WiFi/Bluetooth chip family, audio codec, PMIC and CPU
+  regulator, eMMC / microSD / WiFi-SDIO controller assignments.
+  Several "known unknowns" that the rest of this document
+  marked are now resolved; the remaining ones are listed
+  in-section.
+- **Confirm IBSS support** on the Realtek WiFi chip on real
+  hardware. Affects whether phase 7's plan needs adjustment.
 - **Confirm Maskrom triggerability from outside the case.** The
   safety doc identifies this as the highest-priority outstanding
   research item independent of issue 101. If it cannot be
   triggered from outside, the design rules in the safety doc
   become mandatory rather than recommended.
-- **Read the panel datasheet** (once the panel part is known
-  from the device tree) for issue 111a's initialization
-  sequence.
-- **Confirm the PMIC is RK809** and read its register surface
-  for safe-shutdown thresholds, wake source configuration, and
-  the registers we are forbidden to write under safety scenario
-  S5.
+- **Read the JD9365DA-H3 panel datasheet** for issue 111a's
+  initialization-register sequence.
+- **Probe for the six-axis gyro** when an app needs it. The
+  mainline DTS doesn't list one; Anbernic's spec sheet does.
+  Resolution waits on an actual scan of I2C0/I2C2/I2C3/I2C5 for
+  unaccounted addresses (or alternatively, Anbernic's own
+  Android device tree, which is harder to obtain).
 
 ## Sources
 
@@ -360,3 +471,6 @@ Public sources consulted during this research:
   https://www.rockchips.net/wp-content/uploads/2025/03/Rockchip-RK3568-Datasheet-V2.1-20240621.pdf
 - Rockchip Maskrom mode procedure:
   http://rockchip.wikidot.com/how-to-enter-rockusb-maskrom-mode
+- Heiko Stuebner's linux-rockchip tree, where the RG DS DTS
+  lives ahead of mainline:
+  https://kernel.googlesource.com/pub/scm/linux/kernel/git/mmind/linux-rockchip/+/for-next/arch/arm64/boot/dts/rockchip/rk3568-anbernic-rg-ds.dts
