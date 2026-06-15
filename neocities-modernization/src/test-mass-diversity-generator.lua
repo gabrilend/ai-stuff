@@ -9,6 +9,10 @@ local DIR = DIR or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = './libs/?.lua;' .. package.path
 package.path = './src/?.lua;' .. package.path
 
+-- Issue 8-059: ensure the project's tmpfs-backed tmp/ symlink is in place
+-- before any test output is written underneath it.
+os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+
 local utils = require('utils')
 local mass_generator = require('mass-diversity-generator')
 
@@ -28,7 +32,7 @@ local function run_basic_generation_tests()
     
     local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
-    local test_output_dir = "/tmp/diversity_test_output"
+    local test_output_dir = DIR .. "/tmp/diversity_test_output"
     
     -- Clean test directory
     os.execute("rm -rf " .. test_output_dir)
@@ -84,7 +88,7 @@ local function run_performance_tests()
     
     local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
-    local test_output_dir = "/tmp/diversity_perf_test"
+    local test_output_dir = DIR .. "/tmp/diversity_perf_test"
     
     -- Clean test directory
     os.execute("rm -rf " .. test_output_dir)
@@ -120,7 +124,7 @@ local function run_html_validation_tests()
     
     local similarity_file = DIR .. "/assets/embeddings/embeddinggemma_latest/similarity_matrix.json"
     local poems_file = DIR .. "/assets/poems.json"
-    local test_output_dir = "/tmp/diversity_html_test"
+    local test_output_dir = DIR .. "/tmp/diversity_html_test"
     
     -- Clean and generate test pages
     os.execute("rm -rf " .. test_output_dir)
@@ -201,7 +205,7 @@ local function run_batch_processing_tests()
     end
     
     -- Test batch processing
-    local test_output_dir = "/tmp/diversity_batch_test"
+    local test_output_dir = DIR .. "/tmp/diversity_batch_test"
     os.execute("rm -rf " .. test_output_dir)
     os.execute("mkdir -p " .. test_output_dir)
     

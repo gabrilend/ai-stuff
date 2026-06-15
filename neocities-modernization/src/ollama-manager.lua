@@ -46,7 +46,10 @@ local function start_ollama_service(host, port)
     
     -- Set environment variable for host binding
     local env_cmd = "export OLLAMA_HOST=" .. host .. ":" .. port .. " && "
-    local start_cmd = env_cmd .. "ollama serve > /tmp/ollama.log 2>&1 &"
+    -- Issue 8-059: route the ollama log through the project's tmpfs-backed
+    -- tmp/ symlink so parallel checkouts don't share a single log file.
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    local start_cmd = env_cmd .. "ollama serve > " .. DIR .. "/tmp/ollama.log 2>&1 &"
     
     os.execute(start_cmd)
     
@@ -145,17 +148,21 @@ end
 -- {{{ function M.test_embedding
 function M.test_embedding(endpoint, model)
     print("Testing embedding generation...")
-    
+
+    -- Issue 8-059: project-local tmpfs path instead of raw /tmp/.
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    local result_path = DIR .. "/tmp/embedding_test.json"
+
     -- Create test request
     local test_cmd = string.format(
-        "curl -s -X POST %s/api/embeddings -H 'Content-Type: application/json' -d '{\"model\": \"%s\", \"prompt\": \"test embedding\"}' > /tmp/embedding_test.json",
-        endpoint, model
+        "curl -s -X POST %s/api/embeddings -H 'Content-Type: application/json' -d '{\"model\": \"%s\", \"prompt\": \"test embedding\"}' > %s",
+        endpoint, model, result_path
     )
-    
+
     os.execute(test_cmd)
-    
+
     -- Check result
-    local result_file = io.open("/tmp/embedding_test.json", "r")
+    local result_file = io.open(result_path, "r")
     if result_file then
         local content = result_file:read("*a")
         result_file:close()

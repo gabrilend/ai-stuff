@@ -152,7 +152,9 @@ end
 -- {{{ local function generate_single_embedding
 -- Generates embedding for a single word via Ollama
 local function generate_single_embedding(word, endpoint)
-    local temp_file = "/tmp/word_embedding_input.json"
+    -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink.
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    local temp_file = DIR .. "/tmp/word_embedding_input.json"
     local payload = {
         model = CONFIG.model_name,
         prompt = word
