@@ -4,17 +4,21 @@
 
 The internal 32 GB eMMC is the storage device the stock Android
 install lives on and the storage device our SoreOS install will
-eventually live on. The Rockchip RK3568 talks to it through one
-of its SDMMC controllers — by convention on the reference
-schematic, SDMMC2. Today, with SoreOS booted from the external
-microSD, the eMMC is sitting there powered but ignored. SoreOS
-cannot read a block from it, cannot write a block to it, and
-therefore cannot make any progress toward the eMMC-resident
-install that issue 110b wants to produce.
+eventually live on. The Rockchip RK3568 talks to it through its
+dedicated SDHCI host (separate from the SDMMC0/1/2 controllers,
+which handle external SD, secondary slots, and SDIO peripherals
+like the WiFi module). The eMMC is wired as an 8-bit bus
+running up to 200 MHz with the `non-removable` property set —
+the kernel does not poll it for hot-swap. Today, with SoreOS
+booted from the external microSD, the eMMC is sitting there
+powered but ignored. SoreOS cannot read a block from it, cannot
+write a block to it, and therefore cannot make any progress
+toward the eMMC-resident install that issue 110b wants to
+produce.
 
 ## Intended behavior
 
-SoreOS brings up the SDMMC2 controller in a polled, blocking,
+SoreOS brings up the SDHCI controller in a polled, blocking,
 read-and-write-blocks-by-index mode. No interrupts, no DMA — both
 are deferred to a later issue that justifies their complexity.
 The driver exposes exactly two operations to the rest of the
@@ -45,7 +49,7 @@ controller's status and command registers come from the RK3568
 TRM (`docs/014-hardware-overview.md` identifies the datasheet).
 
 Bring-up status is reported through the CDC-ACM debug stream
-(110) at each step: "SDMMC2 controller out of reset," "card
+(110) at each step: "SDHCI controller out of reset," "card
 identified, manufacturer ID = N, capacity = N MB," "transfer
 state entered." Failures emit a short reason and the LED falls
 into the diagnostic code from 106 for the failure class.
@@ -53,16 +57,17 @@ into the diagnostic code from 106 for the failure class.
 ## What is deliberately not in scope here
 
 Wear-leveling, bad-block remapping, partitioning, filesystem
-formatting, and anything resembling a transaction log. SDMMC1
-for WiFi SDIO and SDMMC0 for the external microSD are
-bring-up jobs for later phases (phase 4 in the case of microSD,
-phase 7 in the case of WiFi) and reuse none of this code beyond
-the controller-register conventions. The block driver here is the
-minimum that 110b needs to write its payload.
+formatting, and anything resembling a transaction log. SDMMC2
+for WiFi SDIO and SDMMC0 for the external microSD are bring-up
+jobs for later phases (phase 4 in the case of microSD, phase 7
+in the case of WiFi) and use entirely different RK3568
+controllers — they share none of the SDHCI register layout this
+issue brings up. The block driver here is the minimum that 110b
+needs to write its payload.
 
 ## Suggested implementation steps
 
-1. From the RK3568 datasheet, write down the SDMMC2 register
+1. From the RK3568 datasheet, write down the SDHCI register
    block base address, the bit fields for clock control, command
    issue, status, and the block-data FIFO or DMA descriptor
    layout.
