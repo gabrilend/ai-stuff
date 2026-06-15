@@ -25,6 +25,13 @@ walkthrough of how the kernel comes to life:
    targets it.
 3. `103-project-build-system.md` — build a kernel image with that
    compiler.
+    - `103a-air-gapped-flash-workflow.md` — move the build's
+      output onto a microSD card across an air gap, in two
+      scripts: one on the main machine pushes to a dedicated USB
+      drive, one on the lab laptop (carried over by that drive)
+      writes the kernel image to the SD card. The early-phase-1
+      iteration loop runs through here until the eMMC takeover
+      pipeline lands.
 4. `104-boot-and-reset-vector.md` — make the image actually take
    control after firmware hands off.
 5. `105-exception-and-interrupt-vectors.md` — make failures
@@ -111,11 +118,20 @@ flash loop from 110c, not Maskrom.
   known unknowns to spawn the new sub-issues 110a/110b/110c
   described above, and confirmed that the SD-boot-then-eMMC-
   takeover install pipeline is viable on this device.
+- 103a — air-gapped SD card flash workflow. Two scripts at
+  `scripts/push-to-usb` and `scripts/lab-side/flash-sd` move
+  build artifacts from the trusted main machine to a dedicated
+  USB drive (identified by stable UUID), then from the USB drive
+  onto a freshly-inserted microSD card on the lab laptop. Both
+  scripts identify their target storage by stable identifier
+  rather than by `/dev/sdN` path, require typed-YES confirmation
+  before destructive writes, and refuse to flash non-removable
+  devices.
 
 ## Open issues
 
-102 through 110, plus the three new install-pipeline issues 110a,
-110b, 110c, plus 111a, 111b, 112, and 113.
+102, 103, 104 through 110, the three install-pipeline issues
+110a, 110b, 110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 

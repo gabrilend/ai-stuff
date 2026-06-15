@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+# flash-sd — write the SoreOS kernel image onto a microSD card on the lab laptop
+#
+# General description: runs on the air-gapped lab laptop from the USB
+# drive we carried over from the main machine. We find the kernel image
+# the main machine wrote into the drive's output/ directory, ask the
+# developer to insert the microSD card (via a USB reader or built-in
+# slot), identify the SD by the new block device that appears, refuse to
+# proceed if the target looks like internal storage, require a typed
+# YES confirmation, dd the image onto the card, flush physical storage,
+# and eject. The developer takes the card and plugs it into the device.
+
+set -euo pipefail
+
+# {{{ configuration — paths are all relative to DIR (the USB drive root)
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${1:-$(dirname "$SCRIPT_DIR")}"
+
+OUTPUT_DIR="${DIR}/output"
+LOG_FILE="/tmp/flash-sd.log"
+GOODBYE_FILE="${OUTPUT_DIR}/goodbye.log"
+# }}}
+
+# {{{ log() — line of structured output to stderr and the log file
+log() {
+    local message="$1"
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '[flash-sd] %s\n' "$message" >&2
+    printf '%s [flash-sd] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ die() — log an error message and exit non-zero
+die() {
+    local message="$1"
+    log "ERROR: $message"
+    exit 1
+}
+# }}}
+
+# {{{ find_image() — locate exactly one .img file in the drive's output/
+find_image() {
+    if [[ ! -d "$OUTPUT_DIR" ]]; then
+        die "no output directory at ${OUTPUT_DIR}. Did push-to-usb run on the main machine?"
+    fi
+    local images=()
+    local f
+    for f in "${OUTPUT_DIR}"/*.img; do
+        if [[ -e "$f" ]]; then
+            images+=("$f")
+        fi
+    done
+    if [[ ${#images[@]} -eq 0 ]]; then
+        die "no .img file in ${OUTPUT_DIR}. Build the kernel before flashing."
+    fi
+    if [[ ${#images[@]} -gt 1 ]]; then
+        log "Multiple .img files in ${OUTPUT_DIR}:"
+        for f in "${images[@]}"; do
+            log "  - $f"
+        done
+        die "please leave exactly one .img in ${OUTPUT_DIR}."
+    fi
+    printf '%s' "${images[0]}"
+}
+# }}}
+
+# {{{ snapshot_disks() — list current whole-disk block devices, one name per line
+snapshot_disks() {
+    lsblk -dn -o NAME | sort
+}
+# }}}
+
+# {{{ wait_for_sd_card() — diff before/after block devices around an SD insertion
+wait_for_sd_card() {
+    log "Snapshotting current block devices..."
+    local before
+    before="$(snapshot_disks)"
+    printf '\nInsert the microSD card now (in a USB reader, or in a built-in slot).\nPress ENTER when inserted.\n' >&2
+    read -r _
+    sleep 2
+    log "Snapshotting block devices after insertion..."
+    local after
+    after="$(snapshot_disks)"
+    local before_file
+    before_file="$(mktemp)"
+    local after_file
+    after_file="$(mktemp)"
+    printf '%s\n' "$before" > "$before_file"
+    printf '%s\n' "$after" > "$after_file"
+    local new_names
+    new_names="$(comm -13 "$before_file" "$after_file")"
+    rm -f "$before_file" "$after_file"
+    local count=0
+    local n
+    for n in $new_names; do
+        count=$((count + 1))
+    done
+    if [[ $count -eq 0 ]]; then
+        die "no new block device detected. If your laptop's built-in slot doesn't enumerate a new device, pass the device path explicitly as an argument."
+    fi
+    if [[ $count -gt 1 ]]; then
+        log "Multiple new devices appeared:"
+        for n in $new_names; do
+            log "  - /dev/$n"
+        done
+        die "please insert only the SD card reader."
+    fi
+    local single
+    for n in $new_names; do
+        single="$n"
+    done
+    printf '/dev/%s' "$single"
+}
+# }}}
+
+# {{{ verify_removable() — refuse to flash anything that isn't a removable device
+verify_removable() {
+    local device="$1"
+    local removable
+    removable="$(lsblk -dn -o RM "$device")"
+    removable="${removable//[[:space:]]/}"
+    if [[ "$removable" != "1" ]]; then
+        die "${device} is not a removable device (RM=${removable}). Refusing to flash."
+    fi
+}
+# }}}
+
+# {{{ confirm_with_user() — show source and destination, require typed YES
+confirm_with_user() {
+    local device="$1"
+    local image="$2"
+    local size
+    size="$(lsblk -dn -o SIZE "$device")"
+    local model
+    model="$(lsblk -dn -o MODEL "$device" 2>/dev/null || true)"
+    printf '\n' >&2
+    printf 'About to flash:\n' >&2
+    printf '  Source:  %s\n' "$image" >&2
+    printf '  Target:  %s  (size: %s, model: %s)\n' "$device" "$size" "$model" >&2
+    printf '\n' >&2
+    printf 'ALL DATA ON %s WILL BE OVERWRITTEN.\n' "$device" >&2
+    printf '\n' >&2
+    local answer
+    read -r -p "Type 'YES' (in capitals) to proceed: " answer
+    if [[ "$answer" != "YES" ]]; then
+        die "user declined; nothing was written."
+    fi
+}
+# }}}
+
+# {{{ unmount_partitions() — unmount any auto-mounted partitions of the target
+unmount_partitions() {
+    local device="$1"
+    local short
+    short="$(basename "$device")"
+    local part
+    local mp
+    for part in $(lsblk -ln -o NAME "$device" | tail -n +2); do
+        local part_path="/dev/${part}"
+        mp="$(findmnt -no TARGET "$part_path" 2>/dev/null || true)"
+        if [[ -n "$mp" ]]; then
+            log "Unmounting ${part_path} from ${mp}..."
+            sudo umount "$part_path"
+        fi
+    done
+}
+# }}}
+
+# {{{ flash_image() — dd the image onto the target with progress and fsync
+flash_image() {
+    local image="$1"
+    local device="$2"
+    log "Flashing ${image} to ${device}..."
+    sudo dd if="$image" of="$device" bs=4M status=progress conv=fsync
+    log "Flushing physical storage..."
+    sync
+}
+# }}}
+
+# {{{ eject_device() — close out the device cleanly so the kernel forgets it
+eject_device() {
+    local device="$1"
+    log "Ejecting ${device}..."
+    if ! sudo eject "$device" 2>/dev/null; then
+        log "eject command failed or unavailable; sync was successful so the device is safe to remove."
+    fi
+}
+# }}}
+
+# {{{ write_goodbye() — append the conventional last-thing-a-program-does line
+write_goodbye() {
+    local stamp
+    stamp="$(date -Iseconds)"
+    if [[ -d "$OUTPUT_DIR" ]] && [[ -w "$OUTPUT_DIR" ]]; then
+        printf '%s flash-sd: goodbye\n' "$stamp" >> "$GOODBYE_FILE" 2>/dev/null || true
+    fi
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    log "Starting flash-sd. DIR=${DIR}"
+    local image
+    image="$(find_image)"
+    log "Using image: ${image}"
+    local sd_device
+    if [[ $# -ge 2 ]]; then
+        sd_device="$2"
+        log "Using explicit device override: ${sd_device}"
+    else
+        sd_device="$(wait_for_sd_card)"
+        log "Detected SD device: ${sd_device}"
+    fi
+    verify_removable "$sd_device"
+    confirm_with_user "$sd_device" "$image"
+    unmount_partitions "$sd_device"
+    flash_image "$image" "$sd_device"
+    eject_device "$sd_device"
+    write_goodbye
+    log "Done. Pull the SD card and plug it into the device."
+}
+# }}}
+
+main "$@"
