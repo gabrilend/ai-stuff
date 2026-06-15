@@ -90,8 +90,12 @@ end
 
 -- {{{ local function generate_embedding
 local function generate_embedding(text, endpoint)
-    -- Create a temporary file to avoid shell escaping issues
-    local temp_file = "/tmp/embedding_input.json"
+    -- Create a temporary file to avoid shell escaping issues.
+    -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink so
+    -- parallel checkouts of this repository do not collide on a single shared
+    -- /tmp/ filename.
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    local temp_file = DIR .. "/tmp/embedding_input.json"
     local payload = {
         model = "embeddinggemma:latest",
         input = text
@@ -505,7 +509,9 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     
     -- Write initial progress state (just counts, no timing)
     local user = os.getenv("USER") or "ritz"  -- fallback to ritz
-    local progress_file = "/tmp/embedding_progress_" .. user .. ".txt"
+    -- Issue 8-059: shared with scripts/generate-embeddings.sh which reads
+    -- this file; both sides now agree on the project-local tmpfs path.
+    local progress_file = DIR .. "/tmp/embedding_progress_" .. user .. ".txt"
     -- Issue 8-021 Fix: Use safe_completed to cap progress at total_poems
     local safe_completed = math.min(skipped_count + newly_processed, total_poems)
     local initial_progress = string.format("%d,%d", safe_completed, total_poems)
@@ -618,7 +624,9 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                     -- Write simple progress for bash script monitoring (just counts)
                     -- Issue 8-021 Fix: Cap progress at total_poems to prevent overcounting
                     local user = os.getenv("USER") or "ritz"  -- fallback to ritz
-                    local progress_file = "/tmp/embedding_progress_" .. user .. ".txt"
+                    -- Issue 8-059: shared with scripts/generate-embeddings.sh which reads
+    -- this file; both sides now agree on the project-local tmpfs path.
+    local progress_file = DIR .. "/tmp/embedding_progress_" .. user .. ".txt"
                     local safe_completed = math.min(skipped_count + newly_processed, total_poems)
                     local progress_data = string.format("%d,%d", safe_completed, total_poems)
                     local pf = io.open(progress_file, "w")

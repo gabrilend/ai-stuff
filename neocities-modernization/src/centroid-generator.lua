@@ -53,7 +53,11 @@ local CONFIG = {
 -- {{{ local function generate_embedding
 -- Sends text to Ollama and returns the embedding vector
 local function generate_embedding(text, endpoint)
-    local temp_file = "/tmp/centroid_embedding_input.json"
+    -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink
+    -- so parallel checkouts of this repository never collide on a shared
+    -- system /tmp/ filename.
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    local temp_file = DIR .. "/tmp/centroid_embedding_input.json"
     local payload = {
         model = CONFIG.model_name,
         input = text

@@ -5,6 +5,12 @@
 package.cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;" .. package.cpath
 local effil = require("effil")
 
+-- Issue 8-059: route the test file write through the project's tmpfs-backed
+-- tmp/ symlink instead of raw /tmp/.
+local DIR = (arg and arg[1]) or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+local TEST_FILE = DIR .. "/tmp/effil-test.txt"
+
 -- Simple worker function
 local function worker(x)
     return x * 2
@@ -30,13 +36,13 @@ local function file_worker(filename, content)
 end
 
 print("\nTesting file I/O in thread...")
-local thread2 = effil.thread(file_worker)("/tmp/effil-test.txt", "Hello from thread!")
+local thread2 = effil.thread(file_worker)(TEST_FILE, "Hello from thread!")
 local status2, result2 = thread2:wait()
 print(string.format("Status: %s", tostring(status2)))
 print(string.format("Result: %s", tostring(result2)))
 
 -- Check if file was created
-local f = io.open("/tmp/effil-test.txt", "r")
+local f = io.open(TEST_FILE, "r")
 if f then
     print("File content: " .. f:read("*a"))
     f:close()

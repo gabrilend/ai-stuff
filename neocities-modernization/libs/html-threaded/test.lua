@@ -8,8 +8,14 @@ local htmlgen = require("html_gen")
 print("HTML Generator Library Test")
 print("============================")
 
+-- Issue 8-059: route this test's output through the project's tmpfs-backed
+-- tmp/ symlink. DIR resolves from arg[1] or the hard-coded project path.
+local DIR = (arg and arg[1]) or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+local TEST_DIR = DIR .. "/tmp/htmlgen-test"
+
 -- Create test directory
-os.execute("mkdir -p /tmp/htmlgen-test")
+os.execute("mkdir -p " .. TEST_DIR)
 
 -- Initialize with 4 threads
 print("\n1. Initializing with 4 threads...")
@@ -30,7 +36,7 @@ for i = 1, num_files do
 </body>
 </html>]], i, i, i)
 
-    htmlgen.add_file(ctx, string.format("/tmp/htmlgen-test/page-%04d.html", i), content)
+    htmlgen.add_file(ctx, string.format("%s/page-%04d.html", TEST_DIR, i), content)
 end
 print(string.format("   Added %d files to queue", num_files))
 
@@ -57,7 +63,7 @@ htmlgen.destroy(ctx)
 print("\n6. Verifying output...")
 local count = 0
 for i = 1, num_files do
-    local f = io.open(string.format("/tmp/htmlgen-test/page-%04d.html", i), "r")
+    local f = io.open(string.format("%s/page-%04d.html", TEST_DIR, i), "r")
     if f then
         count = count + 1
         f:close()
@@ -66,7 +72,7 @@ end
 print(string.format("   Found %d/%d files", count, num_files))
 
 -- Cleanup test files
-os.execute("rm -rf /tmp/htmlgen-test")
+os.execute("rm -rf " .. TEST_DIR)
 
 if count == num_files and stats.files_failed == 0 then
     print("\n✓ All tests passed!")

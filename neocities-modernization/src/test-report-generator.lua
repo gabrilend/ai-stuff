@@ -339,7 +339,7 @@ function test_error_handling()
     local mock_result = create_mock_validation_result()
     
     local success, error = pcall(function()
-        generator_bad_format:generate_validation_report(mock_result, "/tmp/test.txt")
+        generator_bad_format:generate_validation_report(mock_result, DIR .. "/tmp/test.txt")
     end)
     
     if not success and error:match("Unsupported report format") then
