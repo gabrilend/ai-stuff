@@ -2,10 +2,35 @@
 
 ## Current behavior
 
-The kernel knows where the heap region starts and ends (107) but
-has no way to ask "give me some memory" — every use of the heap
-would have to be done by hand-crafted pointer arithmetic, which
-is unsustainable past about the third caller.
+`src/008-allocator.c` implements a 4 KB-page allocator backed by
+a one-bit-per-page bitmap. `allocator_init` reads the memory
+pool bounds from 107, carves the bitmap out of the bottom of the
+pool (about 96 KB on this 3 GB device, around 24 pages of the
+roughly 786,000 the pool contains), zeroes it, and exposes the
+remainder as the managed pool.
+
+`alloc_page` returns a page-aligned physical address or zero if
+the pool is exhausted. The implementation walks the bitmap byte
+by byte, finds the lowest free bit, marks it used, and returns
+the matching page address. O(n) in the pool size; sub-millisecond
+on the worst case for this hardware, and the kernel does not
+call it on any hot path that phase 1 has identified.
+
+`free_page` returns a page to the pool by clearing its bit. O(1).
+
+A boot-time self-test allocates two pages, verifies they are
+distinct and page-aligned, frees one, verifies the next
+allocation reuses that freed page, then frees everything it
+took. `kernel_main` calls `allocator_check_or_panic` after
+`allocator_init`; on failure the panic LED lights and the core
+parks, so a silent bitmap-math bug surfaces as a red LED rather
+than as silent memory corruption later.
+
+What is deliberately deferred: multi-page contiguous allocation
+(the framebuffer in 111a will be the first caller that wants
+it, and that issue extends the API), atomic concurrency control
+(phase 2's threading core adds it), and any per-app
+accounting (phase 9's MMU work adds it).
 
 ## Intended behavior
 

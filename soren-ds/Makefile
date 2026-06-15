@@ -32,7 +32,13 @@ CFLAGS := -ffreestanding -nostdlib -nostartfiles \
           -mcpu=cortex-a55 \
           -fno-builtin
 
-LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib
+# --no-warn-rwx-segments silences a linker warning that fires on every
+# build because our flat-no-MMU kernel collapses text and data into a
+# single read-write-execute LOAD segment. The warning is intended for
+# hosted programs that benefit from separating code and data into
+# distinct memory regions; for a freestanding kernel without
+# protection it is informational and not actionable.
+LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib --no-warn-rwx-segments
 
 C_SRCS := $(shell find $(SRC_DIR) -name '*.c' 2>/dev/null)
 S_SRCS := $(shell find $(SRC_DIR) -name '*.s' 2>/dev/null)

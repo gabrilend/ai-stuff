@@ -161,6 +161,13 @@ flash loop from 110c, not Maskrom.
   boot-time dump the original sketch proposed is deferred to
   whenever 110 brings up a text channel; until then the LED
   stage signal is sufficient.
+- 108 — flat page allocator. `src/008-allocator.c` implements a
+  4 KB-page allocator backed by a one-bit-per-page bitmap that
+  it carves out of the bottom of 107's memory pool. The bitmap
+  walk is O(n) on alloc, O(1) on free. A boot-time self-test
+  runs from `kernel_main` and panics to a red LED on bookkeeping
+  failure. Multi-page contiguous allocation and concurrency
+  control are deferred to later issues that actually need them.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -171,8 +178,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-108, 109, 110, the three install-pipeline issues 110a, 110b,
-110c, plus 111a, 111b, 112, and 113.
+109, 110, the three install-pipeline issues 110a, 110b, 110c,
+plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 
