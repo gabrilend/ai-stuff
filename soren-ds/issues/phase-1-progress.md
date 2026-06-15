@@ -150,6 +150,17 @@ flash loop from 110c, not Maskrom.
   parks the core. The boot code installs the table by writing
   its address into the system's vector base register before
   branching to C.
+- 107 — flat memory layout. `src/007-memory.c` exposes
+  `memory_pool_base`, `memory_pool_end`, and `memory_pool_size`
+  to the rest of the kernel; the full chip address space the
+  three values sit inside is catalogued in
+  `docs/016-physical-memory-map.md`. The DRAM extent (3 GB
+  starting at zero), the lower-layer-firmware reservation
+  beneath the kernel image, and every peripheral register
+  window the SoC exposes are all documented in one place. The
+  boot-time dump the original sketch proposed is deferred to
+  whenever 110 brings up a text channel; until then the LED
+  stage signal is sufficient.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -160,7 +171,7 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-107 through 110, the three install-pipeline issues 110a, 110b,
+108, 109, 110, the three install-pipeline issues 110a, 110b,
 110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
