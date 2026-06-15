@@ -17,41 +17,47 @@ A fully functional UT2004 Linux development environment that allows:
 
 ## Suggested Implementation Steps
 
-### 1. Locate UT2004 Installation
-- Verify UT2004 Linux installation path
-- Document installation directory structure
-- Identify key directories:
-  - System/ (for compiled packages)
-  - UT2004Mod/ or similar (for mod source)
+### 1. Install OldUnreal UT2004 Patch 3374
+- Remove old UT2004 installation (if present)
+- Download OldUnreal Full Game Installer or patch tarball
+- Install to project directory: UT2004/
+- Verify directory structure created correctly
+
+### 2. Verify UCC Compiler Functionality
+- Locate ucc-bin-linux-amd64 in System/
+- Make executable: `chmod +x ucc-bin-linux-amd64`
+- Test UCC: `./ucc-bin-linux-amd64 help`
+- Test compiler: `./ucc-bin-linux-amd64 make help` (should NOT say "broken")
+
+### 3. Document Installation
+- Record UT2004 installation path in config.sh
+- Document directory structure in docs/
+- Verify all required directories present:
+  - System/ (executables and compiled packages)
   - Maps/ (for testing)
+  - Textures/, StaticMeshes/, etc. (game assets)
 
-### 2. Set Up UnrealScript Compiler
-- Locate ucc (Unreal Command Compiler)
-- Test compilation with: `ucc help`
-- Document compiler flags and options
-- Create test compilation of existing mod (if any)
+### 4. Configure Development Environment
+- Update config.sh with correct UT2004_DIR
+- Create UT2004.ini if needed for compilation settings
+- Document UCC compiler options
+- Test basic UCC commands
 
-### 3. Configure Make/Build System
-- Determine if using ucc directly or wrapper scripts
-- Set up proper paths in UT2004.ini or similar config
-- Configure EditPackages entries
-- Test clean build process
-
-### 4. Establish Testing Workflow
-- Document how to launch game with custom mutator
-- Set up console command shortcuts
+### 5. Establish Testing Workflow
+- Document how to launch game: `./ut2004-bin-linux-amd64`
+- Test game launches successfully
+- Document console commands for mutator loading
 - Configure logging for debugging
-- Test map loading with mod active
 
-### 5. Documentation
-- Document all paths and configurations
-- Create quick-start guide for development
-- List common compiler errors and solutions
-- Document testing procedure
+### 6. Final Verification
+- Verify all acceptance criteria met
+- Document any deviations or issues
+- Update phase-1-progress.md with completion status
 
 ## Related Documents
 - docs/001-architecture-overview.md
 - docs/005-roadmap.md (Phase 1)
+- docs/007-oldunreal-installation-guide.md (Installation instructions)
 
 ## Tools Required
 - UT2004 Linux installation
@@ -65,8 +71,56 @@ A fully functional UT2004 Linux development environment that allows:
 - [ ] Can load compiled package in-game
 - [ ] Testing workflow is established and documented
 - [ ] Development environment is fully configured
+- [ ] Installation automation scripts created and tested
+- [ ] Verification script confirms OldUnreal patch installation
 
 Note: Build scripts are created in Issue 105 and its sub-issues.
 
+## Automation Scripts Created
+
+### scripts/install-ut2004.sh
+Fully automated installation script that handles the complete UT2004 setup process including:
+- Removal of existing installations
+- Download and execution of OldUnreal installer
+- Permission configuration
+- Mod directory creation
+- File copying (source and compiled packages)
+- Installation verification
+
+### scripts/verify-ut2004-installation.sh
+Comprehensive verification script that checks:
+- Directory structure completeness
+- Executable permissions
+- Core package presence
+- UCC compiler functionality
+- OldUnreal patch detection (vs broken stock version)
+
+See scripts/README.md for usage details.
+
 ## Notes
-Target the base UT2004 Linux version for maximum compatibility. Do not rely on features from later patches unless absolutely necessary.
+
+### Critical Decision: OldUnreal Patch 3374 Required
+
+**Problem Discovered:** Stock UT2004 Linux (2005 release, build 2005-11-23_16.22) has a **broken UCC compiler**. When running `ucc make`, it reports: "ucc make is broken on Unix/Mac right now."
+
+**Root Cause:** Epic Games' Linux porter (Ryan Gordon) never implemented the UnrealScript compiler for Linux, stating it was "low priority." The stock Linux release only contains the game runtime, not development tools.
+
+**Historical Workarounds (Rejected):**
+- Wine + Windows UCC (violates Linux-only requirement)
+- Cross-compile on Windows (not acceptable for Linux-first development)
+
+**Solution Selected:** OldUnreal Patch 3374
+- Provides fully functional native Linux UCC compiler
+- First working Linux UnrealScript compiler in UT2004's history
+- 64-bit support (x86-64 and ARM64)
+- Modern SDL3 backend and improved rendering
+- Community-maintained with Epic Games approval
+
+**Compatibility Impact:** Patch 3374 is a modernization patch that maintains compatibility with base game content while fixing critical issues. Development will target patch 3374 as the baseline.
+
+**Installation:** See docs/007-oldunreal-installation-guide.md for detailed installation instructions.
+
+**References:**
+- [Using UCC Under Linux (BeyondUnreal Wiki)](https://beyondunrealwiki.github.io/pages/using-ucc-under-linux.html)
+- [OldUnreal UT2004 Patches](https://github.com/OldUnreal/UT2004Patches)
+- [OldUnreal Full Game Installers](https://github.com/OldUnreal/FullGameInstallers/releases)

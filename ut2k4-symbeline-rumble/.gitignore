@@ -3,12 +3,24 @@
 # UT2004 Game Installation
 # The game files are too large and not part of our source code
 ut2004-install/
+UT2004/
+
+# Clean game backup (large, but useful to keep for fast reinstalls)
+# Note: This is git-ignored but preserved locally
+assets/clean-game-install/
+
+# OldUnreal Installer (temporary download)
+.oldunreal-installer.sh
 
 # Build Artifacts
 tmp/
 *.u
 *.ucl
 *.int
+
+# Source-of-truth localization files live in src/ and must be tracked
+# even though their compiled carbon copies in the installation are ignored
+!src/*.int
 
 # UT2004 Logs
 *.log
