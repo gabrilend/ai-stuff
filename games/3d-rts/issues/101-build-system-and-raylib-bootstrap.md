@@ -2,7 +2,12 @@
 
 ## Status
 
-DONE — completed 2026-04-27.
+RE-OPENED 2026-05-02. The original bootstrap (window opens, raylib
+links, lifecycle reads input/ and writes goodbye) shipped 2026-04-27
+and is captured in the completion log below. Two new requirements
+landed during the architecture walkthrough — incremental
+compilation, and strict input/ handling — both described in the
+"Re-opened: 2026-05-02" section at the bottom of this file.
 
 ## Current behavior
 
@@ -189,7 +194,7 @@ flags, glibc version, X11 / OpenGL drivers. Those would need
 container or toolchain pinning to address — out of scope for
 this addendum.
 
-### What was implemented (Phase 5 build infra)
+### What was implemented (Phase 1 build infra)
 
 - `libs/sources` — pinned-version manifest.
 - `scripts/deps/fetch-raylib.sh` — version-aware fetch +
@@ -221,3 +226,126 @@ this addendum.
   raylib; out of scope for this addendum.
 - Behavior on a system without `git` available. Fetch fails
   loudly — the user's mono-repo expects git.
+
+## Task pool integration (added retroactively)
+
+**Not applicable.** Build infrastructure runs at compile time;
+the task pool only exists at game runtime. The Makefile must
+ensure `libs/900-task-pool.c` is compiled and linked when the
+game adopts the pool, but that's a one-line addition (a wildcard
+already picks it up if libs/ is in the source path).
+
+## Re-opened: 2026-05-02 — Incremental compile + strict input/
+
+Both requirements surfaced during the Phase 1 architecture
+walkthrough. Captured here rather than in new issue files so the
+build-system bootstrap stays a single coherent topic — the
+foundational issue that everything else stands on.
+
+### Requirement A — Incremental compilation
+
+#### Why
+
+Current behavior: every source touch triggers a full rebuild of
+all C files in `src/` plus `libs/900-task-pool.c`. That's fine
+with five files, but the tree is growing (selection, orders,
+projectiles, factory, rally, demo, plus future sound and AI),
+and a "touch one file → rebuild everything" loop becomes the
+slowest step in the iteration cycle.
+
+#### Intended behavior
+
+`make` rebuilds only the C files whose source — or whose
+transitively-included headers — changed since the last build.
+A header change recompiles every file that includes it; an
+unrelated `.c` file that doesn't include the changed header is
+not recompiled. The first build from a clean tree compiles
+everything once. Subsequent builds compile the minimum.
+
+#### Suggested implementation steps
+
+1. Per-file `.o` outputs under `tmp/obj/` (volatile scratch,
+   matches the existing `tmp/` convention so a reboot wipes
+   stale objects).
+2. `%.o: %.c` pattern rule with `-MMD -MP` so gcc emits a
+   per-object `.d` file listing the headers it included.
+3. `-include $(OBJS:.o=.d)` so make picks up those header
+   dependencies on subsequent builds. Missing `.d` files are
+   benign on a first build (the `-` prefix on `-include`
+   suppresses the warning).
+4. Final link rule depends on `$(OBJS)`, not `$(SRCS)`.
+5. `clean` removes `tmp/obj/` and `tmp/3d-rts`.
+6. Verify: `touch src/050-units.c` rebuilds only that one
+   `.o` plus the link; `touch src/020-terrain.h` rebuilds
+   every `.o` that includes it (and only those); a clean
+   build still works end-to-end.
+
+#### Notes
+
+- Object files going into `tmp/obj/` (rather than next to the
+  sources) keeps `src/` clean and follows the existing pattern
+  of "all build artifacts are volatile."
+- The wildcard source discovery stays — adding a new `.c`
+  file is still zero-config.
+- This is a Makefile-only change. No source files move or
+  rename.
+
+### Requirement B — Strict input/ handling
+
+#### Why
+
+`count_input_files()` currently returns -1 if `<DIR>/input` is
+missing or unreadable, and `main()` prints
+`"note: input/ not readable at %s; proceeding"` and continues.
+That's a fallback. Per the project's "prefer error messages and
+breaking functionality over fallbacks" rule, a missing input
+directory should be a hard error that aborts the run.
+
+`GAME_DIR` is baked at compile time, so a missing `input/`
+means either the project root never had one, or the binary is
+being run against a relocated tree. Both are setup bugs that
+deserve a loud failure, not a silent shrug.
+
+#### Intended behavior
+
+If `<GAME_DIR>/input/` cannot be opened, the program prints a
+clear error to stderr (path attempted + `strerror(errno)`) and
+exits with a non-zero status before opening any window or
+allocating any pool. No raylib initialization, no goodbye write
+— the run is aborted at the lifecycle's earliest stage.
+
+The success path is unchanged: opening the directory, counting
+non-hidden entries, printing the count, proceeding. Phase 1
+still does nothing with input contents, so an empty `input/`
+remains valid (count = 0).
+
+#### Suggested implementation steps
+
+1. `count_input_files()` keeps its return-on-error contract,
+   but `main()` treats the -1 as fatal:
+   ```c
+   if (input_count < 0) {
+       fprintf(stderr, "error: cannot read %s/input: %s\n",
+               root, strerror(errno));
+       return 1;
+   }
+   ```
+2. The error happens *before* `InitWindow`, so there's no
+   GPU/window cleanup needed on the abort path.
+3. Drop the existing "proceeding" fallback comment from
+   `count_input_files`; the contract is now "missing input/ is
+   a setup bug."
+4. Verify: removing `input/` from the project root and running
+   the binary prints the error and exits with status 1; an
+   empty `input/` still allows the program to start; a populated
+   `input/` reports the file count as before.
+
+#### Notes
+
+- `errno` from `opendir` reaches `main` cleanly because
+  `count_input_files` is the only thing between them and
+  doesn't clobber it on the error path. If a future change
+  inserts other syscalls between, capture the errno into the
+  return path explicitly.
+- This is independent of Requirement A and can land in either
+  order.
