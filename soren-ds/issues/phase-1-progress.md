@@ -126,10 +126,16 @@ flash loop from 110c, not Maskrom.
 - 103 — project build system. A Makefile at the project root
   walks `src/` for every `.c`, compiles each with the cross-
   toolchain, links with the linker script at `src/kernel.ld`,
-  and emits a raw kernel binary at `output/kernel.img`. The
-  placeholder source builds to an 8-byte `wfi`-loop kernel
-  linked at the placeholder load address pinned in the linker
-  script. `scripts/build` is the project-root-aware wrapper.
+  and emits a raw kernel binary at `output/kernel.img`.
+  `scripts/build` is the project-root-aware wrapper.
+- 104 — boot and reset vector. `src/001-boot.s` defines `_start`
+  at the kernel load address: masks all asynchronous exceptions,
+  sets the stack pointer to a linker-reserved 16 KB region,
+  zeroes .bss between linker-defined symbols, and branches into
+  `kernel_main` in `src/002-main.c`. `kernel_main` is currently
+  an infinite WFI loop awaiting the work later phase 1 issues
+  fill it with. Image is 88 bytes; disassembly confirms the
+  symbols land where the linker script pins them.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -140,7 +146,7 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-104 through 110, the three install-pipeline issues 110a, 110b,
+105 through 110, the three install-pipeline issues 110a, 110b,
 110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo

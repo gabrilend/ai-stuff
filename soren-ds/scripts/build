@@ -5,12 +5,15 @@
 # project root. Sets the DIR variable so the Makefile finds the
 # cross-toolchain under libs/cross/ and the source tree under src/
 # regardless of which directory the developer invoked this from.
-# Pass `clean` (or any other make target) as a second argument; the
-# default is the all target, which builds output/kernel.img.
+# The first positional argument is the make target (defaults to
+# `all`). The DIR override is an environment variable rather than a
+# positional argument so it does not collide with the target name —
+# diverging from the other scripts' convention because they don't
+# carry a target concept.
 
 set -euo pipefail
 
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
-TARGET="${2:-all}"
+DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
+TARGET="${1:-all}"
 
 make -C "$DIR" DIR="$DIR" "$TARGET"
