@@ -13,6 +13,8 @@
 - [AI Behavior](004-ai-behavior.md) - Bot behaviors and pathfinding
 
 ### Development Resources
+- [OldUnreal Installation Guide](007-oldunreal-installation-guide.md) - Setting up UT2004 with native Linux compiler
+- [Package Structure](008-package-structure.md) - Mod package organization and conventions
 - Vision Document: `../notes/vision`
 - Issue Files: `../issues/`
 - Source Code: `../src/`
