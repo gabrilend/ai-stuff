@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# check-toolchain — smoke test for the aarch64-elf cross-toolchain
+#
+# General description: verify that the cross-compiler at
+# libs/cross/bin/aarch64-elf-gcc exists, report the versions of GCC
+# and binutils we found, and compile a single-function freestanding
+# C program end to end. The output is then inspected to confirm
+# it really is an aarch64 ELF binary. Other phase-1 issues lean on
+# this script to assume the toolchain works.
+
+set -euo pipefail
+
+# {{{ configuration — paths are all relative to DIR
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
+
+CROSS_PREFIX="${DIR}/libs/cross"
+TARGET="aarch64-elf"
+GCC="${CROSS_PREFIX}/bin/${TARGET}-gcc"
+LD="${CROSS_PREFIX}/bin/${TARGET}-ld"
+
+TMP_TEST="${DIR}/tmp/check-toolchain"
+LOG_FILE="${DIR}/tmp/check-toolchain.log"
+# }}}
+
+# {{{ colors — only emit ANSI when stderr is a real terminal
+if [[ -t 2 ]]; then
+    COLOR_GREEN=$'\033[32m'
+    COLOR_RED=$'\033[31m'
+    COLOR_RESET=$'\033[0m'
+else
+    COLOR_GREEN=''
+    COLOR_RED=''
+    COLOR_RESET=''
+fi
+# }}}
+
+# {{{ say() — print to stderr and append to log
+say() {
+    local message="$1"
+    printf '%s\n' "$message" >&2
+    printf '%s [check-toolchain] %s\n' "$(date -Iseconds)" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ die() — print error in red and exit non-zero
+die() {
+    local message="$1"
+    printf '%serror%s: %s\n' "$COLOR_RED" "$COLOR_RESET" "$message" >&2
+    exit 1
+}
+# }}}
+
+# {{{ ok() — print "ok" in green next to a label
+ok() {
+    local label="$1"
+    printf '%s %sok%s\n' "$label" "$COLOR_GREEN" "$COLOR_RESET" >&2
+}
+# }}}
+
+# {{{ ensure_present() — fail clearly if the toolchain isn't installed
+ensure_present() {
+    if [[ ! -x "$GCC" ]]; then
+        die "${GCC} not found. Run scripts/build-deps first."
+    fi
+    if [[ ! -x "$LD" ]]; then
+        die "${LD} not found. The binutils install appears incomplete; rerun scripts/build-deps."
+    fi
+}
+# }}}
+
+# {{{ report_versions() — print GCC and binutils versions
+report_versions() {
+    local gcc_v
+    gcc_v="$("$GCC" --version | head -n 1)"
+    say "GCC:      ${gcc_v}"
+    local ld_v
+    ld_v="$("$LD" --version | head -n 1)"
+    say "binutils: ${ld_v}"
+}
+# }}}
+
+# {{{ compile_smoke_test() — compile a tiny freestanding C program and inspect the output
+compile_smoke_test() {
+    mkdir -p "$TMP_TEST"
+    local source_file="${TMP_TEST}/smoke.c"
+    local object_file="${TMP_TEST}/smoke.o"
+    local elf_file="${TMP_TEST}/smoke.elf"
+    cat > "$source_file" <<'EOF'
+/* Smallest possible freestanding "program" — just enough to exercise
+ * the cross-toolchain's compile-and-link pipeline. _start is the
+ * conventional entry point when no startup files are linked in.
+ */
+int _start(void) { return 0; }
+EOF
+    if ! "$GCC" -ffreestanding -nostdlib -nostartfiles -c "$source_file" -o "$object_file" 2>> "$LOG_FILE"; then
+        die "GCC failed to compile the smoke test. See ${LOG_FILE}."
+    fi
+    if ! "$LD" "$object_file" -o "$elf_file" 2>> "$LOG_FILE"; then
+        die "binutils ld failed to link the smoke test. See ${LOG_FILE}."
+    fi
+    local file_info
+    file_info="$(file "$elf_file")"
+    if [[ "$file_info" != *aarch64* ]]; then
+        die "smoke test output is not aarch64. file says: ${file_info}"
+    fi
+    say "smoke test produced: ${file_info}"
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    ensure_present
+    ok "toolchain present at ${CROSS_PREFIX}"
+    report_versions
+    compile_smoke_test
+    ok "aarch64-elf cross-toolchain"
+}
+# }}}
+
+main

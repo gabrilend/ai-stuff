@@ -118,6 +118,11 @@ flash loop from 110c, not Maskrom.
   known unknowns to spawn the new sub-issues 110a/110b/110c
   described above, and confirmed that the SD-boot-then-eMMC-
   takeover install pipeline is viable on this device.
+- 102 — cross-compilation toolchain. Binutils 2.44 and GCC
+  16.1.0 are built from source by `scripts/build-deps` and
+  installed at `libs/cross/`. The smoke test in
+  `scripts/check-toolchain` confirms the pipeline produces a
+  64-bit ARM aarch64 ELF.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -128,8 +133,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-102, 103, 104 through 110, the three install-pipeline issues
-110a, 110b, 110c, plus 111a, 111b, 112, and 113.
+103, 104 through 110, the three install-pipeline issues 110a,
+110b, 110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 
