@@ -141,6 +141,15 @@ flash loop from 110c, not Maskrom.
   calls `led_init` and `led_set_stage(STAGE_KERNEL_MAIN)` as the
   first signs of life the device shows. The pattern table lives
   in `docs/015-led-diagnostic-codes.md`.
+- 105 — exception and interrupt vectors. `src/005-vectors.s`
+  defines a 2 KB-aligned 16-entry vector table; every entry
+  captures the exception type index and falls into a common
+  panic stub that records the faulting PC and syndrome before
+  calling into the C `panic_handler` (`src/006-panic.c`). The
+  panic handler lights `STAGE_PANIC_GENERIC` (red solid) and
+  parks the core. The boot code installs the table by writing
+  its address into the system's vector base register before
+  branching to C.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -151,8 +160,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-105, 107 through 110, the three install-pipeline issues 110a,
-110b, 110c, plus 111a, 111b, 112, and 113.
+107 through 110, the three install-pipeline issues 110a, 110b,
+110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 
