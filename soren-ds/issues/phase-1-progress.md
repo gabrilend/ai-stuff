@@ -132,10 +132,15 @@ flash loop from 110c, not Maskrom.
   at the kernel load address: masks all asynchronous exceptions,
   sets the stack pointer to a linker-reserved 16 KB region,
   zeroes .bss between linker-defined symbols, and branches into
-  `kernel_main` in `src/002-main.c`. `kernel_main` is currently
-  an infinite WFI loop awaiting the work later phase 1 issues
-  fill it with. Image is 88 bytes; disassembly confirms the
-  symbols land where the linker script pins them.
+  `kernel_main` in `src/002-main.c`.
+- 106 — LED earliest boot signal. A small PWM driver
+  (`src/003-pwm.c`) brings up channels 5/6/7 of the RK3568's
+  PWM1 controller; the LED abstraction (`src/004-led.c`) maps
+  the three LEDs (green/amber/red, all driven via PWM per the
+  upstream device tree) to a boot-stage enum. `kernel_main`
+  calls `led_init` and `led_set_stage(STAGE_KERNEL_MAIN)` as the
+  first signs of life the device shows. The pattern table lives
+  in `docs/015-led-diagnostic-codes.md`.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -146,8 +151,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-105 through 110, the three install-pipeline issues 110a, 110b,
-110c, plus 111a, 111b, 112, and 113.
+105, 107 through 110, the three install-pipeline issues 110a,
+110b, 110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 

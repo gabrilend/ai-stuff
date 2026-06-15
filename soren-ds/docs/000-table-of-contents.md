@@ -51,3 +51,7 @@ tour; jump in by topic if you already know where you're going.
   the install path SoreOS commits to (SD-boot, then eMMC takeover,
   then USB-C as daily loop), and the known unknowns the device
   tree will fill in later.
+- `015-led-diagnostic-codes.md` — what the three indicator LEDs
+  on the front edge of the device mean at every kernel state.
+  The first observable signal we have for "where did the kernel
+  get stuck."
