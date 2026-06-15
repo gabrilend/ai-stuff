@@ -29,7 +29,7 @@ lua src/similarity-engine-parallel.lua -I
 1. **Choose option 1**: "Calculate similarity matrix (parallel)"
 2. **Force regenerate**: `n` (to resume from existing files)
 3. **Sleep duration**: `0.5` (seconds between poems for temperature control)
-4. **Model**: `EmbeddingGemma:latest` (or press Enter for default)
+4. **Model**: `embeddinggemma:latest` (or press Enter for default)
 
 ### Expected Output
 ```
@@ -87,7 +87,7 @@ echo -e "2\n" | lua src/similarity-engine-parallel.lua -I
 
 ### Watch File Count in Real-time
 ```bash
-watch -n 10 'ls assets/embeddings/EmbeddingGemma_latest/similarities/ | wc -l'
+watch -n 10 'ls assets/embeddings/embeddinggemma_latest/similarities/ | wc -l'
 ```
 
 ### Monitor System Resources
@@ -106,7 +106,7 @@ free -h
 
 ### Directory Layout
 ```
-assets/embeddings/EmbeddingGemma_latest/
+assets/embeddings/embeddinggemma_latest/
 ├── embeddings.json (62MB - original embeddings)
 └── similarities/ (NEW - individual poem similarity files)
     ├── poem_1.json (~533KB - all similarities for poem 1)
@@ -248,7 +248,7 @@ The individual file structure provides significant advantages for HTML generatio
 ```javascript
 // Efficient similarity loading for poem pages
 async function loadPoemSimilarities(poemId) {
-    const response = await fetch(`/assets/embeddings/EmbeddingGemma_latest/similarities/poem_${poemId}.json`);
+    const response = await fetch(`/assets/embeddings/embeddinggemma_latest/similarities/poem_${poemId}.json`);
     return response.json();
 }
 
