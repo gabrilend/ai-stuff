@@ -162,11 +162,15 @@ If part 2 is "how state flows sim→render," part 3 is the mirror: **how intent 
 
 The naïve alternative would be: main thread sets some "pending order" globals, sim thread reads them. That falls apart immediately — the sim ticks at a fixed rate (60Hz), the main thread polls input at frame rate (often 144Hz+), and a single tick boundary might span *multiple* user actions. A click followed 3ms later by a shift-click must both reach the sim, in order, even if they happened between two ticks.
 
-So: a **fixed-capacity ring queue** of events, protected by one mutex. Main thread pushes; sim thread drains the entire queue at the start of each tick. Bursts are absorbed by the ring; nothing is dropped under normal load.
+So: a **fixed-capacity ring queue** of events, protected by one mutex. Main thread pushes; sim thread drains the entire queue at the start of each tick. Bursts are absorbed by the ring; nothing is dropped under normal load. This capacity is larger than you'd expect, because memory is cheap and we want to ensure there's no overwrites.
 
 ### Semantic, not raw
 
 This is the part of the design that does the most work. The queue does **not** carry "key W went down" or "mouse moved to (x,y)". It carries **already-interpreted game intentions**:
+
+-- this isn't true. We should recieve the input from the user in the raylib thread, then write it to a mailbox for each type of input in use. the E key. The mouse position. Etc. Each render tick, we write whatever is in the raylib input queue straight to the array of ring-buffers, each for each key, each input item thing. We may end up writing more than one. Well, depends on how raylib's input buffer is implemented... 
+
+-- anyway we should have the inputs just passed straight to the thread-pool ready-task-list. The function they should run is essentially: "mouse_update_position()" or "E_key_pressed()" all defined in the same file with the same semantics. Each one corresponds to various game activities, which are stored as a pointer to a "key_activity" datastructure. This datastructure is pulled from a config file, and can be edited while in-game - simply update what happens when you press what keys in what context. Ideally, with a keyboard command (like ctrl+shift+spacebar+right-shift+enter) that says "whatever I press next is the new keybind for the most recent input action I did" then if there's modifiers held down, even keys like abcde's, it'll record them as chord keys that trigger particular events. These are created and managed dynamically - programmatically generated and managed in the raylib thread. They won't change very often, but they will trigger constantly as the user is inputting all of their commands.
 
 - `SELECT_RECT(x0,y0,x1,y1)` — completed drag rectangle on mouse release.
 - `SELECT_CLICK(x,y)` — single click without drag.
@@ -186,6 +190,9 @@ This is what the doc means by "the main thread is *stateless about the game* —
 This is the subtle bit. When you shift-click to chain waypoints, the sim needs to know "this `MOVE_ORDER` extends the previous chain" vs. "this is a fresh chain." But the sim doesn't see your shift key — it only sees the events you enqueue. So:
 
 - Each time the user **presses-and-holds shift**, the main thread allocates a fresh `shift_chain_id` (a monotonically increasing integer).
+
+... huh? that doesn't seem right. What the hey.
+
 - Every order event emitted *while shift remains held* carries that same id.
 - When shift is **released**, the id is closed; the next press allocates a new one.
 
@@ -198,6 +205,8 @@ When the sim drains events:
 The beauty: the main thread holds **no game state** to do this. It tracks one integer counter and one "currently-open id, or none." That's it. The sim thread holds **no input/keyboard state** to interpret it — it just compares ids it receives to ids it has already seen for that selection. Each side's bookkeeping is local to itself.
 
 The same scheme generalizes to rally-chain dragging on factories (`RALLY_DRAG_*` events share a `shift_chain_id` for shift-extending an existing rally chain).
+
+the integer counter should intentionally stack overflow when it wants to wrap around. It should be unsigned. Nobody's going to queue up 60 bazillion movement orders. It's fine.
 
 ### What the boundary looks like end-to-end (once 102 lands)
 
@@ -292,6 +301,11 @@ cross-task result-slot waits, mid-task park/wake, self-
 rescheduling, priority cycling, result slots, parking promote
 semantics, slot-status disambiguation, and many-waiter bursts.
 
+actions get GUID's of other tasks which may block them when the tasks are
+created. You will always know when a blockable task is being made exactly
+which task it is that might block it - so multiple tasks can interleave.
+when there are no reference counts remaining, a task can be cleaned.
+
 ### How the pool is integrated
 
 Issue 122 (completed 2026-04-28) wired the library into the game
@@ -331,6 +345,9 @@ movement_task_actions = [
     [1] move_reschedule    // if still moving: spawn next iteration; else clear movement_task_id
 ]
 ```
+
+these types of actions can't add new actions to their own task, but they can
+create new tasks with whatever types of motions they're programmed to remote.
 
 Why Shape B was chosen for movement:
 
