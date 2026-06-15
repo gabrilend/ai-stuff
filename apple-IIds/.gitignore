@@ -1,8 +1,20 @@
 tmp
 tmp/
+
+# user-supplied, non-redistributable
 assets/rom/*.rom
 assets/disks/*.dsk
 assets/disks/*.img
+assets/disks/*.2mg
+assets/disks/*.po
+
+# build dependencies fetched by scripts/build-deps.sh
+libs/gsplus/
+libs/luajit/
+libs/toolchain/
+
+# build artifacts
 *.o
 *.so
 *.a
+*.dylib
