@@ -37,6 +37,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
+| 8-059 | Unify temp/ and tmp/ into a single tmpfs-symlinked tmp/ | Completed | 2026-06-15 |
 | 8-057 | Boost visual formatting | Completed | 2026-01-29 |
 | 8-045 | Timeline-based progress bar calculation | Completed | 2026-01-30 |
 | 8-040 | Add images to similar/different pages | Completed | 2026-01-28 |
