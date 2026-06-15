@@ -45,7 +45,7 @@ With no infrastructure, modifying these is impractical.
    diff-like format that operates on byte ranges with an
    ABSOLUTE-ADDRESS header, plus a SHA256 of the original ROM the
    patch applies to.
-4. Implement the patch applier in Lua (`src/build/rom-patcher.lua`).
+4. Implement the patch applier in Lua (`src/build-tools/rom-patcher.lua`).
 5. Update `build.sh` to run the patcher.
 6. Update GSplus's ROM-loading path to prefer the patched ROM.
 7. Write a tiny test patch: change a single byte in a known ROM
