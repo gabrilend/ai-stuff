@@ -60,3 +60,28 @@ A subtle case: if the selection has an odd count, halve as
 specify; this convention keeps the *previous* chain group at least as
 large as the new one, which feels right for incremental fan-out. Call
 this out in a comment so a future reader does not silently change it.
+
+## Task pool integration
+
+**Recommended priority: 3** — input-handler class. The actual
+splitting logic happens on the main thread (it's pure
+bookkeeping over the selection set + chain ids; no game state
+involved). What lands in the task pool is the per-event
+`MOVE_ORDER_APPEND(cid, x, y, [unit_ids])` work, which is just
+issue 110's task with an explicit unit-id list instead of "all
+selected."
+
+```
+move_order_append_subset_task_actions = [
+    [0] iterate_provided_unit_id_list_only
+    [1] append_waypoint_to_each
+]
+```
+
+The split is invisible to the task pool — by the time an append
+event reaches the sim, it already carries the correct subset of
+unit ids. The pool just runs the append against the listed
+units, regardless of how the main thread arrived at that subset.
+
+Rendering chains in distinct colors per group is again a pure
+snapshot-data concern; no task-pool involvement.
