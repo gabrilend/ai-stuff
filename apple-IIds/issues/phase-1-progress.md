@@ -1,26 +1,28 @@
 # phase 1 — progress
 
-Status as of 2026-05-19: **planning** (no code yet)
+Status as of 2026-05-21: **pipeline skeleton in place** (no upstream
+fetched yet; no patches yet)
 
 ## issues
 
-| id  | name                       | status   | blockedBy       |
-|-----|----------------------------|----------|-----------------|
-| 101 | source and toolchain       | pending  | —               |
-| 102 | project build system       | pending  | 101             |
-| 103 | single screen boot         | pending  | 102             |
-| 104 | touch as mouse             | pending  | 103             |
-| 105 | disk image management      | pending  | 103             |
-| 106 | GS/OS source toolchain     | pending  | 101             |
-| 120 | phase 1 demo               | pending  | 101, 102, 103, 104, 105, 106 |
+| id  | name                          | status      | blockedBy       |
+|-----|-------------------------------|-------------|-----------------|
+| 101 | source and toolchain          | in progress | —               |
+| 102 | project build system          | in progress | 101             |
+| 103 | single screen boot            | pending     | 102             |
+| 104 | touch as mouse                | pending     | 103             |
+| 105 | disk image management         | pending     | 103             |
+| 106 | GS/OS modification toolchain  | pending     | 101             |
+| 120 | phase 1 demo                  | pending     | 101, 102, 103, 104, 105, 106 |
 
 ## phase goal
 
 One Apple //gs (the staging-ground machine), booting GS/OS on screen A
 of the Anbernic RG DS, mouseable by touch and stylus, with the ability
-to insert and eject disk images at runtime — and crucially, **booting
-from a GS/OS image we built ourselves from Apple's publicly released
-source**. Closed by issue 120's demo.
+to insert and eject disk images at runtime — and crucially, booting
+from a GS/OS image we've **modified** (binary patches and an injected
+addon assembled from 65C816 source we wrote). Closed by issue 120's
+demo.
 
 Phase 1 is the foundation of the **staging-ground** half of the project
 (phases 1–10 run on Linux with GSplus emulators). The **destination**
@@ -88,21 +90,43 @@ Linux, and is its own multi-year undertaking.
   1 after gabrilend confirmed OS-level modification is in scope. This is
   what elevates the project from "emulator on a handheld" to "modified
   OS running on a handheld."
+- **2026-05-21** — corrected the "Apple released GS/OS source" premise.
+  Apple never officially released GS/OS source; the well-known 2013 leak
+  archived publicly cannot be a build input under our license posture.
+  Issue 106 reframed: workflow is now (a) byte-level binary patches
+  against a working copy of the user-supplied `.2mg` and (b)
+  from-scratch 65C816 assembly modules (Device Manager drivers, CDevs,
+  startup files) injected onto the patched image. Architecture overview,
+  vision, and patch conventions updated to match.
+- **2026-05-21** — cross-toolchain placement: lives **inside the project**
+  at `libs/toolchain/` as a gitignored build artifact. Setup happens via
+  `scripts/build-deps.sh` (fetches GSplus, LuaJIT, and ARM's prebuilt
+  aarch64 toolchain). Issue 101 updated to reflect this.
+- **2026-05-21** — pipeline skeleton landed: `scripts/build-deps.sh`,
+  `build.sh` (with apply/revert sentinel discipline), `develop.sh`,
+  `deploy.sh`, `src/build-tools/01-manifest-emitter.lua`, each with a sibling
+  `.info.md`. Stages are stubs (placeholders that print what they
+  *will* do); they fill in as issues 103+ land their first patches.
 
 ## what each completed issue should produce
 
-- **101** → `libs/gsplus/`, an aarch64 cross-toolchain, `docs/005-toolchain-setup.md`,
-  the hardware-target "to confirm" section resolved.
-- **102** → `build.sh`, `deploy.sh`, `patches/`, a working manifest emitter.
-- **103** → GSplus patched to render to the RG DS panel framebuffer with
-  2× integer scaling; ROM and boot disk wiring in place; GS/OS Finder
-  visible on screen A.
+- **101** → `libs/gsplus/`, `libs/luajit/`, `libs/toolchain/aarch64/`
+  (all gitignored) installed by `scripts/build-deps.sh`;
+  `docs/005-toolchain-setup.md`; the hardware-target "to confirm"
+  section deferred to issue 120 (needs device in hand).
+- **102** → `build.sh` with apply/revert sentinel discipline,
+  `develop.sh` for interactive sessions, `deploy.sh`, `patches/`
+  directory, a working manifest emitter under `src/build-tools/`.
+- **103** → GSplus patched to render to the RG DS panel framebuffer
+  with 2× integer scaling; ROM and boot disk wiring in place; GS/OS
+  Finder visible on screen A.
 - **104** → digitizer events wired into the IIgs's ADB mouse path;
   documented panel-to-IIgs coordinate mapping.
 - **105** → broker command channel; runtime disk insertion / ejection;
   minimal bottom-panel picker UI.
-- **106** → GS/OS source acquired and building from a 65C816 assembler
-  toolchain; producing a bootable disk image that GSplus runs to the
-  Finder.
+- **106** → 65C816 cross-assembler + `cadius` installed under
+  `libs/toolchain/`; `src/gsos-addons/` with a trivial first addon
+  whose identifying string appears at GS/OS boot; documented
+  hex-edit workflow for `gsos.bin.patch` files.
 - **120** → `issues/completed/demos/phase-1/run.sh`, `run-demo.sh` at
   project root, a screen recording, an updated TOC.
