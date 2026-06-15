@@ -27,6 +27,17 @@ writes without question, and what the user gets if they reformat
 the card on a laptop without paying attention. We meet the card
 where it is.
 
+The same rule applies to the air-gap USB drive the developer
+workflow uses (issue 103a). That drive is not the SD card but it
+crosses between machines for the same reason — removable storage
+read by a Linux developer machine, a Linux lab laptop, and any
+rescue machine we plug it into during an emergency. It uses the
+same filesystem the SD card uses for the same reason the SD card
+uses it. The reader in issue 402 refuses FAT16 and exFAT; a
+developer who reformats the air-gap drive to either would break
+the workflow as cleanly as reformatting the SD card that way
+would.
+
 ## What the hardware does *not* demand
 
 A long list of things that desktop and server operating systems

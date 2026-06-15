@@ -2,24 +2,35 @@
 
 ## Current behavior
 
-The early phase 1 iteration loop (issues 102 through 110) requires
-moving the kernel build from the main development machine — where
-the source, the compiler, and the build system live — onto the
-microSD card the device boots from. The main machine is the one
-the developer trusts; the lab laptop is the air-gapped machine
-deliberately exposed to the device, with no network connection
-and nothing of value at stake (the safety design from issue 101
-covers why). There is no automated path between the two machines
-today, and no path between either of them and the microSD card.
+The workflow is in place. `scripts/push-to-usb` runs on the main
+machine, identifies the dedicated USB drive by a hard-coded UUID,
+confirms sudo before any destructive step, mounts the drive at
+the project's own `/mnt/soren-ds`, rsyncs `output/` and the
+lab-side helper, syncs physical storage, unmounts, and removes
+its mount point. Output is a couple of headline lines followed
+by two progress lines (`mounting... syncing... done` and
+`cleaning up... done`, with `done` in green and any error shown
+as red `error` followed by the underlying message on the next
+line). A trap guarantees the mount is released even if any step
+crashes. The push side has been exercised end-to-end against a
+real drive and behaves as designed.
 
-Without that path, every iteration during issues 102 through 110
-would be a series of manual steps the developer would inevitably
-get wrong: which drive is the USB stick, which drive is the SD
-card, which file is the image, did the write actually finish, did
-the unmount actually flush. Manual steps in destructive paths are
-how main-machine disks get accidentally `dd`-ed over. The
-workflow is one of the safety-critical pieces of the project even
-though it produces no kernel code itself.
+`scripts/lab-side/flash-sd` runs on the lab laptop from the USB
+drive itself. It identifies the SD card by a before/after diff
+of the kernel's block-device list, requires a typed `YES`
+confirmation, refuses non-removable targets, dd's the image,
+syncs, and ejects. The flash side has not yet been exercised
+against a real kernel image because no kernel image exists yet
+— it will get its first real run once issue 102 and 103 produce
+something to flash. If it fails on that first real run, this
+issue is reopened.
+
+The lab laptop's role has narrowed since issue 101 closed: it
+will only ever write microSD cards, never connect to the device
+over USB-C. The threat-model hardening originally planned for
+the laptop (USBGuard, deny-by-default USB policies) was scoped
+against a device-to-laptop USB-C connection that no longer
+happens in this workflow, and is dropped.
 
 ## Intended behavior
 
@@ -32,18 +43,24 @@ build's kernel image onto a freshly-inserted microSD card.
 The main-machine workflow:
 
 - The developer runs the push script from the project root with no
-  arguments. The script discovers the dedicated USB drive by a
-  stable identifier (UUID) rather than by a `/dev/sdN` path, so
-  drive-letter ordering between sessions cannot lead to writes
-  hitting the wrong device. The first run reads the UUID from the
-  drive already mounted by the developer at a known location and
-  saves it for future runs.
-- The script mounts the drive if it isn't already mounted, rsyncs
-  the project's `output/` tree onto the drive, rsyncs the lab-side
-  helper script onto the drive, syncs the filesystem to physical
-  storage, and unmounts the drive if it had mounted the drive
-  itself. (If the drive was already mounted by the developer, it
-  is left mounted and the developer is told so.)
+  arguments. The script identifies the dedicated USB drive by a
+  hard-coded filesystem UUID at the top of the script, rather than
+  by a `/dev/sdN` path. The UUID is the only piece of project
+  state the script carries; reformatting the drive is the rare
+  case where the developer edits one line at the top of the file
+  to point at the new UUID. A comment beside the variable lists
+  the commands that print the value.
+- The script confirms sudo at the start, before any destructive
+  step. Cancelling at the password prompt leaves the drive
+  untouched.
+- The script refuses to proceed if anything else is already
+  mounted at the project's dedicated mount point (`/mnt/soren-ds`).
+  If the drive is currently auto-mounted somewhere else, the
+  script unmounts it from there before remounting it at the
+  project path. After the rsync of `output/` and the lab-side
+  script directory, the script flushes physical storage, unmounts
+  the drive, and removes its own mount point so it does not
+  accumulate between runs.
 - The developer unplugs the drive and physically carries it to the
   lab laptop.
 
@@ -113,10 +130,17 @@ storage by stable identifier (`/dev/disk/by-uuid/$UUID`) and
 refuse to operate on a path that the developer might have meant
 for a different device.
 
-The USB-drive UUID is stored in the project under a known config
-path so the developer never has to remember or type it. The first
-run learns the UUID from wherever the developer first mounted the
-drive; subsequent runs use the saved value.
+The USB-drive UUID is hard-coded at the top of the push script
+as a single variable with a comment describing how to refresh it
+if the drive is ever reformatted. We chose the hard-code over
+runtime configuration discovery because the drive is dedicated to
+this workflow and its UUID changes only when the developer
+reformats it — a manual, deliberate event that is the right
+moment to also edit one line of the script. Drive identification
+remains stable across plug-orderings; the developer never has to
+remember the UUID; and the script carries no opaque state files
+that future readers have to chase down to understand what
+storage it operates on.
 
 The SD card has no pre-known UUID — fresh cards aren't formatted
 yet and labels haven't been written. The flash script identifies
@@ -144,14 +168,17 @@ list, with the developer's confirmation as the final safety gate.
 
 ## Suggested implementation steps
 
-1. Write the main-machine push script. UUID discovery (from saved
-   config if present, else from the currently-mounted probe
-   directory), device resolution by UUID, mount with a "did we
-   mount" flag for cleanup decisions, rsync of `output/` and the
-   lab-side script directory, sync, unmount (only if we mounted),
-   goodbye write.
-2. Write the lab-side flash script. Block-device snapshot before
-   and after the SD insertion prompt, diff with explicit error on
+1. Write the main-machine push script. Hard-coded drive UUID at
+   the top with a comment naming the commands that print it,
+   sudo confirmed at the start before any destructive step,
+   refuses to clobber the project mount point (`/mnt/soren-ds`)
+   if anything else is mounted there, unmounts any auto-mounted
+   path the drive might be at before remounting at the project
+   path, rsync of `output/` and the lab-side script directory,
+   sync, unmount, removal of the mount point, goodbye write.
+2. Write the lab-side flash script. Sudo confirmed at the start
+   before any destructive step, block-device snapshot before and
+   after the SD insertion prompt, diff with explicit error on
    zero or more-than-one new device, removable-device safety
    check, typed `YES` confirmation, unmount any auto-mounted
    partitions, `dd` with `conv=fsync` and `status=progress`,
@@ -160,10 +187,9 @@ list, with the developer's confirmation as the final safety gate.
    the file with an argument override, vimfold-wrapped function
    definitions, every function documented in a single-line
    comment that explains what it does, logging to the project's
-   RAM-backed `tmp/` directory.
-4. Hand-test the push script against a real USB drive (the one
-   the developer has mounted at `/mnt/generic`). Confirm UUID is
-   saved and reused on second run.
+   RAM-backed `tmp/` directory, single final line of "what to do
+   next" output rather than multi-line instructions.
+4. Hand-test the push script against the real USB drive.
 5. Hand-test the flash script against a sacrificial USB drive on
    the lab laptop with a known small image, before exposing it to
    a real SD card.
@@ -173,6 +199,9 @@ list, with the developer's confirmation as the final safety gate.
 - `docs/014-hardware-overview.md` — the install path this workflow
   feeds into and the trust posture that requires the air gap in
   the first place.
+- `docs/011-filesystem.md` — the FAT32-everywhere discipline that
+  applies to the air-gap drive for the same reason it applies to
+  the SD card.
 
 ## Blocked by
 
