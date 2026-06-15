@@ -1,0 +1,6 @@
+[Public]
+Object=(Name=SymbelineRumble.SR_SymbelineRumbleMutator,Class=Class,MetaClass=Engine.Mutator,Description="Symbeline Rumble,Warcraft Rumble-style gameplay for UT2004")
+
+[SR_SymbelineRumbleMutator]
+FriendlyName="Symbeline Rumble"
+Description="Warcraft Rumble-style gameplay mod for UT2004. Top-down camera, unit spawning, and strategic gameplay."
