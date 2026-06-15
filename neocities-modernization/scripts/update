@@ -116,8 +116,13 @@ echo "🔄 Starting content extraction with ZIP archive support..."
 # NOTE: External file syncing happens in Stage 1 (update-words), not here.
 # By this point, all external files (ZIPs, notes, images) should already be in input/.
 
+# Guarantee the tmpfs-backed tmp/ symlink exists before any working directory
+# is created underneath it. Issue 8-059 unified the previous split between
+# temp/ and tmp/ into a single tmpfs path.
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+
 # Create temporary extraction directory
-TEMP_EXTRACT_DIR="${DIR}/temp/extract-$(date +%s)"
+TEMP_EXTRACT_DIR="${DIR}/tmp/extract-$(date +%s)"
 mkdir -p "${TEMP_EXTRACT_DIR}"
 
 # Extract ZIP archives to temporary locations
