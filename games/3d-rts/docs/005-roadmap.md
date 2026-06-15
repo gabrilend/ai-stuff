@@ -27,12 +27,14 @@ rally points, and a phase demo.
 `generate-readme-toc.lua` script. When this document is read by that
 tool, the phase-1 issues are inserted here.)
 
-A summary of the issue layout for a reader without the tool:
+A summary of the issue layout for a reader without the tool. Status
+column is a pointer to the live truth in `phase-1-progress.md`, not a
+duplicate of it — the table here is for *order* and *why*.
 
 | ID  | Title                              | Why it sits here                          |
 | --- | ---------------------------------- | ----------------------------------------- |
 | 101 | Build system & raylib bootstrap    | Nothing compiles without it.              |
-| 102 | Threading model (pthreads)         | Every other system runs inside this.      |
+| 102 | Threading model (pthreads)         | Top-level thread layout. See note below.  |
 | 103 | Window & 3D camera                 | Need a view before there is anything.     |
 | 104 | Heightmap terrain                  | The world units stand on.                 |
 | 105 | Terrain ray-pick                   | Mouse → world point, used everywhere.     |
@@ -44,16 +46,48 @@ A summary of the issue layout for a reader without the tool:
 | 111 | Line of sight                      | Gates firing.                             |
 | 112 | Javelin projectile                 | Cylinder, ballistic, no correction.       |
 | 113 | Combat targeting, firing, HP, regen| Wires units → LoS → projectiles, adds HP. |
-| 114 | Coroutine pool library (M:N)       | Available infra; not yet adopted.         |
+| 114 | Task pool library (action-array)   | Pool infrastructure; adopted by 107+.     |
 | 115 | Aiming variance per (shooter,target)| Adds the miss-memory rule.                |
 | 116 | Factory placement & production     | Adds a unit producer.                     |
 | 117 | Single rally point with X/Y drag   | Direct factory output.                    |
 | 118 | Shift-chained rally points         | Same chain primitive applied to factories.|
 | 119 | Selected-unit chain splitting      | The half-split rule for new chains.       |
 | 120 | Phase 1 demo capstone              | Visual demo combining everything.         |
+| 121 | raylib build flag manifest         | Honest minimal-feature raylib link on 6.0.|
+| 122 | Task pool: game-build integration  | Wires the pool into the game binary.      |
+| 123 | Task pool: periodics               | Superseded by 127 (frame-ring schedules). |
+| 124 | Task pool: stable indices          | Exploratory; no committed consumer yet.   |
+| 125 | Task pool: API hardening           | Abort-on-bad-id, ref-ownership contract.  |
+| 126 | Threading walkthrough document     | Single narrative across 102/114/107/127.  |
+| 127 | Task pool: frame-ring scheduling   | Architectural fix for the 107 movement snap. |
+
+The 121-127 cluster is build/threading infrastructure that surfaced
+during Phase 1 work. They sit at the bottom of the table because they
+post-date the original numbering, not because they are less foundational
+— 127 in particular is gameplay-blocking for polished 107 movement.
+
+### Note on issue 102 vs the task-pool reality
+
+102 originally described a **two-thread** model: a main thread plus a
+single dedicated sim thread, with a snapshot buffer and an input queue
+between them. By the time movement landed (107) the project had instead
+adopted the task pool from 114/122 — there is no dedicated sim thread,
+the pool's workers run slice-batched and self-rescheduling tasks
+directly. 102's plan and the implementation now describe different
+worlds. 102 is still TODO in the table for transparency; the resolution
+is to either re-scope it to the pool architecture or close it as
+overtaken-by-114-and-107. Defer until the walkthrough doc (126) lands so
+the comparison is in writing.
 
 When an issue is completed, it moves to `issues/completed/` and
 `phase-1-progress.md` is updated.
+
+### Pending design notes (not committed work)
+
+- [128 — modifier-ring batching](../issues/pending/128-modifier-ring-batching.md):
+  documentory describing the per-tick-totals + ring-buffer pattern
+  from `docs/006-threading-walkthrough.md` Part 5. Promoted to
+  `issues/` only when a concrete first consumer is in scope.
 
 ## Phase 2 — Resources (placeholder)
 
