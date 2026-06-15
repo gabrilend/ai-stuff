@@ -66,3 +66,28 @@ explicit in the vision: "thrown toward the point those X/Y values
 intersect with the terrain." This gives misses a satisfying
 "projectile hits the dirt nearby" character that homing or body-aimed
 variance would not.
+
+## Task pool integration
+
+**Recommended priority: 2** — runs as part of the firing-intent
+generation in issue 113's targeting+firing slice tasks. Same
+priority class. No new task type is introduced.
+
+The variance lookup (per-shooter, per-target) and the variance
+sample happen inline inside the firing-intent action of the
+targeting slice. The firing intent that gets written to scratch
+includes the variance-adjusted aim point, which the merge step's
+projectile spawn then uses verbatim — no recomputation.
+
+The miss-counter UPDATE happens in a separate place: the **damage
+application merge step** of issue 113 (priority 1) is where
+projectiles' fates are known (hit recorded target / hit other
+unit / hit ground / expired). That merge step writes back the
+shooter's miss counter for the relevant target. Priority 1 is
+correct here — the counter must be updated this tick or the next
+firing decision uses stale state.
+
+In short: variance read happens at priority 2 (firing decision);
+variance write happens at priority 1 (merge step). Both are
+inside existing 113 tasks; this issue doesn't add a third task
+type.

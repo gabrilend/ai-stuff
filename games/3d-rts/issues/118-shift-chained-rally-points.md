@@ -53,3 +53,31 @@ The vision is explicit: "every other unit will go down a different
 chain until the last one has been picked - then it will restart from
 the top. They won't be shuffled." Shuffling is *forbidden*, not just
 not-required. Keep the rotation deterministic and observable.
+
+## Task pool integration
+
+**Recommended priority: 3** — same input-handler priority as
+issues 109, 110, 117. Each `RALLY_CHAIN_APPEND(cid, x, y)` and
+`RALLY_CHAIN_REPLACE(x, y)` event spawns a one-shot task.
+
+```
+rally_chain_append_task_actions = [
+    [0] find_or_open_chain_for_cid
+    [1] append_waypoint_to_that_chain
+]
+
+rally_chain_replace_task_actions = [
+    [0] clear_all_factory_chains
+    [1] set_rally_chains_zero_to_single_waypoint
+    [2] reset_next_chain_index
+]
+```
+
+The round-robin rotation lookup happens inside the factory's
+production task (issue 116, priority 5) when it spawns a new
+unit; not a new task type, just a field read.
+
+The per-chain rendering of multiple chains in distinct colors is
+purely a snapshot-data concern: the chains' waypoint lists are
+already in the snapshot from the actions above, so the renderer
+walks them on the main thread with no task-pool involvement.

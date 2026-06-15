@@ -62,3 +62,58 @@ Targeting is "nearest visible enemy" in Phase 1, with no manual attack
 order. The vision does not give the player a way to designate targets,
 and Phase 3 ("advanced movement") is where attack-move and target
 priority belong. Resist any urge to add target-priority knobs here.
+
+## Task pool integration
+
+This issue spans three distinct subsystems with different priority
+profiles:
+
+**HP regeneration — priority 4.** Slice-batched per-unit pass.
+Regen is gameplay-relevant but slow (0.02 HP per 0.2s); a one-tick
+delay is invisible. Lower priority than movement / LoS so it
+doesn't preempt them.
+
+```
+regen_slice_task_actions = [
+    [0] iterate_units_in_slice
+    [1] advance_each_units_regen_accumulator
+    [2] cap_each_units_hp_at_max
+]
+```
+
+**Targeting + firing intent — priority 2.** Slice-batched. Higher
+than regen because a delay here means a unit doesn't fire when it
+could have, which is visible. Each task slice computes firing
+intents into per-task scratch; merge step at end of tick spawns
+projectile tasks (which then run at priority 1, see issue 112).
+
+```
+targeting_slice_task_actions = [
+    [0] iterate_units_in_slice
+    [1] for_each_find_nearest_enemy_with_los      // reuses 111's LoS
+    [2] check_cooldown_decrement
+    [3] append_firing_intent_to_scratch_if_ready
+    [4] update_last_target_id_for_miss_memory
+]
+```
+
+**Damage application merge — priority 1.** Single-threaded merge
+step at end of tick. Runs at priority 1 because it MUST happen
+this tick or the firing/projectile work this tick is stale. One
+task, no slicing — by design it serializes the cross-unit writes.
+
+```
+damage_merge_task_actions = [
+    [0] sort_intents_deterministically
+    [1] subtract_hp_per_intent
+    [2] mark_units_dead_if_hp_zero
+    [3] flush_firing_intents_into_projectile_spawns  // each spawns a priority-1 projectile task per issue 112
+]
+```
+
+The orchestration order each tick is: regen (priority 4) →
+targeting+firing (priority 2) → projectile updates (priority 1,
+self-rescheduling chains from prior ticks) → damage merge
+(priority 1). The cycler's preference for low-priority-numbers
+naturally serves this ordering: a freshly-spawned damage-merge task
+beats a freshly-spawned regen task off the queue.

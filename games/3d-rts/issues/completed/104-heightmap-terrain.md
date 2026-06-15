@@ -117,3 +117,24 @@ comments to spare future contributors a synchronization headache.
 - The static "sun" directional light produces decent shading but
   the world feels static. A *movable* point light is captured in
   the new issue 401 (Phase 4 — rendering polish).
+
+## Task pool integration (added retroactively)
+
+The terrain mesh and the heightmap array are read-only after
+init. That's the property that makes terrain queries safe under
+the pool: any number of LoS / raypick / height-sample queries can
+run concurrently across worker threads without locks.
+
+`terrain_segment_blocked` is the workhorse. Issue 111's slice-
+batched LoS tasks (priority 2) all call it. Other batched callers
+will too — pathfinding, area-of-effect queries, splash damage
+checks if any future weapon needs them.
+
+`terrain_height_at` is similarly lock-free for parallel readers.
+Used by issues 107 (movement Z snap), 117/118 (rally drag Z snap),
+115 (aim ground point) — all of which would call it from inside
+their respective task actions.
+
+No task type lives in this issue. The integration here is "nothing
+in this module needs to change for any later task to use it
+safely."

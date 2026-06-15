@@ -51,3 +51,39 @@ The "drag updates live, commit on release" pattern parallels how the
 order-chain replace works for units (issue 109). Keeping the patterns
 isomorphic across units and factories is the design goal — one mental
 model for both.
+
+## Task pool integration
+
+This issue, like 116, splits cleanly across two priority levels:
+
+**Live drag visual update — priority 6.** Each `RALLY_DRAG_MOVE`
+event spawns a short task that updates the displayed rally
+position. The user is actively dragging and watching, so the
+update should feel fluid — but a single dropped frame's worth of
+lag is acceptable, and we don't want this to preempt sim-tick
+work. Priority 6 gives the cycler a reasonable chance to schedule
+it without crowding higher-priority work.
+
+```
+rally_drag_move_task_actions = [
+    [0] read_terrain_pick_from_event
+    [1] write_indicator_position_to_snapshot   // not committed yet
+]
+```
+
+**Commit on release — priority 3.** The `RALLY_DRAG_COMMIT` event
+spawns a one-shot task at input-handler priority. This is the
+moment when newly-produced units start using the new rally point,
+so it should land in the same tick the user releases the mouse.
+
+```
+rally_drag_commit_task_actions = [
+    [0] write_committed_rally_to_factory_state
+    [1] mirror_committed_state_to_snapshot
+]
+```
+
+The drag move at priority 6 means the indicator can briefly lag
+the cursor under heavy sim load — that's the right trade. The
+commit at priority 3 means the gameplay effect always lands
+promptly.

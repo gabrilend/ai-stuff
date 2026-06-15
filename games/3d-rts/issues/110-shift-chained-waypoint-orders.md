@@ -59,3 +59,27 @@ The chain id is a hand-off token between threads, not a real entity in
 the game state. Once the sim has consumed the appends for a chain id,
 the id can be forgotten. Keep this pure: do not persist chain ids in
 unit state — store only the resulting waypoint list.
+
+## Task pool integration
+
+**Recommended priority: 3** — same rationale as issue 109 (input-
+driven, user waiting for order to register).
+
+Each `MOVE_ORDER_APPEND(cid, x, y)` event spawns a single short-
+lived task at priority 3:
+
+```
+order_append_task_actions = [
+    [0] iterate_selected_units
+    [1] append_waypoint_to_each_units_chain
+]
+```
+
+Contrast with `MOVE_ORDER_REPLACE` (issue 109): replace overwrites
+the chain head; append extends the tail. The two share the
+"iterate selected units, mutate per-unit" structure but write to
+different chain slots.
+
+Chain-id bookkeeping (which cid is currently open, what was the
+last chain) lives on the main thread, not in the task. The task
+just receives the cid as one of its action_args and applies it.

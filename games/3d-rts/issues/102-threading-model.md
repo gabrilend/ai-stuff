@@ -49,13 +49,30 @@ responsive on the main thread regardless of sim load.
 
 ## Related libraries
 
-- `libs/900-coroutine-pool.h` — an M:N coroutine pool over pthreads
+- `libs/900-task-pool.h` — an action-array task pool over pthreads
   exists in the project. **It is not used by this issue.** The two
   pthreads here are dedicated, long-lived threads with a clear data
-  boundary; substituting a coroutine pool would be a separate
-  redesign (and a separate issue). The library is listed here only
-  so future readers know it exists. See
-  `issues/114-coroutine-pool-library.md` for the rationale.
+  boundary; substituting a task pool would be a separate redesign
+  (and a separate issue). The library is listed here only so future
+  readers know it exists. See
+  `issues/114-coroutine-pool-library.md` (file kept under its
+  original name per the append-only rule) for the rationale.
+
+## Task pool integration
+
+The two pthreads from this issue are the *containers* the task
+pool would eventually run inside, not callers of it. If/when the
+sim thread adopts the pool, the sim becomes a pool of N+1 threads:
+the original sim thread as the orchestrator (still owns game state
+mutation order, still runs the merge step) plus the pool's worker
+threads (run slice-batched parallel-for tasks at priority 1-2 plus
+self-rescheduling per-entity tasks at varied priorities).
+
+The main thread does not need the pool — its work is render-rate
+input polling and rendering, both of which are inherently single-
+threaded. Each issue 107-119's "Task pool integration" section
+documents which priority its work would run at if the pool is
+adopted.
 
 ## Notes
 

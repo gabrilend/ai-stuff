@@ -48,3 +48,26 @@ with a small order-chain ring buffer per unit. Keep the buffer
 fixed-capacity from config (no dynamic allocation), and make the
 overflow behavior an explicit error (logged + dropped order), not
 silent truncation.
+
+## Task pool integration
+
+**Recommended priority: 3** — input-driven, runs once per right-
+click. User is waiting for the order to register (the new waypoint
+indicator should appear within one tick), so faster than background
+maintenance, but not preempting projectile-tick work.
+
+A `MOVE_ORDER_REPLACE` event spawns a single task:
+
+```
+order_replace_task_actions = [
+    [0] iterate_selected_units
+    [1] clear_each_units_order_chain
+    [2] append_single_waypoint_to_each
+]
+```
+
+If issue 107 adopts the per-unit self-rescheduling movement task
+(Shape B), this task additionally needs to spawn a movement task
+for any unit that doesn't already have one — actions [3] would be
+"for each unit that gained a waypoint and has no live movement
+task, spawn movement task at priority 2."
