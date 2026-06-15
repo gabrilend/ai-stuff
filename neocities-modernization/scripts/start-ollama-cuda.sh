@@ -12,6 +12,11 @@ setup_dir_path() {
 
 DIR=$(setup_dir_path "$1")
 
+# Issue 8-059: ensure the tmpfs-backed tmp/ symlink exists before any
+# write into it.
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+OLLAMA_LOG="${DIR}/tmp/ollama-cuda.log"
+
 echo "================================="
 echo "🔧 CUDA-Enabled Ollama Startup"
 echo "================================="
@@ -47,7 +52,7 @@ echo "Command: OLLAMA_HOST=${OLLAMA_HOST} ${OLLAMA_BIN}/ollama serve"
 echo ""
 
 # Start Ollama service with CUDA support
-OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama" serve > /tmp/ollama-cuda.log 2>&1 &
+OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama" serve > "${OLLAMA_LOG}" 2>&1 &
 OLLAMA_PID=$!
 
 echo "Ollama started with PID: $OLLAMA_PID"
@@ -60,14 +65,14 @@ if curl -s --max-time 5 "http://${OLLAMA_HOST}/api/tags" > /dev/null 2>&1; then
     echo "✅ Version: $(OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama" --version 2>&1 | grep -o 'client version is [0-9.]*' || echo 'CUDA-compiled version')"
     echo ""
     echo "🔧 Service management:"
-    echo "• Logs: tail -f /tmp/ollama-cuda.log"
+    echo "• Logs: tail -f ${OLLAMA_LOG}"
     echo "• Stop: kill $OLLAMA_PID"
     echo "• Status: curl -s ${OLLAMA_HOST}/api/tags"
     echo ""
     echo "🚀 Ready for embedding operations!"
 else
     echo "❌ Failed to start Ollama service"
-    echo "Check logs: /tmp/ollama-cuda.log"
+    echo "Check logs: ${OLLAMA_LOG}"
     echo "Process status:"
     ps aux | grep ollama
     exit 1

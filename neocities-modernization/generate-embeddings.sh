@@ -358,6 +358,10 @@ fi
 DIR=$(setup_dir_path "$DIRECTORY_ARG")
 cd "$DIR" || exit 1
 
+# Issue 8-059: ensure the tmpfs-backed tmp/ symlink exists before any write,
+# since the progress file we share with similarity-engine.lua now lives there.
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+
 # Build --dir argument for Lua scripts if assets dir was specified
 ASSETS_ARG=""
 if [ -n "$ASSETS_DIR" ]; then
@@ -377,7 +381,7 @@ NC='\033[0m' # No Color
 START_TIME=$(date +%s)
 POEMS_FILE="$DIR/assets/poems.json"
 EMBEDDINGS_FILE="$DIR/assets/embeddings.json"
-TEMP_LOG="/tmp/embedding_generation.log"
+TEMP_LOG="${DIR}/tmp/embedding_generation.log"
 
 echo -e "${CYAN}================================================================${NC}"
 echo -e "${CYAN}  POEM EMBEDDING GENERATION - LIVE PROGRESS MONITOR${NC}"
@@ -670,7 +674,7 @@ cleanup_and_exit() {
     echo -e "${BLUE}Total runtime: ${total_minutes}m${NC}"
     
     # Cleanup progress file
-    rm -f "/tmp/embedding_progress_${USER}.txt" 2>/dev/null
+    rm -f "${DIR}/tmp/embedding_progress_${USER}.txt" 2>/dev/null
     
     exit 0
 }
@@ -685,7 +689,7 @@ monitor_progress() {
     local current_poem=0
     local start_time=$(date +%s)
     local percent=0
-    local progress_file="/tmp/embedding_progress_${USER}.txt"
+    local progress_file="${DIR}/tmp/embedding_progress_${USER}.txt"
     local last_progress_time=0
     # EMBED_PID is set in the calling scope before monitor_progress is started
     local target_pid=$EMBED_PID
@@ -944,4 +948,4 @@ echo -e "${CYAN}================================================================
 
 # Cleanup
 rm -f "$TEMP_LOG"
-rm -f "/tmp/embedding_progress_${USER}.txt" 2>/dev/null
+rm -f "${DIR}/tmp/embedding_progress_${USER}.txt" 2>/dev/null

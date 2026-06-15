@@ -27,7 +27,11 @@ done
 # }}}
 
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-BACKUP_DIR="${DIR}/temp/preserved-files-$$"
+
+# Issue 8-059: route the preserve/restore backup through the project's
+# tmpfs-backed tmp/ symlink rather than a real on-disk temp/ directory.
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+BACKUP_DIR="${DIR}/tmp/preserved-files-$$"
 
 # Issue 10-003b: Config helper functions removed
 # Image syncing now uses centralized external-sync module via scripts/sync-external-files
