@@ -111,26 +111,40 @@ broker arbitrates calls across the boundary.
 
 ## modification surfaces
 
-We can modify the stack at four levels:
+We can modify the stack at four levels. **None of these surfaces involve
+rebuilding GS/OS from source.** Apple never officially released GS/OS
+source; the well-known 2013 leak now archived publicly cannot be used as
+a build input under our license posture (see *operational constraints*
+below). The leaked source is permissible as a **research reference only**
+— we read it to understand ABIs and call structures, we do not assemble
+or ship from it.
 
-- **At the GS/OS source level.** Apple's release covers the bulk of the
-  OS above the Toolbox. We rebuild from source under our own toolchain
-  (ca65 or merlin32 for 65C816 assembly), package as a disk image, boot
-  it in GSplus. This is the primary modification surface during staging.
+- **At the GS/OS disk-image level (binary patching).** GS/OS ships as
+  binary system files on a `.2mg` disk image. We apply byte-level patches
+  to a working copy of the user-supplied image. The original `.2mg` is
+  never modified — a patched copy is produced per build. This is the
+  primary surface for *modifying* existing GS/OS behavior during staging.
+- **At the disk-image level (injected drivers and CDevs).** New
+  functionality we author from scratch in 65C816 assembly — Device Manager
+  drivers, Control Panel devices (CDevs), startup files — is assembled
+  on the host with a 65C816 cross-assembler and *added* to the patched
+  disk image. This is the primary surface for *adding* new OS-level
+  functionality during staging.
 - **At the Toolbox ROM level.** The Toolbox lives in ROM, not in GS/OS.
-  Apple did not release Toolbox source. Modifications here require
-  disassembly and binary patching. Reserved narrowly.
+  Apple never released Toolbox source. Modifications here require
+  disassembly and binary patching of a working copy of the ROM image.
+  Reserved narrowly; phase 8+.
 - **At the emulator level.** GSplus itself is C and we can add new
   device emulations (the broker-as-peripheral), new framebuffer outputs
   (RG DS panels), or short-circuit specific Toolbox traps natively.
 - **At the bare-metal level (eventual destination).** After phase 11,
   the entire system runs in ARM assembly on the RK3568 with no Linux
-  underneath. The 65C816 modifications from staging become ARM
-  assembly. Threading primitives are imported wholesale from soramech.
-  This is the destination the project converges on; see
-  `docs/004-roadmap.md` phases 11–12.
+  underneath. The 65C816 modifications and injected drivers from staging
+  become ARM assembly modules. Threading primitives are imported
+  wholesale from soramech. This is the destination the project converges
+  on; see `docs/004-roadmap.md` phases 11–12.
 
-The four surfaces are coordinated by always going through the broker as
+The surfaces are coordinated by always going through the broker as
 the integration point. The patch-convention discipline
 (`docs/005-patch-conventions.md`) keeps each surface independently
 modifiable and the cross-surface coordination explicit.
@@ -230,10 +244,11 @@ and are worth stating explicitly so they don't get rediscovered:
   Google-Docs-style live co-editing (at least not yet).
 - **License posture: third-party-deployment-ready.** We assume someone
   else will build the image on their own RG DS. Anything with a
-  non-OSI-approved or otherwise unclear license stays out of git.
-  Apple's GS/OS source release terms get audited before any of it
-  lands. This biases us toward permissive (BSD, MIT, Apache) over
-  copyleft for our own code.
+  non-OSI-approved or otherwise unclear license stays out of git. The
+  user supplies their own Apple //gs ROM and their own GS/OS `.2mg`
+  separately — neither is redistributable. The leaked GS/OS source is
+  reference material; nothing assembled from it ships. This biases us
+  toward permissive (BSD, MIT, Apache) over copyleft for our own code.
 - **Boot chime exactly once.** Two emulators want to play the //gs
   chime on boot; the broker suppresses one. See broker responsibility
   7 above.

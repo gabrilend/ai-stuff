@@ -35,10 +35,12 @@ This is the destination. Most of what's documented elsewhere is the
 
 Until bare-metal lands, we run two **GSplus** emulator instances on
 Linux on the RG DS, brokered by a thin LuaJIT process. Each emulator
-runs a real Apple //gs ROM and a GS/OS we built ourselves from Apple's
-released source. The broker mediates a shared filesystem, a shared
-clipboard, IPC between the screens, and input from the radial dual-stick
-keyboard + touch + stylus.
+runs a real Apple //gs ROM and a GS/OS `.2mg` disk image the user
+supplies. Apple never officially released GS/OS source, so we modify
+the OS via binary patches to the disk image plus our own Device Manager
+drivers and CDevs assembled from 65C816 source we author. The broker
+mediates a shared filesystem, a shared clipboard, IPC between the
+screens, and input from the radial dual-stick keyboard + touch + stylus.
 
 The staging ground is itself useful: the device is usable, real
 software runs, applications exist. The staging ground is what gets
