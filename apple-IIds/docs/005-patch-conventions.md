@@ -5,10 +5,13 @@ status: draft (planning phase, 2026-05-19)
 
 # patch conventions
 
-This project modifies upstream code we do not own: GSplus's C source,
-Apple's released GS/OS assembly source, and eventually the IIgs Toolbox
-ROM. We **never** fork upstream into our tree. We keep upstream pristine
-and modify it through numbered, paired apply/unapply patches.
+This project modifies upstream code and assets we do not own: GSplus's
+C source, the user-supplied GS/OS `.2mg` disk image, and eventually the
+IIgs Toolbox ROM. We **never** fork upstream into our tree. We keep
+upstream pristine and modify it through numbered, paired apply/unapply
+patches. We do **not** rebuild GS/OS from source; Apple never officially
+released GS/OS source, so the disk-image surface is binary-patched and
+new functionality is added as injected drivers / CDevs we author.
 
 This document defines:
 
@@ -28,10 +31,16 @@ build, picked up from a single directory by file-name pattern.
 ```
 patches/
 ├── 050-shared-clipboard.gsplus.patch    (diff against libs/gsplus/)
-├── 050-shared-clipboard.gsos.s.patch    (diff against libs/gsos-src/)
+├── 050-shared-clipboard.gsos.bin.patch  (byte patch against the user-supplied .2mg)
 ├── 060-input-routing.gsplus.patch
-└── 060-input-routing.gsos.s.patch
+└── 060-input-routing.gsos.bin.patch
 ```
+
+New OS-level functionality we *author* (not patch) lives at
+`src/gsos-addons/NNN-feature-name/` as 65C816 assembly source for
+Device Manager drivers, CDevs, and startup files. The build assembles
+these and the disk-image stage adds the resulting binaries onto the
+patched copy of the user's `.2mg`.
 
 Broker code is **ours** — not upstream — and lives at `src/broker/`. It
 is edited directly, not patched. When a feature touches the broker too,
@@ -50,8 +59,11 @@ across `patches/` and `src/broker/`.
 `NNN-feature-name.layer.patch` where `layer` is one of:
 
 - `gsplus` — unified diff against GSplus C source
-- `gsos.s` — unified diff against GS/OS assembly source
-- `tbox` — bytes patch against the Toolbox ROM (rare; phase 8+ only)
+- `gsos.bin` — byte patch against a working copy of the user-supplied
+  GS/OS `.2mg` disk image (binary patch; the user's original `.2mg` is
+  never modified — every build operates on a copy)
+- `tbox` — byte patch against a working copy of the Toolbox ROM (rare;
+  phase 8+ only; user's original ROM is never modified)
 
 Broker-side files are `NNN-feature-name.lua` (or `.c` / `.h` if any of
 the broker grows into C) under `src/broker/`.
@@ -82,28 +94,32 @@ The reasons:
 The build pipeline therefore looks like:
 
 ```
-GS/OS stage:
-  apply  patches/*.gsos.s.patch
-  assemble GS/OS  →  link  →  package as .2mg
-  revert patches/*.gsos.s.patch
-
 GSplus stage:
-  apply  patches/*.gsplus.patch
+  apply  patches/*.gsplus.patch    (to libs/gsplus/)
   cross-compile GSplus to aarch64
   revert patches/*.gsplus.patch
+
+GS/OS addon stage:
+  assemble src/gsos-addons/*/*.s with the 65C816 cross-assembler
+  produce one binary file per addon (Device Manager driver, CDev, etc.)
+
+GS/OS disk-image stage:
+  copy the user-supplied assets/disks/gsos-boot.2mg to tmp/build/
+  apply patches/*.gsos.bin.patch to the COPY (never the user's original)
+  inject the assembled addons onto the disk image (via cadius/cppo or
+  similar disk-image tooling) at well-known paths
 
 Broker stage:
   no patches needed (broker code is ours, edited directly)
   build / bundle src/broker/
 
 ROM stage (phase 8+ only):
-  apply  patches/*.tbox  to a COPY of the ROM image
-  save the patched copy alongside the pristine original
-  the original assets/rom/iigs.rom is never modified
+  copy the user-supplied assets/rom/iigs.rom to tmp/build/
+  apply patches/*.tbox.patch to the COPY (never the user's original)
 
 Bundle stage:
-  combine GS/OS .2mg, GSplus binary, broker code, patched ROM (if any)
-  into tmp/build/  →  deploy
+  combine the patched .2mg, GSplus binary, broker code, patched ROM (if
+  any) into tmp/build/  →  emit manifest  →  deploy
 ```
 
 If a stage exits with patches still applied (a crash, an interrupted
@@ -120,10 +136,14 @@ issue 102) keeps patches applied for the duration of the session:
 
 ```
 develop.sh gsplus       # apply all *.gsplus.patch, stay applied
-develop.sh gsos         # apply all *.gsos.s.patch, stay applied
 develop.sh freeze       # diff current source state, write back into patches/*
 develop.sh revert       # un-apply, restore pristine upstream
 ```
+
+`develop.sh gsos` is intentionally **not** provided: the `gsos.bin`
+patches are byte-level edits to a binary disk image and have no
+text-editor workflow. Author them with a hex editor against a copy
+in `tmp/` and capture the diff with a small helper script.
 
 `freeze` is the critical operation: after editing patched source,
 running `freeze` captures the new diff and writes it back to the
