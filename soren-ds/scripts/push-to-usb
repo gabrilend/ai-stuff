@@ -3,153 +3,235 @@
 #
 # General description: this script bridges the trusted main development
 # machine and the deliberately-untrusted air-gapped lab laptop. We find
-# the dedicated USB drive by stable identifier (its UUID, not its
-# /dev/sdN path), mount it if it isn't already mounted, copy the build's
-# output and the lab-side helper script onto it, flush every byte to
-# physical storage, and unmount cleanly. The developer then carries the
-# drive to the lab laptop. The first run learns the drive's UUID from
-# wherever the developer first mounted it; subsequent runs use the saved
-# value and don't need any setup.
+# the dedicated USB drive by its hard-coded filesystem UUID, confirm
+# sudo before any destructive change, mount the drive at a project-
+# owned mount point at /mnt/soren-ds, copy the build's output and the
+# lab-side helper onto it, flush every byte to physical storage,
+# unmount, and remove the mount point. The developer pulls the drive
+# and carries it to the lab laptop.
+#
+# Sudo credentials are confirmed at the start. If sudo cannot be
+# obtained, the script aborts before touching the drive.
+#
+# Visible output is deliberately terse: a couple of headline lines
+# (working directory, target UUID, resolved device), then two
+# progress lines — one for the mount+sync stage and one for the
+# unmount+cleanup stage — each ending in a green "done" or a red
+# "error" followed by the actual error text on the next line. The
+# detailed step-by-step record lands in the log file under tmp/.
 
 set -euo pipefail
 
 # {{{ configuration — paths are all relative to DIR
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
 
-INPUT_UUID_FILE="${DIR}/input/usb-drive-uuid"
-DEFAULT_MOUNT_PROBE="/mnt/generic"
+# The dedicated USB drive's filesystem UUID. Hard-coded because we own
+# the drive and the value almost never changes. If you reformat the
+# drive (or swap it for a different one), refresh this value. To find
+# the new UUID, plug the drive in and either:
+#
+#   lsblk -o NAME,LABEL,UUID,SIZE,MOUNTPOINT
+#       (lists every block device; pick the row that's the right
+#        size and label)
+#
+# or, if you already know which /dev path the partition is at:
+#
+#   blkid -o value -s UUID /dev/sdXY
+#
+# For FAT32 the UUID is the FS's short serial number formatted
+# XXXX-XXXX. For ext4 it's a longer dash-separated value. Either
+# works; /dev/disk/by-uuid/$value will resolve regardless.
+USB_DRIVE_UUID="E6A7-FD9E"
+
+# Dedicated mount point. Project-owned, so we don't fight over a
+# shared path like /mnt/generic. Created at start, removed at exit.
+USB_MOUNT="/mnt/soren-ds"
 
 OUTPUT_DIR="${DIR}/output"
 LAB_SIDE_DIR="${DIR}/scripts/lab-side"
 
 TMP_DIR="${DIR}/tmp"
-USB_MOUNT="${TMP_DIR}/usb-mount"
 LOG_FILE="${TMP_DIR}/push-to-usb.log"
 GOODBYE_FILE="${OUTPUT_DIR}/goodbye.log"
 # }}}
 
-# {{{ log() — line of structured output to stderr and the log file
-log() {
+# {{{ colors — only emit ANSI when stderr is a real terminal
+if [[ -t 2 ]]; then
+    COLOR_GREEN=$'\033[32m'
+    COLOR_RED=$'\033[31m'
+    COLOR_RESET=$'\033[0m'
+else
+    COLOR_GREEN=''
+    COLOR_RED=''
+    COLOR_RESET=''
+fi
+# }}}
+
+# {{{ audit_log() — append a structured line to the log file only (no terminal output)
+audit_log() {
     local message="$1"
     local stamp
     stamp="$(date -Iseconds)"
-    printf '[push-to-usb] %s\n' "$message" >&2
     printf '%s [push-to-usb] %s\n' "$stamp" "$message" >> "$LOG_FILE"
 }
 # }}}
 
-# {{{ die() — log an error message and exit non-zero
+# {{{ say() — print to stderr without a prefix and mirror to the log file with one
+say() {
+    local message="$1"
+    printf '%s\n' "$message" >&2
+    audit_log "$message"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
 die() {
     local message="$1"
-    log "ERROR: $message"
+    printf '%s\n' "$message" >&2
+    audit_log "ERROR: $message"
     exit 1
 }
 # }}}
 
-# {{{ ensure_workspace() — guarantee the ephemeral and persistent paths exist
+# {{{ progress_start() — open a progress line with a step label, no newline
+progress_start() {
+    local label="$1"
+    printf '%s...' "$label" >&2
+    audit_log "STEP start: $label"
+}
+# }}}
+
+# {{{ progress_continue() — extend an open progress line with another step label
+progress_continue() {
+    local label="$1"
+    printf ' %s...' "$label" >&2
+    audit_log "STEP continue: $label"
+}
+# }}}
+
+# {{{ progress_done() — close an open progress line with a green "done" newline
+progress_done() {
+    printf ' %sdone%s\n' "$COLOR_GREEN" "$COLOR_RESET" >&2
+    audit_log "STEP done"
+}
+# }}}
+
+# {{{ progress_error() — close an open progress line with red "error" then print the detail
+progress_error() {
+    local detail="$1"
+    printf ' %serror%s\n' "$COLOR_RED" "$COLOR_RESET" >&2
+    printf '%s\n' "$detail" >&2
+    audit_log "STEP error: $detail"
+}
+# }}}
+
+# {{{ ensure_workspace() — guarantee local bookkeeping directories exist
 ensure_workspace() {
-    if [[ ! -L "$TMP_DIR" ]]; then
-        log "WARNING: ${TMP_DIR} is not a symlink. Project convention is for tmp/ to symlink to a RAM-backed directory under /tmp/."
+    if [[ ! -L "$TMP_DIR" ]] && [[ ! -d "$TMP_DIR" ]]; then
+        die "${TMP_DIR} does not exist. Project convention requires tmp/ as a RAM-backed directory."
     fi
-    mkdir -p "$TMP_DIR" "$USB_MOUNT" "$OUTPUT_DIR" "$(dirname "$INPUT_UUID_FILE")"
+    mkdir -p "$OUTPUT_DIR"
 }
 # }}}
 
-# {{{ discover_uuid() — find the saved UUID, or learn it from the probe mount
-discover_uuid() {
-    if [[ -f "$INPUT_UUID_FILE" ]]; then
-        local saved
-        saved="$(< "$INPUT_UUID_FILE")"
-        saved="${saved//[[:space:]]/}"
-        if [[ -n "$saved" ]]; then
-            printf '%s' "$saved"
-            return 0
-        fi
+# {{{ cleanup_on_exit() — silent trap target; unmount and remove the project mount point no matter how we exit
+cleanup_on_exit() {
+    if mountpoint -q "$USB_MOUNT" 2>/dev/null; then
+        sync || true
+        sudo umount "$USB_MOUNT" 2>/dev/null || true
     fi
-    log "No saved UUID. Looking at ${DEFAULT_MOUNT_PROBE} for first-time setup."
-    if ! mountpoint -q "$DEFAULT_MOUNT_PROBE"; then
-        die "${DEFAULT_MOUNT_PROBE} is not a mountpoint. Mount your USB drive there once for first-time setup, then re-run."
+    if [[ -d "$USB_MOUNT" ]]; then
+        sudo rmdir "$USB_MOUNT" 2>/dev/null || true
     fi
-    local device
-    device="$(findmnt -no SOURCE "$DEFAULT_MOUNT_PROBE")"
-    if [[ -z "$device" ]]; then
-        die "could not read the source device for ${DEFAULT_MOUNT_PROBE}."
-    fi
-    local probed
-    probed="$(blkid -o value -s UUID "$device")"
-    if [[ -z "$probed" ]]; then
-        die "device ${device} has no UUID. Cannot identify it stably; aborting."
-    fi
-    printf '%s\n' "$probed" > "$INPUT_UUID_FILE"
-    log "Saved UUID ${probed} to ${INPUT_UUID_FILE} for future runs."
-    printf '%s' "$probed"
 }
 # }}}
 
-# {{{ resolve_device() — turn a UUID into a real /dev path
+# {{{ require_sudo() — confirm super-user credentials before any destructive operation
+require_sudo() {
+    audit_log "Requesting sudo."
+    if ! sudo -v; then
+        die "sudo could not be confirmed. Aborting before any changes were made."
+    fi
+    audit_log "Sudo confirmed."
+}
+# }}}
+
+# {{{ resolve_device() — turn the hard-coded UUID into a real /dev path
 resolve_device() {
-    local uuid="$1"
-    local by_uuid="/dev/disk/by-uuid/${uuid}"
+    local by_uuid="/dev/disk/by-uuid/${USB_DRIVE_UUID}"
     if [[ ! -e "$by_uuid" ]]; then
-        die "no block device with UUID ${uuid} is currently visible. Is the drive plugged in?"
+        die "no block device with UUID ${USB_DRIVE_UUID} is currently visible. Is the drive plugged in? If you reformatted the drive, update USB_DRIVE_UUID at the top of this script."
     fi
     readlink -f "$by_uuid"
 }
 # }}}
 
-# {{{ ensure_mounted() — mount the device if it isn't already; record whether we did
-WE_MOUNTED=0
-MOUNT_TARGET=""
-ensure_mounted() {
+# {{{ check_mount_point_free() — refuse to proceed if anything else owns /mnt/soren-ds
+check_mount_point_free() {
+    if [[ -d "$USB_MOUNT" ]] && mountpoint -q "$USB_MOUNT" 2>/dev/null; then
+        die "${USB_MOUNT} already has something mounted on it. Run 'findmnt ${USB_MOUNT}' to investigate."
+    fi
+}
+# }}}
+
+# {{{ release_existing_mount() — if the device is auto-mounted somewhere else, unmount it silently
+release_existing_mount() {
     local device="$1"
-    local mount_dir="$2"
     local existing
     existing="$(findmnt -no TARGET --source "$device" 2>/dev/null || true)"
     if [[ -n "$existing" ]]; then
-        log "Drive already mounted at ${existing}. Will use it and leave it mounted on exit."
-        MOUNT_TARGET="$existing"
-        WE_MOUNTED=0
-        return 0
+        audit_log "Drive is currently mounted at ${existing}. Unmounting before remounting at ${USB_MOUNT}."
+        sudo umount "$existing"
     fi
-    mkdir -p "$mount_dir"
-    log "Mounting ${device} at ${mount_dir}..."
-    sudo mount "$device" "$mount_dir"
-    MOUNT_TARGET="$mount_dir"
-    WE_MOUNTED=1
 }
 # }}}
 
-# {{{ sync_payload() — copy output/ and lab-side scripts onto the drive
-sync_payload() {
-    local target="$1"
-    local rsync_output
-    rsync_output="$(mktemp "${TMP_DIR}/rsync.XXXXXX")"
-    log "Syncing ${OUTPUT_DIR}/ -> ${target}/output/ ..."
-    sudo rsync -a --delete "${OUTPUT_DIR}/" "${target}/output/" > "$rsync_output" 2>&1
-    cat "$rsync_output" >> "$LOG_FILE"
+# {{{ do_mount_and_sync() — single progress line covering mkdir + mount + rsync of both source trees
+# FAT32 doesn't support Unix ownership or permission bits, so we use
+# rsync's -rt (recursive, preserve mtimes) rather than the usual -a
+# (which expands to flags that try to chown and chmod on the target
+# and fail loudly on a FAT-family filesystem).
+do_mount_and_sync() {
+    local device="$1"
+    local err
+    progress_start "mounting"
+    if ! err="$(sudo mkdir -p "$USB_MOUNT" 2>&1)"; then
+        progress_error "$err"
+        exit 1
+    fi
+    if ! err="$(sudo mount "$device" "$USB_MOUNT" 2>&1)"; then
+        progress_error "$err"
+        exit 1
+    fi
+    progress_continue "syncing"
+    if ! err="$(sudo rsync -rt --delete "${OUTPUT_DIR}/" "${USB_MOUNT}/output/" 2>&1)"; then
+        progress_error "$err"
+        exit 1
+    fi
     if [[ -d "$LAB_SIDE_DIR" ]]; then
-        log "Syncing ${LAB_SIDE_DIR}/ -> ${target}/scripts/ ..."
-        sudo rsync -a --delete "${LAB_SIDE_DIR}/" "${target}/scripts/" >> "$rsync_output" 2>&1
-        cat "$rsync_output" >> "$LOG_FILE"
-        sudo chmod -R +x "${target}/scripts/" 2>/dev/null || true
-    else
-        log "No lab-side script directory at ${LAB_SIDE_DIR}. Skipping."
+        if ! err="$(sudo rsync -rt --delete "${LAB_SIDE_DIR}/" "${USB_MOUNT}/scripts/" 2>&1)"; then
+            progress_error "$err"
+            exit 1
+        fi
     fi
-    rm -f "$rsync_output"
+    progress_done
 }
 # }}}
 
-# {{{ cleanup_mount() — flush and unmount if we were the ones who mounted
-cleanup_mount() {
-    log "Flushing filesystem to physical storage..."
+# {{{ do_cleanup() — single progress line covering sync, umount, and mount-point removal
+do_cleanup() {
+    local err
+    progress_start "cleaning up"
     sync
-    if [[ "$WE_MOUNTED" = "1" ]]; then
-        log "Unmounting ${MOUNT_TARGET}..."
-        sudo umount "$MOUNT_TARGET"
-        log "Done. Drive is safe to remove."
-    else
-        log "Drive was pre-mounted; leaving mounted. Run 'sudo umount ${MOUNT_TARGET}' before removing."
+    if ! err="$(sudo umount "$USB_MOUNT" 2>&1)"; then
+        progress_error "$err"
+        exit 1
     fi
+    if ! err="$(sudo rmdir "$USB_MOUNT" 2>&1)"; then
+        progress_error "$err"
+        exit 1
+    fi
+    progress_done
 }
 # }}}
 
@@ -164,18 +246,19 @@ write_goodbye() {
 # {{{ main() — orchestration
 main() {
     ensure_workspace
-    log "Starting push-to-usb. DIR=${DIR}"
-    local uuid
-    uuid="$(discover_uuid)"
-    log "Target drive UUID: ${uuid}"
+    trap cleanup_on_exit EXIT
+    require_sudo
+    say "DIR=${DIR}"
+    say "target UUID: ${USB_DRIVE_UUID}"
     local device
-    device="$(resolve_device "$uuid")"
-    log "Resolved to device: ${device}"
-    ensure_mounted "$device" "$USB_MOUNT"
-    sync_payload "$MOUNT_TARGET"
-    cleanup_mount
+    device="$(resolve_device)"
+    say "device: ${device}"
+    check_mount_point_free
+    release_existing_mount "$device"
+    do_mount_and_sync "$device"
+    do_cleanup
     write_goodbye
-    log "All done."
+    printf '\nUnplug the drive, put it in the lab laptop, and run: scripts/flash-sd\n' >&2
 }
 # }}}
 

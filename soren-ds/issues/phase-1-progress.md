@@ -118,15 +118,13 @@ flash loop from 110c, not Maskrom.
   known unknowns to spawn the new sub-issues 110a/110b/110c
   described above, and confirmed that the SD-boot-then-eMMC-
   takeover install pipeline is viable on this device.
-- 103a — air-gapped SD card flash workflow. Two scripts at
-  `scripts/push-to-usb` and `scripts/lab-side/flash-sd` move
-  build artifacts from the trusted main machine to a dedicated
-  USB drive (identified by stable UUID), then from the USB drive
-  onto a freshly-inserted microSD card on the lab laptop. Both
-  scripts identify their target storage by stable identifier
-  rather than by `/dev/sdN` path, require typed-YES confirmation
-  before destructive writes, and refuse to flash non-removable
-  devices.
+- 103a — air-gapped SD card flash workflow. Two scripts live at
+  `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
+  push side has been exercised end-to-end against the real USB
+  drive and reformatted it to a clean FAT32 with the project
+  label. The lab side will get its first real run when the
+  build system produces an actual kernel image; if it surfaces
+  bugs at that point the issue reopens.
 
 ## Open issues
 

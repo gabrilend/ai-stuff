@@ -3,12 +3,15 @@
 #
 # General description: runs on the air-gapped lab laptop from the USB
 # drive we carried over from the main machine. We find the kernel image
-# the main machine wrote into the drive's output/ directory, ask the
-# developer to insert the microSD card (via a USB reader or built-in
-# slot), identify the SD by the new block device that appears, refuse to
-# proceed if the target looks like internal storage, require a typed
-# YES confirmation, dd the image onto the card, flush physical storage,
-# and eject. The developer takes the card and plugs it into the device.
+# the main machine wrote into the drive's output directory, confirm
+# sudo before any destructive change, ask the developer to insert the
+# microSD card, identify it as the new block device that appears,
+# refuse to proceed if it isn't a removable device, require a typed
+# YES confirmation, dd the image, sync, and eject.
+#
+# Sudo is confirmed at the start. If sudo cannot be obtained, the
+# script aborts before prompting for the SD card — cancelling at the
+# password prompt leaves every device exactly as it was.
 
 set -euo pipefail
 
@@ -22,7 +25,7 @@ LOG_FILE="/tmp/flash-sd.log"
 GOODBYE_FILE="${OUTPUT_DIR}/goodbye.log"
 # }}}
 
-# {{{ log() — line of structured output to stderr and the log file
+# {{{ log() — structured line to stderr and the log file
 log() {
     local message="$1"
     local stamp
@@ -32,11 +35,21 @@ log() {
 }
 # }}}
 
-# {{{ die() — log an error message and exit non-zero
+# {{{ die() — log an error and exit non-zero
 die() {
     local message="$1"
     log "ERROR: $message"
     exit 1
+}
+# }}}
+
+# {{{ require_sudo() — confirm super-user credentials before any destructive operation
+require_sudo() {
+    log "Requesting sudo. No destructive change happens until this succeeds."
+    if ! sudo -v; then
+        die "sudo could not be confirmed. Aborting before any changes were made."
+    fi
+    log "Sudo confirmed."
 }
 # }}}
 
@@ -98,7 +111,7 @@ wait_for_sd_card() {
         count=$((count + 1))
     done
     if [[ $count -eq 0 ]]; then
-        die "no new block device detected. If your laptop's built-in slot doesn't enumerate a new device, pass the device path explicitly as an argument."
+        die "no new block device detected. If the laptop's built-in slot doesn't enumerate a new device, pass the device path explicitly as a second argument."
     fi
     if [[ $count -gt 1 ]]; then
         log "Multiple new devices appeared:"
@@ -153,8 +166,6 @@ confirm_with_user() {
 # {{{ unmount_partitions() — unmount any auto-mounted partitions of the target
 unmount_partitions() {
     local device="$1"
-    local short
-    short="$(basename "$device")"
     local part
     local mp
     for part in $(lsblk -ln -o NAME "$device" | tail -n +2); do
@@ -201,10 +212,11 @@ write_goodbye() {
 
 # {{{ main() — orchestration
 main() {
-    log "Starting flash-sd. DIR=${DIR}"
+    log "DIR=${DIR}"
     local image
     image="$(find_image)"
     log "Using image: ${image}"
+    require_sudo
     local sd_device
     if [[ $# -ge 2 ]]; then
         sd_device="$2"
@@ -219,7 +231,8 @@ main() {
     flash_image "$image" "$sd_device"
     eject_device "$sd_device"
     write_goodbye
-    log "Done. Pull the SD card and plug it into the device."
+    printf '\n' >&2
+    printf 'Pull the SD card and plug it into the device.\n' >&2
 }
 # }}}
 
