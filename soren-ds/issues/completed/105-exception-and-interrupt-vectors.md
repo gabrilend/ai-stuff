@@ -2,11 +2,34 @@
 
 ## Current behavior
 
-The kernel boots from reset (104) but has no exception or interrupt
-vector table installed. If any exception fires (an undefined
-instruction, a data abort, a prefetch abort, an interrupt request)
-the CPU's behavior is undefined — most likely an immediate hang or
-silent reboot, with no diagnostic information.
+The kernel installs a 2 KB-aligned, sixteen-entry exception
+vector table on boot. `src/005-vectors.s` defines the table at
+`vector_table`; each entry puts a numeric index in `x0` (so we
+can tell which vector type fired) and branches to a common
+`panic_stub` that captures the faulting PC (from `ELR_EL1`) and
+the exception syndrome (from `ESR_EL1`) and calls into the C
+`panic_handler` in `src/006-panic.c` with three arguments.
+
+The C panic handler is marked `noreturn`, sets the LED pattern
+for `STAGE_PANIC_GENERIC` (green and amber off, red solid), and
+sits in WFI forever. The captured exception state is currently
+unused — issue 110's USB CDC-ACM stream is the channel future
+panic versions will write the vector / PC / syndrome through;
+until then, the red LED is the only output.
+
+The boot code in `src/001-boot.s` installs the table by
+writing its address into `VBAR_EL1` between zeroing `.bss` and
+branching into C. Synchronous exceptions (bad pointers,
+undefined instructions, alignment faults) are not maskable by
+DAIF; the existing DAIF mask in boot stays put for IRQ / FIQ /
+SError, which have no real handlers yet and would just panic
+anyway if delivered.
+
+Disassembly confirms the layout: `vector_table` at `0x00280800`
+(the first 2 KB-aligned address inside `.text` after the boot
+code, the LED driver, and the PWM driver), entries every `0x80`
+bytes through `0x00280f80`, `common_panic` at `0x00281000`
+exactly where the table ends.
 
 ## Intended behavior
 

@@ -55,6 +55,17 @@ _start:
     str     xzr, [x0], #8
     b       1b
 2:
+    /* Install the exception vector table from 005-vectors.s.
+     * After this, any synchronous fault, undefined instruction,
+     * or other exception takes the panic path through 006-panic.c
+     * rather than producing undefined behavior. Synchronous
+     * exceptions are not maskable by DAIF, so installing the
+     * table is enough to catch them. IRQ / FIQ / SError stay
+     * masked until later phase 1 issues have handlers worth
+     * routing them to. */
+    ldr     x0, =vector_table
+    msr     vbar_el1, x0
+
     /* Hand off to C. kernel_main is not expected to return. */
     bl      kernel_main
 
