@@ -239,15 +239,48 @@ ut2004-install/
 ```
 
 ## Acceptance Criteria
-- [ ] config.sh created with sensible defaults
-- [ ] compile.sh created and executable
-- [ ] clean.sh created and executable
-- [ ] full-rebuild.sh created and executable
-- [ ] All scripts source config.sh properly
-- [ ] Scripts handle missing UT2004_DIR gracefully
-- [ ] Scripts work from any directory
-- [ ] Error messages are clear and helpful
-- [ ] Scripts tested and working
+- [x] config.sh created with sensible defaults (already existed)
+- [x] compile.sh created and executable
+- [x] clean.sh created and executable
+- [x] full-rebuild.sh created and executable
+- [x] All scripts source config.sh properly
+- [x] Scripts handle missing UT2004_DIR gracefully
+- [x] Scripts work from any directory (using DIR variable auto-detection)
+- [x] Error messages are clear and helpful
+- [ ] Scripts tested and working (pending UT2004 installation completion)
+
+## Implementation Notes
+
+### Scripts Created
+
+All scripts follow the project conventions:
+- Use vimfolds for function organization
+- Accept DIR variable override
+- Source config.sh for centralized configuration
+- Write informational output to stderr for proper command substitution
+- Provide clear section headers and error messages
+
+### compile.sh
+- Verifies UT2004 installation and UCC compiler exist
+- Creates package directory if needed
+- Uses rsync to sync source files (preserves permissions, efficient)
+- Auto-detects correct UCC binary (ucc-bin-linux-amd64, ucc-bin, or ucc)
+- Reports compilation success/failure with file size info
+
+### clean.sh
+- Removes .u, .ucl, and .int files (all compiled artifacts)
+- Cleans tmp/ directory
+- Removes UT2004 log files
+- Safe to run - preserves all source code
+- Reports what was actually removed
+
+### full-rebuild.sh
+- Orchestrates clean + compile workflow
+- Proper error handling between steps
+- Clear progress indication
+
+### Testing Status
+Scripts are syntactically complete and follow all design principles. Full testing will be performed once UT2004 installation completes (Issue 101).
 
 ## Notes
 These are the foundational build scripts. Testing and monitoring scripts are in Issue 105b.
