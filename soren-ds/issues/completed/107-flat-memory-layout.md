@@ -2,12 +2,34 @@
 
 ## Current behavior
 
-The kernel boots and can write to a debug channel, but the project
-has no documented or enforced layout of physical RAM. The kernel
-itself sits at the load address from 103, but where the stacks
-live, where the heap starts, and which regions are reserved for
-hardware (the display controller's framebuffer, for instance) are
-not yet committed.
+The chip's full physical address space — DRAM, peripheral
+register windows, and the gaps between them — is documented in
+`docs/016-physical-memory-map.md`. The chunk of that map the
+kernel's allocator actually reaches for is exposed at runtime
+through three small functions in `src/007-memory.c`:
+
+- `memory_pool_base()` returns the first page-aligned address
+  above the kernel image and its reserved stack (one page above
+  `__stack_top`, the linker symbol that already marks the top
+  of the kernel's reserved stack region).
+- `memory_pool_end()` returns the page-aligned end of populated
+  DRAM (`0xC0000000` for the 3 GB Anbernic RG DS).
+- `memory_pool_size()` returns the difference between them.
+
+The reserved-by-lower-layer-firmware slice below the kernel
+(`0x00000000` through `0x00280000`, covering BL31 / ATF and
+Anbernic's u-boot) is documented in the memory-map doc but does
+not surface in the kernel's exported functions because the
+kernel allocator never approaches it — `__stack_top` is well
+above that boundary.
+
+What deliberately stays deferred to a later issue: the boot-time
+dump that the original behaviour sketch proposed. Without the
+USB CDC-ACM channel from 110, the only output channel is the
+LED, and "the memory layout was committed" is implicit in the
+kernel reaching `kernel_main` — the LED stage already says it.
+A richer dump lands when 110 brings up a text channel that can
+actually display the layout.
 
 ## Intended behavior
 

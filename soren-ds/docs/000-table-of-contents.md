@@ -55,3 +55,8 @@ tour; jump in by topic if you already know where you're going.
   on the front edge of the device mean at every kernel state.
   The first observable signal we have for "where did the kernel
   get stuck."
+- `016-physical-memory-map.md` — the chip's full physical
+  address space, harvested once so every later driver can
+  reference one authoritative catalogue. DRAM extent and
+  reservations on top; every peripheral register window
+  below.
