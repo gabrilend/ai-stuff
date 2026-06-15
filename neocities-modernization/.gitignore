@@ -1,5 +1,7 @@
-# Project-local temporary files
-temp/
+# Project-local temporary files (tmp/ is a symlink into /tmp/, see
+# scripts/ensure-tmp-symlink; ignoring it keeps `git status` clean even though
+# the symlink itself is a tracked-looking file from git's perspective).
+tmp
 
 # Build products (regenerated each run)
 output/
