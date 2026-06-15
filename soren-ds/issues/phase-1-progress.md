@@ -123,6 +123,13 @@ flash loop from 110c, not Maskrom.
   installed at `libs/cross/`. The smoke test in
   `scripts/check-toolchain` confirms the pipeline produces a
   64-bit ARM aarch64 ELF.
+- 103 — project build system. A Makefile at the project root
+  walks `src/` for every `.c`, compiles each with the cross-
+  toolchain, links with the linker script at `src/kernel.ld`,
+  and emits a raw kernel binary at `output/kernel.img`. The
+  placeholder source builds to an 8-byte `wfi`-loop kernel
+  linked at the placeholder load address pinned in the linker
+  script. `scripts/build` is the project-root-aware wrapper.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -133,8 +140,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-103, 104 through 110, the three install-pipeline issues 110a,
-110b, 110c, plus 111a, 111b, 112, and 113.
+104 through 110, the three install-pipeline issues 110a, 110b,
+110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 
