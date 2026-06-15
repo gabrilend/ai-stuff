@@ -105,3 +105,22 @@ issue is the seed; future enhancements (dynamic shadows, particles,
 post-processing) would land here too. Phase 4 has no prerequisite
 beyond the gameplay phases being complete enough that polish is
 the obvious next move.
+
+## Task pool integration
+
+The light's *render* contribution lives on the main / render
+thread (shader uniforms set per-frame in the render path, no
+threading concern). The light's *interactive drag* mirrors the
+rally-point drag in issue 117 and inherits its priority shape:
+
+**Live drag visual update — priority 6.** Each drag event spawns
+a short task to update the light's position in the snapshot the
+renderer reads from.
+
+**Commit on release — priority 3.** Standard input-handler
+priority.
+
+If Phase 4 grows particle systems, those would be the natural
+heir of the projectile-arc-update pattern (priority 1 if
+gameplay-relevant, priority 7-9 if purely cosmetic). Particles are
+the textbook self-rescheduling-task use case.

@@ -101,3 +101,18 @@ return type designed for those callers.
 - The march start at `r.position` and step forward works fine even
   when `r.position` is far from any terrain — the cap handles
   that. Callers don't need to constrain the ray themselves.
+
+## Task pool integration (added retroactively)
+
+`terrain_pick` runs on the **main thread on demand** (each frame
+when the cursor is over the world, plus per input event). It does
+not currently fit the task pool model: it's always called from
+input/render code that lives on the main thread, and the call
+itself is cheap enough (1000-sample march cap) that handing it
+off to a worker would cost more than running it inline.
+
+If a future feature wants to run *many* picks per tick (e.g. a
+"check picked points for hundreds of UI cursor anchors") that
+would be a slice-batched task at priority 2-3 reading the read-
+only heightmap. The function is already safe for concurrent
+callers.

@@ -102,3 +102,26 @@ can extend it without churning callers.
   selected units — pick something that stands out from the
   always-present black outline (e.g. yellow wires, a ring on the
   ground, an oversized outline).
+
+## Task pool integration (added retroactively)
+
+This issue establishes the data structure that almost every later
+task pool task iterates over. The unit pool itself doesn't run on
+the pool — it's just storage — but its design choices shape how
+later tasks slice it:
+
+- **Pool is sparse, not compact.** Slice tasks must skip dead
+  entries during iteration. Easy: `for (id = lo; id < hi; id++)
+  if (units[id].alive) { ... }`.
+- **Pool size is fixed at 256.** A 10-task slice-batched pass over
+  the pool gives slices of ~25 entries each. Cheap; the per-task
+  overhead probably exceeds the per-unit work for that slice
+  count. Realistic pool adoption probably uses 4 slices, not 10.
+- **`id` is the slot index and stable for the unit's lifetime.**
+  Tasks that hold ids across ticks (movement state, miss-memory)
+  rely on this. The task pool's GUID is unrelated to unit id;
+  don't conflate them.
+
+No task type lives in this issue itself. The issues that do
+operate per-unit (107, 108, 111, 113, 115) each declare their own
+priority and slice/self-reschedule shape.

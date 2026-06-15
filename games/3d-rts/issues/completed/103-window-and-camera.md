@@ -98,6 +98,18 @@ updates should run at render rate, not at tick rate.
 - Camera under heavy frame-time variance — the scaling of pan / yaw
   by `dt` is straightforward, but a stutter-test wasn't run.
 
+## Task pool integration (added retroactively)
+
+**Not applicable.** Camera is main-thread-only, runs at render
+rate, owned by viewer code. Any task-pool involvement here would
+violate the architectural rule that the camera doesn't go through
+the snapshot pathway.
+
+The one mild exception: issue 108 (selection) wants the camera
+state at the moment of a `SELECT_RECT` event for screen-to-world
+projection on the sim side. That copy travels in the event
+payload, not through any task. Camera lifecycle stays untouched.
+
 ### Lessons & caveats for later issues
 
 - Z-up is now established as the world convention. Issue 104

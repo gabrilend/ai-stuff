@@ -55,3 +55,28 @@ tick's inputs alone — that requires the camera at the moment of the
 event. Pass a copy of the camera state alongside the `SELECT_RECT`
 event in the queue, rather than reading shared state. Document this
 trade-off where the event type is defined.
+
+## Task pool integration
+
+**Recommended priority: 3** — input-driven, runs once per
+drag-release. Higher priority than per-tick maintenance because
+the user is waiting for visible feedback (the highlight should
+appear within one tick of releasing the mouse), but not at
+priority 1 because no real-time-sensitive simulation depends on
+it.
+
+Selection is naturally a single one-shot task per `SELECT_RECT` /
+`SELECT_CLICK` event:
+
+```
+selection_task_actions = [
+    [0] project_unit_positions_to_screen   // read-only over all units
+    [1] mark_units_inside_rect_selected    // slice-disjoint per-unit write
+    [2] mirror_selected_flags_into_snapshot
+]
+```
+
+For very large unit counts, action [0] could itself fan out into
+slice-batched sub-tasks (one per slice) and the parent BLOCKs on
+them. At Phase 1 unit counts (256 max) the overhead of fan-out
+exceeds the savings; one task at priority 3 is the right shape.

@@ -64,3 +64,37 @@ The demo lives in `issues/completed/demos/` per mono-repo convention.
 The phase-1 demo will be revisited at the end of Phase 2 (added to,
 not replaced — the convention asks for new demos to *combine and
 reconfigure* prior tools while introducing the new phase's tools).
+
+## Task pool integration
+
+The demo doesn't introduce new task types — it just runs the
+existing systems (movement, combat, factory, rally chains) and
+prints stats on exit. The stats-collection tasks are the only new
+thing:
+
+**Stats sampler — priority 8.** A self-rescheduling task that
+samples per-tick datapoints (alive units, in-flight projectiles,
+per-team kill counts) and accumulates them into a running buffer.
+
+```
+stats_sampler_task_actions = [
+    [0] read_unit_count_alive_per_team
+    [1] read_projectile_count_alive
+    [2] append_to_running_stats_buffer
+    [3] reschedule_self_at_priority_8
+]
+```
+
+Priority 8 because the demo's stats are a posthumous summary; a
+sample missed during a busy tick just means a slightly less smooth
+graph at the end, not incorrect numbers (the totals come from
+counters that other tasks already maintain). The sampler running
+roughly once every 36 cycler steps is plenty for the 60Hz tick
+rate.
+
+**Final stats print on exit — runs on main thread, not pool.**
+Once the window closes the pool is destroyed, then the main
+thread prints the accumulated buffer. No task-pool involvement.
+
+The text overlay callouts (per the suggested implementation) live
+on the render thread alongside the rest of the HUD. Not pool.

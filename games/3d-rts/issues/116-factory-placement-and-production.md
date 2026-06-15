@@ -59,3 +59,57 @@ factory already exists, the button is disabled.
 A single factory in Phase 1 keeps the round-robin logic for chains
 (issue 118) testable in isolation. Multi-factory adds a layer of
 "which factory is selected for rally editing" that we'd rather defer.
+
+## Task pool integration
+
+This issue is the cleanest illustration of "different priorities
+for different aspects of the same system." The factory has two
+distinct kinds of work:
+
+**Production countdown — priority 5.** A self-rescheduling task
+that decrements the build timer each tick and spawns a unit when
+it reaches zero. This is the user's own example: "factories which
+update their production display percentage value every tick at
+low priority."
+
+```
+factory_production_task_actions = [
+    [0] decrement_build_timer
+    [1] check_if_zero_spawn_unit_if_so
+    [2] reset_timer_if_unit_spawned
+    [3] reschedule_self_at_priority_5
+]
+```
+
+Priority 5 is a deliberate middle ground: it WILL get scheduled
+each tick (the cycler reaches priority 5 within every cycle of
+length 4+5=9 steps), so the timer doesn't drift. But it doesn't
+preempt projectile-arc updates (priority 1) or LoS / movement
+(priority 2). On a busy combat tick, factory production might run
+a tick or two late; nobody notices because production intervals
+are seconds.
+
+**Production display percentage — priority 9.** A separate self-
+rescheduling task that computes `(interval - timer) / interval`
+and writes it to the snapshot's factory display field. Pure UI
+update; one tick of staleness is invisible. Priority 9 means it
+runs only when the cycler reaches level 9 in its 1; 1,2; 1,2,3;
+... walk — roughly once every 45 cycler steps.
+
+```
+factory_display_task_actions = [
+    [0] read_factory_timer_state
+    [1] compute_percentage
+    [2] write_to_snapshot_display_field
+    [3] reschedule_self_at_priority_9
+]
+```
+
+Splitting the two is the design point: combine them and the
+display update steals a priority-5 slot from the actual production
+work, which has no benefit. Separate, the display can fall behind
+under load without affecting anything that matters.
+
+**Placement / cancel input handling — priority 3.** Spawned once
+per `FACTORY_PLACE` event. Same priority class as other input
+handlers (issues 108, 109, 110).
