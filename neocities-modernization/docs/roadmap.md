@@ -330,37 +330,45 @@ ls output/different/ | wc -l  # Should be 7,793
 
 ---
 
-## Phase 9: GPU Acceleration 📋 **PLANNED**
-**Duration**: TBD
+## Phase 9: GPU Acceleration ✅ **COMPLETED**
 **Goal**: Implement Vulkan compute infrastructure for vector-heavy operations
 
-### Deliverables:
-- Vulkan compute infrastructure with reusable wrapper
-- GPU-accelerated diversity sequence generation
-- GPU-accelerated similarity matrix calculation
-- LuaJIT FFI integration layer
-- Removal of effil dependency
+### Deliverables: ✅
+- ✅ Vulkan compute infrastructure with reusable wrapper (`libs/vulkan-compute/`)
+- ✅ GPU-accelerated diversity sequence generation
+  (`scripts/precompute-diversity-sequences-gpu`)
+- ✅ GPU-accelerated similarity rankings cache
+  (`scripts/generate-similarity-rankings-cache`)
+- ✅ LuaJIT FFI integration layer (`libs/vulkan-compute/lua/vk_compute.lua`)
+- ✅ effil retained for HTML generation (orchestrator pattern in
+  `src/flat-html-generator.lua`); Vulkan replaces it for the numeric
+  heavy lifting, but the dependency itself is still used.
 
-### Key Milestones:
-1. Set up Vulkan development environment
-2. Implement core Vulkan compute wrapper
-3. Create cosine distance and reduction shaders
-4. Port diversity sequence generation to GPU
-5. Port similarity matrix generation to GPU
-6. Create Lua/C integration layer
-7. Remove effil dependency
+### Key Milestones: ✅
+1. ✅ Set up Vulkan development environment
+2. ✅ Implement core Vulkan compute wrapper
+3. ✅ Create cosine distance and reduction shaders
+4. ✅ Port diversity sequence generation to GPU
+5. ✅ Port similarity matrix generation to GPU
+6. ✅ Create Lua/C integration layer
+7. ⏸️ effil dependency NOT removed — kept for the HTML-generation
+   orchestrator path, which remains CPU-side per the analysis in
+   `docs/effil-vs-compute-shader-feasibility.md`.
 
 ### Target Hardware:
 - NVIDIA GTX 1080 Ti (3,584 CUDA cores, 11GB VRAM)
 - 16 CPU threads available
 
-### Performance Targets:
-- Diversity sequence: 25s → 4-8s per sequence
-- Similarity matrix: Hours → Minutes
+### Achieved Performance:
+- Diversity sequence: ~42 hours CPU → ~58 seconds GPU (per
+  `scripts/precompute-diversity-sequences-gpu`'s preamble: 2,600× speedup)
+- Similarity rankings cache: produced in single-digit minutes via GPU
 
-**Issues:**
-- `9-001-implement-vulkan-compute-infrastructure.md` (with sub-issues a-f)
-- `9-002-port-similarity-matrix-to-vulkan.md` (with sub-issues)
+### Issues:
+- `9-001-implement-vulkan-compute-infrastructure.md` (with sub-issues a–g)
+- `9-002-port-similarity-matrix-to-vulkan.md` (with sub-issue a)
+- `9-003-port-diversity-sequences-to-vulkan.md` (with sub-issue a)
+- `9-005-gpu-output-architecture.md` (with sub-issue b)
 
 ## Phase 11: Advanced Exploration 📋 **PLANNED**
 **Duration**: TBD
