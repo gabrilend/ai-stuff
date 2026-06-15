@@ -47,3 +47,7 @@ tour; jump in by topic if you already know where you're going.
   and asleep states, the per-app work queue, and the
   always-on-input-box suppression mechanism that makes
   foreground/background a single-bit distinction.
+- `014-hardware-overview.md` — the Anbernic RG DS chip by chip,
+  the install path SoreOS commits to (SD-boot, then eMMC takeover,
+  then USB-C as daily loop), and the known unknowns the device
+  tree will fill in later.
