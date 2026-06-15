@@ -40,18 +40,28 @@ walkthrough of how the kernel comes to life:
 10. `110-usb-cdc-acm-debug.md` — turn that into a virtual serial
     port the laptop streams from. Most kernel text from here on
     flows through this channel.
-11. `111-framebuffer-driver.md` — parent / index. Split into:
+11. `110a-emmc-controller-driver.md` — bring up the SDMMC2
+    controller that owns the internal eMMC so the kernel can
+    read and write blocks on it.
+12. `110b-bootable-emmc-overwrite.md` — write the kernel image
+    (wrapped in the Android boot.img envelope u-boot expects)
+    to the eMMC boot partition so the device boots SoreOS
+    standalone with no SD card present.
+13. `110c-usb-c-flash-protocol.md` — SoreOS on eMMC accepts new
+    kernel images over USB-C and writes them back to eMMC,
+    closing the daily iteration loop without SD-swap.
+14. `111-framebuffer-driver.md` — parent / index. Split into:
     - `111a-display-controller-and-bottom-screen.md` — bring up
       the shared controller and light the bottom screen.
     - `111b-top-screen-output.md` — add the second output path
       to the already-running controller. Required to close phase
       1 — phase 1 demonstrates the hardware, and the hardware has
       two screens, so both light up before the phase ends.
-12. `112-draw-one-pixel.md` — earn the first visible signal on
+15. `112-draw-one-pixel.md` — earn the first visible signal on
     each screen.
-13. `113-phase-1-demo.md` — wrap the whole thing in a one-command
-    script that builds, flashes via chip ROM recovery, and
-    streams the debug output.
+16. `113-phase-1-demo.md` — wrap the whole thing in a one-command
+    script that builds, flashes by USB-C through the protocol
+    from 110c, and streams the debug output.
 
 ## What changed from the original phase 1 plan
 
@@ -60,30 +70,59 @@ DS has no accessible UART without opening the case and soldering,
 so we route debug over USB instead. That makes phase 1 bigger —
 USB device-mode bring-up is the single biggest piece of work —
 but eliminates the need for an SD card reader or any path where
-the stock OS touches the developer's laptop. The chip's ROM
-recovery mode handles every install; USB CDC-ACM handles the
-ongoing debug stream. USB mass storage (the "drop a file on the
-device's exposed drive to update the kernel" flow) is deferred
-to phase 7 where the rest of the USB transport work lives.
+the stock OS touches the developer's laptop. USB CDC-ACM handles
+the ongoing debug stream.
 
 The framebuffer issues moved later in the numbering (from 109 to
 111) so the story order matches the dependency order: USB-debug
 is up before the framebuffer driver tries to report whether it
 came up correctly.
 
+The install path moved out of chip ROM recovery (Maskrom) and
+into a three-step pipeline added during issue 101 research:
+
+- The earliest phase 1 issues (102 through 110) are iterated by
+  writing the kernel image to an external microSD card on the
+  developer's main machine and moving the card to the device. The
+  Rockchip boot ROM picks SD over eMMC and runs our kernel; stock
+  Android on eMMC is never invoked. No USB connection between the
+  device and any host computer is needed during this stretch.
+- Issue 110a brings up the SDMMC2 controller so the kernel can
+  read and write the eMMC.
+- Issue 110b writes a SoreOS image, wrapped in the Android
+  boot.img format Anbernic's u-boot accepts, into the eMMC's boot
+  partition. From that point on, the device boots SoreOS
+  standalone — no SD card required.
+- Issue 110c adds a flash-receive mode to SoreOS itself. The
+  laptop ships a new image over USB-C through SoreOS's own CDC
+  plumbing; SoreOS writes it to the eMMC and reboots. Both ends
+  of the USB bus are code we wrote, so the daily loop never
+  trusts closed-source Anbernic firmware on the wire.
+
+Chip ROM Maskrom remains the deepest recovery path beneath this
+pipeline (per `notes/safety/000-bricking-and-recovery.md`) but is
+not part of the daily loop. The phase 1 demo runs the USB-C
+flash loop from 110c, not Maskrom.
+
 ## Completed issues
 
-None yet.
+- 101 — hardware specification research. Findings live in
+  `docs/014-hardware-overview.md`. The research surfaced enough
+  known unknowns to spawn the new sub-issues 110a/110b/110c
+  described above, and confirmed that the SD-boot-then-eMMC-
+  takeover install pipeline is viable on this device.
 
 ## Open issues
 
-All of 101 through 113.
+102 through 110, plus the three new install-pipeline issues 110a,
+110b, 110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 
 `issues/completed/demos/phase-1/run.sh` will exist once the phase
-closes. It builds the kernel image, flashes it to the device via
-the chip ROM recovery tool, streams the USB CDC-ACM debug output,
-asks the developer to confirm a bright pixel at the center of each
-screen, and reports the wall-clock time from build start to ready
-— the iteration loop developers will live in during phase 2.
+closes. It builds the kernel image, flashes it to the device over
+USB-C using the protocol from 110c, streams the USB CDC-ACM debug
+output, asks the developer to confirm a bright pixel at the
+center of each screen, and reports the wall-clock time from build
+start to ready — the iteration loop developers will live in
+during phase 2.

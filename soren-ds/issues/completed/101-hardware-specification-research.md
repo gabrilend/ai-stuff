@@ -14,7 +14,7 @@ guesswork.
 
 ## Intended behavior
 
-A research note lives at `notes/hardware/000-overview.md` enumerating:
+A research note lives at `docs/014-hardware-overview.md` enumerating:
 
 - The exact ARM chip model, its core count, its clock speeds, and
   whether it has an MMU we can later turn on for protection mode.
@@ -56,7 +56,7 @@ later issues can plan around them.
 2. Search public datasheets for each chip identified.
 3. Search for any community reverse-engineering work on the Anbernic
    RG DS or its siblings.
-4. Write findings to `notes/hardware/000-overview.md`.
+4. Write findings to `docs/014-hardware-overview.md`.
 5. Where datasheets are missing, mark the gap explicitly.
 6. Confirm the chip ROM recovery procedure works end to end by
    triggering it on the device and observing the laptop sees the
