@@ -193,21 +193,25 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 **How Data Transforms**: A travel agent is asked to plan a road trip that visits the most varied landscapes possible. If you start at a beach, the next stop should be mountains; after mountains, perhaps desert; after desert, a dense forest. The agent consults the relationship map and, for each possible starting point, charts a journey that maximizes contrast at every step. "If you begin at Poem 42 and want to experience maximum variety, visit Poem 3,201 next, then Poem 789, then Poem 4,455..." These itineraries are written down and filed away so that travelers don't have to wait for route planning — the journeys are pre-charted for every possible starting point.
 
 ```
-┌────────────────────┐         ┌─────────────────────────────────┐
-│ diversity-chaining │         │ diversity_temp/                 │
-│       .lua         │ ──────→ │ - Pre-computed sequences        │
-│                    │         │ - For each starting poem        │
-│ Algorithm:         │         │ - Least-similar selection       │
-│ Greedy selection   │         │                                 │
-│ of least-similar   │         │                                 │
-└────────────────────┘         └─────────────────────────────────┘
+┌────────────────────────────┐    ┌─────────────────────────────────┐
+│ precompute-diversity-      │    │ diversity_cache.json            │
+│ sequences-gpu              │    │ - One file with all sequences   │
+│ (Vulkan compute shaders)   │──→ │ - For each starting poem        │
+│                            │    │ - Least-similar selection       │
+│ Algorithm:                 │    │ - Produced in ~58s (CPU path    │
+│ Greedy selection of        │    │   took ~42 hours; 2,600× win)   │
+│ least-similar via GPU      │    │                                 │
+└────────────────────────────┘    └─────────────────────────────────┘
 ```
 
 **Key files**:
-- `/src/diversity-chaining.lua` - Core algorithm
-- `/src/mass-diversity-generator.lua` - Batch processing
+- `/scripts/precompute-diversity-sequences-gpu` - GPU pipeline wrapper
+- `/libs/vulkan-compute/` - Vulkan compute infrastructure (Phase 9)
+- `/src/diversity-chaining.lua` - CPU-side algorithm (legacy, retained
+  as the reference and fallback when GPU is unavailable)
+- `/src/mass-diversity-generator.lua` - Batch coordinator
 
-**Output**: `/assets/embeddings/{model}/diversity_temp/`
+**Output**: `/assets/embeddings/{model}/diversity_cache.json`
 
 ---
 
@@ -327,10 +331,37 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 
 | Dependency | Purpose | Location |
 |------------|---------|----------|
-| Ollama | Embedding generation | `http://192.168.0.115:10265` |
-| effil | Multi-threading | `/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/` |
+| Ollama | Embedding generation (CUDA-accelerated) | `http://192.168.0.115:10265` |
+| effil | Multi-threading (HTML generation orchestrator) | `/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/` |
+| Vulkan compute | GPU acceleration (diversity sequences, similarity rankings) | `/libs/vulkan-compute/` (project-local) |
 | LuaJIT | Runtime | System |
 | curl | HTTP requests | System |
+
+## Parallelization Strategy
+
+The pipeline is parallel along two distinct axes, used for different
+kinds of work:
+
+- **effil (CPU threads, shared via lazy-loading orchestrator)** — used in
+  `src/flat-html-generator.lua:3277+` to dispatch HTML page generation
+  across 8 worker threads. Workers receive small ranking slices over
+  effil channels, format HTML, and write files. This is the right tool
+  for embarrassingly-parallel work whose unit is "render one page".
+- **Vulkan compute shaders (GPU)** — used in
+  `scripts/precompute-diversity-sequences-gpu` and
+  `scripts/generate-similarity-rankings-cache`, both of which dispatch
+  cosine-distance and greedy-selection work to the GPU via the
+  `libs/vulkan-compute/` FFI wrapper. This is the right tool for
+  matrix-heavy numeric work where the per-operation memory footprint
+  beats CPU cache and the GPU's parallelism dwarfs the available CPU
+  threads.
+- **CUDA via Ollama** — embedding generation itself runs on the GPU
+  through Ollama's CUDA build (see `scripts/start-ollama-cuda.sh`).
+
+One step of the pipeline that is still single-threaded is word page
+generation in `src/generate-word-pages.lua`. Issue 10-035 captures the
+design (effil-orchestrator pattern, modelled on the completed Issue
+10-034 HTML orchestrator) but the change has not landed yet.
 
 ---
 
