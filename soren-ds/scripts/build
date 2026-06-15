@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# build — produce output/kernel.img by walking src/ through the cross-toolchain
+#
+# General description: thin wrapper around the project Makefile at the
+# project root. Sets the DIR variable so the Makefile finds the
+# cross-toolchain under libs/cross/ and the source tree under src/
+# regardless of which directory the developer invoked this from.
+# Pass `clean` (or any other make target) as a second argument; the
+# default is the all target, which builds output/kernel.img.
+
+set -euo pipefail
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
+TARGET="${2:-all}"
+
+make -C "$DIR" DIR="$DIR" "$TARGET"
