@@ -15,7 +15,7 @@ exercises all of it.
 
 | Status | ID  | Title                                |
 | ------ | --- | ------------------------------------ |
-| DONE   | 101 | Build system & raylib bootstrap      |
+| OPEN   | 101 | Build system & raylib bootstrap (re-opened: incremental compile + strict input/) |
 | TODO   | 102 | Threading model (pthreads)           |
 | DONE   | 103 | Window & 3D camera                   |
 | DONE   | 104 | Heightmap terrain                    |
