@@ -1,1 +1,8 @@
 tmp
+
+# Built cross-toolchain — rebuilt by scripts/build-deps.
+libs/cross/
+
+# Cached upstream source tarballs — re-downloaded by scripts/build-deps
+# from the URLs and SHA-512 values pinned at the top of that script.
+libs/sources/

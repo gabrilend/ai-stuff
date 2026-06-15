@@ -1,0 +1,366 @@
+#!/usr/bin/env bash
+# build-deps — build the aarch64-elf cross-toolchain from source
+#
+# General description: download GNU binutils and GCC from their
+# official mirrors, verify each tarball against a SHA-512 checksum
+# pinned in this script, extract into the project's RAM-backed work
+# directory, build both with --target=aarch64-elf and a project-owned
+# prefix, and install the resulting cross-compiler and linker into
+# libs/cross/ under the project root. The five-gigabyte intermediate
+# build tree lives in RAM and never touches the SSD; only the small
+# installed compiler persists in libs/cross/.
+#
+# Idempotent: if libs/cross/bin/aarch64-elf-gcc already exists the
+# script exits quickly. Partial completion (binutils done, GCC not)
+# also short-circuits the already-finished stages on rerun.
+#
+# Network is needed once for the first download. Source tarballs are
+# cached under libs/sources/, so a second run from a fresh tmp/ does
+# not touch the network.
+#
+# No sudo at any step. Everything happens under paths the developer's
+# user owns.
+
+set -euo pipefail
+
+# {{{ configuration — paths are all relative to DIR
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
+
+# Pinned versions and their SHA-512 checksums. Update these when we
+# want a newer toolchain — old stable is fine and reproducible. The
+# checksums come from the official release infrastructure:
+#   - sourceware.org/pub/binutils/releases/sha512.sum
+#   - gcc.gnu.org/pub/gcc/releases/gcc-<version>/sha512.sum
+BINUTILS_VERSION="2.44"
+BINUTILS_URL="https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz"
+BINUTILS_SHA512="b85d3bbc0e334cf67a96219d3c7c65fbf3e832b2c98a7417bf131f3645a0307057ec81cd2b29ff2563cec53e3d42f73e2c60cc5708e80d4a730efdcc6ae14ad7"
+
+GCC_VERSION="16.1.0"
+GCC_URL="https://gcc.gnu.org/pub/gcc/releases/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"
+GCC_SHA512="b3454958891ab47e1e5b6cb9396c0ad3b04f32fe2a7bf1153a143f21013fdb6b295ca94c98964698a688e4c1d7555ffd8ffbc20187507cce6b1c32cbcc09897a"
+
+# Number of parallel make jobs. Hard-coded rather than nproc to keep
+# the system cool when ambient temperature is high — the user picks
+# the rate. Bump if you want a faster build and don't mind the fan.
+JOBS=6
+
+# Target triple for bare-metal ARMv8-A — no implicit libc, no
+# sysroot assumed. The chip is a Cortex-A55 inside the RK3568.
+TARGET="aarch64-elf"
+
+# Paths.
+SOURCES_DIR="${DIR}/libs/sources"
+CROSS_PREFIX="${DIR}/libs/cross"
+BUILD_DIR="${DIR}/tmp/build"
+LOG_FILE="${DIR}/tmp/build-deps.log"
+GOODBYE_FILE="${DIR}/output/goodbye.log"
+
+# Specific output binaries we check for to short-circuit on rerun.
+BINUTILS_INSTALLED_MARKER="${CROSS_PREFIX}/bin/${TARGET}-ld"
+GCC_INSTALLED_MARKER="${CROSS_PREFIX}/bin/${TARGET}-gcc"
+# }}}
+
+# {{{ colors — only emit ANSI when stderr is a real terminal
+if [[ -t 2 ]]; then
+    COLOR_GREEN=$'\033[32m'
+    COLOR_RED=$'\033[31m'
+    COLOR_RESET=$'\033[0m'
+else
+    COLOR_GREEN=''
+    COLOR_RED=''
+    COLOR_RESET=''
+fi
+# }}}
+
+# {{{ audit_log() — append a structured line to the log file only
+audit_log() {
+    local message="$1"
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '%s [build-deps] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ say() — print to stderr without a prefix and mirror to the log
+say() {
+    local message="$1"
+    printf '%s\n' "$message" >&2
+    audit_log "$message"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
+die() {
+    local message="$1"
+    printf '%s\n' "$message" >&2
+    audit_log "ERROR: $message"
+    exit 1
+}
+# }}}
+
+# {{{ progress_start() — open a progress line with a step label, no newline
+progress_start() {
+    local label="$1"
+    printf '%s...' "$label" >&2
+    audit_log "STEP start: $label"
+}
+# }}}
+
+# {{{ progress_continue() — extend an open progress line with another step label
+progress_continue() {
+    local label="$1"
+    printf ' %s...' "$label" >&2
+    audit_log "STEP continue: $label"
+}
+# }}}
+
+# {{{ progress_done() — close an open progress line with a green "done" newline
+progress_done() {
+    printf ' %sdone%s\n' "$COLOR_GREEN" "$COLOR_RESET" >&2
+    audit_log "STEP done"
+}
+# }}}
+
+# {{{ progress_error() — close an open progress line with a red "error" and the tail of the log
+progress_error() {
+    local context="$1"
+    printf ' %serror%s\n' "$COLOR_RED" "$COLOR_RESET" >&2
+    printf '%s\n' "$context" >&2
+    printf 'Last 20 lines of %s:\n' "$LOG_FILE" >&2
+    tail -n 20 "$LOG_FILE" >&2
+    audit_log "STEP error: $context"
+}
+# }}}
+
+# {{{ ensure_workspace() — make every directory we will write into
+ensure_workspace() {
+    if [[ ! -L "${DIR}/tmp" ]] && [[ ! -d "${DIR}/tmp" ]]; then
+        die "${DIR}/tmp does not exist. Project convention requires tmp/ as a RAM-backed directory."
+    fi
+    mkdir -p "$SOURCES_DIR" "$CROSS_PREFIX" "$BUILD_DIR" "${DIR}/output"
+}
+# }}}
+
+# {{{ check_host_tools() — make sure the host has what we need to build
+check_host_tools() {
+    local tool
+    local missing=()
+    for tool in curl tar xz make sha512sum; do
+        if ! command -v "$tool" > /dev/null; then
+            missing+=("$tool")
+        fi
+    done
+    # We accept either clang or gcc as the host C compiler.
+    if ! command -v clang > /dev/null && ! command -v gcc > /dev/null; then
+        missing+=("clang or gcc")
+    fi
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        die "missing host tools: ${missing[*]}"
+    fi
+}
+# }}}
+
+# {{{ download_source() — fetch one tarball into libs/sources/ and verify against pinned SHA-512
+download_source() {
+    local url="$1"
+    local expected_sha512="$2"
+    local filename
+    filename="$(basename "$url")"
+    local dest="${SOURCES_DIR}/${filename}"
+    if [[ -f "$dest" ]]; then
+        audit_log "Already have ${filename}, verifying checksum."
+    else
+        audit_log "Downloading ${url} to ${dest}."
+        if ! curl --fail --location --silent --show-error --output "$dest" "$url" >> "$LOG_FILE" 2>&1; then
+            return 1
+        fi
+    fi
+    local actual_sha512
+    actual_sha512="$(sha512sum "$dest" | awk '{print $1}')"
+    if [[ "$actual_sha512" != "$expected_sha512" ]]; then
+        audit_log "SHA-512 mismatch for ${filename}."
+        audit_log "Expected: ${expected_sha512}"
+        audit_log "Got:      ${actual_sha512}"
+        rm -f "$dest"
+        return 1
+    fi
+    audit_log "Checksum verified for ${filename}."
+    return 0
+}
+# }}}
+
+# {{{ extract_source() — extract a cached tarball into BUILD_DIR if not already extracted
+extract_source() {
+    local tarball="$1"
+    local extracted_dir="$2"
+    if [[ -d "$extracted_dir" ]]; then
+        audit_log "Already extracted to ${extracted_dir}."
+        return 0
+    fi
+    audit_log "Extracting ${tarball} to $(dirname "$extracted_dir")"
+    tar -C "$BUILD_DIR" -xf "$tarball" >> "$LOG_FILE" 2>&1
+}
+# }}}
+
+# {{{ build_binutils() — fetch, extract, configure, compile, install binutils
+build_binutils() {
+    if [[ -x "$BINUTILS_INSTALLED_MARKER" ]]; then
+        say "binutils ${BINUTILS_VERSION}: already installed (skipping)"
+        return 0
+    fi
+    local tarball="${SOURCES_DIR}/binutils-${BINUTILS_VERSION}.tar.xz"
+    local source_dir="${BUILD_DIR}/binutils-${BINUTILS_VERSION}"
+    local build_dir="${source_dir}/build"
+
+    progress_start "binutils ${BINUTILS_VERSION}: fetching"
+    if ! download_source "$BINUTILS_URL" "$BINUTILS_SHA512"; then
+        progress_error "download or checksum failed for binutils"
+        exit 1
+    fi
+
+    progress_continue "extracting"
+    if ! extract_source "$tarball" "$source_dir"; then
+        progress_error "extraction failed for binutils"
+        exit 1
+    fi
+
+    progress_continue "configuring"
+    mkdir -p "$build_dir"
+    if ! ( cd "$build_dir" && "../configure" \
+            --target="$TARGET" \
+            --prefix="$CROSS_PREFIX" \
+            --disable-nls \
+            --disable-werror \
+            --disable-multilib \
+            >> "$LOG_FILE" 2>&1 ); then
+        progress_error "configure failed for binutils"
+        exit 1
+    fi
+
+    progress_continue "compiling"
+    if ! ( cd "$build_dir" && make -j"$JOBS" >> "$LOG_FILE" 2>&1 ); then
+        progress_error "make failed for binutils"
+        exit 1
+    fi
+
+    progress_continue "installing"
+    if ! ( cd "$build_dir" && make install >> "$LOG_FILE" 2>&1 ); then
+        progress_error "make install failed for binutils"
+        exit 1
+    fi
+
+    progress_done
+}
+# }}}
+
+# {{{ build_gcc() — fetch, extract, pull prerequisites, configure, compile, install GCC
+build_gcc() {
+    if [[ -x "$GCC_INSTALLED_MARKER" ]]; then
+        say "GCC ${GCC_VERSION}: already installed (skipping)"
+        return 0
+    fi
+    local tarball="${SOURCES_DIR}/gcc-${GCC_VERSION}.tar.xz"
+    local source_dir="${BUILD_DIR}/gcc-${GCC_VERSION}"
+    local build_dir="${source_dir}/build"
+
+    # Binutils is needed during the GCC build for its assembler and
+    # linker; put libs/cross/bin first on PATH so GCC's configure
+    # finds aarch64-elf-as and aarch64-elf-ld.
+    export PATH="${CROSS_PREFIX}/bin:${PATH}"
+
+    progress_start "GCC ${GCC_VERSION}: fetching"
+    if ! download_source "$GCC_URL" "$GCC_SHA512"; then
+        progress_error "download or checksum failed for GCC"
+        exit 1
+    fi
+
+    progress_continue "extracting"
+    if ! extract_source "$tarball" "$source_dir"; then
+        progress_error "extraction failed for GCC"
+        exit 1
+    fi
+
+    progress_continue "downloading prerequisites"
+    if [[ ! -d "${source_dir}/gmp" ]]; then
+        if ! ( cd "$source_dir" && ./contrib/download_prerequisites >> "$LOG_FILE" 2>&1 ); then
+            progress_error "download_prerequisites failed for GCC"
+            exit 1
+        fi
+    fi
+
+    progress_continue "configuring"
+    mkdir -p "$build_dir"
+    if ! ( cd "$build_dir" && "../configure" \
+            --target="$TARGET" \
+            --prefix="$CROSS_PREFIX" \
+            --enable-languages=c \
+            --without-headers \
+            --with-newlib \
+            --disable-shared \
+            --disable-multilib \
+            --disable-nls \
+            --disable-libssp \
+            --disable-libquadmath \
+            >> "$LOG_FILE" 2>&1 ); then
+        progress_error "configure failed for GCC"
+        exit 1
+    fi
+
+    progress_continue "compiling compiler"
+    if ! ( cd "$build_dir" && make -j"$JOBS" all-gcc >> "$LOG_FILE" 2>&1 ); then
+        progress_error "make all-gcc failed for GCC"
+        exit 1
+    fi
+
+    progress_continue "installing compiler"
+    if ! ( cd "$build_dir" && make install-gcc >> "$LOG_FILE" 2>&1 ); then
+        progress_error "make install-gcc failed for GCC"
+        exit 1
+    fi
+
+    progress_continue "compiling libgcc"
+    if ! ( cd "$build_dir" && make -j"$JOBS" all-target-libgcc >> "$LOG_FILE" 2>&1 ); then
+        progress_error "make all-target-libgcc failed for GCC"
+        exit 1
+    fi
+
+    progress_continue "installing libgcc"
+    if ! ( cd "$build_dir" && make install-target-libgcc >> "$LOG_FILE" 2>&1 ); then
+        progress_error "make install-target-libgcc failed for GCC"
+        exit 1
+    fi
+
+    progress_done
+}
+# }}}
+
+# {{{ write_goodbye() — append the conventional last-thing-a-program-does line
+write_goodbye() {
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '%s build-deps: goodbye\n' "$stamp" >> "$GOODBYE_FILE"
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    ensure_workspace
+    check_host_tools
+    say "target: ${TARGET}"
+    say "prefix: ${CROSS_PREFIX}"
+    say "build dir (ephemeral, RAM): ${BUILD_DIR}"
+    say "sources cache: ${SOURCES_DIR}"
+    say "parallel jobs: ${JOBS}"
+    if [[ -x "$GCC_INSTALLED_MARKER" ]]; then
+        say "GCC ${GCC_VERSION} already installed at ${GCC_INSTALLED_MARKER}; nothing to do."
+        write_goodbye
+        return 0
+    fi
+    build_binutils
+    build_gcc
+    write_goodbye
+    printf '\nCross-toolchain installed. Run scripts/check-toolchain to confirm.\n' >&2
+}
+# }}}
+
+main
