@@ -132,55 +132,187 @@ static const struct usb_device_descriptor device_descriptor = {
     .bNumConfigurations = 1,
 };
 
-/* USB configuration descriptor + interface descriptor, concatenated.
- * The host asks for the whole configuration tree in one transfer;
- * we return the full block. Section 9.6.3 / 9.6.5 of the spec.
+/* USB configuration descriptor for a CDC-ACM (virtual serial port)
+ * device. The host requests the whole configuration tree in one
+ * transfer; we return the full block. The CDC-ACM class layout is
+ * specified in the USB CDC 1.1 spec and is what makes the device
+ * appear on the host as `/dev/ttyACM0` (or a COM port on Windows).
  *
- * Phase 1's interface is vendor-defined (class FF) with zero
- * endpoints besides EP0. Issue 110 adds the CDC-ACM interface
- * with its bulk endpoints. */
+ * The tree:
+ *
+ *   Configuration descriptor                                      (9 bytes)
+ *   Interface 0 — CDC Control                                     (9 bytes)
+ *     CDC Header functional descriptor                            (5 bytes)
+ *     CDC Call Management functional descriptor                   (5 bytes)
+ *     CDC ACM functional descriptor                               (4 bytes)
+ *     CDC Union functional descriptor                             (5 bytes)
+ *     Endpoint 1 IN (interrupt — notifications)                   (7 bytes)
+ *   Interface 1 — CDC Data                                        (9 bytes)
+ *     Endpoint 2 OUT (bulk)                                       (7 bytes)
+ *     Endpoint 2 IN (bulk — debug stream)                         (7 bytes)
+ *
+ * Total: 67 bytes. Larger than the 64-byte EP0 max-packet, so the
+ * configuration response goes out in two packets — the DWC3
+ * controller chunks the TRB's bytes automatically. */
 struct __attribute__((packed)) usb_full_config {
     /* Configuration descriptor — 9 bytes. */
     uint8_t  cfg_bLength;
     uint8_t  cfg_bDescriptorType;     /* USB_DT_CONFIGURATION */
-    uint16_t cfg_wTotalLength;        /* total bytes of this struct */
-    uint8_t  cfg_bNumInterfaces;      /* 1 */
+    uint16_t cfg_wTotalLength;
+    uint8_t  cfg_bNumInterfaces;      /* 2 (control + data) */
     uint8_t  cfg_bConfigurationValue; /* 1 */
-    uint8_t  cfg_iConfiguration;      /* 0 (no string) */
+    uint8_t  cfg_iConfiguration;
     uint8_t  cfg_bmAttributes;        /* 0x80 = bus-powered */
     uint8_t  cfg_bMaxPower;           /* in 2 mA units */
 
-    /* Interface descriptor — 9 bytes. */
-    uint8_t  if_bLength;
-    uint8_t  if_bDescriptorType;      /* USB_DT_INTERFACE */
-    uint8_t  if_bInterfaceNumber;     /* 0 */
-    uint8_t  if_bAlternateSetting;    /* 0 */
-    uint8_t  if_bNumEndpoints;        /* 0 (we only use EP0) */
-    uint8_t  if_bInterfaceClass;      /* 0xFF = vendor-defined */
-    uint8_t  if_bInterfaceSubClass;   /* 0 */
-    uint8_t  if_bInterfaceProtocol;   /* 0 */
-    uint8_t  if_iInterface;           /* 0 (no string) */
+    /* Interface 0 — CDC Control. */
+    uint8_t  ctrl_bLength;
+    uint8_t  ctrl_bDescriptorType;    /* USB_DT_INTERFACE */
+    uint8_t  ctrl_bInterfaceNumber;   /* 0 */
+    uint8_t  ctrl_bAlternateSetting;
+    uint8_t  ctrl_bNumEndpoints;      /* 1 (notification IN) */
+    uint8_t  ctrl_bInterfaceClass;    /* 0x02 = CDC Control */
+    uint8_t  ctrl_bInterfaceSubClass; /* 0x02 = ACM */
+    uint8_t  ctrl_bInterfaceProtocol; /* 0 */
+    uint8_t  ctrl_iInterface;
+
+    /* CDC Header functional descriptor. */
+    uint8_t  hdr_bFunctionLength;     /* 5 */
+    uint8_t  hdr_bDescriptorType;     /* 0x24 = CDC interface */
+    uint8_t  hdr_bDescriptorSubtype;  /* 0x00 = Header */
+    uint16_t hdr_bcdCDC;              /* 0x0110 = CDC 1.10 */
+
+    /* CDC Call Management functional descriptor. */
+    uint8_t  cm_bFunctionLength;      /* 5 */
+    uint8_t  cm_bDescriptorType;      /* 0x24 */
+    uint8_t  cm_bDescriptorSubtype;   /* 0x01 = Call Management */
+    uint8_t  cm_bmCapabilities;       /* 0x00 = no call management */
+    uint8_t  cm_bDataInterface;       /* 1 = Data interface number */
+
+    /* CDC ACM functional descriptor. */
+    uint8_t  acm_bFunctionLength;     /* 4 */
+    uint8_t  acm_bDescriptorType;     /* 0x24 */
+    uint8_t  acm_bDescriptorSubtype;  /* 0x02 = ACM */
+    uint8_t  acm_bmCapabilities;      /* 0x02 = supports line coding & state */
+
+    /* CDC Union functional descriptor. */
+    uint8_t  un_bFunctionLength;      /* 5 */
+    uint8_t  un_bDescriptorType;      /* 0x24 */
+    uint8_t  un_bDescriptorSubtype;   /* 0x06 = Union */
+    uint8_t  un_bControlInterface;    /* 0 */
+    uint8_t  un_bSubordinateInterface;/* 1 */
+
+    /* Notification endpoint (EP1 IN, interrupt). */
+    uint8_t  notif_bLength;           /* 7 */
+    uint8_t  notif_bDescriptorType;   /* USB_DT_ENDPOINT = 0x05 */
+    uint8_t  notif_bEndpointAddress;  /* 0x81 (EP1, IN) */
+    uint8_t  notif_bmAttributes;      /* 0x03 = interrupt */
+    uint16_t notif_wMaxPacketSize;    /* 16 */
+    uint8_t  notif_bInterval;         /* polling interval */
+
+    /* Interface 1 — CDC Data. */
+    uint8_t  data_bLength;
+    uint8_t  data_bDescriptorType;
+    uint8_t  data_bInterfaceNumber;   /* 1 */
+    uint8_t  data_bAlternateSetting;
+    uint8_t  data_bNumEndpoints;      /* 2 (bulk IN + bulk OUT) */
+    uint8_t  data_bInterfaceClass;    /* 0x0A = CDC Data */
+    uint8_t  data_bInterfaceSubClass;
+    uint8_t  data_bInterfaceProtocol;
+    uint8_t  data_iInterface;
+
+    /* Bulk OUT (EP2 OUT). */
+    uint8_t  bo_bLength;
+    uint8_t  bo_bDescriptorType;
+    uint8_t  bo_bEndpointAddress;     /* 0x02 (EP2, OUT) */
+    uint8_t  bo_bmAttributes;         /* 0x02 = bulk */
+    uint16_t bo_wMaxPacketSize;       /* 64 — USB 2.0 HS bulk */
+    uint8_t  bo_bInterval;
+
+    /* Bulk IN (EP2 IN) — the debug stream. */
+    uint8_t  bi_bLength;
+    uint8_t  bi_bDescriptorType;
+    uint8_t  bi_bEndpointAddress;     /* 0x82 (EP2, IN) */
+    uint8_t  bi_bmAttributes;         /* 0x02 = bulk */
+    uint16_t bi_wMaxPacketSize;       /* 64 */
+    uint8_t  bi_bInterval;
 };
+
+#define USB_DT_ENDPOINT 0x05
+#define USB_DT_CS_INTERFACE 0x24
 
 static const struct usb_full_config full_config = {
     .cfg_bLength             = 9,
     .cfg_bDescriptorType     = USB_DT_CONFIGURATION,
     .cfg_wTotalLength        = sizeof(struct usb_full_config),
-    .cfg_bNumInterfaces      = 1,
+    .cfg_bNumInterfaces      = 2,
     .cfg_bConfigurationValue = 1,
     .cfg_iConfiguration      = 0,
     .cfg_bmAttributes        = 0x80,
-    .cfg_bMaxPower           = 100,  /* 200 mA */
+    .cfg_bMaxPower           = 100,
 
-    .if_bLength            = 9,
-    .if_bDescriptorType    = USB_DT_INTERFACE,
-    .if_bInterfaceNumber   = 0,
-    .if_bAlternateSetting  = 0,
-    .if_bNumEndpoints      = 0,
-    .if_bInterfaceClass    = 0xFF,
-    .if_bInterfaceSubClass = 0,
-    .if_bInterfaceProtocol = 0,
-    .if_iInterface         = 0,
+    .ctrl_bLength            = 9,
+    .ctrl_bDescriptorType    = USB_DT_INTERFACE,
+    .ctrl_bInterfaceNumber   = 0,
+    .ctrl_bAlternateSetting  = 0,
+    .ctrl_bNumEndpoints      = 1,
+    .ctrl_bInterfaceClass    = 0x02,
+    .ctrl_bInterfaceSubClass = 0x02,
+    .ctrl_bInterfaceProtocol = 0,
+    .ctrl_iInterface         = 0,
+
+    .hdr_bFunctionLength     = 5,
+    .hdr_bDescriptorType     = USB_DT_CS_INTERFACE,
+    .hdr_bDescriptorSubtype  = 0x00,
+    .hdr_bcdCDC              = 0x0110,
+
+    .cm_bFunctionLength      = 5,
+    .cm_bDescriptorType      = USB_DT_CS_INTERFACE,
+    .cm_bDescriptorSubtype   = 0x01,
+    .cm_bmCapabilities       = 0x00,
+    .cm_bDataInterface       = 1,
+
+    .acm_bFunctionLength     = 4,
+    .acm_bDescriptorType     = USB_DT_CS_INTERFACE,
+    .acm_bDescriptorSubtype  = 0x02,
+    .acm_bmCapabilities      = 0x02,
+
+    .un_bFunctionLength      = 5,
+    .un_bDescriptorType      = USB_DT_CS_INTERFACE,
+    .un_bDescriptorSubtype   = 0x06,
+    .un_bControlInterface    = 0,
+    .un_bSubordinateInterface = 1,
+
+    .notif_bLength           = 7,
+    .notif_bDescriptorType   = USB_DT_ENDPOINT,
+    .notif_bEndpointAddress  = 0x81,
+    .notif_bmAttributes      = 0x03,
+    .notif_wMaxPacketSize    = 16,
+    .notif_bInterval         = 255,
+
+    .data_bLength            = 9,
+    .data_bDescriptorType    = USB_DT_INTERFACE,
+    .data_bInterfaceNumber   = 1,
+    .data_bAlternateSetting  = 0,
+    .data_bNumEndpoints      = 2,
+    .data_bInterfaceClass    = 0x0A,
+    .data_bInterfaceSubClass = 0,
+    .data_bInterfaceProtocol = 0,
+    .data_iInterface         = 0,
+
+    .bo_bLength              = 7,
+    .bo_bDescriptorType      = USB_DT_ENDPOINT,
+    .bo_bEndpointAddress     = 0x02,
+    .bo_bmAttributes         = 0x02,
+    .bo_wMaxPacketSize       = 64,
+    .bo_bInterval            = 0,
+
+    .bi_bLength              = 7,
+    .bi_bDescriptorType      = USB_DT_ENDPOINT,
+    .bi_bEndpointAddress     = 0x82,
+    .bi_bmAttributes         = 0x02,
+    .bi_wMaxPacketSize       = 64,
+    .bi_bInterval            = 0,
 };
 
 /* String descriptors. USB strings are UTF-16 little-endian, with a
@@ -392,9 +524,11 @@ static inline uint32_t mmio_read32(uintptr_t address)
     return *(volatile uint32_t *)address;
 }
 
-/* Issue a DEPCMD and spin until the hardware clears CMDACT. */
-static void depcmd_issue(unsigned ep, uint32_t cmd_with_params,
-                         uint32_t par0, uint32_t par1, uint32_t par2)
+/* Issue a DEPCMD and spin until the hardware clears CMDACT.
+ * Non-static so the CDC-ACM bring-up in 011-cdc-acm.c can reuse it
+ * for the bulk endpoints. */
+void depcmd_issue(unsigned ep, uint32_t cmd_with_params,
+                  uint32_t par0, uint32_t par1, uint32_t par2)
 {
     mmio_write32(DWC3_DEPCMDPAR2(ep), par2);
     mmio_write32(DWC3_DEPCMDPAR1(ep), par1);
@@ -417,15 +551,18 @@ static struct dwc3_trb *trb_ep0_out;
 static struct dwc3_trb *trb_ep0_in;
 static uint8_t         *setup_buffer;
 
-static uint64_t event_buffer_address;
+/* Non-static so 011-cdc-acm.c can walk the same event ring while
+ * waiting for a bulk-IN transfer to complete. */
+uint64_t event_buffer_address;
 #define EVENT_BUFFER_SIZE 4096u
 
 /* Helpers to fill a TRB for each of the transfer types we use. The
  * TRBs always have IOC set so the controller writes an event to
  * notify us when they complete; HWO is the last bit set so the
- * controller does not pick the TRB up mid-update. */
-static void fill_trb(struct dwc3_trb *trb, uint64_t buffer_addr,
-                     uint32_t size_bytes, unsigned trb_type)
+ * controller does not pick the TRB up mid-update. Non-static so
+ * 011-cdc-acm.c can reuse it for bulk transfers. */
+void fill_trb(struct dwc3_trb *trb, uint64_t buffer_addr,
+              uint32_t size_bytes, unsigned trb_type)
 {
     trb->buffer_ptr_lo = (uint32_t)(buffer_addr & 0xFFFFFFFFu);
     trb->buffer_ptr_hi = (uint32_t)(buffer_addr >> 32);
@@ -607,17 +744,82 @@ static void handle_set_address(const struct usb_setup_packet *s)
     queued_response_length = 0;
 }
 
+/* Track whether the host has selected our configuration. The
+ * CDC-ACM bulk endpoints come up only after this flag flips on. */
+static int set_configuration_received;
+
 static void handle_set_configuration(const struct usb_setup_packet *s)
 {
     /* We have only one configuration; any nonzero value selects it.
-     * No state change is needed beyond acknowledging the request. */
+     * The CDC-ACM bulk endpoints are not configured until the
+     * status stage of this transfer completes — see the call to
+     * cdc_acm_init from on_status_complete. */
     (void)s;
     queued_response_data = (const uint8_t *)0;
     queued_response_length = 0;
+    set_configuration_received = 1;
+}
+
+/* CDC-ACM class-specific control requests.
+ *
+ * The host issues a few CDC requests after enumeration to set up
+ * the virtual serial port's parameters. For phase 1 we accept the
+ * settings without doing anything with them — the debug stream is
+ * one-way text and the line-coding fields are irrelevant — but the
+ * host expects us to ACK each request, so we have to handle the
+ * dispatch. */
+#define CDC_REQ_SET_LINE_CODING        0x20
+#define CDC_REQ_GET_LINE_CODING        0x21
+#define CDC_REQ_SET_CONTROL_LINE_STATE 0x22
+
+/* The CDC line coding structure: baud rate, stop bits, parity,
+ * data bits. We return a plausible default when the host asks. */
+static const uint8_t cdc_line_coding_default[7] = {
+    0x80, 0x25, 0x00, 0x00,  /* 9600 baud (0x2580) */
+    0,                        /* 1 stop bit */
+    0,                        /* no parity */
+    8,                        /* 8 data bits */
+};
+
+static int handle_class_request(const struct usb_setup_packet *s)
+{
+    switch (s->bRequest) {
+        case CDC_REQ_SET_LINE_CODING:
+            /* The host follows this with a 7-byte OUT data stage
+             * we don't actually consume. We acknowledge by leaving
+             * the response queue empty for the 2-stage path. The
+             * dispatcher's caller treats no-data as the host-
+             * to-device 2-stage path; the OUT data stage is
+             * absorbed by the controller and discarded. */
+            queued_response_data = (const uint8_t *)0;
+            queued_response_length = 0;
+            return 1;
+        case CDC_REQ_GET_LINE_CODING:
+            respond_with(cdc_line_coding_default,
+                         sizeof(cdc_line_coding_default),
+                         s->wLength);
+            return 1;
+        case CDC_REQ_SET_CONTROL_LINE_STATE:
+            /* No data stage; ACK only. */
+            queued_response_data = (const uint8_t *)0;
+            queued_response_length = 0;
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 void usb_handle_setup_packet(const struct usb_setup_packet *s)
 {
+    /* Class-specific requests are recognized by bits 6:5 of
+     * bmRequestType being 01. The CDC-ACM class handler returns
+     * non-zero if it processed the request. */
+    if (((s->bmRequestType >> 5) & 0x3) == 0x1) {
+        if (handle_class_request(s)) {
+            return;
+        }
+    }
+
     switch (s->bRequest) {
         case USB_REQ_GET_DESCRIPTOR:
             handle_get_descriptor(s);
@@ -747,12 +949,24 @@ static void on_in_data_complete(void)
     current_stage = STAGE_AWAITING_OUT_STATUS;
 }
 
+/* Forward declaration — issue 110 brings up the CDC-ACM bulk
+ * endpoints in 011-cdc-acm.c after the host has selected our
+ * configuration. */
+extern void cdc_acm_init(void);
+
 /* Handle any status-stage completion. The transfer is over; apply
  * any pending SET_ADDRESS, then re-arm EP0 OUT for the next setup
- * packet. */
+ * packet. If the just-completed transfer was the SET_CONFIGURATION
+ * status stage, this is the moment to bring up the CDC-ACM bulk
+ * endpoints — the host expects them live before it tries to open
+ * the virtual serial port. */
 static void on_status_complete(void)
 {
     apply_pending_set_address();
+    if (set_configuration_received) {
+        cdc_acm_init();
+        set_configuration_received = 0;
+    }
     arm_setup_receive();
     current_stage = STAGE_AWAITING_SETUP;
 }
