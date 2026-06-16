@@ -42,26 +42,40 @@ above this slice.
 | Range                             | Owner                                     |
 | --------------------------------- | ----------------------------------------- |
 | `0x0000_0000` – `0x0020_0000`     | Secure firmware (BL31 / ATF). Untouchable. |
-| `0x0020_0000` – `0x0028_0000`     | Anbernic's u-boot, including its heap.    |
-| `0x0028_0000` – `__stack_top`     | SoreOS kernel image, including its stack. |
+| `0x0020_0000` – `0x0200_0000`     | Bootloader working set. The bootloader on the active path lives somewhere here along with its heap, its decompression scratch, and any framebuffer it set up. Treated as opaque pre-kernel territory. |
+| `0x0200_0000` – `__stack_top`     | SoreOS kernel image, including its stack. |
 | `__stack_top` – `0xC000_0000`     | Free DRAM. This is what the page allocator hands out. |
 
 `__stack_top` is the linker symbol defined in `src/kernel.ld`;
-right now it sits a few KB above `0x0028_0000` because the
+right now it sits a few KB above `0x0200_0000` because the
 kernel itself is small. As the kernel grows it pushes
 `__stack_top` upward; the allocator's pool starts wherever
 `__stack_top` lands at the end of a particular build.
 
 ### Caveats and open questions
 
-The pre-kernel boundary of `0x0028_0000` is the standard
-Rockchip Android boot.img kernel load address; we trust it
-because it is the address `kernel.ld` already pins. The slices
-below it are conventional values for Rockchip Android boot
-chains and are not yet device-verified. If a future boot of
-real hardware shows allocator corruption near the bottom of the
-pool, the actual u-boot reserved region may extend higher than
-`0x0028_0000`; the answer would be to bump that boundary up
+The kernel's load address of `0x0200_0000` is the address
+ROCKNIX's u-boot uses on the SD-card development boot path
+(its compiled-in `kernel_addr_r` environment value). The same
+address is baked into the Android boot.img header the
+boot-partition writer in `src/013-boot-image.c` emits, so once
+the eMMC takeover lands Anbernic's u-boot loads our kernel to
+the same place. The linker pins the kernel at that address;
+both boot paths produce the same in-memory layout, and the
+literal-pool addresses the linker resolved match the physical
+addresses the running kernel actually inhabits.
+
+The pre-kernel boundary moved from `0x0028_0000` to
+`0x0200_0000` in issue 103d. The earlier value was a guess
+inherited from Anbernic's Android conventions; ROCKNIX's
+mainline-derived u-boot uses the higher value, and the first
+SD-boot hardware test surfaced the mismatch as a kernel that
+loaded and was jumped to but read its own data from the wrong
+memory. The new boundary is verified against the u-boot
+binary's compiled-in defaults rather than guessed. If a future
+boot shows allocator corruption near the bottom of the pool,
+the actual u-boot reserved region may extend higher than
+`0x0200_0000`; the answer would be to bump that boundary up
 and rebuild.
 
 The 3 GB DRAM size is from Anbernic's spec sheet. The RK3568
