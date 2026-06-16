@@ -358,6 +358,40 @@ flash loop from 110c, not Maskrom.
   kernel at the same address once the eMMC takeover runs;
   the physical-memory-map doc names the new boundary and
   explains where the original value came from.
+- 103e — direct-GPIO LED probe. A temporary diagnostic at
+  the top of `_start` drove the three LED pins through the
+  chip's GPIO controller, bypassing PWM, to confirm the
+  kernel reaches its entry point and to map each pin to a
+  physical light. The first iteration (a wink pattern of
+  all-on / all-off / all-on) confirmed the kernel reaches
+  `_start`. The second iteration (a five-phase cycle that
+  drove each pin alone, then all together, then all off)
+  revealed the device has two physical lights rather than
+  three — a bicolor top window with separate green and red
+  emitters, and a single-color amber bottom window — and
+  that the device tree's green / amber / red pin labels
+  match what each pin drives. The probe came back out
+  as part of the LED-layer pivot in issue 106b.
+- 106b — LED layer drives the indicator lights through GPIO
+  for phase 1. The PWM-driven LED layer from issues 106 and
+  106a is replaced with a GPIO-driven implementation that
+  writes to the PMU general register file's pin-multiplexer
+  high-half register, the GPIO0 controller's data-direction
+  high-half register, and the GPIO0 controller's data
+  high-half register. The API the rest of the kernel uses
+  (`led_init`, `led_set`, `led_hello`, `led_set_stage`,
+  `led_current_stage`, `led_heartbeat`) keeps its existing
+  signatures; only the underlying mechanism changes. The
+  breathing-amber heartbeat from 106a is replaced with a
+  discrete amber-toggle blink, and the hello-flash duration
+  constant is recalibrated from 300 million cycles to 7
+  million to match the crystal-frequency-region clock
+  speed the chip is running at during early boot. The
+  diagnostic-codes document is rewritten around the
+  two-window (top bicolor + bottom amber) vocabulary the
+  103e probe surfaced. The PWM driver code in
+  `src/003-pwm.c` stays in source, unused, until issue 106c
+  brings it back.
 
 ## Open issues
 
@@ -369,24 +403,19 @@ first hardware run produces a dump that lets us identify the
 boot partition's real LBA), the four display sub-issues
 (111a, 111b, 111c, 111d), 112, and 113.
 
-103e (direct-GPIO LED probe) is open as a temporary
-diagnostic. After the load-address fix from 103d, the first
-SD boot test still produced no LED activity; the cause is
-ambiguous between "the kernel still does not reach `_start`"
-and "the kernel reaches `_start` but the PWM path to the LEDs
-is blocked by something the bootloader does not configure
-(pin-multiplexer routing or the PWM controller's clock gate)."
-The probe drives the three LED pins through the GPIO
-controller directly — bypassing the PWM controller entirely —
-to answer that question. If the hardware run shows the wink
-pattern the probe produces, the kernel reaches its entry
-point and the next investigation focuses on the PWM path
-(pin-mux, clock gate). If the hardware run still shows no LED
-activity, the kernel is not reaching `_start` and the next
-investigation moves further upstream (the bootloader, the
-recognition envelope's parsing, the load address). The probe
-and the GPIO-function override it sets come out of source the
-moment the question is answered, either way.
+106c (bring the PWM controllers up properly) is open as
+deferred work from the LED-layer pivot. The PWM driver code
+in `src/003-pwm.c` is unused while the LED layer drives the
+indicator lights through the GPIO controller (issue 106b);
+106c brings PWM back, restoring the smooth-fade brightness
+vocabulary and the breathing heartbeat from 106a. The work
+splits into a clock-gate write in the chip's clock-reset
+unit, a pin-multiplexer write in the PMU general register
+file, and possibly a reset deassertion. Not blocking any
+other phase 1 issue — the GPIO-driven LED layer is a
+sufficient diagnostic channel for the remaining bring-up
+work — so the timing depends on when the smooth fades become
+worth their bring-up cost.
 
 ## Phase demo
 
