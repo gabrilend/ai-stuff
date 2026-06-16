@@ -252,6 +252,14 @@ flash loop from 110c, not Maskrom.
   `kernel_main` pending 110e's LBA verification; the design and
   prototype work that this issue captures is preserved in git
   history.
+- 110f — microSD controller driver. `src/015-sdmmc.c` brings up
+  the RK3568's SDMMC0 controller (a Synopsys DW MSHC, distinct
+  from the SDHCI we use for the eMMC), walks the SD spec's
+  card-init sequence (CMD0, CMD8, ACMD41-loop, CMD2, CMD3,
+  CMD9, CMD7), and exposes single-block read and write through
+  CMD17 and CMD24. Polled and blocking. Used by 110e's
+  eMMC-to-microSD backup. Closing evidence (a successful round
+  trip on real hardware) lands when boot test #1 runs.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -264,12 +272,11 @@ flash loop from 110c, not Maskrom.
 
 110c (USB-C runtime re-flash, moved back to open after the
 prior session conflated it with the button trigger), 110e (eMMC
-layout probe — approach revised to dump-to-microSD rather than
-dump-to-CDC-ACM, because the threat model rules out USB-C to a
-trusted machine until the eMMC is fully under our code), 110f
-(microSD driver — DW MSHC controller, prerequisite for 110e),
-the four display sub-issues (111a, 111b, 111c, 111d), 112, and
-113.
+layout probe — code is in place and `kernel_main` runs the
+backup automatically on boot; the issue closes when the first
+hardware run produces a dump that lets us identify the boot
+partition's real LBA), the four display sub-issues (111a, 111b,
+111c, 111d), 112, and 113.
 
 ## Phase demo
 
