@@ -172,7 +172,13 @@ static void usb2_phy_bring_up(void)
 /* DWC3 controller — the USB protocol engine.
  *
  * The RK3568's USB 3.0 OTG controller's MMIO window starts at
- * 0xFEC00000 (per the memory map). DWC3's documented register
+ * 0xFCC00000. (The project's earlier memory map and an earlier
+ * version of this comment said 0xFEC00000, inherited from a
+ * different bus mapping that an earlier Rockchip BSP version
+ * used; the actual address on this device, per the device
+ * tree we extracted from ROCKNIX, is 0xFCC00000. The wrong
+ * address was the fault site for the USB cycling we hit
+ * during phase-1 hardware testing.) DWC3's documented register
  * file lives at controller_base + 0xC000; the global registers
  * start at offset 0xC100 within that file. Adding the controller
  * base gives absolute addresses for each register.
@@ -194,7 +200,7 @@ static void usb2_phy_bring_up(void)
  *                             4 = SuperSpeed USB 3.0)
  *   bits 9:3     DevAddr     (0 at reset; the host assigns)
  */
-#define DWC3_BASE       0xFEC00000u
+#define DWC3_BASE       0xFCC00000u
 #define DWC3_GCTL       (DWC3_BASE + 0xC110u)
 #define DWC3_GSTS       (DWC3_BASE + 0xC118u)
 #define DWC3_GSNPSID    (DWC3_BASE + 0xC120u)
@@ -311,24 +317,10 @@ int usb_init(void)
     delay_busy(DIAG_CHECKPOINT_HOLD);
     usb2_phy_bring_up();
 
-    /* DWC3 sub-step skipped for this iteration (issue 103g —
-     * TEMPORARY). The previous round reached checkpoint B in
-     * every reset cycle, which means the clock-and-reset enable
-     * succeeded but a fault occurs somewhere between checkpoint
-     * B and a hypothetical checkpoint after the DWC3 step. To
-     * find out whether the PHY-suspend write itself is the
-     * fault (so the kernel never reaches the DWC3 sub-step) or
-     * the DWC3 sub-step is the fault (so the kernel does reach
-     * it but the controller's register access faults), this
-     * iteration returns success right after the PHY work and
-     * lets kernel_main paint STAGE_USB_CONTROLLER. If the
-     * kernel reaches a steady STAGE_USB_CONTROLLER (top dark,
-     * bottom amber, indefinite), the PHY was fine and the
-     * DWC3 sub-step is the actual fault site. If the kernel
-     * still cycles at checkpoint B, the PHY-suspend write
-     * itself is the fault. */
-    return 0;
-
-    /* (Unreachable while the skip above is in place.) */
+    /* DWC3 sub-step now runs against the correct controller
+     * MMIO base. The earlier round's "skip DWC3" diagnostic
+     * confirmed the PHY work was fine; finding the wrong
+     * controller base address surfaced the fault that the
+     * skip was hiding. */
     return dwc3_soft_reset_and_set_device_mode();
 }
