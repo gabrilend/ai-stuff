@@ -175,29 +175,38 @@ void kernel_main(void)
     allocator_init();
     allocator_check_or_panic();
 
+    /* Bring up the USB 2.0 PHY and the DWC3 controller in
+     * device mode. The clock-and-reset work the SD-card path's
+     * bootloader does not do for us now lives at the top of
+     * usb_init itself (the 109a reopen). On success, advance the
+     * LED stage so the developer can see the controller is alive
+     * without needing a host computer attached yet. On failure
+     * (controller did not identify), drop into the generic panic
+     * pattern. */
+    if (usb_init() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { delay_busy(1000000); }
+    }
+    led_set_stage(STAGE_USB_CONTROLLER);
+
     /* INCREMENTAL RESTORATION (issue 103g — TEMPORARY) ----
      *
-     * The USB controller bring-up below is skipped for this
-     * iteration. It writes to the DWC3 controller's MMIO
-     * window at 0xFEC00000 — a peripheral whose clocks are
-     * not enabled by the SD-card path's bootloader (per the
-     * reopened 109a investigation). Writing to its registers
-     * before the kernel itself ungates those clocks either
-     * silently fails or stalls the bus enough to trigger a
-     * fault. Until the clock-and-reset work in 109a lands,
-     * the kernel sits in a petting wait loop instead of
-     * advancing through usb_init.
+     * USB endpoint-zero configuration, eMMC bring-up, SD
+     * bring-up, the debug-log init, and the eMMC-to-SD
+     * backup are all skipped for this iteration. Each of them
+     * touches a peripheral whose clock and reset state we
+     * have not yet verified, and turning them on one at a
+     * time keeps each next surprise visible against a
+     * known-good last state. After confirming that the USB
+     * controller bring-up reaches its identification-register
+     * read successfully (or panics cleanly if it does not),
+     * the next iteration restores the next piece.
      * ------------------------------------------------------ */
-    while (1) {
-        *(volatile uint32_t *)0xFE60000Cu = 0x76u;
-        for (volatile int i = 0; i < 100000; i++) {
-            __asm__ volatile ("nop");
-        }
-    }
+    while (1) { delay_busy(1000000); }
 
     /* (Code below is unreachable while the petting wait loop
-     * above is in place. Restored as the 109a USB-clock work
-     * and the eMMC / SD bring-up land.) */
+     * above is in place. Restored as the next bring-up steps
+     * land.) */
 
     /* Bring up the USB 2.0 PHY and the DWC3 controller in
      * device mode. On success, advance the LED stage so the
