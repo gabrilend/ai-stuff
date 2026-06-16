@@ -2,19 +2,46 @@
 
 ## Current behavior
 
-The internal 32 GB eMMC is the storage device the stock Android
-install lives on and the storage device our SoreOS install will
-eventually live on. The Rockchip RK3568 talks to it through its
-dedicated SDHCI host (separate from the SDMMC0/1/2 controllers,
-which handle external SD, secondary slots, and SDIO peripherals
-like the WiFi module). The eMMC is wired as an 8-bit bus
-running up to 200 MHz with the `non-removable` property set —
-the kernel does not poll it for hot-swap. Today, with SoreOS
-booted from the external microSD, the eMMC is sitting there
-powered but ignored. SoreOS cannot read a block from it, cannot
-write a block to it, and therefore cannot make any progress
-toward the eMMC-resident install that issue 110b wants to
-produce.
+`src/012-emmc.c` brings up the RK3568's dedicated SDHCI
+controller and walks the eMMC card through the JEDEC
+identification sequence. The controller is software-reset
+through its reset register, powered at 3.3 V, its internal
+clock divider set for a ~400 kHz identification rate. CMD0
+puts the card into idle state; CMD1 polls for operating-
+condition readiness; CMD2, CMD3, CMD9, and CMD7 carry the card
+through identifying itself, accepting a relative address of 1,
+reporting its capacity descriptor, and selecting itself into
+transfer state. After identification, the clock bumps to a
+compatibility-mode transfer rate (~25 MHz from the controller's
+typical 200 MHz input).
+
+Two block-IO operations are exposed: `emmc_read_block` and
+`emmc_write_block`. Each takes a 32-bit logical block address
+(eMMC uses block addressing — addresses are sectors, not bytes)
+and a 512-byte buffer. The implementation programs the
+controller's block size and block count, sets the transfer
+direction in the transfer-mode register, issues the matching
+command (CMD17 for single-block read, CMD24 for single-block
+write), waits on the present-state buffer-ready bit, and
+streams 128 32-bit words through the data port. The function
+returns when the controller signals transfer-complete or when
+an error or timeout fires.
+
+The driver is polled and blocking — no DMA, no interrupts. Each
+public call is one transaction; the function does not return
+until the transaction completes or fails. The CDC-ACM debug
+stream from 110 narrates each step of bring-up so a failure
+mid-sequence is visible to a developer with a host computer
+attached.
+
+The closing evidence on real hardware — successful round-trip
+of a known pattern to a safe block, narrated through CDC-ACM —
+has not yet been observed because we have not booted from the
+device. That validation lands when 110b lights up. If the
+round-trip fails, the SDHCI controller's Rockchip-specific
+quirks (a small set of vendor extensions to the base SDHCI
+register surface) and the controller's input-clock rate are
+the first places to look.
 
 ## Intended behavior
 

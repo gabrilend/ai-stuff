@@ -219,6 +219,13 @@ flash loop from 110c, not Maskrom.
   `STAGE_USB_ENUMERATED` when CDC-ACM is live. Closing evidence
   (`/dev/ttyACM0` carrying kernel text on the host) lands when
   the kernel boots from the device.
+- 110a — eMMC controller driver. `src/012-emmc.c` brings up the
+  RK3568's SDHCI host, walks the JEDEC eMMC identification
+  sequence (CMD0 through CMD7), and exposes single-block read
+  and write through CMD17 and CMD24. Polled and blocking; each
+  call is one transaction. Bring-up status is narrated through
+  the CDC-ACM channel. Closing evidence (round-trip pattern
+  test on real hardware) lands when 110b boots from the device.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -229,8 +236,7 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-The three install-pipeline issues 110a, 110b, 110c, plus 111a,
-111b, 112, and 113.
+110b, 110c, 111a, 111b, 112, and 113.
 
 ## Phase demo
 
