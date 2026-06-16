@@ -338,6 +338,26 @@ flash loop from 110c, not Maskrom.
   new patterns and the "no LEDs ever" interpretation now
   unambiguously points at boot-chain failures rather than
   kernel-runtime hangs.
+- 103d — kernel load address matches what the SD-boot
+  bootloader actually uses. The linker pin moved from
+  `0x0028_0000` to `0x0200_0000`, the address ROCKNIX's
+  u-boot drops `/KERNEL` at. The earlier value was inherited
+  from Anbernic's Android conventions and held over the
+  whole project before any hardware test had been run against
+  the SD-card path; the first hardware test surfaced the
+  mismatch as a kernel that loaded and was jumped to but
+  read its own data from the wrong memory (the stack pointer
+  pointed into u-boot's heap, the BSS-zero loop wrote into
+  u-boot's heap, the vector base register pointed at memory
+  that did not contain vectors, and the LED-flash diagnostic
+  produced no visible signal because the call chain that
+  would have driven the PWM never resolved its own state
+  correctly). The boot-partition writer in
+  `src/013-boot-image.c` carries the same constant into the
+  Android boot.img envelope so Anbernic's u-boot lands the
+  kernel at the same address once the eMMC takeover runs;
+  the physical-memory-map doc names the new boundary and
+  explains where the original value came from.
 
 ## Open issues
 
