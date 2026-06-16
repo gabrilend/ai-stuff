@@ -87,6 +87,52 @@ void delay_busy(uint64_t cycles)
 
 void kernel_main(void)
 {
+    /* Silence the chip's watchdog before anything else — issue
+     * 103g, phase 1.
+     *
+     * The Rockchip BSP boot blobs that run before u-boot proper
+     * (the DDR-init trust-firmware) enable the chip's watchdog
+     * hardware block as a safety net against their own
+     * bring-up hangs. The mainline u-boot they launch into does
+     * not disable the watchdog before booti — the upstream
+     * Linux kernel takes over feeding it from its own watchdog
+     * subsystem once the dw_wdt driver probes, several seconds
+     * into Linux boot. Our kernel has no equivalent feeding
+     * mechanism in phase 1, so the watchdog's BSP-default
+     * timeout (a few seconds) fires before kernel_main can
+     * complete its earliest work, the chip resets, and the
+     * boot chain re-runs from the top. The visible symptom
+     * during phase-1 hardware testing was a "two amber lights,
+     * dark, green flash, two amber" cycle on the indicator
+     * lights, repeating every few seconds.
+     *
+     * The DesignWare watchdog IP cannot be disabled by writing
+     * to its own control register once it has been enabled —
+     * the upstream driver's comments are explicit about this.
+     * The only way to silence it from software is to put the
+     * entire hardware block through a reset cycle via the
+     * main clock-and-reset unit's soft-reset register. The
+     * watchdog's SRST_WDT_NS soft-reset bit (reset ID 138,
+     * which lives in bit 10 of SOFTRST_CON(8) at 0xFDD20420)
+     * is asserted and then deasserted; the hardware block
+     * goes back to its post-reset state with the enable bit
+     * clear and the countdown not running, and stays there
+     * for the rest of the kernel's lifetime.
+     *
+     * Both writes use the chip-family's write-mask convention
+     * (upper sixteen bits select which lower-sixteen bits
+     * change; bits the mask does not pick stay unchanged):
+     *   0x04000400 — mask bit 10, value bit 10 set (assert)
+     *   0x04000000 — mask bit 10, value bit 10 clear (deassert)
+     *
+     * Phase 2 or 3 replaces this silence with an explicit
+     * re-enable and a soramech-scheduled petting task that
+     * makes the watchdog the safety net it was designed to
+     * be. See issue 103g and docs/017-clocks-and-timers.md
+     * for the broader story. */
+    *(volatile uint32_t *)0xFDD20420u = 0x04000400u;
+    *(volatile uint32_t *)0xFDD20420u = 0x04000000u;
+
     /* Bring up the LED driver and signal "kernel_main reached"
      * before anything else. If anything fails after this point,
      * the developer can decode at least "we got to kernel_main"
