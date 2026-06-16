@@ -210,6 +210,15 @@ flash loop from 110c, not Maskrom.
   evidence on hardware (`lsusb` reporting the device) lands when
   110b puts the kernel on the eMMC; reopens if anything in the
   TRB layout or event-decode bit positions is off.
+- 110 — USB CDC-ACM debug stream. The configuration descriptor
+  now declares CDC Control + CDC Data interfaces with their
+  functional descriptors and endpoints; `src/011-cdc-acm.c`
+  configures the bulk endpoints after the host selects our
+  configuration and exposes a `debug_write` function the rest
+  of the kernel calls to push text. The LED stage advances to
+  `STAGE_USB_ENUMERATED` when CDC-ACM is live. Closing evidence
+  (`/dev/ttyACM0` carrying kernel text on the host) lands when
+  the kernel boots from the device.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -220,8 +229,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-110, the three install-pipeline issues 110a, 110b, 110c, plus
-111a, 111b, 112, and 113.
+The three install-pipeline issues 110a, 110b, 110c, plus 111a,
+111b, 112, and 113.
 
 ## Phase demo
 
