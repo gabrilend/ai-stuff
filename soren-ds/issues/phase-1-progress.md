@@ -369,6 +369,25 @@ first hardware run produces a dump that lets us identify the
 boot partition's real LBA), the four display sub-issues
 (111a, 111b, 111c, 111d), 112, and 113.
 
+103e (direct-GPIO LED probe) is open as a temporary
+diagnostic. After the load-address fix from 103d, the first
+SD boot test still produced no LED activity; the cause is
+ambiguous between "the kernel still does not reach `_start`"
+and "the kernel reaches `_start` but the PWM path to the LEDs
+is blocked by something the bootloader does not configure
+(pin-multiplexer routing or the PWM controller's clock gate)."
+The probe drives the three LED pins through the GPIO
+controller directly — bypassing the PWM controller entirely —
+to answer that question. If the hardware run shows the wink
+pattern the probe produces, the kernel reaches its entry
+point and the next investigation focuses on the PWM path
+(pin-mux, clock gate). If the hardware run still shows no LED
+activity, the kernel is not reaching `_start` and the next
+investigation moves further upstream (the bootloader, the
+recognition envelope's parsing, the load address). The probe
+and the GPIO-function override it sets come out of source the
+moment the question is answered, either way.
+
 ## Phase demo
 
 `issues/completed/demos/phase-1/run.sh` will exist once the phase
