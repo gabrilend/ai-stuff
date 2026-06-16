@@ -51,6 +51,8 @@ extern int  sd_init(void);                              /* 015-sdmmc.c */
 extern int  emmc_backup_to_sd(uint32_t emmc_start_lba,
                               uint32_t sd_start_lba,
                               uint32_t sector_count);    /* 016-emmc-backup.c */
+extern void debug_log_init(void);                       /* 017-debug-log.c */
+extern void debug_log_flush(void);                      /* 017-debug-log.c */
 
 #define STAGE_KERNEL_MAIN     0
 #define STAGE_PANIC_GENERIC   1
@@ -118,6 +120,14 @@ void kernel_main(void)
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { __asm__ volatile ("wfi"); }
     }
+    /* Bring up the SD-card-backed debug log now that the SD card
+     * is writable. Every subsequent `debug_write` call also
+     * appends to a ring buffer that periodically flushes to a
+     * reserved region of the SD card. After the card is pulled
+     * the developer can `dd` the region off the card and read it
+     * as plain text. */
+    debug_log_init();
+
     /* Copy the entire eMMC to the microSD card. The eMMC is
      * 32 GB = 67,108,864 sectors of 512 bytes. The microSD card
      * is at least 256 GB per the developer's setup. Reserved
@@ -125,9 +135,14 @@ void kernel_main(void)
      * BootROM-relevant low sectors stay untouched and the SD
      * card remains bootable for subsequent test cycles. */
     if (emmc_backup_to_sd(0, 0x200000, 67108864) != 0) {
+        debug_log_flush();
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { __asm__ volatile ("wfi"); }
     }
+    /* Final flush of the SD log before the success signal — make
+     * sure the bring-up narration is on the card before the
+     * developer powers off. */
+    debug_log_flush();
     led_set_stage(STAGE_BACKUP_COMPLETE);
 
     while (1) {

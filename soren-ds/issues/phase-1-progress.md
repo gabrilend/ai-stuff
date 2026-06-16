@@ -260,6 +260,14 @@ flash loop from 110c, not Maskrom.
   CMD17 and CMD24. Polled and blocking. Used by 110e's
   eMMC-to-microSD backup. Closing evidence (a successful round
   trip on real hardware) lands when boot test #1 runs.
+- 110g — SD-card debug log. `src/017-debug-log.c` adds a DRAM
+  ring buffer plus periodic flush to a reserved 16 MB region of
+  the microSD card. `debug_write` in 011-cdc-acm.c gains a call
+  to the new `debug_log_append` so every diagnostic narration
+  also lands in the log regardless of whether a USB host is
+  attached. The phase 3 RAM transcript ring (issue 310) is
+  marked as the eventual replacement; both should land together
+  in that issue's commit.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
