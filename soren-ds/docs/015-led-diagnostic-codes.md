@@ -20,10 +20,12 @@ document into a lie.
 
 | Green | Amber | Red | Meaning |
 | :---: | :---: | :-: | :-- |
+| on    | on    | on  | One of two states. *Briefly* (a fraction of a second after power-on, followed by all three going dark for another fraction of a second): `led_hello()` — the kernel reached `kernel_main` and is about to set its first stage signal. *Held continuously*: `STAGE_BACKUP_COMPLETE` — the eMMC-to-microSD backup finished cleanly; power off, pull the microSD card, analyze the dump on a separate machine via raw `dd`. The two states are distinguishable by duration (a momentary flash vs. solid). |
+| off   | off   | off | One of two states. *Briefly* (the dark half of `led_hello()`): the kernel reached `kernel_main`; the steady stage signal will appear in a moment. *Held continuously at power-on*: the kernel never reached `kernel_main`. The boot chain failed somewhere upstream (BootROM did not recognize the idbloader, u-boot did not load our kernel, `booti` rejected the image, or the kernel started but hung before the LED layer came up). The fix is upstream of the kernel — check the build output, the flash workflow, and the linker script's load address. |
 | on    | off   | off | Either the bootloader is running but our kernel has not yet touched the LEDs (boot code did not start, or started but did not reach `kernel_main`), OR `STAGE_USB_CONTROLLER` (the kernel reached `kernel_main`, ran the allocator self-test, and brought up the USB controller successfully — the controller is alive but enumeration has not yet happened). The two states share an LED pattern because power-on default and our post-USB state happen to agree; the difference between them is observable only on the laptop side via plug-in `dmesg`. |
 | on    | on    | off | `STAGE_KERNEL_MAIN`, OR `STAGE_USB_ENUMERATED`. The kernel reached its first C function (KERNEL_MAIN) or the host has finished enumerating us over USB (USB_ENUMERATED — only observable from the host side). Both states share the same LED pattern; in flight during phase 1's boot test #1 (no USB host), the pattern means "kernel reached `kernel_main` and the USB controller bring-up succeeded; backup is in progress." |
+| on    | breathing | off | The eMMC-to-microSD backup is in progress. Green stays on from the stage signal underneath; amber fades in and out at roughly a one-second cadence as `led_heartbeat()` advances on each megabyte of progress; red stays off. If the breathing stops mid-backup, the kernel is stuck on a particular sector. |
 | off   | off   | on  | `STAGE_PANIC_GENERIC`. A fatal exception fired, the allocator self-test failed, USB controller identification mismatched, the eMMC bring-up failed, the microSD bring-up failed, or the eMMC-to-SD backup hit a fatal error. Decoding which requires CDC-ACM serial capture or eyeball inspection of where in the boot sequence the LED last advanced from. |
-| on    | on    | on  | `STAGE_BACKUP_COMPLETE`. The eMMC-to-microSD backup finished cleanly. Power off, pull the microSD card, analyze the dump on a separate machine via raw `dd`. Distinct from every other healthy pattern so a developer glancing at the device knows the test phase is done. |
 | any   | any   | any | Patterns added by later phase 1 issues land here as those issues complete. |
 
 ## Reading the LEDs
@@ -36,14 +38,19 @@ choice.
 
 ## Interpretation guide
 
-**You see no LEDs lit at all.** The bootloader did not even
-reach the point of lighting the power LED, or the power LED's
-PWM channel was somehow disabled before our kernel ran. Either
-your kernel image did not load (the SD card was empty, the
-bootloader rejected the image, the kernel was linked at the
-wrong address) or the bootloader was itself broken. The fix is
-upstream of the kernel — check the build output, the flash
-workflow, and the linker script's load address.
+**You see a brief all-three-LEDs flash within a second of power-on,
+followed by the steady stage signal.** That is `led_hello()` — the
+kernel reached `kernel_main`. From here, whatever stage signal
+follows decodes by the rows above.
+
+**You see no LEDs lit at all, ever — no flash, nothing.** The
+kernel never reached `kernel_main`. The boot chain failed
+somewhere upstream — most likely u-boot did not recognise our
+kernel image (header malformed, recognition magic missing, FAT
+path wrong), or BootROM did not recognise the idbloader, or
+`booti` rejected the image. The fix is upstream of the kernel
+— check the build output, the flash workflow, the linker script's
+load address, and the recognition envelope from issue 103c.
 
 **You see only the green LED.** The bootloader handed off to
 our kernel's load address, but our code never reached

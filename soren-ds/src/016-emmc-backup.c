@@ -25,6 +25,7 @@ extern int  emmc_read_block(uint32_t lba, uint8_t *buffer);
 extern int  sd_write_block(uint32_t lba, const uint8_t *buffer);
 extern void debug_write(const char *text);
 extern uint64_t alloc_page(void);
+extern void led_heartbeat(void);
 
 int emmc_backup_to_sd(uint32_t emmc_start_lba,
                       uint32_t sd_start_lba,
@@ -51,9 +52,14 @@ int emmc_backup_to_sd(uint32_t emmc_start_lba,
             debug_write("[backup] SD write failed\r\n");
             return -3;
         }
-        /* Narrate roughly every megabyte of progress. */
+        /* Narrate roughly every megabyte of progress and advance
+         * the breathing-amber heartbeat by one step. The heartbeat
+         * is what the developer watching the device sees when no
+         * USB host is attached — across the multi-minute backup,
+         * the amber LED visibly fades in and out. */
         if ((i & 0x7FFu) == 0) {
             debug_write("[backup] progress...\r\n");
+            led_heartbeat();
         }
     }
 
