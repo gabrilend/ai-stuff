@@ -68,12 +68,65 @@ static inline uint32_t mmio_read32(uintptr_t address)
  * that runs N nop instructions is plenty. Tuning is not critical
  * because the DWC3's soft-reset completion is observable by polling
  * its status register, so the wait just gives the hardware enough
- * time before we look. */
+ * time before we look.
+ *
+ * Pets the chip's watchdog at the start (issue 103g — the
+ * watchdog's BSP-default timeout is short enough that even
+ * microsecond-scale settling delays should pet to be safe). */
 static void rough_delay(uint32_t loops)
 {
+    *(volatile uint32_t *)0xFE60000Cu = 0x76u;
     for (uint32_t i = 0; i < loops; i++) {
         __asm__ volatile ("nop");
     }
+}
+
+/* Bring up the USB 3.0 OTG controller's clocks and take it out of
+ * hardware reset, before the per-PHY and per-controller register
+ * configuration the rest of this file performs.
+ *
+ * The mainline-derived ROCKNIX u-boot on the SD-card boot path does
+ * not enable these — its defconfig does not include the DWC3
+ * driver and so does not pre-enable anything USB-related. Until
+ * the kernel itself ungates the controller's clocks and deasserts
+ * its hardware reset, the writes the rest of usb_init performs to
+ * the DWC3 register window land on a peripheral that is not
+ * running and either silently fail or stall the bus enough to
+ * trigger an exception.
+ *
+ * Two writes do the work. The first ungates the three USB 3.0
+ * OTG clocks in the main CRU's clock-gate register block — the
+ * ACLK (the controller's register-access clock), the reference
+ * clock, and the suspend clock. The second pair asserts then
+ * deasserts the controller's hardware reset, putting it into its
+ * post-reset state with its clocks ticking.
+ *
+ * See issue 109a and docs/017-clocks-and-timers.md for the wider
+ * story. */
+#define CRU_BASE              0xFDD20000u
+#define CRU_CLKGATE_CON_10    (CRU_BASE + 0x0328u)
+#define CRU_SOFTRST_CON_9     (CRU_BASE + 0x0424u)
+#define USB3OTG0_CLKS_MASK    0x07000000u    /* mask bits 8,9,10 */
+#define USB3OTG0_CLKS_ENABLE  0x07000000u    /* value bits 8,9,10 = 0 (ungate) */
+#define USB3OTG0_RESET_BIT    (1u << 4)
+#define USB3OTG0_RESET_MASK   (USB3OTG0_RESET_BIT << 16)
+
+static void usb_clocks_and_reset_enable(void)
+{
+    /* Ungate the three USB 3.0 OTG controller clocks. */
+    mmio_write32(CRU_CLKGATE_CON_10,
+                 USB3OTG0_CLKS_MASK | USB3OTG0_CLKS_ENABLE);
+    rough_delay(1000);
+
+    /* Assert then deassert the controller's soft reset. The
+     * controller comes out of this in its post-reset state, with
+     * the clocks just ungated above already feeding it. */
+    mmio_write32(CRU_SOFTRST_CON_9,
+                 USB3OTG0_RESET_MASK | USB3OTG0_RESET_BIT);
+    rough_delay(1000);
+    mmio_write32(CRU_SOFTRST_CON_9,
+                 USB3OTG0_RESET_MASK);
+    rough_delay(1000);
 }
 
 /* USB 2.0 PHY 0 — General Register File. The PHY's reset and
@@ -198,6 +251,7 @@ static int dwc3_soft_reset_and_set_device_mode(void)
  * since there is no richer diagnostic channel yet. */
 int usb_init(void)
 {
+    usb_clocks_and_reset_enable();
     usb2_phy_bring_up();
     return dwc3_soft_reset_and_set_device_mode();
 }
