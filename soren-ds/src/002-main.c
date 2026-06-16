@@ -67,11 +67,19 @@ extern void debug_log_flush(void);                      /* 017-debug-log.c */
  * timer driver lands), so timed pauses are done by counting nops
  * in a volatile-counter loop. The "cycles" parameter is an
  * approximation — the actual wall-clock duration depends on what
- * frequency the bootloader booted us at. At a 1.8 GHz operating
- * point, one billion cycles is roughly half a second; at the chip's
- * 24 MHz crystal frequency, the same count is closer to forty
- * seconds. We calibrate the LED-feedback callers to be visible
- * across this whole range.
+ * frequency the bootloader booted us at.
+ *
+ * The watchdog pet inside the loop is the phase-1 mechanism that
+ * keeps the chip's hardware watchdog alive (issue 103g). The
+ * watchdog's BSP-default timeout is a few seconds; a delay that
+ * runs longer than the timeout without petting would let the
+ * watchdog fire and reset the chip. Petting at the start of every
+ * delay and once every 65,536 iterations thereafter (a few
+ * milliseconds at the chip's actual clock speed, comfortably
+ * inside the timeout) keeps the counter fresh through any delay
+ * this function might be asked to perform. The pet is a single
+ * write of the byte value 0x76 to the watchdog's counter-restart
+ * register (offset 0x0C from the watchdog's 0xFE600000 base).
  *
  * The `volatile` qualifier on the counter stops the compiler from
  * collapsing the loop as dead code; the inline assembly nop gives
@@ -80,7 +88,11 @@ extern void debug_log_flush(void);                      /* 017-debug-log.c */
 void delay_busy(uint64_t cycles)
 {
     volatile uint64_t remaining = cycles;
+    *(volatile uint32_t *)0xFE60000Cu = 0x76u;
     while (remaining--) {
+        if ((remaining & 0xFFFFu) == 0u) {
+            *(volatile uint32_t *)0xFE60000Cu = 0x76u;
+        }
         __asm__ volatile ("nop");
     }
 }
@@ -133,6 +145,16 @@ void kernel_main(void)
     *(volatile uint32_t *)0xFDD20420u = 0x04000400u;
     *(volatile uint32_t *)0xFDD20420u = 0x04000000u;
 
+    /* Pet the chip's watchdog immediately, before any later
+     * code can take long enough to let the watchdog fire. The
+     * pet here resets the counter; the petting woven into
+     * delay_busy keeps the counter fresh through every later
+     * delay; the petting loop at the end of kernel_main keeps
+     * it fresh while the kernel sits idle. Phase 2 or 3
+     * replaces all of this with a soramech-scheduled periodic
+     * pet task per issue 103g. */
+    *(volatile uint32_t *)0xFE60000Cu = 0x76u;
+
     /* Bring up the LED driver and signal "kernel_main reached"
      * before anything else. If anything fails after this point,
      * the developer can decode at least "we got to kernel_main"
@@ -145,58 +167,26 @@ void kernel_main(void)
     led_hello();
     led_set_stage(STAGE_KERNEL_MAIN);
 
-    /* DIAGNOSTIC (issue 103g — TEMPORARY) ------------------
+    /* Initialize the page allocator and run its self-test. The
+     * self-test confirms the bitmap math hands out distinct
+     * page-aligned addresses and reuses freed pages. On failure
+     * the call does not return — it lights the panic LED and
+     * parks the core. */
+    allocator_init();
+    allocator_check_or_panic();
+
+    /* INCREMENTAL RESTORATION (issue 103g — TEMPORARY) ----
      *
-     * The CRU soft-reset above was supposed to silence the
-     * chip's watchdog hardware block, but hardware testing
-     * showed the reset cycle continued unchanged. Two
-     * hypotheses remain on the table:
-     *
-     *   - The SoC watchdog is still ticking despite the CRU
-     *     reset (the IP may come out of reset with its enable
-     *     bit already set, in which case the reset cycle was
-     *     a no-op).
-     *   - Something downstream of the kernel-reached-main
-     *     stage signal — most likely the USB controller
-     *     bring-up touching MMIO on a peripheral that does
-     *     not have its clock gates enabled by the SD-card
-     *     bootloader — is faulting and the bootloader's
-     *     exception handler is what is resetting the chip.
-     *
-     * This block tests both at once. The kernel pets the
-     * SoC watchdog every few milliseconds in a tight loop
-     * (writing the byte value 0x76 to the watchdog's
-     * counter-restart register at offset 0x0C from its
-     * 0xFE600000 base), and skips every other bring-up step
-     * that could be the downstream fault source — no
-     * allocator self-test, no USB controller bring-up, no
-     * eMMC, no SD, no backup. The kernel sits at the
-     * kernel-reached-main stage signal forever.
-     *
-     * Three observable outcomes when this lands on hardware:
-     *
-     *   - Top green steady, indefinitely. The cycling was
-     *     either the SoC watchdog (petting silenced it) or
-     *     something downstream of this point (we skipped it).
-     *     The next iteration restores the downstream bring-up
-     *     one piece at a time to find which.
-     *   - Top green held longer than the prior cycle period,
-     *     then a reset. The SoC watchdog's effective timeout
-     *     just got extended by the petting, but something
-     *     other than the SoC watchdog is also resetting us at
-     *     a longer interval. The next suspect is the PMIC's
-     *     external watchdog (the RK817's autonomous safety
-     *     timer, over I²C).
-     *   - Same short cycle as before. The SoC watchdog is
-     *     not the cause; the cycling is happening regardless
-     *     of what the kernel does after the stage signal. The
-     *     next investigation is the PMIC watchdog or an
-     *     external supervisor circuit on the board.
-     *
-     * Once we know which of those three outcomes lands, the
-     * block comes out and the normal bring-up chain comes
-     * back, possibly with petting woven in if the petting
-     * turned out to matter.
+     * The USB controller bring-up below is skipped for this
+     * iteration. It writes to the DWC3 controller's MMIO
+     * window at 0xFEC00000 — a peripheral whose clocks are
+     * not enabled by the SD-card path's bootloader (per the
+     * reopened 109a investigation). Writing to its registers
+     * before the kernel itself ungates those clocks either
+     * silently fails or stalls the bus enough to trigger a
+     * fault. Until the clock-and-reset work in 109a lands,
+     * the kernel sits in a petting wait loop instead of
+     * advancing through usb_init.
      * ------------------------------------------------------ */
     while (1) {
         *(volatile uint32_t *)0xFE60000Cu = 0x76u;
@@ -205,16 +195,9 @@ void kernel_main(void)
         }
     }
 
-    /* (Code below is unreachable while the diagnostic loop above
-     * is in place. Restored when the diagnostic comes out.) */
-
-    /* Initialize the page allocator and run its self-test. The
-     * self-test confirms the bitmap math hands out distinct
-     * page-aligned addresses and reuses freed pages. On failure
-     * the call does not return — it lights the panic LED and
-     * parks the core. */
-    allocator_init();
-    allocator_check_or_panic();
+    /* (Code below is unreachable while the petting wait loop
+     * above is in place. Restored as the 109a USB-clock work
+     * and the eMMC / SD bring-up land.) */
 
     /* Bring up the USB 2.0 PHY and the DWC3 controller in
      * device mode. On success, advance the LED stage so the
