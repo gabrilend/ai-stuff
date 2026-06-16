@@ -145,6 +145,69 @@ void kernel_main(void)
     led_hello();
     led_set_stage(STAGE_KERNEL_MAIN);
 
+    /* DIAGNOSTIC (issue 103g — TEMPORARY) ------------------
+     *
+     * The CRU soft-reset above was supposed to silence the
+     * chip's watchdog hardware block, but hardware testing
+     * showed the reset cycle continued unchanged. Two
+     * hypotheses remain on the table:
+     *
+     *   - The SoC watchdog is still ticking despite the CRU
+     *     reset (the IP may come out of reset with its enable
+     *     bit already set, in which case the reset cycle was
+     *     a no-op).
+     *   - Something downstream of the kernel-reached-main
+     *     stage signal — most likely the USB controller
+     *     bring-up touching MMIO on a peripheral that does
+     *     not have its clock gates enabled by the SD-card
+     *     bootloader — is faulting and the bootloader's
+     *     exception handler is what is resetting the chip.
+     *
+     * This block tests both at once. The kernel pets the
+     * SoC watchdog every few milliseconds in a tight loop
+     * (writing the byte value 0x76 to the watchdog's
+     * counter-restart register at offset 0x0C from its
+     * 0xFE600000 base), and skips every other bring-up step
+     * that could be the downstream fault source — no
+     * allocator self-test, no USB controller bring-up, no
+     * eMMC, no SD, no backup. The kernel sits at the
+     * kernel-reached-main stage signal forever.
+     *
+     * Three observable outcomes when this lands on hardware:
+     *
+     *   - Top green steady, indefinitely. The cycling was
+     *     either the SoC watchdog (petting silenced it) or
+     *     something downstream of this point (we skipped it).
+     *     The next iteration restores the downstream bring-up
+     *     one piece at a time to find which.
+     *   - Top green held longer than the prior cycle period,
+     *     then a reset. The SoC watchdog's effective timeout
+     *     just got extended by the petting, but something
+     *     other than the SoC watchdog is also resetting us at
+     *     a longer interval. The next suspect is the PMIC's
+     *     external watchdog (the RK817's autonomous safety
+     *     timer, over I²C).
+     *   - Same short cycle as before. The SoC watchdog is
+     *     not the cause; the cycling is happening regardless
+     *     of what the kernel does after the stage signal. The
+     *     next investigation is the PMIC watchdog or an
+     *     external supervisor circuit on the board.
+     *
+     * Once we know which of those three outcomes lands, the
+     * block comes out and the normal bring-up chain comes
+     * back, possibly with petting woven in if the petting
+     * turned out to matter.
+     * ------------------------------------------------------ */
+    while (1) {
+        *(volatile uint32_t *)0xFE60000Cu = 0x76u;
+        for (volatile int i = 0; i < 100000; i++) {
+            __asm__ volatile ("nop");
+        }
+    }
+
+    /* (Code below is unreachable while the diagnostic loop above
+     * is in place. Restored when the diagnostic comes out.) */
+
     /* Initialize the page allocator and run its self-test. The
      * self-test confirms the bitmap math hands out distinct
      * page-aligned addresses and reuses freed pages. On failure
