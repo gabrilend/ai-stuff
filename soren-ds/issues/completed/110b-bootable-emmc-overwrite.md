@@ -2,17 +2,57 @@
 
 ## Current behavior
 
-SoreOS can read and write blocks on the internal eMMC (110a) but
-runs from the external microSD. The eMMC still holds Anbernic's
-stock Android: the Rockchip miniloader and u-boot at fixed low
-offsets that the boot ROM expects, then a partition table, then
-the boot partition with Android's kernel and ramdisk, then the
-system partition with Android's userland, then userdata. When
-the external microSD is removed and the device is powered on, the
-boot ROM falls through to the eMMC and Android comes up — which
-the vision (`notes/vision/000-vision.md`) forbids. The only thing
-keeping that from happening is the developer remembering to keep
-an SD card inserted.
+`src/013-boot-image.c` exposes a `write_kernel_to_emmc_boot_partition`
+function that wraps the running kernel image in an Android
+boot.img header (version 0, the simplest variant) and writes the
+header followed by the kernel bytes to the eMMC's boot
+partition through the block driver from 110a. The function does
+not run automatically on boot — it is meant to be triggered
+deliberately (by 110c's USB-C flash protocol, or by a button-
+held-at-boot dispatch the eventual phase 1 demo can wire) so a
+boot from SD does not re-flash the eMMC every time.
+
+A new linker-script symbol `__image_end` marks the on-disk end
+of the kernel image, so the boot.img header's `kernel_size`
+field can be populated correctly from a linker symbol rather
+than from a hand-maintained constant.
+
+The boot.img header sets `kernel_addr` to `0x00280000` — the
+same address the linker script in `src/kernel.ld` pins as the
+kernel's load address — so u-boot copies the kernel bytes into
+the exact memory region they were linked against. The remaining
+header fields (ramdisk, second-stage, tags, OS version, SHA-1
+ID, command line) are zero-filled because phase 1's kernel has
+none of them.
+
+After writing, the function reads the first block of the boot
+partition back and compares the eight-byte magic string against
+`"ANDROID!"`. A mismatch fails loudly through the CDC-ACM
+channel from 110.
+
+What this issue deliberately does not yet do:
+
+- *Parse the GPT to find the boot partition's location.* The
+  partition LBA is hard-coded to a placeholder value
+  (`0x4000`); the first hardware run will check whether that
+  address actually lands in the boot partition. If not, the
+  constant changes. Dynamic GPT parsing is a separate piece of
+  work that can land later without changing the function's
+  interface.
+- *A/B slot management.* The eMMC writer overwrites the boot
+  partition's current contents whatever they are. A/B safety
+  is the design rule the safety doc proposes for routine
+  flashing; phase 1's first eMMC overwrite is a one-shot bootstrap
+  from "Anbernic Android on eMMC" to "SoreOS on eMMC," and the
+  rollback path is the SD card with last-known-good SoreOS we
+  always keep inserted during phase 1 testing.
+
+The closing evidence on real hardware — a boot with no SD card
+present that lights up `STAGE_KERNEL_MAIN` and then advances
+through the rest of the kernel's signals — lands when we
+actually trigger this function on the device. Until then, this
+issue is "code complete, hardware-test pending" same as the rest
+of phase 1 from 109a onward.
 
 ## Intended behavior
 

@@ -226,6 +226,16 @@ flash loop from 110c, not Maskrom.
   call is one transaction. Bring-up status is narrated through
   the CDC-ACM channel. Closing evidence (round-trip pattern
   test on real hardware) lands when 110b boots from the device.
+- 110b — bootable eMMC overwrite. `src/013-boot-image.c` wraps
+  the running kernel in an Android boot.img header (version 0)
+  and writes header + kernel bytes to the eMMC's boot
+  partition through 110a's block driver, then reads the first
+  block back to verify the magic landed intact. The linker
+  script gains an `__image_end` symbol so kernel_size in the
+  header can be computed at runtime. The boot partition LBA
+  is a hard-coded placeholder until first hardware test
+  validates it. Function is not auto-triggered — 110c plumbs
+  the explicit trigger.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -236,7 +246,7 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-110b, 110c, 111a, 111b, 112, and 113.
+110c, 111a, 111b, 112, and 113.
 
 ## Phase demo
 
