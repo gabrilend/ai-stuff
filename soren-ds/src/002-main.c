@@ -26,9 +26,12 @@
  * docs/015-led-diagnostic-codes.md.
  */
 
+#include <stdint.h>
+
 /* Forward declarations from the LED driver in 004-led.c. */
 extern void led_init(void);
 extern void led_set_stage(int stage);
+extern int  led_current_stage(void);
 
 /* Forward declarations from the page allocator in 008-allocator.c. */
 extern void allocator_init(void);
@@ -39,14 +42,16 @@ extern int usb_init(void);                  /* 009-usb.c */
 extern int usb_endpoint_zero_bringup(void); /* 010-usb-enumeration.c */
 extern void usb_poll(void);                 /* 010-usb-enumeration.c */
 
-/* Forward declaration from 013-boot-image.c. */
-extern int write_kernel_to_emmc_boot_partition(void);
-
-#include <stdint.h>
+/* Forward declarations. */
+extern int  write_kernel_to_emmc_boot_partition(void); /* 013-boot-image.c */
+extern int  emmc_init(void);                            /* 012-emmc.c */
+extern void emmc_dump_to_debug(uint32_t start_lba,
+                               uint32_t count);          /* 014-emmc-probe.c */
 
 #define STAGE_KERNEL_MAIN     0
 #define STAGE_PANIC_GENERIC   1
 #define STAGE_USB_CONTROLLER  2
+#define STAGE_USB_ENUMERATED  3
 
 void kernel_main(void)
 {
@@ -85,35 +90,36 @@ void kernel_main(void)
         while (1) { __asm__ volatile ("wfi"); }
     }
 
-    /* Flash trigger — check the START button (GPIO3 PB1, active
-     * low per the device tree). If it is held down at boot, the
-     * kernel writes itself to the eMMC's boot partition through
-     * issue 110b's function, lights the "panic" pattern on
-     * failure or stays at "USB controller alive" on success
-     * (the developer power-cycles to boot from eMMC). The full
-     * runtime USB-C re-flash protocol is deferred to a phase 2
-     * extension; this minimal trigger is enough to bootstrap
-     * the device's eMMC from "Anbernic Android" to "SoreOS." */
-    {
-        volatile uint32_t *gpio3_ext_port = (volatile uint32_t *)0xFE760070u;
-        uint32_t gpio3_value = *gpio3_ext_port;
-        if ((gpio3_value & (1u << 9)) == 0) {
-            /* START is pressed (active low). Trigger the
-             * one-shot eMMC overwrite. */
-            if (write_kernel_to_emmc_boot_partition() != 0) {
-                led_set_stage(STAGE_PANIC_GENERIC);
-                while (1) { __asm__ volatile ("wfi"); }
-            }
-            /* eMMC now has the kernel. Park the core; the user
-             * power-cycles to boot from eMMC. */
-            while (1) { __asm__ volatile ("wfi"); }
-        }
-    }
+    /* The START-button bootstrap-flash trigger that issue 110d
+     * documents lived here in commit history but is removed
+     * pending 110e — until the eMMC writer's boot-partition LBA
+     * is confirmed against the real partition table, invoking
+     * the writer could corrupt u-boot. The flash trigger comes
+     * back when 110e closes with the LBA verified. */
+
+    /* eMMC layout probe — issue 110e. Read the first hundred
+     * sectors of the eMMC and dump them as hex through the
+     * CDC-ACM channel so the developer can parse the partition
+     * table host-side and confirm the boot partition's real
+     * LBA. The dump runs only once, the first time through the
+     * main loop after the host has finished enumerating us. */
+    int probe_done = 0;
 
     while (1) {
         /* Service the USB event ring on every pass. The kernel
          * has nothing else to do until later issues land; polling
          * is the right scheduling discipline for this phase. */
         usb_poll();
+
+        /* Once the LED stage has advanced to STAGE_USB_ENUMERATED
+         * (the host finished enumeration), kick off the one-shot
+         * eMMC dump for 110e. The dump runs at most once per
+         * boot. */
+        if (!probe_done && led_current_stage() == STAGE_USB_ENUMERATED) {
+            probe_done = 1;
+            if (emmc_init() == 0) {
+                emmc_dump_to_debug(0, 100);
+            }
+        }
     }
 }
