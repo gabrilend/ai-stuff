@@ -22,18 +22,26 @@ The deferred work is to add two register-write sequences to
 the PWM driver:
 
 - A clock-gate write into the chip's main clock-reset unit
-  (CRU) at `0xFDD20000`. The PWM1 controller block draws
+  (CRU) at `0xFDD2_0000`. The PWM1 controller block draws
   both a per-channel "pwm" clock and a peripheral-bus
   "pclk" clock from the CRU; the device tree's clock-cells
   entry for `pwm@fe6e0010` names clock IDs `0x15a` (the pwm
   clock) and `0x159` (the pclk). The CRU's clock-gate
-  registers (`CLKGATE_CON_<n>`) carry one bit per gated
-  clock, write-mask-encoded the same way the GRF and GPIO0
-  registers are. Writing the appropriate bit to zero
-  ungates the clock; the controller's counter then ticks
-  and its output toggles per the duty register.
+  register layout — register `CLKGATE_CON(n)` at offset
+  `0x300 + n*4`, write-mask-encoded with the upper 16 bits
+  selecting which of the lower 16 bits the hardware
+  actually changes — is documented in
+  `docs/017-clocks-and-timers.md` alongside the catalogue
+  of the chip's clock infrastructure. The specific
+  `CLKGATE_CON(n)` register and bit position for the PWM1
+  clocks are not yet recorded; the lookup goes through the
+  `clk-rk3568.c` driver in the upstream Linux tree or
+  through the RK3568 TRM Part 1's CRU chapter. Writing the
+  appropriate bit to zero ungates the clock; the
+  controller's counter then ticks and its output toggles
+  per the duty register.
 - A pin-multiplexer write into the PMU general register
-  file at `0xFDC20014` (`PMU_GRF_GPIO0C_IOMUX_H`). The
+  file at `0xFDC2_0014` (`PMU_GRF_GPIO0C_IOMUX_H`). The
   three LED pins — `GPIO0_C4 / C5 / C6` — currently sit in
   pin function zero (plain GPIO), the function the GPIO-
   driven LED layer set them to. Routing them to function
@@ -44,9 +52,11 @@ the PWM driver:
   `0x1` instead of `0x0`).
 
 A possible third step: deasserting the controller's reset in
-the CRU's `SOFTRST_CON_<n>` registers. Investigate during
-implementation; not every Rockchip controller block needs
-explicit reset deassertion, but PWM1 might.
+the CRU's `SOFTRST_CON(n)` registers (offset `0x400 + n*4`,
+same write-mask convention as the clock-gate registers).
+Investigate during implementation; not every Rockchip
+controller block needs explicit reset deassertion, but PWM1
+might.
 
 ## Intended behavior
 
@@ -114,9 +124,12 @@ channel.
 ## Related documents
 
 - `docs/016-physical-memory-map.md` — CRU, PMU GRF, GPIO0
-  register window addresses. The clock-gate register
-  offsets and bit positions identified during step 1 are
-  recorded here.
+  register window base addresses.
+- `docs/017-clocks-and-timers.md` — the CRU clock-gate and
+  soft-reset register layout. The PWM1 clock-gate offsets
+  and bit positions identified during step 1 are recorded
+  there alongside the USB and watchdog entries already in
+  the catalogue.
 - `docs/015-led-diagnostic-codes.md` — pattern table the
   LED layer rewrite touches.
 - `src/003-pwm.c` — the PWM driver this issue brings back
