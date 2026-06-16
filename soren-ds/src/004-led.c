@@ -58,6 +58,16 @@ void led_init(void)
     pwm_init();
 }
 
+/* Track the most recently applied boot stage so other layers
+ * (the eMMC probe trigger in kernel_main, in particular) can
+ * read it back without having to instrument the LED layer. */
+static int last_stage = -1;
+
+int led_current_stage(void)
+{
+    return last_stage;
+}
+
 /* Turn an LED hard on (full duty) or hard off (zero duty). The
  * intermediate brightness levels the PWM hardware supports are not
  * exposed here; if a later feature wants them, this is the place
@@ -109,6 +119,7 @@ typedef enum {
  * the other, or the documentation lies. */
 void led_set_stage(boot_stage_t stage)
 {
+    last_stage = (int)stage;
     switch (stage) {
         case STAGE_KERNEL_MAIN:
             led_set(LED_GREEN, 1);

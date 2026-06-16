@@ -68,12 +68,14 @@ walkthrough of how the kernel comes to life:
     kernel images over USB-C and writes them back to eMMC,
     closing the daily iteration loop without SD-swap.
 14. `111-framebuffer-driver.md` — parent / index. Split into:
-    - `111a-display-controller-and-bottom-screen.md` — bring up
-      the shared controller and light the bottom screen.
-    - `111b-top-screen-output.md` — add the second output path
-      to the already-running controller. Required to close phase
-      1 — phase 1 demonstrates the hardware, and the hardware has
-      two screens, so both light up before the phase ends.
+    - `111a-display-controller-and-bottom-screen.md` — VOP2
+      display controller bring-up.
+    - `111b-dsi-bringup.md` — MIPI DSI controllers and D-PHYs.
+    - `111c-panel-initialization.md` — JD9365DA-H3 panel init
+      register sequence.
+    - `111d-framebuffer-and-scanout.md` — framebuffers from the
+      page allocator, VOP2 output paths pointed at them, scan-
+      out enabled.
 15. `112-draw-one-pixel.md` — earn the first visible signal on
     each screen.
 16. `113-phase-1-demo.md` — wrap the whole thing in a one-command
@@ -115,6 +117,11 @@ into a three-step pipeline added during issue 101 research:
   plumbing; SoreOS writes it to the eMMC and reboots. Both ends
   of the USB bus are code we wrote, so the daily loop never
   trusts closed-source Anbernic firmware on the wire.
+- A safety gate (110e) before the first eMMC write: dump the
+  first hundred sectors of the eMMC through the CDC-ACM channel
+  and parse the partition table host-side to confirm where the
+  boot partition actually lives, before invoking 110b's writer
+  on real hardware.
 
 Chip ROM Maskrom remains the deepest recovery path beneath this
 pipeline (per `notes/safety/000-bricking-and-recovery.md`) but is
@@ -235,15 +242,13 @@ flash loop from 110c, not Maskrom.
   header can be computed at runtime. The boot partition LBA
   is a hard-coded placeholder until first hardware test
   validates it.
-- 110c — bootstrap flash trigger. `kernel_main` reads the
-  START button (GPIO3 PB1) at boot; if held, calls into
-  110b's eMMC writer and parks the core for power-cycle. This
-  is the scope-reduced MVP that bootstraps the eMMC from
-  Anbernic Android to SoreOS. The runtime USB-C re-flash
-  protocol the original sketch described — bidirectional
-  bulk transfer with the host, in-kernel image accumulator,
-  host-side tool, authentication handshake — is deferred to
-  phase 2 as a natural extension.
+- 110d — bootstrap button trigger. The button-held-at-boot
+  flash trigger that calls into 110b's writer; documented as a
+  recovery-net mechanism in case 110c's USB-C path is broken or
+  unavailable. The code path is currently disabled in
+  `kernel_main` pending 110e's LBA verification; the design and
+  prototype work that this issue captures is preserved in git
+  history.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -254,7 +259,13 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-111a, 111b, 112, and 113.
+110c (USB-C runtime re-flash, moved back to open after the
+prior session conflated it with the button trigger), 110e (eMMC
+layout probe — implementation in `src/014-emmc-probe.c` is in
+place; the issue closes when the first hardware run captures
+the dump and updates `BOOT_PARTITION_LBA` to the verified
+value), the four display sub-issues (111a, 111b, 111c, 111d),
+112, and 113.
 
 ## Phase demo
 
