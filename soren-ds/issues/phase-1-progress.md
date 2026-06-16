@@ -275,6 +275,21 @@ flash loop from 110c, not Maskrom.
   label. The lab side will get its first real run when the
   build system produces an actual kernel image; if it surfaces
   bugs at that point the issue reopens.
+- 103c — kernel image bootloader-recognition envelope. A
+  sixty-four-byte header lives at the start of `output/kernel.img`,
+  built by `src/000-image-header.s` and pinned at the load
+  address by the linker script. The header carries two
+  instructions of glue (a no-op and a branch into `_start` at
+  byte 64), an image-size field the linker computes from the
+  distance between the load address and the end of `.bss`, a
+  flags word, and the four-byte `ARM\x64` magic at offset 56
+  that u-boot's `booti` command grep's for to recognise an
+  image worth loading. The vector table moved from
+  `.text.vectors` to a freestanding `.vectors` output section
+  so its 2 KB alignment requirement no longer propagates back
+  to `.text` and shoves `_start` away from the recognition
+  envelope. Without this header, ROCKNIX's u-boot on the SD
+  card refuses to launch the kernel.
 
 ## Open issues
 
