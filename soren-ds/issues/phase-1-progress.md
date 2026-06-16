@@ -270,13 +270,23 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-110c (USB-C runtime re-flash, moved back to open after the
-prior session conflated it with the button trigger), 110e (eMMC
-layout probe — code is in place and `kernel_main` runs the
-backup automatically on boot; the issue closes when the first
-hardware run produces a dump that lets us identify the boot
-partition's real LBA), the four display sub-issues (111a, 111b,
-111c, 111d), 112, and 113.
+103b (bootable SD card image assembly — the critical blocker
+that the previous boot-test plan glossed over: our `kernel.img`
+isn't a Rockchip-bootable image, and the BootROM won't pick it
+up from an SD card without an IDBlock and the rest of the boot
+chain. The new issue captures the assembler script that combines
+RKBin's bootloader binaries with our kernel into a single
+bootable SD image), 110c (USB-C runtime re-flash, moved back
+to open after the prior session conflated it with the button
+trigger), 110e (eMMC layout probe — code is in place and
+`kernel_main` runs the backup automatically on boot; the issue
+closes when the first hardware run produces a dump that lets
+us identify the boot partition's real LBA), 110g (SD-card
+debug log — gives us diagnostic visibility during the first
+hardware test without violating the threat model that rules
+out USB-C to trusted machines; supersedes the phase 3 RAM
+transcript ring eventually), the four display sub-issues (111a,
+111b, 111c, 111d), 112, and 113.
 
 ## Phase demo
 

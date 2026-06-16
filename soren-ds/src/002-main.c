@@ -118,7 +118,13 @@ void kernel_main(void)
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { __asm__ volatile ("wfi"); }
     }
-    if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
+    /* Copy the entire eMMC to the microSD card. The eMMC is
+     * 32 GB = 67,108,864 sectors of 512 bytes. The microSD card
+     * is at least 256 GB per the developer's setup. Reserved
+     * region starts at SD LBA 0x200000 (~1 GB offset) so the
+     * BootROM-relevant low sectors stay untouched and the SD
+     * card remains bootable for subsequent test cycles. */
+    if (emmc_backup_to_sd(0, 0x200000, 67108864) != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { __asm__ volatile ("wfi"); }
     }

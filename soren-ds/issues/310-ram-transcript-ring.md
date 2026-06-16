@@ -54,6 +54,22 @@ plenty for the launch system.
 4. `transcript_drain_to_serial()` — the live-stream task body.
 5. `transcript_dump_to_serial()` — the panic-handler hook.
 
+## Supersedes the phase 1 SD-card debug log
+
+Phase 1 issue `110g-sd-card-debug-log.md` (and its implementation
+in `src/017-debug-log.c`) is a phase 1 expedient that writes a
+diagnostic log to a reserved region of the microSD card during
+bring-up. That mechanism exists because phase 1 hardware tests
+deliberately do not connect the device to anything with data
+worth losing over USB-C, so CDC-ACM-only diagnostic output goes
+nowhere when no host is attached.
+
+The RAM transcript ring this issue builds subsumes that role for
+the long-term: the same "last N events leading up to a panic,"
+but kept in RAM with no SD wear and no fixed region of removable
+media consumed for kernel logs. When this issue lands, 110g's
+SD-card region and `src/017-debug-log.c` should both be removed.
+
 ## Related documents
 
 - `docs/012-soramech-runtime.md` — RAM transcript ring section.
