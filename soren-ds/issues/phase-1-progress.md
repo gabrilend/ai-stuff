@@ -234,8 +234,16 @@ flash loop from 110c, not Maskrom.
   script gains an `__image_end` symbol so kernel_size in the
   header can be computed at runtime. The boot partition LBA
   is a hard-coded placeholder until first hardware test
-  validates it. Function is not auto-triggered — 110c plumbs
-  the explicit trigger.
+  validates it.
+- 110c — bootstrap flash trigger. `kernel_main` reads the
+  START button (GPIO3 PB1) at boot; if held, calls into
+  110b's eMMC writer and parks the core for power-cycle. This
+  is the scope-reduced MVP that bootstraps the eMMC from
+  Anbernic Android to SoreOS. The runtime USB-C re-flash
+  protocol the original sketch described — bidirectional
+  bulk transfer with the host, in-kernel image accumulator,
+  host-side tool, authentication handshake — is deferred to
+  phase 2 as a natural extension.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -246,7 +254,7 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-110c, 111a, 111b, 112, and 113.
+111a, 111b, 112, and 113.
 
 ## Phase demo
 
