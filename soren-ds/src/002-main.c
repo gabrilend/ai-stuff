@@ -189,24 +189,66 @@ void kernel_main(void)
     }
     led_set_stage(STAGE_USB_CONTROLLER);
 
+    /* Configure endpoint zero and start the controller. After
+     * this returns successfully, the host can drive bus reset
+     * and start enumeration. usb_poll services control transfers
+     * from the main loop below. */
+    if (usb_endpoint_zero_bringup() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { delay_busy(1000000); }
+    }
+
+    /* The START-button bootstrap-flash trigger that issue 110d
+     * documents lived here in commit history but is removed
+     * pending 110e — until the eMMC writer's boot-partition LBA
+     * is confirmed against the real partition table, invoking
+     * the writer could corrupt u-boot. The flash trigger comes
+     * back when 110e closes with the LBA verified. */
+
+    /* eMMC controller bring-up. Same pattern as USB — the clock
+     * and reset work the bootloader does not do for us lives at
+     * the top of emmc_init itself (and may not yet, depending on
+     * whether the eMMC controller's clocks survive the SD-card
+     * boot path). If the eMMC's MMIO base address is wrong in
+     * the same way the USB controller's was, the symptom will
+     * be a cycling reset; if the controller does not identify,
+     * the kernel panics cleanly. */
+    if (emmc_init() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { delay_busy(1000000); }
+    }
+
+    /* SD card controller bring-up. Different controller IP
+     * (Synopsys DW MSHC instead of SDHCI) on a different MMIO
+     * base. Same disposition as the eMMC bring-up. */
+    if (sd_init() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { delay_busy(1000000); }
+    }
+
+    /* Bring up the SD-card-backed debug log now that the SD card
+     * is writable. Every subsequent `debug_write` call also
+     * appends to a ring buffer that periodically flushes to a
+     * reserved region of the SD card. After the card is pulled
+     * the developer can `dd` the region off the card and read it
+     * as plain text. */
+    debug_log_init();
+
     /* INCREMENTAL RESTORATION (issue 103g — TEMPORARY) ----
      *
-     * USB endpoint-zero configuration, eMMC bring-up, SD
-     * bring-up, the debug-log init, and the eMMC-to-SD
-     * backup are all skipped for this iteration. Each of them
-     * touches a peripheral whose clock and reset state we
-     * have not yet verified, and turning them on one at a
-     * time keeps each next surprise visible against a
-     * known-good last state. After confirming that the USB
-     * controller bring-up reaches its identification-register
-     * read successfully (or panics cleanly if it does not),
-     * the next iteration restores the next piece.
+     * The 32 GB eMMC-to-SD backup runs for many minutes at
+     * the chip's currently-slow boot clock speed; any failure
+     * mid-backup would cost a long wait before we see it. The
+     * backup stays skipped for one more iteration so the
+     * controller bring-ups above can be verified independent
+     * of the backup's own behavior. Once we know all four
+     * controllers come up cleanly, the next iteration restores
+     * the backup and we watch it run end-to-end.
      * ------------------------------------------------------ */
     while (1) { delay_busy(1000000); }
 
     /* (Code below is unreachable while the petting wait loop
-     * above is in place. Restored as the next bring-up steps
-     * land.) */
+     * above is in place. Restored next iteration.) */
 
     /* Bring up the USB 2.0 PHY and the DWC3 controller in
      * device mode. On success, advance the LED stage so the
