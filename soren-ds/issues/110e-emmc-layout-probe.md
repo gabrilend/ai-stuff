@@ -1,4 +1,4 @@
-# 110e — eMMC layout probe
+# 110e — eMMC layout probe (via microSD dump)
 
 ## Current behavior
 
@@ -10,80 +10,120 @@ layout. If the assumption is wrong and the address lands in
 u-boot's region or the loader area, the writer corrupts the
 bootloader chain and the device fails to boot from eMMC at all.
 
-We can recover from such a corruption by booting from SD — the
-Rockchip BootROM tries SD first if a card is present. But this
-relies on always having a known-good SD card available, and it
-means the first hardware run of the writer is a one-strike
-test.
+A previous version of this issue dumped eMMC sectors out through
+the CDC-ACM debug channel and asked the developer to capture the
+text on a USB-connected host. The threat model the project
+committed to during issue 101 — Anbernic the company we trust,
+but the import path the device travelled through we do not —
+rules that out: until the eMMC has been completely overwritten
+with our own code, we do not plug the device into anything
+holding data we care about over USB-C. The dump cannot leave the
+device through USB-C.
 
-Worse, we have no way today to verify the LBA *before* writing.
-The eMMC controller from 110a can read blocks; CDC-ACM from 110
-can stream text back to the host. What is missing is the code
-to use those two capabilities together: read the eMMC's
-partition-table sectors and dump them out so a host script can
-parse the GPT and tell us where the boot partition actually
-lives.
+The dump cannot stay on the eMMC either; the bytes we are trying
+to read are in danger of being overwritten by the very write we
+are trying to make safe.
+
+The remaining surface is the external microSD card the device is
+already booting from. We write the dump there and pull the card
+out. That requires the microSD driver from 110f to exist before
+this issue can run on real hardware. (The CDC-ACM dump from the
+previous version of this issue is preserved in
+`src/014-emmc-probe.c` for use after the eMMC has been
+overwritten and USB-C is trusted, but it is no longer the
+mechanism this issue's success depends on.)
 
 ## Intended behavior
 
-The kernel exposes — and `kernel_main` calls automatically after
-the CDC-ACM channel is up — a function that dumps the first
-~100 sectors of the eMMC through CDC-ACM as hex. The host
-captures the dump, a small host-side script parses the GPT,
-the developer reads off the boot partition's real LBA, and the
-constant in `013-boot-image.c` gets updated to the correct
-value.
+`kernel_main` automatically, after a successful boot:
 
-The dump format is a hex byte stream broken into lines that a
-host script can re-assemble. Each sector is preceded by a
-sector marker line. Each row is sixteen hex bytes plus an ASCII
-fallback. This is essentially `xxd` output transmitted over
-serial.
+1. Brings up the eMMC controller (110a).
+2. Brings up the microSD controller (110f).
+3. Reads the first 200 MB of the eMMC, sector by sector, and
+   writes those sectors out to a reserved region of the
+   microSD card.
+4. Narrates progress through CDC-ACM (text only, not the dump
+   itself — small enough that observing it on a sacrificial host
+   is acceptable; the bulk binary dump never goes over USB-C).
+5. Lights an LED stage signalling "dump complete; safe to power
+   off and pull the card."
 
-After this issue closes, before any START-held flash trigger is
-exercised on real hardware:
+The reserved region on the microSD card sits at a high LBA
+(somewhere past where Rockchip's BootROM looks for the loader,
+typically LBA 0x40 through 0x100000 — pick something past that,
+maybe LBA 0x200000, well above any region the BootROM cares
+about). The dump occupies the next 200 MB / 4 KB blocks = ~50000
+blocks from that base.
 
-1. Boot from SD card.
-2. Capture CDC-ACM output to a file.
-3. Run a host script against the dump that finds the GPT
-   header (signature `"EFI PART"` at LBA 1) and walks the
-   partition entries to find the one named "boot."
-4. Update `BOOT_PARTITION_LBA` in `013-boot-image.c`.
-5. Then — and only then — the flash trigger is safe to use on
-   real hardware.
+After this issue closes:
 
-## Why this is its own issue
+1. Boot the device from microSD with the kernel that has 110e
+   wired into it.
+2. Wait for the LED stage that says "dump complete."
+3. Power off the device, pull the microSD card.
+4. On the lab laptop, with auto-mount disabled, raw-`dd` the
+   microSD's reserved region into a binary file. No mount, no
+   execution.
+5. Analyze the binary file with standard host tools — `gdisk
+   -l` against the LBA 1 GPT, `xxd` for general byte inspection,
+   a small parser script if helpful.
+6. Update `BOOT_PARTITION_LBA` in `013-boot-image.c` to the
+   verified value.
 
-The probe function is small (a few hundred lines of C, mostly
-a hex-formatting helper). But splitting it out makes the
-"do not flash until probe is done" gate explicit. As long as
-this issue exists open or completed-but-LBA-not-yet-confirmed,
-the project explicitly tracks that the eMMC writer's LBA is a
-guess. When this issue closes with the LBA constant updated to
-the real value, the writer becomes safe to invoke.
+Only then is 110b's writer safe to invoke on real hardware.
+
+## Why we dump 200 MB rather than just the partition table
+
+The partition table itself is in the first ~17 KB of the eMMC
+(GPT header at LBA 1, partition entries at LBAs 2-33). But we
+also want to capture the u-boot bytes and the bootloader chain
+that precede the boot partition, so a future analysis can
+confirm those bytes look like a known-good u-boot and that
+nothing visibly tampered-with sits between the loader and our
+target partition. 200 MB covers everything below typical
+Android-layout boot partitions and gives the host analysis
+room to look beyond just "where is the GPT entry."
+
+## Safety guarantees during the dump
+
+The dump only reads from eMMC and writes to microSD. No eMMC
+writes happen during this phase. The kernel is fully in control
+of both controllers; nothing the device's prior firmware did
+can interfere with what we read or what we write to the SD card.
+
+The microSD card itself has been in contact with the
+potentially-compromised device, so the bytes on the card after
+the dump are bytes we wrote. The lab laptop's first contact
+with that microSD card uses `dd` against the raw block device
+and never mounts the filesystem, so even if hostile firmware
+managed to write something malformed onto the card's filesystem
+metadata regions, the lab laptop never feeds those bytes to a
+filesystem driver — they are just bytes in a binary file.
 
 ## Suggested implementation steps
 
-1. Write `src/014-emmc-probe.c`. It exposes one function:
-   `void emmc_dump_to_debug(uint32_t start_lba, uint32_t count)`.
-2. The function loops over sectors. For each: read the sector
-   into a 512-byte buffer through `emmc_read_block`, then
-   format the buffer as hex through `debug_write`.
-3. The hex-formatting helper converts each byte to two hex
-   digits using a 16-character lookup table. Line layout per
-   the `xxd` convention: 8-digit hex offset, two columns of
-   eight bytes each, ASCII fallback at the right margin.
-4. `kernel_main` calls `emmc_dump_to_debug(0, 100)` after the
-   CDC-ACM channel is up (i.e. after the polling loop has
-   processed at least one `SET_CONFIGURATION` from the host).
-   For phase 1's simple flow, this can happen after a fixed
-   delay or by polling a flag the polling loop sets.
-5. Write a small host-side script under
-   `scripts/parse-emmc-dump` that takes the captured serial
-   text and prints out the partition layout.
-6. Run on real hardware, get the dump, parse the GPT, update
-   `BOOT_PARTITION_LBA` in `013-boot-image.c`, commit the
-   update. Mark this issue complete at that point.
+1. Implement 110f first.
+2. Write `src/015-emmc-backup-to-sd.c`. It exposes one function:
+   `void emmc_backup_to_sd(uint32_t emmc_start_lba,
+   uint32_t sd_start_lba, uint32_t sector_count)`.
+3. The function loops sector by sector: `emmc_read_block` from
+   the eMMC source into a 512-byte buffer, `sd_write_block` from
+   the buffer to the SD destination. Narrates every ~1000
+   sectors through CDC-ACM so progress is visible.
+4. `kernel_main` calls this after USB enumeration completes,
+   passing `(0, 0x200000, 409600)` — 200 MB of eMMC starting at
+   LBA 0, written to microSD starting at LBA 0x200000.
+5. After the function returns, advance the LED stage to a new
+   `STAGE_BACKUP_COMPLETE` pattern so the developer knows to
+   power off and pull the card.
+
+## Closing condition
+
+The first hardware run produces a microSD card with the dump on
+it. The dump is `dd`-copied off the card on the lab laptop.
+Host-side analysis finds the boot partition's real LBA.
+`BOOT_PARTITION_LBA` in `013-boot-image.c` is updated to that
+LBA. Commit. Issue closed.
 
 ## Related documents
 
@@ -92,11 +132,9 @@ the real value, the writer becomes safe to invoke.
 
 ## Blocked by
 
-110a, 110.
+110a (eMMC reads), 110f (microSD writes), 110 (CDC-ACM for
+narration).
 
 ## Blocks
 
-The next safe use of 110b's writer on real hardware, and
-therefore the closing evidence on 109a / 109b / 109c / 110 /
-110a / 110b / 110c (which all need a successful eMMC boot to
-observe their claimed behavior).
+The next safe use of 110b's writer on real hardware.

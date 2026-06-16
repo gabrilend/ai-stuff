@@ -97,29 +97,22 @@ void kernel_main(void)
      * the writer could corrupt u-boot. The flash trigger comes
      * back when 110e closes with the LBA verified. */
 
-    /* eMMC layout probe — issue 110e. Read the first hundred
-     * sectors of the eMMC and dump them as hex through the
-     * CDC-ACM channel so the developer can parse the partition
-     * table host-side and confirm the boot partition's real
-     * LBA. The dump runs only once, the first time through the
-     * main loop after the host has finished enumerating us. */
-    int probe_done = 0;
+    /* The CDC-ACM-based eMMC dump that an earlier iteration of
+     * 110e tried to use is no longer the path — the threat
+     * model the project committed to during issue 101 rules
+     * out USB-C connections to anything with data worth losing
+     * until the eMMC is fully under our code. The replacement
+     * approach (dump eMMC contents to the microSD card, eject,
+     * analyze on the lab laptop via raw `dd`) is blocked on
+     * 110f's microSD driver landing first. Until then,
+     * kernel_main does not initiate an eMMC dump at all; the
+     * first hardware boot is purely "verify LEDs and USB
+     * enumeration work." */
 
     while (1) {
         /* Service the USB event ring on every pass. The kernel
          * has nothing else to do until later issues land; polling
          * is the right scheduling discipline for this phase. */
         usb_poll();
-
-        /* Once the LED stage has advanced to STAGE_USB_ENUMERATED
-         * (the host finished enumeration), kick off the one-shot
-         * eMMC dump for 110e. The dump runs at most once per
-         * boot. */
-        if (!probe_done && led_current_stage() == STAGE_USB_ENUMERATED) {
-            probe_done = 1;
-            if (emmc_init() == 0) {
-                emmc_dump_to_debug(0, 100);
-            }
-        }
     }
 }
