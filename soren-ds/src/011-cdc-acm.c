@@ -34,6 +34,11 @@
 extern uint64_t alloc_page(void);
 extern void led_set_stage(int stage);
 
+/* The SD-card debug log from 017-debug-log.c. `debug_write`
+ * appends to that log on every call so the bring-up narration
+ * survives even without a USB host attached. */
+extern void debug_log_append(const char *text);
+
 #define STAGE_USB_ENUMERATED 3
 
 /* DWC3 registers and helpers we share with 010-usb-enumeration.c.
@@ -196,11 +201,15 @@ static uint32_t cstring_length(const char *text)
 
 void debug_write(const char *text)
 {
+    /* First fan-out: the SD-card debug log captures the bytes
+     * regardless of whether a USB host is attached. */
+    debug_log_append(text);
+
     if (trb_bulk_in == 0 || bulk_in_staging == 0) {
-        /* cdc_acm_init has not run yet — no transfer machinery to
-         * push bytes through. The caller may be wired in too
-         * early; for phase 1 this is benign (debug_write before
-         * enumeration is a no-op). */
+        /* cdc_acm_init has not run yet — no USB transfer
+         * machinery to push bytes through. The SD log above has
+         * already received the bytes if it is ready; this is
+         * benign. */
         return;
     }
     uint32_t total = cstring_length(text);

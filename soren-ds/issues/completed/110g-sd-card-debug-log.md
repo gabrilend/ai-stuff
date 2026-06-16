@@ -2,24 +2,47 @@
 
 ## Current behavior
 
-`debug_write` in `src/011-cdc-acm.c` sends text through the
-USB CDC-ACM bulk-IN endpoint to a host computer attached over
-USB-C. When no host is attached — which is the explicit posture
-during phase 1 hardware tests, per the threat model the project
-committed to during issue 101 — those writes silently drop.
+`src/017-debug-log.c` owns a 4 KB ring buffer in DRAM, set up
+by `debug_log_init` after the microSD card is brought up. The
+ring buffer's page comes from the page allocator (108).
 
-The diagnostic narration `kernel_main` and the eMMC backup
-operation both emit through `debug_write` therefore reaches no
-one during the threat-model-conscious first boot. The only
-observable signal is LED stage transitions, which collapse
-every diagnostic into a handful of patterns and cannot tell us
-*which sector* of the eMMC backup failed, *which DW MSHC
-command* the SD card init choked on, or *which DWC3 register*
-the USB bring-up never saw the expected value in.
+`debug_write` in `src/011-cdc-acm.c` is extended at its top to
+call `debug_log_append` before the existing CDC-ACM transfer
+logic. The append copies bytes into the ring buffer, and when
+the buffer crosses 75% full it triggers a flush — eight blocks
+(4 KB) written out to the SD card starting at LBA `0x4000000`,
+the next write tracked through a static counter so successive
+flushes append rather than overwrite. When the counter reaches
+the region's end (`LOG_SD_REGION_SIZE` = 32,768 blocks =
+16 MB), it wraps back to the start.
 
-The result is that if the backup hangs or panics, the
-developer has no information beyond "LED was last at green-
-only when I powered off."
+`kernel_main` calls `debug_log_init` after `sd_init` succeeds.
+The eMMC-backup loop's existing `debug_write` calls now
+populate the SD log automatically — no explicit flush calls
+from the backup loop are needed because the threshold triggers
+within the per-sector narration. A final `debug_log_flush`
+call after the backup completes (or on panic) ensures the
+buffer's tail bytes land on the card before the
+`STAGE_BACKUP_COMPLETE` signal lights up.
+
+After the SD card is pulled from the device, the developer
+`dd`s the reserved region off the card on the lab laptop:
+
+```
+sudo dd if=/dev/sdX bs=512 skip=67108864 count=32768 \
+        of=~/boot-log.bin status=progress
+strings ~/boot-log.bin | head -200
+```
+
+The result is plain-text bring-up narration: every `[emmc]`,
+`[sdmmc]`, `[backup]`, `[boot-image]` message, in order, the
+exact sector that failed if anything did, the exact return code
+the controller returned.
+
+The closing condition on real hardware is implicit: if the
+first hardware run captures a readable log from the SD card,
+this issue closes. The implementation has not been observed
+working because we have not yet booted.
 
 ## Intended behavior
 
