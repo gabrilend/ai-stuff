@@ -1,10 +1,21 @@
 # LED diagnostic codes
 
-The Anbernic RG DS has three LEDs visible on the front edge of
-the lower case. The kernel drives all three through the
-RK3568's PWM hardware — green on PWM5, amber on PWM6, red on
-PWM7 — using the small driver in `src/003-pwm.c` underneath the
-LED abstraction in `src/004-led.c`.
+The Anbernic RG DS has two indicator lights visible on the
+front edge of the lower case, not three. The chip-side device
+tree describes three PWM channels driving three pin names —
+green, amber, red — but on this board variant those three
+pins drive two physical lights: a bicolor top window with
+separate green and red emitters behind one diffuser, and a
+single-color amber bottom window. Issue 103e's hardware
+diagnostic mapped this out by cycling each pin alone and
+watching which physical light responded.
+
+The kernel currently drives all three pins through the chip's
+GPIO controller, not its PWM controller (issue 106b). Boot
+stage signals are binary on/off; the PWM-side smooth-fade and
+breathing-heartbeat vocabulary returns when issue 106c brings
+the PWM controllers up cleanly. Until then the layer's
+vocabulary is "each pin on or off, no in-between."
 
 Their state at any moment encodes roughly where in the boot
 sequence the kernel is, or that it has hit a fatal exception.
@@ -16,81 +27,146 @@ This document and the `boot_stage_t` enum in `src/004-led.c`
 must stay in sync. Updating one without the other turns this
 document into a lie.
 
-## Pattern table
+## The vocabulary
 
-| Green | Amber | Red | Meaning |
-| :---: | :---: | :-: | :-- |
-| on    | on    | on  | One of two states. *Briefly* (a fraction of a second after power-on, followed by all three going dark for another fraction of a second): `led_hello()` — the kernel reached `kernel_main` and is about to set its first stage signal. *Held continuously*: `STAGE_BACKUP_COMPLETE` — the eMMC-to-microSD backup finished cleanly; power off, pull the microSD card, analyze the dump on a separate machine via raw `dd`. The two states are distinguishable by duration (a momentary flash vs. solid). |
-| off   | off   | off | One of two states. *Briefly* (the dark half of `led_hello()`): the kernel reached `kernel_main`; the steady stage signal will appear in a moment. *Held continuously at power-on*: the kernel never reached `kernel_main`. The boot chain failed somewhere upstream (BootROM did not recognize the idbloader, u-boot did not load our kernel, `booti` rejected the image, or the kernel started but hung before the LED layer came up). The fix is upstream of the kernel — check the build output, the flash workflow, and the linker script's load address. |
-| on    | off   | off | Either the bootloader is running but our kernel has not yet touched the LEDs (boot code did not start, or started but did not reach `kernel_main`), OR `STAGE_USB_CONTROLLER` (the kernel reached `kernel_main`, ran the allocator self-test, and brought up the USB controller successfully — the controller is alive but enumeration has not yet happened). The two states share an LED pattern because power-on default and our post-USB state happen to agree; the difference between them is observable only on the laptop side via plug-in `dmesg`. |
-| on    | on    | off | `STAGE_KERNEL_MAIN`, OR `STAGE_USB_ENUMERATED`. The kernel reached its first C function (KERNEL_MAIN) or the host has finished enumerating us over USB (USB_ENUMERATED — only observable from the host side). Both states share the same LED pattern; in flight during phase 1's boot test #1 (no USB host), the pattern means "kernel reached `kernel_main` and the USB controller bring-up succeeded; backup is in progress." |
-| on    | breathing | off | The eMMC-to-microSD backup is in progress. Green stays on from the stage signal underneath; amber fades in and out at roughly a one-second cadence as `led_heartbeat()` advances on each megabyte of progress; red stays off. If the breathing stops mid-backup, the kernel is stuck on a particular sector. |
-| off   | off   | on  | `STAGE_PANIC_GENERIC`. A fatal exception fired, the allocator self-test failed, USB controller identification mismatched, the eMMC bring-up failed, the microSD bring-up failed, or the eMMC-to-SD backup hit a fatal error. Decoding which requires CDC-ACM serial capture or eyeball inspection of where in the boot sequence the LED last advanced from. |
-| any   | any   | any | Patterns added by later phase 1 issues land here as those issues complete. |
+Each physical light has a small vocabulary of states.
 
-## Reading the LEDs
+**Top window** — bicolor, with green and red emitters that
+can be lit independently:
 
-The LEDs sit at the bottom of the lower screen on the front edge.
-Hold the device closed (cover the top screen) to compare them
-most easily. The amber LED is slightly brighter than green at
-full duty; this is a property of the LED rather than a kernel
-choice.
+| Green pin | Red pin | Top window appearance |
+| :-------: | :-----: | :-------------------- |
+| off       | off     | dark                  |
+| on        | off     | green                 |
+| off       | on      | red                   |
+| on        | on      | yellow-amber (additive mix of green + red, visibly brighter than either alone) |
+
+**Bottom window** — single-color amber:
+
+| Amber pin | Bottom window appearance |
+| :-------: | :----------------------- |
+| off       | dark                     |
+| on        | amber                    |
+
+Combined, eight distinct visible states are available. Five
+of them are used by the boot-stage signaling vocabulary
+below; the remaining three are reserved for later phase 1
+issues if they need them.
+
+## Boot-stage pattern table
+
+| Stage signal              | Top window         | Bottom window | Meaning |
+| :-----------------------: | :----------------: | :-----------: | :-- |
+| (none yet)                | dark               | dark          | Either the kernel never started, or the kernel started but did not reach its first stage signal. The first sub-second after power-on is also dark while `led_hello` runs through its flash; if the device stays dark past about a second, the boot chain failed somewhere upstream of the kernel. |
+| `STAGE_KERNEL_MAIN`       | green              | dark          | Kernel reached its first C function. From here, whichever stage signal follows decodes by the rows below. |
+| `STAGE_USB_CONTROLLER`    | dark               | amber         | Kernel passed allocator self-test and brought up the USB controller successfully. Controller is alive but enumeration has not yet happened. |
+| `STAGE_USB_ENUMERATED`    | yellow-amber (G+R) | amber         | Host has enumerated us and CDC-ACM is live. `debug_write` can push text to the host. |
+| `STAGE_BACKUP_COMPLETE`   | red                | amber         | The eMMC-to-microSD backup finished cleanly. Power off, pull the microSD card, analyze the dump on a separate machine via raw `dd`. |
+| `STAGE_PANIC_GENERIC`     | red                | dark          | A fatal exception fired, the allocator self-test failed, USB controller identification mismatched, eMMC bring-up failed, microSD bring-up failed, or the eMMC-to-SD backup hit a fatal error. Decoding which requires CDC-ACM serial capture or eyeball inspection of where in the boot sequence the LED last advanced from. |
+
+The hello flash from `led_hello` is a transient pattern, not
+a stage: top window yellow-amber, bottom window amber, held
+for about a quarter-second, then both dark for another
+quarter-second, then the kernel paints the first steady stage
+signal. The flash is visibly indistinguishable from
+`STAGE_USB_ENUMERATED` *while it is in flight*; the
+distinguishing feature is duration.
+
+## Long-operation heartbeat
+
+During the multi-minute eMMC-to-microSD backup, the bottom
+amber LED blinks on and off at roughly a one-second cadence —
+each call to `led_heartbeat` in the backup loop flips the
+amber pin. Visually, the bottom window pulses between dark
+and amber while the top window holds whatever stage signal
+was last set. If the blinking stops mid-operation, the kernel
+is stuck on a particular sector.
+
+(The PWM-era heartbeat from issue 106a was a smooth breathing
+fade rather than a discrete blink. The blink replaces the
+fade until issue 106c brings the PWM controller up.)
+
+## Reading the lights
+
+The two lights sit at the bottom of the lower screen on the
+front edge — top and bottom relative to the developer's view
+with the device held normally. Hold the device closed (cover
+the upper screen) to compare them most easily. The bottom
+amber LED's brightness and the top window's yellow-amber
+brightness when both emitters are lit are both higher than
+the top window's green-alone or red-alone brightness; this is
+a property of the LEDs rather than a kernel choice.
 
 ## Interpretation guide
 
-**You see a brief all-three-LEDs flash within a second of power-on,
-followed by the steady stage signal.** That is `led_hello()` — the
-kernel reached `kernel_main`. From here, whatever stage signal
-follows decodes by the rows above.
+**You see a brief flash within a second of power-on — top
+window yellow-amber, bottom amber, both for about a quarter
+of a second, then both dark for the same — followed by the
+steady stage signal.** That is `led_hello` — the kernel
+reached its first C function. Whichever stage signal follows
+decodes by the table above.
 
-**You see no LEDs lit at all, ever — no flash, nothing.** The
-kernel never reached `kernel_main`. The boot chain failed
-somewhere upstream — most likely u-boot did not recognise our
-kernel image (header malformed, recognition magic missing, FAT
-path wrong), or BootROM did not recognise the idbloader, or
-`booti` rejected the image. The fix is upstream of the kernel
-— check the build output, the flash workflow, the linker script's
-load address, and the recognition envelope from issue 103c.
+**You see no lights at all, ever — no flash, no stage
+signal.** The kernel never reached `kernel_main`. The boot
+chain failed somewhere upstream — most likely u-boot did not
+recognise our kernel image (header malformed, recognition
+magic missing, FAT path wrong), or BootROM did not recognise
+the idbloader, or `booti` rejected the image, or the
+load-address mismatch from issue 103d's territory re-emerged.
+The fix is upstream of the kernel — check the build output,
+the flash workflow, and the linker script's load address.
 
-**You see only the green LED.** The bootloader handed off to
-our kernel's load address, but our code never reached
-`kernel_main`. Possible causes: a fault in the boot code at
-`src/001-boot.s` before the branch into C, a bad linker script
-that put `_start` somewhere other than the load address, a
-mismatched expectation about which exception level the
-bootloader hands off at. Inspect the disassembly of the kernel
-ELF in `tmp/build/kernel/kernel.elf` and confirm the symbol
-addresses match what the linker script pins.
+**You see the hello flash and then the top window stays
+green, bottom dark, indefinitely.** The kernel is at
+`STAGE_KERNEL_MAIN` and has not advanced. The hang is in the
+allocator self-test, the USB PHY / controller bring-up, or
+the USB endpoint-zero configuration. The next bring-up issue
+to investigate is whichever the kernel calls first after the
+stage signal — currently the USB PHY work.
 
-**You see green + amber solid.** The kernel is alive and idle.
-This is `STAGE_KERNEL_MAIN`. The kernel reached its first C
-function, set its LED pattern, and is now sitting in WFI waiting
-for the next phase 1 issue to give it something to do.
+**You see the bottom amber alone, top dark, indefinitely.**
+The kernel is at `STAGE_USB_CONTROLLER` and has not advanced.
+USB endpoint-zero bring-up succeeded; the hang is in the eMMC
+controller bring-up, the microSD controller bring-up, the
+debug-log init, or the backup itself.
 
-**You see green + amber + red, all three solid.** The kernel
-called `led_set_stage` with a stage value the switch statement
-does not know about. Look for a recently added `boot_stage_t`
-enum member that doesn't have a matching switch case yet.
+**You see top yellow-amber + bottom amber, blinking the
+bottom amber against a steady top yellow-amber.** The kernel
+is mid-backup; the blink is the heartbeat. Wait. If the
+blink stops without the LEDs advancing to
+`STAGE_BACKUP_COMPLETE`, the kernel is stuck on a particular
+sector.
 
-**You see green off, amber off, red solid.** The kernel hit a
-fatal exception before any richer reporting channel was up. The
-LED pattern is the only output. Future issue 110 (USB CDC-ACM
-debug stream) will enrich the panic output with a text
-description, but until then a solid red is all we have. The
-appropriate response is to power-cycle the device, re-flash a
-known-good kernel image, and inspect what changed since the last
-successful boot.
+**You see top red, bottom amber, steady.** The kernel
+finished its backup successfully. Power the device off and
+pull the microSD card.
+
+**You see top red alone, bottom dark, steady.** The kernel
+hit a fatal exception or one of the bring-up steps failed
+and the kernel routed the failure through `STAGE_PANIC_GENERIC`.
+The LED pattern is the only output until issue 110's CDC-ACM
+debug stream is up and connected to a host. The appropriate
+response is to power-cycle the device and inspect what
+changed since the last successful boot.
 
 ## Adding new patterns
 
 Adding a stage means three coordinated changes:
 
 1. Add a new value to `boot_stage_t` in `src/004-led.c`.
-2. Add a matching `case` in the `switch` inside `led_set_stage`
-   that sets the LED state for that stage.
-3. Add a row to the pattern table above with the LED columns
-   filled in.
+2. Add a matching `case` in the `switch` inside
+   `led_set_stage` that sets the LED pin state for that
+   stage.
+3. Add a row to the pattern table above with the top-window
+   and bottom-window columns filled in.
 
-The order is to write the pattern row first — saying what the
-LEDs should mean in human language gives you a clearer name for
-the enum constant than starting from code.
+The order is to write the pattern row first — saying what
+the lights should mean in human language gives a clearer
+name for the enum constant than starting from code.
+
+Currently used patterns: `STAGE_KERNEL_MAIN`,
+`STAGE_USB_CONTROLLER`, `STAGE_USB_ENUMERATED`,
+`STAGE_BACKUP_COMPLETE`, `STAGE_PANIC_GENERIC`. Three of the
+eight available two-window combinations remain unused
+(top green + bottom amber; top red + bottom dark is the
+panic; the panic-or-default case lights all pins).
