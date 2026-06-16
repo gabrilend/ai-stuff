@@ -39,6 +39,11 @@ extern int usb_init(void);                  /* 009-usb.c */
 extern int usb_endpoint_zero_bringup(void); /* 010-usb-enumeration.c */
 extern void usb_poll(void);                 /* 010-usb-enumeration.c */
 
+/* Forward declaration from 013-boot-image.c. */
+extern int write_kernel_to_emmc_boot_partition(void);
+
+#include <stdint.h>
+
 #define STAGE_KERNEL_MAIN     0
 #define STAGE_PANIC_GENERIC   1
 #define STAGE_USB_CONTROLLER  2
@@ -78,6 +83,31 @@ void kernel_main(void)
     if (usb_endpoint_zero_bringup() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { __asm__ volatile ("wfi"); }
+    }
+
+    /* Flash trigger — check the START button (GPIO3 PB1, active
+     * low per the device tree). If it is held down at boot, the
+     * kernel writes itself to the eMMC's boot partition through
+     * issue 110b's function, lights the "panic" pattern on
+     * failure or stays at "USB controller alive" on success
+     * (the developer power-cycles to boot from eMMC). The full
+     * runtime USB-C re-flash protocol is deferred to a phase 2
+     * extension; this minimal trigger is enough to bootstrap
+     * the device's eMMC from "Anbernic Android" to "SoreOS." */
+    {
+        volatile uint32_t *gpio3_ext_port = (volatile uint32_t *)0xFE760070u;
+        uint32_t gpio3_value = *gpio3_ext_port;
+        if ((gpio3_value & (1u << 9)) == 0) {
+            /* START is pressed (active low). Trigger the
+             * one-shot eMMC overwrite. */
+            if (write_kernel_to_emmc_boot_partition() != 0) {
+                led_set_stage(STAGE_PANIC_GENERIC);
+                while (1) { __asm__ volatile ("wfi"); }
+            }
+            /* eMMC now has the kernel. Park the core; the user
+             * power-cycles to boot from eMMC. */
+            while (1) { __asm__ volatile ("wfi"); }
+        }
     }
 
     while (1) {
