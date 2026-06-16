@@ -215,19 +215,32 @@ void kernel_main(void)
      * is writable. */
     debug_log_init();
 
-    /* INCREMENTAL RESTORATION (issue 103g — TEMPORARY) ----
-     *
-     * The 32 GB eMMC-to-SD backup runs for many minutes at
-     * the chip's currently-slow boot clock. It stays skipped
-     * for one more iteration so the four bring-up steps above
-     * can be verified independent of the backup's behavior.
-     * The kernel sits at STAGE_USB_CONTROLLER (top dark, bottom
-     * amber) indefinitely if all four bring-ups succeed.
-     * ------------------------------------------------------ */
-    while (1) { delay_busy(1000000); }
+    /* Copy the entire eMMC to the microSD card. The eMMC is
+     * 32 GB = 67,108,864 sectors of 512 bytes. The microSD card
+     * is at least 256 GB per the developer's setup. Reserved
+     * region starts at SD LBA 0x200000 (~1 GB offset) so the
+     * BootROM-relevant low sectors stay untouched and the SD
+     * card remains bootable for subsequent test cycles. The
+     * heartbeat fires every ten megabytes; the bottom amber
+     * LED blinks visibly across the multi-minute run. */
+    if (emmc_backup_to_sd(0, 0x200000, 67108864) != 0) {
+        debug_log_flush();
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { delay_busy(1000000); }
+    }
+    /* Final flush of the SD log before the success signal — make
+     * sure the bring-up narration is on the card before the
+     * developer powers off. */
+    debug_log_flush();
+    led_set_stage(STAGE_BACKUP_COMPLETE);
 
-    /* (Code below is unreachable while the petting wait loop
-     * above is in place. Restored next iteration.) */
+    while (1) {
+        /* Service the USB event ring on every pass. The kernel
+         * has nothing else to do until later issues land; polling
+         * is the right scheduling discipline for this phase. */
+        usb_poll();
+        delay_busy(1000);
+    }
 
     /* Bring up the USB 2.0 PHY and the DWC3 controller in
      * device mode. On success, advance the LED stage so the
