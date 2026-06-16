@@ -27,10 +27,17 @@ LINKER_SCRIPT := $(SRC_DIR)/kernel.ld
 # Bare-metal aarch64 flags: freestanding (no libc), no startup files,
 # warnings on, optimization on, target the chip explicitly. -fno-builtin
 # stops GCC from assuming standard library functions exist.
+# -mgeneral-regs-only stops GCC from emitting any instruction that
+# touches the chip's 128-bit-wide floating-point and SIMD register
+# file; the kernel does not enable that hardware unit, so any
+# instruction that touched it would trap before executing. See
+# issue 103f for the wider context and the eventual re-enable path
+# under soramech.
 CFLAGS := -ffreestanding -nostdlib -nostartfiles \
           -Wall -Wextra -O2 \
           -mcpu=cortex-a55 \
-          -fno-builtin
+          -fno-builtin \
+          -mgeneral-regs-only
 
 # --no-warn-rwx-segments silences a linker warning that fires on every
 # build because our flat-no-MMU kernel collapses text and data into a
