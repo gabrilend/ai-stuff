@@ -34,7 +34,12 @@ extern void led_set_stage(int stage);
 extern void allocator_init(void);
 extern void allocator_check_or_panic(void);
 
-#define STAGE_KERNEL_MAIN 0
+/* Forward declaration from the USB driver in 009-usb.c. */
+extern int usb_init(void);
+
+#define STAGE_KERNEL_MAIN     0
+#define STAGE_PANIC_GENERIC   1
+#define STAGE_USB_CONTROLLER  2
 
 void kernel_main(void)
 {
@@ -52,6 +57,17 @@ void kernel_main(void)
      * parks the core. */
     allocator_init();
     allocator_check_or_panic();
+
+    /* Bring up the USB 2.0 PHY and the DWC3 controller in
+     * device mode. On success, advance the LED stage so the
+     * developer can see the controller is alive without needing
+     * a host computer attached yet. On failure (controller did
+     * not identify), drop into the generic panic pattern. */
+    if (usb_init() == 0) {
+        led_set_stage(STAGE_USB_CONTROLLER);
+    } else {
+        led_set_stage(STAGE_PANIC_GENERIC);
+    }
 
     while (1) {
         /* Wait for interrupt — low-power loop until later issues

@@ -83,9 +83,14 @@ typedef enum {
      * post-boot signal. Pattern: green on, amber on, red off. */
     STAGE_KERNEL_MAIN     = 0,
 
-    /* Reserved for issue 105's panic handler. Pattern: green off,
-     * amber off, red on solid. */
+    /* Issue 105's panic handler. Pattern: green off, amber off,
+     * red on solid. */
     STAGE_PANIC_GENERIC   = 1,
+
+    /* Issue 109a's USB controller bring-up succeeded — PHY out
+     * of suspend, DWC3 in device mode, controller identified.
+     * Pattern: green on, amber off, red off. */
+    STAGE_USB_CONTROLLER  = 2,
 
     STAGE_COUNT,
 } boot_stage_t;
@@ -107,6 +112,17 @@ void led_set_stage(boot_stage_t stage)
             led_set(LED_GREEN, 0);
             led_set(LED_AMBER, 0);
             led_set(LED_RED,   1);
+            break;
+
+        case STAGE_USB_CONTROLLER:
+            /* USB controller is alive but enumeration has not
+             * happened yet. Amber off marks the visible
+             * difference from STAGE_KERNEL_MAIN — the developer
+             * can tell at a glance whether USB bring-up
+             * succeeded. */
+            led_set(LED_GREEN, 1);
+            led_set(LED_AMBER, 0);
+            led_set(LED_RED,   0);
             break;
 
         default:
