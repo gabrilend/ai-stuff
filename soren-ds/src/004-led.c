@@ -92,6 +92,14 @@ typedef enum {
      * Pattern: green on, amber off, red off. */
     STAGE_USB_CONTROLLER  = 2,
 
+    /* Issue 110's CDC-ACM debug stream is live — host has
+     * selected our configuration, bulk endpoints are armed,
+     * debug_write can push text. Pattern: green on, amber on,
+     * red off — the same as STAGE_KERNEL_MAIN but reached
+     * after USB bring-up, so the difference is "is the host
+     * connected." */
+    STAGE_USB_ENUMERATED  = 3,
+
     STAGE_COUNT,
 } boot_stage_t;
 
@@ -122,6 +130,17 @@ void led_set_stage(boot_stage_t stage)
              * succeeded. */
             led_set(LED_GREEN, 1);
             led_set(LED_AMBER, 0);
+            led_set(LED_RED,   0);
+            break;
+
+        case STAGE_USB_ENUMERATED:
+            /* Host has enumerated us and CDC-ACM is live.
+             * Pattern matches STAGE_KERNEL_MAIN deliberately —
+             * the difference is "the host completed its work,"
+             * which is observable on the laptop's side via
+             * `lsusb` and `/dev/ttyACM0`. */
+            led_set(LED_GREEN, 1);
+            led_set(LED_AMBER, 1);
             led_set(LED_RED,   0);
             break;
 
