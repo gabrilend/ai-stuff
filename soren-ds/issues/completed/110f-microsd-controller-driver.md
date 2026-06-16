@@ -2,22 +2,47 @@
 
 ## Current behavior
 
-The external microSD card slot is wired to the RK3568's SDMMC0
-controller — a Synopsys DesignWare Mobile Storage Host Controller
-(DW MSHC), not the SDHCI host we already wrote a driver for in
-110a. Different IP, different register set, different command-
-issue and data-transfer model. The eMMC driver from 110a is not
-reusable here.
+`src/015-sdmmc.c` brings up the SDMMC0 controller — Synopsys
+DW MSHC, distinct in IP from the SDHCI we drive the eMMC with.
+The controller is software-reset through its CTRL register,
+powered through its PWREN register, has its clock divider set
+for an identification-rate ~400 kHz and then bumped to
+transfer-rate after card-init completes. Interrupts are masked
+in INTMASK; the driver polls RINTSTS for command-done,
+data-over, and error bits.
 
-The controller has been initialized by Anbernic's u-boot during
-boot (u-boot reads the microSD to load SoreOS), but by the time
-our kernel takes control we have no idea what state u-boot
-left it in. Even if it is in a usable state, we have no code
-that knows how to talk to it.
+The SD card walks through the standard SD-spec init sequence:
+CMD0, CMD8 to confirm 2.0+ support, ACMD41 in a loop (wrapped in
+CMD55) until the card reports ready, CMD2 to retrieve CID, CMD3
+to receive the card-published RCA, CMD9 for capacity descriptor,
+CMD7 to select the card into transfer state. The sequence
+differs from the eMMC sequence in the three places the issue
+called out (CMD8, ACMD41/CMD55, host-receives-RCA-vs-host-
+assigns-RCA).
 
-Without this driver, the kernel can read and write the internal
-eMMC but cannot touch the external microSD card. Issue 110e's
-SD-card-based eMMC-backup path is therefore blocked.
+Two block-IO operations are exposed: `sd_read_block` (CMD17
+single-block read) and `sd_write_block` (CMD24 single-block
+write). Each polls the controller's FIFO at offset `0x200`,
+draining 128 32-bit words for reads or filling them for writes,
+and waits for DATA_OVER to confirm transfer completion. Errors
+roll up into a return value the caller can act on.
+
+`kernel_main` now calls `sd_init` after `emmc_init`, followed by
+`emmc_backup_to_sd(0, 0x200000, 409600)` — 200 MB of eMMC
+content written to the microSD card starting at LBA `0x200000`
+(~1 GB offset, well above any region the Rockchip BootROM cares
+about). The LED stage advances to `STAGE_BACKUP_COMPLETE` (all
+three LEDs solid) when the backup finishes. The diagnostic-
+codes table is updated to match.
+
+The closing evidence on real hardware — the backup running to
+completion on the device and a `dd`-readable dump on the
+pulled microSD card — has not yet been observed because we
+have not booted from the device. That validation lands when the
+first boot test runs. If the backup hangs or the SD card has
+no dump, the bug is in the DW MSHC register access or the SD
+init-sequence ordering; both reopen this issue with the
+specific failure mode.
 
 ## Why we need this driver specifically
 
