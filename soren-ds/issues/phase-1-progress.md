@@ -41,9 +41,15 @@ walkthrough of how the kernel comes to life:
 7. `107-flat-memory-layout.md` — commit to where things live in
    physical RAM.
 8. `108-flat-page-allocator.md` — let the kernel ask for memory.
-9. `109-usb-controller-and-device-mode.md` — bring the chip onto
-   the USB bus as a recognizable device. The heaviest single
-   piece of work in the phase.
+9. `109-usb-controller-and-device-mode.md` — parent / index.
+    Split into:
+    - `109a-usb-phy-and-controller.md` — bring up the USB 2.0
+      PHY and the DWC3 controller, in device mode. Closes when
+      the laptop's `dmesg` shows raw USB activity on plug-in.
+    - `109b-usb-device-enumeration.md` — endpoint zero, the
+      descriptor tables, and the control-transfer state
+      machine that responds to the host's enumeration. Closes
+      when `lsusb` reports our device with the right IDs.
 10. `110-usb-cdc-acm-debug.md` — turn that into a virtual serial
     port the laptop streams from. Most kernel text from here on
     flows through this channel.
@@ -178,8 +184,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-109, 110, the three install-pipeline issues 110a, 110b, 110c,
-plus 111a, 111b, 112, and 113.
+109a, 109b, 110, the three install-pipeline issues 110a, 110b,
+110c, plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 
