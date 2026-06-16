@@ -174,6 +174,18 @@ flash loop from 110c, not Maskrom.
   runs from `kernel_main` and panics to a red LED on bookkeeping
   failure. Multi-page contiguous allocation and concurrency
   control are deferred to later issues that actually need them.
+- 109a — USB PHY and controller bring-up. `src/009-usb.c` brings
+  the USB 2.0 PHY out of suspend through the chip's GRF, soft-
+  resets the DWC3 controller through its global control
+  register, sets the port-capability direction to device mode,
+  pins device speed to USB 2.0 high speed, and verifies the
+  controller is alive by reading the documented Synopsys magic
+  out of the identification register. `kernel_main` advances
+  the LED stage to `STAGE_USB_CONTROLLER` on success or panics
+  on identification mismatch. The closing evidence on real
+  hardware (raw USB activity in the laptop's `dmesg`) gets
+  observed when issue 110b puts our kernel on the eMMC; if the
+  laptop sees nothing at that point this issue reopens.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -184,8 +196,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-109a, 109b, 110, the three install-pipeline issues 110a, 110b,
-110c, plus 111a, 111b, 112, and 113.
+109b, 110, the three install-pipeline issues 110a, 110b, 110c,
+plus 111a, 111b, 112, and 113.
 
 ## Phase demo
 

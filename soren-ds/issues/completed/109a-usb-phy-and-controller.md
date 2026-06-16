@@ -2,15 +2,42 @@
 
 ## Current behavior
 
-The RK3568's USB 3.0 OTG controller (a DesignWare DWC3) and the
-USB 2.0 PHY behind it are sitting in whatever state Anbernic's
-u-boot left them when it handed control to our kernel. Most
-likely the controller is half-configured for host-mode use by
-u-boot during its own boot sequence, the PHY clocks may or may
-not be running, and the device's USB-C port is connected to
-nothing the host laptop's kernel will recognize as a USB device.
-Plugging in produces no `dmesg` output beyond the laptop's USB
-hub registering electrical activity and giving up.
+`src/009-usb.c` brings up the USB 2.0 PHY and the DWC3
+controller in device mode. The PHY's suspend register in the
+chip's general register file (`0xFDCA_0004`) is written with the
+"normal operation" code through the Rockchip write-enable
+convention; the DWC3 controller is soft-reset through bit 11 of
+its global control register (`0xFEC0_C110`); the same register's
+port-capability direction field is set to device mode; the
+device configuration register is pinned to USB 2.0 high speed
+so the controller does not advertise SuperSpeed against an
+unconfigured SuperSpeed PHY; and the Synopsys identification
+register at `0xFEC0_C120` is read back and verified to begin
+with the documented `0x5533` magic ("U3" in ASCII).
+
+`kernel_main` calls `usb_init` after the page allocator self-
+test passes. On success the LED pattern advances to
+`STAGE_USB_CONTROLLER` (green on, amber and red off) — a
+deliberately different shape from `STAGE_KERNEL_MAIN` so the
+developer can tell at a glance whether USB bring-up reached
+this milestone. On failure (the identification register
+mismatch case) the kernel falls into the generic panic LED
+pattern.
+
+The SuperSpeed (USB 3.0) PHY at the combo PHY's MMIO is left
+untouched. The clocks for the USB 2.0 PHY and the DWC3
+controller are assumed to be enabled by Anbernic's u-boot
+before it hands off; if a future hardware run shows
+clock-disabled symptoms the CRU register surface in
+`docs/016-physical-memory-map.md` is where the next layer of
+bring-up code goes.
+
+The closing evidence — the laptop's `dmesg` showing raw USB
+activity on plug-in — has not yet been observed on real
+hardware because we have not yet booted from the device.
+That validation happens when issue 110b puts our kernel on the
+eMMC and we test the full chain end to end. If the laptop
+sees nothing at that point the issue reopens.
 
 ## Intended behavior
 
