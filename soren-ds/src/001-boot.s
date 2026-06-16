@@ -40,119 +40,124 @@ _start:
      * source; the four-bit value 0xF covers all four masks. */
     msr     DAIFSet, #0xF
 
-    /* --- GPIO LED probe (issue 103e — TEMPORARY diagnostic) ---
+    /* --- GPIO LED color-cycling probe (issue 103e — TEMPORARY) ---
      *
      * Drive the three indicator LED pins directly through the GPIO
      * controller, before stack / .bss / vector-table setup and
-     * before any C code. The goal is to answer one question on
-     * hardware: did the kernel reach _start at all? Until we know
-     * the answer to that, every downstream symptom is ambiguous.
+     * before any C code. The earlier wink-pattern iteration of this
+     * probe already confirmed the kernel reaches _start; the
+     * cycling iteration is here because the first hardware run
+     * showed two amber-colored lights when all three pins were
+     * driven high together. The chip-side device tree claims three
+     * pins routed to three physically distinct LEDs in three
+     * different colors (green / amber / red), and that does not
+     * match what the eye saw. The cycle answers which pin lights
+     * which physical thing.
      *
-     * The three LEDs are wired to chip pins GPIO0_C4 (green / power),
-     * GPIO0_C5 (amber / charging), and GPIO0_C6 (red / status), per
-     * the upstream device tree. The PWM-driven LED layer further
-     * down assumes the bootloader has routed those pins to PWM
-     * output and that the PWM1 controller is clocked; the first SD
-     * boot test after the load-address fix produced no LED activity,
-     * so at least one of those assumptions is false. This probe
-     * bypasses both of them — it routes the pins to plain GPIO and
-     * drives them from the GPIO controller, which is in the chip's
-     * always-on PMU clock subtree and needs no clock enable.
+     * The three pins are GPIO0_C4 (claimed green / power),
+     * GPIO0_C5 (claimed amber / charging), and GPIO0_C6 (claimed
+     * red / status). Each phase of the cycle drives one pin high
+     * with the other two held low, then a phase drives all three
+     * together, then a phase drives all three off. The developer
+     * watches and reports which physical light is lit during each
+     * phase and what color it appears.
      *
-     * Four writes do the work:
+     * The whole cycle loops forever. Power-cycle the device to
+     * stop. The rest of _start (stack, .bss zero, vector table,
+     * branch to C) does not run while the probe is in place; this
+     * file is, for now, a dedicated LED-cycling fixture rather
+     * than a kernel.
+     *
+     * Three setup writes get the pins owned by the GPIO controller
+     * and configured as outputs:
      *
      *   PMU_GRF + 0x14  pin-mux high-half register for GPIO0_C.
-     *                   Clears the four-bit function fields for
-     *                   pins C4 / C5 / C6 (bits 0-11 of the low
-     *                   half) to zero, which is plain GPIO. The
-     *                   function field for C7 (bits 12-15) is left
-     *                   alone.
-     *   GPIO0  + 0x0c  data-direction register, high half (pins
-     *                   16-31). Bits 4, 5, 6 (pins 20, 21, 22 =
-     *                   C4, C5, C6) set to one — outputs.
-     *   GPIO0  + 0x04  data register, high half. Same three bits
-     *                   set to one — driven high.
-     *   GPIO0  + 0x04  same register, same three bits set to zero
-     *                   after a long busy-wait — driven low.
-     *   GPIO0  + 0x04  same register, three bits set to one again
-     *                   after a shorter busy-wait — back high.
+     *                   Clears the function fields for C4/C5/C6 to
+     *                   zero (plain GPIO). The bootloader may have
+     *                   left them in any function; this guarantees
+     *                   the GPIO controller owns them.
+     *   GPIO0  + 0x0c  data-direction high half. Marks pins
+     *                   20/21/22 (= C4/C5/C6) as outputs.
      *
-     * The visible result is a wink: lights on, lights off after a
-     * couple of seconds, lights back on and stay on through the
-     * rest of the boot. The wink is asymmetric so the developer
-     * can tell it from any static state the bootloader may have
-     * left behind.
+     * Then the cycle begins. Each phase writes a value to
+     * GPIO0 + 0x04 (data register high half) that drives exactly
+     * the pins it wants high and exactly the pins it wants low.
+     * Each write uses the chip-family's write-mask convention —
+     * upper sixteen bits mask, lower sixteen bits data — so only
+     * the three pins we care about are touched and the fourth pin
+     * sharing the register stays untouched.
      *
-     * All three peripheral writes use the chip-family's write-mask
-     * convention. The upper sixteen bits of each thirty-two-bit
-     * write select which lower-sixteen bits the hardware actually
-     * updates; bits the mask does not pick stay unchanged. This
-     * lets the probe touch the three pins it cares about without
-     * disturbing the fourth pin sharing each register or any other
-     * config bits the bootloader may have set.
-     *
-     * Lifetime: this is a one-shot diagnostic that lives at the top
-     * of _start only until we know the kernel reaches it. Once the
-     * yes/no answer is in, this whole block comes out and the
-     * downstream PWM-driven LED layer comes back into reach. While
-     * it is here, led_hello and led_set_stage cannot light the
-     * LEDs at all — the pins are owned by the GPIO controller, not
-     * the PWM controller.
+     * Phase timings are uniform — about 1.8 seconds at the chip's
+     * 1.8 GHz operating point, longer at the crystal frequency —
+     * so the developer's eye has a steady rhythm to anchor on.
      */
 
-    /* PMU_GRF_GPIO0C_IOMUX_H = 0x0FFF0000.
-     * Mask: bits 0-11 in the low half (bits 16-27 in the write).
-     * Value: zero — pin function 0 = GPIO, applied to C4/C5/C6. */
+    /* Setup write 1: route C4/C5/C6 to function 0 (GPIO). */
     movz    w0, #0x0FFF, lsl #16
     movz    x1, #0x0014
     movk    x1, #0xFDC2, lsl #16
     str     w0, [x1]
 
-    /* GPIO0_SWPORT_DDR_H = 0x00700070.
-     * Mask: bits 4-6 in the low half (bits 20-22 in the write).
-     * Value: ones — direction = output for pins 20/21/22. */
+    /* Setup write 2: mark C4/C5/C6 as outputs in GPIO0. */
     movz    w0, #0x0070
     movk    w0, #0x0070, lsl #16
     movz    x1, #0x000C
     movk    x1, #0xFDD6, lsl #16
     str     w0, [x1]
 
-    /* GPIO0_SWPORT_DR_H = 0x00700070.
-     * Same bit selection as DDR; ones in the value half drive
-     * the three pins high. */
-    movz    w0, #0x0070
-    movk    w0, #0x0070, lsl #16
+    /* Build the GPIO0 data-register high-half address once and
+     * leave it in x1 through every phase below. */
     movz    x1, #0x0004
     movk    x1, #0xFDD6, lsl #16
-    str     w0, [x1]
 
-    /* Long busy-wait. About 1.8 seconds at the chip's 1.8 GHz
-     * operating point (the bootloader's usual handoff frequency);
-     * about a minute at the chip's 24 MHz crystal — still finite,
-     * still observable. The loop is two instructions of arithmetic
-     * and a backward branch, which we cost at roughly one cycle
-     * per iteration. */
+.Lcolor_cycle:
+    /* Phase 1 — C4 alone (the device tree's "green" pin).
+     * Mask = bits 4/5/6 in the low half (0x70 << 16), value bits
+     * 4 = 1, 5 = 0, 6 = 0 → low half = 0x10. */
+    mov     w0, #0x0010
+    movk    w0, #0x0070, lsl #16
+    str     w0, [x1]
     movz    w2, #0xC000, lsl #16
 10: subs    w2, w2, #1
     b.ne    10b
 
-    /* Drive the three pins low. Mask half preserved; value half is
-     * zero, so the bits the mask names go to zero. */
-    movz    w0, #0x0070, lsl #16
+    /* Phase 2 — C5 alone (the device tree's "amber" pin).
+     * Same mask; low half = 0x20 (bit 5). */
+    mov     w0, #0x0020
+    movk    w0, #0x0070, lsl #16
     str     w0, [x1]
-
-    /* Shorter busy-wait so the dark phase is visibly briefer than
-     * the bright phase — gives the wink an asymmetric shape. */
-    movz    w2, #0x6000, lsl #16
+    movz    w2, #0xC000, lsl #16
 11: subs    w2, w2, #1
     b.ne    11b
 
-    /* Back high, and leave them there. The kernel continues from
-     * here and the LEDs stay on through whatever happens next. */
-    movz    w0, #0x0070
+    /* Phase 3 — C6 alone (the device tree's "red" pin).
+     * Same mask; low half = 0x40 (bit 6). */
+    mov     w0, #0x0040
     movk    w0, #0x0070, lsl #16
     str     w0, [x1]
-    /* --- end of probe --- */
+    movz    w2, #0xC000, lsl #16
+12: subs    w2, w2, #1
+    b.ne    12b
+
+    /* Phase 4 — all three high together.
+     * Same mask; low half = 0x70 (bits 4/5/6). */
+    mov     w0, #0x0070
+    movk    w0, #0x0070, lsl #16
+    str     w0, [x1]
+    movz    w2, #0xC000, lsl #16
+13: subs    w2, w2, #1
+    b.ne    13b
+
+    /* Phase 5 — all three off.
+     * Mask half only; low half = 0 clears the three pins. */
+    movz    w0, #0x0070, lsl #16
+    str     w0, [x1]
+    movz    w2, #0xC000, lsl #16
+14: subs    w2, w2, #1
+    b.ne    14b
+
+    b       .Lcolor_cycle
+    /* --- end of probe; rest of _start is unreachable here --- */
 
     /* Stack pointer. The linker places __stack_top above a 16 KB
      * region reserved after .bss. Stack grows downward from here. */
