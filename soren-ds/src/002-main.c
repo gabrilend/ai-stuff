@@ -190,66 +190,58 @@ void kernel_main(void)
     }
     led_set_stage(STAGE_USB_CONTROLLER);
 
-    /* Step-by-step diagnostic checkpoints (issue 103g —
-     * TEMPORARY). The previous round reached
-     * STAGE_USB_CONTROLLER and then sat with no further LED
-     * advance; the partial dump and the debug-log region both
-     * came up empty, telling us the kernel never reached any
-     * SD write. We don't know yet *which* of the four post-USB
-     * bring-up steps is hanging. Two unused two-light patterns
-     * give us two checkpoints; we split the four steps into
-     * two pairs and the next iteration's stuck pattern tells
-     * us which half. */
-    if (usb_endpoint_zero_bringup() != 0) {
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { delay_busy(1000000); }
-    }
+    /* USB endpoint zero configuration is *deferred* — see issue
+     * 109b (reopened). The DWC3 controller acknowledges its
+     * identification register read correctly (which is what
+     * usb_init verifies) but does not process endpoint commands;
+     * the depcmd_issue polling loop hangs forever waiting for
+     * the CMDACT bit to clear. Most likely the controller's
+     * RUN/STOP bit needs to be set in the DCTL register before
+     * endpoint commands can be processed, or the event buffer
+     * setup is missing a step. Phase 1's downstream work (the
+     * eMMC-to-SD backup) does not depend on a working USB
+     * channel — debug_write fan-outs gracefully through the
+     * SD-backed log when CDC-ACM is not up — so we skip endpoint
+     * zero entirely for this round and continue. The USB
+     * controller is alive (stage signal set above); the eventual
+     * fix for the endpoint-command hang re-enables this call. */
 
-    /* Checkpoint A — endpoint zero done, about to bring up the
-     * eMMC controller. Top green + bottom amber. */
-    led_set(0, 1); led_set(1, 1); led_set(2, 0);
-
+    /* eMMC controller bring-up. */
     if (emmc_init() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
     }
 
-    /* Checkpoint B — eMMC controller alive, about to bring up
-     * the SD card controller. Top yellow-amber + bottom dark. */
-    led_set(0, 1); led_set(1, 0); led_set(2, 1);
+    /* Checkpoint A — eMMC up, about to bring SD up. Top green +
+     * bottom amber. If the kernel sits here, sd_init hangs. */
+    led_set(0, 1); led_set(1, 1); led_set(2, 0);
 
+    /* SD card controller bring-up. */
     if (sd_init() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
     }
 
-    /* SD controller alive, but no LED pattern available to mark
-     * the boundary — paint STAGE_USB_ENUMERATED's pattern (top
-     * yellow-amber + bottom amber, all three pins on) so the
-     * "got past SD init" milestone is visible. */
-    led_set_stage(STAGE_USB_ENUMERATED);
-
-    debug_log_init();
-
-    /* Debug log up, about to start the backup. Re-paint
-     * checkpoint B's pattern (top yellow-amber + bottom dark) so
-     * a stuck-here state distinguishes from the earlier eMMC-side
-     * stuck-at-checkpoint-B. (The previous CP B was momentary;
-     * a stuck CP B at this point is held forever.) */
+    /* Checkpoint B — SD up, about to init debug log. Top yellow-
+     * amber + bottom dark. If the kernel sits here,
+     * debug_log_init hangs. */
     led_set(0, 1); led_set(1, 0); led_set(2, 1);
 
-    /* Skip the actual backup for this iteration so we can see
-     * cleanly which of the four post-USB-controller steps the
-     * kernel reaches. If the kernel sits with the
-     * stage-USB-enumerated pattern (all three pins on) the SD
-     * bring-up succeeded; if it sits at checkpoint B the most
-     * likely cause is debug_log_init hanging. The backup itself
-     * will come back next iteration when we know all four
-     * pre-backup steps are good. */
-    while (1) { delay_busy(1000000); }
+    /* Bring up the SD-card-backed debug log. */
+    debug_log_init();
 
-    /* (Unreachable while the wait loop above is in place.) */
-    if (emmc_backup_to_sd(0, 0x200000, 67108864) != 0) {
+    /* All four bring-ups (counting the skipped endpoint zero
+     * as "not in scope") succeeded; advance the LED back to
+     * STAGE_USB_CONTROLLER (bottom amber alone) before the
+     * backup so the heartbeat-blinking-amber pattern reads
+     * cleanly. */
+    led_set_stage(STAGE_USB_CONTROLLER);
+
+    /* Copy the eMMC to the SD card. Two-hundred-megabyte test
+     * size for this round — enough to capture the eMMC's GPT
+     * and partition entries for issue 110e's analysis, much
+     * faster to complete than the full 32 GB at this clock. */
+    if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
         debug_log_flush();
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
@@ -257,10 +249,7 @@ void kernel_main(void)
     debug_log_flush();
     led_set_stage(STAGE_BACKUP_COMPLETE);
 
-    while (1) {
-        usb_poll();
-        delay_busy(1000);
-    }
+    while (1) { delay_busy(1000000); }
 
     /* Bring up the USB 2.0 PHY and the DWC3 controller in
      * device mode. On success, advance the LED stage so the

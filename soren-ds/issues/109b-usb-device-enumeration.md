@@ -39,6 +39,52 @@ the DEPSTARTCFG / DEPCFG / DEPXFERCFG sequence for both
 directions of endpoint zero, enables the endpoints in
 DALEPENA, and sets the controller's RUN bit.
 
+## Reopened — DEPSTARTCFG hangs on real hardware
+
+Phase-1 hardware testing (after the controller's MMIO base
+address was corrected to the actual `0xFCC0_0000`) found the
+controller acknowledging its identification register read
+correctly — `usb_init` returns success, the LED stage signal
+advances to `STAGE_USB_CONTROLLER` — and then the very first
+DWC3 endpoint command issued from inside
+`usb_endpoint_zero_bringup` never completes. `depcmd_issue`'s
+polling loop reads the `DEPCMD` register's `CMDACT` bit and
+spins waiting for the controller to clear it. The controller
+never does; the kernel sits in the spin forever.
+
+Likely causes, roughly in order of probability:
+
+- The controller's `RUN/STOP` bit in `DCTL` has not been set
+  before the first endpoint command. The DWC3 driver flow
+  in the upstream Linux kernel sets it as the last step of
+  controller bring-up; our current `usb_endpoint_zero_bringup`
+  sets it at its own end (after configuring endpoint zero) but
+  the controller may need it set *before* it will accept
+  endpoint commands.
+- The event buffer setup writes correct values but the
+  controller is not actually reading them — possibly because
+  the event ring's interrupt is being masked off, or because
+  the event ring needs a specific initial state we are not
+  setting.
+- The DEPSTARTCFG command parameters (`par0`/`par1`/`par2`)
+  encode something the controller rejects silently — for
+  example, the resource index in `par1` may need to match a
+  specific layout the upstream code computes from the endpoint
+  number.
+
+`kernel_main`'s call to `usb_endpoint_zero_bringup` is removed
+for now (the comment in `src/002-main.c` explains the deferral)
+so phase 1's downstream eMMC-to-SD backup work can land. The
+`debug_write` function in `src/011-cdc-acm.c` gracefully
+short-circuits to its SD-log fan-out when `cdc_acm_init` has
+not run, so the kernel's text-side diagnostic narration still
+reaches the developer through the SD card.
+
+This issue closes when the controller accepts and acknowledges
+the first DEPSTARTCFG command. Until then the CDC-ACM debug
+stream (issue 110) is not available; phase 1 ships its
+diagnostic through the SD-backed log alone.
+
 After this issue closes the controller is configured, the
 descriptors are in place, and the dispatcher knows what to say
 for every request the host will ask. What it cannot yet do is
