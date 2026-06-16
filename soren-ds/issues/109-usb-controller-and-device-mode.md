@@ -13,27 +13,45 @@ than against a tangled mix.
 - `109a-usb-phy-and-controller.md` — bring up the USB 2.0 PHY,
   bring the DWC3 controller out of reset and into device mode,
   read back enough status to confirm the controller is alive.
-- `109b-usb-device-enumeration.md` — set up endpoint 0, define
-  the descriptor tables, implement the control-transfer state
-  machine that responds to the host's setup packets and address
-  assignment.
+- `109b-usb-device-enumeration.md` — define the descriptor
+  tables (device, configuration, strings), configure endpoint
+  zero through the controller's command interface, and
+  implement the setup-packet dispatcher that maps each USB
+  standard request to a response.
+- `109c-usb-control-transfer-plumbing.md` — the actual transfer
+  machinery: TRB rings per endpoint, the setup-packet buffer
+  the controller DMAs into, the event-ring decoder that turns
+  raw controller events into "the host sent a setup packet,"
+  and the polling loop that wires the dispatcher to the event
+  decoder. This is what makes `lsusb` actually see the device.
 
 ## Why split this way
 
 The first sub-issue closes when the laptop's `dmesg` shows raw
 USB activity on plug-in — reset attempts, link-up, possibly
 repeated "failed to enumerate" lines — even though the device
-doesn't yet identify itself. The second sub-issue closes when
-`lsusb` reports the device with our vendor ID, product ID, and
-the `"Soren DS"` product string. Each evidence is observable
-from outside the device and doesn't depend on the other
-sub-issue being complete.
+doesn't yet identify itself.
 
-The boundary also matches the natural debugging mental model.
-"The controller is not responding to the host at all" and "the
-controller is responding but the host doesn't understand what
-we're saying" are different bugs with different fixes; you
-don't want to be debugging both at once.
+The second sub-issue closes when the kernel image builds with
+correct descriptors, the endpoint-zero hardware is configured,
+and the controller's RUN bit is set. At this point the host's
+bus reset succeeds but enumeration still hangs because the
+controller has nowhere to deliver setup packets to and our
+code has no way to respond.
+
+The third sub-issue closes when `lsusb` actually reports the
+device with our vendor ID, product ID, and the `"Soren DS"`
+product string — the original closing condition for the whole
+USB bring-up. Each piece is observable on its own boundary
+without depending on the next, which keeps each debugging
+session bounded to one kind of bug.
+
+The boundary matches the natural debugging mental model. "The
+controller is not responding to the host at all," "the
+controller is responding but our descriptors are wrong," and
+"the descriptors are right but no transfer machinery is moving
+them" are different bugs with different fixes; you don't want
+to be debugging more than one at once.
 
 ## Why USB 2.0 and not USB 3.0
 
