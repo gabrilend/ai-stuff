@@ -2,19 +2,60 @@
 
 ## Current behavior
 
-SoreOS lives on the eMMC's boot partition (110b). Powering the
-device on with no SD card runs SoreOS. To iterate on the kernel,
-the developer still has to either move a microSD between the
-laptop and the device or write a new image into the eMMC from
-SoreOS running off a card. Both paths require touching the
-device's internals through removable storage. Neither is the
-"plug in the USB cable and flash" loop the issue 101 conversation
-committed to as the daily iteration goal.
+A minimal bootstrap version of the flash trigger is in place.
+`kernel_main` in `src/002-main.c` reads GPIO3 pin PB1 (the
+START button, per the device tree) immediately after the USB
+controller comes up. If the button is held down at boot time
+(active low — a pressed button reads as 0), the kernel calls
+into `write_kernel_to_emmc_boot_partition` from 110b and parks
+the core. The developer power-cycles; the device boots from
+eMMC.
 
-The USB CDC-ACM debug channel from 110 already carries text from
-the device to the laptop. There is no symmetric path for the
-laptop to push a new kernel image to the device and have SoreOS
-write it to the eMMC boot partition.
+This is the minimum-viable mechanism that lets us bootstrap the
+device's internal storage from "Anbernic Android" to "SoreOS"
+without requiring the runtime USB-C protocol the original issue
+sketch described. The first hardware boot (SD-card-loaded
+kernel with START held) writes SoreOS to the eMMC; from then on
+the device boots SoreOS standalone with no card required.
+
+What is deliberately scope-reduced from the original issue:
+
+- *Runtime USB-C re-flash.* The original sketch described a
+  flash-receive mode in which the kernel, while booted from
+  eMMC, accepts a new image through USB-C from the developer's
+  machine without requiring a button press or a power cycle.
+  This requires bidirectional bulk transfer with the host, an
+  in-kernel image accumulator, a host-side `soren-flash` tool,
+  and an authentication handshake to prevent rogue USB devices
+  from delivering payloads. The substantial implementation
+  surface and the dependence on protocol-handshake fiddliness
+  pushes it out of phase 1's scope. The descriptors already
+  declare a bulk-OUT endpoint on the CDC-Data interface (110),
+  so the data path exists; what is missing is the protocol on
+  top.
+
+- *A/B slot scheme in the boot partition.* 110b's writer
+  overwrites the boot partition's single slot. A/B safety
+  remains a future enhancement, valuable mostly when runtime
+  re-flash actually exists.
+
+- *Authentication of the flash payload.* The button-held
+  bootstrap relies on physical access to the device, which is
+  the strongest authentication available. Runtime re-flash
+  would benefit from challenge-response signing per the
+  original sketch.
+
+For phase 1's purposes — getting SoreOS onto the eMMC at all —
+the button trigger is sufficient. The runtime re-flash protocol
+is a natural phase 2 expansion once the threading core makes
+it easier to keep the kernel responsive while processing
+bulk-OUT data and handling concurrent debug-stream writes.
+
+Closing evidence on real hardware: holding START at boot from
+the SD card produces an eMMC-resident SoreOS that subsequently
+boots without the SD card. We have not yet observed this; the
+first hardware run tests both this issue and 110a/110b in one
+pass.
 
 ## Intended behavior
 
