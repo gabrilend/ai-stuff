@@ -124,14 +124,27 @@ wait_for_sd_card() {
 }
 # }}}
 
-# {{{ verify_removable() — refuse to flash anything that isn't a removable device
+# {{{ verify_removable() — refuse to flash anything that isn't a removable device or a built-in SD slot
+# The kernel's RM (removable) flag describes the slot, not the
+# medium. USB-attached SD card readers report RM=1 because the
+# whole reader is hot-pluggable; laptops with a built-in SD
+# slot report RM=0 because the slot itself is fixed even
+# though the card in it is removable. To accept both shapes
+# of "an SD card is the target" without also accepting the
+# laptop's internal SSD, we widen the check to also pass
+# devices whose transport is MMC. Internal SSDs use SATA or
+# NVMe transport, so they still fail this check. The typed
+# YES confirmation with size and model shown is the final
+# guard against operator error after this gate clears.
 verify_removable() {
     local device="$1"
-    local removable
+    local removable transport
     removable="$(lsblk -dn -o RM "$device")"
     removable="${removable//[[:space:]]/}"
-    if [[ "$removable" != "1" ]]; then
-        die "${device} is not a removable device (RM=${removable}). Refusing to flash."
+    transport="$(lsblk -dn -o TRAN "$device")"
+    transport="${transport//[[:space:]]/}"
+    if [[ "$removable" != "1" ]] && [[ "$transport" != "mmc" ]]; then
+        die "${device} is neither marked removable nor on the MMC transport (RM=${removable}, TRAN=${transport}). Refusing to flash."
     fi
 }
 # }}}
