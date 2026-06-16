@@ -317,6 +317,27 @@ flash loop from 110c, not Maskrom.
   directory, so the new artifact ships automatically.
   Closing evidence on real hardware lands when we flash a
   card for the first time.
+- 106a — visible heartbeat during long operations. The LED
+  layer gained two diagnostic signals on top of the existing
+  static stage table. A brief hello flash (all three LEDs
+  together for a fraction of a second, then all three dark,
+  then the steady stage signal) runs as the first thing
+  `kernel_main` does, so the developer can tell at a glance
+  whether the kernel reached its first C function — a
+  diagnostic that became essential after the first SD-card
+  boot test showed all LEDs dark for ambiguous reasons. A
+  breathing-amber heartbeat advances one step on each
+  megabyte of progress through the eMMC-to-SD backup, using
+  the PWM hardware's actual brightness control rather than
+  on/off, so the multi-minute backup is visibly "still
+  working" rather than indistinguishable from a hung kernel.
+  Both signals depend on a small `delay_busy` busy-wait
+  utility — phase 1 has no clock source yet, so timed pauses
+  are produced by counting nops in a volatile-counter loop.
+  The diagnostic-codes document is updated to describe the
+  new patterns and the "no LEDs ever" interpretation now
+  unambiguously points at boot-chain failures rather than
+  kernel-runtime hangs.
 
 ## Open issues
 

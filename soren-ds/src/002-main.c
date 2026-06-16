@@ -30,6 +30,7 @@
 
 /* Forward declarations from the LED driver in 004-led.c. */
 extern void led_init(void);
+extern void led_hello(void);
 extern void led_set_stage(int stage);
 extern int  led_current_stage(void);
 
@@ -60,13 +61,42 @@ extern void debug_log_flush(void);                      /* 017-debug-log.c */
 #define STAGE_USB_ENUMERATED  3
 #define STAGE_BACKUP_COMPLETE 4
 
+/* delay_busy — block for roughly the given number of CPU cycles.
+ *
+ * Phase 1 has no clock source yet (interrupts are masked until the
+ * timer driver lands), so timed pauses are done by counting nops
+ * in a volatile-counter loop. The "cycles" parameter is an
+ * approximation — the actual wall-clock duration depends on what
+ * frequency the bootloader booted us at. At a 1.8 GHz operating
+ * point, one billion cycles is roughly half a second; at the chip's
+ * 24 MHz crystal frequency, the same count is closer to forty
+ * seconds. We calibrate the LED-feedback callers to be visible
+ * across this whole range.
+ *
+ * The `volatile` qualifier on the counter stops the compiler from
+ * collapsing the loop as dead code; the inline assembly nop gives
+ * each iteration a guaranteed unit of work and prevents the loop
+ * body from being further reduced. */
+void delay_busy(uint64_t cycles)
+{
+    volatile uint64_t remaining = cycles;
+    while (remaining--) {
+        __asm__ volatile ("nop");
+    }
+}
+
 void kernel_main(void)
 {
     /* Bring up the LED driver and signal "kernel_main reached"
      * before anything else. If anything fails after this point,
      * the developer can decode at least "we got to kernel_main"
-     * from the LED pattern per the diagnostic-codes table. */
+     * from the LED pattern per the diagnostic-codes table. The
+     * hello flash before the stage signal makes the "kernel
+     * reached kernel_main" message visible independent of
+     * whatever LED state the bootloader handed off — see
+     * issue 106a for why this matters. */
     led_init();
+    led_hello();
     led_set_stage(STAGE_KERNEL_MAIN);
 
     /* Initialize the page allocator and run its self-test. The
