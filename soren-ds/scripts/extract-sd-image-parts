@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+# extract-sd-image-parts — pull the Rockchip boot-chain blobs out of a known-good ROCKNIX image
+#
+# General description: ROCKNIX is a community Linux distribution that
+# already boots on the RG DS, so its SD card images contain a working set
+# of the pre-kernel pieces we cannot easily write ourselves — the
+# IDBlock the chip's BootROM expects at sector 64, the miniloader that
+# brings up DRAM, and a u-boot that knows how to load an Android boot.img
+# envelope. This script downloads one pinned ROCKNIX nightly into the
+# project's RAM-backed tmp/ directory, verifies the upstream-published
+# SHA-256, decompresses the image, and prints its GPT layout so we can
+# identify the offsets to carve out. A follow-up pass of this script
+# extracts the three blobs into libs/sd-image-parts/ with checksums
+# alongside.
+#
+# This is a one-shot bootstrap tool. The downloaded ROCKNIX image is
+# large and not needed after the extracted blobs are committed; that is
+# why it lives in tmp/ (RAM, ephemeral) rather than the project tree.
+
+set -euo pipefail
+
+# {{{ configuration — paths relative to DIR, pin values at the top of the file
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${1:-$(dirname "$SCRIPT_DIR")}"
+
+TMP_DIR="${DIR}/tmp"
+PARTS_DIR="${DIR}/libs/sd-image-parts"
+OUTPUT_DIR="${DIR}/output"
+LOG_FILE="${TMP_DIR}/extract-sd-image-parts.log"
+GOODBYE_FILE="${OUTPUT_DIR}/goodbye.log"
+
+# Pin a single ROCKNIX nightly so the boot chain we extract is
+# reproducible. Upgrading is an explicit decision: bump these three
+# values together. The SHA-256 is the value upstream publishes alongside
+# the asset; we keep our own copy here so a swap on the release server
+# fails our verify step rather than silently changing the bytes.
+ROCKNIX_TAG="nightly-20260614"
+ROCKNIX_ASSET="ROCKNIX-RK3566.aarch64-20260614-Specific.img.gz"
+ROCKNIX_SHA256="38b0ae001f864c44c8ba43299e105f2cf5b2eba2fbc9822e03b44eea3b3a2868"
+ROCKNIX_URL="https://github.com/ROCKNIX/distribution-nightly/releases/download/${ROCKNIX_TAG}/${ROCKNIX_ASSET}"
+
+DOWNLOAD_PATH="${TMP_DIR}/${ROCKNIX_ASSET}"
+DECOMPRESSED_PATH="${TMP_DIR}/${ROCKNIX_ASSET%.gz}"
+# }}}
+
+# {{{ log() — write a single timestamped line to stderr and the log file
+log() {
+    local message="$1"
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '[extract-sd-image-parts] %s\n' "$message" >&2
+    printf '%s [extract-sd-image-parts] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
+die() {
+    local message="$1"
+    log "ERROR: $message"
+    exit 1
+}
+# }}}
+
+# {{{ ensure_workspace() — guarantee the RAM-backed tmp/ and the destination parts directory exist
+ensure_workspace() {
+    if [[ ! -L "$TMP_DIR" ]] && [[ ! -d "$TMP_DIR" ]]; then
+        die "${TMP_DIR} does not exist. Project convention requires tmp/ as a RAM-backed directory."
+    fi
+    mkdir -p "$PARTS_DIR"
+}
+# }}}
+
+# {{{ download_rocknix_image() — fetch the pinned ROCKNIX .img.gz into tmp/ unless it is already cached there
+download_rocknix_image() {
+    if [[ -f "$DOWNLOAD_PATH" ]]; then
+        log "ROCKNIX image already present at ${DOWNLOAD_PATH}; skipping download."
+        return 0
+    fi
+    log "Downloading ${ROCKNIX_URL}"
+    log "  -> ${DOWNLOAD_PATH}"
+    curl --fail --location --output "$DOWNLOAD_PATH" "$ROCKNIX_URL"
+}
+# }}}
+
+# {{{ verify_sha256() — compare the downloaded image's SHA-256 against the pinned constant; mismatch fails loudly
+verify_sha256() {
+    log "Verifying SHA-256 of downloaded image."
+    local actual
+    actual="$(sha256sum "$DOWNLOAD_PATH" | awk '{ print $1 }')"
+    if [[ "$actual" != "$ROCKNIX_SHA256" ]]; then
+        die "SHA-256 mismatch. expected ${ROCKNIX_SHA256}, got ${actual}. The pin in this script and the bytes on disk disagree; investigate before continuing."
+    fi
+    log "SHA-256 matches the pin."
+}
+# }}}
+
+# {{{ decompress_rocknix_image() — gunzip the .img.gz into a sibling .img unless already done
+decompress_rocknix_image() {
+    if [[ -f "$DECOMPRESSED_PATH" ]]; then
+        log "Decompressed image already present at ${DECOMPRESSED_PATH}; skipping gunzip."
+        return 0
+    fi
+    log "Decompressing ${DOWNLOAD_PATH} -> ${DECOMPRESSED_PATH}"
+    gunzip --keep --stdout "$DOWNLOAD_PATH" > "$DECOMPRESSED_PATH"
+}
+# }}}
+
+# {{{ show_partition_layout() — print and log the MBR layout (via gdisk's in-memory MBR-to-GPT conversion) of the decompressed image
+show_partition_layout() {
+    log "Partition layout of ${DECOMPRESSED_PATH}:"
+    local layout
+    layout="$(gdisk -l "$DECOMPRESSED_PATH")"
+    printf '%s\n' "$layout" >&2
+    printf '%s\n' "$layout" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ extract_idbloader() — carve sectors 64..16383 into libs/sd-image-parts/idbloader.bin, padded
+# The idbloader is the Rockchip-format container (RKNS magic at sector 64) that
+# holds the IDBlock and miniloader. We take the entire pre-u-boot slot (8 MiB,
+# sectors 64..16383) rather than trim to natural size so the extracted bytes
+# match ROCKNIX byte-for-byte. The padding lands harmlessly when laid at sector
+# 64 of the assembled image.
+extract_idbloader() {
+    local target="${PARTS_DIR}/idbloader.bin"
+    log "Extracting idbloader (sectors 64..16383) -> ${target}"
+    dd if="$DECOMPRESSED_PATH" of="$target" bs=512 skip=64 count=16320 status=none
+}
+# }}}
+
+# {{{ extract_uboot_itb() — carve sectors 16384..32767 into libs/sd-image-parts/u-boot.itb, padded
+# The u-boot FIT (d00dfeed magic at sector 16384) packages u-boot proper together
+# with TF-A/BL31. Same padded-slot reasoning as the idbloader.
+extract_uboot_itb() {
+    local target="${PARTS_DIR}/u-boot.itb"
+    log "Extracting u-boot.itb (sectors 16384..32767) -> ${target}"
+    dd if="$DECOMPRESSED_PATH" of="$target" bs=512 skip=16384 count=16384 status=none
+}
+# }}}
+
+# {{{ extract_dtb() — copy the RG DS device tree out of partition 1's FAT32 filesystem
+# The DTB is needed only so u-boot's booti has a non-null device-tree pointer to
+# pass our kernel; our kernel ignores it and probes hardware itself. We pull it
+# out of ROCKNIX rather than build our own because using their byte-for-byte
+# blob removes one variable from the first-boot test.
+extract_dtb() {
+    local target="${PARTS_DIR}/rk3568-anbernic-rg-ds.dtb"
+    local offset=$((32768 * 512))
+    log "Extracting RG DS DTB from partition 1 (FAT32) -> ${target}"
+    mcopy -i "${DECOMPRESSED_PATH}@@${offset}" -n -o "::/device_trees/rk3568-anbernic-rg-ds.dtb" "$target"
+}
+# }}}
+
+# {{{ hash_extracted_blobs() — write a .sha256 sibling next to each extracted file
+# The hash captures what we extracted today; if the same script is re-run with
+# a different ROCKNIX pin and the extracted bytes change, the .sha256 files
+# change too and git records the swap together with the new blobs.
+hash_extracted_blobs() {
+    local f
+    for f in "${PARTS_DIR}/idbloader.bin" "${PARTS_DIR}/u-boot.itb" "${PARTS_DIR}/rk3568-anbernic-rg-ds.dtb"; do
+        local sha_file="${f}.sha256"
+        local base
+        base="$(basename "$f")"
+        log "Hashing ${base} -> $(basename "$sha_file")"
+        (cd "$(dirname "$f")" && sha256sum "$base" > "$sha_file")
+    done
+}
+# }}}
+
+# {{{ write_goodbye() — append the conventional last-thing-a-program-does line
+write_goodbye() {
+    local stamp
+    stamp="$(date -Iseconds)"
+    if [[ -d "$OUTPUT_DIR" ]]; then
+        printf '%s extract-sd-image-parts: goodbye\n' "$stamp" >> "$GOODBYE_FILE"
+    fi
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    ensure_workspace
+    log "DIR=${DIR}"
+    log "ROCKNIX tag: ${ROCKNIX_TAG}"
+    download_rocknix_image
+    verify_sha256
+    decompress_rocknix_image
+    show_partition_layout
+    extract_idbloader
+    extract_uboot_itb
+    extract_dtb
+    hash_extracted_blobs
+    write_goodbye
+    printf '\n' >&2
+    printf 'Extracted blobs are in %s\n' "$PARTS_DIR" >&2
+    printf 'You can remove the ROCKNIX image now if you want the space back:\n' >&2
+    printf '  rm %s %s\n' "$DOWNLOAD_PATH" "$DECOMPRESSED_PATH" >&2
+}
+# }}}
+
+main "$@"
