@@ -199,6 +199,17 @@ flash loop from 110c, not Maskrom.
   command interface. The transfer machinery that turns
   dispatched responses into bytes the host actually sees lives
   in 109c.
+- 109c — USB control transfer plumbing. The TRB struct, per-
+  endpoint TRB allocations, the 8-byte setup-packet buffer, the
+  event-ring decoder that walks 4-byte events and distinguishes
+  endpoint events from device events, and the four-stage
+  control-transfer state machine that wires the 109b dispatcher
+  to the host. On bus reset the state machine resets and
+  re-arms endpoint zero OUT; on SET_ADDRESS completion the
+  device address is applied to the DCFG register. Closing
+  evidence on hardware (`lsusb` reporting the device) lands when
+  110b puts the kernel on the eMMC; reopens if anything in the
+  TRB layout or event-decode bit positions is off.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -209,8 +220,8 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-109c, 110, the three install-pipeline issues 110a, 110b, 110c,
-plus 111a, 111b, 112, and 113.
+110, the three install-pipeline issues 110a, 110b, 110c, plus
+111a, 111b, 112, and 113.
 
 ## Phase demo
 

@@ -2,36 +2,61 @@
 
 ## Current behavior
 
-After 109b the device's USB controller is configured, endpoint
-zero is brought up, and the descriptor tables exist. But the
-host's enumeration still hangs: the host sends a setup packet,
-the controller writes that setup packet to a buffer somewhere
-in its event ring, our polling loop reads the event count, and
-the events are immediately marked consumed without being
-parsed. The dispatcher in 109b is correct and unreachable.
+`src/010-usb-enumeration.c` now carries the full transfer
+plumbing the previous issue stopped short of. The dispatcher
+that was correct and unreachable is now reachable.
 
-Specifically, three pieces of infrastructure are missing:
+A `dwc3_trb` struct matches the controller's 16-byte transfer-
+request-block layout — 64-bit buffer pointer, 24-bit size field
+plus a packet-count metadata word, and a control word that
+encodes the TRB type along with the hardware-owner, last-of-
+chain, and interrupt-on-completion bits. A `fill_trb` helper
+populates each field in the order that keeps the hardware-owner
+bit going high only after the other fields are valid.
 
-- **TRB rings per endpoint.** A TRB (Transfer Request Block) is
-  a 16-byte controller-readable descriptor saying "transfer
-  these bytes." Endpoint 0 OUT needs a ring of TRBs the
-  controller consumes to receive setup packets and status
-  stages; endpoint 0 IN needs a ring the controller consumes
-  to deliver response data. We have no TRB struct defined and
-  no rings allocated.
+Three pages come out of the page allocator during the endpoint-
+zero bring-up: one for the endpoint-zero OUT TRB, one for the
+endpoint-zero IN TRB, and one for the 8-byte setup-packet
+buffer. After the controller's RUN bit is set, `arm_setup_receive`
+posts a Control-Setup TRB on endpoint zero OUT and issues
+DEPSTRTXFER so the controller has somewhere to land the host's
+first setup packet.
 
-- **Setup-packet buffer.** Pre-arming the controller to receive
-  the host's first setup packet means posting a TRB on
-  endpoint 0 OUT that points at an 8-byte buffer. The
-  controller DMAs the host's setup packet into that buffer.
-  Without this, setup packets land somewhere we never read.
+The polling loop walks the event buffer four bytes at a time.
+Each event distinguishes endpoint events from device events on
+its low bit; endpoint events carry an endpoint number and a
+type code, device events carry a different type code. The
+transfer-complete event drives a four-stage state machine:
+awaiting setup, awaiting IN data, awaiting IN status, awaiting
+OUT status. The state machine differentiates 2-stage transfers
+(SET_ADDRESS, SET_CONFIGURATION — no data stage) from 3-stage
+transfers (GET_DESCRIPTOR — IN data then OUT status) by reading
+the setup packet's bmRequestType direction bit and wLength.
 
-- **Event-ring decoder.** Each entry in the event buffer is a
-  4-byte event with a type field. Some events are device-wide
-  ("bus reset," "connection done"); some are per-endpoint
-  ("transfer complete," "setup-packet received"). The polling
-  loop currently does not distinguish events at all — it just
-  marks every byte consumed without reading them.
+When a setup packet arrives the polling loop reads the setup
+buffer, calls the 109b dispatcher, and posts either a
+Control-Data TRB on endpoint zero IN (3-stage path) or a
+Control-Status-2 TRB on endpoint zero IN (2-stage path). The
+next transfer-complete on the matching direction advances the
+state. The SET_ADDRESS that 109b's handler queues is applied
+to the DCFG register only after the IN-status XferComplete
+fires, matching the USB spec's rule about when the address
+takes effect.
+
+Bus reset and connection-done events reset the state machine
+to "awaiting setup" and re-arm endpoint zero OUT — the host
+restarting enumeration is treated the same as boot.
+
+The closing evidence on real hardware — `lsusb` reporting our
+device with vendor `0x1209`, product `0x5050`, and the "Soren
+DS" product string — has not yet been observed because we have
+not booted from the device. That validation lands when 110b
+puts the kernel on the eMMC. If `lsusb` reports nothing at
+that point, the bug is somewhere in the TRB bit positions,
+the event-decode bit-field offsets, or the DEPSTRTXFER
+parameter ordering — all places where the spec is exact but
+inattention to detail is easy. This issue reopens on that
+evidence.
 
 ## Intended behavior
 
