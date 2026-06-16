@@ -108,7 +108,7 @@ overview at `014-hardware-overview.md` harvested from).
 | ------------- | --------- | ---------------- |
 | `0xFD40_0000` | `0x10000` | GIC distributor  |
 | `0xFD46_0000` | `0x80000` | GIC redistributors |
-| `0xFD80_0000` | `0x1000`  | PMU              |
+| `0xFDD9_0000` | `0x1000`  | PMU (power-management) — earlier version of this doc had this row at `0xFD80_0000` (the address of USB2 host 0 EHCI per the device tree). Crossed with the USB-controller transcription errors caught alongside the DWC3 controller's address bug; corrected against the device tree we extracted from ROCKNIX. |
 | `0xFDC2_0000` | `0x10000` | PMU GRF          |
 | `0xFDC5_0000` | `0x1000`  | Pipe GRF         |
 | `0xFDC6_0000` | `0x10000` | General Register File (GRF) |
@@ -268,11 +268,11 @@ issue that does will reference this base address.
 | `0xFE8A_0000` | `0x10000`  | USB2 PHY 0                       |
 | `0xFE8B_0000` | `0x10000`  | USB2 PHY 1                       |
 | `0xFCC0_0000` | `0x40_0000`| USB3 OTG controller (DWC3) — wired to USB-C. The first iteration of this document said `0xFEC0_0000`, copied from an earlier Rockchip BSP version that used a different bus mapping; the actual address on this device, per the device tree we extracted from ROCKNIX, is `0xFCC0_0000`. The wrong address was the fault site for the USB cycling we hit during phase-1 hardware testing. |
-| `0xFED0_0000` | `0x40_0000`| USB3 host 1 (xHCI) — not wired on RG DS |
-| `0xFED8_0000` | `0x40_000` | USB2 host 0 EHCI                 |
-| `0xFED8_4000` | `0x40_000` | USB2 host 0 OHCI                 |
-| `0xFED8_8000` | `0x40_000` | USB2 host 1 EHCI                 |
-| `0xFED8_C000` | `0x40_000` | USB2 host 1 OHCI                 |
+| `0xFD00_0000` | `0x40_0000`| USB3 host 1 (xHCI) — not wired on RG DS |
+| `0xFD80_0000` | `0x4_0000` | USB2 host 0 EHCI                 |
+| `0xFD84_0000` | `0x4_0000` | USB2 host 0 OHCI                 |
+| `0xFD88_0000` | `0x4_0000` | USB2 host 1 EHCI                 |
+| `0xFD8C_0000` | `0x4_0000` | USB2 host 1 OHCI                 |
 
 The USB controller issue 109 will bring up will be USB3 host 0
 in device (OTG) mode, since that is the controller connected to
