@@ -267,7 +267,7 @@ issue that does will reference this base address.
 | `0xFE84_0000` | `0x100`    | combphy2 (USB / PCIe combo PHY)  |
 | `0xFE8A_0000` | `0x10000`  | USB2 PHY 0                       |
 | `0xFE8B_0000` | `0x10000`  | USB2 PHY 1                       |
-| `0xFEC0_0000` | `0x40_0000`| USB3 host 0 (xHCI) — wired to USB-C |
+| `0xFCC0_0000` | `0x40_0000`| USB3 OTG controller (DWC3) — wired to USB-C. The first iteration of this document said `0xFEC0_0000`, copied from an earlier Rockchip BSP version that used a different bus mapping; the actual address on this device, per the device tree we extracted from ROCKNIX, is `0xFCC0_0000`. The wrong address was the fault site for the USB cycling we hit during phase-1 hardware testing. |
 | `0xFED0_0000` | `0x40_0000`| USB3 host 1 (xHCI) — not wired on RG DS |
 | `0xFED8_0000` | `0x40_000` | USB2 host 0 EHCI                 |
 | `0xFED8_4000` | `0x40_000` | USB2 host 0 OHCI                 |
