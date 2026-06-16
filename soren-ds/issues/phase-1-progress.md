@@ -188,18 +188,7 @@ flash loop from 110c, not Maskrom.
   runs from `kernel_main` and panics to a red LED on bookkeeping
   failure. Multi-page contiguous allocation and concurrency
   control are deferred to later issues that actually need them.
-- 109a — USB PHY and controller bring-up. `src/009-usb.c` brings
-  the USB 2.0 PHY out of suspend through the chip's GRF, soft-
-  resets the DWC3 controller through its global control
-  register, sets the port-capability direction to device mode,
-  pins device speed to USB 2.0 high speed, and verifies the
-  controller is alive by reading the documented Synopsys magic
-  out of the identification register. `kernel_main` advances
-  the LED stage to `STAGE_USB_CONTROLLER` on success or panics
-  on identification mismatch. The closing evidence on real
-  hardware (raw USB activity in the laptop's `dmesg`) gets
-  observed when issue 110b puts our kernel on the eMMC; if the
-  laptop sees nothing at that point this issue reopens.
+- 109a — (REOPENED — see the open-issues section below.)
 - 109b — USB descriptors, dispatcher, and endpoint-zero
   configuration. `src/010-usb-enumeration.c` defines the device,
   configuration, and string descriptors in `.rodata`, the
@@ -433,11 +422,40 @@ indicator lights through the GPIO controller (issue 106b);
 vocabulary and the breathing heartbeat from 106a. The work
 splits into a clock-gate write in the chip's clock-reset
 unit, a pin-multiplexer write in the PMU general register
-file, and possibly a reset deassertion. Not blocking any
-other phase 1 issue — the GPIO-driven LED layer is a
-sufficient diagnostic channel for the remaining bring-up
-work — so the timing depends on when the smooth fades become
-worth their bring-up cost.
+file, and possibly a reset deassertion. The specific CRU
+register layout is now catalogued in
+`docs/017-clocks-and-timers.md`; the PWM1 clock-gate bit
+position remains the open piece of research before 106c
+lands. Not blocking any other phase 1 issue — the GPIO-
+driven LED layer is a sufficient diagnostic channel for the
+remaining bring-up work — so the timing depends on when the
+smooth fades become worth their bring-up cost.
+
+103g (watchdog handling) — phase 1 silence is unblocked and
+needed *immediately* before any further hardware bring-up can
+land. The bootloader leaves the chip's watchdog enabled with a
+small timeout (around two and a half seconds); the kernel
+inherits a ticking countdown and resets before completing
+even its earliest work. Silencing is two MMIO writes at the
+top of `kernel_main` to the main CRU's soft-reset register
+for the watchdog hardware block, putting the watchdog back
+into its post-reset disabled state. The issue itself stays
+open through phase 2 or 3 for the soramech-side petting task
+that turns the watchdog back into a useful safety net once
+periodic-task scheduling exists.
+
+109a (USB PHY and controller register bring-up) is *reopened*
+from completed. The original closure assumed the bootloader
+enabled the USB clocks; the mainline-derived ROCKNIX u-boot
+on the SD-card boot path does not. Three additional register
+writes — two CRU writes to ungate the USB 3.0 OTG controller's
+clocks and deassert its hardware reset, one PMU GRF write to
+clear the USB 2.0 PHY's power-down bits — must land in
+`usb_init` before the existing DWC3 configuration sequence
+can succeed. The specific register addresses and bit positions
+are catalogued in `docs/017-clocks-and-timers.md`; the PHY
+power-down register layout is the remaining piece of research
+this issue needs before its code change can land.
 
 ## Phase demo
 
