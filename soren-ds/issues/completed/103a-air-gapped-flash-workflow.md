@@ -18,12 +18,20 @@ real drive and behaves as designed.
 `scripts/lab-side/flash-sd` runs on the lab laptop from the USB
 drive itself. It identifies the SD card by a before/after diff
 of the kernel's block-device list, requires a typed `YES`
-confirmation, refuses non-removable targets, dd's the image,
-syncs, and ejects. The flash side has not yet been exercised
-against a real kernel image because no kernel image exists yet
-— it will get its first real run once issue 102 and 103 produce
-something to flash. If it fails on that first real run, this
-issue is reopened.
+confirmation, refuses targets that are neither marked
+removable by the kernel nor on the MMC transport, dd's the
+image, syncs, and ejects.
+
+The "marked removable OR on the MMC transport" rule is a
+widening of the original "marked removable" rule, surfaced
+on the first real run of the script. The kernel's removable
+flag describes the *slot*, not the medium: USB-attached SD
+card readers report removable=1 because the whole reader is
+hot-pluggable, but laptops with a built-in SD slot report
+removable=0 because the slot itself is fixed even though the
+card in it is removable. The MMC-transport check picks up
+the built-in-slot case without also accepting the laptop's
+internal SSD (which is on SATA or NVMe transport, not MMC).
 
 The lab laptop's role has narrowed since issue 101 closed: it
 will only ever write microSD cards, never connect to the device
