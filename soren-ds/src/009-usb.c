@@ -311,9 +311,24 @@ int usb_init(void)
     delay_busy(DIAG_CHECKPOINT_HOLD);
     usb2_phy_bring_up();
 
-    /* No checkpoint here — the DWC3 step is the last one. On
-     * success kernel_main paints STAGE_USB_CONTROLLER; on a
-     * clean failure kernel_main paints STAGE_PANIC_GENERIC; on
-     * a fault the LED stays at checkpoint B. */
+    /* DWC3 sub-step skipped for this iteration (issue 103g —
+     * TEMPORARY). The previous round reached checkpoint B in
+     * every reset cycle, which means the clock-and-reset enable
+     * succeeded but a fault occurs somewhere between checkpoint
+     * B and a hypothetical checkpoint after the DWC3 step. To
+     * find out whether the PHY-suspend write itself is the
+     * fault (so the kernel never reaches the DWC3 sub-step) or
+     * the DWC3 sub-step is the fault (so the kernel does reach
+     * it but the controller's register access faults), this
+     * iteration returns success right after the PHY work and
+     * lets kernel_main paint STAGE_USB_CONTROLLER. If the
+     * kernel reaches a steady STAGE_USB_CONTROLLER (top dark,
+     * bottom amber, indefinite), the PHY was fine and the
+     * DWC3 sub-step is the actual fault site. If the kernel
+     * still cycles at checkpoint B, the PHY-suspend write
+     * itself is the fault. */
+    return 0;
+
+    /* (Unreachable while the skip above is in place.) */
     return dwc3_soft_reset_and_set_device_mode();
 }
