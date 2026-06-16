@@ -39,6 +39,16 @@ SECTIONS
         *(.data*)
     }
 
+    /* End of the on-disk kernel image. Everything from the load
+     * address through here is bytes the bootloader must copy from
+     * the boot partition into RAM; everything after here (.bss
+     * and the kernel stack) is zero-init memory that the boot
+     * code in 001-boot.s establishes at runtime. The eMMC-write
+     * code in 013-boot-image.c reads this symbol to size the
+     * Android boot.img it builds. */
+    . = ALIGN(8);
+    __image_end = .;
+
     .bss : ALIGN(8) {
         __bss_start = .;
         *(.bss*)
