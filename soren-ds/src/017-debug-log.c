@@ -45,7 +45,17 @@ extern int sd_write_block(uint32_t lba, const uint8_t *buffer);
 #define LOG_BUFFER_SIZE        4096u    /* one page = 8 SD blocks */
 #define LOG_BUFFER_BLOCKS      (LOG_BUFFER_SIZE / 512u)
 #define LOG_FLUSH_THRESHOLD    3072u    /* flush at 75% full */
-#define LOG_SD_REGION_START    0x4000000u  /* LBA ~2 GB into the SD card */
+/* LBA ~2 GB into the SD card. The earlier value of 0x4000000 was an
+ * extra-zero typo of 0x400000 — the comment was right (2 GB), the
+ * constant was wrong (32 GB). On smaller SD cards 32 GB falls
+ * past the end of the card, the controller silently rejects every
+ * write to that region, and the log reads back as the SD card's
+ * erased flash state forever. On a 256 GB card the LBA is in
+ * range but it would have collided with the originally-planned
+ * full eMMC backup (the eMMC is 32 GB, copied to SD starting at
+ * LBA 0x200000, ending around LBA 0x4200000). Two different
+ * failure modes, same misplaced zero. */
+#define LOG_SD_REGION_START    0x400000u   /* LBA 2 GB into the SD card */
 #define LOG_SD_REGION_SIZE     32768u   /* 16 MB / 512 B per block */
 
 /* Buffer state. All accessed from kernel_main's single thread —
