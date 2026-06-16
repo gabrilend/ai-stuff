@@ -224,21 +224,20 @@ write_goodbye() {
 # lab-output/ directory on the USB drive — separate from output/
 # because the main machine's push-to-usb runs `rsync --delete`
 # against output/ and would wipe whatever the lab side left there.
-# The USB drive's root is owned by root once it's mounted, so the
-# directory has to be created under sudo before dump-from-sd
-# (which doesn't run sudo when it sets the directory up) can write
-# into it. flash-sd already needed sudo for the dd, so creating the
-# directory here lets dump-from-sd assume the directory exists and
-# is writable from the developer's normal user account afterward.
+# The USB drive's root is typically root-owned (or owned by whoever
+# auto-mounted it), so the mkdir needs sudo. Once the directory
+# exists, the dump files dd writes into it inherit the filesystem's
+# permission model — FAT32 USB drives don't support Unix ownership
+# at all, so an explicit chown after creation returns "operation
+# not permitted" even with sudo. We skip the chown and rely on the
+# default umask giving the dd-created files world-readable mode,
+# which is enough for the developer to read them either way.
 ensure_lab_output_dir() {
     local lab_output_dir="${DIR}/lab-output"
     if [[ ! -d "$lab_output_dir" ]]; then
         log "Creating ${lab_output_dir} on the USB drive (needs sudo)."
         sudo mkdir -p "$lab_output_dir"
     fi
-    # Make the directory writable by the invoking user so the
-    # companion script's chown of each dump file can land.
-    sudo chown "$(id -u):$(id -g)" "$lab_output_dir"
 }
 # }}}
 
