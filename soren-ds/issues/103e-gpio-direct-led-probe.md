@@ -4,11 +4,13 @@
 
 The very first instructions the kernel runs after the boot
 chain hands control off — sitting between the asynchronous-
-exception mask in `_start` and the stack-pointer setup that
-follows it — are a four-write diagnostic sequence that drives
-the three indicator LEDs directly through the chip's GPIO
-controller, bypassing the PWM hardware the existing LED layer
-uses. The four writes are:
+exception mask in `_start` and what would otherwise be the
+stack-pointer setup — are a diagnostic that drives the three
+indicator LED pins directly through the chip's GPIO controller,
+bypassing the PWM hardware the existing LED layer uses, and
+cycles forever through phases that drive each pin alone, all
+three together, and all three off. Two setup writes own the
+pins, and then the cycle runs:
 
 - Pin-multiplexer override. The PMU general register file
   holds a four-bit function field for each chip pin in the
@@ -19,22 +21,25 @@ uses. The four writes are:
   PMU_GRF + 0x14. The bootloader may have left them in any
   function — PWM, SARADC, GPIO, or some passthrough — and the
   override guarantees the GPIO controller owns them when the
-  next two writes go through.
+  data writes go through.
 - Direction. The GPIO0 controller's data-direction high-half
   register at GPIO0 + 0x0c gets a write that flips bits 4, 5,
   and 6 (the bits that correspond to pins 20, 21, and 22 in
   the controller's flat-numbering view of its 32 pins) to one,
   marking those three pins as outputs.
-- Output value. The GPIO0 controller's data high-half register
-  at GPIO0 + 0x04 gets the same bits set to one, driving the
-  three pins high.
-- A busy-wait pattern. The kernel waits, drops the pins low,
-  waits again, and brings them back high before continuing.
-  The pattern reads as a wink: about two seconds of light, a
-  second of darkness, and the lights come back on and stay on
-  through whatever happens next.
+- The cycle, five phases:
+  - Phase 1 drives only the pin the device tree labels green
+    (GPIO0_C4) high, holds the other two low.
+  - Phase 2 drives only the pin labelled amber (GPIO0_C5)
+    high.
+  - Phase 3 drives only the pin labelled red (GPIO0_C6) high.
+  - Phase 4 drives all three high together.
+  - Phase 5 drives all three low.
+  - Each phase lasts about 1.8 seconds at the chip's 1.8 GHz
+    operating point and longer at lower clock speeds. The
+    cycle restarts after phase five and runs forever.
 
-All three register writes use the chip-family's write-mask
+Every register write uses the chip-family's write-mask
 convention. Each thirty-two-bit write splits into an upper-half
 mask that picks out which lower-half bits the hardware will
 actually update, and a lower-half value the hardware copies
@@ -43,19 +48,38 @@ unchanged. The convention lets us touch the three pins we care
 about without disturbing the fourth pin sharing each register
 or any other config bits the bootloader may have set.
 
-The probe runs once. After its third write completes the rest
-of `_start` runs normally (stack-pointer setup, BSS zeroing,
-vector-table install, branch to `kernel_main`). The existing
-PWM-driven LED layer still calls into the PWM controller as
-before, but because the probe took the three pins out of PWM
-function and into GPIO function, the PWM controller's output
-goes nowhere — the LEDs stay in whatever GPIO state the probe
-left them in (high, on), regardless of what `led_set_stage` or
-`led_hello` later try to do. This is intentional. The probe is
-diagnostic and lives at the top of `_start`; once we know
-whether the kernel reaches it, the probe and the
-incompatibility with the PWM-driven LED layer come out
-together.
+The probe never exits. The rest of `_start` — stack-pointer
+setup, BSS zeroing, vector-table install, branch to
+`kernel_main` — is unreachable while the probe is in place.
+This is intentional. The earlier wink-pattern iteration of the
+probe already confirmed the kernel reaches `_start`; the
+question this iteration answers is "which of the three claimed
+LEDs lights at each phase, and in what color." The developer
+watches the cycle, notes the answer, and power-cycles to stop.
+
+## What the prior iteration told us
+
+The earlier iteration drove all three pins high together as a
+single wink and then continued into normal boot. The visible
+result on hardware was two amber-colored lights, not the three
+distinctly coloured lights (green, amber, red) the device tree
+predicts. Two readings are consistent with that observation:
+
+- Each light is a multi-element LED behind a diffuser, and the
+  amber appearance is the additive mix of all three elements
+  lit at once.
+- The two lights are wired only to the amber pin, and the
+  device tree's green and red entries point at hardware that
+  is not populated on this board variant.
+
+The cycling iteration is here to distinguish those two
+readings. If each phase that drives one pin alone lights a
+distinctly different colour, the device has multi-element LEDs
+and the device tree's labelling is accurate. If only the
+amber-pin phase lights anything and the other two single-pin
+phases leave the lights dark, the device only has the amber
+pin populated. Other patterns are possible and will revise
+the hardware model accordingly.
 
 ## Why this exists
 
