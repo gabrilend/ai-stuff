@@ -300,9 +300,87 @@ static inline uint8_t setup_descriptor_index(const struct usb_setup_packet *s)
 #define DEPCMD_DEPSTARTCFG 0x09u
 #define DEPCMD_DEPCFG    0x01u
 #define DEPCMD_DEPXFERCFG 0x02u
+#define DEPCMD_DEPSTRTXFER 0x06u
+
+/* DCFG register: bits 6:0 carry the device address that the host
+ * assigns to us during enumeration. The page allocator never
+ * touches this register, but the SET_ADDRESS handler in this file
+ * writes it after the status stage. */
+#define DWC3_DCFG        (DWC3_BASE + 0xC700u)
+#define DCFG_DEVADDR_SHIFT 3
+#define DCFG_DEVADDR_MASK  (0x7Fu << DCFG_DEVADDR_SHIFT)
 
 #define EP0OUT 0
 #define EP0IN  1
+
+/* ==========================================================================
+ * Transfer Request Block (TRB) — the controller-readable descriptor
+ * that tells the DWC3 controller "transfer these bytes." Each TRB is
+ * 16 bytes. The controller walks a ring of TRBs as the host drives
+ * transfers; we use a single-TRB ring per endpoint here because
+ * control transfers are inherently sequential.
+ *
+ * Layout per the DWC3 documentation:
+ *   bytes 0..7  : 64-bit buffer physical address
+ *   bytes 8..11 : 32-bit field with the buffer size in bits 23:0 and
+ *                 a packet-count metadata field in bits 30:24
+ *   bytes 12..15: 32-bit control word with the TRB type (bits 9:4),
+ *                 the HWO bit (bit 0 — hardware owns this entry),
+ *                 the LST bit (bit 1 — this is the last TRB of a
+ *                 chain), the IOC bit (bit 11 — interrupt on
+ *                 completion so we get an event), and the CHN bit
+ *                 (bit 2 — chain with the next TRB; we never chain).
+ * ========================================================================== */
+
+struct __attribute__((packed, aligned(16))) dwc3_trb {
+    uint32_t buffer_ptr_lo;   /* bits 31:0  of buffer physical address */
+    uint32_t buffer_ptr_hi;   /* bits 63:32 of buffer physical address */
+    uint32_t size_pcm;        /* size in bytes (bits 23:0) + PCM1 */
+    uint32_t ctrl;            /* type, HWO, LST, IOC, etc. */
+};
+
+/* TRB control-word bit positions. */
+#define TRB_CTRL_HWO          (1u << 0)
+#define TRB_CTRL_LST          (1u << 1)
+#define TRB_CTRL_CHN          (1u << 2)
+#define TRB_CTRL_IOC          (1u << 11)
+#define TRB_CTRL_TYPE_SHIFT   4
+#define TRB_CTRL_TYPE(t)      ((t) << TRB_CTRL_TYPE_SHIFT)
+
+/* TRB types per DWC3 documentation. */
+#define TRB_TYPE_NORMAL          1
+#define TRB_TYPE_CONTROL_SETUP   2
+#define TRB_TYPE_CONTROL_STATUS2 3
+#define TRB_TYPE_CONTROL_STATUS3 4
+#define TRB_TYPE_CONTROL_DATA    5
+
+/* ==========================================================================
+ * DWC3 event encoding — what the controller writes into the event
+ * buffer when something interesting happens on the bus.
+ *
+ * Each event is 4 bytes. The low bit distinguishes endpoint events
+ * (bit 0 = 0) from device events (bit 0 = 1). For endpoint events,
+ * bits 5:1 carry the endpoint number; bits 9:6 carry the endpoint-
+ * event-type code. We care about XferComplete (type code 1), which
+ * fires when a TRB we posted finishes (either because the host
+ * delivered data into a buffer we pre-armed, or because we
+ * delivered data into a buffer the host posted).
+ *
+ * Device events have their type code in bits 11:8. The codes are
+ * sparsely documented; for phase 1 we only react to "bus reset"
+ * and "connection done" (both can be safely treated as "re-arm
+ * EP0 OUT for setup-packet receive").
+ * ========================================================================== */
+
+#define EVT_IS_DEVICE_EVENT(e)      ((e) & 0x1u)
+#define EVT_ENDPOINT_NUM(e)         (((e) >> 1) & 0x1Fu)
+#define EVT_ENDPOINT_TYPE(e)        (((e) >> 6) & 0xFu)
+#define EVT_DEVICE_TYPE(e)          (((e) >> 8) & 0xFu)
+
+#define EVT_EPTYPE_XFERCOMPLETE     1u
+#define EVT_DEVTYPE_DISCONNECT      0u
+#define EVT_DEVTYPE_USBRESET        1u
+#define EVT_DEVTYPE_CONNECTDONE     2u
 
 static inline void mmio_write32(uintptr_t address, uint32_t value)
 {
@@ -327,6 +405,59 @@ static void depcmd_issue(unsigned ep, uint32_t cmd_with_params,
     }
 }
 
+/* Per-endpoint TRBs and the setup-packet buffer.
+ *
+ * The DWC3 controller wants TRBs at 16-byte-aligned DMA addresses.
+ * The setup-packet buffer needs to hold 8 bytes the controller
+ * DMAs into when the host sends a setup packet. We give each of
+ * these its own page from the allocator — wasteful at 4 KB per
+ * 16-byte TRB, but the alignment is right and the bookkeeping is
+ * trivial. */
+static struct dwc3_trb *trb_ep0_out;
+static struct dwc3_trb *trb_ep0_in;
+static uint8_t         *setup_buffer;
+
+static uint64_t event_buffer_address;
+#define EVENT_BUFFER_SIZE 4096u
+
+/* Helpers to fill a TRB for each of the transfer types we use. The
+ * TRBs always have IOC set so the controller writes an event to
+ * notify us when they complete; HWO is the last bit set so the
+ * controller does not pick the TRB up mid-update. */
+static void fill_trb(struct dwc3_trb *trb, uint64_t buffer_addr,
+                     uint32_t size_bytes, unsigned trb_type)
+{
+    trb->buffer_ptr_lo = (uint32_t)(buffer_addr & 0xFFFFFFFFu);
+    trb->buffer_ptr_hi = (uint32_t)(buffer_addr >> 32);
+    trb->size_pcm = size_bytes & 0x00FFFFFFu;
+    /* Write the control word last so the HWO bit only goes high
+     * after the other fields are populated. */
+    trb->ctrl = TRB_CTRL_TYPE(trb_type)
+              | TRB_CTRL_LST
+              | TRB_CTRL_IOC
+              | TRB_CTRL_HWO;
+}
+
+/* Issue DEPSTRTXFER on an endpoint, telling the controller to
+ * begin processing the TRB at the provided address. */
+static void depcmd_start_xfer(unsigned ep, uint64_t trb_addr)
+{
+    uint32_t par0 = (uint32_t)(trb_addr >> 32);
+    uint32_t par1 = (uint32_t)(trb_addr & 0xFFFFFFFFu);
+    depcmd_issue(ep, DEPCMD_DEPSTRTXFER, par0, par1, 0);
+}
+
+/* Pre-arm EP0 OUT with a Control-Setup TRB pointing at the setup
+ * buffer. The next setup packet the host sends lands in the buffer,
+ * the controller writes an XferComplete event, and the polling
+ * loop picks it up. */
+static void arm_setup_receive(void)
+{
+    fill_trb(trb_ep0_out, (uint64_t)(uintptr_t)setup_buffer, 8,
+             TRB_TYPE_CONTROL_SETUP);
+    depcmd_start_xfer(EP0OUT, (uint64_t)(uintptr_t)trb_ep0_out);
+}
+
 /* Configure endpoint zero (both directions) and turn the
  * controller's RUN bit on so the host's bus reset can succeed.
  *
@@ -334,9 +465,6 @@ static void depcmd_issue(unsigned ep, uint32_t cmd_with_params,
  *
  * Event-buffer DMA address must be a 4 KB-aligned physical address.
  * Page allocator pages are already page-aligned. */
-static uint64_t event_buffer_address;
-#define EVENT_BUFFER_SIZE 4096u
-
 int usb_endpoint_zero_bringup(void)
 {
     /* Event buffer for the controller's events. */
@@ -385,11 +513,29 @@ int usb_endpoint_zero_bringup(void)
     dalepena |= (1u << EP0OUT) | (1u << EP0IN);
     mmio_write32(DWC3_DALEPENA, dalepena);
 
+    /* Allocate TRB storage for both endpoints and the setup
+     * packet buffer. Each gets its own page — wasteful but
+     * gives us page alignment for free and keeps the bookkeeping
+     * simple. */
+    uint64_t trb_out_page = alloc_page();
+    uint64_t trb_in_page  = alloc_page();
+    uint64_t setup_page   = alloc_page();
+    if (trb_out_page == 0 || trb_in_page == 0 || setup_page == 0) {
+        return -1;
+    }
+    trb_ep0_out  = (struct dwc3_trb *)(uintptr_t)trb_out_page;
+    trb_ep0_in   = (struct dwc3_trb *)(uintptr_t)trb_in_page;
+    setup_buffer = (uint8_t *)(uintptr_t)setup_page;
+
     /* Turn the controller's RUN_STOP bit on. After this the host
      * can drive bus reset and start enumeration. */
     uint32_t dctl = mmio_read32(DWC3_DCTL);
     dctl |= DCTL_RUN_STOP;
     mmio_write32(DWC3_DCTL, dctl);
+
+    /* Pre-arm EP0 OUT with a Control-Setup TRB so the controller
+     * has somewhere to put the host's first setup packet. */
+    arm_setup_receive();
 
     return 0;
 }
@@ -498,27 +644,186 @@ void usb_handle_setup_packet(const struct usb_setup_packet *s)
  * paths.
  * ========================================================================== */
 
+/* Control-transfer state machine.
+ *
+ * USB control transfers move through three stages: setup (host
+ * sends an 8-byte request header), an optional data stage
+ * (descriptor bytes in either direction), and a status stage
+ * (zero-length transfer in the opposite direction of data, or in
+ * the IN direction for transfers with no data stage). We track
+ * the current stage so the next event we process knows what
+ * just completed.
+ *
+ * The stages we observe:
+ *
+ *   STAGE_AWAITING_SETUP  — pre-armed; the controller will write
+ *                           an event when the host sends a setup
+ *                           packet.
+ *   STAGE_AWAITING_IN_DATA — we posted a Control-Data TRB on
+ *                           EP0 IN; waiting for the host to drain
+ *                           it.
+ *   STAGE_AWAITING_IN_STATUS — 2-stage transfer (SET_ADDRESS,
+ *                           SET_CONFIGURATION); we posted a zero-
+ *                           length status TRB on EP0 IN.
+ *   STAGE_AWAITING_OUT_STATUS — 3-stage transfer
+ *                           (GET_DESCRIPTOR); we posted a zero-
+ *                           length status TRB on EP0 OUT for the
+ *                           host's status-stage ACK.
+ */
+
+typedef enum {
+    STAGE_AWAITING_SETUP,
+    STAGE_AWAITING_IN_DATA,
+    STAGE_AWAITING_IN_STATUS,
+    STAGE_AWAITING_OUT_STATUS,
+} control_stage_t;
+
+static control_stage_t current_stage = STAGE_AWAITING_SETUP;
+
+/* Apply a pending SET_ADDRESS. The USB spec says the address change
+ * takes effect after the status stage of the SET_ADDRESS transfer,
+ * which is the point at which the polling loop sees the IN-status
+ * XferComplete. */
+static void apply_pending_set_address(void)
+{
+    if (!queued_set_address) {
+        return;
+    }
+    uint32_t dcfg = mmio_read32(DWC3_DCFG);
+    dcfg &= ~DCFG_DEVADDR_MASK;
+    dcfg |= ((uint32_t)queued_set_address_value << DCFG_DEVADDR_SHIFT)
+            & DCFG_DEVADDR_MASK;
+    mmio_write32(DWC3_DCFG, dcfg);
+    queued_set_address = 0;
+}
+
+/* Decide whether a setup packet implies a 3-stage transfer.
+ * bmRequestType bit 7 marks device-to-host; only those carry data
+ * back to the host. Host-to-device requests with wLength = 0 are
+ * 2-stage (no data stage). */
+static int setup_is_in_data_stage(const struct usb_setup_packet *s)
+{
+    return (s->bmRequestType & 0x80u) != 0 && s->wLength != 0;
+}
+
+/* Handle a setup-packet-received completion. Reads the buffer the
+ * controller DMAed into, dispatches through the 109b handler, and
+ * posts the next TRB based on whether the transfer is 2-stage or
+ * 3-stage. */
+static void on_setup_packet_received(void)
+{
+    const struct usb_setup_packet *setup =
+        (const struct usb_setup_packet *)setup_buffer;
+    usb_handle_setup_packet(setup);
+    if (setup_is_in_data_stage(setup) && queued_response_length > 0) {
+        /* 3-stage: post the descriptor bytes on EP0 IN. */
+        fill_trb(trb_ep0_in,
+                 (uint64_t)(uintptr_t)queued_response_data,
+                 queued_response_length,
+                 TRB_TYPE_CONTROL_DATA);
+        depcmd_start_xfer(EP0IN, (uint64_t)(uintptr_t)trb_ep0_in);
+        current_stage = STAGE_AWAITING_IN_DATA;
+    } else {
+        /* 2-stage: post the zero-length status TRB on EP0 IN. The
+         * status stage of a host-to-device transfer is IN; the
+         * controller uses Control-Status-2 because there was no
+         * data stage. */
+        fill_trb(trb_ep0_in,
+                 (uint64_t)(uintptr_t)setup_buffer, 0,
+                 TRB_TYPE_CONTROL_STATUS2);
+        depcmd_start_xfer(EP0IN, (uint64_t)(uintptr_t)trb_ep0_in);
+        current_stage = STAGE_AWAITING_IN_STATUS;
+    }
+}
+
+/* Handle EP0 IN data-stage completion. Post the zero-length OUT
+ * status TRB so the host can acknowledge. */
+static void on_in_data_complete(void)
+{
+    fill_trb(trb_ep0_out,
+             (uint64_t)(uintptr_t)setup_buffer, 0,
+             TRB_TYPE_CONTROL_STATUS3);
+    depcmd_start_xfer(EP0OUT, (uint64_t)(uintptr_t)trb_ep0_out);
+    current_stage = STAGE_AWAITING_OUT_STATUS;
+}
+
+/* Handle any status-stage completion. The transfer is over; apply
+ * any pending SET_ADDRESS, then re-arm EP0 OUT for the next setup
+ * packet. */
+static void on_status_complete(void)
+{
+    apply_pending_set_address();
+    arm_setup_receive();
+    current_stage = STAGE_AWAITING_SETUP;
+}
+
+/* Dispatch one endpoint event. */
+static void handle_endpoint_event(uint32_t event)
+{
+    unsigned ep   = EVT_ENDPOINT_NUM(event);
+    unsigned type = EVT_ENDPOINT_TYPE(event);
+    if (type != EVT_EPTYPE_XFERCOMPLETE) {
+        return;
+    }
+    switch (current_stage) {
+        case STAGE_AWAITING_SETUP:
+            if (ep == EP0OUT) {
+                on_setup_packet_received();
+            }
+            break;
+        case STAGE_AWAITING_IN_DATA:
+            if (ep == EP0IN) {
+                on_in_data_complete();
+            }
+            break;
+        case STAGE_AWAITING_IN_STATUS:
+            if (ep == EP0IN) {
+                on_status_complete();
+            }
+            break;
+        case STAGE_AWAITING_OUT_STATUS:
+            if (ep == EP0OUT) {
+                on_status_complete();
+            }
+            break;
+    }
+}
+
+/* Dispatch one device event. Bus reset and connection-done both
+ * mean the host is restarting enumeration; reset the state machine
+ * and re-arm EP0 OUT. */
+static void handle_device_event(uint32_t event)
+{
+    unsigned type = EVT_DEVICE_TYPE(event);
+    if (type == EVT_DEVTYPE_USBRESET || type == EVT_DEVTYPE_CONNECTDONE) {
+        /* The controller resets its own address to 0 on bus reset;
+         * we cancel any pending SET_ADDRESS we never got to apply. */
+        queued_set_address = 0;
+        current_stage = STAGE_AWAITING_SETUP;
+        arm_setup_receive();
+    }
+}
+
 void usb_poll(void)
 {
-    /* Read the event-ring producer pointer. The controller
-     * increments GEVNTCOUNT for each event it posts; we decrement
-     * it after consuming. Events are typed; we only care about
-     * "XferComplete on EP0OUT" (which signals a fresh setup packet
-     * is in our event-buffer-adjacent setup buffer). The full
-     * event-decoding state machine is left to a future issue;
-     * phase 1's enumeration only needs the polling skeleton in
-     * place so the structure works once we actually test on
-     * hardware. */
     uint32_t available = mmio_read32(DWC3_GEVNTCOUNT) & 0xFFFFu;
     if (available == 0) {
         return;
     }
-    /* Real implementation: parse each event in the buffer, post
-     * a TRB for the GET_DESCRIPTOR / SET_ADDRESS response, mark
-     * the events consumed by writing the byte count back to
-     * GEVNTCOUNT. The skeleton here marks events consumed and
-     * relies on future hardware-bring-up iteration to fill in
-     * the per-event logic — see the open-research note in the
-     * issue file. */
+    /* Walk the event buffer one 4-byte event at a time. The
+     * available count tells us how many bytes the controller has
+     * written since we last drained the ring. */
+    uint32_t *events = (uint32_t *)(uintptr_t)event_buffer_address;
+    uint32_t event_count = available / 4u;
+    for (uint32_t i = 0; i < event_count; i++) {
+        uint32_t event = events[i];
+        if (EVT_IS_DEVICE_EVENT(event)) {
+            handle_device_event(event);
+        } else {
+            handle_endpoint_event(event);
+        }
+    }
+    /* Tell the controller we have consumed these bytes; it can now
+     * reuse the slots for new events. */
     mmio_write32(DWC3_GEVNTCOUNT, available);
 }
