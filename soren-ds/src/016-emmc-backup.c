@@ -52,12 +52,16 @@ int emmc_backup_to_sd(uint32_t emmc_start_lba,
             debug_write("[backup] SD write failed\r\n");
             return -3;
         }
-        /* Narrate roughly every megabyte of progress and advance
-         * the breathing-amber heartbeat by one step. The heartbeat
-         * is what the developer watching the device sees when no
-         * USB host is attached — across the multi-minute backup,
-         * the amber LED visibly fades in and out. */
-        if ((i & 0x7FFu) == 0) {
+        /* Narrate roughly every ten megabytes of progress and
+         * advance the heartbeat by one step. Ten megabytes is
+         * 20,480 sectors (5 * 4096) — not a power of two, so the
+         * cadence check uses an explicit modulo rather than the
+         * bitmask the prior one-megabyte cadence used. At the
+         * chip's currently-slow boot clock the slower cadence
+         * keeps the debug-log noise manageable; the bottom amber
+         * LED blinks visibly but not frantically across the
+         * multi-minute backup. */
+        if ((i % 20480u) == 0) {
             debug_write("[backup] progress...\r\n");
             led_heartbeat();
         }
