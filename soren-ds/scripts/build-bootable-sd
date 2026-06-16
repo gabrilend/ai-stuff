@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# build-bootable-sd — assemble a Rockchip-bootable SD card image from the kernel and the extracted boot chain
+#
+# General description: takes the kernel image the build system
+# emits at output/kernel.img, the three durable boot-chain blobs
+# extract-sd-image-parts pulled out of ROCKNIX (the Rockchip
+# idbloader, the u-boot FIT, the RG DS device tree), and stitches
+# them together into a single bootable SD card image at
+# output/bootable-sd.img. The flash workflow (push-to-usb +
+# lab-side/flash-sd) carries that image across the air gap and
+# writes it to a microSD card.
+#
+# The layout matches ROCKNIX's at the byte level for the boot
+# chain pieces — idbloader at sector 64, u-boot FIT at sector
+# 16384 — because the Rockchip BootROM reads those offsets by
+# fixed address rather than from a partition table. The first
+# partition (FAT32, labelled ROCKNIX, starting at sector 32768)
+# replaces ROCKNIX's userspace contents with our own: just the
+# kernel image, the device tree, and a small extlinux config
+# pointing u-boot at both. Everything else ROCKNIX shipped on
+# that partition is dropped — the SD card is a development
+# bootstrap that only needs to launch our kernel.
+#
+# No sudo. The output image is a regular file in the project's
+# output directory; the partition table is written by sfdisk
+# against that file, the FAT contents are built via a separate
+# image file under tmp/ and dd'd into the output at the right
+# offset. Loop mounts are not used.
+
+set -euo pipefail
+
+# {{{ configuration — paths and sector layout, all relative to DIR
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${1:-$(dirname "$SCRIPT_DIR")}"
+
+TMP_DIR="${DIR}/tmp"
+OUTPUT_DIR="${DIR}/output"
+PARTS_DIR="${DIR}/libs/sd-image-parts"
+LOG_FILE="${TMP_DIR}/build-bootable-sd.log"
+GOODBYE_FILE="${OUTPUT_DIR}/goodbye.log"
+
+KERNEL_IMG="${OUTPUT_DIR}/kernel.img"
+IDBLOADER="${PARTS_DIR}/idbloader.bin"
+UBOOT_ITB="${PARTS_DIR}/u-boot.itb"
+RG_DS_DTB="${PARTS_DIR}/rk3568-anbernic-rg-ds.dtb"
+
+OUTPUT_IMG="${OUTPUT_DIR}/bootable-sd.img"
+TMP_FAT="${TMP_DIR}/build-bootable-sd-fat.img"
+TMP_EXTLINUX="${TMP_DIR}/build-bootable-sd-extlinux.conf"
+
+# Sector layout. The Rockchip BootROM expects the idbloader at
+# sector 64, and the convention on RK356x is to put the u-boot
+# FIT at sector 16384 (the 8 MiB mark). The first partition
+# starts at sector 32768 (the 16 MiB mark), leaving room for
+# the boot chain in the unpartitioned pre-partition region.
+# These three values match ROCKNIX's image byte-for-byte.
+IDBLOADER_LBA=64
+UBOOT_LBA=16384
+PARTITION_LBA=32768
+
+# Partition size: 256 MiB. FAT32's minimum-cluster-count rule
+# wants ~32 MiB at the very small end, ~256 MiB to avoid
+# mkfs.fat warning about a small cluster count. 256 MiB
+# matches ROCKNIX's partition kind and keeps the image small
+# enough to flash quickly while leaving plenty of room beyond
+# the kernel and DTB.
+PARTITION_SECTORS=524288
+
+IMAGE_TOTAL_SECTORS=$((PARTITION_LBA + PARTITION_SECTORS))
+IMAGE_TOTAL_BYTES=$((IMAGE_TOTAL_SECTORS * 512))
+
+# FAT volume label u-boot's distro_bootcmd scans for. Matches
+# ROCKNIX's so any environment scripts u-boot already has that
+# reference the label by name keep resolving.
+FAT_LABEL="ROCKNIX"
+# }}}
+
+# {{{ log() — single timestamped line to stderr and the log file
+log() {
+    local message="$1"
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '[build-bootable-sd] %s\n' "$message" >&2
+    printf '%s [build-bootable-sd] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
+die() {
+    local message="$1"
+    log "ERROR: $message"
+    exit 1
+}
+# }}}
+
+# {{{ ensure_workspace() — guarantee tmp/, output/, and parts/ exist
+ensure_workspace() {
+    if [[ ! -L "$TMP_DIR" ]] && [[ ! -d "$TMP_DIR" ]]; then
+        die "${TMP_DIR} does not exist. Project convention requires tmp/ as a RAM-backed directory."
+    fi
+    mkdir -p "$OUTPUT_DIR"
+    if [[ ! -d "$PARTS_DIR" ]]; then
+        die "${PARTS_DIR} does not exist. Run scripts/extract-sd-image-parts first to extract the boot chain blobs."
+    fi
+}
+# }}}
+
+# {{{ verify_inputs() — kernel.img exists and the three boot-chain blobs match their .sha256 siblings
+verify_inputs() {
+    if [[ ! -s "$KERNEL_IMG" ]]; then
+        die "${KERNEL_IMG} is missing or empty. Run scripts/build first."
+    fi
+    local f
+    for f in "$IDBLOADER" "$UBOOT_ITB" "$RG_DS_DTB"; do
+        if [[ ! -f "$f" ]]; then
+            die "${f} is missing. Run scripts/extract-sd-image-parts first."
+        fi
+        if [[ ! -f "${f}.sha256" ]]; then
+            die "${f}.sha256 is missing. Re-run scripts/extract-sd-image-parts."
+        fi
+    done
+    log "Verifying SHA-256 of extracted boot chain blobs against their recorded values."
+    (cd "$PARTS_DIR" && sha256sum -c idbloader.bin.sha256 u-boot.itb.sha256 rk3568-anbernic-rg-ds.dtb.sha256 >> "$LOG_FILE")
+    log "Boot chain blob hashes match."
+}
+# }}}
+
+# {{{ allocate_image() — reserve the output image's full byte length as a zero-filled file
+allocate_image() {
+    log "Allocating ${IMAGE_TOTAL_BYTES} bytes for ${OUTPUT_IMG}"
+    rm -f "$OUTPUT_IMG"
+    truncate -s "$IMAGE_TOTAL_BYTES" "$OUTPUT_IMG"
+}
+# }}}
+
+# {{{ write_partition_table() — write the MBR with one bootable FAT32 LBA partition
+# sfdisk reads the partition layout as a small text script on
+# stdin. label: dos means MBR (rather than GPT); type=0c is
+# the FAT32-with-LBA partition type byte the SD card boot path
+# expects; the bootable keyword sets the 0x80 active flag the
+# u-boot distro_bootcmd uses to pick a candidate partition.
+write_partition_table() {
+    log "Writing MBR partition table (one FAT32 LBA partition, bootable, sector ${PARTITION_LBA})"
+    sfdisk --quiet "$OUTPUT_IMG" >> "$LOG_FILE" <<EOF
+label: dos
+unit: sectors
+
+start=${PARTITION_LBA}, size=${PARTITION_SECTORS}, type=0c, bootable
+EOF
+}
+# }}}
+
+# {{{ splice_boot_chain() — write idbloader and u-boot.itb into their fixed pre-partition offsets
+# conv=notrunc keeps dd from truncating the output image when
+# writing in the middle; without it, dd would zero-extend past
+# the seek point and discard anything that comes after.
+splice_boot_chain() {
+    log "Writing idbloader at sector ${IDBLOADER_LBA}"
+    dd if="$IDBLOADER" of="$OUTPUT_IMG" bs=512 seek="$IDBLOADER_LBA" conv=notrunc status=none
+    log "Writing u-boot.itb at sector ${UBOOT_LBA}"
+    dd if="$UBOOT_ITB" of="$OUTPUT_IMG" bs=512 seek="$UBOOT_LBA" conv=notrunc status=none
+}
+# }}}
+
+# {{{ write_extlinux_conf() — generate the extlinux config in tmp/
+# The three lines u-boot's syslinux parser actually consumes:
+# DEFAULT names the entry to boot when there is only one (and
+# avoids any "no default specified" warnings), LABEL opens the
+# entry block, LINUX names the kernel image u-boot loads with
+# booti, FDT names the device-tree blob u-boot passes to the
+# kernel through x0. No APPEND: our kernel ignores its cmdline
+# and probes hardware itself, so there is nothing useful to
+# pass.
+write_extlinux_conf() {
+    log "Writing extlinux config to ${TMP_EXTLINUX}"
+    cat > "$TMP_EXTLINUX" <<EOF
+DEFAULT Soren
+
+LABEL Soren
+  LINUX /KERNEL
+  FDT /device_trees/rk3568-anbernic-rg-ds.dtb
+EOF
+}
+# }}}
+
+# {{{ build_fat_partition() — create a FAT32 image and populate it with the kernel, the DTB, and the extlinux config
+# Builds in a separate file under tmp/ so the mkfs and mcopy
+# commands work against a standalone disk image rather than at
+# an offset inside the output image. The result is dd'd into
+# the output image by splice_fat_partition. Easier to reason
+# about than mtools' image@@offset syntax, and easier to
+# inspect the partition as a freestanding file if something
+# looks wrong.
+build_fat_partition() {
+    local part_bytes=$((PARTITION_SECTORS * 512))
+    log "Creating ${part_bytes}-byte FAT32 partition image at ${TMP_FAT}"
+    rm -f "$TMP_FAT"
+    truncate -s "$part_bytes" "$TMP_FAT"
+    mkfs.fat -F32 -n "$FAT_LABEL" "$TMP_FAT" >> "$LOG_FILE" 2>&1
+
+    log "Creating /extlinux and /device_trees inside the partition"
+    mmd -i "$TMP_FAT" ::/extlinux
+    mmd -i "$TMP_FAT" ::/device_trees
+
+    log "Copying kernel, device tree, and extlinux config into the partition"
+    mcopy -i "$TMP_FAT" "$KERNEL_IMG" ::/KERNEL
+    mcopy -i "$TMP_FAT" "$RG_DS_DTB" "::/device_trees/$(basename "$RG_DS_DTB")"
+    mcopy -i "$TMP_FAT" "$TMP_EXTLINUX" ::/extlinux/extlinux.conf
+}
+# }}}
+
+# {{{ splice_fat_partition() — write the FAT partition image into the output image at its partition offset
+splice_fat_partition() {
+    log "Splicing FAT partition into ${OUTPUT_IMG} at sector ${PARTITION_LBA}"
+    dd if="$TMP_FAT" of="$OUTPUT_IMG" bs=512 seek="$PARTITION_LBA" conv=notrunc status=none
+}
+# }}}
+
+# {{{ cleanup_temporaries() — remove the staging files left in tmp/
+cleanup_temporaries() {
+    rm -f "$TMP_FAT" "$TMP_EXTLINUX"
+}
+# }}}
+
+# {{{ write_goodbye() — append the conventional last-thing-a-program-does line
+write_goodbye() {
+    local stamp
+    stamp="$(date -Iseconds)"
+    if [[ -d "$OUTPUT_DIR" ]]; then
+        printf '%s build-bootable-sd: goodbye\n' "$stamp" >> "$GOODBYE_FILE"
+    fi
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    ensure_workspace
+    log "DIR=${DIR}"
+    verify_inputs
+    allocate_image
+    write_partition_table
+    splice_boot_chain
+    write_extlinux_conf
+    build_fat_partition
+    splice_fat_partition
+    cleanup_temporaries
+    write_goodbye
+    printf '\n' >&2
+    printf 'Built %s (%d bytes)\n' "$OUTPUT_IMG" "$IMAGE_TOTAL_BYTES" >&2
+    printf 'Ready for push-to-usb then lab-side/flash-sd.\n' >&2
+}
+# }}}
+
+main "$@"
