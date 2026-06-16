@@ -175,8 +175,13 @@ unmount_partitions() {
 # }}}
 
 # {{{ dump_region() — read N sectors from the device starting at LBA, output to file
-# Wraps dd with a single log line and a chown afterward so the
-# output file belongs to the invoking user, not root.
+# Wraps dd with a single log line. The output file ends up owned by
+# whoever the filesystem reports for the directory (root, the auto-
+# mount user, or unspecified on FAT32); per the default umask the
+# file mode is world-readable, which is enough for the developer
+# to inspect either way. We don't try to chown the file because
+# FAT32 and many auto-mounted USB filesystems reject ownership
+# changes with "operation not permitted" even from sudo.
 dump_region() {
     local device="$1"
     local lba="$2"
@@ -186,7 +191,6 @@ dump_region() {
 
     log "Dumping ${label} region (LBA ${lba}, ${sectors} sectors → ${output})"
     sudo dd if="$device" of="$output" bs=512 skip="$lba" count="$sectors" status=progress
-    sudo chown "$(id -u):$(id -g)" "$output"
     log "${label} dump complete: $(du -h "$output" | cut -f1) at ${output}"
 }
 # }}}
@@ -253,17 +257,17 @@ main() {
     require_sudo
 
     # The flash-sd script creates lab-output/ on the USB drive root
-    # the first time it runs (it has sudo for the SD-card flash and
-    # uses it for the mkdir + chown). If for some reason flash-sd
-    # hasn't run on this drive — fresh USB drive, or the developer
-    # is running dump-from-sd without having flashed first — fall
-    # back to creating the directory here with sudo. Either way the
-    # directory ends up owned by the invoking user so the dd output
-    # files can be chowned to them after each dump.
+    # the first time it runs (it has sudo for the SD-card flash).
+    # If for some reason flash-sd hasn't run on this drive — fresh
+    # USB drive, or the developer is running dump-from-sd without
+    # having flashed first — fall back to creating the directory
+    # here with sudo. The directory's ownership follows whatever
+    # the USB drive's filesystem reports (which on FAT32 isn't
+    # Unix ownership at all); the dd output files inherit the
+    # default umask and end up world-readable, which is enough.
     if [[ ! -d "$LAB_OUTPUT_DIR" ]]; then
         log "Creating ${LAB_OUTPUT_DIR} (needs sudo because the USB drive's root is root-owned)."
         sudo mkdir -p "$LAB_OUTPUT_DIR"
-        sudo chown "$(id -u):$(id -g)" "$LAB_OUTPUT_DIR"
     fi
 
     local sd_device
