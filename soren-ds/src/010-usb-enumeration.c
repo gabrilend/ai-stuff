@@ -410,7 +410,17 @@ static inline uint8_t setup_descriptor_index(const struct usb_setup_packet *s)
  * small corrections.
  * ========================================================================== */
 
-#define DWC3_BASE        0xFEC00000u
+/* DWC3 controller MMIO base — must match the same constant in
+ * 009-usb.c and 011-cdc-acm.c. Phase 1 deliberately keeps each
+ * driver file self-contained without shared headers; the cost
+ * is that constants like this base address have to stay in
+ * sync across the three USB-side files by hand. An earlier
+ * round of this kernel had the wrong value here (0xFEC00000,
+ * a stale Rockchip BSP version's bus mapping that the
+ * project's hardware-overview doc inherited) and the
+ * mismatch caused a cycling reset on the endpoint-zero
+ * bring-up. See issue 109a and docs/016-physical-memory-map.md. */
+#define DWC3_BASE        0xFCC00000u
 #define DWC3_DCTL        (DWC3_BASE + 0xC704u)
 #define DWC3_DALEPENA    (DWC3_BASE + 0xC720u)
 #define DWC3_GEVNTADRLO  (DWC3_BASE + 0xC400u)
