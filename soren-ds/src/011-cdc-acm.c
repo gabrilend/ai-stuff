@@ -47,7 +47,13 @@ extern void debug_log_append(const char *text);
  * substantial enough to deserve a header (probably issue 706's
  * USB mass-storage work), this duplication moves into a real
  * include file. */
-#define DWC3_BASE        0xFEC00000u
+/* DWC3 controller MMIO base — kept in sync with the same
+ * constant in 009-usb.c and 010-usb-enumeration.c. Earlier
+ * iterations of this file used 0xFEC00000, a stale Rockchip
+ * BSP version's bus mapping; the actual address for this
+ * device, per the device tree extracted from ROCKNIX, is
+ * 0xFCC00000. See issue 109a. */
+#define DWC3_BASE        0xFCC00000u
 #define DWC3_DALEPENA    (DWC3_BASE + 0xC720u)
 #define DWC3_GEVNTCOUNT  (DWC3_BASE + 0xC40Cu)
 
