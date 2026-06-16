@@ -35,6 +35,10 @@ extern void pwm_channel_set_duty(uintptr_t base, uint32_t duty);
 extern uintptr_t pwm_channel_base(unsigned int channel);
 extern uint32_t pwm_full_duty(void);
 
+/* The busy-wait delay utility lives in 002-main.c — same
+ * forward-declaration discipline as the PWM functions above. */
+extern void delay_busy(uint64_t cycles);
+
 /* The three LEDs by color, each tied to a specific PWM channel
  * per the device tree's pinctrl assignments. */
 typedef enum {
@@ -69,9 +73,10 @@ int led_current_stage(void)
 }
 
 /* Turn an LED hard on (full duty) or hard off (zero duty). The
- * intermediate brightness levels the PWM hardware supports are not
- * exposed here; if a later feature wants them, this is the place
- * to add a separate led_set_brightness call. */
+ * intermediate brightness levels the PWM hardware supports are
+ * reached through led_set_brightness below — that helper is
+ * static because the breathing heartbeat is the only caller that
+ * needs them; the boot-stage table only ever wants binary on/off. */
 void led_set(led_color_t color, int on)
 {
     if (color >= LED_COLOR_COUNT) {
@@ -82,6 +87,23 @@ void led_set(led_color_t color, int on)
         return;
     }
     pwm_channel_set_duty(base, on ? pwm_full_duty() : 0);
+}
+
+/* Apply an arbitrary brightness (PWM duty value) to one LED.
+ * Used internally by the breathing heartbeat in led_heartbeat;
+ * not exported because the stage signaling vocabulary only
+ * speaks in binary on/off. The duty value gets clamped to the
+ * PWM period inside the PWM driver. */
+static void led_set_brightness(led_color_t color, uint32_t brightness)
+{
+    if (color >= LED_COLOR_COUNT) {
+        return;
+    }
+    uintptr_t base = pwm_channel_base(led_pwm_channel[color]);
+    if (base == 0) {
+        return;
+    }
+    pwm_channel_set_duty(base, brightness);
 }
 
 /* Boot stages — each one is a snapshot of the kernel's state that
@@ -118,6 +140,86 @@ typedef enum {
 
     STAGE_COUNT,
 } boot_stage_t;
+
+/* Calibration of the busy-wait cycle count for the hello flash.
+ * The two halves of the flash (all-on, then all-off) each pause
+ * for this many cycles. At 1.8 GHz this is roughly 170 ms — a
+ * comfortable "yes I noticed it" duration; at the chip's 24 MHz
+ * crystal frequency the same count resolves to several seconds,
+ * which is still a fine diagnostic. */
+#define HELLO_FLASH_CYCLES   300000000ull
+
+/* led_hello — the one-shot "I reached kernel_main" diagnostic.
+ *
+ * Lights all three LEDs together, holds, turns all three off,
+ * holds again, returns. Called from kernel_main right after
+ * led_init and before the first stage signal. If the developer
+ * sees this flash, the kernel reached its first C function. If
+ * the device powers on with no LED activity at all, the boot
+ * chain failed somewhere upstream and the kernel never ran.
+ *
+ * The all-three-on pattern is distinct from every healthy stage
+ * signal (which only ever lights two or fewer LEDs solid until
+ * STAGE_BACKUP_COMPLETE). It is also distinct from a panic (red
+ * only). So the flash is unambiguous against every other LED
+ * state the kernel can produce. See issue 106a for the broader
+ * design discussion. */
+void led_hello(void)
+{
+    led_set(LED_GREEN, 1);
+    led_set(LED_AMBER, 1);
+    led_set(LED_RED,   1);
+    delay_busy(HELLO_FLASH_CYCLES);
+    led_set(LED_GREEN, 0);
+    led_set(LED_AMBER, 0);
+    led_set(LED_RED,   0);
+    delay_busy(HELLO_FLASH_CYCLES);
+}
+
+/* Breathing-heartbeat state.
+ *
+ * The heartbeat advances by one step on each call. A full breath
+ * is HEARTBEAT_STEPS calls fading the amber LED in and another
+ * HEARTBEAT_STEPS fading it out — the direction variable flips
+ * sign at each end of the range. Brightness for a given step is
+ * computed as (step / HEARTBEAT_STEPS) * pwm_full_duty(); we use
+ * 100 steps so the integer arithmetic stays comfortable and the
+ * brightness gradient is visually smooth. The state survives
+ * across calls because it is static at file scope. */
+#define HEARTBEAT_STEPS   100
+
+static int heartbeat_step = 0;
+static int heartbeat_direction = 1;
+
+/* led_heartbeat — advance one step of the breathing pattern on
+ * the amber LED.
+ *
+ * Called from long-running operations (currently just the
+ * eMMC-to-SD backup in 016-emmc-backup.c) at a steady cadence,
+ * roughly one call per megabyte copied. The amber LED brightens,
+ * then dims, then brightens again, producing a slow breathing
+ * pattern the developer can see across the room. If the breathing
+ * stops mid-operation, the operation is stuck.
+ *
+ * Amber rather than green or red because both of those carry
+ * meaningful state in the stage signal vocabulary and we do not
+ * want to override their semantics. Amber's "general activity"
+ * role in this file's header comment makes it the right choice
+ * for this signal. */
+void led_heartbeat(void)
+{
+    heartbeat_step += heartbeat_direction;
+    if (heartbeat_step >= HEARTBEAT_STEPS) {
+        heartbeat_step = HEARTBEAT_STEPS;
+        heartbeat_direction = -1;
+    } else if (heartbeat_step <= 0) {
+        heartbeat_step = 0;
+        heartbeat_direction = 1;
+    }
+    uint32_t duty = ((uint32_t)heartbeat_step * pwm_full_duty())
+                  / (uint32_t)HEARTBEAT_STEPS;
+    led_set_brightness(LED_AMBER, duty);
+}
 
 /* Apply the LED pattern for a stage. The full table lives in
  * docs/015-led-diagnostic-codes.md; this switch keeps the source
