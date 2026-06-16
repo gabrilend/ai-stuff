@@ -219,6 +219,29 @@ write_goodbye() {
 }
 # }}}
 
+# {{{ ensure_lab_output_dir() — create the lab-output/ directory on the USB drive root
+# The companion dump-from-sd script writes its dumps into a
+# lab-output/ directory on the USB drive — separate from output/
+# because the main machine's push-to-usb runs `rsync --delete`
+# against output/ and would wipe whatever the lab side left there.
+# The USB drive's root is owned by root once it's mounted, so the
+# directory has to be created under sudo before dump-from-sd
+# (which doesn't run sudo when it sets the directory up) can write
+# into it. flash-sd already needed sudo for the dd, so creating the
+# directory here lets dump-from-sd assume the directory exists and
+# is writable from the developer's normal user account afterward.
+ensure_lab_output_dir() {
+    local lab_output_dir="${DIR}/lab-output"
+    if [[ ! -d "$lab_output_dir" ]]; then
+        log "Creating ${lab_output_dir} on the USB drive (needs sudo)."
+        sudo mkdir -p "$lab_output_dir"
+    fi
+    # Make the directory writable by the invoking user so the
+    # companion script's chown of each dump file can land.
+    sudo chown "$(id -u):$(id -g)" "$lab_output_dir"
+}
+# }}}
+
 # {{{ main() — orchestration
 main() {
     log "DIR=${DIR}"
@@ -226,6 +249,7 @@ main() {
     image="$(find_image)"
     log "Using image: ${image}"
     require_sudo
+    ensure_lab_output_dir
     local sd_device
     if [[ $# -ge 2 ]]; then
         sd_device="$2"

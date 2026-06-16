@@ -250,9 +250,21 @@ write_goodbye() {
 # {{{ main() — orchestration
 main() {
     log "DIR=${DIR}"
-    mkdir -p "$LAB_OUTPUT_DIR"
-
     require_sudo
+
+    # The flash-sd script creates lab-output/ on the USB drive root
+    # the first time it runs (it has sudo for the SD-card flash and
+    # uses it for the mkdir + chown). If for some reason flash-sd
+    # hasn't run on this drive — fresh USB drive, or the developer
+    # is running dump-from-sd without having flashed first — fall
+    # back to creating the directory here with sudo. Either way the
+    # directory ends up owned by the invoking user so the dd output
+    # files can be chowned to them after each dump.
+    if [[ ! -d "$LAB_OUTPUT_DIR" ]]; then
+        log "Creating ${LAB_OUTPUT_DIR} (needs sudo because the USB drive's root is root-owned)."
+        sudo mkdir -p "$LAB_OUTPUT_DIR"
+        sudo chown "$(id -u):$(id -g)" "$LAB_OUTPUT_DIR"
+    fi
 
     local sd_device
     if [[ $# -ge 2 ]]; then
