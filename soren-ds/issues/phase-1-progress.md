@@ -392,6 +392,28 @@ flash loop from 110c, not Maskrom.
   103e probe surfaced. The PWM driver code in
   `src/003-pwm.c` stays in source, unused, until issue 106c
   brings it back.
+- 103f — Kernel does not use the chip's floating-point and
+  SIMD unit yet. A `-mgeneral-regs-only` flag added to the
+  build's CFLAGS stops the compiler from emitting any
+  instruction that touches the chip's wide-register file.
+  The first SD boot test after the LED layer pivoted to
+  GPIO showed a two-amber / green-flash / two-amber cycle
+  on the indicator lights — the kernel was reaching its
+  C entry, painting the kernel-reached-main stage signal,
+  then hitting a compiler-emitted SIMD instruction inside
+  the allocator's self-test, trapping into the bootloader's
+  exception handler, and the bootloader was resetting the
+  system. The flag removes the trap-triggering instructions
+  from the binary by telling the compiler to use only the
+  integer register file for the optimizations it was
+  reaching for SIMD to do. The C language's `float` and
+  `double` types fail to compile if any future code tries
+  to use them — a side-effect of the flag and an intended
+  pressure-direction. The wide-register file comes back
+  online when soramech brings up its scheduler in phase 2,
+  with the eager-save policy locked in; lazy save is noted
+  as a future optimization to revisit once profile data is
+  available.
 
 ## Open issues
 
