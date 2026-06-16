@@ -117,11 +117,14 @@ into a three-step pipeline added during issue 101 research:
   plumbing; SoreOS writes it to the eMMC and reboots. Both ends
   of the USB bus are code we wrote, so the daily loop never
   trusts closed-source Anbernic firmware on the wire.
-- A safety gate (110e) before the first eMMC write: dump the
-  first hundred sectors of the eMMC through the CDC-ACM channel
-  and parse the partition table host-side to confirm where the
-  boot partition actually lives, before invoking 110b's writer
-  on real hardware.
+- A safety gate (110e) before the first eMMC write: copy the
+  first 200 MB of the eMMC to a reserved region of the external
+  microSD card, eject the card, analyze on the lab laptop via
+  raw `dd` (no mount, no execution), find where the boot
+  partition actually lives, before invoking 110b's writer on
+  real hardware. This requires a microSD driver (110f) to
+  exist first — SDMMC0 uses a different IP from the SDHCI we
+  wrote for the eMMC.
 
 Chip ROM Maskrom remains the deepest recovery path beneath this
 pipeline (per `notes/safety/000-bricking-and-recovery.md`) but is
@@ -261,11 +264,12 @@ flash loop from 110c, not Maskrom.
 
 110c (USB-C runtime re-flash, moved back to open after the
 prior session conflated it with the button trigger), 110e (eMMC
-layout probe — implementation in `src/014-emmc-probe.c` is in
-place; the issue closes when the first hardware run captures
-the dump and updates `BOOT_PARTITION_LBA` to the verified
-value), the four display sub-issues (111a, 111b, 111c, 111d),
-112, and 113.
+layout probe — approach revised to dump-to-microSD rather than
+dump-to-CDC-ACM, because the threat model rules out USB-C to a
+trusted machine until the eMMC is fully under our code), 110f
+(microSD driver — DW MSHC controller, prerequisite for 110e),
+the four display sub-issues (111a, 111b, 111c, 111d), 112, and
+113.
 
 ## Phase demo
 
