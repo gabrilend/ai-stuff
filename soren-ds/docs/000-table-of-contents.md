@@ -60,3 +60,12 @@ tour; jump in by topic if you already know where you're going.
   reference one authoritative catalogue. DRAM extent and
   reservations on top; every peripheral register window
   below.
+- `017-clocks-and-timers.md` — the chip's clock-gating,
+  peripheral-reset, and timing infrastructure. Where each
+  peripheral block's clock-gate bit lives in the CRU, which
+  soft-reset register controls each block, what the
+  watchdog hardware actually does, and which built-in
+  timing sources the kernel can use for periodic work
+  (the ARM Generic Timer, the dedicated hardware timer
+  blocks, the PWM controllers reconfigured as timers, the
+  RTC, the per-core performance counters).
