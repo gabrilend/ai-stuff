@@ -35,7 +35,11 @@
  * from current EL with SPx).
  */
 
-.section .text.vectors, "ax"
+/* Section .vectors rather than .text.vectors so the linker script
+ * can place it in its own 2 KB-aligned output section without that
+ * alignment requirement bleeding back into .text and pushing _start
+ * away from the recognition header at the top of the image. */
+.section .vectors, "ax"
 .balign 2048
 
 .global vector_table
