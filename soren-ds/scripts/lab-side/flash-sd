@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# flash-sd — write the SoreOS kernel image onto a microSD card on the lab laptop
+# flash-sd — write the assembled bootable SoreOS SD image onto a microSD card on the lab laptop
 #
 # General description: runs on the air-gapped lab laptop from the USB
-# drive we carried over from the main machine. We find the kernel image
-# the main machine wrote into the drive's output directory, confirm
-# sudo before any destructive change, ask the developer to insert the
-# microSD card, identify it as the new block device that appears,
-# refuse to proceed if it isn't a removable device, require a typed
-# YES confirmation, dd the image, sync, and eject.
+# drive we carried over from the main machine. We find the bootable
+# SD image the main machine's build-bootable-sd assembled and pushed
+# into the drive's output directory, confirm sudo before any
+# destructive change, ask the developer to insert the microSD card,
+# identify it as the new block device that appears, refuse to
+# proceed if it isn't a removable device, require a typed YES
+# confirmation, dd the image, sync, and eject.
 #
 # Sudo is confirmed at the start. If sudo cannot be obtained, the
 # script aborts before prompting for the SD card — cancelling at the
@@ -53,29 +54,24 @@ require_sudo() {
 }
 # }}}
 
-# {{{ find_image() — locate exactly one .img file in the drive's output/
+# {{{ find_image() — locate the bootable SD image in the drive's output/
+# Looks for bootable-sd.img specifically rather than "any .img file",
+# because the build produces two images that share that extension —
+# kernel.img (the raw kernel) and bootable-sd.img (the assembled
+# bootable image). Only the second one is flashable to an SD card and
+# meaningful to the BootROM; the kernel image alone has no
+# partition table and no boot chain in front of it, and writing it
+# straight to a card would produce a card the device cannot boot
+# from.
 find_image() {
     if [[ ! -d "$OUTPUT_DIR" ]]; then
         die "no output directory at ${OUTPUT_DIR}. Did push-to-usb run on the main machine?"
     fi
-    local images=()
-    local f
-    for f in "${OUTPUT_DIR}"/*.img; do
-        if [[ -e "$f" ]]; then
-            images+=("$f")
-        fi
-    done
-    if [[ ${#images[@]} -eq 0 ]]; then
-        die "no .img file in ${OUTPUT_DIR}. Build the kernel before flashing."
+    local img="${OUTPUT_DIR}/bootable-sd.img"
+    if [[ ! -f "$img" ]]; then
+        die "no bootable-sd.img in ${OUTPUT_DIR}. Run scripts/build-bootable-sd on the main machine, then push-to-usb."
     fi
-    if [[ ${#images[@]} -gt 1 ]]; then
-        log "Multiple .img files in ${OUTPUT_DIR}:"
-        for f in "${images[@]}"; do
-            log "  - $f"
-        done
-        die "please leave exactly one .img in ${OUTPUT_DIR}."
-    fi
-    printf '%s' "${images[0]}"
+    printf '%s' "$img"
 }
 # }}}
 

@@ -290,22 +290,43 @@ flash loop from 110c, not Maskrom.
   to `.text` and shoves `_start` away from the recognition
   envelope. Without this header, ROCKNIX's u-boot on the SD
   card refuses to launch the kernel.
+- 103b — bootable SD card image assembly. Two scripts work
+  together. `scripts/extract-sd-image-parts` runs once: it
+  downloads a pinned ROCKNIX nightly into `tmp/`, verifies
+  the upstream-published SHA-256, decompresses the image,
+  and carves three durable blobs into `libs/sd-image-parts/`
+  with a `.sha256` next to each — the Rockchip idbloader
+  from sector 64, the u-boot FIT from sector 16384, and the
+  RG DS device tree blob from inside ROCKNIX's first
+  partition. `scripts/build-bootable-sd` runs on every
+  build: it allocates a 272 MiB image, writes an MBR
+  partition table with one bootable FAT32 LBA partition
+  starting at sector 32768, drops the idbloader and u-boot
+  FIT into the unpartitioned pre-partition region at their
+  fixed BootROM-expected offsets, builds a 256 MiB FAT32
+  partition with `mkfs.fat` + `mtools`, populates it with
+  the kernel as `/KERNEL`, the DTB as
+  `/device_trees/rk3568-anbernic-rg-ds.dtb`, and a minimal
+  `extlinux.conf` pointing u-boot at both, and dd's the
+  partition into the output at sector 32768.
+  `scripts/lab-side/flash-sd` was updated to look for
+  `bootable-sd.img` specifically rather than "any single
+  `.img` in `output/`" (two `.img` files now share that
+  extension and the kernel image alone is not bootable).
+  `scripts/push-to-usb` already rsync's the whole output
+  directory, so the new artifact ships automatically.
+  Closing evidence on real hardware lands when we flash a
+  card for the first time.
 
 ## Open issues
 
-103b (bootable SD card image assembly — the critical blocker
-that the previous boot-test plan glossed over: our `kernel.img`
-isn't a Rockchip-bootable image, and the BootROM won't pick it
-up from an SD card without an IDBlock and the rest of the boot
-chain. The new issue captures the assembler script that combines
-RKBin's bootloader binaries with our kernel into a single
-bootable SD image), 110c (USB-C runtime re-flash, moved back
-to open after the prior session conflated it with the button
-trigger), 110e (eMMC layout probe — code is in place and
-`kernel_main` runs the backup automatically on boot; the issue
-closes when the first hardware run produces a dump that lets
-us identify the boot partition's real LBA), the four display
-sub-issues (111a, 111b, 111c, 111d), 112, and 113.
+110c (USB-C runtime re-flash, moved back to open after the
+prior session conflated it with the button trigger), 110e
+(eMMC layout probe — code is in place and `kernel_main` runs
+the backup automatically on boot; the issue closes when the
+first hardware run produces a dump that lets us identify the
+boot partition's real LBA), the four display sub-issues
+(111a, 111b, 111c, 111d), 112, and 113.
 
 ## Phase demo
 
