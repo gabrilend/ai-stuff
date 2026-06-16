@@ -52,7 +52,12 @@ GOODBYE_FILE="${DIR}/output/goodbye.log"
 # eMMC backup LBA + sector count is the second and third argument to
 # emmc_backup_to_sd in src/002-main.c. If either changes in the
 # kernel, this script needs the same change.
-DEBUG_LOG_LBA=67108864            # 0x4000000 — ~32 GB into the SD card
+DEBUG_LOG_LBA=4194304             # 0x400000 — 2 GB into the SD card.
+                                  # Earlier value was 0x4000000 (32 GB), an
+                                  # off-by-an-extra-zero typo of the
+                                  # author's intended 0x400000. Stays in
+                                  # sync with the kernel's
+                                  # LOG_SD_REGION_START.
 DEBUG_LOG_SECTORS=32768           # 16 MiB — well above the ring buffer's actual size
 
 BACKUP_LBA=2097152                # 0x200000 — ~1 GB into the SD card
