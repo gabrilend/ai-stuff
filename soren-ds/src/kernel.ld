@@ -7,12 +7,28 @@
  * lives at a single contiguous region starting at the
  * kernel's load address.
  *
- * The load address is 0x00280000, the conventional Rockchip
- * kernel load on the RK356x family. Both ROCKNIX's u-boot
- * (which launches us during SD-card development boot) and
- * Anbernic's u-boot (which will launch us once 110b
- * overwrites the eMMC's boot partition) load to this address,
- * so the same kernel image works on either path.
+ * The load address is 0x02000000. ROCKNIX's u-boot (the SD-card
+ * development boot path) loads /KERNEL to its kernel_addr_r
+ * environment value, which on its mainline-derived build is
+ * 0x02000000. Anbernic's u-boot (the eventual eMMC boot path,
+ * once the boot-partition overwrite from 110b lands) does not
+ * read kernel_addr_r at all — it reads the kernel_addr field
+ * out of the Android boot.img envelope wrapping our image, and
+ * the boot.img assembler in 013-boot-image.c sets that field
+ * from a constant set to the same 0x02000000. Both boot paths
+ * therefore drop the same kernel binary at the same physical
+ * address; the linker pins the binary at that address and
+ * everything resolves correctly without a position-independent
+ * pass.
+ *
+ * Choosing 0x02000000 specifically: the value is already
+ * 2 MB-aligned, so u-boot's booti_setup logic — which rounds
+ * the kernel's load address up to the next 2 MB boundary when
+ * the recognition envelope's flexible-placement flag is set —
+ * leaves the image where it was loaded rather than relocating
+ * it to a different physical address (which would invalidate
+ * every absolute address the linker baked into the literal
+ * pool).
  *
  * ENTRY(_start) tells the linker which symbol is the program
  * entry, not where it lives in memory. The address of _start
@@ -29,7 +45,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x00280000;
+    . = 0x02000000;
     __image_start = .;
 
     .image_header : ALIGN(8) {

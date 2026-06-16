@@ -21,7 +21,11 @@
  * Phase 1's choices:
  *   - header_version: 0 (the simplest variant of boot.img)
  *   - page_size: 4096
- *   - kernel load address: 0x00280000 (matches kernel.ld)
+ *   - kernel load address: 0x02000000 (matches kernel.ld; the
+ *     same address ROCKNIX's u-boot uses on the SD-card path,
+ *     so the kernel runs from the same physical address on
+ *     both boot paths and the linker's literal-pool addresses
+ *     stay valid regardless of which u-boot launched us)
  *   - no ramdisk, no second-stage bootloader, no DTB
  *   - SHA-1 ID is left as zeros — Anbernic's u-boot does not
  *     verify image integrity at this layer
@@ -50,7 +54,7 @@ extern char __image_end[];
 
 /* The kernel's load address — must match kernel.ld and the
  * boot.img header's kernel_addr field. */
-#define KERNEL_LOAD_ADDR 0x00280000u
+#define KERNEL_LOAD_ADDR 0x02000000u
 
 /* Hard-coded boot partition LBA. Placeholder for phase 1.
  * NEEDS_HARDWARE_VERIFY: the first hardware test will check

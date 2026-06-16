@@ -43,9 +43,16 @@
  *           bit 3 set     → load address is flexible (the
  *                           bootloader places us where its
  *                           configured kernel_addr_r points,
- *                           which on RK356x targets is
- *                           0x00280000 — our linker-pinned
- *                           load address)
+ *                           which on ROCKNIX's u-boot for the
+ *                           SD-card path is 0x02000000 — the
+ *                           linker-pinned load address). Bit
+ *                           3 also signals the bootloader's
+ *                           booti_setup that the kernel does
+ *                           not require relocation to the
+ *                           base of usable DRAM; because the
+ *                           linker's load address is already
+ *                           2 MB-aligned, booti_setup leaves
+ *                           the image where it loaded it.
  *   32-55 reserved (zero)
  *   56-59 magic "ARM\x64" — the four bytes booti's
  *         recognition check actually inspects
