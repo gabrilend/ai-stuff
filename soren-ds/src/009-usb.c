@@ -51,6 +51,16 @@
 
 #include <stdint.h>
 
+/* Forward declarations of the LED layer's primitives, used for the
+ * temporary issue-103g-style step-by-step diagnostic checkpoints
+ * inside usb_init below. The token values match 004-led.c's
+ * led_color_t enum: green = 0, amber = 1, red = 2. */
+extern void led_set(int color, int on);
+extern void delay_busy(uint64_t cycles);
+#define LED_GREEN_PIN  0
+#define LED_AMBER_PIN  1
+#define LED_RED_PIN    2
+
 /* MMIO write/read helpers. Same volatile-pointer pattern the PWM
  * driver in 003-pwm.c uses. */
 static inline void mmio_write32(uintptr_t address, uint32_t value)
@@ -249,9 +259,61 @@ static int dwc3_soft_reset_and_set_device_mode(void)
  * a negative value on failure. The caller decides what to do
  * with the failure — currently kernel_main lights the panic LED
  * since there is no richer diagnostic channel yet. */
+/* Step-by-step diagnostic checkpoints (issue 103g — TEMPORARY).
+ *
+ * Each checkpoint paints a visibly distinct LED pattern, then
+ * holds it briefly with a watchdog-petting busy-wait so the
+ * developer can see it before the next sub-step runs. If any
+ * sub-step faults, the LED pattern frozen at the moment of the
+ * fault is the one that was set just before the offending
+ * sub-step. The user sees that pattern flash in every reset
+ * cycle, telling us which write was the actual fault source.
+ *
+ * Pattern vocabulary, chosen from the two unused two-light
+ * combinations in docs/015-led-diagnostic-codes.md:
+ *
+ *   Checkpoint A — about to enable the USB controller's clocks
+ *                  and deassert its hardware reset.
+ *                  LEDs: top green, bottom amber.
+ *
+ *   Checkpoint B — about to bring the USB 2.0 PHY out of
+ *                  suspend.
+ *                  LEDs: top yellow-amber (green + red), bottom
+ *                  dark.
+ *
+ * On success the DWC3 sub-step returns and kernel_main sets
+ * STAGE_USB_CONTROLLER (top dark, bottom amber). On a clean
+ * controller-identification failure the DWC3 sub-step returns
+ * -1 and kernel_main sets STAGE_PANIC_GENERIC (top red, bottom
+ * dark). On a fault the LED freezes at the most recent
+ * checkpoint and the cycle resumes.
+ *
+ * The hold delays are calibrated against the chip's observed
+ * boot clock speed — roughly half a second per checkpoint so the
+ * developer's eye can catch each pattern in a reset cycle. */
+static void diag_set_leds(int green, int amber, int red)
+{
+    led_set(LED_GREEN_PIN, green);
+    led_set(LED_AMBER_PIN, amber);
+    led_set(LED_RED_PIN,   red);
+}
+#define DIAG_CHECKPOINT_HOLD  3500000ull
+
 int usb_init(void)
 {
+    /* Checkpoint A — about to enable clocks. */
+    diag_set_leds(1, 1, 0);                /* top green + bottom amber */
+    delay_busy(DIAG_CHECKPOINT_HOLD);
     usb_clocks_and_reset_enable();
+
+    /* Checkpoint B — about to bring the PHY up. */
+    diag_set_leds(1, 0, 1);                /* top yellow-amber + bottom dark */
+    delay_busy(DIAG_CHECKPOINT_HOLD);
     usb2_phy_bring_up();
+
+    /* No checkpoint here — the DWC3 step is the last one. On
+     * success kernel_main paints STAGE_USB_CONTROLLER; on a
+     * clean failure kernel_main paints STAGE_PANIC_GENERIC; on
+     * a fault the LED stays at checkpoint B. */
     return dwc3_soft_reset_and_set_device_mode();
 }
