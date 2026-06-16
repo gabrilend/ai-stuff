@@ -190,64 +190,44 @@ void kernel_main(void)
     }
     led_set_stage(STAGE_USB_CONTROLLER);
 
-    /* Step-by-step diagnostic checkpoints (issue 103g —
-     * TEMPORARY). The previous round reached
-     * STAGE_USB_CONTROLLER then cycled, which means one of the
-     * post-USB-controller bring-up steps is the fault. Same
-     * two unused two-light combinations the USB-side
-     * diagnostic used:
-     *
-     *   Checkpoint A — about to configure USB endpoint zero.
-     *                  LEDs: top green, bottom amber.
-     *   Checkpoint B — about to bring up the eMMC controller.
-     *                  LEDs: top yellow-amber, bottom dark.
-     *
-     * If the cycle's last visible LED is checkpoint A, the
-     * endpoint-zero configuration is the fault site. If
-     * checkpoint B, the endpoint-zero work succeeded but the
-     * eMMC bring-up faulted. If the LED gets past checkpoint B
-     * to a steady state (either STAGE_PANIC_GENERIC from a
-     * clean panic in eMMC, SD, or debug-log init, or a held
-     * checkpoint B if there is no LED change after, or
-     * STAGE_USB_CONTROLLER again somehow), we know the eMMC
-     * bring-up at least started successfully and the fault is
-     * downstream.
-     *
-     * The SD and debug-log bring-up stay skipped for this
-     * iteration so a fault in those does not muddle the
-     * endpoint-zero / eMMC diagnostic. */
-    led_set(0, 1); led_set(1, 1); led_set(2, 0);   /* CP A: top green + bottom amber */
-    delay_busy(3500000);
+    /* Configure endpoint zero and start the controller. After
+     * this returns successfully, the host can drive bus reset
+     * and start enumeration. usb_poll services control transfers
+     * from the main loop below. */
     if (usb_endpoint_zero_bringup() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
     }
 
-    led_set(0, 1); led_set(1, 0); led_set(2, 1);   /* CP B: top yellow + bottom dark */
-    delay_busy(3500000);
+    /* eMMC controller bring-up. */
     if (emmc_init() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
     }
 
-    /* SD and debug-log bring-up skipped for this iteration —
-     * the diagnostic above isolates endpoint-zero and the
-     * eMMC bring-up; SD and debug-log come back in the next
-     * round once these two are confirmed.
-     *
-     * The kernel sits here with checkpoint B's LED pattern
-     * still set (top yellow-amber + bottom dark) if it got
-     * past both bring-ups successfully — that pattern held
-     * indefinitely is the "all good" signal for this round. */
-    while (1) { delay_busy(1000000); }
-
-    /* (Code below is unreachable while the petting wait loop
-     * above is in place. Restored next iteration.) */
+    /* SD card controller bring-up. */
     if (sd_init() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
     }
+
+    /* Bring up the SD-card-backed debug log now that the SD card
+     * is writable. */
     debug_log_init();
+
+    /* INCREMENTAL RESTORATION (issue 103g — TEMPORARY) ----
+     *
+     * The 32 GB eMMC-to-SD backup runs for many minutes at
+     * the chip's currently-slow boot clock. It stays skipped
+     * for one more iteration so the four bring-up steps above
+     * can be verified independent of the backup's behavior.
+     * The kernel sits at STAGE_USB_CONTROLLER (top dark, bottom
+     * amber) indefinitely if all four bring-ups succeed.
+     * ------------------------------------------------------ */
+    while (1) { delay_busy(1000000); }
+
+    /* (Code below is unreachable while the petting wait loop
+     * above is in place. Restored next iteration.) */
 
     /* Bring up the USB 2.0 PHY and the DWC3 controller in
      * device mode. On success, advance the LED stage so the
