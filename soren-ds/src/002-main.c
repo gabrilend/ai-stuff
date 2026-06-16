@@ -34,8 +34,10 @@ extern void led_set_stage(int stage);
 extern void allocator_init(void);
 extern void allocator_check_or_panic(void);
 
-/* Forward declaration from the USB driver in 009-usb.c. */
-extern int usb_init(void);
+/* Forward declarations from the USB stack. */
+extern int usb_init(void);                  /* 009-usb.c */
+extern int usb_endpoint_zero_bringup(void); /* 010-usb-enumeration.c */
+extern void usb_poll(void);                 /* 010-usb-enumeration.c */
 
 #define STAGE_KERNEL_MAIN     0
 #define STAGE_PANIC_GENERIC   1
@@ -63,17 +65,25 @@ void kernel_main(void)
      * developer can see the controller is alive without needing
      * a host computer attached yet. On failure (controller did
      * not identify), drop into the generic panic pattern. */
-    if (usb_init() == 0) {
-        led_set_stage(STAGE_USB_CONTROLLER);
-    } else {
+    if (usb_init() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { __asm__ volatile ("wfi"); }
+    }
+    led_set_stage(STAGE_USB_CONTROLLER);
+
+    /* Configure endpoint zero and start the controller. After
+     * this returns successfully, the host can drive bus reset
+     * and start enumeration. usb_poll services control transfers
+     * from the main loop below. */
+    if (usb_endpoint_zero_bringup() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { __asm__ volatile ("wfi"); }
     }
 
     while (1) {
-        /* Wait for interrupt — low-power loop until later issues
-         * give kernel_main something to do. Issue 109 brings up
-         * the USB controller; 111a brings up the display; the
-         * rest of phase 1 fills in everything else. */
-        __asm__ volatile ("wfi");
+        /* Service the USB event ring on every pass. The kernel
+         * has nothing else to do until later issues land; polling
+         * is the right scheduling discipline for this phase. */
+        usb_poll();
     }
 }

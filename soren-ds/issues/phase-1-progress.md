@@ -46,10 +46,14 @@ walkthrough of how the kernel comes to life:
     - `109a-usb-phy-and-controller.md` — bring up the USB 2.0
       PHY and the DWC3 controller, in device mode. Closes when
       the laptop's `dmesg` shows raw USB activity on plug-in.
-    - `109b-usb-device-enumeration.md` — endpoint zero, the
-      descriptor tables, and the control-transfer state
-      machine that responds to the host's enumeration. Closes
-      when `lsusb` reports our device with the right IDs.
+    - `109b-usb-device-enumeration.md` — descriptor tables,
+      the setup-packet dispatcher, and endpoint-zero hardware
+      configuration. Closes when the kernel builds with these
+      in place and the controller's RUN bit is set.
+    - `109c-usb-control-transfer-plumbing.md` — TRB rings, the
+      setup-packet buffer, the event-ring decoder, and the
+      polling loop that wires them together. Closes when
+      `lsusb` reports our device with the right IDs.
 10. `110-usb-cdc-acm-debug.md` — turn that into a virtual serial
     port the laptop streams from. Most kernel text from here on
     flows through this channel.
@@ -186,6 +190,15 @@ flash loop from 110c, not Maskrom.
   hardware (raw USB activity in the laptop's `dmesg`) gets
   observed when issue 110b puts our kernel on the eMMC; if the
   laptop sees nothing at that point this issue reopens.
+- 109b — USB descriptors, dispatcher, and endpoint-zero
+  configuration. `src/010-usb-enumeration.c` defines the device,
+  configuration, and string descriptors in `.rodata`, the
+  setup-packet dispatcher that maps standard USB requests to
+  responses, and the DEPSTARTCFG / DEPCFG / DEPXFERCFG sequence
+  that configures endpoint zero through the controller's
+  command interface. The transfer machinery that turns
+  dispatched responses into bytes the host actually sees lives
+  in 109c.
 - 103a — air-gapped SD card flash workflow. Two scripts live at
   `scripts/push-to-usb` and `scripts/lab-side/flash-sd`. The
   push side has been exercised end-to-end against the real USB
@@ -196,7 +209,7 @@ flash loop from 110c, not Maskrom.
 
 ## Open issues
 
-109b, 110, the three install-pipeline issues 110a, 110b, 110c,
+109c, 110, the three install-pipeline issues 110a, 110b, 110c,
 plus 111a, 111b, 112, and 113.
 
 ## Phase demo
