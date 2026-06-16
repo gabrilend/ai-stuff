@@ -1,0 +1,289 @@
+#!/usr/bin/env bash
+# dump-from-sd — pull the kernel's debug log and partial eMMC backup
+# off the microSD card on the lab laptop
+#
+# General description: runs on the air-gapped lab laptop from the USB
+# drive we carried over from the main machine. We confirm sudo, ask
+# the developer to insert the microSD card from the device, identify
+# it as the new block device that appears, refuse to proceed if it
+# isn't a removable device or on the MMC transport, dd two regions
+# off the card — the kernel's SD-backed debug log at LBA 0x4000000
+# (per the 110g-debug-log convention in src/017-debug-log.c) and the
+# kernel's eMMC partial-backup region at LBA 0x200000 (per the 110e-
+# layout-probe convention in src/002-main.c) — drop both as
+# timestamped files into a lab-output/ directory on the USB drive,
+# and print the readable text from the debug log plus whatever
+# partition layout the backup shows for the developer to read on
+# the spot.
+#
+# Sudo is confirmed before either dump runs. If sudo can't be
+# obtained the script exits before any block-device access — the
+# device, the SD card, and the laptop are all left exactly as
+# they were.
+#
+# The script is read-only against the SD card. Neither the FAT
+# partition (which the device's bootloader reads from) nor either of
+# the two regions the kernel writes to is modified; the only way the
+# card can change as a result of running this script is if the
+# laptop's automounter mounts and remounts a partition, which we
+# can't prevent but also doesn't damage anything.
+#
+# Lab-side outputs land in $DIR/lab-output/ rather than $DIR/output/.
+# The main machine's push-to-usb script runs `rsync -rt --delete`
+# between its own output/ and the drive's output/, so anything the
+# lab side writes into output/ would be wiped on the next push.
+# lab-output/ is outside that sync and survives the round trip back
+# to the main machine.
+
+set -euo pipefail
+
+# {{{ configuration — paths relative to DIR (the USB drive root)
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${1:-$(dirname "$SCRIPT_DIR")}"
+
+LAB_OUTPUT_DIR="${DIR}/lab-output"
+LOG_FILE="/tmp/dump-from-sd.log"
+GOODBYE_FILE="${DIR}/output/goodbye.log"
+
+# Regions on the microSD card the kernel writes to. These constants
+# need to stay in sync with the kernel's own copies — the debug-log
+# LBA lives in src/017-debug-log.c as LOG_SD_REGION_START, and the
+# eMMC backup LBA + sector count is the second and third argument to
+# emmc_backup_to_sd in src/002-main.c. If either changes in the
+# kernel, this script needs the same change.
+DEBUG_LOG_LBA=67108864            # 0x4000000 — ~32 GB into the SD card
+DEBUG_LOG_SECTORS=32768           # 16 MiB — well above the ring buffer's actual size
+
+BACKUP_LBA=2097152                # 0x200000 — ~1 GB into the SD card
+BACKUP_SECTORS=409600             # 200 MiB — matches the kernel's current backup size
+# }}}
+
+# {{{ log() — single timestamped line to stderr and to the log file
+log() {
+    local message="$1"
+    local stamp
+    stamp="$(date -Iseconds)"
+    printf '[dump-from-sd] %s\n' "$message" >&2
+    printf '%s [dump-from-sd] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
+die() {
+    local message="$1"
+    log "ERROR: $message"
+    exit 1
+}
+# }}}
+
+# {{{ require_sudo() — confirm super-user credentials before any reads
+# (reads are non-destructive, but raw block-device access needs sudo)
+require_sudo() {
+    log "Requesting sudo. No file is touched on the SD card; we only read raw sectors."
+    if ! sudo -v; then
+        die "sudo could not be confirmed. Aborting before touching anything."
+    fi
+    log "Sudo confirmed."
+}
+# }}}
+
+# {{{ snapshot_disks() — list current whole-disk block devices, one name per line
+snapshot_disks() {
+    lsblk -dn -o NAME | sort
+}
+# }}}
+
+# {{{ wait_for_sd_card() — diff before/after block devices around an SD insertion
+# Same shape as flash-sd's detection logic so the developer's
+# experience between the two scripts is identical.
+wait_for_sd_card() {
+    log "Snapshotting current block devices..."
+    local before
+    before="$(snapshot_disks)"
+    printf '\nInsert the microSD card now (in a USB reader, or in a built-in slot).\nPress ENTER when inserted.\n' >&2
+    read -r _
+    sleep 2
+    log "Snapshotting block devices after insertion..."
+    local after
+    after="$(snapshot_disks)"
+    local before_file
+    before_file="$(mktemp)"
+    local after_file
+    after_file="$(mktemp)"
+    printf '%s\n' "$before" > "$before_file"
+    printf '%s\n' "$after" > "$after_file"
+    local new_names
+    new_names="$(comm -13 "$before_file" "$after_file")"
+    rm -f "$before_file" "$after_file"
+    local count=0
+    local n
+    for n in $new_names; do
+        count=$((count + 1))
+    done
+    if [[ $count -eq 0 ]]; then
+        die "no new block device detected. If the laptop's built-in slot doesn't enumerate a new device, pass the device path explicitly as a second argument."
+    fi
+    if [[ $count -gt 1 ]]; then
+        log "Multiple new devices appeared:"
+        for n in $new_names; do
+            log "  - /dev/$n"
+        done
+        die "please insert only the SD card reader."
+    fi
+    local single
+    for n in $new_names; do
+        single="$n"
+    done
+    printf '/dev/%s' "$single"
+}
+# }}}
+
+# {{{ verify_removable() — refuse to read from anything that isn't a removable device or a built-in SD slot
+# Same widening as flash-sd's check: built-in SD slots report RM=0
+# because the slot itself is fixed even though the card is removable,
+# so we accept either RM=1 or TRAN=mmc.
+verify_removable() {
+    local device="$1"
+    local removable transport
+    removable="$(lsblk -dn -o RM "$device")"
+    removable="${removable//[[:space:]]/}"
+    transport="$(lsblk -dn -o TRAN "$device")"
+    transport="${transport//[[:space:]]/}"
+    if [[ "$removable" != "1" ]] && [[ "$transport" != "mmc" ]]; then
+        die "${device} is neither marked removable nor on the MMC transport (RM=${removable}, TRAN=${transport}). Refusing to read."
+    fi
+}
+# }}}
+
+# {{{ unmount_partitions() — unmount any auto-mounted partitions of the target
+# Raw block reads are happier without the kernel's pagecache layered
+# on top of them. Same logic as flash-sd uses before its dd.
+unmount_partitions() {
+    local device="$1"
+    local part
+    local mp
+    for part in $(lsblk -ln -o NAME "$device" | tail -n +2); do
+        local part_path="/dev/${part}"
+        mp="$(findmnt -no TARGET "$part_path" 2>/dev/null || true)"
+        if [[ -n "$mp" ]]; then
+            log "Unmounting ${part_path} from ${mp}..."
+            sudo umount "$part_path"
+        fi
+    done
+}
+# }}}
+
+# {{{ dump_region() — read N sectors from the device starting at LBA, output to file
+# Wraps dd with a single log line and a chown afterward so the
+# output file belongs to the invoking user, not root.
+dump_region() {
+    local device="$1"
+    local lba="$2"
+    local sectors="$3"
+    local output="$4"
+    local label="$5"
+
+    log "Dumping ${label} region (LBA ${lba}, ${sectors} sectors → ${output})"
+    sudo dd if="$device" of="$output" bs=512 skip="$lba" count="$sectors" status=progress
+    sudo chown "$(id -u):$(id -g)" "$output"
+    log "${label} dump complete: $(du -h "$output" | cut -f1) at ${output}"
+}
+# }}}
+
+# {{{ inspect_debug_log() — print readable text from the debug log file
+# The kernel writes plain ASCII through debug_write; strings -n 4
+# pulls every printable run of four or more characters out, which is
+# enough to make the bring-up narration visible without any other
+# tooling. Capped at the first hundred lines because the ring buffer
+# can hold thousands.
+inspect_debug_log() {
+    local file="$1"
+    printf '\n=== Debug log contents (first 100 readable lines) ===\n' >&2
+    strings -n 4 "$file" | head -100 >&2 || true
+    printf '=== end of debug log ===\n\n' >&2
+}
+# }}}
+
+# {{{ inspect_backup() — print the partition layout of the eMMC backup file
+# `file` identifies the format if it's recognizable (DOS/MBR, GPT,
+# etc.); `gdisk -l` walks the GPT if present and prints the partition
+# table. Both tools tolerate the file being only a partial dump as
+# long as the GPT header at sector 1 is present.
+inspect_backup() {
+    local file="$1"
+    printf '\n=== eMMC partial backup: format and partition layout ===\n' >&2
+    file "$file" >&2
+    printf '\n' >&2
+    if command -v gdisk >/dev/null 2>&1; then
+        sudo gdisk -l "$file" >&2 2>&1 || true
+    else
+        printf 'gdisk not installed; falling back to fdisk.\n' >&2
+        sudo fdisk -l "$file" >&2 2>&1 || true
+    fi
+    printf '=== end of partition layout ===\n\n' >&2
+}
+# }}}
+
+# {{{ eject_device() — close out the device cleanly so the kernel forgets it
+eject_device() {
+    local device="$1"
+    log "Ejecting ${device}..."
+    if ! sudo eject "$device" 2>/dev/null; then
+        log "eject command failed or unavailable; reads were non-destructive so the card is safe to remove."
+    fi
+}
+# }}}
+
+# {{{ write_goodbye() — append the conventional last-thing-a-program-does line
+write_goodbye() {
+    local stamp
+    stamp="$(date -Iseconds)"
+    local goodbye_dir
+    goodbye_dir="$(dirname "$GOODBYE_FILE")"
+    if [[ -d "$goodbye_dir" ]] && [[ -w "$goodbye_dir" ]]; then
+        printf '%s dump-from-sd: goodbye\n' "$stamp" >> "$GOODBYE_FILE" || true
+    fi
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    log "DIR=${DIR}"
+    mkdir -p "$LAB_OUTPUT_DIR"
+
+    require_sudo
+
+    local sd_device
+    if [[ $# -ge 2 ]]; then
+        sd_device="$2"
+        log "Using explicit device override: ${sd_device}"
+    else
+        sd_device="$(wait_for_sd_card)"
+        log "Detected SD device: ${sd_device}"
+    fi
+
+    verify_removable "$sd_device"
+    unmount_partitions "$sd_device"
+
+    local stamp
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    local log_file="${LAB_OUTPUT_DIR}/debug-log-${stamp}.img"
+    local backup_file="${LAB_OUTPUT_DIR}/emmc-backup-${stamp}.img"
+
+    dump_region "$sd_device" "$DEBUG_LOG_LBA"  "$DEBUG_LOG_SECTORS" "$log_file"    "debug log"
+    dump_region "$sd_device" "$BACKUP_LBA"     "$BACKUP_SECTORS"    "$backup_file" "eMMC partial backup"
+
+    inspect_debug_log "$log_file"
+    inspect_backup    "$backup_file"
+
+    eject_device "$sd_device"
+    write_goodbye
+
+    printf '\nFiles saved (carry the USB drive back to the main machine to analyze further):\n' >&2
+    printf '  %s\n' "$log_file" >&2
+    printf '  %s\n' "$backup_file" >&2
+}
+# }}}
+
+main "$@"
