@@ -40,7 +40,6 @@
 #include <stdint.h>
 
 extern int sd_write_block(uint32_t lba, const uint8_t *buffer);
-extern uint64_t alloc_page(void);
 
 /* Buffer sizes and SD region. */
 #define LOG_BUFFER_SIZE        4096u    /* one page = 8 SD blocks */
@@ -56,6 +55,29 @@ static uint32_t log_buffer_pos;
 static uint32_t log_sd_next_lba;
 static int      log_ready;
 
+/* Static .bss-resident buffer for the ring.
+ *
+ * Earlier versions of this file allocated the buffer from the page
+ * allocator at debug_log_init time. The "best-effort" disposition
+ * (if alloc_page returns zero, leave the log disabled) silently
+ * cost us our only post-boot diagnostic channel during a phase-1
+ * hardware test: the kernel reached the panic-stage signal but the
+ * SD-backed log region read back as 0xFF for sixteen megabytes,
+ * indicating that nothing had ever been written there. The most
+ * likely cause was alloc_page returning zero in debug_log_init for
+ * a reason we could not see (because the channel that would tell
+ * us why was the channel that just disabled itself).
+ *
+ * A static buffer takes alloc_page out of the bring-up sequence
+ * entirely. The buffer is always present in .bss; debug_log_init
+ * cannot fail to allocate it. The cost is one page of memory
+ * permanently reserved for the log even when no debug_write
+ * happens; the cost-benefit there is overwhelming given that this
+ * is the only diagnostic channel until soramech's RAM transcript
+ * ring lands in phase 3 (issue 310).
+ */
+static uint8_t log_static_buffer[LOG_BUFFER_SIZE];
+
 static void zero_buffer(void)
 {
     for (uint32_t i = 0; i < LOG_BUFFER_SIZE; i++) {
@@ -63,20 +85,15 @@ static void zero_buffer(void)
     }
 }
 
-/* Allocate the ring buffer and reset the bookkeeping. Called from
- * kernel_main after sd_init succeeds. */
+/* Set up the ring buffer pointers. Called from kernel_main after
+ * sd_init succeeds. Cannot fail — the buffer is statically
+ * reserved. */
 void debug_log_init(void)
 {
     if (log_ready) {
         return;
     }
-    uint64_t page = alloc_page();
-    if (page == 0) {
-        /* Log infrastructure is best-effort — if we can't allocate
-         * the buffer we just stay disabled. */
-        return;
-    }
-    log_buffer = (uint8_t *)(uintptr_t)page;
+    log_buffer = log_static_buffer;
     log_buffer_pos = 0;
     log_sd_next_lba = LOG_SD_REGION_START;
     zero_buffer();
