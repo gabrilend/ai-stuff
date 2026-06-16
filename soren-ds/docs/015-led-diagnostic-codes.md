@@ -21,9 +21,9 @@ document into a lie.
 | Green | Amber | Red | Meaning |
 | :---: | :---: | :-: | :-- |
 | on    | off   | off | Either the bootloader is running but our kernel has not yet touched the LEDs (boot code did not start, or started but did not reach `kernel_main`), OR `STAGE_USB_CONTROLLER` (the kernel reached `kernel_main`, ran the allocator self-test, and brought up the USB controller successfully — the controller is alive but enumeration has not yet happened). The two states share an LED pattern because power-on default and our post-USB state happen to agree; the difference between them is observable only on the laptop side via plug-in `dmesg`. |
-| on    | on    | off | `STAGE_KERNEL_MAIN`. The kernel reached its first C function but USB bring-up has not yet run. If you see this for more than a fraction of a second, USB bring-up hung or the controller failed identification. |
-| off   | off   | on  | `STAGE_PANIC_GENERIC`. A fatal exception fired before any other diagnostic channel was up — or USB controller identification mismatched. Reserved for use by issue 105's panic handler and as the USB-bring-up failure signal. |
-| on    | on    | on  | An unknown stage value was passed to `led_set_stage`. This is a kernel bug — the caller passed something the switch doesn't know about. |
+| on    | on    | off | `STAGE_KERNEL_MAIN`, OR `STAGE_USB_ENUMERATED`. The kernel reached its first C function (KERNEL_MAIN) or the host has finished enumerating us over USB (USB_ENUMERATED — only observable from the host side). Both states share the same LED pattern; in flight during phase 1's boot test #1 (no USB host), the pattern means "kernel reached `kernel_main` and the USB controller bring-up succeeded; backup is in progress." |
+| off   | off   | on  | `STAGE_PANIC_GENERIC`. A fatal exception fired, the allocator self-test failed, USB controller identification mismatched, the eMMC bring-up failed, the microSD bring-up failed, or the eMMC-to-SD backup hit a fatal error. Decoding which requires CDC-ACM serial capture or eyeball inspection of where in the boot sequence the LED last advanced from. |
+| on    | on    | on  | `STAGE_BACKUP_COMPLETE`. The eMMC-to-microSD backup finished cleanly. Power off, pull the microSD card, analyze the dump on a separate machine via raw `dd`. Distinct from every other healthy pattern so a developer glancing at the device knows the test phase is done. |
 | any   | any   | any | Patterns added by later phase 1 issues land here as those issues complete. |
 
 ## Reading the LEDs

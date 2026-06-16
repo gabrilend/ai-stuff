@@ -47,11 +47,16 @@ extern int  write_kernel_to_emmc_boot_partition(void); /* 013-boot-image.c */
 extern int  emmc_init(void);                            /* 012-emmc.c */
 extern void emmc_dump_to_debug(uint32_t start_lba,
                                uint32_t count);          /* 014-emmc-probe.c */
+extern int  sd_init(void);                              /* 015-sdmmc.c */
+extern int  emmc_backup_to_sd(uint32_t emmc_start_lba,
+                              uint32_t sd_start_lba,
+                              uint32_t sector_count);    /* 016-emmc-backup.c */
 
 #define STAGE_KERNEL_MAIN     0
 #define STAGE_PANIC_GENERIC   1
 #define STAGE_USB_CONTROLLER  2
 #define STAGE_USB_ENUMERATED  3
+#define STAGE_BACKUP_COMPLETE 4
 
 void kernel_main(void)
 {
@@ -97,17 +102,27 @@ void kernel_main(void)
      * the writer could corrupt u-boot. The flash trigger comes
      * back when 110e closes with the LBA verified. */
 
-    /* The CDC-ACM-based eMMC dump that an earlier iteration of
-     * 110e tried to use is no longer the path — the threat
-     * model the project committed to during issue 101 rules
-     * out USB-C connections to anything with data worth losing
-     * until the eMMC is fully under our code. The replacement
-     * approach (dump eMMC contents to the microSD card, eject,
-     * analyze on the lab laptop via raw `dd`) is blocked on
-     * 110f's microSD driver landing first. Until then,
-     * kernel_main does not initiate an eMMC dump at all; the
-     * first hardware boot is purely "verify LEDs and USB
-     * enumeration work." */
+    /* Issue 110e: copy the first 200 MB of the eMMC to a
+     * reserved region of the microSD card so the partition
+     * table can be analyzed host-side after the card is pulled.
+     * The reserved region starts at SD LBA 0x200000 (~1 GB
+     * offset) — well above where the BootROM looks for a
+     * bootable loader, leaving the SD card still bootable for
+     * subsequent test cycles. Two hundred megabytes is 409,600
+     * sectors at 512 bytes each. */
+    if (emmc_init() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { __asm__ volatile ("wfi"); }
+    }
+    if (sd_init() != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { __asm__ volatile ("wfi"); }
+    }
+    if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { __asm__ volatile ("wfi"); }
+    }
+    led_set_stage(STAGE_BACKUP_COMPLETE);
 
     while (1) {
         /* Service the USB event ring on every pass. The kernel

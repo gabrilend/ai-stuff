@@ -110,6 +110,12 @@ typedef enum {
      * connected." */
     STAGE_USB_ENUMERATED  = 3,
 
+    /* Issue 110e's eMMC-to-microSD backup completed successfully.
+     * Pattern: green on, amber on, red on — all three solid, so
+     * it is visually distinct from every other healthy stage.
+     * The developer powers off and pulls the microSD card. */
+    STAGE_BACKUP_COMPLETE = 4,
+
     STAGE_COUNT,
 } boot_stage_t;
 
@@ -153,6 +159,16 @@ void led_set_stage(boot_stage_t stage)
             led_set(LED_GREEN, 1);
             led_set(LED_AMBER, 1);
             led_set(LED_RED,   0);
+            break;
+
+        case STAGE_BACKUP_COMPLETE:
+            /* eMMC backed up to microSD; safe to power off and
+             * pull the card. All three LEDs on so the pattern
+             * is visually distinct from every other healthy
+             * stage and obviously "done." */
+            led_set(LED_GREEN, 1);
+            led_set(LED_AMBER, 1);
+            led_set(LED_RED,   1);
             break;
 
         default:
