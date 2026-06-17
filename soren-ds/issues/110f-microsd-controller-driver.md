@@ -44,6 +44,178 @@ no dump, the bug is in the DW MSHC register access or the SD
 init-sequence ordering; both reopen this issue with the
 specific failure mode.
 
+## Reopened — CRU clock and reset setup missing, plus polling-loop and clock-update fixes
+
+Phase-1 hardware testing surfaced multiple problems the
+original implementation did not address. Symptom on
+hardware: the SD bring-up panics at the very first MMIO
+access *every time*, in contrast to the eMMC bring-up
+(which is intermittently OK because u-boot uses the eMMC
+to load the kernel and leaves its clocks on). The SD
+controller is *untouched by u-boot* — it boots from the
+SD card's bootable region via the BootROM and the
+idbloader, not through the SDMMC0 controller at all — so
+the controller arrives at our kernel with its clocks
+gated and its resets asserted, the same way it left the
+chip reset state. The driver's first MMIO access either
+reads back `0x00000000` (block reset asserted),
+`0xFFFFFFFF` (AHB clock gated), or stalls the bus enough
+to trigger an exception the bootloader catches and resets
+us on.
+
+Two driver-side issues also need fixing — a missing error-
+bit check in the command-completion poll, and a missing
+"update clock" command sandwich around every clock change.
+Both are subtle but bite in specific failure modes.
+
+### Fix piece one — CRU clock-and-reset bring-up
+
+Before any MMIO write to the controller at `0xFE2B_0000`,
+ungate the two clocks and pulse the two resets. Both live
+in the main CRU at `0xFDD2_0000`; the relevant registers
+are `CLKGATE_CON(15)` at offset `0x33C` (bits 0-1 for
+HCLK_SDMMC0 / CLK_SDMMC0) and `SOFTRST_CON(13)` at offset
+`0x434` (bits 3-4 for SRST_H_SDMMC0 / SRST_SDMMC0). Four
+writes:
+
+```
+mmio_write32(0xFDD2033Cu, 0x00030000u);  /* ungate HCLK_SDMMC0 / CLK_SDMMC0 */
+mmio_write32(0xFDD20434u, 0x00180018u);  /* assert SRST_H_SDMMC0 / SRST_SDMMC0 */
+rough_delay(1000);
+mmio_write32(0xFDD20434u, 0x00180000u);  /* deassert both resets */
+```
+
+Unlike the eMMC, both resets are essential here — u-boot
+doesn't pulse either of them. The SDMMC0_DRV / SDMMC0_SAMPLE
+clocks are phase shifters, not gates; they sit on top of
+CLK_SDMMC0 and are only programmed during tuning. Bring-up
+does not need them.
+
+### Fix piece two — diagnostic discriminator
+
+Before issuing the controller reset, read `SDMMC_HCON` at
+`0xFE2B_0070` (4-byte read). Three possible reads tell us
+where we are:
+
+- *Roughly `0x0003_E47A`*. Controller is reachable. Bus-level
+  setup worked. Proceed.
+- *`0x00000000`*. SD0 reset is still asserted —
+  `SOFTRST_CON(13)` bit 3 or 4 needs clearing. Bring-up step
+  panics.
+- *`0xFFFFFFFF`*. AHB (HCLK) clock is gated —
+  `CLKGATE_CON(15)` bit 0 needs clearing. Bring-up step
+  panics.
+
+### Fix piece three — controller-reset and the RINTSTS clear
+
+The first writes after the CRU setup land at the controller
+itself. The original driver's first write was the controller
+reset (`CTRL` register at offset `0x00`, write
+`CTRL_RESET | FIFO_RESET | DMA_RESET = 0x07`, poll for the
+bits to clear). That is correct. But the *next* write must
+clear `RINTSTS` (the raw-interrupt-status register) at offset
+`0x44` with `0xFFFFFFFF`, before any later code reads
+`RINTSTS` to check for CMD_DONE. The DW MSHC's `RINTSTS` bits
+*survive controller reset* — if any bits were set from
+before (likely after a SoC reset where the controller block
+keeps its RINTSTS state), the CMD_DONE poll fires immediately
+on a stale bit and the driver thinks the very first command
+succeeded when the controller has not even seen it yet.
+
+After the RINTSTS clear, the rest of the first-writes
+sequence:
+
+```
+mmio_write32(0xFE2B0024u, 0u);            /* INTMASK = 0 (mask all) */
+mmio_write32(0xFE2B0014u, 0xFFFFFFFFu);   /* TMOUT — max response/data timeout */
+mmio_write32(0xFE2B004Cu, 0x207F0080u);   /* FIFOTH — watermark for fifo-depth 256 */
+mmio_write32(0xFE2B0010u, 0u);            /* CLKENA = 0 before any clock change */
+mmio_write32(0xFE2B000Cu, 0u);            /* CLKSRC = 0 */
+mmio_write32(0xFE2B0004u, 1u);            /* PWREN = 1 */
+```
+
+The `FIFOTH` value comes from upstream Linux's FIFO setup
+for the rk3568 case — fifo-depth shown by the chip is
+`0x100`, watermark threshold is `fifo-depth/2 - 1 = 0x7F`
+for receive, `fifo-depth/2 = 0x80` for transmit, with
+multiple-transaction-size 2 = 0x2 in bits 28-30. Combined
+value `0x207F_0080`.
+
+### Fix piece four — the "update clock" dance around every clock change
+
+Every clock change on the DW MSHC requires a sandwich of
+"update clock" no-op commands. Without them, the CLKENA /
+CLKDIV / CLKSRC writes do not take effect and subsequent
+CMD0 hangs forever — the controller silently rejects every
+later command because the previous one is "still in flight."
+
+The dance is: write CMD register at offset `0x2C` with the
+no-op encoding, then poll bit 31 (`START_CMD`) until it
+clears. The no-op encoding is:
+
+```
+CMD register value = (1 << 31)   /* START_CMD */
+                   | (1 << 29)   /* USE_HOLD_REG */
+                   | (1 << 21)   /* UPDATE_CLK_ONLY */
+                   | (1 << 13)   /* PRV_DAT_WAIT */
+                   = 0xA0202000
+```
+
+A full clock-change sequence:
+
+```
+mmio_write32(0xFE2B0010u, 0u);            /* CLKENA off */
+issue_update_clock_no_op();
+mmio_write32(0xFE2B0008u, divider);       /* CLKDIV */
+mmio_write32(0xFE2B000Cu, source);        /* CLKSRC */
+issue_update_clock_no_op();
+mmio_write32(0xFE2B0010u, 1u);            /* CLKENA on */
+issue_update_clock_no_op();
+```
+
+The original driver writes CLKDIV and CLKENA but does not
+issue the update-clock no-ops. That is the most common
+"card never responds" bug in DW MSHC bring-up code.
+
+### Fix piece five — polling-loop error checks
+
+The current driver's command-completion poll watches for
+`RINTSTS` bit 2 (CMD_DONE) and returns on it. That's not
+enough. The polling loop also needs to check:
+
+- *Bit 1 (RE — Response Error)*. Card returned a malformed
+  response.
+- *Bit 6 (RCRC — Response CRC Error)*. Response failed CRC.
+  Card present but unhappy.
+- *Bit 8 (RTO — Response Timeout)*. The *expected* indicator
+  for a missing card. Not a wedged-controller indicator.
+- *Bit 12 (HLE — Hardware Locked Error)*. **This one means
+  the controller is wedged**: the host tried to write the
+  CMD register while a previous command was still in flight.
+  Almost always means the update-clock dance was skipped
+  somewhere. If HLE fires, the controller needs a full
+  CTRL_RESET to recover.
+
+A 500 ms wall-clock timeout wrapping the whole poll catches
+a wedged controller before the kernel watchdog does.
+
+Also useful for diagnostics: `STATUS` register at offset
+`0x48`. Bit 9 (`data_busy`) and bit 10 (`data_state_mc_busy`)
+both stuck high after reset indicates the BIU clock is
+gated.
+
+### Note on the divider math
+
+The DW MSHC controller's CCLK source has a fixed extra `/2`
+divider built into the IP, plus the divider you program into
+`CLKDIV` at offset `0x08`. The effective card clock is
+`source_clock / (2 * (CLKDIV + 1))` if CLKDIV is non-zero,
+or `source_clock / 1` if CLKDIV is zero (pass-through). So
+to target the SD identification rate of 400 kHz, the source
+clock must already be 800 kHz (or the closest divisible
+value); CLKDIV=0 then yields 400 kHz at the card. If the
+source clock is at a higher rate, set CLKDIV accordingly.
+
 ## Why we need this driver specifically
 
 The threat model the project committed to during issue 101's

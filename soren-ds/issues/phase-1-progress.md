@@ -218,13 +218,7 @@ flash loop from 110c, not Maskrom.
   `STAGE_USB_ENUMERATED` when CDC-ACM is live. Closing evidence
   (`/dev/ttyACM0` carrying kernel text on the host) lands when
   the kernel boots from the device.
-- 110a — eMMC controller driver. `src/012-emmc.c` brings up the
-  RK3568's SDHCI host, walks the JEDEC eMMC identification
-  sequence (CMD0 through CMD7), and exposes single-block read
-  and write through CMD17 and CMD24. Polled and blocking; each
-  call is one transaction. Bring-up status is narrated through
-  the CDC-ACM channel. Closing evidence (round-trip pattern
-  test on real hardware) lands when 110b boots from the device.
+- 110a — (REOPENED — see the open-issues section below.)
 - 110b — bootable eMMC overwrite. `src/013-boot-image.c` wraps
   the running kernel in an Android boot.img header (version 0)
   and writes header + kernel bytes to the eMMC's boot
@@ -241,14 +235,7 @@ flash loop from 110c, not Maskrom.
   `kernel_main` pending 110e's LBA verification; the design and
   prototype work that this issue captures is preserved in git
   history.
-- 110f — microSD controller driver. `src/015-sdmmc.c` brings up
-  the RK3568's SDMMC0 controller (a Synopsys DW MSHC, distinct
-  from the SDHCI we use for the eMMC), walks the SD spec's
-  card-init sequence (CMD0, CMD8, ACMD41-loop, CMD2, CMD3,
-  CMD9, CMD7), and exposes single-block read and write through
-  CMD17 and CMD24. Polled and blocking. Used by 110e's
-  eMMC-to-microSD backup. Closing evidence (a successful round
-  trip on real hardware) lands when boot test #1 runs.
+- 110f — (REOPENED — see the open-issues section below.)
 - 110g — SD-card debug log. `src/017-debug-log.c` adds a DRAM
   ring buffer plus periodic flush to a reserved 16 MB region of
   the microSD card. `debug_write` in 011-cdc-acm.c gains a call
@@ -456,6 +443,55 @@ can succeed. The specific register addresses and bit positions
 are catalogued in `docs/017-clocks-and-timers.md`; the PHY
 power-down register layout is the remaining piece of research
 this issue needs before its code change can land.
+
+109b (USB descriptors, dispatcher, and endpoint-zero
+configuration) is *reopened* from completed. Phase-1 hardware
+testing found `depcmd_issue`'s polling loop hanging forever
+on the first DWC3 endpoint command after `usb_init` reports
+success. Most likely cause is the controller's RUN bit in
+`DCTL` needing to be set before endpoint commands are
+processed; the current bring-up sequence sets it at the end
+of endpoint zero configuration, after the commands that hang.
+The reopen notes the suspected cause and the deferral —
+`kernel_main` skips the endpoint-zero call for now;
+`debug_write` gracefully short-circuits to its SD-backed log
+fan-out when CDC-ACM is not up, so the kernel's text-side
+narration still reaches the developer through the SD card.
+
+110a (eMMC controller driver) is *reopened* from completed.
+The original closure assumed the bootloader leaves the eMMC
+controller's five clocks (ACLK / HCLK / BCLK / CCLK / TCLK)
+on and its five resets deasserted; on the SD-card boot path
+ROCKNIX's u-boot does not reach the eMMC, so the controller
+arrives at our kernel in an indeterminate state. The first
+MMIO access panics intermittently. The reopen documents the
+specific CRU writes needed (`CLKGATE_CON(9)` at `0xFDD20324`,
+`SOFTRST_CON(7)` at `0xFDD2041C`, both bits 5-9), the
+diagnostic discriminator read against `SDHCI_CAPABILITIES` at
+`0xFE310040`, and three Rockchip-vendor-area register clears
+the original implementation did not perform. The block
+(BCLK) reset is the most commonly missed one — deasserting
+only the AHB and CCLK resets is enough to make register reads
+succeed but leaves writes silently dropping. The full
+register-by-register playbook is in the issue file.
+
+110f (microSD controller driver) is *reopened* from completed.
+Same shape as 110a but worse: u-boot does not touch the SD
+controller at all (it boots from the SD card via the
+BootROM's fixed-offset reads, not through the SDMMC0
+controller's protocol stack), so the first MMIO access
+panics *every* time, not intermittently. The reopen documents
+the CRU writes (`CLKGATE_CON(15)` at `0xFDD2033C` bits 0-1,
+`SOFTRST_CON(13)` at `0xFDD20434` bits 3-4), the diagnostic
+discriminator read against `SDMMC_HCON` at `0xFE2B0070`, a
+missing `RINTSTS` clear at the start of bring-up that lets
+stale interrupt bits survive controller reset and fire the
+CMD_DONE poll immediately, a missing "update clock" no-op
+dance around every CLKENA / CLKDIV / CLKSRC write, and a
+polling-loop refinement to check the wedged-controller
+indicator bits (HLE on `RINTSTS` bit 12 is the one that
+matters). The full register-by-register playbook is in the
+issue file.
 
 ## Phase demo
 
