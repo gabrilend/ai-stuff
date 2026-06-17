@@ -232,47 +232,19 @@ void kernel_main(void)
     /* Bring up the SD-card-backed debug log. */
     debug_log_init();
 
-    /* Direct sd_write_block test (issue 103g — TEMPORARY).
-     *
-     * The previous round's debug log dump came back as 16 MB of
-     * 0x00 — not 0xFF (so the kernel wrote *something*), not text
-     * (so the buffer was not populated when the write happened).
-     * The previous round's backup dump came back as residual
-     * random data — not eMMC content, suggesting the backup's
-     * own SD writes either failed silently or wrote uninitialized
-     * buffer contents. Two inconsistent observations against the
-     * same sd_write_block call site; we cannot tell from the
-     * symptoms whether sd_write_block is even doing what its
-     * return value claims.
-     *
-     * This block bypasses the backup and the log layer entirely
-     * and calls sd_write_block directly with a known 512-byte
-     * pattern. If the dump of the two test regions shows the
-     * pattern, sd_write_block is writing correctly and the
-     * earlier failures are in the layers above. If the dump
-     * shows zeros, residuals, or 0xFF, we know the writer
-     * itself is the problem and can localize.
-     *
-     * The kernel sits at STAGE_USB_CONTROLLER after the writes,
-     * indefinitely. The developer pulls the card and dumps
-     * both LBA regions; the pattern survival tells us which
-     * (if any) sd_write_block calls actually landed.
-     */
-    {
-        static const uint8_t test_pattern[512] __attribute__((aligned(8))) = {
-            'S','O','R','E','N','_','S','D','_','W','R','I','T','E','_','T',
-            'E','S','T','_','L','B','A','_','M','A','R','K','E','R','\r','\n',
-            /* rest implicitly zero from .rodata initialization */
-        };
-        sd_write_block(0x400000u, test_pattern);  /* log region start */
-        sd_write_block(0x200000u, test_pattern);  /* backup region start */
-    }
-
+    /* All four pre-backup steps have completed; advance the LED
+     * back to STAGE_USB_CONTROLLER (bottom amber alone) before
+     * the backup so the heartbeat-blinking-amber pattern reads
+     * cleanly. */
     led_set_stage(STAGE_USB_CONTROLLER);
-    while (1) { delay_busy(1000000); }
 
-    /* (Backup chain below is unreachable while the test above
-     * is in place. Restored after the writer diagnosis lands.) */
+    /* Copy a 200 MB slice of the eMMC to the microSD card. The
+     * size covers what issue 110e's GPT analysis actually needs
+     * (the boot partition's table lives in the first sector or
+     * two) and finishes in a small number of minutes at the
+     * chip's currently-slow boot clock. The full 32 GB backup
+     * comes back once the CPU clock is bumped to its rated
+     * speed (phase-2 issue 201a). */
     if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
         debug_log_flush();
         led_set_stage(STAGE_PANIC_GENERIC);

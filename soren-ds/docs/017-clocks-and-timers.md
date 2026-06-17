@@ -62,6 +62,13 @@ The clocks our drivers (current and deferred) need to control:
 | `CLK_USBPHY0_REF`    | 19       | PMU CRU mux              | -  | USB 2.0 PHY 0 reference clock, in the PMU CRU. Not a gate — a mux. By reset default sources from the 24 MHz crystal; no software action needed in phase 1. |
 | `PCLK_PWM1`          | -        | TBD — research before 106c lands | TBD | Peripheral-bus clock for the PWM1 controller block. Specific register and bit position needed from `drivers/clk/rockchip/clk-rk3568.c` lookup or RK3568 TRM Part 1 §3.2 reading. |
 | `CLK_PWM1`           | -        | TBD — research before 106c lands | TBD | Source clock for the PWM1 controller block. Same lookup as `PCLK_PWM1`. |
+| `ACLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 5  | AXI bus clock to the eMMC SDHCI controller at `0xFE31_0000`. Required before any controller register access. |
+| `HCLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 6  | AHB register-access clock for the eMMC controller. Required before any controller register read. |
+| `BCLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 7  | Block / internal core clock for the eMMC controller. Without this, controller register reads return garbage and writes silently drop. *The most commonly missed eMMC clock.* |
+| `CCLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 8  | Card-clock source for the eMMC's bus interface. Required before issuing CMD0. |
+| `TCLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 9  | Timer clock for the eMMC controller (24 MHz from `xin24m`). |
+| `HCLK_SDMMC0`        | -        | `CLKGATE_CON(15)` = `0xFDD2033C` | 0  | AHB register-access clock for the microSD DW MSHC controller at `0xFE2B_0000`. |
+| `CLK_SDMMC0`         | -        | `CLKGATE_CON(15)` = `0xFDD2033C` | 1  | Card-clock source for the microSD controller. Required before issuing CMD0. |
 
 To ungate the three USB 3.0 OTG clocks together (the
 phase-1-deferred USB clock work in issue 109a), one masked
@@ -79,6 +86,13 @@ and deferred) need to assert or deassert:
 | ----------------- | -------- | ----------------------- | :-: | :--- |
 | `SRST_WDT_NS`     | 138      | `SOFTRST_CON(8)` = `0xFDD20420` | 10 | The watchdog hardware block's reset. Asserting and then deasserting silences the watchdog (puts it back into its post-reset "disabled" state). The hardware otherwise cannot be disabled once it has been enabled. |
 | `SRST_USB3OTG0`   | 148      | `SOFTRST_CON(9)` = `0xFDD20424` | 4 | The USB 3.0 OTG controller's reset. Asserted before configuring the controller, then deasserted as the last step before the controller comes online. |
+| `SRST_A_EMMC`     | 117      | `SOFTRST_CON(7)` = `0xFDD2041C` | 5  | eMMC AXI clock domain reset. |
+| `SRST_H_EMMC`     | 118      | `SOFTRST_CON(7)` = `0xFDD2041C` | 6  | eMMC AHB clock domain reset. |
+| `SRST_B_EMMC`     | 119      | `SOFTRST_CON(7)` = `0xFDD2041C` | 7  | eMMC BCLK (block) domain reset. *The most commonly missed eMMC reset.* When this stays asserted, register reads succeed but writes silently drop. |
+| `SRST_C_EMMC`     | 120      | `SOFTRST_CON(7)` = `0xFDD2041C` | 8  | eMMC CCLK (card clock) domain reset. |
+| `SRST_T_EMMC`     | 121      | `SOFTRST_CON(7)` = `0xFDD2041C` | 9  | eMMC TCLK (timer clock) domain reset. |
+| `SRST_H_SDMMC0`   | 211      | `SOFTRST_CON(13)` = `0xFDD20434`| 3  | microSD AHB clock domain reset. |
+| `SRST_SDMMC0`     | 212      | `SOFTRST_CON(13)` = `0xFDD20434`| 4  | microSD controller reset. u-boot does *not* deassert this on the SD-boot path (the BootROM reads the boot chain blobs via fixed-offset reads, not through the SDMMC0 controller's protocol stack), so the kernel must pulse it before any register access. |
 
 Reset-identifier-to-register arithmetic: `SOFTRST_CON(n)` is at
 offset `0x400 + n*4`, and reset ID `I` lives in
