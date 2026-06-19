@@ -72,6 +72,12 @@ ffi.cdef[[
                                              uint32_t start_slot,
                                              uint32_t slot_count,
                                              uint32_t tile_size);
+    // 9-014 dispatch-per-tile + pipelined variant. Same parameters as
+    // vkd_batch_compute_chunk; differs only in synchronization granularity.
+    VkComputeResult vkd_batch_compute_chunk_pipelined(VkDiversityBatchContext* batch_ctx,
+                                                       uint32_t start_slot,
+                                                       uint32_t slot_count,
+                                                       uint32_t tile_size);
     VkComputeResult vkd_batch_download_sequences(VkDiversityBatchContext* batch_ctx,
                                                   uint32_t* output_sequences);
     void vkd_batch_destroy(VkDiversityBatchContext* batch_ctx);
@@ -452,9 +458,11 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
 
         -- Probe: small dispatch, time it. The probe uses the same tile_size
         -- the production chunks will use, so the timing actually reflects
-        -- the post-tiling per-iter cost.
+        -- the post-tiling per-iter cost. We dispatch through the pipelined
+        -- variant so the probe also exercises the dispatch-per-tile path
+        -- the production chunks will use.
         local probe_start = wall_clock()
-        local result = vk.vkd_batch_compute_chunk(batch_ctx, 1, PROBE_ITERS, tile_size)
+        local result = vk.vkd_batch_compute_chunk_pipelined(batch_ctx, 1, PROBE_ITERS, tile_size)
         check_result(result, string.format(
             "Batch compute-chunk probe dispatch (slots [1, %d))", 1 + PROBE_ITERS))
         local probe_elapsed = wall_clock() - probe_start
@@ -485,7 +493,7 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
             local this_chunk = math.min(chunk_size, total_iters - slot + 1)
             local chunk_start = wall_clock()
 
-            result = vk.vkd_batch_compute_chunk(batch_ctx, slot, this_chunk, tile_size)
+            result = vk.vkd_batch_compute_chunk_pipelined(batch_ctx, slot, this_chunk, tile_size)
             check_result(result, string.format(
                 "Batch compute-chunk dispatch (chunk %d, slots [%d, %d))",
                 chunk_idx, slot, slot + this_chunk))

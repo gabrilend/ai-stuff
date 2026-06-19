@@ -40,6 +40,12 @@ typedef struct {
     uint32_t num_bindings;
 } PipelineInternal;
 
+/* 9-014 pipelining: depth of the async dispatch pipeline. Two is enough
+ * for "CPU records the next dispatch while the GPU runs the current
+ * one" overlap; deeper pipelines don't help because the workload is
+ * GPU-bound, not CPU-bound, and deeper queues just defer the wait. */
+#define VKC_ASYNC_PIPELINE_DEPTH 2
+
 struct VkComputeContext {
     /* Vulkan core objects */
     VkInstance instance;
@@ -48,10 +54,22 @@ struct VkComputeContext {
     VkQueue compute_queue;
     uint32_t compute_queue_family;
 
-    /* Command execution */
+    /* Command execution — synchronous path: one command buffer, one fence,
+     * each dispatch waits inline. Used by the similarity engine and any
+     * caller that wants "do one thing, wait for it." */
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
     VkFence fence;
+
+    /* Command execution — async / pipelined path: N command buffers and
+     * N fences cycling round-robin. Each dispatch waits for the OLDEST
+     * slot's previous use to finish (which is generally already done by
+     * the time we record the next slot's commands), then submits without
+     * waiting for THIS slot to finish. The CPU records dispatch N+1
+     * concurrently with the GPU running dispatch N. */
+    VkCommandBuffer async_cmd_buffers[VKC_ASYNC_PIPELINE_DEPTH];
+    VkFence async_fences[VKC_ASYNC_PIPELINE_DEPTH];
+    uint32_t next_async_slot;
 
     /* Device properties */
     VkPhysicalDeviceProperties device_properties;
@@ -312,7 +330,44 @@ VkComputeContext* vkc_init(bool enable_validation) {
         return NULL;
     }
 
-    printf("[VKC] Initialization complete\n");
+    /* 9-014 pipelining: allocate the async command-buffer pool (N buffers
+     * and N fences, fences pre-signaled so the first N dispatches do not
+     * block waiting on an unused slot's previous use). */
+    VkCommandBufferAllocateInfo async_alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = ctx->command_pool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = VKC_ASYNC_PIPELINE_DEPTH,
+    };
+    result = vkAllocateCommandBuffers(ctx->device, &async_alloc_info, ctx->async_cmd_buffers);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to allocate async command buffers: %d\n", result);
+        vkDestroyFence(ctx->device, ctx->fence, NULL);
+        vkDestroyCommandPool(ctx->device, ctx->command_pool, NULL);
+        vkDestroyDevice(ctx->device, NULL);
+        vkDestroyInstance(ctx->instance, NULL);
+        free(ctx);
+        return NULL;
+    }
+    for (int i = 0; i < VKC_ASYNC_PIPELINE_DEPTH; i++) {
+        result = vkCreateFence(ctx->device, &fence_info, NULL, &ctx->async_fences[i]);
+        if (result != VK_SUCCESS) {
+            fprintf(stderr, "[VKC ERROR] Failed to create async fence %d: %d\n", i, result);
+            /* Clean up any fences already created. */
+            for (int j = 0; j < i; j++) {
+                vkDestroyFence(ctx->device, ctx->async_fences[j], NULL);
+            }
+            vkDestroyFence(ctx->device, ctx->fence, NULL);
+            vkDestroyCommandPool(ctx->device, ctx->command_pool, NULL);
+            vkDestroyDevice(ctx->device, NULL);
+            vkDestroyInstance(ctx->instance, NULL);
+            free(ctx);
+            return NULL;
+        }
+    }
+    ctx->next_async_slot = 0;
+
+    printf("[VKC] Initialization complete (async pipeline depth: %d)\n", VKC_ASYNC_PIPELINE_DEPTH);
     return ctx;
 }
 
@@ -325,6 +380,14 @@ void vkc_destroy(VkComputeContext* ctx) {
     if (!ctx) return;
 
     vkDeviceWaitIdle(ctx->device);
+
+    /* 9-014: destroy async pipeline fences. The command buffers are freed
+     * implicitly when the command pool is destroyed below. */
+    for (int i = 0; i < VKC_ASYNC_PIPELINE_DEPTH; i++) {
+        if (ctx->async_fences[i] != VK_NULL_HANDLE) {
+            vkDestroyFence(ctx->device, ctx->async_fences[i], NULL);
+        }
+    }
 
     if (ctx->fence != VK_NULL_HANDLE) {
         vkDestroyFence(ctx->device, ctx->fence, NULL);
@@ -930,6 +993,140 @@ VkComputeResult vkc_wait_idle(VkComputeContext* ctx) {
     vkDeviceWaitIdle(ctx->device);
     return VKC_SUCCESS;
 }
+
+/* {{{ vkc_dispatch_async
+ *
+ * 9-014 pipelining: same shape as vkc_dispatch but does not wait for the
+ * dispatched work to finish before returning. Instead, it waits for the
+ * NEXT slot's previous submission to finish (which is generally already
+ * done by the time the CPU has finished recording this one), so the CPU
+ * can return immediately to record dispatch N+2 while the GPU is still
+ * working on dispatch N+1.
+ *
+ * Memory dependencies between successive dispatches are expressed via
+ * vkCmdPipelineBarrier inside the recorded command buffer (see callers
+ * in vk_diversity.c). Vulkan does not give us implicit storage-buffer
+ * synchronization between dispatches; the barrier is mandatory if
+ * dispatch K+1 reads what dispatch K wrote.
+ */
+VkComputeResult vkc_dispatch_async(VkComputeContext* ctx, VkComputePipeline* pipeline,
+                                   uint32_t x, uint32_t y, uint32_t z,
+                                   const void* push_constants) {
+    if (!ctx || !pipeline) {
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    uint32_t slot = ctx->next_async_slot;
+    VkCommandBuffer cmd_buf = ctx->async_cmd_buffers[slot];
+    VkFence fence = ctx->async_fences[slot];
+
+    /* Wait for this slot's previous use to finish. Initially the fences are
+     * created in the signaled state so the first VKC_ASYNC_PIPELINE_DEPTH
+     * dispatches return without blocking. After that, this wait IS the
+     * pipelining sync: it blocks the CPU only if the GPU is more than N
+     * dispatches behind, which is the depth-limit of the pipeline. */
+    VkResult result = vkWaitForFences(ctx->device, 1, &fence, VK_TRUE, UINT64_MAX);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to wait for async fence %u: %d\n", slot, result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+    vkResetFences(ctx->device, 1, &fence);
+
+    /* Reset and re-record this slot's command buffer. */
+    vkResetCommandBuffer(cmd_buf, 0);
+
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+    result = vkBeginCommandBuffer(cmd_buf, &begin_info);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to begin async command buffer: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    /* Insert a compute-to-compute memory barrier at the START of this
+     * dispatch's command buffer. Any storage-buffer writes from previously-
+     * submitted dispatches on the same queue must be visible to this
+     * dispatch's reads. Without this barrier the GPU is free to overlap
+     * the two dispatches, which would race on the running_max buffer. */
+    VkMemoryBarrier mem_barrier = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+    };
+    vkCmdPipelineBarrier(cmd_buf,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         0,
+                         1, &mem_barrier,
+                         0, NULL,
+                         0, NULL);
+
+    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
+                      pipeline->internal.pipeline);
+
+    vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
+                           pipeline->internal.layout, 0, 1,
+                           &pipeline->internal.desc_set, 0, NULL);
+
+    if (push_constants && pipeline->internal.push_constant_size > 0) {
+        vkCmdPushConstants(cmd_buf, pipeline->internal.layout,
+                          VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                          pipeline->internal.push_constant_size, push_constants);
+    }
+
+    vkCmdDispatch(cmd_buf, x, y, z);
+
+    result = vkEndCommandBuffer(cmd_buf);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to end async command buffer: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &cmd_buf,
+    };
+
+    result = vkQueueSubmit(ctx->compute_queue, 1, &submit_info, fence);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to submit async command buffer: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    /* Advance to the next slot. The OLD slot's fence will be signaled by the
+     * GPU when its work finishes, so the next time we cycle back to it the
+     * wait at the top of this function will be very fast (probably zero). */
+    ctx->next_async_slot = (slot + 1) % VKC_ASYNC_PIPELINE_DEPTH;
+
+    return VKC_SUCCESS;
+}
+/* }}} */
+
+/* {{{ vkc_wait_async_all
+ *
+ * Drains the async pipeline by waiting on every slot's fence. Called at
+ * the end of a batch / chunk to ensure all submitted work has completed
+ * before the caller reads the output buffers.
+ */
+VkComputeResult vkc_wait_async_all(VkComputeContext* ctx) {
+    if (!ctx) return VKC_ERROR_INIT_FAILED;
+
+    VkResult result = vkWaitForFences(ctx->device,
+                                       VKC_ASYNC_PIPELINE_DEPTH,
+                                       ctx->async_fences,
+                                       VK_TRUE,
+                                       UINT64_MAX);
+    if (result != VK_SUCCESS) {
+        fprintf(stderr, "[VKC ERROR] Failed to wait for async fences: %d\n", result);
+        return VKC_ERROR_COMMAND_EXECUTION_FAILED;
+    }
+
+    return VKC_SUCCESS;
+}
+/* }}} */
 
 /* }}} */
 

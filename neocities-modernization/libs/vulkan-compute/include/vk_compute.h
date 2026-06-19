@@ -94,6 +94,17 @@ VkComputeResult vkc_dispatch(VkComputeContext* ctx,
 /* Synchronization */
 VkComputeResult vkc_wait_idle(VkComputeContext* ctx);
 
+/* 9-014 pipelining: async dispatch + drain. vkc_dispatch_async submits
+ * to a round-robin pool of command buffers, blocking only when the pool
+ * fills up (which lets the CPU stay ahead of the GPU by N submissions).
+ * Inserts an implicit compute-to-compute memory barrier so the next
+ * dispatch sees writes from the previous one. Drains via vkc_wait_async_all.
+ */
+VkComputeResult vkc_dispatch_async(VkComputeContext* ctx, VkComputePipeline* pipeline,
+                                   uint32_t x, uint32_t y, uint32_t z,
+                                   const void* push_constants);
+VkComputeResult vkc_wait_async_all(VkComputeContext* ctx);
+
 /* Bulk float -> half-precision conversion.
  *
  * Used to prepare the embeddings buffer for diversity_full.spv, which

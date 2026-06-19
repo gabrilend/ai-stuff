@@ -122,6 +122,29 @@ VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
                                          uint32_t slot_count,
                                          uint32_t tile_size);
 
+/* 9-014: Dispatch-per-tile + pipelined version of vkd_batch_compute_chunk.
+ *
+ * Same logical work as vkd_batch_compute_chunk but the per-iteration tile
+ * loop is unrolled into separate dispatches with a fence wait between
+ * each tile (hard grid sync — guarantees all workgroups finish tile K
+ * before any start tile K+1). The async command-buffer pool in
+ * VkComputeContext lets the CPU stay ahead of the GPU by N submissions,
+ * hiding per-dispatch CPU overhead. See 9-014 for the architecture
+ * rationale and expected speedups.
+ *
+ * Parameters mirror vkd_batch_compute_chunk. The two are interchangeable
+ * from the caller's perspective; they produce identical sequences (by
+ * associativity of max across tile boundaries) but reach the answer via
+ * different access patterns and synchronization granularity.
+ *
+ * Drains the async pool before returning, so on return all the chunk's
+ * work is complete and the output buffer is safe to read.
+ */
+VkComputeResult vkd_batch_compute_chunk_pipelined(VkDiversityBatchContext* batch_ctx,
+                                                   uint32_t start_slot,
+                                                   uint32_t slot_count,
+                                                   uint32_t tile_size);
+
 /* Download complete sequences from GPU
  *
  * Parameters:
