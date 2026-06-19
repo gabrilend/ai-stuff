@@ -53,10 +53,12 @@ function M.generate(context, model) -- {{{ (DEPRECATED - use M.get_embedding ins
 end -- }}}
 
 -- New embedding functions
-function M.get_embedding(text, model) -- {{{   
+function M.get_embedding(text, model) -- {{{
    local request_body = {
        model = model,
-       prompt = text
+       -- Apply the active server's task-prefix (e.g. "clustering: " for
+       -- nomic-embed-text v1.5+). No-op for models without a prefix.
+       prompt = ollama_config.format_embedding_prompt(text)
    }
    local json_data = dkjson.encode(request_body)
    

@@ -391,4 +391,26 @@ function M.list_servers()
 end
 -- }}}
 
+-- {{{ format_embedding_prompt
+-- Apply the active server's embedding_prompt_prefix to a text payload.
+--
+-- Some embedding models (notably nomic-embed-text v1.5+) require a
+-- task-prefix on every input — "clustering: ", "search_query: ",
+-- "search_document: ", etc. — that routes the model through different
+-- internal weights. Models that don't need a prefix (embeddinggemma,
+-- qwen3-embedding) leave the field nil and this function is a no-op.
+--
+-- Centralizing the prefix here means a model swap is a single config
+-- edit even when the new model has different prefix requirements; no
+-- caller needs to know which model is active to embed text correctly.
+function M.format_embedding_prompt(text)
+    local server = M.get_selected_server()
+    local prefix = server and server.embedding_prompt_prefix
+    if prefix and prefix ~= "" then
+        return prefix .. text
+    end
+    return text
+end
+-- }}}
+
 return M

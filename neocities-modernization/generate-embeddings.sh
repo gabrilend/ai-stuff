@@ -36,7 +36,7 @@ FLUSH_ALL=false
 FLUSH_ERRORS=false
 BACKUP_BEFORE_FLUSH=true
 FORCE_OPERATION=false
-MODEL_NAME="qwen3-embedding:4b"
+MODEL_NAME="nomic-embed-text:v1.5"
 LIST_MODELS=false
 MODEL_STATUS=false
 INTERACTIVE_MODE=false
@@ -110,7 +110,7 @@ for arg in "$@"; do
             echo "  --force                 Skip confirmation prompts for automated scripts"
             echo ""
             echo "Model Selection Options:"
-            echo "  --model=MODEL_NAME      Specify embedding model (default: qwen3-embedding:4b)"
+            echo "  --model=MODEL_NAME      Specify embedding model (default: nomic-embed-text:v1.5)"
             echo "  --list-models           Show available models and their configurations"
             echo "  --model-status          Show cache status for all models"
             echo "  --dir=PATH              Use custom assets directory instead of default"
@@ -185,8 +185,8 @@ setup_embedding_tui_menu() {
     # Section 4: Model Selection
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "model" "multi" "Model Selection"
-    menu_add_item "model" "model_name" "Embedding Model" "multistate" "qwen3-embedding" \
-        "qwen3-embedding,embeddinggemma,text-embedding-ada-002,all-MiniLM-L6-v2" "m" ""
+    menu_add_item "model" "model_name" "Embedding Model" "multistate" "nomic-embed-text" \
+        "nomic-embed-text,qwen3-embedding,embeddinggemma,text-embedding-ada-002,all-MiniLM-L6-v2" "m" ""
     menu_add_item "model" "model_status" "Show Model Status" "checkbox" "0" \
         "Display cache stats for each model" "t" ""
     menu_add_item "model" "list_models" "List Available Models" "checkbox" "0" \
@@ -234,10 +234,11 @@ apply_tui_selections() {
     local model=$(menu_get_value "model_name")
     case "$model" in
         "qwen3-embedding") MODEL_NAME="qwen3-embedding:4b" ;;
+        "nomic-embed-text") MODEL_NAME="nomic-embed-text:v1.5" ;;
         "embeddinggemma") MODEL_NAME="embeddinggemma:latest" ;;
         "text-embedding-ada-002") MODEL_NAME="text-embedding-ada-002" ;;
         "all-MiniLM-L6-v2") MODEL_NAME="all-MiniLM-L6-v2" ;;
-        *) MODEL_NAME="qwen3-embedding:4b" ;;
+        *) MODEL_NAME="nomic-embed-text:v1.5" ;;
     esac
 
     [[ "$(menu_get_value "model_status")" == "1" ]] && MODEL_STATUS=true
@@ -319,17 +320,19 @@ run_simple_interactive_mode() {
 
     echo ""
     echo "Available embedding models:"
-    echo "1. qwen3-embedding:4b (default)"
-    echo "2. embeddinggemma:latest"
-    echo "3. text-embedding-ada-002"
-    echo "4. all-MiniLM-L6-v2"
-    read -p "Choose model (1-4, or press enter for default): " model_choice
+    echo "1. nomic-embed-text:v1.5 (default)"
+    echo "2. qwen3-embedding:4b"
+    echo "3. embeddinggemma:latest"
+    echo "4. text-embedding-ada-002"
+    echo "5. all-MiniLM-L6-v2"
+    read -p "Choose model (1-5, or press enter for default): " model_choice
 
     case $model_choice in
-        2) MODEL_NAME="embeddinggemma:latest" ;;
-        3) MODEL_NAME="text-embedding-ada-002" ;;
-        4) MODEL_NAME="all-MiniLM-L6-v2" ;;
-        *) MODEL_NAME="qwen3-embedding:4b" ;;
+        2) MODEL_NAME="qwen3-embedding:4b" ;;
+        3) MODEL_NAME="embeddinggemma:latest" ;;
+        4) MODEL_NAME="text-embedding-ada-002" ;;
+        5) MODEL_NAME="all-MiniLM-L6-v2" ;;
+        *) MODEL_NAME="nomic-embed-text:v1.5" ;;
     esac
 
     echo ""
