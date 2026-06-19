@@ -471,7 +471,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
      * shader, the chunk loop runs zero iterations, and every dispatch
      * returns instantly having done no work. */
     batch_ctx->batch_pipeline = vkc_create_pipeline(ctx, "build/diversity_full.spv",
-                                                      sizeof(uint32_t) * 4);  /* num_poems, embedding_dim, start_slot, slot_count */
+                                                      sizeof(uint32_t) * 5);  /* num_poems, embedding_dim, start_slot, slot_count, tile_size */
     if (!batch_ctx->batch_pipeline) {
         fprintf(stderr, "[VKD Batch ERROR] Failed to create pipeline\n");
         vkd_batch_destroy(batch_ctx);
@@ -496,7 +496,8 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
 
 VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
                                          uint32_t start_slot,
-                                         uint32_t slot_count) {
+                                         uint32_t slot_count,
+                                         uint32_t tile_size) {
     if (!batch_ctx || slot_count == 0) {
         return VKC_ERROR_INIT_FAILED;
     }
@@ -505,23 +506,33 @@ VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
          * past the end of output_buf. */
         return VKC_ERROR_INIT_FAILED;
     }
+    if (tile_size == 0) {
+        /* Treat zero as "no tiling" — one tile covers the entire candidate
+         * range. The shader has the same fallback baked in but this is
+         * cheap to defend against here and produces an explicit value
+         * for the validation layers to inspect. */
+        tile_size = batch_ctx->num_poems;
+    }
 
     VkComputeContext* ctx = batch_ctx->ctx;
 
-    /* Push constants describe the dataset shape AND the slice of work this
-     * dispatch is responsible for. The shader writes output slots
-     * [start_slot, start_slot + slot_count) and advances the per-workgroup
-     * centroid/count by slot_count picks. */
+    /* Push constants describe the dataset shape, the slice of work this
+     * dispatch is responsible for, and the tile granularity of the inner
+     * scan. The shader writes output slots [start_slot, start_slot + slot_count)
+     * and walks the candidate range in tiles of tile_size, with the running
+     * max accumulator persisting across tiles within one iteration. */
     struct {
         uint32_t num_poems;
         uint32_t embedding_dim;
         uint32_t start_slot;
         uint32_t slot_count;
+        uint32_t tile_size;
     } push_constants = {
         batch_ctx->num_poems,
         batch_ctx->embedding_dim,
         start_slot,
-        slot_count
+        slot_count,
+        tile_size
     };
 
     /* One workgroup per sequence in the batch. Each workgroup runs

@@ -105,6 +105,12 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
  *   start_slot - First output-sequence slot to write (1 on the first call;
  *                slot 0 is the seed, written by vkd_batch_init)
  *   slot_count - How many slots to write in this call
+ *   tile_size  - Number of candidate poems per L2-friendly tile in the
+ *                inner scan. Pass batch_ctx->num_poems (or 0) for the
+ *                non-tiled baseline; pass a smaller value to enable the
+ *                9-014 tiling optimization. A reasonable derivation is
+ *                floor(L2_BYTES * 0.85 / (embedding_dim * 2)) since each
+ *                FP16-packed candidate is embedding_dim * 2 bytes.
  *
  * Returns: VKC_SUCCESS, or the error code from the underlying dispatch
  *          (e.g. VKC_ERROR_COMMAND_EXECUTION_FAILED on device-lost). The
@@ -113,7 +119,8 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
  */
 VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
                                          uint32_t start_slot,
-                                         uint32_t slot_count);
+                                         uint32_t slot_count,
+                                         uint32_t tile_size);
 
 /* Download complete sequences from GPU
  *
