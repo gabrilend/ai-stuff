@@ -1,4 +1,4 @@
-# Issue 002: Interactive Input Interface
+# Issue 013: Interactive Input Interface
 
 ## Current Behavior
 The system only supports command-line execution without any interactive interface for navigation or text selection.
@@ -22,7 +22,7 @@ Create a custom non-terminal interface with:
 
 ## Related Documents
 - Source: next-1 file (lines 11-30)
-- Related to: Issue 001 (embedding navigation system)
+- Related to: Issue 009 (embedding navigation system)
 
 ## Metadata
 - Priority: High

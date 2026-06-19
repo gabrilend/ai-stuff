@@ -1,4 +1,4 @@
-# Issue 003: Interactive Mode Integration
+# Issue 014: Interactive Mode Integration
 
 ## Current Behavior
 The main script only generates PDFs and doesn't provide alternative execution modes or argument-based navigation features.
@@ -21,7 +21,7 @@ Integrate interactive navigation into the main generator script by:
 ## Related Documents
 - Source: next-1 file (lines 33-38)
 - Related to: compile-pdf.lua main script
-- Dependencies: Issues 001, 002
+- Dependencies: Issues 009, 013
 
 ## Metadata
 - Priority: Medium

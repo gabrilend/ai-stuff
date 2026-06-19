@@ -1,4 +1,4 @@
-# Issue 004: Theme Artwork Patterns
+# Issue 010: Theme Artwork Patterns
 
 ## Current Behavior
 The current theming system (if it exists) does not include artwork patterns for tier 2 themes or color associations for tier 3 themes.

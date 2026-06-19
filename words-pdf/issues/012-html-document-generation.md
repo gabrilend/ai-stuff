@@ -1,4 +1,4 @@
-# Issue 006: HTML Document Generation
+# Issue 012: HTML Document Generation
 
 ## Current Behavior
 The system only generates PDF documents for printing purposes without any web-based interactive viewing capabilities.

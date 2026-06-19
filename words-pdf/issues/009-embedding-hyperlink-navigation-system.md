@@ -1,4 +1,4 @@
-# Issue 001: Embedding Hyperlink Navigation System
+# Issue 009: Embedding Hyperlink Navigation System
 
 ## Current Behavior
 The PDF generation system only creates static documents without any interactive navigation capabilities. Users cannot explore relationships between poems or words within the text.

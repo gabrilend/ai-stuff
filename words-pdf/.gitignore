@@ -3,9 +3,13 @@
 *.key
 *_api_key*
 
-# Temporary files
+# Temporary files (the symlink and its contents)
+/tmp
 /tmp/*
 *_temp_*
+
+# Generated PDF artifacts
+/output/
 
 # Analysis results (optional - you might want to keep these)
 theme_analysis_*.json

@@ -2387,7 +2387,7 @@ function build_pdf(book)
     end
 
     -- Save and free
-    local output_path = "output.pdf"
+    local output_path = "output/compile/output.pdf"
     hpdf.SaveToFile(pdf, output_path)
     hpdf.Free(pdf)
 
