@@ -59,11 +59,18 @@ typedef struct VkDiversityBatchContext VkDiversityBatchContext;
 
 /* Initialize batch diversity computation
  *
+ * Embeddings are FP16, packed two per uint, with low 16 bits = value at
+ * even-index dim and high 16 bits = value at odd-index dim. Caller is
+ * responsible for the FP32 -> FP16 conversion via vkc_fp32_to_fp16().
+ * embedding_dim MUST be even (true for 768 and 2560; check before calling).
+ *
  * Parameters:
  *   ctx - Vulkan compute context
- *   embeddings - All poem embeddings (num_poems * embedding_dim floats)
+ *   embeddings_fp16 - All poem embeddings, FP16 packed:
+ *                     (num_poems * embedding_dim / 2) uints, i.e.
+ *                     (num_poems * embedding_dim * 2) bytes.
  *   num_poems - Total number of poems (e.g., 7797)
- *   embedding_dim - Embedding dimension (e.g., 768)
+ *   embedding_dim - Embedding dimension; must be even (e.g., 768, 2560)
  *   batch_size - Number of sequences to compute in parallel (e.g., 3584)
  *   start_indices - Array of starting poem indices (batch_size elements)
  *
@@ -72,27 +79,41 @@ typedef struct VkDiversityBatchContext VkDiversityBatchContext;
  * Note: Batch size should be <= 3584 for optimal GPU utilization
  */
 VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
-                                         const float* embeddings,
+                                         const uint16_t* embeddings_fp16,
                                          uint32_t num_poems,
                                          uint32_t embedding_dim,
                                          uint32_t batch_size,
                                          const uint32_t* start_indices);
 
-/* Execute one iteration across all sequences in batch
+/* Run a chunk of diversity-sequence iterations on the GPU.
  *
- * This function computes the next poem for each sequence in parallel,
- * updates centroids and masks on the GPU, and returns the selections.
+ * Each workgroup advances its sequence by `slot_count` slots, starting at
+ * output slot `start_slot`. Centroid + count + mask state persists in the
+ * shared storage buffers between calls, so a subsequent call with
+ * start_slot = start_slot + slot_count resumes exactly where this one
+ * left off.
+ *
+ * The chunked design exists because attempting to compute every iteration
+ * in a single dispatch trips the kernel GPU watchdog (~10 seconds on
+ * Linux+NVIDIA with an active display). Calling this in a loop with a
+ * chunk size that yields under ~1-2 seconds of GPU work per call avoids
+ * that and still amortizes per-dispatch overhead nearly perfectly
+ * compared to the old per-iteration approach (8358 dispatches per batch).
  *
  * Parameters:
- *   batch_ctx - Batch context
- *   iteration - Current iteration number (0 to num_poems-1)
- *   selections - Output buffer for selected poems (batch_size elements)
+ *   batch_ctx  - Batch context
+ *   start_slot - First output-sequence slot to write (1 on the first call;
+ *                slot 0 is the seed, written by vkd_batch_init)
+ *   slot_count - How many slots to write in this call
  *
- * Returns: VKC_SUCCESS or error code
+ * Returns: VKC_SUCCESS, or the error code from the underlying dispatch
+ *          (e.g. VKC_ERROR_COMMAND_EXECUTION_FAILED on device-lost). The
+ *          caller is responsible for stopping the loop and reporting on
+ *          any non-success return.
  */
-VkComputeResult vkd_batch_step(VkDiversityBatchContext* batch_ctx,
-                                uint32_t iteration,
-                                uint32_t* selections);
+VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
+                                         uint32_t start_slot,
+                                         uint32_t slot_count);
 
 /* Download complete sequences from GPU
  *

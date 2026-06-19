@@ -25,6 +25,23 @@ local project_root = nil
 local config = nil
 local selected_server = nil  -- CLI override
 local selected_model = nil   -- CLI override
+
+-- Whether the caller is in an interactive context. Off by default. The only
+-- way to enable it is for a CLI driver to call set_interactive_mode(true)
+-- after detecting -I on its command line — this is deliberately not a
+-- config.lua key, because the user-editable config file should describe
+-- what the project IS, not how the operator happens to be running it today.
+--
+-- The library applies a consistent policy whenever user input fails to
+-- resolve against a configured set of options (a typo in --ollama, an
+-- unrecognized --model, a missing default that points at a nonexistent
+-- entry, etc.): non-interactive callers hard-error immediately so the
+-- mistake is impossible to miss; interactive callers prompt the user to
+-- choose between using a sensible default or aborting. Silent fallback to
+-- a default is never the answer here — warnings get scrolled past in long
+-- log streams, and the wrong default can produce hours of work against the
+-- wrong endpoint before anyone notices.
+local interactive_mode = false
 -- }}}
 
 -- {{{ set_project_root
@@ -63,6 +80,57 @@ local function load_config()
 
     config = result
     return config
+end
+-- }}}
+
+-- {{{ local function prompt_for_server_fallback
+-- Interactive recovery for "--ollama=<name> did not resolve."
+-- Shows the configured default server and asks whether to use it or abort.
+-- Prompts go to stderr so callers that capture stdout still surface them
+-- (though callers that capture stdout should not enable interactive mode
+-- in the first place). On success, also caches the choice by clearing
+-- selected_server, so a stage that calls get_selected_server twice does
+-- not re-prompt the operator.
+local function prompt_for_server_fallback(bad_name)
+    local cfg = load_config()
+    local default_name = cfg.default_ollama_server
+    local default_server = default_name and M.get_server_by_name(default_name) or nil
+
+    io.stderr:write(string.format(
+        "\n[!] Ollama server '%s' was not found in config.lua's ollama_servers.\n", bad_name))
+
+    if not default_server then
+        io.stderr:write("    No usable default_ollama_server is configured to fall back to.\n")
+        error(string.format(
+            "ollama-config: --ollama=%s did not resolve and no default is available.", bad_name))
+    end
+
+    io.stderr:write("\nThe configured default is:\n")
+    io.stderr:write(string.format("  name:  %s\n", default_server.name))
+    io.stderr:write(string.format("  host:  %s\n", default_server.host or "(missing in config!)"))
+    io.stderr:write(string.format("  port:  %s\n", tostring(default_server.port or "(missing in config!)")))
+    io.stderr:write(string.format("  model: %s\n", default_server.model or "(missing in config!)"))
+    io.stderr:write("\n  1) Use the default\n")
+    io.stderr:write("  2) Error and exit\n")
+    io.stderr:write("\nSelect 1 or 2: ")
+
+    local choice = io.read("*l")
+    if choice == "1" then
+        selected_server = nil  -- so subsequent calls go straight to the default without re-prompting
+        return default_server
+    end
+
+    error(string.format(
+        "ollama-config: aborted by user — '%s' did not resolve and user chose to exit.", bad_name))
+end
+-- }}}
+
+-- {{{ function M.set_interactive_mode
+-- Flip the library into interactive mode. Only the CLI driver should call
+-- this, and only after confirming -I was passed on the command line.
+-- See the doc-comment on interactive_mode above for the policy this enables.
+function M.set_interactive_mode(enabled)
+    interactive_mode = enabled and true or false
 end
 -- }}}
 
@@ -107,34 +175,74 @@ end
 -- }}}
 
 -- {{{ get_default_server
--- Get the default server (from config or first in list)
+-- Resolve the configured default Ollama server.
+--
+-- This is the "must work" path: callers that need an endpoint to make a
+-- request rely on this. It errors loudly if either default_ollama_server
+-- is not set, or the named server does not exist in ollama_servers.
+--
+-- A silent fallback to servers[1] used to live here. It was removed because
+-- it masked config drift: if default_ollama_server was renamed without
+-- updating its referent, every consumer in the pipeline would silently
+-- start talking to whatever server happened to be first in the list,
+-- producing wrong results without any error message. Loud failure now
+-- guarantees that "endpoint resolution succeeded" means "your config said
+-- to use this server", not "we guessed."
 function M.get_default_server()
     local cfg = load_config()
 
-    -- Check for configured default
-    if cfg.default_ollama_server then
-        local server = M.get_server_by_name(cfg.default_ollama_server)
-        if server then
-            return server
-        end
+    if not cfg.default_ollama_server then
+        error("ollama-config: config.lua does not set default_ollama_server. "
+            .. "Set it to one of the names in ollama_servers, or pass --ollama=<name> on the CLI.")
     end
 
-    -- Fall back to first server in list
-    local servers = M.get_servers()
-    return servers[1]
+    local server = M.get_server_by_name(cfg.default_ollama_server)
+    if not server then
+        error(string.format(
+            "ollama-config: default_ollama_server is '%s' but no entry with that name exists in ollama_servers. "
+            .. "Fix the name in config.lua, or add a matching ollama_servers entry.",
+            cfg.default_ollama_server))
+    end
+
+    return server
 end
 -- }}}
 
 -- {{{ get_selected_server
--- Get the currently selected server (CLI override > default)
+-- Resolve the currently selected server.
+--
+-- Resolution order:
+--   1. If --ollama=<name> was passed via set_selected_server, look it up
+--      in ollama_servers.
+--      - If the name resolves, return that server.
+--      - If the name does not resolve:
+--          interactive: prompt the user to choose default or exit.
+--          non-interactive: hard-error with a message that names the
+--          offending --ollama=<name> and points at the fix.
+--   2. If no --ollama was passed, delegate to get_default_server, which
+--      either returns a resolved default or errors loudly if the default
+--      itself is missing or unresolvable.
+--
+-- This function deliberately never falls back silently. A typoed --ollama
+-- used to print a stderr warning and continue against the default, which
+-- meant a busy operator could miss the warning in the log stream and
+-- spend hours of pipeline time talking to the wrong endpoint.
 function M.get_selected_server()
     if selected_server then
         local server = M.get_server_by_name(selected_server)
         if server then
             return server
         end
-        -- Warning: selected server not found, fall through to default
-        io.stderr:write("Warning: Ollama server '" .. selected_server .. "' not found, using default\n")
+
+        if interactive_mode then
+            return prompt_for_server_fallback(selected_server)
+        end
+
+        error(string.format(
+            "ollama-config: --ollama=%s does not match any entry in ollama_servers (config.lua).\n"
+            .. "Fix the name on the CLI, add a matching entry to ollama_servers, "
+            .. "or pass -I to enable interactive selection.",
+            selected_server))
     end
 
     return M.get_default_server()
@@ -149,14 +257,42 @@ end
 -- }}}
 
 -- {{{ get_selected_model
--- Get the currently selected model (CLI override > server default)
+-- Resolve the model to send to Ollama for the currently selected server.
+--
+-- The library does not validate --model=<name> against any local list.
+-- Ollama is the source of truth for "what models are installed on this
+-- host" — the config can only ever guess. If the operator passes a
+-- --model that the resolved server does not have, Ollama returns a
+-- "model not found" error and the pipeline halts there. We deliberately
+-- do not want two layers both claiming to be authoritative about model
+-- existence; that produces drift bugs where the config lists models that
+-- are no longer installed, or omits models that are.
+--
+-- The available_models field on each ollama_servers entry is still
+-- useful documentation for operators (and for list_servers' --list-ollama
+-- output), it is just not consulted here as a gate.
+--
+-- Resolution order:
+--   1. Resolve the server (delegates to get_selected_server, which errors
+--      or prompts if --ollama=<name> did not resolve).
+--   2. If --model=<name> was passed, return it verbatim.
+--   3. Otherwise return server.model. If that field is missing in the
+--      ollama_servers entry, hard-error — config.lua is still the source
+--      of truth for "what model do we use by default on this host."
 function M.get_selected_model()
+    local server = M.get_selected_server()
+
     if selected_model then
         return selected_model
     end
 
-    local server = M.get_selected_server()
-    return server and server.model or "nomic-embed-text"
+    if not server.model then
+        error(string.format(
+            "ollama-config: server '%s' has no 'model' field in config.lua's ollama_servers entry. "
+            .. "Add a model = \"<name>\" field to that entry, or pass --model=<name> on the CLI.",
+            server.name))
+    end
+    return server.model
 end
 -- }}}
 
@@ -168,17 +304,30 @@ end
 -- }}}
 
 -- {{{ build_host_url
--- Build the full URL for a server
--- Returns URL string like "http://192.168.0.115:10265"
+-- Build the full URL for a server. Both host and port must be set in
+-- config.lua — a server entry without them is a config bug, not a chance
+-- for the library to guess sensible defaults. The previous code silently
+-- substituted "localhost" and 11434, which meant a forgotten host = in
+-- the config would silently redirect every embedding request to nothing.
+-- Returns URL string like "http://192.168.0.115:10265".
 function M.build_host_url(server)
     if not server then
         server = M.get_selected_server()
     end
 
-    local host = server.host or "localhost"
-    local port = server.port or 11434
+    local name = server.name or "(unnamed server)"
+    if not server.host then
+        error(string.format(
+            "ollama-config: server '%s' has no 'host' field in config.lua. "
+            .. "Add a host = \"<hostname-or-ip>\" field to that ollama_servers entry.", name))
+    end
+    if not server.port then
+        error(string.format(
+            "ollama-config: server '%s' has no 'port' field in config.lua. "
+            .. "Add a port = <number> field to that ollama_servers entry.", name))
+    end
 
-    return string.format("http://%s:%d", host, port)
+    return string.format("http://%s:%d", server.host, server.port)
 end
 -- }}}
 
@@ -210,16 +359,22 @@ end
 -- }}}
 
 -- {{{ list_servers
--- Print a formatted list of available servers
+-- Print a formatted list of available servers.
+-- Reads default_ollama_server directly rather than calling get_default_server
+-- so that --list-ollama works even when no default is configured (or is
+-- misconfigured). The purpose of this function is diagnostic, not
+-- request-issuing — it must not error when the user is trying to inspect
+-- their config.
 function M.list_servers()
+    local cfg = load_config()
     local servers = M.get_servers()
-    local default = M.get_default_server()
+    local default_name = cfg.default_ollama_server  -- may be nil; that's fine here
 
     print("Available Ollama servers:")
     print(string.rep("-", 70))
 
     for _, server in ipairs(servers) do
-        local is_default = (server.name == default.name)
+        local is_default = (default_name ~= nil and server.name == default_name)
         local default_marker = is_default and " (default)" or ""
         local url = M.build_host_url(server)
 

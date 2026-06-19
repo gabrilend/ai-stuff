@@ -375,7 +375,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("  " .. cli_dir .. "/\n")
             io.stderr:write("    poems.json\n")
             io.stderr:write("    embeddings/\n")
-            io.stderr:write("      embeddinggemma_latest/\n")
+            io.stderr:write("      <model-name>/\n")
             io.stderr:write("        embeddings.json\n")
             io.stderr:write("\n")
             return nil
@@ -399,7 +399,7 @@ function M.init_assets_root(cli_args)
             io.stderr:write("  " .. config.assets_root .. "/\n")
             io.stderr:write("    poems.json\n")
             io.stderr:write("    embeddings/\n")
-            io.stderr:write("      embeddinggemma_latest/\n")
+            io.stderr:write("      <model-name>/\n")
             io.stderr:write("        embeddings.json\n")
             io.stderr:write("\n")
             return nil
@@ -427,7 +427,7 @@ function M.init_assets_root(cli_args)
     io.stderr:write("  ~/your/assets/path/\n")
     io.stderr:write("    poems.json\n")
     io.stderr:write("    embeddings/\n")
-    io.stderr:write("      embeddinggemma_latest/\n")
+    io.stderr:write("      <model-name>/\n")
     io.stderr:write("        embeddings.json\n")
     io.stderr:write("\n")
     return nil
@@ -460,12 +460,22 @@ end
 -- }}}
 
 -- {{{ function M.embeddings_dir
--- Get path to embeddings directory for a specific model
--- @param model_name: optional model name (default: "embeddinggemma_latest")
--- @return: full path to model's embeddings directory
+-- Get path to embeddings directory for the named model, or for the currently
+-- configured default model when called with no argument.
+--
+-- Centralizing the model -> directory mapping here means a model switch in
+-- config.lua propagates automatically to every caller, instead of requiring
+-- a hunt through ~30 hardcoded "embeddinggemma_latest" string literals.
+-- @param model_name: optional. nil means "ask ollama-config which model is
+--                    currently selected and use that"; pass an explicit
+--                    string only if you need a different model's directory.
+-- @return: full path to that model's embeddings directory
 function M.embeddings_dir(model_name)
-    model_name = model_name or "embeddinggemma_latest"
-    -- Sanitize model name for filesystem safety
+    if not model_name then
+        local ollama_config = require("ollama-config")
+        model_name = ollama_config.get_selected_model()
+    end
+    -- Sanitize model name for filesystem safety (e.g. embeddinggemma:latest -> embeddinggemma_latest)
     local safe_name = model_name:gsub("[^%w%-_.]", "_")
     return M.asset_path("embeddings/" .. safe_name)
 end

@@ -112,8 +112,12 @@ end
 -- Issue 8-050d: Determine effective poems_per_page: CLI > config > default
 local effective_poems_per_page = CLI_POEMS_PER_PAGE or wc.poems_per_page or 50
 
+-- The model name lives in config.lua / --ollama / --model. Resolving it
+-- here through ollama-config means a model swap propagates to this script
+-- automatically; we no longer need to remember to update a hardcoded string.
+ollama_config.set_project_root(DIR)
 local CONFIG = {
-    model_name = "embeddinggemma:latest",
+    model_name = ollama_config.get_selected_model(),
     max_poems_per_page = 100,        -- Poems per word page
     max_pages_per_word = 1,          -- For now, just one page per word
     word_embeddings_file = "word_embeddings.json",
@@ -194,7 +198,7 @@ end
 
 -- {{{ local function load_word_embeddings_cache
 local function load_word_embeddings_cache()
-    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/" .. CONFIG.word_embeddings_file
+    local cache_file = utils.embeddings_dir() .. "/" .. CONFIG.word_embeddings_file
     local data = utils.read_json_file(cache_file)
     return data and data.embeddings or {}
 end
@@ -202,7 +206,7 @@ end
 
 -- {{{ local function save_word_embeddings_cache
 local function save_word_embeddings_cache(embeddings)
-    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/" .. CONFIG.word_embeddings_file
+    local cache_file = utils.embeddings_dir() .. "/" .. CONFIG.word_embeddings_file
     local data = {
         embeddings = embeddings,
         model = CONFIG.model_name,
@@ -218,7 +222,7 @@ end
 -- {{{ local function load_color_embeddings
 -- Issue 8-050a: Load color embeddings for semantic color assignment
 local function load_color_embeddings()
-    local color_file = utils.embeddings_dir("embeddinggemma_latest") .. "/color_embeddings.json"
+    local color_file = utils.embeddings_dir() .. "/color_embeddings.json"
     local data = utils.read_json_file(color_file)
     return data and data.embeddings or nil
 end
@@ -249,7 +253,7 @@ end
 -- {{{ local function load_word_colors_cache
 -- Issue 8-050a: Load cached word colors
 local function load_word_colors_cache()
-    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/word_colors.json"
+    local cache_file = utils.embeddings_dir() .. "/word_colors.json"
     local data = utils.read_json_file(cache_file)
     if data and data.word_colors then
         -- Convert array to lookup table for easy access
@@ -266,7 +270,7 @@ end
 -- {{{ local function save_word_colors_cache
 -- Issue 8-050a: Save word colors to cache
 local function save_word_colors_cache(word_colors_array)
-    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/word_colors.json"
+    local cache_file = utils.embeddings_dir() .. "/word_colors.json"
     local data = {
         word_colors = word_colors_array,
         model = CONFIG.model_name,
@@ -845,7 +849,6 @@ function M.generate_word_embeddings(options)
         utils.log_error("Could not load poems.json")
         return nil
     end
-    utils.log_info(string.format("Loaded %d poems", #poems_data.poems))
 
     -- Get word list (using CONFIG.max_words from CLI or config)
     local stop_words = load_stop_words()
@@ -911,17 +914,15 @@ function M.generate_word_html(options)
         utils.log_error("Could not load poems.json")
         return nil
     end
-    utils.log_info(string.format("Loaded %d poems", #poems_data.poems))
 
     -- Load poem embeddings
-    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
+    local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
     local embeddings_data = utils.read_json_file(embeddings_file)
     if not embeddings_data then
         utils.log_error("Could not load poem embeddings - run --generate-embeddings first")
         return nil
     end
     local poem_lookup = build_poem_embeddings_lookup(embeddings_data)
-    utils.log_info("Built poem embeddings lookup")
 
     -- Load word embeddings (must exist from Stage 6)
     local word_embeddings = load_word_embeddings_cache()
@@ -936,7 +937,7 @@ function M.generate_word_html(options)
 
     -- Issue 8-043c: Load poem colors for semantic coloring
     -- Issue 10-034: Fixed path - poem_colors.json is in embeddings directory, not assets root
-    local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
+    local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
     local poem_colors = {}
     if poem_colors_data and poem_colors_data.poem_colors then
@@ -945,7 +946,6 @@ function M.generate_word_html(options)
                 poem_colors[entry.poem_index] = entry
             end
         end
-        utils.log_info(string.format("Loaded semantic colors for %d poems", #poem_colors_data.poem_colors))
     else
         utils.log_warn("No poem colors found - using default gray")
     end
@@ -954,18 +954,14 @@ function M.generate_word_html(options)
     local word_colors = load_word_colors_cache()
     local word_color_count = 0
     for _ in pairs(word_colors) do word_color_count = word_color_count + 1 end
-    if word_color_count > 0 then
-        utils.log_info(string.format("Loaded semantic colors for %d words", word_color_count))
-    else
+    if word_color_count == 0 then
         utils.log_warn("No word colors found - run --embeddings-only to generate them")
     end
 
     -- Issue 8-050b: Load color embeddings for balanced color selection
     local color_embeddings = load_color_embeddings()
     local use_balanced_selection = color_embeddings ~= nil
-    if use_balanced_selection then
-        utils.log_info("Loaded color embeddings for balanced color selection")
-    else
+    if not use_balanced_selection then
         utils.log_warn("No color embeddings found - using pure similarity ranking")
     end
 
