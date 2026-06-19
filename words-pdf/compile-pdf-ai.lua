@@ -12,6 +12,7 @@ hpdf = require "hpdf"
 fuzz = require "libs/fuzzy-computing"
 palette = require "themes/palette"
 art = require "libs/art-primitives"
+EMBEDDING_DRIVEN_PARAMS = require "themes/embedding-driven-params"
 
 -- LLM settings - ENABLED for Ollama embeddings
 -- Model name must match Ollama's loaded model exactly (lowercase per `ollama list`).
@@ -33,6 +34,16 @@ THEME_STATS = {
     total_pages = 0,
     total_poems = 0
 }
+
+-- Per-(theme, parameter) axis vectors computed at startup from the
+-- positive/negative keyword embeddings in themes/embedding-driven-params.lua.
+-- Structure: PARAM_AXES[theme_name] = { {name, low, high, axis = vector}, ... }
+PARAM_AXES = {}
+
+-- Per-page percentile values for each (theme, parameter) axis, populated by
+-- compute_page_percentiles() after build_book(). Structure:
+-- PAGE_PERCENTILES[page_num][theme_name][param_name] = float in [0, 1]
+PAGE_PERCENTILES = {}
 
 -- Layout Configuration Variables
 MAX_LINES_PER_PAGE = 155 -- Lines per page column (restored)
@@ -571,6 +582,127 @@ function initialize_theme_embeddings() -- {{{
     
     return THEME_EMBEDDINGS
 end -- }}}
+
+-- {{{ vector helpers (small, used by axis math below)
+local function vec_dot(a, b)
+    local sum = 0
+    for i = 1, #a do sum = sum + a[i] * b[i] end
+    return sum
+end
+
+local function vec_subtract_normalized(pos, neg)
+    -- Returns normalize(pos - neg). The axis points from neg-concept toward
+    -- pos-concept; projecting a poem vector onto this axis says how far along
+    -- the directed continuum the poem leans.
+    local diff = {}
+    local mag = 0
+    for i = 1, #pos do
+        diff[i] = pos[i] - neg[i]
+        mag = mag + diff[i] * diff[i]
+    end
+    mag = math.sqrt(mag)
+    if mag == 0 then return diff end  -- defensive; shouldn't happen in practice
+    for i = 1, #diff do diff[i] = diff[i] / mag end
+    return diff
+end
+-- }}}
+
+-- {{{ initialize_param_axes()
+-- For every (theme, parameter) in the embedding-driven config, embed the
+-- positive and negative keyword strings and compute the axis between them.
+-- Cached for the rest of the run via PARAM_AXES. With Issue 017's embedding
+-- cache, this is a one-time cost across reruns.
+function initialize_param_axes()
+    print("🎯 Initializing embedding-driven parameter axes...")
+    local axis_count = 0
+    for theme_name, params in pairs(EMBEDDING_DRIVEN_PARAMS) do
+        PARAM_AXES[theme_name] = {}
+        for _, p in ipairs(params) do
+            local pos_vec = fuzz.get_embedding(p.positive, LLM_MODEL)
+            local neg_vec = fuzz.get_embedding(p.negative, LLM_MODEL)
+            if pos_vec and neg_vec then
+                table.insert(PARAM_AXES[theme_name], {
+                    name = p.name,
+                    low  = p.low,
+                    high = p.high,
+                    axis = vec_subtract_normalized(pos_vec, neg_vec),
+                })
+                axis_count = axis_count + 1
+                print(string.format("  ✅ %s.%s axis ready (range %g..%g)",
+                    theme_name, p.name, p.low, p.high))
+            else
+                print(string.format("  ❌ %s.%s: keyword embedding failed; this parameter will fall back to 0.5 percentile",
+                    theme_name, p.name))
+            end
+        end
+    end
+    print(string.format("✨ %d parameter axes ready across %d themes", axis_count, table_length(PARAM_AXES)))
+end
+-- }}}
+
+-- {{{ compute_page_percentiles(book)
+-- For each page in the book, embed the concatenated page text once and
+-- project onto every parameter axis. After all pages are scored, sort by
+-- each (theme, parameter) and assign percentile ranks across the corpus.
+-- Percentiles, not raw scores, are what generators consume — this ensures
+-- the full [low, high] range is used regardless of how concentrated raw
+-- cosine projections happen to be (they typically cluster in narrow bands
+-- like [0.2, 0.6] rather than spanning [-1, 1]).
+function compute_page_percentiles(book)
+    if next(PARAM_AXES) == nil then
+        print("📊 No parameter axes defined; skipping percentile pass")
+        return
+    end
+    print("📊 Scoring pages against parameter axes...")
+
+    -- raw[theme][param][page_num] = projection score
+    local raw = {}
+    for theme_name, params in pairs(PARAM_AXES) do
+        raw[theme_name] = {}
+        for _, p in ipairs(params) do raw[theme_name][p.name] = {} end
+    end
+
+    for page_num, page in ipairs(book.pages) do
+        local page_text = ""
+        for _, poem in ipairs(page.left or {}) do
+            for _, line in ipairs(poem) do page_text = page_text .. " " .. line end
+        end
+        for _, poem in ipairs(page.right or {}) do
+            for _, line in ipairs(poem) do page_text = page_text .. " " .. line end
+        end
+        page_text = page_text:gsub("%s+", " ")
+        if #page_text >= 10 then
+            local page_vec = fuzz.get_embedding(page_text, LLM_MODEL)
+            if page_vec then
+                for theme_name, params in pairs(PARAM_AXES) do
+                    for _, p in ipairs(params) do
+                        raw[theme_name][p.name][page_num] = vec_dot(page_vec, p.axis)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Rank each (theme, param) independently. Pages with no score (empty,
+    -- or embedding failed) get the median 0.5 percentile as a safe default.
+    for theme_name, by_param in pairs(raw) do
+        for param_name, by_page in pairs(by_param) do
+            local ranked = {}
+            for page_num, _ in pairs(by_page) do table.insert(ranked, page_num) end
+            table.sort(ranked, function(a, b) return by_page[a] < by_page[b] end)
+            local n = #ranked
+            for rank, page_num in ipairs(ranked) do
+                PAGE_PERCENTILES[page_num] = PAGE_PERCENTILES[page_num] or {}
+                PAGE_PERCENTILES[page_num][theme_name] = PAGE_PERCENTILES[page_num][theme_name] or {}
+                PAGE_PERCENTILES[page_num][theme_name][param_name] = (n > 1) and ((rank - 1) / (n - 1)) or 0.5
+            end
+        end
+    end
+
+    print(string.format("✨ Computed percentiles for %d pages × %d themes",
+        #book.pages, table_length(PARAM_AXES)))
+end
+-- }}}
 
 -- Helper function to count table entries
 function table_length(t)
@@ -1204,21 +1336,24 @@ function calculate_art_spaces(page_poems, page_width, page_height, margins, colu
 end -- }}}
 
 -- Tier 1 theme generators.
--- Each takes (page, space, intensity) and draws into the given rectangle.
+-- Each takes (page, space) and draws into the given rectangle.
 -- The dispatch table below maps Tier 1 theme names to these functions,
 -- so draw_theme_art_in_spaces can look up the right generator per page.
 
--- {{{ generate_resistance(page, space, intensity)
-function generate_resistance(page, space, intensity)
+-- {{{ generate_resistance(page, space, params)
+function generate_resistance(page, space, params)
     -- Explosive radiating lines from center
-    local count = math.floor(15 * intensity)
+    params = params or {}
+    local ray_count = math.floor(4 + (params.ray_count or 0.5) * 21 + 0.5)
+    local max_length = math.floor(8 + (params.ray_length or 0.5) * 22 + 0.5)
+
     local cx = space.x + space.width / 2
     local cy = space.y + space.height / 2
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.resistance_red))
     hpdf.Page_SetLineWidth(page, 1.0)
-    for i = 1, count do
-        local angle = (i / count) * math.pi * 2
-        local length = 8 + math.random(15)
+    for i = 1, ray_count do
+        local angle = (i / ray_count) * math.pi * 2
+        local length = max_length * (0.5 + math.random() * 0.5)
         hpdf.Page_MoveTo(page, cx, cy)
         hpdf.Page_LineTo(page, cx + math.cos(angle) * length, cy + math.sin(angle) * length)
         hpdf.Page_Stroke(page)
@@ -1226,37 +1361,47 @@ function generate_resistance(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_technology(page, space, intensity)
-function generate_technology(page, space, intensity)
+-- {{{ generate_technology(page, space, params)
+function generate_technology(page, space, params)
     -- Green circuit traces, alternating horizontal and vertical
-    local count = math.floor(8 * intensity)
+    params = params or {}
+    local trace_count = math.floor(4 + (params.trace_count or 0.5) * 16 + 0.5)
+    local trace_length = math.floor(6 + (params.trace_length or 0.5) * 18 + 0.5)
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.circuit_green))
     hpdf.Page_SetLineWidth(page, 0.4)
-    for i = 1, count do
+    for i = 1, trace_count do
         local x = space.x + math.random() * space.width
         local y = space.y + math.random() * space.height
         if math.random() > 0.5 then
-            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x + 12, y)
+            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x + trace_length, y)
         else
-            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x, y + 12)
+            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x, y + trace_length)
         end
         hpdf.Page_Stroke(page)
     end
 end
 -- }}}
 
--- {{{ generate_creativity(page, space, intensity)
-function generate_creativity(page, space, intensity)
-    -- Flowing brush strokes in three rotating colors
-    local count = math.floor(10 * intensity)
-    for i = 1, count do
-        local color = palette.brush_set[math.random(#palette.brush_set)]
+-- {{{ generate_creativity(page, space, params)
+function generate_creativity(page, space, params)
+    -- Flowing brush strokes; three axes pull on count, wildness, and palette breadth
+    params = params or {}
+    local stroke_count = math.floor(4 + (params.stroke_count or 0.5) * 14 + 0.5)
+    local segments_per_stroke = math.floor(1 + (params.stroke_jaggedness or 0.5) * 5 + 0.5)
+    local color_palette_size = math.floor(1 + (params.color_richness or 0.5) * 2 + 0.5)
+    -- Use first N colors from brush_set, where N = color_palette_size (1..3)
+    local colors = {}
+    for i = 1, color_palette_size do colors[i] = palette.brush_set[i] end
+
+    for i = 1, stroke_count do
+        local color = colors[math.random(#colors)]
         local x = space.x + math.random() * space.width
         local y = space.y + math.random() * space.height
         hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
         hpdf.Page_SetLineWidth(page, 0.6)
         hpdf.Page_MoveTo(page, x, y)
-        for seg = 1, 3 do
+        for seg = 1, segments_per_stroke do
             x = x + math.random(-10, 10)
             y = y + math.random(-10, 10)
             hpdf.Page_LineTo(page, x, y)
@@ -1266,14 +1411,17 @@ function generate_creativity(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_isolation(page, space, intensity)
-function generate_isolation(page, space, intensity)
-    -- Density caps at ~6 marks regardless of intensity — isolation is
-    -- communicated by emptiness, not by adjusting mark count
-    local count = math.min(6, math.floor(4 * intensity))
+-- {{{ generate_isolation(page, space, params)
+function generate_isolation(page, space, params)
+    -- Density is fixed at 6 marks — isolation is communicated by emptiness,
+    -- not by adjusting mark count. Only the alpha varies along the embedding
+    -- axis (how present the loneliness is).
+    params = params or {}
+    local alpha = 0.3 + (params.alpha_level or 0.5) * 0.65
+    local count = 6
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.lonely_blue))
     hpdf.Page_SetLineWidth(page, 0.4)
-    art.with_alpha(page, 0.7, function()
+    art.with_alpha(page, alpha, function()
         for i = 1, count do
             local x = space.x + math.random() * space.width
             local y = space.y + math.random() * space.height
@@ -1284,18 +1432,22 @@ function generate_isolation(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_identity(page, space, intensity)
-function generate_identity(page, space, intensity)
+-- {{{ generate_identity(page, space, params)
+function generate_identity(page, space, params)
     -- Same square repeated in prism-set colors with small offsets — the
-    -- mark refracts into multiple selves
-    local count = math.floor(6 * intensity)
+    -- mark refracts into multiple selves. Shape count and refraction
+    -- offset both flow from the embedding.
+    params = params or {}
+    local count = math.floor(3 + (params.shape_count or 0.5) * 9 + 0.5)
+    local offset_scale = 1 + (params.offset_magnitude or 0.5) * 5
+
     for i = 1, count do
         local cx = space.x + math.random() * space.width
         local cy = space.y + math.random() * space.height
         local size = 6 + math.random(8)
         for ci, color in ipairs(palette.brush_set) do
-            local offset_x = (ci - 2) * 2
-            local offset_y = (ci - 2) * 1
+            local offset_x = (ci - 2) * offset_scale
+            local offset_y = (ci - 2) * (offset_scale * 0.5)
             art.with_alpha(page, 0.5, function()
                 hpdf.Page_SetRGBFill(page, color[1], color[2], color[3])
                 hpdf.Page_Rectangle(page, cx + offset_x, cy + offset_y, size, size)
@@ -1306,13 +1458,16 @@ function generate_identity(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_systems(page, space, intensity)
-function generate_systems(page, space, intensity)
+-- {{{ generate_systems(page, space, params)
+function generate_systems(page, space, params)
     -- Blueprint nodes connected by Manhattan right-angle paths
-    local node_count = math.floor(8 * intensity)
+    params = params or {}
+    local node_count = math.floor(4 + (params.node_count or 0.5) * 12 + 0.5)
+    local line_weight = 0.3 + (params.line_weight or 0.5) * 0.9
+
     local nodes = {}
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.blueprint_blue))
-    hpdf.Page_SetLineWidth(page, 0.5)
+    hpdf.Page_SetLineWidth(page, line_weight)
     for i = 1, node_count do
         local x = space.x + math.random() * space.width
         local y = space.y + math.random() * space.height
@@ -1330,19 +1485,23 @@ function generate_systems(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_connection(page, space, intensity)
-function generate_connection(page, space, intensity)
+-- {{{ generate_connection(page, space, params)
+function generate_connection(page, space, params)
     -- Warm bezier curves linking distant points, low alpha so layers weave
-    local curve_count = math.floor(8 * intensity)
+    params = params or {}
+    local curve_count = math.floor(3 + (params.curve_count or 0.5) * 11 + 0.5)
+    local max_sway = 8 + (params.sway_magnitude or 0.5) * 42
+    local alpha = 0.3 + (params.alpha_layering or 0.5) * 0.4
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.warm_amber))
     hpdf.Page_SetLineWidth(page, 0.6)
-    art.with_alpha(page, 0.5, function()
+    art.with_alpha(page, alpha, function()
         for i = 1, curve_count do
             local x1 = space.x + math.random() * space.width
             local y1 = space.y + math.random() * space.height
             local x2 = space.x + math.random() * space.width
             local y2 = space.y + math.random() * space.height
-            local sway = (math.random() - 0.5) * 40
+            local sway = (math.random() - 0.5) * 2 * max_sway
             art.flowing_curve(page, x1, y1, x2, y2, sway)
             hpdf.Page_Stroke(page)
         end
@@ -1350,10 +1509,13 @@ function generate_connection(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_chaos(page, space, intensity)
-function generate_chaos(page, space, intensity)
+-- {{{ generate_chaos(page, space, params)
+function generate_chaos(page, space, params)
     -- RGB-channel-separated overlapping rectangles for a glitch-print look
-    local count = math.floor(8 * intensity)
+    params = params or {}
+    local count = math.floor(4 + (params.glitch_count or 0.5) * 16 + 0.5)
+    local shift_scale = 1 + (params.shift_magnitude or 0.5) * 5
+
     local channels = {
         palette.accents.glitch_red,
         palette.accents.glitch_green,
@@ -1365,7 +1527,7 @@ function generate_chaos(page, space, intensity)
         local size = 8 + math.random(10)
         art.with_alpha(page, 0.6, function()
             for ci, color in ipairs(channels) do
-                local off = (ci - 2) * 2
+                local off = (ci - 2) * shift_scale
                 hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
                 hpdf.Page_SetLineWidth(page, 0.5)
                 hpdf.Page_Rectangle(page, x + off, y + off, size, size)
@@ -1376,17 +1538,37 @@ function generate_chaos(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_transcendence(page, space, intensity)
-function generate_transcendence(page, space, intensity)
-    -- Concentric mandala from radial arc segments, with a gold center
+-- {{{ generate_transcendence(page, space, params)
+-- Concentric mandala from radial arc segments with a gold center.
+-- This is the first generator to consume embedding-driven parameters
+-- (Issue 024). The three percentile values in `params` map to:
+--   ring_count       — how many concentric rings (axis: layered/recursive
+--                      vs singular/direct meaning)
+--   radial_count     — how many radial subdivisions per ring (axis: ritual/
+--                      structured vs spontaneous/free-form expression)
+--   gold_center_size — radius of the gold core (axis: revelation/clear focus
+--                      vs diffuse/peripheral feeling)
+-- All percentiles default to 0.5 if the params table is empty, so this
+-- generator still produces a reasonable mandala when called without the
+-- embedding-driven pipeline.
+function generate_transcendence(page, space, params)
+    params = params or {}
+    local p_rings  = params.ring_count       or 0.5
+    local p_radial = params.radial_count     or 0.5
+    local p_gold   = params.gold_center_size or 0.5
+
     local cx = space.x + space.width / 2
     local cy = space.y + space.height / 2
-    local rings = math.floor(4 * intensity) + 2
-    local radial_count = 8
+
+    -- Map percentiles to ranges declared in themes/embedding-driven-params.lua
+    local ring_count       = math.floor(2 + p_rings  * 6 + 0.5)   -- [2, 8]
+    local radial_count     = math.floor(4 + p_radial * 12 + 0.5)  -- [4, 16]
+    local gold_center_size = 1 + p_gold * 5                       -- [1, 6]
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.sacred_purple))
     hpdf.Page_SetLineWidth(page, 0.5)
     art.with_alpha(page, 0.7, function()
-        for r = 1, rings do
+        for r = 1, ring_count do
             local radius = r * 8
             for s = 0, radial_count - 1 do
                 local start_deg = s * (360 / radial_count)
@@ -1396,16 +1578,19 @@ function generate_transcendence(page, space, intensity)
             end
         end
         hpdf.Page_SetRGBFill(page, table.unpack(palette.accents.temple_gold))
-        hpdf.Page_Circle(page, cx, cy, 2)
+        hpdf.Page_Circle(page, cx, cy, gold_center_size)
         hpdf.Page_Fill(page)
     end)
 end
 -- }}}
 
--- {{{ generate_survival(page, space, intensity)
-function generate_survival(page, space, intensity)
+-- {{{ generate_survival(page, space, params)
+function generate_survival(page, space, params)
     -- Vertical trunks with branching root-curves recursing one level
-    local trunk_count = math.max(1, math.floor(3 * intensity))
+    params = params or {}
+    local trunk_count = math.floor(1 + (params.trunk_count or 0.5) * 5 + 0.5)
+    local branches_per_trunk = math.floor(2 + (params.branch_count or 0.5) * 8 + 0.5)
+
     hpdf.Page_SetLineWidth(page, 0.5)
     for t = 1, trunk_count do
         local x = space.x + math.random() * space.width
@@ -1416,7 +1601,7 @@ function generate_survival(page, space, intensity)
         hpdf.Page_Stroke(page)
         hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.root_tan))
         hpdf.Page_SetLineWidth(page, 0.3)
-        for b = 1, 4 do
+        for b = 1, branches_per_trunk do
             local fx = x + math.random(-3, 3)
             local fy = y_top - math.random() * space.height * 0.7
             local bx = fx + math.random(-20, 20)
@@ -1428,17 +1613,19 @@ function generate_survival(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_nature(page, space, intensity)
-function generate_nature(page, space, intensity)
+-- {{{ generate_nature(page, space, params)
+function generate_nature(page, space, params)
     -- Branching curves rooted at random points, growing organically
+    params = params or {}
+    local stems = math.floor(4 + (params.stem_count or 0.5) * 14 + 0.5)
+    local branches_per_stem = math.floor(2 + (params.branch_recursion or 0.5) * 6 + 0.5)
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.forest_green))
     hpdf.Page_SetLineWidth(page, 0.3)
-    local stems = math.floor(10 * intensity)
     for i = 1, stems do
         local x = space.x + math.random() * space.width
         local y = space.y + math.random() * space.height
-        local branches = 3 + math.random(3)
-        for b = 1, branches do
+        for b = 1, branches_per_stem do
             local angle = (math.random() - 0.5) * math.pi
             local length = 15 + math.random(30)
             local ex = x + math.cos(angle) * length
@@ -1451,10 +1638,13 @@ function generate_nature(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_urban(page, space, intensity)
-function generate_urban(page, space, intensity)
+-- {{{ generate_urban(page, space, params)
+function generate_urban(page, space, params)
     -- Scattered neon rectangle outlines suggesting a city map
-    local count = math.floor(15 * intensity)
+    params = params or {}
+    local count = math.floor(5 + (params.block_count or 0.5) * 25 + 0.5)
+    local max_size = math.floor(10 + (params.block_scale or 0.5) * 25 + 0.5)
+
     local colors = { palette.neon_set[1], palette.neon_set[2], palette.neon_set[3] }
     for i = 1, count do
         local color = colors[math.random(#colors)]
@@ -1462,23 +1652,25 @@ function generate_urban(page, space, intensity)
         hpdf.Page_SetLineWidth(page, 0.5 + math.random())
         local x = space.x + math.random() * space.width
         local y = space.y + math.random() * space.height
-        local size = 8 + math.random(20)
+        local size = max_size * (0.4 + math.random() * 0.6)
         hpdf.Page_Rectangle(page, x, y, size, size)
         hpdf.Page_Stroke(page)
     end
 end
 -- }}}
 
--- {{{ generate_energy(page, space, intensity)
-function generate_energy(page, space, intensity)
-    -- Radiating bursts from 1-2 focal points, white at core to orange at edge
-    local focal_count = 1 + math.random(1)
+-- {{{ generate_energy(page, space, params)
+function generate_energy(page, space, params)
+    -- Radiating bursts from one or more focal points, white at core to orange at edge
+    params = params or {}
+    local focal_count = math.floor(1 + (params.focal_count or 0.5) * 3 + 0.5)
+    local rays_per_focal = math.floor(8 + (params.ray_count or 0.5) * 27 + 0.5)
+
     for f = 1, focal_count do
-        local cx = space.x + space.width * (0.3 + math.random() * 0.4)
-        local cy = space.y + space.height * (0.3 + math.random() * 0.4)
-        local ray_count = math.floor(20 * intensity)
-        for i = 1, ray_count do
-            local angle = (i / ray_count) * math.pi * 2 + math.random() * 0.2
+        local cx = space.x + space.width * (0.2 + math.random() * 0.6)
+        local cy = space.y + space.height * (0.2 + math.random() * 0.6)
+        for i = 1, rays_per_focal do
+            local angle = (i / rays_per_focal) * math.pi * 2 + math.random() * 0.2
             local length = 10 + math.random(25)
             local mid_x = cx + math.cos(angle) * length * 0.5
             local mid_y = cy + math.sin(angle) * length * 0.5
@@ -1497,10 +1689,13 @@ function generate_energy(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_love(page, space, intensity)
-function generate_love(page, space, intensity)
+-- {{{ generate_love(page, space, params)
+function generate_love(page, space, params)
     -- Paired pink curves that braid — each pair swings opposite ways
-    local pair_count = math.floor(5 * intensity)
+    params = params or {}
+    local pair_count = math.floor(2 + (params.braid_count or 0.5) * 8 + 0.5)
+    local max_sway = 6 + (params.sway_intensity or 0.5) * 18
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.soft_pink))
     hpdf.Page_SetLineWidth(page, 0.7)
     art.with_alpha(page, 0.6, function()
@@ -1509,7 +1704,7 @@ function generate_love(page, space, intensity)
             local y1 = space.y + math.random() * space.height
             local x2 = space.x + math.random() * space.width
             local y2 = space.y + math.random() * space.height
-            local sway = 8 + math.random(12)
+            local sway = max_sway * (0.5 + math.random() * 0.5)
             art.flowing_curve(page, x1, y1, x2, y2, sway)
             hpdf.Page_Stroke(page)
             art.flowing_curve(page, x1 + 3, y1, x2 + 3, y2, -sway)
@@ -1519,10 +1714,16 @@ function generate_love(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_melancholy(page, space, intensity)
-function generate_melancholy(page, space, intensity)
-    -- Downward strokes, color washes from tear_blue at top to rain_gray at bottom
-    local count = math.floor(20 * intensity)
+-- {{{ generate_melancholy(page, space, params)
+function generate_melancholy(page, space, params)
+    -- Downward strokes, color washes from tear_blue at top to rain_gray at bottom.
+    -- One axis (saturation) drives both drop count and drop length together;
+    -- giving sorrow independent knobs would feel mechanical.
+    params = params or {}
+    local saturation = 0.2 + (params.saturation or 0.5) * 0.8
+    local count = math.floor(8 + saturation * 32 + 0.5)
+    local max_drop = 2 + saturation * 10
+
     local c1 = palette.accents.tear_blue
     local c2 = palette.accents.rain_gray
     for i = 1, count do
@@ -1535,22 +1736,25 @@ function generate_melancholy(page, space, intensity)
             c1[3] * t + c2[3] * (1 - t))
         hpdf.Page_SetLineWidth(page, 0.4)
         hpdf.Page_MoveTo(page, x, y)
-        hpdf.Page_LineTo(page, x, y - 4 - math.random() * 4)
+        hpdf.Page_LineTo(page, x, y - max_drop * (0.4 + math.random() * 0.6))
         hpdf.Page_Stroke(page)
     end
 end
 -- }}}
 
--- {{{ generate_dream(page, space, intensity)
-function generate_dream(page, space, intensity)
+-- {{{ generate_dream(page, space, params)
+function generate_dream(page, space, params)
     -- Smooth Bezier sine waves at varied amplitudes, layered at low alpha
+    params = params or {}
+    local wave_count = math.floor(3 + (params.wave_count or 0.5) * 11 + 0.5)
+    local max_amplitude = 6 + (params.amplitude or 0.5) * 24
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.dreamy_purple))
     hpdf.Page_SetLineWidth(page, 0.3)
-    local wave_count = math.floor(8 * intensity)
     art.with_alpha(page, 0.5, function()
         for w = 1, wave_count do
             local y_base = space.y + math.random() * space.height
-            local amplitude = 8 + math.random(20)
+            local amplitude = max_amplitude * (0.4 + math.random() * 0.6)
             local segs = 6
             local seg_width = space.width / segs
             hpdf.Page_MoveTo(page, space.x, y_base)
@@ -1570,10 +1774,13 @@ function generate_dream(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_constellation(page, space, intensity)
-function generate_constellation(page, space, intensity)
+-- {{{ generate_constellation(page, space, params)
+function generate_constellation(page, space, params)
     -- Gold star points with thin night-blue lines between consecutive stars
-    local star_count = math.floor(10 * intensity)
+    params = params or {}
+    local star_count = math.floor(6 + (params.star_count or 0.5) * 18 + 0.5)
+    local star_size = 0.5 + (params.star_size or 0.5) * 2.0
+
     local stars = {}
     for i = 1, star_count do
         stars[i] = {
@@ -1592,22 +1799,25 @@ function generate_constellation(page, space, intensity)
     end)
     hpdf.Page_SetRGBFill(page, table.unpack(palette.accents.star_gold))
     for _, s in ipairs(stars) do
-        hpdf.Page_Circle(page, s.x, s.y, 1.0)
+        hpdf.Page_Circle(page, s.x, s.y, star_size)
         hpdf.Page_Fill(page)
     end
 end
 -- }}}
 
--- {{{ generate_spiral(page, space, intensity)
-function generate_spiral(page, space, intensity)
+-- {{{ generate_spiral(page, space, params)
+function generate_spiral(page, space, params)
     -- Single growing spiral built from arc segments at increasing radii
+    params = params or {}
+    local segments = math.floor(10 + (params.segment_count or 0.5) * 30 + 0.5)
+    local growth_rate = 0.8 + (params.growth_rate or 0.5) * 1.7
+
     local cx = space.x + space.width / 2
     local cy = space.y + space.height / 2
-    local segments = math.floor(20 * intensity) + 10
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.sacred_purple))
     hpdf.Page_SetLineWidth(page, 0.4)
     for i = 1, segments do
-        local radius = i * 1.5
+        local radius = i * growth_rate
         local start_deg = i * 25
         local end_deg = start_deg + 30
         art.arc(page, cx, cy, radius, start_deg, end_deg)
@@ -1616,17 +1826,19 @@ function generate_spiral(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_circuit(page, space, intensity)
-function generate_circuit(page, space, intensity)
+-- {{{ generate_circuit(page, space, params)
+function generate_circuit(page, space, params)
     -- Manhattan-geometry circuit traces with junction nodes at each turn
+    params = params or {}
+    local trace_count = math.floor(4 + (params.trace_count or 0.5) * 16 + 0.5)
+    local segs_per_trace = math.floor(2 + (params.segments_per_trace or 0.5) * 6 + 0.5)
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.circuit_green))
     hpdf.Page_SetLineWidth(page, 0.5)
-    local trace_count = math.floor(10 * intensity)
     for i = 1, trace_count do
         local x = space.x + math.random() * space.width
         local y = space.y + math.random() * space.height
-        local segs = 2 + math.random(3)
-        for s = 1, segs do
+        for s = 1, segs_per_trace do
             local len = 6 + math.random(10)
             local nx, ny = x, y
             if math.random() > 0.5 then
@@ -1645,17 +1857,20 @@ function generate_circuit(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_lightning(page, space, intensity)
-function generate_lightning(page, space, intensity)
+-- {{{ generate_lightning(page, space, params)
+function generate_lightning(page, space, params)
     -- Jagged bolts from top to bottom, drawn twice: thick blue glow + thin white core
-    local bolt_count = math.min(4, math.floor(2 * intensity) + 1)
+    params = params or {}
+    local bolt_count = math.floor(1 + (params.bolt_count or 0.5) * 4 + 0.5)
+    local jag_max = 4 + (params.jaggedness or 0.5) * 12
+
     for b = 1, bolt_count do
         local x = space.x + math.random() * space.width
         local y = space.y + space.height
         local path_x, path_y = { x }, { y }
         while y > space.y do
             y = y - 6 - math.random() * 8
-            x = x + (math.random() - 0.5) * 12
+            x = x + (math.random() - 0.5) * jag_max
             table.insert(path_x, x)
             table.insert(path_y, y)
         end
@@ -1673,16 +1888,19 @@ function generate_lightning(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_crystal(page, space, intensity)
-function generate_crystal(page, space, intensity)
+-- {{{ generate_crystal(page, space, params)
+function generate_crystal(page, space, params)
     -- Hexagonal facets with internal subdivision lines suggesting refraction
-    local count = math.floor(5 * intensity)
+    params = params or {}
+    local count = math.floor(2 + (params.facet_count or 0.5) * 8 + 0.5)
+    local max_radius = 6 + (params.facet_radius or 0.5) * 12
+
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.crystal_cyan))
     hpdf.Page_SetLineWidth(page, 0.4)
     for i = 1, count do
         local cx = space.x + math.random() * space.width
         local cy = space.y + math.random() * space.height
-        local radius = 8 + math.random(10)
+        local radius = max_radius * (0.5 + math.random() * 0.5)
         local first_x, first_y = cx + radius, cy
         hpdf.Page_MoveTo(page, first_x, first_y)
         for s = 1, 5 do
@@ -1701,8 +1919,8 @@ function generate_crystal(page, space, intensity)
 end
 -- }}}
 
--- {{{ generate_neutral(page, space, intensity)
-function generate_neutral(page, space, intensity)
+-- {{{ generate_neutral(page, space)
+function generate_neutral(page, space)
     -- Intentionally minimal: a single faint horizon line. Neutral should
     -- feel chosen, not absent.
     hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.pale_gray))
@@ -1745,13 +1963,17 @@ local theme_generators = {
 }
 -- }}}
 
--- {{{ draw_theme_art_in_spaces(page, space_list, theme, intensity)
-function draw_theme_art_in_spaces(pdf_page, space_list, theme, intensity_multiplier)
+-- {{{ draw_theme_art_in_spaces(page, space_list, theme, page_num)
+function draw_theme_art_in_spaces(pdf_page, space_list, theme, page_num)
     prepare_for_graphics(pdf_page)
     print("🎨 Generating " .. theme .. " theme art")
     local gen = theme_generators[theme] or theme_generators.neutral
+    -- Pull this page's percentile-driven params for this theme, if any.
+    -- Generators that don't have configured axes get an empty params table
+    -- and fall back to their 0.5-percentile defaults internally.
+    local params = (page_num and PAGE_PERCENTILES[page_num] and PAGE_PERCENTILES[page_num][theme]) or {}
     for _, space in ipairs(space_list) do
-        gen(pdf_page, space, intensity_multiplier)
+        gen(pdf_page, space, params)
     end
 end
 -- }}}
@@ -1822,9 +2044,9 @@ end -- }}}
 -- Tier 1 page art, drawn only in the regions outside the poem boxes.
 -- The space_list comes from calculate_art_spaces, filtered down to the
 -- regions a generator should occupy without overlapping any poem.
-function draw_tier1_page_art(pdf_page, space_list, tier1_theme, intensity) -- {{{
+function draw_tier1_page_art(pdf_page, space_list, tier1_theme, page_num) -- {{{
     print(string.format("🎨 Drawing %s art in %d outside region(s)", tier1_theme, #space_list))
-    draw_theme_art_in_spaces(pdf_page, space_list, tier1_theme, intensity * 2.0)
+    draw_theme_art_in_spaces(pdf_page, space_list, tier1_theme, page_num)
 end -- }}}
 
 -- {{{ compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
@@ -1902,7 +2124,7 @@ end
 -- outside the poem boxes, and Issue 020 fills each box with its Tier 3
 -- color, so explicit masking after the fact is no longer needed.
 
-function generate_page_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height) -- {{{
+function generate_page_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height, page_num) -- {{{
     local page_theme = analyze_page_themes(page_poems.left or {}, page_poems.right or {})
     print("🎨 Page background theme: " .. page_theme)
 
@@ -1929,7 +2151,7 @@ function generate_page_art(pdf_page, page_poems, page_width, page_height, margin
         for _, region in ipairs(spaces.center)       do table.insert(outside_regions, region) end
 
         if #outside_regions > 0 then
-            draw_tier1_page_art(pdf_page, outside_regions, page_theme, 1.0)
+            draw_tier1_page_art(pdf_page, outside_regions, page_theme, page_num)
         else
             print("🔍 No outside regions on this page — skipping Tier 1 art")
         end
@@ -2036,7 +2258,7 @@ function build_pdf(book)
             top = top_margin,
             bottom = bottom_margin
         }
-        generate_page_art(pdf_page, page, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
+        generate_page_art(pdf_page, page, page_width, page_height, margins, column_width, column_gap, page_shift, line_height, page_num)
         
         -- STEP 2: Draw column divider (after art, before text)
         -- Set divider color to black explicitly
@@ -2101,6 +2323,8 @@ function main(    )
               book = {  pages = {}, poems = {},  }
               book =  load_file (book)
               book = build_book (book)
+              initialize_param_axes()
+              compute_page_percentiles(book)
 --              book = build_color(book)
                pdf = build_pdf  (book)
                print("Poems:", #book.poems, "Pages:", #book.pages)
