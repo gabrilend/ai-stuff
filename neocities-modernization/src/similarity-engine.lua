@@ -26,6 +26,14 @@ local M = {}
 
 -- {{{ Model configurations
 local embedding_models = {
+    ["nomic-embed-text:v1.5"] = {
+        dimensions = 768,
+        endpoint_path = "/api/embed",
+        timeout = 30,
+        -- v1.5 routes through task-specific weights based on prompt prefix;
+        -- the active prefix is configured per ollama_servers entry.
+        requires_prompt_prefix = true,
+    },
     ["embeddinggemma:latest"] = {
         dimensions = 768,
         endpoint_path = "/api/embed",
@@ -111,7 +119,9 @@ local function generate_embedding(text, endpoint, model_name)
     local temp_file = DIR .. "/tmp/embedding_input.json"
     local payload = {
         model = model_name,
-        input = text
+        -- Apply the active server's task-prefix (e.g. "clustering: " for
+        -- nomic-embed-text v1.5+). No-op for models that don't need one.
+        input = ollama_config.format_embedding_prompt(text)
     }
     
     local f = io.open(temp_file, "w")

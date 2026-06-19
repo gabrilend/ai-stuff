@@ -102,11 +102,15 @@ local function generate_single_embedding(text, model_name, endpoint)
     -- default_ollama_server, so there is no need to duplicate that logic here.
     endpoint = endpoint or ollama_config.build_host_url()
     model_name = model_name or ollama_config.get_selected_model()
-    
+    -- Apply the active server's task-prefix so both the color words and
+    -- the poems are embedded with matching prefixes (essential for the
+    -- subsequent cosine-similarity comparison to be meaningful).
+    local prefixed_text = ollama_config.format_embedding_prompt(text)
+
     -- Use curl to call Ollama API directly
     local cmd = string.format(
         "curl -s -X POST %s/api/embeddings -H 'Content-Type: application/json' -d '{\"model\": \"%s\", \"prompt\": \"%s\"}'",
-        endpoint, model_name, text
+        endpoint, model_name, prefixed_text
     )
     
     local handle = io.popen(cmd)

@@ -161,7 +161,10 @@ local function generate_single_embedding(word, endpoint)
     local temp_file = DIR .. "/tmp/word_embedding_input.json"
     local payload = {
         model = CONFIG.model_name,
-        prompt = word
+        -- Apply the active server's task-prefix (e.g. "clustering: " for
+        -- nomic-embed-text v1.5+). Word embeddings need to share the
+        -- same prefix as poem embeddings so the cross-comparison works.
+        prompt = ollama_config.format_embedding_prompt(word)
     }
 
     -- Write request payload
