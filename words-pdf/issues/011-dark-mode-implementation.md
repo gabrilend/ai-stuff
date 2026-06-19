@@ -1,4 +1,4 @@
-# Issue 005: Dark Mode Implementation
+# Issue 011: Dark Mode Implementation
 
 ## Current Behavior
 The PDF generation system only supports standard light mode rendering without dark mode options.

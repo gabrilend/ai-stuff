@@ -6,12 +6,16 @@ FILE = arg[2]
 package.cpath = package.cpath .. ";" .. DIR .. "/libs/luahpdf/?.so"
 package.cpath = package.cpath .. ";" .. DIR .. "/libs/libharu-RELEASE_2_3_0/build/src/?.so"
 package.path = package.path .. ";" .. DIR .. "/libs/?.lua"
+package.path = package.path .. ";" .. DIR .. "/?.lua"
 
 hpdf = require "hpdf"
 fuzz = require "libs/fuzzy-computing"
+palette = require "themes/palette"
+art = require "libs/art-primitives"
 
 -- LLM settings - ENABLED for Ollama embeddings
-LLM_MODEL = "EmbeddingGemma:latest"
+-- Model name must match Ollama's loaded model exactly (lowercase per `ollama list`).
+LLM_MODEL = "embeddinggemma:latest"
 ENABLE_OLLAMA_EMBEDDINGS = true  -- Enable the embedding system
 
 -- Multi-tier theme embeddings cache (initialized once)
@@ -33,6 +37,15 @@ THEME_STATS = {
 -- Layout Configuration Variables
 MAX_LINES_PER_PAGE = 155 -- Lines per page column (restored)
 MAX_CHAR_PER_LINE  = 80  -- Characters per line (content width)
+
+-- Threshold for rendering Tier 1 (page-level) art. The page's fill ratio
+-- is the fraction of available column-lines that are occupied by poems.
+-- Tier 1 art only renders when the page is LESS full than this threshold,
+-- so dense text-heavy pages stay quiet and sparse pages get the expressive
+-- background art filling their breathing room. Tunable.
+-- 0.0 = never render Tier 1 art; 1.0 = always render it; 0.65 = render when
+-- at least 35% of the page is empty. See docs/balance-updates.md for history.
+TIER1_ART_THRESHOLD = 0.65
 
 -- Box Drawing Characters - trying different characters that might connect better
 BOX_TOP_LEFT     = "."   -- Top left corner (more rounded look)
@@ -62,7 +75,7 @@ LEFT_MARGIN      = 10    -- Left page margin
 RIGHT_MARGIN     = 10    -- Right page margin  
 TOP_MARGIN       = 60   -- Top page margin
 BOTTOM_MARGIN    = 0    -- Bottom page margin
-BACKGROUND_COLOR = {0.9, 0.7, 1.0}  -- Light purple background for masking poem areas (testing color)
+BACKGROUND_COLOR = palette.mask_color
 -- TEXT_COLORS disabled for now
 -- TEXT_COLORS        = {
 --            ["RED"] = { ["r"] = 1.0, ["g"] = 0.0, ["b"] = 0.0 },
@@ -306,20 +319,16 @@ end -- }}}
 
 function draw_boxed_poem(pdf_page, font, poem, start_x, start_y, max_width, line_height, min_y, alignment)
     if #poem == 0 then return start_y end
-    
-    -- Set text color to black explicitly
-    hpdf.Page_SetRGBFill(pdf_page, 0.0, 0.0, 0.0)
-    hpdf.Page_SetRGBStroke(pdf_page, 0.0, 0.0, 0.0)
-    
+
     -- Calculate poem dimensions with extra padding
     local poem_width = 0
     for _, line in ipairs(poem) do
         if #line > poem_width then poem_width = #line end
     end
     poem_width = poem_width + 4 -- Add padding: 2 for box borders + 2 for internal spacing
-    
+
     local box_width = math.min(poem_width, max_width - 2)
-    
+
     -- Calculate actual x position based on alignment
     local actual_x = start_x
     if alignment == "right" then
@@ -329,7 +338,28 @@ function draw_boxed_poem(pdf_page, font, poem, start_x, start_y, max_width, line
         -- For center alignment, center the box within the available width
         actual_x = start_x + (max_width - box_width) / 2
     end
-    
+
+    -- Draw the Tier 3 background fill behind the text, so the per-poem color
+    -- is visible and Tier 1 art doesn't bleed through gaps between characters.
+    -- The Tier 3 embedding call is warm-cached by this point because the
+    -- Tier 2 classification in generate_individual_poem_art ran earlier on
+    -- the same page and used the same poem embedding.
+    local theme = analyze_individual_poem_theme(poem)
+    local fill_color = palette.tier3_backgrounds[theme] or palette.tier3_backgrounds.neutral
+    -- Box covers: top border + top padding + #poem content + bottom padding + bottom border = #poem + 4 lines
+    local total_box_lines = #poem + 4
+    local box_height_pts = total_box_lines * line_height
+    -- Courier monospace at FONT_SIZE: each char ~ 0.6 * FONT_SIZE wide
+    local box_width_pts = box_width * FONT_SIZE * 0.6
+    hpdf.Page_SetRGBFill(pdf_page, table.unpack(fill_color))
+    hpdf.Page_Rectangle(pdf_page, actual_x, start_y - box_height_pts + line_height * 0.5,
+        box_width_pts, box_height_pts)
+    hpdf.Page_Fill(pdf_page)
+
+    -- Restore text color (black) after the fill, so subsequent text draws correctly
+    hpdf.Page_SetRGBFill(pdf_page, table.unpack(palette.text_color))
+    hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.text_color))
+
     local current_y = start_y
     
     -- Draw top border
@@ -904,72 +934,7 @@ end -- }}}
 
 -- Tier 3 theme-based color generation for individual poems (40 themes)
 function generate_poem_color_from_theme(poem, theme) -- {{{
-    local tier3_theme_colors = {
-        -- Resistance themes
-        direct_action =        {0.95, 0.85, 0.85}, -- Light red/pink
-        electoral_critique =   {0.90, 0.85, 0.90}, -- Light purple-gray
-        anarchist_theory =     {0.98, 0.85, 0.85}, -- Light anarchist red
-        
-        -- Technology themes  
-        programming_philosophy = {0.85, 0.95, 0.90}, -- Light mint
-        ai_consciousness =     {0.85, 0.90, 0.95}, -- Light blue
-        infrastructure_critique = {0.88, 0.88, 0.90}, -- Light gray-blue
-        
-        -- Isolation themes
-        social_media_fatigue = {0.90, 0.88, 0.93}, -- Light purple-gray
-        geographic_isolation = {0.85, 0.90, 0.88}, -- Light blue-gray
-        emotional_walls =      {0.88, 0.85, 0.90}, -- Light gray-purple
-        
-        -- Identity themes
-        autistic_masking =     {0.90, 0.95, 0.85}, -- Light lime
-        trans_experience =     {0.95, 0.90, 0.95}, -- Light pink
-        witch_identity =       {0.90, 0.85, 0.98}, -- Light purple
-        plural_systems =       {0.95, 0.88, 0.92}, -- Light rose
-        
-        -- Systems themes
-        economic_systems =     {0.88, 0.90, 0.88}, -- Light olive
-        social_organization =  {0.90, 0.88, 0.85}, -- Light tan
-        technical_architecture = {0.85, 0.88, 0.95}, -- Light steel blue
-        
-        -- Connection themes
-        online_communities =   {0.88, 0.95, 0.90}, -- Light green
-        local_organizing =     {0.90, 0.93, 0.85}, -- Light yellow-green
-        intimate_relationships = {0.98, 0.90, 0.88}, -- Light peach
-        
-        -- Chaos themes
-        mental_overflow =      {0.95, 0.88, 0.85}, -- Light coral
-        system_glitches =      {0.90, 0.85, 0.85}, -- Light red-gray
-        digital_chaos =        {0.88, 0.85, 0.95}, -- Light blue-purple
-        
-        -- Transcendence themes
-        spiritual_technology = {0.92, 0.88, 0.98}, -- Light lavender
-        cosmic_consciousness = {0.85, 0.88, 0.98}, -- Light cosmic blue
-        mystical_practice =    {0.95, 0.85, 0.95}, -- Light magenta
-        
-        -- Survival themes
-        resource_scarcity =    {0.88, 0.85, 0.80}, -- Light brown
-        mutual_aid_practice =  {0.85, 0.90, 0.85}, -- Light green
-        survival_preparation = {0.90, 0.88, 0.80}, -- Light tan-brown
-        
-        -- Creativity themes
-        creative_process =     {0.98, 0.95, 0.85}, -- Light cream
-        generative_art =       {0.95, 0.88, 0.95}, -- Light pink-purple
-        artistic_expression =  {0.98, 0.90, 0.85}, -- Light peach-yellow
-        technical_creativity = {0.85, 0.95, 0.88}, -- Light mint-green
-        collaborative_creation = {0.90, 0.95, 0.88}, -- Light sage
-        digital_art =          {0.88, 0.90, 0.98}, -- Light sky blue
-        music_creation =       {0.95, 0.85, 0.90}, -- Light rose-red
-        writing_craft =        {0.88, 0.98, 0.88}, -- Light mint
-        design_thinking =      {0.90, 0.88, 0.98}, -- Light periwinkle
-        maker_culture =        {0.85, 0.88, 0.85}, -- Light sage-gray
-        creative_tools =       {0.88, 0.95, 0.85}, -- Light lime-green
-        aesthetic_philosophy = {0.98, 0.88, 0.90}, -- Light blush
-        
-        -- Fallback colors for missing themes
-        neutral =              {0.93, 0.93, 0.93}  -- Light gray
-    }
-    
-    local base_color = tier3_theme_colors[theme] or tier3_theme_colors.neutral
+    local base_color = palette.tier3_backgrounds[theme] or palette.tier3_backgrounds.neutral
     
     -- Return static color without variation for consistent theme identification
     return {
@@ -1238,305 +1203,558 @@ function calculate_art_spaces(page_poems, page_width, page_height, margins, colu
     return spaces
 end -- }}}
 
--- Art generation functions
-function generate_fish_particles(pdf_page, spaces, analysis) -- {{{
-    -- Particle-like lines that move like a school of fish
-    local fish_count = math.floor(analysis.intensity * 50) + 20
-    
-    for _, space in ipairs(spaces.left_margin) do
-        -- Try graphics operations, skip if they fail
-        local success = pcall(function()
-            hpdf.Page_SetRGBStroke(pdf_page, 0.3, 0.6, 0.8) -- Ocean blue
-            hpdf.Page_SetLineWidth(pdf_page, 0.5)
-        end)
-        
-        if not success then
-            print("⚠️ Skipped fish particle setup due to mode conflict")
-            return
+-- Tier 1 theme generators.
+-- Each takes (page, space, intensity) and draws into the given rectangle.
+-- The dispatch table below maps Tier 1 theme names to these functions,
+-- so draw_theme_art_in_spaces can look up the right generator per page.
+
+-- {{{ generate_resistance(page, space, intensity)
+function generate_resistance(page, space, intensity)
+    -- Explosive radiating lines from center
+    local count = math.floor(15 * intensity)
+    local cx = space.x + space.width / 2
+    local cy = space.y + space.height / 2
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.resistance_red))
+    hpdf.Page_SetLineWidth(page, 1.0)
+    for i = 1, count do
+        local angle = (i / count) * math.pi * 2
+        local length = 8 + math.random(15)
+        hpdf.Page_MoveTo(page, cx, cy)
+        hpdf.Page_LineTo(page, cx + math.cos(angle) * length, cy + math.sin(angle) * length)
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_technology(page, space, intensity)
+function generate_technology(page, space, intensity)
+    -- Green circuit traces, alternating horizontal and vertical
+    local count = math.floor(8 * intensity)
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.circuit_green))
+    hpdf.Page_SetLineWidth(page, 0.4)
+    for i = 1, count do
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        if math.random() > 0.5 then
+            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x + 12, y)
+        else
+            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x, y + 12)
         end
-        
-        for i = 1, fish_count do
-            local start_x = space.x + math.random() * space.width
-            local start_y = space.y + math.random() * space.height
-            local length = 3 + math.random() * 8
-            local angle = math.random() * math.pi * 2
-            
-            local end_x = start_x + math.cos(angle) * length
-            local end_y = start_y + math.sin(angle) * length
-            
-            -- Try each fish particle, skip if it fails
-            local fish_success = pcall(function()
-                hpdf.Page_MoveTo(pdf_page, start_x, start_y)
-                hpdf.Page_LineTo(pdf_page, end_x, end_y)
-                hpdf.Page_Stroke(pdf_page)
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_creativity(page, space, intensity)
+function generate_creativity(page, space, intensity)
+    -- Flowing brush strokes in three rotating colors
+    local count = math.floor(10 * intensity)
+    for i = 1, count do
+        local color = palette.brush_set[math.random(#palette.brush_set)]
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
+        hpdf.Page_SetLineWidth(page, 0.6)
+        hpdf.Page_MoveTo(page, x, y)
+        for seg = 1, 3 do
+            x = x + math.random(-10, 10)
+            y = y + math.random(-10, 10)
+            hpdf.Page_LineTo(page, x, y)
+        end
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_isolation(page, space, intensity)
+function generate_isolation(page, space, intensity)
+    -- Density caps at ~6 marks regardless of intensity — isolation is
+    -- communicated by emptiness, not by adjusting mark count
+    local count = math.min(6, math.floor(4 * intensity))
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.lonely_blue))
+    hpdf.Page_SetLineWidth(page, 0.4)
+    art.with_alpha(page, 0.7, function()
+        for i = 1, count do
+            local x = space.x + math.random() * space.width
+            local y = space.y + math.random() * space.height
+            hpdf.Page_Circle(page, x, y, 1.5)
+            hpdf.Page_Stroke(page)
+        end
+    end)
+end
+-- }}}
+
+-- {{{ generate_identity(page, space, intensity)
+function generate_identity(page, space, intensity)
+    -- Same square repeated in prism-set colors with small offsets — the
+    -- mark refracts into multiple selves
+    local count = math.floor(6 * intensity)
+    for i = 1, count do
+        local cx = space.x + math.random() * space.width
+        local cy = space.y + math.random() * space.height
+        local size = 6 + math.random(8)
+        for ci, color in ipairs(palette.brush_set) do
+            local offset_x = (ci - 2) * 2
+            local offset_y = (ci - 2) * 1
+            art.with_alpha(page, 0.5, function()
+                hpdf.Page_SetRGBFill(page, color[1], color[2], color[3])
+                hpdf.Page_Rectangle(page, cx + offset_x, cy + offset_y, size, size)
+                hpdf.Page_Fill(page)
             end)
-            if not fish_success then
-                print("⚠️ Skipped fish particle due to mode conflict")
-            end
         end
     end
-end -- }}}
+end
+-- }}}
 
-function generate_neon_lines(pdf_page, spaces, analysis) -- {{{
-    -- Bright neon colors on dark background
-    local colors = {
-        {1.0, 0.0, 1.0}, -- Magenta
-        {0.0, 1.0, 1.0}, -- Cyan  
-        {1.0, 1.0, 0.0}, -- Yellow
-        {1.0, 0.3, 0.0}  -- Orange
-    }
-    
-    for _, space in ipairs(spaces.right_margin) do
-        local line_count = math.floor(analysis.intensity * 30) + 10
-        
-        for i = 1, line_count do
-            local color = colors[math.random(#colors)]
-            
+-- {{{ generate_systems(page, space, intensity)
+function generate_systems(page, space, intensity)
+    -- Blueprint nodes connected by Manhattan right-angle paths
+    local node_count = math.floor(8 * intensity)
+    local nodes = {}
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.blueprint_blue))
+    hpdf.Page_SetLineWidth(page, 0.5)
+    for i = 1, node_count do
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        nodes[i] = { x = x, y = y }
+        hpdf.Page_Circle(page, x, y, 1.5)
+        hpdf.Page_Stroke(page)
+    end
+    for i = 2, #nodes do
+        local a, b = nodes[i - 1], nodes[i]
+        hpdf.Page_MoveTo(page, a.x, a.y)
+        hpdf.Page_LineTo(page, b.x, a.y)
+        hpdf.Page_LineTo(page, b.x, b.y)
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_connection(page, space, intensity)
+function generate_connection(page, space, intensity)
+    -- Warm bezier curves linking distant points, low alpha so layers weave
+    local curve_count = math.floor(8 * intensity)
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.warm_amber))
+    hpdf.Page_SetLineWidth(page, 0.6)
+    art.with_alpha(page, 0.5, function()
+        for i = 1, curve_count do
             local x1 = space.x + math.random() * space.width
             local y1 = space.y + math.random() * space.height
-            local x2 = x1 + (math.random() - 0.5) * 20
-            local y2 = y1 + (math.random() - 0.5) * 20
-            
-            -- Try graphics operations for each neon line
-            local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, color[1], color[2], color[3])
-                hpdf.Page_SetLineWidth(pdf_page, 1.0 + math.random() * 2)
-                hpdf.Page_MoveTo(pdf_page, x1, y1)
-                hpdf.Page_LineTo(pdf_page, x2, y2)
-                hpdf.Page_Stroke(pdf_page)
-            end)
-            if not success then
-                print("⚠️ Skipped neon line due to mode conflict")
-            end
+            local x2 = space.x + math.random() * space.width
+            local y2 = space.y + math.random() * space.height
+            local sway = (math.random() - 0.5) * 40
+            art.flowing_curve(page, x1, y1, x2, y2, sway)
+            hpdf.Page_Stroke(page)
         end
-    end
-end -- }}}
-
-function generate_vaporwave_grid(pdf_page, spaces, analysis) -- {{{
-    -- Retro grid patterns with pink/blue gradients
-    
-    -- Try to set up graphics mode for the entire grid
-    local setup_success = pcall(function()
-        hpdf.Page_SetRGBStroke(pdf_page, 1.0, 0.4, 0.8) -- Hot pink
-        hpdf.Page_SetLineWidth(pdf_page, 0.3)
     end)
-    
-    if not setup_success then
-        print("⚠️ Skipped vaporwave grid setup due to mode conflict")
-        return
-    end
-    
-    for _, space in ipairs(spaces.left_margin) do
-        -- Vertical lines
-        for x = space.x, space.x + space.width, 5 do
-            local success = pcall(function()
-                hpdf.Page_MoveTo(pdf_page, x, space.y)
-                hpdf.Page_LineTo(pdf_page, x, space.y + space.height)
-                hpdf.Page_Stroke(pdf_page)
-            end)
-            if not success then
-                print("⚠️ Skipped vaporwave vertical line due to mode conflict")
-            end
-        end
-        
-        -- Horizontal lines with perspective effect
-        local line_spacing = 8
-        for i = 0, math.floor(space.height / line_spacing) do
-            local y = space.y + i * line_spacing
-            local wave_offset = math.sin(i * 0.3) * 5
-            
-            local success = pcall(function()
-                hpdf.Page_MoveTo(pdf_page, space.x + wave_offset, y)
-                hpdf.Page_LineTo(pdf_page, space.x + space.width + wave_offset, y)
-                hpdf.Page_Stroke(pdf_page)
-            end)
-            if not success then
-                print("⚠️ Skipped vaporwave horizontal line due to mode conflict")
-            end
-        end
-    end
-end -- }}}
+end
+-- }}}
 
--- Full-page art generators for matching themes
-function generate_fullpage_nature(pdf_page, page_width, page_height, margins) -- {{{
-    -- Organic flowing lines across entire background
-    hpdf.Page_SetRGBStroke(pdf_page, 0.2, 0.5, 0.3) -- Forest green
-    hpdf.Page_SetLineWidth(pdf_page, 0.3)
-    
-    -- Generate organic branch-like patterns
-    for i = 1, 15 do
-        local start_x = math.random() * page_width
-        local start_y = math.random() * page_height
-        local branches = 3 + math.random(4)
-        
-        for b = 1, branches do
-            local length = 30 + math.random(80)
-            local angle = (math.random() - 0.5) * math.pi
-            local end_x = start_x + math.cos(angle) * length
-            local end_y = start_y + math.sin(angle) * length
-            
-            hpdf.Page_MoveTo(pdf_page, start_x, start_y)
-            hpdf.Page_LineTo(pdf_page, end_x, end_y)
-            hpdf.Page_Stroke(pdf_page)
-            
-            start_x = end_x
-            start_y = end_y
-        end
-    end
-end -- }}}
-
-function generate_fullpage_urban(pdf_page, page_width, page_height, margins) -- {{{
-    -- Circuit board / neon aesthetic across whole page
-    local colors = {
-        {1.0, 0.0, 1.0}, -- Magenta
-        {0.0, 1.0, 1.0}, -- Cyan
-        {1.0, 1.0, 0.0}, -- Yellow
+-- {{{ generate_chaos(page, space, intensity)
+function generate_chaos(page, space, intensity)
+    -- RGB-channel-separated overlapping rectangles for a glitch-print look
+    local count = math.floor(8 * intensity)
+    local channels = {
+        palette.accents.glitch_red,
+        palette.accents.glitch_green,
+        palette.accents.glitch_blue,
     }
-    
-    -- Grid pattern with neon accents
-    for i = 1, 25 do
+    for i = 1, count do
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        local size = 8 + math.random(10)
+        art.with_alpha(page, 0.6, function()
+            for ci, color in ipairs(channels) do
+                local off = (ci - 2) * 2
+                hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
+                hpdf.Page_SetLineWidth(page, 0.5)
+                hpdf.Page_Rectangle(page, x + off, y + off, size, size)
+                hpdf.Page_Stroke(page)
+            end
+        end)
+    end
+end
+-- }}}
+
+-- {{{ generate_transcendence(page, space, intensity)
+function generate_transcendence(page, space, intensity)
+    -- Concentric mandala from radial arc segments, with a gold center
+    local cx = space.x + space.width / 2
+    local cy = space.y + space.height / 2
+    local rings = math.floor(4 * intensity) + 2
+    local radial_count = 8
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.sacred_purple))
+    hpdf.Page_SetLineWidth(page, 0.5)
+    art.with_alpha(page, 0.7, function()
+        for r = 1, rings do
+            local radius = r * 8
+            for s = 0, radial_count - 1 do
+                local start_deg = s * (360 / radial_count)
+                local end_deg = start_deg + (360 / radial_count) * 0.7
+                art.arc(page, cx, cy, radius, start_deg, end_deg)
+                hpdf.Page_Stroke(page)
+            end
+        end
+        hpdf.Page_SetRGBFill(page, table.unpack(palette.accents.temple_gold))
+        hpdf.Page_Circle(page, cx, cy, 2)
+        hpdf.Page_Fill(page)
+    end)
+end
+-- }}}
+
+-- {{{ generate_survival(page, space, intensity)
+function generate_survival(page, space, intensity)
+    -- Vertical trunks with branching root-curves recursing one level
+    local trunk_count = math.max(1, math.floor(3 * intensity))
+    hpdf.Page_SetLineWidth(page, 0.5)
+    for t = 1, trunk_count do
+        local x = space.x + math.random() * space.width
+        local y_top = space.y + space.height
+        local y_bot = space.y
+        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.earth_brown))
+        art.flowing_curve(page, x, y_top, x + math.random(-10, 10), y_bot, math.random(-5, 5))
+        hpdf.Page_Stroke(page)
+        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.root_tan))
+        hpdf.Page_SetLineWidth(page, 0.3)
+        for b = 1, 4 do
+            local fx = x + math.random(-3, 3)
+            local fy = y_top - math.random() * space.height * 0.7
+            local bx = fx + math.random(-20, 20)
+            local by = fy + math.random(-10, 10)
+            art.flowing_curve(page, fx, fy, bx, by, math.random(-3, 3))
+            hpdf.Page_Stroke(page)
+        end
+    end
+end
+-- }}}
+
+-- {{{ generate_nature(page, space, intensity)
+function generate_nature(page, space, intensity)
+    -- Branching curves rooted at random points, growing organically
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.forest_green))
+    hpdf.Page_SetLineWidth(page, 0.3)
+    local stems = math.floor(10 * intensity)
+    for i = 1, stems do
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        local branches = 3 + math.random(3)
+        for b = 1, branches do
+            local angle = (math.random() - 0.5) * math.pi
+            local length = 15 + math.random(30)
+            local ex = x + math.cos(angle) * length
+            local ey = y + math.sin(angle) * length
+            art.flowing_curve(page, x, y, ex, ey, math.random(-4, 4))
+            hpdf.Page_Stroke(page)
+            x, y = ex, ey
+        end
+    end
+end
+-- }}}
+
+-- {{{ generate_urban(page, space, intensity)
+function generate_urban(page, space, intensity)
+    -- Scattered neon rectangle outlines suggesting a city map
+    local count = math.floor(15 * intensity)
+    local colors = { palette.neon_set[1], palette.neon_set[2], palette.neon_set[3] }
+    for i = 1, count do
         local color = colors[math.random(#colors)]
-        hpdf.Page_SetRGBStroke(pdf_page, color[1], color[2], color[3])
-        hpdf.Page_SetLineWidth(pdf_page, 0.5 + math.random())
-        
-        -- Random geometric shapes
-        local x = math.random() * page_width
-        local y = math.random() * page_height
-        local size = 10 + math.random(30)
-        
-        -- Rectangle outline
-        hpdf.Page_MoveTo(pdf_page, x, y)
-        hpdf.Page_LineTo(pdf_page, x + size, y)
-        hpdf.Page_LineTo(pdf_page, x + size, y + size)
-        hpdf.Page_LineTo(pdf_page, x, y + size)
-        hpdf.Page_LineTo(pdf_page, x, y)
-        hpdf.Page_Stroke(pdf_page)
+        hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
+        hpdf.Page_SetLineWidth(page, 0.5 + math.random())
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        local size = 8 + math.random(20)
+        hpdf.Page_Rectangle(page, x, y, size, size)
+        hpdf.Page_Stroke(page)
     end
-end -- }}}
+end
+-- }}}
 
-function generate_fullpage_dream(pdf_page, page_width, page_height, margins) -- {{{
-    -- Ethereal wave patterns across entire page
-    hpdf.Page_SetRGBStroke(pdf_page, 0.7, 0.3, 0.9) -- Dreamy purple
-    hpdf.Page_SetLineWidth(pdf_page, 0.2)
-    
-    -- Flowing wave lines
-    for wave = 1, 12 do
-        local y_start = math.random() * page_height
-        local amplitude = 10 + math.random(30)
-        local frequency = 0.01 + math.random() * 0.02
-        
-        hpdf.Page_MoveTo(pdf_page, 0, y_start)
-        for x = 0, page_width, 3 do
-            local y = y_start + math.sin(x * frequency) * amplitude
-            hpdf.Page_LineTo(pdf_page, x, y)
+-- {{{ generate_energy(page, space, intensity)
+function generate_energy(page, space, intensity)
+    -- Radiating bursts from 1-2 focal points, white at core to orange at edge
+    local focal_count = 1 + math.random(1)
+    for f = 1, focal_count do
+        local cx = space.x + space.width * (0.3 + math.random() * 0.4)
+        local cy = space.y + space.height * (0.3 + math.random() * 0.4)
+        local ray_count = math.floor(20 * intensity)
+        for i = 1, ray_count do
+            local angle = (i / ray_count) * math.pi * 2 + math.random() * 0.2
+            local length = 10 + math.random(25)
+            local mid_x = cx + math.cos(angle) * length * 0.5
+            local mid_y = cy + math.sin(angle) * length * 0.5
+            hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.burst_white))
+            hpdf.Page_SetLineWidth(page, 1.2)
+            hpdf.Page_MoveTo(page, cx, cy)
+            hpdf.Page_LineTo(page, mid_x, mid_y)
+            hpdf.Page_Stroke(page)
+            hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.burst_orange))
+            hpdf.Page_SetLineWidth(page, 0.4)
+            hpdf.Page_MoveTo(page, mid_x, mid_y)
+            hpdf.Page_LineTo(page, cx + math.cos(angle) * length, cy + math.sin(angle) * length)
+            hpdf.Page_Stroke(page)
         end
-        hpdf.Page_Stroke(pdf_page)
     end
-end -- }}}
+end
+-- }}}
 
+-- {{{ generate_love(page, space, intensity)
+function generate_love(page, space, intensity)
+    -- Paired pink curves that braid — each pair swings opposite ways
+    local pair_count = math.floor(5 * intensity)
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.soft_pink))
+    hpdf.Page_SetLineWidth(page, 0.7)
+    art.with_alpha(page, 0.6, function()
+        for i = 1, pair_count do
+            local x1 = space.x + math.random() * space.width
+            local y1 = space.y + math.random() * space.height
+            local x2 = space.x + math.random() * space.width
+            local y2 = space.y + math.random() * space.height
+            local sway = 8 + math.random(12)
+            art.flowing_curve(page, x1, y1, x2, y2, sway)
+            hpdf.Page_Stroke(page)
+            art.flowing_curve(page, x1 + 3, y1, x2 + 3, y2, -sway)
+            hpdf.Page_Stroke(page)
+        end
+    end)
+end
+-- }}}
 
--- Draw art in specific space areas  
-function draw_theme_art_in_spaces(pdf_page, space_list, theme, intensity_multiplier) -- {{{
-    -- Ensure we start in graphics mode
+-- {{{ generate_melancholy(page, space, intensity)
+function generate_melancholy(page, space, intensity)
+    -- Downward strokes, color washes from tear_blue at top to rain_gray at bottom
+    local count = math.floor(20 * intensity)
+    local c1 = palette.accents.tear_blue
+    local c2 = palette.accents.rain_gray
+    for i = 1, count do
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        local t = (y - space.y) / space.height
+        hpdf.Page_SetRGBStroke(page,
+            c1[1] * t + c2[1] * (1 - t),
+            c1[2] * t + c2[2] * (1 - t),
+            c1[3] * t + c2[3] * (1 - t))
+        hpdf.Page_SetLineWidth(page, 0.4)
+        hpdf.Page_MoveTo(page, x, y)
+        hpdf.Page_LineTo(page, x, y - 4 - math.random() * 4)
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_dream(page, space, intensity)
+function generate_dream(page, space, intensity)
+    -- Smooth Bezier sine waves at varied amplitudes, layered at low alpha
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.dreamy_purple))
+    hpdf.Page_SetLineWidth(page, 0.3)
+    local wave_count = math.floor(8 * intensity)
+    art.with_alpha(page, 0.5, function()
+        for w = 1, wave_count do
+            local y_base = space.y + math.random() * space.height
+            local amplitude = 8 + math.random(20)
+            local segs = 6
+            local seg_width = space.width / segs
+            hpdf.Page_MoveTo(page, space.x, y_base)
+            for s = 1, segs do
+                local x1 = space.x + s * seg_width
+                local sign = (s % 2 == 0) and 1 or -1
+                local y1 = y_base + sign * amplitude
+                local cx1 = x1 - seg_width * 0.6
+                local cy1 = y_base + sign * -amplitude
+                local cx2 = x1 - seg_width * 0.4
+                local cy2 = y_base + sign * amplitude
+                hpdf.Page_CurveTo(page, cx1, cy1, cx2, cy2, x1, y1)
+            end
+            hpdf.Page_Stroke(page)
+        end
+    end)
+end
+-- }}}
+
+-- {{{ generate_constellation(page, space, intensity)
+function generate_constellation(page, space, intensity)
+    -- Gold star points with thin night-blue lines between consecutive stars
+    local star_count = math.floor(10 * intensity)
+    local stars = {}
+    for i = 1, star_count do
+        stars[i] = {
+            x = space.x + math.random() * space.width,
+            y = space.y + math.random() * space.height,
+        }
+    end
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.night_blue))
+    hpdf.Page_SetLineWidth(page, 0.2)
+    art.with_alpha(page, 0.5, function()
+        for i = 1, #stars - 1 do
+            hpdf.Page_MoveTo(page, stars[i].x, stars[i].y)
+            hpdf.Page_LineTo(page, stars[i + 1].x, stars[i + 1].y)
+            hpdf.Page_Stroke(page)
+        end
+    end)
+    hpdf.Page_SetRGBFill(page, table.unpack(palette.accents.star_gold))
+    for _, s in ipairs(stars) do
+        hpdf.Page_Circle(page, s.x, s.y, 1.0)
+        hpdf.Page_Fill(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_spiral(page, space, intensity)
+function generate_spiral(page, space, intensity)
+    -- Single growing spiral built from arc segments at increasing radii
+    local cx = space.x + space.width / 2
+    local cy = space.y + space.height / 2
+    local segments = math.floor(20 * intensity) + 10
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.sacred_purple))
+    hpdf.Page_SetLineWidth(page, 0.4)
+    for i = 1, segments do
+        local radius = i * 1.5
+        local start_deg = i * 25
+        local end_deg = start_deg + 30
+        art.arc(page, cx, cy, radius, start_deg, end_deg)
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_circuit(page, space, intensity)
+function generate_circuit(page, space, intensity)
+    -- Manhattan-geometry circuit traces with junction nodes at each turn
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.circuit_green))
+    hpdf.Page_SetLineWidth(page, 0.5)
+    local trace_count = math.floor(10 * intensity)
+    for i = 1, trace_count do
+        local x = space.x + math.random() * space.width
+        local y = space.y + math.random() * space.height
+        local segs = 2 + math.random(3)
+        for s = 1, segs do
+            local len = 6 + math.random(10)
+            local nx, ny = x, y
+            if math.random() > 0.5 then
+                nx = x + (math.random() > 0.5 and len or -len)
+            else
+                ny = y + (math.random() > 0.5 and len or -len)
+            end
+            hpdf.Page_MoveTo(page, x, y)
+            hpdf.Page_LineTo(page, nx, ny)
+            hpdf.Page_Stroke(page)
+            hpdf.Page_Circle(page, nx, ny, 0.8)
+            hpdf.Page_Stroke(page)
+            x, y = nx, ny
+        end
+    end
+end
+-- }}}
+
+-- {{{ generate_lightning(page, space, intensity)
+function generate_lightning(page, space, intensity)
+    -- Jagged bolts from top to bottom, drawn twice: thick blue glow + thin white core
+    local bolt_count = math.min(4, math.floor(2 * intensity) + 1)
+    for b = 1, bolt_count do
+        local x = space.x + math.random() * space.width
+        local y = space.y + space.height
+        local path_x, path_y = { x }, { y }
+        while y > space.y do
+            y = y - 6 - math.random() * 8
+            x = x + (math.random() - 0.5) * 12
+            table.insert(path_x, x)
+            table.insert(path_y, y)
+        end
+        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.bolt_blue))
+        hpdf.Page_SetLineWidth(page, 1.5)
+        hpdf.Page_MoveTo(page, path_x[1], path_y[1])
+        for j = 2, #path_x do hpdf.Page_LineTo(page, path_x[j], path_y[j]) end
+        hpdf.Page_Stroke(page)
+        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.bolt_white))
+        hpdf.Page_SetLineWidth(page, 0.4)
+        hpdf.Page_MoveTo(page, path_x[1], path_y[1])
+        for j = 2, #path_x do hpdf.Page_LineTo(page, path_x[j], path_y[j]) end
+        hpdf.Page_Stroke(page)
+    end
+end
+-- }}}
+
+-- {{{ generate_crystal(page, space, intensity)
+function generate_crystal(page, space, intensity)
+    -- Hexagonal facets with internal subdivision lines suggesting refraction
+    local count = math.floor(5 * intensity)
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.crystal_cyan))
+    hpdf.Page_SetLineWidth(page, 0.4)
+    for i = 1, count do
+        local cx = space.x + math.random() * space.width
+        local cy = space.y + math.random() * space.height
+        local radius = 8 + math.random(10)
+        local first_x, first_y = cx + radius, cy
+        hpdf.Page_MoveTo(page, first_x, first_y)
+        for s = 1, 5 do
+            local angle = s * math.pi / 3
+            hpdf.Page_LineTo(page, cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
+        end
+        hpdf.Page_LineTo(page, first_x, first_y)
+        hpdf.Page_Stroke(page)
+        for s = 0, 5 do
+            local angle = s * math.pi / 3
+            hpdf.Page_MoveTo(page, cx, cy)
+            hpdf.Page_LineTo(page, cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
+            hpdf.Page_Stroke(page)
+        end
+    end
+end
+-- }}}
+
+-- {{{ generate_neutral(page, space, intensity)
+function generate_neutral(page, space, intensity)
+    -- Intentionally minimal: a single faint horizon line. Neutral should
+    -- feel chosen, not absent.
+    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.pale_gray))
+    hpdf.Page_SetLineWidth(page, 0.3)
+    art.with_alpha(page, 0.4, function()
+        local y = space.y + space.height * 0.5
+        hpdf.Page_MoveTo(page, space.x + 10, y)
+        hpdf.Page_LineTo(page, space.x + space.width - 10, y)
+        hpdf.Page_Stroke(page)
+    end)
+end
+-- }}}
+
+-- {{{ theme_generators dispatch table
+-- Maps Tier 1 theme names to their generator functions. Adding a new theme
+-- is a single-line addition here plus a new generator function above.
+local theme_generators = {
+    resistance    = generate_resistance,
+    technology    = generate_technology,
+    creativity    = generate_creativity,
+    isolation     = generate_isolation,
+    identity      = generate_identity,
+    systems       = generate_systems,
+    connection    = generate_connection,
+    chaos         = generate_chaos,
+    transcendence = generate_transcendence,
+    survival      = generate_survival,
+    nature        = generate_nature,
+    urban         = generate_urban,
+    energy        = generate_energy,
+    love          = generate_love,
+    melancholy    = generate_melancholy,
+    dream         = generate_dream,
+    constellation = generate_constellation,
+    spiral        = generate_spiral,
+    circuit       = generate_circuit,
+    lightning     = generate_lightning,
+    crystal       = generate_crystal,
+    neutral       = generate_neutral,
+}
+-- }}}
+
+-- {{{ draw_theme_art_in_spaces(page, space_list, theme, intensity)
+function draw_theme_art_in_spaces(pdf_page, space_list, theme, intensity_multiplier)
     prepare_for_graphics(pdf_page)
-    
-    print("🎨 Generating " .. theme .. " theme art (safe graphics mode)")
-    
-    if theme == "resistance" then
-        -- Explosive radiating lines breaking through barriers
-        for _, space in ipairs(space_list) do
-            local break_count = math.floor(15 * intensity_multiplier)
-            for i = 1, break_count do
-                local center_x = space.x + space.width / 2
-                local center_y = space.y + space.height / 2
-                local angle = (i / break_count) * math.pi * 2
-                local length = 8 + math.random(15)
-                
-                hpdf.Page_SetRGBStroke(pdf_page, 1.0, 0.2, 0.2) -- Red
-                hpdf.Page_SetLineWidth(pdf_page, 1.0)
-                hpdf.Page_MoveTo(pdf_page, center_x, center_y)
-                hpdf.Page_LineTo(pdf_page, 
-                    center_x + math.cos(angle) * length, 
-                    center_y + math.sin(angle) * length)
-                hpdf.Page_Stroke(pdf_page)
-            end
-        end
-        
-    elseif theme == "creativity" then
-        -- Flowing artistic brush strokes
-        for _, space in ipairs(space_list) do
-            local colors = {{1.0, 0.2, 0.4}, {0.2, 0.8, 1.0}, {0.8, 1.0, 0.2}}
-            local stroke_count = math.floor(10 * intensity_multiplier)
-            
-            for i = 1, stroke_count do
-                local color = colors[math.random(#colors)]
-                local start_x = space.x + math.random() * space.width
-                local start_y = space.y + math.random() * space.height
-                
-                
-                    hpdf.Page_SetRGBStroke(pdf_page, color[1], color[2], color[3])
-                    hpdf.Page_SetLineWidth(pdf_page, 0.6)
-                    
-                    -- Create flowing curves
-                    hpdf.Page_MoveTo(pdf_page, start_x, start_y)
-                    for seg = 1, 3 do
-                        start_x = start_x + math.random(-10, 10)
-                        start_y = start_y + math.random(-10, 10)
-                        hpdf.Page_LineTo(pdf_page, start_x, start_y)
-                    end
-                    hpdf.Page_Stroke(pdf_page)
-                
-            end
-        end
-        
-    elseif theme == "technology" then
-        -- Circuit board patterns
-        for _, space in ipairs(space_list) do
-            local line_count = math.floor(8 * intensity_multiplier)
-            for i = 1, line_count do
-                local x = space.x + math.random() * space.width
-                local y = space.y + math.random() * space.height
-                
-                
-                    hpdf.Page_SetRGBStroke(pdf_page, 0.2, 0.8, 0.3) -- Green
-                    hpdf.Page_SetLineWidth(pdf_page, 0.4)
-                    
-                    -- Draw circuit traces
-                    if math.random() > 0.5 then
-                        hpdf.Page_MoveTo(pdf_page, x, y)
-                        hpdf.Page_LineTo(pdf_page, x + 12, y)
-                    else
-                        hpdf.Page_MoveTo(pdf_page, x, y)
-                        hpdf.Page_LineTo(pdf_page, x, y + 12)
-                    end
-                    hpdf.Page_Stroke(pdf_page)
-                
-            end
-        end
-        
-    else
-        -- Default pattern for other themes
-        for _, space in ipairs(space_list) do
-            local dot_count = math.floor(6 * intensity_multiplier)
-            for i = 1, dot_count do
-                local x = space.x + math.random() * space.width
-                local y = space.y + math.random() * space.height
-                
-                -- Try graphics operations, skip if they fail
-                local success = pcall(function()
-                    hpdf.Page_SetRGBStroke(pdf_page, 0.6, 0.6, 0.6) -- Gray
-                    hpdf.Page_SetLineWidth(pdf_page, 0.3)
-                    hpdf.Page_Circle(pdf_page, x, y, 1)
-                    hpdf.Page_Stroke(pdf_page)
-                end)
-                if not success then
-                    print("⚠️ Skipped graphics operation due to mode conflict")
-                end
-                
-            end
-        end
+    print("🎨 Generating " .. theme .. " theme art")
+    local gen = theme_generators[theme] or theme_generators.neutral
+    for _, space in ipairs(space_list) do
+        gen(pdf_page, space, intensity_multiplier)
     end
-end -- }}}
+end
+-- }}}
 
 -- Tier 2 column pattern generation (20 themes)
 function draw_tier2_column_patterns(pdf_page, column_bounds, tier2_theme, intensity) -- {{{
@@ -1551,7 +1769,7 @@ function draw_tier2_column_patterns(pdf_page, column_bounds, tier2_theme, intens
             
             -- Try graphics operations, skip if they fail
             local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, 0.8, 0.2, 0.2)
+                hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.accents.encrypted_red))
                 hpdf.Page_SetLineWidth(pdf_page, 0.5)
                 hpdf.Page_Rectangle(pdf_page, x, y, 3, 2)
                 hpdf.Page_Stroke(pdf_page)
@@ -1569,7 +1787,7 @@ function draw_tier2_column_patterns(pdf_page, column_bounds, tier2_theme, intens
             
             -- Try graphics operations, skip if they fail
             local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, 0.3, 0.7, 0.3)
+                hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.accents.code_green))
                 hpdf.Page_SetLineWidth(pdf_page, 0.4)
                 hpdf.Page_MoveTo(pdf_page, x, y)
                 hpdf.Page_LineTo(pdf_page, x + 6, y)
@@ -1589,7 +1807,7 @@ function draw_tier2_column_patterns(pdf_page, column_bounds, tier2_theme, intens
             
             -- Try graphics operations, skip if they fail
             local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, 0.5, 0.5, 0.7)
+                hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.accents.fallback_lavender))
                 hpdf.Page_SetLineWidth(pdf_page, 0.3)
                 hpdf.Page_Circle(pdf_page, x, y, 0.8)
                 hpdf.Page_Stroke(pdf_page)
@@ -1601,104 +1819,128 @@ function draw_tier2_column_patterns(pdf_page, column_bounds, tier2_theme, intens
     end
 end -- }}}
 
--- Tier 1 full-page generative art
-function draw_tier1_page_art(pdf_page, page_bounds, tier1_theme, intensity) -- {{{
-    -- Use the comprehensive draw_theme_art_in_spaces for ALL Tier 1 themes
-    local full_page_spaces = {{
-        x = page_bounds.x,
-        y = page_bounds.y,
-        width = page_bounds.width,
-        height = page_bounds.height
-    }}
-    
-    print("🎨 Drawing full-page " .. tier1_theme .. " art using comprehensive system")
-    draw_theme_art_in_spaces(pdf_page, full_page_spaces, tier1_theme, intensity * 2.0)
+-- Tier 1 page art, drawn only in the regions outside the poem boxes.
+-- The space_list comes from calculate_art_spaces, filtered down to the
+-- regions a generator should occupy without overlapping any poem.
+function draw_tier1_page_art(pdf_page, space_list, tier1_theme, intensity) -- {{{
+    print(string.format("🎨 Drawing %s art in %d outside region(s)", tier1_theme, #space_list))
+    draw_theme_art_in_spaces(pdf_page, space_list, tier1_theme, intensity * 2.0)
 end -- }}}
+
+-- {{{ compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
+-- Single source of truth for poem-box positions on a page.
+-- Returns { left = { {x,y,width,height,poem}, ... }, right = { ... } }
+-- where (x, y) is the bottom-left corner (libharu Y convention) and the
+-- height includes the top/bottom borders and padding lines drawn by
+-- draw_boxed_poem.
+--
+-- Both generate_individual_poem_art (per-poem Tier 2 art positioning) and
+-- calculate_poem_box_positions (for Tier 1 art space calculation) consume
+-- this so the layout math has one place to maintain. If draw_boxed_poem's
+-- height arithmetic ever changes, only update this helper.
+function compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
+    local layout = { left = {}, right = {} }
+
+    local function lay_out_column(poems, x_origin, dest_table)
+        local y_cursor = page_height - margins.top
+        for _, poem in ipairs(poems or {}) do
+            -- calculate_poem_height returns content lines + 5 (borders, padding, inter-poem gap).
+            -- The visible box itself is +4 lines; the +1 is the gap after, not part of the box.
+            local box_lines = calculate_poem_height(poem) - 1
+            local box_height = box_lines * line_height
+            table.insert(dest_table, {
+                x = x_origin,
+                y = y_cursor - box_height,
+                width = column_width,
+                height = box_height,
+                poem = poem,
+            })
+            y_cursor = y_cursor - box_height - line_height
+        end
+    end
+
+    lay_out_column(page_poems.left,
+        margins.left - page_shift, layout.left)
+    lay_out_column(page_poems.right,
+        margins.left + column_width + column_gap - page_shift, layout.right)
+    return layout
+end
+-- }}}
 
 -- Generate individual poem art around each poem
 function generate_individual_poem_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height) -- {{{
     print("🖼️ Generating individual poem art...")
-    
-    -- Left column poems
-    if page_poems.left then
-        for poem_num, poem in ipairs(page_poems.left) do
-            local poem_tier2_theme = analyze_individual_poem_for_tier2(poem)
-            print(string.format("  📝 Left poem %d: %s (Tier 2)", poem_num, poem_tier2_theme))
-            
-            -- Calculate poem bounds for art generation
-            local poem_height = #poem * line_height
-            local poem_bounds = {
-                x = margins.left - page_shift,
-                y = page_height - margins.top - (poem_num - 1) * (poem_height + line_height),
-                width = column_width,
-                height = poem_height
-            }
-            
-            -- Generate Tier 2 art around this poem
-            draw_tier2_column_patterns(pdf_page, poem_bounds, poem_tier2_theme, 0.8)
-        end
+    local layout = compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
+
+    for poem_num, box in ipairs(layout.left) do
+        local poem_tier2_theme = analyze_individual_poem_for_tier2(box.poem)
+        print(string.format("  📝 Left poem %d: %s (Tier 2)", poem_num, poem_tier2_theme))
+        draw_tier2_column_patterns(pdf_page, box, poem_tier2_theme, 0.8)
     end
-    
-    -- Right column poems  
-    if page_poems.right then
-        for poem_num, poem in ipairs(page_poems.right) do
-            local poem_tier2_theme = analyze_individual_poem_for_tier2(poem)
-            print(string.format("  📝 Right poem %d: %s (Tier 2)", poem_num, poem_tier2_theme))
-            
-            -- Calculate poem bounds for art generation
-            local poem_height = #poem * line_height
-            local poem_bounds = {
-                x = margins.left + column_width + column_gap - page_shift,
-                y = page_height - margins.top - (poem_num - 1) * (poem_height + line_height),
-                width = column_width,
-                height = poem_height
-            }
-            
-            -- Generate Tier 2 art around this poem
-            draw_tier2_column_patterns(pdf_page, poem_bounds, poem_tier2_theme, 0.8)
-        end
+
+    for poem_num, box in ipairs(layout.right) do
+        local poem_tier2_theme = analyze_individual_poem_for_tier2(box.poem)
+        print(string.format("  📝 Right poem %d: %s (Tier 2)", poem_num, poem_tier2_theme))
+        draw_tier2_column_patterns(pdf_page, box, poem_tier2_theme, 0.8)
     end
 end -- }}}
 
--- Mask poem areas and other missing functions
-function mask_poem_areas(pdf_page, poem_boxes) -- {{{
-    -- Placeholder - text is drawn on top anyway
-end -- }}}
+-- {{{ calculate_poem_box_positions(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
+-- Returns a flat list of every poem-box rectangle on the page, for use by
+-- calculate_art_spaces (which needs to know where the boxes are so it can
+-- compute the regions around them).
+function calculate_poem_box_positions(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
+    local layout = compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
+    local flat = {}
+    for _, box in ipairs(layout.left) do table.insert(flat, box) end
+    for _, box in ipairs(layout.right) do table.insert(flat, box) end
+    return flat
+end
+-- }}}
 
-function calculate_poem_box_positions(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height) -- {{{
-    -- Placeholder - return empty list for now  
-    return {}
-end -- }}}
+-- mask_poem_areas removed: Issue 022 places Tier 1 art only in spaces
+-- outside the poem boxes, and Issue 020 fills each box with its Tier 3
+-- color, so explicit masking after the fact is no longer needed.
 
 function generate_page_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height) -- {{{
-    -- UPDATED: Use page-level analysis with concatenated text instead of column analysis
     local page_theme = analyze_page_themes(page_poems.left or {}, page_poems.right or {})
-    
     print("🎨 Page background theme: " .. page_theme)
-    
-    -- Generate full-page background art using Tier 1 themes
-    if page_theme ~= "neutral" then
-        print("✨ Generating full-page " .. page_theme .. " background art")
-        
-        local page_bounds = {
-            x = 0,
-            y = 0, 
-            width = page_width,
-            height = page_height
-        }
-        
-        -- Use the comprehensive Tier 1 art system
-        draw_tier1_page_art(pdf_page, page_bounds, page_theme, 1.0)
-    else
+
+    -- Compute how full the page is. Sum content lines across both columns,
+    -- divided by total available column-lines (Issue 023). Dense pages skip
+    -- the Tier 1 layer entirely; sparse pages get the full expressive art.
+    local used_lines = 0
+    for _, poem in ipairs(page_poems.left or {})  do used_lines = used_lines + calculate_poem_height(poem) end
+    for _, poem in ipairs(page_poems.right or {}) do used_lines = used_lines + calculate_poem_height(poem) end
+    local fill_ratio = used_lines / (2 * MAX_LINES_PER_PAGE)
+    local fill_pct = math.floor(fill_ratio * 100)
+
+    local should_draw_tier1 = (page_theme ~= "neutral") and (fill_ratio < TIER1_ART_THRESHOLD)
+
+    if should_draw_tier1 then
+        print(string.format("✨ Tier 1 art enabled: page is %d%% full (threshold %d%%)", fill_pct, math.floor(TIER1_ART_THRESHOLD * 100)))
+        -- Regions outside the poem boxes (Issue 022) — Tier 1 art draws only
+        -- here so it never competes with text for the same pixels.
+        local spaces = calculate_art_spaces(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift)
+        local outside_regions = {}
+        for _, region in ipairs(spaces.bottom_space) do table.insert(outside_regions, region) end
+        for _, region in ipairs(spaces.left_outer)   do table.insert(outside_regions, region) end
+        for _, region in ipairs(spaces.right_outer)  do table.insert(outside_regions, region) end
+        for _, region in ipairs(spaces.center)       do table.insert(outside_regions, region) end
+
+        if #outside_regions > 0 then
+            draw_tier1_page_art(pdf_page, outside_regions, page_theme, 1.0)
+        else
+            print("🔍 No outside regions on this page — skipping Tier 1 art")
+        end
+    elseif page_theme == "neutral" then
         print("🔍 Neutral page theme - no background art generated")
+    else
+        print(string.format("🔍 Tier 1 art skipped: page is %d%% full (threshold %d%%)", fill_pct, math.floor(TIER1_ART_THRESHOLD * 100)))
     end
-    
-    -- Generate individual poem art (Tier 2 themes) around each poem
+
+    -- Tier 2 art around individual poems still runs unconditionally
     generate_individual_poem_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
-    
-    -- Mask poem areas after art generation
-    local poem_boxes = calculate_poem_box_positions(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
-    mask_poem_areas(pdf_page, poem_boxes)
 end -- }}}
 
 -- Utility function
@@ -1721,6 +1963,10 @@ end
 function build_pdf(book)
     -- Create a new PDF document
     local pdf = hpdf.New()
+
+    -- Hand the pdf to the art-primitives module so with_alpha and
+    -- with_blend_mode can create ExtGState objects against this document
+    art.init(pdf)
 
     -- Set compression
     COMPRESSION_NONE     = 0
@@ -1755,12 +2001,8 @@ function build_pdf(book)
     -- Loop over pages
     local total_pages = #book.pages
     print(string.format("📄 Starting PDF generation: %d pages to process", total_pages))
-    
-    -- Test with 3 pages first to ensure theme art works
-    local pages_to_process = math.min(3, #book.pages)
-    print("🔧 TESTING: Processing " .. pages_to_process .. " pages with theme art enabled")
-    
-    for page_num = 1, pages_to_process do
+
+    for page_num = 1, total_pages do
         local page = book.pages[page_num]
         -- Progress indicator
         local progress_percent = math.floor((page_num / total_pages) * 100)
@@ -1794,16 +2036,12 @@ function build_pdf(book)
             top = top_margin,
             bottom = bottom_margin
         }
-        -- TEMPORARY: Disable theme art to test core PDF generation
-        print("🔧 Theme art temporarily disabled - testing core PDF functionality")
-        -- generate_page_art(pdf_page, page, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
-        
-        -- State reset operations removed - they were corrupting the PDF document
+        generate_page_art(pdf_page, page, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
         
         -- STEP 2: Draw column divider (after art, before text)
         -- Set divider color to black explicitly
-        hpdf.Page_SetRGBFill(pdf_page, 0.0, 0.0, 0.0)
-        hpdf.Page_SetRGBStroke(pdf_page, 0.0, 0.0, 0.0)
+        hpdf.Page_SetRGBFill(pdf_page, table.unpack(palette.text_color))
+        hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.text_color))
         
         local divider_x = left_margin + column_width + (column_gap / 2)
         for div_y = 0, page_height - bottom_margin, line_height do
@@ -1837,7 +2075,7 @@ function build_pdf(book)
     print("💾 Saving PDF...")
 
     -- Save and free with error handling
-    local output_path = "output.pdf"
+    local output_path = "output/compile-ai/output.pdf"
     local save_status, save_err = pcall(function()
         hpdf.SaveToFile(pdf, output_path)
     end)
@@ -1856,6 +2094,10 @@ function build_pdf(book)
 end -- }}}
 
 function main(    )
+              local cache_count = fuzz.embedding_cache_status()
+              print(string.format("🗄️  Embedding cache: %d entries on disk%s",
+                    cache_count,
+                    cache_count == 0 and " (cold start — full Ollama pass ahead)" or ""))
               book = {  pages = {}, poems = {},  }
               book =  load_file (book)
               book = build_book (book)
