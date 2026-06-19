@@ -11,9 +11,20 @@ local golden_bonus = require("src.html-generator.golden-poem-bonus")
 local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
--- Default configuration
+-- Helper to resolve the current model's storage directory lazily. We avoid
+-- pinning a string at module-load time because ollama-config's project-root
+-- and selected-server state may not be fully initialized when this module
+-- is first required.
+local function current_model_dir()
+    local ollama_config = require("ollama-config")
+    return ollama_config.get_selected_model():gsub("[^%w%-_.]", "_")
+end
+
+-- Default configuration. default_model is a function rather than a string so
+-- a model swap in config.lua propagates here without code changes. Callers
+-- that compare against this field should invoke it (M.config.default_model()).
 M.config = {
-    default_model = "embeddinggemma_latest",
+    default_model = current_model_dir,
     default_recommendations = 10,
     min_similarity_threshold = 0.1,
     enable_golden_prioritization = true,
@@ -33,7 +44,7 @@ end
 -- poem_index: unique identifier from poems.json (Issue 8-019)
 -- Falls back to poem_id for backward compatibility with old similarity files
 function M.load_poem_similarities(poem_index, model_name, poem_id)
-    model_name = model_name or M.config.default_model
+    model_name = model_name or M.config.default_model()
 
     -- Try individual similarity file by poem_index first (new naming convention)
     local index_file = string.format(
@@ -72,7 +83,7 @@ end
 
 -- {{{ function M.load_from_similarity_matrix
 function M.load_from_similarity_matrix(poem_id, model_name)
-    model_name = model_name or M.config.default_model
+    model_name = model_name or M.config.default_model()
     
     local matrix_file = string.format(
         "%s/assets/embeddings/%s/similarity_matrix.json",
@@ -131,7 +142,7 @@ end
 function M.get_top_recommendations(poem_id, poems_data, options)
     options = options or {}
     local count = options.count or M.config.default_recommendations
-    local model_name = options.model_name or M.config.default_model
+    local model_name = options.model_name or M.config.default_model()
     
     -- Load similarity data
     local similarity_data = M.load_poem_similarities(poem_id, model_name)
@@ -324,7 +335,7 @@ end
 
 -- {{{ function M.get_similarity_stats
 function M.get_similarity_stats(model_name)
-    model_name = model_name or M.config.default_model
+    model_name = model_name or M.config.default_model()
     
     local stats = {
         model = model_name,

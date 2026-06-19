@@ -115,7 +115,7 @@ end
 -- {{{ load_word_colors
 -- Issue 16-010: Load word colors from embeddings directory for colorized word cloud display
 local function load_word_colors()
-    local cache_file = utils.embeddings_dir("embeddinggemma_latest") .. "/word_colors.json"
+    local cache_file = utils.embeddings_dir() .. "/word_colors.json"
     local data = utils.read_json_file(cache_file)
     if data and data.word_colors then
         local lookup = {}
@@ -404,8 +404,6 @@ end
 
 -- {{{ function M.generate_wordcloud
 function M.generate_wordcloud(poems_data, output_dir)
-    utils.log_info("Generating word cloud...")
-
     -- Load stop words
     local stop_words = load_stop_words()
 

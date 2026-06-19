@@ -87,7 +87,7 @@ return {
             archives = {
                 {
                     name = "messages-zip",
-                    source = "/home/ritz/backups/messages-to-myself/input-zip-file/consider-me-blaspheme.zip",
+                    source = "/home/ritz/backups/messages-to-myself/input-zip-file/queen-of-her-castle.zip",
                     extract_to = "input",  -- Extracts to input/ root (archive contains messages/ dir)
                 },
             },
@@ -125,14 +125,14 @@ return {
             directories = {
                 {
                     name = "fediverse-media",
-                    path = "input/media_attachments/files",
+                    path = "input/images/files",
                     description = "Mastodon/ActivityPub media attachments (deeply nested)",
                     optional = true,
                     -- No external: comes from ZIP extraction
                 },
                 {
                     name = "my-art",
-                    path = "input/media_attachments/my-art",
+                    path = "input/images/my-art",
                     description = "artwork made in kolourpaint",
                     optional = false,
                     -- Issue 10-026: External source for rsync
@@ -142,7 +142,7 @@ return {
                 },
                 {
                     name = "things-I-almost-posted",
-                    path = "input/media_attachments/things-i-almost-posted",
+                    path = "input/images/things-i-almost-posted",
                     optional = true,
                     external = {
                         source = "/home/ritz/pictures/things-i-almost-posted",
@@ -151,7 +151,7 @@ return {
                 },
                 {
                     name = "poem-pictures",
-                    path = "input/media_attachments/poem-pictures",
+                    path = "input/images/poem-pictures",
                     optional = true,
                     external = {
                         source = "/home/ritz/pictures/poem-pictures",
@@ -159,7 +159,7 @@ return {
                 },
                 {
                     name = "dnd-pictures-from-the-internet",
-                    path = "input/media_attachments/dnd-pictures",
+                    path = "input/images/dnd-pictures",
                     optional = true,
                     external = {
                         source = "/home/ritz/pictures/dnd-pictures",
@@ -173,7 +173,7 @@ return {
                     -- NOTE: external syncs to fediverse-stars, sources reads from here
                     -- Path updated to match sync destination (was fediverse-backup)
                     name = "fediverse-stars",
-                    path = "input/media_attachments/fediverse-stars",
+                    path = "input/images/fediverse-stars",
                     optional = true,
                     external = {
                         source = "/home/ritz/pictures/fediverse-backup",
@@ -345,14 +345,18 @@ return {
         {
             name = "local",
             description = "Local Ollama instance",
-            host = "localhost",
+            host = "192.168.1.100",
             port = 10265,
-            model = "nomic-embed-text",
+            -- qwen3-embedding:4b produces 2560-dimensional vectors (vs 768 for
+            -- embeddinggemma). All downstream caches are dimension-specific —
+            -- switching models requires regenerating embeddings.json, the
+            -- similarity caches, the diversity cache, etc.
+            model = "qwen3-embedding:4b",
         },
     },
     -- Default server name (must match a name above)
     -- If not set, first server in list is used
-    default_ollama_server = "gpu-server",
+    default_ollama_server = "local",
     -- }}}
 
     -- {{{ image_integration

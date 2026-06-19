@@ -40,10 +40,24 @@ local ffi = require("ffi")
 local vk = require("vk_compute")
 local utils = require("utils")
 local dkjson = require("dkjson")
+-- Wall-clock time so the "Total Time" / "sequences/sec" lines reflect
+-- real seconds rather than the CPU time the host thread happened to use
+-- (which is near zero while the GPU is doing the work).
+local socket = require("socket")
+local wall_clock = socket.gettime
 
 -- Configuration
 local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
-local MODEL_NAME = "embeddinggemma:latest"
+-- The MODEL_NAME determines the embeddings directory we read from. Pulled
+-- from environment (set by run.sh from MODEL_NAME / --model) with a fall
+-- back to config.lua's selected model so this script works when invoked
+-- directly without run.sh setting MODEL_NAME.
+local MODEL_NAME = os.getenv("MODEL_NAME")
+if not MODEL_NAME or MODEL_NAME == "" then
+    local ollama_config = require("ollama-config")
+    ollama_config.set_project_root(DIR)
+    MODEL_NAME = ollama_config.get_selected_model()
+end
 
 -- Parse command line arguments
 local SAVE_BINARY = false  -- Optional: save binary format for debug
@@ -91,32 +105,117 @@ local function main()
         error(string.format("Embeddings file not found: %s\nRun: ./run.sh --generate-embeddings", embeddings_file))
     end
 
-    -- Load embeddings
-    print("[Loading] Reading embeddings...")
-    local embeddings_data = utils.read_json_file(embeddings_file)
-    if not embeddings_data or not embeddings_data.embeddings then
-        error("Failed to load embeddings or invalid format")
+    -- The GPU shader reads embeddings as FP16-packed uints. We cache a
+    -- binary FP16 file next to embeddings.json so subsequent runs skip
+    -- the (slow) JSON parse and FP32->FP16 conversion. The binary is
+    -- considered fresh if its mtime is at least as new as embeddings.json.
+    local fp16_file = embeddings_file:gsub("%.json$", "_fp16.bin")
+    local function file_mtime(path)
+        local f = io.open(path, "rb")
+        if not f then return nil end
+        f:close()
+        local cmd = string.format("stat -c %%Y %q 2>/dev/null", path)
+        local h = io.popen(cmd)
+        if not h then return nil end
+        local s = h:read("*a")
+        h:close()
+        return tonumber(s)
     end
 
-    local num_poems = #embeddings_data.embeddings
-    local embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
+    local fp16_mtime = file_mtime(fp16_file)
+    local json_mtime = file_mtime(embeddings_file)
+    local fp16_fresh = fp16_mtime and json_mtime and fp16_mtime >= json_mtime
 
-    print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
+    local num_poems, embedding_dim
+    local embeddings_fp16  -- FFI uint16_t[?] buffer, fed to the GPU
 
-    -- Convert embeddings to flat array for GPU
-    print("[Loading] Converting embeddings to flat array...")
-    local embeddings_flat = {}
-    local idx = 1
-    for _, poem in ipairs(embeddings_data.embeddings) do
-        if not poem.embedding or #poem.embedding ~= embedding_dim then
-            error(string.format("Invalid embedding for poem_index %d", poem.poem_index))
+    if fp16_fresh then
+        -- We still need the metadata header (num_poems / embedding_dim).
+        -- Reading just the metadata block from JSON would be cleaner but
+        -- requires a streaming parser; for now we read the whole JSON
+        -- just for the metadata. This is the slow path's only cost.
+        print("[Loading] Reading embeddings metadata...")
+        local embeddings_data = utils.read_json_file(embeddings_file)
+        if not embeddings_data or not embeddings_data.embeddings then
+            error("Failed to load embeddings or invalid format")
         end
-        for _, value in ipairs(poem.embedding) do
-            embeddings_flat[idx] = value
-            idx = idx + 1
+        num_poems = #embeddings_data.embeddings
+        embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
+        embeddings_data = nil  -- let the GC reclaim the table
+        collectgarbage("collect")
+
+        print(string.format("[Loading] Loaded %d poems × %d dimensions (FP16 cache hit)", num_poems, embedding_dim))
+        print(string.format("[Loading] Reading FP16 cache: %s", fp16_file))
+        local total_values = num_poems * embedding_dim
+        embeddings_fp16 = ffi.new("uint16_t[?]", total_values)
+        local f = io.open(fp16_file, "rb")
+        if not f then error("Failed to open FP16 cache: " .. fp16_file) end
+        local data = f:read("*a")
+        f:close()
+        if #data ~= total_values * 2 then
+            error(string.format(
+                "FP16 cache size mismatch: expected %d bytes, got %d. Delete %s and retry.",
+                total_values * 2, #data, fp16_file))
         end
+        ffi.copy(embeddings_fp16, data, total_values * 2)
+        print(string.format("[Loading] Loaded %d FP16 values (%.2f MB)",
+                            total_values, total_values * 2 / (1024 * 1024)))
+    else
+        -- Cold path: read FP32 JSON, convert to FP16, write the cache,
+        -- then load the resulting FP16 buffer into memory.
+        print("[Loading] Reading embeddings (FP32 JSON)...")
+        local embeddings_data = utils.read_json_file(embeddings_file)
+        if not embeddings_data or not embeddings_data.embeddings then
+            error("Failed to load embeddings or invalid format")
+        end
+        num_poems = #embeddings_data.embeddings
+        embedding_dim = embeddings_data.metadata and embeddings_data.metadata.embedding_dimension or 768
+        print(string.format("[Loading] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
+
+        if embedding_dim % 2 ~= 0 then
+            error(string.format(
+                "embedding_dim must be even for FP16-packed shader; got %d. " ..
+                "Pad the embeddings or use a model with an even dimension.",
+                embedding_dim))
+        end
+
+        local total_values = num_poems * embedding_dim
+        print(string.format("[Loading] Converting %d FP32 values to FP16...", total_values))
+
+        -- Stage FP32 values into a flat FFI buffer (much faster than
+        -- a Lua table because each element is a typed write, not a
+        -- tagged-value allocation).
+        local fp32_buf = ffi.new("float[?]", total_values)
+        local idx = 0
+        for _, poem in ipairs(embeddings_data.embeddings) do
+            if not poem.embedding or #poem.embedding ~= embedding_dim then
+                error(string.format("Invalid embedding for poem_index %d", poem.poem_index))
+            end
+            for _, value in ipairs(poem.embedding) do
+                fp32_buf[idx] = value
+                idx = idx + 1
+            end
+        end
+        embeddings_data = nil
+        collectgarbage("collect")
+
+        -- Bulk-convert FP32 -> FP16 via the C helper. About 20M floats
+        -- in a tight C loop is essentially instantaneous (~50 ms) vs.
+        -- pure-Lua bit ops which would be ~minutes.
+        embeddings_fp16 = ffi.new("uint16_t[?]", total_values)
+        vk.fp32_to_fp16(fp32_buf, embeddings_fp16, total_values)
+        fp32_buf = nil
+        collectgarbage("collect")
+
+        -- Persist the FP16 cache. Subsequent runs hit the fast path above.
+        print(string.format("[Loading] Writing FP16 cache: %s", fp16_file))
+        local f = io.open(fp16_file, "wb")
+        if not f then error("Failed to open FP16 cache for writing: " .. fp16_file) end
+        f:write(ffi.string(embeddings_fp16, total_values * 2))
+        f:close()
+        print(string.format("[Loading] Wrote %d FP16 values (%.2f MB)",
+                            total_values, total_values * 2 / (1024 * 1024)))
     end
-    print(string.format("[Loading] Converted %d floats", #embeddings_flat))
     print()
 
     -- Initialize GPU
@@ -128,22 +227,24 @@ local function main()
     print()
 
     -- Compute diversity sequences on GPU
-    local start_time = os.clock()
+    local start_time = wall_clock()
     print("[GPU] Computing diversity sequences (batch parallel processing)...")
     print(string.format("[GPU] This will take approximately 1 minute for %d poems", num_poems))
     print()
 
-    -- Call GPU batch function (returns Lua tables, no file writing)
+    -- Call GPU batch function (returns Lua tables, no file writing).
+    -- Embeddings are now an FFI uint16_t buffer (FP16-packed) — the
+    -- compute function passes it straight through to the C side.
     local sequences = vk.compute_all_diversity_sequences_batched(
         ctx,
-        embeddings_flat,
+        embeddings_fp16,
         num_poems,
         embedding_dim,
         SAVE_BINARY and binary_file or nil,  -- Optional binary output
         BATCH_SIZE
     )
 
-    local elapsed = os.clock() - start_time
+    local elapsed = wall_clock() - start_time
     print()
     print(string.format("[GPU] ✅ Completed in %.2f seconds (%.2f sequences/sec)", elapsed, num_poems / elapsed))
     print()

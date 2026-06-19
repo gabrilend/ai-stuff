@@ -11,6 +11,14 @@
 --   vk.shutdown(ctx)
 
 local ffi = require("ffi")
+-- socket.gettime() is sub-second wall-clock time. We use it instead of
+-- os.clock() because the diversity loop spends most of its CPU thread
+-- blocked in vkWaitForFences (the GPU is busy, the CPU is sleeping),
+-- and os.clock() only counts time the process was actually scheduled —
+-- so it under-reports the elapsed time by orders of magnitude and makes
+-- the iter/sec line claim impossible speeds.
+local socket = require("socket")
+local wall_clock = socket.gettime
 
 -- {{{ local M = {}
 local M = {}
@@ -55,17 +63,23 @@ ffi.cdef[[
     typedef struct VkDiversityBatchContext VkDiversityBatchContext;
 
     VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
-                                             const float* embeddings,
+                                             const uint16_t* embeddings_fp16,
                                              uint32_t num_poems,
                                              uint32_t embedding_dim,
                                              uint32_t batch_size,
                                              const uint32_t* start_indices);
-    VkComputeResult vkd_batch_step(VkDiversityBatchContext* batch_ctx,
-                                    uint32_t iteration,
-                                    uint32_t* selections);
+    VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
+                                             uint32_t start_slot,
+                                             uint32_t slot_count);
     VkComputeResult vkd_batch_download_sequences(VkDiversityBatchContext* batch_ctx,
                                                   uint32_t* output_sequences);
     void vkd_batch_destroy(VkDiversityBatchContext* batch_ctx);
+
+    // FP16 conversion helpers. The bulk FP32 -> FP16 routine is used to
+    // produce the on-disk embeddings_fp16.bin cache file from the FP32
+    // embeddings.json.
+    void vkc_fp32_to_fp16(const float* src, uint16_t* dst, uint32_t count);
+    float vkc_fp16_to_fp32(uint16_t bits);
 ]]
 -- }}}
 
@@ -81,6 +95,23 @@ local function check_result(result, operation)
     if result ~= 0 then
         local err_str = ffi.string(vk.vkc_get_error_string(result))
         error(string.format("%s failed: %s (code %d)", operation, err_str, tonumber(result)))
+    end
+end
+-- }}}
+
+-- {{{ local function format_duration
+-- Pretty-print a wall-clock duration in seconds as either "Hh Mm", "Mm Ss",
+-- or "Ss" depending on magnitude. Used for ETAs in long progress loops where
+-- the bare-seconds number is hard to grasp.
+local function format_duration(seconds)
+    if seconds < 60 then
+        return string.format("%.0fs", seconds)
+    elseif seconds < 3600 then
+        return string.format("%dm %02ds", math.floor(seconds / 60), math.floor(seconds) % 60)
+    else
+        return string.format("%dh %02dm",
+                             math.floor(seconds / 3600),
+                             math.floor((seconds % 3600) / 60))
     end
 end
 -- }}}
@@ -341,20 +372,22 @@ end
 --   batch_size - Optional batch size (default: 3584)
 --
 -- Returns: Table mapping poem_id -> sequence table
-function M.compute_all_diversity_sequences_batched(ctx, embeddings, num_poems, embedding_dim, output_file, batch_size)
+-- embeddings_fp16 is now a uint16_t FFI buffer of length num_poems *
+-- embedding_dim, holding FP16-packed values in row-major order. The
+-- wrapper script is responsible for producing this buffer (typically
+-- by reading a cached embeddings_fp16.bin file). We no longer accept
+-- a Lua-table flat array because the per-element copy loop into an
+-- FFI float[?] was a measurable bottleneck on ~20 million floats, and
+-- the new path uses ffi.copy from a binary file straight into the
+-- target buffer instead.
+function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poems, embedding_dim, output_file, batch_size)
     batch_size = batch_size or 3584
 
-    print(string.format("[Diversity Batch] Computing sequences for %d poems (batch size: %d)...",
+    print(string.format("[Diversity Batch] Computing sequences for %d poems (batch size: %d, FP16 storage)...",
                        num_poems, batch_size))
 
-    local start_time = os.clock()
+    local start_time = wall_clock()
     local all_sequences = {}
-
-    -- Convert embeddings once
-    local embeddings_arr = ffi.new("float[?]", num_poems * embedding_dim)
-    for i = 1, num_poems * embedding_dim do
-        embeddings_arr[i - 1] = embeddings[i]
-    end
 
     -- Process in batches
     local num_batches = math.ceil(num_poems / batch_size)
@@ -373,33 +406,106 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings, num_poems, e
             start_indices[i] = batch_start + i
         end
 
-        -- Initialize batch context
-        local batch_ctx = vk.vkd_batch_init(ctx, embeddings_arr, num_poems, embedding_dim,
+        -- Initialize batch context with the FP16 embedding buffer directly.
+        local batch_ctx = vk.vkd_batch_init(ctx, embeddings_fp16, num_poems, embedding_dim,
                                              current_batch_size, start_indices)
         if batch_ctx == nil then
             error("Failed to initialize batch context")
         end
 
-        -- Run iterations
-        local batch_start_time = os.clock()
-        print(string.format("  Starting %d iterations...", num_poems - 1))
+        -- Chunked GPU dispatch with adaptive chunk sizing.
+        --
+        -- Why chunks: a single dispatch covering all num_poems-1 iterations
+        -- runs long enough to trip the kernel GPU watchdog (typically
+        -- 2 s on Wayland / 10 s on Xorg), at which point Vulkan reports
+        -- VK_ERROR_DEVICE_LOST and the rest of the run is dead.
+        --
+        -- Why adaptive: per-iteration cost depends on the dataset size,
+        -- GPU model, residency, and how much display work is competing
+        -- for the GPU right now. Hardcoding a chunk size that's safe
+        -- everywhere makes the common case much slower than it needs to
+        -- be. Instead, we run a small probe dispatch first to measure
+        -- actual iter-time on this run, then size all subsequent chunks
+        -- to fit comfortably under a target wall-clock budget per chunk.
+        --
+        -- The probe is one extra dispatch per batch, rounding error in
+        -- a ~100-chunk batch. The first chunk is intentionally tiny so a
+        -- pathologically slow GPU still survives it.
+        local PROBE_ITERS = 10            -- size of the warm-up probe
+        local TARGET_CHUNK_SECONDS = 1.5  -- aim for this much GPU work per dispatch
+        local SAFETY_FACTOR = 0.6         -- pad below the measured ceiling so jitter doesn't trip the watchdog
+
+        local total_iters = num_poems - 1
+        local batch_start_time = wall_clock()
+
+        -- Probe: small dispatch, time it
+        local probe_start = wall_clock()
+        local result = vk.vkd_batch_compute_chunk(batch_ctx, 1, PROBE_ITERS)
+        check_result(result, string.format(
+            "Batch compute-chunk probe dispatch (slots [1, %d))", 1 + PROBE_ITERS))
+        local probe_elapsed = wall_clock() - probe_start
+        local iter_seconds = probe_elapsed / PROBE_ITERS
+        local chunk_size = math.max(1, math.floor(
+            (TARGET_CHUNK_SECONDS * SAFETY_FACTOR) / iter_seconds))
+
+        local remaining = total_iters - PROBE_ITERS
+        local num_chunks_est = math.ceil(remaining / chunk_size) + 1  -- +1 for the probe
+        print(string.format(
+            "  Probe: %d iters in %.3fs (%.1f iter/sec) -> chunk_size = %d (~%d more chunks)",
+            PROBE_ITERS, probe_elapsed, PROBE_ITERS / probe_elapsed, chunk_size,
+            num_chunks_est - 1))
         io.stdout:flush()
 
-        for iteration = 1, num_poems - 1 do
-            local result = vk.vkd_batch_step(batch_ctx, iteration, nil)
-            check_result(result, string.format("Batch step iteration %d", iteration))
+        -- Progress reporting: print at chunk 1, every 10th chunk, and the
+        -- last one. Anything else is log spam on a multi-thousand-chunk
+        -- run. We also keep a rolling EMA of iter rate to compute an ETA
+        -- that adapts as conditions change.
+        local PRINT_EVERY = 10
+        local ema_iter_rate = nil
+        local EMA_ALPHA = 0.2  -- new sample weight; 1 = no smoothing
+        local total_chunks = num_chunks_est - 1
 
-            -- Progress update every 100 iterations
-            if iteration % 100 == 0 or iteration == 1 or iteration == num_poems - 1 then
-                local elapsed = os.clock() - batch_start_time
-                local rate = iteration / elapsed
-                local remaining = (num_poems - iteration) / rate
-                print(string.format("  [%d/%d] %.2f iter/sec, ETA: %.1fs (elapsed: %.1fs)",
-                                  iteration, num_poems, rate, remaining, elapsed))
+        local slot = 1 + PROBE_ITERS
+        local chunk_idx = 1
+        while slot <= total_iters do
+            local this_chunk = math.min(chunk_size, total_iters - slot + 1)
+            local chunk_start = wall_clock()
+
+            result = vk.vkd_batch_compute_chunk(batch_ctx, slot, this_chunk)
+            check_result(result, string.format(
+                "Batch compute-chunk dispatch (chunk %d, slots [%d, %d))",
+                chunk_idx, slot, slot + this_chunk))
+
+            local chunk_elapsed = wall_clock() - chunk_start
+            local total_done = slot + this_chunk - 1
+            local sample_rate = this_chunk / chunk_elapsed
+
+            if ema_iter_rate == nil then
+                ema_iter_rate = sample_rate
+            else
+                ema_iter_rate = EMA_ALPHA * sample_rate + (1 - EMA_ALPHA) * ema_iter_rate
+            end
+
+            local is_last = (slot + this_chunk - 1) >= total_iters
+            if chunk_idx == 1 or chunk_idx % PRINT_EVERY == 0 or is_last then
+                local remaining_iters = total_iters - total_done
+                local eta_seconds = remaining_iters / ema_iter_rate
+                print(string.format(
+                    "  [chunk %d/%d] %d iters in %.2fs (%.1f iter/sec, total %d/%d, ETA %s)",
+                    chunk_idx, total_chunks, this_chunk, chunk_elapsed,
+                    sample_rate, total_done, total_iters,
+                    format_duration(eta_seconds)))
                 io.stdout:flush()
             end
+
+            slot = slot + this_chunk
+            chunk_idx = chunk_idx + 1
         end
-        print(string.format("  All %d iterations complete!", num_poems - 1))
+
+        local batch_compute_elapsed = wall_clock() - batch_start_time
+        print(string.format("  GPU finished %d iterations in %.2fs (%.2f iter/sec average)",
+                          total_iters, batch_compute_elapsed,
+                          total_iters / batch_compute_elapsed))
         io.stdout:flush()
 
         -- Download sequences for this batch
@@ -420,12 +526,12 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings, num_poems, e
         -- Cleanup batch
         vk.vkd_batch_destroy(batch_ctx)
 
-        local batch_elapsed = os.clock() - batch_start_time
+        local batch_elapsed = wall_clock() - batch_start_time
         print(string.format("[Batch %d/%d] Completed in %.2fs (%.2f seq/s)",
                            batch_num, num_batches, batch_elapsed, current_batch_size / batch_elapsed))
     end
 
-    local total_elapsed = os.clock() - start_time
+    local total_elapsed = wall_clock() - start_time
     print(string.format("\n[Diversity Batch] Completed ALL %d sequences in %.2fs (%.2f seq/s)",
                        num_poems, total_elapsed, num_poems / total_elapsed))
 
@@ -435,6 +541,19 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings, num_poems, e
     end
 
     return all_sequences
+end
+-- }}}
+
+-- {{{ FP16 conversion: thin wrappers around the C helpers
+-- Exposed on M so the wrapper script can convert FP32 -> FP16 without
+-- needing its own ffi.load. The C helpers are private to this module
+-- otherwise (the FFI library object `vk` is module-local).
+function M.fp32_to_fp16(src, dst, count)
+    return vk.vkc_fp32_to_fp16(src, dst, count)
+end
+
+function M.fp16_to_fp32(bits)
+    return vk.vkc_fp16_to_fp32(bits)
 end
 -- }}}
 

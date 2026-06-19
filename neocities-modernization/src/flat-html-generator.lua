@@ -35,6 +35,14 @@ local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
 
+-- ollama-config tells us which embedding model the rest of the pipeline is
+-- pointed at. We use it to derive the cache-directory name in the two
+-- diversity/similarity loader fallbacks below; previously those defaulted
+-- to "embeddinggemma:latest" as a literal string, which silently broke
+-- after a model swap.
+local ollama_config = require("ollama-config")
+ollama_config.set_project_root(DIR)
+
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
@@ -201,7 +209,7 @@ local SIMILARITY_RANKINGS_CACHE = nil
 -- Loads pre-computed diversity sequences from GPU cache (required for HTML generation)
 -- Errors out if cache doesn't exist - no fallback to on-the-fly computation
 local function load_diversity_cache(model_name)
-    model_name = model_name or "embeddinggemma:latest"
+    model_name = model_name or ollama_config.get_selected_model()
     local model_dir = model_name:gsub(":", "_")
     local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/diversity_cache.json")
 
@@ -227,11 +235,6 @@ This takes ~1 minute with GPU (or ~42 hours with CPU using --cpu-only).
         error("Diversity cache has invalid format (missing sequences table)")
     end
 
-    utils.log_info(string.format("Diversity cache loaded: %d sequences (%s algorithm, %ds generation time)",
-                                cache_data.metadata.total_sequences or 0,
-                                cache_data.metadata.algorithm or "unknown",
-                                cache_data.metadata.generation_time_seconds or 0))
-
     DIVERSITY_CACHE = cache_data
     return cache_data
 end
@@ -241,7 +244,7 @@ end
 -- Loads pre-sorted similarity rankings from cache (required for HTML generation)
 -- Errors out if cache doesn't exist - no fallback to on-the-fly sorting
 local function load_similarity_rankings_cache(model_name)
-    model_name = model_name or "embeddinggemma:latest"
+    model_name = model_name or ollama_config.get_selected_model()
     local model_dir = model_name:gsub(":", "_")
     local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/similarity_rankings_cache.json")
 
@@ -285,10 +288,6 @@ This will regenerate both similarity files AND the rankings cache.
 ]], cache_file))
     end
 
-    utils.log_info(string.format("Similarity rankings cache loaded: %d poems (%s)",
-                                count,
-                                cache_data.metadata.algorithm or "unknown"))
-
     SIMILARITY_RANKINGS_CACHE = cache_data
     return cache_data
 end
@@ -307,65 +306,98 @@ local function flatten_media_files(output_dir)
         return true
     end
 
-    local source_dir = DIR .. "/input/media_attachments"
-    local target_dir = output_dir .. "/media"
+    -- The configured image sources are the source of truth for where to
+    -- look. Each entry has an internal project-relative path (where the
+    -- sync script drops files) and may also have an external source path
+    -- (where the operator's actual files live on the wider file system).
+    -- We prefer the internal path when present, and fall back to the
+    -- external source so a configured-but-not-yet-synced entry still
+    -- contributes media. A configured entry that is missing from both
+    -- is a warning, not a fatal error — operators may legitimately
+    -- declare more sources than are populated at any given moment.
+    local sources_loader = require("sources-loader")
+    sources_loader.set_project_root(DIR)
+    local image_dirs = sources_loader.get_directories_with_external("images")
 
-    -- Check if source directory exists
-    local source_test = io.open(source_dir .. "/files", "r")
-    if not source_test then
-        -- No media_attachments directory - not an error, just skip
-        utils.log_info("No media_attachments directory found, skipping media flattening")
+    if not image_dirs or #image_dirs == 0 then
+        utils.log_warn("No image sources configured in sources.images.directories; skipping media flattening")
         media_flattening_done = true
         return true
     end
-    source_test:close()
 
-    -- Create target directory if it doesn't exist
+    local target_dir = output_dir .. "/media"
     os.execute('mkdir -p "' .. target_dir .. '"')
-
-    utils.log_info("Flattening media files to: " .. target_dir)
-
-    -- Find all media files and copy them to flat structure
-    local find_cmd = string.format('find "%s" -type f 2>/dev/null', source_dir)
-    local handle = io.popen(find_cmd)
-    if not handle then
-        utils.log_warn("Could not scan media_attachments directory")
-        media_flattening_done = true
-        return false
-    end
 
     local copied = 0
     local skipped = 0
     local errors = 0
+    local sources_used = 0
+    local sources_missing = 0
 
-    for source_path in handle:lines() do
-        -- Extract just the filename (basename)
-        local filename = source_path:match("([^/]+)$")
-        if filename then
-            local target_path = target_dir .. "/" .. filename
+    for _, dir in ipairs(image_dirs) do
+        local internal_path = DIR .. "/" .. dir.path
+        local external_path = dir.external and dir.external.source or nil
+        local resolved_path = nil
 
-            -- Check if target already exists (idempotent - skip if present)
-            local exists_check = io.open(target_path, "r")
-            if exists_check then
-                exists_check:close()
-                skipped = skipped + 1
-            else
-                -- Copy file to flat directory
-                local cp_cmd = string.format('cp "%s" "%s" 2>/dev/null', source_path, target_path)
-                local success = os.execute(cp_cmd)
-                if success == 0 or success == true then
-                    copied = copied + 1
-                else
-                    errors = errors + 1
-                    utils.log_warn("Failed to copy: " .. source_path)
+        local internal_test = io.open(internal_path, "r")
+        if internal_test then
+            internal_test:close()
+            resolved_path = internal_path
+        elseif external_path then
+            local external_test = io.open(external_path, "r")
+            if external_test then
+                external_test:close()
+                resolved_path = external_path
+            end
+        end
+
+        if not resolved_path then
+            sources_missing = sources_missing + 1
+            utils.log_warn(string.format(
+                "Image source '%s' not found at internal '%s'%s; skipping",
+                dir.name or "(unnamed)",
+                dir.path or "(no path)",
+                external_path and (" or external '" .. external_path .. "'") or ""))
+        else
+            sources_used = sources_used + 1
+
+            -- Find every file under the resolved source and flatten it into
+            -- output/media/<basename>. Mastodon-style nesting (~7 levels
+            -- deep) collapses to a single directory because filenames are
+            -- already unique (content-addressable).
+            local find_cmd = string.format('find "%s" -type f', resolved_path)
+            local handle = io.popen(find_cmd)
+            if handle then
+                for source_path in handle:lines() do
+                    local filename = source_path:match("([^/]+)$")
+                    if filename then
+                        local target_path = target_dir .. "/" .. filename
+                        local exists_check = io.open(target_path, "r")
+                        if exists_check then
+                            exists_check:close()
+                            skipped = skipped + 1
+                        else
+                            local cp_cmd = string.format('cp "%s" "%s"', source_path, target_path)
+                            local success = os.execute(cp_cmd)
+                            if success == 0 or success == true then
+                                copied = copied + 1
+                            else
+                                errors = errors + 1
+                                utils.log_warn("Failed to copy: " .. source_path)
+                            end
+                        end
+                    end
                 end
+                handle:close()
+            else
+                utils.log_warn("Could not scan image source: " .. resolved_path)
             end
         end
     end
-    handle:close()
 
-    utils.log_info(string.format("Media flattening complete: %d copied, %d skipped (existing), %d errors",
-                                copied, skipped, errors))
+    utils.log_info(string.format(
+        "Media flattening: %d sources used, %d missing | %d copied, %d skipped, %d errors",
+        sources_used, sources_missing, copied, skipped, errors))
 
     media_flattening_done = true
     return errors == 0
@@ -401,11 +433,6 @@ local function load_pagination_config()
             end
         end
     end
-
-    utils.log_info(string.format("Loaded pagination config: %d poems/page, max %d pages (storage: %dGB limit)",
-        PAGINATION_CONFIG.poems_per_page,
-        PAGINATION_CONFIG.max_pages_per_poem,
-        STORAGE_CONFIG.limit_gb))
 
     pagination_config_loaded = true
     return PAGINATION_CONFIG
@@ -653,14 +680,11 @@ local function load_poem_colors()
         return cached_poem_colors
     end
 
-    local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
+    local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
 
     if poem_colors_data and poem_colors_data.poem_colors then
         -- Count actual entries dynamically (stored total_poems may be stale)
-        local actual_count = 0
-        for _ in pairs(poem_colors_data.poem_colors) do actual_count = actual_count + 1 end
-        utils.log_info(string.format("Loaded semantic colors for %d poems", actual_count))
         cached_poem_colors = poem_colors_data.poem_colors
         return cached_poem_colors
     else
@@ -2750,13 +2774,14 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
     local chronological_paginated = PAGINATION_CONFIG.chronological_paginated or false
     local poems_per_page = PAGINATION_CONFIG.chronological_poems_per_page or 500
 
-    -- CLI override for chrono_per_page (Issue 9-003)
+    -- Apply CLI override if provided. Pagination is enabled either by config
+    -- or by the operator supplying --chrono-per-page.
     if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
-        utils.log_info(string.format("CLI override: chronological poems per page = %d (was %d)", chrono_per_page, poems_per_page))
         poems_per_page = chrono_per_page
-        -- Also enable pagination if a CLI override is provided
         chronological_paginated = true
     end
+
+    utils.log_info(string.format("Chronological pagination: %d poems/page", poems_per_page))
 
     -- Sort poems chronologically (by actual post dates)
     local sorted_poems_with_timestamps = sort_poems_chronologically_by_dates(poems_data)
@@ -3208,12 +3233,18 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Must happen before HTML generation so paths resolve correctly
     flatten_media_files(output_dir)
 
-    -- Apply CLI override for poems_per_page if provided (Issue 8-022)
+    -- Apply CLI override if provided. The honest summary below is logged
+    -- whether or not an override was supplied — what the operator wants to
+    -- see is "what value am I actually using," not "which knob set it."
     if poems_per_page and type(poems_per_page) == "number" and poems_per_page > 0 then
-        utils.log_info(string.format("CLI override: Using %d poems per page (config: %d)",
-                                    poems_per_page, PAGINATION_CONFIG.poems_per_page))
         PAGINATION_CONFIG.poems_per_page = poems_per_page
     end
+
+    utils.log_info(string.format(
+        "Similarity/diversity pagination: %d poems/page, max %d pages per poem (%dGB storage limit)",
+        PAGINATION_CONFIG.poems_per_page,
+        PAGINATION_CONFIG.max_pages_per_poem,
+        STORAGE_CONFIG.limit_gb))
 
     -- Count poems with valid poem_index (globally unique identifier)
     -- Note: poem.id is per-category and NOT unique across categories
@@ -3233,14 +3264,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Parse pages specification (Phase D: Issue 8-012)
     local pages_config = parse_pages_specification(pages_spec, nil)  -- total_pages not known yet
     local use_pagination = true  -- Always use pagination now (Phase D)
-
-    if pages_config.is_all then
-        utils.log_info(string.format("Generating complete collection with pagination (all pages up to max_pages limit): %d poems",
-                                    total_poems))
-    elseif pages_config.pages then
-        utils.log_info(string.format("Generating complete collection with pagination (pages %s): %d poems",
-                                    table.concat(pages_config.pages, ", "), total_poems))
-    end
 
     local results = {
         similarity_pages = {},
@@ -3270,7 +3293,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         effective_chrono_per_page = chrono_per_page
         chronological_paginated = true
     end
-    utils.log_info("Computing chronological mapping for formatting...")
     local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
 
     -- Check if parallel processing is available and requested
@@ -3298,7 +3320,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
         -- Issue 10-036: chrono_mapping is now computed before parallel/sequential split
         -- (see Issue 9-003 Fix D for original rationale)
-        utils.log_info(string.format("Using pre-computed chronological mapping for %d poems", #poem_indices))
 
         -- Prepare shared config for threads (serializable data only)
         local thread_config = {
@@ -3362,7 +3383,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 -- This saves 700MB RAM per worker thread
 
                 -- Load poem colors (small file: ~900KB, acceptable per-worker)
-                local poem_colors_file = t_utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
+                local poem_colors_file = t_utils.embeddings_dir() .. "/poem_colors.json"
                 local poem_colors_data = t_utils.read_json_file(poem_colors_file)
                 local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
 
@@ -4264,7 +4285,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
         -- Issue 10-034: Orchestrator loop - serves work slices to workers
         -- Main thread holds caches, sends ~80KB slices instead of workers loading 700MB
-        utils.log_info(string.format("Orchestrator ready: %d poems to process", total_work))
 
         -- Track work state
         local work_queue_idx = 1           -- Next poem index to assign
@@ -4369,10 +4389,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 utils.log_warn(string.format("Thread %d in unexpected state: %s", tid, status))
             end
         end
-
-        local elapsed = os.time() - start_time
-        utils.log_info(string.format("Parallel generation complete: %d poems in %ds (%.1f poems/sec)",
-            total_processed, elapsed, total_processed / math.max(elapsed, 1)))
 
         -- Update results counts (we don't have individual filenames in parallel mode)
         for i = 1, total_similarity do table.insert(results.similarity_pages, "parallel") end
@@ -4488,10 +4504,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         results.chronological_txt = chrono_txt
     end
     
-    local html_archive_count = results.html_archives and #results.html_archives or 0
-    utils.log_info(string.format("Generation complete: %d similarity pages, %d diversity pages, %d txt files, %d html archives",
-                                #results.similarity_pages, #results.diversity_pages, #results.txt_files, html_archive_count))
-    
     return results
 end
 -- }}}
@@ -4509,8 +4521,8 @@ function M.main(interactive_mode)
         local choice = io.read()
         
         local poems_file = utils.asset_path("poems.json")
-        local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
-        local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
+        local similarity_file = utils.embeddings_dir() .. "/similarity_matrix.json"
+        local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
         local output_dir = DIR .. "/output"
         
         if choice == "1" then

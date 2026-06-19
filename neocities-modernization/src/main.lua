@@ -51,7 +51,13 @@ local poem_extractor = require("poem-extractor")
 local poem_validator = require("poem-validator")
 local image_manager = require("image-manager")
 local flat_html_generator = require("flat-html-generator")
+local ollama_config = require("ollama-config")
 local dkjson = require("dkjson")
+
+-- Give ollama-config the project root so it can find config.lua. This
+-- enables every call site below that uses ollama_config.get_selected_model()
+-- to resolve through the same code path the GPU embeddings stage uses.
+ollama_config.set_project_root(DIR)
 
 -- Restore original path
 package.path = old_path
@@ -459,7 +465,7 @@ function M.test_embedding_service()
     if ollama_manager then
         local endpoint = ollama_manager.ensure_ollama_ready()
         if endpoint then
-            ollama_manager.test_embedding(endpoint, "embeddinggemma:latest")
+            ollama_manager.test_embedding(endpoint, ollama_config.get_selected_model())
             return true
         end
     end
@@ -512,7 +518,7 @@ function M.is_html_fresh()
     end
 
     -- Check against similarity matrix (affects similarity/different pages)
-    local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
+    local similarity_file = utils.embeddings_dir() .. "/similarity_matrix.json"
     if utils.file_exists(similarity_file) then
         local similarity_mtime = utils.get_file_mtime(similarity_file)
         if similarity_mtime and similarity_mtime > output_mtime then
@@ -536,8 +542,6 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return true
     end
 
-    utils.log_info("Starting website HTML generation...")
-
     -- Check dependencies
     local poems_file = utils.asset_path("poems.json")
     if not utils.file_exists(poems_file) then
@@ -547,7 +551,7 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Issue 10-033: Check that pre-computed caches exist (these are what actually get used)
     -- The similarity_matrix.json and embeddings.json are NOT loaded anymore - saves 739MB RAM
-    local embeddings_dir = utils.embeddings_dir("embeddinggemma_latest")
+    local embeddings_dir = utils.embeddings_dir()
     local diversity_cache_file = embeddings_dir .. "/diversity_cache.json"
     local similarity_cache_file = embeddings_dir .. "/similarity_rankings_cache.json"
 
@@ -564,7 +568,6 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     -- Load only poems data (12MB) - caches are loaded inside generator as needed
     -- Issue 10-033: Skip loading embeddings.json (77MB) and similarity_matrix.json (662MB)
     -- These are never used - generator functions use pre-computed caches exclusively
-    utils.log_info("Loading poems data...")
     local poems_data = utils.read_json_file(poems_file)
     if not poems_data then
         utils.log_error("Failed to load poems data")
@@ -580,7 +583,6 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Generate chronological index (main entry point)
     -- Issue 9-003: Pass chrono_per_page for CLI override of chronological pagination
-    utils.log_info("Generating chronological index...")
     local success = flat_html_generator.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page)
     if not success then
         utils.log_error("Failed to generate chronological index")
@@ -588,7 +590,6 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     end
 
     -- Generate explore.html (discovery instructions)
-    utils.log_info("Generating explore.html...")
     flat_html_generator.generate_simple_discovery_instructions(output_dir)
 
     -- Generate all similarity and diversity pages
@@ -597,7 +598,6 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     -- Issue 8-022: Pass poems_per_page for CLI override
     -- Issue 9-002: Pass num_threads for parallel processing
     -- Issue 9-003: Pass chrono_per_page for chronological mapping in parallel workers
-    utils.log_info("Generating similarity and diversity pages (this may take a while)...")
     local gen_success = flat_html_generator.generate_complete_flat_html_collection(
         poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page
     )
@@ -731,8 +731,8 @@ function M.handle_tui_action(values)
         utils.log_info("Running parallel similarity calculation...")
         local sim_engine = require("similarity-engine-parallel")
         local thread_count = tonumber(values.thread_count) or 8
-        local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
-        sim_engine.calculate_similarity_matrix_parallel(embeddings_file, "embeddinggemma:latest", 0.2, false, thread_count)
+        local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
+        sim_engine.calculate_similarity_matrix_parallel(embeddings_file, ollama_config.get_selected_model(), 0.2, false, thread_count)
         executed = true
     end
 
@@ -797,7 +797,7 @@ end
 function M.test_single_similarity_page(poem_id)
     utils.log_info("Testing similarity page for poem " .. poem_id .. "...")
     local poems_file = utils.asset_path("poems.json")
-    local similarity_file = utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json"
+    local similarity_file = utils.embeddings_dir() .. "/similarity_matrix.json"
     local output_dir = DIR .. "/output"
 
     local poems_data = utils.read_json_file(poems_file)
@@ -834,7 +834,7 @@ end
 function M.test_single_difference_page(poem_id)
     utils.log_info("Testing difference page for poem " .. poem_id .. "...")
     local poems_file = utils.asset_path("poems.json")
-    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
+    local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
     local output_dir = DIR .. "/output"
 
     local poems_data = utils.read_json_file(poems_file)
@@ -916,7 +916,6 @@ function M.main(options)
         -- Issue 8-022: Pass poems_per_page parameter
         -- Issue 9-002: Pass threads parameter for parallel processing
         -- Issue 9-003: Pass chrono_per_page parameter
-        utils.log_info("Running HTML generation only")
         M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page)
     else
         -- Non-interactive mode - generate dataset and website HTML (full pipeline)

@@ -1,0 +1,225 @@
+#version 450
+
+/* diversity_full.comp - Full diversity sequence in one dispatch
+ *
+ * One workgroup computes one complete diversity sequence (all num_poems-1
+ * iterations) by looping internally. This collapses what used to be
+ * num_poems-1 separate kernel launches per batch (each fence-synchronized
+ * back to the CPU) into a single dispatch per batch.
+ *
+ * Per-workgroup layout:
+ *   - 256 threads cooperate on one sequence
+ *   - The current centroid lives in shared memory (~3 KB for 768-D)
+ *     so each cosine-distance read hits L1 instead of global memory
+ *   - Each thread strides through the full poem list looking for the
+ *     furthest-distance available poem
+ *   - 256-way parallel reduction picks the winning poem
+ *   - Thread 0 commits the pick to the mask + output buffers; all
+ *     threads cooperatively update the shared-memory centroid
+ *   - Loop continues until the sequence is full
+ *
+ * Buffer bindings and the mask/count/output conventions match the
+ * previous per-iteration shader so the host-side init code (which seeds
+ * centroid[seed], sets mask[seed]=0, count=1, output[0]=seed) does not
+ * need to change.
+ */
+
+layout(local_size_x = 256) in;
+
+// Embeddings are stored as FP16, packed two values per uint. We use
+// the standard core-GLSL unpackHalf2x16() builtin to unpack each uint
+// into a vec2 of FP32 in one hardware instruction, which avoids
+// needing the shaderFloat16 device feature (NOT supported on Pascal
+// consumer cards, including the 1080 Ti). The win is on the storage
+// + bandwidth side: each fetch transfers 2 values per 4 bytes instead
+// of 1 per 4 bytes, halving memory traffic through every level of
+// the cache hierarchy. The math itself still runs at FP32 in registers.
+layout(set = 0, binding = 0) readonly buffer Embeddings {
+    uint embeddings_packed[];   // [num_poems * embedding_dim / 2]; each uint = 2 packed FP16 values
+};
+layout(set = 0, binding = 1) buffer Centroids {
+    float centroids[];    // [batch_size * embedding_dim] — initial centroids in, final centroids out
+};
+layout(set = 0, binding = 2) buffer Masks {
+    uint masks[];         // [batch_size * num_poems], 1 = available, 0 = already picked
+};
+layout(set = 0, binding = 3) buffer Counts {
+    uint counts[];        // [batch_size] — how many poems are in each centroid
+};
+layout(set = 0, binding = 4) writeonly buffer Output {
+    uint output_sequences[]; // [batch_size * num_poems] — slot i holds the i-th poem in the sequence
+};
+
+layout(push_constant) uniform Constants {
+    uint num_poems;
+    uint embedding_dim;
+    uint start_slot;   // first output-sequence slot this dispatch will write
+    uint slot_count;   // how many slots to write before returning
+} constants;
+
+// Shared memory budget (256 threads, varies by embedding_dim):
+//   s_centroid:  embedding_dim * 4 B (e.g. 768 * 4 = 3072 B, 2560 * 4 = 10240 B)
+//   s_distances: 256 * 4 = 1024 B
+//   s_indices:   256 * 4 = 1024 B
+//   s_selected:        4 B
+//   s_count:           4 B
+//
+// s_centroid is sized at 4096 floats to fit current embedding models with
+// generous headroom:
+//   - embeddinggemma:latest  -> 768-D    (3 KB used)
+//   - qwen3-embedding:4b     -> 2560-D   (10 KB used)
+//   - qwen3-embedding:8b     -> 4096-D   (16 KB used, fills the array)
+// Total shared-memory budget on a 1080 Ti is 48 KB per workgroup, so
+// even the 4096-dim case leaves ~30 KB for the reduction scratch and
+// other shader-local state. If a future model exceeds 4096-D, this
+// constant must grow to match, OR the centroid must move to a storage
+// buffer (slower, but no static size limit).
+shared float s_centroid[4096];
+shared float s_distances[256];
+shared uint  s_indices[256];
+shared uint  s_selected;
+shared uint  s_count;
+
+void main() {
+    uint workgroup_id = gl_WorkGroupID.x;
+    uint thread_id    = gl_LocalInvocationID.x;
+    uint num_threads  = gl_WorkGroupSize.x;
+
+    uint centroid_base = workgroup_id * constants.embedding_dim;
+    uint mask_base     = workgroup_id * constants.num_poems;
+    uint output_base   = workgroup_id * constants.num_poems;
+
+    // Pull the seed centroid into shared memory, parallel across threads
+    for (uint d = thread_id; d < constants.embedding_dim; d += num_threads) {
+        s_centroid[d] = centroids[centroid_base + d];
+    }
+    if (thread_id == 0) {
+        s_count = counts[workgroup_id];
+    }
+    barrier();
+
+    // Write slot_count output slots, starting at start_slot. The Lua side
+    // calls this in chunks so that each dispatch stays well under the GPU
+    // watchdog timeout (around 10 seconds on a typical Linux+NVIDIA system
+    // with an active display). The centroid + count + mask state persists
+    // between dispatches via the storage buffers, so a 1000-slot chunk
+    // resumes exactly where the previous chunk left off.
+    for (uint i = 0u; i < constants.slot_count; i++) {
+        uint iter = constants.start_slot + i;
+        // Phase 1 — each thread finds its local max-distance available poem
+        float local_max_distance = -1e9;
+        uint  local_max_index    = 0xFFFFFFFFu;
+
+        // Number of packed uints per poem: each uint holds 2 FP16 values
+        // packed via the convention "low 16 bits = value 0, high 16 bits =
+        // value 1," which matches what unpackHalf2x16() produces (.x then .y).
+        // embedding_dim is assumed even — true for 768 (embeddinggemma) and
+        // 2560 (qwen3-embedding:4b); a tail half is not handled.
+        uint num_pairs_per_poem = constants.embedding_dim / 2u;
+
+        for (uint poem_id = thread_id; poem_id < constants.num_poems; poem_id += num_threads) {
+            if (masks[mask_base + poem_id] == 1u) {
+                uint poem_pair_base = poem_id * num_pairs_per_poem;
+
+                // Cosine distance against the shared-memory centroid, with
+                // the embedding read from FP16 packed storage. Each iteration
+                // pulls one uint (2 FP16 values), unpacks to a vec2 of FP32
+                // via the hardware-supported unpackHalf2x16, and processes
+                // two dimensions per loop iteration. Memory traffic is half
+                // of the FP32 path; arithmetic precision is unchanged.
+                float dot_product    = 0.0;
+                float norm_centroid  = 0.0;
+                float norm_embedding = 0.0;
+                for (uint p = 0u; p < num_pairs_per_poem; p++) {
+                    vec2 e_pair = unpackHalf2x16(embeddings_packed[poem_pair_base + p]);
+                    uint d0 = p * 2u;
+                    float c0 = s_centroid[d0];
+                    float c1 = s_centroid[d0 + 1u];
+                    dot_product    += c0 * e_pair.x + c1 * e_pair.y;
+                    norm_centroid  += c0 * c0 + c1 * c1;
+                    norm_embedding += e_pair.x * e_pair.x + e_pair.y * e_pair.y;
+                }
+                float norm_product = sqrt(norm_centroid) * sqrt(norm_embedding);
+                float similarity   = (norm_product > 0.0) ? (dot_product / norm_product) : 0.0;
+                float dist         = 1.0 - similarity;
+
+                if (dist > local_max_distance) {
+                    local_max_distance = dist;
+                    local_max_index    = poem_id;
+                }
+            }
+        }
+
+        s_distances[thread_id] = local_max_distance;
+        s_indices[thread_id]   = local_max_index;
+        barrier();
+
+        // Phase 2 — 256-way parallel reduction picks the global max
+        for (uint stride = 128u; stride > 0u; stride >>= 1) {
+            if (thread_id < stride) {
+                if (s_distances[thread_id + stride] > s_distances[thread_id]) {
+                    s_distances[thread_id] = s_distances[thread_id + stride];
+                    s_indices[thread_id]   = s_indices[thread_id + stride];
+                }
+            }
+            barrier();
+        }
+
+        // Phase 3 — thread 0 broadcasts the winner via shared memory
+        if (thread_id == 0u) {
+            s_selected = s_indices[0];
+        }
+        barrier();
+
+        uint selected_poem = s_selected;
+
+        if (selected_poem == 0xFFFFFFFFu || selected_poem >= constants.num_poems) {
+            // No valid poem found. Should only happen if more iterations
+            // were requested than there are available poems. Write a
+            // sentinel and continue; subsequent iterations will hit the
+            // same case until the loop runs out.
+            if (thread_id == 0u) {
+                output_sequences[output_base + iter] = 0xFFFFFFFFu;
+            }
+            barrier();
+            continue;
+        }
+
+        // Phase 4 — update centroid in shared memory, parallel across threads.
+        // Same FP16-pair pattern as the scan loop: each loop iteration
+        // unpacks one uint into a vec2, then updates two centroid slots.
+        uint  selected_pair_base = selected_poem * num_pairs_per_poem;
+        float count_f            = float(s_count);
+        float new_count_f        = count_f + 1.0;
+        for (uint p = thread_id; p < num_pairs_per_poem; p += num_threads) {
+            vec2 e_pair = unpackHalf2x16(embeddings_packed[selected_pair_base + p]);
+            uint d0 = p * 2u;
+
+            float old0 = s_centroid[d0];
+            s_centroid[d0]      = (old0 * count_f + e_pair.x) / new_count_f;
+
+            float old1 = s_centroid[d0 + 1u];
+            s_centroid[d0 + 1u] = (old1 * count_f + e_pair.y) / new_count_f;
+        }
+
+        // Phase 5 — thread 0 commits mask, count, output
+        if (thread_id == 0u) {
+            masks[mask_base + selected_poem] = 0u;
+            s_count                          = s_count + 1u;
+            output_sequences[output_base + iter] = selected_poem;
+        }
+        barrier();
+    }
+
+    // Final centroid and count back to global memory so a future caller
+    // could resume from this state if needed. Not used by the current
+    // pipeline, but cheap and keeps the buffers self-describing.
+    for (uint d = thread_id; d < constants.embedding_dim; d += num_threads) {
+        centroids[centroid_base + d] = s_centroid[d];
+    }
+    if (thread_id == 0u) {
+        counts[workgroup_id] = s_count;
+    }
+}
+
+/* vim: set foldmethod=marker: */
