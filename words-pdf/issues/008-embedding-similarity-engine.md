@@ -1,4 +1,4 @@
-# Issue 007: Embedding Similarity Engine
+# Issue 008: Embedding Similarity Engine
 
 ## Current Behavior
 The system lacks a centralized embedding calculation and similarity comparison engine that multiple features require.
@@ -23,7 +23,7 @@ Create a robust embedding similarity engine that:
 
 ## Related Documents
 - Source: Derived from next-1 and next-4 requirements
-- Related to: All embedding-dependent issues (001, 006)
+- Related to: All embedding-dependent issues (009, 012)
 
 ## Metadata
 - Priority: High

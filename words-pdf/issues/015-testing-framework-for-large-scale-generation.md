@@ -1,4 +1,4 @@
-# Issue 008: Testing Framework for Large Scale Generation
+# Issue 015: Testing Framework for Large Scale Generation
 
 ## Current Behavior
 No comprehensive testing system exists for validating the correctness of large-scale processing tasks before full execution.

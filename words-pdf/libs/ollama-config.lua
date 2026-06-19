@@ -2,8 +2,9 @@
 local function detect_ollama_endpoint()
     -- Try different possible Ollama endpoints
     local endpoints = {
+        "http://192.168.1.100:10265",  -- ritz's GPU box
         "http://localhost:11434",
-        "http://127.0.0.1:11434", 
+        "http://127.0.0.1:11434",
         "http://192.168.0.115:11434"
     }
     
