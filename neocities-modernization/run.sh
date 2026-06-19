@@ -18,8 +18,9 @@
 #   9. Generate HTML    - Generate website HTML pages
 #  10. Generate Index   - Generate numeric similarity index
 #
-# By default (--all), runs stages 1-5 and 9-10 (skips expensive embedding stages).
-# Use --full to run all 10 stages including embedding generation.
+# Stages are selected individually with named flags (--extract,
+# --generate-diversity, etc.) or by stage number (--stage 8,
+# --stage=5). Use --full to run all 10 stages.
 #
 # Usage: ./run.sh [FLAGS] [PROJECT_DIR]
 
@@ -31,6 +32,25 @@ setup_dir_path() {
         echo "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
     fi
 }
+# }}}
+
+# {{{ Signal handling
+# Trap Ctrl+C so the script actually exits when the operator interrupts.
+# Bash on its own does not always propagate SIGINT to long-running children
+# (luajit's tight inner loops in particular eat the signal), so we kill
+# every background job in our process group and exit non-zero. Exit code
+# 130 is the conventional value for "terminated by SIGINT" (128 + signal#).
+cleanup_on_interrupt() {
+    echo
+    echo "Interrupted by user (SIGINT)" >&2
+    # Kill anything we backgrounded; suppress errors when there are none.
+    jobs -p | xargs -r kill 2>/dev/null
+    # Best-effort kill the entire process group too, in case a child
+    # spawned its own children without forwarding signals.
+    kill -- -$$ 2>/dev/null
+    exit 130
+}
+trap cleanup_on_interrupt INT TERM
 # }}}
 
 # {{{ TUI Library
@@ -48,7 +68,9 @@ show_help() {
     cat << 'EOF'
 Usage: ./run.sh [FLAGS] [PROJECT_DIR]
 
-Runs the poem processing pipeline. Without stage flags, runs fast stages only.
+Runs the poem processing pipeline. Stages are selected individually
+by named flag (--generate-diversity, --parse, etc.) or by stage
+number (--stage N, --stage=N). Use --full to run every stage.
 With stage flags, runs only the specified stages in pipeline order.
 
 Pipeline Stages (run in order, multiple can be specified):
@@ -63,9 +85,9 @@ Pipeline Stages (run in order, multiple can be specified):
   --generate-html       Stage 9:  Generate website HTML pages
   --generate-index      Stage 10: Generate numeric similarity index
 
-Stage Groups:
-  --all               Run stages 1-5, 9-10 (default - skips expensive stages)
-  --full              Run ALL stages 1-10 including embeddings (~45 hours total)
+Stage Selection:
+  --stage N           Select stage by number (e.g. --stage 8, --stage=5)
+  --full              Run ALL stages 1-10 including embeddings
 
 Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
@@ -114,18 +136,16 @@ Other:
   -h, --help          Show this help message
 
 Examples:
-  ./run.sh                              # Run fast stages (1-5, 9-10)
   ./run.sh --full                       # Run ALL stages including embeddings
   ./run.sh --generate-html              # Only regenerate HTML
-  ./run.sh --generate-embeddings        # Only generate embeddings
+  ./run.sh --stage 8                    # Run stage 8 by number
+  ./run.sh --stage=5 --stage=9          # Stage 5 and stage 9
   ./run.sh --parse --generate-html      # Parse then generate HTML
   ./run.sh --generate-html --threads 8  # HTML with 8 threads
   ./run.sh --generate-html --pages 5    # Generate top 500 poems per file
-  ./run.sh --all --dry-run              # Preview what would run
   ./run.sh -I                           # Interactive TUI mode
 
 Notes:
-  - Stages 6-8 are expensive and excluded from --all by default
   - Stage 6 (embeddings) requires Ollama running with embedding model
   - Stage 8 (diversity) takes ~42 hours but is a one-time cost
   - Once stages 6-8 complete, subsequent runs use cached data
@@ -434,15 +454,43 @@ while [[ $# -gt 0 ]]; do
             STAGE_FLAG_SET=true
             shift
             ;;
-        --all)
-            # Fast stages only (1-5, 9-10) - skips expensive embedding stages
-            UPDATE_WORDS=true
-            EXTRACT=true
-            PARSE=true
-            VALIDATE=true
-            CATALOG_IMAGES=true
-            GENERATE_HTML=true
-            GENERATE_INDEX=true
+        # --stage N or --stage=N — select a specific stage by number.
+        # Stage map (numeric): 1=update-words, 2=extract, 3=parse,
+        # 4=validate, 5=catalog-images, 6=generate-embeddings,
+        # 7=generate-similarity, 8=generate-diversity, 9=generate-html,
+        # 10=generate-index. Can be repeated (e.g. --stage 6 --stage 7).
+        --stage)
+            case "$2" in
+                1) UPDATE_WORDS=true ;;
+                2) EXTRACT=true ;;
+                3) PARSE=true ;;
+                4) VALIDATE=true ;;
+                5) CATALOG_IMAGES=true ;;
+                6) GENERATE_EMBEDDINGS=true ;;
+                7) GENERATE_SIMILARITY=true ;;
+                8) GENERATE_DIVERSITY=true ;;
+                9) GENERATE_HTML=true ;;
+                10) GENERATE_INDEX=true ;;
+                *) echo "Error: --stage expects a number 1-10, got: $2" >&2; exit 1 ;;
+            esac
+            STAGE_FLAG_SET=true
+            shift 2
+            ;;
+        --stage=*)
+            STAGE_NUM="${1#*=}"
+            case "$STAGE_NUM" in
+                1) UPDATE_WORDS=true ;;
+                2) EXTRACT=true ;;
+                3) PARSE=true ;;
+                4) VALIDATE=true ;;
+                5) CATALOG_IMAGES=true ;;
+                6) GENERATE_EMBEDDINGS=true ;;
+                7) GENERATE_SIMILARITY=true ;;
+                8) GENERATE_DIVERSITY=true ;;
+                9) GENERATE_HTML=true ;;
+                10) GENERATE_INDEX=true ;;
+                *) echo "Error: --stage expects a number 1-10, got: $STAGE_NUM" >&2; exit 1 ;;
+            esac
             STAGE_FLAG_SET=true
             shift
             ;;
@@ -473,17 +521,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# If no stage flags were specified, run fast stages only (backward compatible)
-# This is equivalent to --all (stages 1-5, 9-10)
-if ! $STAGE_FLAG_SET; then
-    UPDATE_WORDS=true
-    EXTRACT=true
-    PARSE=true
-    VALIDATE=true
-    CATALOG_IMAGES=true
-    # Skipping expensive stages 6-8 by default (use --full for all)
-    GENERATE_HTML=true
-    GENERATE_INDEX=true
+# No implicit stages — require explicit selection. The operator should
+# say what they want to run: a named stage flag, --stage N, or --full.
+if ! $STAGE_FLAG_SET && ! $INTERACTIVE && ! $LIST_OLLAMA; then
+    echo "Error: no stages selected. Use --full, a named stage flag" >&2
+    echo "  (e.g. --generate-diversity), --stage N, or -I for interactive mode." >&2
+    echo "  Run with --help for the full flag list." >&2
+    exit 1
 fi
 
 # Issue 8-032: Convert FORCE to Lua boolean for passing to Lua functions
