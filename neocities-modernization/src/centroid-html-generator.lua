@@ -23,6 +23,15 @@ local DIR = setup_dir_path()
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
+local ollama_config = require("ollama-config")
+
+-- Helper: directory name (sanitized) for the currently selected model.
+-- Used as the default for the two functions below that take an optional
+-- model_name. Was hardcoded to "embeddinggemma_latest"; now follows the
+-- active model so a config swap propagates automatically.
+local function current_model_dir()
+    return ollama_config.get_selected_model():gsub("[^%w%-_.]", "_")
+end
 
 local M = {}
 
@@ -57,7 +66,7 @@ end
 -- {{{ function M.load_centroids
 -- Loads generated centroid embeddings from the embeddings directory
 function M.load_centroids(model_name)
-    model_name = model_name or "embeddinggemma_latest"
+    model_name = model_name or current_model_dir()
     local centroids_file = utils.embeddings_dir(model_name) .. "/centroids.json"
 
     local content, err = utils.read_file(centroids_file)
@@ -385,7 +394,7 @@ end
 -- {{{ function M.generate_all_centroid_pages
 -- Main function to generate all centroid-based HTML pages
 function M.generate_all_centroid_pages(poems_data, embeddings_data, output_dir)
-    local model_name = "embeddinggemma_latest"
+    local model_name = current_model_dir()
 
     -- Load centroids
     local centroids_data = M.load_centroids(model_name)
@@ -472,7 +481,7 @@ if arg and arg[0] and arg[0]:match("centroid%-html%-generator%.lua$") then
     local poems_data = dkjson.decode(poems_content)
 
     -- Load embeddings data
-    local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
+    local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
     local embeddings_content = utils.read_file(embeddings_file)
     if not embeddings_content then
         utils.log_error("Could not load embeddings.json")

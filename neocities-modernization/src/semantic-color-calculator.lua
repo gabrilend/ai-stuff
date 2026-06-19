@@ -33,6 +33,14 @@ local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
 
+-- Endpoint resolution goes through the shared ollama-config module so that
+-- --ollama=<name> and default_ollama_server are honored here the same way
+-- they are honored by the rest of the pipeline. Previously this file had a
+-- hardcoded fallback IP that drifted from config.lua and quietly broke
+-- color-embedding generation when the IP no longer pointed at a live server.
+local ollama_config = require("ollama-config")
+ollama_config.set_project_root(DIR)
+
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
 
@@ -88,8 +96,12 @@ end
 
 -- {{{ function generate_single_embedding
 local function generate_single_embedding(text, model_name, endpoint)
-    endpoint = endpoint or "http://192.168.0.115:10265"
-    model_name = model_name or "embeddinggemma:latest"
+    -- When the caller does not supply an endpoint, ask ollama-config which
+    -- server the rest of the pipeline is currently pointed at. That selection
+    -- already accounts for the CLI --ollama flag and config.lua's
+    -- default_ollama_server, so there is no need to duplicate that logic here.
+    endpoint = endpoint or ollama_config.build_host_url()
+    model_name = model_name or ollama_config.get_selected_model()
     
     -- Use curl to call Ollama API directly
     local cmd = string.format(
@@ -118,16 +130,20 @@ end
 -- }}}
 
 -- {{{ function generate_color_embeddings_using_ollama
-function M.generate_color_embeddings_using_ollama(color_names, model_name)
+-- endpoint is optional: nil means "ask ollama-config for the active server",
+-- which is the right behavior for almost all callers. The parameter exists
+-- so that test harnesses or one-off scripts can target a specific server
+-- without having to mutate ollama-config's module-local selection.
+function M.generate_color_embeddings_using_ollama(color_names, model_name, endpoint)
     local color_embeddings = {}
-    model_name = model_name or "embeddinggemma:latest"
-    
+    model_name = model_name or ollama_config.get_selected_model()
+
     utils.log_info(string.format("Generating embeddings for %d colors using model: %s", #color_names, model_name))
-    
+
     for _, color_name in ipairs(color_names) do
         -- Simple: just generate embedding for the color word itself
         -- "green" means whatever "green" means - no additional context needed
-        local embedding = generate_single_embedding(color_name, model_name)
+        local embedding = generate_single_embedding(color_name, model_name, endpoint)
         
         if embedding then
             color_embeddings[color_name] = embedding
@@ -228,9 +244,9 @@ function M.main(interactive_mode)
         
         -- Issue 10-003: Use unified config instead of semantic-colors.json
         local poems_file = utils.asset_path("poems.json")
-        local embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/embeddings.json"
-        local color_embeddings_file = utils.embeddings_dir("embeddinggemma_latest") .. "/color_embeddings.json"
-        local poem_colors_file = utils.embeddings_dir("embeddinggemma_latest") .. "/poem_colors.json"
+        local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
+        local color_embeddings_file = utils.embeddings_dir() .. "/color_embeddings.json"
+        local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
 
         -- Color configuration from unified config
         local color_config = {

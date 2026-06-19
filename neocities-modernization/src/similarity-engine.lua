@@ -31,6 +31,16 @@ local embedding_models = {
         endpoint_path = "/api/embed",
         timeout = 30
     },
+    ["qwen3-embedding:4b"] = {
+        dimensions = 2560,
+        endpoint_path = "/api/embed",
+        timeout = 60  -- bigger model, longer per-call
+    },
+    ["qwen3-embedding:8b"] = {
+        dimensions = 4096,
+        endpoint_path = "/api/embed",
+        timeout = 90
+    },
     ["text-embedding-ada-002"] = {
         dimensions = 1536,
         endpoint_path = "/v1/embeddings",
@@ -89,7 +99,10 @@ end
 -- }}}
 
 -- {{{ local function generate_embedding
-local function generate_embedding(text, endpoint)
+-- model_name is required; it ends up in the Ollama payload AND determines
+-- which dimension downstream validators expect. Defaults are dangerous here
+-- because the wrong model silently produces wrong-shape embeddings.
+local function generate_embedding(text, endpoint, model_name)
     -- Create a temporary file to avoid shell escaping issues.
     -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink so
     -- parallel checkouts of this repository do not collide on a single shared
@@ -97,7 +110,7 @@ local function generate_embedding(text, endpoint)
     os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
     local temp_file = DIR .. "/tmp/embedding_input.json"
     local payload = {
-        model = "embeddinggemma:latest",
+        model = model_name,
         input = text
     }
     
@@ -141,12 +154,17 @@ local function generate_embedding(text, endpoint)
     
     local parsed = dkjson.decode(result)
     if parsed and parsed.embeddings and parsed.embeddings[1] then
-        -- Validate embedding dimensions
+        -- Accept any positive-dimension embedding. The hardcoded "== 768"
+        -- that used to live here would have rejected every output from
+        -- qwen3-embedding (2560-D) or any other non-gemma model. Downstream
+        -- code reads the dimension off the embedding itself rather than
+        -- relying on a fixed value, so there is nothing to gain from
+        -- gating here.
         local embedding = parsed.embeddings[1]
-        if type(embedding) == "table" and #embedding == 768 then
+        if type(embedding) == "table" and #embedding > 0 then
             return embedding, "success"
         else
-            utils.log_error("Invalid embedding dimensions: " .. (#embedding or "unknown"))
+            utils.log_error("Invalid embedding response: " .. (type(embedding) == "table" and "empty table" or type(embedding)))
             return nil, "invalid_dimensions"
         end
     else
@@ -359,11 +377,15 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     
     -- Load existing embeddings if incremental mode enabled
     local existing_embeddings = {}
+    -- Pull the dimension from the model registry. If the model is unknown,
+    -- leave dim at nil here; it will be populated from the first embedding
+    -- we actually receive below, so the metadata reflects ground truth.
+    local model_dim = embedding_models[model_name] and embedding_models[model_name].dimensions or nil
     local embeddings_data = {
         metadata = {
             total_poems = #poems,
-            embedding_model = "embeddinggemma:latest",
-            embedding_dimension = 768,
+            embedding_model = model_name,
+            embedding_dimension = model_dim,
             generated_at = os.date("%Y-%m-%d %H:%M:%S"),
             endpoint = endpoint,
             incremental_update = incremental
@@ -551,7 +573,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
                     -- Generate own text embedding if there's any content
                     local own_embedding = nil
                     if poem_text ~= "" then
-                        own_embedding = generate_embedding(poem_text, endpoint)
+                        own_embedding = generate_embedding(poem_text, endpoint, model_name)
                     end
 
                     -- Inherit embedding from nearest text poem
@@ -605,7 +627,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
             else
                 utils.log_info("Generating embedding for poem " .. poem_index .. " (ID: " .. (poem.id or "unknown") .. ")")
 
-                local embedding, error_type = generate_embedding(poem_text, endpoint)
+                local embedding, error_type = generate_embedding(poem_text, endpoint, model_name)
 
                 if embedding then
                     -- Success: save valid embedding and reset error counters
@@ -1723,8 +1745,16 @@ function M.flush_embeddings_cache(output_file, flush_type, backup)
         local removed_count = 0
         local kept_count = 0
         
+        -- "Valid" means "matches the cache file's declared dimension." That
+        -- declared dimension comes from the metadata block of this same
+        -- file, written when the cache was first created — so this check
+        -- is model-agnostic now (was hardcoded to 768 for embeddinggemma).
+        local expected_dim = existing_data.metadata and existing_data.metadata.embedding_dimension
         for i, emb in pairs(existing_data.embeddings) do
-            if emb.embedding and type(emb.embedding) == "table" and #emb.embedding == 768 then
+            local dim_ok = emb.embedding and type(emb.embedding) == "table"
+                           and #emb.embedding > 0
+                           and (not expected_dim or #emb.embedding == expected_dim)
+            if dim_ok then
                 -- Keep valid embeddings
                 clean_embeddings[i] = emb
                 kept_count = kept_count + 1

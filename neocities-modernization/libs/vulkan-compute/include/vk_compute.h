@@ -94,6 +94,23 @@ VkComputeResult vkc_dispatch(VkComputeContext* ctx,
 /* Synchronization */
 VkComputeResult vkc_wait_idle(VkComputeContext* ctx);
 
+/* Bulk float -> half-precision conversion.
+ *
+ * Used to prepare the embeddings buffer for diversity_full.spv, which
+ * reads embeddings as packed FP16 (two values per uint via the
+ * unpackHalf2x16 builtin) to halve memory bandwidth.
+ *
+ * Caller provides src and dst arrays with `count` elements each. The
+ * conversion is IEEE 754 binary16 with round-to-nearest-even, but
+ * subnormals round to zero (acceptable for cosine-distance ranking).
+ */
+void vkc_fp32_to_fp16(const float* src, uint16_t* dst, uint32_t count);
+
+/* Single FP16 -> FP32 conversion. Used to materialize the per-batch
+ * initial centroids in FP32 from a FP16-encoded embedding seed.
+ */
+float vkc_fp16_to_fp32(uint16_t bits);
+
 #ifdef __cplusplus
 }
 #endif

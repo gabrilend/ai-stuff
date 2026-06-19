@@ -36,7 +36,7 @@ FLUSH_ALL=false
 FLUSH_ERRORS=false
 BACKUP_BEFORE_FLUSH=true
 FORCE_OPERATION=false
-MODEL_NAME="embeddinggemma:latest"
+MODEL_NAME="qwen3-embedding:4b"
 LIST_MODELS=false
 MODEL_STATUS=false
 INTERACTIVE_MODE=false
@@ -110,7 +110,7 @@ for arg in "$@"; do
             echo "  --force                 Skip confirmation prompts for automated scripts"
             echo ""
             echo "Model Selection Options:"
-            echo "  --model=MODEL_NAME      Specify embedding model (default: embeddinggemma:latest)"
+            echo "  --model=MODEL_NAME      Specify embedding model (default: qwen3-embedding:4b)"
             echo "  --list-models           Show available models and their configurations"
             echo "  --model-status          Show cache status for all models"
             echo "  --dir=PATH              Use custom assets directory instead of default"
@@ -185,8 +185,8 @@ setup_embedding_tui_menu() {
     # Section 4: Model Selection
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "model" "multi" "Model Selection"
-    menu_add_item "model" "model_name" "Embedding Model" "multistate" "embeddinggemma" \
-        "embeddinggemma,text-embedding-ada-002,all-MiniLM-L6-v2" "m" ""
+    menu_add_item "model" "model_name" "Embedding Model" "multistate" "qwen3-embedding" \
+        "qwen3-embedding,embeddinggemma,text-embedding-ada-002,all-MiniLM-L6-v2" "m" ""
     menu_add_item "model" "model_status" "Show Model Status" "checkbox" "0" \
         "Display cache stats for each model" "t" ""
     menu_add_item "model" "list_models" "List Available Models" "checkbox" "0" \
@@ -233,10 +233,11 @@ apply_tui_selections() {
     # Model selection
     local model=$(menu_get_value "model_name")
     case "$model" in
+        "qwen3-embedding") MODEL_NAME="qwen3-embedding:4b" ;;
         "embeddinggemma") MODEL_NAME="embeddinggemma:latest" ;;
         "text-embedding-ada-002") MODEL_NAME="text-embedding-ada-002" ;;
         "all-MiniLM-L6-v2") MODEL_NAME="all-MiniLM-L6-v2" ;;
-        *) MODEL_NAME="embeddinggemma:latest" ;;
+        *) MODEL_NAME="qwen3-embedding:4b" ;;
     esac
 
     [[ "$(menu_get_value "model_status")" == "1" ]] && MODEL_STATUS=true
@@ -318,15 +319,17 @@ run_simple_interactive_mode() {
 
     echo ""
     echo "Available embedding models:"
-    echo "1. embeddinggemma:latest (default)"
-    echo "2. text-embedding-ada-002"
-    echo "3. all-MiniLM-L6-v2"
-    read -p "Choose model (1-3, or press enter for default): " model_choice
+    echo "1. qwen3-embedding:4b (default)"
+    echo "2. embeddinggemma:latest"
+    echo "3. text-embedding-ada-002"
+    echo "4. all-MiniLM-L6-v2"
+    read -p "Choose model (1-4, or press enter for default): " model_choice
 
     case $model_choice in
-        2) MODEL_NAME="text-embedding-ada-002" ;;
-        3) MODEL_NAME="all-MiniLM-L6-v2" ;;
-        *) MODEL_NAME="embeddinggemma:latest" ;;
+        2) MODEL_NAME="embeddinggemma:latest" ;;
+        3) MODEL_NAME="text-embedding-ada-002" ;;
+        4) MODEL_NAME="all-MiniLM-L6-v2" ;;
+        *) MODEL_NAME="qwen3-embedding:4b" ;;
     esac
 
     echo ""
@@ -519,7 +522,7 @@ if [ "$SHOW_STATUS" = true ] || [ "$VALIDATE_CACHE" = true ]; then
             local rate = total_entries > 0 and (completed_embeddings / total_entries) or 0
             local mode = data.metadata and data.metadata.processing_mode or 'unknown'
             local generated = data.metadata and data.metadata.generated_at or 'unknown'
-            local model = data.metadata and data.metadata.embedding_model or 'embeddinggemma:latest'
+            local model = data.metadata and data.metadata.embedding_model or 'qwen3-embedding:4b'
             
             print(string.format('%d,%d,%.3f,%s,%s,%s', total_entries, completed_embeddings, rate, mode, generated, model))
         " 2>/dev/null || echo "0,0,0,error,unknown,unknown")
@@ -908,8 +911,8 @@ if [ $EMBED_RESULT -eq 0 ] && [ -f "$EMBEDDINGS_FILE" ]; then
     echo -e "   Average Poem Length: ${CYAN}$AVG_LENGTH characters${NC}"
     echo ""
     echo -e "${BLUE}🎯 Technical Details:${NC}"
-    echo -e "   Embedding Model: ${PURPLE}embeddinggemma:latest${NC}"
-    echo -e "   Vector Dimensions: ${PURPLE}768${NC}"
+    echo -e "   Embedding Model: ${PURPLE}${MODEL_NAME}${NC}"
+    echo -e "   Vector Dimensions: ${PURPLE}${EMBEDDING_DIM:-unknown}${NC}"
     echo -e "   CUDA Acceleration: ${GREEN}Enabled${NC}"
     echo -e "   Endpoint: ${CYAN}$OLLAMA_ENDPOINT${NC}"
     echo ""

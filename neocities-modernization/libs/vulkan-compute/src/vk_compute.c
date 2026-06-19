@@ -932,3 +932,97 @@ VkComputeResult vkc_wait_idle(VkComputeContext* ctx) {
 }
 
 /* }}} */
+
+/* {{{ FP16 / FP32 conversion helpers
+ *
+ * IEEE 754 binary16 has 1 sign bit, 5 exponent bits (bias 15), and 10
+ * fraction bits. The conversion to/from binary32 (FP32, bias 127) is
+ * straightforward bit manipulation. We do not bother with FP16 subnormal
+ * support: subnormals round to zero. For cosine-distance ranking of
+ * embedding vectors, the dynamic range of |x| is essentially always
+ * in [1e-4, 1] and the few values that would underflow to subnormal in
+ * FP16 do not change the ranking of candidates.
+ */
+
+void vkc_fp32_to_fp16(const float* src, uint16_t* dst, uint32_t count) {
+    /* The bit-manipulation algorithm is the standard "fast half" used in
+     * cuBLAS, FlashAttention, and most ML inference runtimes. Round-to-
+     * nearest-even is implemented by adding the rounding bias (0x1000)
+     * before truncating the mantissa to 10 bits, then handling the rare
+     * mantissa-overflow case by bumping the exponent. */
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t bits;
+        memcpy(&bits, &src[i], sizeof(bits));
+
+        uint16_t sign = (uint16_t)((bits >> 16) & 0x8000u);
+        int32_t  exp  = (int32_t)((bits >> 23) & 0xffu) - 127;
+        uint32_t frac = bits & 0x7fffffu;
+
+        uint16_t out;
+        if (exp == 128) {
+            /* Inf or NaN: preserve sign, force exponent to all-ones, and
+             * keep at least one mantissa bit if the input was NaN. */
+            out = (uint16_t)(sign | 0x7c00u | (frac ? 1u : 0u));
+        } else if (exp >= 16) {
+            /* Overflow to inf. */
+            out = (uint16_t)(sign | 0x7c00u);
+        } else if (exp >= -14) {
+            /* Normal range. Round mantissa to 10 bits, handle overflow. */
+            uint32_t rounded = frac + 0x1000u;
+            uint32_t new_frac = rounded >> 13;
+            int32_t  new_exp = exp;
+            if (new_frac & 0x400u) {
+                /* Mantissa overflow rolled into the implicit bit; bump exp. */
+                new_frac = 0;
+                new_exp += 1;
+            }
+            if (new_exp >= 16) {
+                out = (uint16_t)(sign | 0x7c00u);
+            } else {
+                out = (uint16_t)(sign | (uint16_t)((new_exp + 15) << 10) | (uint16_t)(new_frac & 0x3ffu));
+            }
+        } else {
+            /* Underflow: round to zero (subnormal support skipped). */
+            out = sign;
+        }
+        dst[i] = out;
+    }
+}
+
+float vkc_fp16_to_fp32(uint16_t bits) {
+    /* Inverse of the above, with subnormal renormalization. Used per
+     * embedding slot when materializing the FP32 initial centroid; not
+     * on a hot path so we can afford to be careful. */
+    uint32_t sign = ((uint32_t)bits & 0x8000u) << 16;
+    uint32_t exp  = (bits >> 10) & 0x1fu;
+    uint32_t frac = bits & 0x3ffu;
+
+    uint32_t result;
+    if (exp == 0) {
+        if (frac == 0) {
+            result = sign;  /* signed zero */
+        } else {
+            /* Subnormal: renormalize by shifting until the implicit bit
+             * appears, decrementing the exponent each time. */
+            int32_t e = 1;
+            while ((frac & 0x400u) == 0) {
+                frac <<= 1;
+                e -= 1;
+            }
+            frac &= 0x3ffu;
+            result = sign | ((uint32_t)(e + 127 - 15) << 23) | (frac << 13);
+        }
+    } else if (exp == 0x1f) {
+        /* Inf or NaN. */
+        result = sign | 0x7f800000u | (frac << 13);
+    } else {
+        /* Normal range: re-bias the exponent and left-pad the mantissa. */
+        result = sign | ((exp + 127u - 15u) << 23) | (frac << 13);
+    }
+
+    float f;
+    memcpy(&f, &result, sizeof(f));
+    return f;
+}
+
+/* }}} */

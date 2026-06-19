@@ -71,7 +71,7 @@ Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
   --force-stage N     Force regenerate specific stage only (1-10)
-  --model NAME        Embedding model name (default: embeddinggemma:latest)
+  --model NAME        Embedding model name (default: qwen3-embedding:4b)
 
 Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
@@ -171,7 +171,7 @@ DRY_RUN=false
 CPU_ONLY=false
 # Issue 10-028: Lower process priority for UI responsiveness
 LOW_PRIORITY=false
-MODEL_NAME="embeddinggemma:latest"
+MODEL_NAME="qwen3-embedding:4b"
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
 POEMS_PER_PAGE=""
@@ -784,6 +784,10 @@ run_generate_semantic_colors() {
     # Respects: --force (skip freshness check), --dry-run (show actions only)
 
     local model_dir_name="${MODEL_NAME//:/_}"
+
+    # Paths match what generate-embeddings.sh writes (see run_generate_embeddings above).
+    # The stray assets/embeddings/embeddings/ directory on disk is a stale leftover from
+    # before the model-name subfolder convention; it is not the real output location.
     local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
     local poem_colors_file="$DIR/assets/embeddings/$model_dir_name/poem_colors.json"
     local color_embeddings_file="$DIR/assets/embeddings/$model_dir_name/color_embeddings.json"
@@ -803,23 +807,40 @@ run_generate_semantic_colors() {
             # Still need to skip poem colors generation in dry run
         else
             log_info "   $(symbol_warning "⚠️")  Color embeddings not found, generating via Ollama..."
-            # Run interactive mode option 1 to generate color embeddings only
+            # Issue 10-003 migrated color_names from config/semantic-colors.json (now deleted)
+            # into config.lua, loaded via libs/config-loader.lua. Errors here are loud rather
+            # than silent so a missing config doesn't propagate downstream as a confusing
+            # "Failed to load required data files" in the next stage.
             luajit -e "
                 package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
                 local calc = require('semantic-color-calculator')
                 local utils = require('utils')
-                local dkjson = require('dkjson')
                 utils.init_assets_root({'$DIR'})
 
-                local color_config = utils.read_json_file('$DIR/config/semantic-colors.json')
-                if color_config then
-                    local embeddings = calc.generate_color_embeddings_using_ollama(color_config.color_names, '$MODEL_NAME')
-                    if next(embeddings) then
-                        local data = {embeddings = embeddings, generated_at = os.date('%Y-%m-%d %H:%M:%S'), model_name = '$MODEL_NAME'}
-                        utils.write_json_file('$color_embeddings_file', data)
-                        print('[INFO] Color embeddings saved: ' .. '$color_embeddings_file')
-                    end
+                -- Mirror the --ollama selection pattern used elsewhere in run.sh
+                -- (see the interactive TUI block below). If OLLAMA_SERVER is empty
+                -- the module falls back to config.lua's default_ollama_server.
+                -- The interactive flag is forwarded so that a typoed --ollama or
+                -- --model triggers a 1/2 prompt only when the operator launched
+                -- run.sh with -I; otherwise we hard-error.
+                local ollama = require('ollama-config')
+                ollama.set_project_root('$DIR')
+                ollama.set_interactive_mode('$INTERACTIVE' == 'true')
+                if '$OLLAMA_SERVER' ~= '' then
+                    ollama.set_selected_server('$OLLAMA_SERVER')
                 end
+
+                local config = require('config-loader').load()
+                if not config.color_names then
+                    error('config.lua is missing color_names (Issue 10-003 migration)')
+                end
+                local embeddings = calc.generate_color_embeddings_using_ollama(config.color_names, '$MODEL_NAME')
+                if not next(embeddings) then
+                    error('Ollama returned no color embeddings')
+                end
+                local data = {embeddings = embeddings, generated_at = os.date('%Y-%m-%d %H:%M:%S'), model_name = '$MODEL_NAME'}
+                utils.write_json_file('$color_embeddings_file', data)
+                print('[INFO] Color embeddings saved: ' .. '$color_embeddings_file')
             " || {
                 echo "Error: Color embedding generation failed" >&2
                 exit 1
@@ -1070,7 +1091,11 @@ run_generate_diversity() {
         fi
 
         # Issue 10-028: Apply low priority to expensive diversity generation
-        $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
+        # Export MODEL_NAME so the wrapper resolves the correct embeddings
+        # directory (assets/embeddings/<model>/) when run.sh is what selected
+        # the model. Without this the wrapper falls back to config.lua's
+        # default, which is correct in most cases but loses the CLI override.
+        MODEL_NAME="$MODEL_NAME" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
             echo "Error: GPU diversity cache generation failed" >&2
             echo "Use --cpu-only flag to force CPU execution instead" >&2
             exit 1

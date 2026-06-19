@@ -326,13 +326,21 @@ struct VkDiversityBatchContext {
  */
 
 VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
-                                         const float* embeddings,
+                                         const uint16_t* embeddings_fp16,
                                          uint32_t num_poems,
                                          uint32_t embedding_dim,
                                          uint32_t batch_size,
                                          const uint32_t* start_indices) {
-    if (!ctx || !embeddings || !start_indices || num_poems == 0 || 
+    if (!ctx || !embeddings_fp16 || !start_indices || num_poems == 0 ||
         embedding_dim == 0 || batch_size == 0 || batch_size > 3584) {
+        return NULL;
+    }
+    if (embedding_dim % 2 != 0) {
+        /* The shader processes pairs of dims per loop iteration to use
+         * unpackHalf2x16 efficiently; an odd dim count would leave a tail
+         * half that the current shader does not handle. Embedding models
+         * that produce odd dims would need a shader update to support. */
+        fprintf(stderr, "[VKD Batch ERROR] embedding_dim must be even for the FP16-packed shader; got %u\n", embedding_dim);
         return NULL;
     }
 
@@ -347,22 +355,24 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     batch_ctx->batch_size = batch_size;
 
     printf("[VKD Batch] Initializing batch context...\n");
-    printf("      Poems: %u, Dimensions: %u, Batch size: %u\n", 
+    printf("      Poems: %u, Dimensions: %u, Batch size: %u\n",
            num_poems, embedding_dim, batch_size);
 
-    /* Calculate buffer sizes */
-    size_t embeddings_size = num_poems * embedding_dim * sizeof(float);
-    size_t centroids_size = batch_size * embedding_dim * sizeof(float);
-    size_t masks_size = batch_size * num_poems * sizeof(uint32_t);
-    size_t counts_size = batch_size * sizeof(uint32_t);
-    size_t output_size = batch_size * num_poems * sizeof(uint32_t);
-    size_t selections_size = batch_size * sizeof(uint32_t);
+    /* Calculate buffer sizes. Embeddings are FP16-packed: each value is
+     * 2 bytes instead of the 4 bytes the old FP32 path used, so the GPU
+     * buffer is exactly half the size for the same poem count. */
+    size_t embeddings_size = (size_t)num_poems * embedding_dim * sizeof(uint16_t);
+    size_t centroids_size = (size_t)batch_size * embedding_dim * sizeof(float);
+    size_t masks_size = (size_t)batch_size * num_poems * sizeof(uint32_t);
+    size_t counts_size = (size_t)batch_size * sizeof(uint32_t);
+    size_t output_size = (size_t)batch_size * num_poems * sizeof(uint32_t);
+    size_t selections_size = (size_t)batch_size * sizeof(uint32_t);
 
     printf("[VKD Batch] Buffer sizes:\n");
-    printf("      Embeddings: %.2f MB\n", embeddings_size / (1024.0 * 1024.0));
-    printf("      Centroids: %.2f MB\n", centroids_size / (1024.0 * 1024.0));
+    printf("      Embeddings (FP16): %.2f MB\n", embeddings_size / (1024.0 * 1024.0));
+    printf("      Centroids (FP32): %.2f MB\n", centroids_size / (1024.0 * 1024.0));
     printf("      Masks: %.2f MB\n", masks_size / (1024.0 * 1024.0));
-    printf("      Total GPU memory: %.2f MB\n", 
+    printf("      Total GPU memory: %.2f MB\n",
            (embeddings_size + centroids_size + masks_size + counts_size + output_size) / (1024.0 * 1024.0));
 
     /* Create GPU buffers */
@@ -380,12 +390,15 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
         return NULL;
     }
 
-    /* Upload embeddings (one-time) */
-    printf("[VKD Batch] Uploading %.2f MB of embeddings to GPU...\n",
+    /* Upload FP16-packed embeddings to the GPU. The shader reads these
+     * via unpackHalf2x16 on the fly; no conversion happens here. */
+    printf("[VKD Batch] Uploading %.2f MB of FP16 embeddings to GPU...\n",
            embeddings_size / (1024.0 * 1024.0));
-    vkc_upload_buffer(ctx, batch_ctx->embeddings_buf, embeddings, embeddings_size);
+    vkc_upload_buffer(ctx, batch_ctx->embeddings_buf, embeddings_fp16, embeddings_size);
 
-    /* Initialize centroids with starting poem embeddings */
+    /* Initialize centroids with starting poem embeddings, converted back
+     * to FP32 since the centroid buffer is FP32 (the shader reads it as
+     * shared-memory FP32; only the embedding table is FP16). */
     float* initial_centroids = malloc(centroids_size);
     if (!initial_centroids) {
         vkd_batch_destroy(batch_ctx);
@@ -400,9 +413,11 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
             vkd_batch_destroy(batch_ctx);
             return NULL;
         }
-        memcpy(&initial_centroids[i * embedding_dim],
-               &embeddings[start_poem * embedding_dim],
-               embedding_dim * sizeof(float));
+        const uint16_t* src = &embeddings_fp16[(size_t)start_poem * embedding_dim];
+        float* dst = &initial_centroids[(size_t)i * embedding_dim];
+        for (uint32_t d = 0; d < embedding_dim; d++) {
+            dst[d] = vkc_fp16_to_fp32(src[d]);
+        }
     }
     vkc_upload_buffer(ctx, batch_ctx->centroids_buf, initial_centroids, centroids_size);
     free(initial_centroids);
@@ -447,9 +462,16 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     vkc_upload_buffer(ctx, batch_ctx->output_buf, initial_output, output_size);
     free(initial_output);
 
-    /* Create pipeline */
-    batch_ctx->batch_pipeline = vkc_create_pipeline(ctx, "build/diversity_batch.spv",
-                                                      sizeof(uint32_t) * 3);  /* num_poems, embedding_dim, iteration */
+    /* Create pipeline. Uses diversity_full.spv: the workgroup runs a
+     * chunk of the iteration loop internally instead of one iteration
+     * per dispatch. Push constants are {num_poems, embedding_dim,
+     * start_slot, slot_count}. The size MUST match what
+     * vkd_batch_compute_chunk pushes — under-allocating here means the
+     * tail of the push-constant struct silently reads as zero in the
+     * shader, the chunk loop runs zero iterations, and every dispatch
+     * returns instantly having done no work. */
+    batch_ctx->batch_pipeline = vkc_create_pipeline(ctx, "build/diversity_full.spv",
+                                                      sizeof(uint32_t) * 4);  /* num_poems, embedding_dim, start_slot, slot_count */
     if (!batch_ctx->batch_pipeline) {
         fprintf(stderr, "[VKD Batch ERROR] Failed to create pipeline\n");
         vkd_batch_destroy(batch_ctx);
@@ -469,41 +491,46 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
 
 /* }}} */
 
-/* {{{ vkd_batch_step
+/* {{{ vkd_batch_compute_chunk
  */
 
-VkComputeResult vkd_batch_step(VkDiversityBatchContext* batch_ctx,
-                                uint32_t iteration,
-                                uint32_t* selections) {
-    if (!batch_ctx || iteration >= batch_ctx->num_poems) {
+VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
+                                         uint32_t start_slot,
+                                         uint32_t slot_count) {
+    if (!batch_ctx || slot_count == 0) {
+        return VKC_ERROR_INIT_FAILED;
+    }
+    if (start_slot + slot_count > batch_ctx->num_poems) {
+        /* Caller asked for more slots than exist; refuse rather than write
+         * past the end of output_buf. */
         return VKC_ERROR_INIT_FAILED;
     }
 
     VkComputeContext* ctx = batch_ctx->ctx;
 
-    /* Prepare push constants */
+    /* Push constants describe the dataset shape AND the slice of work this
+     * dispatch is responsible for. The shader writes output slots
+     * [start_slot, start_slot + slot_count) and advances the per-workgroup
+     * centroid/count by slot_count picks. */
     struct {
         uint32_t num_poems;
         uint32_t embedding_dim;
-        uint32_t iteration;
+        uint32_t start_slot;
+        uint32_t slot_count;
     } push_constants = {
         batch_ctx->num_poems,
         batch_ctx->embedding_dim,
-        iteration
+        start_slot,
+        slot_count
     };
 
-    /* Dispatch kernel (one workgroup per sequence) */
-    vkc_dispatch(ctx, batch_ctx->batch_pipeline, batch_ctx->batch_size, 1, 1, &push_constants);
-
-    /* Note: Selections are written to output_buf by the shader.
-     * We don't need to download them here for incremental processing.
-     * Caller can request full sequence download at the end via vkd_batch_download_sequences().
-     */
-
-    /* For progress tracking, we could download the current iteration's selections */
-    /* For now, we skip this to minimize transfers */
-
-    return VKC_SUCCESS;
+    /* One workgroup per sequence in the batch. Each workgroup runs
+     * slot_count iterations internally. We must propagate the dispatch
+     * result — the previous version of this code swallowed errors and
+     * returned VKC_SUCCESS unconditionally, which caused a device-lost
+     * failure in one dispatch to silently break every following dispatch. */
+    return vkc_dispatch(ctx, batch_ctx->batch_pipeline,
+                        batch_ctx->batch_size, 1, 1, &push_constants);
 }
 
 /* }}} */

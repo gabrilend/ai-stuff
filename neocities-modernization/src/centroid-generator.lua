@@ -38,13 +38,17 @@ utils.init_assets_root(arg)
 local M = {}
 
 -- {{{ Configuration
--- Note: model_storage_name matches the sanitized form of the Ollama model name
--- model_name is what Ollama expects (embeddinggemma:latest)
 -- Issue 10-003: centroids now loaded from unified config
+-- model_name is what Ollama expects (e.g. qwen3-embedding:4b).
+-- model_storage_name is its sanitized-for-filesystem form (e.g. qwen3-embedding_4b).
+-- embedding_dimensions is read from the loaded embeddings.json metadata so a
+-- model swap doesn't require code changes; this CONFIG.dimensions is only
+-- used as a sanity hint for log lines.
+local _selected_model = ollama_config.get_selected_model()
 local CONFIG = {
-    model_name = "embeddinggemma:latest",
-    model_storage_name = "embeddinggemma_latest",
-    embedding_dimensions = 768,
+    model_name = _selected_model,
+    model_storage_name = _selected_model:gsub("[^%w%-_.]", "_"),
+    embedding_dimensions = nil,  -- resolved at runtime from embeddings.json metadata
     max_content_length = 20000,
     min_content_length = 10
 }
@@ -100,10 +104,16 @@ local function generate_embedding(text, endpoint)
     local parsed = dkjson.decode(result)
     if parsed and parsed.embeddings and parsed.embeddings[1] then
         local embedding = parsed.embeddings[1]
-        if type(embedding) == "table" and #embedding == CONFIG.embedding_dimensions then
+        if type(embedding) == "table" and #embedding > 0 then
+            -- Accept any positive dimension. We learn the model's actual
+            -- dim from its first response rather than asserting one upfront.
+            if not CONFIG.embedding_dimensions then
+                CONFIG.embedding_dimensions = #embedding
+            end
             return embedding, "success"
         else
-            utils.log_error("Invalid embedding dimensions: expected " .. CONFIG.embedding_dimensions .. ", got " .. (#embedding or "unknown"))
+            utils.log_error("Invalid embedding response: " ..
+                (type(embedding) == "table" and "empty table" or type(embedding)))
             return nil, "invalid_dimensions"
         end
     else
