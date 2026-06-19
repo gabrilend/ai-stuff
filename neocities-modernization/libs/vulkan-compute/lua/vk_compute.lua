@@ -70,7 +70,8 @@ ffi.cdef[[
                                              const uint32_t* start_indices);
     VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
                                              uint32_t start_slot,
-                                             uint32_t slot_count);
+                                             uint32_t slot_count,
+                                             uint32_t tile_size);
     VkComputeResult vkd_batch_download_sequences(VkDiversityBatchContext* batch_ctx,
                                                   uint32_t* output_sequences);
     void vkd_batch_destroy(VkDiversityBatchContext* batch_ctx);
@@ -438,9 +439,22 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
         local total_iters = num_poems - 1
         local batch_start_time = wall_clock()
 
-        -- Probe: small dispatch, time it
+        -- 9-014: tile size for the inner candidate scan. Target tile working
+        -- set ≤ L2 cache with margin. With FP16-packed storage each
+        -- candidate occupies embedding_dim × 2 bytes. The 0.85 factor
+        -- leaves room for the centroid, the mask, and shader code in L2.
+        -- L2_BYTES is the published spec for the GTX 1080 Ti (5.5 MiB);
+        -- a future port to a different card should query this at runtime.
+        local L2_BYTES = 5 * 1024 * 1024 + 512 * 1024  -- 5.5 MiB
+        local bytes_per_candidate = embedding_dim * 2
+        local tile_size = math.max(1, math.floor(L2_BYTES * 0.85 / bytes_per_candidate))
+        if tile_size > num_poems then tile_size = num_poems end
+
+        -- Probe: small dispatch, time it. The probe uses the same tile_size
+        -- the production chunks will use, so the timing actually reflects
+        -- the post-tiling per-iter cost.
         local probe_start = wall_clock()
-        local result = vk.vkd_batch_compute_chunk(batch_ctx, 1, PROBE_ITERS)
+        local result = vk.vkd_batch_compute_chunk(batch_ctx, 1, PROBE_ITERS, tile_size)
         check_result(result, string.format(
             "Batch compute-chunk probe dispatch (slots [1, %d))", 1 + PROBE_ITERS))
         local probe_elapsed = wall_clock() - probe_start
@@ -451,9 +465,9 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
         local remaining = total_iters - PROBE_ITERS
         local num_chunks_est = math.ceil(remaining / chunk_size) + 1  -- +1 for the probe
         print(string.format(
-            "  Probe: %d iters in %.3fs (%.1f iter/sec) -> chunk_size = %d (~%d more chunks)",
-            PROBE_ITERS, probe_elapsed, PROBE_ITERS / probe_elapsed, chunk_size,
-            num_chunks_est - 1))
+            "  Probe: %d iters in %.3fs (%.1f iter/sec) -> chunk_size = %d, tile_size = %d (~%d more chunks)",
+            PROBE_ITERS, probe_elapsed, PROBE_ITERS / probe_elapsed,
+            chunk_size, tile_size, num_chunks_est - 1))
         io.stdout:flush()
 
         -- Progress reporting: print at chunk 1, every 10th chunk, and the
@@ -471,7 +485,7 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
             local this_chunk = math.min(chunk_size, total_iters - slot + 1)
             local chunk_start = wall_clock()
 
-            result = vk.vkd_batch_compute_chunk(batch_ctx, slot, this_chunk)
+            result = vk.vkd_batch_compute_chunk(batch_ctx, slot, this_chunk, tile_size)
             check_result(result, string.format(
                 "Batch compute-chunk dispatch (chunk %d, slots [%d, %d))",
                 chunk_idx, slot, slot + this_chunk))
