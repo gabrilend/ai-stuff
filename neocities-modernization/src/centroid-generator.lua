@@ -64,7 +64,9 @@ local function generate_embedding(text, endpoint)
     local temp_file = DIR .. "/tmp/centroid_embedding_input.json"
     local payload = {
         model = CONFIG.model_name,
-        input = text
+        -- Apply the active server's task-prefix (e.g. "clustering: " for
+        -- nomic-embed-text v1.5+). No-op for models that don't need one.
+        input = ollama_config.format_embedding_prompt(text)
     }
 
     local f = io.open(temp_file, "w")

@@ -347,11 +347,14 @@ return {
             description = "Local Ollama instance",
             host = "192.168.1.100",
             port = 10265,
-            -- qwen3-embedding:4b produces 2560-dimensional vectors (vs 768 for
-            -- embeddinggemma). All downstream caches are dimension-specific —
-            -- switching models requires regenerating embeddings.json, the
+            -- nomic-embed-text:v1.5 produces 768-dimensional vectors and
+            -- requires a task-prefix on every input. For diversity ranking
+            -- of poetry the right prefix is "clustering: ", which routes
+            -- the model through its clustering-oriented internal weights.
+            -- Switching models requires regenerating embeddings.json, the
             -- similarity caches, the diversity cache, etc.
-            model = "qwen3-embedding:4b",
+            model = "nomic-embed-text:v1.5",
+            embedding_prompt_prefix = "clustering: ",
         },
     },
     -- Default server name (must match a name above)

@@ -71,7 +71,7 @@ Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
   --force-stage N     Force regenerate specific stage only (1-10)
-  --model NAME        Embedding model name (default: qwen3-embedding:4b)
+  --model NAME        Embedding model name (default: nomic-embed-text:v1.5)
 
 Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
@@ -171,7 +171,7 @@ DRY_RUN=false
 CPU_ONLY=false
 # Issue 10-028: Lower process priority for UI responsiveness
 LOW_PRIORITY=false
-MODEL_NAME="qwen3-embedding:4b"
+MODEL_NAME="nomic-embed-text:v1.5"
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
 POEMS_PER_PAGE=""
