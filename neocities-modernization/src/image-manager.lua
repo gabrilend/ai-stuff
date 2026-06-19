@@ -586,20 +586,10 @@ function M.show_statistics(catalog, verbose)
         print(string.format("  High (>1500px): %d images", stats.resolution_distribution.high))
     end
 
-    -- Show resolved duplicates (informational, not warnings - duplicates are now handled)
-    local resolved = catalog.resolved_duplicates or {}
-    if #resolved > 0 then
-        print(string.format("\n✅ Resolved %d duplicate groups (kept newest):", #resolved))
-        if verbose then
-            for i, dup_group in ipairs(resolved) do
-                local removed_str = table.concat(dup_group.removed, ", ")
-                print(string.format("  Group %d: kept %s, removed: %s",
-                    i, relative_path(dup_group.kept), removed_str))
-            end
-        else
-            print("   (use --verbose to see details)")
-        end
-    end
+    -- Resolved duplicates are handled silently. The count is uninteresting
+    -- to the operator and the per-group details are debug-level noise that
+    -- nobody reads. If a regression ever produces wrong duplicate handling
+    -- we surface it via the catalog file itself, not via stdout spam.
 end
 -- }}}
 

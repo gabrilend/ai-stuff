@@ -419,7 +419,6 @@ function M.extract_poems(force)
         return true
     end
 
-    utils.log_info("Starting poem extraction with auto-detection...")
     local output_file = utils.asset_path("poems.json")
 
     -- Use auto-detection to handle both JSON extracts and compiled.txt
@@ -441,7 +440,6 @@ end
 
 -- {{{ function M.validate_poems
 function M.validate_poems()
-    utils.log_info("Starting poem validation...")
     local input_file = utils.asset_path("poems.json")
     local output_file = utils.asset_path("validation-report.json")
     
@@ -478,7 +476,6 @@ end
 -- {{{ function M.catalog_images
 -- Issue 10-015a: Added verbose parameter for detailed statistics output
 function M.catalog_images(verbose)
-    utils.log_info("Starting image cataloging...")
 
     local success, result = pcall(function()
         return image_manager.main(verbose)
@@ -898,17 +895,11 @@ function M.main(options)
             end
         end
     elseif options.parse_only then
-        -- Run only poem parsing/extraction
-        utils.log_info("Running poem extraction only")
         M.extract_poems(options.force)
     elseif options.validate_only then
-        -- Run only validation
-        utils.log_info("Running poem validation only")
         M.validate_poems()
     elseif options.catalog_only then
-        -- Run only image cataloging
         -- Issue 10-015a: Pass verbose option for detailed statistics
-        utils.log_info("Running image cataloging only")
         M.catalog_images(options.verbose)
     elseif options.html_only then
         -- Run only HTML generation
