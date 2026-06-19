@@ -1,0 +1,107 @@
+#version 450
+
+/* diversity_commit_iteration.comp - Finalize one iteration of the diversity sequence
+ *
+ * Part of 9-014's dispatch-per-tile design. After diversity_scan_tile.comp
+ * has been dispatched once per tile for a given iteration, the per-workgroup
+ * running max in the storage buffers identifies the winning poem for that
+ * iteration. This shader:
+ *
+ *   1. Reads the winner from the running max storage buffer
+ *   2. Updates the centroid (rolling average of the seed plus all picks so far)
+ *   3. Marks the winning poem as used in the mask
+ *   4. Increments the per-workgroup count
+ *   5. Writes the winner to the output sequence at the iteration's slot
+ *   6. Resets the running max buffer to (-1e9, 0xFFFFFFFF) so the next
+ *      iteration's first tile-scan dispatch starts clean
+ *
+ * The shader runs with one workgroup per sequence in the batch. Within a
+ * workgroup, the 256 threads cooperate on the centroid update (which
+ * is embedding_dim wide and naturally parallelizes); thread 0 owns the
+ * scalar commits (mask, count, output, running-max reset).
+ */
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) readonly buffer Embeddings {
+    uint embeddings_packed[];   // [num_poems * embedding_dim / 2] — FP16-packed
+};
+layout(set = 0, binding = 1) buffer Centroids {
+    float centroids[];          // [batch_size * embedding_dim] — updated by commit
+};
+layout(set = 0, binding = 2) buffer Masks {
+    uint masks[];               // [batch_size * num_poems] — updated by commit
+};
+layout(set = 0, binding = 3) buffer Counts {
+    uint counts[];              // [batch_size] — updated by commit
+};
+layout(set = 0, binding = 4) writeonly buffer Output {
+    uint output_sequences[];    // [batch_size * num_poems] — winner written at slot
+};
+layout(set = 0, binding = 5) buffer RunningMaxDistance {
+    float running_max_distance[];
+};
+layout(set = 0, binding = 6) buffer RunningMaxIndex {
+    uint running_max_index[];
+};
+
+layout(push_constant) uniform Constants {
+    uint num_poems;
+    uint embedding_dim;
+    uint slot;          // output sequence slot to write the winner into
+} constants;
+
+void main() {
+    uint workgroup_id = gl_WorkGroupID.x;
+    uint thread_id    = gl_LocalInvocationID.x;
+    uint num_threads  = gl_WorkGroupSize.x;
+
+    uint centroid_base = workgroup_id * constants.embedding_dim;
+    uint mask_base     = workgroup_id * constants.num_poems;
+    uint output_base   = workgroup_id * constants.num_poems;
+    uint num_pairs_per_poem = constants.embedding_dim / 2u;
+
+    // All threads read the same winner from storage (broadcast on most
+    // GPUs because the same address is read by all threads in a warp).
+    uint  selected_poem = running_max_index[workgroup_id];
+
+    if (selected_poem == 0xFFFFFFFFu || selected_poem >= constants.num_poems) {
+        // No valid poem found — write sentinel, reset, return.
+        if (thread_id == 0u) {
+            output_sequences[output_base + constants.slot] = 0xFFFFFFFFu;
+            running_max_distance[workgroup_id] = -1e9;
+            running_max_index[workgroup_id]    = 0xFFFFFFFFu;
+        }
+        return;
+    }
+
+    // Update centroid in storage, parallel across threads. Pairs of dims
+    // per iteration, matching the FP16-packed embedding layout. The new
+    // value is (old * count + new) / (count + 1).
+    uint  selected_pair_base = selected_poem * num_pairs_per_poem;
+    float count_f            = float(counts[workgroup_id]);
+    float new_count_f        = count_f + 1.0;
+
+    for (uint p = thread_id; p < num_pairs_per_poem; p += num_threads) {
+        vec2 e_pair = unpackHalf2x16(embeddings_packed[selected_pair_base + p]);
+        uint d0 = p * 2u;
+
+        float old0 = centroids[centroid_base + d0];
+        centroids[centroid_base + d0]      = (old0 * count_f + e_pair.x) / new_count_f;
+
+        float old1 = centroids[centroid_base + d0 + 1u];
+        centroids[centroid_base + d0 + 1u] = (old1 * count_f + e_pair.y) / new_count_f;
+    }
+
+    // Thread 0 commits the scalars: mask, count, output, and the running
+    // max reset that prepares the next iteration's first scan dispatch.
+    if (thread_id == 0u) {
+        masks[mask_base + selected_poem] = 0u;
+        counts[workgroup_id]             = counts[workgroup_id] + 1u;
+        output_sequences[output_base + constants.slot] = selected_poem;
+        running_max_distance[workgroup_id] = -1e9;
+        running_max_index[workgroup_id]    = 0xFFFFFFFFu;
+    }
+}
+
+/* vim: set foldmethod=marker: */
