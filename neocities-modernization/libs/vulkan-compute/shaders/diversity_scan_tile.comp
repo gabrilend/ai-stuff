@@ -1,0 +1,142 @@
+#version 450
+
+/* diversity_scan_tile.comp - One-tile candidate scan, updates running max
+ *
+ * Part of 9-014's dispatch-per-tile design. This shader scans a contiguous
+ * range of candidate poems (one tile) for one iteration of the diversity
+ * sequence build, computes each available candidate's cosine distance from
+ * the current centroid, and updates a per-workgroup "running max" storage
+ * buffer with the highest distance found so far across all tiles processed
+ * for this iteration.
+ *
+ * Each iteration consists of:
+ *   - N tile-scan dispatches (one per tile), this shader
+ *   - 1 commit dispatch (diversity_commit_iteration.comp) that reads the
+ *     running max, picks the winning poem, updates centroid/mask/count/output,
+ *     and resets the running max for the next iteration.
+ *
+ * The fence wait between dispatches enforces "all workgroups finish tile K
+ * before any start tile K+1," which gives the L2 cache exactly one tile's
+ * worth of embedding data to hold at a time — the full theoretical cache
+ * benefit that the in-shader tile loop in diversity_full.comp only
+ * approximates.
+ */
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) readonly buffer Embeddings {
+    uint embeddings_packed[];   // [num_poems * embedding_dim / 2] — FP16-packed
+};
+layout(set = 0, binding = 1) readonly buffer Centroids {
+    float centroids[];          // [batch_size * embedding_dim] — read by scan, written by commit
+};
+layout(set = 0, binding = 2) readonly buffer Masks {
+    uint masks[];               // [batch_size * num_poems] — read by scan, written by commit
+};
+layout(set = 0, binding = 3) buffer RunningMaxDistance {
+    float running_max_distance[];   // [batch_size] — running max distance for each workgroup, this iteration
+};
+layout(set = 0, binding = 4) buffer RunningMaxIndex {
+    uint running_max_index[];       // [batch_size] — index of the poem that produced the running max
+};
+
+layout(push_constant) uniform Constants {
+    uint num_poems;
+    uint embedding_dim;
+    uint tile_start;    // first candidate poem index in this tile
+    uint tile_size;     // how many candidates in this tile
+} constants;
+
+// Workgroup-local centroid (loaded fresh from storage on every dispatch).
+// Sized for up to 4096-D embeddings to cover models up through 4096-dim.
+shared float s_centroid[4096];
+
+// Per-thread reduction scratch.
+shared float s_distances[256];
+shared uint  s_indices[256];
+
+void main() {
+    uint workgroup_id = gl_WorkGroupID.x;
+    uint thread_id    = gl_LocalInvocationID.x;
+    uint num_threads  = gl_WorkGroupSize.x;
+
+    uint centroid_base = workgroup_id * constants.embedding_dim;
+    uint mask_base     = workgroup_id * constants.num_poems;
+    uint num_pairs_per_poem = constants.embedding_dim / 2u;
+
+    // Load this workgroup's centroid into shared memory, parallel across threads.
+    // Cost is amortized over the entire tile's scan because every cosine-distance
+    // call reads the centroid embedding_dim times.
+    for (uint d = thread_id; d < constants.embedding_dim; d += num_threads) {
+        s_centroid[d] = centroids[centroid_base + d];
+    }
+    barrier();
+
+    // Phase 1 — each thread finds its local max-distance available poem
+    // within the tile [tile_start, tile_start + tile_size).
+    float local_max_distance = -1e9;
+    uint  local_max_index    = 0xFFFFFFFFu;
+
+    uint tile_end = min(constants.tile_start + constants.tile_size, constants.num_poems);
+
+    for (uint poem_id = constants.tile_start + thread_id; poem_id < tile_end; poem_id += num_threads) {
+        if (masks[mask_base + poem_id] == 1u) {
+            uint poem_pair_base = poem_id * num_pairs_per_poem;
+
+            float dot_product    = 0.0;
+            float norm_centroid  = 0.0;
+            float norm_embedding = 0.0;
+            for (uint p = 0u; p < num_pairs_per_poem; p++) {
+                vec2 e_pair = unpackHalf2x16(embeddings_packed[poem_pair_base + p]);
+                uint d0 = p * 2u;
+                float c0 = s_centroid[d0];
+                float c1 = s_centroid[d0 + 1u];
+                dot_product    += c0 * e_pair.x + c1 * e_pair.y;
+                norm_centroid  += c0 * c0 + c1 * c1;
+                norm_embedding += e_pair.x * e_pair.x + e_pair.y * e_pair.y;
+            }
+            float norm_product = sqrt(norm_centroid) * sqrt(norm_embedding);
+            float similarity   = (norm_product > 0.0) ? (dot_product / norm_product) : 0.0;
+            float dist         = 1.0 - similarity;
+
+            if (dist > local_max_distance) {
+                local_max_distance = dist;
+                local_max_index    = poem_id;
+            }
+        }
+    }
+
+    s_distances[thread_id] = local_max_distance;
+    s_indices[thread_id]   = local_max_index;
+    barrier();
+
+    // Phase 2 — 256-way parallel reduction picks the workgroup-wide max
+    for (uint stride = 128u; stride > 0u; stride >>= 1) {
+        if (thread_id < stride) {
+            if (s_distances[thread_id + stride] > s_distances[thread_id]) {
+                s_distances[thread_id] = s_distances[thread_id + stride];
+                s_indices[thread_id]   = s_indices[thread_id + stride];
+            }
+        }
+        barrier();
+    }
+
+    // Phase 3 — thread 0 compares this tile's max against the persistent
+    // running max in storage. Only one thread writes per workgroup so there
+    // is no atomic contention (each workgroup owns its own slot in the
+    // running_max_* buffers).
+    if (thread_id == 0u) {
+        float tile_max_distance = s_distances[0];
+        uint  tile_max_index    = s_indices[0];
+
+        // If the running_max_distance buffer was initialized to -1e9 (or
+        // reset to -1e9 by the previous iteration's commit), the first tile
+        // of an iteration always wins this comparison and overwrites it.
+        if (tile_max_distance > running_max_distance[workgroup_id]) {
+            running_max_distance[workgroup_id] = tile_max_distance;
+            running_max_index[workgroup_id]    = tile_max_index;
+        }
+    }
+}
+
+/* vim: set foldmethod=marker: */

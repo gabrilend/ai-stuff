@@ -313,8 +313,23 @@ struct VkDiversityBatchContext {
     VkComputeBuffer* counts_buf;       /* Poem counts for rolling average */
     VkComputeBuffer* output_buf;       /* Complete sequences output */
 
-    /* Pipeline */
+    /* Pipelines.
+     *   batch_pipeline       — original in-shader-tile-loop path (diversity_full.spv).
+     *                          One dispatch runs many iterations internally.
+     *   scan_tile_pipeline   — 9-014 dispatch-per-tile path (diversity_scan_tile.spv).
+     *                          Scans one tile of one iteration; accumulates per-workgroup
+     *                          running max into running_max_distance_buf / running_max_index_buf.
+     *   commit_iteration_pipeline — 9-014 commit step (diversity_commit_iteration.spv).
+     *                          Reads the running max, updates state, resets max for next iter. */
     VkComputePipeline* batch_pipeline;
+    VkComputePipeline* scan_tile_pipeline;
+    VkComputePipeline* commit_iteration_pipeline;
+
+    /* 9-014 running max storage buffers (used by the dispatch-per-tile path).
+     * One float and one uint per workgroup, persisting across the scan-tile
+     * dispatches that make up one iteration, then read and reset by commit. */
+    VkComputeBuffer* running_max_distance_buf;
+    VkComputeBuffer* running_max_index_buf;
 
     /* Selections buffer (host-visible for reading back selected poems) */
     VkComputeBuffer* selections_buf;
@@ -485,7 +500,79 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     vkc_bind_buffer(ctx, batch_ctx->batch_pipeline, 3, batch_ctx->counts_buf);
     vkc_bind_buffer(ctx, batch_ctx->batch_pipeline, 4, batch_ctx->output_buf);
 
-    printf("[VKD Batch] Initialization complete\n");
+    /* 9-014 dispatch-per-tile path setup: running_max storage buffers and
+     * the two new pipelines. Allocated lazily here so callers that only
+     * use the in-shader-tile-loop path do not pay for them. */
+    size_t running_max_distance_size = (size_t)batch_size * sizeof(float);
+    size_t running_max_index_size    = (size_t)batch_size * sizeof(uint32_t);
+
+    batch_ctx->running_max_distance_buf =
+        vkc_create_buffer(ctx, running_max_distance_size, VKC_BUFFER_DEVICE_LOCAL);
+    batch_ctx->running_max_index_buf =
+        vkc_create_buffer(ctx, running_max_index_size, VKC_BUFFER_DEVICE_LOCAL);
+    if (!batch_ctx->running_max_distance_buf || !batch_ctx->running_max_index_buf) {
+        fprintf(stderr, "[VKD Batch ERROR] Failed to create running-max buffers\n");
+        vkd_batch_destroy(batch_ctx);
+        return NULL;
+    }
+
+    /* Initialize running max to (-inf, sentinel). The commit shader resets
+     * to the same values after each iteration, but we need a known-good
+     * starting state for the very first iteration's first tile-scan. */
+    float* initial_max_dist = malloc(running_max_distance_size);
+    uint32_t* initial_max_idx = malloc(running_max_index_size);
+    if (!initial_max_dist || !initial_max_idx) {
+        free(initial_max_dist);
+        free(initial_max_idx);
+        vkd_batch_destroy(batch_ctx);
+        return NULL;
+    }
+    for (uint32_t i = 0; i < batch_size; i++) {
+        initial_max_dist[i] = -1e9f;
+        initial_max_idx[i]  = 0xFFFFFFFFu;
+    }
+    vkc_upload_buffer(ctx, batch_ctx->running_max_distance_buf,
+                      initial_max_dist, running_max_distance_size);
+    vkc_upload_buffer(ctx, batch_ctx->running_max_index_buf,
+                      initial_max_idx, running_max_index_size);
+    free(initial_max_dist);
+    free(initial_max_idx);
+
+    /* Create the scan-tile pipeline. Push constants: num_poems, embedding_dim,
+     * tile_start, tile_size — four uints. Reads embeddings/centroids/masks,
+     * writes running_max_distance/running_max_index. */
+    batch_ctx->scan_tile_pipeline = vkc_create_pipeline(ctx, "build/diversity_scan_tile.spv",
+                                                         sizeof(uint32_t) * 4);
+    if (!batch_ctx->scan_tile_pipeline) {
+        fprintf(stderr, "[VKD Batch ERROR] Failed to create scan_tile pipeline\n");
+        vkd_batch_destroy(batch_ctx);
+        return NULL;
+    }
+    vkc_bind_buffer(ctx, batch_ctx->scan_tile_pipeline, 0, batch_ctx->embeddings_buf);
+    vkc_bind_buffer(ctx, batch_ctx->scan_tile_pipeline, 1, batch_ctx->centroids_buf);
+    vkc_bind_buffer(ctx, batch_ctx->scan_tile_pipeline, 2, batch_ctx->masks_buf);
+    vkc_bind_buffer(ctx, batch_ctx->scan_tile_pipeline, 3, batch_ctx->running_max_distance_buf);
+    vkc_bind_buffer(ctx, batch_ctx->scan_tile_pipeline, 4, batch_ctx->running_max_index_buf);
+
+    /* Create the commit-iteration pipeline. Push constants: num_poems,
+     * embedding_dim, slot — three uints. Reads embeddings, writes centroid/
+     * mask/count/output and resets running_max. */
+    batch_ctx->commit_iteration_pipeline = vkc_create_pipeline(ctx, "build/diversity_commit_iteration.spv",
+                                                                sizeof(uint32_t) * 3);
+    if (!batch_ctx->commit_iteration_pipeline) {
+        fprintf(stderr, "[VKD Batch ERROR] Failed to create commit_iteration pipeline\n");
+        vkd_batch_destroy(batch_ctx);
+        return NULL;
+    }
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 0, batch_ctx->embeddings_buf);
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 1, batch_ctx->centroids_buf);
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 2, batch_ctx->masks_buf);
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 3, batch_ctx->counts_buf);
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 4, batch_ctx->output_buf);
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 5, batch_ctx->running_max_distance_buf);
+    vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 6, batch_ctx->running_max_index_buf);
+
+    printf("[VKD Batch] Initialization complete (3 pipelines, 9-014 ready)\n");
     return batch_ctx;
 }
 
@@ -546,6 +633,108 @@ VkComputeResult vkd_batch_compute_chunk(VkDiversityBatchContext* batch_ctx,
 
 /* }}} */
 
+/* {{{ vkd_batch_compute_chunk_pipelined
+ *
+ * 9-014 dispatch-per-tile + pipelining: the same effective work as
+ * vkd_batch_compute_chunk, but each iteration is split into N tile-scan
+ * dispatches plus one commit dispatch, all submitted via the async
+ * pipeline pool so the CPU stays ahead of the GPU.
+ *
+ * Compared to vkd_batch_compute_chunk:
+ *   - Cache hit rate is higher because the fence wait between tile
+ *     dispatches enforces hard grid sync — all workgroups finish tile K
+ *     before any start tile K+1, so the L2 holds exactly one tile's
+ *     worth of embedding data at a time.
+ *   - CPU dispatch overhead is hidden because the async pool lets the
+ *     CPU record dispatch N+1 while the GPU runs dispatch N.
+ *   - More total dispatches (slot_count * (num_tiles + 1) instead of 1
+ *     per chunk), but each is much shorter and the pipelining hides
+ *     the per-dispatch cost.
+ *
+ * Parameters match vkd_batch_compute_chunk: start_slot, slot_count, and
+ * tile_size. tile_size is now load-bearing (the chunked-into-tiles flow
+ * only makes sense with a real tile size); passing 0 or num_poems
+ * collapses to one tile per iteration, which is the same shape as the
+ * non-tiled baseline only with extra dispatch overhead — useful for
+ * sanity-checking but not for production.
+ */
+VkComputeResult vkd_batch_compute_chunk_pipelined(VkDiversityBatchContext* batch_ctx,
+                                                   uint32_t start_slot,
+                                                   uint32_t slot_count,
+                                                   uint32_t tile_size) {
+    if (!batch_ctx || slot_count == 0) {
+        return VKC_ERROR_INIT_FAILED;
+    }
+    if (start_slot + slot_count > batch_ctx->num_poems) {
+        return VKC_ERROR_INIT_FAILED;
+    }
+    if (tile_size == 0 || tile_size > batch_ctx->num_poems) {
+        tile_size = batch_ctx->num_poems;
+    }
+
+    VkComputeContext* ctx = batch_ctx->ctx;
+    uint32_t num_tiles = (batch_ctx->num_poems + tile_size - 1) / tile_size;
+
+    struct {
+        uint32_t num_poems;
+        uint32_t embedding_dim;
+        uint32_t tile_start;
+        uint32_t tile_size;
+    } scan_pc;
+    struct {
+        uint32_t num_poems;
+        uint32_t embedding_dim;
+        uint32_t slot;
+    } commit_pc;
+
+    /* For each iteration in this chunk: dispatch N tile-scans, then one
+     * commit. All dispatches go to the async pool. The compute-to-compute
+     * memory barrier at the head of each command buffer (added by
+     * vkc_dispatch_async) ensures the running_max writes from tile K are
+     * visible to tile K+1's reads, and the commit's reads see the final
+     * running max from the last tile. */
+    for (uint32_t iter = 0; iter < slot_count; iter++) {
+        uint32_t slot = start_slot + iter;
+
+        for (uint32_t t = 0; t < num_tiles; t++) {
+            uint32_t tile_start = t * tile_size;
+            uint32_t this_tile_size = tile_size;
+            if (tile_start + this_tile_size > batch_ctx->num_poems) {
+                this_tile_size = batch_ctx->num_poems - tile_start;
+            }
+            scan_pc.num_poems     = batch_ctx->num_poems;
+            scan_pc.embedding_dim = batch_ctx->embedding_dim;
+            scan_pc.tile_start    = tile_start;
+            scan_pc.tile_size     = this_tile_size;
+
+            VkComputeResult r = vkc_dispatch_async(ctx, batch_ctx->scan_tile_pipeline,
+                                                    batch_ctx->batch_size, 1, 1,
+                                                    &scan_pc);
+            if (r != VKC_SUCCESS) {
+                return r;
+            }
+        }
+
+        commit_pc.num_poems     = batch_ctx->num_poems;
+        commit_pc.embedding_dim = batch_ctx->embedding_dim;
+        commit_pc.slot          = slot;
+
+        VkComputeResult r = vkc_dispatch_async(ctx, batch_ctx->commit_iteration_pipeline,
+                                                batch_ctx->batch_size, 1, 1,
+                                                &commit_pc);
+        if (r != VKC_SUCCESS) {
+            return r;
+        }
+    }
+
+    /* Drain the pipeline before returning so callers can rely on all
+     * work being done at the point of return. Callers that want to keep
+     * the pipeline warm across chunks can refactor to defer the drain. */
+    return vkc_wait_async_all(ctx);
+}
+
+/* }}} */
+
 /* {{{ vkd_batch_download_sequences
  */
 
@@ -574,6 +763,12 @@ void vkd_batch_destroy(VkDiversityBatchContext* batch_ctx) {
     if (batch_ctx->batch_pipeline) {
         vkc_destroy_pipeline(ctx, batch_ctx->batch_pipeline);
     }
+    if (batch_ctx->scan_tile_pipeline) {
+        vkc_destroy_pipeline(ctx, batch_ctx->scan_tile_pipeline);
+    }
+    if (batch_ctx->commit_iteration_pipeline) {
+        vkc_destroy_pipeline(ctx, batch_ctx->commit_iteration_pipeline);
+    }
 
     if (batch_ctx->embeddings_buf) {
         vkc_destroy_buffer(ctx, batch_ctx->embeddings_buf);
@@ -592,6 +787,12 @@ void vkd_batch_destroy(VkDiversityBatchContext* batch_ctx) {
     }
     if (batch_ctx->selections_buf) {
         vkc_destroy_buffer(ctx, batch_ctx->selections_buf);
+    }
+    if (batch_ctx->running_max_distance_buf) {
+        vkc_destroy_buffer(ctx, batch_ctx->running_max_distance_buf);
+    }
+    if (batch_ctx->running_max_index_buf) {
+        vkc_destroy_buffer(ctx, batch_ctx->running_max_index_buf);
     }
 
     free(batch_ctx);
