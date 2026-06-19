@@ -55,6 +55,8 @@ layout(push_constant) uniform Constants {
     uint embedding_dim;
     uint start_slot;   // first output-sequence slot this dispatch will write
     uint slot_count;   // how many slots to write before returning
+    uint tile_size;    // 9-014: candidates per tile in the scan; pass num_poems
+                       // for the non-tiled baseline (one tile covers everything)
 } constants;
 
 // Shared memory budget (256 threads, varies by embedding_dim):
@@ -117,37 +119,57 @@ void main() {
         // 2560 (qwen3-embedding:4b); a tail half is not handled.
         uint num_pairs_per_poem = constants.embedding_dim / 2u;
 
-        for (uint poem_id = thread_id; poem_id < constants.num_poems; poem_id += num_threads) {
-            if (masks[mask_base + poem_id] == 1u) {
-                uint poem_pair_base = poem_id * num_pairs_per_poem;
+        // 9-014: tiled candidate scan. Each tile is a contiguous range of
+        // candidate poems that fits in L2 cache. All threads (and ideally
+        // all workgroups in the same wave) scan tile K before any moves on
+        // to tile K+1, so the L2 only has to hold one tile's embeddings at
+        // a time instead of fragments of the whole table. The running-max
+        // accumulators (local_max_distance / local_max_index) persist
+        // across tiles unchanged — finding the max across the union is
+        // the same as max-of-maxes by associativity. The non-tiled path
+        // is recovered by passing tile_size = num_poems.
+        uint tile_size = constants.tile_size;
+        if (tile_size == 0u) tile_size = constants.num_poems;
+        uint num_tiles = (constants.num_poems + tile_size - 1u) / tile_size;
 
-                // Cosine distance against the shared-memory centroid, with
-                // the embedding read from FP16 packed storage. Each iteration
-                // pulls one uint (2 FP16 values), unpacks to a vec2 of FP32
-                // via the hardware-supported unpackHalf2x16, and processes
-                // two dimensions per loop iteration. Memory traffic is half
-                // of the FP32 path; arithmetic precision is unchanged.
-                float dot_product    = 0.0;
-                float norm_centroid  = 0.0;
-                float norm_embedding = 0.0;
-                for (uint p = 0u; p < num_pairs_per_poem; p++) {
-                    vec2 e_pair = unpackHalf2x16(embeddings_packed[poem_pair_base + p]);
-                    uint d0 = p * 2u;
-                    float c0 = s_centroid[d0];
-                    float c1 = s_centroid[d0 + 1u];
-                    dot_product    += c0 * e_pair.x + c1 * e_pair.y;
-                    norm_centroid  += c0 * c0 + c1 * c1;
-                    norm_embedding += e_pair.x * e_pair.x + e_pair.y * e_pair.y;
-                }
-                float norm_product = sqrt(norm_centroid) * sqrt(norm_embedding);
-                float similarity   = (norm_product > 0.0) ? (dot_product / norm_product) : 0.0;
-                float dist         = 1.0 - similarity;
+        for (uint t = 0u; t < num_tiles; t++) {
+            uint tile_start = t * tile_size;
+            uint tile_end   = min(tile_start + tile_size, constants.num_poems);
 
-                if (dist > local_max_distance) {
-                    local_max_distance = dist;
-                    local_max_index    = poem_id;
+            for (uint poem_id = tile_start + thread_id; poem_id < tile_end; poem_id += num_threads) {
+                if (masks[mask_base + poem_id] == 1u) {
+                    uint poem_pair_base = poem_id * num_pairs_per_poem;
+
+                    // Cosine distance against the shared-memory centroid, with
+                    // the embedding read from FP16 packed storage. Each iteration
+                    // pulls one uint (2 FP16 values), unpacks to a vec2 of FP32
+                    // via the hardware-supported unpackHalf2x16, and processes
+                    // two dimensions per loop iteration.
+                    float dot_product    = 0.0;
+                    float norm_centroid  = 0.0;
+                    float norm_embedding = 0.0;
+                    for (uint p = 0u; p < num_pairs_per_poem; p++) {
+                        vec2 e_pair = unpackHalf2x16(embeddings_packed[poem_pair_base + p]);
+                        uint d0 = p * 2u;
+                        float c0 = s_centroid[d0];
+                        float c1 = s_centroid[d0 + 1u];
+                        dot_product    += c0 * e_pair.x + c1 * e_pair.y;
+                        norm_centroid  += c0 * c0 + c1 * c1;
+                        norm_embedding += e_pair.x * e_pair.x + e_pair.y * e_pair.y;
+                    }
+                    float norm_product = sqrt(norm_centroid) * sqrt(norm_embedding);
+                    float similarity   = (norm_product > 0.0) ? (dot_product / norm_product) : 0.0;
+                    float dist         = 1.0 - similarity;
+
+                    if (dist > local_max_distance) {
+                        local_max_distance = dist;
+                        local_max_index    = poem_id;
+                    }
                 }
             }
+            // No barrier between tiles: local_max_{distance,index} are
+            // per-thread, and the global reduction below runs after the
+            // last tile finishes, so cross-tile ordering does not matter.
         }
 
         s_distances[thread_id] = local_max_distance;
