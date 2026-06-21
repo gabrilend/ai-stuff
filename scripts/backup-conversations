@@ -21,8 +21,9 @@ function write-transcripts-to-project-directory(){ # {{{
       echo "Extracts Claude conversation transcripts and writes summaries to the specified"
       echo "project directory. If no directory is provided, uses current directory."
       echo "Output files are placed in '<project-directory>/llm-transcripts/'"
-      echo "and contain only user prompts and final assistant responses, excluding"
-      echo "intermediate problem-solving dialogue for clarity."
+      echo "and contain every user prompt plus every block of assistant prose between"
+      echo "user turns. Tool calls and tool results are dropped, but in-progress"
+      echo "narration the model wrote for the user to read is preserved."
       return 1
    fi
    
@@ -111,6 +112,20 @@ function backup-conversation(){
 function backup-conversations(){
     backup-conversation "$@"
 }
+
+# Direct-invocation entry point.
+# Until now this file only defined functions; running it as a command did
+# nothing, which silently broke batch-transcript-backup.sh and made it
+# impossible to use as a Stop-hook target. Now: when executed directly
+# (rather than sourced), run the backup against the given path, or against
+# $CLAUDE_PROJECT_DIR / $(pwd) as fallback. The "no transcripts to back up"
+# case is already swallowed inside backup-conversation, so this stays quiet
+# when there is nothing to do.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    target="${1:-${CLAUDE_PROJECT_DIR:-$(pwd)}}"
+    backup-conversation "$target"
+    exit 0
+fi
 
 function claude-next(){
    DIR=$(pwd)
