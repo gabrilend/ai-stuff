@@ -1,6 +1,6 @@
 # backup-conversations
 
-Extracts Claude conversation transcripts from `~/.claude/projects/` and writes summaries to project-specific `llm-transcripts/` directories. Filters intermediate problem-solving dialogue for clarity, keeping only user requests and final assistant responses.
+Extracts Claude conversation transcripts from `~/.claude/projects/` and writes summaries to project-specific `llm-transcripts/` directories. Keeps every user request and every block of assistant prose the model emitted between user turns — tool calls and tool results are dropped, but in-progress narration ("now I'll check X", "found the bug", etc.) is preserved because that's content the model wanted the user to read.
 
 ## Use Cases
 
@@ -37,7 +37,7 @@ Useful for documenting how AI assistance was used during development.
 
 - **Automatic Claude Directory Discovery**: Maps project paths to Claude's internal project directories
 - **User/Assistant Extraction**: Parses JSONL conversation files to extract the dialogue flow
-- **Intermediate Filtering**: Removes tool results and intermediate problem-solving steps
+- **Prose Preservation**: Keeps every assistant text block between user turns, joined into one response section. Skips only tool_use blocks (and any internal thinking blocks).
 - **Markdown Formatting**: Outputs clean, readable markdown summaries
 - **Text Wrapping**: Wraps long lines at 80 characters while preserving markdown structure
 - **Timestamp Preservation**: Sets file modification times to match the conversation's final timestamp

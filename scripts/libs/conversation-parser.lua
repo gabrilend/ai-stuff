@@ -198,11 +198,14 @@ local function parse_conversation(jsonl_file, output_file)
             end
 
             if not is_tool_result then
-                -- If we have accumulated assistant responses, output the last one
+                -- Flush every assistant text block accumulated since the
+                -- previous user turn, joined by blank lines so each chunk
+                -- still reads as its own paragraph.
                 if current_user_uuid and #assistant_responses > 0 then
                     out:write("### Assistant Response " .. (user_count - 1) .. "\n")
                     out:write("\n")
-                    local formatted_response = format_content(assistant_responses[#assistant_responses])
+                    local combined = table.concat(assistant_responses, "\n\n")
+                    local formatted_response = format_content(combined)
                     out:write(formatted_response .. "\n")
                     out:write("\n")
                     out:write(string.rep("-", 80) .. "\n")
@@ -226,31 +229,35 @@ local function parse_conversation(jsonl_file, output_file)
             end
 
         -- Process assistant messages
+        -- Collect every text block the model emitted between user turns.
+        -- A single assistant message can interleave text and tool_use blocks,
+        -- and a single user turn can produce several assistant messages while
+        -- the model narrates its work. All of those text blocks are prose
+        -- the model wanted the user to read, so we keep them all and skip
+        -- only tool_use (and thinking) blocks.
         elseif msg_type == "assistant" and current_user_uuid then
             local content_list = msg.message and msg.message.content or {}
-            local text_content = ""
 
-            -- Extract text content from assistant message
             if type(content_list) == "table" then
                 for _, item in ipairs(content_list) do
                     if type(item) == "table" and item.type == "text" then
-                        text_content = item.text or ""
-                        break
+                        local text = item.text or ""
+                        if text ~= "" then
+                            table.insert(assistant_responses, text)
+                        end
                     end
                 end
-            end
-
-            if text_content ~= "" then
-                table.insert(assistant_responses, text_content)
             end
         end
     end
 
-    -- Output the final assistant response if we have one
+    -- Final flush: same combining behavior as the mid-stream flush above,
+    -- for any trailing assistant prose after the last user message.
     if current_user_uuid and #assistant_responses > 0 then
         out:write("### Assistant Response " .. (user_count - 1) .. "\n")
         out:write("\n")
-        local formatted_response = format_content(assistant_responses[#assistant_responses])
+        local combined = table.concat(assistant_responses, "\n\n")
+        local formatted_response = format_content(combined)
         out:write(formatted_response .. "\n")
         out:write("\n")
         out:write(string.rep("-", 80) .. "\n")
