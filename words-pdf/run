@@ -2,10 +2,70 @@
 
 set -euo pipefail
 
+# Ctrl+C handling: when lua is blocked inside an os.execute(curl), curl
+# absorbs the SIGINT (exits 130) and lua resumes the next iteration —
+# silently swallowing the interrupt. This trap makes bash itself exit
+# 130 the moment the signal arrives, regardless of what the child is
+# doing, so the EXIT trap below fires immediately and kills the servers.
+trap 'echo ""; echo "🛑 Interrupted by user; exiting."; exit 130' INT
+
 DIR="/home/ritz/programming/ai-stuff/words-pdf"
 
+# Issue 027: --natural-themes disables the frequency-weighted theme
+# picker (Tier 1/2/3) so the operator can compare evenly-distributed
+# theme selection against raw-similarity selection.
+# Issue 030 Phase 4: --no-rebuild skips the auto-rebuild stale check so
+# the operator can iterate on the renderer (or anything else that
+# touches themes/generators.lua mtime) without paying for a fresh
+# themes-rebuild every PDF run.
+# Both flags are pulled out of the positional-arg list here so the mode
+# dispatch below ($1 = "pdf"|"web"|... ; $2 = ordering) does not see
+# them as values.
+NATURAL_THEMES_FLAG=""
+NO_REBUILD=0
+FILTERED_ARGS=()
+for arg in "$@"; do
+    if [ "$arg" = "--natural-themes" ]; then
+        NATURAL_THEMES_FLAG="--natural-themes"
+    elif [ "$arg" = "--no-rebuild" ]; then
+        NO_REBUILD=1
+    else
+        FILTERED_ARGS+=("$arg")
+    fi
+done
+set -- "${FILTERED_ARGS[@]}"
+
 cd "${DIR}"
-mkdir -p output/compile-ai output/compile tmp/embeddings
+# tmp/ is a symlink into /tmp/words-pdf (tmpfs); the target gets wiped on
+# reboot, so re-establish it before any mkdir tries to dereference it.
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+mkdir -p output/compile-ai output/compile tmp/embeddings tmp/logs
+
+# Tee all output (stdout + stderr) of this script through to a log file
+# under tmp/logs, while still showing it on the terminal. Each run gets a
+# fresh timestamped log file so previous runs aren't clobbered. The log
+# file lives in tmp/ (RAM-backed via /tmp/words-pdf/) so it doesn't
+# accumulate on disk; reboot wipes it along with the other ephemeral state.
+# Determine a mode tag so each mode's log lands in a separately-named
+# file. Easier to grep tmp/logs/ later when you want "the most recent
+# themes-rebuild" vs "the most recent PDF run." The case-arg matches
+# the mode dispatch below; keep them in sync if either changes.
+case "${1:-}" in
+    themes-rebuild)             LOG_MODE_TAG="themes-rebuild" ;;
+    -I|interactive)             LOG_MODE_TAG="pdf-interactive" ;;
+    web)                        LOG_MODE_TAG="web" ;;
+    web-chatbot)                LOG_MODE_TAG="web-chatbot" ;;
+    web-old)                    LOG_MODE_TAG="web-old" ;;
+    *)                          LOG_MODE_TAG="pdf" ;;
+esac
+LOG_FILE="${DIR}/tmp/logs/${LOG_MODE_TAG}-$(date +%Y%m%d-%H%M%S).log"
+# Issue 026: libs/progress-ui.lua needs LOG_FILE in its environment so it
+# can mirror the per-page redraw region into the same log this script
+# tees to. Without the export the lua process sees a nil env var and
+# init() errors out.
+export LOG_FILE
+exec > >(tee "$LOG_FILE") 2>&1
+echo "📜 Logging to $LOG_FILE"
 
 # Backup Claude conversation transcripts
 echo "Backing up Claude conversation transcripts..."
@@ -23,7 +83,73 @@ if [ ! -f "${DIR}/src/spacebar-handler.wasm" ]; then
 fi
 
 export \
-   LD_LIBRARY_PATH=${DIR}/libs/libharu-RELEASE_2_3_0/build/src:$LD_LIBRARY_PATH
+   LD_LIBRARY_PATH=${DIR}/libs/cuda/lib64:${DIR}/libs/libharu-RELEASE_2_3_0/build/src:$LD_LIBRARY_PATH
+
+# Issue 025: the project's AI paths talk to project-local llama-server
+# instances (one for embeddings, one for chat) instead of an external
+# Ollama install. Launch them in the background; the trap below kills
+# whatever this script started, regardless of whether the lua pipeline
+# below succeeds, fails, or gets Ctrl+C'd.
+#
+# An already-running server (e.g. one the operator started in another
+# terminal via ./scripts/start-llamacpp-server.sh) is left alone — the
+# start script only writes a pid file for servers IT actually launched,
+# so the cleanup below only kills those.
+"${DIR}/scripts/start-llamacpp-server.sh" --background "${DIR}"
+
+# {{{ stop_llamacpp_servers()
+# Kill any llama-server we started, identified by PID files the start
+# script wrote. `kill -0` confirms the PID is still our process before
+# we send SIGTERM, since /run could be interrupted between the start
+# script writing the file and the server actually launching (unlikely,
+# but defensive). Files are removed unconditionally — a stale pid file
+# is worse than no file at all for future runs.
+stop_llamacpp_servers() {
+    local label pid pid_file waited
+    for label in embed chat; do
+        pid_file="${DIR}/tmp/llamacpp-${label}.pid"
+        if [ ! -f "${pid_file}" ]; then
+            continue
+        fi
+        pid=$(cat "${pid_file}" 2>/dev/null || true)
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            echo "🛑 Stopping ${label} server (PID ${pid})"
+            kill "${pid}" 2>/dev/null || true
+            # SIGTERM lets llama-server flush and unmap the model cleanly,
+            # but it returns immediately — the GPU's VRAM is not actually
+            # freed until the process has exited. Wait for that so the next
+            # run (or the operator's next GPU command) doesn't collide with
+            # a server still tearing down. If it ignores SIGTERM for 10s
+            # (wedged in a CUDA call, say), escalate to SIGKILL rather than
+            # leak a process holding the card hostage. Each branch is a
+            # condition or `|| true` so the EXIT trap never aborts mid-cleanup
+            # under `set -e` and always reaches the other server.
+            waited=0
+            while kill -0 "${pid}" 2>/dev/null && [ "${waited}" -lt 10 ]; do
+                sleep 1
+                waited=$((waited + 1))
+            done
+            if kill -0 "${pid}" 2>/dev/null; then
+                echo "   ⚠ ${label} server ignored SIGTERM after ${waited}s; sending SIGKILL"
+                kill -9 "${pid}" 2>/dev/null || true
+            else
+                echo "   ✓ ${label} server stopped (after ${waited}s)"
+            fi
+        fi
+        rm -f "${pid_file}"
+    done
+}
+# }}}
+trap stop_llamacpp_servers EXIT
+
+# input/compiled.txt is the user's source of truth. The embedding server's
+# JSON parser hard-rejects ill-formed UTF-8 and goes silly on whole-block
+# binary blobs (one block in this corpus is/was an embedded PDF), so we
+# pre-clean the file into a transient copy under tmp/ on every run. The
+# cleaner is idempotent — running it twice produces the same bytes — and
+# the original input/compiled.txt is never touched.
+"${DIR}/scripts/clean-compiled-input.sh" "${DIR}"
+INPUT_FILE="${DIR}/tmp/compiled-cleaned.txt"
 
 # {{{ Interactive poem ordering selection function
 show_poem_ordering_menu() {
@@ -79,19 +205,86 @@ show_poem_ordering_menu() {
 }
 # }}}
 
-# Check if user wants to run web server or PDF generation
-if [ "${1:-pdf}" = "-I" ] || [ "${1:-}" = "interactive" ]; then
+# {{{ ensure_themes_fresh_or_rebuild
+# Issue 029 introduced this check; Issue 030 Phase 4 upgrades it from
+# hard-error to auto-rebuild. PDF generation depends on
+# themes/derived-taxonomy.lua (compile-pdf-ai.lua loads it for cluster
+# centroids, generator mappings, and parameter axes). Stale means
+# either the input corpus or the generator registry has been modified
+# since the taxonomy was built — in both cases the taxonomy needs to
+# be regenerated to stay consistent.
+#
+# Auto-rebuild runs themes-v2/run.sh in-line before PDF generation.
+# Cost: a few seconds (cache-warm) to ~3 min (LLM naming) depending on
+# what changed and how much of the cache is fresh.
+#
+# --no-rebuild skips the rebuild even when stale and just warns. Useful
+# during iterative renderer work where themes/generators.lua advances
+# mtime on every save but the operator knows the taxonomy is still
+# usable for their experiment.
+ensure_themes_fresh_or_rebuild() {
+    local TAXONOMY="${DIR}/themes/derived-taxonomy.lua"
+    local CORPUS="${DIR}/input/compiled.txt"
+    local GENERATORS="${DIR}/themes/generators.lua"
+
+    local STALE_REASON=""
+    if [ ! -f "${TAXONOMY}" ]; then
+        STALE_REASON="missing"
+    elif [ "${TAXONOMY}" -ot "${CORPUS}" ]; then
+        STALE_REASON="older than corpus (${CORPUS})"
+    elif [ "${TAXONOMY}" -ot "${GENERATORS}" ]; then
+        STALE_REASON="older than generators registry (${GENERATORS})"
+    fi
+
+    if [ -z "${STALE_REASON}" ]; then
+        return 0  # fresh; nothing to do
+    fi
+
+    if [ "${NO_REBUILD}" -eq 1 ]; then
+        echo "⚠ Theme taxonomy is stale (${STALE_REASON}) but --no-rebuild is set; proceeding with current taxonomy"
+        if [ ! -f "${TAXONOMY}" ]; then
+            echo "❌ ...but the taxonomy file does not exist, so we cannot proceed at all."
+            echo "   Run './run themes-rebuild' once first, then './run --no-rebuild' for subsequent iteration."
+            exit 1
+        fi
+        return 0
+    fi
+
+    echo ""
+    echo "════════════════════════════════════════════════════════════════"
+    echo "▶ Auto-rebuilding themes (taxonomy is ${STALE_REASON})"
+    echo "  themes-v2/run.sh output follows. Pass --no-rebuild to skip."
+    echo "════════════════════════════════════════════════════════════════"
+    "${DIR}/themes-v2/run.sh" "${DIR}"
+    echo "════════════════════════════════════════════════════════════════"
+    echo "▶ Auto-rebuild complete; resuming PDF generation"
+    echo "════════════════════════════════════════════════════════════════"
+    echo ""
+}
+# }}}
+
+# Check if user wants to run web server, theme rebuild, or PDF generation
+if [ "${1:-}" = "themes-rebuild" ]; then
+    # Theme discovery pipeline (issue 029). Bypasses the PDF generator
+    # entirely; outputs themes/derived-taxonomy.lua.
+    echo "🧠 Rebuilding theme taxonomy via themes-v2/run.sh"
+    "${DIR}/themes-v2/run.sh" "${DIR}"
+    echo ""
+    echo "✅ Theme taxonomy rebuilt: ${DIR}/themes/derived-taxonomy.lua"
+    echo "   Now run './run' to generate the PDF using the new themes."
+elif [ "${1:-pdf}" = "-I" ] || [ "${1:-}" = "interactive" ]; then
+    ensure_themes_fresh_or_rebuild
     # Interactive mode for poem ordering selection
     show_poem_ordering_menu
     
     # Generate PDF(s) based on selection
     if [ "$POEM_ORDERING" = "both" ]; then
         echo "📄 Generating normal ordering PDF..."
-        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "normal"
+        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${INPUT_FILE}" "normal" $NATURAL_THEMES_FLAG
         mv output/compile-ai/output.pdf output/compile-ai/output-normal.pdf
 
         echo "📄 Generating reverse ordering PDF..."
-        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "reverse"
+        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${INPUT_FILE}" "reverse" $NATURAL_THEMES_FLAG
         mv output/compile-ai/output.pdf output/compile-ai/output-reverse.pdf
 
         echo "✅ Generated both versions:"
@@ -99,7 +292,7 @@ if [ "${1:-pdf}" = "-I" ] || [ "${1:-}" = "interactive" ]; then
         echo "   📗 output/compile-ai/output-reverse.pdf"
     else
         echo "📄 Generating PDF with $POEM_ORDERING ordering..."
-        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "$POEM_ORDERING"
+        lua5.2 ./compile-pdf-ai.lua "${DIR}" "${INPUT_FILE}" "$POEM_ORDERING" $NATURAL_THEMES_FLAG
 
         if [ "$POEM_ORDERING" = "reverse" ]; then
             mv output/compile-ai/output.pdf output/compile-ai/output-reverse.pdf
@@ -121,10 +314,11 @@ elif [ "${1:-}" = "web-old" ]; then
     echo "Starting old web server..."
     luajit "${DIR}/src/web-server-old.lua"
 else
+    ensure_themes_fresh_or_rebuild
     # Default PDF generation with optional ordering parameter
     ORDERING=${2:-"normal"}
     echo "Generating PDF with $ORDERING ordering..."
-    lua5.2 ./compile-pdf-ai.lua "${DIR}" "${DIR}/input/compiled.txt" "$ORDERING"
+    lua5.2 ./compile-pdf-ai.lua "${DIR}" "${INPUT_FILE}" "$ORDERING" $NATURAL_THEMES_FLAG
 
     if [ "$ORDERING" = "reverse" ]; then
         mv output/compile-ai/output.pdf output/compile-ai/output-reverse.pdf
