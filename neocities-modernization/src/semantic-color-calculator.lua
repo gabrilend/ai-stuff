@@ -33,13 +33,19 @@ local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
 
--- Endpoint resolution goes through the shared ollama-config module so that
--- --ollama=<name> and default_ollama_server are honored here the same way
+-- Endpoint resolution goes through the shared inference-server-config module so that
+-- --server=<name> and default_inference_server are honored here the same way
 -- they are honored by the rest of the pipeline. Previously this file had a
 -- hardcoded fallback IP that drifted from config.lua and quietly broke
 -- color-embedding generation when the IP no longer pointed at a live server.
-local ollama_config = require("ollama-config")
-ollama_config.set_project_root(DIR)
+local inference_config = require("inference-server-config")
+-- Issue 10-050: shared batched embedding primitive. We hand it our endpoint and
+-- prompt formatter so fuzzy-computing's separate config instance is never used.
+local fuzzy = require("fuzzy-computing")
+-- combine_chunk_vectors: reused to mean-combine a color's association-word
+-- embeddings into one centroid (same recombination used for long-poem chunks).
+local text_chunking = require("text-chunking")
+inference_config.set_project_root(DIR)
 
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
@@ -74,93 +80,116 @@ local function cosine_similarity(vec1, vec2)
 end
 -- }}}
 
--- {{{ function calculate_semantic_color_for_poem
-local function calculate_semantic_color_for_poem(poem_embedding, color_embeddings)
-    local best_color = "gray"  -- Default fallback
-    local highest_similarity = -1
-    
-    -- Direct comparison between poem embedding and color word embeddings
-    for color_name, color_embedding in pairs(color_embeddings) do
-        if color_embedding then
-            local similarity = cosine_similarity(poem_embedding, color_embedding)
-            if similarity > highest_similarity then
-                highest_similarity = similarity
-                best_color = color_name
+-- {{{ local function compute_color_stats
+-- Per-color mean/std of cosine similarity across ALL poems, used to z-score the
+-- color assignment below. Why this is needed: bare color-word embeddings suffer
+-- from "hubness" -- a couple of them (yellow, green) sit slightly nearer the
+-- centre of the whole poem cloud, so by raw nearest-cosine they win ~70% of all
+-- poems (38% yellow + 29% green) while blue gets 2.5%. The colours are NOT
+-- evenly spread anchors; they are bunched, and tiny baseline offsets decide
+-- everything. Standardising each colour's similarity (subtract its mean, divide
+-- by its std) makes a poem pick the colour it is most ABOVE-baseline for, which
+-- balances the distribution to ~10-18% each without touching the embeddings.
+local function compute_color_stats(poems_data, poem_embeddings_data, color_embeddings)
+    local sums, sums2, n = {}, {}, 0
+    for cname, _ in pairs(color_embeddings) do sums[cname] = 0; sums2[cname] = 0 end
+    for i, poem in ipairs(poems_data.poems) do
+        local e = poem_embeddings_data.embeddings[i]
+        if poem.poem_index and e and e.embedding then
+            n = n + 1
+            for cname, cvec in pairs(color_embeddings) do
+                if cvec then
+                    local s = cosine_similarity(e.embedding, cvec)
+                    sums[cname] = sums[cname] + s
+                    sums2[cname] = sums2[cname] + s * s
+                end
             end
         end
     end
-    
-    return best_color, highest_similarity
-end
--- }}}
-
--- {{{ function generate_single_embedding
-local function generate_single_embedding(text, model_name, endpoint)
-    -- When the caller does not supply an endpoint, ask ollama-config which
-    -- server the rest of the pipeline is currently pointed at. That selection
-    -- already accounts for the CLI --ollama flag and config.lua's
-    -- default_ollama_server, so there is no need to duplicate that logic here.
-    endpoint = endpoint or ollama_config.build_host_url()
-    model_name = model_name or ollama_config.get_selected_model()
-    -- Apply the active server's task-prefix so both the color words and
-    -- the poems are embedded with matching prefixes (essential for the
-    -- subsequent cosine-similarity comparison to be meaningful).
-    local prefixed_text = ollama_config.format_embedding_prompt(text)
-
-    -- Use curl to call Ollama API directly
-    local cmd = string.format(
-        "curl -s -X POST %s/api/embeddings -H 'Content-Type: application/json' -d '{\"model\": \"%s\", \"prompt\": \"%s\"}'",
-        endpoint, model_name, prefixed_text
-    )
-    
-    local handle = io.popen(cmd)
-    local result = handle:read("*a")
-    handle:close()
-    
-    if result and result ~= "" then
-        local parsed = dkjson.decode(result)
-        if parsed and parsed.embedding then
-            return parsed.embedding
-        else
-            utils.log_error("No embedding in response for: " .. text)
-            utils.log_debug("Response: " .. result:sub(1, 200))
-        end
-    else
-        utils.log_error("No response from Ollama for: " .. text)
+    local stats = {}
+    for cname, _ in pairs(color_embeddings) do
+        local mean = (n > 0) and (sums[cname] / n) or 0
+        local var = (n > 0) and (sums2[cname] / n - mean * mean) or 0
+        stats[cname] = { mean = mean, std = math.sqrt(math.max(var, 1e-9)) }
     end
-    
-    return nil
+    return stats
 end
 -- }}}
 
--- {{{ function generate_color_embeddings_using_ollama
--- endpoint is optional: nil means "ask ollama-config for the active server",
+-- {{{ function calculate_semantic_color_for_poem
+-- color_stats is optional. With it, the colour is chosen by z-scored similarity
+-- (hubness-corrected); without it, by raw nearest cosine (legacy behaviour). The
+-- returned similarity is always the RAW cosine, so downstream displays are
+-- unchanged -- only the WINNER selection is standardised.
+local function calculate_semantic_color_for_poem(poem_embedding, color_embeddings, color_stats)
+    local best_color = "gray"  -- Default fallback
+    local best_score = -math.huge
+    local best_raw = -1
+
+    for color_name, color_embedding in pairs(color_embeddings) do
+        if color_embedding then
+            local similarity = cosine_similarity(poem_embedding, color_embedding)
+            local score = similarity
+            if color_stats and color_stats[color_name] then
+                local st = color_stats[color_name]
+                score = (similarity - st.mean) / st.std
+            end
+            if score > best_score then
+                best_score = score
+                best_color = color_name
+                best_raw = similarity
+            end
+        end
+    end
+
+    return best_color, best_raw
+end
+-- }}}
+
+-- {{{ function generate_color_embeddings
+-- endpoint is optional: nil means "ask inference-server-config for the active server",
 -- which is the right behavior for almost all callers. The parameter exists
 -- so that test harnesses or one-off scripts can target a specific server
--- without having to mutate ollama-config's module-local selection.
-function M.generate_color_embeddings_using_ollama(color_names, model_name, endpoint)
+-- without having to mutate inference-server-config's module-local selection.
+--
+-- Each color's embedding is the MEAN of the embeddings of its association words
+-- (config.color_associations), giving a richer "essence" anchor than the bare
+-- color word. color_associations is optional: without it (or for a color missing
+-- from it) we fall back to embedding the bare color name, so old callers keep
+-- working. Words are embedded in one batched request per color via the shared
+-- primitive; endpoint + prompt formatter are passed so this file's config
+-- instance stays authoritative (matching prefixes are essential so colors and
+-- poems land in the same embedding space). Mean (not length-weighted) combine:
+-- every association word should count equally regardless of its spelling length.
+function M.generate_color_embeddings(color_names, model_name, endpoint, color_associations)
     local color_embeddings = {}
-    model_name = model_name or ollama_config.get_selected_model()
+    model_name = model_name or inference_config.get_selected_model()
+    endpoint = endpoint or inference_config.build_host_url()
 
     utils.log_info(string.format("Generating embeddings for %d colors using model: %s", #color_names, model_name))
 
     for _, color_name in ipairs(color_names) do
-        -- Simple: just generate embedding for the color word itself
-        -- "green" means whatever "green" means - no additional context needed
-        local embedding = generate_single_embedding(color_name, model_name, endpoint)
-        
-        if embedding then
-            color_embeddings[color_name] = embedding
-            utils.log_info(string.format("Generated embedding for color: %s (dim: %d)", 
-                                        color_name, #embedding))
+        local words = (color_associations and color_associations[color_name]) or { color_name }
+        local vectors, err = fuzzy.get_embeddings_batch(
+            words, model_name, endpoint, inference_config.format_embedding_prompt)
+        if not vectors then
+            utils.log_error(string.format("Color embedding batch failed for %s: %s", color_name, tostring(err)))
         else
-            utils.log_error("Failed to generate embedding for color: " .. color_name)
+            -- keep only the well-formed vectors, then mean-combine into a centroid
+            local vecs = {}
+            for i = 1, #words do
+                if type(vectors[i]) == "table" and #vectors[i] > 0 then vecs[#vecs + 1] = vectors[i] end
+            end
+            if #vecs > 0 then
+                color_embeddings[color_name] = text_chunking.combine_chunk_vectors(vecs, nil, "mean")
+                utils.log_info(string.format("Color %s: centroid from %d/%d association words (dim %d)",
+                    color_name, #vecs, #words, #color_embeddings[color_name]))
+            else
+                utils.log_error("No association embeddings for color: " .. color_name)
+            end
         end
-        
-        -- Small delay to avoid overwhelming the API
-        os.execute("sleep 0.5")
     end
-    
+
     return color_embeddings
 end
 -- }}}
@@ -182,11 +211,17 @@ function M.precompute_poem_colors(poems_data, poem_embeddings_data, color_embedd
 
     utils.log_info(string.format("Computing semantic colors for %d poems", total_poems))
 
+    -- Hubness correction: gather each colour's similarity distribution across all
+    -- poems first, so the assignment below can z-score it (see compute_color_stats).
+    -- This is what stops two "magnet" colours from swallowing ~70% of the poems.
+    local color_stats = compute_color_stats(poems_data, poem_embeddings_data, color_embeddings)
+
     for i, poem in ipairs(poems_data.poems) do
         if poem.poem_index and poem_embeddings_data.embeddings[i] and poem_embeddings_data.embeddings[i].embedding then
             local color, similarity = calculate_semantic_color_for_poem(
                 poem_embeddings_data.embeddings[i].embedding,
-                color_embeddings
+                color_embeddings,
+                color_stats
             )
 
             -- Key by poem_index (globally unique across all categories)
@@ -264,7 +299,7 @@ function M.main(interactive_mode)
         
         if choice == "1" or choice == "3" then
             print("Generating color embeddings...")
-            local color_embeddings = M.generate_color_embeddings_using_ollama(
+            local color_embeddings = M.generate_color_embeddings(
                 color_config.color_names, 
                 "embeddinggemma:latest"
             )

@@ -298,6 +298,31 @@ return {
     },
     -- Ordered list for deterministic iteration across pages
     color_names = {"red", "blue", "green", "purple", "orange", "yellow", "gray"},
+
+    -- {{{ color_associations
+    -- Each color's "essence" as a list of associated words -- concrete things AND
+    -- abstract feelings/concepts. semantic-color-calculator embeds every word,
+    -- mean-combines them into one per-color centroid (the same recombination used
+    -- for long-poem chunks, Issue 10-050), and assigns each poem the color whose
+    -- centroid it sits most ABOVE-baseline for (z-scored, hubness-corrected).
+    --
+    -- Why a list of associations instead of the bare color word: the bare word
+    -- "red" embeds to a generic point that, by raw nearness, swallowed ~38% of
+    -- all poems. A list (fire, blood, passion, rage...) pulls the anchor into the
+    -- color's real semantic territory -- a poem about war or embers reads red even
+    -- if it never says "red". Keep each list COHERENT (every word genuinely of
+    -- that color); a coherent set averages to a clean anchor, an incoherent one
+    -- to mush. These are a starting point -- edit freely; re-run stage 6.5 after.
+    color_associations = {
+        red    = {"fire", "blood", "passion", "anger", "rose", "heat", "danger", "war", "rage", "embers", "desire", "love", "wound"},
+        blue   = {"sky", "ocean", "calm", "sadness", "cold", "melancholy", "depth", "distance", "ice", "serenity", "longing", "loneliness", "peace"},
+        green  = {"forest", "growth", "nature", "envy", "leaf", "spring", "life", "moss", "renewal", "jealousy", "fertility", "garden", "grass"},
+        purple = {"royalty", "mystery", "magic", "twilight", "luxury", "grief", "wisdom", "orchid", "velvet", "dusk", "nobility", "dream", "spirituality"},
+        orange = {"autumn", "warmth", "energy", "citrus", "sunset", "harvest", "enthusiasm", "pumpkin", "amber", "glow", "vitality", "spice", "zest"},
+        yellow = {"sun", "joy", "warning", "gold", "happiness", "cowardice", "daffodil", "brightness", "caution", "summer", "lemon", "optimism", "light"},
+        gray   = {"fog", "ash", "stone", "age", "neutrality", "concrete", "rain", "dullness", "shadow", "winter", "steel", "silence", "gloom"},
+    },
+    -- }}}
     -- }}}
 
     -- {{{ similarity
@@ -309,29 +334,38 @@ return {
     },
     -- }}}
 
-    -- {{{ ollama_servers
-    -- Issue 10-017: Ollama server configuration for embedding generation.
-    -- Define multiple servers (local, remote GPU, etc.) and switch between them
-    -- via TUI selection or CLI flags.
-    -- Read by: libs/ollama-config.lua
-    -- CLI overrides: --ollama NAME, --model NAME, --list-ollama
+    -- {{{ inference_servers
+    -- Issue 10-049: Inference-server configuration for embedding generation.
+    -- Originally written for Ollama under 10-017; renamed and re-shaped for
+    -- llama.cpp. Define multiple servers (local, remote GPU, etc.) and
+    -- switch between them via TUI selection or CLI flags.
+    -- Read by: libs/inference-server-config.lua
+    -- CLI overrides: --server NAME, --model NAME, --list-servers
     --
     -- Fields per server:
-    --   name: Label shown in TUI and used with --ollama flag
+    --   name: Label shown in the TUI and used with the --server flag
     --   description: Human-readable description
     --   host: Server hostname or IP
-    --   port: Ollama API port (default: 11434)
-    --   model: Default embedding model for this server
-    --   available_models: (optional) List of models available on this server
-    ollama_servers = {
+    --   port: Inference server's HTTP port
+    --   model: Identifier sent in the OpenAI request body (informational;
+    --          llama-server serves whatever model it has loaded). Convention
+    --          is to use the GGUF basename without ".gguf".
+    --   model_path: Path to the GGUF model file on disk, relative to the
+    --               project DIR. start-llamacpp-server.sh resolves this
+    --               into the absolute path it passes to llama-server -m.
+    --   available_models: (optional) List of models the host can serve
+    --   embedding_prompt_prefix: (optional) Prefix prepended to every input
+    --                            (e.g. "clustering: " for nomic-embed-text v1.5)
+    inference_servers = {
         {
             name = "gpu-server",
             description = "Remote GPU server (CUDA)",
             host = "192.168.0.115",
             port = 10265,
-            model = "nomic-embed-text",
+            model = "nomic-embed-text-v1.5",
+            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
             available_models = {
-                "nomic-embed-text",
+                "nomic-embed-text-v1.5",
                 "mxbai-embed-large",
             }
         },
@@ -340,26 +374,28 @@ return {
             description = "Remote GPU server (alternate port)",
             host = "192.168.0.115",
             port = 11434,
-            model = "nomic-embed-text",
+            model = "nomic-embed-text-v1.5",
+            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
         },
         {
             name = "local",
-            description = "Local Ollama instance",
+            description = "Local llama.cpp instance (CUDA-enabled)",
             host = "192.168.1.100",
             port = 10265,
-            -- nomic-embed-text:v1.5 produces 768-dimensional vectors and
+            -- nomic-embed-text v1.5 produces 768-dimensional vectors and
             -- requires a task-prefix on every input. For diversity ranking
             -- of poetry the right prefix is "clustering: ", which routes
             -- the model through its clustering-oriented internal weights.
             -- Switching models requires regenerating embeddings.json, the
             -- similarity caches, the diversity cache, etc.
-            model = "nomic-embed-text:v1.5",
+            model = "nomic-embed-text-v1.5",
+            model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
             embedding_prompt_prefix = "clustering: ",
         },
     },
     -- Default server name (must match a name above)
     -- If not set, first server in list is used
-    default_ollama_server = "local",
+    default_inference_server = "local",
     -- }}}
 
     -- {{{ image_integration
