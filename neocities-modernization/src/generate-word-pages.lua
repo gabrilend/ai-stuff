@@ -8,7 +8,7 @@
 -- their semantic similarity to that word's embedding.
 --
 -- Modes:
---   --embeddings-only   Stage 6: Generate word embeddings (expensive, via Ollama)
+--   --embeddings-only   Stage 6: Generate word embeddings (expensive, via the inference server)
 --   --html-only         Stage 9: Generate HTML pages (fast, uses cached embeddings)
 --   (no flag)           Both stages (backward compatible)
 --
@@ -85,7 +85,10 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
+-- Issue 10-050: shared batched embedding primitive (endpoint + prompt formatter
+-- threaded in so fuzzy-computing's separate config instance is never consulted).
+local fuzzy = require("fuzzy-computing")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -112,12 +115,12 @@ end
 -- Issue 8-050d: Determine effective poems_per_page: CLI > config > default
 local effective_poems_per_page = CLI_POEMS_PER_PAGE or wc.poems_per_page or 50
 
--- The model name lives in config.lua / --ollama / --model. Resolving it
--- here through ollama-config means a model swap propagates to this script
+-- The model name lives in config.lua / --server / --model. Resolving it
+-- here through inference-server-config means a model swap propagates to this script
 -- automatically; we no longer need to remember to update a hardcoded string.
-ollama_config.set_project_root(DIR)
+inference_config.set_project_root(DIR)
 local CONFIG = {
-    model_name = ollama_config.get_selected_model(),
+    model_name = inference_config.get_selected_model(),
     max_poems_per_page = 100,        -- Poems per word page
     max_pages_per_word = 1,          -- For now, just one page per word
     word_embeddings_file = "word_embeddings.json",
@@ -150,52 +153,6 @@ local function cosine_similarity(vec1, vec2)
     end
 
     return dot_product / (norm1 * norm2)
-end
--- }}}
-
--- {{{ local function generate_single_embedding
--- Generates embedding for a single word via Ollama
-local function generate_single_embedding(word, endpoint)
-    -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink.
-    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
-    local temp_file = DIR .. "/tmp/word_embedding_input.json"
-    local payload = {
-        model = CONFIG.model_name,
-        -- Apply the active server's task-prefix (e.g. "clustering: " for
-        -- nomic-embed-text v1.5+). Word embeddings need to share the
-        -- same prefix as poem embeddings so the cross-comparison works.
-        prompt = ollama_config.format_embedding_prompt(word)
-    }
-
-    -- Write request payload
-    local file = io.open(temp_file, "w")
-    if not file then
-        return nil, "failed_to_write_temp"
-    end
-    file:write(dkjson.encode(payload))
-    file:close()
-
-    -- Call Ollama
-    local cmd = string.format(
-        'curl -s -X POST "%s/api/embeddings" -H "Content-Type: application/json" -d @%s 2>/dev/null',
-        endpoint, temp_file
-    )
-
-    local handle = io.popen(cmd)
-    if not handle then
-        return nil, "failed_to_call_ollama"
-    end
-
-    local response = handle:read("*a")
-    handle:close()
-
-    -- Parse response
-    local data = dkjson.decode(response)
-    if not data or not data.embedding then
-        return nil, "invalid_response"
-    end
-
-    return data.embedding, "success"
 end
 -- }}}
 
@@ -840,10 +797,10 @@ end
 function M.generate_word_embeddings(options)
     options = options or {}
 
-    -- Check Ollama availability
+    -- Check inference server availability
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
-    local endpoint = ollama_config.build_host_url()
-    utils.log_info("Using Ollama endpoint: " .. endpoint)
+    local endpoint = inference_config.build_host_url()
+    utils.log_info("Using inference endpoint: " .. endpoint)
 
     -- Load poems for word extraction
     local poems_file = utils.asset_path("poems.json")
@@ -863,29 +820,44 @@ function M.generate_word_embeddings(options)
     local cache_hits = 0
     local cache_misses = 0
 
-    -- Generate embeddings for missing words
-    for i, word in ipairs(words) do
+    -- Issue 10-050: collect the words missing from cache, then embed them all in
+    -- one batched + (sub-)batched call instead of one curl per word. Words are
+    -- single tokens so chunking is a no-op; embed_texts_with_chunking still
+    -- splits the request into BATCH_SIZE-sized round trips. endpoint + prompt
+    -- formatter are passed so the prefix matches the poem embeddings (required
+    -- for the word-to-poem cosine comparison to be meaningful).
+    local missing = {}
+    for _, word in ipairs(words) do
         if not word_embeddings[word] then
-            io.write(string.format("\rGenerating word embedding %d/%d: %s          ", i, #words, word))
-            io.flush()
-
-            local embedding, status = generate_single_embedding(word, endpoint)
-            if embedding then
-                word_embeddings[word] = embedding
-                cache_misses = cache_misses + 1
-
-                -- Save cache periodically
-                if cache_misses % 10 == 0 then
-                    save_word_embeddings_cache(word_embeddings)
-                end
-            else
-                utils.log_warn(string.format("Failed to embed word '%s': %s", word, status or "unknown"))
-            end
-        else
-            cache_hits = cache_hits + 1
+            missing[#missing + 1] = word
         end
     end
-    print("")  -- Newline after progress
+    cache_hits = #words - #missing
+
+    if #missing > 0 then
+        utils.log_info(string.format("Embedding %d missing words (batched)...", #missing))
+        local vectors = fuzzy.embed_texts_with_chunking(missing, CONFIG.model_name, {
+            endpoint = endpoint,
+            format_fn = inference_config.format_embedding_prompt
+        })
+        if vectors then
+            for k, word in ipairs(missing) do
+                local embedding = vectors[k]
+                if embedding and type(embedding) == "table" and #embedding > 0 then
+                    word_embeddings[word] = embedding
+                    cache_misses = cache_misses + 1
+                    -- Periodic checkpoint so a crash mid-run keeps prior work.
+                    if cache_misses % 50 == 0 then
+                        save_word_embeddings_cache(word_embeddings)
+                    end
+                else
+                    utils.log_warn(string.format("Failed to embed word '%s'", word))
+                end
+            end
+        else
+            utils.log_warn("Batch word embedding failed (inference server unreachable?)")
+        end
+    end
 
     -- Save final cache
     save_word_embeddings_cache(word_embeddings)
