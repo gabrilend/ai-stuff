@@ -12,7 +12,7 @@
 #   3. Parse            - Generate poems.json from sources
 #   4. Validate         - Validate poem data
 #   5. Catalog Images   - Generate image-catalog.json
-#   6. Embeddings       - Generate poem embeddings via Ollama (~2-3 hours)
+#   6. Embeddings       - Generate poem embeddings via the inference server (~2-3 hours)
 #   7. Similarity       - Build similarity matrix (~30 min)
 #   8. Diversity        - Pre-compute diversity cache (~42 hours)
 #   9. Generate HTML    - Generate website HTML pages
@@ -51,6 +51,54 @@ cleanup_on_interrupt() {
     exit 130
 }
 trap cleanup_on_interrupt INT TERM
+
+# WE_STARTED_INFERENCE_SERVER tracks whether THIS run started the llama.cpp
+# server itself (because validation failed at startup). If it's true, the
+# EXIT trap below shuts the server down again. If the operator (or a prior
+# run) was already running a server when we started, we leave it alone —
+# never kill what we did not start.
+WE_STARTED_INFERENCE_SERVER=false
+
+# cleanup_inference_server: gracefully terminate the llama.cpp server we
+# auto-started during the pre-flight validation phase. Runs on every exit
+# path (normal completion, SIGINT/SIGTERM via cleanup_on_interrupt, errors
+# that hit `exit`). The PID is read from a file the start script writes;
+# if the file is missing or stale (PID no longer alive) we silently bow
+# out — this is best-effort cleanup, not a contract.
+cleanup_inference_server() {
+    if ! $WE_STARTED_INFERENCE_SERVER; then
+        return
+    fi
+    local pid_file="$DIR/tmp/llamacpp-server.pid"
+    if [ ! -f "$pid_file" ]; then
+        return
+    fi
+    local pid
+    pid=$(cat "$pid_file" 2>/dev/null)
+    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+        # Stale PID file — clean it up and move on.
+        rm -f "$pid_file"
+        return
+    fi
+    echo "Shutting down inference server (PID $pid) that this run started..." >&2
+    kill "$pid" 2>/dev/null
+    # Give the server up to 5 s to exit on SIGTERM. Most well-behaved
+    # processes shut down within a second; the timeout is generous.
+    local i=0
+    while [ "$i" -lt 5 ]; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            break
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "  server did not exit on SIGTERM; sending SIGKILL" >&2
+        kill -9 "$pid" 2>/dev/null
+    fi
+    rm -f "$pid_file"
+}
+trap cleanup_inference_server EXIT
 # }}}
 
 # {{{ TUI Library
@@ -79,7 +127,7 @@ Pipeline Stages (run in order, multiple can be specified):
   --parse               Stage 3:  Parse poems from JSON sources into poems.json
   --validate            Stage 4:  Run poem validation
   --catalog-images      Stage 5:  Catalog images from input directories
-  --generate-embeddings Stage 6:  Generate embeddings via Ollama (~2-3 hours)
+  --generate-embeddings Stage 6:  Generate embeddings via the inference server (~2-3 hours)
   --generate-similarity Stage 7:  Build similarity matrix (~30 min)
   --generate-diversity  Stage 8:  Pre-compute diversity cache (~42 hours)
   --generate-html       Stage 9:  Generate website HTML pages
@@ -93,7 +141,7 @@ Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
   --force-stage N     Force regenerate specific stage only (1-10)
-  --model NAME        Embedding model name (default: nomic-embed-text:v1.5)
+  --model NAME        Embedding model name (default: nomic-embed-text-v1.5)
 
 Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
@@ -112,15 +160,19 @@ External Files (Issue 10-003b):
   --list-external     List configured external file sources
   --sync-only NAME    Sync only the specified external source
 
-Ollama Server (Issue 10-017):
-  --ollama NAME       Use specific Ollama server from config.lua
+Inference Server (Issue 10-017):
+  --server NAME       Use specific Inference server from config.lua
   --model NAME        Override embedding model (default from server config)
-  --list-ollama       List available Ollama servers and exit
+  --list-servers       List available Inference servers and exit
 
 Output Control:
   --quiet             Suppress progress messages
   --verbose           Show detailed progress
   --dry-run           Show what would be executed without running
+  --debug             Write all logs to output/debug-logs/ (durable disk) and
+                      keep them on exit, instead of the RAM-backed tmp/ that a
+                      hard GPU lock + reboot would wipe. Also tees this script's
+                      console output to output/debug-logs/run.log.
   --cpu-only          Force CPU execution (disable GPU acceleration)
   --low-priority      Run compute-heavy stages at lower OS priority (nice -n 10)
                       Keeps desktop/terminal responsive during long operations
@@ -146,7 +198,7 @@ Examples:
   ./run.sh -I                           # Interactive TUI mode
 
 Notes:
-  - Stage 6 (embeddings) requires Ollama running with embedding model
+  - Stage 6 (embeddings) requires the inference server running with the embedding model
   - Stage 8 (diversity) takes ~42 hours but is a one-time cost
   - Once stages 6-8 complete, subsequent runs use cached data
 EOF
@@ -189,9 +241,14 @@ QUIET=false
 VERBOSE=false
 DRY_RUN=false
 CPU_ONLY=false
+# --debug: route all logs to output/ (durable disk) instead of the RAM-backed
+# tmp/ symlink, and preserve them on exit. Added to diagnose a hard GPU lock:
+# such a freeze forces a power-cycle, and the tmpfs-backed tmp/ is wiped on
+# reboot, taking every diagnostic with it. See the setup block after `cd $DIR`.
+DEBUG=false
 # Issue 10-028: Lower process priority for UI responsiveness
 LOW_PRIORITY=false
-MODEL_NAME="nomic-embed-text:v1.5"
+MODEL_NAME="nomic-embed-text-v1.5"
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
 POEMS_PER_PAGE=""
@@ -209,9 +266,9 @@ INCLUDE_BOOSTS=false
 LIST_EXTERNAL=false
 SYNC_ONLY=""
 
-# Issue 10-017: Ollama server configuration
-OLLAMA_SERVER=""
-LIST_OLLAMA=false
+# Issue 10-017: Inference server configuration
+INFERENCE_SERVER=""
+LIST_SERVERS=false
 
 # Track if any stage flag was explicitly set
 STAGE_FLAG_SET=false
@@ -312,6 +369,12 @@ while [[ $# -gt 0 ]]; do
             CPU_ONLY=true
             shift
             ;;
+        # --debug: persist logs to output/ (survives the reboot a hard GPU
+        # lock forces). Handled after DIR is resolved, below.
+        --debug)
+            DEBUG=true
+            shift
+            ;;
         # Issue 10-028: Lower process priority for UI responsiveness
         --low-priority)
             LOW_PRIORITY=true
@@ -390,17 +453,17 @@ while [[ $# -gt 0 ]]; do
             SYNC_ONLY="${1#*=}"
             shift
             ;;
-        # Issue 10-017: Ollama server configuration
-        --ollama)
-            OLLAMA_SERVER="$2"
+        # Issue 10-017: Inference server configuration
+        --server)
+            INFERENCE_SERVER="$2"
             shift 2
             ;;
-        --ollama=*)
-            OLLAMA_SERVER="${1#*=}"
+        --server=*)
+            INFERENCE_SERVER="${1#*=}"
             shift
             ;;
-        --list-ollama)
-            LIST_OLLAMA=true
+        --list-servers)
+            LIST_SERVERS=true
             shift
             ;;
         # Stage flags
@@ -523,7 +586,7 @@ done
 
 # No implicit stages — require explicit selection. The operator should
 # say what they want to run: a named stage flag, --stage N, or --full.
-if ! $STAGE_FLAG_SET && ! $INTERACTIVE && ! $LIST_OLLAMA; then
+if ! $STAGE_FLAG_SET && ! $INTERACTIVE && ! $LIST_SERVERS; then
     echo "Error: no stages selected. Use --full, a named stage flag" >&2
     echo "  (e.g. --generate-diversity), --stage N, or -I for interactive mode." >&2
     echo "  Run with --help for the full flag list." >&2
@@ -562,6 +625,44 @@ cd "$DIR" || {
 }
 # }}}
 
+# {{{ --debug: persistent logging
+# Why this exists: a hard GPU lock forces a power-cycle, and the tmp/ symlink
+# points at a tmpfs subdir under /tmp/ (RAM) that the reboot wipes — so the
+# logs that would explain the freeze are gone before they can be read.
+# --debug routes logs to output/debug-logs/ (durable disk) instead.
+#
+# Two mechanisms, working together:
+#   1. NEOCITIES_LOG_DIR is exported so the child scripts that own the
+#      inference logs — scripts/start-llamacpp-server.sh (llamacpp-server.log)
+#      and generate-embeddings.sh (embedding_generation.log) — write there
+#      and skip their usual end-of-run log deletion.
+#   2. This script's own console output is tee'd to run.log, so whatever stage
+#      was mid-flight at the instant of the freeze (including the GPU Vulkan
+#      similarity/diversity stages, which log only to stdout) leaves a trail.
+#
+# Caveat worth knowing: on a true hard lock you must hard-power-cycle, and the
+# kernel may not have flushed the last few seconds of file writes (dirty pages)
+# to disk. Durable disk still captures vastly more than tmpfs, but the final
+# line or two before the lock can still be lost.
+if $DEBUG; then
+    LOG_DIR="$DIR/output/debug-logs"
+    mkdir -p "$LOG_DIR"
+    export NEOCITIES_LOG_DIR="$LOG_DIR"
+    # Don't reroute stdout through a pipe in interactive mode: the TUI checks
+    # isatty() and a pipe would break its rendering. The child-script file
+    # logs still land in LOG_DIR via the exported env var above.
+    #
+    # fsync-logger (not tee) is used so every line is fsync()'d to disk the
+    # instant it is printed — the stage banners are exactly what triage needs,
+    # and a hard lock right after a banner must not lose it to a dirty-page
+    # buffer. Slow, but --debug is for catching a freeze, not for speed.
+    if ! $INTERACTIVE; then
+        exec > >("$DIR/scripts/fsync-logger" "$LOG_DIR/run.log") 2>&1
+    fi
+    echo "[DEBUG] Logging to $LOG_DIR (per-line fsync to disk; persists across reboots; logs kept on exit)"
+fi
+# }}}
+
 # {{{ Issue 10-003b: Handle external file commands (immediate actions)
 if $LIST_EXTERNAL; then
     "$DIR/scripts/sync-external-files" --list
@@ -574,12 +675,12 @@ if [ -n "$SYNC_ONLY" ]; then
 fi
 # }}}
 
-# {{{ Issue 10-017: Handle Ollama server commands (immediate actions)
-if $LIST_OLLAMA; then
+# {{{ Issue 10-017: Handle Inference server commands (immediate actions)
+if $LIST_SERVERS; then
     luajit -e "
         package.path = '$DIR/libs/?.lua;' .. package.path
-        local ollama = require('ollama-config')
-        ollama.list_servers()
+        local inference = require('inference-server-config')
+        inference.list_servers()
     "
     exit 0
 fi
@@ -751,7 +852,7 @@ run_catalog_images() {
 
 # {{{ run_generate_embeddings
 run_generate_embeddings() {
-    log_stage "🧠 Stage 6/10: Generating embeddings via Ollama (~2-3 hours)"
+    log_stage "🤖 Stage 6/10: Generating embeddings via the inference server"
 
     # Convert model name for directory (embeddinggemma:latest -> embeddinggemma_latest)
     local model_dir_name="${MODEL_NAME//:/_}"
@@ -762,14 +863,30 @@ run_generate_embeddings() {
     local stage_force=$FORCE
     $FORCE_STAGE_6 && stage_force=true
 
-    # Freshness check: skip if embeddings.json newer than poems.json
+    # Freshness check (Issue 10-050): skip ONLY when every poem already has an
+    # embedding. The old test compared mtimes (embeddings.json newer than
+    # poems.json) — which was wrong: a run that embedded 8160/8362 and then died
+    # leaves a NEWER but INCOMPLETE embeddings.json, so mtime said "fresh, skip"
+    # and the missing poems never got done. Counting entries is the honest
+    # signal; incremental mode then fills only the gap, so it is cheap to re-run.
     if ! $stage_force && [ -f "$embeddings_file" ] && [ -f "$poems_file" ]; then
-        if [ "$embeddings_file" -nt "$poems_file" ]; then
-            log_info "   ⏭️  Embeddings are fresh (newer than poems.json), skipping..."
-            log_verbose "   embeddings: $(stat -c %Y "$embeddings_file" 2>/dev/null || echo 'N/A')"
-            log_verbose "   poems.json: $(stat -c %Y "$poems_file" 2>/dev/null || echo 'N/A')"
+        # Count embeddings WITHOUT parsing the (large) JSON: each entry carries
+        # exactly one "poem_index" key. (This counts error records too, so it can
+        # only over-report completeness; incremental retries those anyway.)
+        local emb_count
+        emb_count=$(grep -o '"poem_index"' "$embeddings_file" | wc -l)
+        local poem_count
+        poem_count=$(luajit -e "
+            package.path = '$DIR/?.lua;' .. package.path
+            local dk = require('libs/dkjson')
+            local f = io.open('$poems_file'); local d = dk.decode(f:read('*a')); f:close()
+            print(#(d.poems or d))
+        ")
+        if [ -n "$poem_count" ] && [ "$poem_count" -gt 0 ] && [ "$emb_count" -ge "$poem_count" ]; then
+            log_info "   ⏭️  Embeddings complete ($emb_count/$poem_count), skipping..."
             return 0
         fi
+        log_info "   Embeddings incomplete ($emb_count/${poem_count:-?}) — running incremental to fill the gap..."
     fi
 
     local force_arg=""
@@ -779,34 +896,45 @@ run_generate_embeddings() {
         force_arg="--incremental"
     fi
 
-    # Issue 10-017: Build Ollama server argument
-    local ollama_arg=""
-    if [ -n "$OLLAMA_SERVER" ]; then
-        ollama_arg="--ollama=$OLLAMA_SERVER"
+    # Issue 10-017: Build Inference server argument
+    local server_arg=""
+    if [ -n "$INFERENCE_SERVER" ]; then
+        server_arg="--server=$INFERENCE_SERVER"
     fi
 
     if $DRY_RUN; then
-        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $ollama_arg $DIR"
+        log_dry_run "$DIR/generate-embeddings.sh $force_arg --model=$MODEL_NAME $server_arg $DIR"
         log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --embeddings-only"
         return 0
     fi
 
-    if [ -n "$OLLAMA_SERVER" ]; then
-        log_info "   Ollama Server: $OLLAMA_SERVER"
+    if [ -n "$INFERENCE_SERVER" ]; then
+        log_info "   Inference Server: $INFERENCE_SERVER"
     fi
     log_info "   Model: $MODEL_NAME"
     log_info "   Output: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Mode: $(if $FORCE; then echo 'full regeneration'; else echo 'incremental (skip existing)'; fi)"
 
     # Issue 10-028: Apply low priority to expensive embedding generation
-    $NICE_PREFIX "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $ollama_arg "$DIR" || {
+    $NICE_PREFIX "$DIR/generate-embeddings.sh" $force_arg --model="$MODEL_NAME" $server_arg "$DIR" || {
         echo "Error: Embedding generation failed" >&2
-        echo "Make sure Ollama is running with the $MODEL_NAME model" >&2
+        echo "Make sure the inference server is running with the $MODEL_NAME model" >&2
         exit 1
     }
 
-    # Issue 8-043b: Generate word embeddings (part of embedding stage)
-    # Fix: Pass word cloud flags to embedding stage (was missing --all/--words flags)
+    # Word embeddings used to run here, but the word-COLOR step inside
+    # generate-word-pages needs color_embeddings.json, which is produced later by
+    # run_generate_semantic_colors. Running words first made that step skip with
+    # "no color embeddings found". Moved to run_generate_word_embeddings, called
+    # AFTER colors in main.
+}
+# }}}
+
+# {{{ run_generate_word_embeddings
+# Word-cloud word embeddings + their semantic colors. Split out of
+# run_generate_embeddings (Issue 8-043b) and ordered AFTER the semantic-color
+# stage so color_embeddings.json already exists when the word-color step runs.
+run_generate_word_embeddings() {
     log_info "   Generating word embeddings for word cloud..."
     local wordcloud_args=""
     if $WORDCLOUD_ALL; then
@@ -850,7 +978,7 @@ run_generate_semantic_colors() {
             log_dry_run "luajit semantic-color-calculator (generate color embeddings)"
             # Still need to skip poem colors generation in dry run
         else
-            log_info "   $(symbol_warning "⚠️")  Color embeddings not found, generating via Ollama..."
+            log_info "   $(symbol_warning "⚠️")  Color embeddings not found, generating via the inference server..."
             # Issue 10-003 migrated color_names from config/semantic-colors.json (now deleted)
             # into config.lua, loaded via libs/config-loader.lua. Errors here are loud rather
             # than silent so a missing config doesn't propagate downstream as a confusing
@@ -861,26 +989,30 @@ run_generate_semantic_colors() {
                 local utils = require('utils')
                 utils.init_assets_root({'$DIR'})
 
-                -- Mirror the --ollama selection pattern used elsewhere in run.sh
-                -- (see the interactive TUI block below). If OLLAMA_SERVER is empty
-                -- the module falls back to config.lua's default_ollama_server.
-                -- The interactive flag is forwarded so that a typoed --ollama or
+                -- Mirror the --server selection pattern used elsewhere in run.sh
+                -- (see the interactive TUI block below). If INFERENCE_SERVER is empty
+                -- the module falls back to config.lua's default_inference_server.
+                -- The interactive flag is forwarded so that a typoed --server or
                 -- --model triggers a 1/2 prompt only when the operator launched
                 -- run.sh with -I; otherwise we hard-error.
-                local ollama = require('ollama-config')
-                ollama.set_project_root('$DIR')
-                ollama.set_interactive_mode('$INTERACTIVE' == 'true')
-                if '$OLLAMA_SERVER' ~= '' then
-                    ollama.set_selected_server('$OLLAMA_SERVER')
+                local inference = require('inference-server-config')
+                inference.set_project_root('$DIR')
+                inference.set_interactive_mode('$INTERACTIVE' == 'true')
+                if '$INFERENCE_SERVER' ~= '' then
+                    inference.set_selected_server('$INFERENCE_SERVER')
                 end
 
                 local config = require('config-loader').load()
                 if not config.color_names then
                     error('config.lua is missing color_names (Issue 10-003 migration)')
                 end
-                local embeddings = calc.generate_color_embeddings_using_ollama(config.color_names, '$MODEL_NAME')
+                -- Pass color_associations so each color's embedding is the mean
+                -- of its essence words, not the bare color word (richer + the
+                -- z-scored assignment is balanced). nil endpoint = use the
+                -- selected server. Falls back to bare words if associations absent.
+                local embeddings = calc.generate_color_embeddings(config.color_names, '$MODEL_NAME', nil, config.color_associations)
                 if not next(embeddings) then
-                    error('Ollama returned no color embeddings')
+                    error('Inference server returned no color embeddings')
                 end
                 local data = {embeddings = embeddings, generated_at = os.date('%Y-%m-%d %H:%M:%S'), model_name = '$MODEL_NAME'}
                 utils.write_json_file('$color_embeddings_file', data)
@@ -1341,7 +1473,7 @@ interactive_mode_tui() {
         "Force regenerate this stage only" "" "--force-stage 5"
 
     menu_add_item "stages" "generate_embeddings" "6. Embeddings ⚠️" "checkbox" "0" \
-        "Generate embeddings via Ollama (~2-3 hours)" "" "--generate-embeddings"
+        "Generate embeddings via the inference server (~2-3 hours)" "" "--generate-embeddings"
     menu_add_item "stages" "force_generate_embeddings" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 6"
 
@@ -1579,19 +1711,19 @@ if $DRY_RUN || $VERBOSE; then
     echo ""
 fi
 
-# {{{ Issue 10-017: Validate Ollama server connectivity before embedding stages
+# {{{ Issue 10-017: Validate Inference server connectivity before embedding stages
 if $GENERATE_EMBEDDINGS && ! $DRY_RUN; then
-    log_info "Validating Ollama server connectivity..."
+    log_info "Validating Inference server connectivity..."
     VALIDATION_RESULT=$(luajit -e "
         package.path = '$DIR/libs/?.lua;' .. package.path
-        local ollama = require('ollama-config')
-        if '$OLLAMA_SERVER' ~= '' then
-            ollama.set_selected_server('$OLLAMA_SERVER')
+        local inference = require('inference-server-config')
+        if '$INFERENCE_SERVER' ~= '' then
+            inference.set_selected_server('$INFERENCE_SERVER')
         end
-        local server = ollama.get_selected_server()
-        local ok, msg = ollama.validate_server(server)
+        local server = inference.get_selected_server()
+        local ok, msg = inference.validate_server(server)
         if ok then
-            print('OK:' .. server.name .. ':' .. ollama.build_host_url(server))
+            print('OK:' .. server.name .. ':' .. inference.build_host_url(server))
         else
             print('FAIL:' .. server.name .. ':' .. msg)
         end
@@ -1600,15 +1732,58 @@ if $GENERATE_EMBEDDINGS && ! $DRY_RUN; then
     if [[ "$VALIDATION_RESULT" == OK:* ]]; then
         SERVER_NAME=$(echo "$VALIDATION_RESULT" | cut -d: -f2)
         SERVER_URL=$(echo "$VALIDATION_RESULT" | cut -d: -f3-)
-        log_info "   ✓ Ollama server '$SERVER_NAME' is reachable at $SERVER_URL"
+        log_info "   ✓ Inference server '$SERVER_NAME' is reachable at $SERVER_URL"
     else
+        # Server unreachable. Try to start it ourselves (and remember we
+        # did, so the EXIT trap shuts it down again). If start succeeds,
+        # re-validate to confirm /health is responsive before proceeding.
         SERVER_NAME=$(echo "$VALIDATION_RESULT" | cut -d: -f2)
         ERROR_MSG=$(echo "$VALIDATION_RESULT" | cut -d: -f3-)
-        echo -e "${RED}❌ ERROR: Cannot connect to Ollama server '$SERVER_NAME'${NC}" >&2
-        echo -e "${RED}   $ERROR_MSG${NC}" >&2
-        echo -e "${YELLOW}💡 Use --list-ollama to see available servers${NC}" >&2
-        echo -e "${YELLOW}💡 Use --ollama=NAME to select a different server${NC}" >&2
-        exit 1
+        log_info "   ✗ Inference server '$SERVER_NAME' not reachable: $ERROR_MSG"
+        log_info "   Attempting to start it via scripts/start-llamacpp-server.sh..."
+
+        START_ARGS=("$DIR")
+        if [ -n "$INFERENCE_SERVER" ]; then
+            START_ARGS+=("--server=$INFERENCE_SERVER")
+        fi
+        if "$DIR/scripts/start-llamacpp-server.sh" "${START_ARGS[@]}"; then
+            WE_STARTED_INFERENCE_SERVER=true
+
+            # Re-validate to confirm the freshly-started server is responsive.
+            VALIDATION_RESULT=$(luajit -e "
+                package.path = '$DIR/libs/?.lua;' .. package.path
+                local inference = require('inference-server-config')
+                if '$INFERENCE_SERVER' ~= '' then
+                    inference.set_selected_server('$INFERENCE_SERVER')
+                end
+                local server = inference.get_selected_server()
+                local ok, msg = inference.validate_server(server)
+                if ok then
+                    print('OK:' .. server.name .. ':' .. inference.build_host_url(server))
+                else
+                    print('FAIL:' .. server.name .. ':' .. msg)
+                end
+            " 2>&1)
+
+            if [[ "$VALIDATION_RESULT" == OK:* ]]; then
+                SERVER_NAME=$(echo "$VALIDATION_RESULT" | cut -d: -f2)
+                SERVER_URL=$(echo "$VALIDATION_RESULT" | cut -d: -f3-)
+                log_info "   ✓ Inference server '$SERVER_NAME' started at $SERVER_URL"
+                log_info "   (will be shut down again when this run completes)"
+            else
+                ERROR_MSG=$(echo "$VALIDATION_RESULT" | cut -d: -f3-)
+                echo -e "${RED}❌ ERROR: Started the inference server but it is still not reachable${NC}" >&2
+                echo -e "${RED}   $ERROR_MSG${NC}" >&2
+                echo -e "${YELLOW}💡 Check ${NEOCITIES_LOG_DIR:-$DIR/tmp}/llamacpp-server.log for the server's own diagnostics${NC}" >&2
+                exit 1
+            fi
+        else
+            echo -e "${RED}❌ ERROR: Failed to start the inference server${NC}" >&2
+            echo -e "${YELLOW}💡 Run ./scripts/start-llamacpp-server.sh manually for verbose output${NC}" >&2
+            echo -e "${YELLOW}💡 Use --list-servers to see available servers${NC}" >&2
+            echo -e "${YELLOW}💡 Use --server=NAME to select a different server${NC}" >&2
+            exit 1
+        fi
     fi
 fi
 # }}}
@@ -1623,6 +1798,8 @@ $GENERATE_EMBEDDINGS && run_generate_embeddings
 # Semantic colors are part of embedding generation (Stage 6.5)
 # Only regenerate when embeddings are generated - HTML should use existing poem_colors.json
 $GENERATE_EMBEDDINGS && run_generate_semantic_colors
+# Word embeddings run AFTER colors so the word-color step finds color_embeddings.json
+$GENERATE_EMBEDDINGS && run_generate_word_embeddings
 $GENERATE_SIMILARITY && run_generate_similarity
 $GENERATE_DIVERSITY && run_generate_diversity
 $GENERATE_HTML && run_generate_html
