@@ -1,0 +1,56 @@
+#!/bin/bash
+# scripts/fsync-logger — append stdin to a log file, fsync to physical disk
+# after EVERY line, and (by default) echo each line onward so a live terminal
+# still sees it.
+#
+# Why this exists: a hard GPU lock forces a power-cycle. Even logs written to
+# real disk can lose their last seconds, because the kernel holds recent writes
+# in RAM (dirty pages) for up to ~30s before flushing. This helper closes that
+# window: it calls fsync() on the log after each line, so the moment you SEE a
+# line, the kernel has already committed it to the platter/SSD. If the machine
+# hard-locks one instruction later, that line is still on disk after reboot.
+#
+# This is deliberately, brutally slow — one fsync syscall per line. That is the
+# whole point: durability over throughput, used only under run.sh --debug while
+# hunting a freeze. Do not wire it into normal runs.
+#
+# Path note: unlike most project scripts this takes the absolute target log
+# path as an argument (the caller — run.sh — has already resolved ${DIR} and
+# the log directory), so there is no project-relative ${DIR} to hard-code here.
+#
+# Usage:
+#   producer | fsync-logger /abs/path/to.log          # tee mode: disk + terminal
+#   producer | fsync-logger --quiet /abs/path/to.log  # disk only (background producers)
+
+# {{{ argument parsing
+QUIET=0
+if [ "${1:-}" = "--quiet" ]; then
+    QUIET=1
+    shift
+fi
+TARGET="${1:?usage: fsync-logger [--quiet] TARGET_LOG}"
+# }}}
+
+# {{{ main loop
+# Create/announce the file up front so an fsync target always exists.
+: >> "$TARGET" || {
+    echo "fsync-logger: cannot write to $TARGET" >&2
+    exit 1
+}
+
+# read -r: keep backslashes literal. The trailing `|| [ -n "$line" ]` flushes a
+# final, newline-less line if the producer dies mid-line (common on a crash).
+# Order matters: write+fsync to disk FIRST, then echo to the terminal — so any
+# line the operator can see is guaranteed already persisted, never the reverse.
+while IFS= read -r line || [ -n "$line" ]; do
+    printf '%s\n' "$line" >> "$TARGET"
+    # `sync TARGET` (coreutils >= 8.24) fsync()s just this one file rather than
+    # flushing every filesystem, so it is as cheap as per-line durability gets.
+    sync "$TARGET"
+    if [ "$QUIET" -eq 0 ]; then
+        printf '%s\n' "$line"
+    fi
+done
+# }}}
+
+# vim: set foldmethod=marker:

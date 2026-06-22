@@ -25,7 +25,13 @@ local DIR = setup_dir_path()
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
+-- Issue 10-050: shared chunker + batched embedding primitive replace this file's
+-- own recursive binary-split chunker and per-chunk curl. endpoint + prompt
+-- formatter are threaded in so fuzzy-computing's separate config instance is
+-- never consulted for server selection.
+local fuzzy = require("fuzzy-computing")
+local text_chunking = require("text-chunking")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -39,12 +45,12 @@ local M = {}
 
 -- {{{ Configuration
 -- Issue 10-003: centroids now loaded from unified config
--- model_name is what Ollama expects (e.g. qwen3-embedding:4b).
+-- model_name is the GGUF-style identifier the inference server expects (e.g. qwen3-embedding:4b).
 -- model_storage_name is its sanitized-for-filesystem form (e.g. qwen3-embedding_4b).
 -- embedding_dimensions is read from the loaded embeddings.json metadata so a
 -- model swap doesn't require code changes; this CONFIG.dimensions is only
 -- used as a sanity hint for log lines.
-local _selected_model = ollama_config.get_selected_model()
+local _selected_model = inference_config.get_selected_model()
 local CONFIG = {
     model_name = _selected_model,
     model_storage_name = _selected_model:gsub("[^%w%-_.]", "_"),
@@ -54,180 +60,55 @@ local CONFIG = {
 }
 -- }}}
 
--- {{{ local function generate_embedding
--- Sends text to Ollama and returns the embedding vector
-local function generate_embedding(text, endpoint)
-    -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink
-    -- so parallel checkouts of this repository never collide on a shared
-    -- system /tmp/ filename.
-    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
-    local temp_file = DIR .. "/tmp/centroid_embedding_input.json"
-    local payload = {
-        model = CONFIG.model_name,
-        -- Apply the active server's task-prefix (e.g. "clustering: " for
-        -- nomic-embed-text v1.5+). No-op for models that don't need one.
-        input = ollama_config.format_embedding_prompt(text)
-    }
-
-    local f = io.open(temp_file, "w")
-    if not f then
-        utils.log_error("Failed to create temporary file")
-        return nil, "file_error"
-    end
-    f:write(dkjson.encode(payload))
-    f:close()
-
-    local cmd = string.format(
-        'curl -s --connect-timeout 10 --max-time 60 "%s/api/embed" -H "Content-Type: application/json" -d @%s',
-        endpoint, temp_file
-    )
-
-    local handle = io.popen(cmd)
-    local result = handle:read("*a")
-    local success, exit_type, exit_code = handle:close()
-
-    os.remove(temp_file)
-
-    if not success or exit_code ~= 0 then
-        utils.log_error("Network error: curl failed with exit code " .. (exit_code or "unknown"))
-        return nil, "network_error"
-    end
-
-    if not result or result:match("^%s*$") then
-        utils.log_error("Empty response from API endpoint")
-        return nil, "empty_response"
-    end
-
-    if result:match("curl:") or result:match("Could not resolve host") or result:match("Connection refused") then
-        utils.log_error("Connection error: " .. result:gsub("\n", " "))
-        return nil, "connection_error"
-    end
-
-    local parsed = dkjson.decode(result)
-    if parsed and parsed.embeddings and parsed.embeddings[1] then
-        local embedding = parsed.embeddings[1]
-        if type(embedding) == "table" and #embedding > 0 then
-            -- Accept any positive dimension. We learn the model's actual
-            -- dim from its first response rather than asserting one upfront.
-            if not CONFIG.embedding_dimensions then
-                CONFIG.embedding_dimensions = #embedding
-            end
-            return embedding, "success"
-        else
-            utils.log_error("Invalid embedding response: " ..
-                (type(embedding) == "table" and "empty table" or type(embedding)))
-            return nil, "invalid_dimensions"
-        end
-    else
-        utils.log_error("Failed to parse API response: " .. (result:sub(1, 200) or "nil"))
-        return nil, "parse_error"
-    end
-end
--- }}}
-
--- {{{ local function find_safe_split_point
--- Finds the nearest paragraph or line break to the target position
--- Never splits in the middle of a word or sentence if possible
-local function find_safe_split_point(text, target_pos)
-    -- Look for double newline (paragraph break) within 500 chars of target
-    local search_start = math.max(1, target_pos - 500)
-    local search_end = math.min(#text, target_pos + 500)
-    local search_region = text:sub(search_start, search_end)
-
-    -- Find paragraph break closest to midpoint of search region
-    local para_break = search_region:find("\n\n")
-    if para_break then
-        return search_start + para_break
-    end
-
-    -- Fallback: find single newline
-    local line_break = search_region:find("\n")
-    if line_break then
-        return search_start + line_break
-    end
-
-    -- Last resort: split at target position
-    return target_pos
-end
--- }}}
-
 -- {{{ local function generate_embedding_with_chunking
--- Recursively chunks long text and generates embeddings for each chunk
--- Returns a list of embeddings that will be combined into an ultra-centroid
+-- Issue 10-050: embeds a centroid's combined text and returns the LIST of its
+-- per-chunk vectors (calculate_ultra_centroid below folds them into one
+-- normalized centroid). This replaced three things at once: a bespoke single-
+-- input curl (generate_embedding), a paragraph/line split-point finder
+-- (find_safe_split_point), and a recursive binary chunker. All three are now the
+-- shared chunker (text-chunking.lua) plus ONE batched request covering every
+-- chunk of the centroid. The `depth` parameter is kept for call-site
+-- compatibility but is no longer used (chunking is no longer recursive here).
 local function generate_embedding_with_chunking(text, endpoint, depth)
-    depth = depth or 0
-    local max_depth = 5  -- Prevent infinite recursion
-
-    if depth > max_depth then
-        utils.log_error("Maximum chunking depth exceeded - text may be too long or have no valid split points")
-        return nil, "max_depth_exceeded"
+    -- Exact token-aware chunking (Issue 10-050): size each chunk by the model's
+    -- real tokenizer (via /tokenize) so it fits the context with no truncation,
+    -- exactly as the poem path does. Raises if /tokenize is unreachable — no
+    -- silent fallback, since the embed call would fail next anyway.
+    local count_fn = fuzzy.make_token_counter(endpoint)
+    local max_tokens = fuzzy.embedding_chunk_budget(endpoint, inference_config.format_embedding_prompt)
+    local chunks = text_chunking.chunk_text_by_tokens(text, count_fn, max_tokens)
+    if #chunks == 0 then
+        utils.log_error("Centroid text produced no chunks (empty after preprocessing)")
+        return nil, "empty_text"
     end
 
-    -- If text is short enough, try to embed directly
-    if #text <= CONFIG.max_content_length then
-        local embedding, status = generate_embedding(text, endpoint)
-        if embedding then
-            return {embedding}, "success"
-        end
-
-        -- If embedding failed but not due to length, propagate error
-        if status ~= "context_length" and status ~= "parse_error" then
-            return nil, status
-        end
-
-        -- Content might still be too long for the model - try chunking
-        utils.log_info("  Content may exceed model context, attempting to chunk...")
+    -- All chunks of this centroid embed in one request. endpoint + prompt
+    -- formatter are passed so the centroid shares the poems' embedding space.
+    local vectors, err = fuzzy.get_embeddings_batch(
+        chunks, CONFIG.model_name, endpoint, inference_config.format_embedding_prompt)
+    if not vectors then
+        utils.log_error("Centroid embedding batch failed: " .. tostring(err))
+        return nil, err or "batch_failed"
     end
-
-    -- Text is too long - split and recurse
-    local midpoint = math.floor(#text / 2)
-    local split_point = find_safe_split_point(text, midpoint)
-
-    local chunk_a = text:sub(1, split_point - 1)
-    local chunk_b = text:sub(split_point)
-
-    -- Trim whitespace from chunks
-    chunk_a = chunk_a:match("^%s*(.-)%s*$") or ""
-    chunk_b = chunk_b:match("^%s*(.-)%s*$") or ""
-
-    if #chunk_a < CONFIG.min_content_length and #chunk_b < CONFIG.min_content_length then
-        utils.log_error("Both chunks too short after splitting")
-        return nil, "chunks_too_short"
-    end
-
-    utils.log_info(string.format("  Splitting at depth %d: chunk A = %d chars, chunk B = %d chars",
-        depth, #chunk_a, #chunk_b))
 
     local all_embeddings = {}
-
-    -- Process chunk A if it has content
-    if #chunk_a >= CONFIG.min_content_length then
-        local embeddings_a, status_a = generate_embedding_with_chunking(chunk_a, endpoint, depth + 1)
-        if embeddings_a then
-            for _, e in ipairs(embeddings_a) do
-                table.insert(all_embeddings, e)
+    for i = 1, #chunks do
+        local v = vectors[i]
+        if type(v) == "table" and #v > 0 then
+            table.insert(all_embeddings, v)
+            -- Learn the model's dimension from the first real vector (matches
+            -- the old behavior; CONFIG.embedding_dimensions is a logging hint).
+            if not CONFIG.embedding_dimensions then
+                CONFIG.embedding_dimensions = #v
             end
         else
-            utils.log_warn("  Failed to embed chunk A: " .. (status_a or "unknown"))
-        end
-    end
-
-    -- Process chunk B if it has content
-    if #chunk_b >= CONFIG.min_content_length then
-        local embeddings_b, status_b = generate_embedding_with_chunking(chunk_b, endpoint, depth + 1)
-        if embeddings_b then
-            for _, e in ipairs(embeddings_b) do
-                table.insert(all_embeddings, e)
-            end
-        else
-            utils.log_warn("  Failed to embed chunk B: " .. (status_b or "unknown"))
+            utils.log_warn(string.format("  Missing vector for centroid chunk %d/%d", i, #chunks))
         end
     end
 
     if #all_embeddings == 0 then
         return nil, "no_embeddings_generated"
     end
-
     return all_embeddings, "success"
 end
 -- }}}
@@ -382,18 +263,18 @@ end
 function M.generate_all_centroids(options)
     options = options or {}
 
-    -- Check Ollama availability
-    -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
-    local endpoint = ollama_config.build_host_url()
-    utils.log_info("Using Ollama endpoint: " .. endpoint)
+    -- Check inference server availability
+    local endpoint = inference_config.build_host_url()
+    utils.log_info("Using inference endpoint: " .. endpoint)
 
-    -- Verify endpoint is reachable
-    local test_cmd = "curl -s --max-time 5 " .. endpoint .. "/api/tags > /dev/null 2>&1"
+    -- Verify endpoint is reachable. /v1/models is llama.cpp's OpenAI-
+    -- compatible liveness probe (was /api/tags under Ollama).
+    local test_cmd = "curl -s --max-time 5 " .. endpoint .. "/v1/models > /dev/null 2>&1"
     local test_result = os.execute(test_cmd)
     if test_result ~= 0 and test_result ~= true then
-        utils.log_error("Cannot reach Ollama endpoint: " .. endpoint)
-        utils.log_error("Please ensure Ollama is running and accessible.")
-        return nil, "ollama_unavailable"
+        utils.log_error("Cannot reach the inference endpoint: " .. endpoint)
+        utils.log_error("Please ensure the inference server is running and accessible.")
+        return nil, "inference_unavailable"
     end
 
     -- Issue 10-003: Load centroids from unified config instead of assets/centroids.json
