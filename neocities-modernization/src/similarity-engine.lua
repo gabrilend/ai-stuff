@@ -16,8 +16,13 @@ local DIR = setup_dir_path()
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
 local poem_extractor = require("poem-extractor")
+-- Issue 10-050: batched + chunked embedding generation. We pass this module our
+-- OWN endpoint and prompt-formatter (inference_config above) so the batch path
+-- shares this file's server selection instead of fuzzy-computing's separate
+-- inference-server-config instance.
+local fuzzy = require("fuzzy-computing")
 
 -- Initialize asset path configuration for standalone execution
 utils.init_assets_root(arg)
@@ -26,37 +31,36 @@ local M = {}
 
 -- {{{ Model configurations
 local embedding_models = {
-    ["nomic-embed-text:v1.5"] = {
+    -- Key is the GGUF-basename form ("nomic-embed-text-v1.5") to match what
+    -- config.lua, run.sh, and generate-embeddings.sh actually pass. The old
+    -- Ollama-era "model:tag" colon form ("nomic-embed-text:v1.5") never resolved
+    -- after the 10-049 migration, so a full regen aborted with "Unknown
+    -- embedding model" before sending any request. (Leftover from 10-049.)
+    ["nomic-embed-text-v1.5"] = {
         dimensions = 768,
-        endpoint_path = "/api/embed",
         timeout = 30,
         -- v1.5 routes through task-specific weights based on prompt prefix;
-        -- the active prefix is configured per ollama_servers entry.
+        -- the active prefix is configured per inference_servers entry.
         requires_prompt_prefix = true,
     },
     ["embeddinggemma:latest"] = {
         dimensions = 768,
-        endpoint_path = "/api/embed",
         timeout = 30
     },
     ["qwen3-embedding:4b"] = {
         dimensions = 2560,
-        endpoint_path = "/api/embed",
         timeout = 60  -- bigger model, longer per-call
     },
     ["qwen3-embedding:8b"] = {
         dimensions = 4096,
-        endpoint_path = "/api/embed",
         timeout = 90
     },
     ["text-embedding-ada-002"] = {
         dimensions = 1536,
-        endpoint_path = "/v1/embeddings",
         timeout = 60
     },
     ["all-MiniLM-L6-v2"] = {
         dimensions = 384,
-        endpoint_path = "/api/embed",
         timeout = 20
     }
 }
@@ -107,7 +111,7 @@ end
 -- }}}
 
 -- {{{ local function generate_embedding
--- model_name is required; it ends up in the Ollama payload AND determines
+-- model_name is required; it ends up in the request payload AND determines
 -- which dimension downstream validators expect. Defaults are dangerous here
 -- because the wrong model silently produces wrong-shape embeddings.
 local function generate_embedding(text, endpoint, model_name)
@@ -121,7 +125,7 @@ local function generate_embedding(text, endpoint, model_name)
         model = model_name,
         -- Apply the active server's task-prefix (e.g. "clustering: " for
         -- nomic-embed-text v1.5+). No-op for models that don't need one.
-        input = ollama_config.format_embedding_prompt(text)
+        input = inference_config.format_embedding_prompt(text)
     }
     
     local f = io.open(temp_file, "w")
@@ -132,8 +136,13 @@ local function generate_embedding(text, endpoint, model_name)
     f:write(dkjson.encode(payload))
     f:close()
     
+    -- 10-049: /v1/embeddings (OpenAI shape) replaces Ollama's /api/embed.
+    -- llama.cpp exposes a single endpoint regardless of which model is
+    -- loaded, so the endpoint path is the same for every model in the
+    -- embedding_models table above (the per-model endpoint_path field
+    -- was removed in the same migration).
     local cmd = string.format(
-        'curl -s --connect-timeout 10 --max-time 30 "%s/api/embed" -H "Content-Type: application/json" -d @%s',
+        'curl -s --connect-timeout 10 --max-time 30 "%s/v1/embeddings" -H "Content-Type: application/json" -d @%s',
         endpoint, temp_file
     )
     
@@ -163,14 +172,17 @@ local function generate_embedding(text, endpoint, model_name)
     end
     
     local parsed = dkjson.decode(result)
-    if parsed and parsed.embeddings and parsed.embeddings[1] then
+    -- 10-049: OpenAI shape — vectors live under data[N].embedding rather
+    -- than directly under .embeddings[N]. We send one input per call here,
+    -- so we read data[1].embedding.
+    if parsed and parsed.data and parsed.data[1] and parsed.data[1].embedding then
         -- Accept any positive-dimension embedding. The hardcoded "== 768"
         -- that used to live here would have rejected every output from
         -- qwen3-embedding (2560-D) or any other non-gemma model. Downstream
         -- code reads the dimension off the embedding itself rather than
         -- relying on a fixed value, so there is nothing to gain from
         -- gating here.
-        local embedding = parsed.embeddings[1]
+        local embedding = parsed.data[1].embedding
         if type(embedding) == "table" and #embedding > 0 then
             return embedding, "success"
         else
@@ -352,7 +364,7 @@ end
 -- {{{ function M.generate_all_embeddings
 function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, incremental, model_name)
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
-    endpoint = endpoint or ollama_config.build_host_url()
+    endpoint = endpoint or inference_config.build_host_url()
     incremental = incremental ~= false -- Default to true
     model_name = model_name or "embeddinggemma:latest"
     
@@ -516,7 +528,11 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
         end
     end
     
-    local batch_size = 10
+    -- Issue 10-050: poems are embedded a WINDOW at a time. All normal text poems
+    -- in a window go out as ONE batched + chunked embedding call (was: one HTTP
+    -- request per poem). Window size is the batch primitive's BATCH_SIZE.
+    local window = fuzzy.BATCH_SIZE
+    if window < 1 then window = 1 end
     -- Issue 8-021 Fix: Track newly processed poems separately to prevent overcounting.
     -- The bug occurred when key lookups failed due to poem_index format mismatches,
     -- causing poems to be added to poems_to_process even though they had valid embeddings
@@ -553,185 +569,251 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
         pf:close()
     end
     
-    for i = 1, #poems_to_process, batch_size do
-        local batch_end = math.min(i + batch_size - 1, #poems_to_process)
+    -- {{{ Issue 10-050 helpers (closures over the loop's running state)
+    -- write_progress: the count-only progress file generate-embeddings.sh tails.
+    -- Issue 8-059: project-local tmpfs path, shared with the bash monitor.
+    -- Issue 8-021: cap at total_poems so a key mismatch can't overcount.
+    local function write_progress()
+        local user = os.getenv("USER") or "ritz"
+        local progress_file = DIR .. "/tmp/embedding_progress_" .. user .. ".txt"
+        local safe_completed = math.min(skipped_count + newly_processed, total_poems)
+        local pf = io.open(progress_file, "w")
+        if pf then
+            pf:write(string.format("%d,%d", safe_completed, total_poems))
+            pf:close()
+        end
+    end
+
+    -- store_success: write the canonical success record. Shape is byte-for-byte
+    -- what the per-item path wrote (Issue 8-019 keys) so every downstream reader
+    -- is unaffected by the switch to batching.
+    local function store_success(poem, poem_index, poem_text, embedding)
+        embeddings_data.embeddings[poem_index] = {
+            poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
+            id = poem.id,             -- Original source file ID (for display)
+            embedding = embedding,
+            content_length = #poem_text,
+            generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+            updated_at = incremental and os.date("%Y-%m-%d %H:%M:%S") or nil
+        }
+        newly_processed = newly_processed + 1  -- Issue 8-021: Track separately
+    end
+
+    -- Options handed to the batch helper. We pass OUR endpoint and OUR prompt
+    -- formatter so fuzzy-computing's separate inference-server-config instance
+    -- never diverges from this file's server selection. Chunking uses EXACT token
+    -- counts via the server's /tokenize endpoint, and the per-chunk budget is
+    -- computed exactly below (Issue 10-050) — no char estimate anywhere.
+    local COMBINE_STRATEGY = "length_weighted_mean"
+    -- Compute the EXACT per-chunk token budget once (model context - BERT
+    -- specials - the tokenized prefix), via /tokenize. Raises here, before the
+    -- loop starts, if the server is unreachable — no silent fallback. (10-050)
+    local embed_max_tokens = fuzzy.embedding_chunk_budget(endpoint, inference_config.format_embedding_prompt)
+    local embed_opts = {
+        endpoint = endpoint,
+        format_fn = inference_config.format_embedding_prompt,
+        max_tokens = embed_max_tokens,
+        strategy = COMBINE_STRATEGY
+    }
+    -- Record the chunking parameters so a future tuning change is detectable and
+    -- can trigger cache regeneration rather than silently mixing vectors.
+    embeddings_data.metadata.chunking = {
+        tokenizer = "exact (/tokenize)",
+        max_tokens = embed_max_tokens,
+        combine_strategy = COMBINE_STRATEGY,
+        batch_size = window
+    }
+
+    -- handle_deferred: image-only (inherit) and empty (random) poems, handled
+    -- AFTER the window's normal embeddings land so a same-window nearest
+    -- neighbour is already inheritable. Logic preserved verbatim from the old
+    -- per-item path (Issue 9-010 inheritance, Issue 8-019 keys).
+    local function handle_deferred(poem, poem_index, poem_text)
+        if poem.is_image_only and poem.nearest_text_poem_index then
+            local nearest_index = poem.nearest_text_poem_index
+            local nearest_embedding = nil
+            if embeddings_data.embeddings[nearest_index] and
+               embeddings_data.embeddings[nearest_index].embedding then
+                nearest_embedding = embeddings_data.embeddings[nearest_index].embedding
+            elseif existing_embeddings[nearest_index] and
+                   existing_embeddings[nearest_index].embedding then
+                nearest_embedding = existing_embeddings[nearest_index].embedding
+            end
+
+            if nearest_embedding then
+                local own_embedding = nil
+                if poem_text ~= "" then
+                    own_embedding = generate_embedding(poem_text, endpoint, model_name)
+                end
+                local inherited = inherit_embedding(nearest_embedding, own_embedding, model_config.dimensions)
+                utils.log_info("Image-only post " .. poem_index .. " (ID: " .. (poem.id or "unknown") ..
+                              ") - inheriting embedding from nearest text poem " .. nearest_index)
+                embeddings_data.embeddings[poem_index] = {
+                    poem_index = poem_index,
+                    id = poem.id,
+                    embedding = inherited,
+                    content_length = #poem_text,
+                    is_inherited = true,
+                    nearest_text_poem_index = nearest_index,
+                    generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+                    updated_at = os.date("%Y-%m-%d %H:%M:%S")
+                }
+                newly_processed = newly_processed + 1
+            else
+                utils.log_info("Image-only post " .. poem_index .. " - nearest embedding not ready, generating random")
+                local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
+                embeddings_data.embeddings[poem_index] = {
+                    poem_index = poem_index,
+                    id = poem.id,
+                    embedding = random_embedding,
+                    content_length = 0,
+                    is_random = true,
+                    is_image_only = true,
+                    needs_inheritance_update = true,
+                    nearest_text_poem_index = nearest_index,
+                    generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+                    updated_at = os.date("%Y-%m-%d %H:%M:%S")
+                }
+                newly_processed = newly_processed + 1
+            end
+        else
+            -- Empty poem: random embedding to place it semi-randomly.
+            utils.log_info("Empty poem content for ID: " .. (poem.id or "unknown") .. " - generating random embedding")
+            local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
+            embeddings_data.embeddings[poem_index] = {
+                poem_index = poem_index,  -- Issue 8-019
+                id = poem.id,
+                embedding = random_embedding,
+                content_length = 0,
+                is_random = true,
+                generated_at = os.date("%Y-%m-%d %H:%M:%S"),
+                updated_at = os.date("%Y-%m-%d %H:%M:%S")
+            }
+            newly_processed = newly_processed + 1  -- Issue 8-021
+        end
+    end
+    -- }}}
+
+    -- Save the cache roughly every ~100 poems regardless of window size. The old
+    -- `i % 100 == 1` test assumed a step of 10; with a variable window we count
+    -- windows instead so the periodic checkpoint survives a crash mid-run.
+    local windows_since_save = 0
+    local SAVE_EVERY_WINDOWS = math.max(1, math.floor(100 / window))
+
+    for i = 1, #poems_to_process, window do
+        local batch_end = math.min(i + window - 1, #poems_to_process)
         utils.log_info(string.format("Processing batch %d-%d of %d new/updated poems...", i, batch_end, #poems_to_process))
-        
+
+        -- Partition this window: normal text poems get batched together; image-
+        -- only and empty poems are deferred to after the batch resolves.
+        local normal = {}
+        local deferred = {}
         for j = i, batch_end do
             local poem_data = poems_to_process[j]
             local poem = poem_data.poem
             local poem_index = poem_data.index
-            -- Issue 6-033: Use enhanced preprocessing for better embedding quality
-            -- This converts dashes to spaces, strips file metadata, and isolates single poems
+            -- Issue 6-033: enhanced preprocessing for better embedding quality.
             local poem_text = poem_extractor.extract_pure_poem_content_for_embedding(poem.content)
-
-            -- Issue 9-010: Handle image-only posts with embedding inheritance
+            local entry = { poem = poem, poem_index = poem_index, poem_text = poem_text }
             if poem.is_image_only and poem.nearest_text_poem_index then
-                local nearest_index = poem.nearest_text_poem_index
-                local nearest_embedding = nil
-
-                -- Try to get nearest poem's embedding from existing or current batch
-                if embeddings_data.embeddings[nearest_index] and
-                   embeddings_data.embeddings[nearest_index].embedding then
-                    nearest_embedding = embeddings_data.embeddings[nearest_index].embedding
-                elseif existing_embeddings[nearest_index] and
-                       existing_embeddings[nearest_index].embedding then
-                    nearest_embedding = existing_embeddings[nearest_index].embedding
-                end
-
-                if nearest_embedding then
-                    -- Generate own text embedding if there's any content
-                    local own_embedding = nil
-                    if poem_text ~= "" then
-                        own_embedding = generate_embedding(poem_text, endpoint, model_name)
-                    end
-
-                    -- Inherit embedding from nearest text poem
-                    local inherited = inherit_embedding(nearest_embedding, own_embedding, model_config.dimensions)
-                    utils.log_info("Image-only post " .. poem_index .. " (ID: " .. (poem.id or "unknown") ..
-                                  ") - inheriting embedding from nearest text poem " .. nearest_index)
-
-                    embeddings_data.embeddings[poem_index] = {
-                        poem_index = poem_index,
-                        id = poem.id,
-                        embedding = inherited,
-                        content_length = #poem_text,
-                        is_inherited = true,  -- Flag indicating embedding inheritance
-                        nearest_text_poem_index = nearest_index,
-                        generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
-                    }
-                    newly_processed = newly_processed + 1
-                else
-                    -- Fallback: nearest embedding not available yet, use random
-                    utils.log_info("Image-only post " .. poem_index .. " - nearest embedding not ready, generating random")
-                    local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
-                    embeddings_data.embeddings[poem_index] = {
-                        poem_index = poem_index,
-                        id = poem.id,
-                        embedding = random_embedding,
-                        content_length = 0,
-                        is_random = true,
-                        is_image_only = true,
-                        needs_inheritance_update = true,  -- Mark for future update
-                        nearest_text_poem_index = nearest_index,
-                        generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
-                    }
-                    newly_processed = newly_processed + 1
-                end
+                table.insert(deferred, entry)
             elseif poem_text == "" then
-                -- Generate random embedding for empty poems to place them semi-randomly
-                utils.log_info("Empty poem content for ID: " .. (poem.id or "unknown") .. " - generating random embedding")
-                local random_embedding = generate_random_embedding(poem.id, model_config.dimensions)
-                embeddings_data.embeddings[poem_index] = {
-                    poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
-                    id = poem.id,             -- Original source file ID (for display)
-                    embedding = random_embedding,
-                    content_length = 0,
-                    is_random = true,  -- Flag indicating this is a synthetic embedding
-                    generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-                    updated_at = os.date("%Y-%m-%d %H:%M:%S")
-                }
-                newly_processed = newly_processed + 1  -- Issue 8-021: Track separately
+                table.insert(deferred, entry)
             else
-                utils.log_info("Generating embedding for poem " .. poem_index .. " (ID: " .. (poem.id or "unknown") .. ")")
+                table.insert(normal, entry)
+            end
+        end
 
-                local embedding, error_type = generate_embedding(poem_text, endpoint, model_name)
+        -- Embed all normal poems of the window in ONE batched + chunked call.
+        -- A whole-batch transport failure is treated exactly like the old
+        -- per-poem network_error branch: count it, check the thresholds, back
+        -- off, and retry the SAME window.
+        if #normal > 0 then
+            local window_done = false
+            while not window_done do
+                local texts = {}
+                for k = 1, #normal do texts[k] = normal[k].poem_text end
+                utils.log_info(string.format("  Embedding %d text poems (batched, chunked)...", #normal))
+                local vectors, err = fuzzy.embed_texts_with_chunking(texts, model_name, embed_opts)
 
-                if embedding then
-                    -- Success: save valid embedding and reset error counters
-                    embeddings_data.embeddings[poem_index] = {
-                        poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
-                        id = poem.id,             -- Original source file ID (for display)
-                        embedding = embedding,
-                        content_length = #poem_text,
-                        generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-                        updated_at = incremental and os.date("%Y-%m-%d %H:%M:%S") or nil
-                    }
-                    newly_processed = newly_processed + 1  -- Issue 8-021: Track separately
-                    consecutive_errors = 0  -- Reset on success
-                    current_delay = network_error_config.initial_retry_delay  -- Reset delay
-
-                    -- Write simple progress for bash script monitoring (just counts)
-                    -- Issue 8-021 Fix: Cap progress at total_poems to prevent overcounting
-                    local user = os.getenv("USER") or "ritz"  -- fallback to ritz
-                    -- Issue 8-059: shared with scripts/generate-embeddings.sh which reads
-    -- this file; both sides now agree on the project-local tmpfs path.
-    local progress_file = DIR .. "/tmp/embedding_progress_" .. user .. ".txt"
-                    local safe_completed = math.min(skipped_count + newly_processed, total_poems)
-                    local progress_data = string.format("%d,%d", safe_completed, total_poems)
-                    local pf = io.open(progress_file, "w")
-                    if pf then
-                        pf:write(progress_data)
-                        pf:close()
-                    end
-                elseif error_type == "network_error" or error_type == "connection_error" or error_type == "empty_response" then
-                    -- Network errors: implement retry logic with exponential backoff
+                if not vectors then
                     consecutive_errors = consecutive_errors + 1
                     total_errors = total_errors + 1
-                    
-                    utils.log_warn(string.format("Network error %d/%d for poem %d: %s", 
-                                                consecutive_errors, network_error_config.max_consecutive_errors, 
-                                                poem_index, error_type))
-                    
+                    utils.log_warn(string.format("Network error %d/%d for batch %d-%d: %s",
+                        consecutive_errors, network_error_config.max_consecutive_errors,
+                        i, batch_end, tostring(err)))
+
                     if consecutive_errors >= network_error_config.max_consecutive_errors then
-                        -- Issue 8-021 Fix: Use safe calculation for error reporting
                         local safe_completed = math.min(skipped_count + newly_processed, total_poems)
                         utils.log_error("❌ NETWORK ERROR THRESHOLD EXCEEDED")
-                        utils.log_error("")
-                        utils.log_error("Processing terminated due to persistent network connectivity issues:")
-                        utils.log_error("  • Consecutive errors: " .. consecutive_errors .. "/" .. network_error_config.max_consecutive_errors .. " (threshold exceeded)")
-                        utils.log_error("  • Total session errors: " .. total_errors .. "/" .. network_error_config.max_total_errors)
+                        utils.log_error("  • Consecutive errors: " .. consecutive_errors .. "/" .. network_error_config.max_consecutive_errors)
                         utils.log_error("  • Poems processed before termination: " .. safe_completed .. "/" .. total_poems)
-                        utils.log_error("  • Last attempted poem: " .. poem_index)
-                        utils.log_error("")
                         utils.log_error("The embedding cache has been preserved.")
-                        utils.log_error("Restart the process when network connectivity is restored.")
-
-                        -- Save progress before termination
                         embeddings_data.metadata.completed_embeddings = safe_completed
                         embeddings_data.metadata.completion_rate = safe_completed / total_poems
                         embeddings_data.metadata.processing_mode = "terminated_network_error"
                         embeddings_data.metadata.termination_reason = "consecutive_network_errors"
                         embeddings_data.metadata.last_error_count = consecutive_errors
                         utils.write_json_file(output_file, embeddings_data)
-                        
                         return false
                     elseif total_errors >= network_error_config.max_total_errors then
                         utils.log_error("❌ TOTAL ERROR LIMIT EXCEEDED")
                         utils.log_error("Too many network errors in this session: " .. total_errors .. "/" .. network_error_config.max_total_errors)
                         return false
                     else
-                        -- Retry with exponential backoff
                         utils.log_info("Retrying in " .. current_delay .. " seconds...")
                         os.execute("sleep " .. current_delay)
-                        current_delay = math.min(current_delay * network_error_config.backoff_multiplier, 
+                        current_delay = math.min(current_delay * network_error_config.backoff_multiplier,
                                                network_error_config.max_retry_delay)
-                        
-                        -- Don't save to cache, allow retry
-                        j = j - 1  -- Retry this poem
+                        -- loop again: retry this whole window
                     end
                 else
-                    -- Non-critical errors: save error record to prevent retrying
-                    embeddings_data.embeddings[poem_index] = {
-                        poem_index = poem_index,  -- Unique global identifier (Issue 8-019)
-                        id = poem.id,             -- Original source file ID (for display)
-                        embedding = nil,
-                        error = error_type,
-                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
-                    }
-                    utils.log_warn("Non-critical error for poem " .. poem_index .. ": " .. error_type)
+                    -- Batch produced results: reset error counters (the server is
+                    -- alive) and distribute vectors to each poem.
+                    consecutive_errors = 0
+                    current_delay = network_error_config.initial_retry_delay
+                    for k = 1, #normal do
+                        local n = normal[k]
+                        local embedding = vectors[k]
+                        if embedding and type(embedding) == "table" and #embedding == model_config.dimensions then
+                            store_success(n.poem, n.poem_index, n.poem_text, embedding)
+                        else
+                            -- One poem's vector is missing/wrong-dimension. Single-
+                            -- retry it once via the same chunk-aware path; if that
+                            -- still fails, record a non-critical error so it is not
+                            -- retried forever (matches the old `else` branch).
+                            local single = fuzzy.embed_texts_with_chunking({ n.poem_text }, model_name, embed_opts)
+                            local sv = single and single[1]
+                            if sv and type(sv) == "table" and #sv == model_config.dimensions then
+                                store_success(n.poem, n.poem_index, n.poem_text, sv)
+                            else
+                                embeddings_data.embeddings[n.poem_index] = {
+                                    poem_index = n.poem_index,  -- Issue 8-019
+                                    id = n.poem.id,
+                                    embedding = nil,
+                                    error = "embedding_failed",
+                                    updated_at = os.date("%Y-%m-%d %H:%M:%S")
+                                }
+                                utils.log_warn("Non-critical error for poem " .. n.poem_index .. ": embedding_failed")
+                            end
+                        end
+                    end
+                    write_progress()
+                    window_done = true
                 end
             end
-            
-            -- Small delay to avoid overwhelming the API
-            os.execute("sleep 0.1")
         end
-        
-        -- Save progress periodically
-        if i % 100 == 1 or batch_end == #poems_to_process then
-            -- Issue 8-021 Fix: Use safe calculation for progress logging
+
+        -- Now the deferred poems, with the window's fresh embeddings available.
+        for _, d in ipairs(deferred) do
+            handle_deferred(d.poem, d.poem_index, d.poem_text)
+        end
+        write_progress()
+
+        -- Periodic cache checkpoint (crash safety on long runs).
+        windows_since_save = windows_since_save + 1
+        if windows_since_save >= SAVE_EVERY_WINDOWS or batch_end == #poems_to_process then
+            windows_since_save = 0
             local safe_completed = math.min(skipped_count + newly_processed, total_poems)
             utils.log_info("Saving progress... (" .. newly_processed .. " new + " .. skipped_count .. " existing = " .. safe_completed .. " total)")
             if not utils.write_json_file(output_file, embeddings_data) then

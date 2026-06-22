@@ -1,7 +1,7 @@
 #!/bin/bash
 # Embedding Generation Manager for Neocities Poetry Modernization
 #
-# Generates vector embeddings for poems using Ollama embedding models.
+# Generates vector embeddings for poems using inference server embedding models.
 # Supports incremental processing, cache management, and multiple models.
 #
 # Uses TUI library for vim-style interactive mode when available.
@@ -36,14 +36,21 @@ FLUSH_ALL=false
 FLUSH_ERRORS=false
 BACKUP_BEFORE_FLUSH=true
 FORCE_OPERATION=false
-MODEL_NAME="nomic-embed-text:v1.5"
+# 10-049 + Pascal-quant note: must match what config.lua's
+# inference_servers[selected].model returns (no Ollama-style ":tag" colon,
+# no GGUF ".gguf" extension). The /v1/models check later substring-greps
+# for this string in the server's loaded-model list, so it should be the
+# family identifier ("nomic-embed-text-v1.5"), not the full file basename
+# ("nomic-embed-text-v1.5.Q8_0.gguf"). When the config drifts from this
+# constant the substring-grep falls back to "model not found" and bails.
+MODEL_NAME="nomic-embed-text-v1.5"
 LIST_MODELS=false
 MODEL_STATUS=false
 INTERACTIVE_MODE=false
 DIRECTORY_ARG=""
 ASSETS_DIR=""
-# Issue 10-017: Ollama server selection from config.lua
-OLLAMA_SERVER=""
+# Issue 10-017: Inference server selection from config.lua
+INFERENCE_SERVER=""
 
 for arg in "$@"; do
     case $arg in
@@ -81,9 +88,9 @@ for arg in "$@"; do
         --model=*)
             MODEL_NAME="${arg#*=}"
             ;;
-        # Issue 10-017: Ollama server selection
-        --ollama=*)
-            OLLAMA_SERVER="${arg#*=}"
+        # Issue 10-017: Inference server selection
+        --server=*)
+            INFERENCE_SERVER="${arg#*=}"
             ;;
         --list-models)
             LIST_MODELS=true
@@ -110,7 +117,7 @@ for arg in "$@"; do
             echo "  --force                 Skip confirmation prompts for automated scripts"
             echo ""
             echo "Model Selection Options:"
-            echo "  --model=MODEL_NAME      Specify embedding model (default: nomic-embed-text:v1.5)"
+            echo "  --model=MODEL_NAME      Specify embedding model (default: nomic-embed-text-v1.5)"
             echo "  --list-models           Show available models and their configurations"
             echo "  --model-status          Show cache status for all models"
             echo "  --dir=PATH              Use custom assets directory instead of default"
@@ -232,13 +239,17 @@ apply_tui_selections() {
 
     # Model selection
     local model=$(menu_get_value "model_name")
+    # 10-049: identifiers shifted from Ollama-style tags ("nomic-embed-text-v1.5")
+    # to llama.cpp's family-identifier convention ("nomic-embed-text-v1.5").
+    # Embedding cache directory derives from this string via the sanitize-then-mkdir
+    # pattern in utils.embeddings_dir(), so changing it triggers a fresh cache.
     case "$model" in
-        "qwen3-embedding") MODEL_NAME="qwen3-embedding:4b" ;;
-        "nomic-embed-text") MODEL_NAME="nomic-embed-text:v1.5" ;;
-        "embeddinggemma") MODEL_NAME="embeddinggemma:latest" ;;
+        "qwen3-embedding") MODEL_NAME="qwen3-embedding-4b" ;;
+        "nomic-embed-text") MODEL_NAME="nomic-embed-text-v1.5" ;;
+        "embeddinggemma") MODEL_NAME="embeddinggemma" ;;
         "text-embedding-ada-002") MODEL_NAME="text-embedding-ada-002" ;;
         "all-MiniLM-L6-v2") MODEL_NAME="all-MiniLM-L6-v2" ;;
-        *) MODEL_NAME="nomic-embed-text:v1.5" ;;
+        *) MODEL_NAME="nomic-embed-text-v1.5" ;;
     esac
 
     [[ "$(menu_get_value "model_status")" == "1" ]] && MODEL_STATUS=true
@@ -320,7 +331,7 @@ run_simple_interactive_mode() {
 
     echo ""
     echo "Available embedding models:"
-    echo "1. nomic-embed-text:v1.5 (default)"
+    echo "1. nomic-embed-text-v1.5 (default)"
     echo "2. qwen3-embedding:4b"
     echo "3. embeddinggemma:latest"
     echo "4. text-embedding-ada-002"
@@ -332,7 +343,7 @@ run_simple_interactive_mode() {
         3) MODEL_NAME="embeddinggemma:latest" ;;
         4) MODEL_NAME="text-embedding-ada-002" ;;
         5) MODEL_NAME="all-MiniLM-L6-v2" ;;
-        *) MODEL_NAME="nomic-embed-text:v1.5" ;;
+        *) MODEL_NAME="nomic-embed-text-v1.5" ;;
     esac
 
     echo ""
@@ -387,7 +398,12 @@ NC='\033[0m' # No Color
 START_TIME=$(date +%s)
 POEMS_FILE="$DIR/assets/poems.json"
 EMBEDDINGS_FILE="$DIR/assets/embeddings.json"
-TEMP_LOG="${DIR}/tmp/embedding_generation.log"
+# run.sh's --debug exports NEOCITIES_LOG_DIR → durable disk (output/debug-logs)
+# so this log survives the reboot a hard GPU lock forces; the default is the
+# RAM-backed tmp/. The end-of-run cleanup below is skipped when this is set.
+EMBED_LOG_DIR="${NEOCITIES_LOG_DIR:-${DIR}/tmp}"
+mkdir -p "$EMBED_LOG_DIR"
+TEMP_LOG="${EMBED_LOG_DIR}/embedding_generation.log"
 
 echo -e "${CYAN}================================================================${NC}"
 echo -e "${CYAN}  POEM EMBEDDING GENERATION - LIVE PROGRESS MONITOR${NC}"
@@ -569,44 +585,44 @@ fi
 TOTAL_POEMS=$(lua -e "local dkjson = require('libs.dkjson'); local f = io.open('$POEMS_FILE'); local data = dkjson.decode(f:read('*a')); f:close(); print(#data.poems)")
 echo -e "${GREEN}✓ Found $TOTAL_POEMS poems to process${NC}"
 
-# Check Ollama service
-# Issue 10-017: Use ollama-config when --ollama flag is provided, otherwise use default
-if [ -n "$OLLAMA_SERVER" ]; then
-    OLLAMA_ENDPOINT=$(luajit -e "
+# Check inference server availability. 10-049: was Ollama; now llama.cpp.
+if [ -n "$INFERENCE_SERVER" ]; then
+    INFERENCE_ENDPOINT=$(luajit -e "
         package.path = '$DIR/libs/?.lua;' .. package.path
-        local ollama = require('ollama-config')
-        ollama.set_selected_server('$OLLAMA_SERVER')
-        print(ollama.build_host_url())
+        local inference = require('inference-server-config')
+        inference.set_selected_server('$INFERENCE_SERVER')
+        print(inference.build_host_url())
     ")
-    echo -e "${CYAN}Using Ollama server: $OLLAMA_SERVER${NC}"
+    echo -e "${CYAN}Using Inference server: $INFERENCE_SERVER${NC}"
 else
     # Default: use config default or hardcoded fallback
-    OLLAMA_ENDPOINT=$(luajit -e "
+    INFERENCE_ENDPOINT=$(luajit -e "
         package.path = '$DIR/libs/?.lua;' .. package.path
-        local ollama = require('ollama-config')
-        print(ollama.build_host_url())
-    " 2>/dev/null || echo "http://192.168.0.115:10265")
+        local inference = require('inference-server-config')
+        print(inference.build_host_url())
+    " 2>/dev/null || echo "http://127.0.0.1:18080")
 fi
-if curl -s --max-time 3 "$OLLAMA_ENDPOINT/api/version" > /dev/null; then
-    OLLAMA_VERSION=$(curl -s "$OLLAMA_ENDPOINT/api/version" | lua -e "local dkjson = require('libs.dkjson'); local data = dkjson.decode(io.read('*a')); print(data.version or 'unknown')")
-    echo -e "${GREEN}✓ Ollama service running (version: $OLLAMA_VERSION)${NC}"
+# /v1/models is llama.cpp's OpenAI-compatible "what's loaded" endpoint.
+# Used both as a liveness probe and as the source for the model list.
+if curl -s --max-time 3 "$INFERENCE_ENDPOINT/v1/models" > /dev/null; then
+    echo -e "${GREEN}✓ Inference server reachable at $INFERENCE_ENDPOINT${NC}"
 else
-    echo -e "${RED}❌ ERROR: Cannot connect to Ollama at $OLLAMA_ENDPOINT${NC}"
+    echo -e "${RED}❌ ERROR: Cannot connect to inference server at $INFERENCE_ENDPOINT${NC}"
     exit 1
 fi
 
-# Check selected embedding model
-if curl -s "$OLLAMA_ENDPOINT/api/tags" | grep -q "$MODEL_NAME"; then
+# Check selected embedding model. /v1/models returns {data: [{id: "..."},...]}.
+if curl -s "$INFERENCE_ENDPOINT/v1/models" | grep -q "$MODEL_NAME"; then
     echo -e "${GREEN}✓ $MODEL_NAME model available${NC}"
 else
     echo -e "${RED}❌ ERROR: $MODEL_NAME model not found${NC}"
-    echo -e "${YELLOW}💡 Available models:${NC}"
-    curl -s "$OLLAMA_ENDPOINT/api/tags" | lua -e "
+    echo -e "${YELLOW}💡 Loaded models on this server:${NC}"
+    curl -s "$INFERENCE_ENDPOINT/v1/models" | lua -e "
         local dkjson = require('libs.dkjson')
         local data = dkjson.decode(io.read('*a'))
-        if data and data.models then
-            for _, model in ipairs(data.models) do
-                print('  ' .. model.name)
+        if data and data.data then
+            for _, model in ipairs(data.data) do
+                print('  ' .. (model.id or '(unnamed)'))
             end
         end
     " 2>/dev/null
@@ -700,6 +716,16 @@ monitor_progress() {
     # EMBED_PID is set in the calling scope before monitor_progress is started
     local target_pid=$EMBED_PID
 
+    # Detect whether stdout is an interactive terminal. Under run.sh --debug,
+    # stdout is a pipe to scripts/fsync-logger, which reads line-by-line and so
+    # cannot render a carriage-return progress bar (the bar emits no newlines, so
+    # the logger blocks waiting for one and nothing shows). In that case we fall
+    # back to a newline-terminated progress LINE on each percent change, which
+    # flows through the logger to both the terminal and the debug log.
+    local is_tty=0
+    if [ -t 1 ]; then is_tty=1; fi
+    local last_reported_percent=-1
+
     while true; do
         # Check for real-time progress updates from Lua script
         if [ -f "$progress_file" ]; then
@@ -730,8 +756,15 @@ monitor_progress() {
         for ((i=0; i<filled; i++)); do bar="${bar}█"; done
         for ((i=filled; i<bar_length; i++)); do bar="${bar}░"; done
 
-        # Clear the line and print progress bar (just x/y display)
-        echo -ne "\033[2K\r${PURPLE}Progress: ${bar} ${percent}% (${current_poem}/${TOTAL_POEMS})${NC}"
+        # Render progress. Interactive terminal: redraw the bar in place with a
+        # carriage return. Captured/non-TTY (e.g. --debug): emit one line per
+        # percentage change so the line-based logger can pass it through.
+        if [ "$is_tty" -eq 1 ]; then
+            echo -ne "\033[2K\r${PURPLE}Progress: ${bar} ${percent}% (${current_poem}/${TOTAL_POEMS})${NC}"
+        elif [ "$percent" -ne "$last_reported_percent" ]; then
+            echo "Progress: ${percent}% (${current_poem}/${TOTAL_POEMS})"
+            last_reported_percent=$percent
+        fi
 
         # Check if embedding process is still running using PID
         # Issue 10-022: Changed from pgrep to kill -0 for accurate PID detection
@@ -739,16 +772,16 @@ monitor_progress() {
             break
         fi
 
-        # Periodic health check of Ollama service (every 5 minutes)
+        # Periodic health check of the inference server (every 5 minutes)
         local current_time=$(date +%s)
         local health_check_interval=300  # 5 minutes
         if [ $((current_time % health_check_interval)) -eq 0 ] && [ $((current_time - start_time)) -gt 60 ]; then
-            if ! curl -s --max-time 3 "$OLLAMA_ENDPOINT/api/version" > /dev/null; then
+            if ! curl -s --max-time 3 "$INFERENCE_ENDPOINT/v1/models" > /dev/null; then
                 echo ""
                 echo ""
-                echo -e "${RED}⚠️  OLLAMA SERVICE UNAVAILABLE${NC}"
+                echo -e "${RED}⚠️  INFERENCE SERVER UNAVAILABLE${NC}"
                 echo -e "${YELLOW}Embedding process may fail and could corrupt the cache.${NC}"
-                echo -e "${YELLOW}Consider stopping the process and restarting Ollama.${NC}"
+                echo -e "${YELLOW}Consider stopping the process and restarting the inference server.${NC}"
             fi
         fi
 
@@ -760,32 +793,45 @@ monitor_progress() {
 # Issue 10-022: Use direct function call instead of piped stdin
 # Piped stdin causes curl exit code 7 (connection refused) due to file descriptor issues
 echo "Generating embeddings..." > "$TEMP_LOG"
-if [ "$INCREMENTAL" = true ]; then
-    luajit -e "
-        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
-        local sim = require('similarity-engine')
-        local success = sim.generate_all_embeddings(
-            '$POEMS_FILE',
-            '$DIR/assets',
-            '$OLLAMA_ENDPOINT',
-            true,  -- incremental
-            '$MODEL_NAME'
-        )
-        os.exit(success and 0 or 1)
-    " >> "$TEMP_LOG" 2>&1 &
+
+# The two run modes (incremental vs full regeneration) differ only by one
+# boolean argument, so we build a single Lua program and pass the flag in
+# rather than duplicating the whole snippet.
+INCREMENTAL_LUA=$([ "$INCREMENTAL" = true ] && echo true || echo false)
+
+# In debug mode (NEOCITIES_LOG_DIR set by run.sh --debug) make Lua's stdout and
+# stderr UNBUFFERED. Otherwise Lua holds log lines in a block buffer and a hard
+# lock loses everything not yet flushed — defeating the whole point of routing
+# the log through fsync-logger below. Empty string outside debug = default
+# (block) buffering, which is faster for normal runs.
+LUA_DEBUG_PROLOGUE=""
+if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
+    LUA_DEBUG_PROLOGUE="io.stdout:setvbuf('no'); io.stderr:setvbuf('no');"
+fi
+
+LUA_EMBED_PROGRAM="
+    ${LUA_DEBUG_PROLOGUE}
+    package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+    local sim = require('similarity-engine')
+    local success = sim.generate_all_embeddings(
+        '$POEMS_FILE',
+        '$DIR/assets',
+        '$INFERENCE_ENDPOINT',
+        ${INCREMENTAL_LUA},
+        '$MODEL_NAME'
+    )
+    os.exit(success and 0 or 1)
+"
+
+# In debug, pipe the embedding output through fsync-logger so each line is
+# committed to disk the moment it is written (survives a hard lock). The
+# process substitution is a sibling, so $! still captures the luajit PID we
+# wait on below. Outside debug, the plain append keeps things fast.
+if [ -n "${NEOCITIES_LOG_DIR:-}" ]; then
+    luajit -e "$LUA_EMBED_PROGRAM" \
+        > >("${DIR}/scripts/fsync-logger" --quiet "$TEMP_LOG") 2>&1 &
 else
-    luajit -e "
-        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
-        local sim = require('similarity-engine')
-        local success = sim.generate_all_embeddings(
-            '$POEMS_FILE',
-            '$DIR/assets',
-            '$OLLAMA_ENDPOINT',
-            false,  -- full regeneration
-            '$MODEL_NAME'
-        )
-        os.exit(success and 0 or 1)
-    " >> "$TEMP_LOG" 2>&1 &
+    luajit -e "$LUA_EMBED_PROGRAM" >> "$TEMP_LOG" 2>&1 &
 fi
 EMBED_PID=$!
 
@@ -880,8 +926,8 @@ if [ $EMBED_RESULT -eq 0 ] && [ -f "$EMBEDDINGS_FILE" ]; then
         echo -e "   Successful Embeddings: ${RED}$SUCCESSFUL${NC}"
         echo ""
         echo -e "${YELLOW}💡 Troubleshooting:${NC}"
-        echo -e "   1. Check Ollama service: curl $OLLAMA_ENDPOINT/api/version"
-        echo -e "   2. Test embedding API: curl $OLLAMA_ENDPOINT/api/embed -d '{\"model\":\"$MODEL_NAME\",\"input\":\"test\"}'"
+        echo -e "   1. Check inference server: curl $INFERENCE_ENDPOINT/v1/models"
+        echo -e "   2. Test embedding API: curl $INFERENCE_ENDPOINT/v1/embeddings -d '{\"model\":\"$MODEL_NAME\",\"input\":\"test\"}'"
         echo -e "   3. Retry: ./run.sh --generate-embeddings --force"
         exit 1
     fi
@@ -917,7 +963,7 @@ if [ $EMBED_RESULT -eq 0 ] && [ -f "$EMBEDDINGS_FILE" ]; then
     echo -e "   Embedding Model: ${PURPLE}${MODEL_NAME}${NC}"
     echo -e "   Vector Dimensions: ${PURPLE}${EMBEDDING_DIM:-unknown}${NC}"
     echo -e "   CUDA Acceleration: ${GREEN}Enabled${NC}"
-    echo -e "   Endpoint: ${CYAN}$OLLAMA_ENDPOINT${NC}"
+    echo -e "   Endpoint: ${CYAN}$INFERENCE_ENDPOINT${NC}"
     echo ""
     
     # File size information
@@ -941,7 +987,7 @@ else
     fi
     echo ""
     echo -e "${YELLOW}💡 Troubleshooting:${NC}"
-    echo -e "   1. Check Ollama service status"
+    echo -e "   1. Check inference server status"
     echo -e "   2. Verify EmbeddingGemma model availability"  
     echo -e "   3. Check network connectivity"
     echo -e "   4. Review full log: ${CYAN}$TEMP_LOG${NC}"
@@ -952,6 +998,18 @@ echo -e "${CYAN}================================================================
 echo -e "${BLUE}Generation completed at:${NC} $(date)"
 echo -e "${CYAN}================================================================${NC}"
 
-# Cleanup
-rm -f "$TEMP_LOG"
+# Cleanup. In debug mode (NEOCITIES_LOG_DIR exported by run.sh --debug) the
+# embedding log is preserved for post-crash review; otherwise it is removed as
+# before. The progress file is ephemeral inter-process state, always cleaned.
+if [ -z "${NEOCITIES_LOG_DIR:-}" ]; then
+    rm -f "$TEMP_LOG"
+fi
 rm -f "${DIR}/tmp/embedding_progress_${USER}.txt" 2>/dev/null
+
+# Propagate the embedding result as this script's exit code so run.sh's
+# `generate-embeddings.sh ... || exit 1` actually fires on failure. Previously
+# the script fell off the end after the cleanup rm (exit 0), which masked a
+# failed run and let the pipeline push on into the word/color stages against a
+# half-built cache — exactly what happened when the giant-poem tail tripped the
+# network-error threshold. (Found during 10-050.)
+exit $EMBED_RESULT
