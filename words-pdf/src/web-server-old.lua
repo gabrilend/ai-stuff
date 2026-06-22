@@ -1,6 +1,6 @@
 #!/usr/bin/env lua5.2
 
--- {{{ HTML5-Only Web Server for Ollama Interface
+-- {{{ HTML5-Only Web Server for llama.cpp Chat Interface
 local DIR = "/mnt/mtwo/programming/ai-stuff/words-pdf"
 
 -- Configure Lua package paths to find project libraries
@@ -15,7 +15,7 @@ package.cpath = DIR .. "/libs/luasocket/socket/?.so;" ..
 local socket = require("socket")
 -- Remove socket.http since we're using curl instead
 local json = require("dkjson") -- Use dkjson from project libs
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
 -- }}}
 
 -- {{{ load compiled text sections
@@ -209,10 +209,13 @@ local function assess_contextual_importance(conversation_history, user_message)
 end
 -- }}}
 
--- {{{ call ollama api
-local function call_ollama(inspiration_context, conversation_context, user_message, system_status, high_contextual_importance)
+-- {{{ call chat server
+-- Issue 025: posts to llama-server's /v1/chat/completions (OpenAI shape)
+-- in place of Ollama's /api/chat. The body has temperature and max_tokens
+-- hoisted out of the Ollama-style options wrapper.
+local function call_chat_server(inspiration_context, conversation_context, user_message, system_status, high_contextual_importance)
     local system_content
-    
+
     if high_contextual_importance then
         -- Contextual needs are important - reduce inspiration, preserve conversation
         system_content = "System Status: " .. system_status -- Only 10% for status
@@ -221,14 +224,14 @@ local function call_ollama(inspiration_context, conversation_context, user_messa
         -- Typical operations - normal ratios (50% inspiration + 10% status)
         system_content = inspiration_context .. "\n\nSystem Status: " .. system_status
     end
-    
+
     local messages = {
         {
             role = "system",
             content = system_content
         },
         {
-            role = "assistant", 
+            role = "assistant",
             content = conversation_context -- Prioritized conversation memory
         },
         {
@@ -236,60 +239,53 @@ local function call_ollama(inspiration_context, conversation_context, user_messa
             content = user_message
         }
     }
-    
+
     local request_body = json.encode({
-        model = "gemma3:12b-it-qat", -- Google's newest 12.2B model with 131k token context - massive!
-        messages = messages,
-        stream = false,
-        options = {
-            temperature = 0.7,
-            max_tokens = 20 -- Strict limit for 80 chars
-        }
+        model       = "Qwen3-8B",
+        messages    = messages,
+        temperature = 0.7,
+        max_tokens  = 20, -- strict limit so the 80-char clip is rarely a truncation
     })
-    
+
     -- Use curl method like fuzzy-computing.lua to avoid ltn12 issues
-    local input_file = "/tmp/ollama_request_" .. os.time() .. ".json"
-    local output_file = "/tmp/ollama_response_" .. os.time() .. ".json"
-    
-    -- Write request to file
+    local input_file = "/tmp/chat_request_" .. os.time() .. ".json"
+    local output_file = "/tmp/chat_response_" .. os.time() .. ".json"
+
     local f = io.open(input_file, "w")
     if not f then
         return "Error creating request file"
     end
     f:write(request_body)
     f:close()
-    
-    -- Make curl request
+
     local curl_cmd = string.format(
-        "curl -s -X POST %s/api/chat -H 'Content-Type: application/json' -d @%s > %s",
-        ollama_config.OLLAMA_ENDPOINT, input_file, output_file
+        "curl -s -X POST %s/v1/chat/completions -H 'Content-Type: application/json' -d @%s > %s",
+        inference_config.CHAT_ENDPOINT, input_file, output_file
     )
-    
+
     local result = os.execute(curl_cmd)
-    
-    -- Read response
+
     local response_file = io.open(output_file, "r")
     if not response_file then
-        -- Cleanup
         os.remove(input_file)
         return "Error reading response file"
     end
-    
+
     local response_text = response_file:read("*all")
     response_file:close()
-    
-    -- Cleanup
+
     os.remove(input_file)
     os.remove(output_file)
-    
+
     if response_text and response_text ~= "" then
         local response = json.decode(response_text)
-        if response and response.message then
-            return response.message.content or "No response from Ollama"
+        if response and response.choices and response.choices[1]
+            and response.choices[1].message then
+            return response.choices[1].message.content or "No response from chat server"
         end
-        return "Invalid response format from Ollama"
+        return "Invalid response format from chat server"
     else
-        return "Empty response from Ollama"
+        return "Empty response from chat server"
     end
 end
 -- }}}
@@ -311,7 +307,7 @@ local function generate_expansion_page(initial_response, context, system_status)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Words-PDF Ollama Interface - Expansion Mode</title>
+    <title>Words-PDF Chat Interface — Expansion Mode</title>
     <style>
         body {
             font-family: 'Courier New', monospace;
@@ -437,7 +433,7 @@ local function generate_html_page(inspiration, conversation_context, ai_response
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Words-PDF Ollama Interface</title>
+    <title>Words-PDF Chat Interface</title>
     <style>
         body {
             font-family: 'Courier New', monospace;
@@ -505,7 +501,7 @@ local function generate_html_page(inspiration, conversation_context, ai_response
 </head>
 <body>
     <div class="container">
-        <h1>Words-PDF Ollama Interface (HTML5 Only)</h1>
+        <h1>Words-PDF Chat Interface (HTML5 Only)</h1>
         
         <section class="inspiration-section">
             <h3>Current Inspiration Sample (50%% of prompt):</h3>
@@ -600,7 +596,7 @@ local function handle_line_expansion(request_body, sections)
     local full_context = status_title .. truncated_context .. "\n\nPrevious lines:\n" .. truncated_previous
     
     -- Generate next 80-character line  
-    local next_line = call_ollama(inspiration, full_context, 
+    local next_line = call_chat_server(inspiration, full_context, 
                                  string.format("Continue line %d:", line_number), 
                                  system_status, false)
     next_line = limit_response(next_line)
@@ -615,7 +611,7 @@ local function start_server()
     local sections = load_compiled_text()
     local conversation_history = {}
     
-    print("HTML5-Only Ollama server with spacebar expansion starting on http://localhost:8080")
+    print("HTML5-Only chat server with spacebar expansion starting on http://localhost:8080")
     
     while true do
         local client = server:accept()
@@ -677,7 +673,7 @@ local function start_server()
                                   #inspiration, #context, #inspiration + #context))
                 
                 -- Get AI response with adaptive context allocation
-                local ai_response = call_ollama(inspiration, context, message, system_status, high_importance)
+                local ai_response = call_chat_server(inspiration, context, message, system_status, high_importance)
                 ai_response = limit_response(ai_response)
                 table.insert(conversation_history, "AI: " .. ai_response)
                 
