@@ -3,6 +3,16 @@
  DIR = arg[1]
 FILE = arg[2]
 
+-- Issue 027: --natural-themes (parsed positional-agnostically from arg[])
+-- disables the frequency-weighted theme picker at all three tiers and
+-- selects each theme by raw cosine similarity alone. The flag is for
+-- comparing balanced-distribution output against natural-ranking output;
+-- see issues/027-natural-themes-flag.md for the design discussion.
+NATURAL_THEMES = false
+for i = 1, #arg do
+    if arg[i] == "--natural-themes" then NATURAL_THEMES = true end
+end
+
 package.cpath = package.cpath .. ";" .. DIR .. "/libs/luahpdf/?.so"
 package.cpath = package.cpath .. ";" .. DIR .. "/libs/libharu-RELEASE_2_3_0/build/src/?.so"
 package.path = package.path .. ";" .. DIR .. "/libs/?.lua"
@@ -12,12 +22,46 @@ hpdf = require "hpdf"
 fuzz = require "libs/fuzzy-computing"
 palette = require "themes/palette"
 art = require "libs/art-primitives"
-EMBEDDING_DRIVEN_PARAMS = require "themes/embedding-driven-params"
+-- Issue 030 Phase 3: parameter axes are no longer hand-curated per theme;
+-- they are derived per-cluster by themes-v2/name-clusters.lua and stored
+-- in themes/derived-taxonomy.lua's tier1_parameter_axes field.
+generators = require "themes/generators"
+-- Issue 026: in-place redrawing progress region for the page loop in build_pdf.
+-- Owns the per-page status frame on /dev/tty (with colored gradient bar) and
+-- mirrors every line into $LOG_FILE as plain text.
+progress_ui = require "libs/progress-ui"
 
--- LLM settings - ENABLED for Ollama embeddings
--- Model name must match Ollama's loaded model exactly (lowercase per `ollama list`).
-LLM_MODEL = "embeddinggemma:latest"
-ENABLE_OLLAMA_EMBEDDINGS = true  -- Enable the embedding system
+-- LLM settings — embedding model name must match the GGUF that the embedding
+-- llama-server instance was launched with. scripts/start-llamacpp-server.sh
+-- loads models/nomic-embed-text-v1.5.Q8_0.gguf and exposes it under the
+-- model id "nomic-embed-text:v1.5" (the metadata field embedded in the
+-- GGUF). If you change the model file or its tagged name, update this
+-- constant to match.
+-- nomic-embed-text:v1.5 is a purpose-built encoder-only embedder (137M params,
+-- 768-dim output, 8K context). Chosen over qwen3-embedding:4b because qwen3
+-- produced near-identical similarity scores for short-text-vs-keyword comparisons
+-- (all in 0.88-0.90 range), making per-poem classification unreliable.
+-- Nomic is better-calibrated for short-document retrieval and runs much faster.
+--
+-- Context window is fixed at server-launch time now (issue 025).
+-- scripts/start-llamacpp-server.sh passes --ctx-size 8192 to the embedding
+-- server, matching nomic-embed-text's native context. We can no longer
+-- override it per-request the way Ollama allowed; if a longer window is
+-- needed, raise it in the start script and restart the server.
+--
+-- NOMIC_PREFIX: nomic-embed-text-v1.5 is a task-prefixed model. Without a
+-- prefix telling it what the embedding is for, quality drops noticeably.
+-- Options the Nomic team documents:
+--   "search_query: " / "search_document: " — retrieval (query-vs-document)
+--   "classification: "                      — single text → class label
+--   "clustering: "                          — finding similar/dissimilar items
+-- Our workload is theme-classification + diversity ranking, which is closest
+-- to clustering (each theme is a cluster centroid; we want similar poems
+-- pulled toward the same centroid). Prepended to every embedding input so
+-- theme descriptions, axis keywords, and poem text all land in the same
+-- semantic space.
+LLM_MODEL = "nomic-embed-text:v1.5"
+NOMIC_PREFIX = "clustering: "    -- task prefix; required for quality on nomic v1.5
 
 -- Multi-tier theme embeddings cache (initialized once)
 THEME_EMBEDDINGS = {
@@ -35,28 +79,51 @@ THEME_STATS = {
     total_poems = 0
 }
 
--- Per-(theme, parameter) axis vectors computed at startup from the
--- positive/negative keyword embeddings in themes/embedding-driven-params.lua.
--- Structure: PARAM_AXES[theme_name] = { {name, low, high, axis = vector}, ... }
-PARAM_AXES = {}
+-- Issue 030 Phase 3: full per-cluster theme metadata loaded from
+-- themes/derived-taxonomy.lua. Each entry:
+--   THEMES[name] = {
+--     centroid             = {.. 768 floats ..},
+--     tier1_generator      = "circuit",
+--     tier1_parameter_axes = { {name, min, max, axis = {..768..}}, ... },
+--     tier2_generator      = "default",
+--     tier2_parameter_axes = { ... },
+--   }
+-- Populated by initialize_theme_embeddings().
+THEMES = {}
 
 -- Per-page percentile values for each (theme, parameter) axis, populated by
--- compute_page_percentiles() after build_book(). Structure:
+-- compute_axis_percentiles() after build_book(). Structure:
 -- PAGE_PERCENTILES[page_num][theme_name][param_name] = float in [0, 1]
 PAGE_PERCENTILES = {}
+
+-- Per-poem percentile values, the Tier 2 parallel to PAGE_PERCENTILES.
+-- Tier 1 art is one motif per page, so its params key by page; Tier 2 art
+-- is one motif per poem, so its params key by the poem's ordinal index
+-- (book.poems_index, attached as poem._index in build_book). Populated by
+-- compute_poem_axis_percentiles() after build_book(). Structure:
+-- POEM_PERCENTILES[poem_index][theme_name][param_name] = float in [0, 1]
+POEM_PERCENTILES = {}
 
 -- Layout Configuration Variables
 MAX_LINES_PER_PAGE = 155 -- Lines per page column (restored)
 MAX_CHAR_PER_LINE  = 80  -- Characters per line (content width)
 
--- Threshold for rendering Tier 1 (page-level) art. The page's fill ratio
--- is the fraction of available column-lines that are occupied by poems.
--- Tier 1 art only renders when the page is LESS full than this threshold,
--- so dense text-heavy pages stay quiet and sparse pages get the expressive
--- background art filling their breathing room. Tunable.
--- 0.0 = never render Tier 1 art; 1.0 = always render it; 0.65 = render when
--- at least 35% of the page is empty. See docs/balance-updates.md for history.
-TIER1_ART_THRESHOLD = 0.65
+-- Minimum area (as a fraction of total page area) that an outside region
+-- must have to qualify as a canvas for Tier 1 page-level art. Issue 028
+-- replaced the old global fill-ratio gate with this per-region filter, so
+-- a page with one big empty zone gets art there even when the page is
+-- otherwise full, and a page full of tiny slivers gets no noisy scraps.
+-- 0.08 = a region must be at least 8% of the page (~ a third of a column
+-- at full height). See docs/balance-updates.md for tuning history.
+TIER1_MIN_REGION_AREA_FRACTION = 0.08
+
+-- Vertical nudge (in PDF points) applied to the Tier 3 per-poem background
+-- rectangle in draw_boxed_poem. Without this, the rectangle's top sits
+-- flush with the top dashed border but its bottom extends ~2.5 pt below
+-- the bottom border, looking visually bottom-heavy. A small upward shift
+-- (PDF Y increases upward, so larger value = box moves up) rebalances
+-- the gap. See docs/balance-updates.md.
+TIER3_BOX_VERTICAL_NUDGE = 2
 
 -- Box Drawing Characters - trying different characters that might connect better
 BOX_TOP_LEFT     = "."   -- Top left corner (more rounded look)
@@ -71,12 +138,6 @@ BOX_VERTICAL     = "|"   -- Vertical lines
 
 -- Safe wrapper functions removed due to causing PDF document corruption
 -- Using direct libharu operations instead for better stability
-
--- Simple graphics mode helper that doesn't corrupt the document
-local function prepare_for_graphics(pdf_page)
-    -- Try to end text mode, but ignore errors
-    pcall(function() hpdf.Page_EndText(pdf_page) end)
-end
 
 -- PDF Layout Settings
 FONT_SIZE        = 5     -- Font size in points for regular text
@@ -223,22 +284,30 @@ function append_long_poem(book, poem, column, height, page_num) -- {{{
    
    while current_line <= #poem do
       local segment = {}
+      -- Issue 029, slice 0: each segment inherits the parent poem's
+      -- _full_text so the per-poem theme analysis sees whole-poem
+      -- semantics, not the slice that happens to fit in this column.
+      segment._full_text = poem._full_text
+      -- Issue 031, slice B: each segment inherits the parent poem's ordinal
+      -- index so POEM_PERCENTILES (keyed by original-poem index) can be
+      -- looked up at render time regardless of how the poem was split.
+      segment._index = poem._index
       -- Account for box overhead (4 lines) when calculating available space for content
       local available_content_lines = remaining_space - 4  -- subtract box/padding overhead
       if available_content_lines < 1 then available_content_lines = 1 end
-      
+
       local lines_to_take = math.min(available_content_lines, #poem - current_line + 1)
-      
+
       -- Fill current segment with available lines
       for i = 1, lines_to_take do
          table.insert(segment, poem[current_line])
          current_line = current_line + 1
       end
-      
+
       -- Add segment to current column
-      if column == -1 then 
+      if column == -1 then
          table.insert(book.pages[page_num].left, segment)
-      else 
+      else
          table.insert(book.pages[page_num].right, segment)
       end
       
@@ -271,10 +340,23 @@ function build_book(book) -- {{{
    local column   = -1            -- Start with left column
    local height   =  0            -- Current column height
    local page_num =  1;           book.pages[1] = { left = {}, right = {}, }
-   
+
    for index, poem in ipairs(book.poems) do
+      -- Issue 029, slice 0: attach the whole-poem text to the table so
+      -- per-poem theme analysis can use it regardless of whether the
+      -- poem ends up unsplit in a column (poem reference goes straight
+      -- into book.pages) or split across columns (append_long_poem
+      -- propagates _full_text onto each segment it inserts). Without
+      -- this attachment, segments would be themed by half-poem text and
+      -- the cache key would diverge from the whole-poem hash.
+      poem._full_text = table.concat(poem, " ")
+      -- Issue 031, slice B: stamp the poem's ordinal index (its position in
+      -- book.poems) so the per-poem Tier 2 percentile pass and the renderer
+      -- can agree on which poem's params to use. Segments inherit this in
+      -- append_long_poem.
+      poem._index = index
       local poem_height = calculate_poem_height(poem)
-      
+
       -- Check if poem is too long for a single column
       if poem_height > MAX_LINES_PER_PAGE then
          -- Long poem: ensure it starts in a fresh column
@@ -363,7 +445,8 @@ function draw_boxed_poem(pdf_page, font, poem, start_x, start_y, max_width, line
     -- Courier monospace at FONT_SIZE: each char ~ 0.6 * FONT_SIZE wide
     local box_width_pts = box_width * FONT_SIZE * 0.6
     hpdf.Page_SetRGBFill(pdf_page, table.unpack(fill_color))
-    hpdf.Page_Rectangle(pdf_page, actual_x, start_y - box_height_pts + line_height * 0.5,
+    hpdf.Page_Rectangle(pdf_page, actual_x,
+        start_y - box_height_pts + line_height * 0.5 + TIER3_BOX_VERTICAL_NUDGE,
         box_width_pts, box_height_pts)
     hpdf.Page_Fill(pdf_page)
 
@@ -438,150 +521,86 @@ end -- }}}
 
 -- Initialize multi-tier theme embeddings (run once)
 function initialize_theme_embeddings() -- {{{
-    if THEME_EMBEDDINGS.tier1 and THEME_EMBEDDINGS.tier2 and THEME_EMBEDDINGS.tier3 then 
+    if THEME_EMBEDDINGS.tier1 and THEME_EMBEDDINGS.tier2 and THEME_EMBEDDINGS.tier3 then
         return THEME_EMBEDDINGS -- Already initialized
     end
-    
-    print("Initializing multi-tier theme embeddings...")
-    
-    -- Tier 1: Core Themes + Simple Themes (Page-level art) - MERGED FROM ART-THEMES.JSON
-    local tier1_descriptions = {
-        -- Original 10 core themes
-        resistance = "Anti-authoritarian sentiment, revolutionary politics, systematic critique of power structures. Revolution, fascism, capitalism, power, authority, organizing, fight, resistance, collective, liberation, struggle, protest, anarchist, leftist, solidarity, uprising, defiance, system-breaking, opposition, militant.",
-        technology = "Deep technical knowledge mixed with philosophical questioning of digital systems. Programming, algorithms, AI, code, software, linux, systems, networks, automation, debugging, compilation, data, encryption, terminal, github, computers, digital, infrastructure, technical, computation.",
-        isolation = "Profound loneliness and social disconnection despite digital connectivity. Alone, lonely, disconnected, misunderstood, withdrawn, separated, alienation, distance, silence, empty, abandoned, solitary, exile, hermit, invisible, forgotten, void, scattered, lost, isolated.",
-        identity = "Fluid exploration of gender, sexuality, neurodivergence, and authentic selfhood. Trans, gender, autism, ADHD, neurodivergent, queer, witch, authentic, transformation, mask, performance, binary, spectrum, fluid, changing, multiplicity, valid, expression, becoming, identity-shift.",
-        systems = "Analysis and critique of how complex systems function - economic, social, computational architectures. Systems, structure, organization, mechanics, dynamics, infrastructure, architecture, design, framework, process, balance, distributed, centralized, protocols, federation, collective, institutional, hierarchical, network, systematic.",
-        connection = "Yearning for authentic human bonds contrasted against digital isolation. Friends, community, friendship, belonging, trust, communication, empathy, understanding, neighbors, solidarity, collective, cooperation, support, mutual-aid, relationships, social, networks, conversation, sharing, connection.",
-        chaos = "Stream-of-consciousness fragmentation, mental overflow, breakdown of systematic thinking. Stack-overflow, fragments, broken, scattered, interrupted, glitch, random, confusion, noise, overwhelm, chaos, manic, spinning, frantic, jumbled, corruption, error, breakdown, disruption, fragmentation.",
-        transcendence = "Mystical and spiritual exploration combining witchcraft, cosmic consciousness, metaphysical speculation. Witch, magic, divine, spiritual, mystical, gods, spirits, transcendent, cosmic, sacred, ritual, prophecy, ethereal, enlightenment, celestial, supernatural, metaphysical, otherworldly, energy, mystique.",
-        survival = "Practical concerns about basic needs, resource management, economic precarity. Food, water, shelter, resources, money, rent, broke, survival, scarcity, basic-needs, practical, preparation, supplies, housing, nutrition, sustenance, poverty, economics, mutual-aid, resourcefulness.",
-        creativity = "Artistic expression, creative process, intersection of human imagination with technological tools. Art, creativity, music, writing, poetry, design, expression, imagination, aesthetic, beauty, creation, inspiration, making, craft, composition, artistic, generative, procedural, visual, creative.",
-        
-        -- 12 Simple themes merged from art-themes.json
-        nature = "Organic flowing particles and natural elements. Tree, forest, wind, rain, sun, moon, flower, ocean, mountain, sky, earth, river, bird, leaf, organic, growth, natural, wild, flowing, green.",
-        urban = "Geometric neon patterns and city environments. City, street, building, car, neon, concrete, glass, steel, traffic, noise, crowd, urban, metropolitan, geometric, angular, bright, electric.",
-        energy = "Explosive radiating lines and dynamic force. Power, burst, explosion, fire, electric, lightning, dynamic, force, intensity, energy, radiating, explosive, orange, bright, kinetic.",
-        love = "Gentle curved flowing lines and romantic emotions. Heart, kiss, embrace, tender, gentle, soft, warm, care, affection, romance, love, curved, flowing, pink, sweet, intimate.",
-        melancholy = "Downward flowing drops and sadness. Sad, lonely, tears, sorrow, loss, empty, gray, rain, shadow, dark, melancholy, blue, muted, downward, drops, flowing.",
-        dream = "Ethereal wavy patterns and mystical visions. Sleep, vision, ethereal, float, drift, imagine, fantasy, surreal, mist, cloud, dream, wavy, purple, mystical, soft.",
-        constellation = "Star constellation patterns with connecting lines. Stars, cosmic, universe, galaxy, celestial, space, night, astral, constellation, golden, connecting, patterns, stellar.",
-        spiral = "Spiral and mandala geometric patterns. Circle, spin, rotate, whirl, twist, curve, spiral, mandala, pattern, geometry, circular, rotating, purple, deep, mystical.",
-        circuit = "Circuit board pathways and technical patterns. Code, digital, computer, network, data, algorithm, system, tech, binary, circuit, pathways, green, blue, technical.",
-        lightning = "Electrical discharge patterns and sharp energy. Flash, spark, electric, bolt, strike, bright, shock, energy, quick, lightning, sharp, white, blue, electrical.",
-        crystal = "Crystalline geometric patterns and faceted shapes. Clear, sharp, faceted, geometric, prism, reflection, transparent, ice, crystal, cyan, crystalline, geometric, faceted.",
-        neutral = "Subtle particle drift in neutral tones. Gray, neutral, subtle, drift, particle, minimal, simple, quiet, understated, basic, neutral."
-    }
-    
-    -- Tier 2: 20 Extended Themes (Column-level patterns)
-    local tier2_descriptions = {
-        digital_resistance = "Technical activism using programming and encryption as revolutionary tools. Encryption, open-source, surveillance, privacy, digital-rights, technical-activism, cyber-warfare, algorithmic-justice.",
-        neurodivergence = "Autism, ADHD, and neurological differences including masking behaviors. Autism, ADHD, masking, stimming, sensory, executive-function, hyperfocus, social-spoons, burnout.",
-        gender_fluidity = "Transgender experience and fluid gender identity beyond binary categories. Trans, transgender, pronouns, transition, HRT, binary, non-binary, fluid, spectrum, dysphoria.",
-        digital_loneliness = "Connected online while profoundly alone, social media alienation. Social-media, fediverse, mastodon, shadowbanned, digital-void, screen, parasocial, disconnect.",
-        mutual_aid = "Community care through resource sharing outside capitalist structures. Mutual-aid, community-care, helping, sharing, neighbors, collective-care, cooperation, grassroots.",
-        economic_anxiety = "Financial stress and critique of systems creating artificial scarcity. Broke, money, rent, unemployment, poverty, capitalism, inequality, exploitation, precarity.",
-        technomysticism = "Intersection of digital technology and spiritual/mystical practice. Digital-magic, AI-consciousness, cyber-witchcraft, computational-mysticism, machine-consciousness.",
-        fragmented_consciousness = "Plurality and fragmented mental states, stream-of-consciousness. Plurality, headmates, fragmented, multiple, voices, stream-of-consciousness, switching.",
-        gaming_culture = "Gaming, game mechanics, strategy, and digital play experiences. Games, gaming, mechanics, strategy, MMO, pokemon, gameboy, retro, nostalgia.",
-        environmental_awareness = "Nature connection and ecological consciousness. Nature, trees, forest, earth, environment, organic, growth, ecology, wilderness.",
-        social_media_fatigue = "Exhaustion from social media performance and algorithmic feeds. Posting, followers, likes, algorithmic-feed, content-warnings, exhaustion, performative.",
-        anarchist_theory = "Anarchist philosophy and anti-hierarchical organizing principles. Anarchist, hierarchy, horizontal, mutual-aid, decentralized, autonomous, voluntary.",
-        programming_philosophy = "Deep technical programming philosophy and software craftsmanship. Elegant-code, functional-programming, compilation, debugging, architecture, craftsmanship.",
-        ai_consciousness = "Questions about artificial intelligence sentience and machine consciousness. AI-sentience, machine-minds, consciousness, neural-networks, artificial-beings, digital-souls.",
-        local_organizing = "Neighborhood and local community organizing efforts. Neighbors, local, community, grassroots, organizing, mutual-aid, cooperation, solidarity.",
-        intimate_relationships = "Close personal relationships, friendship, romance, care. Friendship, romance, intimacy, trust, vulnerability, care, love, bonds.",
-        mental_overflow = "Cognitive overload and racing thoughts, information overwhelm. Stack-overflow, racing-thoughts, overwhelm, cognitive-load, information-overload, cascade.",
-        plural_systems = "Plurality, multiple identity systems, headmates, internal experience. Plurality, headmates, system, alters, fronting, co-consciousness, internal-family.",
-        economic_systems = "Analysis of economic structures and alternatives to capitalism. Capitalism, socialism, communism, markets, exploitation, wealth-inequality, alternatives.",
-        online_communities = "Digital communities, federated networks, and online social spaces. Fediverse, mastodon, discord, forums, online-friends, virtual-communities, moderation."
-    }
-    
-    -- Tier 3: 40 Detailed Themes (Individual poem backgrounds)
-    local tier3_descriptions = {
-        direct_action = "Direct action tactics, protests, riots, and street organizing. Protest, riot, march, organize, tactics, militia, street, action, confrontation, mobilize.",
-        electoral_critique = "Critique of electoral democracy and representative government systems. Democracy, voting, elections, representatives, government, institutions, reform, inadequate.",
-        anarchist_theory = "Anarchist philosophy and anti-hierarchical organizing principles. Anarchist, hierarchy, horizontal, mutual-aid, decentralized, autonomous, voluntary.",
-        programming_philosophy = "Deep technical programming philosophy and software craftsmanship. Elegant-code, functional-programming, compilation, debugging, architecture, craftsmanship.",
-        ai_consciousness = "Questions about artificial intelligence sentience and machine consciousness. AI-sentience, machine-minds, consciousness, neural-networks, artificial-beings, digital-souls.",
-        infrastructure_critique = "Analysis of technical infrastructure, decay, and system reliability. Infrastructure, decay, maintenance, reliability, fragility, dependencies, technical-debt.",
-        social_media_fatigue = "Exhaustion from social media performance and algorithmic manipulation. Posting, followers, likes, algorithmic-feed, content-warnings, exhaustion, performative.",
-        geographic_isolation = "Physical distance, geographic separation, and displacement. Distance, separation, geography, displacement, homesick, scattered, remote.",
-        emotional_walls = "Defensive emotional barriers and trust issues in relationships. Walls, barriers, protection, defensive, guarded, vulnerability, fear, trust-issues.",
-        autistic_masking = "Autistic masking behaviors and neurotypical performance expectations. Masking, camouflaging, performing, neurotypical, social-scripts, exhaustion, authentic-self.",
-        trans_experience = "Transgender experience, transition, dysphoria, and gender authenticity. Transition, dysphoria, euphoria, hormones, passing, visibility, validation, authentic-gender.",
-        witch_identity = "Witch identity, magical practice, and mystical independence. Witch, magic, power, independence, ritual, spells, coven, mystical-practice.",
-        plural_systems = "Plurality, multiple identity systems, and internal family dynamics. Plurality, headmates, system, alters, fronting, co-consciousness, internal-family.",
-        economic_systems = "Analysis of economic structures and alternatives to capitalism. Capitalism, socialism, communism, markets, exploitation, wealth-inequality, alternatives.",
-        social_organization = "Social organization patterns, governance, and collective decision-making. Organization, governance, federation, collective-decision-making, consensus, democracy.",
-        technical_architecture = "Technical system architecture, scalability, and design patterns. Architecture, scalability, reliability, modularity, distributed-systems, design-patterns.",
-        online_communities = "Digital communities, federated networks, and online social dynamics. Fediverse, mastodon, discord, forums, online-friends, virtual-communities, moderation.",
-        local_organizing = "Local community organizing, neighborhood mutual aid, grassroots work. Neighbors, local, community, grassroots, organizing, mutual-aid, cooperation, solidarity.",
-        intimate_relationships = "Close personal relationships, friendship, romance, care, and emotional bonds. Friendship, romance, intimacy, trust, vulnerability, care, love, bonds.",
-        mental_overflow = "Cognitive overload, racing thoughts, and information cascade effects. Stack-overflow, racing-thoughts, overwhelm, cognitive-load, information-overload, cascade.",
-        system_glitches = "System failures, bugs, crashes, and technical breakdowns. Glitches, bugs, failures, crashes, corruption, errors, system-breakdown, debugging.",
-        digital_chaos = "Digital chaos, corrupted data, and computational entropy. Digital-entropy, data-corruption, computational-chaos, bit-rot, system-degradation.",
-        spiritual_technology = "Intersection of spirituality and technology, digital mysticism. Digital-mysticism, techno-spirituality, cyber-ritual, algorithmic-divination.",
-        cosmic_consciousness = "Cosmic awareness, universal connection, transcendent experience. Cosmic-awareness, universal-connection, transcendent-states, cosmic-consciousness.",
-        mystical_practice = "Active mystical and spiritual practice, ritual work, energy work. Ritual-work, energy-practice, spiritual-discipline, mystical-techniques.",
-        resource_scarcity = "Resource scarcity, economic survival, basic needs insecurity. Resource-scarcity, economic-survival, basic-needs, food-insecurity, housing-crisis.",
-        mutual_aid_practice = "Active mutual aid work, community care, resource sharing. Mutual-aid-work, community-care, resource-sharing, collective-support.",
-        survival_preparation = "Survival preparation, resourcefulness, practical readiness. Survival-prep, resourcefulness, practical-skills, self-sufficiency, preparation.",
-        creative_process = "Active creative process, artistic workflow, inspiration management. Creative-process, artistic-workflow, inspiration-flow, creative-discipline.",
-        generative_art = "Generative and procedural art creation, algorithmic creativity. Generative-art, procedural-creation, algorithmic-creativity, computational-art.",
-        artistic_expression = "Pure artistic expression, aesthetic creation, creative communication. Artistic-expression, aesthetic-creation, creative-communication, visual-language.",
-        technical_creativity = "Technical creativity, programming as art, computational aesthetics. Technical-creativity, code-as-art, computational-aesthetics, algorithmic-beauty.",
-        collaborative_creation = "Collaborative creative work, shared artistic vision, creative community. Collaborative-creation, shared-vision, creative-community, artistic-cooperation.",
-        digital_art = "Digital art creation, electronic media, computational visual art. Digital-art, electronic-media, computational-visuals, pixel-art, digital-painting.",
-        music_creation = "Music creation, composition, sound design, audio expression. Music-composition, sound-design, audio-art, musical-expression, sonic-creativity.",
-        writing_craft = "Writing craft, literary creation, textual expression, poetry. Writing-craft, literary-art, textual-expression, poetic-creation, wordsmithing.",
-        design_thinking = "Design thinking, user experience, aesthetic problem solving. Design-thinking, user-experience, aesthetic-problem-solving, visual-design.",
-        maker_culture = "Maker culture, hands-on creation, physical crafting, DIY ethics. Maker-culture, hands-on-creation, physical-crafts, DIY-ethics, craftsmanship.",
-        creative_tools = "Creative tools, artistic software, creative technology integration. Creative-tools, artistic-software, creative-tech, digital-instruments.",
-        aesthetic_philosophy = "Aesthetic philosophy, beauty theory, artistic meaning. Aesthetic-philosophy, beauty-theory, artistic-meaning, visual-semiotics."
-    }
-    
-    local function initialize_tier(tier_name, descriptions)
-        local theme_count = table_length(descriptions)
-        print(string.format("🧠 Initializing %s with %d themes...", tier_name, theme_count))
-        local embeddings = {}
-        local theme_num = 0
-        for theme, description in pairs(descriptions) do
-            theme_num = theme_num + 1
-            local progress_percent = math.floor((theme_num / theme_count) * 100)
-            local progress_bar = string.rep("█", math.floor(progress_percent / 10))
-            local remaining_bar = string.rep("░", 10 - math.floor(progress_percent / 10))
-            print(string.format("  🔄 [%s%s] %d%% Embedding theme %d/%d: %s", 
-                  progress_bar, remaining_bar, progress_percent, theme_num, theme_count, theme))
-            
-            local embedding = fuzz.get_embedding(description, LLM_MODEL)
-            if embedding then
-                embeddings[theme] = embedding
-                print(string.format("     ✅ Success (%d dimensions)", #embedding))
-            else
-                print("     ❌ Failed to generate embedding")
-            end
-        end
-        print(string.format("  ✅ %s initialization complete!", tier_name))
-        return embeddings
+
+    -- Issue 029: load themes from themes/derived-taxonomy.lua (produced
+    -- by themes-v2/run.sh / `./run themes-rebuild`). All three rendering
+    -- tiers consume the SAME cluster set — the pyramid (tier1=10,
+    -- tier2=20, tier3=40 with nesting) is retired. A poem's per-page-art
+    -- theme, per-poem-art theme, and per-poem-color theme now all derive
+    -- from the same HDBSCAN cluster, which gives a coherent visual
+    -- identity across rendering layers.
+    --
+    -- The taxonomy file stores each cluster's centroid as a 768-float
+    -- table, so this function skips the old "embed every description"
+    -- pass — embeddings are already there, ready for cosine ranking.
+    -- ./run's stale-check guarantees the taxonomy exists before we get
+    -- here; if it doesn't, we still hard-error for any direct lua
+    -- invocation that bypassed ./run.
+    local taxonomy_path = DIR .. "/themes/derived-taxonomy.lua"
+    local f = io.open(taxonomy_path, "r")
+    if not f then
+        error("themes/derived-taxonomy.lua is missing. Run './run themes-rebuild' first. (See issue 029.)")
     end
-    
-    -- Initialize all tiers
-    THEME_EMBEDDINGS.tier1 = initialize_tier("Tier 1", tier1_descriptions)
-    THEME_EMBEDDINGS.tier2 = initialize_tier("Tier 2", tier2_descriptions)
-    THEME_EMBEDDINGS.tier3 = initialize_tier("Tier 3", tier3_descriptions)
-    
-    local total_embeddings = table_length(THEME_EMBEDDINGS.tier1) + 
-                             table_length(THEME_EMBEDDINGS.tier2) + 
-                             table_length(THEME_EMBEDDINGS.tier3)
-    print("🎉 Multi-tier theme embeddings complete!")
-    print(string.format("  📊 Total embeddings generated: %d", total_embeddings))
-    print(string.format("    • Tier 1 (page art): %d themes", table_length(THEME_EMBEDDINGS.tier1)))
-    print(string.format("    • Tier 2 (column patterns): %d themes", table_length(THEME_EMBEDDINGS.tier2)))
-    print(string.format("    • Tier 3 (poem backgrounds): %d themes", table_length(THEME_EMBEDDINGS.tier3)))
-    
+    f:close()
+    local taxonomy = dofile(taxonomy_path)
+    if not taxonomy or not taxonomy.themes or #taxonomy.themes == 0 then
+        error("themes/derived-taxonomy.lua is empty or malformed. Re-run './run themes-rebuild'.")
+    end
+
+    print(string.format("📚 Loading %d themes from %s", #taxonomy.themes, taxonomy_path))
+    local theme_map = {}
+    for _, t in ipairs(taxonomy.themes) do
+        if not t.name or not t.centroid then
+            error(string.format("Taxonomy entry id=%s missing name or centroid", tostring(t.id)))
+        end
+        theme_map[t.name] = t.centroid
+        -- Issue 030 Phase 3: store the cluster's full metadata in THEMES
+        -- keyed by name so the runtime can look up generator + axes
+        -- in one hop. tier1_generator may be absent in taxonomies built
+        -- before Phase 2; default to "neutral" to keep this resilient.
+        THEMES[t.name] = {
+            centroid             = t.centroid,
+            tier1_generator      = t.tier1_generator      or "neutral",
+            tier1_parameter_axes = t.tier1_parameter_axes or {},
+            tier2_generator      = t.tier2_generator      or "default",
+            tier2_parameter_axes = t.tier2_parameter_axes or {},
+        }
+    end
+
+    -- Synthetic "neutral" theme: returned by analyze_X when raw similarity
+    -- is below threshold. It's not a real cluster (no centroid), but the
+    -- rest of the runtime treats it as a theme name and looks it up
+    -- against THEMES. Empty centroid would break cosine math; we put a
+    -- zero vector there as a placeholder — no cluster will ever match it
+    -- in similarity ranking because zero vectors have undefined cosine.
+    THEMES["neutral"] = THEMES["neutral"] or {
+        centroid             = nil,
+        tier1_generator      = "neutral",
+        tier1_parameter_axes = {},
+        tier2_generator      = "default",
+        tier2_parameter_axes = {},
+    }
+
+    -- All three tiers point at the SAME map. Cheap (table reference);
+    -- nothing iterates the tiers in a way that would mutate one and
+    -- surprise the others.
+    THEME_EMBEDDINGS.tier1 = theme_map
+    THEME_EMBEDDINGS.tier2 = theme_map
+    THEME_EMBEDDINGS.tier3 = theme_map
+
+    print(string.format("✅ %d themes ready (centroid embeddings loaded directly; no server pass)",
+        #taxonomy.themes))
+    if taxonomy.noise_count and taxonomy.noise_count > 0 then
+        print(string.format("   (%d corpus poems were classified as noise by HDBSCAN)",
+            taxonomy.noise_count))
+    end
+
     return THEME_EMBEDDINGS
 end -- }}}
+
 
 -- {{{ vector helpers (small, used by axis math below)
 local function vec_dot(a, b)
@@ -607,59 +626,39 @@ local function vec_subtract_normalized(pos, neg)
 end
 -- }}}
 
--- {{{ initialize_param_axes()
--- For every (theme, parameter) in the embedding-driven config, embed the
--- positive and negative keyword strings and compute the axis between them.
--- Cached for the rest of the run via PARAM_AXES. With Issue 017's embedding
--- cache, this is a one-time cost across reruns.
-function initialize_param_axes()
-    print("🎯 Initializing embedding-driven parameter axes...")
-    local axis_count = 0
-    for theme_name, params in pairs(EMBEDDING_DRIVEN_PARAMS) do
-        PARAM_AXES[theme_name] = {}
-        for _, p in ipairs(params) do
-            local pos_vec = fuzz.get_embedding(p.positive, LLM_MODEL)
-            local neg_vec = fuzz.get_embedding(p.negative, LLM_MODEL)
-            if pos_vec and neg_vec then
-                table.insert(PARAM_AXES[theme_name], {
-                    name = p.name,
-                    low  = p.low,
-                    high = p.high,
-                    axis = vec_subtract_normalized(pos_vec, neg_vec),
-                })
-                axis_count = axis_count + 1
-                print(string.format("  ✅ %s.%s axis ready (range %g..%g)",
-                    theme_name, p.name, p.low, p.high))
-            else
-                print(string.format("  ❌ %s.%s: keyword embedding failed; this parameter will fall back to 0.5 percentile",
-                    theme_name, p.name))
-            end
-        end
-    end
-    print(string.format("✨ %d parameter axes ready across %d themes", axis_count, table_length(PARAM_AXES)))
-end
--- }}}
-
--- {{{ compute_page_percentiles(book)
--- For each page in the book, embed the concatenated page text once and
--- project onto every parameter axis. After all pages are scored, sort by
--- each (theme, parameter) and assign percentile ranks across the corpus.
--- Percentiles, not raw scores, are what generators consume — this ensures
--- the full [low, high] range is used regardless of how concentrated raw
--- cosine projections happen to be (they typically cluster in narrow bands
--- like [0.2, 0.6] rather than spanning [-1, 1]).
-function compute_page_percentiles(book)
-    if next(PARAM_AXES) == nil then
-        print("📊 No parameter axes defined; skipping percentile pass")
+-- {{{ compute_axis_percentiles(book)
+-- Issue 030 Phase 3 replacement for the old initialize_param_axes +
+-- compute_page_percentiles pair. The axes themselves come pre-computed
+-- per-cluster from themes/derived-taxonomy.lua (built by themes-v2/
+-- name-clusters.lua's Phase-2 work) — no need to embed positive/negative
+-- keywords at runtime. We just project pages onto those axes and rank.
+--
+-- For each cluster in THEMES, for each of its tier1_parameter_axes:
+--   1. Project every page's embedding onto the axis (dot product).
+--   2. Sort projections across pages, assign percentile ranks ∈ [0, 1].
+--   3. Store at PAGE_PERCENTILES[page_num][theme_name][param_name].
+--
+-- The runtime later reads PAGE_PERCENTILES to feed parametric generators.
+-- Memory: O(pages × themes × axes) floats; typical scale is ~500 pages ×
+-- ~50 themes × ~2 axes = ~50k floats, trivial.
+function compute_axis_percentiles(book)
+    local theme_count = 0
+    for _ in pairs(THEMES) do theme_count = theme_count + 1 end
+    if theme_count == 0 then
+        print("📊 No themes loaded; skipping percentile pass")
         return
     end
-    print("📊 Scoring pages against parameter axes...")
+    print("📊 Scoring pages against per-cluster parameter axes...")
 
     -- raw[theme][param][page_num] = projection score
     local raw = {}
-    for theme_name, params in pairs(PARAM_AXES) do
-        raw[theme_name] = {}
-        for _, p in ipairs(params) do raw[theme_name][p.name] = {} end
+    for theme_name, theme in pairs(THEMES) do
+        if theme.tier1_parameter_axes and #theme.tier1_parameter_axes > 0 then
+            raw[theme_name] = {}
+            for _, p in ipairs(theme.tier1_parameter_axes) do
+                raw[theme_name][p.name] = {}
+            end
+        end
     end
 
     for page_num, page in ipairs(book.pages) do
@@ -672,11 +671,11 @@ function compute_page_percentiles(book)
         end
         page_text = page_text:gsub("%s+", " ")
         if #page_text >= 10 then
-            local page_vec = fuzz.get_embedding(page_text, LLM_MODEL)
+            local page_vec = fuzz.get_embedding(page_text, LLM_MODEL, NOMIC_PREFIX)
             if page_vec then
-                for theme_name, params in pairs(PARAM_AXES) do
-                    for _, p in ipairs(params) do
-                        raw[theme_name][p.name][page_num] = vec_dot(page_vec, p.axis)
+                for theme_name, axes_by_param in pairs(raw) do
+                    for _, p in ipairs(THEMES[theme_name].tier1_parameter_axes) do
+                        axes_by_param[p.name][page_num] = vec_dot(page_vec, p.axis)
                     end
                 end
             end
@@ -685,8 +684,10 @@ function compute_page_percentiles(book)
 
     -- Rank each (theme, param) independently. Pages with no score (empty,
     -- or embedding failed) get the median 0.5 percentile as a safe default.
+    local axis_total = 0
     for theme_name, by_param in pairs(raw) do
         for param_name, by_page in pairs(by_param) do
+            axis_total = axis_total + 1
             local ranked = {}
             for page_num, _ in pairs(by_page) do table.insert(ranked, page_num) end
             table.sort(ranked, function(a, b) return by_page[a] < by_page[b] end)
@@ -699,8 +700,85 @@ function compute_page_percentiles(book)
         end
     end
 
-    print(string.format("✨ Computed percentiles for %d pages × %d themes",
-        #book.pages, table_length(PARAM_AXES)))
+    print(string.format("✨ Computed percentiles for %d pages × %d themes × %d total axes",
+        #book.pages, theme_count, axis_total))
+end
+-- }}}
+
+-- {{{ compute_poem_axis_percentiles(book)
+-- Issue 031, slice B: the Tier 2 parallel to compute_axis_percentiles. The
+-- Tier 1 pass keys params by page because Tier 1 draws one motif per page;
+-- Tier 2 draws one motif per POEM, and poems on the same page can sit in
+-- very different parts of embedding space (a programming poem next to a
+-- grief poem). Averaging them into a per-page percentile would wash out the
+-- distinction, so Tier 2 ranks each poem independently.
+--
+-- For each cluster in THEMES with tier2_parameter_axes:
+--   1. Project every poem's whole-poem embedding onto each axis (dot product).
+--   2. Rank projections across all poems, assign percentiles ∈ [0, 1].
+--   3. Store at POEM_PERCENTILES[poem_index][theme_name][param_name].
+--
+-- Poems too short to embed (< 10 chars) are skipped; they get no entry, so
+-- the renderer's lookup falls through to the per-param 0.5 default — the
+-- same "average art rather than degenerate art" convention the page pass
+-- uses. The text embedded here is poem._full_text verbatim (no whitespace
+-- normalization) so the cache key matches analyze_individual_poem_for_tier2,
+-- which embeds the same poems during build_pdf — the second pass is a cache
+-- hit, not a second round of server calls.
+function compute_poem_axis_percentiles(book)
+    local theme_count = 0
+    for _ in pairs(THEMES) do theme_count = theme_count + 1 end
+    if theme_count == 0 then
+        print("📊 No themes loaded; skipping per-poem percentile pass")
+        return
+    end
+    print("📊 Scoring poems against per-cluster Tier 2 parameter axes...")
+
+    -- raw[theme][param][poem_index] = projection score
+    local raw = {}
+    for theme_name, theme in pairs(THEMES) do
+        if theme.tier2_parameter_axes and #theme.tier2_parameter_axes > 0 then
+            raw[theme_name] = {}
+            for _, p in ipairs(theme.tier2_parameter_axes) do
+                raw[theme_name][p.name] = {}
+            end
+        end
+    end
+
+    for poem_index, poem in ipairs(book.poems) do
+        local poem_text = poem._full_text or table.concat(poem, " ")
+        if #poem_text >= 10 then
+            local poem_vec = fuzz.get_embedding(poem_text, LLM_MODEL, NOMIC_PREFIX)
+            if poem_vec then
+                for theme_name, axes_by_param in pairs(raw) do
+                    for _, p in ipairs(THEMES[theme_name].tier2_parameter_axes) do
+                        axes_by_param[p.name][poem_index] = vec_dot(poem_vec, p.axis)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Rank each (theme, param) independently. Poems with no score (too short
+    -- or embedding failed) get no entry and fall back to 0.5 at render time.
+    local axis_total = 0
+    for theme_name, by_param in pairs(raw) do
+        for param_name, by_poem in pairs(by_param) do
+            axis_total = axis_total + 1
+            local ranked = {}
+            for poem_index, _ in pairs(by_poem) do table.insert(ranked, poem_index) end
+            table.sort(ranked, function(a, b) return by_poem[a] < by_poem[b] end)
+            local n = #ranked
+            for rank, poem_index in ipairs(ranked) do
+                POEM_PERCENTILES[poem_index] = POEM_PERCENTILES[poem_index] or {}
+                POEM_PERCENTILES[poem_index][theme_name] = POEM_PERCENTILES[poem_index][theme_name] or {}
+                POEM_PERCENTILES[poem_index][theme_name][param_name] = (n > 1) and ((rank - 1) / (n - 1)) or 0.5
+            end
+        end
+    end
+
+    print(string.format("✨ Computed per-poem percentiles for %d poems × %d themes × %d total axes",
+        #book.poems, theme_count, axis_total))
 end
 -- }}}
 
@@ -802,23 +880,22 @@ function analyze_column_with_ai(column_poems) -- {{{
         }
     }
     
-    -- Initialize theme embeddings if not already done
+    -- Initialize theme embeddings if not already done. A missing Tier 1
+    -- table at this point means the embedding server never produced one,
+    -- which is a hard failure — we cannot classify anything without the
+    -- centroids to compare against. Halt so the operator fixes the
+    -- inference stack rather than producing a "neutral"-everything PDF.
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier1 or table_length(theme_embeddings.tier1) == 0 then
-        print("ERROR: Failed to initialize theme embeddings! Ollama may not be running or EmbeddingGemma not available.")
-        print("Please ensure Ollama is running and EmbeddingGemma:latest is installed.")
-        return "neutral" -- Return neutral instead of falling back
+        error("analyze_text_themes: Tier 1 theme embeddings are empty/unavailable. "
+            .. "The embedding server (see scripts/start-llamacpp-server.sh) probably failed to "
+            .. "initialize the theme set. Check tmp/logs/llamacpp-embed.log.")
     end
-    
+
     -- Get embedding for the column text
     print("Getting embedding for column text (" .. #column_text .. " chars)...")
-    local text_embedding = fuzz.get_embedding(column_text, LLM_MODEL)
-    
-    if not text_embedding then
-        print("ERROR: Failed to get text embedding! Check Ollama connection.")
-        return "neutral" -- Return neutral instead of falling back
-    end
-    
+    local text_embedding = fuzz.get_embedding(column_text, LLM_MODEL, NOMIC_PREFIX)
+
     -- Find most similar theme using Tier 1 (page-level themes)
     local best_theme, similarity = fuzz.find_most_similar_theme(text_embedding, theme_embeddings.tier1)
     print("Best theme:", best_theme, "(similarity:", string.format("%.3f", similarity), ")")
@@ -835,41 +912,47 @@ end -- }}}
 
 -- Individual poem theme analysis using Tier 3 (40 themes)
 function analyze_individual_poem_theme(poem) -- {{{
-    -- Convert poem to text
-    local poem_text = table.concat(poem, " ")
-    
+    -- Issue 029, slice 0: prefer the whole-poem text attached by build_book
+    -- so split-across-columns poems get themed by the whole-poem semantics,
+    -- not by the half-poem fragment that fits in this particular column.
+    -- The or-fallback handles callers that don't go through build_book
+    -- (none expected today, kept for safety).
+    local poem_text = poem._full_text or table.concat(poem, " ")
+
     if #poem_text < 10 then
         track_theme_selection("tier3", "neutral")
         return "neutral" -- Not enough content
     end
     
-    -- Get Tier 3 theme embeddings (most detailed for individual poems)
+    -- Get Tier 3 theme embeddings (most detailed for individual poems).
+    -- Empty Tier 3 = embedding server didn't initialize the 40-theme set;
+    -- hard-error rather than mis-label every poem as "neutral".
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier3 or table_length(theme_embeddings.tier3) == 0 then
-        print("ERROR: Failed to initialize theme embeddings for individual poem analysis!")
-        track_theme_selection("tier3", "neutral")
-        return "neutral"
+        error("analyze_individual_poem_theme: Tier 3 theme embeddings are empty/unavailable. "
+            .. "Check tmp/logs/llamacpp-embed.log.")
     end
-    
+
     -- Get embedding for the poem text
-    local poem_embedding = fuzz.get_embedding(poem_text, LLM_MODEL)
-    
-    if not poem_embedding then
-        print("ERROR: Failed to get poem embedding! Check Ollama connection.")
-        track_theme_selection("tier3", "neutral")
-        return "neutral"
+    local poem_embedding = fuzz.get_embedding(poem_text, LLM_MODEL, NOMIC_PREFIX)
+
+    -- Issue 027: --natural-themes flag picks Tier 3 by raw cosine
+    -- similarity alone, bypassing the frequency-weighted diversity boost.
+    local best_theme, raw_similarity
+    if NATURAL_THEMES then
+        best_theme, raw_similarity = fuzz.find_most_similar_theme(
+            poem_embedding, theme_embeddings.tier3)
+    else
+        best_theme, raw_similarity = fuzz.find_most_similar_theme_weighted(
+            poem_embedding, theme_embeddings.tier3, THEME_STATS.tier3_counts)
     end
-    
-    -- Find most similar Tier 3 theme with frequency weighting
-    local best_theme, raw_similarity, weighted_score = fuzz.find_most_similar_theme_weighted(
-        poem_embedding, theme_embeddings.tier3, THEME_STATS.tier3_counts)
-    
-    -- Use embedding result with lower threshold  
+
+    -- Use embedding result with lower threshold
     if raw_similarity > 0.1 then -- Lower threshold for individual poems
         track_theme_selection("tier3", best_theme)
         return best_theme
     end
-    
+
     -- If very low similarity, return neutral
     track_theme_selection("tier3", "neutral")
     return "neutral"
@@ -877,41 +960,45 @@ end -- }}}
 
 -- Individual poem analysis using Tier 2 (20 themes) for poem-specific art
 function analyze_individual_poem_for_tier2(poem) -- {{{
-    -- Convert poem to text
-    local poem_text = table.concat(poem, " ")
-    
+    -- Issue 029, slice 0: see analyze_individual_poem_theme. Same fix:
+    -- consume the whole-poem text attached by build_book.
+    local poem_text = poem._full_text or table.concat(poem, " ")
+
     if #poem_text < 10 then
         track_theme_selection("tier2", "neutral")
         return "neutral" -- Not enough content
     end
     
-    -- Get Tier 2 theme embeddings (for individual poem art, different from page background)
+    -- Get Tier 2 theme embeddings (for individual poem art, different from page background).
+    -- Empty Tier 2 = embedding server didn't initialize the 20-theme set; hard-error.
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier2 or table_length(theme_embeddings.tier2) == 0 then
-        print("ERROR: Failed to initialize Tier 2 theme embeddings for individual poem analysis!")
-        track_theme_selection("tier2", "neutral")
-        return "neutral"
+        error("analyze_individual_poem_for_tier2: Tier 2 theme embeddings are empty/unavailable. "
+            .. "Check tmp/logs/llamacpp-embed.log.")
     end
-    
-    -- Get embedding for the poem text
-    local poem_embedding = fuzz.get_embedding(poem_text, LLM_MODEL)
-    
-    if not poem_embedding then
-        print("ERROR: Failed to get poem embedding for Tier 2 analysis!")
-        track_theme_selection("tier2", "neutral")
-        return "neutral"
+
+    -- Get embedding for the poem text. get_embedding hard-errors on failure,
+    -- so a returned value is always usable — no post-check needed.
+    local poem_embedding = fuzz.get_embedding(poem_text, LLM_MODEL, NOMIC_PREFIX)
+
+
+    -- Issue 027: --natural-themes flag picks Tier 2 by raw cosine
+    -- similarity alone, bypassing the frequency-weighted diversity boost.
+    local best_theme, raw_similarity
+    if NATURAL_THEMES then
+        best_theme, raw_similarity = fuzz.find_most_similar_theme(
+            poem_embedding, theme_embeddings.tier2)
+    else
+        best_theme, raw_similarity = fuzz.find_most_similar_theme_weighted(
+            poem_embedding, theme_embeddings.tier2, THEME_STATS.tier2_counts)
     end
-    
-    -- Find most similar Tier 2 theme with frequency weighting
-    local best_theme, raw_similarity, weighted_score = fuzz.find_most_similar_theme_weighted(
-        poem_embedding, theme_embeddings.tier2, THEME_STATS.tier2_counts)
-    
-    -- Use embedding result with lower threshold  
+
+    -- Use embedding result with lower threshold
     if raw_similarity > 0.1 then -- Lower threshold for individual poems
         track_theme_selection("tier2", best_theme)
         return best_theme
     end
-    
+
     -- If very low similarity, return neutral
     track_theme_selection("tier2", "neutral")
     return "neutral"
@@ -938,16 +1025,14 @@ function analyze_column_themes(column_poems) -- {{{
     -- Get Tier 2 theme embeddings (for column patterns)
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier2 or table_length(theme_embeddings.tier2) == 0 then
-        return "neutral"
+        error("combined-themes pass: Tier 2 theme embeddings are empty/unavailable. "
+            .. "Check tmp/logs/llamacpp-embed.log.")
     end
-    
-    -- Get embedding for the combined themes
-    local themes_embedding = fuzz.get_embedding(themes_text, LLM_MODEL)
-    
-    if not themes_embedding then
-        return "neutral"
-    end
-    
+
+    -- Get embedding for the combined themes. get_embedding hard-errors on
+    -- failure so the returned vector is always usable.
+    local themes_embedding = fuzz.get_embedding(themes_text, LLM_MODEL, NOMIC_PREFIX)
+
     -- Find most similar Tier 2 theme
     local best_theme, similarity = fuzz.find_most_similar_theme(themes_embedding, theme_embeddings.tier2)
     
@@ -985,36 +1070,48 @@ function analyze_page_themes(left_column_poems, right_column_poems) -- {{{
         return "neutral"
     end
     
-    print("Analyzing page with " .. #all_page_text .. " characters of poem text...")
+    progress_ui.log("Analyzing page with " .. #all_page_text .. " characters of poem text...")
     
     -- Get Tier 1 theme embeddings (for page art)
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier1 or table_length(theme_embeddings.tier1) == 0 then
-        return "neutral"
+        error("page-themes pass: Tier 1 theme embeddings are empty/unavailable. "
+            .. "Check tmp/logs/llamacpp-embed.log.")
     end
-    
-    -- Get embedding for the entire page text
-    local page_embedding = fuzz.get_embedding(all_page_text, LLM_MODEL)
-    
-    if not page_embedding then
-        print("ERROR: Failed to get page text embedding! Check Ollama connection.")
-        return "neutral"
+
+    -- Get embedding for the entire page text. get_embedding hard-errors on
+    -- failure so the returned vector is always usable.
+    local page_embedding = fuzz.get_embedding(all_page_text, LLM_MODEL, NOMIC_PREFIX)
+
+    -- Issue 027: --natural-themes flag picks Tier 1 by raw cosine
+    -- similarity alone. When on, the weighted_score is the raw
+    -- similarity so the log line below stays well-formed; when off,
+    -- the two values may differ and both are shown for the operator.
+    local best_theme, raw_similarity, weighted_score
+    if NATURAL_THEMES then
+        best_theme, raw_similarity = fuzz.find_most_similar_theme(
+            page_embedding, theme_embeddings.tier1)
+        weighted_score = raw_similarity
+    else
+        best_theme, raw_similarity, weighted_score = fuzz.find_most_similar_theme_weighted(
+            page_embedding, theme_embeddings.tier1, THEME_STATS.tier1_counts)
     end
-    
-    -- Find most similar Tier 1 theme with frequency weighting
-    local best_theme, raw_similarity, weighted_score = fuzz.find_most_similar_theme_weighted(
-        page_embedding, theme_embeddings.tier1, THEME_STATS.tier1_counts)
-    
+
     -- Use result if raw similarity is decent
     if raw_similarity > 0.15 then
         track_theme_selection("tier1", best_theme)
-        print(string.format("🎨 Page theme selected: %s (raw: %.3f, weighted: %.3f)", 
-              best_theme, raw_similarity, weighted_score))
+        if NATURAL_THEMES then
+            progress_ui.log(string.format("🎨 Page theme selected: %s (raw: %.3f)",
+                  best_theme, raw_similarity))
+        else
+            progress_ui.log(string.format("🎨 Page theme selected: %s (raw: %.3f, weighted: %.3f)",
+                  best_theme, raw_similarity, weighted_score))
+        end
         return best_theme
     end
-    
+
     track_theme_selection("tier1", "neutral")
-    print("🎨 Page theme selected: neutral (low similarity)")
+    progress_ui.log("🎨 Page theme selected: neutral (low similarity)")
     return "neutral"
 end -- }}}
 
@@ -1335,717 +1432,31 @@ function calculate_art_spaces(page_poems, page_width, page_height, margins, colu
     return spaces
 end -- }}}
 
--- Tier 1 theme generators.
--- Each takes (page, space) and draws into the given rectangle.
--- The dispatch table below maps Tier 1 theme names to these functions,
--- so draw_theme_art_in_spaces can look up the right generator per page.
-
--- {{{ generate_resistance(page, space, params)
-function generate_resistance(page, space, params)
-    -- Explosive radiating lines from center
-    params = params or {}
-    local ray_count = math.floor(4 + (params.ray_count or 0.5) * 21 + 0.5)
-    local max_length = math.floor(8 + (params.ray_length or 0.5) * 22 + 0.5)
-
-    local cx = space.x + space.width / 2
-    local cy = space.y + space.height / 2
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.resistance_red))
-    hpdf.Page_SetLineWidth(page, 1.0)
-    for i = 1, ray_count do
-        local angle = (i / ray_count) * math.pi * 2
-        local length = max_length * (0.5 + math.random() * 0.5)
-        hpdf.Page_MoveTo(page, cx, cy)
-        hpdf.Page_LineTo(page, cx + math.cos(angle) * length, cy + math.sin(angle) * length)
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_technology(page, space, params)
-function generate_technology(page, space, params)
-    -- Green circuit traces, alternating horizontal and vertical
-    params = params or {}
-    local trace_count = math.floor(4 + (params.trace_count or 0.5) * 16 + 0.5)
-    local trace_length = math.floor(6 + (params.trace_length or 0.5) * 18 + 0.5)
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.circuit_green))
-    hpdf.Page_SetLineWidth(page, 0.4)
-    for i = 1, trace_count do
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        if math.random() > 0.5 then
-            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x + trace_length, y)
-        else
-            hpdf.Page_MoveTo(page, x, y); hpdf.Page_LineTo(page, x, y + trace_length)
-        end
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_creativity(page, space, params)
-function generate_creativity(page, space, params)
-    -- Flowing brush strokes; three axes pull on count, wildness, and palette breadth
-    params = params or {}
-    local stroke_count = math.floor(4 + (params.stroke_count or 0.5) * 14 + 0.5)
-    local segments_per_stroke = math.floor(1 + (params.stroke_jaggedness or 0.5) * 5 + 0.5)
-    local color_palette_size = math.floor(1 + (params.color_richness or 0.5) * 2 + 0.5)
-    -- Use first N colors from brush_set, where N = color_palette_size (1..3)
-    local colors = {}
-    for i = 1, color_palette_size do colors[i] = palette.brush_set[i] end
-
-    for i = 1, stroke_count do
-        local color = colors[math.random(#colors)]
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
-        hpdf.Page_SetLineWidth(page, 0.6)
-        hpdf.Page_MoveTo(page, x, y)
-        for seg = 1, segments_per_stroke do
-            x = x + math.random(-10, 10)
-            y = y + math.random(-10, 10)
-            hpdf.Page_LineTo(page, x, y)
-        end
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_isolation(page, space, params)
-function generate_isolation(page, space, params)
-    -- Density is fixed at 6 marks — isolation is communicated by emptiness,
-    -- not by adjusting mark count. Only the alpha varies along the embedding
-    -- axis (how present the loneliness is).
-    params = params or {}
-    local alpha = 0.3 + (params.alpha_level or 0.5) * 0.65
-    local count = 6
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.lonely_blue))
-    hpdf.Page_SetLineWidth(page, 0.4)
-    art.with_alpha(page, alpha, function()
-        for i = 1, count do
-            local x = space.x + math.random() * space.width
-            local y = space.y + math.random() * space.height
-            hpdf.Page_Circle(page, x, y, 1.5)
-            hpdf.Page_Stroke(page)
-        end
-    end)
-end
--- }}}
-
--- {{{ generate_identity(page, space, params)
-function generate_identity(page, space, params)
-    -- Same square repeated in prism-set colors with small offsets — the
-    -- mark refracts into multiple selves. Shape count and refraction
-    -- offset both flow from the embedding.
-    params = params or {}
-    local count = math.floor(3 + (params.shape_count or 0.5) * 9 + 0.5)
-    local offset_scale = 1 + (params.offset_magnitude or 0.5) * 5
-
-    for i = 1, count do
-        local cx = space.x + math.random() * space.width
-        local cy = space.y + math.random() * space.height
-        local size = 6 + math.random(8)
-        for ci, color in ipairs(palette.brush_set) do
-            local offset_x = (ci - 2) * offset_scale
-            local offset_y = (ci - 2) * (offset_scale * 0.5)
-            art.with_alpha(page, 0.5, function()
-                hpdf.Page_SetRGBFill(page, color[1], color[2], color[3])
-                hpdf.Page_Rectangle(page, cx + offset_x, cy + offset_y, size, size)
-                hpdf.Page_Fill(page)
-            end)
-        end
-    end
-end
--- }}}
-
--- {{{ generate_systems(page, space, params)
-function generate_systems(page, space, params)
-    -- Blueprint nodes connected by Manhattan right-angle paths
-    params = params or {}
-    local node_count = math.floor(4 + (params.node_count or 0.5) * 12 + 0.5)
-    local line_weight = 0.3 + (params.line_weight or 0.5) * 0.9
-
-    local nodes = {}
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.blueprint_blue))
-    hpdf.Page_SetLineWidth(page, line_weight)
-    for i = 1, node_count do
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        nodes[i] = { x = x, y = y }
-        hpdf.Page_Circle(page, x, y, 1.5)
-        hpdf.Page_Stroke(page)
-    end
-    for i = 2, #nodes do
-        local a, b = nodes[i - 1], nodes[i]
-        hpdf.Page_MoveTo(page, a.x, a.y)
-        hpdf.Page_LineTo(page, b.x, a.y)
-        hpdf.Page_LineTo(page, b.x, b.y)
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_connection(page, space, params)
-function generate_connection(page, space, params)
-    -- Warm bezier curves linking distant points, low alpha so layers weave
-    params = params or {}
-    local curve_count = math.floor(3 + (params.curve_count or 0.5) * 11 + 0.5)
-    local max_sway = 8 + (params.sway_magnitude or 0.5) * 42
-    local alpha = 0.3 + (params.alpha_layering or 0.5) * 0.4
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.warm_amber))
-    hpdf.Page_SetLineWidth(page, 0.6)
-    art.with_alpha(page, alpha, function()
-        for i = 1, curve_count do
-            local x1 = space.x + math.random() * space.width
-            local y1 = space.y + math.random() * space.height
-            local x2 = space.x + math.random() * space.width
-            local y2 = space.y + math.random() * space.height
-            local sway = (math.random() - 0.5) * 2 * max_sway
-            art.flowing_curve(page, x1, y1, x2, y2, sway)
-            hpdf.Page_Stroke(page)
-        end
-    end)
-end
--- }}}
-
--- {{{ generate_chaos(page, space, params)
-function generate_chaos(page, space, params)
-    -- RGB-channel-separated overlapping rectangles for a glitch-print look
-    params = params or {}
-    local count = math.floor(4 + (params.glitch_count or 0.5) * 16 + 0.5)
-    local shift_scale = 1 + (params.shift_magnitude or 0.5) * 5
-
-    local channels = {
-        palette.accents.glitch_red,
-        palette.accents.glitch_green,
-        palette.accents.glitch_blue,
-    }
-    for i = 1, count do
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        local size = 8 + math.random(10)
-        art.with_alpha(page, 0.6, function()
-            for ci, color in ipairs(channels) do
-                local off = (ci - 2) * shift_scale
-                hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
-                hpdf.Page_SetLineWidth(page, 0.5)
-                hpdf.Page_Rectangle(page, x + off, y + off, size, size)
-                hpdf.Page_Stroke(page)
-            end
-        end)
-    end
-end
--- }}}
-
--- {{{ generate_transcendence(page, space, params)
--- Concentric mandala from radial arc segments with a gold center.
--- This is the first generator to consume embedding-driven parameters
--- (Issue 024). The three percentile values in `params` map to:
---   ring_count       — how many concentric rings (axis: layered/recursive
---                      vs singular/direct meaning)
---   radial_count     — how many radial subdivisions per ring (axis: ritual/
---                      structured vs spontaneous/free-form expression)
---   gold_center_size — radius of the gold core (axis: revelation/clear focus
---                      vs diffuse/peripheral feeling)
--- All percentiles default to 0.5 if the params table is empty, so this
--- generator still produces a reasonable mandala when called without the
--- embedding-driven pipeline.
-function generate_transcendence(page, space, params)
-    params = params or {}
-    local p_rings  = params.ring_count       or 0.5
-    local p_radial = params.radial_count     or 0.5
-    local p_gold   = params.gold_center_size or 0.5
-
-    local cx = space.x + space.width / 2
-    local cy = space.y + space.height / 2
-
-    -- Map percentiles to ranges declared in themes/embedding-driven-params.lua
-    local ring_count       = math.floor(2 + p_rings  * 6 + 0.5)   -- [2, 8]
-    local radial_count     = math.floor(4 + p_radial * 12 + 0.5)  -- [4, 16]
-    local gold_center_size = 1 + p_gold * 5                       -- [1, 6]
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.sacred_purple))
-    hpdf.Page_SetLineWidth(page, 0.5)
-    art.with_alpha(page, 0.7, function()
-        for r = 1, ring_count do
-            local radius = r * 8
-            for s = 0, radial_count - 1 do
-                local start_deg = s * (360 / radial_count)
-                local end_deg = start_deg + (360 / radial_count) * 0.7
-                art.arc(page, cx, cy, radius, start_deg, end_deg)
-                hpdf.Page_Stroke(page)
-            end
-        end
-        hpdf.Page_SetRGBFill(page, table.unpack(palette.accents.temple_gold))
-        hpdf.Page_Circle(page, cx, cy, gold_center_size)
-        hpdf.Page_Fill(page)
-    end)
-end
--- }}}
-
--- {{{ generate_survival(page, space, params)
-function generate_survival(page, space, params)
-    -- Vertical trunks with branching root-curves recursing one level
-    params = params or {}
-    local trunk_count = math.floor(1 + (params.trunk_count or 0.5) * 5 + 0.5)
-    local branches_per_trunk = math.floor(2 + (params.branch_count or 0.5) * 8 + 0.5)
-
-    hpdf.Page_SetLineWidth(page, 0.5)
-    for t = 1, trunk_count do
-        local x = space.x + math.random() * space.width
-        local y_top = space.y + space.height
-        local y_bot = space.y
-        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.earth_brown))
-        art.flowing_curve(page, x, y_top, x + math.random(-10, 10), y_bot, math.random(-5, 5))
-        hpdf.Page_Stroke(page)
-        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.root_tan))
-        hpdf.Page_SetLineWidth(page, 0.3)
-        for b = 1, branches_per_trunk do
-            local fx = x + math.random(-3, 3)
-            local fy = y_top - math.random() * space.height * 0.7
-            local bx = fx + math.random(-20, 20)
-            local by = fy + math.random(-10, 10)
-            art.flowing_curve(page, fx, fy, bx, by, math.random(-3, 3))
-            hpdf.Page_Stroke(page)
-        end
-    end
-end
--- }}}
-
--- {{{ generate_nature(page, space, params)
-function generate_nature(page, space, params)
-    -- Branching curves rooted at random points, growing organically
-    params = params or {}
-    local stems = math.floor(4 + (params.stem_count or 0.5) * 14 + 0.5)
-    local branches_per_stem = math.floor(2 + (params.branch_recursion or 0.5) * 6 + 0.5)
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.forest_green))
-    hpdf.Page_SetLineWidth(page, 0.3)
-    for i = 1, stems do
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        for b = 1, branches_per_stem do
-            local angle = (math.random() - 0.5) * math.pi
-            local length = 15 + math.random(30)
-            local ex = x + math.cos(angle) * length
-            local ey = y + math.sin(angle) * length
-            art.flowing_curve(page, x, y, ex, ey, math.random(-4, 4))
-            hpdf.Page_Stroke(page)
-            x, y = ex, ey
-        end
-    end
-end
--- }}}
-
--- {{{ generate_urban(page, space, params)
-function generate_urban(page, space, params)
-    -- Scattered neon rectangle outlines suggesting a city map
-    params = params or {}
-    local count = math.floor(5 + (params.block_count or 0.5) * 25 + 0.5)
-    local max_size = math.floor(10 + (params.block_scale or 0.5) * 25 + 0.5)
-
-    local colors = { palette.neon_set[1], palette.neon_set[2], palette.neon_set[3] }
-    for i = 1, count do
-        local color = colors[math.random(#colors)]
-        hpdf.Page_SetRGBStroke(page, color[1], color[2], color[3])
-        hpdf.Page_SetLineWidth(page, 0.5 + math.random())
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        local size = max_size * (0.4 + math.random() * 0.6)
-        hpdf.Page_Rectangle(page, x, y, size, size)
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_energy(page, space, params)
-function generate_energy(page, space, params)
-    -- Radiating bursts from one or more focal points, white at core to orange at edge
-    params = params or {}
-    local focal_count = math.floor(1 + (params.focal_count or 0.5) * 3 + 0.5)
-    local rays_per_focal = math.floor(8 + (params.ray_count or 0.5) * 27 + 0.5)
-
-    for f = 1, focal_count do
-        local cx = space.x + space.width * (0.2 + math.random() * 0.6)
-        local cy = space.y + space.height * (0.2 + math.random() * 0.6)
-        for i = 1, rays_per_focal do
-            local angle = (i / rays_per_focal) * math.pi * 2 + math.random() * 0.2
-            local length = 10 + math.random(25)
-            local mid_x = cx + math.cos(angle) * length * 0.5
-            local mid_y = cy + math.sin(angle) * length * 0.5
-            hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.burst_white))
-            hpdf.Page_SetLineWidth(page, 1.2)
-            hpdf.Page_MoveTo(page, cx, cy)
-            hpdf.Page_LineTo(page, mid_x, mid_y)
-            hpdf.Page_Stroke(page)
-            hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.burst_orange))
-            hpdf.Page_SetLineWidth(page, 0.4)
-            hpdf.Page_MoveTo(page, mid_x, mid_y)
-            hpdf.Page_LineTo(page, cx + math.cos(angle) * length, cy + math.sin(angle) * length)
-            hpdf.Page_Stroke(page)
-        end
-    end
-end
--- }}}
-
--- {{{ generate_love(page, space, params)
-function generate_love(page, space, params)
-    -- Paired pink curves that braid — each pair swings opposite ways
-    params = params or {}
-    local pair_count = math.floor(2 + (params.braid_count or 0.5) * 8 + 0.5)
-    local max_sway = 6 + (params.sway_intensity or 0.5) * 18
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.soft_pink))
-    hpdf.Page_SetLineWidth(page, 0.7)
-    art.with_alpha(page, 0.6, function()
-        for i = 1, pair_count do
-            local x1 = space.x + math.random() * space.width
-            local y1 = space.y + math.random() * space.height
-            local x2 = space.x + math.random() * space.width
-            local y2 = space.y + math.random() * space.height
-            local sway = max_sway * (0.5 + math.random() * 0.5)
-            art.flowing_curve(page, x1, y1, x2, y2, sway)
-            hpdf.Page_Stroke(page)
-            art.flowing_curve(page, x1 + 3, y1, x2 + 3, y2, -sway)
-            hpdf.Page_Stroke(page)
-        end
-    end)
-end
--- }}}
-
--- {{{ generate_melancholy(page, space, params)
-function generate_melancholy(page, space, params)
-    -- Downward strokes, color washes from tear_blue at top to rain_gray at bottom.
-    -- One axis (saturation) drives both drop count and drop length together;
-    -- giving sorrow independent knobs would feel mechanical.
-    params = params or {}
-    local saturation = 0.2 + (params.saturation or 0.5) * 0.8
-    local count = math.floor(8 + saturation * 32 + 0.5)
-    local max_drop = 2 + saturation * 10
-
-    local c1 = palette.accents.tear_blue
-    local c2 = palette.accents.rain_gray
-    for i = 1, count do
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        local t = (y - space.y) / space.height
-        hpdf.Page_SetRGBStroke(page,
-            c1[1] * t + c2[1] * (1 - t),
-            c1[2] * t + c2[2] * (1 - t),
-            c1[3] * t + c2[3] * (1 - t))
-        hpdf.Page_SetLineWidth(page, 0.4)
-        hpdf.Page_MoveTo(page, x, y)
-        hpdf.Page_LineTo(page, x, y - max_drop * (0.4 + math.random() * 0.6))
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_dream(page, space, params)
-function generate_dream(page, space, params)
-    -- Smooth Bezier sine waves at varied amplitudes, layered at low alpha
-    params = params or {}
-    local wave_count = math.floor(3 + (params.wave_count or 0.5) * 11 + 0.5)
-    local max_amplitude = 6 + (params.amplitude or 0.5) * 24
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.dreamy_purple))
-    hpdf.Page_SetLineWidth(page, 0.3)
-    art.with_alpha(page, 0.5, function()
-        for w = 1, wave_count do
-            local y_base = space.y + math.random() * space.height
-            local amplitude = max_amplitude * (0.4 + math.random() * 0.6)
-            local segs = 6
-            local seg_width = space.width / segs
-            hpdf.Page_MoveTo(page, space.x, y_base)
-            for s = 1, segs do
-                local x1 = space.x + s * seg_width
-                local sign = (s % 2 == 0) and 1 or -1
-                local y1 = y_base + sign * amplitude
-                local cx1 = x1 - seg_width * 0.6
-                local cy1 = y_base + sign * -amplitude
-                local cx2 = x1 - seg_width * 0.4
-                local cy2 = y_base + sign * amplitude
-                hpdf.Page_CurveTo(page, cx1, cy1, cx2, cy2, x1, y1)
-            end
-            hpdf.Page_Stroke(page)
-        end
-    end)
-end
--- }}}
-
--- {{{ generate_constellation(page, space, params)
-function generate_constellation(page, space, params)
-    -- Gold star points with thin night-blue lines between consecutive stars
-    params = params or {}
-    local star_count = math.floor(6 + (params.star_count or 0.5) * 18 + 0.5)
-    local star_size = 0.5 + (params.star_size or 0.5) * 2.0
-
-    local stars = {}
-    for i = 1, star_count do
-        stars[i] = {
-            x = space.x + math.random() * space.width,
-            y = space.y + math.random() * space.height,
-        }
-    end
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.night_blue))
-    hpdf.Page_SetLineWidth(page, 0.2)
-    art.with_alpha(page, 0.5, function()
-        for i = 1, #stars - 1 do
-            hpdf.Page_MoveTo(page, stars[i].x, stars[i].y)
-            hpdf.Page_LineTo(page, stars[i + 1].x, stars[i + 1].y)
-            hpdf.Page_Stroke(page)
-        end
-    end)
-    hpdf.Page_SetRGBFill(page, table.unpack(palette.accents.star_gold))
-    for _, s in ipairs(stars) do
-        hpdf.Page_Circle(page, s.x, s.y, star_size)
-        hpdf.Page_Fill(page)
-    end
-end
--- }}}
-
--- {{{ generate_spiral(page, space, params)
-function generate_spiral(page, space, params)
-    -- Single growing spiral built from arc segments at increasing radii
-    params = params or {}
-    local segments = math.floor(10 + (params.segment_count or 0.5) * 30 + 0.5)
-    local growth_rate = 0.8 + (params.growth_rate or 0.5) * 1.7
-
-    local cx = space.x + space.width / 2
-    local cy = space.y + space.height / 2
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.sacred_purple))
-    hpdf.Page_SetLineWidth(page, 0.4)
-    for i = 1, segments do
-        local radius = i * growth_rate
-        local start_deg = i * 25
-        local end_deg = start_deg + 30
-        art.arc(page, cx, cy, radius, start_deg, end_deg)
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_circuit(page, space, params)
-function generate_circuit(page, space, params)
-    -- Manhattan-geometry circuit traces with junction nodes at each turn
-    params = params or {}
-    local trace_count = math.floor(4 + (params.trace_count or 0.5) * 16 + 0.5)
-    local segs_per_trace = math.floor(2 + (params.segments_per_trace or 0.5) * 6 + 0.5)
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.circuit_green))
-    hpdf.Page_SetLineWidth(page, 0.5)
-    for i = 1, trace_count do
-        local x = space.x + math.random() * space.width
-        local y = space.y + math.random() * space.height
-        for s = 1, segs_per_trace do
-            local len = 6 + math.random(10)
-            local nx, ny = x, y
-            if math.random() > 0.5 then
-                nx = x + (math.random() > 0.5 and len or -len)
-            else
-                ny = y + (math.random() > 0.5 and len or -len)
-            end
-            hpdf.Page_MoveTo(page, x, y)
-            hpdf.Page_LineTo(page, nx, ny)
-            hpdf.Page_Stroke(page)
-            hpdf.Page_Circle(page, nx, ny, 0.8)
-            hpdf.Page_Stroke(page)
-            x, y = nx, ny
-        end
-    end
-end
--- }}}
-
--- {{{ generate_lightning(page, space, params)
-function generate_lightning(page, space, params)
-    -- Jagged bolts from top to bottom, drawn twice: thick blue glow + thin white core
-    params = params or {}
-    local bolt_count = math.floor(1 + (params.bolt_count or 0.5) * 4 + 0.5)
-    local jag_max = 4 + (params.jaggedness or 0.5) * 12
-
-    for b = 1, bolt_count do
-        local x = space.x + math.random() * space.width
-        local y = space.y + space.height
-        local path_x, path_y = { x }, { y }
-        while y > space.y do
-            y = y - 6 - math.random() * 8
-            x = x + (math.random() - 0.5) * jag_max
-            table.insert(path_x, x)
-            table.insert(path_y, y)
-        end
-        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.bolt_blue))
-        hpdf.Page_SetLineWidth(page, 1.5)
-        hpdf.Page_MoveTo(page, path_x[1], path_y[1])
-        for j = 2, #path_x do hpdf.Page_LineTo(page, path_x[j], path_y[j]) end
-        hpdf.Page_Stroke(page)
-        hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.bolt_white))
-        hpdf.Page_SetLineWidth(page, 0.4)
-        hpdf.Page_MoveTo(page, path_x[1], path_y[1])
-        for j = 2, #path_x do hpdf.Page_LineTo(page, path_x[j], path_y[j]) end
-        hpdf.Page_Stroke(page)
-    end
-end
--- }}}
-
--- {{{ generate_crystal(page, space, params)
-function generate_crystal(page, space, params)
-    -- Hexagonal facets with internal subdivision lines suggesting refraction
-    params = params or {}
-    local count = math.floor(2 + (params.facet_count or 0.5) * 8 + 0.5)
-    local max_radius = 6 + (params.facet_radius or 0.5) * 12
-
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.crystal_cyan))
-    hpdf.Page_SetLineWidth(page, 0.4)
-    for i = 1, count do
-        local cx = space.x + math.random() * space.width
-        local cy = space.y + math.random() * space.height
-        local radius = max_radius * (0.5 + math.random() * 0.5)
-        local first_x, first_y = cx + radius, cy
-        hpdf.Page_MoveTo(page, first_x, first_y)
-        for s = 1, 5 do
-            local angle = s * math.pi / 3
-            hpdf.Page_LineTo(page, cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
-        end
-        hpdf.Page_LineTo(page, first_x, first_y)
-        hpdf.Page_Stroke(page)
-        for s = 0, 5 do
-            local angle = s * math.pi / 3
-            hpdf.Page_MoveTo(page, cx, cy)
-            hpdf.Page_LineTo(page, cx + math.cos(angle) * radius, cy + math.sin(angle) * radius)
-            hpdf.Page_Stroke(page)
-        end
-    end
-end
--- }}}
-
--- {{{ generate_neutral(page, space)
-function generate_neutral(page, space)
-    -- Intentionally minimal: a single faint horizon line. Neutral should
-    -- feel chosen, not absent.
-    hpdf.Page_SetRGBStroke(page, table.unpack(palette.accents.pale_gray))
-    hpdf.Page_SetLineWidth(page, 0.3)
-    art.with_alpha(page, 0.4, function()
-        local y = space.y + space.height * 0.5
-        hpdf.Page_MoveTo(page, space.x + 10, y)
-        hpdf.Page_LineTo(page, space.x + space.width - 10, y)
-        hpdf.Page_Stroke(page)
-    end)
-end
--- }}}
-
--- {{{ theme_generators dispatch table
--- Maps Tier 1 theme names to their generator functions. Adding a new theme
--- is a single-line addition here plus a new generator function above.
-local theme_generators = {
-    resistance    = generate_resistance,
-    technology    = generate_technology,
-    creativity    = generate_creativity,
-    isolation     = generate_isolation,
-    identity      = generate_identity,
-    systems       = generate_systems,
-    connection    = generate_connection,
-    chaos         = generate_chaos,
-    transcendence = generate_transcendence,
-    survival      = generate_survival,
-    nature        = generate_nature,
-    urban         = generate_urban,
-    energy        = generate_energy,
-    love          = generate_love,
-    melancholy    = generate_melancholy,
-    dream         = generate_dream,
-    constellation = generate_constellation,
-    spiral        = generate_spiral,
-    circuit       = generate_circuit,
-    lightning     = generate_lightning,
-    crystal       = generate_crystal,
-    neutral       = generate_neutral,
-}
--- }}}
-
 -- {{{ draw_theme_art_in_spaces(page, space_list, theme, page_num)
+-- Issue 030 Phase 3: the theme name (returned by analyze_page_themes) is
+-- looked up in THEMES to find its mapped tier1_generator, then the actual
+-- draw function comes from the generators registry. PAGE_PERCENTILES
+-- provides the per-page parameter values, populated from the cluster's
+-- own tier1_parameter_axes during compute_axis_percentiles.
 function draw_theme_art_in_spaces(pdf_page, space_list, theme, page_num)
-    prepare_for_graphics(pdf_page)
-    print("🎨 Generating " .. theme .. " theme art")
-    local gen = theme_generators[theme] or theme_generators.neutral
-    -- Pull this page's percentile-driven params for this theme, if any.
-    -- Generators that don't have configured axes get an empty params table
-    -- and fall back to their 0.5-percentile defaults internally.
+    local theme_info = THEMES[theme] or THEMES["neutral"]
+    local gen_name = theme_info.tier1_generator or "neutral"
+    local gen_entry = generators.tier1[gen_name] or generators.tier1.neutral
+    progress_ui.log(string.format(
+        "🎨 Generating %s art (cluster theme: %s)",
+        gen_name, theme))
     local params = (page_num and PAGE_PERCENTILES[page_num] and PAGE_PERCENTILES[page_num][theme]) or {}
     for _, space in ipairs(space_list) do
-        gen(pdf_page, space, params)
+        gen_entry.draw(pdf_page, space, params)
     end
 end
 -- }}}
-
--- Tier 2 column pattern generation (20 themes)
-function draw_tier2_column_patterns(pdf_page, column_bounds, tier2_theme, intensity) -- {{{
-    -- Ensure we start in graphics mode
-    prepare_for_graphics(pdf_page)
-    
-    if tier2_theme == "digital_resistance" then
-        -- Encrypted data blocks
-        for i = 1, math.floor(8 * intensity) do
-            local x = column_bounds.x + math.random() * column_bounds.width
-            local y = column_bounds.y + math.random() * column_bounds.height
-            
-            -- Try graphics operations, skip if they fail
-            local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.accents.encrypted_red))
-                hpdf.Page_SetLineWidth(pdf_page, 0.5)
-                hpdf.Page_Rectangle(pdf_page, x, y, 3, 2)
-                hpdf.Page_Stroke(pdf_page)
-            end)
-            if not success then
-                print("⚠️ Skipped graphics operation due to mode conflict")
-            end
-        end
-        
-    elseif tier2_theme == "programming_philosophy" then
-        -- Code-like dashes
-        for i = 1, math.floor(6 * intensity) do
-            local x = column_bounds.x + math.random() * column_bounds.width
-            local y = column_bounds.y + math.random() * column_bounds.height
-            
-            -- Try graphics operations, skip if they fail
-            local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.accents.code_green))
-                hpdf.Page_SetLineWidth(pdf_page, 0.4)
-                hpdf.Page_MoveTo(pdf_page, x, y)
-                hpdf.Page_LineTo(pdf_page, x + 6, y)
-                hpdf.Page_Stroke(pdf_page)
-            end)
-            if not success then
-                print("⚠️ Skipped graphics operation due to mode conflict")
-            end
-        end
-    end
-    
-    -- Add simple default pattern for all other themes
-    if tier2_theme ~= "digital_resistance" and tier2_theme ~= "programming_philosophy" then
-        for i = 1, math.floor(4 * intensity) do
-            local x = column_bounds.x + math.random() * column_bounds.width
-            local y = column_bounds.y + math.random() * column_bounds.height
-            
-            -- Try graphics operations, skip if they fail
-            local success = pcall(function()
-                hpdf.Page_SetRGBStroke(pdf_page, table.unpack(palette.accents.fallback_lavender))
-                hpdf.Page_SetLineWidth(pdf_page, 0.3)
-                hpdf.Page_Circle(pdf_page, x, y, 0.8)
-                hpdf.Page_Stroke(pdf_page)
-            end)
-            if not success then
-                print("⚠️ Skipped graphics operation due to mode conflict")
-            end
-        end
-    end
-end -- }}}
 
 -- Tier 1 page art, drawn only in the regions outside the poem boxes.
 -- The space_list comes from calculate_art_spaces, filtered down to the
 -- regions a generator should occupy without overlapping any poem.
 function draw_tier1_page_art(pdf_page, space_list, tier1_theme, page_num) -- {{{
-    print(string.format("🎨 Drawing %s art in %d outside region(s)", tier1_theme, #space_list))
+    progress_ui.log(string.format("🎨 Drawing %s art in %d outside region(s)", tier1_theme, #space_list))
     draw_theme_art_in_spaces(pdf_page, space_list, tier1_theme, page_num)
 end -- }}}
 
@@ -2089,21 +1500,171 @@ function compute_poem_layout(page_poems, page_height, margins, column_width, col
 end
 -- }}}
 
+-- {{{ compute_tier2_art_spaces(box, col_is_left, column_gap, line_height, page_width)
+-- Build the rectangles where a poem's Tier 2 art is allowed to live.
+-- Tier 2 art does NOT go inside the box — draw_boxed_poem covers the
+-- box with a solid Tier 3 background fill, so anything drawn under the
+-- box would be hidden. Art lives in the gaps adjacent to the box,
+-- where it tints the otherwise-blank stretches of page and visually
+-- ties each poem to its neighbors.
+--
+-- PINWHEEL LAYOUT (Issue 031): four strips wrap the box, and each
+-- strip extends into the ONE adjacent corner area, rotating around
+-- the box. The four extensions together cover every corner of the
+-- bounding region exactly once, with no overlap between strips —
+-- motifs drawn in one strip flow into the corner without colliding
+-- with the next strip:
+--
+--   * TOP    extends into the INNER side's corner (top-inner corner)
+--             width  = box.width + column_gap
+--             height = line_height
+--   * INNER  extends DOWN into the BOTTOM's corner (bottom-inner corner)
+--             width  = column_gap
+--             height = box.height + line_height
+--   * BOTTOM extends into the OUTER side's corner (bottom-outer corner)
+--             width  = box.width + outer_w   (only when outer exists)
+--             height = line_height
+--   * OUTER  extends UP into the TOP's corner (top-outer corner)
+--             width  = outer_w               (only when outer exists)
+--             height = box.height + line_height
+--
+-- Rotation direction MIRRORS between columns: CW around a left-column
+-- box (inner=right, outer=left), CCW around a right-column box
+-- (inner=left, outer=right). This creates visually balanced flow when
+-- the two columns are seen as a spread.
+--
+-- "outer_w" is the width of the page-margin area between the box and
+-- the nearest page edge on the side opposite the gutter. In the
+-- current 15%-shift layout it's ~99pt for right-column boxes and 0pt
+-- for left-column boxes (box.x is negative, clamping outer_w to 0).
+-- When outer doesn't exist, BOTTOM's outer-extension and the OUTER
+-- strip itself are both omitted — the bottom-outer and top-outer
+-- corners stay uncovered for left-column poems in that layout.
+--
+-- Motifs may overflow these bounds; whatever crosses into a poem box
+-- ends up under the Tier 3 fill and isn't visible from above.
+local function compute_tier2_art_spaces(box, col_is_left, column_gap, line_height, page_width)
+    local spaces = {}
+
+    if col_is_left then
+        -- LEFT column: inner gutter is to the RIGHT of the box; outer
+        -- margin (if it exists) is to the LEFT.
+        local outer_w = math.max(0, box.x)
+        local has_outer = outer_w >= 5
+
+        -- TOP — extends RIGHT into INNER corner.
+        table.insert(spaces, {
+            x = box.x,
+            y = box.y + box.height,
+            width = box.width + column_gap,
+            height = line_height,
+        })
+        -- BOTTOM — extends LEFT into OUTER corner (if outer exists).
+        table.insert(spaces, {
+            x = box.x - (has_outer and outer_w or 0),
+            y = box.y - line_height,
+            width = box.width + (has_outer and outer_w or 0),
+            height = line_height,
+        })
+        -- INNER — gutter right of box, extended DOWN into BOTTOM corner.
+        table.insert(spaces, {
+            x = box.x + box.width,
+            y = box.y - line_height,
+            width = column_gap,
+            height = box.height + line_height,
+        })
+        -- OUTER — page margin left of box, extended UP into TOP corner.
+        if has_outer then
+            table.insert(spaces, {
+                x = 0,
+                y = box.y,
+                width = outer_w,
+                height = box.height + line_height,
+            })
+        end
+    else
+        -- RIGHT column: inner gutter is to the LEFT of the box; outer
+        -- margin (if it exists) is to the RIGHT.
+        local outer_w = math.max(0, page_width - (box.x + box.width))
+        local has_outer = outer_w >= 5
+
+        -- TOP — extends LEFT into INNER corner.
+        table.insert(spaces, {
+            x = box.x - column_gap,
+            y = box.y + box.height,
+            width = box.width + column_gap,
+            height = line_height,
+        })
+        -- BOTTOM — extends RIGHT into OUTER corner (if outer exists).
+        table.insert(spaces, {
+            x = box.x,
+            y = box.y - line_height,
+            width = box.width + (has_outer and outer_w or 0),
+            height = line_height,
+        })
+        -- INNER — gutter left of box, extended DOWN into BOTTOM corner.
+        table.insert(spaces, {
+            x = box.x - column_gap,
+            y = box.y - line_height,
+            width = column_gap,
+            height = box.height + line_height,
+        })
+        -- OUTER — page margin right of box, extended UP into TOP corner.
+        if has_outer then
+            table.insert(spaces, {
+                x = box.x + box.width,
+                y = box.y,
+                width = outer_w,
+                height = box.height + line_height,
+            })
+        end
+    end
+
+    return spaces
+end
+-- }}}
+
 -- Generate individual poem art around each poem
-function generate_individual_poem_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height) -- {{{
-    print("🖼️ Generating individual poem art...")
+-- {{{ generate_individual_poem_art(pdf_page, page_poems, ...)
+-- Issue 031, slice C: Tier 2 now goes through the generator registry,
+-- mirroring draw_theme_art_in_spaces for Tier 1. For each poem we classify
+-- its cluster (analyze_individual_poem_for_tier2), look up that cluster's
+-- tier2_generator in THEMES, fetch the matching draw function from
+-- generators.tier2, and call it once per pinwheel art-space with the poem's
+-- own percentile params from POEM_PERCENTILES. The legacy monolithic
+-- draw_tier2_column_patterns is gone; generators.tier2.default is the only
+-- fallback (when a cluster's generator name isn't in the registry).
+local function draw_poem_tier2_art(pdf_page, box, col_is_left, column_gap, line_height, page_width, label)
+    local poem_theme = analyze_individual_poem_for_tier2(box.poem)
+    local theme_info = THEMES[poem_theme] or THEMES["neutral"]
+    local gen_name   = theme_info.tier2_generator or "default"
+    local gen_entry  = generators.tier2[gen_name] or generators.tier2.default
+    progress_ui.log(string.format("  📝 %s: %s → %s (Tier 2)", label, poem_theme, gen_name))
+    local art_spaces = compute_tier2_art_spaces(box, col_is_left, column_gap, line_height, page_width)
+    -- POEM_PERCENTILES is keyed by the poem's ordinal index (poem._index),
+    -- attached in build_book. Missing index / missing entry → empty params,
+    -- and each generator's draw defaults every param to 0.5 (middle of axis).
+    local params = (box.poem._index
+                    and POEM_PERCENTILES[box.poem._index]
+                    and POEM_PERCENTILES[box.poem._index][poem_theme])
+                   or {}
+    for _, space in ipairs(art_spaces) do
+        gen_entry.draw(pdf_page, space, params)
+    end
+end
+
+function generate_individual_poem_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height)
+    progress_ui.log("🖼️ Generating individual poem art...")
     local layout = compute_poem_layout(page_poems, page_height, margins, column_width, column_gap, page_shift, line_height)
 
     for poem_num, box in ipairs(layout.left) do
-        local poem_tier2_theme = analyze_individual_poem_for_tier2(box.poem)
-        print(string.format("  📝 Left poem %d: %s (Tier 2)", poem_num, poem_tier2_theme))
-        draw_tier2_column_patterns(pdf_page, box, poem_tier2_theme, 0.8)
+        draw_poem_tier2_art(pdf_page, box, true, column_gap, line_height, page_width,
+            string.format("Left poem %d", poem_num))
     end
 
     for poem_num, box in ipairs(layout.right) do
-        local poem_tier2_theme = analyze_individual_poem_for_tier2(box.poem)
-        print(string.format("  📝 Right poem %d: %s (Tier 2)", poem_num, poem_tier2_theme))
-        draw_tier2_column_patterns(pdf_page, box, poem_tier2_theme, 0.8)
+        draw_poem_tier2_art(pdf_page, box, false, column_gap, line_height, page_width,
+            string.format("Right poem %d", poem_num))
     end
 end -- }}}
 
@@ -2126,23 +1687,18 @@ end
 
 function generate_page_art(pdf_page, page_poems, page_width, page_height, margins, column_width, column_gap, page_shift, line_height, page_num) -- {{{
     local page_theme = analyze_page_themes(page_poems.left or {}, page_poems.right or {})
-    print("🎨 Page background theme: " .. page_theme)
+    progress_ui.log("🎨 Page background theme: " .. page_theme)
 
-    -- Compute how full the page is. Sum content lines across both columns,
-    -- divided by total available column-lines (Issue 023). Dense pages skip
-    -- the Tier 1 layer entirely; sparse pages get the full expressive art.
-    local used_lines = 0
-    for _, poem in ipairs(page_poems.left or {})  do used_lines = used_lines + calculate_poem_height(poem) end
-    for _, poem in ipairs(page_poems.right or {}) do used_lines = used_lines + calculate_poem_height(poem) end
-    local fill_ratio = used_lines / (2 * MAX_LINES_PER_PAGE)
-    local fill_pct = math.floor(fill_ratio * 100)
-
-    local should_draw_tier1 = (page_theme ~= "neutral") and (fill_ratio < TIER1_ART_THRESHOLD)
-
-    if should_draw_tier1 then
-        print(string.format("✨ Tier 1 art enabled: page is %d%% full (threshold %d%%)", fill_pct, math.floor(TIER1_ART_THRESHOLD * 100)))
-        -- Regions outside the poem boxes (Issue 022) — Tier 1 art draws only
-        -- here so it never competes with text for the same pixels.
+    if page_theme == "neutral" then
+        progress_ui.log("🔍 Neutral page theme — no background art generated")
+    else
+        -- Issue 028: gate Tier 1 art on per-region area rather than global
+        -- page fullness. Compute the outside regions first (the same set
+        -- the renderer would draw into anyway) and keep only those whose
+        -- area is at least TIER1_MIN_REGION_AREA_FRACTION of the page.
+        -- A 70%-full page with one big empty strip still gets art there;
+        -- a 30%-full page whose empty space is scattered into useless
+        -- slivers gets no noisy scraps.
         local spaces = calculate_art_spaces(page_poems, page_width, page_height, margins, column_width, column_gap, page_shift)
         local outside_regions = {}
         for _, region in ipairs(spaces.bottom_space) do table.insert(outside_regions, region) end
@@ -2150,15 +1706,27 @@ function generate_page_art(pdf_page, page_poems, page_width, page_height, margin
         for _, region in ipairs(spaces.right_outer)  do table.insert(outside_regions, region) end
         for _, region in ipairs(spaces.center)       do table.insert(outside_regions, region) end
 
-        if #outside_regions > 0 then
-            draw_tier1_page_art(pdf_page, outside_regions, page_theme, page_num)
-        else
-            print("🔍 No outside regions on this page — skipping Tier 1 art")
+        local page_area = page_width * page_height
+        local min_area = page_area * TIER1_MIN_REGION_AREA_FRACTION
+        local qualifying_regions = {}
+        local largest_area = 0
+        for _, region in ipairs(outside_regions) do
+            local area = region.width * region.height
+            if area > largest_area then largest_area = area end
+            if area >= min_area then table.insert(qualifying_regions, region) end
         end
-    elseif page_theme == "neutral" then
-        print("🔍 Neutral page theme - no background art generated")
-    else
-        print(string.format("🔍 Tier 1 art skipped: page is %d%% full (threshold %d%%)", fill_pct, math.floor(TIER1_ART_THRESHOLD * 100)))
+
+        local threshold_pct = math.floor(TIER1_MIN_REGION_AREA_FRACTION * 100)
+        if #qualifying_regions > 0 then
+            progress_ui.log(string.format(
+                "✨ Tier 1 art enabled: %d/%d outside region(s) ≥ %d%% of page area",
+                #qualifying_regions, #outside_regions, threshold_pct))
+            draw_tier1_page_art(pdf_page, qualifying_regions, page_theme, page_num)
+        else
+            progress_ui.log(string.format(
+                "🔍 Tier 1 art skipped: no outside region ≥ %d%% of page area (largest: %d%%, total regions: %d)",
+                threshold_pct, math.floor((largest_area / page_area) * 100), #outside_regions))
+        end
     end
 
     -- Tier 2 art around individual poems still runs unconditionally
@@ -2223,28 +1791,16 @@ function build_pdf(book)
     -- Loop over pages
     local total_pages = #book.pages
     print(string.format("📄 Starting PDF generation: %d pages to process", total_pages))
+    -- Issue 026: progress_ui takes over the per-page status frame from here on.
+    -- The header bar is owned by start_page; every print() inside the loop body
+    -- has been converted to progress_ui.log() so the redraw region stays clean.
+    progress_ui.init(total_pages)
 
     for page_num = 1, total_pages do
         local page = book.pages[page_num]
-        -- Progress indicator
-        local progress_percent = math.floor((page_num / total_pages) * 100)
-        local progress_bar = string.rep("█", math.floor(progress_percent / 5))
-        local remaining_bar = string.rep("░", 20 - math.floor(progress_percent / 5))
-        print(string.format("📖 Processing page %d/%d [%s%s] %d%% complete", 
-              page_num, total_pages, progress_bar, remaining_bar, progress_percent))
-        
-        -- Safely add a new page with error handling
-        local pdf_page = nil
-        local status, err = pcall(function()
-            pdf_page = hpdf.AddPage(pdf)
-        end)
-        
-        if not status then
-            print("❌ Error adding page " .. page_num .. ": " .. tostring(err))
-            print("🔧 Attempting to continue with existing document state...")
-            -- Try to create a new document if the current one is corrupted
-            break
-        end
+        progress_ui.start_page(page_num)
+
+        local pdf_page = hpdf.AddPage(pdf)
         hpdf.Page_SetSize(pdf_page, hpdf.PAGE_SIZE_A4, hpdf.PAGE_PORTRAIT)
         hpdf.Page_SetFontAndSize(pdf_page, font, font_size)
 
@@ -2290,41 +1846,48 @@ function build_pdf(book)
             y = draw_boxed_poem(pdf_page, font, poem, x, y, column_width, line_height, min_y, "center")
             y = y - line_height -- blank line between poems
         end
+
+        progress_ui.end_page()
     end
+    progress_ui.finish()
 
     -- Completion message
     print(string.format("✅ All %d pages processed successfully!", total_pages))
     print("💾 Saving PDF...")
 
-    -- Save and free with error handling
+    -- Save and free — any failure here crashes loudly with a real stack trace
+    -- per the project's "fallbacks are warnings, warnings are errors" rule
     local output_path = "output/compile-ai/output.pdf"
-    local save_status, save_err = pcall(function()
-        hpdf.SaveToFile(pdf, output_path)
-    end)
-    
-    if save_status then
-        print("📚 PDF saved to " .. output_path)
-        hpdf.Free(pdf)
-    else
-        print("❌ Error saving PDF: " .. tostring(save_err))
-        print("🔧 PDF document may have been corrupted by graphics operations")
-        -- Still try to free the document
-        pcall(function() hpdf.Free(pdf) end)
-        return nil
-    end
+    hpdf.SaveToFile(pdf, output_path)
+    print("📚 PDF saved to " .. output_path)
+    hpdf.Free(pdf)
     return output_path
 end -- }}}
 
 function main(    )
+              if NATURAL_THEMES then
+                  print("🎲 Natural theme selection enabled (--natural-themes): "
+                      .. "frequency weighting OFF, raw cosine similarity only")
+              end
               local cache_count = fuzz.embedding_cache_status()
               print(string.format("🗄️  Embedding cache: %d entries on disk%s",
                     cache_count,
-                    cache_count == 0 and " (cold start — full Ollama pass ahead)" or ""))
+                    cache_count == 0 and " (cold start — full embedding-server pass ahead)" or ""))
               book = {  pages = {}, poems = {},  }
               book =  load_file (book)
               book = build_book (book)
-              initialize_param_axes()
-              compute_page_percentiles(book)
+              -- Issue 030 Phase 3: themes load first (taxonomy contains
+              -- centroids + per-cluster parameter axes already computed
+              -- by themes-v2/name-clusters.lua), then we project pages
+              -- onto those axes to get per-page percentile values that
+              -- feed the parametric generators.
+              initialize_theme_embeddings()
+              compute_axis_percentiles(book)
+              -- Issue 031, slice B: the per-poem parallel to the per-page
+              -- pass above. Ranks every poem on each cluster's Tier 2 axes
+              -- so generate_individual_poem_art can tune each poem's motif
+              -- density to where that poem sits in embedding space.
+              compute_poem_axis_percentiles(book)
 --              book = build_color(book)
                pdf = build_pdf  (book)
                print("Poems:", #book.poems, "Pages:", #book.pages)

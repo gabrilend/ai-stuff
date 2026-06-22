@@ -5,7 +5,19 @@
 -- ("MoveTo, LineTo, LineTo, LineTo, Stroke").
 
 local M = {}
-local hpdf = require "hpdf"
+
+-- hpdf is only touched inside the drawing functions below, which run on
+-- the render path under lua5.2 with the libharu binding on package.cpath.
+-- The taxonomy pipeline (themes-v2/name-clusters.lua) loads this module
+-- transitively under luajit just to read generator metadata and never
+-- draws — and that luajit has no hpdf binding. So resolve hpdf lazily:
+-- module load must not depend on the binding being loadable. Each key
+-- memoizes into the table on first access, so steady-state draws are
+-- plain table reads, not metatable dispatches.
+local hpdf = setmetatable({}, {__index = function(t, k)
+    local real = require "hpdf"
+    local v = real[k]; rawset(t, k, v); return v
+end})
 
 -- The PDF handle is needed for ExtGState creation (alpha and blend modes
 -- are page-state objects that must be created from the parent document).
@@ -47,7 +59,17 @@ end
 function M.flowing_curve(page, from_x, from_y, to_x, to_y, sway)
     local dx, dy = to_x - from_x, to_y - from_y
     local len = math.sqrt(dx*dx + dy*dy)
-    if len == 0 then return end
+    if len == 0 then
+        -- Degenerate endpoints (typical cause: a generator handed us a
+        -- zero-area Tier 1 space and the random sway happened to roll 0).
+        -- Emit a zero-length stub path so the caller's Page_Stroke still
+        -- has something to stroke. Without this, Stroke would be invoked
+        -- from PAGE_DESCRIPTION mode rather than PATH_OBJECT mode and
+        -- libharu raises "Invalid Graphics mode" — fatal, kills the run.
+        hpdf.Page_MoveTo(page, from_x, from_y)
+        hpdf.Page_LineTo(page, from_x, from_y)
+        return
+    end
     -- Perpendicular unit vector, rotated 90° counter-clockwise from travel
     local px, py = -dy / len, dx / len
     -- Control points at 1/3 and 2/3 along the line, swayed perpendicular
