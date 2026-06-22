@@ -14,7 +14,7 @@ package.cpath = DIR .. "/libs/luasocket/socket/?.so;" ..
 -- {{{ load required modules
 local socket = require("socket")
 local json = require("dkjson")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
 -- }}}
 
 -- {{{ load compiled text sections
@@ -97,23 +97,25 @@ local function parse_json_body(body)
 end
 -- }}}
 
--- {{{ ollama integration
-local function call_ollama(messages)
-    local temp_file = "/tmp/ollama_request_" .. os.time() .. ".json"
-    local response_file = "/tmp/ollama_response_" .. os.time() .. ".json"
-    
+-- {{{ chat server integration
+-- Posts a chat completion against the configured chat server. Issue 025:
+-- llama-server's /v1/chat/completions (OpenAI shape) replaces Ollama's
+-- /api/chat. The model name in the request is a label — llama-server
+-- replies with whatever model the chat process was launched with — so
+-- we use the chat-server's --alias here (set in start-llamacpp-server.sh).
+local function call_chat_server(messages)
+    local temp_file = "/tmp/chat_request_" .. os.time() .. ".json"
+    local response_file = "/tmp/chat_response_" .. os.time() .. ".json"
+
     local request_data = {
-        model = "gemma3:12b-it-qat", -- Google's newest 12.2B model with 131k token context
-        messages = messages,
-        max_tokens = 20,
-        stream = false,
-        options = {
-            temperature = 0.8,
-            top_p = 0.9,
-            stop = {"\n", ".", "!", "?"}
-        }
+        model       = "Qwen3-8B",
+        messages    = messages,
+        max_tokens  = 20,
+        temperature = 0.8,
+        top_p       = 0.9,
+        stop        = {"\n", ".", "!", "?"},
     }
-    
+
     local file = io.open(temp_file, "w")
     if not file then
         print("ERROR: Could not create temporary request file")
@@ -121,21 +123,21 @@ local function call_ollama(messages)
     end
     file:write(json.encode(request_data))
     file:close()
-    
+
     local curl_cmd = string.format(
-        'curl -s -X POST "%s/api/chat" -H "Content-Type: application/json" -d @%s > %s',
-        ollama_config.OLLAMA_ENDPOINT, temp_file, response_file
+        'curl -s -X POST "%s/v1/chat/completions" -H "Content-Type: application/json" -d @%s > %s',
+        inference_config.CHAT_ENDPOINT, temp_file, response_file
     )
-    
+
     local exit_code = os.execute(curl_cmd)
-    
+
     os.remove(temp_file)
-    
+
     if exit_code ~= 0 then
         os.remove(response_file)
-        return "Error: Ollama request failed"
+        return "Error: chat server request failed"
     end
-    
+
     local response_content = ""
     local response_file_handle = io.open(response_file, "r")
     if response_file_handle then
@@ -145,10 +147,12 @@ local function call_ollama(messages)
     else
         return "Error: Could not read response"
     end
-    
+
     local response_data = json.decode(response_content)
-    if response_data and response_data.message and response_data.message.content then
-        local content = response_data.message.content
+    if response_data and response_data.choices and response_data.choices[1]
+        and response_data.choices[1].message
+        and response_data.choices[1].message.content then
+        local content = response_data.choices[1].message.content
         -- Limit to 80 characters
         if #content > 80 then
             content = content:sub(1, 80)
@@ -197,8 +201,10 @@ local function handle_chat_request(client, body)
     local user_message = data.message
     local history = data.history or {}
     
-    -- Build context with inspiration + conversation history
-    local CONTEXT_LIMIT = 400000 -- Gemma3's massive context window
+    -- Build context with inspiration + conversation history.
+    -- Sized for Qwen3-8B's chat server running with --ctx-size 16384 (issue 025).
+    -- 16K tokens ≈ 60K chars; leave headroom for completion + system overhead.
+    local CONTEXT_LIMIT = 40000
     local inspiration_chars = math.floor(CONTEXT_LIMIT * 0.5)
     local conversation_chars = math.floor(CONTEXT_LIMIT * 0.4)
     
@@ -225,7 +231,7 @@ local function handle_chat_request(client, body)
     -- Build full context
     local full_context = status_title .. inspiration .. "\n\n--- CONVERSATION ---\n" .. conversation_context .. "USER: " .. user_message
     
-    -- Create messages for Ollama
+    -- Build the messages payload
     local messages = {
         {
             role = "user",
@@ -233,8 +239,8 @@ local function handle_chat_request(client, body)
         }
     }
     
-    -- Call Ollama
-    local ai_response = call_ollama(messages)
+    -- Call the chat server
+    local ai_response = call_chat_server(messages)
     
     -- Determine if we should enter expansion mode (for longer responses)
     local expansion_context = nil
@@ -267,7 +273,7 @@ local function handle_expand_request(client, body)
         }
     }
     
-    local ai_response = call_ollama(messages)
+    local ai_response = call_chat_server(messages)
     
     send_json_response(client, {
         line = ai_response

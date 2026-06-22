@@ -18,7 +18,7 @@ package.cpath = DIR .. "/libs/luasocket/socket/?.so;" ..
 -- {{{ load required modules
 local socket = require("socket")
 local json = require("dkjson")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
 local server_config = require("server-config")
 -- }}}
 
@@ -126,37 +126,38 @@ Example: /context 150]]
     end
 end
 
-local function call_ollama(messages, for_spacebar)
-    local temp_file = "/tmp/ollama_request_" .. os.time() .. ".json"
-    local response_file = "/tmp/ollama_response_" .. os.time() .. ".json"
-    
-    -- Adjust parameters based on whether this is spacebar continuation
-    local options = {}
+-- Posts a chat completion against the configured chat server. Issue 025:
+-- llama-server's /v1/chat/completions (OpenAI shape) replaces Ollama's
+-- /api/chat. for_spacebar selects continuation-focused vs creative-response
+-- parameters. num_ctx is gone from the request — context size is fixed at
+-- server-launch time (--ctx-size in start-llamacpp-server.sh).
+local function call_chat_server(messages, for_spacebar)
+    local temp_file = "/tmp/chat_request_" .. os.time() .. ".json"
+    local response_file = "/tmp/chat_response_" .. os.time() .. ".json"
+
+    -- OpenAI-shaped chat-completion body. Spacebar vs normal differ in
+    -- temperature, top_p, and whether to stop on newline. repeat_penalty
+    -- is a llama.cpp extension that llama-server accepts on its
+    -- OpenAI-compatible endpoint (the matching Ollama field was
+    -- repetition_penalty, hoisted out of options).
+    local request_data
     if for_spacebar then
-        -- Spacebar: continuation-focused parameters
-        options = {
-            temperature = 0.4,        -- Lower for more focused continuation
-            top_p = 0.95,            -- High for creative but coherent flow
-            num_ctx = 131072,        -- Full Gemma3 context window  
-            repetition_penalty = 1.1, -- Avoid repetition loops
-            -- No stop tokens - let it flow naturally
+        request_data = {
+            model          = "Qwen3-8B",
+            messages       = messages,
+            temperature    = 0.4,  -- focused continuation
+            top_p          = 0.95,
+            repeat_penalty = 1.1,  -- avoid repetition loops
+            -- no stop tokens — let it flow naturally
         }
     else
-        -- Normal response: more creative parameters  
-        options = {
-            temperature = 0.7,       -- Moderate creativity
-            top_p = 0.9,            -- Good balance
-            num_ctx = 131072,       -- Full Gemma3 context window
-            stop = {}               -- Remove \n stop token
+        request_data = {
+            model       = "Qwen3-8B",
+            messages    = messages,
+            temperature = 0.7,
+            top_p       = 0.9,
         }
     end
-    
-    local request_data = {
-        model = "gemma3:12b-it-qat", -- Using Gemma3 with massive context
-        messages = messages,
-        stream = false,
-        options = options
-    }
     
     local file = io.open(temp_file, "w")
     if not file then return "Error creating request" end
@@ -167,11 +168,11 @@ local function call_ollama(messages, for_spacebar)
     file:close()
     
     local curl_cmd = string.format(
-        'curl -s --max-time 300 -X POST "%s/api/chat" -H "Content-Type: application/json" -d @%s > %s 2>&1',
-        ollama_config.OLLAMA_ENDPOINT, temp_file, response_file
+        'curl -s --max-time 300 -X POST "%s/v1/chat/completions" -H "Content-Type: application/json" -d @%s > %s 2>&1',
+        inference_config.CHAT_ENDPOINT, temp_file, response_file
     )
-    
-    print("DEBUG: Calling Ollama with command: " .. curl_cmd)
+
+    print("DEBUG: Calling chat server with command: " .. curl_cmd)
     print("DEBUG: Request file: " .. temp_file)
     print("DEBUG: Response file: " .. response_file)
     print("DEBUG: Using 5-minute timeout for model loading...")
@@ -197,7 +198,7 @@ local function call_ollama(messages, for_spacebar)
     elseif exit_code ~= true and exit_code ~= 0 then
         print("DEBUG: Curl command failed with exit status: " .. tostring(exit_code))
         os.remove(response_file)
-        return "Error: Network request failed (status: " .. tostring(exit_code) .. ") - Check if Ollama model is loading"
+        return "Error: Network request failed (status: " .. tostring(exit_code) .. ") - Check if the chat server is up"
     end
     
     os.remove(temp_file)
@@ -213,13 +214,13 @@ local function call_ollama(messages, for_spacebar)
         -- Validate response content
         print("DEBUG: Response file size: " .. #response_content .. " bytes")
         if #response_content == 0 then
-            print("DEBUG: Empty response from Ollama")
+            print("DEBUG: Empty response from chat server")
             return "Error: Empty response from AI service"
         end
-        
-        -- Check for HTML error responses (common when Ollama is down)
+
+        -- Check for HTML error responses (common when the chat server is down)
         if response_content:match("^%s*<[Hh][Tt][Mm][Ll]") then
-            print("DEBUG: Received HTML instead of JSON (Ollama may be offline)")
+            print("DEBUG: Received HTML instead of JSON (chat server may be offline)")
             return "Error: AI service returned HTML (service may be offline)"
         end
     else
@@ -243,14 +244,19 @@ local function call_ollama(messages, for_spacebar)
             return "Error: AI response has unexpected format (not JSON object)"
         end
         
-        -- Check for Ollama error responses
+        -- Check for OpenAI-shaped error responses
         if response_data.error then
-            print("DEBUG: Ollama returned error: " .. tostring(response_data.error))
-            return "Error: AI service error - " .. tostring(response_data.error)
+            local err_msg = type(response_data.error) == "table"
+                and (response_data.error.message or json.encode(response_data.error))
+                or tostring(response_data.error)
+            print("DEBUG: Chat server returned error: " .. err_msg)
+            return "Error: AI service error - " .. err_msg
         end
-        
-        if response_data.message and response_data.message.content then
-            local content = response_data.message.content
+
+        if response_data.choices and response_data.choices[1]
+            and response_data.choices[1].message
+            and response_data.choices[1].message.content then
+            local content = response_data.choices[1].message.content
             print("DEBUG: Extracted content (" .. #content .. " chars): " .. content:sub(1, 50) .. "...")
             
             -- Apply character limit
@@ -261,14 +267,13 @@ local function call_ollama(messages, for_spacebar)
             return content
         else
             print("DEBUG: Response structure analysis:")
-            print("DEBUG: - Has message field: " .. tostring(response_data.message ~= nil))
-            if response_data.message then
-                print("DEBUG: - Message has content field: " .. tostring(response_data.message.content ~= nil))
-                local message_keys = {}
-                for k, _ in pairs(response_data.message or {}) do
-                    table.insert(message_keys, k)
+            print("DEBUG: - Has choices field: " .. tostring(response_data.choices ~= nil))
+            if response_data.choices and response_data.choices[1] then
+                local first = response_data.choices[1]
+                print("DEBUG: - choices[1] has message: " .. tostring(first.message ~= nil))
+                if first.message then
+                    print("DEBUG: - choices[1].message has content: " .. tostring(first.message.content ~= nil))
                 end
-                print("DEBUG: - Message fields: " .. table.concat(message_keys, ", "))
             end
             return "Error: AI response missing expected content structure"
         end
@@ -282,8 +287,8 @@ local function call_ollama(messages, for_spacebar)
             print("DEBUG: Looks like JSON but failed to parse - possible syntax error")
             return "Error: Malformed JSON response from AI service"
         elseif response_content:match("Connection refused") then
-            print("DEBUG: Connection refused - Ollama service not running")
-            return "Error: AI service connection refused (is Ollama running?)"
+            print("DEBUG: Connection refused - chat server not running")
+            return "Error: AI service connection refused (is the chat llama-server running?)"
         elseif response_content:match("curl:") then
             print("DEBUG: Curl error in response")
             return "Error: Network error - " .. response_content:sub(1, 100)
@@ -662,7 +667,7 @@ local function start_server()
                                     
                                     -- Generate AI response
                                     local messages = build_conversation_messages(false)
-                                    local ai_response = call_ollama(messages, false)
+                                    local ai_response = call_chat_server(messages, false)
                                     
                                     -- Add AI response with number (count responses after last user message)
                                     local ai_number = 1
@@ -692,7 +697,7 @@ local function start_server()
                     elseif path == "/spacebar" then
                         -- Generate next AI line (spacebar continuation)
                         local messages = build_conversation_messages(true)
-                        local ai_response = call_ollama(messages, true)
+                        local ai_response = call_chat_server(messages, true)
                         
                         -- Add AI response with next number (count responses after last user message)
                         local ai_number = 1
