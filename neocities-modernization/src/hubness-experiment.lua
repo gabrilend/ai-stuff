@@ -18,6 +18,7 @@
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dk = require("dkjson")
+local utils = require("utils")  -- Issue 10-054: read embeddings from wherever they live (RAM or disk)
 
 -- {{{ knobs
 local PAIR_SAMPLES   = 2000   -- random neighbour pairs for the cheap sweeps (1,2)
@@ -28,7 +29,7 @@ local SEED           = 12345
 -- }}}
 
 io.write("loading embeddings... "); io.flush()
-local E = dk.decode(io.open(DIR .. "/assets/embeddings/nomic-embed-text-v1.5/embeddings.json"):read("*a")).embeddings
+local E = dk.decode(io.open(utils.embeddings_dir() .. "/embeddings.json"):read("*a")).embeddings
 local N, D = #E, #E[1].embedding
 print(string.format("%d vectors, %d dims", N, D))
 
