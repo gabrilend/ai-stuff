@@ -30,6 +30,11 @@ input/**/outbox.json
 # Binary cache files (GPU-generated, large)
 *.bin
 
+# Locally-installed CUDA toolkit + built llama.cpp (multi-GB, fetched by
+# scripts/build-deps.sh -- regenerable build dependencies, never track)
+libs/cuda/
+libs/llama.cpp/
+
 # Editor files
 *.swp
 *~

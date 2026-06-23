@@ -54,11 +54,6 @@ VkSimilarityContext* vks_init(VkComputeContext* ctx,
 
 void vks_destroy(VkSimilarityContext* sim_ctx);
 
-VkComputeResult vks_compute_similarities_for_poem(
-    VkSimilarityContext* sim_ctx,
-    uint32_t source_poem_index,
-    float* output_similarities);
-
 // Parallel full-matrix computation (Issue 9-002 original design)
 VkComputeResult vks_compute_all_similarities_parallel(
     VkSimilarityContext* sim_ctx,
@@ -258,8 +253,6 @@ end
 -- @param num_threads: Number of CPU threads for parallel file writing
 -- @return success: boolean
 function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, force, num_threads)
-    print("[GPU SIMILARITY] Starting TRUE PARALLEL GPU similarity generation")
-    print("[GPU SIMILARITY] (Issue 9-002 original design - single dispatch for all pairs)")
     print("[GPU SIMILARITY] Embeddings file: " .. embeddings_file)
     print(string.format("[GPU SIMILARITY] Force regeneration: %s", tostring(force)))
 
@@ -280,7 +273,7 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
             "  Processing mode: %s\n" ..
             "  Termination reason: %s\n" ..
             "  Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force\n" ..
-            "  Ensure Ollama is running: ollama serve",
+            "  Ensure the inference server is running: ./scripts/start-llamacpp-server.sh",
             mode, reason
         ))
     end
@@ -330,16 +323,14 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
 
     -- Initialize Vulkan context
     print("[GPU SIMILARITY] Initializing Vulkan context...")
+    -- vkc_init prints the chosen GPU once ("[VKC] Selected device: ..."), so
+    -- we no longer echo a second "GPU device" line from here.
     local vk_ctx = vklib.vkc_init(false)  -- Disable validation for performance
     if vk_ctx == nil then
         error("[GPU SIMILARITY ERROR] Failed to initialize Vulkan context")
     end
 
-    local device_name = ffi.string(vklib.vkc_get_device_name(vk_ctx))
-    print("[GPU SIMILARITY] GPU device: " .. device_name)
-
     -- Initialize similarity context
-    print("[GPU SIMILARITY] Initializing similarity computation...")
     local sim_ctx = vklib.vks_init(vk_ctx, flat_embeddings, num_poems, embedding_dim)
     if sim_ctx == nil then
         vklib.vkc_destroy(vk_ctx)
@@ -353,7 +344,6 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     local triangular_output = ffi.new("float[?]", tri_size)
 
     -- SINGLE DISPATCH - compute ALL similarities at once!
-    print("[GPU SIMILARITY] Computing ALL similarities in single GPU dispatch...")
     local start_time = os.time()
 
     local result = vklib.vks_compute_all_similarities_parallel(sim_ctx, triangular_output)
@@ -372,8 +362,8 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     vklib.vkc_destroy(vk_ctx)
 
     -- Prepare C arrays for parallel file writing
-    -- The C function handles all file I/O with pthreads (no Lua serialization overhead)
-    local file_write_start = os.time()
+    -- The C function handles all file I/O with pthreads (no Lua serialization
+    -- overhead) and prints its own "[VKS FILE] Wrote N files ..." timing line.
     local max_sort_threads = num_threads or 8
 
     print("[GPU SIMILARITY] Preparing C arrays for parallel file writing...")
@@ -416,13 +406,10 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
         error("[GPU SIMILARITY ERROR] Parallel file writing failed: " .. error_str)
     end
 
-    local file_write_time = os.time() - file_write_start
-    print(string.format("[GPU SIMILARITY] ✅ File writing complete in %d seconds", file_write_time))
-
     -- Generate rankings cache using C parallel implementation
-    -- This avoids the O(n²) Lua extraction and effil serialization overhead
+    -- This avoids the O(n²) Lua extraction and effil serialization overhead.
+    -- The C side prints its own "[VKS CACHE] Generating rankings cache ..." line.
     local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
-    print(string.format("[GPU SIMILARITY] Generating rankings cache with %d pthreads (C parallel)...", max_sort_threads))
 
     local cache_result = vklib.vks_write_rankings_cache_parallel(
         triangular_output,
@@ -527,398 +514,6 @@ function M.generate_rankings_cache(full_similarities, num_poems, model_dir, max_
             total_poems = num_poems,
             generated_at = os.date("%Y-%m-%d %H:%M:%S"),
             algorithm = "gpu_vulkan_parallel_single_dispatch",
-            format = "pre_sorted_rankings",
-            sort_threads = max_sort_threads,
-            description = "Pre-sorted similarity rankings for fast HTML generation"
-        },
-        rankings = rankings_lua
-    }
-
-    utils.write_json_file(cache_file, cache_data)
-
-    local cache_time = os.time() - cache_start
-    print(string.format("[GPU SIMILARITY] ✅ Rankings cache saved in %d seconds: %s", cache_time, cache_file))
-
-    return true
-end
--- }}}
-
--- {{{ function M.generate_similarity_matrix_gpu (DEPRECATED - sequential version)
--- Generate similarity matrix using GPU, outputting triangular individual files
--- @param embeddings_file: Path to embeddings.json
--- @param model_name: Model name for output directory
--- @param force: Force regeneration even if files exist
--- @param num_threads: Number of CPU threads for parallel sorting (optional, default 8)
--- @return success: boolean
-function M.generate_similarity_matrix_gpu(embeddings_file, model_name, force, num_threads)
-    print("[GPU SIMILARITY] Starting GPU-accelerated similarity generation")
-    print("[GPU SIMILARITY] Embeddings file: " .. embeddings_file)
-    print(string.format("[GPU SIMILARITY] Force regeneration: %s", tostring(force)))
-
-    -- Load embeddings
-    local embeddings_data = utils.read_json_file(embeddings_file)
-    if not embeddings_data or not embeddings_data.embeddings then
-        print("[GPU SIMILARITY ERROR] Failed to load embeddings")
-        return false
-    end
-
-    local num_poems = #embeddings_data.embeddings
-    -- Validate embeddings array is non-empty before accessing first element
-    -- Empty arrays occur when embedding generation failed (network errors, etc.)
-    if num_poems == 0 then
-        local reason = embeddings_data.metadata and embeddings_data.metadata.termination_reason or "unknown"
-        local mode = embeddings_data.metadata and embeddings_data.metadata.processing_mode or "unknown"
-        print(string.format(
-            "[GPU SIMILARITY ERROR] Embeddings array is empty (0 poems).\n" ..
-            "  Processing mode: %s\n" ..
-            "  Termination reason: %s\n" ..
-            "  Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force\n" ..
-            "  Ensure Ollama is running: ollama serve",
-            mode, reason
-        ))
-        return false
-    end
-    local embedding_dim = #embeddings_data.embeddings[1].embedding
-    print(string.format("[GPU SIMILARITY] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
-
-    -- Convert embeddings to flat C array
-    local flat_embeddings = ffi.new("float[?]", num_poems * embedding_dim)
-    for i, poem in ipairs(embeddings_data.embeddings) do
-        local base = (i - 1) * embedding_dim
-        for j, val in ipairs(poem.embedding) do
-            flat_embeddings[base + j - 1] = val
-        end
-    end
-
-    -- Initialize Vulkan context
-    print("[GPU SIMILARITY] Initializing Vulkan context...")
-    local vk_ctx = vklib.vkc_init(false)  -- Disable validation for performance
-    if vk_ctx == nil then
-        print("[GPU SIMILARITY ERROR] Failed to initialize Vulkan context")
-        return false
-    end
-
-    local device_name = ffi.string(vklib.vkc_get_device_name(vk_ctx))
-    print("[GPU SIMILARITY] GPU device: " .. device_name)
-
-    -- Initialize similarity context
-    print("[GPU SIMILARITY] Initializing similarity computation...")
-    local sim_ctx = vklib.vks_init(vk_ctx, flat_embeddings, num_poems, embedding_dim)
-    if sim_ctx == nil then
-        print("[GPU SIMILARITY ERROR] Failed to initialize similarity context")
-        vklib.vkc_destroy(vk_ctx)
-        return false
-    end
-
-    -- Prepare output directory
-    local model_dir = model_name:gsub(":", "_")
-    local output_dir = "assets/embeddings/" .. model_dir .. "/similarities"
-    os.execute("mkdir -p " .. output_dir)
-
-    -- Accumulate bidirectional similarity data in RAM for cache generation
-    -- Structure: full_similarities[poem_index] = {{target_index, similarity}, ...}
-    local full_similarities = {}
-    for idx = 1, num_poems do
-        local emb = embeddings_data.embeddings[idx]
-        if emb.poem_index then
-            full_similarities[emb.poem_index] = {}
-        end
-    end
-
-    -- Thread pool for parallel CPU sorting (while GPU continues)
-    -- Use provided num_threads or fall back to default
-    local sort_threads = {}
-    local max_sort_threads = num_threads or DEFAULT_SORT_THREADS
-    local sort_task_func = create_sort_write_task()
-
-    print(string.format("[GPU SIMILARITY] Parallel sorting enabled (%d CPU threads)", max_sort_threads))
-
-    -- Helper to wait for threads if pool is full
-    local thread_errors = {}
-    local function manage_thread_pool()
-        while #sort_threads >= max_sort_threads do
-            local oldest = table.remove(sort_threads, 1)
-            local status, success, err_msg = oldest:wait()
-            if status == "completed" then
-                -- Check if thread returned an error
-                if success == false and err_msg then
-                    table.insert(thread_errors, err_msg)
-                    error(string.format("[GPU SIMILARITY ERROR] Sorting thread failed: %s", tostring(err_msg)))
-                end
-            else
-                error(string.format("[GPU SIMILARITY ERROR] Thread finished with unexpected status: %s", tostring(status)))
-            end
-        end
-    end
-
-    -- Generate similarities for each poem
-    local start_time = os.time()
-    local files_generated = 0
-    local files_skipped = 0
-
-    for i = 0, num_poems - 1 do
-        local embedding = embeddings_data.embeddings[i + 1]
-
-        -- Require poem_index field (no fallback)
-        if not embedding.poem_index then
-            error(string.format(
-                "[GPU SIMILARITY ERROR] Embedding at index %d missing poem_index field.\n" ..
-                "This means embeddings.json was generated before issue 8-019.\n" ..
-                "Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force",
-                i + 1
-            ))
-        end
-
-        local poem_index = embedding.poem_index
-        local poem_id = embedding.id  -- Keep for display purposes
-        local output_file = string.format("%s/poem_index_%d.json", output_dir, poem_index)
-
-        -- Skip if file exists and not forcing
-        if not force and utils.file_exists(output_file) then
-            files_skipped = files_skipped + 1
-            goto continue
-        end
-
-        local num_targets = num_poems - i - 1
-        if num_targets == 0 then
-            -- Last poem has no targets, create empty file
-            local data = {
-                metadata = {
-                    poem_id = tostring(poem_id),
-                    poem_index = poem_index,
-                    total_comparisons = 0,
-                    range = string.format("%d-%d", poem_index + 1, poem_index),
-                    format = "triangular_upper",
-                    calculated_at = os.date("%Y-%m-%d %H:%M:%S"),
-                    method = "gpu_vulkan"
-                },
-                similarities = {}
-            }
-            utils.write_json_file(output_file, data)
-            goto continue
-        end
-
-        -- Allocate output buffer
-        local output_similarities = ffi.new("float[?]", num_targets)
-
-        -- Compute similarities
-        local result = vklib.vks_compute_similarities_for_poem(sim_ctx, i, output_similarities)
-        if result ~= 0 then
-            local error_str = ffi.string(vklib.vkc_get_error_string(result))
-            print(string.format("[GPU SIMILARITY ERROR] Poem_index %d (id %d) failed: %s", poem_index, poem_id, error_str))
-            goto continue
-        end
-
-        -- Build similarities array
-        local similarities = {}
-        for j = 0, num_targets - 1 do
-            local target_embedding = embeddings_data.embeddings[i + j + 2]
-
-            -- Require poem_index field (no fallback)
-            if not target_embedding.poem_index then
-                error(string.format(
-                    "[GPU SIMILARITY ERROR] Target embedding at index %d missing poem_index field.\n" ..
-                    "Remedy: Regenerate embeddings with: ./run.sh --generate-embeddings --force",
-                    i + j + 2
-                ))
-            end
-
-            local target_index = target_embedding.poem_index
-            -- Convert FFI float to Lua number (effil can't serialize FFI cdata)
-            local sim_value = tonumber(output_similarities[j])
-
-            table.insert(similarities, {
-                id = tostring(target_index),  -- Use poem_index for unique identification
-                similarity = sim_value
-            })
-
-            -- Accumulate bidirectionally for full rankings cache
-            table.insert(full_similarities[poem_index], {target_index, sim_value})
-            table.insert(full_similarities[target_index], {poem_index, sim_value})
-        end
-
-        -- Build metadata for file
-        local metadata = {
-            poem_id = tostring(poem_id),
-            poem_index = poem_index,
-            total_comparisons = num_targets,
-            range = string.format("%d-%d", poem_index + 1, num_poems),
-            format = "triangular_upper",
-            calculated_at = os.date("%Y-%m-%d %H:%M:%S"),
-            method = "gpu_vulkan"
-        }
-
-        -- Dispatch sorting/writing to CPU thread (GPU continues immediately)
-        manage_thread_pool()  -- Ensure pool isn't full
-        local thread = sort_task_func(similarities, metadata, output_file, DIR)
-        table.insert(sort_threads, thread)
-        files_generated = files_generated + 1
-
-        -- Progress indicator
-        if (i + 1) % 100 == 0 then
-            local elapsed = os.time() - start_time
-            local rate = (i + 1) / elapsed
-            local remaining = (num_poems - i - 1) / rate
-            print(string.format("[GPU SIMILARITY] Progress: %d/%d (%.1f%%), ETA: %.1f min",
-                i + 1, num_poems, ((i + 1) / num_poems) * 100, remaining / 60))
-        end
-
-        ::continue::
-    end
-
-    local total_time = os.time() - start_time
-    local elapsed_min = total_time / 60
-    local poems_per_sec = total_time > 0 and (files_generated / total_time) or 0
-
-    if files_generated > 0 then
-        print(string.format("[GPU SIMILARITY] ✅ GPU Complete! %d files in %.1f min (%.2f files/sec)",
-            files_generated, elapsed_min, poems_per_sec))
-    else
-        print(string.format("[GPU SIMILARITY] ⏭️  All %d files already exist, skipped generation", files_skipped))
-    end
-
-    -- Cleanup GPU resources (done with GPU, CPU threads may still be sorting)
-    vklib.vks_destroy(sim_ctx)
-    vklib.vkc_destroy(vk_ctx)
-
-    -- Wait for remaining sorting threads to complete
-    if #sort_threads > 0 then
-        print(string.format("[GPU SIMILARITY] Waiting for %d sorting threads to complete...", #sort_threads))
-        for _, thread in ipairs(sort_threads) do
-            thread:wait()
-        end
-        print("[GPU SIMILARITY] ✅ All sorting threads complete")
-    end
-
-    -- Skip cache generation if no new files were generated (cache already exists AND is valid)
-    if files_generated == 0 then
-        local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
-        if utils.file_exists(cache_file) then
-            -- Validate cache is not empty before trusting it
-            local cache_data = utils.read_json_file(cache_file)
-            if cache_data and cache_data.rankings then
-                local cache_count = 0
-                for _ in pairs(cache_data.rankings) do cache_count = cache_count + 1 end
-
-                if cache_count > 0 then
-                    print(string.format("[GPU SIMILARITY] ⏭️  Rankings cache already exists (%d poems), skipping regeneration", cache_count))
-                    return true
-                else
-                    -- Cache exists but is empty - need to regenerate from existing files
-                    print("[GPU SIMILARITY] ⚠️  Rankings cache exists but is empty (0 poems)")
-                    print("[GPU SIMILARITY] Regenerating cache from existing similarity files...")
-                    -- Delete the empty cache and fall through to cache regeneration
-                    os.remove(cache_file)
-                    -- Read existing similarity files and build full_similarities
-                    full_similarities = M.load_similarities_from_files(output_dir, embeddings_data)
-                    if not full_similarities then
-                        error("[GPU SIMILARITY ERROR] Failed to load similarity files for cache regeneration")
-                    end
-                    -- Continue to cache generation below
-                end
-            else
-                print("[GPU SIMILARITY ERROR] Rankings cache file is corrupted or invalid")
-                print("[GPU SIMILARITY ERROR] Run with --force to regenerate everything")
-                return false
-            end
-        else
-            -- Cache doesn't exist - need to regenerate from existing files
-            print("[GPU SIMILARITY] ⚠️  Rankings cache missing, regenerating from existing similarity files...")
-            full_similarities = M.load_similarities_from_files(output_dir, embeddings_data)
-            if not full_similarities then
-                error("[GPU SIMILARITY ERROR] Failed to load similarity files for cache regeneration")
-            end
-            -- Continue to cache generation below
-        end
-    end
-
-    -- Generate sorted rankings cache (parallel CPU sorting)
-    print(string.format("[GPU SIMILARITY] Generating sorted rankings cache (%d threads)...", max_sort_threads))
-    local cache_start = os.time()
-
-    -- Collect poem indices into batches for parallel processing
-    local poem_indices = {}
-    for poem_index, _ in pairs(full_similarities) do
-        table.insert(poem_indices, poem_index)
-    end
-
-    -- Create shared results table
-    local rankings = effil.table()
-
-    -- Create thread function for cache sorting
-    local cache_sort_task = effil.thread(function(batch_indices, similarities_data, results_table)
-        local count = 0
-        for _, poem_index in ipairs(batch_indices) do
-            local sim_list = similarities_data[poem_index]
-            if sim_list then
-                -- Sort by similarity descending
-                table.sort(sim_list, function(a, b)
-                    return a[2] > b[2]
-                end)
-
-                -- Extract sorted poem indices
-                local sorted_ids = {}
-                for _, entry in ipairs(sim_list) do
-                    table.insert(sorted_ids, entry[1])
-                end
-
-                results_table[tostring(poem_index)] = sorted_ids
-                count = count + 1
-            end
-        end
-        return count
-    end)
-
-    -- Distribute work across threads
-    local cache_threads = {}
-    local batch_size = math.ceil(#poem_indices / max_sort_threads)
-
-    for t = 1, max_sort_threads do
-        local start_idx = (t - 1) * batch_size + 1
-        local end_idx = math.min(t * batch_size, #poem_indices)
-
-        if start_idx <= #poem_indices then
-            local batch = {}
-            for i = start_idx, end_idx do
-                table.insert(batch, poem_indices[i])
-            end
-
-            local thread = cache_sort_task(batch, full_similarities, rankings)
-            table.insert(cache_threads, thread)
-        end
-    end
-
-    -- Wait for all cache sorting threads
-    local total_sorted = 0
-    for i, thread in ipairs(cache_threads) do
-        local status, count = thread:wait()
-        if status == "completed" and count then
-            total_sorted = total_sorted + count
-        else
-            print(string.format("[GPU SIMILARITY WARN] Cache sort thread %d returned: status=%s, count=%s",
-                i, tostring(status), tostring(count)))
-        end
-    end
-    print(string.format("[GPU SIMILARITY] Sorted %d poem rankings in parallel", total_sorted))
-
-    -- Convert effil.table to regular Lua table for JSON serialization
-    local rankings_lua = {}
-    for k, v in pairs(rankings) do
-        -- Convert effil array to Lua array
-        local arr = {}
-        for _, item in ipairs(v) do
-            table.insert(arr, item)
-        end
-        rankings_lua[k] = arr
-    end
-
-    -- Write cache file
-    local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
-    local cache_data = {
-        metadata = {
-            total_poems = num_poems,
-            generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-            algorithm = "gpu_vulkan_parallel_sorted",
             format = "pre_sorted_rankings",
             sort_threads = max_sort_threads,
             description = "Pre-sorted similarity rankings for fast HTML generation"

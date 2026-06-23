@@ -122,6 +122,34 @@ void vkc_fp32_to_fp16(const float* src, uint16_t* dst, uint32_t count);
  */
 float vkc_fp16_to_fp32(uint16_t bits);
 
+/* {{{ Progress rendering (shared by the similarity + diversity stages)
+ *
+ * One in-place progress bar, three behaviours, picked once per run:
+ *   - VKC_DEBUG set in the environment (run.sh --debug): verbose mode. Each
+ *     update prints a plain, newline-terminated line so a redirected log keeps
+ *     the full history of a (possibly frozen) run.
+ *   - else stdout is a TTY: animated mode. Updates overwrite one line with a
+ *     "\r" Unicode bar -- clean for an interactive watcher.
+ *   - else (piped to a file, cron, no debug): quiet. Nothing is drawn, so logs
+ *     do not fill with thousands of overwrite characters on one giant line.
+ *
+ * Callers update as often as they like (throttle large loops to ~100 calls);
+ * call vkc_progress_finish() once after the loop to close an animated line.
+ *
+ * vkc_progress_update_ex appends an optional suffix after the percentage
+ * (e.g. "30.3 iter/sec, ETA 15s") -- used by loops that have rate/ETA stats
+ * worth keeping when their scrolling lines collapse into one bar.
+ *
+ * vkc_progress_mode returns 0 = quiet, 1 = animated bar, 2 = verbose, so a
+ * caller can update every step in bar mode but throttle in verbose mode.
+ */
+void vkc_progress_update(const char* label, uint64_t current, uint64_t total);
+void vkc_progress_update_ex(const char* label, uint64_t current, uint64_t total,
+                            const char* suffix);
+void vkc_progress_finish(void);
+int  vkc_progress_mode(void);
+/* }}} */
+
 #ifdef __cplusplus
 }
 #endif
