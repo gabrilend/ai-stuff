@@ -12,12 +12,12 @@ local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 
 -- Helper to resolve the current model's storage directory lazily. We avoid
--- pinning a string at module-load time because ollama-config's project-root
+-- pinning a string at module-load time because inference-server-config's project-root
 -- and selected-server state may not be fully initialized when this module
 -- is first required.
 local function current_model_dir()
-    local ollama_config = require("ollama-config")
-    return ollama_config.get_selected_model():gsub("[^%w%-_.]", "_")
+    local inference_config = require("inference-server-config")
+    return inference_config.get_selected_model():gsub("[^%w%-_.]", "_")
 end
 
 -- Default configuration. default_model is a function rather than a string so

@@ -110,7 +110,13 @@ setup_env() {
 # Returns 0 if some server is already healthy at HOST:PORT — meaning we
 # should not try to start a second one. Returns non-zero otherwise.
 already_running() {
-    curl -s --max-time 2 "http://${HOST}:${PORT}/health" >/dev/null 2>&1
+    # Must be genuinely SERVING (HTTP 200), not merely accepting connections: a
+    # server still loading answers /health with 503, and curl -s exits 0 on that
+    # too. Treating a 503 as "already running" would skip our start AND fail the
+    # caller's readiness check. So compare the status code explicitly.
+    local code
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://${HOST}:${PORT}/health" 2>/dev/null)
+    [ "$code" = "200" ]
 }
 # }}}
 
@@ -224,10 +230,19 @@ launch_server() {
 # probe the server exposes; /v1/models would also work but takes slightly
 # longer to respond because it walks the loaded model list.
 wait_for_ready() {
-    local max_wait=30
+    # Model load + the warm-up empty run (large batch) can take well over 30s on
+    # a busy GPU, so allow generous headroom.
+    local max_wait=180
     local i=0
     while [ "$i" -lt "$max_wait" ]; do
-        if curl -s --max-time 1 "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
+        # CRITICAL: /health returns 503 while the model is still loading/warming
+        # up and 200 only when it can actually serve. `curl -s` exits 0 even on
+        # 503, so checking the exit code alone declares "ready" mid-warm-up and
+        # the first real request then 503s (the bug this fixes). Inspect the
+        # HTTP STATUS CODE and wait for a genuine 200.
+        local code
+        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://${HOST}:${PORT}/health" 2>/dev/null)
+        if [ "$code" = "200" ]; then
             return 0
         fi
         sleep 1
