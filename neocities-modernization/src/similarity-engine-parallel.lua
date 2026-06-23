@@ -144,9 +144,11 @@ end
 
 -- {{{ function get_similarity_output_dir
 local function get_similarity_output_dir(model_name)
-    local safe_model_name = model_name:gsub("[^%w._-]", "_")
-    -- Use configured assets path instead of bare relative path
-    return utils.get_assets_root() .. "/embeddings/" .. safe_model_name .. "/similarities/"
+    -- Issue 10-054: route through embeddings_dir() so the per-poem similarity
+    -- cache follows the RAM/disk switch with every other movable cache. While the
+    -- switch is off this is identical to the old get_assets_root()/embeddings/
+    -- <safe>/similarities (embeddings_dir applies the same model-name sanitizing).
+    return utils.embeddings_dir(model_name) .. "/similarities/"
 end
 -- }}}
 
@@ -1177,9 +1179,8 @@ function M.main()
             local model = values.model or "embeddinggemma:latest"
             if model == "" then model = "embeddinggemma:latest" end
 
-            local safe_model = model:gsub("[^%w._-]", "_")
-            -- Use configured assets path instead of bare relative path
-            local embeddings_file = utils.get_assets_root() .. "/embeddings/" .. safe_model .. "/embeddings.json"
+            -- Issue 10-054: read embeddings through the cache switch (RAM/disk).
+            local embeddings_file = utils.embeddings_dir(model) .. "/embeddings.json"
 
             if not utils.file_exists(embeddings_file) then
                 utils.log_error("Embeddings file not found: " .. embeddings_file)
@@ -1253,9 +1254,8 @@ function M.main_text_mode()
         local model = io.read() or ""
         if model == "" then model = "embeddinggemma:latest" end
 
-        local safe_model = model:gsub("[^%w._-]", "_")
-        -- Use configured assets path instead of bare relative path
-        local embeddings_file = utils.get_assets_root() .. "/embeddings/" .. safe_model .. "/embeddings.json"
+        -- Issue 10-054: read embeddings through the cache switch (RAM/disk).
+        local embeddings_file = utils.embeddings_dir(model) .. "/embeddings.json"
 
         if not utils.file_exists(embeddings_file) then
             utils.log_error("Embeddings file not found: " .. embeddings_file)

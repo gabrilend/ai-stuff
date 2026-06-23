@@ -888,13 +888,30 @@ run_catalog_images() {
 }
 # }}}
 
+# {{{ emb_cache_dir
+# Issue 10-054: resolve a model's cache directory through the shared resolver
+# (scripts/cache-dir), so run.sh's freshness/pre-flight checks look in EXACTLY the
+# place the Lua code and generate-embeddings.sh write -- disk or RAM, per the
+# CACHE_IN_RAM switch. Pass --disk for the reboot-surviving diversity cache. A
+# blank result is a hard error rather than a silently-wrong (empty) path.
+emb_cache_dir() {
+    local d
+    d="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME" "$@")"
+    if [ -z "$d" ]; then
+        echo "Error: could not resolve cache dir (scripts/cache-dir)" >&2
+        exit 1
+    fi
+    echo "$d"
+}
+# }}}
+
 # {{{ run_generate_embeddings
 run_generate_embeddings() {
     log_stage "🤖 Stage 6/10: Generating embeddings via the inference server"
 
     # Convert model name for directory (embeddinggemma:latest -> embeddinggemma_latest)
     local model_dir_name="${MODEL_NAME//:/_}"
-    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    local embeddings_file="$(emb_cache_dir)/embeddings.json"
     local poems_file="$DIR/assets/poems.json"
 
     # Issue 10-016: Check both global and per-stage force flags
@@ -998,9 +1015,9 @@ run_generate_semantic_colors() {
     # Paths match what generate-embeddings.sh writes (see run_generate_embeddings above).
     # The stray assets/embeddings/embeddings/ directory on disk is a stale leftover from
     # before the model-name subfolder convention; it is not the real output location.
-    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
-    local poem_colors_file="$DIR/assets/embeddings/$model_dir_name/poem_colors.json"
-    local color_embeddings_file="$DIR/assets/embeddings/$model_dir_name/color_embeddings.json"
+    local embeddings_file="$(emb_cache_dir)/embeddings.json"
+    local poem_colors_file="$(emb_cache_dir)/poem_colors.json"
+    local color_embeddings_file="$(emb_cache_dir)/color_embeddings.json"
 
     # Embeddings must exist first (exit early if not - prevents confusing errors)
     if [ ! -f "$embeddings_file" ]; then
@@ -1120,7 +1137,7 @@ run_generate_semantic_colors() {
 run_augment_images() {
     log_stage "🖼️  Stage 6.7: Folding images into the embedding set (pseudo-embeddings)"
     local model_dir_name="${MODEL_NAME//:/_}"
-    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    local embeddings_file="$(emb_cache_dir)/embeddings.json"
     if [ ! -f "$embeddings_file" ]; then
         echo "Error: embeddings.json not found; run --generate-embeddings first" >&2
         exit 1
@@ -1161,7 +1178,7 @@ run_generate_similarity() {
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
-    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    local embeddings_file="$(emb_cache_dir)/embeddings.json"
 
     # Check if embeddings exist
     if [ ! -f "$embeddings_file" ]; then
@@ -1175,7 +1192,7 @@ run_generate_similarity() {
     $FORCE_STAGE_7 && stage_force=true
 
     # Issue 8-033: Check for individual similarity files instead of monolithic matrix
-    local similarities_dir="$DIR/assets/embeddings/$model_dir_name/similarities"
+    local similarities_dir="$(emb_cache_dir)/similarities"
     local similarity_count=0
     if [ -d "$similarities_dir" ]; then
         similarity_count=$(find "$similarities_dir" -name "poem_*.json" 2>/dev/null | wc -l)
@@ -1222,7 +1239,7 @@ run_generate_similarity() {
             local vk_sim = require('libs.vulkan-compute.lua.vk_similarity')
             -- Use TRUE parallel GPU computation (Issue 9-002 original design)
             local success = vk_sim.generate_similarity_matrix_gpu_parallel(
-                '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
+                '$(emb_cache_dir)/embeddings.json',
                 '$MODEL_NAME',
                 $stage_force_lua,
                 $threads_to_use
@@ -1253,7 +1270,7 @@ run_generate_similarity() {
             local sleep = 0.5
             local threads = $threads_to_use
             sim_parallel.calculate_similarity_matrix_parallel(
-                '$DIR/assets/embeddings/$model_dir_name/embeddings.json',
+                '$(emb_cache_dir)/embeddings.json',
                 '$MODEL_NAME',
                 sleep,
                 $stage_force_lua,
@@ -1295,8 +1312,8 @@ run_generate_diversity() {
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
-    local cache_file="$DIR/assets/embeddings/$model_dir_name/diversity_cache.json"
-    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    local cache_file="$(emb_cache_dir --disk)/diversity_cache.json"
+    local embeddings_file="$(emb_cache_dir)/embeddings.json"
 
     # Check if embeddings exist
     if [ ! -f "$embeddings_file" ]; then

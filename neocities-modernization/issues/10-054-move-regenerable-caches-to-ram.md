@@ -109,6 +109,27 @@ there is exactly one place that decides each cache's location.
     readers) and route it through `embeddings_dir()`. A reliable audit must follow
     the variables (or grep the cache *filenames* like `embeddings.json` and check
     each site), not just the literal `asset_path` calls. Then a clean full run.
+- **Writer-routing pass — DONE (2026-06-23), switch still OFF.** Every movable-
+  cache reader AND writer in the live + manual code now resolves through
+  `embeddings_dir()`; the audit (grep the get_assets_root/asset_path embeddings
+  paths) is clean. All changes are behavior-preserving while the switch is off:
+  verified by path-string equality (`embeddings_dir(off) == old disk path`).
+  - **The shell bridge:** `scripts/cache-dir` prints the resolved cache dir so
+    SHELL writers share the Lua source of truth. `generate-embeddings.sh` (the
+    `embeddings.json` writer) and `run.sh` (all freshness/pre-flight checks, via a
+    new `emb_cache_dir` helper) now call it. Diversity uses `--disk`.
+  - **Lua:** `similarity-engine-parallel.lua` (similarities dir + the embeddings
+    reads, automated and interactive) and the manual `run-similarity-calculation`
+    routed through `embeddings_dir()`.
+  - **Left intentionally (not on the automated path / different source):**
+    `similarity-engine.lua` (non-parallel, dry-run-only legacy),
+    `centroid-generator.lua` (keys off `CONFIG.model_storage_name`, a different
+    model-name source; `centroids.json` is small), the run.sh `log_info` DISPLAY
+    strings (cosmetic — they will print the disk-style path even when RAM is used),
+    and the asset-root caches (`image-catalog.json`, `validation-report.json`,
+    deferred). None block the flip.
+  - **To re-flip:** set `CACHE_IN_RAM = true` and run a full pipeline. This is the
+    validation step the author runs (the assistant cannot run the pipeline).
 - **Orphan cleanup — N/A while reverted.** With `CACHE_IN_RAM = false` the
   on-disk caches are the live ones again; do not delete them. (When the flip
   eventually sticks: delete ONLY the movable on-disk caches, never

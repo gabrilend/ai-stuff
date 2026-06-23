@@ -35,8 +35,8 @@ local force_regenerate = arg and arg[3] == "--force"
 
 -- Configuration
 local model = "embeddinggemma:latest"
-local safe_model = model:gsub("[^%w._-]", "_")
-local embeddings_file = utils.get_assets_root() .. "/embeddings/" .. safe_model .. "/embeddings.json"
+-- Issue 10-054: read embeddings through the cache switch (RAM/disk) like the rest.
+local embeddings_file = utils.embeddings_dir(model) .. "/embeddings.json"
 
 print("=" .. string.rep("=", 60))
 print("Parallel Similarity Calculation")
