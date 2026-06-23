@@ -125,7 +125,13 @@ return {
             directories = {
                 {
                     name = "fediverse-media",
-                    path = "input/images/files",
+                    -- Bugfix: this pointed at input/images/files, which never
+                    -- exists, so 546 fediverse post attachments were silently
+                    -- skipped and never rendered inline. The ZIP extraction
+                    -- (scripts/update -> scripts/zip-extractor.lua) writes the
+                    -- deeply-nested Mastodon media to input/media_attachments/
+                    -- files/..., so the source points there now.
+                    path = "input/media_attachments/files",
                     description = "Mastodon/ActivityPub media attachments (deeply nested)",
                     optional = true,
                     -- No external: comes from ZIP extraction
