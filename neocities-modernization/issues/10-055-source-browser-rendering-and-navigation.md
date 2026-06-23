@@ -8,7 +8,8 @@
 
 ### Implemented so far
 - **A — code folds**: vimfold regions render as no-JS `<details>` blocks
-  (`fold_marker_kind` + the fold-aware `render_text_page`). Default open.
+  (`fold_marker_kind` + the fold-aware `render_text_page`, one block per line so
+  they nest validly). Default open.
 - **B — markdown rendering**: `.md` / `.info.md` render as formatted HTML via the
   new `libs/markdown.lua` (`render_markdown_page`); unit-tested in
   `libs/markdown-test.lua`.
@@ -16,13 +17,28 @@
   `notes/vision`) as markdown, and the tree is built only from rendered files, so
   the table of contents can no longer point at a missing page.
 - **H — back-to-site link**: every page links to `/similar-different/wordcloud.html`.
+- **D — issue-number links**: `build_issue_index` + `linkify_issues` turn
+  "Issue NNNN" mentions in comments into links to that issue's page.
+- **G — output as live links**: a single `output/` sidebar entry deep-links to the
+  live poem index (`wordcloud.html#poem-index`, anchor added there) instead of
+  listing ~23k pages.
+- **F — saved-webpage mirror**: per the author's call, a saved page (`.html` +
+  `_files/`) is mirrored as the real article (`find_mirror_pages`, `strip_scripts`,
+  `copy_raw`) rather than shown as source or linked out; scripts (incl. an
+  analytics tracker) are stripped for the no-JS rule and privacy.
 
 ### Remaining
-- **C** (dash-aligned linked ToC), **D** (issue-number links), **F** (saved-webpage
-  out-links), **G** (output → live-site links). Build order below still applies.
-- Visual note: the code folds use `<details>` inside the code `<pre>`; the markup
-  is well-formed, but the exact look should be eyeballed in a browser after the
-  next regeneration (CSS in `write_style_file` may want small tweaks).
+- **C** — the dash-aligned, description-bearing table of contents: each entry
+  links to the file's `.info.md` page (which gains a "view source" button at top),
+  with descriptions drawn from `docs/table-of-contents.md`. Needs missing
+  descriptions and some missing `.info.md` files created along the way (most
+  `src/`/`libs/` files lack one today). This is the largest remaining piece.
+
+### Visual note
+The code folds and rendered markdown should be eyeballed in a browser after the
+next regeneration; the markup is well-formed and the markdown is unit-tested, but
+the exact look (fold triangles, spacing) may want small CSS tweaks in
+`write_style_file`.
 
 ## Background / Why This Exists
 

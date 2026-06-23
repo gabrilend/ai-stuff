@@ -57,16 +57,31 @@ deep links to a line still resolve; a marker is only honored inside a comment, s
 braces in code are never mistaken for folds; unbalanced markers are closed
 defensively so the HTML cannot break.
 
-## Back to the site
+## Navigation (Issue 10-055)
 
-Every page links back to the live poetry menu (`/similar-different/wordcloud.html`)
-so a reader can return from "the source" to "the work."
+- **Back to the site**: every page links to the live poetry menu
+  (`/similar-different/wordcloud.html`).
+- **Issue links**: comments that mention "Issue 10-036" link to that issue's
+  page. The number → page map is built from the issues actually published (so it
+  finds them whether active or completed); an unknown number stays plain text.
+- **The output directory**: rather than list the tens of thousands of generated
+  pages, a single `output/` entry deep-links to the live site's poem index
+  (`#poem-index`), from which every page is reachable.
+
+## Mirrored saved webpages (Issue 10-055, Feature F)
+
+A saved webpage — an `.html` with a sibling `<name>_files/` directory — is
+**mirrored** rather than shown as source: the page itself is written out (so it
+renders as the real article) and its CSS/image assets are copied beside it. Every
+`<script>` is stripped (the platform is no-JS, and one script is an analytics
+tracker a static mirror must not run); interactive bits degrade, the article
+reads fine. The table-of-contents entry links to the page itself, not a source
+view.
 
 ## Known limitations / deferred (see Issues 10-052, 10-055)
 
-- Issue-number cross-linking, the dash-aligned linked table of contents,
-  saved-webpage out-links, and showing `output/` as live-site links are the
-  remaining 10-055 features (not yet implemented).
+- The dash-aligned, description-bearing table of contents (linking each entry to
+  its `.info.md`, with a "view source" button) is the remaining 10-055 feature.
 - Non-image binaries are skipped rather than linked (the raw bytes are not
   copied into `output/source/`).
 - The sidebar embeds the whole tree on every page; fine at the current scale.
