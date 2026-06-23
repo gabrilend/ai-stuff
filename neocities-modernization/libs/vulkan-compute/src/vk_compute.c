@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>  /* isatty for progress-bar mode selection */
 
 #define MAX_BUFFERS 32
 #define MAX_DESCRIPTOR_SETS 16
@@ -406,7 +407,81 @@ void vkc_destroy(VkComputeContext* ctx) {
     }
 
     free(ctx);
-    printf("[VKC] Cleanup complete\n");
+}
+
+/* }}} */
+
+/* {{{ Progress rendering
+ *
+ * Mode is resolved once and cached: neither the TTY-ness of stdout nor the
+ * VKC_DEBUG environment flag changes mid-run. See vk_compute.h for the three
+ * behaviours (verbose / animated / quiet).
+ */
+
+enum { VKC_PROGRESS_QUIET = 0, VKC_PROGRESS_BAR = 1, VKC_PROGRESS_VERBOSE = 2 };
+
+/* Public so Lua callers (e.g. the diversity chunk loop) can throttle updates
+ * by mode: animate every step on a TTY, but only emit occasional plain lines
+ * when verbose, to keep a thousand-chunk run from flooding the log. */
+int vkc_progress_mode(void) {
+    static int mode = -1;
+    if (mode == -1) {
+        /* --debug wins: a frozen run is exactly when you want every line on
+         * durable disk, not a single overwriting bar that loses its history. */
+        if (getenv("VKC_DEBUG") != NULL) {
+            mode = VKC_PROGRESS_VERBOSE;
+        } else if (isatty(STDOUT_FILENO)) {
+            mode = VKC_PROGRESS_BAR;
+        } else {
+            mode = VKC_PROGRESS_QUIET;
+        }
+    }
+    return mode;
+}
+
+void vkc_progress_update_ex(const char* label, uint64_t current, uint64_t total,
+                            const char* suffix) {
+    int mode = vkc_progress_mode();
+    if (mode == VKC_PROGRESS_QUIET) return;
+
+    double frac = total > 0 ? (double)current / (double)total : 1.0;
+    if (frac > 1.0) frac = 1.0;  /* callers may overshoot (e.g. claimed-task counters) */
+
+    if (mode == VKC_PROGRESS_VERBOSE) {
+        /* Plain, newline-terminated: log-friendly, no carriage returns. */
+        printf("%s %llu/%llu (%.0f%%)%s%s\n", label,
+               (unsigned long long)current, (unsigned long long)total, frac * 100.0,
+               suffix ? " " : "", suffix ? suffix : "");
+        fflush(stdout);
+        return;
+    }
+
+    /* Animated bar: overwrite one line. █ = done, ░ = pending. The trailing
+     * spaces clear any leftover tail from a previous, longer suffix (ETA
+     * strings shrink as a run finishes). */
+    const int bar_width = 40;
+    int filled = (int)(frac * bar_width);
+    printf("\r%s [", label);
+    for (int i = 0; i < bar_width; i++) {
+        fputs(i < filled ? "█" : "░", stdout);
+    }
+    printf("] %llu/%llu (%3.0f%%)%s%s   ",
+           (unsigned long long)current, (unsigned long long)total, frac * 100.0,
+           suffix ? " " : "", suffix ? suffix : "");
+    fflush(stdout);
+}
+
+void vkc_progress_update(const char* label, uint64_t current, uint64_t total) {
+    vkc_progress_update_ex(label, current, total, NULL);
+}
+
+void vkc_progress_finish(void) {
+    /* Only the animated bar leaves the cursor mid-line; close it. Verbose and
+     * quiet modes already ended their output with (or without) a newline. */
+    if (vkc_progress_mode() == VKC_PROGRESS_BAR) {
+        putchar('\n');
+        fflush(stdout);
+    }
 }
 
 /* }}} */

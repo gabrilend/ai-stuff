@@ -5,17 +5,32 @@
 
 ## Current Behavior
 
-GPU similarity matrix implementation is complete but unvalidated:
-- Shader: `similarity_batch.comp` (59 lines) ✅
-- C implementation: `vk_similarity.c` (290 lines) ✅
-- Lua bindings: `vk_similarity.lua` (223 lines) ✅
-- Pipeline integration: `run.sh` Stage 7 GPU path ✅
+GPU similarity matrix generation is the validated, production default for
+Stage 7. There is now exactly **one** GPU code path:
 
-However:
-- Not tested on full 7,797 poem dataset
-- No performance benchmark vs CPU implementation
-- No validation that GPU results match CPU results
-- GPU path in run.sh not used in production
+- The full-matrix **parallel** path computes every poem pair in a single GPU
+  dispatch, then writes the per-poem similarity files and the rankings cache
+  with C pthreads. (`generate_similarity_matrix_gpu_parallel` in
+  `vk_similarity.lua` → `vks_compute_all_similarities_parallel` in
+  `vk_similarity.c`.)
+- A CPU-only fallback still exists in `run.sh` (`--cpu-only`) for machines
+  without a working Vulkan device.
+
+The earlier **sequential per-poem** GPU path was removed (it pre-dated the
+single-dispatch design and was never used in production). It re-uploaded one
+"source" embedding per poem and ran ~7,800 small dispatches; the parallel path
+does the same work in one dispatch. Removing it also dropped its scaffolding
+from the C context: the host-side CPU copy of the embeddings, the per-source
+GPU buffer, the sequential output buffer, and the batch shader pipeline. A
+single-threaded run is now simply `--threads=1`, which only narrows CPU
+sort/write fan-out and never touches GPU compute. Removed entry points:
+`vks_compute_similarities_for_poem` and `vks_compute_all_similarities` (C +
+header + Lua FFI), and the deprecated Lua `generate_similarity_matrix_gpu`.
+
+Validation status of the surviving parallel path:
+- Runs on the full poem dataset as the default Stage 7 path
+- Speedup vs CPU documented in commit history
+- Per-pair results match the CPU reference within float32 tolerance
 
 ## Intended Behavior
 
