@@ -54,10 +54,12 @@ local function parse_args(args)
             all_words = true
             i = i + 1
         elseif a == "--words" then
-            max_words = tonumber(args[i + 1])
+            -- Accept "all" as a synonym for --all (the two flags are combined).
+            if args[i + 1] == "all" then all_words = true else max_words = tonumber(args[i + 1]) end
             i = i + 2
         elseif a:match("^--words=") then
-            max_words = tonumber(a:match("^--words=(.+)$"))
+            local v = a:match("^--words=(.+)$")
+            if v == "all" then all_words = true else max_words = tonumber(v) end
             i = i + 1
         -- Issue 8-050d: Parse poems-per-page argument
         elseif a == "--poems-per-page" then
@@ -94,6 +96,13 @@ local fuzzy = require("fuzzy-computing")
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
+-- Shared box/bar drawing so word-cloud poem pages can't drift from the
+-- similar/different + chronological pages (they had a third, divergent copy).
+local poem_bars = require("poem-bars")
+-- Shared chronological mapping (sort order + page numbers + timeline progress).
+-- Reused here so the word-page "chronological" links resolve to the SAME page
+-- and anchor the chronological pages actually emit (Issue 10-049 follow-up).
+local flat_html = require("flat-html-generator")
 
 utils.init_assets_root(arg)
 -- }}}
@@ -441,7 +450,19 @@ local function get_word_list(poems_data, stop_words, min_occurrences, max_words,
             table.insert(filtered, {word = word, count = count})
         end
     end
-    table.sort(filtered, function(a, b) return a.count > b.count end)
+    -- Sort by count descending, with an ALPHABETICAL tiebreaker. The tiebreak
+    -- is load-bearing, not cosmetic: `filtered` is built by iterating a Lua
+    -- hash (pairs), whose order differs from process to process, and
+    -- table.sort is not stable. Without a deterministic tiebreak, two separate
+    -- runs (stage 6 generating embeddings, the HTML stage consuming them) sort
+    -- ties differently, so the max_words cutoff keeps DIFFERENT words each run
+    -- -- which is exactly how a word ends up in the HTML list with no
+    -- embedding ("Missing embedding for word X"). Sorting ties by word makes
+    -- the cutoff identical across processes, closing that gap.
+    table.sort(filtered, function(a, b)
+        if a.count ~= b.count then return a.count > b.count end
+        return a.word < b.word
+    end)
 
     -- Limit to max_words
     local result = {}
@@ -510,24 +531,21 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
     local remaining_chars = total_bar_chars - progress_chars
 
-    -- Build top progress bar with color
-    local progress_section = string.rep("═", progress_chars)
-    local remaining_section = string.rep("─", remaining_chars)
-    local colored_progress
-    if is_golden then
-        local left_corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
-        colored_progress = left_corner .. string.format('<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section) .. "┐"
-    else
-        colored_progress = string.format('<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section)
-    end
+    -- Top progress bar from the shared poem-bars module (canonical geometry,
+    -- same as the similar/different + chronological pages).
+    poem_bars.configure(color_config)
+    local colored_progress = poem_bars.progress_dashes(
+        { percentage = progress_pct }, semantic_color, is_golden, "top", false).visual
 
     -- Navigation links
     local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
-    local anchor_id = string.format("poem-%s-%04d", poem.category or "unknown", poem.id or 0)
+    -- Anchor must match the spans the chronological pages emit, which are
+    -- get_poem_anchor_id() = "poem-<poem_index>". The old "poem-CATEGORY-ID"
+    -- form never matched any anchor, so the chronological link landed at the
+    -- top of the page instead of the poem.
+    local anchor_id = string.format("poem-%d", poem_idx)
     -- Issue 10-036: Use chrono_page_map for correct paginated link (index.html is redirect that loses anchors)
     local chrono_page = chrono_page_map and chrono_page_map[poem_idx] or "01"
     local chrono_link = string.format("<a href='%s/chronological/%s.html#%s'>chronological</a>", base_path, chrono_page, anchor_id)
@@ -622,81 +640,20 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
         return char
     end
 
-    -- Build navigation box
+    -- Navigation box + bottom bar from the shared poem-bars module. The old
+    -- inline copy had drifted (golden junctions at 9/70 instead of 10/71), which
+    -- is exactly why word-cloud golden poems were mangled.
     local nav_top, nav_mid
     if is_golden then
-        -- Golden: 84 chars total
-        local colored_corner = string.format('<font color="%s"><b>╟</b></font>', hex_color)
-        local left_sep = colored_corner
-        for i = 1, 9 do left_sep = left_sep .. color_char("─", i) end
-        left_sep = left_sep .. color_char("┐", 10)
-
-        local right_sep = color_char("┌", 71)
-        for i = 72, 82 do right_sep = right_sep .. color_char("─", i) end
-        right_sep = right_sep .. color_char("┤", 83)
-
-        nav_top = left_sep .. string.rep(" ", 60) .. right_sep
-
-        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-        local right_wall_of_left = color_char("│", 10)
-        local left_wall_of_right = color_char("│", 71)
-        local right_end = color_char("│", 83)
-        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
+        nav_top = poem_bars.golden_corner_box_separator(hex_color, progress_chars)
+        nav_mid = poem_bars.golden_corner_box_nav_line(similar_link, different_link, chrono_link, hex_color, progress_chars)
     else
-        -- Regular: 83 chars total
-        local left_top = {}
-        table.insert(left_top, color_char("┌", 0))
-        for i = 1, 9 do table.insert(left_top, color_char("─", i)) end
-        table.insert(left_top, color_char("┐", 10))
-
-        local right_top = {}
-        table.insert(right_top, color_char("┌", 70))
-        for i = 71, 81 do table.insert(right_top, color_char("─", i)) end
-        table.insert(right_top, color_char("┐", 82))
-
-        nav_top = table.concat(left_top) .. string.rep(" ", 59) .. table.concat(right_top)
-
-        local left_wall = color_char("│", 0)
-        local right_wall_of_left = color_char("│", 10)
-        local left_wall_of_right = color_char("│", 70)
-        local right_wall = color_char("│", 82)
-        nav_mid = left_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_wall
+        nav_top = poem_bars.corner_box_top(progress_chars, hex_color)
+        nav_mid = poem_bars.corner_box_nav_line(similar_link, different_link, chrono_link, progress_chars, hex_color)
     end
 
-    -- Build bottom progress bar with junction characters
-    local TOTAL_CHARS = is_golden and 82 or 83
-    local LEFT_JUNCTION = is_golden and 9 or 10
-    local RIGHT_JUNCTION = is_golden and 70 or 70
-
-    local left_junction = (LEFT_JUNCTION < progress_chars)
-        and string.format('<font color="%s"><b>╧</b></font>', hex_color) or "┴"
-    local right_junction = (RIGHT_JUNCTION < progress_chars)
-        and string.format('<font color="%s"><b>╧</b></font>', hex_color) or "┴"
-
-    local function build_segment(start_pos, end_pos)
-        if end_pos <= start_pos then return "" end
-        local seg_len = end_pos - start_pos
-        local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
-        local remaining_in_seg = seg_len - progress_in_seg
-        local result = ""
-        if progress_in_seg > 0 then
-            result = result .. string.format('<font color="%s"><b>%s</b></font>', hex_color, string.rep("═", progress_in_seg))
-        end
-        if remaining_in_seg > 0 then
-            result = result .. string.rep("─", remaining_in_seg)
-        end
-        return result
-    end
-
-    local corner_char = is_golden and "╚" or "╘"
-    local colored_corner = string.format('<font color="%s"><b>%s</b></font>', hex_color, corner_char)
-    local bottom_line = colored_corner
-        .. build_segment(1, LEFT_JUNCTION)
-        .. left_junction
-        .. build_segment(LEFT_JUNCTION + 1, RIGHT_JUNCTION)
-        .. right_junction
-        .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS - 1)
-        .. "┘"
+    local bottom_line = poem_bars.progress_dashes(
+        { percentage = progress_pct }, semantic_color, is_golden, "bottom", true).visual
 
     -- Generate poem identifier (same format as similar/different pages)
     -- Format: " -> file: fediverse/1234" or " -> file: notes/myfile"
@@ -712,8 +669,22 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
     -- Build final output
     local output = {}
     table.insert(output, colored_progress)
-    table.insert(output, poem_identifier)
-    table.insert(output, "")
+    if is_golden then
+        -- The header (" -> file:") and the blank line below it belong INSIDE the
+        -- golden box, with the same ║ ... │ walls as every other line, so the box
+        -- has consistent borders and uniform line width (no special-spaced gap).
+        local function golden_line(content)
+            local visible = content:gsub("<[^>]+>", "")
+            local vlen = #(visible:gsub("[\128-\191]", ""))
+            local padded = content .. string.rep(" ", math.max(0, 80 - vlen))
+            return string.format('<font color="%s"><b>║</b></font> %s │', hex_color, padded)
+        end
+        table.insert(output, golden_line((poem_identifier:gsub("^%s+", ""))))
+        table.insert(output, golden_line(""))
+    else
+        table.insert(output, poem_identifier)
+        table.insert(output, "")
+    end
     table.insert(output, table.concat(wrapped_lines, "\n"))
     table.insert(output, nav_top)
     table.insert(output, nav_mid)
@@ -752,7 +723,11 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
 
     -- Generate HTML
     -- Issue 16-010: Added font style for Hack Nerd Font font-stack
-    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }</style>]]
+    -- Same centering CSS the similar/different/chronological pages use: each
+    -- <pre> centers as an inline-block (text stays left), so the poem column
+    -- lands on the page centerline even when an attached image is wider.
+    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }
+td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; } img, video, audio { margin-left: auto; margin-right: auto; }</style>]]
     local html_parts = {}
     table.insert(html_parts, string.format([[<!DOCTYPE html>
 <html>
@@ -914,14 +889,14 @@ function M.generate_word_html(options)
     -- Issue 10-034: Fixed path - poem_colors.json is in embeddings directory, not assets root
     local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
-    local poem_colors = {}
-    if poem_colors_data and poem_colors_data.poem_colors then
-        for _, entry in ipairs(poem_colors_data.poem_colors) do
-            if entry.poem_index then
-                poem_colors[entry.poem_index] = entry
-            end
-        end
-    else
+    -- poem_colors.json stores a plain ARRAY whose position IS the poem_index
+    -- (entries carry color/similarity but NO poem_index field). flat-html
+    -- reads it positionally (poem_colors[poem_index]); we must do the same.
+    -- The old code keyed on entry.poem_index -- always nil -- so the table came
+    -- out empty and every word-page progress bar fell back to gray. Reading the
+    -- array directly is what makes those bars match the similar/different pages.
+    local poem_colors = (poem_colors_data and poem_colors_data.poem_colors) or {}
+    if not (poem_colors_data and poem_colors_data.poem_colors) then
         utils.log_warn("No poem colors found - using default gray")
     end
 
@@ -961,36 +936,28 @@ function M.generate_word_html(options)
     -- This maps poem_index → {position, total_poems} for timeline orientation
     -- Issue 8-050e: Also builds chrono_page_map for centroid-based navigation
     local chrono_map = {}
-    local chrono_page_map = {}  -- poem_index → page string ("index", "02", etc.)
+    local chrono_page_map = {}  -- poem_index → page string ("01", "02", etc.)
     do
-        -- Sort poems chronologically by creation_date
-        local sorted_poems = {}
-        for _, poem in ipairs(poems_data.poems) do
-            table.insert(sorted_poems, poem)
+        -- Reuse the chronological-page generator's OWN mapping instead of a second
+        -- inline copy. The old copy sorted by the raw creation_date string with no
+        -- tiebreaker and a 500/page default, so it disagreed with the actual
+        -- chronological pagination (timestamp sort + original-index tiebreaker +
+        -- config page size) -> links jumped to the wrong page and never scrolled.
+        local per_page = flat_html.default_chrono_per_page()
+        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
+        local total_poems = 0
+        for poem_index, info in pairs(mapping) do
+            chrono_map[poem_index] = {
+                position = info.position,
+                total_poems = info.total_poems,
+                -- Carry the time-based progress so the word-page bars match the
+                -- similar/different/chronological pages exactly (not position-based).
+                timeline_progress = info.timeline_progress,
+            }
+            chrono_page_map[poem_index] = string.format("%02d", info.page_number)
+            total_poems = info.total_poems
         end
-        table.sort(sorted_poems, function(a, b)
-            local date_a = a.creation_date or ""
-            local date_b = b.creation_date or ""
-            return date_a < date_b
-        end)
-
-        local total_poems = #sorted_poems
-        local chrono_per_page = unified_config.pagination
-            and unified_config.pagination.chrono_per_page or 500
-        for position, poem in ipairs(sorted_poems) do
-            if poem.poem_index then
-                chrono_map[poem.poem_index] = {
-                    position = position,
-                    total_poems = total_poems
-                }
-                -- Issue 8-050e: Map poem to chronological page
-                -- Issue 10-036: Use "01" format for page 1 (index.html is a redirect that loses anchors)
-                local page_num = math.ceil(position / chrono_per_page)
-                local page_str = string.format("%02d", page_num)
-                chrono_page_map[poem.poem_index] = page_str
-            end
-        end
-        utils.log_info(string.format("Built chronological mapping for %d poems (%d per page)", total_poems, chrono_per_page))
+        utils.log_info(string.format("Built chronological mapping for %d poems (%d per page, shared)", total_poems, per_page))
     end
 
     -- Build poem index lookup
@@ -1035,19 +1002,24 @@ function M.generate_word_html(options)
                 return a.word_similarity > b.word_similarity
             end)
 
-            -- Issue 8-050b: Use balanced color selection if color embeddings available
+            -- Issue 8-050b (revised): relevance first, THEN color spread.
+            -- The page always shows the top-N MOST RELEVANT poems by similarity;
+            -- balanced_color_select is handed exactly those N (not a 7N pool),
+            -- so it keeps the whole relevant set and only REORDERS it to spread
+            -- the colors across the page. The earlier 7N-pool version let color
+            -- balancing DISPLACE strong matches with weaker color-diverse ones,
+            -- which is why a "god" search surfaced unrelated poems.
             local ranked_poems
             if use_balanced_selection then
-                -- Pre-filter to top K (K = N × 7) to ensure semantic relevance
-                local pool_size = math.min(#candidates, CONFIG.poems_per_word_page * 7)
+                local pool_size = math.min(#candidates, CONFIG.poems_per_word_page)
                 local pool = {}
                 for j = 1, pool_size do pool[j] = candidates[j] end
 
-                -- Balanced round-robin selection across all 7 colors
+                -- Reorder the top-N relevant poems for color spread (keeps all N).
                 ranked_poems = balanced_color_select(
                     pool, color_embeddings, color_names, CONFIG.poems_per_word_page)
             else
-                -- Fallback: pure similarity ranking (original behavior)
+                -- Fallback: pure similarity ranking (no color data available)
                 ranked_poems = candidates
             end
 
@@ -1065,10 +1037,11 @@ function M.generate_word_html(options)
                     -- Find the poem closest to the centroid
                     local center_poem = find_closest_poem_to_centroid(centroid, poem_lookup, poems_by_index)
                     if center_poem and center_poem.poem_index then
-                        -- Build anchor ID (same format as flat-html-generator.lua)
-                        local anchor_id = string.format("poem-%s-%s",
-                            center_poem.category or "unknown",
-                            center_poem.id or 0)
+                        -- Anchor must match the spans the chronological pages emit:
+                        -- get_poem_anchor_id() = "poem-<poem_index>". The old
+                        -- "poem-CATEGORY-ID" form matched no anchor, so this top
+                        -- "chronological" link landed at the page top, not the poem.
+                        local anchor_id = string.format("poem-%d", center_poem.poem_index)
                         -- Get chronological page for this poem
                         -- Issue 10-036: Use "01" fallback instead of "index" (redirect loses anchors)
                         local chrono_page = chrono_page_map[center_poem.poem_index] or "01"
