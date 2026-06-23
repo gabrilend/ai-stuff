@@ -142,4 +142,39 @@ do
         print(string.format("  %4d%%     %.3f                 %.3f", step * 10, jb / NBR_PAIRS, ja / NBR_PAIRS))
     end
 end
+
+print("\n========================================================================")
+print(string.format("  4. FREQUENCY  (k-occurrence: times each item lands in others' top-%d)", TOPK))
+print("========================================================================")
+print("  the real question: do images show up MORE than poems? (goal: no). This")
+print("  builds a corpus of real poems + injected images and counts appearances.")
+do
+    math.randomseed(SEED + 2)
+    local KP, KI = 600, 90   -- poems + images in the test corpus (kept small: O(n^2))
+    local base_poems, pair_list = {}, {}
+    for i = 1, KP do base_poems[i] = E[math.random(N)].embedding end
+    for i = 1, KI do pair_list[i] = { E[math.random(N)].embedding, E[math.random(N)].embedding } end
+    local function kocc(mkimg)
+        local items = {}
+        for i = 1, KP do items[i] = { v = base_poems[i], img = false } end
+        for i = 1, KI do items[KP + i] = { v = mkimg(pair_list[i][1], pair_list[i][2]), img = true } end
+        local M = #items
+        local occ = {}; for i = 1, M do occ[i] = 0 end
+        for q = 1, M do
+            local sc = {}
+            for j = 1, M do if j ~= q then sc[#sc + 1] = { j, dot(items[q].v, items[j].v) } end end
+            table.sort(sc, function(x, y) return x[2] > y[2] end)
+            for r = 1, TOPK do occ[sc[r][1]] = occ[sc[r][1]] + 1 end
+        end
+        local sp, np, si, ni = 0, 0, 0, 0
+        for i = 1, M do if items[i].img then si = si + occ[i]; ni = ni + 1 else sp = sp + occ[i]; np = np + 1 end end
+        return sp / np, si / ni
+    end
+    local avg_fn = function(a, b) local o = {}; for i = 1, D do o[i] = (a[i] + b[i]) * 0.5 end; return l2(o) end
+    print("  method               poems   images   images vs poems")
+    local pp, im = kocc(avg_fn)
+    print(string.format("  midpoint average     %5.1f   %5.2f   %+5.0f%%  (the old flooding)", pp, im, (im / pp - 1) * 100))
+    local pc, ic = kocc(function(a, b) return seam_blend(a, b, 0.5) end)
+    print(string.format("  crooked 50%% (live)   %5.1f   %5.2f   %+5.0f%%  (current setting)", pc, ic, (ic / pc - 1) * 100))
+end
 print("")
