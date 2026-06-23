@@ -4,7 +4,25 @@
 - **Phase**: 10 (Developer Tooling)
 - **Priority**: Medium
 - **Type**: Feature (builds on Issue 10-052, the source browser itself)
-- **Status**: Open
+- **Status**: In progress
+
+### Implemented so far
+- **A — code folds**: vimfold regions render as no-JS `<details>` blocks
+  (`fold_marker_kind` + the fold-aware `render_text_page`). Default open.
+- **B — markdown rendering**: `.md` / `.info.md` render as formatted HTML via the
+  new `libs/markdown.lua` (`render_markdown_page`); unit-tested in
+  `libs/markdown-test.lua`.
+- **E — extensionless files**: `classify_file` renders extensionless prose (e.g.
+  `notes/vision`) as markdown, and the tree is built only from rendered files, so
+  the table of contents can no longer point at a missing page.
+- **H — back-to-site link**: every page links to `/similar-different/wordcloud.html`.
+
+### Remaining
+- **C** (dash-aligned linked ToC), **D** (issue-number links), **F** (saved-webpage
+  out-links), **G** (output → live-site links). Build order below still applies.
+- Visual note: the code folds use `<details>` inside the code `<pre>`; the markup
+  is well-formed, but the exact look should be eyeballed in a browser after the
+  next regeneration (CSS in `write_style_file` may want small tweaks).
 
 ## Background / Why This Exists
 
