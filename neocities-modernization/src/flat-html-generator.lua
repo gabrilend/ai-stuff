@@ -988,8 +988,14 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
             end
         end
 
-        -- Segment 1: from 0 to left junction (exclusive)
-        add_segment(0, LEFT_JUNCTION_POS)
+        -- Bugfix: this copy started at 0 and ended at total_chars, landing the
+        -- left junction one column too far right (col 11) and the right one a
+        -- dash short -- so the bottom bar did not line up under the nav-box
+        -- corners. Start at 1 and end at total_chars+1 to match poem-bars (the
+        -- word pages, which were correct): 9 dashes before the left junction so
+        -- it sits at column 10, 11 after the right junction. Width is unchanged.
+        -- Segment 1: corner ╚ is column 0, so the first dash runs 1..left junction
+        add_segment(1, LEFT_JUNCTION_POS)
         -- Insert left junction (colored if ╧, plain if ┴)
         table.insert(segments, left_junction)
 
@@ -998,8 +1004,8 @@ local function generate_progress_dashes(progress_info, color_name, is_golden, po
         -- Insert right junction (colored if ╧, plain if ┴)
         table.insert(segments, right_junction)
 
-        -- Segment 3: from right junction + 1 to end
-        add_segment(RIGHT_JUNCTION_POS + 1, total_chars)
+        -- Segment 3: from right junction + 1 to the far corner (exclusive of ┘)
+        add_segment(RIGHT_JUNCTION_POS + 1, total_chars + 1)
 
         local interior = table.concat(segments, "")
         -- Color the ╚ corner to match the progress bar
