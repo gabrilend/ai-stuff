@@ -91,19 +91,28 @@ there is exactly one place that decides each cache's location.
     `embeddings_dir()` so they follow the caches.
   - A grep audit confirms NO movable-cache path in the live pipeline still
     hardcodes `assets/embeddings/` or `asset_path("embeddings/`.
-- **The flip — DONE (2026-06-23):** `CACHE_IN_RAM = true` in `libs/utils.lua`.
-  The next full regeneration is the validation: movables should land under
-  `tmp/cache/...`, diversity should stay in `assets/` and be reused (NOT
-  recomputed), and clearing `tmp/` should regenerate the movables without
-  touching diversity. Verified before the flip: the tmpfs target exists and a
-  writer's `mkdir -p` creates the RAM cache dirs through the `tmp` symlink.
-- **Orphan cleanup — pending, do AFTER validating the regen:** the old on-disk
-  movable caches (`assets/embeddings/<model>/embeddings.json` ~119 MB,
-  `similarities/` ~3.8 GB, plus the other movable JSONs) are now dead weight once
-  the regen rebuilds them in RAM. Delete ONLY those -- **keep
-  `diversity_cache.json`** (it is the on-disk-by-design exception). A blanket
-  delete of `assets/embeddings/<model>/` would destroy the expensive (~45 min)
-  diversity cache.
+- **The flip — TRIED, then REVERTED (2026-06-23).** Set `CACHE_IN_RAM = true`
+  and ran a full regeneration. It FAILED, proving the centralization claim above
+  was wrong: the **readers** were routed to RAM but several **writers still write
+  to disk**, so readers found nothing.
+  - `augment-embeddings-with-images.lua` crashed: "missing embeddings.json" — it
+    reads `embeddings_dir()` (RAM), but the embedding generator wrote
+    `embeddings.json` to disk (`assets/embeddings/<model>/`, fresh-dated, so it
+    was written this run, just to the wrong root).
+  - The word-color step skipped: "no color embeddings found" — same desync on
+    `color_embeddings.json` (on disk, reader looks in RAM).
+  - **Why the audit missed it:** the audit grepped for the literal
+    `asset_path("embeddings/` / `/assets/embeddings/`. Writers that build the
+    directory into a VARIABLE first (e.g. `similarity-engine.lua`'s
+    `target_model_dir .. "/embeddings.json"`) slipped through.
+  - **Before re-flipping:** find EVERY writer of a movable cache (not just the
+    readers) and route it through `embeddings_dir()`. A reliable audit must follow
+    the variables (or grep the cache *filenames* like `embeddings.json` and check
+    each site), not just the literal `asset_path` calls. Then a clean full run.
+- **Orphan cleanup — N/A while reverted.** With `CACHE_IN_RAM = false` the
+  on-disk caches are the live ones again; do not delete them. (When the flip
+  eventually sticks: delete ONLY the movable on-disk caches, never
+  `diversity_cache.json`.)
 - **Deferred (safe to leave; not on the live pipeline path):**
   - The validators (`pipeline-validator.lua`, `scripts/validate-pipeline-data`)
     are diagnostic-only (not run by `run.sh`/`main.lua`); after a flip they would

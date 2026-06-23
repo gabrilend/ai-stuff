@@ -276,8 +276,16 @@ end
 local function compute_word_colors(word_embeddings)
     local color_embeddings = load_color_embeddings()
     if not color_embeddings then
-        utils.log_warn("No color embeddings found - skipping word color computation")
-        return nil
+        -- Hard error, not a silent skip (author's call): the color embeddings are
+        -- produced by the semantic-color stage and MUST exist by the time word
+        -- colors are computed. Skipping just shipped colorless words while hiding
+        -- a real upstream problem (e.g. the cache written to a path this reader
+        -- does not look at -- see the CACHE_IN_RAM desync, Issue 10-054).
+        error("word color computation needs color embeddings, but "
+            .. utils.embeddings_dir() .. "/color_embeddings.json was not found. "
+            .. "The semantic-color stage must run before this AND must write where "
+            .. "this reads. (Poem coloring regenerates them when absent; word "
+            .. "coloring could be unified to do the same instead of erroring.)")
     end
 
     local word_colors = {}

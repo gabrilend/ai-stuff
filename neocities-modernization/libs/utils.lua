@@ -475,14 +475,17 @@ end
 -- ~45 min to recompute), via embeddings_dir_disk(). CACHE_IN_RAM is the SINGLE
 -- place the location is decided.
 --
--- Flipped TRUE (2026-06-23): every live-pipeline cache-path site is now routed
--- through embeddings_dir() / embeddings_dir_disk() (the 10-054 centralization is
--- committed), so readers and writers agree on one location. With this true, the
--- movable caches land under tmp/cache/... and regenerate from RAM each boot,
--- while diversity stays on disk. The regeneration about to run is the validation.
--- (Until the routing was done this was FALSE: flipping early would have desynced
--- readers from writers of the same cache -- a silent "missing" -> surprise regen.)
-local CACHE_IN_RAM = true
+-- Reverted to FALSE (2026-06-23): a full regeneration with this TRUE proved the
+-- centralization is NOT complete. embeddings.json and color_embeddings.json are
+-- still WRITTEN to disk by their generators, while the readers (augment, the
+-- word-color step) now look in RAM -- exactly the reader/writer desync this
+-- switch was warned never to enable early. Symptoms: augment crashed
+-- ("missing embeddings.json"), word colors were skipped ("no color embeddings").
+-- The 10-054 audit grepped for the literal asset_path("embeddings/ and so missed
+-- writers that build the path into a variable first (e.g. similarity-engine.lua).
+-- Keep this FALSE until EVERY writer of a movable cache is routed through
+-- embeddings_dir() and a clean full run validates it. See Issue 10-054.
+local CACHE_IN_RAM = false
 local function safe_model(model_name)
     if not model_name then
         model_name = require("inference-server-config").get_selected_model()
