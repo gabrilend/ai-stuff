@@ -297,6 +297,7 @@ local function page_shell(title, sidebar, content)
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
 <a class="site-link" href="/similar-different/wordcloud.html">&#8617;&#160;back to the poetry site</a>
 <div class="tree">%s</div>
+<a class="output-link" href="/similar-different/wordcloud.html#poem-index">output/&#160;&#8594;&#160;every generated page</a>
 </nav>
 <main id="main">%s</main>
 </div>
@@ -504,6 +505,9 @@ a:hover{color:var(--gold);}
    block that carries white-space:pre to keep its own indentation. */
 .code{margin:0; font-size:13px; tab-size:4; line-height:1.6; display:block; overflow-x:auto;}
 .cl{white-space:pre; display:block;}
+/* an issue number inside a comment, linked to its page (Issue 10-055, Feature D) */
+.issue-ref{color:var(--gold-soft); border-bottom:1px dotted var(--gold-soft); font-style:normal;}
+.issue-ref:hover{color:var(--gold); border-bottom-color:var(--gold);}
 .ln{
   color:var(--rule); user-select:none; display:inline-block;
   min-width:3.4rem; padding-right:1.4rem; text-align:right; font-variant-numeric:tabular-nums;
@@ -521,6 +525,13 @@ img{max-width:100%; height:auto; border:1px solid var(--rule); border-radius:2px
   font-family:'Fraunces',Georgia,serif; font-style:italic; font-size:.92rem;
 }
 #side .site-link:hover{color:var(--gold);}
+/* output/ is not a real tree branch (it is git-ignored, ~23k pages); it is a
+   single deep link to the live site's poem index, where every page is reachable. */
+#side .output-link{
+  display:block; margin:.9rem 0 0; padding:.5rem .6rem; color:var(--paper-dim);
+  border:1px dashed var(--rule); border-radius:3px; font-size:.82rem; letter-spacing:.02em;
+}
+#side .output-link:hover{color:var(--gold); border-color:var(--gold-soft);}
 
 /* ---- code folds (Issue 10-055): vimfold regions as no-JS <details> ---- */
 /* Inside the code <pre>: the marker line is the clickable summary; its body
@@ -603,6 +614,40 @@ local function classify_file(rel)
 end
 -- }}}
 
+-- {{{ build_issue_index()
+-- Issue 10-055 (Feature D): map each published issue's NUMBER to its page path,
+-- so a comment that mentions "Issue 10-036" can link to it. The number is the
+-- filename's leading token (10-036, 9-005b, 002...). The file may live in
+-- issues/ or issues/completed/ or a phase subdir, so it is looked up here, never
+-- hard-coded.
+local function build_issue_index(rels)
+    local index = {}
+    for _, rel in ipairs(rels) do
+        if rel:match("^issues/") and rel:match("%.md$") then
+            local base = rel:match("([^/]+)$")
+            local num = base:match("^(%d+%-%d+%l?)") or base:match("^(%d+%l?)")
+            if num then index[num] = rel end
+        end
+    end
+    return index
+end
+-- }}}
+
+-- {{{ linkify_issues()
+-- Turn "Issue 10-036" mentions in already-rendered (escaped) comment HTML into
+-- links to that issue's page. Only the number is linked, and only when it
+-- resolves to a published issue -- an unknown number stays plain text, so we
+-- never emit a dead link. `prefix` climbs from the current page to output/source/.
+local function linkify_issues(html, index, prefix)
+    return (html:gsub("(Issues?%s+)(%d+%-?%d*%l?)", function(lead, num)
+        local rel = index[num]
+        if not rel then return lead .. num end
+        return string.format('%s<a class="issue-ref" href="%s%s.html">%s</a>',
+            lead, prefix, rel, num)
+    end))
+end
+-- }}}
+
 local function main()
     local all_files, skipped = list_published_files()
     local out_root = DIR .. "/output/source"
@@ -626,6 +671,7 @@ local function main()
     local rels = {}
     for _, f in ipairs(renderable) do rels[#rels + 1] = f.rel end
     local tree = build_tree(rels)
+    local issue_index = build_issue_index(rels)  -- Feature D: comment -> issue links
     local written, images, write_failed = 0, 0, {}
 
     -- Pass 2 -- render each renderable file by its kind.
@@ -648,6 +694,8 @@ local function main()
                 content = render_markdown_page(rel, body)
             else
                 content = render_text_page(rel, body, LANGS[f.lang_id or "text"])
+                -- Feature D: comments here mention issues; link them to their pages.
+                content = linkify_issues(content, issue_index, prefix)
             end
         end
 

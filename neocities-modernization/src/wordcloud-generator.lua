@@ -308,10 +308,14 @@ local function generate_poem_index(poems_data)
     end)
 
     -- Generate index HTML - simplified format with multiple IDs per line
+    -- Issue 10-055 (Feature G): the #poem-index anchor lets the source browser's
+    -- "output/" entry deep-link straight to this list, so every generated output
+    -- page is reachable from one place without the browser having to enumerate
+    -- the tens of thousands of similar/different/chronological pages itself.
     local index_parts = {}
     table.insert(index_parts, [[
 <hr>
-<h2>Poem Index</h2>
+<h2 id="poem-index">Poem Index</h2>
 <p>Click any poem ID to jump to its chronological position</p>
 <table align="center"><tr><td>
 <pre>
