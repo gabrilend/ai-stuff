@@ -68,10 +68,16 @@ local embedding_models = {
 
 -- {{{ local function get_model_storage_path
 local function get_model_storage_path(base_dir, model_name)
-    -- Sanitize model name for filesystem
-    local safe_model_name = model_name:gsub("[^%w%-_.]", "_")
-    local model_dir = base_dir .. "/embeddings/" .. safe_model_name
-    
+    -- Issue 10-054: the model's cache dir comes from embeddings_dir() so it
+    -- follows the RAM/disk switch -- this function is the EMBEDDING GENERATOR's
+    -- write path (similarity-engine.lua is the embedder behind generate-
+    -- embeddings.sh, not just legacy matrix code), so leaving it on disk is what
+    -- made the flip write embeddings where no reader looked. base_dir is now
+    -- ignored (kept in the signature for callers that still pass get_assets_root);
+    -- embeddings_dir builds the same <root>/embeddings/<safe_model> path and is
+    -- identical to the old base_dir/embeddings/<safe_model> while the switch is off.
+    local model_dir = utils.embeddings_dir(model_name)
+
     -- Create directory if it doesn't exist
     os.execute("mkdir -p " .. model_dir)
     

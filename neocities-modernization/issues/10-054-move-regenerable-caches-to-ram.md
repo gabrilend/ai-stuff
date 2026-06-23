@@ -121,13 +121,21 @@ there is exactly one place that decides each cache's location.
   - **Lua:** `similarity-engine-parallel.lua` (similarities dir + the embeddings
     reads, automated and interactive) and the manual `run-similarity-calculation`
     routed through `embeddings_dir()`.
-  - **Left intentionally (not on the automated path / different source):**
-    `similarity-engine.lua` (non-parallel, dry-run-only legacy),
-    `centroid-generator.lua` (keys off `CONFIG.model_storage_name`, a different
-    model-name source; `centroids.json` is small), the run.sh `log_info` DISPLAY
-    strings (cosmetic — they will print the disk-style path even when RAM is used),
-    and the asset-root caches (`image-catalog.json`, `validation-report.json`,
-    deferred). None block the flip.
+  - **Correction after the first re-flip run:** `similarity-engine.lua` was NOT
+    legacy — it is the actual EMBEDDING GENERATOR behind `generate-embeddings.sh`
+    (the "Processing batch" output). Its `get_model_storage_path` still wrote to
+    disk, so with the switch on it wrote embeddings where no reader looked: the
+    embedder reported success, `generate-embeddings.sh`'s `[ -f "$EMBEDDINGS_FILE" ]`
+    check (resolver → RAM) failed → "GENERATION FAILED", and every later stage
+    found nothing. Routed `get_model_storage_path` through `embeddings_dir()` (one
+    line; all its derived paths follow). `centroid-generator.lua` routed too (its
+    `CONFIG.model_storage_name` is the sanitized selected model, so it is
+    equivalent). Audit lesson reinforced: liveness must be traced through EVERY
+    caller, never inferred from a single dry-run log line.
+  - **Left intentionally:** the run.sh `log_info` DISPLAY strings (cosmetic — they
+    print the disk-style path even in RAM mode), and the asset-root caches
+    (`image-catalog.json`, `validation-report.json`, deferred). Neither blocks the
+    flip.
   - **To re-flip:** set `CACHE_IN_RAM = true` and run a full pipeline. This is the
     validation step the author runs (the assistant cannot run the pipeline).
 - **Orphan cleanup — N/A while reverted.** With `CACHE_IN_RAM = false` the

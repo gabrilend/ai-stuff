@@ -316,10 +316,12 @@ function M.generate_all_centroids(options)
 
     utils.log_info(string.format("\nGeneration complete: %d succeeded, %d failed", success_count, error_count))
 
-    -- Determine output path
-    -- Use model_storage_name to match existing directory structure
-    local assets_root = utils.get_assets_root()
-    local output_dir = assets_root .. "/embeddings/" .. CONFIG.model_storage_name
+    -- Determine output path.
+    -- Issue 10-054: route through embeddings_dir() so centroids follow the
+    -- RAM/disk switch like every other movable cache. Equivalent to the old
+    -- assets_root/embeddings/<model_storage_name> while the switch is off (same
+    -- selected model, same sanitization).
+    local output_dir = utils.embeddings_dir()
     os.execute("mkdir -p " .. output_dir)
 
     local output_file = output_dir .. "/centroids.json"
