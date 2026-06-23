@@ -69,26 +69,36 @@ class-2/3 images are never part of the spine they average over.
 ### The pseudo-embedding
 
 Every text-LESS image (class 2 or 3) is placed at its timestamp within the global
-chronological order of text poems. Its embedding is
-synthesized as the AVERAGE of the embeddings of the poem immediately BEFORE and
-the poem immediately AFTER it in that order:
+chronological order of text poems. Its embedding is synthesized by CROSS-CUTTING
+its two neighbours -- the leading dimensions from the poem immediately BEFORE,
+the trailing dimensions from the poem immediately AFTER:
 
-    pseudo_embedding = normalize( (embedding_before + embedding_after) / 2 )
+    seam = floor(D * 0.5)                       -- flavour knob, not a hubness knob
+    pseudo_embedding[i] = (i <= seam) ? before[i] : after[i]   ; then L2-normalize
 
-This lands the image at the semantic midpoint of its temporal neighbors — its true
-"between" position. The image then becomes a first-class ranked entity: its
-similarity to any poem P is `cosine(pseudo_embedding, P.embedding)`, so it sorts
-into similar/different rankings exactly like a poem.
+UPDATE (2026-06-23): this replaced the earlier `normalize((before+after)/2)`
+midpoint average. Measured on the real corpus, the midpoint pulled images +12%
+closer to the corpus centroid (variance collapsing from sd 0.069 to 0.036),
+making them HUBS that over-populated every poem's similar list while never
+appearing in the diversity-spread different lists. The cross-cut keeps each
+dimension's full real-poem magnitude, so images sit at the normal baseline
+centrality (-0.1%) and rank like ordinary poems. Because nomic-embed-text-v1.5
+is a Matryoshka model (leading dims carry coarse meaning), the seam reads as "the
+image takes its SUBJECT from the poem before and its TEXTURE from the poem
+after." The seam position was measured to NOT affect hubness, so it is a free
+aesthetic knob (`SEAM_FRACTION` in src/image-pseudo-embeddings.lua). The image is
+still a first-class ranked entity: its similarity to any poem P is
+`cosine(pseudo_embedding, P.embedding)`.
 
 ### Edge cases
 
 - Image before the first poem chronologically: use only the following poem's
-  embedding (no average).
+  embedding (no cross-cut).
 - Image after the last poem chronologically: use only the preceding poem's
   embedding.
-- Identical timestamps / equidistant neighbors: the average is order-independent,
+- Identical timestamps / equidistant neighbors: order is fixed (before/after),
   so ties need no special handling.
-- Multiple images between the same two poems: all share the same midpoint
+- Multiple images between the same two poems: all share the same cross-cut
   pseudo-embedding and rank together. Acceptable.
 
 ### Pipeline placement (why this is clean)

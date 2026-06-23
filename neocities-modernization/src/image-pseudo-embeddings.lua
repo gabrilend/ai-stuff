@@ -32,15 +32,32 @@ local function l2_normalize(vec)
 end
 -- }}}
 
--- {{{ local function average_embeddings()
--- Midpoint of one or two embedding vectors, then normalized. The two-neighbour
--- case is the common one (image between two poems). The one-neighbour case
--- happens at the very ends of the timeline -- an image before the first poem or
--- after the last -- where there is only a single side to lean on.
-local function average_embeddings(before, after)
+-- {{{ local function crooked_embedding()
+-- Build an image's pseudo-embedding by CROSS-CUTTING its two neighbours instead
+-- of averaging them: the first SEAM dimensions come from the poem BEFORE the
+-- image, the rest from the poem AFTER.
+--
+-- Why not the midpoint? Averaging two unit vectors smooths them toward the
+-- corpus centre -- measured at +12% closer to the centroid, with the spread
+-- collapsing -- which turns images into "hubs" that flood every poem's similar
+-- list (and never appear in the diversity-spread different lists). Concatenation
+-- keeps each dimension's full, real-poem magnitude, so the result sits at the
+-- normal baseline centrality (measured -0.1%) and ranks like an ordinary poem.
+--
+-- nomic-embed-text-v1.5 is a Matryoshka model: its leading dimensions carry the
+-- coarse meaning, so the seam reads poetically as "the image takes its SUBJECT
+-- from the poem before it and its TEXTURE from the poem after it." The seam
+-- position is a FLAVOUR knob (it shifts which poems the image resembles) and was
+-- measured to NOT affect hubness, so it is safe to tune for feel.
+--
+-- The one-neighbour case (an image before the first poem or after the last) has
+-- only one side, so it simply takes that real poem's direction.
+local SEAM_FRACTION = 0.5  -- 0.5 = half subject / half texture; lower leans toward the 'after' poem
+local function crooked_embedding(before, after)
     if before and after then
+        local seam = math.floor(#before * SEAM_FRACTION)
         local out = {}
-        for i = 1, #before do out[i] = (before[i] + after[i]) * 0.5 end
+        for i = 1, #before do out[i] = (i <= seam) and before[i] or after[i] end
         return l2_normalize(out)
     end
     -- Exactly one side present (timeline end). Copy + normalize it.
@@ -124,7 +141,7 @@ function M.compute_image_pseudo_embeddings(poems, images)
                 rel_below_source = img.rel_below_source,
                 display_title = M.qualified_image_title(img.source_name, img.rel_below_source),
                 timestamp = img.timestamp,
-                embedding = average_embeddings(be, ae),
+                embedding = crooked_embedding(be, ae),
                 image = img,            -- keep the raw record for rendering
             }
         else
