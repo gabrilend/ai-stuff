@@ -568,9 +568,10 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
 
     -- Issue 10-033: Check that pre-computed caches exist (these are what actually get used)
     -- The similarity_matrix.json and embeddings.json are NOT loaded anymore - saves 739MB RAM
-    local embeddings_dir = utils.embeddings_dir()
-    local diversity_cache_file = embeddings_dir .. "/diversity_cache.json"
-    local similarity_cache_file = embeddings_dir .. "/similarity_rankings_cache.json"
+    -- Issue 10-054: diversity stays on disk (embeddings_dir_disk); the similarity
+    -- ranking cache is movable (embeddings_dir, RAM once the switch is flipped).
+    local diversity_cache_file = utils.embeddings_dir_disk() .. "/diversity_cache.json"
+    local similarity_cache_file = utils.embeddings_dir() .. "/similarity_rankings_cache.json"
 
     if not utils.file_exists(diversity_cache_file) then
         utils.log_error("Diversity cache not found. Run: ./run.sh --generate-diversity")

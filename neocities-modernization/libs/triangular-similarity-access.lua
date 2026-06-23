@@ -33,10 +33,8 @@ function M.get_similarity(poem_a, poem_b, embeddings_dir)
     embeddings_dir = embeddings_dir or require("inference-server-config").get_selected_model():gsub("[^%w%-_.]", "_")
 
     -- Build file path for the smaller ID
-    local file_path = string.format(
-        "assets/embeddings/%s/similarities/poem_%d.json",
-        embeddings_dir, min_id
-    )
+    -- Issue 10-054: similarity files are movable (embeddings_dir, RAM).
+    local file_path = utils.similarities_dir(embeddings_dir) .. string.format("/poem_%d.json", min_id)
 
     -- Load file (with caching disabled for thread safety)
     local file_data = utils.read_json_file(file_path)
@@ -79,10 +77,7 @@ function M.get_similarity_cached(poem_a, poem_b, embeddings_dir)
         -- Cache miss - load file
         cache_misses = cache_misses + 1
 
-        local file_path = string.format(
-            "assets/embeddings/%s/similarities/poem_%d.json",
-            embeddings_dir, min_id
-        )
+        local file_path = utils.similarities_dir(embeddings_dir) .. string.format("/poem_%d.json", min_id)
 
         file_cache[cache_key] = utils.read_json_file(file_path)
 
@@ -130,10 +125,7 @@ function M.get_all_similarities_for_poem(poem_id, all_poem_ids, embeddings_dir)
     local similarities = {}
 
     -- 1. Load this poem's file (contains similarities to higher IDs)
-    local my_file_path = string.format(
-        "assets/embeddings/%s/similarities/poem_%d.json",
-        embeddings_dir, poem_id
-    )
+    local my_file_path = utils.similarities_dir(embeddings_dir) .. string.format("/poem_%d.json", poem_id)
 
     local my_file = utils.read_json_file(my_file_path)
     if my_file and my_file.similarities then
@@ -149,10 +141,7 @@ function M.get_all_similarities_for_poem(poem_id, all_poem_ids, embeddings_dir)
     for _, other_id in ipairs(all_poem_ids) do
         other_id = tonumber(other_id)
         if other_id < poem_id then
-            local their_file_path = string.format(
-                "assets/embeddings/%s/similarities/poem_%d.json",
-                embeddings_dir, other_id
-            )
+            local their_file_path = utils.similarities_dir(embeddings_dir) .. string.format("/poem_%d.json", other_id)
 
             local their_file = utils.read_json_file(their_file_path)
             if their_file and their_file.similarities then

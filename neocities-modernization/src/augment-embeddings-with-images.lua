@@ -29,6 +29,7 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local pseudo = require("image-pseudo-embeddings")
+local utils = require("utils")  -- Issue 10-054: central cache-location functions
 -- }}}
 
 local M = {}
@@ -225,7 +226,7 @@ end
 local function main()
     local model = os.getenv("MODEL_NAME") or "nomic-embed-text-v1.5"
     local model_dir = model:gsub(":", "_")
-    local edir = DIR .. "/assets/embeddings/" .. model_dir
+    local edir = utils.embeddings_dir(model)  -- Issue 10-054: movable (embeddings.json, manifest)
     local emb_path = edir .. "/embeddings.json"
     local manifest_path = edir .. "/image-manifest.json"
 
