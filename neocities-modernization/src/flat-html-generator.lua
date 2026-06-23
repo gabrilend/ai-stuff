@@ -915,6 +915,10 @@ M.compute_chronological_mapping = compute_chronological_mapping
 -- config key is somehow missing that is a broken config we want to hear about,
 -- not paper over with a silent default that would mis-paginate every poem link.
 function M.default_chrono_per_page()
+    -- Pull config.lua's pagination overrides into PAGINATION_CONFIG first, so the
+    -- default reflects the CONFIG FILE (where --chrono-per-page's default lives),
+    -- not the bare source-table placeholder. Idempotent; safe to call anywhere.
+    load_pagination_config()
     local value = PAGINATION_CONFIG.chronological_poems_per_page
     if not value then
         error("config is missing chronological_poems_per_page; chronological "
