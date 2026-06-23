@@ -149,8 +149,9 @@ Pagination (HTML Generation):
   --chrono-per-page N Poems per page for chronological (default: 500)
 
 Word Cloud:
-  --wordcloud-all     Include all words (ignore max_words limit)
-  --wordcloud-words N Number of words in word cloud (default: 200)
+  --wordcloud-words N Number of words in word cloud (default: 200);
+                      pass "all" (--wordcloud-words all) for every word
+  --wordcloud-all     Alias for --wordcloud-words all
   --wordcloud-poems N Poems per word-cloud page (default: 50)
 
 Extraction Options:
@@ -225,6 +226,8 @@ GENERATE_INDEX=false
 
 # Config flags
 THREADS=""
+# Boost-inclusion override forwarded to extraction (empty = use config default)
+BOOSTS_ARG=""
 FORCE=false
 # Issue 10-016: Per-stage force flags
 FORCE_STAGE_1=false
@@ -369,6 +372,17 @@ while [[ $# -gt 0 ]]; do
             CPU_ONLY=true
             shift
             ;;
+        # Boost inclusion (reshared posts). These override config.privacy.
+        # include_boosts and are forwarded to the extraction step. Only take
+        # effect on a (re)parse, since they change what poems.json contains.
+        --no-boosts|--exclude-boosts)
+            BOOSTS_ARG="--no-boosts"
+            shift
+            ;;
+        --include-boosts)
+            BOOSTS_ARG="--include-boosts"
+            shift
+            ;;
         # --debug: persist logs to output/ (survives the reboot a hard GPU
         # lock forces). Handled after DIR is resolved, below.
         --debug)
@@ -413,9 +427,11 @@ while [[ $# -gt 0 ]]; do
             CHRONO_PER_PAGE="${1#*=}"
             shift
             ;;
-        # Issue 8-043: Word cloud configuration
+        # Issue 8-043: Word cloud configuration.
+        # --wordcloud-all is now just shorthand for --wordcloud-words all; both
+        # routes set WORDCLOUD_WORDS so there is a single source of truth.
         --wordcloud-all)
-            WORDCLOUD_ALL=true
+            WORDCLOUD_WORDS="all"
             shift
             ;;
         --wordcloud-words)
@@ -648,6 +664,11 @@ if $DEBUG; then
     LOG_DIR="$DIR/output/debug-logs"
     mkdir -p "$LOG_DIR"
     export NEOCITIES_LOG_DIR="$LOG_DIR"
+    # The Vulkan C library reads VKC_DEBUG to switch its progress bars from the
+    # animated single-line "\r" form to verbose, newline-terminated lines --
+    # the right shape when stdout is the fsync-logger pipe below and we want a
+    # durable, per-line history of a possibly-freezing run.
+    export VKC_DEBUG=1
     # Don't reroute stdout through a pipe in interactive mode: the TUI checks
     # isatty() and a pipe would break its rendering. The child-script file
     # logs still land in LOG_DIR via the exported env var above.
@@ -802,11 +823,11 @@ run_parse() {
     fi
 
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --parse-only $force_arg $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua $DIR --parse-only $force_arg $BOOSTS_ARG $ASSETS_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --parse-only $force_arg $ASSETS_ARG || {
+    luajit src/main.lua "$DIR" --parse-only $force_arg $BOOSTS_ARG $ASSETS_ARG || {
         echo "Error: Poem parsing failed" >&2
         exit 1
     }
@@ -1068,6 +1089,31 @@ run_generate_semantic_colors() {
         end
     " || {
         echo "Error: Semantic color generation failed" >&2
+        exit 1
+    }
+}
+# }}}
+
+# {{{ run_augment_images
+# Issue 9-013: give every text-less image a pseudo-embedding (the normalized
+# average of the poem before and after it chronologically) and fold those into
+# embeddings.json so the GPU similarity stage ranks images alongside poems.
+# Also writes image-manifest.json, which the HTML renderer reads to draw image
+# entries. Cheap and idempotent, so it runs each time before the matrix build.
+run_augment_images() {
+    log_stage "🖼️  Stage 6.7: Folding images into the embedding set (pseudo-embeddings)"
+    local model_dir_name="${MODEL_NAME//:/_}"
+    local embeddings_file="$DIR/assets/embeddings/$model_dir_name/embeddings.json"
+    if [ ! -f "$embeddings_file" ]; then
+        echo "Error: embeddings.json not found; run --generate-embeddings first" >&2
+        exit 1
+    fi
+    if $DRY_RUN; then
+        log_dry_run "luajit $DIR/src/augment-embeddings-with-images.lua $DIR"
+        return 0
+    fi
+    MODEL_NAME="$MODEL_NAME" $NICE_PREFIX luajit "$DIR/src/augment-embeddings-with-images.lua" "$DIR" || {
+        echo "Error: image augmentation failed" >&2
         exit 1
     }
 }
@@ -1373,6 +1419,7 @@ run_generate_html() {
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
         log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg"
         log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg"
+        log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
         return 0
     fi
 
@@ -1391,6 +1438,16 @@ run_generate_html() {
     log_info "   Generating word similarity pages..."
     $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
+    }
+
+    # Issue 10-052: Build the link-only source browser (code/issues/docs as HTML)
+    # under output/source/. This is the "git push that builds a webpage" -- the
+    # private monorepo never leaves the machine; whoever has the site link can
+    # browse the source. It publishes an ALLOWLIST only (never the private input
+    # corpus), so it is safe to ship with the rest of the site.
+    log_info "   Generating source browser..."
+    $NICE_PREFIX luajit "$DIR/src/generate-source-browser.lua" "$DIR" || {
+        echo "Warning: Source browser generation failed, continuing..." >&2
     }
 }
 # }}}
@@ -1800,6 +1857,9 @@ $GENERATE_EMBEDDINGS && run_generate_embeddings
 $GENERATE_EMBEDDINGS && run_generate_semantic_colors
 # Word embeddings run AFTER colors so the word-color step finds color_embeddings.json
 $GENERATE_EMBEDDINGS && run_generate_word_embeddings
+# Issue 9-013: fold image pseudo-embeddings into the set BEFORE the similarity
+# matrix is built, so images rank alongside poems. Idempotent + cheap.
+$GENERATE_SIMILARITY && run_augment_images
 $GENERATE_SIMILARITY && run_generate_similarity
 $GENERATE_DIVERSITY && run_generate_diversity
 $GENERATE_HTML && run_generate_html

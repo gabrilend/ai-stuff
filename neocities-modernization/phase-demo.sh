@@ -260,7 +260,7 @@ run_phase_demo() {
                 echo "   • Poem extraction pipeline operational"
                 echo "   • Validation framework implemented"
                 echo "   • EmbeddingGemma integration complete"
-                echo "   • Ollama service configured"
+                echo "   • inference server configured"
             fi
             ;;
         2)
