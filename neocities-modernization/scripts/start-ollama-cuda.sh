@@ -37,7 +37,7 @@ export OLLAMA_HOST="192.168.0.115:10265"
 echo "Environment configured:"
 echo "• CUDA_HOME: $CUDA_HOME"
 echo "• OLLAMA_HOST: $OLLAMA_HOST"
-echo "• Binary path: ${OLLAMA_BIN}/ollama"
+echo "• Binary path: ${OLLAMA_BIN}/ollama-run"
 echo ""
 
 # Check if Ollama is already running on port 10265
@@ -48,11 +48,11 @@ if curl -s --max-time 2 "http://${OLLAMA_HOST}/api/tags" > /dev/null 2>&1; then
 fi
 
 echo "Starting Ollama service..."
-echo "Command: OLLAMA_HOST=${OLLAMA_HOST} ${OLLAMA_BIN}/ollama serve"
+echo "Command: OLLAMA_HOST=${OLLAMA_HOST} ${OLLAMA_BIN}/ollama-run serve"
 echo ""
 
 # Start Ollama service with CUDA support
-OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama" serve > "${OLLAMA_LOG}" 2>&1 &
+OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama-run" serve > "${OLLAMA_LOG}" 2>&1 &
 OLLAMA_PID=$!
 
 echo "Ollama started with PID: $OLLAMA_PID"
@@ -62,7 +62,7 @@ sleep 5
 # Verify the service started successfully
 if curl -s --max-time 5 "http://${OLLAMA_HOST}/api/tags" > /dev/null 2>&1; then
     echo "✅ Ollama CUDA service started successfully on ${OLLAMA_HOST}"
-    echo "✅ Version: $(OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama" --version 2>&1 | grep -o 'client version is [0-9.]*' || echo 'CUDA-compiled version')"
+    echo "✅ Version: $(OLLAMA_HOST="${OLLAMA_HOST}" "${OLLAMA_BIN}/ollama-run" --version 2>&1 | grep -o 'client version is [0-9.]*' || echo 'CUDA-compiled version')"
     echo ""
     echo "🔧 Service management:"
     echo "• Logs: tail -f ${OLLAMA_LOG}"

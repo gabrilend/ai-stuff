@@ -1,21 +1,24 @@
--- {{{ ollama-config.lua
--- Issue 10-017: Ollama server configuration loader.
--- Reads server definitions from config.lua and provides API for server selection.
+-- {{{ inference-server-config.lua
+-- Issue 10-049: Inference-server configuration loader (originally written for
+-- Ollama under 10-017; renamed and reframed for llama.cpp). Reads server
+-- definitions from config.lua and provides an API for server selection. The
+-- public surface intentionally stays close to the pre-migration shape so
+-- existing call sites in the rest of the codebase keep their structure.
 --
 -- Usage:
---   local ollama = require("ollama-config")
---   ollama.set_project_root("/path/to/project")  -- Required before other calls
+--   local inference = require("inference-server-config")
+--   inference.set_project_root("/path/to/project")  -- Required before other calls
 --
 --   -- Get servers
---   local servers = ollama.get_servers()
---   local server = ollama.get_server_by_name("gpu-server")
---   local default = ollama.get_default_server()
+--   local servers = inference.get_servers()
+--   local server = inference.get_server_by_name("gpu-server")
+--   local default = inference.get_default_server()
 --
 --   -- Build URL
---   local url = ollama.build_host_url(server)  -- "http://192.168.0.115:10265"
+--   local url = inference.build_host_url(server)  -- "http://192.168.0.115:10265"
 --
 --   -- Validate connection
---   local ok, msg = ollama.validate_server(server)
+--   local ok, msg = inference.validate_server(server)
 -- }}}
 
 local M = {}
@@ -33,7 +36,7 @@ local selected_model = nil   -- CLI override
 -- what the project IS, not how the operator happens to be running it today.
 --
 -- The library applies a consistent policy whenever user input fails to
--- resolve against a configured set of options (a typo in --ollama, an
+-- resolve against a configured set of options (a typo in --server, an
 -- unrecognized --model, a missing default that points at a nonexistent
 -- entry, etc.): non-interactive callers hard-error immediately so the
 -- mistake is impossible to miss; interactive callers prompt the user to
@@ -84,7 +87,7 @@ end
 -- }}}
 
 -- {{{ local function prompt_for_server_fallback
--- Interactive recovery for "--ollama=<name> did not resolve."
+-- Interactive recovery for "--server=<name> did not resolve."
 -- Shows the configured default server and asks whether to use it or abort.
 -- Prompts go to stderr so callers that capture stdout still surface them
 -- (though callers that capture stdout should not enable interactive mode
@@ -93,16 +96,16 @@ end
 -- not re-prompt the operator.
 local function prompt_for_server_fallback(bad_name)
     local cfg = load_config()
-    local default_name = cfg.default_ollama_server
+    local default_name = cfg.default_inference_server
     local default_server = default_name and M.get_server_by_name(default_name) or nil
 
     io.stderr:write(string.format(
-        "\n[!] Ollama server '%s' was not found in config.lua's ollama_servers.\n", bad_name))
+        "\n[!] Inference server '%s' was not found in config.lua's inference_servers.\n", bad_name))
 
     if not default_server then
-        io.stderr:write("    No usable default_ollama_server is configured to fall back to.\n")
+        io.stderr:write("    No usable default_inference_server is configured to fall back to.\n")
         error(string.format(
-            "ollama-config: --ollama=%s did not resolve and no default is available.", bad_name))
+            "inference-server-config: --server=%s did not resolve and no default is available.", bad_name))
     end
 
     io.stderr:write("\nThe configured default is:\n")
@@ -121,7 +124,7 @@ local function prompt_for_server_fallback(bad_name)
     end
 
     error(string.format(
-        "ollama-config: aborted by user — '%s' did not resolve and user chose to exit.", bad_name))
+        "inference-server-config: aborted by user — '%s' did not resolve and user chose to exit.", bad_name))
 end
 -- }}}
 
@@ -135,24 +138,26 @@ end
 -- }}}
 
 -- {{{ get_servers
--- Get all configured Ollama servers
+-- Get all configured Inference servers
 -- Returns array of server objects, or default fallback if none configured
 function M.get_servers()
     local cfg = load_config()
-    local servers = cfg.ollama_servers
+    local servers = cfg.inference_servers
 
     if servers and #servers > 0 then
         return servers
     end
 
-    -- Fallback default if no servers configured
+    -- Fallback default if no servers configured. host:port matches the
+    -- operator's LAN-accessible llama.cpp box (192.168.1.100:10265) so a
+    -- bare-config run still resolves to the right endpoint.
     return {
         {
             name = "local",
-            description = "Local Ollama instance (fallback)",
-            host = "localhost",
-            port = 11434,
-            model = "nomic-embed-text"
+            description = "Local llama.cpp instance (fallback)",
+            host = "192.168.1.100",
+            port = 10265,
+            model = "nomic-embed-text-v1.5"
         }
     }
 end
@@ -175,14 +180,14 @@ end
 -- }}}
 
 -- {{{ get_default_server
--- Resolve the configured default Ollama server.
+-- Resolve the configured default Inference server.
 --
 -- This is the "must work" path: callers that need an endpoint to make a
--- request rely on this. It errors loudly if either default_ollama_server
--- is not set, or the named server does not exist in ollama_servers.
+-- request rely on this. It errors loudly if either default_inference_server
+-- is not set, or the named server does not exist in inference_servers.
 --
 -- A silent fallback to servers[1] used to live here. It was removed because
--- it masked config drift: if default_ollama_server was renamed without
+-- it masked config drift: if default_inference_server was renamed without
 -- updating its referent, every consumer in the pipeline would silently
 -- start talking to whatever server happened to be first in the list,
 -- producing wrong results without any error message. Loud failure now
@@ -191,17 +196,17 @@ end
 function M.get_default_server()
     local cfg = load_config()
 
-    if not cfg.default_ollama_server then
-        error("ollama-config: config.lua does not set default_ollama_server. "
-            .. "Set it to one of the names in ollama_servers, or pass --ollama=<name> on the CLI.")
+    if not cfg.default_inference_server then
+        error("inference-server-config: config.lua does not set default_inference_server. "
+            .. "Set it to one of the names in inference_servers, or pass --server=<name> on the CLI.")
     end
 
-    local server = M.get_server_by_name(cfg.default_ollama_server)
+    local server = M.get_server_by_name(cfg.default_inference_server)
     if not server then
         error(string.format(
-            "ollama-config: default_ollama_server is '%s' but no entry with that name exists in ollama_servers. "
-            .. "Fix the name in config.lua, or add a matching ollama_servers entry.",
-            cfg.default_ollama_server))
+            "inference-server-config: default_inference_server is '%s' but no entry with that name exists in inference_servers. "
+            .. "Fix the name in config.lua, or add a matching inference_servers entry.",
+            cfg.default_inference_server))
     end
 
     return server
@@ -212,18 +217,18 @@ end
 -- Resolve the currently selected server.
 --
 -- Resolution order:
---   1. If --ollama=<name> was passed via set_selected_server, look it up
---      in ollama_servers.
+--   1. If --server=<name> was passed via set_selected_server, look it up
+--      in inference_servers.
 --      - If the name resolves, return that server.
 --      - If the name does not resolve:
 --          interactive: prompt the user to choose default or exit.
 --          non-interactive: hard-error with a message that names the
---          offending --ollama=<name> and points at the fix.
---   2. If no --ollama was passed, delegate to get_default_server, which
+--          offending --server=<name> and points at the fix.
+--   2. If no --server was passed, delegate to get_default_server, which
 --      either returns a resolved default or errors loudly if the default
 --      itself is missing or unresolvable.
 --
--- This function deliberately never falls back silently. A typoed --ollama
+-- This function deliberately never falls back silently. A typoed --server
 -- used to print a stderr warning and continue against the default, which
 -- meant a busy operator could miss the warning in the log stream and
 -- spend hours of pipeline time talking to the wrong endpoint.
@@ -239,8 +244,8 @@ function M.get_selected_server()
         end
 
         error(string.format(
-            "ollama-config: --ollama=%s does not match any entry in ollama_servers (config.lua).\n"
-            .. "Fix the name on the CLI, add a matching entry to ollama_servers, "
+            "inference-server-config: --server=%s does not match any entry in inference_servers (config.lua).\n"
+            .. "Fix the name on the CLI, add a matching entry to inference_servers, "
             .. "or pass -I to enable interactive selection.",
             selected_server))
     end
@@ -250,34 +255,34 @@ end
 -- }}}
 
 -- {{{ set_selected_server
--- Set the selected server name (from CLI --ollama flag)
+-- Set the selected server name (from CLI --server flag)
 function M.set_selected_server(name)
     selected_server = name
 end
 -- }}}
 
 -- {{{ get_selected_model
--- Resolve the model to send to Ollama for the currently selected server.
+-- Resolve the model identifier to send to the inference server.
 --
 -- The library does not validate --model=<name> against any local list.
--- Ollama is the source of truth for "what models are installed on this
--- host" — the config can only ever guess. If the operator passes a
--- --model that the resolved server does not have, Ollama returns a
--- "model not found" error and the pipeline halts there. We deliberately
--- do not want two layers both claiming to be authoritative about model
--- existence; that produces drift bugs where the config lists models that
--- are no longer installed, or omits models that are.
+-- The inference server is the source of truth for "what model is loaded"
+-- — the config can only ever guess. If the operator passes a --model
+-- that the server does not have, the server returns a "model not found"
+-- error and the pipeline halts there. We deliberately do not want two
+-- layers both claiming to be authoritative about model existence; that
+-- produces drift bugs where the config lists models that are no longer
+-- installed, or omits models that are.
 --
--- The available_models field on each ollama_servers entry is still
--- useful documentation for operators (and for list_servers' --list-ollama
+-- The available_models field on each inference_servers entry is still
+-- useful documentation for operators (and for list_servers' --list-servers
 -- output), it is just not consulted here as a gate.
 --
 -- Resolution order:
 --   1. Resolve the server (delegates to get_selected_server, which errors
---      or prompts if --ollama=<name> did not resolve).
+--      or prompts if --server=<name> did not resolve).
 --   2. If --model=<name> was passed, return it verbatim.
 --   3. Otherwise return server.model. If that field is missing in the
---      ollama_servers entry, hard-error — config.lua is still the source
+--      inference_servers entry, hard-error — config.lua is still the source
 --      of truth for "what model do we use by default on this host."
 function M.get_selected_model()
     local server = M.get_selected_server()
@@ -288,7 +293,7 @@ function M.get_selected_model()
 
     if not server.model then
         error(string.format(
-            "ollama-config: server '%s' has no 'model' field in config.lua's ollama_servers entry. "
+            "inference-server-config: server '%s' has no 'model' field in config.lua's inference_servers entry. "
             .. "Add a model = \"<name>\" field to that entry, or pass --model=<name> on the CLI.",
             server.name))
     end
@@ -318,13 +323,13 @@ function M.build_host_url(server)
     local name = server.name or "(unnamed server)"
     if not server.host then
         error(string.format(
-            "ollama-config: server '%s' has no 'host' field in config.lua. "
-            .. "Add a host = \"<hostname-or-ip>\" field to that ollama_servers entry.", name))
+            "inference-server-config: server '%s' has no 'host' field in config.lua. "
+            .. "Add a host = \"<hostname-or-ip>\" field to that inference_servers entry.", name))
     end
     if not server.port then
         error(string.format(
-            "ollama-config: server '%s' has no 'port' field in config.lua. "
-            .. "Add a port = <number> field to that ollama_servers entry.", name))
+            "inference-server-config: server '%s' has no 'port' field in config.lua. "
+            .. "Add a port = <number> field to that inference_servers entry.", name))
     end
 
     return string.format("http://%s:%d", server.host, server.port)
@@ -339,7 +344,10 @@ function M.validate_server(server)
         server = M.get_selected_server()
     end
 
-    local url = M.build_host_url(server) .. "/api/tags"
+    -- /v1/models is llama.cpp's OpenAI-compatible "what's loaded" endpoint.
+    -- Was /api/tags under Ollama; migrated in 10-049 along with the rest
+    -- of the API surface.
+    local url = M.build_host_url(server) .. "/v1/models"
     local cmd = string.format("curl -s -o /dev/null -w '%%{http_code}' --max-time 3 '%s' 2>/dev/null", url)
 
     local handle = io.popen(cmd)
@@ -360,17 +368,17 @@ end
 
 -- {{{ list_servers
 -- Print a formatted list of available servers.
--- Reads default_ollama_server directly rather than calling get_default_server
--- so that --list-ollama works even when no default is configured (or is
+-- Reads default_inference_server directly rather than calling get_default_server
+-- so that --list-servers works even when no default is configured (or is
 -- misconfigured). The purpose of this function is diagnostic, not
 -- request-issuing — it must not error when the user is trying to inspect
 -- their config.
 function M.list_servers()
     local cfg = load_config()
     local servers = M.get_servers()
-    local default_name = cfg.default_ollama_server  -- may be nil; that's fine here
+    local default_name = cfg.default_inference_server  -- may be nil; that's fine here
 
-    print("Available Ollama servers:")
+    print("Available Inference servers:")
     print(string.rep("-", 70))
 
     for _, server in ipairs(servers) do
