@@ -809,6 +809,23 @@ run_extract() {
 }
 # }}}
 
+# {{{ run_strip_excluded
+# Issue 10-053: After sync/extraction, remove excluded images + note source files
+# from input/ so they are never cataloged, embedded, rendered, or uploaded. Runs
+# before image cataloging. A failure here is non-fatal (the build continues), but
+# the script logs exactly what it stripped.
+run_strip_excluded() {
+    log_stage "🧹 Stripping excluded content from input/"
+    if $DRY_RUN; then
+        log_dry_run "lua $DIR/scripts/strip-excluded $DIR"
+        return 0
+    fi
+    lua "$DIR/scripts/strip-excluded" "$DIR" || {
+        echo "Warning: strip-excluded failed, continuing..." >&2
+    }
+}
+# }}}
+
 # {{{ run_parse
 run_parse() {
     log_stage "📝 Stage 3/10: Parsing poems from JSON sources"
@@ -1857,6 +1874,9 @@ fi
 # Execute stages in pipeline order (regardless of argument order)
 $UPDATE_WORDS && run_update_words
 $EXTRACT && run_extract
+# Issue 10-053: strip excluded content from input/ right after sync/extraction,
+# before anything catalogs or embeds it. Tied to extraction (which follows sync).
+$EXTRACT && run_strip_excluded
 $PARSE && run_parse
 $VALIDATE && run_validate
 $CATALOG_IMAGES && run_catalog_images
