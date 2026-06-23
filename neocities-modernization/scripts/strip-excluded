@@ -1,0 +1,96 @@
+#!/usr/bin/env lua
+
+-- strip-excluded
+-- Issue 10-053: Remove excluded content from input/ so it never uploads.
+--
+-- WHAT IT DOES (for a CEO): the site is hosted by uploading the input/ folder
+-- (the HTML points at the images there). Some content -- a regretted image, a
+-- note -- should not ship. This deletes exactly those files from input/ after
+-- the sync, leaving the originals untouched in their home folders. It runs every
+-- build, so a re-synced file is stripped again; it never deletes anything it
+-- was not told to.
+--
+-- HOW: reads config.lua. For excluded_images it deletes each listed file. For
+-- excluded_poems.notes it deletes the note's source file (the extractor already
+-- keeps the note OUT of the generated poems, but leaves the source on disk).
+-- The other text sources (fediverse/messages/bluesky) need no stripping: the
+-- exclusion filter drops them during extraction so they never reach the
+-- per-source poems.json, and their raw archives are gitignored and not uploaded.
+--
+-- Deletion uses Lua's os.remove (a direct file op, not a shelled-out rm).
+--
+-- Usage:
+--   lua scripts/strip-excluded [DIR]
+
+-- {{{ setup_dir_path
+local function setup_dir_path(provided_dir)
+    if provided_dir and provided_dir ~= "" then
+        return provided_dir
+    end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+local DIR = setup_dir_path(arg[1])
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local config = config_loader.load()
+
+-- {{{ file_exists
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then f:close(); return true end
+    return false
+end
+-- }}}
+
+-- {{{ strip_one  -- delete a single path under DIR; returns "removed"/"absent"
+local function strip_one(rel)
+    local abs = DIR .. "/" .. rel
+    if not file_exists(abs) then return "absent" end
+    local ok, err = os.remove(abs)
+    if not ok then
+        print(string.format("[strip-excluded] WARNING: could not remove %s (%s)", rel, tostring(err)))
+        return "error"
+    end
+    return "removed"
+end
+-- }}}
+
+-- {{{ main
+local removed, absent = 0, 0
+local function account(result, rel)
+    if result == "removed" then
+        removed = removed + 1
+        print("[strip-excluded] removed: " .. rel)
+    elseif result == "absent" then
+        absent = absent + 1
+    end
+end
+
+-- 1. Excluded images: relative paths under the project root.
+for _, rel in ipairs(config.excluded_images or {}) do
+    account(strip_one(rel), rel)
+end
+
+-- 2. Excluded notes: each note's source file is input/notes/<id> (no extension).
+--    The extractor tombstones the content; we delete the leftover source.
+local excluded_poems = config.excluded_poems or {}
+for _, note_id in ipairs(excluded_poems.notes or {}) do
+    account(strip_one("input/notes/" .. note_id), "input/notes/" .. note_id)
+end
+
+-- 3. fediverse / messages / bluesky: nothing to strip here. The exclusion filter
+--    removes them during extraction (so the per-source poems.json never contains
+--    them) and their raw archives are gitignored, so they do not upload. We note
+--    the count for transparency.
+local combined = 0
+for _, cat in ipairs({ "fediverse", "messages", "bluesky" }) do
+    for _ in ipairs(excluded_poems[cat] or {}) do combined = combined + 1 end
+end
+
+print(string.format(
+    "[strip-excluded] %d removed, %d already absent | %d combined-source exclusions handled at extraction",
+    removed, absent, combined))
+-- }}}
