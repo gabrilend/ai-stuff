@@ -943,7 +943,19 @@ function M.generate_word_html(options)
         -- tiebreaker and a 500/page default, so it disagreed with the actual
         -- chronological pagination (timestamp sort + original-index tiebreaker +
         -- config page size) -> links jumped to the wrong page and never scrolled.
-        local per_page = flat_html.default_chrono_per_page()
+        -- The page size must come from what the chronological stage RECORDED, not
+        -- the config default: a runtime --chrono-per-page override is invisible to
+        -- this separate process, and guessing it wrong is exactly what broke the
+        -- links. Absent marker -> warn (never a silent fallback).
+        local per_page = flat_html.read_chrono_per_page(output_dir)
+        if not per_page then
+            per_page = flat_html.default_chrono_per_page()
+            io.stderr:write(string.format(
+                "WARNING: no chronological page-size marker found; word-page "
+                .. "links assume %d/page and may point at the wrong page. "
+                .. "Regenerate the chronological pages to record the real size.\n",
+                per_page))
+        end
         local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
         local total_poems = 0
         for poem_index, info in pairs(mapping) do
