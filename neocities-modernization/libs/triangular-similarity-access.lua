@@ -17,7 +17,7 @@ local cache_misses = 0
 -- {{{ function M.get_similarity
 -- @param poem_a: first poem ID
 -- @param poem_b: second poem ID
--- @param embeddings_dir: optional directory path (default: derived from the currently selected ollama model via ollama-config)
+-- @param embeddings_dir: optional directory path (default: derived from the currently selected inference model via inference-server-config)
 -- @return similarity score (0.0 to 1.0)
 function M.get_similarity(poem_a, poem_b, embeddings_dir)
     -- Handle self-similarity
@@ -30,7 +30,7 @@ function M.get_similarity(poem_a, poem_b, embeddings_dir)
     local max_id = math.max(tonumber(poem_a), tonumber(poem_b))
 
     -- Default embeddings directory
-    embeddings_dir = embeddings_dir or require("ollama-config").get_selected_model():gsub("[^%w%-_.]", "_")
+    embeddings_dir = embeddings_dir or require("inference-server-config").get_selected_model():gsub("[^%w%-_.]", "_")
 
     -- Build file path for the smaller ID
     local file_path = string.format(
@@ -70,7 +70,7 @@ function M.get_similarity_cached(poem_a, poem_b, embeddings_dir)
     local min_id = math.min(tonumber(poem_a), tonumber(poem_b))
     local max_id = math.max(tonumber(poem_a), tonumber(poem_b))
 
-    embeddings_dir = embeddings_dir or require("ollama-config").get_selected_model():gsub("[^%w%-_.]", "_")
+    embeddings_dir = embeddings_dir or require("inference-server-config").get_selected_model():gsub("[^%w%-_.]", "_")
 
     -- Check cache first
     local cache_key = string.format("%s:%d", embeddings_dir, min_id)
@@ -125,7 +125,7 @@ end
 -- @return array of {id, similarity} sorted by similarity (descending)
 function M.get_all_similarities_for_poem(poem_id, all_poem_ids, embeddings_dir)
     poem_id = tonumber(poem_id)
-    embeddings_dir = embeddings_dir or require("ollama-config").get_selected_model():gsub("[^%w%-_.]", "_")
+    embeddings_dir = embeddings_dir or require("inference-server-config").get_selected_model():gsub("[^%w%-_.]", "_")
 
     local similarities = {}
 

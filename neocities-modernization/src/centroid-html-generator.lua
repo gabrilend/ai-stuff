@@ -23,14 +23,14 @@ local DIR = setup_dir_path()
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
 
 -- Helper: directory name (sanitized) for the currently selected model.
 -- Used as the default for the two functions below that take an optional
 -- model_name. Was hardcoded to "embeddinggemma_latest"; now follows the
 -- active model so a config swap propagates automatically.
 local function current_model_dir()
-    return ollama_config.get_selected_model():gsub("[^%w%-_.]", "_")
+    return inference_config.get_selected_model():gsub("[^%w%-_.]", "_")
 end
 
 local M = {}
