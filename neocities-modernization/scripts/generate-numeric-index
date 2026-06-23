@@ -4,7 +4,7 @@
 -- Generates a dense, CTRL+F-searchable block of numbered links (0001-7791)
 -- pointing to similar/XXX.html pages. Output is an HTML fragment for insertion
 -- into index.html. Each row contains LINKS_PER_ROW links in monospace format.
--- Also generates a full test page in temp/ for browser preview.
+-- Also generates a full test page in tmp/ for browser preview.
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -19,7 +19,10 @@ local DIR = setup_dir_path(arg[1])
 
 -- Configuration
 local LINKS_PER_ROW = 15
-local TEST_PAGE_PATH = DIR .. "/temp/numeric-index-test.html"
+-- Bugfix: was "/temp/" which never exists, so every run printed "Could not
+-- write Test page" (swallowed under the success banner). Ephemeral previews
+-- belong in the project's tmp/ RAM symlink, which the run scripts ensure exists.
+local TEST_PAGE_PATH = DIR .. "/tmp/numeric-index-test.html"
 local BUILD_OUTPUT_PATH = DIR .. "/output/numeric-index.html"
 
 -- Add libs to package path
