@@ -89,11 +89,36 @@ local chrono_page = chrono_info and string.format("%02d", chrono_info.page_numbe
 
 This preserves backwards compatibility for test code while ensuring production paths work correctly.
 
+## Follow-up: page-size must be shared, not just the mapping function
+
+The fix above shared the mapping *function* so the sort order matched, but each
+generator still chose its OWN page-size divisor: the chronological pages honor a
+runtime `--chrono-per-page` override, while the wordcloud/word-page generators
+(separate luajit processes) read only the compiled-in config default. When the
+two differ (e.g. pages built at 88/page but consumers assuming 500/page), every
+`#poem` link lands on the wrong page again — `ceil(position / size)` produces a
+different page number for the same poem. "One mapping, one answer" only holds
+when both the function AND its page-size argument match.
+
+Correct design: the chronological stage RECORDS the page size it actually used
+to a hidden marker beside the pages (`output/chronological/.poems-per-page`), and
+the wordcloud + word-page generators READ that marker instead of guessing from
+config. A missing marker now WARNS (never a silent fallback). This turns two
+independent guesses into one recorded fact, surviving runtime overrides and
+standalone invocation alike.
+
+Relevant functions: `compute_chronological_mapping`, `write_chrono_per_page` /
+`read_chrono_per_page` (flat-html-generator); the `generate_poem_index`
+(wordcloud-generator) and word-page chrono-map builder (generate-word-pages)
+consumers.
+
 ## Related Issues
 
 - Issue 8-050e: Original chronological page mapping implementation
 - Issue 8-039: Chronological pagination (created the redirect issue)
 - Issue 10-034: Lazy loading orchestrator (parallel worker architecture)
+- Issue 10-052: Self-hosted source browser (the per-page marker lives beside its
+  chronological pages, outside that browser's tree)
 
 ## Status
 
