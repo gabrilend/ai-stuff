@@ -23,9 +23,14 @@ This is a standalone script, not a `require`d module — run it; it writes files
   code/doc files. The private `input/` corpus (your messages and unposted poems)
   and `llm-transcripts/` are **held back by default** and the exclusion is logged.
   Widen `INCLUDE_DIRS` in the script to publish more.
-- Text files render as syntax-highlighted, line-numbered pages (line numbers are
-  `#L<n>` anchors for deep links). Images render inline. Other binaries are
-  counted and skipped (logged).
+- Code files render as syntax-highlighted, line-numbered pages (line numbers are
+  `#L<n>` anchors for deep links). **Markdown** files (`.md`, `.info.md`, and
+  extensionless prose like the vision doc) render as formatted HTML via
+  `libs/markdown.lua` — headings, tables, lists, code, links. Images render
+  inline. Genuine binaries are counted and skipped (logged).
+- Files are classified in a first pass and the tree is built from only the files
+  that actually get a page, so the table of contents can never link a page that
+  was not written (this fixed the extensionless-file 404, e.g. `notes/vision`).
 
 ## Output
 
@@ -42,9 +47,26 @@ string / number / keyword coloring with cross-line block-comment tracking; other
 text types render plain with line numbers. It is intentionally approximate (no
 full grammar) — readable, not a compiler.
 
-## Known limitations / deferred (see Issue 10-052)
+## Code folds (Issue 10-055)
 
-- Issue-number cross-linking and `.info.md` ↔ source links are not yet wired.
+The project brackets every function with vimfold markers (`-- {{{ name` …
+`-- }}}`). Those markers are turned into clickable `<details>` blocks — collapse
+and expand a region with the mouse, with **no JavaScript** (the same mechanism
+the sidebar tree uses). Folds default open so the page reads straight through and
+deep links to a line still resolve; a marker is only honored inside a comment, so
+braces in code are never mistaken for folds; unbalanced markers are closed
+defensively so the HTML cannot break.
+
+## Back to the site
+
+Every page links back to the live poetry menu (`/similar-different/wordcloud.html`)
+so a reader can return from "the source" to "the work."
+
+## Known limitations / deferred (see Issues 10-052, 10-055)
+
+- Issue-number cross-linking, the dash-aligned linked table of contents,
+  saved-webpage out-links, and showing `output/` as live-site links are the
+  remaining 10-055 features (not yet implemented).
 - Non-image binaries are skipped rather than linked (the raw bytes are not
   copied into `output/source/`).
 - The sidebar embeds the whole tree on every page; fine at the current scale.

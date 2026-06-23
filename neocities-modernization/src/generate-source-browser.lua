@@ -42,6 +42,9 @@ end
 local DIR = setup_dir_path(parse_args(arg))
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
+-- Issue 10-055: render Markdown (.md, .info.md, and extensionless prose like the
+-- vision doc) as formatted HTML instead of flat text.
+local markdown = require("markdown")
 
 -- {{{ Configuration
 -- ALLOWLIST: only files under these top-level directories are published. This
@@ -292,6 +295,7 @@ local function page_shell(title, sidebar, content)
 <div id="wrap">
 <nav id="side">
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
+<a class="site-link" href="/similar-different/wordcloud.html">&#8617;&#160;back to the poetry site</a>
 <div class="tree">%s</div>
 </nav>
 <main id="main">%s</main>
@@ -309,24 +313,79 @@ local function relpath_prefix(rel)
 end
 -- }}}
 
--- {{{ render_text_page()
--- A code/text file: numbered, highlighted lines (gutter line numbers double as
--- #L<n> anchors for deep links).
-local function render_text_page(rel, body, lang)
-    local rows, state, lineno = {}, { in_block = false }, 0
-    for line in (body .. "\n"):gmatch("(.-)\n") do
-        lineno = lineno + 1
-        local hl; hl, state = highlight_line(line, lang, state)
-        rows[#rows + 1] = string.format(
-            '<span class="ln" id="L%d">%d</span>%s', lineno, lineno, hl)
-    end
-    -- Split the path so the directory dims and the filename stands out.
+-- {{{ page_header()
+-- The "<dir>name" title + rule shared by every content page. Split so the
+-- directory dims and the filename stands out. `meta` is an optional subtitle
+-- (e.g. "240 lines"); omit it for rendered prose where a line count is noise.
+local function page_header(rel, meta)
     local dir, name = rel:match("^(.*/)([^/]+)$")
     if not name then dir, name = "", rel end
-    local header = string.format(
-        '<h1><span class="dir">%s</span>%s</h1><p class="meta">%d lines</p><div class="rule"></div>',
-        escape_html(dir), escape_html(name), lineno)
-    return header .. '<pre>' .. table.concat(rows, "\n") .. "</pre>"
+    local meta_html = meta and string.format('<p class="meta">%s</p>', meta) or ""
+    return string.format('<h1><span class="dir">%s</span>%s</h1>%s<div class="rule"></div>',
+        escape_html(dir), escape_html(name), meta_html)
+end
+-- }}}
+
+-- {{{ fold_marker_kind()
+-- Issue 10-055: the project brackets every function with vimfold markers
+-- (`-- {{{ name` ... `-- }}}`, per CLAUDE.md). Those markers ARE the fold
+-- boundaries. We only treat a line as a fold marker when the language has a
+-- line-comment AND the marker sits in that comment, so a stray { in code can
+-- never be mistaken for a fold. Returns "open", "close", or nil.
+local function fold_marker_kind(line, lang)
+    local cprefix = lang and lang.line
+    if not cprefix then return nil end
+    local p = "^%s*" .. cprefix:gsub("(%W)", "%%%1") .. "%s*"
+    if line:match(p .. "{{{") then return "open" end
+    if line:match(p .. "}}}") then return "close" end
+    return nil
+end
+-- }}}
+
+-- {{{ render_text_page()
+-- A code/text file: numbered, highlighted lines (gutter line numbers double as
+-- #L<n> anchors for deep links). Issue 10-055: vimfold regions become clickable
+-- <details> blocks -- mouse-driven folds with no JavaScript, the same mechanism
+-- the sidebar uses. Folds default OPEN so the page reads top-to-bottom (and so a
+-- deep link to a line inside a fold still resolves) until the reader collapses
+-- one. Unbalanced markers are closed defensively so the HTML never breaks.
+local function render_text_page(rel, body, lang)
+    local raw = {}
+    for line in (body .. "\n"):gmatch("(.-)\n") do raw[#raw + 1] = line end
+
+    local state, parts, depth = { in_block = false }, {}, 0
+    for n = 1, #raw do
+        local line = raw[n]
+        local hl; hl, state = highlight_line(line, lang, state)
+        local row = string.format('<span class="ln" id="L%d">%d</span>%s', n, n, hl)
+        local kind = fold_marker_kind(line, lang)
+        if kind == "open" then
+            -- This marker line is the clickable summary; the region's body lines
+            -- become the <details> content that collapses under it.
+            parts[#parts + 1] = '<details class="fold" open><summary>' .. row .. '</summary>'
+            depth = depth + 1
+        elseif kind == "close" and depth > 0 then
+            -- Show the closing marker line, then end the region.
+            parts[#parts + 1] = row .. '</details>'
+            depth = depth - 1
+        else
+            parts[#parts + 1] = row
+        end
+    end
+    while depth > 0 do parts[#parts + 1] = '</details>'; depth = depth - 1 end
+
+    return page_header(rel, string.format("%d lines", #raw))
+        .. '<pre>' .. table.concat(parts, "\n") .. "</pre>"
+end
+-- }}}
+
+-- {{{ render_markdown_page()
+-- Issue 10-055: a Markdown file rendered as formatted HTML (headings, tables,
+-- lists, code, links) rather than numbered plain text. Used for .md / .info.md
+-- and for extensionless prose (the vision doc). The renderer escapes all text,
+-- so untrusted markup cannot inject tags.
+local function render_markdown_page(rel, body)
+    return page_header(rel) .. '<div class="md">' .. markdown.render(body) .. "</div>"
 end
 -- }}}
 
@@ -445,6 +504,42 @@ pre{margin:0; white-space:pre; font-size:13px; tab-size:4; line-height:1.6;}
 .c-nu{color:var(--coral);}
 img{max-width:100%; height:auto; border:1px solid var(--rule); border-radius:2px;}
 
+/* ---- back-to-site link (Issue 10-055) ---- */
+#side .site-link{
+  display:block; margin:-.4rem 0 1rem; padding:.2rem 0; color:var(--paper-dim);
+  font-family:'Fraunces',Georgia,serif; font-style:italic; font-size:.92rem;
+}
+#side .site-link:hover{color:var(--gold);}
+
+/* ---- code folds (Issue 10-055): vimfold regions as no-JS <details> ---- */
+/* Inside the code <pre>: the marker line is the clickable summary; its body
+   lines collapse under it. Default open so the page reads straight through. */
+.fold{display:block;}
+.fold>summary{cursor:pointer; list-style:none;}
+.fold>summary::-webkit-details-marker{display:none;}
+.fold>summary .ln{position:relative;}
+/* a small triangle in the gutter margin so it reads as a fold handle */
+.fold>summary::before{content:"\25BE"; color:var(--gold-soft); margin-right:.25rem;}
+.fold:not([open])>summary::before{content:"\25B8"; color:var(--paper-faint);}
+.fold:not([open])>summary{color:var(--paper-dim);}
+
+/* ---- rendered markdown (Issue 10-055) ---- */
+.md{max-width:80ch; line-height:1.72;}
+.md h1,.md h2,.md h3,.md h4{font-family:'Fraunces',Georgia,serif; color:var(--gold); line-height:1.2; margin:1.7rem 0 .6rem;}
+.md h1{font-size:1.9rem;} .md h2{font-size:1.45rem;} .md h3{font-size:1.18rem;} .md h4{font-size:1rem;}
+.md p{margin:0 0 1rem;}
+.md ul,.md ol{margin:0 0 1rem 1.5rem;}
+.md li{margin:.25rem 0;}
+.md code{font-family:'JetBrains Mono',monospace; background:var(--ink-2); padding:.1rem .32rem; border-radius:3px; color:var(--gold-soft); font-size:.92em;}
+.md pre{background:var(--ink-2); padding:1rem 1.1rem; border-radius:4px; overflow-x:auto; margin:0 0 1rem; border:1px solid var(--rule);}
+.md pre code{background:none; padding:0; color:var(--paper); font-size:13px;}
+.md blockquote{border-left:3px solid var(--gold-soft); margin:0 0 1rem; padding:.2rem 0 .2rem 1rem; color:var(--paper-dim); font-style:italic;}
+.md table{border-collapse:collapse; margin:0 0 1.2rem;}
+.md th,.md td{border:1px solid var(--rule); padding:.4rem .85rem; text-align:left; vertical-align:top;}
+.md th{background:var(--ink-2); color:var(--gold-soft); font-weight:600;}
+.md hr{border:0; border-top:1px solid var(--rule); margin:1.7rem 0;}
+.md a{color:var(--blue);} .md a:hover{color:var(--gold);}
+
 /* welcome / index */
 .welcome{max-width:62ch;}
 .welcome h1{
@@ -472,17 +567,59 @@ end
 -- }}}
 
 -- {{{ main()
+-- {{{ classify_file()
+-- Decide how a published path renders: "md" (formatted markdown), "code"
+-- (numbered + highlighted source), "image", or "skip" (a binary -- listed
+-- nowhere, so it can never become a dead link). Issue 10-055: extensionless
+-- tracked files (e.g. notes/vision) used to fall through to "skip" while the
+-- sidebar still linked them -> a guaranteed 404; now an extensionless TEXT file
+-- renders as prose and only a genuine binary is skipped. Returns (kind, lang_id).
+local function classify_file(rel)
+    local e, lang_id = ext(rel)
+    if lang_id == "md" or TEXT_EXTS[e] == "md" then
+        return "md"
+    elseif lang_id or TEXT_EXTS[e] then
+        return "code", lang_id
+    elseif IMAGE_EXTS[e] then
+        return "image"
+    elseif e == "" then
+        -- No extension: prose unless the bytes say binary (a NUL is the giveaway).
+        local body = utils.read_file(DIR .. "/" .. rel)
+        if body and not body:find("\0", 1, true) then return "md" end
+        return "skip"
+    end
+    return "skip"
+end
+-- }}}
+
 local function main()
-    local files, skipped = list_published_files()
+    local all_files, skipped = list_published_files()
     local out_root = DIR .. "/output/source"
     ensure_dir(out_root)
     write_style_file(out_root)
 
-    local tree = build_tree(files)
-    local written, images, skipped_files, write_failed = 0, 0, 0, {}
+    -- Pass 1 -- classify. Build the renderable list (and therefore the tree) from
+    -- ONLY files that will actually get a page, so the table of contents can never
+    -- link a page we did not write (the old extensionless-file 404). Genuine
+    -- binaries are counted for the report but kept out of the tree entirely.
+    local renderable, skipped_files = {}, 0
+    for _, rel in ipairs(all_files) do
+        local kind, lang_id = classify_file(rel)
+        if kind == "skip" then
+            skipped_files = skipped_files + 1
+        else
+            renderable[#renderable + 1] = { rel = rel, kind = kind, lang_id = lang_id }
+        end
+    end
 
-    for _, rel in ipairs(files) do
-        local e, lang_id = ext(rel)
+    local rels = {}
+    for _, f in ipairs(renderable) do rels[#rels + 1] = f.rel end
+    local tree = build_tree(rels)
+    local written, images, write_failed = 0, 0, {}
+
+    -- Pass 2 -- render each renderable file by its kind.
+    for _, f in ipairs(renderable) do
+        local rel = f.rel
         -- Build the set of directory names on the path to this file, so the
         -- sidebar opens them.
         local path_set = {}
@@ -491,17 +628,16 @@ local function main()
         local sidebar = render_sidebar(tree, rel, prefix, path_set)
 
         local content
-        if lang_id or TEXT_EXTS[e] then
+        if f.kind == "image" then
+            content = render_image_page(rel)
+        else
             local body = utils.read_file(DIR .. "/" .. rel)
             if not body then skipped_files = skipped_files + 1; goto continue end
-            content = render_text_page(rel, body, LANGS[lang_id or "text"])
-            written = written + 1
-        elseif IMAGE_EXTS[e] then
-            content = render_image_page(rel)
-            images = images + 1
-        else
-            skipped_files = skipped_files + 1
-            goto continue
+            if f.kind == "md" then
+                content = render_markdown_page(rel, body)
+            else
+                content = render_text_page(rel, body, LANGS[f.lang_id or "text"])
+            end
         end
 
         local page = page_shell(rel, sidebar, content):gsub("%%LINKPREFIX%%", prefix)
@@ -511,7 +647,10 @@ local function main()
         -- means a path with characters io.open/mkdir choke on (spaces, quotes).
         if not utils.write_file(out_file, page) then
             write_failed[#write_failed + 1] = rel
-            if lang_id or TEXT_EXTS[e] then written = written - 1 else images = images - 1 end
+        elseif f.kind == "image" then
+            images = images + 1
+        else
+            written = written + 1
         end
         ::continue::
     end
