@@ -1419,6 +1419,7 @@ run_generate_html() {
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
         log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg"
         log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg"
+        log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
         return 0
     fi
@@ -1438,6 +1439,14 @@ run_generate_html() {
     log_info "   Generating word similarity pages..."
     $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
+    }
+
+    # Issue 10-042: Build the image gallery (masonry pages per source + index +
+    # chronological). It was previously a separate manual step, so the gallery
+    # went stale -- it now regenerates with every HTML run from image-catalog.json.
+    log_info "   Generating image gallery..."
+    $NICE_PREFIX luajit "$DIR/src/generate-gallery-pages.lua" "$DIR" || {
+        echo "Warning: Gallery generation failed, continuing..." >&2
     }
 
     # Issue 10-052: Build the link-only source browser (code/issues/docs as HTML)

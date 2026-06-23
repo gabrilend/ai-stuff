@@ -93,7 +93,8 @@ local SOURCE_TITLES = {
 -- Grid layout
 local COLUMNS = 4
 local THUMBNAIL_WIDTH = 200
-local MASONRY_GAP = 18   -- px between images (the ~15-20px the gallery should breathe at)
+local MASONRY_GAP = 16   -- px between COLUMNS (horizontal)
+local MASONRY_VGAP = 8   -- px between stacked images WITHIN a column (vertical) -- tight pack
 -- }}}
 
 -- {{{ load_image_catalog
@@ -251,24 +252,29 @@ local function generate_gallery_grid(images)
     -- Cap the masonry to COLUMNS columns and center the whole block. column-width
     -- (not column-count) lets it gracefully drop to fewer columns on narrow
     -- screens while holding the thumbnail size.
+    -- Exactly COLUMNS columns (the user wants four, always). Each column is an
+    -- independent vertical stack: an item flows directly under the previous one
+    -- in its column, no row alignment -- that is what CSS multi-column does. The
+    -- container max-width keeps the columns near the thumbnail size and centers
+    -- the block. Items are display:block (not inline-block, which would add a
+    -- baseline gap) so they pack as close as MASONRY_VGAP allows.
     local container_max = (THUMBNAIL_WIDTH + MASONRY_GAP) * COLUMNS
     table.insert(html, string.format(
-        '<div style="column-width:%dpx; column-gap:%dpx; max-width:%dpx; ' ..
-        'margin:0 auto; text-align:center;">\n',
-        THUMBNAIL_WIDTH, MASONRY_GAP, container_max))
+        '<div style="column-count:%d; column-gap:%dpx; max-width:%dpx; margin:0 auto;">\n',
+        COLUMNS, MASONRY_GAP, container_max))
 
     for _, img in ipairs(images) do
         local rel_path = get_relative_image_path(img.file_path)
         local alt_text = extract_display_name(img.filename)
         table.insert(html, string.format(
-            '  <div style="display:inline-block; width:100%%; margin:0 0 %dpx; ' ..
+            '  <div style="display:block; margin:0 0 %dpx; text-align:center; ' ..
             'break-inside:avoid; -webkit-column-break-inside:avoid;">' ..
             '<a href="%s"><img src="%s" alt="%s" title="%s" loading="lazy" border="1" ' ..
             'style="width:100%%; height:auto; display:block;"></a>' ..
             '<font size="1"><span style="display:inline-block; max-width:%dpx; ' ..
             'word-wrap:break-word; overflow-wrap:break-word;">%s</span></font>' ..
             '</div>\n',
-            MASONRY_GAP, rel_path, rel_path, alt_text, alt_text,
+            MASONRY_VGAP, rel_path, rel_path, alt_text, alt_text,
             THUMBNAIL_WIDTH, caption_with_breaks(img.filename)
         ))
     end
