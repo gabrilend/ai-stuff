@@ -239,7 +239,7 @@ end
 -- Issue 6-031: Uses poem.id (not sequential index) to respect tombstones -
 --              excluded poems leave gaps in the ID sequence, they don't shift other IDs
 -- Issue 8-043c: Simplified format - just poem IDs, multiple per line
-local function generate_poem_index(poems_data)
+local function generate_poem_index(poems_data, output_dir)
     if not poems_data or not poems_data.poems then
         return ""
     end
@@ -252,7 +252,20 @@ local function generate_poem_index(poems_data)
     -- it disagreed and links jumped to the wrong page.
     local chrono_page_map = {}
     do
-        local per_page = flat_html.default_chrono_per_page()
+        -- Read the page size the chronological stage actually used (it can be a
+        -- runtime override the config default does not know about). Falling back
+        -- to the config default silently is what made these links point at the
+        -- wrong page, so when the marker is absent we WARN rather than guess
+        -- quietly -- the operator should regenerate the chronological pages.
+        local per_page = flat_html.read_chrono_per_page(output_dir)
+        if not per_page then
+            per_page = flat_html.default_chrono_per_page()
+            io.stderr:write(string.format(
+                "WARNING: no chronological page-size marker found; poem-index "
+                .. "links assume %d/page and may point at the wrong page. "
+                .. "Regenerate the chronological pages to record the real size.\n",
+                per_page))
+        end
         local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
         for poem_index, info in pairs(mapping) do
             chrono_page_map[poem_index] = string.format("%02d", info.page_number)
@@ -402,7 +415,9 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     end
 
     -- Generate poem index section (Issue 8-046)
-    local poem_index = generate_poem_index(poems_data)
+    -- Pass output_dir so the index can read the chronological stage's recorded
+    -- page size and link each poem ID to the page it truly lives on.
+    local poem_index = generate_poem_index(poems_data, output_dir)
 
     -- Generate HTML page
     -- Issue 16-010: Added font style for Hack Nerd Font font-stack
