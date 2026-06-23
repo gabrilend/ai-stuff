@@ -91,10 +91,19 @@ there is exactly one place that decides each cache's location.
     `embeddings_dir()` so they follow the caches.
   - A grep audit confirms NO movable-cache path in the live pipeline still
     hardcodes `assets/embeddings/` or `asset_path("embeddings/`.
-- **The flip:** set `CACHE_IN_RAM = true` in `libs/utils.lua` (one line) and run
-  the pipeline once to validate -- movables should land under `tmp/cache/...`,
-  diversity should stay in `assets/` and be reused, and clearing `tmp/` should
-  regenerate the movables without touching diversity.
+- **The flip — DONE (2026-06-23):** `CACHE_IN_RAM = true` in `libs/utils.lua`.
+  The next full regeneration is the validation: movables should land under
+  `tmp/cache/...`, diversity should stay in `assets/` and be reused (NOT
+  recomputed), and clearing `tmp/` should regenerate the movables without
+  touching diversity. Verified before the flip: the tmpfs target exists and a
+  writer's `mkdir -p` creates the RAM cache dirs through the `tmp` symlink.
+- **Orphan cleanup — pending, do AFTER validating the regen:** the old on-disk
+  movable caches (`assets/embeddings/<model>/embeddings.json` ~119 MB,
+  `similarities/` ~3.8 GB, plus the other movable JSONs) are now dead weight once
+  the regen rebuilds them in RAM. Delete ONLY those -- **keep
+  `diversity_cache.json`** (it is the on-disk-by-design exception). A blanket
+  delete of `assets/embeddings/<model>/` would destroy the expensive (~45 min)
+  diversity cache.
 - **Deferred (safe to leave; not on the live pipeline path):**
   - The validators (`pipeline-validator.lua`, `scripts/validate-pipeline-data`)
     are diagnostic-only (not run by `run.sh`/`main.lua`); after a flip they would

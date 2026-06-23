@@ -473,12 +473,16 @@ end
 -- Issue 10-054: movable, regenerable caches live in RAM (tmp/, a tmpfs symlink)
 -- to spare SSD write endurance; only diversity_cache.json stays on disk (it costs
 -- ~45 min to recompute), via embeddings_dir_disk(). CACHE_IN_RAM is the SINGLE
--- place the location is decided. It is intentionally FALSE until the ~12
--- scattered cache-path sites are all routed through these functions and a full
--- pipeline run validates that movables land in tmp/ and diversity stays on disk
--- (Issue 10-054). Flipping it before that routing is done would desync readers
--- from writers of the same cache -- a silent "cache missing" -> surprise regen.
-local CACHE_IN_RAM = false
+-- place the location is decided.
+--
+-- Flipped TRUE (2026-06-23): every live-pipeline cache-path site is now routed
+-- through embeddings_dir() / embeddings_dir_disk() (the 10-054 centralization is
+-- committed), so readers and writers agree on one location. With this true, the
+-- movable caches land under tmp/cache/... and regenerate from RAM each boot,
+-- while diversity stays on disk. The regeneration about to run is the validation.
+-- (Until the routing was done this was FALSE: flipping early would have desynced
+-- readers from writers of the same cache -- a silent "missing" -> surprise regen.)
+local CACHE_IN_RAM = true
 local function safe_model(model_name)
     if not model_name then
         model_name = require("inference-server-config").get_selected_model()
