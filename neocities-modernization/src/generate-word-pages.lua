@@ -37,6 +37,7 @@ local function parse_args(args)
     local all_words = false
     local max_words = nil  -- nil means use config default
     local poems_per_page = nil  -- Issue 8-050d: nil means use config default
+    local chrono_per_page = nil  -- nil means fall back to config (never a literal)
     local i = 1
 
     while i <= #(args or {}) do
@@ -68,6 +69,16 @@ local function parse_args(args)
         elseif a:match("^--poems%-per%-page=") then
             poems_per_page = tonumber(a:match("^--poems%-per%-page=(.+)$"))
             i = i + 1
+        -- Issue 10-036: chronological page size, threaded from run.sh so the
+        -- word-page "chronological" links paginate identically to the actual
+        -- chronological pages (this is a separate process from the one that
+        -- built them). nil means fall back to config, never to a literal.
+        elseif a == "--chrono-per-page" then
+            chrono_per_page = tonumber(args[i + 1])
+            i = i + 2
+        elseif a:match("^--chrono%-per%-page=") then
+            chrono_per_page = tonumber(a:match("^--chrono%-per%-page=(.+)$"))
+            i = i + 1
         elseif a:sub(1, 1) ~= "-" then
             dir = a
             i = i + 1
@@ -77,11 +88,11 @@ local function parse_args(args)
         end
     end
 
-    return dir, mode, all_words, max_words, poems_per_page
+    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page
 end
 -- }}}
 
-local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE = parse_args(arg)
+local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE = parse_args(arg)
 local DIR = setup_dir_path(parsed_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -123,6 +134,16 @@ end
 
 -- Issue 8-050d: Determine effective poems_per_page: CLI > config > default
 local effective_poems_per_page = CLI_POEMS_PER_PAGE or wc.poems_per_page or 50
+
+-- {{{ resolve_chrono_per_page()
+-- Chronological page size for the "chronological" poem links: the build's
+-- --chrono-per-page if given, else the config value (which hard-errors if the
+-- key is missing). No literal fallback -- a wrong size sends every link to the
+-- wrong page, so an absent value is an error, not a guess (Issue 10-036).
+local function resolve_chrono_per_page()
+    return CLI_CHRONO_PER_PAGE or flat_html.default_chrono_per_page()
+end
+-- }}}
 
 -- The model name lives in config.lua / --server / --model. Resolving it
 -- here through inference-server-config means a model swap propagates to this script
@@ -943,19 +964,11 @@ function M.generate_word_html(options)
         -- tiebreaker and a 500/page default, so it disagreed with the actual
         -- chronological pagination (timestamp sort + original-index tiebreaker +
         -- config page size) -> links jumped to the wrong page and never scrolled.
-        -- The page size must come from what the chronological stage RECORDED, not
-        -- the config default: a runtime --chrono-per-page override is invisible to
-        -- this separate process, and guessing it wrong is exactly what broke the
-        -- links. Absent marker -> warn (never a silent fallback).
-        local per_page = flat_html.read_chrono_per_page(output_dir)
-        if not per_page then
-            per_page = flat_html.default_chrono_per_page()
-            io.stderr:write(string.format(
-                "WARNING: no chronological page-size marker found; word-page "
-                .. "links assume %d/page and may point at the wrong page. "
-                .. "Regenerate the chronological pages to record the real size.\n",
-                per_page))
-        end
+        -- The page size comes from resolve_chrono_per_page() (the build's
+        -- --chrono-per-page, else config). It MUST match what the chronological
+        -- pages were built with; a wrong size is exactly what broke these links,
+        -- so an absent value hard-errors rather than guessing (Issue 10-036).
+        local per_page = resolve_chrono_per_page()
         local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
         local total_poems = 0
         for poem_index, info in pairs(mapping) do

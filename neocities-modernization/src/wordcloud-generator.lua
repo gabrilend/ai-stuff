@@ -28,6 +28,7 @@ local function parse_args(args)
     local dir = nil
     local all_words = false
     local max_words = nil  -- nil means use config default
+    local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
     local i = 1
     while i <= #(args or {}) do
         local a = args[i]
@@ -42,6 +43,14 @@ local function parse_args(args)
             local v = a:match("^--words=(.+)$")
             if v == "all" then all_words = true else max_words = tonumber(v) end
             i = i + 1
+        elseif a == "--chrono-per-page" then
+            -- The chronological page size the SAME build used, threaded from
+            -- run.sh so this separate process paginates poem links identically.
+            chrono_per_page = tonumber(args[i + 1])
+            i = i + 2
+        elseif a:match("^--chrono%-per%-page=") then
+            chrono_per_page = tonumber(a:match("=(.+)$"))
+            i = i + 1
         elseif not a:match("^%-") then
             -- Positional argument (DIR)
             dir = a
@@ -51,11 +60,11 @@ local function parse_args(args)
             i = i + 1
         end
     end
-    return dir, all_words, max_words
+    return dir, all_words, max_words, chrono_per_page
 end
 -- }}}
 
-local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS = parse_args(arg)
+local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE = parse_args(arg)
 local DIR = setup_dir_path(provided_dir)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
@@ -71,6 +80,18 @@ utils.init_assets_root(arg)
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
+
+-- {{{ resolve_chrono_per_page()
+-- The chronological page size used to map each poem ID to the page it lives on.
+-- Two legitimate sources, in order: the --chrono-per-page the build passed us,
+-- else the config value (default_chrono_per_page, which itself hard-errors if
+-- the config key is missing). There is deliberately no literal fallback -- a
+-- wrong size sends every poem link to the wrong page, so an absent value is an
+-- error, not a guess.
+local function resolve_chrono_per_page()
+    return CLI_CHRONO_PER_PAGE or flat_html.default_chrono_per_page()
+end
+-- }}}
 -- }}}
 
 local M = {}
@@ -239,7 +260,7 @@ end
 -- Issue 6-031: Uses poem.id (not sequential index) to respect tombstones -
 --              excluded poems leave gaps in the ID sequence, they don't shift other IDs
 -- Issue 8-043c: Simplified format - just poem IDs, multiple per line
-local function generate_poem_index(poems_data, output_dir)
+local function generate_poem_index(poems_data)
     if not poems_data or not poems_data.poems then
         return ""
     end
@@ -247,25 +268,12 @@ local function generate_poem_index(poems_data, output_dir)
     -- Issue 10-036: poem_index -> chronological page map so each index entry
     -- links to the correct paginated page (and anchor), not always page 1.
     -- Uses the chronological-page generator's OWN mapping (shared) so the page
-    -- numbers match exactly -- the old inline copy sorted by the raw
-    -- creation_date string with no tiebreaker and its own page-size default, so
-    -- it disagreed and links jumped to the wrong page.
+    -- numbers match exactly. The page SIZE comes from resolve_chrono_per_page()
+    -- (the build's --chrono-per-page, else config) -- guessing it wrong is what
+    -- sent links to the wrong page; an absent size is a hard error, not a guess.
     local chrono_page_map = {}
     do
-        -- Read the page size the chronological stage actually used (it can be a
-        -- runtime override the config default does not know about). Falling back
-        -- to the config default silently is what made these links point at the
-        -- wrong page, so when the marker is absent we WARN rather than guess
-        -- quietly -- the operator should regenerate the chronological pages.
-        local per_page = flat_html.read_chrono_per_page(output_dir)
-        if not per_page then
-            per_page = flat_html.default_chrono_per_page()
-            io.stderr:write(string.format(
-                "WARNING: no chronological page-size marker found; poem-index "
-                .. "links assume %d/page and may point at the wrong page. "
-                .. "Regenerate the chronological pages to record the real size.\n",
-                per_page))
-        end
+        local per_page = resolve_chrono_per_page()
         local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
         for poem_index, info in pairs(mapping) do
             chrono_page_map[poem_index] = string.format("%02d", info.page_number)
@@ -415,9 +423,7 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     end
 
     -- Generate poem index section (Issue 8-046)
-    -- Pass output_dir so the index can read the chronological stage's recorded
-    -- page size and link each poem ID to the page it truly lives on.
-    local poem_index = generate_poem_index(poems_data, output_dir)
+    local poem_index = generate_poem_index(poems_data)
 
     -- Generate HTML page
     -- Issue 16-010: Added font style for Hack Nerd Font font-stack
@@ -510,14 +516,17 @@ end
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
     if arg[1] == "--help" or arg[1] == "-h" then
-        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N]")
+        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N]")
         print("")
         print("Generates a word cloud HTML page from the poetry collection.")
         print("Words are sized by frequency, with stop words filtered out.")
         print("")
         print("Options:")
-        print("  DIR        Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
-        print("  --all      Include all words (no max_words limit)")
+        print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+        print("  --all                Include all words (no max_words limit)")
+        print("  --chrono-per-page N  Chronological page size; MUST match the value the")
+        print("                       chronological pages were built with, or poem links")
+        print("                       point at the wrong page. Defaults to the config value.")
         print("  --words N  Set maximum words to display (default: 200 from config)")
         print("  --help     Show this help message")
         os.exit(0)

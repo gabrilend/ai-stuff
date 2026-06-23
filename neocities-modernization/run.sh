@@ -1434,8 +1434,8 @@ run_generate_html() {
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg $chrono_per_page_arg"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg"
         log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
         return 0
@@ -1448,13 +1448,16 @@ run_generate_html() {
     }
 
     # Issue 8-043b: Generate word cloud pages (part of HTML stage)
+    # Issue 10-036: thread chrono_per_page so the word-cloud poem links paginate
+    # to the SAME chronological pages main.lua just built (separate processes
+    # must agree on page size, or every #poem link lands on the wrong page).
     log_info "   Generating word cloud menu..."
-    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_all_arg $wordcloud_words_arg || {
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_all_arg $wordcloud_words_arg $chrono_per_page_arg || {
         echo "Warning: Word cloud menu generation failed, continuing..." >&2
     }
 
     log_info "   Generating word similarity pages..."
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
     }
 
