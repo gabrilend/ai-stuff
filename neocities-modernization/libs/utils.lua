@@ -470,14 +470,35 @@ end
 --                    currently selected and use that"; pass an explicit
 --                    string only if you need a different model's directory.
 -- @return: full path to that model's embeddings directory
-function M.embeddings_dir(model_name)
+-- Issue 10-054: movable, regenerable caches live in RAM (tmp/, a tmpfs symlink)
+-- to spare SSD write endurance; only diversity_cache.json stays on disk (it costs
+-- ~45 min to recompute), via embeddings_dir_disk(). CACHE_IN_RAM is the SINGLE
+-- place the location is decided. It is intentionally FALSE until the ~12
+-- scattered cache-path sites are all routed through these functions and a full
+-- pipeline run validates that movables land in tmp/ and diversity stays on disk
+-- (Issue 10-054). Flipping it before that routing is done would desync readers
+-- from writers of the same cache -- a silent "cache missing" -> surprise regen.
+local CACHE_IN_RAM = false
+local function safe_model(model_name)
     if not model_name then
-        local inference_config = require("inference-server-config")
-        model_name = inference_config.get_selected_model()
+        model_name = require("inference-server-config").get_selected_model()
     end
     -- Sanitize model name for filesystem safety (e.g. embeddinggemma:latest -> embeddinggemma_latest)
-    local safe_name = model_name:gsub("[^%w%-_.]", "_")
-    return M.asset_path("embeddings/" .. safe_name)
+    return model_name:gsub("[^%w%-_.]", "_")
+end
+
+function M.embeddings_dir(model_name)
+    if not CACHE_IN_RAM then return M.embeddings_dir_disk(model_name) end
+    return M.DIR .. "/tmp/cache/embeddings/" .. safe_model(model_name)
+end
+-- }}}
+
+-- {{{ function M.embeddings_dir_disk
+-- The on-DISK embeddings dir (assets/). Use ONLY for caches that must survive a
+-- reboot -- currently just diversity_cache.json. Everything else uses
+-- embeddings_dir() (RAM by default).
+function M.embeddings_dir_disk(model_name)
+    return M.asset_path("embeddings/" .. safe_model(model_name))
 end
 -- }}}
 
