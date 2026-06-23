@@ -251,12 +251,12 @@ end
 -- Render the whole tree as nested <details> (collapsible, needs no JS). Dirs on
 -- the path to `current_rel` are opened so the reader sees where they are.
 -- link_prefix climbs back to output/source/ from the current page.
-local function render_sidebar(node, current_rel, link_prefix, path_set)
+local function render_sidebar(node, current_rel, link_prefix, path_set, mirror_set)
     local out = {}
     for _, d in ipairs(sorted_keys(node.dirs)) do
         local open = path_set[d] and " open" or ""
         out[#out + 1] = string.format("<details%s><summary>%s/</summary>", open, escape_html(d))
-        out[#out + 1] = render_sidebar(node.dirs[d], current_rel, link_prefix, path_set)
+        out[#out + 1] = render_sidebar(node.dirs[d], current_rel, link_prefix, path_set, mirror_set)
         out[#out + 1] = "</details>"
     end
     local files = node.files
@@ -267,7 +267,12 @@ local function render_sidebar(node, current_rel, link_prefix, path_set)
         if here then
             out[#out + 1] = string.format('<div class="cur">%s</div>', label)
         else
-            out[#out + 1] = string.format('<a href="%s%s.html">%s</a>', link_prefix, f.rel, label)
+            -- A mirrored saved page (Feature F) links to the page ITSELF (no .html
+            -- source-view suffix); every other file links to its rendered page.
+            local href = (mirror_set and mirror_set[f.rel])
+                and (link_prefix .. f.rel)
+                or (link_prefix .. f.rel .. ".html")
+            out[#out + 1] = string.format('<a href="%s">%s</a>', href, label)
         end
     end
     return table.concat(out, "\n")
@@ -589,6 +594,64 @@ end
 -- }}}
 
 -- {{{ main()
+-- {{{ strip_scripts()
+-- Issue 10-055 (Feature F): remove every <script> from a mirrored page. Two
+-- reasons: the platform is no-JS, and one of these scripts is google-analytics --
+-- a static mirror should not phone a tracker. The article's text, CSS, and images
+-- carry the content; only interactivity (a JS widget) degrades.
+local function strip_scripts(html)
+    html = html:gsub("<script.-</script>", "")   -- paired tags (. spans newlines)
+    html = html:gsub("<script[^>]*/?>", "")       -- any stray/self-closing tag
+    return html
+end
+-- }}}
+
+-- {{{ copy_raw()
+-- Byte-for-byte copy (binary-safe rb/wb), used to place a mirrored page's assets
+-- (CSS, images) into the output. Pure Lua I/O on purpose: the project bans shell
+-- exec for file targeting, and io handles the spaces in these paths natively.
+local function copy_raw(src_abs, dst_abs)
+    local src = io.open(src_abs, "rb")
+    if not src then return false end
+    local data = src:read("*all"); src:close()
+    ensure_dir(dst_abs:match("^(.*)/[^/]+$"))
+    local dst = io.open(dst_abs, "wb")
+    if not dst then return false end
+    dst:write(data); dst:close()
+    return true
+end
+-- }}}
+
+-- {{{ find_mirror_pages()
+-- A saved webpage is an .html with a sibling "<name>_files/" directory of its
+-- assets (how browsers "Save Page As"). Returns two lookups over the published
+-- list: mirror_html[rel]=true for each such page, and a list of "<name>_files/"
+-- prefixes so their asset files can be recognized and handled as assets (copied)
+-- rather than rendered as source.
+local function find_mirror_pages(all_files)
+    local has_prefix = {}
+    for _, rel in ipairs(all_files) do
+        local dir = rel:match("^(.*/)[^/]+$")
+        if dir then has_prefix[dir] = true end
+    end
+    local mirror_html, asset_prefixes = {}, {}
+    for _, rel in ipairs(all_files) do
+        local stem = rel:match("^(.*)%.html$")
+        if stem and has_prefix[stem .. "_files/"] then
+            mirror_html[rel] = true
+            asset_prefixes[#asset_prefixes + 1] = stem .. "_files/"
+        end
+    end
+    local function is_asset(rel)
+        for _, p in ipairs(asset_prefixes) do
+            if rel:sub(1, #p) == p then return true end
+        end
+        return false
+    end
+    return mirror_html, is_asset
+end
+-- }}}
+
 -- {{{ classify_file()
 -- Decide how a published path renders: "md" (formatted markdown), "code"
 -- (numbered + highlighted source), "image", or "skip" (a binary -- listed
@@ -658,13 +721,22 @@ local function main()
     -- ONLY files that will actually get a page, so the table of contents can never
     -- link a page we did not write (the old extensionless-file 404). Genuine
     -- binaries are counted for the report but kept out of the tree entirely.
-    local renderable, skipped_files = {}, 0
+    -- Feature F: saved webpages (an .html with a sibling _files/ dir) are mirrored
+    -- as the real page; their asset files are copied, not rendered as source.
+    local mirror_html, is_asset = find_mirror_pages(all_files)
+    local renderable, assets, skipped_files = {}, {}, 0
     for _, rel in ipairs(all_files) do
-        local kind, lang_id = classify_file(rel)
-        if kind == "skip" then
-            skipped_files = skipped_files + 1
+        if mirror_html[rel] then
+            renderable[#renderable + 1] = { rel = rel, kind = "mirror" }
+        elseif is_asset(rel) then
+            assets[#assets + 1] = rel  -- a mirrored page's asset: copied, not in the tree
         else
-            renderable[#renderable + 1] = { rel = rel, kind = kind, lang_id = lang_id }
+            local kind, lang_id = classify_file(rel)
+            if kind == "skip" then
+                skipped_files = skipped_files + 1
+            else
+                renderable[#renderable + 1] = { rel = rel, kind = kind, lang_id = lang_id }
+            end
         end
     end
 
@@ -677,12 +749,25 @@ local function main()
     -- Pass 2 -- render each renderable file by its kind.
     for _, f in ipairs(renderable) do
         local rel = f.rel
+
+        if f.kind == "mirror" then
+            -- Feature F: write the saved page ITSELF (scripts stripped), not a
+            -- source view -- clicking it shows the real article, no browser chrome.
+            local body = utils.read_file(DIR .. "/" .. rel)
+            if body and utils.write_file(out_root .. "/" .. rel, strip_scripts(body)) then
+                written = written + 1
+            else
+                write_failed[#write_failed + 1] = rel
+            end
+            goto continue
+        end
+
         -- Build the set of directory names on the path to this file, so the
         -- sidebar opens them.
         local path_set = {}
         for p in rel:gmatch("[^/]+") do path_set[p] = true end
         local prefix = relpath_prefix(rel)
-        local sidebar = render_sidebar(tree, rel, prefix, path_set)
+        local sidebar = render_sidebar(tree, rel, prefix, path_set, mirror_html)
 
         local content
         if f.kind == "image" then
@@ -714,9 +799,20 @@ local function main()
         ::continue::
     end
 
+    -- Feature F: copy each mirrored page's assets verbatim (CSS, images, fonts).
+    -- Scripts are skipped on purpose -- the platform is no-JS and one of them is
+    -- an analytics tracker a static mirror must never run; the article's text and
+    -- styling carry it without them.
+    local copied_assets = 0
+    for _, rel in ipairs(assets) do
+        if not rel:match("%.js$") and copy_raw(DIR .. "/" .. rel, out_root .. "/" .. rel) then
+            copied_assets = copied_assets + 1
+        end
+    end
+
     -- Index: welcome + the full tree (nothing current, root prefix).
     do
-        local sidebar = render_sidebar(tree, nil, "", {})
+        local sidebar = render_sidebar(tree, nil, "", {}, mirror_html)
         local welcome = string.format([[<div class="welcome">
 <p class="kicker">A link-only view of the machine</p>
 <h1>The source, read as a book.</h1>
@@ -736,6 +832,9 @@ follow any path down through the tree.</p>
     -- Report what was published and -- loudly -- what was held back.
     print(string.format("[source-browser] published %d text + %d images to %s",
         written, images, out_root))
+    if copied_assets > 0 then
+        print(string.format("[source-browser] mirrored saved page(s), copied %d assets (scripts skipped)", copied_assets))
+    end
     if skipped_files > 0 then
         print(string.format("[source-browser] skipped %d non-text/non-image files (binaries)", skipped_files))
     end
