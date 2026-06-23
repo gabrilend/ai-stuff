@@ -38,6 +38,22 @@ local PRODUCTION_BASE = URL_PATTERNS[1].production_path
 
 -- Output directory containing HTML files
 local OUTPUT_DIR = DIR .. "/output"
+
+-- Directories (relative to OUTPUT_DIR) whose HTML must NOT be rewritten.
+-- Why this exists: the self-hosted source browser (issue 10-052) renders the
+-- project's own code into output/source/ as syntax-highlighted, line-numbered
+-- pages. That code legitimately CONTAINS the base-path strings this script
+-- rewrites (e.g. a Lua line that reads
+--   local base_path = "file:///.../output"
+-- or "/similar-different"). Those occurrences are code-as-DATA being displayed,
+-- not deployable links. This converter does a context-blind plain-text
+-- substring replace, so without this exclusion it silently corrupts the
+-- displayed source — making the viewer lie about what the code actually says.
+-- The source browser's own navigation is entirely RELATIVE, so it never needs
+-- conversion: skipping the whole subtree is both safe and correct.
+local EXCLUDE_DIRS = {
+    "source"
+}
 -- }}}
 
 -- {{{ parse_arguments
@@ -115,10 +131,38 @@ The script is idempotent - running the same conversion twice has no effect.
 end
 -- }}}
 
+-- {{{ build_prune_expression
+-- Turn EXCLUDE_DIRS into a find(1) prune clause so excluded subtrees are never
+-- descended into. Producing an empty string when nothing is excluded keeps the
+-- command identical to the original behavior for callers with no exclusions.
+local function build_prune_expression(exclude_dirs)
+    if not exclude_dirs or #exclude_dirs == 0 then
+        return ""
+    end
+
+    -- Match each excluded directory by name anywhere under the root, e.g.
+    --   -type d \( -name source \) -prune -o
+    -- The trailing "-o" hands control to the file-matching clause that follows.
+    local names = {}
+    for _, name in ipairs(exclude_dirs) do
+        table.insert(names, string.format('-name "%s"', name))
+    end
+
+    return string.format('-type d \\( %s \\) -prune -o ',
+        table.concat(names, " -o "))
+end
+-- }}}
+
 -- {{{ find_html_files
 local function find_html_files(directory)
-    -- Use find command to recursively locate all HTML files
-    local cmd = string.format('find "%s" -type f -name "*.html" 2>/dev/null', directory)
+    -- Recursively locate all HTML files, pruning excluded subtrees first.
+    -- The prune clause runs BEFORE the file test so find never even walks into,
+    -- e.g., output/source/ — cheaper than listing then filtering, and it means
+    -- the reported "files scanned" count reflects only convertible files.
+    -- (stderr is left attached so permission/IO errors surface rather than hide.)
+    local prune = build_prune_expression(EXCLUDE_DIRS)
+    local cmd = string.format('find "%s" %s-type f -name "*.html" -print',
+        directory, prune)
     local handle = io.popen(cmd)
     if not handle then
         return {}
@@ -273,6 +317,13 @@ local function main()
     end
     print("")
     print("Dir:  " .. OUTPUT_DIR)
+    if #EXCLUDE_DIRS > 0 then
+        -- Make the skip explicit: a silent exclusion reads as "converted
+        -- everything" when it did not (the source browser is left untouched
+        -- on purpose — it displays code, not links).
+        print("Skip: " .. table.concat(EXCLUDE_DIRS, ", ")
+            .. "  (source-as-data; not deployable links)")
+    end
     print("")
 
     -- Find all HTML files

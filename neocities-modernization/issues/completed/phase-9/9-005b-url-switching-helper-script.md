@@ -29,6 +29,13 @@ The script should:
 2. Replace all occurrences of the local base path with the production base path
 3. Be idempotent (running twice shouldn't break anything)
 4. Optionally support reverse conversion (production → local) for debugging
+5. Skip the self-hosted source browser tree (`output/source/`, Issue 10-052).
+   Those pages render the project's own code, which legitimately contains the
+   base-path strings as displayed DATA, not as deployable links. A context-blind
+   substring replace would rewrite the code listings and make the viewer
+   misrepresent the source. The source browser's own navigation is entirely
+   relative, so it never needs conversion — excluding the subtree is both safe
+   and correct.
 
 ## Suggested Implementation Steps
 
@@ -60,7 +67,12 @@ The script should define these constants at the top:
 local LOCAL_BASE = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
 local PRODUCTION_BASE = "/similar-different"
 local OUTPUT_DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization/output"
+local EXCLUDE_DIRS = { "source" }  -- subtrees skipped: code-as-data, not links
 ```
+
+`EXCLUDE_DIRS` is rendered into a `find` prune clause so the converter never
+descends into those subtrees, and the run header prints a `Skip:` line so the
+exclusion is visible rather than silent.
 
 ## Related Documents
 
