@@ -428,9 +428,15 @@ end
 -- }}}
 
 -- {{{ function M.extract_poems_auto
-function M.extract_poems_auto(base_directory, output_file)
+-- opts.include_boosts (default true) controls whether reshared "boost" posts
+-- are kept. The caller resolves CLI-flag-over-config and passes the boolean.
+function M.extract_poems_auto(base_directory, output_file, opts)
+    opts = opts or {}
+    local include_boosts = opts.include_boosts
+    if include_boosts == nil then include_boosts = true end
+
     local mode, source_path = M.detect_input_mode(base_directory)
-    
+
     local poems
     if mode == "json" then
         print("Using modern JSON extraction from: " .. relative_path(source_path))
@@ -441,9 +447,24 @@ function M.extract_poems_auto(base_directory, output_file)
     else
         error("No valid input found: neither JSON extracts nor compiled.txt available in " .. base_directory)
     end
-    
+
     print("Found " .. #poems .. " poems")
-    
+
+    -- Optionally drop reshared boost posts. A boost is identified by its
+    -- directory-derived category (e.g. "fediverse_boost") or a metadata flag.
+    -- Filtering BEFORE poem_index assignment keeps the indices contiguous so
+    -- downstream caches stay array-aligned.
+    if not include_boosts then
+        local kept, removed = {}, 0
+        for _, p in ipairs(poems) do
+            local is_boost = (p.category and p.category:lower():find("boost", 1, true) ~= nil)
+                or (p.metadata and p.metadata.is_boost == true)
+            if is_boost then removed = removed + 1 else kept[#kept + 1] = p end
+        end
+        poems = kept
+        print(string.format("Excluded %d boost posts (include_boosts=false)", removed))
+    end
+
     -- Sort poems by category, then by ID for consistent ordering
     table.sort(poems, function(a, b)
         if a.category ~= b.category then

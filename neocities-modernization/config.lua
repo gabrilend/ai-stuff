@@ -260,7 +260,7 @@ return {
     privacy = {
         mode = "clean",                     -- "clean" or "raw"
         anonymization_prefix = "user-",     -- Prefix for anonymized usernames
-        include_boosts = true,              -- Include boosted/reblogged posts
+        include_boosts = false,             -- Boosted/reblogged posts OFF by default (the name implies opt-in); pass --include-boosts to add them
         preserve_original_length = true,    -- Keep length hints for anonymized names
         store_anonymization_map = false,    -- Don't store mapping (privacy)
         local_server_domain = "tech.lgbt"   -- Your home instance domain
