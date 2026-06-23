@@ -100,17 +100,21 @@ two differ (e.g. pages built at 88/page but consumers assuming 500/page), every
 different page number for the same poem. "One mapping, one answer" only holds
 when both the function AND its page-size argument match.
 
-Correct design: the chronological stage RECORDS the page size it actually used
-to a hidden marker beside the pages (`output/chronological/.poems-per-page`), and
-the wordcloud + word-page generators READ that marker instead of guessing from
-config. A missing marker now WARNS (never a silent fallback). This turns two
-independent guesses into one recorded fact, surviving runtime overrides and
-standalone invocation alike.
+Correct design: the page size has exactly two legitimate sources — the
+`--chrono-per-page` flag the build passes, or the pagination config — and
+`run.sh` threads the SAME flag to every generator (main, wordcloud, word-pages)
+so separate processes cannot disagree. There is no third source and no literal
+fallback: if neither the flag nor the config supplies a size, the generators
+hard-error rather than guess (a wrong guess silently mis-paginates every link,
+which is worse than a loud stop). An earlier attempt recorded the size to a
+marker file beside the pages; that was dropped in favor of the simpler
+flag-or-config rule with a hard error, which needs no on-disk side channel.
 
-Relevant functions: `compute_chronological_mapping`, `write_chrono_per_page` /
-`read_chrono_per_page` (flat-html-generator); the `generate_poem_index`
-(wordcloud-generator) and word-page chrono-map builder (generate-word-pages)
-consumers.
+Relevant pieces: `compute_chronological_mapping` and `default_chrono_per_page`
+(flat-html-generator; the latter now errors on a missing config key); a small
+`resolve_chrono_per_page` helper in each of wordcloud-generator and
+generate-word-pages (flag → config → error); and the `--chrono-per-page`
+threading in `run.sh`'s word-cloud invocations.
 
 ## Related Issues
 

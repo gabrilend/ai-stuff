@@ -909,62 +909,17 @@ end
 -- scrolled. One mapping, one answer.
 M.compute_chronological_mapping = compute_chronological_mapping
 -- {{{ function M.default_chrono_per_page()
+-- The chronological page size, from config. There is no compiled-in fallback on
+-- purpose: a runtime --chrono-per-page override is the OTHER legitimate source
+-- (callers prefer that and use this only when no override was given), and if the
+-- config key is somehow missing that is a broken config we want to hear about,
+-- not paper over with a silent default that would mis-paginate every poem link.
 function M.default_chrono_per_page()
-    return PAGINATION_CONFIG.chronological_poems_per_page or 500
-end
--- }}}
-
--- The wordcloud + word-page generators run as SEPARATE luajit processes, so
--- they cannot see the chronological stage's runtime --chrono-per-page override
--- (it can differ from the compiled-in default). Sharing only the mapping
--- *function* was not enough: feeding it the wrong page size still produced
--- wrong page numbers. So the chronological stage records the page size it
--- actually used to disk, and the consumers read THAT — turning two independent
--- guesses into one recorded fact. This is the persisted half of "one mapping,
--- one answer".
-
--- {{{ function M.chrono_per_page_path()
--- Co-locate the marker with the pages it describes; a hidden file so it is
--- never linked from the site and never mistaken for content.
-local function chrono_per_page_path(output_dir)
-    return output_dir .. "/chronological/.poems-per-page"
-end
-M.chrono_per_page_path = chrono_per_page_path
--- }}}
-
--- {{{ function M.write_chrono_per_page()
--- Stamp the effective page size as the chronological pages are emitted, so the
--- record can never drift from the pages it documents.
-function M.write_chrono_per_page(output_dir, per_page)
-    local path = chrono_per_page_path(output_dir)
-    local file = io.open(path, "wb")
-    if not file then
-        -- Surface rather than swallow: a missing marker degrades the wordcloud
-        -- links, so the operator should know the write failed.
-        io.stderr:write("WARNING: could not write chrono per-page marker: "
-            .. path .. "\n")
-        return false
-    end
-    file:write(tostring(per_page) .. "\n")
-    file:close()
-    return true
-end
--- }}}
-
--- {{{ function M.read_chrono_per_page()
--- Returns the recorded page size, or nil if no chronological build has stamped
--- one yet. Callers decide how to handle nil (the project rule: warn, never
--- silently fall back).
-function M.read_chrono_per_page(output_dir)
-    local file = io.open(chrono_per_page_path(output_dir), "rb")
-    if not file then
-        return nil
-    end
-    local content = file:read("*all")
-    file:close()
-    local value = tonumber(content and content:match("%d+"))
-    if not value or value <= 0 then
-        return nil
+    local value = PAGINATION_CONFIG.chronological_poems_per_page
+    if not value then
+        error("config is missing chronological_poems_per_page; chronological "
+            .. "pagination size is required (pass --chrono-per-page or set it "
+            .. "in the pagination config)")
     end
     return value
 end
@@ -3348,17 +3303,6 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         chronological_paginated = true
     end
     local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
-
-    -- Record the page size these chronological pages are being built with, so the
-    -- separately-spawned wordcloud/word-page generators link to the SAME pages.
-    -- Unpaginated builds put every poem on one page; record a size larger than the
-    -- corpus so a consumer's ceil(position/size) collapses to page 1 for all,
-    -- exactly mirroring the nil passed to the mapping above.
-    local recorded_per_page = effective_chrono_per_page
-    if not chronological_paginated then
-        recorded_per_page = (poems_data.poems and #poems_data.poems or 1) + 1
-    end
-    M.write_chrono_per_page(output_dir, recorded_per_page)
 
     -- Check if parallel processing is available and requested
     local use_parallel = num_threads > 1 and has_threading and effil
