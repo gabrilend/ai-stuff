@@ -76,7 +76,36 @@ there is exactly one place that decides each cache's location.
    in `tmp/`, diversity stays on disk and is reused, and a simulated reboot
    (clear tmp) regenerates the movable caches without touching diversity.
 
+## Progress (2026-06-23)
+
+- **Done & committed (switch still OFF, behaviour identical to disk):**
+  - The foundation: `CACHE_IN_RAM` switch + `embeddings_dir()` (movable) /
+    `embeddings_dir_disk()` (diversity) in `libs/utils.lua`.
+  - Every GENERATION-path read/write centralized: `main.lua`,
+    `flat-html-generator.lua` (similarity reader + diversity reader),
+    `augment-embeddings-with-images.lua`, `generate-similarity-rankings-cache`
+    (similarities + ranking writer), `precompute-diversity-sequences-gpu`
+    (reads embeddings movable, writes diversity to disk),
+    `triangular-similarity-access.lua` (4 per-poem similarity reads).
+  - The experiment tools (`hubness-experiment.lua`, the augment test) read via
+    `embeddings_dir()` so they follow the caches.
+  - A grep audit confirms NO movable-cache path in the live pipeline still
+    hardcodes `assets/embeddings/` or `asset_path("embeddings/`.
+- **The flip:** set `CACHE_IN_RAM = true` in `libs/utils.lua` (one line) and run
+  the pipeline once to validate -- movables should land under `tmp/cache/...`,
+  diversity should stay in `assets/` and be reused, and clearing `tmp/` should
+  regenerate the movables without touching diversity.
+- **Deferred (safe to leave; not on the live pipeline path):**
+  - The validators (`pipeline-validator.lua`, `scripts/validate-pipeline-data`)
+    are diagnostic-only (not run by `run.sh`/`main.lua`); after a flip they would
+    report movable caches as "missing" until updated to use `embeddings_dir()`.
+  - The asset-root caches (`image-catalog.json` 1MB, `validation-report.json`
+    6MB) stay on DISK for now -- tiny wear, and moving them needs their own
+    scattered reader/writer reconciliation. Revisit if wanted.
+  - Setting up `tmp/cache/...` early + deleting the orphaned on-disk movable
+    caches happens as part of the flip.
+
 ## Related
-- `libs/utils.lua` (`embeddings_dir`, `similarities_dir`, `asset_path`).
+- `libs/utils.lua` (`embeddings_dir`, `embeddings_dir_disk`, `similarities_dir`).
 - `scripts/ensure-tmp-symlink`, the `tmp/` tmpfs symlink.
 - Dead scripts hardcoding `embeddinggemma_latest` (candidates for separate removal).

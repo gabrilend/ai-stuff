@@ -6,6 +6,7 @@ local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
 _G.AUGMENT_NO_MAIN = true  -- suppress the script's main() on require
 local A = require("augment-embeddings-with-images")
+local utils = require("utils")  -- Issue 10-054: locate embeddings wherever they live
 
 local passed, failed = 0, 0
 local function check(name, cond)
@@ -79,7 +80,7 @@ local function read_json(p)
     local s = f:read("*a"); f:close(); return require("dkjson").decode(s)
 end
 local model = (os.getenv("MODEL_NAME") or "nomic-embed-text-v1.5"):gsub(":", "_")
-local real_emb = read_json(DIR .. "/assets/embeddings/" .. model .. "/embeddings.json")
+local real_emb = read_json(utils.embeddings_dir() .. "/embeddings.json")
 local real_poems = read_json(DIR .. "/assets/poems.json")
 local real_cat = read_json(DIR .. "/assets/image-catalog.json")
 if real_emb and real_poems and real_cat then
