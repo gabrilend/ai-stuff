@@ -353,29 +353,37 @@ local function render_text_page(rel, body, lang)
     local raw = {}
     for line in (body .. "\n"):gmatch("(.-)\n") do raw[#raw + 1] = line end
 
+    -- Each line is its own block (a .cl div, or the <summary> for a fold-open
+    -- line), so line breaks come from the elements -- not from newline characters
+    -- fighting with the block-level fold <details>. white-space:pre on .cl keeps
+    -- each line's own indentation. The marker line opens a <details>; its body
+    -- lines are the collapsible content; the closing marker line ends it.
+    local function cl(gutter, hl) return '<div class="cl">' .. gutter .. hl .. "</div>" end
+
     local state, parts, depth = { in_block = false }, {}, 0
     for n = 1, #raw do
         local line = raw[n]
         local hl; hl, state = highlight_line(line, lang, state)
-        local row = string.format('<span class="ln" id="L%d">%d</span>%s', n, n, hl)
+        local gutter = string.format('<span class="ln" id="L%d">%d</span>', n, n)
         local kind = fold_marker_kind(line, lang)
         if kind == "open" then
-            -- This marker line is the clickable summary; the region's body lines
-            -- become the <details> content that collapses under it.
-            parts[#parts + 1] = '<details class="fold" open><summary>' .. row .. '</summary>'
+            parts[#parts + 1] = '<details class="fold" open><summary class="cl">'
+                .. gutter .. hl .. '</summary>'
             depth = depth + 1
         elseif kind == "close" and depth > 0 then
-            -- Show the closing marker line, then end the region.
-            parts[#parts + 1] = row .. '</details>'
+            parts[#parts + 1] = cl(gutter, hl) .. '</details>'
             depth = depth - 1
         else
-            parts[#parts + 1] = row
+            parts[#parts + 1] = cl(gutter, hl)
         end
     end
     while depth > 0 do parts[#parts + 1] = '</details>'; depth = depth - 1 end
 
+    -- A <div>, not a <pre>: the fold regions are <details> (flow content), which
+    -- is not valid inside <pre> (phrasing-only). Per-line .cl blocks reproduce the
+    -- line layout while letting the folds nest validly.
     return page_header(rel, string.format("%d lines", #raw))
-        .. '<pre>' .. table.concat(parts, "\n") .. "</pre>"
+        .. '<div class="code">' .. table.concat(parts, "") .. "</div>"
 end
 -- }}}
 
@@ -492,7 +500,10 @@ a:hover{color:var(--gold);}
 #main .rule{height:1px; background:linear-gradient(90deg,var(--gold) 0,var(--gold) 64px,var(--rule) 64px,transparent); margin:0 0 1.6rem;}
 
 /* code */
-pre{margin:0; white-space:pre; font-size:13px; tab-size:4; line-height:1.6;}
+/* a div, not a <pre>, so the fold <details> nest validly. Each line is a .cl
+   block that carries white-space:pre to keep its own indentation. */
+.code{margin:0; font-size:13px; tab-size:4; line-height:1.6; display:block; overflow-x:auto;}
+.cl{white-space:pre; display:block;}
 .ln{
   color:var(--rule); user-select:none; display:inline-block;
   min-width:3.4rem; padding-right:1.4rem; text-align:right; font-variant-numeric:tabular-nums;
