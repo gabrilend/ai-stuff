@@ -6,6 +6,7 @@
 local M = {}
 
 local dkjson = require('dkjson')
+local utils = require('utils')  -- Issue 10-054: central cache locations (movable vs disk)
 
 -- {{{ Configuration
 M.config = {
@@ -106,7 +107,7 @@ function M.check_embeddings(model)
     result.total = poems_data.poems and #poems_data.poems or 0
 
     -- Count embeddings (individual similarity files = one per poem)
-    local similarities_dir = string.format("%s/%s/similarities", M.config.embeddings_dir, model)
+    local similarities_dir = utils.similarities_dir(model)  -- movable (RAM after flip)
     result.count = count_files(similarities_dir, "poem_*.json")
 
     result.missing = result.total - result.count
@@ -151,7 +152,7 @@ function M.check_similarity_matrix(model)
     result.total = poems_data.poems and #poems_data.poems or 0
 
     -- Count similarity matrix files
-    local similarities_dir = string.format("%s/%s/similarities", M.config.embeddings_dir, model)
+    local similarities_dir = utils.similarities_dir(model)  -- movable (RAM after flip)
     result.count = count_files(similarities_dir, "poem_*.json")
 
     result.missing = result.total - result.count
@@ -196,7 +197,7 @@ function M.check_diversity_cache(model)
     result.total = poems_data.poems and #poems_data.poems or 0
 
     -- Check diversity cache
-    local cache_file = string.format("%s/%s/diversity_cache.json", M.config.embeddings_dir, model)
+    local cache_file = utils.embeddings_dir_disk(model) .. "/diversity_cache.json"  -- stays on disk
     local cache_data, cache_err = load_json_file(cache_file)
 
     if cache_data then
@@ -231,7 +232,7 @@ function M.check_freshness(model)
     }
 
     local poems_mtime = get_mtime(M.config.poems_json)
-    local embeddings_file = string.format("%s/%s/embeddings.json", M.config.embeddings_dir, model)
+    local embeddings_file = utils.embeddings_dir(model) .. "/embeddings.json"  -- movable (RAM after flip)
     local embeddings_mtime = get_mtime(embeddings_file)
 
     -- Check if embeddings are stale
@@ -245,7 +246,7 @@ function M.check_freshness(model)
     end
 
     -- Check if similarity matrix is stale
-    local similarities_dir = string.format("%s/%s/similarities", M.config.embeddings_dir, model)
+    local similarities_dir = utils.similarities_dir(model)  -- movable (RAM after flip)
     local handle = io.popen(string.format(
         "find '%s' -name 'poem_*.json' -type f -printf '%%T@\\n' 2>/dev/null | sort -n | tail -1",
         similarities_dir
@@ -266,7 +267,7 @@ function M.check_freshness(model)
     end
 
     -- Check if diversity cache is stale
-    local cache_file = string.format("%s/%s/diversity_cache.json", M.config.embeddings_dir, model)
+    local cache_file = utils.embeddings_dir_disk(model) .. "/diversity_cache.json"  -- stays on disk
     local cache_mtime = get_mtime(cache_file)
 
     if cache_mtime > 0 and embeddings_mtime > cache_mtime then
