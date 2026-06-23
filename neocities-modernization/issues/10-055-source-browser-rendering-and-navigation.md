@@ -147,21 +147,46 @@ leader that aligns the descriptions into a column, like:
 /longer/than/others/path.md - text and emoji explanation
 ```
 
-The path text is the link to that file's page. Alignment resets per section
-(per directory grouping), so each section computes its own longest-path width.
+Each path links to that file's **`.info.md` page** (the description node), and
+that `.info.md` page carries a **"view source" button at the top** that jumps to
+the actual file. Alignment resets per section (per directory grouping), so each
+section computes its own longest-path width.
+
+### Settled design (author's call)
+- **Descriptions come from `docs/table-of-contents.md`** — they already live
+  there (format: `` - `/path` - description `` under `###` section headers). The
+  ToC parses that file, so descriptions have one home and do not rot. Entries get
+  added there whenever a new file that belongs in the ToC is created; missing
+  ones are filled in.
+- **Each entry links to the file's `.info.md` page**, not straight to the source.
+  The `.info.md` page gets a "view source / view file" button at the top linking
+  to the rendered source page. A file with no `.info.md` falls back to linking the
+  source page directly (until its `.info.md` is created).
 
 ### Implementation Notes
 - The dash leader width = (section's longest path length) − (this path length) +
   a fixed gap. Compute per section after collecting that section's entries.
 - Monospace makes character-count alignment exact; the browser is already mono.
-- Description source — to settle: the first line / summary of each file's
-  `.info.md`, or `docs/table-of-contents.md`, or a sidecar manifest. Prefer a
-  source that already exists so descriptions do not rot (per the "reference a
-  generator, don't hardcode" rule). Files with no description show just the
-  linked path.
-- This may live in the main content area (an index/ToC page) rather than the
-  cramped sidebar, since the dash columns need width. The sidebar tree stays as
-  the always-present quick nav.
+- This likely lives in the main content area (a dedicated ToC page) rather than
+  the cramped sidebar, since the dash columns need width. The sidebar tree stays
+  as the always-present quick nav.
+
+### Folded in: backfill the missing `.info.md` files
+Most `src/`/`libs/` files have no `.info.md` today (~5 of ~60), but this feature
+routes the ToC through them — so the gap must be closed. Plan:
+- **Build the tool, then refine** (per the project's "create the tool that
+  creates things" rule): a small generator that reads each source file's header
+  comment + its public (`M.`-exported) functions and their `.info.md`-style
+  descriptions, and emits a starter `<file>.info.md`. This makes ~55 consistent
+  stubs in one pass instead of 55 hand-written files.
+- Then refine each stub into a real black-box description (purpose + how it
+  operates, inputs/outputs), the way the existing `.info.md` files read.
+- Add the corresponding `docs/table-of-contents.md` entry where the file belongs
+  in the ToC (source files don't all belong there, but docs/notes do; use
+  judgment per the existing ToC scope).
+- Going forward: a new file that belongs in the ToC gets its `.info.md` and its
+  ToC line when it is created (the existing convention, now enforced by this
+  feature actually using them).
 
 ---
 
