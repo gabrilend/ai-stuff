@@ -13,7 +13,132 @@ Image-only posts (fediverse posts containing just `🖼` or minimal text with an
 - Similar/different rankings for these posts are essentially random
 - Images don't appear on similar/different pages at all (see Issue 8-040)
 
-## Intended Behavior: Timestamp-Based Association
+## REDESIGN (2026-06-22): Neighbor-Averaged Pseudo-Embedding
+
+> This supersedes the "Timestamp-Based Association (Nearest Neighbor)" design
+> further below, which was implemented (see Implementation Progress) and is kept
+> for history per the append-only ticket convention.
+
+### Why the redesign
+
+The original design associated each image-only post with the SINGLE nearest text
+poem by timestamp and rendered it inline with that one parent. Two limits drove
+the rethink:
+
+1. It only covers image-only fediverse POSTS. The standalone catalog sources
+   (my-art, poem-pictures, things-I-almost-posted, dnd-pictures-from-the-internet,
+   fediverse-stars) never earn a place in the similar/different rankings at all.
+2. Inheriting one neighbor's embedding snaps the image onto that poem's exact
+   semantic position. It cannot express the image's "between two moments"
+   character — which is the whole point of placing it chronologically.
+
+### Three classes of images (decided from the data, not guessed)
+
+A scan of poems.json (411 posts carry attachments) shows three distinct cases.
+Critically, the feared `[image-1234.png]` placeholder text does NOT exist — only
+1 of 411 posts references an image filename in its content — so text+image posts
+carry real text, and a simple bare-content-length threshold separates the classes
+(no placeholder detection needed):
+
+1. **Text + image post** (~343): real post text, e.g. "religion is a set of shared
+   cultural parables...". The post is already embedded by its text and ranks
+   normally; the image renders as its attachment and thereby INHERITS the post's
+   text embedding. No pseudo-embedding — this is already correct. The user's rule
+   "if an image is part of a text post, use the post's text as the image's
+   embedding" is satisfied by leaving these alone.
+
+2. **Image-only post** (~52): content is just `🖼` or blank. Its real embedding is
+   semantically useless, so REPLACE it with the neighbor-averaged pseudo-embedding
+   and let the post rank as a first-class image entry.
+
+3. **Standalone catalog image** (my-art, poem-pictures, etc.): no post at all →
+   neighbor-averaged pseudo-embedding, first-class image entry.
+
+Classification: strip whitespace + image emoji from content; if what remains is
+shorter than the threshold (the existing `is_image_only` uses < 10 chars), it is
+class 2, else class 1. The ~16 borderline "short" posts (series markers like
+"4/20"/"part 2/20", bare mentions like "@user-880", single words like "mitski")
+fall under class 2 by this threshold; that is an acceptable default — a "4/20"
+marker is no more embeddable than `🖼`. Revisit only if a regenerated page shows a
+short-but-meaningful post landing oddly.
+
+Only classes 2 and 3 are fed to `compute_image_pseudo_embeddings`. The
+chronological spine passed to it is TEXT poems only (classes 1 + ordinary poems);
+class-2/3 images are never part of the spine they average over.
+
+### The pseudo-embedding
+
+Every text-LESS image (class 2 or 3) is placed at its timestamp within the global
+chronological order of text poems. Its embedding is
+synthesized as the AVERAGE of the embeddings of the poem immediately BEFORE and
+the poem immediately AFTER it in that order:
+
+    pseudo_embedding = normalize( (embedding_before + embedding_after) / 2 )
+
+This lands the image at the semantic midpoint of its temporal neighbors — its true
+"between" position. The image then becomes a first-class ranked entity: its
+similarity to any poem P is `cosine(pseudo_embedding, P.embedding)`, so it sorts
+into similar/different rankings exactly like a poem.
+
+### Edge cases
+
+- Image before the first poem chronologically: use only the following poem's
+  embedding (no average).
+- Image after the last poem chronologically: use only the preceding poem's
+  embedding.
+- Identical timestamps / equidistant neighbors: the average is order-independent,
+  so ties need no special handling.
+- Multiple images between the same two poems: all share the same midpoint
+  pseudo-embedding and rank together. Acceptable.
+
+### Pipeline placement (why this is clean)
+
+Pseudo-embeddings are derived purely from existing poem embeddings, so they are
+computed AFTER poem embedding generation (the stage that writes embeddings.json)
+and BEFORE the GPU similarity stage. Images are appended to the embedding set as
+"pseudo-poems," so the existing similarity + diversity GPU stages rank them
+uniformly with zero special-casing — they just see more rows. Only HTML rendering
+needs to tell an image entry from a poem entry.
+
+### Algorithm
+
+1. Sort all TEXT poems by `creation_date` to form the chronological spine; keep
+   each poem's embedding alongside it.
+2. For each image (image-only post, and each catalog image carrying a timestamp):
+   a. Locate its position in the spine by timestamp (binary search).
+   b. `before` = nearest poem with date <= image date; `after` = nearest with
+      date >= image date.
+   c. `pseudo_embedding` = average(before.embedding, after.embedding), or the
+      single available end embedding, then L2-normalize.
+3. Append each image as a pseudo-poem `{is_image=true, source, display_path,
+   attachments, embedding=pseudo_embedding, creation_date}` to the embedding set
+   the similarity stage consumes.
+4. Similarity + diversity stages run unchanged over the combined set.
+5. similar/different/chronological renderers detect image pseudo-poems and draw
+   an image box with a source-qualified title; each consumes one slot per page,
+   like a poem.
+
+### Suggested Implementation Steps (redesign)
+
+1. **Pure function** `compute_image_pseudo_embeddings(poems_with_embeddings,
+   image_catalog)` → list of image pseudo-poems. No GPU, no I/O — unit-testable
+   on small fixtures (verify the average + normalization + end-case handling).
+2. **Pipeline hook**: after embeddings.json is written, build and append the
+   image pseudo-poems, emitting the combined embedding set the similarity stage
+   reads. Keep generation and consumption separate (data-gen vs data-view).
+3. **Renderer**: extend flat-html-generator to render image pseudo-poems in
+   similar/different/chronological lists (image + title box, one slot each).
+4. **Shared title helper**: the `source: subdir: name.png` formatting is shared
+   with Issue 10-042d (gallery chronological list) — factor it into one function.
+5. Decide the fate of the old `associate_image_only_posts()` path — remove or
+   repurpose once the pseudo-embedding path covers image-only posts too.
+
+---
+
+## Superseded Original Design: Timestamp-Based Association (Nearest Neighbor)
+
+> Implemented 2026-01-20/21 (see Implementation Progress). Superseded by the
+> redesign above; preserved for history.
 
 Image-only posts should be **associated with the nearest text poem by timestamp**, inheriting that poem's semantic context.
 
@@ -299,9 +424,27 @@ image_association = {
 - Associated all 71 with parent poems
 - 69 parent poems received associated_images (some get multiple)
 
+### 2026-06-22: Redesign — pseudo-embedding core + augmentation hook built
+
+- `src/image-pseudo-embeddings.lua`: pure neighbor-averaging core (+ 16 tests).
+- `src/augment-embeddings-with-images.lua`: pipeline hook. Classifies posts
+  (class 1 text+image kept; class 2 image-only embedding replaced; class 3
+  catalog images appended), builds the text-poem chronological spine, computes
+  pseudo-embeddings, and writes augmented `embeddings.json` + a sidecar
+  `image-manifest.json` for the renderer. Idempotent. (+ 20 tests incl. a
+  read-only real-data pass: class1=343, class2=68, class3=692, 8362 → 9054.)
+
+**Pending (critical path before regeneration):**
+- [ ] Wire the augmentation step into run.sh between Stage 6 and Stage 7.
+- [ ] Renderer: flat-html-generator must draw image entries (poem_index beyond
+      the poem range, looked up in `image-manifest.json`) on
+      similar/different/chronological pages instead of failing the poems.json
+      lookup. THIS gates a correct regeneration.
+- [ ] Decide fate of the old nearest-neighbor `associate_image_only_posts()`.
+
 ## Metadata
 
-- **Status**: ✅ Complete
+- **Status**: 🔄 Reopened (2026-06-22) — redesign to neighbor-averaged pseudo-embedding. The original nearest-neighbor association was implemented & shipped; the redesign generalizes images to first-class ranked entities (covers standalone catalog sources, not just image-only posts).
 - **Created**: 2026-01-20 (rewritten with timestamp association approach)
 - **Phase**: 9 (originally), moved to Phase 8 roadmap
 - **Estimated Complexity**: Medium (algorithm straightforward, integration touches multiple files)
