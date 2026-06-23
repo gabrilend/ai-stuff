@@ -273,20 +273,12 @@ return {
     },
     -- }}}
 
-    -- {{{ golden_poems
-    -- "Golden poems" are exactly 1024 characters - the perfect length for
-    -- fediverse sharing (Mastodon's limit). These get a similarity bonus to
-    -- appear more often in recommendations, surfacing your most share-worthy work.
-    -- Read by: src/html-generator/golden-poem-bonus.lua
-    golden_poems = {
-        enable_golden_prioritization = true,
-        golden_poem_pair_bonus = 0.05,      -- Bonus when both poems are golden
-        golden_poem_single_bonus = 0.02,    -- Bonus when one poem is golden
-        golden_bonus_threshold = 0.1,       -- Maximum bonus cap
-        min_golden_recommendations = 2,     -- Minimum golden poems per page
-        max_golden_recommendations = 5      -- Maximum golden poems per page
-    },
-    -- }}}
+    -- Golden-poem PRIORITIZATION was removed in Issue 5-015 (Dec 2025): golden
+    -- poems rank on equal footing and are distinguished only visually (the
+    -- box-drawing frame). The golden_poems bonus/quota config and its entire dead
+    -- template subsystem (golden-poem-bonus, similarity-engine, template-engine,
+    -- golden-collection-generator + tests) were deleted on 2026-06-23 -- the live
+    -- GPU ranking path never read any of it.
 
     -- {{{ semantic_colors
     -- Colors for the semantic clustering visualization. Each poem is assigned
