@@ -50,13 +50,21 @@ local wall_clock = socket.gettime
 local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
 -- The MODEL_NAME determines the embeddings directory we read from. Pulled
 -- from environment (set by run.sh from MODEL_NAME / --model) with a fall
--- back to config.lua's selected model so this script works when invoked
--- directly without run.sh setting MODEL_NAME.
+-- back to the selected model from config.lua so this script works when
+-- invoked directly without run.sh setting MODEL_NAME.
+--
+-- NOTE: this whole chunk runs inside a bash  luajit -e (single-quoted)
+-- string, so an apostrophe in any comment here would terminate that
+-- string early and feed luajit a bogus script name (it once tried to
+-- open a file literally named "selected"). Keep these comments
+-- apostrophe-free, or move this program into its own .lua file.
 local MODEL_NAME = os.getenv("MODEL_NAME")
 if not MODEL_NAME or MODEL_NAME == "" then
-    local ollama_config = require("ollama-config")
-    ollama_config.set_project_root(DIR)
-    MODEL_NAME = ollama_config.get_selected_model()
+    -- Issue 10-049: the ollama config module was replaced by the
+    -- inference-server-config module in the llama.cpp migration.
+    local inference_config = require("inference-server-config")
+    inference_config.set_project_root(DIR)
+    MODEL_NAME = inference_config.get_selected_model()
 end
 
 -- Parse command line arguments
@@ -133,7 +141,7 @@ local function main()
         -- We still need the metadata header (num_poems / embedding_dim).
         -- Reading just the metadata block from JSON would be cleaner but
         -- requires a streaming parser; for now we read the whole JSON
-        -- just for the metadata. This is the slow path's only cost.
+        -- just for the metadata. This is the only cost of the slow path.
         print("[Loading] Reading embeddings metadata...")
         local embeddings_data = utils.read_json_file(embeddings_file)
         if not embeddings_data or not embeddings_data.embeddings then
@@ -229,6 +237,12 @@ local function main()
     -- Compute diversity sequences on GPU
     local start_time = wall_clock()
     print("[GPU] Computing diversity sequences (batch parallel processing)...")
+    -- One diversity sequence is produced per poem. The GPU processes them
+    -- BATCH_SIZE sequences at a time, so the run is split into this many
+    -- batches (the last one is partial). Reported so the reader knows how the
+    -- work is chunked -- distinct from the 3 compute shaders the context holds.
+    local num_batches = math.ceil(num_poems / BATCH_SIZE)
+    print(string.format("[GPU] %d sequences in %d batches of up to %d each", num_poems, num_batches, BATCH_SIZE))
     print(string.format("[GPU] This will take approximately 1 minute for %d poems", num_poems))
     print()
 

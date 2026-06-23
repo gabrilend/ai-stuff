@@ -226,14 +226,16 @@ VkComputeResult vkd_compute_sequence(VkDiversityContext* div_ctx,
 
         count++;
 
-        /* Progress indicator */
+        /* Progress indicator -- routed through the shared renderer so it obeys
+         * the same TTY / --debug rules as every other stage. Throttled to every
+         * 1000 iterations to match the prior cadence. */
         if (iter % 1000 == 0) {
-            printf("      Progress: %u / %u poems\r", iter, num_poems);
-            fflush(stdout);
+            vkc_progress_update("[VKD] Sequence", iter, num_poems);
         }
     }
 
-    printf("\n[VKD] Sequence computation complete\n");
+    vkc_progress_finish();
+    printf("[VKD] Sequence computation complete\n");
     return VKC_SUCCESS;
 }
 
@@ -572,7 +574,11 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 5, batch_ctx->running_max_distance_buf);
     vkc_bind_buffer(ctx, batch_ctx->commit_iteration_pipeline, 6, batch_ctx->running_max_index_buf);
 
-    printf("[VKD Batch] Initialization complete (3 pipelines, 9-014 ready)\n");
+    // Three compute shaders back this context: tile-scan (finds the farthest
+    // candidate in a tile), commit (records the per-iteration winner), and the
+    // legacy single-dispatch batch shader. They are algorithm stages, not
+    // parallel workers -- distinct from how the *work* is chunked into batches.
+    printf("[VKD Batch] Initialization complete (3 compute shaders: tile-scan, commit, batch)\n");
     return batch_ctx;
 }
 

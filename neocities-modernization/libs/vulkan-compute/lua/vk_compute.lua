@@ -87,6 +87,13 @@ ffi.cdef[[
     // embeddings.json.
     void vkc_fp32_to_fp16(const float* src, uint16_t* dst, uint32_t count);
     float vkc_fp16_to_fp32(uint16_t bits);
+
+    // Shared progress renderer (same bar + TTY/--debug rules as the C stages).
+    // Used by the diversity chunk loop so its display matches stage 7.
+    void vkc_progress_update_ex(const char* label, uint64_t current, uint64_t total,
+                                const char* suffix);
+    void vkc_progress_finish(void);
+    int  vkc_progress_mode(void);
 ]]
 -- }}}
 
@@ -482,10 +489,16 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
         -- last one. Anything else is log spam on a multi-thousand-chunk
         -- run. We also keep a rolling EMA of iter rate to compute an ETA
         -- that adapts as conditions change.
+        -- Progress is rendered by the shared C bar (vkc_progress_*), so it
+        -- looks like and obeys the same TTY/--debug rules as stage 7. On a TTY
+        -- we update every chunk for a smooth bar; when verbose (--debug) we
+        -- keep the old every-10th cadence so a multi-thousand-chunk run does
+        -- not flood the durable log; when piped without --debug it stays quiet.
         local PRINT_EVERY = 10
+        local PROGRESS_BAR_MODE = 1  -- mirrors VKC_PROGRESS_BAR in vk_compute.c
+        local progress_mode = vk.vkc_progress_mode()
         local ema_iter_rate = nil
         local EMA_ALPHA = 0.2  -- new sample weight; 1 = no smoothing
-        local total_chunks = num_chunks_est - 1
 
         local slot = 1 + PROBE_ITERS
         local chunk_idx = 1
@@ -508,21 +521,20 @@ function M.compute_all_diversity_sequences_batched(ctx, embeddings_fp16, num_poe
                 ema_iter_rate = EMA_ALPHA * sample_rate + (1 - EMA_ALPHA) * ema_iter_rate
             end
 
-            local is_last = (slot + this_chunk - 1) >= total_iters
-            if chunk_idx == 1 or chunk_idx % PRINT_EVERY == 0 or is_last then
-                local remaining_iters = total_iters - total_done
-                local eta_seconds = remaining_iters / ema_iter_rate
-                print(string.format(
-                    "  [chunk %d/%d] %d iters in %.2fs (%.1f iter/sec, total %d/%d, ETA %s)",
-                    chunk_idx, total_chunks, this_chunk, chunk_elapsed,
-                    sample_rate, total_done, total_iters,
-                    format_duration(eta_seconds)))
-                io.stdout:flush()
+            local is_last = total_done >= total_iters
+            if progress_mode == PROGRESS_BAR_MODE or chunk_idx == 1
+                    or chunk_idx % PRINT_EVERY == 0 or is_last then
+                local eta_seconds = (total_iters - total_done) / ema_iter_rate
+                -- Rolling-average rate + ETA ride along as the bar suffix.
+                local suffix = string.format("%.1f iter/sec, ETA %s",
+                    ema_iter_rate, format_duration(eta_seconds))
+                vk.vkc_progress_update_ex("[VKD] sequences", total_done, total_iters, suffix)
             end
 
             slot = slot + this_chunk
             chunk_idx = chunk_idx + 1
         end
+        vk.vkc_progress_finish()
 
         local batch_compute_elapsed = wall_clock() - batch_start_time
         print(string.format("  GPU finished %d iterations in %.2fs (%.2f iter/sec average)",
