@@ -11,9 +11,28 @@
 
 ## Current Behavior
 
-Boosted posts are extracted and will have actual content (via 8-011 scraper), but they
-render identically to regular poems. There is no visual indication that a poem is
-boosted/shared content from another author.
+Boosted posts render inside a distinctive nested frame drawn by ONE shared module,
+`src/boost-bars.lua` (covered by `src/boost-bars.test.lua`). Every render path —
+the main thread, the effil worker, and the chronological page — calls the same
+`format_boost(...)`, so the three copies can no longer drift. The previous design
+kept three hand-copied sets of `generate_boost_*` / `worker_boost_*` helpers that
+had drifted into three different failures: body walls offset two columns from the
+top border, bottom-bar junctions copied from the golden layout (column 71 instead
+of 69), and ▢ corruption from byte-slicing the multibyte ═ in the [BOOST] bar.
+
+The frame is now ASYMMETRIC, matching the golden-poem treatment:
+
+- LEFT edge is always double (`╦ ║ ╠ ╚`) — it anchors the frame.
+- RIGHT edge is a FILL FRONTIER — single (`┐ │ ┤ ┴`) until the progress bar fills
+  the far-right column, then double (`╗ ║ ╣ ╩`). That only happens for the
+  chronologically-last poems at ~100% progress.
+- Arrows ride the corners: `◀═` into the top-left, `─▶` out of the bottom-right.
+  The arrows sit OUTSIDE the rectangle, so body/nav/bottom lines carry a 2-space
+  indent to align their walls (col 2 / col 81) under the top border's corner.
+
+The framed rectangle is 80 columns (cols 2-81); content wraps to a 72-column
+interior (down from 74, because the alignment indent costs two columns). Callers
+read the width from `boost_bars.CONTENT_WIDTH` rather than hard-coding it.
 
 ## Intended Behavior
 
@@ -38,16 +57,27 @@ Based on `/notes/boost post image style.png`:
 
 ### Design Reference
 
-Example at 60% progress (label centered at position ~25):
+Example at 50% progress (asymmetric, right edge still single because the bar has
+not reached the far-right column). Run `luajit src/boost-bars.test.lua` or the
+preview harness for the authoritative rendering:
 ```
-◀─╔════════════════════════[BOOST]════════════════════════─────────────────────────╗
-  ║ ┌────────────────────────────────────────────────────────────────────────────┐ ║
-  ║ │  "A gem cannot be polished without friction, nor a man perfected          │ ║
-  ║ │   without trials."                                                        │ ║
-  ║ └────────────────────────────────────────────────────────────────────────────┘ ║
-  ╠─────────┐                                                          ┌───────────╣
-  ║ similar │                                                          │ different ║
-  ╚═════════════════════════════════════════════════════╧═════════════────────────╝─▶
+◀═╦═══════════════[BOOST]═════════════════───────────────────────────────────────┐
+  ║ ┌──────────────────────────────────────────────────────────────────────────┐ │
+  ║ │ External post: https://tech.lgbt/users/RadioAddition/statuses/1132924947 │ │
+  ║ │ 27215042                                                                 │ │
+  ║ └──────────────────────────────────────────────────────────────────────────┘ │
+  ╠─────────┐                                                        ┌───────────┤
+  ║ similar │                     chronological                      │ different │
+  ╚═════════╧═════════════════════════════───────────────────────────┴───────────┴─▶
+```
+
+At 100% progress (chronologically last poem) the right edge solidifies to double
+and the bottom-right corner becomes `╩` before the `─▶`:
+```
+◀═╦═══════════════════════════════════[BOOST]════════════════════════════════════╗
+  ║ ┌──────────────────────────────────────────────────────────────────────────┐ ║
+  ...
+  ╚═════════╧════════════════════════════════════════════════════════╧═══════════╩─▶
 ```
 
 ## Design Decision: Dynamic Label Position

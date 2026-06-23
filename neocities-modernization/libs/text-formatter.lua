@@ -204,5 +204,31 @@ function M.wrap_preserving_indent(line, max_width)
 end
 -- }}}
 
+-- {{{ function M.wrap_external_url(prefix, url, content_width)
+-- Render `prefix .. url` as lines no wider than content_width, BREAKING the URL
+-- across lines so it fits its box instead of overflowing (the user prefers
+-- wrapping over truncation -- nothing is lost). The box renderer draws each
+-- line separately, so a single <a> spanning lines would be split across the box
+-- walls; therefore each line carries its OWN <a href=url> wrapping the same full
+-- URL, keeping every chunk clickable. Returns a "\n"-joined string ready for the
+-- box renderer. URLs are ASCII so byte slicing == character slicing here.
+function M.wrap_external_url(prefix, url, content_width)
+    prefix = prefix or ""
+    local lines = {}
+    local pos = 1
+    local budget = content_width - M.utf8_char_count(prefix)
+    if budget < 1 then budget = content_width end
+    while pos <= #url do
+        local chunk = url:sub(pos, pos + budget - 1)
+        local linked = string.format('<a href="%s" target="_blank" rel="noopener">%s</a>', url, chunk)
+        lines[#lines + 1] = (#lines == 0) and (prefix .. linked) or linked
+        pos = pos + budget
+        budget = content_width
+    end
+    if #lines == 0 then lines[1] = prefix end
+    return table.concat(lines, "\n")
+end
+-- }}}
+
 return M
 -- }}}
