@@ -41,16 +41,21 @@ local p = by_id(pseudo)
 
 check("all 5 images got pseudo-embeddings", #pseudo == 5 and #skipped == 0)
 
--- Between p1 (1,0,0) and p2 (0,1,0): midpoint (0.5,0.5,0) -> normalized (R2,R2,0).
-check("between12 is normalized midpoint", vec_approx(p.between12.embedding, {R2, R2, 0}))
+-- Crooked cross-cut (seam = floor(3*0.5) = 1): dim 1 from the BEFORE poem,
+-- dims 2-3 from the AFTER poem. Between p1 (1,0,0) and p2 (0,1,0): dim1 from p1
+-- (1), dims2-3 from p2 (1,0) -> (1,1,0) -> normalized (R2,R2,0). (Same value as
+-- the old midpoint here only by coincidence of the orthogonal toy vectors.)
+check("between12 crooked cross-cut", vec_approx(p.between12.embedding, {R2, R2, 0}))
 -- Before the first poem: leans only on p1 -> (1,0,0).
 check("before-first uses following poem", vec_approx(p.before.embedding, {1, 0, 0}))
 -- After the last poem: leans only on p3 -> (0,0,1).
 check("after-last uses preceding poem", vec_approx(p.after.embedding, {0, 0, 1}))
 -- Exact timestamp match snaps to that poem (p2), not an average across it.
 check("exact-match snaps to that poem", vec_approx(p.exact2.embedding, {0, 1, 0}))
--- Between p2 and p3: (0,0.5,0.5) -> (0,R2,R2).
-check("between23 midpoint", vec_approx(p.between23.embedding, {0, R2, R2}))
+-- Between p2 (0,1,0) and p3 (0,0,1): dim1 from p2 (0), dims2-3 from p3 (0,1) ->
+-- (0,0,1). With only 3 toy dims and seam=1 the cross-cut leans hard to the AFTER
+-- poem; in real 768-dim space (seam 384) it is a genuine subject/texture blend.
+check("between23 crooked cross-cut", vec_approx(p.between23.embedding, {0, 0, 1}))
 
 -- Every pseudo-embedding is unit length.
 for _, e in ipairs(pseudo) do

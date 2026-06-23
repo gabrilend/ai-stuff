@@ -8,10 +8,17 @@ pipeline caller supplies numeric timestamps and joined embeddings.
 ## Concept
 
 An image has no semantic vector of its own. We place it at its timestamp in the
-chronological order of text poems and set its embedding to the normalized average
-of the poem immediately before and the poem immediately after. That is the image's
-semantic midpoint between its two temporal neighbours. At the timeline ends only
-one neighbour exists, so the single side is used.
+chronological order of text poems and synthesize its embedding by CROSS-CUTTING
+its two temporal neighbours: the leading dimensions come from the poem before it,
+the trailing dimensions from the poem after it (a "crooked" cut, not an average).
+We do this because averaging two unit vectors smooths them toward the corpus
+centre (measured +12% closer to the centroid), turning images into hubs that
+flood every poem's similar list; the cross-cut keeps each dimension's full
+real-poem magnitude and stays at the normal baseline centrality. Because
+nomic-embed-text-v1.5 is a Matryoshka model (leading dims carry coarse meaning),
+the seam reads as "the image takes its subject from the poem before and its
+texture from the poem after." At the timeline ends only one neighbour exists, so
+the single side is used.
 
 ## External functions
 
@@ -46,7 +53,7 @@ one neighbour exists, so the single side is used.
 
 ## Tested by
 
-`src/image-pseudo-embeddings.test.lua` (16 assertions: midpoint average, both
+`src/image-pseudo-embeddings.test.lua` (16 assertions: crooked cross-cut, both
 timeline ends, exact-timestamp snap, unit-length normalization, title formatting
 incl. nested + leading-slash, empty-timeline skip). Run with
 `luajit src/image-pseudo-embeddings.test.lua`.
