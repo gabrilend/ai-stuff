@@ -257,6 +257,21 @@ return {
     },
     -- }}}
 
+    -- {{{ excluded_images
+    -- Issue 10-053: Images to exclude by relative path under the project root.
+    -- Unlike a filter, these are STRIPPED from input/ by scripts/strip-excluded
+    -- after sync, so they never get cataloged, embedded, flattened into
+    -- output/media, rendered, OR uploaded with input/. The originals stay safe in
+    -- the /home/ritz/... rsync sources (a later sync re-copies them; the strip
+    -- removes them again). Read by: scripts/strip-excluded.
+    --
+    -- Finding an image's path: copy it from the gallery/page that shows it, or
+    --   ls input/images/<source>/   (paths are relative to the project root).
+    excluded_images = {
+        -- "input/images/my-art/that-one-i-regret.png",
+    },
+    -- }}}
+
     -- {{{ privacy
     -- Anonymization settings for public deployment. In "clean" mode, usernames
     -- are replaced with sequential identifiers (user-1, user-2...) to prevent
