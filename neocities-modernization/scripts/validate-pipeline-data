@@ -40,6 +40,21 @@ OUTPUT_CHRONO="${OUTPUT_CHRONO:-$DIR/output/chronological.html}"
 # Default model
 MODEL="${MODEL:-embeddinggemma_latest}"
 
+# Issue 10-054: caches are switch-aware -- movable ones live in RAM (tmp/),
+# diversity stays on disk. Ask the central utils functions where they actually
+# are (this also resolves the real selected model, fixing the stale default).
+_cache_q() {
+    DIR="$DIR" luajit -e 'local d=os.getenv("DIR"); package.path=d.."/libs/?.lua;"..package.path; local cl=require("config-loader"); cl.set_project_root(d); io.write((require("utils")["'"$1"'"])())' 2>/dev/null
+}
+MOVABLE_MODEL_DIR="$(_cache_q embeddings_dir)"
+DISK_MODEL_DIR="$(_cache_q embeddings_dir_disk)"
+# Diagnostic tool: if the query fails, fall back to the disk layout and say so.
+if [ -z "$MOVABLE_MODEL_DIR" ] || [ -z "$DISK_MODEL_DIR" ]; then
+    echo "⚠️  cache-location query failed; assuming the on-disk layout" >&2
+    MOVABLE_MODEL_DIR="$EMBEDDINGS_DIR/$MODEL"
+    DISK_MODEL_DIR="$EMBEDDINGS_DIR/$MODEL"
+fi
+
 # Flags
 QUICK_MODE=false
 CHECK_FRESHNESS=false
@@ -100,7 +115,7 @@ count_poems() {
 
 count_embeddings() {
     # Count entries in the embeddings.json file (the actual embeddings data)
-    local embeddings_json="$EMBEDDINGS_DIR/$MODEL/embeddings.json"
+    local embeddings_json="$MOVABLE_MODEL_DIR/embeddings.json"
     if [ ! -f "$embeddings_json" ]; then
         echo "0"
         return
@@ -111,7 +126,7 @@ count_embeddings() {
 count_similarity_rankings() {
     # Count entries in similarity_rankings_cache.json (used by HTML generator)
     # Note: Individual files in similarities/ are stale from older architecture
-    local cache_file="$EMBEDDINGS_DIR/$MODEL/similarity_rankings_cache.json"
+    local cache_file="$MOVABLE_MODEL_DIR/similarity_rankings_cache.json"
     if [ ! -f "$cache_file" ]; then
         echo "0"
         return
@@ -120,7 +135,7 @@ count_similarity_rankings() {
 }
 
 check_diversity_cache() {
-    local cache_file="$EMBEDDINGS_DIR/$MODEL/diversity_cache.json"
+    local cache_file="$DISK_MODEL_DIR/diversity_cache.json"
     if [ ! -f "$cache_file" ]; then
         echo "MISSING"
         return
@@ -289,7 +304,7 @@ output_human() {
 
     echo "Embeddings"
     echo "  ├─ Progress: $EMBEDDING_COUNT / $POEM_COUNT (${EMBEDDING_PCT}%) $emb_status"
-    echo "  ├─ Location: $EMBEDDINGS_DIR/$MODEL/"
+    echo "  ├─ Location: $MOVABLE_MODEL_DIR/"
     echo "  ├─ Model: $MODEL"
 
     if [ "$EMBEDDING_COUNT" -eq "$POEM_COUNT" ]; then
@@ -310,7 +325,7 @@ output_human() {
 
     echo "Similarity Matrix"
     echo "  ├─ Progress: $SIMILARITY_COUNT / $POEM_COUNT (${SIMILARITY_PCT}%) $sim_status"
-    echo "  ├─ Location: $EMBEDDINGS_DIR/$MODEL/similarities/"
+    echo "  ├─ Location: $MOVABLE_MODEL_DIR/similarities/"
 
     if [ "$SIMILARITY_COUNT" -eq "$POEM_COUNT" ]; then
         echo "  └─ Status: COMPLETE ✓"
@@ -333,7 +348,7 @@ output_human() {
 
     echo "Diversity Cache"
     echo "  ├─ Progress: $DIVERSITY_COUNT / $POEM_COUNT (${DIVERSITY_PCT}%) $div_status"
-    echo "  ├─ Location: $EMBEDDINGS_DIR/$MODEL/diversity_cache.json"
+    echo "  ├─ Location: $DISK_MODEL_DIR/diversity_cache.json"
 
     case "$DIVERSITY_STATUS" in
         MISSING)
@@ -348,7 +363,7 @@ output_human() {
         EXISTS:*)
             if [ "$DIVERSITY_COUNT" -eq "$POEM_COUNT" ]; then
                 local cache_size
-                cache_size=$(du -h "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json" 2>/dev/null | cut -f1)
+                cache_size=$(du -h "$DISK_MODEL_DIR/diversity_cache.json" 2>/dev/null | cut -f1)
                 echo "  ├─ Cache size: $cache_size"
                 echo "  └─ Status: COMPLETE ✓"
             else
@@ -418,8 +433,8 @@ list_missing_entries() {
     fi
 
     # Get list of existing similarity files (sorted numerically)
-    if [ -d "$EMBEDDINGS_DIR/$MODEL/similarities" ]; then
-        find "$EMBEDDINGS_DIR/$MODEL/similarities" -name "poem_*.json" -type f 2>/dev/null | \
+    if [ -d "$MOVABLE_MODEL_DIR/similarities" ]; then
+        find "$MOVABLE_MODEL_DIR/similarities" -name "poem_*.json" -type f 2>/dev/null | \
             sed 's/.*poem_//' | sed 's/\.json$//' | sort -g > "$existing_files_file"
     else
         touch "$existing_files_file"
@@ -477,13 +492,13 @@ list_missing_entries() {
     echo "═══════════════════════════════════════════════════════════════"
 
     # Also check diversity cache if it exists
-    if [ -f "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json" ]; then
+    if [ -f "$DISK_MODEL_DIR/diversity_cache.json" ]; then
         echo ""
         echo "Diversity Cache Entries"
         echo "═══════════════════════════════════════════════════════════════"
 
         local cache_keys
-        cache_keys=$(jq 'keys | length' "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json" 2>/dev/null)
+        cache_keys=$(jq 'keys | length' "$DISK_MODEL_DIR/diversity_cache.json" 2>/dev/null)
 
         if [ "$cache_keys" = "$POEM_COUNT" ]; then
             echo "  ✓ All poems have diversity sequences"
@@ -580,18 +595,18 @@ check_freshness() {
     local has_stale=false
 
     poems_mtime=$(get_file_mtime "$POEMS_JSON")
-    embeddings_mtime=$(get_file_mtime "$EMBEDDINGS_DIR/$MODEL/embeddings.json")
+    embeddings_mtime=$(get_file_mtime "$MOVABLE_MODEL_DIR/embeddings.json")
 
     # Get latest similarity file mtime
     similarity_mtime=0
-    if [ -d "$EMBEDDINGS_DIR/$MODEL/similarities" ]; then
+    if [ -d "$MOVABLE_MODEL_DIR/similarities" ]; then
         local latest_sim
-        latest_sim=$(find "$EMBEDDINGS_DIR/$MODEL/similarities" -name "poem_*.json" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
+        latest_sim=$(find "$MOVABLE_MODEL_DIR/similarities" -name "poem_*.json" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
         similarity_mtime=${latest_sim%.*}  # Remove decimal part
         [ -z "$similarity_mtime" ] && similarity_mtime=0
     fi
 
-    diversity_mtime=$(get_file_mtime "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json")
+    diversity_mtime=$(get_file_mtime "$DISK_MODEL_DIR/diversity_cache.json")
 
     # Check if embeddings are stale compared to poems
     if [ "$poems_mtime" -gt "$embeddings_mtime" ]; then
@@ -677,7 +692,7 @@ output_json() {
     "total": $POEM_COUNT,
     "percentage": $EMBEDDING_PCT,
     "missing": $((POEM_COUNT - EMBEDDING_COUNT)),
-    "location": "$EMBEDDINGS_DIR/$MODEL/",
+    "location": "$MOVABLE_MODEL_DIR/",
     "status": "$( [ "$EMBEDDING_COUNT" -eq "$POEM_COUNT" ] && echo "COMPLETE" || echo "INCOMPLETE" )"
   },
   "similarity_matrix": {
@@ -685,7 +700,7 @@ output_json() {
     "total": $POEM_COUNT,
     "percentage": $SIMILARITY_PCT,
     "missing": $((POEM_COUNT - SIMILARITY_COUNT)),
-    "location": "$EMBEDDINGS_DIR/$MODEL/similarities/",
+    "location": "$MOVABLE_MODEL_DIR/similarities/",
     "status": "$( [ "$SIMILARITY_COUNT" -eq "$POEM_COUNT" ] && echo "COMPLETE" || echo "INCOMPLETE" )"
   },
   "diversity_cache": {
@@ -693,7 +708,7 @@ output_json() {
     "total": $POEM_COUNT,
     "percentage": $DIVERSITY_PCT,
     "missing": $((POEM_COUNT - DIVERSITY_COUNT)),
-    "location": "$EMBEDDINGS_DIR/$MODEL/diversity_cache.json",
+    "location": "$DISK_MODEL_DIR/diversity_cache.json",
     "status": "$DIVERSITY_STATUS"
   },
   "html_output": {
