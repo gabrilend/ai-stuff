@@ -29,7 +29,8 @@ utils.init_assets_root({DIR})
 local function load_all_triangular_similarities(model_name)
     model_name = model_name or "embeddinggemma:latest"
     local model_dir = model_name:gsub(":", "_")
-    local similarities_dir = DIR .. "/assets/embeddings/" .. model_dir .. "/similarities"
+    -- Issue 10-054: similarities + ranking cache are movable (embeddings_dir, RAM).
+    local similarities_dir = utils.similarities_dir(model_name)
 
     print(string.format("[SIMILARITY CACHE] Loading triangular files from: %s", similarities_dir))
 
@@ -187,7 +188,8 @@ end
 local function save_rankings_cache(rankings, model_name)
     model_name = model_name or "embeddinggemma:latest"
     local model_dir = model_name:gsub(":", "_")
-    local cache_file = DIR .. "/assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
+    -- Issue 10-054: similarity ranking cache is movable (embeddings_dir, RAM).
+    local cache_file = utils.embeddings_dir(model_name) .. "/similarity_rankings_cache.json"
 
     local total_poems = utils.table_count(rankings)
 

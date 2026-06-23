@@ -95,8 +95,10 @@ local function main()
 
     -- Build paths
     local model_dir = MODEL_NAME:gsub(":", "_")
-    local embeddings_file = string.format("%s/assets/embeddings/%s/embeddings.json", DIR, model_dir)
-    local output_file = string.format("%s/assets/embeddings/%s/diversity_cache.json", DIR, model_dir)
+    -- Issue 10-054: read embeddings from the movable cache (RAM), but write the
+    -- diversity cache to disk (embeddings_dir_disk) so it survives a reboot.
+    local embeddings_file = utils.embeddings_dir(MODEL_NAME) .. "/embeddings.json"
+    local output_file = utils.embeddings_dir_disk(MODEL_NAME) .. "/diversity_cache.json"
     local binary_file = string.format("%s/output/diversity-cache-gpu-batch.bin", DIR)
 
     print(string.format("[Config] Model: %s", MODEL_NAME))

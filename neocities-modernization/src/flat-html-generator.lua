@@ -232,7 +232,8 @@ local SIMILARITY_RANKINGS_CACHE = nil
 local function load_diversity_cache(model_name)
     model_name = model_name or inference_config.get_selected_model()
     local model_dir = model_name:gsub(":", "_")
-    local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/diversity_cache.json")
+    -- Issue 10-054: diversity stays on disk (embeddings_dir_disk).
+    local cache_file = utils.embeddings_dir_disk(model_name) .. "/diversity_cache.json"
 
     if not utils.file_exists(cache_file) then
         error(string.format([[
@@ -267,7 +268,8 @@ end
 local function load_similarity_rankings_cache(model_name)
     model_name = model_name or inference_config.get_selected_model()
     local model_dir = model_name:gsub(":", "_")
-    local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/similarity_rankings_cache.json")
+    -- Issue 10-054: similarity ranking cache is movable (embeddings_dir, RAM).
+    local cache_file = utils.embeddings_dir(model_name) .. "/similarity_rankings_cache.json"
 
     if not utils.file_exists(cache_file) then
         error(string.format([[
