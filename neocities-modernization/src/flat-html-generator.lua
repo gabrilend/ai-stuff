@@ -29,19 +29,23 @@ local utils = require("utils")
 local dkjson = require("dkjson")
 -- Issue 8-056: Shared text formatting module for whitespace preservation
 local text_formatter = require("text-formatter")
+-- Shared in-place progress bar (same look + TTY/--debug rules as the GPU stages)
+local progress = require("progress-display")
+-- Issue 9-013: render ranked image entries (pseudo-poems) as image boxes
+local image_render = require("image-render")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
 local unified_config = config_loader.load()
 
--- ollama-config tells us which embedding model the rest of the pipeline is
+-- inference-server-config tells us which embedding model the rest of the pipeline is
 -- pointed at. We use it to derive the cache-directory name in the two
 -- diversity/similarity loader fallbacks below; previously those defaulted
 -- to "embeddinggemma:latest" as a literal string, which silently broke
 -- after a model swap.
-local ollama_config = require("ollama-config")
-ollama_config.set_project_root(DIR)
+local inference_config = require("inference-server-config")
+inference_config.set_project_root(DIR)
 
 -- Initialize asset path configuration (CLI --dir takes precedence over config)
 utils.init_assets_root(arg)
@@ -97,6 +101,12 @@ local BOOST_COLOR_CONFIG = {
     content_text = "#c8b428" -- Yellow: The actual boosted text content
 }
 
+-- The boost frame is drawn by ONE shared module so the main + worker + word-page
+-- copies cannot drift (they had: misaligned walls, wrong junction columns, ▢
+-- corruption). See src/boost-bars.lua + src/boost-bars.test.lua.
+local boost_bars = require("boost-bars")
+boost_bars.configure(BOOST_COLOR_CONFIG)
+
 -- {{{ Issue 16-010: Monospace font enforcement
 -- Font stack prioritizes Hack Nerd Font (user's preference), then falls back
 -- to other popular monospace fonts for consistent rendering across browsers.
@@ -108,6 +118,17 @@ body, pre {
                  'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono',
                  'Courier New', monospace;
 }
+/* True page-centering for the poem column. The old <table align="center">
+   shrink-wrapped to its WIDEST line -- and an attached image (up to 800px) is
+   wider than the ~84-char text frame, so the cell stretched and the frames
+   hugged the left of that wide cell, landing the whole column left-of-center.
+   Fix: the cell centers its children, each <pre> is an inline-block that
+   centers as a block (text stays left-aligned inside), and media centers via
+   auto margins. Now a vertical line down the page bisects every poem AND image,
+   regardless of how wide any single image is. */
+td { text-align: center; }
+pre { display: inline-block; text-align: left; margin: 0 auto; }
+img, video, audio { margin-left: auto; margin-right: auto; }
 </style>
 ]]
 -- }}}
@@ -209,7 +230,7 @@ local SIMILARITY_RANKINGS_CACHE = nil
 -- Loads pre-computed diversity sequences from GPU cache (required for HTML generation)
 -- Errors out if cache doesn't exist - no fallback to on-the-fly computation
 local function load_diversity_cache(model_name)
-    model_name = model_name or ollama_config.get_selected_model()
+    model_name = model_name or inference_config.get_selected_model()
     local model_dir = model_name:gsub(":", "_")
     local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/diversity_cache.json")
 
@@ -244,7 +265,7 @@ end
 -- Loads pre-sorted similarity rankings from cache (required for HTML generation)
 -- Errors out if cache doesn't exist - no fallback to on-the-fly sorting
 local function load_similarity_rankings_cache(model_name)
-    model_name = model_name or ollama_config.get_selected_model()
+    model_name = model_name or inference_config.get_selected_model()
     local model_dir = model_name:gsub(":", "_")
     local cache_file = utils.asset_path("embeddings/" .. model_dir .. "/similarity_rankings_cache.json")
 
@@ -875,6 +896,19 @@ local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
     end
 
     return mapping
+end
+-- }}}
+
+-- Exported so the word-cloud pages reuse this EXACT chronological mapping (same
+-- timestamp sort + original-index tiebreaker + page size). A divergent inline
+-- copy in generate-word-pages sorted by the raw creation_date string with no
+-- tiebreaker and its own page-size default, so it computed different page
+-- numbers -> "chronological" links pointed at pages the poem wasn't on and never
+-- scrolled. One mapping, one answer.
+M.compute_chronological_mapping = compute_chronological_mapping
+-- {{{ function M.default_chrono_per_page()
+function M.default_chrono_per_page()
+    return PAGINATION_CONFIG.chronological_poems_per_page or 500
 end
 -- }}}
 
@@ -1833,265 +1867,25 @@ end
 -- }}}
 
 -- {{{ Issue 8-057: Boost Visual Formatting Functions
--- Boosts use nested frames: outer blue frame + inner teal content box
--- with asymmetric arrows (◀─ top-left, ─▶ bottom-right) and floating [BOOST] label
-
--- {{{ function generate_boost_top_border
-local function generate_boost_top_border(progress_percent)
-    -- Top border: ◀─╔═══════[BOOST]═══════─────────╗
-    -- Total width: 84 characters
-    -- Layout: ◀(1) + ─(1) + ╔(1) + progress bar(78) + ╗(1) + newline pad(2) = 84
-    -- [BOOST] label floats at 50% of progress position
-
-    local BAR_WIDTH = 78  -- Interior width for progress bar
-    local LABEL = "[BOOST]"
-    local LABEL_LEN = 7
-
-    -- Calculate progress position (how many ═ characters)
-    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
-    if progress_chars < LABEL_LEN + 2 then
-        progress_chars = LABEL_LEN + 2  -- Ensure room for label
-    end
-
-    -- Calculate label center position (50% of progress)
-    local label_center = math.floor(progress_chars / 2)
-    local label_start = label_center - math.floor(LABEL_LEN / 2)
-    if label_start < 1 then label_start = 1 end
-
-    -- Build the progress bar with embedded label
-    local bar_chars = {}
-    for i = 1, BAR_WIDTH do
-        if i >= label_start and i < label_start + LABEL_LEN then
-            -- Insert label character
-            local label_idx = i - label_start + 1
-            table.insert(bar_chars, LABEL:sub(label_idx, label_idx))
-        elseif i <= progress_chars then
-            table.insert(bar_chars, "═")
-        else
-            table.insert(bar_chars, "─")
-        end
-    end
-    local bar_str = table.concat(bar_chars)
-
-    -- Apply colors: red for arrow and label, blue for frame
-    local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', BOOST_COLOR_CONFIG.arrow)
-    local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-
-    -- Color the bar: progress portion in blue, label in red, remaining in default
-    local colored_bar = ""
-    for i = 1, BAR_WIDTH do
-        if i >= label_start and i < label_start + LABEL_LEN then
-            -- Label character in red
-            local char = bar_str:sub(i, i)
-            colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', BOOST_COLOR_CONFIG.arrow, char)
-        elseif i <= progress_chars then
-            -- Progress bar in blue
-            colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-        else
-            -- Remaining in blue (but thin line)
-            colored_bar = colored_bar .. string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.outer_frame)
-        end
-    end
-
-    return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
-end
--- }}}
-
--- {{{ function generate_boost_content_line
-local function generate_boost_content_line(line, is_first, is_last)
-    -- Content lines: ║ │ content │ ║
-    -- Width breakdown: ║(1) + space(1) + │(1) + space(1) + content(74) + space(1) + │(1) + space(1) + ║(1) = 84
-    local CONTENT_WIDTH = 74
-
-    -- Calculate visible length
-    local visible_length = text_formatter.calculate_visible_width(line)
-
-    -- Pad to fit content width
-    local padded_line
-    if visible_length >= CONTENT_WIDTH then
-        padded_line = line
-    else
-        local padding_needed = CONTENT_WIDTH - visible_length
-        padded_line = line .. string.rep(" ", padding_needed)
-    end
-
-    -- Apply colors to frame characters
-    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLOR_CONFIG.inner_box)
-
-    -- Color the content text in yellow
-    local colored_content = string.format('<font color="%s">%s</font>', BOOST_COLOR_CONFIG.content_text, padded_line)
-
-    return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
-end
--- }}}
-
--- {{{ function generate_boost_inner_box_top
-local function generate_boost_inner_box_top()
-    -- Inner box top: ║ ┌────────────────────────────────────────────────────────────────────────────┐ ║
-    -- Width: 1 + 1 + 1 + 74 + 1 + 1 + 1 = 80 interior, plus 2 outer walls = 84 (but we're inside outer walls already)
-    local INNER_WIDTH = 78  -- ┌ + 76 dashes + ┐
-
-    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLOR_CONFIG.inner_box)
-    local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLOR_CONFIG.inner_box)
-    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
-
-    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
-end
--- }}}
-
--- {{{ function generate_boost_inner_box_bottom
-local function generate_boost_inner_box_bottom()
-    -- Inner box bottom: ║ └────────────────────────────────────────────────────────────────────────────┘ ║
-    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', BOOST_COLOR_CONFIG.inner_box)
-    local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', BOOST_COLOR_CONFIG.inner_box)
-    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
-
-    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
-end
--- }}}
-
--- {{{ function generate_boost_nav_separator
-local function generate_boost_nav_separator()
-    -- Navigation separator: ╠─────────┐                                                        ┌───────────╣
-    -- Adapts the golden poem corner box separator for boost outer frame
-    local outer_wall_left = string.format('<font color="%s"><b>╠</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local outer_wall_right = string.format('<font color="%s"><b>╣</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local corner_left = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLOR_CONFIG.inner_box)
-    local corner_right = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLOR_CONFIG.inner_box)
-    local dash = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.inner_box)
-
-    -- Issue 10-041: Fixed width calculation
-    -- Layout: ╠(1) + dashes(9) + ┐(1) + spaces(58) + ┌(1) + dashes(11) + ╣(1) = 82
-    -- Matches other lines: top border (82), content (82), bottom border (82)
-    local left_box = outer_wall_left .. string.rep(dash, 9) .. corner_left
-    local right_box = corner_right .. string.rep(dash, 11) .. outer_wall_right
-    local gap = string.rep(" ", 58)
-
-    return left_box .. gap .. right_box
-end
--- }}}
-
--- {{{ function generate_boost_nav_line
-local function generate_boost_nav_line(similar_link, different_link, chronological_link)
-    -- Navigation line: ║ similar │                       chronological                       │ different ║
-    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLOR_CONFIG.inner_box)
-
-    -- Build similar link box (11 chars interior)
-    local similar_html = similar_link or "similar"
-    local similar_text = " " .. similar_html .. " "
-
-    -- Build different link box (11 chars interior)
-    local different_html = different_link or "different"
-    local different_text = " " .. different_html .. " "
-
-    -- Build chronological center (if provided)
-    local center_text = ""
-    if chronological_link then
-        center_text = chronological_link
-    end
-
-    -- Calculate gaps for centering
-    local left_box_width = 11  -- "║ similar │"
-    local right_box_width = 13 -- "│ different ║"
-    local total_width = 82     -- Interior width
-    local available_for_gaps = total_width - left_box_width - right_box_width
-
-    local left_gap, right_gap
-    if center_text ~= "" then
-        local center_len = #"chronological"  -- visible text length
-        local remaining = available_for_gaps - center_len
-        left_gap = string.rep(" ", math.floor(remaining / 2))
-        right_gap = string.rep(" ", math.ceil(remaining / 2))
-    else
-        left_gap = string.rep(" ", math.floor(available_for_gaps / 2))
-        right_gap = string.rep(" ", math.ceil(available_for_gaps / 2))
-    end
-
-    return outer_wall .. similar_text .. inner_wall .. left_gap .. center_text .. right_gap .. inner_wall .. different_text .. outer_wall
-end
--- }}}
-
--- {{{ function generate_boost_bottom_border
-local function generate_boost_bottom_border(progress_percent)
-    -- Bottom border: ╚═══════════════════════════════════════════════════╧═════════════────────────╝─▶
-    -- Similar to golden poem but with arrow at end
-    local BAR_WIDTH = 78
-    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
-
-    -- Junction positions (matching golden poem layout)
-    local LEFT_JUNCTION_POS = 10
-    local RIGHT_JUNCTION_POS = 71
-
-    local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-    local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', BOOST_COLOR_CONFIG.arrow)
-
-    -- Build progress bar with junctions
-    local bar_str = ""
-    for i = 1, BAR_WIDTH do
-        local char
-        local in_progress = i <= progress_chars
-
-        if i == LEFT_JUNCTION_POS or i == RIGHT_JUNCTION_POS then
-            -- Junction character
-            if in_progress then
-                char = string.format('<font color="%s"><b>╧</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-            else
-                char = string.format('<font color="%s">┴</font>', BOOST_COLOR_CONFIG.outer_frame)
-            end
-        elseif in_progress then
-            char = string.format('<font color="%s"><b>═</b></font>', BOOST_COLOR_CONFIG.outer_frame)
-        else
-            char = string.format('<font color="%s">─</font>', BOOST_COLOR_CONFIG.outer_frame)
-        end
-        bar_str = bar_str .. char
-    end
-
-    return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
-end
--- }}}
+-- Boosts use nested frames: outer blue frame + inner teal content box with
+-- asymmetric arrows (◀═ top-left, ─▶ bottom-right) and a floating [BOOST] label.
+-- ALL geometry now lives in src/boost-bars.lua (shared, unit-tested) -- the old
+-- generate_boost_* helpers were removed because three drifting copies produced
+-- misaligned walls, wrong junction columns, and ▢ corruption. This path keeps
+-- only the thin assembler below.
 
 -- {{{ function apply_boost_poem_formatting
 local function apply_boost_poem_formatting(content, progress_percent, similar_link, different_link, chronological_link)
-    -- Issue 8-057: Apply nested frame formatting to boost posts
-    -- Creates: outer blue frame + inner teal content box + arrows + [BOOST] label
-
-    local formatted_lines = {}
-
-    -- 1. Top border with arrow and [BOOST] label
-    table.insert(formatted_lines, generate_boost_top_border(progress_percent))
-
-    -- 2. Inner box top
-    table.insert(formatted_lines, generate_boost_inner_box_top())
-
-    -- 3. Content lines wrapped in nested frames
+    -- Issue 8-057: nested frame formatting for boosts, drawn by the shared
+    -- boost-bars module (single source of truth for every render path). We just
+    -- split the pre-wrapped content into lines; the module owns all geometry.
     local lines = {}
     for line in (content .. "\n"):gmatch("(.-)\n") do
         table.insert(lines, line)
     end
-
-    for i, line in ipairs(lines) do
-        table.insert(formatted_lines, generate_boost_content_line(line, i == 1, i == #lines))
-    end
-
-    -- 4. Inner box bottom
-    table.insert(formatted_lines, generate_boost_inner_box_bottom())
-
-    -- 5. Navigation separator and nav line (if links provided)
-    if similar_link and different_link then
-        table.insert(formatted_lines, generate_boost_nav_separator())
-        table.insert(formatted_lines, generate_boost_nav_line(similar_link, different_link, chronological_link))
-    end
-
-    -- 6. Bottom border with arrow
-    table.insert(formatted_lines, generate_boost_bottom_border(progress_percent))
-
-    return table.concat(formatted_lines, "\n")
+    local include_nav = (similar_link and different_link) and true or false
+    return boost_bars.format_boost(
+        lines, progress_percent, similar_link, different_link, chronological_link, include_nav)
 end
 -- }}}
 
@@ -2168,6 +1962,12 @@ end
 -- {{{ function format_single_poem_with_progress_and_color
 -- Issue 10-036: Added chrono_mapping for correct paginated chronological links
 local function format_single_poem_with_progress_and_color(poem, total_poems, poem_colors, chrono_mapping)
+    -- Issue 9-013: a ranked IMAGE entry (pseudo-poem) renders as an image box,
+    -- not a poem. Inert until inject_pseudo_poems tags/append image entries.
+    if poem.is_image then
+        return image_render.format_image_entry(poem)
+    end
+
     local formatted = ""
 
     -- Get semantic color for this poem (key by poem_index, NOT poem.id)
@@ -2202,6 +2002,10 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
 
     -- Add file header (notes show original filename, others show numeric ID)
     formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
+    -- Issue 9-013: text+image posts get a direct "image.png" link below the
+    -- header. (Image entries never reach here -- they return early above.)
+    local img_link = image_render.text_image_link(poem)
+    if img_link ~= "" then formatted = formatted .. " " .. img_link .. "\n" end
 
     -- Issue 8-057: Boost formatting - uses complete nested frame with arrows and [BOOST] label
     -- Boost formatting replaces all standard elements (top bar, content, nav, bottom bar)
@@ -2225,12 +2029,13 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
         local external_pattern = "^External post: (https?://[^%s]+)$"
         local external_url = text:match(external_pattern)
         if external_url then
-            text = string.format('External post: <a href="%s" target="_blank" rel="noopener">%s</a>',
-                external_url, external_url)
+            -- Wrap the URL across box lines (boost content width) instead of
+            -- letting it overflow the box; each line links to the full URL.
+            text = text_formatter.wrap_external_url("External post: ", external_url, boost_bars.CONTENT_WIDTH)
         else
-            -- Issue 10-041: Wrap long embedded content to fit boost box (74 char content width)
+            -- Issue 10-041: Wrap long embedded content to fit the boost box.
             -- Only wrap non-external-post content (external posts keep URLs intact)
-            local BOOST_CONTENT_WIDTH = 74
+            local BOOST_CONTENT_WIDTH = boost_bars.CONTENT_WIDTH
             local wrapped_lines = {}
             for line in (text .. "\n"):gmatch("(.-)\n") do
                 local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
@@ -2933,11 +2738,11 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
                 local external_pattern = "^External post: (https?://[^%s]+)$"
                 local external_url = text:match(external_pattern)
                 if external_url then
-                    text = string.format('External post: <a href="%s" target="_blank" rel="noopener">%s</a>',
-                        external_url, external_url)
+                    -- Wrap the URL across box lines instead of overflowing.
+                    text = text_formatter.wrap_external_url("External post: ", external_url, boost_bars.CONTENT_WIDTH)
                 else
                     -- Issue 10-041: Wrap long embedded content to fit boost box
-                    local BOOST_CONTENT_WIDTH = 74
+                    local BOOST_CONTENT_WIDTH = boost_bars.CONTENT_WIDTH
                     local wrapped_lines = {}
                     for line in (text .. "\n"):gmatch("(.-)\n") do
                         local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
@@ -3063,19 +2868,20 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 end
 -- }}}
 
--- {{{ function M.generate_simple_discovery_instructions
-function M.generate_simple_discovery_instructions(output_dir)
-    -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-    -- Issue 16-010: Added FONT_STYLE for Hack Nerd Font font-stack
-    local template = [[<!DOCTYPE html>
+-- {{{ function explore_page_shell()
+-- Shared HTML shell for the explore pages: black background, monospace, the
+-- corrected centered-<pre> layout. Returns the full document for a title +
+-- heading + pre-formatted body.
+local function explore_page_shell(title, heading, body)
+    return string.format([[<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Poetry Collection - How to Explore</title>
+<title>%s</title>
 ]] .. FONT_STYLE .. [[</head>
 <body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
 <center>
-<h1>Poetry Collection - Exploration Guide</h1>
+<h1>%s</h1>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -3083,36 +2889,220 @@ function M.generate_simple_discovery_instructions(output_dir)
 </pre>
 </td></tr></table>
 </body>
-</html>]]
-    
-    local instructions = wrap_text_80_chars([[
-Welcome to the Poetry Collection.
+</html>]], title, heading, body)
+end
+-- }}}
 
-This collection contains all poems with two ways to explore:
+-- {{{ function corpus_stats()
+-- Gather the live numbers both explore pages render from, so nothing is
+-- hard-coded (stale figures are worse than no figures). Reads only poems_data
+-- (the small 12MB file) -- never the 662MB similarity matrix -- so it is cheap.
+local function corpus_stats(poems_data)
+    local poems = (poems_data and poems_data.poems) or {}
+    local stats = {
+        total = #poems,
+        sources = {},          -- category -> count
+        source_order = {},     -- source names, most-poems first
+        image_only = 0,
+        min_date = nil, max_date = nil,
+        per_year = {}, year_order = {},
+        length_hist = {}, length_labels = {},  -- length-distribution buckets
+    }
+    -- Length buckets (characters). The last bucket is open-ended.
+    local edges = {0, 100, 250, 500, 1000, 2000}
+    for i = 1, #edges do
+        stats.length_hist[i] = 0
+        if i < #edges then
+            stats.length_labels[i] = string.format("%d-%d", edges[i], edges[i + 1] - 1)
+        else
+            stats.length_labels[i] = string.format("%d+", edges[i])
+        end
+    end
+    for _, p in ipairs(poems) do
+        local cat = p.category or "unknown"
+        stats.sources[cat] = (stats.sources[cat] or 0) + 1
+        if p.is_image_only then stats.image_only = stats.image_only + 1 end
+        local d = p.creation_date
+        if d and d ~= "" then
+            if not stats.min_date or d < stats.min_date then stats.min_date = d end
+            if not stats.max_date or d > stats.max_date then stats.max_date = d end
+            local year = d:sub(1, 4)
+            if year:match("^%d%d%d%d$") then
+                stats.per_year[year] = (stats.per_year[year] or 0) + 1
+            end
+        end
+        -- Place the poem in its length bucket (last edge is open-ended).
+        local len = p.length or #(p.content or "")
+        local bucket = #edges
+        for i = 1, #edges - 1 do
+            if len < edges[i + 1] then bucket = i; break end
+        end
+        stats.length_hist[bucket] = stats.length_hist[bucket] + 1
+    end
+    for cat in pairs(stats.sources) do stats.source_order[#stats.source_order + 1] = cat end
+    table.sort(stats.source_order, function(a, b) return stats.sources[a] > stats.sources[b] end)
+    for year in pairs(stats.per_year) do stats.year_order[#stats.year_order + 1] = year end
+    table.sort(stats.year_order)
+    return stats
+end
+-- }}}
 
-1. SIMILARITY EXPLORATION:
-   Click "similar" next to any poem to see all other poems ranked by
-   how similar they are to that poem. Most similar poems appear first.
+-- {{{ function ascii_bar_row()
+-- One labelled monospace bar: "<label padded> | ████····  <count>". Fits the
+-- site's no-JS, monospace aesthetic (same idiom as the poem progress bars).
+local function ascii_bar_row(label, count, max_count, bar_width, label_width)
+    local filled = (max_count > 0) and math.floor((count / max_count) * bar_width + 0.5) or 0
+    if filled > bar_width then filled = bar_width end
+    local bar = string.rep("█", filled) .. string.rep("·", bar_width - filled)
+    return string.format("%-" .. label_width .. "s | %s  %d", label, bar, count)
+end
+-- }}}
 
-2. DIFFERENCE EXPLORATION:
-   Click "different" next to any poem to see all other poems ranked by
-   maximum difference (most contrasting) from that poem. Creates surprising
-   reading experiences by showing contrasting content.
+-- {{{ function M.generate_simple_discovery_instructions
+-- Back-compat shim: callers that pass only output_dir still work (boosts/golden
+-- counts simply won't appear without the corpus). Prefer passing poems_data.
+function M.generate_simple_discovery_instructions(output_dir, poems_data)
+    M.generate_explore_page(output_dir, poems_data)
+    M.generate_explore_math_page(output_dir, poems_data)
+    return output_dir .. "/explore.html"
+end
+-- }}}
 
-Start from the main chronological index to browse all poems.
-Every poem has both "similar" and "different" links for exploration.
+-- {{{ function M.generate_explore_page()
+-- explore.html -- the welcome / map: orientation + live corpus stats + every
+-- navigation mode + links to the deeper-math page and (placeholder) the source
+-- browser (Issue 10-052). Data/view split: corpus_stats() computes, this renders.
+function M.generate_explore_page(output_dir, poems_data)
+    local s = corpus_stats(poems_data)
+    local lines = {}
+    local function add(line) lines[#lines + 1] = line or "" end
 
-Each exploration method shows ALL poems in the collection, just sorted
-differently based on your chosen starting point.
+    add("Welcome to the Poetry Collection.")
+    add("")
+    add("This is a corpus of poems and posts you can read in several different")
+    add("orders -- by time, by what a poem resembles, by what contrasts with it,")
+    add("by the words it shares with others, or just by wandering.")
+    add("")
+    add("WHAT IS HERE (counted at build time)")
+    add(string.format("  %d poems across %d sources", s.total, #s.source_order))
+    if s.min_date and s.max_date then
+        add(string.format("  spanning %s to %s", s.min_date:sub(1, 10), s.max_date:sub(1, 10)))
+    end
+    if s.image_only > 0 then
+        add(string.format("  %d of them are image-only posts", s.image_only))
+    end
+    add("")
+    add("  sources:")
+    for _, cat in ipairs(s.source_order) do
+        add(string.format("    %-22s %d", cat, s.sources[cat]))
+    end
+    add("")
+    add("WAYS TO EXPLORE")
+    add("  chronological  -- read the collection in time order, start to finish.")
+    add('  similar        -- from any poem, rank every other poem by how much it')
+    add("                    resembles it. Most alike first. Find more of what")
+    add("                    resonates.")
+    add('  different      -- from any poem, rank every other poem by maximum')
+    add("                    contrast. Most unlike first. Discover the unexpected.")
+    add("  word-cloud     -- jump in by a word; see the poems that lean on it.")
+    add("  gallery        -- the images, packed together to browse by eye.")
+    add("  maze           -- wander the corpus, choosing a direction at each step.")
+    add("")
+    add("Every poem carries 'similar' and 'different' links; each view shows the")
+    add("WHOLE collection, only re-sorted around the poem you started from.")
+    add("")
+    add("LINKS")
+    add('  <a href="chronological/index.html">Start reading (chronological)</a>')
+    add('  <a href="wordcloud.html">Word cloud</a>')
+    add('  <a href="gallery/index.html">Image gallery</a>')
+    add('  <a href="explore-2.html">How the similarity actually works (the math)</a>')
+    -- The self-hosted source browser (Issue 10-052): link-only view of the code.
+    add('  <a href="source/index.html">Browse the source code</a>')
 
-The "similar" pages help you find more of what resonates with you.
-The "different" pages help you discover unexpected contrasts and new perspectives.
-]])
-    
-    local final_html = string.format(template, instructions)
+    local html = explore_page_shell(
+        "Poetry Collection - Explore", "Poetry Collection - Explore", table.concat(lines, "\n"))
     local output_file = output_dir .. "/explore.html"
-    
-    return utils.write_file(output_file, final_html) and output_file or nil
+    return utils.write_file(output_file, html) and output_file or nil
+end
+-- }}}
+
+-- {{{ function M.generate_explore_math_page()
+-- explore-2.html -- the deeper math: how the semantic engine works, explained
+-- honestly, with REAL corpus-shape charts (per-source, length, over-time) drawn
+-- as monospace bars. Similarity-distribution charts need the 662MB matrix that
+-- is deliberately not loaded here, so they are noted as a future addition.
+function M.generate_explore_math_page(output_dir, poems_data)
+    local s = corpus_stats(poems_data)
+    local lines = {}
+    local function add(line) lines[#lines + 1] = line or "" end
+    local BAR = 40
+
+    add("How the similarity actually works.")
+    add("")
+    add("EMBEDDINGS")
+    add("  Every poem is run through a sentence-embedding model")
+    add("  (nomic-embed-text-v1.5) that turns its text into a fixed-length list")
+    add("  of numbers -- a point in a high-dimensional space. Poems that mean")
+    add("  similar things land near each other. Vectors are stored at half")
+    add("  precision (FP16) to save space and computed at full precision (FP32).")
+    add("")
+    add("COSINE SIMILARITY")
+    add("  To compare two poems we measure the ANGLE between their vectors, not")
+    add("  the distance. Two poems point the same way (angle ~ 0) when they are")
+    add("  alike; they point apart when they differ. 'similar' sorts by smallest")
+    add("  angle; 'different' sorts by largest -- maximum contrast, which is not")
+    add("  the same as 'unrelated noise'.")
+    add("")
+    add("THE MOOD COLOR MAP")
+    add("  Poems are clustered into semantic 'moods' around centroids (average")
+    add("  points), and each mood gets a color. That is why the progress bars and")
+    add("  word colors carry meaning instead of being decorative.")
+    add("")
+    add("DIVERSITY SEQUENCES")
+    add("  The 'different' ordering is precomputed so that CONSECUTIVE poems stay")
+    add("  maximally spread out -- a walk that keeps surprising you rather than")
+    add("  drifting into one corner of the space.")
+    add("")
+    add("THE TRIANGULAR SIMILARITY MATRIX")
+    add("  Similarity is symmetric (A to B equals B to A), so only the upper")
+    add("  triangle is stored -- about half the memory -- and addressed with a")
+    add("  little index arithmetic instead of a full square.")
+    add("")
+    add("THE SHAPE OF THIS CORPUS (counted at build time)")
+    add("")
+    add(string.format("  Poems per source (of %d total):", s.total))
+    local max_src = 0
+    for _, c in ipairs(s.source_order) do if s.sources[c] > max_src then max_src = s.sources[c] end end
+    for _, cat in ipairs(s.source_order) do
+        add("    " .. ascii_bar_row(cat, s.sources[cat], max_src, BAR, 20))
+    end
+    add("")
+    add("  Poem length (characters):")
+    local max_len_bucket = 0
+    for _, v in ipairs(s.length_hist) do if v > max_len_bucket then max_len_bucket = v end end
+    for i, label in ipairs(s.length_labels) do
+        add("    " .. ascii_bar_row(label, s.length_hist[i], max_len_bucket, BAR, 20))
+    end
+    if #s.year_order > 0 then
+        add("")
+        add("  Poems per year:")
+        local max_year = 0
+        for _, y in ipairs(s.year_order) do if s.per_year[y] > max_year then max_year = s.per_year[y] end end
+        for _, y in ipairs(s.year_order) do
+            add("    " .. ascii_bar_row(y, s.per_year[y], max_year, BAR, 20))
+        end
+    end
+    add("")
+    add("  (Similarity-score distributions live in the precomputed matrix that")
+    add("   this page does not load; they are a planned addition -- see issue")
+    add("   11-004.)")
+    add("")
+    add('<a href="explore.html">Back to Explore</a>')
+
+    local html = explore_page_shell(
+        "Poetry Collection - The Math", "How the Similarity Works", table.concat(lines, "\n"))
+    local output_file = output_dir .. "/explore-2.html"
+    return utils.write_file(output_file, html) and output_file or nil
 end
 -- }}}
 
@@ -3325,6 +3315,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         local thread_config = {
             dir = DIR,
             output_dir = output_dir,
+            -- Issue 9-013: where the worker finds the image pseudo-poem manifest
+            image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
             pages_is_all = pages_config.is_all,
             pages_list = pages_config.pages,
             poems_per_page = PAGINATION_CONFIG.poems_per_page,
@@ -3362,6 +3354,12 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 local t_dkjson = require('dkjson')
                 -- Issue 8-056: Shared text formatting module for whitespace preservation
                 local t_text_formatter = require('text-formatter')
+                -- Shared box/bar drawing (canonical geometry) so this worker copy
+                -- can't drift from the main thread's bars. See poem-bars.lua.
+                local t_poem_bars = require('poem-bars')
+                -- Issue 9-013: fold ranked image pseudo-poems into this worker's
+                -- poem list so it draws them instead of dropping unknown indices.
+                local t_image_render = require('image-render')
                 t_utils.init_assets_root({config.dir})
 
                 -- Load data files (each thread loads independently - files are in disk cache)
@@ -3370,6 +3368,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 if not poems_data then
                     error("Thread " .. tid .. ": Failed to load poems.json")
                 end
+                t_image_render.inject_pseudo_poems(poems_data,
+                    t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
 
                 -- Build poem lookup by poem_index
                 local poem_lookup = {}
@@ -3443,11 +3443,17 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                 -- Issue 8-057: Boost color configuration for worker thread
                 local BOOST_COLORS = {
-                    arrow = "#dc3c3c",      -- Red: ◀─ and ─▶ arrows, [BOOST] label
+                    arrow = "#dc3c3c",      -- Red: ◀═ and ─▶ arrows, [BOOST] label
                     outer_frame = "#3c78dc", -- Blue: ╔═╗║╚═╝ outer frame
                     inner_box = "#2aa198",   -- Teal: ┌─┐│└─┘ inner content box
                     content_text = "#c8b428" -- Yellow: boosted text content
                 }
+
+                -- Same shared boost-frame module the main thread uses; require()
+                -- reloads it fresh in this isolated worker state (only live
+                -- closures can't cross states, plain modules reload from disk).
+                local t_boost_bars = require('boost-bars')
+                t_boost_bars.configure(BOOST_COLORS)
 
                 -- Local helper: Build poem lookup by poem_index for ranking conversion
                 local function build_poem_by_index()
@@ -3501,151 +3507,19 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                 -- {{{ Issue 8-057: Boost formatting functions for worker thread
 
-                -- Worker: Generate boost top border with arrow and [BOOST] label
-                local function worker_boost_top_border(progress_percent)
-                    local BAR_WIDTH = 78
-                    local LABEL = "[BOOST]"
-                    local LABEL_LEN = 7
-
-                    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
-                    if progress_chars < LABEL_LEN + 2 then
-                        progress_chars = LABEL_LEN + 2
-                    end
-
-                    local label_center = math.floor(progress_chars / 2)
-                    local label_start = label_center - math.floor(LABEL_LEN / 2)
-                    if label_start < 1 then label_start = 1 end
-
-                    local colored_arrow = string.format('<font color="%s"><b>◀─</b></font>', BOOST_COLORS.arrow)
-                    local colored_frame_left = string.format('<font color="%s"><b>╔</b></font>', BOOST_COLORS.outer_frame)
-                    local colored_frame_right = string.format('<font color="%s"><b>╗</b></font>', BOOST_COLORS.outer_frame)
-
-                    local colored_bar = ""
-                    for i = 1, BAR_WIDTH do
-                        if i >= label_start and i < label_start + LABEL_LEN then
-                            local char = LABEL:sub(i - label_start + 1, i - label_start + 1)
-                            colored_bar = colored_bar .. string.format('<font color="%s"><b>%s</b></font>', BOOST_COLORS.arrow, char)
-                        elseif i <= progress_chars then
-                            colored_bar = colored_bar .. string.format('<font color="%s"><b>═</b></font>', BOOST_COLORS.outer_frame)
-                        else
-                            colored_bar = colored_bar .. string.format('<font color="%s">─</font>', BOOST_COLORS.outer_frame)
-                        end
-                    end
-
-                    return colored_arrow .. colored_frame_left .. colored_bar .. colored_frame_right
-                end
-
-                -- Worker: Generate inner box top border
-                local function worker_boost_inner_top()
-                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
-                    local inner_corner_left = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLORS.inner_box)
-                    local inner_corner_right = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLORS.inner_box)
-                    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
-                    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
-                end
-
-                -- Worker: Generate inner box bottom border
-                local function worker_boost_inner_bottom()
-                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
-                    local inner_corner_left = string.format('<font color="%s"><b>└</b></font>', BOOST_COLORS.inner_box)
-                    local inner_corner_right = string.format('<font color="%s"><b>┘</b></font>', BOOST_COLORS.inner_box)
-                    local inner_dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
-                    return outer_wall .. " " .. inner_corner_left .. string.rep(inner_dash, 76) .. inner_corner_right .. " " .. outer_wall
-                end
-
-                -- Worker: Generate content line with nested frames
-                local function worker_boost_content_line(line, txt_fmt)
-                    local CONTENT_WIDTH = 74
-                    local visible_length = txt_fmt.calculate_visible_width(line)
-                    local padded_line
-                    if visible_length >= CONTENT_WIDTH then
-                        padded_line = line
-                    else
-                        padded_line = line .. string.rep(" ", CONTENT_WIDTH - visible_length)
-                    end
-
-                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
-                    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLORS.inner_box)
-                    local colored_content = string.format('<font color="%s">%s</font>', BOOST_COLORS.content_text, padded_line)
-
-                    return outer_wall .. " " .. inner_wall .. " " .. colored_content .. " " .. inner_wall .. " " .. outer_wall
-                end
-
-                -- Worker: Generate nav separator for boost
-                -- Issue 10-041: Fixed gap from 60 to 58 chars to match 82-char total width
-                local function worker_boost_nav_separator()
-                    local outer_wall_left = string.format('<font color="%s"><b>╠</b></font>', BOOST_COLORS.outer_frame)
-                    local outer_wall_right = string.format('<font color="%s"><b>╣</b></font>', BOOST_COLORS.outer_frame)
-                    local corner_left = string.format('<font color="%s"><b>┐</b></font>', BOOST_COLORS.inner_box)
-                    local corner_right = string.format('<font color="%s"><b>┌</b></font>', BOOST_COLORS.inner_box)
-                    local dash = string.format('<font color="%s">─</font>', BOOST_COLORS.inner_box)
-                    return outer_wall_left .. string.rep(dash, 9) .. corner_left .. string.rep(" ", 58) .. corner_right .. string.rep(dash, 11) .. outer_wall_right
-                end
-
-                -- Worker: Generate nav line for boost
-                local function worker_boost_nav_line(similar_link, different_link, chronological_link)
-                    local outer_wall = string.format('<font color="%s"><b>║</b></font>', BOOST_COLORS.outer_frame)
-                    local inner_wall = string.format('<font color="%s"><b>│</b></font>', BOOST_COLORS.inner_box)
-                    local center_text = chronological_link or ""
-                    local left_gap, right_gap
-                    if center_text ~= "" then
-                        left_gap = string.rep(" ", 23)
-                        right_gap = string.rep(" ", 23)
-                    else
-                        left_gap = string.rep(" ", 29)
-                        right_gap = string.rep(" ", 29)
-                    end
-                    return outer_wall .. " " .. similar_link .. " " .. inner_wall .. left_gap .. center_text .. right_gap .. inner_wall .. " " .. different_link .. " " .. outer_wall
-                end
-
-                -- Worker: Generate bottom border with arrow
-                local function worker_boost_bottom_border(progress_percent)
-                    local BAR_WIDTH = 78
-                    local progress_chars = math.floor(progress_percent * BAR_WIDTH)
-                    local LEFT_JUNCTION_POS = 10
-                    local RIGHT_JUNCTION_POS = 71
-
-                    local outer_corner_left = string.format('<font color="%s"><b>╚</b></font>', BOOST_COLORS.outer_frame)
-                    local outer_corner_right = string.format('<font color="%s"><b>╝</b></font>', BOOST_COLORS.outer_frame)
-                    local colored_arrow = string.format('<font color="%s"><b>─▶</b></font>', BOOST_COLORS.arrow)
-
-                    local bar_str = ""
-                    for i = 1, BAR_WIDTH do
-                        local in_progress = i <= progress_chars
-                        if i == LEFT_JUNCTION_POS or i == RIGHT_JUNCTION_POS then
-                            if in_progress then
-                                bar_str = bar_str .. string.format('<font color="%s"><b>╧</b></font>', BOOST_COLORS.outer_frame)
-                            else
-                                bar_str = bar_str .. string.format('<font color="%s">┴</font>', BOOST_COLORS.outer_frame)
-                            end
-                        elseif in_progress then
-                            bar_str = bar_str .. string.format('<font color="%s"><b>═</b></font>', BOOST_COLORS.outer_frame)
-                        else
-                            bar_str = bar_str .. string.format('<font color="%s">─</font>', BOOST_COLORS.outer_frame)
-                        end
-                    end
-
-                    return outer_corner_left .. bar_str .. outer_corner_right .. colored_arrow
-                end
-
-                -- Worker: Apply complete boost formatting
+                -- Worker: apply complete boost formatting. All geometry lives in
+                -- the shared boost-bars module (top/inner/content/nav/bottom +
+                -- the asymmetric fill-frontier right edge). The worker only splits
+                -- the pre-wrapped content into lines; txt_fmt is unused now that
+                -- the module owns visible-width padding.
                 local function worker_apply_boost_formatting(content, progress_percent, similar_link, different_link, chronological_link, txt_fmt)
                     local lines = {}
-                    table.insert(lines, worker_boost_top_border(progress_percent))
-                    table.insert(lines, worker_boost_inner_top())
-
                     for line in (content .. "\n"):gmatch("(.-)\n") do
-                        table.insert(lines, worker_boost_content_line(line, txt_fmt))
+                        table.insert(lines, line)
                     end
-
-                    table.insert(lines, worker_boost_inner_bottom())
-                    if similar_link and different_link then
-                        table.insert(lines, worker_boost_nav_separator())
-                        table.insert(lines, worker_boost_nav_line(similar_link, different_link, chronological_link))
-                    end
-                    table.insert(lines, worker_boost_bottom_border(progress_percent))
-
-                    return table.concat(lines, "\n")
+                    local include_nav = (similar_link and different_link) and true or false
+                    return t_boost_bars.format_boost(
+                        lines, progress_percent, similar_link, different_link, chronological_link, include_nav)
                 end
                 -- }}} End Issue 8-057: Boost formatting functions
 
@@ -3654,10 +3528,16 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 -- Issue 8-044: Added golden poem formatting support
                 -- Issue 8-057: Added boost formatting support
                 local function format_poem_entry(poem, poem_colors_tbl, clr_config, chrono_map, chrono_paged)
+                    -- Issue 9-013: a ranked IMAGE entry draws as an image box, not a poem.
+                    if poem.is_image then
+                        return t_image_render.format_image_entry(poem)
+                    end
                     local poem_idx = poem.poem_index
                     local poem_color_data = poem_colors_tbl[poem_idx]
                     local semantic_color = poem_color_data and poem_color_data.color or "gray"
                     local hex_color = clr_config[semantic_color] or clr_config["gray"]
+                    -- Hand the shared bar module this state's palette (idempotent).
+                    t_poem_bars.configure(clr_config)
 
                     -- Issue 8-044: Check if this is a golden poem
                     local is_golden = is_golden_poem(poem)
@@ -3678,20 +3558,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
                     local remaining_chars = total_bar_chars - progress_chars
 
-                    -- Build progress bar with color
-                    -- Issue 8-044: Golden poems get ╔ corner + bar + ┐ corner
-                    local progress_section = string.rep("═", progress_chars)
-                    local remaining_section = string.rep("─", remaining_chars)
-                    local colored_progress
-                    if is_golden then
-                        -- Golden: ╔═══════════────────────┐ (84 chars total)
-                        local left_corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
-                        colored_progress = left_corner .. string.format('<font color="%s"><b>%s</b></font>%s',
-                            hex_color, progress_section, remaining_section) .. "┐"
-                    else
-                        colored_progress = string.format('<font color="%s"><b>%s</b></font>%s',
-                            hex_color, progress_section, remaining_section)
-                    end
+                    -- Top bar from the shared poem-bars module (canonical 83
+                    -- regular / 84 golden). progress_chars above is still used to
+                    -- progressively colour the regular nav corner boxes below.
+                    local colored_progress = t_poem_bars.progress_dashes(
+                        { percentage = progress_pct }, semantic_color, is_golden, "top", false).visual
 
                     -- Navigation links (absolute paths for local testing)
                     -- Issue 9-003 Fix: Use absolute file:// paths - helper script converts to production URLs
@@ -3739,12 +3610,12 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         local external_pattern = "^External post: (https?://[^%s]+)$"
                         local external_url = boost_content:match(external_pattern)
                         if external_url then
-                            boost_content = string.format('External post: <a href="%s" target="_blank" rel="noopener">%s</a>',
-                                external_url, external_url)
+                            -- Wrap the URL across box lines instead of overflowing.
+                            boost_content = t_text_formatter.wrap_external_url("External post: ", external_url, t_boost_bars.CONTENT_WIDTH)
                         else
-                            -- Issue 10-041: Wrap long embedded content to fit boost box (74 char content width)
+                            -- Issue 10-041: Wrap long embedded content to fit the boost box.
                             -- Only wrap non-external-post content (external posts keep URLs intact)
-                            local BOOST_CONTENT_WIDTH = 74
+                            local BOOST_CONTENT_WIDTH = t_boost_bars.CONTENT_WIDTH
                             local wrapped_lines = {}
                             for line in (boost_content .. "\n"):gmatch("(.-)\n") do
                                 local wrapped = t_text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
@@ -3951,119 +3822,29 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Build nav_top and nav_mid
                     -- Issue 8-044: Golden poems use different box characters
+                    -- Nav top + line come from the shared poem-bars module so this
+                    -- worker can't drift from the main thread (the whole point of
+                    -- the de-dup). Golden nav box dashes are not progress-tinted,
+                    -- which now matches the chronological (main-rendered) golden
+                    -- poems exactly.
                     local nav_top, nav_mid
-
                     if is_golden then
-                        -- Golden nav box: 84 chars total
-                        -- ╟─────────┐ (11 chars) + gap (60) + ┌───────────┤ (13 chars) = 84 total
-                        -- Left box ends at position 10, right box starts at position 71
-                        local colored_corner = string.format('<font color="%s"><b>╟</b></font>', hex_color)
-                        local left_sep = colored_corner
-                        for i = 1, 9 do
-                            left_sep = left_sep .. color_char("─", i)
-                        end
-                        left_sep = left_sep .. color_char("┐", 10)
-
-                        -- Right separator: positions 71-83 for 84-char total width
-                        local right_sep = color_char("┌", 71)
-                        for i = 72, 82 do
-                            right_sep = right_sep .. color_char("─", i)
-                        end
-                        right_sep = right_sep .. color_char("┤", 83)
-
-                        -- Gap: 84 - 11 (left) - 13 (right) = 60 chars
-                        nav_top = left_sep .. string.rep(" ", 60) .. right_sep
-
-                        -- Golden nav line: ║ similar │ + gap + chronological + gap + │ different │
-                        -- Note: nav line uses │ on right end (not ┤ which is only for separator)
-                        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-                        local right_wall_of_left = color_char("│", 10)
-                        local left_wall_of_right = color_char("│", 71)
-                        local right_end = color_char("│", 83)  -- │ not ┤ for nav line
-
-                        -- Gap calculation: 60 total gap - 14 (chronological link) = 46, split: 23 + 23
-                        nav_mid = colored_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_end
+                        nav_top = t_poem_bars.golden_corner_box_separator(hex_color, progress_chars)
+                        nav_mid = t_poem_bars.golden_corner_box_nav_line(similar_link, different_link, chrono_link, hex_color, progress_chars)
                     else
-                        -- Regular: ┌─────────┐ + gap + ┌───────────┐
-                        local left_top = {}
-                        table.insert(left_top, color_char("┌", 0))
-                        for i = 1, 9 do
-                            table.insert(left_top, color_char("─", i))
-                        end
-                        table.insert(left_top, color_char("┐", 10))
-
-                        local right_top = {}
-                        table.insert(right_top, color_char("┌", 70))
-                        for i = 71, 81 do
-                            table.insert(right_top, color_char("─", i))
-                        end
-                        table.insert(right_top, color_char("┐", 82))
-
-                        nav_top = table.concat(left_top) .. string.rep(" ", 59) .. table.concat(right_top)
-
-                        -- Regular nav line: │ similar │ + gap + chronological + gap + │ different │
-                        local left_wall = color_char("│", 0)
-                        local right_wall_of_left = color_char("│", 10)
-                        local left_wall_of_right = color_char("│", 70)
-                        local right_wall = color_char("│", 82)
-
-                        nav_mid = left_wall .. " " .. similar_link .. " " .. right_wall_of_left .. string.rep(" ", 23) .. chrono_link .. string.rep(" ", 23) .. left_wall_of_right .. " " .. different_link .. " " .. right_wall
+                        nav_top = t_poem_bars.corner_box_top(progress_chars, hex_color)
+                        nav_mid = t_poem_bars.corner_box_nav_line(similar_link, different_link, chrono_link, progress_chars, hex_color)
                     end
 
-                    -- Bottom line with progress bar and junction characters
-                    -- Structure: ╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
-                    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
-                    -- Use config layout values instead of hardcoded values
-                    local cfg_layout = config.layout or {}
-                    local golden_width = cfg_layout.golden_poem_width or 84
-                    local regular_width = cfg_layout.regular_poem_width or 83
-                    local TOTAL_CHARS = is_golden and (golden_width - 2) or regular_width  -- Golden: interior only
-                    local LEFT_JUNCTION = cfg_layout.golden_left_junction or 10   -- Same for both
-                    local RIGHT_JUNCTION = is_golden
-                        and (cfg_layout.golden_right_junction or 71)
-                        or (cfg_layout.regular_right_junction or 70)
-
-                    local left_in_progress = LEFT_JUNCTION < progress_chars
-                    local right_in_progress = RIGHT_JUNCTION < progress_chars
-
-                    -- Build junction characters (colored ╧ when in progress, plain ┴ otherwise)
-                    local left_junction = left_in_progress
-                        and string.format('<font color="%s"><b>╧</b></font>', hex_color)
-                        or "┴"
-                    local right_junction = right_in_progress
-                        and string.format('<font color="%s"><b>╧</b></font>', hex_color)
-                        or "┴"
-
-                    -- Build bottom line segments around junctions
-                    local function build_segment(start_pos, end_pos)
-                        if end_pos <= start_pos then return "" end
-                        local seg_len = end_pos - start_pos
-                        local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
-                        local remaining_in_seg = seg_len - progress_in_seg
-                        local result = ""
-                        if progress_in_seg > 0 then
-                            result = result .. string.format('<font color="%s"><b>%s</b></font>', hex_color, string.rep("═", progress_in_seg))
-                        end
-                        if remaining_in_seg > 0 then
-                            result = result .. string.rep("─", remaining_in_seg)
-                        end
-                        return result
-                    end
-
-                    -- Issue 8-044: Golden poems use ╚ corner, regular use ╘
-                    local corner_char = is_golden and "╚" or "╘"
-                    local colored_corner = string.format('<font color="%s"><b>%s</b></font>', hex_color, corner_char)
-                    -- Issue 8-037 Fix: Corrected segment positions to match main scope
-                    -- Segment 1: positions 1 to LEFT_JUNCTION-1 (9 chars, corner is pos 0)
-                    -- Segment 2: positions LEFT_JUNCTION+1 to RIGHT_JUNCTION-1 (59 chars)
-                    -- Segment 3: positions RIGHT_JUNCTION+1 to TOTAL_CHARS-2 (11 chars, ┘ is pos 82)
-                    local bottom_line = colored_corner
-                        .. build_segment(1, LEFT_JUNCTION)
-                        .. left_junction
-                        .. build_segment(LEFT_JUNCTION + 1, RIGHT_JUNCTION)
-                        .. right_junction
-                        .. build_segment(RIGHT_JUNCTION + 1, TOTAL_CHARS - 1)
-                        .. "┘"
+                    -- Bottom line: delegate to the shared poem-bars module so this
+                    -- worker cannot drift from the main thread's canonical geometry.
+                    -- The old inline copy used the 82-char CONTENT width as the BAR
+                    -- width, so the bar ended one column short of the nav boxes (and
+                    -- an earlier version produced 88-char bars with doubled ╧╧).
+                    -- progress_dashes is correct for both regular (83) and golden
+                    -- (84) and seats the junctions under the corner-box walls.
+                    local bottom_line = t_poem_bars.progress_dashes(
+                        { percentage = progress_pct }, semantic_color, is_golden, "bottom", true).visual
 
                     -- Build formatted output
                     local output = {}
@@ -4196,6 +3977,15 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             -- Issue 8-036: Add poem source path to ranking header
                             local source_path = get_source_path(entry_poem)
                             table.insert(html_parts, string.format("--- #%d %s ---\n", i, source_path))
+                            -- Issue 9-013: text+image posts get a direct "image.png"
+                            -- link below their header (image entries are skipped --
+                            -- their title already deep-links into the gallery).
+                            if not entry_poem.is_image then
+                                local img_link = t_image_render.text_image_link(entry_poem)
+                                if img_link ~= "" then
+                                    table.insert(html_parts, " " .. img_link .. "\n")
+                                end
+                            end
                             table.insert(html_parts, format_poem_entry(entry_poem, poem_colors, color_config, chrono_map, chrono_paged))
                             table.insert(html_parts, "\n\n")
                         end
@@ -4357,16 +4147,20 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                 local eta = rate > 0 and math.floor(remaining / rate) or 0
                 local pct = (completed_count / total_work) * 100
 
-                -- Show orchestrator progress
-                io.write(string.format("\r   [%d threads] %d/%d poems (%.1f%%) | %.1f poems/sec | ETA: %ds | Queue: %d    ",
-                    num_threads, completed_count, total_work, pct, rate, eta, total_work - work_queue_idx + 1))
-                io.flush()
+                -- Show orchestrator progress as the shared bar. The rate, ETA,
+                -- and remaining queue depth ride along as the suffix.
+                local label = string.format("   [%d threads]", num_threads)
+                local suffix = string.format("%.1f poems/sec | ETA: %ds | Queue: %d",
+                    rate, eta, total_work - work_queue_idx + 1)
+                progress.update(label, completed_count, total_work, suffix)
             end
         end
 
-        -- Final progress message
+        -- Close the animated bar, then print a plain completion summary so it
+        -- survives in logs (the bar itself is suppressed when piped/quiet).
+        progress.finish()
         local elapsed = os.time() - start_time
-        io.write(string.format("\r   [%d threads] Complete: %d poems in %ds (%.1f poems/sec)                              \n",
+        print(string.format("   [%d threads] Complete: %d poems in %ds (%.1f poems/sec)",
             num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
         -- Wait for all threads to fully complete and collect results

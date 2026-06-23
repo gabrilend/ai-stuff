@@ -35,10 +35,12 @@ local function parse_args(args)
             all_words = true
             i = i + 1
         elseif a == "--words" then
-            max_words = tonumber(args[i + 1])
+            -- Accept "all" as a synonym for --all (the two flags are combined).
+            if args[i + 1] == "all" then all_words = true else max_words = tonumber(args[i + 1]) end
             i = i + 2
         elseif a:match("^--words=") then
-            max_words = tonumber(a:match("^--words=(.+)$"))
+            local v = a:match("^--words=(.+)$")
+            if v == "all" then all_words = true else max_words = tonumber(v) end
             i = i + 1
         elseif not a:match("^%-") then
             -- Positional argument (DIR)
@@ -59,6 +61,10 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
+-- Shared chronological mapping so the poem-ID jump links here resolve to the
+-- SAME paginated page the chronological pages emit (a third inline copy used to
+-- drift -- see Issue 10-049 follow-up).
+local flat_html = require("flat-html-generator")
 utils.init_assets_root(arg)
 
 -- Issue 10-003: Load unified config from config.lua
@@ -172,8 +178,15 @@ local function filter_and_sort_words(word_counts)
         end
     end
 
-    -- Sort by count (descending)
-    table.sort(filtered, function(a, b) return a.count > b.count end)
+    -- Sort by count (descending), tie-broken alphabetically. The tiebreak
+    -- keeps the max_words cutoff deterministic across processes -- the same
+    -- reason as generate-word-pages.lua's get_word_list. Without it, the
+    -- wordcloud and the word-embedding/word-page stages can disagree on which
+    -- boundary words make the cut, producing words with pages but no embedding.
+    table.sort(filtered, function(a, b)
+        if a.count ~= b.count then return a.count > b.count end
+        return a.word < b.word
+    end)
 
     -- Limit to max_words
     local result = {}
@@ -231,6 +244,21 @@ local function generate_poem_index(poems_data)
         return ""
     end
 
+    -- Issue 10-036: poem_index -> chronological page map so each index entry
+    -- links to the correct paginated page (and anchor), not always page 1.
+    -- Uses the chronological-page generator's OWN mapping (shared) so the page
+    -- numbers match exactly -- the old inline copy sorted by the raw
+    -- creation_date string with no tiebreaker and its own page-size default, so
+    -- it disagreed and links jumped to the wrong page.
+    local chrono_page_map = {}
+    do
+        local per_page = flat_html.default_chrono_per_page()
+        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
+        for poem_index, info in pairs(mapping) do
+            chrono_page_map[poem_index] = string.format("%02d", info.page_number)
+        end
+    end
+
     -- Group poems by category
     local categories = {}
     for _, poem in ipairs(poems_data.poems) do
@@ -280,12 +308,25 @@ local function generate_poem_index(poems_data)
         -- Build lines of poem IDs
         local line_ids = {}
         for i, poem in ipairs(poems) do
-            local anchor_id = string.format("poem-%s-%04d", cat, poem.id or 0)
+            -- Issue 10-036: anchor + page target the poem's true chronological
+            -- position. Chronological pages emit <span id="poem-<poem_index>">
+            -- and are paginated, so link to chronological/<NN>.html#poem-<index>
+            -- instead of index.html (a redirect that drops the anchor -> page 1)
+            -- and instead of the old "poem-CATEGORY-ID" anchor that matched
+            -- nothing.
+            local pidx = poem.poem_index or 0
+            local anchor_id = string.format("poem-%d", pidx)
+            local page_str = chrono_page_map[pidx] or "01"
             local id_str = tostring(poem.id or 0)
 
-            -- Pad ID to 4 chars for alignment
-            local padded_id = string.format("%4s", id_str)
-            local link = string.format('<a href="chronological/index.html#%s">%s</a>', anchor_id, padded_id)
+            -- Keep column alignment with leading spaces, but place them OUTSIDE
+            -- the <a> so the clickable target is just the number (e.g. "46"),
+            -- not "   46". The spaces are monospaced inside <pre>, so the
+            -- columns still line up.
+            local pad = string.rep(" ", math.max(0, 4 - #id_str))
+            local link = pad .. string.format(
+                '<a href="chronological/%s.html#%s">%s</a>',
+                page_str, anchor_id, id_str)
             table.insert(line_ids, link)
 
             -- Output line when we reach IDS_PER_LINE or end of poems
@@ -335,18 +376,23 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     -- Issue 16-010: Words are now colored by their semantic color
     local word_html = {}
     for _, entry in ipairs(shuffled) do
-        -- Use font tag with size attribute (CSS-free)
-        local bold_open, bold_close = "", ""
-        if entry.font_size >= 5 then
-            bold_open, bold_close = "<b>", "</b>"
-        end
-
         -- Sanitize word for URL (lowercase, no special chars)
         local safe_word = entry.word:lower():gsub("[^%w]", "")
 
-        -- Issue 16-010: Look up semantic color for this word
-        local semantic_color = word_colors[safe_word] or "gray"
-        local hex_color = color_config[semantic_color] or "#868E96"
+        -- Significance threshold: only the larger words carry their semantic
+        -- color. font_size >= 5 is the same cutoff that bolds a word (~the top
+        -- 65% of the 1-7 size range), so emphasis and color move together.
+        -- Smaller words render in neutral gray, making color a signal of
+        -- significance rather than visual noise on every word.
+        local is_significant = entry.font_size >= 5
+        local bold_open, bold_close = "", ""
+        local hex_color = "#868E96"  -- neutral gray for the long tail
+        if is_significant then
+            bold_open, bold_close = "<b>", "</b>"
+            -- Issue 16-010: Look up semantic color for this word
+            local semantic_color = word_colors[safe_word] or "gray"
+            hex_color = color_config[semantic_color] or "#868E96"
+        end
 
         -- Each word links to its similarity page, colored by semantic meaning
         table.insert(word_html, string.format(
@@ -360,7 +406,10 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
 
     -- Generate HTML page
     -- Issue 16-010: Added font style for Hack Nerd Font font-stack
-    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }</style>]]
+    -- Same centering CSS as the poem pages: the <pre> poem-ID list centers as an
+    -- inline-block (text stays left) so it sits on the page centerline.
+    local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }
+td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; } img, video, audio { margin-left: auto; margin-right: auto; }</style>]]
     local html = string.format([[<!DOCTYPE html>
 <html>
 <head>

@@ -51,13 +51,30 @@ local poem_extractor = require("poem-extractor")
 local poem_validator = require("poem-validator")
 local image_manager = require("image-manager")
 local flat_html_generator = require("flat-html-generator")
-local ollama_config = require("ollama-config")
+local inference_config = require("inference-server-config")
 local dkjson = require("dkjson")
 
--- Give ollama-config the project root so it can find config.lua. This
--- enables every call site below that uses ollama_config.get_selected_model()
+-- Give inference-server-config the project root so it can find config.lua. This
+-- enables every call site below that uses inference_config.get_selected_model()
 -- to resolve through the same code path the GPU embeddings stage uses.
-ollama_config.set_project_root(DIR)
+inference_config.set_project_root(DIR)
+
+-- Boost inclusion: a CLI flag (--no-boosts / --exclude-boosts to drop them,
+-- --include-boosts to force-keep) takes precedence over config.privacy.
+-- include_boosts. Resolved once here and threaded into extraction.
+local config_loader = require("config-loader")
+config_loader.set_project_root(DIR)
+local function resolve_include_boosts()
+    for _, a in ipairs(arg or {}) do
+        if a == "--no-boosts" or a == "--exclude-boosts" then return false end
+        if a == "--include-boosts" then return true end
+    end
+    local ok, cfg = pcall(function() return config_loader.load() end)
+    if ok and cfg and cfg.privacy and cfg.privacy.include_boosts ~= nil then
+        return cfg.privacy.include_boosts
+    end
+    return false  -- default: exclude boosts (opt-in via --include-boosts)
+end
 
 -- Restore original path
 package.path = old_path
@@ -127,8 +144,8 @@ local function build_menu_config()
                 type = "single",
                 items = {
                     {
-                        id = "test_ollama",
-                        label = "Test Ollama embedding service",
+                        id = "test_inference_server",
+                        label = "Test inference server",
                         type = "checkbox",
                         value = "0",
                         description = "Verify connection to local LLM service",
@@ -318,7 +335,7 @@ function M.show_simple_menu()
     local options = {
         "Extract poems (auto-detect JSON/compiled.txt)",
         "Validate extracted poems",
-        "Test Ollama embedding service",
+        "Test inference server",
         "Generate complete dataset",
         "Catalog and manage images",
         "Generate website HTML",
@@ -333,7 +350,7 @@ function M.show_simple_menu()
     local action_map = {
         [1] = "extract",
         [2] = "validate",
-        [3] = "test_ollama",
+        [3] = "test_inference_server",
         [4] = "dataset",
         [5] = "catalog",
         [6] = "full_website",
@@ -362,7 +379,7 @@ function M.show_main_menu()
     local options = {
         "Extract poems (auto-detect JSON/compiled.txt)",
         "Validate extracted poems",
-        "Test Ollama embedding service",
+        "Test inference server",
         "Generate complete dataset",
         "Catalog and manage images",
         "Generate website HTML",
@@ -422,8 +439,12 @@ function M.extract_poems(force)
     local output_file = utils.asset_path("poems.json")
 
     -- Use auto-detection to handle both JSON extracts and compiled.txt
+    local include_boosts = resolve_include_boosts()
+    if not include_boosts then
+        utils.log_info("Boosts excluded for this extraction (CLI/config: include_boosts=false)")
+    end
     local success, result = pcall(function()
-        return poem_extractor.extract_poems_auto(DIR, output_file)
+        return poem_extractor.extract_poems_auto(DIR, output_file, { include_boosts = include_boosts })
     end)
 
     if success then
@@ -456,18 +477,17 @@ end
 
 -- {{{ function M.test_embedding_service
 function M.test_embedding_service()
-    utils.log_info("Testing Ollama embedding service...")
-    
-    -- Try to load ollama manager
-    local ollama_manager = require("ollama-manager")
-    if ollama_manager then
-        local endpoint = ollama_manager.ensure_ollama_ready()
+    utils.log_info("Testing inference server embedding service...")
+
+    local server_manager = require("embedding-server-manager")
+    if server_manager then
+        local endpoint = server_manager.ensure_ready()
         if endpoint then
-            ollama_manager.test_embedding(endpoint, ollama_config.get_selected_model())
+            server_manager.test_embedding(endpoint, inference_config.get_selected_model())
             return true
         end
     end
-    
+
     utils.log_error("Embedding service test failed")
     return false
 end
@@ -586,8 +606,9 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
         return false
     end
 
-    -- Generate explore.html (discovery instructions)
-    flat_html_generator.generate_simple_discovery_instructions(output_dir)
+    -- Generate explore.html (the map) + explore-2.html (the deeper math).
+    -- Pass poems_data so both pages render live corpus stats instead of prose.
+    flat_html_generator.generate_simple_discovery_instructions(output_dir, poems_data)
 
     -- Generate all similarity and diversity pages
     -- Note: This is the long operation - generates ~12,000+ files
@@ -650,7 +671,7 @@ function M.show_project_status()
         {"Poem Extractor", paths.src .. "/poem-extractor.lua"},
         {"Poem Validator", paths.src .. "/poem-validator.lua"},
         {"Image Manager", paths.src .. "/image-manager.lua"},
-        {"Ollama Manager", paths.src .. "/ollama-manager.lua"}
+        {"Embedding Server Manager", paths.src .. "/embedding-server-manager.lua"}
     }
 
     -- Show assets location
@@ -719,7 +740,7 @@ function M.handle_tui_action(values)
     end
 
     -- Embedding & Similarity actions
-    if values.test_ollama == "1" then
+    if values.test_inference_server == "1" then
         M.test_embedding_service()
         executed = true
     end
@@ -729,7 +750,7 @@ function M.handle_tui_action(values)
         local sim_engine = require("similarity-engine-parallel")
         local thread_count = tonumber(values.thread_count) or 8
         local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
-        sim_engine.calculate_similarity_matrix_parallel(embeddings_file, ollama_config.get_selected_model(), 0.2, false, thread_count)
+        sim_engine.calculate_similarity_matrix_parallel(embeddings_file, inference_config.get_selected_model(), 0.2, false, thread_count)
         executed = true
     end
 
