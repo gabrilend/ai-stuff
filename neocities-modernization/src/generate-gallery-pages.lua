@@ -50,6 +50,8 @@ package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
 local utils = require("utils")
+-- Issue 10-042d / 9-013: shared "source: sub: name.png" title helper
+local image_titles = require("image-pseudo-embeddings")
 utils.init_assets_root(arg)
 
 -- Issue 10-003: Load unified config from config.lua
@@ -83,13 +85,15 @@ local SOURCE_TITLES = {
     ["my-art"] = "My Art",
     ["things-I-almost-posted"] = "Things I Almost Posted",
     ["poem-pictures"] = "Poem Pictures",
-    ["dnd-pictures-from-the-internet"] = "D&amp;D Pictures",
+    -- Keep the full source name so it is clear these were found, not authored
+    ["dnd-pictures-from-the-internet"] = "dnd-pictures-from-the-internet",
     ["fediverse-stars"] = "Fediverse Stars"
 }
 
 -- Grid layout
 local COLUMNS = 4
 local THUMBNAIL_WIDTH = 200
+local MASONRY_GAP = 18   -- px between images (the ~15-20px the gallery should breathe at)
 -- }}}
 
 -- {{{ load_image_catalog
@@ -148,16 +152,43 @@ local function group_by_source(images)
 end
 -- }}}
 
+-- {{{ url_encode_path
+-- Percent-encode a relative URL path so filenames containing spaces, ?, #, %,
+-- parentheses, etc. don't break the href/src. Path separators (/) and the safe
+-- set [A-Za-z0-9-._~] are preserved, so the "../../gallery/..." structure still
+-- resolves; only the unsafe bytes inside each segment are escaped. Without this
+-- a space silently truncated the src and the browser drew a broken-image icon.
+local function url_encode_path(path)
+    return (path:gsub("[^%w%-%._~/]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+-- }}}
+
 -- {{{ get_relative_image_path
--- Convert absolute path to relative path from output/gallery/
+-- Convert absolute path to a URL-safe relative path from output/gallery/.
 local function get_relative_image_path(absolute_path)
     -- Strip the DIR prefix
     if absolute_path:sub(1, #DIR) == DIR then
         local rel = absolute_path:sub(#DIR + 2)  -- +2 for the slash
-        -- From output/gallery/, we need to go up two levels
-        return "../../" .. rel
+        -- From output/gallery/, we need to go up two levels. Encode so odd
+        -- filenames (spaces, ?) survive as a usable URL, not a truncated one.
+        return url_encode_path("../../" .. rel)
     end
-    return absolute_path
+    return url_encode_path(absolute_path)
+end
+-- }}}
+
+-- {{{ caption_with_breaks
+-- Render a filename as a thumbnail caption that WRAPS on dashes/underscores
+-- instead of being chopped to 20 chars + "...". We HTML-escape the name, then
+-- insert <wbr> (a zero-width break opportunity) after each - or _ so a long
+-- name like "dnd-pictures-from-the-internet-04" folds onto several lines inside
+-- the thumbnail column rather than truncating or overflowing. The caller wraps
+-- this in a width-constrained span so the breaks actually engage.
+local function caption_with_breaks(filename)
+    local safe = filename:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    return (safe:gsub("([%-_])", "%1<wbr>"))
 end
 -- }}}
 
@@ -208,44 +239,41 @@ end
 -- }}}
 
 -- {{{ generate_gallery_grid
--- Generate HTML table grid for images
+-- Generate a MASONRY layout for images. The old fixed <table> grid forced every
+-- row to the height of its tallest image, so portrait/landscape mixes left big
+-- ragged vertical gaps. CSS multi-column layout packs each column independently
+-- (an item flows under the previous one in its column), giving uniform ~18px
+-- gaps and no wasted space -- and needs no JavaScript, so it still works as a
+-- plain neocities page. break-inside:avoid keeps an image and its caption
+-- together rather than splitting them across a column boundary.
 local function generate_gallery_grid(images)
     local html = {}
-    table.insert(html, '<table border="0" cellpadding="10" cellspacing="5">\n')
+    -- Cap the masonry to COLUMNS columns and center the whole block. column-width
+    -- (not column-count) lets it gracefully drop to fewer columns on narrow
+    -- screens while holding the thumbnail size.
+    local container_max = (THUMBNAIL_WIDTH + MASONRY_GAP) * COLUMNS
+    table.insert(html, string.format(
+        '<div style="column-width:%dpx; column-gap:%dpx; max-width:%dpx; ' ..
+        'margin:0 auto; text-align:center;">\n',
+        THUMBNAIL_WIDTH, MASONRY_GAP, container_max))
 
-    local row_images = {}
-    for i, img in ipairs(images) do
-        table.insert(row_images, img)
-
-        if #row_images == COLUMNS or i == #images then
-            -- Start row
-            table.insert(html, '<tr>\n')
-
-            for _, row_img in ipairs(row_images) do
-                local rel_path = get_relative_image_path(row_img.file_path)
-                local alt_text = extract_display_name(row_img.filename)
-
-                table.insert(html, string.format(
-                    '  <td align="center" valign="top">' ..
-                    '<a href="%s">' ..
-                    '<img src="%s" width="%d" alt="%s" title="%s" loading="lazy" border="1">' ..
-                    '</a><br><font size="1">%s</font></td>\n',
-                    rel_path, rel_path, THUMBNAIL_WIDTH, alt_text, alt_text,
-                    row_img.filename:sub(1, 20) .. (row_img.filename:len() > 20 and "..." or "")
-                ))
-            end
-
-            -- Pad remaining cells if needed
-            for _ = 1, COLUMNS - #row_images do
-                table.insert(html, '  <td></td>\n')
-            end
-
-            table.insert(html, '</tr>\n')
-            row_images = {}
-        end
+    for _, img in ipairs(images) do
+        local rel_path = get_relative_image_path(img.file_path)
+        local alt_text = extract_display_name(img.filename)
+        table.insert(html, string.format(
+            '  <div style="display:inline-block; width:100%%; margin:0 0 %dpx; ' ..
+            'break-inside:avoid; -webkit-column-break-inside:avoid;">' ..
+            '<a href="%s"><img src="%s" alt="%s" title="%s" loading="lazy" border="1" ' ..
+            'style="width:100%%; height:auto; display:block;"></a>' ..
+            '<font size="1"><span style="display:inline-block; max-width:%dpx; ' ..
+            'word-wrap:break-word; overflow-wrap:break-word;">%s</span></font>' ..
+            '</div>\n',
+            MASONRY_GAP, rel_path, rel_path, alt_text, alt_text,
+            THUMBNAIL_WIDTH, caption_with_breaks(img.filename)
+        ))
     end
 
-    table.insert(html, '</table>\n')
+    table.insert(html, '</div>\n')
     return table.concat(html)
 end
 -- }}}
@@ -293,7 +321,7 @@ local function generate_gallery_index(grouped_images)
     table.insert(html, '<p>')
     table.insert(html, '<a href="../wordcloud.html">Menu</a> | ')
     table.insert(html, '<a href="../explore.html">Explore</a> | ')
-    table.insert(html, '<a href="../chronological/index.html">Chronological</a>')
+    table.insert(html, '<a href="chronological.html">Chronological</a>')
     table.insert(html, '</p>\n')
 
     -- Title
@@ -347,6 +375,71 @@ local function generate_gallery_index(grouped_images)
 end
 -- }}}
 
+-- {{{ image_qualified_title
+-- "source: sub: name.png" for a catalog image: strip the (absolute)
+-- source_directory prefix off relative_path, then delegate to the shared title
+-- helper that poem-page image entries also use (Issue 9-013 / 10-042d).
+local function image_qualified_title(img)
+    local full = img.relative_path or ""
+    local base = img.source_directory or ""
+    local rel = (base ~= "" and full:sub(1, #base) == base)
+        and (full:sub(#base + 1):gsub("^/+", ""))
+        or (img.filename or full)
+    return image_titles.qualified_image_title(img.source_name, rel)
+end
+-- }}}
+
+-- {{{ image_anchor
+-- Stable per-image anchor so poem pages can deep-link to one image here.
+local function image_anchor(img, fallback_index)
+    return "img-" .. (img.hash and img.hash:sub(1, 12) or tostring(fallback_index))
+end
+-- }}}
+
+-- {{{ generate_gallery_chronological
+-- Issue 10-042d: all standalone images, every source, in time order, as a
+-- vertical scroll. Between each pair of images is a caption block naming the
+-- image ABOVE and the image BELOW, so every title shows twice (once on each
+-- side of its picture). Each image is anchored for deep-linking from poems.
+local function generate_gallery_chronological(images)
+    table.sort(images, function(a, b)
+        return (tonumber(a.modification_time) or 0) < (tonumber(b.modification_time) or 0)
+    end)
+
+    local SEP = string.rep("─", 78)
+    local function esc(s) return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")) end
+
+    local html = {}
+    table.insert(html, generate_html_header("Images — Chronological"))
+    table.insert(html, '<center>')
+    table.insert(html, '<h1>Images &mdash; Chronological</h1>')
+    table.insert(html, '<p><a href="index.html">Gallery Index</a> &#9474; <a href="../index.html">Menu</a></p>')
+    table.insert(html, '<hr>')
+    table.insert(html, '<p>' .. #images .. ' images from all collections, in time order</p>')
+    table.insert(html, '</center>')
+
+    for i, img in ipairs(images) do
+        local rel = get_relative_image_path(img.relative_path)
+        local title = image_qualified_title(img)
+        table.insert(html, string.format(
+            '<a name="%s"></a><img src="%s" alt="%s" loading="lazy" style="max-width:min(100%%,800px); height:auto; display:block; margin:1em auto;">',
+            image_anchor(img, i), rel, esc(title)))
+        -- Caption block: sep, blank, title-of-image-above (this), blank,
+        -- title-of-image-below (next), blank, sep. The last image has no below.
+        local block = { SEP, "", esc(title), "" }
+        if images[i + 1] then
+            table.insert(block, esc(image_qualified_title(images[i + 1])))
+        end
+        table.insert(block, "")
+        table.insert(block, SEP)
+        table.insert(html, '<pre style="text-align:center">' .. table.concat(block, "\n") .. '</pre>')
+    end
+
+    table.insert(html, generate_html_footer())
+    return table.concat(html, "\n")
+end
+-- }}}
+
 -- {{{ M.generate
 function M.generate()
     print("Loading image catalog...")
@@ -374,6 +467,16 @@ function M.generate()
         index_file:write(index_html)
         index_file:close()
         print("  Created: output/gallery/index.html")
+    end
+
+    -- Issue 10-042d: chronological images page (all sources, by time)
+    print("Generating chronological images page...")
+    local chrono_html = generate_gallery_chronological(standalone)
+    local chrono_file = io.open(output_dir .. "/chronological.html", "w")
+    if chrono_file then
+        chrono_file:write(chrono_html)
+        chrono_file:close()
+        print("  Created: output/gallery/chronological.html")
     end
 
     -- Generate per-source gallery pages
