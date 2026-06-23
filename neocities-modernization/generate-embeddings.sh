@@ -428,9 +428,17 @@ if [ "$MODEL_STATUS" = true ]; then
     exit 0
 fi
 
-# Generate model-specific paths
+# Generate model-specific paths.
+# Issue 10-054: resolve the cache dir through scripts/cache-dir so this shell
+# writer lands in the SAME place the Lua readers look (disk or RAM, per the
+# CACHE_IN_RAM switch). It hard-errors out if the resolver yields nothing, rather
+# than silently writing to a wrong/empty path.
 SAFE_MODEL_NAME=$(echo "$MODEL_NAME" | sed 's/[^a-zA-Z0-9._-]/_/g')
-EMBEDDINGS_DIR="$DIR/assets/embeddings/$SAFE_MODEL_NAME"
+EMBEDDINGS_DIR=$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME")
+if [ -z "$EMBEDDINGS_DIR" ]; then
+    echo "Error: could not resolve the embeddings cache dir (scripts/cache-dir)" >&2
+    exit 1
+fi
 EMBEDDINGS_FILE="$EMBEDDINGS_DIR/embeddings.json"
 
 # Create model directory if needed

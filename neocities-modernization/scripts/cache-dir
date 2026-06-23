@@ -1,0 +1,54 @@
+#!/usr/bin/env luajit
+-- cache-dir
+-- Print the directory where a model's caches live, so SHELL scripts (run.sh,
+-- generate-embeddings.sh) resolve the same location the Lua code does.
+--
+-- General description (for a CEO): the program keeps its big regenerable caches
+-- in one place, and a single switch decides whether that place is the disk or
+-- RAM (Issue 10-054). The Lua code asks a function for that place; the shell
+-- scripts could not, so they hard-coded the disk path -- and when the switch was
+-- flipped, shell wrote to disk while Lua read from RAM and the pipeline broke.
+-- This tiny tool is the bridge: shell asks it for the path, so both sides always
+-- agree no matter where the switch points.
+--
+-- Usage:
+--   scripts/cache-dir [DIR] --model NAME        -> movable cache dir (embeddings_dir)
+--   scripts/cache-dir [DIR] --model NAME --disk -> on-disk cache dir (diversity)
+-- DIR defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
+
+-- {{{ setup_dir_path()
+local function setup_dir_path(provided)
+    if provided then return provided end
+    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+end
+-- }}}
+
+-- {{{ parse_args()
+local function parse_args(args)
+    local dir, model, disk = nil, nil, false
+    local i = 1
+    while i <= #(args or {}) do
+        local a = args[i]
+        if a == "--model" then model = args[i + 1]; i = i + 2
+        elseif a == "--disk" then disk = true; i = i + 1
+        elseif not a:match("^%-") then dir = a; i = i + 1
+        else i = i + 1 end
+    end
+    return dir, model, disk
+end
+-- }}}
+
+local provided_dir, model, disk = parse_args(arg)
+local DIR = setup_dir_path(provided_dir)
+package.path = DIR .. "/?.lua;" .. DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+utils.init_assets_root(arg)
+
+-- Print the resolved path (no trailing newline noise the shell would have to trim
+-- beyond the standard one). disk -> the reboot-surviving root (diversity); else
+-- the movable root (everything else).
+if disk then
+    io.write(utils.embeddings_dir_disk(model) .. "\n")
+else
+    io.write(utils.embeddings_dir(model) .. "\n")
+end
