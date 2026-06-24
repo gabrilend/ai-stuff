@@ -300,9 +300,9 @@ local function page_shell(title, sidebar, content)
 <div id="wrap">
 <nav id="side">
 <a class="home" href="%sindex.html"><span class="brand">Machine&#160;Codex</span><span class="tagline">the source, read as a book</span></a>
-<a class="site-link" href="/similar-different/wordcloud.html">&#8617;&#160;back to the poetry site</a>
+<a class="site-link" href="%%LINKPREFIX%%../wordcloud.html">&#8617;&#160;back to the poetry site</a>
 <div class="tree">%s</div>
-<a class="output-link" href="/similar-different/wordcloud.html#poem-index">output/&#160;&#8594;&#160;every generated page</a>
+<a class="output-link" href="%%LINKPREFIX%%../wordcloud.html#poem-index">output/&#160;&#8594;&#160;every generated page</a>
 </nav>
 <main id="main">%s</main>
 </div>

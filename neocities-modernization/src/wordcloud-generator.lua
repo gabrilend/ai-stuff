@@ -445,7 +445,7 @@ td { text-align: center; } pre { display: inline-block; text-align: left; margin
 
 <center>
 <h1>Menu</h1>
-<p><a href="explore.html">Explore</a> │ <a href="chronological/index.html">Chronological Index</a> │ <a href="gallery/index.html">Gallery</a></p>
+<p><a href="explore.html">Explore</a> │ <a href="chronological/01.html">Chronological</a> │ <a href="gallery/index.html">Gallery</a></p>
 <hr>
 <h2>Word Cloud</h2>
 <p>Words sized by frequency across %d poems (click to explore similar poems)</p>
