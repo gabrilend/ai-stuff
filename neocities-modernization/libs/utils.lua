@@ -471,21 +471,14 @@ end
 --                    string only if you need a different model's directory.
 -- @return: full path to that model's embeddings directory
 -- Issue 10-054: movable, regenerable caches live in RAM (tmp/, a tmpfs symlink)
--- to spare SSD write endurance; only diversity_cache.json stays on disk (it costs
--- ~45 min to recompute), via embeddings_dir_disk(). CACHE_IN_RAM is the SINGLE
--- place the location is decided.
+-- to spare SSD write endurance. Only diversity_cache.json stays on disk (it costs
+-- ~45-50 min to recompute) via embeddings_dir_disk(); everything else is RAM.
 --
--- Reverted to FALSE (2026-06-23): a full regeneration with this TRUE proved the
--- centralization is NOT complete. embeddings.json and color_embeddings.json are
--- still WRITTEN to disk by their generators, while the readers (augment, the
--- word-color step) now look in RAM -- exactly the reader/writer desync this
--- switch was warned never to enable early. Symptoms: augment crashed
--- ("missing embeddings.json"), word colors were skipped ("no color embeddings").
--- The 10-054 audit grepped for the literal asset_path("embeddings/ and so missed
--- writers that build the path into a variable first (e.g. similarity-engine.lua).
--- Keep this FALSE until EVERY writer of a movable cache is routed through
--- embeddings_dir() and a clean full run validates it. See Issue 10-054.
-local CACHE_IN_RAM = false
+-- There is no switch any more: the project ALWAYS caches in RAM. The earlier
+-- on/off flag only invited "half the writers still point at disk" desyncs. With
+-- one unconditional location, every reader and writer that goes through this
+-- function agrees by construction. The single rule: movable caches ->
+-- embeddings_dir() (RAM); the one reboot-must-survive cache -> embeddings_dir_disk().
 local function safe_model(model_name)
     if not model_name then
         model_name = require("inference-server-config").get_selected_model()
@@ -495,7 +488,6 @@ local function safe_model(model_name)
 end
 
 function M.embeddings_dir(model_name)
-    if not CACHE_IN_RAM then return M.embeddings_dir_disk(model_name) end
     return M.DIR .. "/tmp/cache/embeddings/" .. safe_model(model_name)
 end
 -- }}}
