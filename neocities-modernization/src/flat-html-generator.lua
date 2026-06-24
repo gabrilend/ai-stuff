@@ -3035,7 +3035,9 @@ function M.generate_explore_page(output_dir, poems_data)
     add("WHOLE collection, only re-sorted around the poem you started from.")
     add("")
     add("LINKS")
-    add('  <a href="chronological/index.html">Start reading (chronological)</a>')
+    -- Link straight to the first page, not chronological/index.html (which is just
+    -- a redirect to 01.html) -- skips the "Redirecting..." flash.
+    add('  <a href="chronological/01.html">Start reading (chronological)</a>')
     add('  <a href="wordcloud.html">Word cloud</a>')
     add('  <a href="gallery/index.html">Image gallery</a>')
     add('  <a href="explore-2.html">How the similarity actually works (the math)</a>')
