@@ -280,9 +280,13 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     local embedding_dim = #embeddings_data.embeddings[1].embedding
     print(string.format("[GPU SIMILARITY] Loaded %d poems × %d dimensions", num_poems, embedding_dim))
 
-    -- Prepare output directory
+    -- Prepare output directory.
+    -- Issue 10-054: similarities are a movable cache -> embeddings_dir() (RAM).
+    -- This was the last writer still hardcoding a (relative!) disk path: it wrote
+    -- to assets/ and freshness-checked assets/, so with caches in RAM it skipped
+    -- to the stale disk copy and never populated RAM -- the broken-site bug.
     local model_dir = model_name:gsub(":", "_")
-    local output_dir = "assets/embeddings/" .. model_dir .. "/similarities"
+    local output_dir = utils.embeddings_dir(model_name) .. "/similarities"
     os.execute("mkdir -p " .. output_dir)
 
     -- Check if we can skip (files already exist and not forcing)
@@ -290,7 +294,7 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     local last_file = string.format("%s/poem_index_%d.json", output_dir, num_poems)
     if not force and utils.file_exists(first_file) and utils.file_exists(last_file) then
         print("[GPU SIMILARITY] Similarity files already exist, checking cache...")
-        local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
+        local cache_file = utils.embeddings_dir(model_dir) .. "/similarity_rankings_cache.json"
         if utils.file_exists(cache_file) then
             local cache_data = utils.read_json_file(cache_file)
             if cache_data and cache_data.rankings then
@@ -409,7 +413,7 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     -- Generate rankings cache using C parallel implementation
     -- This avoids the O(n²) Lua extraction and effil serialization overhead.
     -- The C side prints its own "[VKS CACHE] Generating rankings cache ..." line.
-    local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
+    local cache_file = utils.embeddings_dir(model_dir) .. "/similarity_rankings_cache.json"
 
     local cache_result = vklib.vks_write_rankings_cache_parallel(
         triangular_output,
@@ -508,7 +512,7 @@ function M.generate_rankings_cache(full_similarities, num_poems, model_dir, max_
     end
 
     -- Write cache file
-    local cache_file = "assets/embeddings/" .. model_dir .. "/similarity_rankings_cache.json"
+    local cache_file = utils.embeddings_dir(model_dir) .. "/similarity_rankings_cache.json"
     local cache_data = {
         metadata = {
             total_poems = num_poems,
