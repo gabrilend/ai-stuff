@@ -573,13 +573,20 @@ function M.generate_website_html(force, pages_spec, poems_per_page, num_threads,
     local diversity_cache_file = utils.embeddings_dir_disk() .. "/diversity_cache.json"
     local similarity_cache_file = utils.embeddings_dir() .. "/similarity_rankings_cache.json"
 
+    -- Pre-flight: validate the prerequisite caches EXIST before the long
+    -- generation starts. A miss is a hard error (return false -> the CLI handler
+    -- os.exit(1)s -> run.sh stops). The path is printed because the usual cause is
+    -- a RAM/disk mismatch (Issue 10-054): a writer left it on disk while this
+    -- reader looks in RAM (or vice versa), so seeing WHERE it looked is the clue.
     if not utils.file_exists(diversity_cache_file) then
-        utils.log_error("Diversity cache not found. Run: ./run.sh --generate-diversity")
+        utils.log_error("Diversity cache not found at: " .. diversity_cache_file
+            .. "  (run ./run.sh --generate-diversity, or check the RAM/disk switch)")
         return false
     end
 
     if not utils.file_exists(similarity_cache_file) then
-        utils.log_error("Similarity rankings cache not found. Run: ./run.sh --generate-similarity")
+        utils.log_error("Similarity rankings cache not found at: " .. similarity_cache_file
+            .. "  (run ./run.sh --generate-similarity, or check the RAM/disk switch)")
         return false
     end
 
@@ -929,7 +936,14 @@ function M.main(options)
         -- Issue 8-022: Pass poems_per_page parameter
         -- Issue 9-002: Pass threads parameter for parallel processing
         -- Issue 9-003: Pass chrono_per_page parameter
-        M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page)
+        -- A false return means a prerequisite was missing (e.g. the similarity
+        -- rankings cache) or generation failed. This MUST stop the pipeline with a
+        -- non-zero exit so run.sh's `|| exit 1` fires -- otherwise the run carries
+        -- on and builds a site whose nav pages were never made (Issue 10-054
+        -- fallout). A missing prerequisite is an error, never a warning to ignore.
+        if not M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page) then
+            os.exit(1)
+        end
     else
         -- Non-interactive mode - generate dataset and website HTML (full pipeline)
         -- Phase D (Issue 8-012): Pass pages parameter
@@ -939,7 +953,10 @@ function M.main(options)
         utils.log_info("Running in non-interactive mode (full pipeline)")
         M.show_project_status()
         M.generate_complete_dataset()
-        M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page)
+        -- Same as above: a false return is a hard failure that must stop the run.
+        if not M.generate_website_html(options.force, options.pages, options.poems_per_page, options.threads, options.chrono_per_page) then
+            os.exit(1)
+        end
     end
 end
 -- }}}
