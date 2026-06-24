@@ -169,14 +169,15 @@ end
 -- {{{ get_relative_image_path
 -- Convert absolute path to a URL-safe relative path from output/gallery/.
 local function get_relative_image_path(absolute_path)
-    -- Strip the DIR prefix
-    if absolute_path:sub(1, #DIR) == DIR then
-        local rel = absolute_path:sub(#DIR + 2)  -- +2 for the slash
-        -- From output/gallery/, we need to go up two levels. Encode so odd
-        -- filenames (spaces, ?) survive as a usable URL, not a truncated one.
-        return url_encode_path("../../" .. rel)
-    end
-    return url_encode_path(absolute_path)
+    -- Reference the FLATTENED copy in output/media/, not the original under input/.
+    -- flatten_media_files copies every configured image to output/media/<basename>;
+    -- the original under input/ is never uploaded, so a "../../input/images/..."
+    -- path 404s in production. Gallery pages live in output/gallery/, so
+    -- "../media/<basename>" reaches the flattened copy both locally and deployed
+    -- (both sit under /similar-different/) -- a relative path needing no rewrite.
+    -- This matches how poem-page image attachments already resolve.
+    local basename = absolute_path:match("([^/]+)$") or absolute_path
+    return url_encode_path("../media/" .. basename)
 end
 -- }}}
 
