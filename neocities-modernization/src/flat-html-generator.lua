@@ -1572,6 +1572,11 @@ local function escape_html(text)
     -- Order matters: & must be escaped first, otherwise &lt; becomes &amp;lt;
     if not text then return "" end
     return text
+        -- Strip NUL and other C0 control bytes that occasionally ride along in
+        -- source poem text (a stray \0 in one post is what made a chronological
+        -- page read as "binary" and could make a browser choke on it). Keep the
+        -- legitimate whitespace controls: tab (\9), newline (\10), CR (\13).
+        :gsub("[%z\1-\8\11\12\14-\31]", "")
         :gsub("&", "&amp;")
         :gsub("<", "&lt;")
         :gsub(">", "&gt;")
@@ -3615,7 +3620,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     if is_boost then
                         local boost_content = poem.content or ""
                         -- Escape HTML in content
-                        boost_content = boost_content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+                        boost_content = boost_content:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 
                         -- Issue 10-037: Defensive fallback for blank boost content (worker thread)
                         -- If content is empty, display the original URI or diagnostic message
@@ -3623,7 +3628,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             local original_uri = poem.metadata and poem.metadata.original_uri
                             if original_uri then
                                 -- Escape HTML in URI
-                                local safe_uri = original_uri:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+                                local safe_uri = original_uri:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
                                 boost_content = "External post: " .. safe_uri
                             else
                                 boost_content = "(Boost content unavailable)"
@@ -3741,7 +3746,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     -- Prevents browser from interpreting poem content as HTML markup
                     -- (e.g., a poem containing "</pre>" would otherwise close the preformatted block)
                     -- Order: & first, then < and > (otherwise &lt; becomes &amp;lt;)
-                    content = content:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+                    content = content:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 
                     local wrapped_lines = {}
 
