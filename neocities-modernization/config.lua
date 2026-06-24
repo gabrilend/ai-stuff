@@ -247,6 +247,14 @@ return {
         },
         notes = {
             -- Add note filenames here (without extension), e.g.: "test-post-please-ignore"
+            -- 0129.txt is a raw PDF file (its content starts with %PDF-1.5), not text.
+            -- Extraction stored the PDF's binary bytes as the poem content, and because
+            -- a PDF is maximally dissimilar to every text poem it became a diversity
+            -- outlier -- landing on ~7,900 "different" pages and dumping ~14KB of binary
+            -- (NUL bytes, PDF stream data) into each one. Excluding it tombstones the
+            -- poem so it never enters poems.json, clearing the whole "different" section.
+            -- (Takes effect on the next extraction run.)
+            "0129",
         },
         messages = {
             -- Add message indices here, e.g.: "42"
@@ -269,6 +277,8 @@ return {
     --   ls input/images/<source>/   (paths are relative to the project root).
     excluded_images = {
         -- "input/images/my-art/that-one-i-regret.png",
+        "input/images/poem-pictures/stick-cubes-2.png",
+        "input/images/my-art/sword-of-damocles-3.png"
     },
     -- }}}
 
