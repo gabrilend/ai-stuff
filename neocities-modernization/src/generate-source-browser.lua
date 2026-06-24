@@ -407,12 +407,14 @@ end
 -- An image file: show it. The original lives at DIR/<rel>; from output/source/
 -- <rel>.html that is up (depth+2) directories then <rel>.
 local function render_image_page(rel)
-    local depth = select(2, rel:gsub("/", "/"))
-    local src = string.rep("../", depth + 2) .. rel
-    -- Encode spaces etc. but keep the slashes.
-    src = src:gsub("[^%w%-%._~/]", function(c) return string.format("%%%02X", string.byte(c)) end)
+    -- The image file is copied next to this page (output/source/<rel>) by main(),
+    -- so reference it by BASENAME -- a relative, self-contained src. The old code
+    -- pointed at the original under DIR/<rel>, which works locally but 404s once
+    -- deployed (only output/source/ is uploaded), leaving just the path header.
     local dir, name = rel:match("^(.*/)([^/]+)$")
     if not name then dir, name = "", rel end
+    -- Encode spaces etc. in the filename (no slashes to keep -- same directory).
+    local src = name:gsub("[^%w%-%._~]", function(c) return string.format("%%%02X", string.byte(c)) end)
     return string.format(
         '<h1><span class="dir">%s</span>%s</h1><div class="rule"></div><img src="%s" alt="%s">',
         escape_html(dir), escape_html(name), src, escape_html(rel))
@@ -772,6 +774,10 @@ local function main()
         local content
         if f.kind == "image" then
             content = render_image_page(rel)
+            -- Copy the image into the source tree (beside its page) so it actually
+            -- displays when deployed -- only output/source/ is uploaded, not the
+            -- original under DIR/<rel>. The page references it by basename.
+            copy_raw(DIR .. "/" .. rel, out_root .. "/" .. rel)
         else
             local body = utils.read_file(DIR .. "/" .. rel)
             if not body then skipped_files = skipped_files + 1; goto continue end
