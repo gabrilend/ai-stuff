@@ -241,25 +241,36 @@ and no table-of-contents entry ever points at a missing page.
 ## Feature F — Saved webpages link out, not in
 
 ### Current Behavior
-`docs/Your URL Is Your State.html` is a *saved copy of an external article*
-(it has a `Your URL Is Your State_files/` companion of assets). The browser
-renders its HTML as source text — useless; you cannot read the article that way.
+A saved webpage — an `.html` with a sibling `<name>_files/` assets directory — is
+**not hosted at all**. Its table-of-contents entry is an external link (new tab,
+`rel="noopener"`, a `↗` marker) to the original article; no page is written for it
+and its `_files/` assets are not published. The platform is no-JS and hosting a
+copy of a stranger's article (scripts, trackers, CSS) was the wrong thing to ship.
+`docs/Your URL Is Your State.html` now links to
+`https://alfy.blog/2025/10/31/your-url-is-your-state.html`.
+
+(An earlier pass *mirrored* the page locally — wrote the `.html` with `<script>`
+tags stripped and copied its CSS/image assets. That still hosted a copy, so it was
+replaced by the link-out behavior above.)
 
 ### Intended Behavior
 Clicking that file in the table of contents opens the **actual article on the
-web**, not a source dump.
+web**, not a source dump and not a hosted copy.
 
 ### Implementation Notes
 - Detect saved webpages: an `.html` file with a sibling `<name>_files/` directory
   is a saved page, not project source.
-- Needs the original URL. A tiny mapping (saved-file relpath → external URL),
-  kept beside the browser config, is the honest source — the saved HTML may also
-  carry the URL in a comment/meta, but an explicit map is unambiguous.
-- The table-of-contents entry for such a file is an external link
-  (`target` to the real URL); no source page is generated for it, and its
-  `_files/` assets are not published.
-- **Question for the author**: what is the canonical URL for "Your URL Is Your
-  State"? (And are there other saved pages to map?)
+- The original URL is read from the saved file's own `<link rel="canonical">` /
+  `<meta property="og:url">` — self-describing, so it never drifts out of date.
+  A page lacking those tags can be mapped explicitly in `MIRROR_URL_OVERRIDES`;
+  one with neither is held back and named in the build report (never guessed,
+  never dumped as source).
+- The table-of-contents entry is an external link to the real URL; no source page
+  is generated, and the `_files/` assets are not published.
+- The hosted copies left by the earlier mirror/source-dump passes were a one-time
+  legacy in `output/source/` (git-ignored, per working tree); they were deleted
+  once by hand rather than carried as permanent cleanup code, since the generator
+  no longer produces them.
 
 ---
 

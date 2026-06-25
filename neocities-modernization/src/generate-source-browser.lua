@@ -68,6 +68,21 @@ local TEXT_EXTS = {
 }
 local IMAGE_EXTS = { png = true, jpg = true, jpeg = true, gif = true, webp = true, svg = true }
 
+-- Saved-webpage out-links (Issue 10-055, Feature F). A "saved page" (an .html with
+-- a sibling "<name>_files/" assets dir) is NOT the project's own work -- it is a
+-- mirror of an article elsewhere on the web. We do NOT host a copy: the platform
+-- is no-JS, hosting a stranger's scripts/trackers/CSS is wrong, and the live
+-- article is always fresher. Instead its table-of-contents entry is an external
+-- link to the real page, and neither the .html nor its _files/ assets are
+-- published. The canonical URL is read from the saved file's own
+-- <link rel="canonical"> / <meta property="og:url"> (self-describing, never
+-- stale). This override map is only for a saved page that lacks those tags; the
+-- key is the file's repo-relative path. Left empty because the one saved page we
+-- have carries its canonical URL inline.
+local MIRROR_URL_OVERRIDES = {
+    -- ["docs/Some Saved Page.html"] = "https://example.com/the-original",
+}
+
 -- Token CSS classes (colors live in _style.css, derived from the project's own
 -- palette: gold = literal text/poems, blue = structure, teal = annotations).
 local TOK = { comment = "c-cm", string = "c-st", keyword = "c-kw", number = "c-nu" }
@@ -251,12 +266,12 @@ end
 -- Render the whole tree as nested <details> (collapsible, needs no JS). Dirs on
 -- the path to `current_rel` are opened so the reader sees where they are.
 -- link_prefix climbs back to output/source/ from the current page.
-local function render_sidebar(node, current_rel, link_prefix, path_set, mirror_set)
+local function render_sidebar(node, current_rel, link_prefix, path_set, mirror_url)
     local out = {}
     for _, d in ipairs(sorted_keys(node.dirs)) do
         local open = path_set[d] and " open" or ""
         out[#out + 1] = string.format("<details%s><summary>%s/</summary>", open, escape_html(d))
-        out[#out + 1] = render_sidebar(node.dirs[d], current_rel, link_prefix, path_set, mirror_set)
+        out[#out + 1] = render_sidebar(node.dirs[d], current_rel, link_prefix, path_set, mirror_url)
         out[#out + 1] = "</details>"
     end
     local files = node.files
@@ -264,15 +279,21 @@ local function render_sidebar(node, current_rel, link_prefix, path_set, mirror_s
     for _, f in ipairs(files) do
         local here = (f.rel == current_rel)
         local label = escape_html(f.name)
+        local ext_url = mirror_url and mirror_url[f.rel]
         if here then
             out[#out + 1] = string.format('<div class="cur">%s</div>', label)
+        elseif ext_url then
+            -- A saved page (Feature F) is a mirror of an article elsewhere; we host
+            -- no copy. Its entry is an external link to the real page -- a new tab,
+            -- rel=noopener (don't hand the destination a window handle), and a
+            -- trailing arrow so a reader knows this one leaves the site. The URL is
+            -- absolute, so link_prefix (the climb back to output/source/) is N/A.
+            out[#out + 1] = string.format(
+                '<a class="ext" href="%s" target="_blank" rel="noopener">%s</a>',
+                escape_html(ext_url), label)
         else
-            -- A mirrored saved page (Feature F) links to the page ITSELF (no .html
-            -- source-view suffix); every other file links to its rendered page.
-            local href = (mirror_set and mirror_set[f.rel])
-                and (link_prefix .. f.rel)
-                or (link_prefix .. f.rel .. ".html")
-            out[#out + 1] = string.format('<a href="%s">%s</a>', href, label)
+            -- Every other file links to its rendered in-site page.
+            out[#out + 1] = string.format('<a href="%s">%s</a>', link_prefix .. f.rel .. ".html", label)
         end
     end
     return table.concat(out, "\n")
@@ -492,6 +513,10 @@ a:hover{color:var(--gold);}
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 #side a:hover{color:var(--gold); border-left-color:var(--gold); padding-left:.65rem;}
+/* Feature F: a saved page links OUT to the real article (a new tab), not to a
+   hosted copy. The arrow tells the reader this link leaves the site. */
+#side a.ext::after{content:"\00a0\2197"; color:var(--paper-faint); font-size:.85em;}
+#side a.ext:hover::after{color:var(--gold);}
 #side .cur{
   display:block; padding:1.5px .4rem; margin-left:.1rem; color:var(--ink);
   background:linear-gradient(90deg,var(--gold),var(--gold-soft)); border-radius:3px; font-weight:700;
@@ -604,22 +629,27 @@ end
 -- }}}
 
 -- {{{ main()
--- {{{ strip_scripts()
--- Issue 10-055 (Feature F): remove every <script> from a mirrored page. Two
--- reasons: the platform is no-JS, and one of these scripts is google-analytics --
--- a static mirror should not phone a tracker. The article's text, CSS, and images
--- carry the content; only interactivity (a JS widget) degrades.
-local function strip_scripts(html)
-    html = html:gsub("<script.-</script>", "")   -- paired tags (. spans newlines)
-    html = html:gsub("<script[^>]*/?>", "")       -- any stray/self-closing tag
-    return html
+-- {{{ extract_canonical_url()
+-- Issue 10-055 (Feature F): a saved webpage links OUT to the real article, so we
+-- need its original address. Browsers' "Save Page As" preserves the page's own
+-- <link rel="canonical" href="..."> and <meta property="og:url" content="...">,
+-- which name exactly that. Reading them from the file keeps the link honest and
+-- self-updating -- no hand-maintained URL to drift out of date. We try canonical
+-- first (the page's declared identity), then og:url, and accept either attribute
+-- order. Returns the URL string or nil (caller warns and skips -- never guesses).
+local function extract_canonical_url(html)
+    local u = html:match('<link[^>]-rel=["\']canonical["\'][^>]-href=["\']([^"\']+)["\']')
+        or html:match('<link[^>]-href=["\']([^"\']+)["\'][^>]-rel=["\']canonical["\']')
+        or html:match('<meta[^>]-property=["\']og:url["\'][^>]-content=["\']([^"\']+)["\']')
+        or html:match('<meta[^>]-content=["\']([^"\']+)["\'][^>]-property=["\']og:url["\']')
+    return u
 end
 -- }}}
 
 -- {{{ copy_raw()
--- Byte-for-byte copy (binary-safe rb/wb), used to place a mirrored page's assets
--- (CSS, images) into the output. Pure Lua I/O on purpose: the project bans shell
--- exec for file targeting, and io handles the spaces in these paths natively.
+-- Byte-for-byte copy (binary-safe rb/wb), used to place an image next to its
+-- rendered page so it displays once deployed. Pure Lua I/O on purpose: the project
+-- bans shell exec for file targeting, and io handles spaces in paths natively.
 local function copy_raw(src_abs, dst_abs)
     local src = io.open(src_abs, "rb")
     if not src then return false end
@@ -634,22 +664,34 @@ end
 
 -- {{{ find_mirror_pages()
 -- A saved webpage is an .html with a sibling "<name>_files/" directory of its
--- assets (how browsers "Save Page As"). Returns two lookups over the published
--- list: mirror_html[rel]=true for each such page, and a list of "<name>_files/"
--- prefixes so their asset files can be recognized and handled as assets (copied)
--- rather than rendered as source.
+-- assets (how browsers "Save Page As"). Feature F: these are NOT published -- the
+-- table of contents links straight to the original article instead. Returns:
+--   mirror_url[rel] = external URL   (saved pages we resolved a link for)
+--   is_asset(rel)                    (true for any "<name>_files/..." asset path)
+--   missing                         (list of saved pages whose URL we couldn't find)
+-- Asset prefixes come from EVERY structural saved page (even one missing a URL),
+-- so a mirror's raw asset bytes are never mistaken for project source and dumped.
 local function find_mirror_pages(all_files)
     local has_prefix = {}
     for _, rel in ipairs(all_files) do
         local dir = rel:match("^(.*/)[^/]+$")
         if dir then has_prefix[dir] = true end
     end
-    local mirror_html, asset_prefixes = {}, {}
+    local mirror_url, asset_prefixes, missing = {}, {}, {}
     for _, rel in ipairs(all_files) do
         local stem = rel:match("^(.*)%.html$")
         if stem and has_prefix[stem .. "_files/"] then
-            mirror_html[rel] = true
             asset_prefixes[#asset_prefixes + 1] = stem .. "_files/"
+            -- An explicit override wins; otherwise read the URL the page declares
+            -- about itself. A saved page with neither is reported (missing), not
+            -- linked to a guessed address.
+            local url = MIRROR_URL_OVERRIDES[rel]
+            if not url then
+                local html = utils.read_file(DIR .. "/" .. rel)
+                url = html and extract_canonical_url(html)
+            end
+            if url then mirror_url[rel] = url
+            else missing[#missing + 1] = rel end
         end
     end
     local function is_asset(rel)
@@ -658,7 +700,7 @@ local function find_mirror_pages(all_files)
         end
         return false
     end
-    return mirror_html, is_asset
+    return mirror_url, is_asset, missing
 end
 -- }}}
 
@@ -731,15 +773,25 @@ local function main()
     -- ONLY files that will actually get a page, so the table of contents can never
     -- link a page we did not write (the old extensionless-file 404). Genuine
     -- binaries are counted for the report but kept out of the tree entirely.
-    -- Feature F: saved webpages (an .html with a sibling _files/ dir) are mirrored
-    -- as the real page; their asset files are copied, not rendered as source.
-    local mirror_html, is_asset = find_mirror_pages(all_files)
-    local renderable, assets, skipped_files = {}, {}, 0
+    -- Feature F: saved webpages (an .html with a sibling _files/ dir) are NOT
+    -- hosted. Each appears in the tree as an external link to the original article;
+    -- no page is written for it and its assets are held back (we host no copy).
+    local mirror_url, is_asset, mirror_missing = find_mirror_pages(all_files)
+    local missing_set = {}
+    for _, rel in ipairs(mirror_missing) do missing_set[rel] = true end
+    local renderable, held_assets, skipped_files = {}, 0, 0
     for _, rel in ipairs(all_files) do
-        if mirror_html[rel] then
+        if mirror_url[rel] then
+            -- Keep it in the tree (so the table of contents still lists it) but
+            -- give it no page -- the sidebar entry links straight out to the web.
             renderable[#renderable + 1] = { rel = rel, kind = "mirror" }
+        elseif missing_set[rel] then
+            -- A saved page we found no out-link for: never dump its raw HTML as
+            -- "source" (it isn't ours). Hold it back; the report names it so the
+            -- author can add a MIRROR_URL_OVERRIDES entry.
+            skipped_files = skipped_files + 1
         elseif is_asset(rel) then
-            assets[#assets + 1] = rel  -- a mirrored page's asset: copied, not in the tree
+            held_assets = held_assets + 1  -- a saved page's asset: not published
         else
             local kind, lang_id = classify_file(rel)
             if kind == "skip" then
@@ -761,14 +813,9 @@ local function main()
         local rel = f.rel
 
         if f.kind == "mirror" then
-            -- Feature F: write the saved page ITSELF (scripts stripped), not a
-            -- source view -- clicking it shows the real article, no browser chrome.
-            local body = utils.read_file(DIR .. "/" .. rel)
-            if body and utils.write_file(out_root .. "/" .. rel, strip_scripts(body)) then
-                written = written + 1
-            else
-                write_failed[#write_failed + 1] = rel
-            end
+            -- Feature F: a saved page is listed in the tree but never written out
+            -- -- its sidebar entry links to the original article on the web. There
+            -- is nothing to render here; the out-link lives in render_sidebar.
             goto continue
         end
 
@@ -777,7 +824,7 @@ local function main()
         local path_set = {}
         for p in rel:gmatch("[^/]+") do path_set[p] = true end
         local prefix = relpath_prefix(rel)
-        local sidebar = render_sidebar(tree, rel, prefix, path_set, mirror_html)
+        local sidebar = render_sidebar(tree, rel, prefix, path_set, mirror_url)
 
         local content
         if f.kind == "image" then
@@ -813,20 +860,13 @@ local function main()
         ::continue::
     end
 
-    -- Feature F: copy each mirrored page's assets verbatim (CSS, images, fonts).
-    -- Scripts are skipped on purpose -- the platform is no-JS and one of them is
-    -- an analytics tracker a static mirror must never run; the article's text and
-    -- styling carry it without them.
-    local copied_assets = 0
-    for _, rel in ipairs(assets) do
-        if not rel:match("%.js$") and copy_raw(DIR .. "/" .. rel, out_root .. "/" .. rel) then
-            copied_assets = copied_assets + 1
-        end
-    end
+    -- Feature F: a saved page's assets (CSS, images, fonts) are deliberately NOT
+    -- copied -- we host no mirror of someone else's article. The held-back count is
+    -- reported below for auditability.
 
     -- Index: welcome + the full tree (nothing current, root prefix).
     do
-        local sidebar = render_sidebar(tree, nil, "", {}, mirror_html)
+        local sidebar = render_sidebar(tree, nil, "", {}, mirror_url)
         local welcome = string.format([[<div class="welcome">
 <p class="kicker">A link-only view of the machine</p>
 <h1>The source, read as a book.</h1>
@@ -846,8 +886,20 @@ follow any path down through the tree.</p>
     -- Report what was published and -- loudly -- what was held back.
     print(string.format("[source-browser] published %d text + %d images to %s",
         written, images, out_root))
-    if copied_assets > 0 then
-        print(string.format("[source-browser] mirrored saved page(s), copied %d assets (scripts skipped)", copied_assets))
+    do
+        -- Feature F: count saved pages now linked out to the web, and the assets we
+        -- therefore did NOT host. This makes the "host nothing, link out" policy
+        -- visible in the build log.
+        local linked_out = 0
+        for _ in pairs(mirror_url) do linked_out = linked_out + 1 end
+        if linked_out > 0 then
+            print(string.format("[source-browser] %d saved page(s) link out to the original article; %d of their assets held back (not hosted)",
+                linked_out, held_assets))
+        end
+        if #mirror_missing > 0 then
+            print(string.format("[source-browser] WARNING: %d saved page(s) had no canonical/og:url and were held back -- add a MIRROR_URL_OVERRIDES entry: %s",
+                #mirror_missing, table.concat(mirror_missing, ", ")))
+        end
     end
     if skipped_files > 0 then
         print(string.format("[source-browser] skipped %d non-text/non-image files (binaries)", skipped_files))
