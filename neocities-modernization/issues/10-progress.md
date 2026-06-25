@@ -96,6 +96,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-038 | Separate ID numbering for fediverse_boost | Completed | 2026-04-06 |
 | 10-019 | Document config structure and field usage | Completed | 2026-04-06 |
 | 10-042a | Gallery pages for standalone images | Completed | 2026-04-06 |
+| 10-051 | Persistent stage timing ring buffer (measured pre-flight estimates) | Completed | 2026-06-24 |
 
 ## Issue Details
 
