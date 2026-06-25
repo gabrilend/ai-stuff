@@ -1277,12 +1277,30 @@ run_generate_similarity() {
         DIR="$DIR" luajit -e "
             package.path = '$DIR/?.lua;$DIR/?/init.lua;$DIR/libs/?.lua;' .. package.path
             local vk_sim = require('libs.vulkan-compute.lua.vk_similarity')
+            -- Issue 10-057: size the rankings cache to exactly what THIS build shows
+            -- per poem -- the ACTUAL pages it generates (the --pages value, else the
+            -- config default minimum_pages -- NOT the storage ceiling
+            -- max_pages_per_poem) times the poems shown per page. Everything is read
+            -- at runtime from the run's flags + config; no hardcoded page counts. The
+            -- HTML stage's loader regenerates if a later run ever needs more (the
+            -- top_k stamp makes that detectable). The list is sorted nearest-first, so
+            -- the top-K ARE precisely what the pages display.
+            local _cfg = require('config-loader'); _cfg.set_project_root('$DIR')
+            local _pag = _cfg.load().pagination
+            if not _pag then error('config.pagination missing; cannot size the rankings cache') end
+            local _pages = tonumber('$PAGES') or _pag.minimum_pages
+            local _per_page = tonumber('$POEMS_PER_PAGE') or _pag.poems_per_page
+            if not _pages or not _per_page then
+                error('cannot resolve pages/poems_per_page to size the rankings cache')
+            end
+            local _top_k = _pages * _per_page
             -- Use TRUE parallel GPU computation (Issue 9-002 original design)
             local success = vk_sim.generate_similarity_matrix_gpu_parallel(
                 '$(emb_cache_dir)/embeddings.json',
                 '$MODEL_NAME',
                 $stage_force_lua,
-                $threads_to_use
+                $threads_to_use,
+                _top_k
             )
             if not success then
                 print('[GPU SIMILARITY ERROR] GPU generation failed')
@@ -1391,7 +1409,9 @@ run_generate_diversity() {
         # directory (assets/embeddings/<model>/) when run.sh is what selected
         # the model. Without this the wrapper falls back to config.lua's
         # default, which is correct in most cases but loses the CLI override.
-        MODEL_NAME="$MODEL_NAME" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
+        # Issue 10-057: pass the run's page settings so the wrapper caps each diversity
+        # sequence to the SAME K the similarity cache and the HTML stage use.
+        MODEL_NAME="$MODEL_NAME" PAGES="$PAGES" POEMS_PER_PAGE="$POEMS_PER_PAGE" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
             echo "Error: GPU diversity cache generation failed" >&2
             echo "Use --cpu-only flag to force CPU execution instead" >&2
             exit 1
