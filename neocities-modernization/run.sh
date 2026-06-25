@@ -151,7 +151,6 @@ Pagination (HTML Generation):
 Word Cloud:
   --wordcloud-words N Number of words in word cloud (default: 200);
                       pass "all" (--wordcloud-words all) for every word
-  --wordcloud-all     Alias for --wordcloud-words all
   --wordcloud-poems N Poems per word-cloud page (default: 50)
 
 Extraction Options:
@@ -257,7 +256,9 @@ PAGES=""
 POEMS_PER_PAGE=""
 
 # Issue 8-043: Word cloud configuration
-WORDCLOUD_ALL=false
+# Word-cloud word count: a number, or the literal "all" for every word. Both the
+# CLI (--wordcloud-words all) and the menu's "All Words" checkbox set this single
+# value -- there is no separate "all" flag to keep in sync.
 WORDCLOUD_WORDS=""
 # Issue 8-050d: Poems per word-cloud page
 WORDCLOUD_POEMS=""
@@ -427,13 +428,8 @@ while [[ $# -gt 0 ]]; do
             CHRONO_PER_PAGE="${1#*=}"
             shift
             ;;
-        # Issue 8-043: Word cloud configuration.
-        # --wordcloud-all is now just shorthand for --wordcloud-words all; both
-        # routes set WORDCLOUD_WORDS so there is a single source of truth.
-        --wordcloud-all)
-            WORDCLOUD_WORDS="all"
-            shift
-            ;;
+        # Issue 8-043: Word cloud configuration. Word count is set with
+        # --wordcloud-words N, or "--wordcloud-words all" for every word.
         --wordcloud-words)
             WORDCLOUD_WORDS="$2"
             shift 2
@@ -996,10 +992,10 @@ run_generate_embeddings() {
 # stage so color_embeddings.json already exists when the word-color step runs.
 run_generate_word_embeddings() {
     log_info "   Generating word embeddings for word cloud..."
+    # WORDCLOUD_WORDS carries either a number or the literal "all"; the generator
+    # accepts both via --words (it treats "--words all" the same as "--all").
     local wordcloud_args=""
-    if $WORDCLOUD_ALL; then
-        wordcloud_args="--all"
-    elif [ -n "$WORDCLOUD_WORDS" ]; then
+    if [ -n "$WORDCLOUD_WORDS" ]; then
         wordcloud_args="--words $WORDCLOUD_WORDS"
     fi
     $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --embeddings-only $wordcloud_args || {
@@ -1437,12 +1433,8 @@ run_generate_html() {
         chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
     fi
 
-    # Issue 8-043: Word cloud arguments
-    local wordcloud_all_arg=""
-    if $WORDCLOUD_ALL; then
-        wordcloud_all_arg="--all"
-    fi
-
+    # Issue 8-043: Word cloud arguments. WORDCLOUD_WORDS is a number or "all";
+    # --words carries either ("--words all" == every word, per the generators).
     local wordcloud_words_arg=""
     if [ -n "$WORDCLOUD_WORDS" ]; then
         wordcloud_words_arg="--words $WORDCLOUD_WORDS"
@@ -1456,8 +1448,8 @@ run_generate_html() {
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_all_arg $wordcloud_words_arg $chrono_per_page_arg"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg"
         log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
         return 0
@@ -1474,12 +1466,12 @@ run_generate_html() {
     # to the SAME chronological pages main.lua just built (separate processes
     # must agree on page size, or every #poem link lands on the wrong page).
     log_info "   Generating word cloud menu..."
-    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_all_arg $wordcloud_words_arg $chrono_per_page_arg || {
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_words_arg $chrono_per_page_arg || {
         echo "Warning: Word cloud menu generation failed, continuing..." >&2
     }
 
     log_info "   Generating word similarity pages..."
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_all_arg $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg || {
         echo "Warning: Word similarity page generation failed, continuing..." >&2
     }
 
@@ -1663,7 +1655,7 @@ interactive_mode_tui() {
     # ═══════════════════════════════════════════════════════════════════════════
     menu_add_section "wordcloud" "multi" "Word Cloud Options"
     menu_add_item "wordcloud" "wordcloud_all" "All Words" "checkbox" "0" \
-        "Include all words (disables word count limit)" "" "--wordcloud-all"
+        "Include all words (disables word count limit)" "" "--wordcloud-words all"
     menu_add_item "wordcloud" "wordcloud_words" "Word Count" "flag" "200:3" \
         "Maximum words in word cloud (default: 200)" "" "--wordcloud-words"
     # Issue 8-050d: Poems per word-cloud page
@@ -1766,9 +1758,15 @@ interactive_mode_tui() {
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
             # Issue 8-011: Set boost inclusion from TUI
             [[ "$include_boosts_val" == "1" ]] && INCLUDE_BOOSTS=true || INCLUDE_BOOSTS=false
-            # Issue 8-043: Set wordcloud values from TUI
-            [[ "$wordcloud_all_val" == "1" ]] && WORDCLOUD_ALL=true || WORDCLOUD_ALL=false
-            [[ -n "$wordcloud_words_val" && "$wordcloud_words_val" != "0" ]] && WORDCLOUD_WORDS="$wordcloud_words_val"
+            # Issue 8-043: Set the word count from the TUI. The "All Words" checkbox
+            # wins -- it sets the count to the literal "all" (and the dependency has
+            # already disabled the now-irrelevant Word Count field). Otherwise the
+            # typed count is used. One value, WORDCLOUD_WORDS, feeds --wordcloud-words.
+            if [[ "$wordcloud_all_val" == "1" ]]; then
+                WORDCLOUD_WORDS="all"
+            elif [[ -n "$wordcloud_words_val" && "$wordcloud_words_val" != "0" ]]; then
+                WORDCLOUD_WORDS="$wordcloud_words_val"
+            fi
             # Issue 8-050d: Set poems per word-cloud page from TUI
             [[ -n "$wordcloud_poems_val" && "$wordcloud_poems_val" != "0" ]] && WORDCLOUD_POEMS="$wordcloud_poems_val"
 
