@@ -1183,7 +1183,7 @@ end
 
 if not similarity_data and not DIFFERENCE_ONLY then
     print("❌ Error: Could not load similarity files from " .. similarities_dir)
-    print("   Run: lua src/similarity-engine-parallel.lua -I  (to generate similarity files)")
+    print("   Run: ./run.sh --generate-similarity  (to generate similarity files)")
     os.exit(1)
 end
 
@@ -1231,7 +1231,7 @@ if validation_embeddings and validation_embeddings.embeddings then
         end
         print("")
         print("   Please regenerate embeddings before generating HTML:")
-        print("   lua src/similarity-engine.lua -I  (option 1)")
+        print("   ./run.sh --generate-similarity  (option 1)")
         print("════════════════════════════════════════════════════════════════════════════")
         os.exit(1)
     end
@@ -1513,7 +1513,7 @@ if not DIFFERENCE_ONLY then
                 print("")
                 print("   Remedy: Check similarity data for this poem:")
                 print(string.format("   - Similarity file: %s/assets/embeddings/embeddinggemma_latest/similarities/poem_%d.json", DIR, poem_id))
-                print("   - Regenerate similarity data: lua src/similarity-engine-parallel.lua -I")
+                print("   - Regenerate similarity data: ./run.sh --generate-similarity")
                 os.exit(1)
             end
         end
