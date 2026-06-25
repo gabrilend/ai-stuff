@@ -36,7 +36,10 @@ check("class-2 keeps its original attachments", p4 and p4.attachments[1].relativ
 local p5
 for _, p in ipairs(poems.poems) do if p.poem_index == 5 then p5 = p end end
 check("class-3 pseudo-poem appended", p5 and p5.is_image == true and p5.image_class == 3)
-check("class-3 attachment is the bare filename", p5 and p5.attachments[1].relative_path == "factory-cube.png")
+-- Class-3 now keeps the FULL relative_path (not just the basename) so the
+-- renderer can namespace art by source+subdir -- the bare-filename form was what
+-- let same-named art images collide in output/media/.
+check("class-3 attachment keeps the full relative_path", p5 and p5.attachments[1].relative_path == "/p/input/images/my-art/factory-cube.png")
 check("class-3 attachment media type from ext", p5 and p5.attachments[1].media_type == "image/png")
 check("class-3 display title carried", p5 and p5.display_title == "my-art: factory-cube.png")
 check("total poems is 3 (1 + tagged 4 + appended 5)", #poems.poems == 3)
@@ -48,7 +51,10 @@ check("idempotent: no duplicate append", #poems.poems == 3)
 -- format_image_entry: self-contained image box built from the injected attachment.
 local html = R.format_image_entry(p5)
 check("format includes the title", html:find("my%-art: factory%-cube%.png", 1) ~= nil)
-check("format builds the image src at output/media/<filename>", html:find("output/media/factory%-cube%.png", 1) ~= nil)
+-- art src is namespaced by source: output/media/my-art/factory-cube.png, NOT a
+-- flat output/media/factory-cube.png (which would collide with any other source's
+-- factory-cube.png). Mastodon hashes still flatten (see text_image_link below).
+check("format namespaces art src under its source (relative)", html:find("%.%./media/my%-art/factory%-cube%.png", 1) ~= nil)
 check("format carries width/height hints", html:find('width="100"') ~= nil and html:find('height="80"') ~= nil)
 check("format is css-free (no class= attrs)", html:find('class=') == nil)
 check("class-3 pseudo-poem carries gallery_anchor", p5.gallery_anchor == "img-abc123")
@@ -62,7 +68,7 @@ check("image-only title is not gallery-linked", html2:find("chronological%.html"
 do
     local link = R.text_image_link({ attachments = {{ relative_path = "files/9/8/photo.jpg", media_type = "image/jpeg" }} })
     check("text+image link labelled image.png", link:find(">image%.png</a>", 1) ~= nil)
-    check("text+image link targets the media file", link:find("output/media/photo%.jpg", 1) ~= nil)
+    check("text+image link targets the media file (relative)", link:find("%.%./media/photo%.jpg", 1) ~= nil)
     check("pure-text poem gets no link", R.text_image_link({ content = "just words" }) == "")
 end
 
