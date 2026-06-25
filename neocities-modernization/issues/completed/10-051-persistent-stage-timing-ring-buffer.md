@@ -27,9 +27,12 @@ Each stage's wall-clock duration is recorded to a project-local file
 when the stage completes successfully. The file is a ring buffer:
 each stage's section holds the last 5 timings, with the oldest entry
 falling off when a sixth is recorded. The pre-flight stage list
-displays the mean of those last-5 timings in place of (or in addition
-to) the hardcoded estimate. First-run display falls back to the
-hardcoded estimate, with a "(no history yet)" hint.
+displays the mean of those last-5 timings. Before a stage has ever run
+on this box, it shows a coarse MAGNITUDE word (`short` / `medium` /
+`long`) instead of a specific number -- a word cannot rot the way the
+old "~42 hours" estimate did once the GPU path made diversity a matter
+of minutes, and the avg+count format makes plain which lines are
+measured and which are still a guess.
 
 The file lives at the project root as `.stage-timings`, modelled on the
 existing `.file-index-counter` convention (hidden, plain text, persists
@@ -70,25 +73,38 @@ The pre-flight display becomes:
 ```
 6.  generate-embeddings ⚠ (avg 2h 14m, last 3 runs)
 7.  generate-similarity ⚠ (avg 28m, last 5 runs)
-8.  generate-diversity ⚠ (no history yet — first-run estimate ~42h)
+8.  generate-diversity ⚠ (medium)
 ```
 
-The hardcoded estimates stay in the code as the fallback for first
-run / wiped-history cases, but real data overrides them when available.
+A per-stage magnitude word (`short`/`medium`/`long`, passed at the call
+site) is the fallback for first-run / wiped-history cases; real measured
+data overrides it once the stage has completed at least once. Cheap
+stages that previously showed nothing now carry `(short)` for a
+consistent list. The old hardcoded numeric estimates are removed.
 
 ## Suggested Implementation Steps
 
 ### Helpers (single new shell library)
 
 1. Add `scripts/stage-timing.sh` (sourced by `run.sh`, not invoked
-   directly). It exposes three functions:
+   directly). It exposes these functions:
    - `stage_timing_record <stage_name> <seconds>` — append a timing to
      the named section, evict the oldest if the section now has > 5
-     entries, write the file back atomically (temp file + mv).
+     entries, write the file back atomically (temp file + mv). When the
+     file does not exist yet, awk reads `/dev/null` so the END block
+     still creates the first section.
    - `stage_timing_mean <stage_name>` — print the integer mean of the
      section's entries, or empty if no entries exist.
+   - `stage_timing_count <stage_name>` — how many timings are stored
+     (drives the "last N runs" text).
    - `stage_timing_format_seconds <int>` — render seconds as e.g.
      `45s`, `12m 30s`, `2h 14m`, `1d 18h` for human-readable display.
+   - `stage_timing_label <stage_name> <fallback>` — the pre-flight
+     string: `(avg 2h 14m, last 3 runs)` when measured, else
+     `(<fallback>, no history yet)`, or empty when there is neither
+     history nor a fallback (a cheap stage with no estimate).
+   - `timed_stage <stage_name> <cmd...>` — see step 4.
+   Behaviour is pinned by `scripts/stage-timing.test.sh`.
 2. The file location is a constant near the top of the library:
    `STAGE_TIMINGS_FILE="${DIR}/.stage-timings"`.
 3. Parser is awk-based, not Lua or full INI: each section is a
@@ -98,15 +114,18 @@ run / wiped-history cases, but real data overrides them when available.
 
 ### Stage instrumentation
 
-4. Each existing `run_<stage>` function in `run.sh` (e.g.
-   `run_extract`, `run_validate`, `run_generate_embeddings`) wraps
-   its body with `local start_ts=$(date +%s)` at the top and a call
-   to `stage_timing_record` at the bottom on success.
+4. Rather than edit each `run_<stage>` body (a dozen invasive edits to
+   a hot file), a single generic wrapper `timed_stage <name> <cmd...>`
+   times the command and records on success. It is applied at the
+   DISPATCH call sites: `$EXTRACT && run_extract` becomes
+   `$EXTRACT && timed_stage extract run_extract`. One contiguous block
+   of changes, and the stage names there are the keys the pre-flight
+   list reads back. (run.sh also defines a passthrough `timed_stage`
+   fallback if the library is absent, so the dispatch is unconditional.)
 5. Failure paths (the stage errored out, or the operator Ctrl-Cs)
-   do NOT record. A partial timing would skew the mean toward
-   "fast" because it reflects "time-until-failure" not
-   "time-to-complete." This means the recording call must be the
-   last statement before the function returns success.
+   do NOT record: `timed_stage` records only when the wrapped command
+   returns 0. A partial timing would skew the mean toward "fast"
+   because it reflects "time-until-failure" not "time-to-complete."
 6. Stages that the operator skipped (`$EXTRACT=false`) are not
    instrumented at all — their `run_*` function never runs.
 
@@ -159,10 +178,13 @@ run / wiped-history cases, but real data overrides them when available.
 ## Related Documents
 
 Files this issue touches:
-- `run.sh` — pre-flight stage list rendering; each `run_<stage>`
-  function wrapped with timing capture.
+- `run.sh` — sources the library after `DIR` is final; pre-flight stage
+  list renders measured labels; the dispatch call sites wrap each stage
+  in `timed_stage`.
 - `scripts/stage-timing.sh` — new shell library, sourced by run.sh.
-- `.gitignore` — add `.stage-timings`.
+- `scripts/stage-timing.test.sh` — exercises the ring buffer, mean,
+  formatting, and the record-only-on-success rule.
+- `.gitignore` — `.stage-timings` added.
 - `.stage-timings` — new file at project root (created on first
   successful stage completion).
 

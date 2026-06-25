@@ -618,6 +618,15 @@ fi
 # {{{ Setup directories
 DIR=$(setup_dir_path "$DIR")
 
+# Issue 10-051: stage wall-clock timing. Sourced after DIR is final so the
+# library knows where .stage-timings lives. Provides timed_stage (wrap a stage
+# to record its duration on success) and stage_timing_label (render the measured
+# estimate for the pre-flight list). Missing file is harmless: timing is optional.
+[ -f "${DIR}/scripts/stage-timing.sh" ] && source "${DIR}/scripts/stage-timing.sh"
+# If the library was absent, timed_stage still has to exist so the dispatch below
+# runs unchanged -- define a passthrough that just runs the stage, no recording.
+command -v timed_stage >/dev/null 2>&1 || timed_stage() { shift; "$@"; }
+
 # Build arguments for Lua scripts
 ASSETS_ARG=""
 if [ -n "$ASSETS_DIR" ]; then
@@ -1778,16 +1787,22 @@ fi
 # Show what will be executed (in non-interactive or after TUI selection)
 if $DRY_RUN || $VERBOSE; then
     echo "Pipeline stages to execute:"
-    $UPDATE_WORDS && echo "  1.  update-words"
-    $EXTRACT && echo "  2.  extract"
-    $PARSE && echo "  3.  parse"
-    $VALIDATE && echo "  4.  validate"
-    $CATALOG_IMAGES && echo "  5.  catalog-images"
-    $GENERATE_EMBEDDINGS && echo -e "  6.  generate-embeddings $(symbol_warning "⚠️") (~2-3 hours)"
-    $GENERATE_SIMILARITY && echo -e "  7.  generate-similarity $(symbol_warning "⚠️") (~30 min)"
-    $GENERATE_DIVERSITY && echo -e "  8.  generate-diversity $(symbol_warning "⚠️") (~42 hours)"
-    $GENERATE_HTML && echo "  9.  generate-html"
-    $GENERATE_INDEX && echo "  10. generate-index"
+    # Issue 10-051: show measured wall-clock when this box has run the stage before
+    # (avg of the last few). Before any run, show a coarse magnitude word
+    # (short/medium/long) rather than a specific number -- words don't go stale the
+    # way "~42 hours" did. The second arg is that magnitude. Empty string if the
+    # timing library was not sourced.
+    _st() { command -v stage_timing_label >/dev/null 2>&1 && stage_timing_label "$1" "$2"; }
+    $UPDATE_WORDS && echo "  1.  update-words $(_st update-words short)"
+    $EXTRACT && echo "  2.  extract $(_st extract short)"
+    $PARSE && echo "  3.  parse $(_st parse short)"
+    $VALIDATE && echo "  4.  validate $(_st validate short)"
+    $CATALOG_IMAGES && echo "  5.  catalog-images $(_st catalog-images short)"
+    $GENERATE_EMBEDDINGS && echo -e "  6.  generate-embeddings $(symbol_warning "⚠️") $(_st generate-embeddings long)"
+    $GENERATE_SIMILARITY && echo -e "  7.  generate-similarity $(symbol_warning "⚠️") $(_st generate-similarity medium)"
+    $GENERATE_DIVERSITY && echo -e "  8.  generate-diversity $(symbol_warning "⚠️") $(_st generate-diversity medium)"
+    $GENERATE_HTML && echo "  9.  generate-html $(_st generate-html medium)"
+    $GENERATE_INDEX && echo "  10. generate-index $(_st generate-index short)"
     echo ""
 fi
 
@@ -1869,27 +1884,30 @@ fi
 # }}}
 
 # Execute stages in pipeline order (regardless of argument order)
-$UPDATE_WORDS && run_update_words
-$EXTRACT && run_extract
+# Issue 10-051: timed_stage <name> wraps each stage so its wall-clock is recorded
+# to .stage-timings on success (skipped stages and failures record nothing). The
+# names here are the keys the pre-flight list reads back for its estimates.
+$UPDATE_WORDS && timed_stage update-words run_update_words
+$EXTRACT && timed_stage extract run_extract
 # Issue 10-053: strip excluded content from input/ right after sync/extraction,
 # before anything catalogs or embeds it. Tied to extraction (which follows sync).
-$EXTRACT && run_strip_excluded
-$PARSE && run_parse
-$VALIDATE && run_validate
-$CATALOG_IMAGES && run_catalog_images
-$GENERATE_EMBEDDINGS && run_generate_embeddings
+$EXTRACT && timed_stage strip-excluded run_strip_excluded
+$PARSE && timed_stage parse run_parse
+$VALIDATE && timed_stage validate run_validate
+$CATALOG_IMAGES && timed_stage catalog-images run_catalog_images
+$GENERATE_EMBEDDINGS && timed_stage generate-embeddings run_generate_embeddings
 # Semantic colors are part of embedding generation (Stage 6.5)
 # Only regenerate when embeddings are generated - HTML should use existing poem_colors.json
-$GENERATE_EMBEDDINGS && run_generate_semantic_colors
+$GENERATE_EMBEDDINGS && timed_stage generate-semantic-colors run_generate_semantic_colors
 # Word embeddings run AFTER colors so the word-color step finds color_embeddings.json
-$GENERATE_EMBEDDINGS && run_generate_word_embeddings
+$GENERATE_EMBEDDINGS && timed_stage generate-word-embeddings run_generate_word_embeddings
 # Issue 9-013: fold image pseudo-embeddings into the set BEFORE the similarity
 # matrix is built, so images rank alongside poems. Idempotent + cheap.
-$GENERATE_SIMILARITY && run_augment_images
-$GENERATE_SIMILARITY && run_generate_similarity
-$GENERATE_DIVERSITY && run_generate_diversity
-$GENERATE_HTML && run_generate_html
-$GENERATE_INDEX && run_generate_index
+$GENERATE_SIMILARITY && timed_stage augment-images run_augment_images
+$GENERATE_SIMILARITY && timed_stage generate-similarity run_generate_similarity
+$GENERATE_DIVERSITY && timed_stage generate-diversity run_generate_diversity
+$GENERATE_HTML && timed_stage generate-html run_generate_html
+$GENERATE_INDEX && timed_stage generate-index run_generate_index
 
 if ! $QUIET; then
     echo ""
