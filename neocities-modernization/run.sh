@@ -173,7 +173,6 @@ Output Control:
                       keep them on exit, instead of the RAM-backed tmp/ that a
                       hard GPU lock + reboot would wipe. Also tees this script's
                       console output to output/debug-logs/run.log.
-  --cpu-only          Force CPU execution (disable GPU acceleration)
   --low-priority      Run compute-heavy stages at lower OS priority (nice -n 10)
                       Keeps desktop/terminal responsive during long operations
 
@@ -242,7 +241,6 @@ FORCE_STAGE_10=false
 QUIET=false
 VERBOSE=false
 DRY_RUN=false
-CPU_ONLY=false
 # --debug: route all logs to output/ (durable disk) instead of the RAM-backed
 # tmp/ symlink, and preserve them on exit. Added to diagnose a hard GPU lock:
 # such a freeze forces a power-cycle, and the tmpfs-backed tmp/ is wiped on
@@ -367,10 +365,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=true
-            shift
-            ;;
-        --cpu-only)
-            CPU_ONLY=true
             shift
             ;;
         # Boost inclusion (reshared posts). These override config.privacy.
@@ -1195,26 +1189,15 @@ run_augment_images() {
 
 # {{{ run_generate_similarity
 run_generate_similarity() {
-    # Determine execution method: GPU (default) or CPU (--cpu-only only)
-    local use_gpu=false
-    if ! $CPU_ONLY; then
-        # GPU is required unless --cpu-only is specified
-        if [ -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
-            use_gpu=true
-            log_stage "📊 Stage 7/10: Building similarity matrix with GPU (~5-10 min)"
-        else
-            echo "Error: GPU library not found: libs/vulkan-compute/build/libvkcompute.so" >&2
-            echo "" >&2
-            echo "Options:" >&2
-            echo "  1. Build GPU library: cd libs/vulkan-compute && make" >&2
-            echo "  2. Use CPU instead: ./run.sh --generate-similarity --cpu-only" >&2
-            echo "" >&2
-            echo "Note: GPU acceleration is 6x faster (~5-10 min vs ~30 min)" >&2
-            exit 1
-        fi
-    else
-        log_stage "📊 Stage 7/10: Building similarity matrix with CPU (~30 min, --cpu-only)"
+    # GPU (Vulkan) is required: these are O(N^2) similarity calculations that make no
+    # sense on a CPU, so the CPU route was removed (Issue 10-057). A missing GPU library
+    # is a hard error with build instructions, never a slow fallback.
+    if [ ! -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
+        echo "Error: GPU library not found: libs/vulkan-compute/build/libvkcompute.so" >&2
+        echo "Build it: cd libs/vulkan-compute && make" >&2
+        exit 1
     fi
+    log_stage "📊 Stage 7/10: Building similarity matrix with GPU (~5-10 min)"
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
@@ -1254,7 +1237,7 @@ run_generate_similarity() {
     fi
 
     if $DRY_RUN; then
-        log_dry_run "luajit $DIR/src/similarity-engine.lua --generate-matrix $threads_arg $DIR"
+        log_dry_run "luajit (GPU vk_similarity via libvkcompute.so) --generate-matrix $threads_arg"
         return 0
     fi
 
@@ -1265,8 +1248,7 @@ run_generate_similarity() {
     local stage_force_lua="false"
     $stage_force && stage_force_lua="true"
 
-    if $use_gpu; then
-        # GPU similarity generation using Vulkan compute shaders
+    # GPU similarity generation using Vulkan compute shaders (the only route now)
         log_info "   Mode: GPU-accelerated (Vulkan)"
 
         # Pass threads value to GPU similarity (defaults to 8 if not specified)
@@ -1304,41 +1286,12 @@ run_generate_similarity() {
             )
             if not success then
                 print('[GPU SIMILARITY ERROR] GPU generation failed')
-                print('Use --cpu-only to force CPU execution')
                 os.exit(1)
             end
         " || {
             echo "Error: GPU similarity generation failed" >&2
-            echo "Use --cpu-only flag to force CPU execution instead" >&2
             exit 1
         }
-    else
-        # CPU implementation (only when --cpu-only is explicitly specified)
-        log_info "   Mode: CPU (multithreaded)"
-        # Issue 8-033: Use parallel engine for individual files (not monolithic matrix)
-        # Fixes table overflow error at ~68% when using calculate_full_similarity_matrix
-        # Function: calculate_similarity_matrix_parallel(embeddings_file, model_name, sleep_duration, force_regenerate, requested_threads)
-        local default_threads=8
-        local threads_to_use=${THREADS:-$default_threads}
-
-        luajit -e "
-            package.path = '$DIR/?.lua;$DIR/?/init.lua;' .. package.path
-            package.cpath = '/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;' .. package.cpath
-            local sim_parallel = require('src.similarity-engine-parallel')
-            local sleep = 0.5
-            local threads = $threads_to_use
-            sim_parallel.calculate_similarity_matrix_parallel(
-                '$(emb_cache_dir)/embeddings.json',
-                '$MODEL_NAME',
-                sleep,
-                $stage_force_lua,
-                threads
-            )
-        " || {
-            echo "Error: Similarity matrix generation failed" >&2
-            exit 1
-        }
-    fi
 
     # Note: Pre-sorted similarity rankings cache is now generated automatically
     # by the GPU similarity engine (in-RAM, no file re-reading needed)
@@ -1347,26 +1300,14 @@ run_generate_similarity() {
 
 # {{{ run_generate_diversity
 run_generate_diversity() {
-    # Determine execution method: GPU (default) or CPU (--cpu-only only)
-    local use_gpu=false
-    if ! $CPU_ONLY; then
-        # GPU is required unless --cpu-only is specified
-        if [ -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
-            use_gpu=true
-            log_stage "🎲 Stage 8/10: Pre-computing diversity cache with GPU (~1 min)"
-        else
-            echo "Error: GPU library not found: libs/vulkan-compute/build/libvkcompute.so" >&2
-            echo "" >&2
-            echo "Options:" >&2
-            echo "  1. Build GPU library: cd libs/vulkan-compute && make" >&2
-            echo "  2. Use CPU instead: ./run.sh --generate-diversity --cpu-only" >&2
-            echo "" >&2
-            echo "Note: GPU acceleration is 2,600× faster (~1 min vs ~42 hours)" >&2
-            exit 1
-        fi
-    else
-        log_stage "🎲 Stage 8/10: Pre-computing diversity cache with CPU (~42 hours, --cpu-only)"
+    # GPU (Vulkan) is required: the diversity walk is O(N^2) GPU work, so the CPU route
+    # was removed (Issue 10-057). A missing GPU library is a hard error, not a fallback.
+    if [ ! -f "$DIR/libs/vulkan-compute/build/libvkcompute.so" ]; then
+        echo "Error: GPU library not found: libs/vulkan-compute/build/libvkcompute.so" >&2
+        echo "Build it: cd libs/vulkan-compute && make" >&2
+        exit 1
     fi
+    log_stage "🎲 Stage 8/10: Pre-computing diversity cache with GPU (~1 min)"
 
     # Convert model name for directory
     local model_dir_name="${MODEL_NAME//:/_}"
@@ -1395,8 +1336,7 @@ run_generate_diversity() {
     log_info "   Input: assets/embeddings/$model_dir_name/embeddings.json"
     log_info "   Output: assets/embeddings/$model_dir_name/diversity_cache.json"
 
-    if $use_gpu; then
-        # GPU diversity generation using Vulkan compute shaders
+    # GPU diversity generation using Vulkan compute shaders (the only route now)
         log_info "   Mode: GPU-accelerated (Vulkan)"
 
         if $DRY_RUN; then
@@ -1413,38 +1353,8 @@ run_generate_diversity() {
         # sequence to the SAME K the similarity cache and the HTML stage use.
         MODEL_NAME="$MODEL_NAME" PAGES="$PAGES" POEMS_PER_PAGE="$POEMS_PER_PAGE" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
             echo "Error: GPU diversity cache generation failed" >&2
-            echo "Use --cpu-only flag to force CPU execution instead" >&2
             exit 1
         }
-    else
-        # CPU implementation (only when --cpu-only is explicitly specified)
-        log_info "   Mode: CPU (effil-based)"
-        log_info "   $(symbol_warning "⚠️")  This is a one-time cost (~42 hours). Results will be cached."
-
-        # Issue 8-027: Build command with pagination flags
-        if [ -n "$THREADS" ]; then
-            export DIVERSITY_THREADS="$THREADS"
-        fi
-
-        local pagination_args=""
-        if [ -n "$PAGES" ]; then
-            pagination_args="$pagination_args --pages=$PAGES"
-        fi
-        if [ -n "$POEMS_PER_PAGE" ]; then
-            pagination_args="$pagination_args --poems-per-page=$POEMS_PER_PAGE"
-        fi
-
-        if $DRY_RUN; then
-            log_dry_run "luajit $DIR/scripts/precompute-diversity-sequences $DIR $pagination_args"
-            return 0
-        fi
-
-        # Issue 10-028: Apply low priority to expensive CPU diversity generation
-        $NICE_PREFIX luajit "$DIR/scripts/precompute-diversity-sequences" "$DIR" $pagination_args || {
-            echo "Error: Diversity cache generation failed" >&2
-            exit 1
-        }
-    fi
 }
 # }}}
 

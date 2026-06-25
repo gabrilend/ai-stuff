@@ -753,12 +753,27 @@ function M.handle_tui_action(values)
         executed = true
     end
     if values.similarity == "1" then
-        -- Run parallel similarity calculation
-        utils.log_info("Running parallel similarity calculation...")
-        local sim_engine = require("similarity-engine-parallel")
+        -- Run similarity on the GPU. The CPU engine was removed (Issue 10-057) -- these
+        -- are O(N^2) calculations that make no sense on a CPU. vk_similarity uses
+        -- absolute/project-root-relative paths, so it runs fine in-process here (no
+        -- cd-wrapper needed, unlike diversity before the path unification).
+        utils.log_info("Running GPU similarity calculation...")
+        -- vk_similarity reads DIR from the environment to locate its library; set it
+        -- before the module loads.
+        local ffi = require("ffi")
+        ffi.cdef[[int setenv(const char *name, const char *value, int overwrite);]]
+        ffi.C.setenv("DIR", DIR, 1)
+        local vk_sim = require("vulkan-compute.lua.vk_similarity")
+        -- Same K the pipeline uses: pages x poems_per_page from config (the default
+        -- minimum_pages here, since this action takes no --pages). A capped cache the
+        -- HTML stage cannot fill is caught by the loader's K-check.
+        local pag = config_loader.load().pagination
+        if not pag then error("config.pagination missing; cannot size the similarity cache") end
+        local top_k = pag.minimum_pages * pag.poems_per_page
         local thread_count = tonumber(values.thread_count) or 8
         local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
-        sim_engine.calculate_similarity_matrix_parallel(embeddings_file, inference_config.get_selected_model(), 0.2, false, thread_count)
+        vk_sim.generate_similarity_matrix_gpu_parallel(
+            embeddings_file, inference_config.get_selected_model(), false, thread_count, top_k)
         executed = true
     end
 

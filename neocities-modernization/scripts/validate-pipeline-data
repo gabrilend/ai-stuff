@@ -331,12 +331,12 @@ output_human() {
         echo "  └─ Status: COMPLETE ✓"
     elif [ "$SIMILARITY_COUNT" -eq 0 ]; then
         echo "  ├─ Estimated time to complete: ~2 hours (8 threads)"
-        echo "  └─ Status: MISSING (run: lua src/similarity-engine-parallel.lua)"
+        echo "  └─ Status: MISSING (run: ./run.sh --generate-similarity)"
     else
         local missing=$((POEM_COUNT - SIMILARITY_COUNT))
         echo "  ├─ Missing entries: $missing"
         echo "  ├─ Estimated time to complete: ~$(awk -v m="$missing" 'BEGIN { printf "%.1f", m*0.92/3600 }') hours (8 threads)"
-        echo "  └─ Status: INCOMPLETE (run: lua src/similarity-engine-parallel.lua)"
+        echo "  └─ Status: INCOMPLETE (run: ./run.sh --generate-similarity)"
     fi
     echo ""
 
@@ -403,7 +403,7 @@ output_human() {
             echo "Command: ./generate-embeddings.sh --incremental"
         elif [ "$SIMILARITY_COUNT" -lt "$POEM_COUNT" ]; then
             echo "Next Step: Complete similarity matrix generation"
-            echo "Command: lua src/similarity-engine-parallel.lua"
+            echo "Command: ./run.sh --generate-similarity"
         elif [ "$DIVERSITY_STATUS" = "MISSING" ]; then
             echo "Next Step: Pre-compute diversity cache (optional but recommended)"
             echo "Command: nohup ./scripts/precompute-diversity-sequences > temp/diversity.log 2>&1 &"
@@ -535,7 +535,7 @@ suggest_commands() {
     # Check if similarity matrix needs generation
     if [ "$SIMILARITY_COUNT" -lt "$POEM_COUNT" ]; then
         echo "Step $step: Complete similarity matrix"
-        echo "  Command: lua src/similarity-engine-parallel.lua"
+        echo "  Command: ./run.sh --generate-similarity"
         echo "  Time: ~$(awk -v m="$((POEM_COUNT - SIMILARITY_COUNT))" 'BEGIN { printf "%.1f", m*0.92/3600 }') hours (8 threads)"
         echo ""
         ((step++))
@@ -632,7 +632,7 @@ check_freshness() {
         echo "  ├─ Latest file: $(format_timestamp "$similarity_mtime")"
         echo "  ├─ embeddings.json: $(format_timestamp "$embeddings_mtime")"
         echo "  ├─ Age difference: $age_days days old"
-        echo "  └─ Action: Re-run lua src/similarity-engine-parallel.lua"
+        echo "  └─ Action: Re-run ./run.sh --generate-similarity"
         echo ""
     elif [ "$similarity_mtime" -eq 0 ]; then
         echo "Similarity Matrix: NOT GENERATED"
