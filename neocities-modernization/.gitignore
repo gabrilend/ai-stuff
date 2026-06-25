@@ -3,6 +3,11 @@
 # the symlink itself is a tracked-looking file from git's perspective).
 tmp
 
+# Stage wall-clock timing ring buffer (Issue 10-051). Purely a function of this
+# operator's hardware and how many times they've run the pipeline -- useless to
+# share, so never track it.
+.stage-timings
+
 # Build products (regenerated each run)
 output/
 output-backup/
