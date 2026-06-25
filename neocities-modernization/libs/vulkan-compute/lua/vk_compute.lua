@@ -98,9 +98,15 @@ ffi.cdef[[
 -- }}}
 
 -- {{{ Load shared library
+-- Issue 10-057: DIR-based absolute path (matching vk_similarity.lua) so the library
+-- loads from ANY working directory. Together with the shader paths in vk_diversity.c
+-- now being project-root-relative, diversity no longer needs to be run from inside
+-- libs/vulkan-compute/ -- the cd-wrapper requirement is gone. An explicit
+-- VK_COMPUTE_LIB still overrides for unusual setups.
+local _vkc_dir = os.getenv("DIR") or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 local lib_path = _G.VK_COMPUTE_LIB or
                  os.getenv("VK_COMPUTE_LIB") or
-                 "./libs/vulkan-compute/build/libvkcompute.so"
+                 (_vkc_dir .. "/libs/vulkan-compute/build/libvkcompute.so")
 local vk = ffi.load(lib_path)
 -- }}}
 
