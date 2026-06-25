@@ -140,7 +140,11 @@ img, video, audio { margin-left: auto; margin-right: auto; }
 local PAGINATION_CONFIG = {
     poems_per_page = 100,
     minimum_pages = 1,
-    max_pages_per_poem = 15,        -- Storage constraint: limits pages to fit 45GB (Issue 8-020)
+    -- COMPUTED per build by compute_storage_max_pages (Issue 10-057), not a config
+    -- value. This placeholder is only the operative value if that computation is
+    -- skipped (e.g. a caller that loads pagination just for chronological mapping);
+    -- kept finite so %d logging and math.min() stay well-defined.
+    max_pages_per_poem = 9999,
     page_number_padding = 2,
     generate_txt_exports = true,
     generate_html_archives = false,  -- Disabled: redundant with paginated pages
@@ -462,6 +466,66 @@ local function load_pagination_config()
 
     pagination_config_loaded = true
     return PAGINATION_CONFIG
+end
+-- }}}
+
+-- {{{ local function compute_storage_max_pages
+-- Issue 10-057 follow-up: derive how many similar/different pages per poem fit the
+-- storage quota instead of freezing a guess in config. Everything is MEASURED from
+-- the last build's output on disk -- a self-correcting validator, not an estimate:
+--   budget          = storage.limit_gb (the Neocities quota; the one real config fact)
+--   avg_page_size   = bytes of output/similar / number of those page files
+--   per_page_level  = avg_page_size x num_poems x 2 (each poem gets one similar AND
+--                     one different page per page-level)
+--   fixed           = everything else already in output/ (media, wordcloud, chrono,
+--                     gallery) -- does NOT grow with the page count
+--   max_pages       = floor((budget - fixed) / per_page_level)
+-- Pages reference images via <img src>, so a page on disk is text; the picture bytes
+-- are the single output/media cost, folded into `fixed`. Measurements use du/find
+-- (read-only) with block-rounded bytes -- conservative (rounds the cap DOWN, the safe
+-- direction for a quota). First build (no pages to measure): warn and DO NOT cap; the
+-- next build measures real sizes and applies the cap.
+local function compute_storage_max_pages(output_dir, num_poems)
+    local function popen_num(cmd)
+        local h = io.popen(cmd)
+        if not h then return nil end
+        local out = h:read("*a"); h:close()
+        return tonumber((out or ""):match("(%d+)"))
+    end
+    local function dir_bytes(path)
+        return popen_num(string.format("du -s --block-size=1 %q", path)) or 0
+    end
+
+    local sim_dir = output_dir .. "/similar"
+    local diff_dir = output_dir .. "/different"
+    local page_count = popen_num(string.format("find %q -maxdepth 1 -name '*.html' | wc -l", sim_dir)) or 0
+    if page_count == 0 or num_poems == 0 then
+        -- First build: nothing to measure yet. Fall back to the NATURAL maximum (every
+        -- other poem could fill pages), i.e. effectively uncapped, and warn. A finite
+        -- value keeps %d logging and the math.min() cap well-defined; the next build
+        -- measures real page sizes and applies the storage cap.
+        local per_page = PAGINATION_CONFIG.poems_per_page
+        local natural_max = math.max(1, math.ceil(num_poems / (per_page > 0 and per_page or 1)))
+        utils.log_warn("Storage page cap: no pages in " .. sim_dir .. " to measure -- "
+            .. "generating UNCAPPED this build (natural max " .. natural_max
+            .. " pages/poem); re-run to apply the measured cap.")
+        return natural_max
+    end
+
+    local sim_bytes = dir_bytes(sim_dir)
+    local avg_page = sim_bytes / page_count
+    local per_page_level = avg_page * num_poems * 2
+    local fixed = math.max(0, dir_bytes(output_dir) - sim_bytes - dir_bytes(diff_dir))
+    local budget = STORAGE_CONFIG.limit_gb * 1e9  -- decimal GB; conservative vs GiB
+
+    local max_pages = math.floor((budget - fixed) / per_page_level)
+    if max_pages < 1 then max_pages = 1 end
+
+    utils.log_info(string.format(
+        "Storage page cap (measured): %d page(s)/poem -- budget %dGB, fixed output %.1fGB, "
+        .. "%.0fKB/page x %d poems x 2 sides", max_pages, STORAGE_CONFIG.limit_gb,
+        fixed / 1e9, avg_page / 1000, num_poems))
+    return max_pages
 end
 -- }}}
 
@@ -3288,11 +3352,44 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         PAGINATION_CONFIG.poems_per_page = poems_per_page
     end
 
-    utils.log_info(string.format(
-        "Similarity/diversity pagination: %d poems/page, max %d pages per poem (%dGB storage limit)",
-        PAGINATION_CONFIG.poems_per_page,
-        PAGINATION_CONFIG.max_pages_per_poem,
-        STORAGE_CONFIG.limit_gb))
+    -- Issue 10-057 follow-up: the storage ceiling on pages-per-poem is MEASURED from
+    -- the budget and the last build's actual page sizes, not frozen in config (the old
+    -- literal 15 would have shipped ~66GB into a 45GB quota). Self-corrects each build.
+    PAGINATION_CONFIG.max_pages_per_poem =
+        compute_storage_max_pages(output_dir, #(poems_data.poems or {}))
+
+    -- Issue 10-057: both neighbour caches may be capped to the top-K poems per poem
+    -- (each stamps the K it was built with). If this run asks for more pages than that
+    -- K can fill, a poem would silently get fewer pages than --pages requested. Fail
+    -- loudly with the exact regen command instead of under-generating. A stamp of 0
+    -- (or no stamp -- an older, uncapped cache) means "keep all", always enough.
+    do
+        local per_page = PAGINATION_CONFIG.poems_per_page
+        local pages
+        if not pages_spec or pages_spec == "" or pages_spec == "default" then
+            pages = PAGINATION_CONFIG.minimum_pages
+        elseif pages_spec == "all" then
+            pages = PAGINATION_CONFIG.max_pages_per_poem
+        else
+            pages = tonumber(pages_spec)
+                or tonumber(tostring(pages_spec):match("(%d+)$"))
+                or PAGINATION_CONFIG.minimum_pages
+        end
+        local needed_k = pages * per_page
+        local function check_cache(cache, label, regen_flag)
+            local meta = cache and cache.metadata
+            local stored_k = meta and tonumber(meta.top_k) or 0
+            if stored_k > 0 and stored_k < needed_k then
+                error(string.format(
+                    "%s cache holds only top-%d per poem, but this run needs %d (%d page(s) "
+                    .. "x %d poems/page). Regenerate it for these settings: ./run.sh %s "
+                    .. "--pages %d --poems-per-page %d",
+                    label, stored_k, needed_k, pages, per_page, regen_flag, pages, per_page))
+            end
+        end
+        check_cache(SIMILARITY_RANKINGS_CACHE, "Similarity", "--generate-similarity")
+        check_cache(DIVERSITY_CACHE, "Diversity", "--generate-diversity")
+    end
 
     -- Count poems with valid poem_index (globally unique identifier)
     -- Note: poem.id is per-category and NOT unique across categories
@@ -3312,6 +3409,21 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Parse pages specification (Phase D: Issue 8-012)
     local pages_config = parse_pages_specification(pages_spec, nil)  -- total_pages not known yet
     local use_pagination = true  -- Always use pagination now (Phase D)
+
+    -- Report the pages-per-poem THIS run will actually generate, not the storage
+    -- ceiling. The orchestrator worker generates #pages_config.pages pages per poem
+    -- (one page by default); the old banner printed the 15-page storage cap
+    -- unconditionally, which read as "generating 15 pages" when it generates 1.
+    -- The cap is still shown, clearly labelled as a ceiling, for context.
+    local pages_per_poem = pages_config.is_all
+        and PAGINATION_CONFIG.max_pages_per_poem
+        or (pages_config.pages and #pages_config.pages or 1)
+    utils.log_info(string.format(
+        "Similarity/diversity pagination: %d poems/page, %d page(s) per poem (storage ceiling: %d pages, %dGB)",
+        PAGINATION_CONFIG.poems_per_page,
+        pages_per_poem,
+        PAGINATION_CONFIG.max_pages_per_poem,
+        STORAGE_CONFIG.limit_gb))
 
     local results = {
         similarity_pages = {},

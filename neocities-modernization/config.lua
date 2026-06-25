@@ -528,8 +528,11 @@ return {
         poems_per_page = 200,               -- Poems per similar/different page
                                             -- CLI: --poems-per-page N (run.sh default: 200)
         minimum_pages = 1,                  -- Minimum pages to generate
-        max_pages_per_poem = 15,            -- Maximum similar/different pages per poem
-                                            -- CLI: --pages N
+        -- max_pages_per_poem is intentionally NOT here: the per-poem page ceiling is
+        -- COMPUTED each build from the storage quota (storage.limit_gb below) and the
+        -- measured size of the last build's pages, by flat-html-generator's
+        -- compute_storage_max_pages (Issue 10-057). A frozen 15 was an estimate that
+        -- would have shipped ~66GB into a 45GB quota.
         page_number_padding = 2,            -- Zero-padding for page numbers (01, 02...)
         generate_txt_exports = true,        -- Generate .txt versions of poems
         generate_html_archives = false,     -- Disabled: redundant with paginated pages
