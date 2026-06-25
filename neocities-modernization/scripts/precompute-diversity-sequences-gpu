@@ -5,9 +5,11 @@
 # {{{ Setup directory path
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 
-# Change to vulkan-compute directory (C library needs relative shader paths)
-cd "$DIR/libs/vulkan-compute" || {
-    echo "Error: Failed to change to vulkan-compute directory" >&2
+# Issue 10-057: the GPU shader paths (vk_diversity.c) and library path (vk_compute.lua)
+# are now project-root-relative / DIR-based, matching similarity -- so we run from the
+# project root, no longer cd-ing into libs/vulkan-compute/ for shader loading.
+cd "$DIR" || {
+    echo "Error: Failed to change to project directory: $DIR" >&2
     exit 1
 }
 
@@ -33,8 +35,8 @@ local DIR = os.getenv("DIR") or arg[1] or "/mnt/mtwo/programming/ai-stuff/neocit
 -- Add library paths
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/libs/vulkan-compute/lua/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
--- Set GPU library path for vk_compute module
-_G.VK_COMPUTE_LIB = "./build/libvkcompute.so"  -- Relative to vulkan-compute dir
+-- Issue 10-057: VK_COMPUTE_LIB no longer set here -- vk_compute.lua defaults to the
+-- DIR-based absolute library path, so it loads regardless of working directory.
 
 local ffi = require("ffi")
 local vk = require("vk_compute")
