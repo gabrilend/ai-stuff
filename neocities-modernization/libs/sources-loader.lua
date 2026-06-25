@@ -148,7 +148,7 @@ end
 
 -- {{{ get_directories
 -- Get all directories for a source type
--- Returns: array of { name, path, optional, description, randomize_order, random_seed }
+-- Returns: array of { name, path, description, randomize_order, random_seed }
 -- Paths are resolved to absolute paths
 -- Issue 10-030: Added randomize_order and random_seed fields for image position randomization
 function M.get_directories(source_type)
@@ -164,7 +164,6 @@ function M.get_directories(source_type)
         table.insert(result, {
             name = dir.name or "unnamed",
             path = resolve_path(dir.path),
-            optional = dir.optional or false,
             description = dir.description or "",
             -- Issue 10-030: Randomization options for image sources
             randomize_order = dir.randomize_order or false,
@@ -177,20 +176,18 @@ end
 -- }}}
 
 -- {{{ get_valid_directories
--- Get directories that exist (skips missing optional, errors on missing required)
--- Returns: array of directories, or nil + error message on failure
+-- Get directories for a source type. Every configured directory is MANDATORY:
+-- the "optional" concept was removed deliberately -- a missing source means the
+-- data we expected to ship isn't there, which we want to know about loudly rather
+-- than silently skip. So this errors on the FIRST missing directory.
+-- Returns: array of directories on success, or nil + error message on failure.
 function M.get_valid_directories(source_type)
     local dirs = M.get_directories(source_type)
     local valid = {}
-    local warnings = {}
 
     for _, dir in ipairs(dirs) do
         if dir_exists(dir.path) then
             table.insert(valid, dir)
-        elseif dir.optional then
-            table.insert(warnings, string.format(
-                "Optional directory '%s' not found: %s",
-                dir.name, dir.path))
         else
             return nil, string.format(
                 "Required directory '%s' not found: %s",
@@ -198,7 +195,7 @@ function M.get_valid_directories(source_type)
         end
     end
 
-    return valid, warnings
+    return valid
 end
 -- }}}
 
@@ -297,16 +294,12 @@ function M.validate_all()
 
         -- Check if enabled and directories exist
         if M.is_enabled(source_type) then
-            local dirs, warn_or_err = M.get_valid_directories(source_type)
+            local dirs, err = M.get_valid_directories(source_type)
             if not dirs then
-                -- Error (missing required directory)
+                -- A missing source directory is now a hard failure: every source is
+                -- mandatory (the optional concept was removed), so absence is an error.
                 result.valid = false
-                table.insert(result.errors, warn_or_err)
-            elseif type(warn_or_err) == "table" then
-                -- Warnings (missing optional directories)
-                for _, w in ipairs(warn_or_err) do
-                    table.insert(result.warnings, w)
-                end
+                table.insert(result.errors, err)
             end
         end
     end
@@ -346,9 +339,8 @@ function M.print_sources()
             for _, dir in ipairs(dirs) do
                 local exists = dir_exists(dir.path)
                 local marker = exists and "✓" or "✗"
-                local opt = dir.optional and " (optional)" or ""
-                print(string.format("      %s %s: %s%s",
-                    marker, dir.name, dir.path, opt))
+                print(string.format("      %s %s: %s",
+                    marker, dir.name, dir.path))
             end
         end
     end
@@ -357,8 +349,8 @@ end
 
 -- {{{ iterate_directories
 -- Iterate over all valid directories for a source type, calling a function for each
--- Skips optional missing directories, errors on required missing
--- callback(dir) receives { name, path, optional, description }
+-- Errors on any missing directory (every source is mandatory)
+-- callback(dir) receives { name, path, description }
 -- Returns: true on success, false + error on failure
 function M.iterate_directories(source_type, callback)
     if not M.is_enabled(source_type) then
@@ -380,7 +372,7 @@ end
 
 -- {{{ get_directories_with_external
 -- Issue 10-026: Get directories including external sync information
--- Returns: array of { name, path, optional, description, external }
+-- Returns: array of { name, path, description, external }
 -- external is { source = "...", destination = "..." } or nil
 function M.get_directories_with_external(source_type)
     local source = M.get_source(source_type)
@@ -395,7 +387,6 @@ function M.get_directories_with_external(source_type)
         local entry = {
             name = dir.name or "unnamed",
             path = resolve_path(dir.path),
-            optional = dir.optional or false,
             description = dir.description or "",
             external = nil
         }
@@ -450,7 +441,7 @@ end
 -- {{{ get_all_external_syncs
 -- Issue 10-026: Get ALL external sync entries across all sources
 -- Returns data in external_files-compatible format for backward compatibility
--- Returns: array of { name, source, destination, optional, is_archive }
+-- Returns: array of { name, source, destination, is_archive }
 function M.get_all_external_syncs()
     local sources = get_sources()
     local result = {}
@@ -469,7 +460,6 @@ function M.get_all_external_syncs()
                         name = dir.name or "unnamed",
                         source = dir.external.source,
                         destination = dest,
-                        optional = dir.optional or false,
                         is_archive = false,
                         source_type = source_type
                     })
@@ -493,7 +483,6 @@ function M.get_all_external_syncs()
                     name = archive.name or "unnamed",
                     source = archive.source,
                     destination = dest,
-                    optional = archive.optional or false,
                     is_archive = true,
                     source_type = source_type
                 })

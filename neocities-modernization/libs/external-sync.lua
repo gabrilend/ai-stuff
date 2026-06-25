@@ -226,7 +226,6 @@ function M.sync_source(source_entry)
     local name = source_entry.name or "unnamed"
     local source_path = source_entry.source
     local destination = source_entry.destination
-    local is_optional = source_entry.optional or false
 
     -- Validate required fields
     if not source_path then
@@ -255,24 +254,16 @@ function M.sync_source(source_entry)
         full_dest = full_dest .. "/" .. destination
     end
 
-    -- Check if source exists (file or directory)
+    -- Every external source is mandatory (the "optional" concept was removed): a
+    -- missing source is a hard failure so we notice and fix it, rather than quietly
+    -- shipping without that data.
     if not path_exists(source_path) then
-        if is_optional then
-            return {
-                success = true,  -- Optional missing is not a failure
-                name = name,
-                files_synced = 0,
-                message = "Optional source not found (skipped)",
-                skipped = true
-            }
-        else
-            return {
-                success = false,
-                name = name,
-                files_synced = 0,
-                message = "Required source not found: " .. source_path
-            }
-        end
+        return {
+            success = false,
+            name = name,
+            files_synced = 0,
+            message = "Required source not found: " .. source_path
+        }
     end
 
     -- Run rsync
@@ -383,7 +374,7 @@ end
 
 -- {{{ list_sources
 -- List all configured external sources
--- Returns: array of { name, source, destination, optional }
+-- Returns: array of { name, source, destination }
 function M.list_sources()
     local sources = get_external_files()
     local list = {}
@@ -392,8 +383,7 @@ function M.list_sources()
         table.insert(list, {
             name = source.name or "unnamed",
             source = source.source or "",
-            destination = source.destination or "",
-            optional = source.optional or false
+            destination = source.destination or ""
         })
     end
 
@@ -415,8 +405,7 @@ function M.print_sources()
     print(string.rep("-", 70))
 
     for _, source in ipairs(sources) do
-        local opt_marker = source.optional and " (optional)" or ""
-        print(string.format("  %s%s", source.name, opt_marker))
+        print(string.format("  %s", source.name))
         print(string.format("    FROM: %s", source.source))
         -- Show "input/" for empty destination, otherwise "input/{dest}"
         local dest_display = source.destination == "" and "input/" or ("input/" .. source.destination)

@@ -143,7 +143,6 @@ return {
                     -- files/..., so the source points there now.
                     path = "input/media_attachments/files",
                     description = "Mastodon/ActivityPub media attachments (deeply nested)",
-                    optional = true,
                     -- No external: comes from ZIP extraction
                 },
                 {
@@ -151,7 +150,6 @@ return {
                     include_by_default = true,
                     path = "input/images/my-art",
                     description = "artwork made in kolourpaint",
-                    optional = false,
                     -- Issue 10-026: External source for rsync
                     external = {
                         source = "/home/ritz/pictures/my-art",
@@ -161,7 +159,6 @@ return {
                     name = "things-I-almost-posted",
                     include_by_default = true,
                     path = "input/images/things-i-almost-posted",
-                    optional = true,
                     external = {
                         source = "/home/ritz/pictures/things-i-almost-posted",
                     },
@@ -171,7 +168,6 @@ return {
                     name = "poem-pictures",
                     include_by_default = true,
                     path = "input/images/poem-pictures",
-                    optional = true,
                     external = {
                         source = "/home/ritz/pictures/poem-pictures",
                     },
@@ -180,7 +176,6 @@ return {
                     name = "dnd-pictures-from-the-internet",
                     include_by_default = true,
                     path = "input/images/dnd-pictures",
-                    optional = true,
                     external = {
                         source = "/home/ritz/pictures/dnd-pictures",
                     },
@@ -195,7 +190,6 @@ return {
                     name = "fediverse-stars",
                     include_by_default = true,
                     path = "input/images/fediverse-stars",
-                    optional = true,
                     external = {
                         source = "/home/ritz/pictures/fediverse-backup",
                     },

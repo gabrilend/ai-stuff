@@ -355,7 +355,6 @@ local function flatten_media_files(output_dir)
     local skipped = 0
     local errors = 0
     local sources_used = 0
-    local sources_missing = 0
 
     for _, dir in ipairs(image_dirs) do
         local internal_path = DIR .. "/" .. dir.path
@@ -375,9 +374,13 @@ local function flatten_media_files(output_dir)
         end
 
         if not resolved_path then
-            sources_missing = sources_missing + 1
-            utils.log_warn(string.format(
-                "Image source '%s' not found at internal '%s'%s; skipping",
+            -- Every configured image source is mandatory (the "optional" concept was
+            -- removed): a missing source means media we expected to ship is absent,
+            -- so we fail loudly here rather than silently skip it. Fix it by running
+            -- the sync/extraction that populates the path, or remove the source from
+            -- config.lua if it is genuinely gone.
+            error(string.format(
+                "Image source '%s' not found at internal '%s'%s -- every source is required; sync/extract it or remove it from config.lua",
                 dir.name or "(unnamed)",
                 dir.path or "(no path)",
                 external_path and (" or external '" .. external_path .. "'") or ""))
@@ -419,8 +422,8 @@ local function flatten_media_files(output_dir)
     end
 
     utils.log_info(string.format(
-        "Media flattening: %d sources used, %d missing | %d copied, %d skipped, %d errors",
-        sources_used, sources_missing, copied, skipped, errors))
+        "Media flattening: %d sources used | %d copied, %d skipped, %d errors",
+        sources_used, copied, skipped, errors))
 
     media_flattening_done = true
     return errors == 0
