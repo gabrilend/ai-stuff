@@ -303,6 +303,7 @@ local function page_shell(title, sidebar, content)
 <a class="site-link" href="%%LINKPREFIX%%../wordcloud.html">&#8617;&#160;back to the poetry site</a>
 <div class="tree">%s</div>
 <a class="output-link" href="%%LINKPREFIX%%../wordcloud.html#poem-index">output/&#160;&#8594;&#160;every generated page</a>
+<a class="download-link" href="%%LINKPREFIX%%../similar-different.zip" download>&#11015;&#160;download everything (site&#160;+&#160;source)</a>
 </nav>
 <main id="main">%s</main>
 </div>
@@ -539,6 +540,13 @@ img{max-width:100%; height:auto; border:1px solid var(--rule); border-radius:2px
   border:1px dashed var(--rule); border-radius:3px; font-size:.82rem; letter-spacing:.02em;
 }
 #side .output-link:hover{color:var(--gold); border-color:var(--gold-soft);}
+/* the "download everything" archive (site + source): a solid call-to-action box,
+   a touch more prominent than the dashed output/ link it sits beside. */
+#side .download-link{
+  display:block; margin:.55rem 0 0; padding:.5rem .6rem; color:var(--paper-dim);
+  border:1px solid var(--gold-soft); border-radius:3px; font-size:.82rem; letter-spacing:.02em;
+}
+#side .download-link:hover{color:var(--gold); border-color:var(--gold);}
 
 /* ---- code folds (Issue 10-055): vimfold regions as no-JS <details> ---- */
 /* Inside the code <pre>: the marker line is the clickable summary; its body
