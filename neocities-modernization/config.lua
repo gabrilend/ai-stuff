@@ -122,6 +122,16 @@ return {
         },
         images = {
             enabled = true,
+            -- include_by_default (per source, default true):
+            --   true  -> ship EVERYTHING from this source, minus the entries in
+            --            excluded_images that name files in it (a blacklist).
+            --   false -> ship NOTHING from this source EXCEPT the entries in
+            --            excluded_images that name files in it (a whitelist) --
+            --            i.e. the SAME list, but its lines now ADD rather than
+            --            remove. Use false when a source is a big directory and
+            --            you only want a handful of files out of it.
+            -- This keeps excluded_images as one flat list; the flag decides
+            -- whether a source's lines subtract from "all" or add to "none".
             directories = {
                 {
                     name = "fediverse-media",
@@ -138,6 +148,7 @@ return {
                 },
                 {
                     name = "my-art",
+                    include_by_default = true,
                     path = "input/images/my-art",
                     description = "artwork made in kolourpaint",
                     optional = false,
@@ -148,6 +159,7 @@ return {
                 },
                 {
                     name = "things-I-almost-posted",
+                    include_by_default = true,
                     path = "input/images/things-i-almost-posted",
                     optional = true,
                     external = {
@@ -157,6 +169,7 @@ return {
                 },
                 {
                     name = "poem-pictures",
+                    include_by_default = true,
                     path = "input/images/poem-pictures",
                     optional = true,
                     external = {
@@ -165,6 +178,7 @@ return {
                 },
                 {
                     name = "dnd-pictures-from-the-internet",
+                    include_by_default = true,
                     path = "input/images/dnd-pictures",
                     optional = true,
                     external = {
@@ -179,6 +193,7 @@ return {
                     -- NOTE: external syncs to fediverse-stars, sources reads from here
                     -- Path updated to match sync destination (was fediverse-backup)
                     name = "fediverse-stars",
+                    include_by_default = true,
                     path = "input/images/fediverse-stars",
                     optional = true,
                     external = {
@@ -266,19 +281,84 @@ return {
     -- }}}
 
     -- {{{ excluded_images
-    -- Issue 10-053: Images to exclude by relative path under the project root.
-    -- Unlike a filter, these are STRIPPED from input/ by scripts/strip-excluded
-    -- after sync, so they never get cataloged, embedded, flattened into
-    -- output/media, rendered, OR uploaded with input/. The originals stay safe in
-    -- the /home/ritz/... rsync sources (a later sync re-copies them; the strip
-    -- removes them again). Read by: scripts/strip-excluded.
+    -- Issue 10-053: Images to exclude, named RELATIVE TO input/images/ -- i.e.
+    -- "<source>/<path-within-source>", the same shape you'd see under
+    -- input/images/. The leading "input/images/" is implied, so it is no longer
+    -- repeated on every line (it carried no information and hid the part that
+    -- matters: which gallery, which file).
+    --
+    -- These are STRIPPED from input/ by scripts/strip-excluded after sync, so
+    -- they never get cataloged, embedded, flattened into output/media, rendered,
+    -- OR uploaded with input/. The originals stay safe in the /home/ritz/... rsync
+    -- sources (a later sync re-copies them; the strip removes them again).
+    --
+    -- VALIDATED at build start: strip-excluded resolves every entry back to its
+    -- rsync source and ERRORS if one points at no real file -- a wrong path
+    -- (e.g. forgetting a subdirectory like kooky-dookerie/) can no longer fail
+    -- silently and let the image ship anyway. Fix the path and re-run the phase.
     --
     -- Finding an image's path: copy it from the gallery/page that shows it, or
-    --   ls input/images/<source>/   (paths are relative to the project root).
+    --   ls input/images/<source>/   then drop the "input/images/" prefix.
     excluded_images = {
-        -- "input/images/my-art/that-one-i-regret.png",
-        "input/images/poem-pictures/stick-cubes-2.png",
-        "input/images/my-art/sword-of-damocles-3.png"
+        -- "my-art/that-one-i-regret.png",
+        "poem-pictures/stick-cubes-2.png",
+        "my-art/sword-of-damocles-3.png",
+        "my-art/help-me-obiwan-kenobi-3.png",
+        "my-art/help-me-obiwan-kenobi-2.png",
+        "my-art/help-me-obiwan-kenobi-1.png",
+        "my-art/legion-td-idea.png",
+        "my-art/chat-application-with-arrows.png",
+        "my-art/air-defence-drones-1.png",
+        "my-art/air-defence-drones-2.png",
+        "my-art/air-defence-drones-3.png",
+
+        "my-art/air-defence-drones-5.png",
+        "my-art/greed.png",
+        "my-art/continual-context.png",
+        "my-art/continual-context-part-2.png",
+        "my-art/about-face.png",
+        "my-art/perspective-of-matter.png",
+
+        -- usa-today is a sliced thread: the 18 numbered pieces (1..9, then
+        -- 99..9999999999) are just the cut-up panels of the single stitched
+        -- image usa-today.png, which is the only one we want in the gallery.
+        -- The slices stay on disk under my-art/usa-today/ (and their .txt
+        -- alt-text); only their input/ copies are stripped so they never
+        -- catalog, render, or upload. preserve_structure=true keeps the
+        -- usa-today/ subdir, so these paths carry it.
+        "my-art/usa-today/1.png",
+        "my-art/usa-today/2.png",
+        "my-art/usa-today/3.png",
+        "my-art/usa-today/4.png",
+        "my-art/usa-today/5.png",
+        "my-art/usa-today/6.png",
+        "my-art/usa-today/7.png",
+        "my-art/usa-today/8.png",
+        "my-art/usa-today/9.png",
+        "my-art/usa-today/99.png",
+        "my-art/usa-today/999.png",
+        "my-art/usa-today/9999.png",
+        "my-art/usa-today/99999.png",
+        "my-art/usa-today/999999.png",
+        "my-art/usa-today/9999999.png",
+        "my-art/usa-today/99999999.png",
+        "my-art/usa-today/999999999.png",
+        "my-art/usa-today/9999999999.png",
+
+        -- 777-1.png lives in the kooky-dookerie/ subdir, NOT the poem-pictures
+        -- root -- preserve_structure=true keeps that subdir, so the exclusion
+        -- path must carry it. The old root-level path silently matched nothing.
+        -- (The former poem-pictures/1-7.png entries were dropped after those
+        -- 2560x1440 screenshots were deleted from disk.)
+        "poem-pictures/kooky-dookerie/777-1.png",
+
+        "fediverse-stars/ffdsfa90f670235.png",
+
+        "dnd-pictures/flag.png",
+        "dnd-pictures/flag6.png",
+        "dnd-pictures/flag7.png",
+        "dnd-pictures/flag8.png",
+        "dnd-pictures/flag9.png",
     },
     -- }}}
 
