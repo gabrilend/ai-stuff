@@ -10,6 +10,19 @@
 -- build, so a re-synced file is stripped again; it never deletes anything it
 -- was not told to.
 --
+-- VALIDATE-THEN-STRIP: before deleting anything, it checks that every
+-- excluded_images entry actually resolves to a real file (either in input/ or in
+-- the rsync source it came from). If any entry points at nothing -- a typo, or a
+-- path that forgot a subdirectory -- it ERRORS and strips NOTHING, so a broken
+-- exclusion can never silently fail and let the image ship anyway. Run early in
+-- the build phase: a bad path stops you before the expensive catalog/embed
+-- stages, so you fix config.lua and re-run cheaply. The `--check` flag runs only
+-- this validation (no deletion).
+--
+-- PATH SHAPE: excluded_images entries are RELATIVE TO input/images/, e.g.
+-- "my-art/usa-today/9.png". The "input/images/" prefix is implied and prepended
+-- here -- it used to be repeated on every config line, carrying no information.
+--
 -- HOW: reads config.lua. For excluded_images it deletes each listed file. For
 -- excluded_poems.notes it deletes the note's source file (the extractor already
 -- keeps the note OUT of the generated poems, but leaves the source on disk).
@@ -20,7 +33,8 @@
 -- Deletion uses Lua's os.remove (a direct file op, not a shelled-out rm).
 --
 -- Usage:
---   lua scripts/strip-excluded [DIR]
+--   lua scripts/strip-excluded [DIR]            -- validate, then strip
+--   lua scripts/strip-excluded [DIR] --check    -- validate only, strip nothing
 
 -- {{{ setup_dir_path
 local function setup_dir_path(provided_dir)
@@ -31,7 +45,15 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg[1])
+-- {{{ parse args  -- first non-flag arg is DIR; --check toggles validate-only
+local provided_dir, check_only = nil, false
+for _, a in ipairs(arg) do
+    if a == "--check" then check_only = true
+    elseif not provided_dir then provided_dir = a end
+end
+-- }}}
+
+local DIR = setup_dir_path(provided_dir)
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local config_loader = require("config-loader")
 config_loader.set_project_root(DIR)
@@ -41,6 +63,69 @@ local config = config_loader.load()
 local function file_exists(path)
     local f = io.open(path, "r")
     if f then f:close(); return true end
+    return false
+end
+-- }}}
+
+-- {{{ build_source_map  -- "<source-subdir>" -> its external rsync source dir
+-- excluded_images entries start with the source's input/images/ subdir name
+-- (e.g. "my-art" or "fediverse-stars"). Map that to where the originals live so
+-- validation can confirm the file is real even after a prior run stripped the
+-- input/ copy. Note the name need not equal the source folder: fediverse-stars
+-- syncs from .../fediverse-backup, and this map captures that.
+local function build_source_map(cfg)
+    local map = {}
+    local dirs = cfg.sources and cfg.sources.images
+                 and cfg.sources.images.directories or {}
+    for _, d in ipairs(dirs) do
+        local key = d.path and d.path:match("^input/images/(.+)$")
+        if key then
+            map[key] = {
+                src = d.external and d.external.source or nil,
+                -- absent or true => include-by-default (list is a blacklist);
+                -- false => exclude-by-default (the list is a whitelist).
+                include_default = (d.include_by_default ~= false),
+            }
+        end
+    end
+    return map
+end
+-- }}}
+
+-- {{{ image_resolves  -- true if an excluded_images entry names a real file
+-- Checks input/ first (present right after a fresh sync) and falls back to the
+-- rsync source (stable across re-runs, when input/ was already stripped). Either
+-- hit proves the exclusion targets something real; neither means it is broken.
+local function image_resolves(entry, smap)
+    if file_exists(DIR .. "/input/images/" .. entry) then return true end
+    local key, rest = entry:match("^([^/]+)/(.+)$")
+    local info = key and smap[key]
+    if info and info.src and rest then
+        if file_exists(info.src .. "/" .. rest) then return true end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ validate_images  -- error out if any exclusion resolves to nothing
+-- Returns true on success. On failure it prints every offender and returns false
+-- WITHOUT deleting anything (caller exits non-zero) -- validate-then-strip keeps
+-- the operation atomic: all-good-then-strip, or stop and change nothing.
+local function validate_images(smap)
+    local bad = {}
+    for _, entry in ipairs(config.excluded_images or {}) do
+        if not image_resolves(entry, smap) then bad[#bad + 1] = entry end
+    end
+    if #bad == 0 then return true end
+    print(string.format(
+        "[strip-excluded] ERROR: %d excluded_images %s to no real file:",
+        #bad, #bad == 1 and "entry resolves" or "entries resolve"))
+    for _, entry in ipairs(bad) do
+        print("    - " .. entry ..
+              "   (no input/images/ copy and no match in its rsync source)")
+    end
+    print("[strip-excluded] Fix config.lua's excluded_images and re-run. " ..
+          "Nothing was stripped.")
     return false
 end
 -- }}}
@@ -59,6 +144,19 @@ end
 -- }}}
 
 -- {{{ main
+-- 0. Validate first. A broken exclusion is a hard stop (the whole point of the
+--    feature is that excluded content must NOT ship; a silently-missed exclusion
+--    defeats it). --check stops here on success without deleting.
+local source_map = build_source_map(config)
+if not validate_images(source_map) then
+    os.exit(1)
+end
+if check_only then
+    print(string.format("[strip-excluded] check passed: all %d image exclusions resolve.",
+        #(config.excluded_images or {})))
+    os.exit(0)
+end
+
 local removed, absent = 0, 0
 local function account(result, rel)
     if result == "removed" then
@@ -69,9 +167,65 @@ local function account(result, rel)
     end
 end
 
--- 1. Excluded images: relative paths under the project root.
-for _, rel in ipairs(config.excluded_images or {}) do
-    account(strip_one(rel), rel)
+-- 1. Excluded images. Each entry belongs to a source (its first path segment),
+--    and the source's include_by_default flag decides what its entries MEAN:
+--      include-by-default (the norm) -> entries are a BLACKLIST: strip them,
+--                                       keep everything else from the source.
+--      exclude-by-default            -> entries are a WHITELIST: keep only them,
+--                                       strip every OTHER file under the source.
+--    Same flat list either way; the flag flips subtract-from-all vs add-to-none.
+local by_source = {}
+for _, entry in ipairs(config.excluded_images or {}) do
+    local key = entry:match("^([^/]+)/") or entry
+    by_source[key] = by_source[key] or {}
+    table.insert(by_source[key], entry)
+end
+
+-- {{{ strip_blacklist  -- remove the listed entries (include-by-default)
+local function strip_blacklist(entries)
+    for _, entry in ipairs(entries) do
+        local rel = "input/images/" .. entry
+        account(strip_one(rel), rel)
+    end
+end
+-- }}}
+
+-- {{{ strip_whitelist  -- keep ONLY the listed entries, strip the rest of the
+-- source (exclude-by-default). Enumerates the synced input/ copy; the keepers
+-- (validated to exist above) survive, everything else under the source is removed.
+local function strip_whitelist(subdir, entries)
+    local keep = {}
+    for _, entry in ipairs(entries) do keep[DIR .. "/input/images/" .. entry] = true end
+    local find = io.popen(string.format('find "%s/input/images/%s" -type f', DIR, subdir))
+    if not find then return end
+    -- Strip the DIR prefix with plain slicing, NOT gsub: DIR contains "-", which
+    -- is a magic quantifier in a Lua pattern, so a pattern would not match the
+    -- literal path and the file would look "absent".
+    local prefix = DIR .. "/"
+    for path in find:lines() do
+        if not keep[path] then
+            local rel = (path:sub(1, #prefix) == prefix) and path:sub(#prefix + 1) or path
+            account(strip_one(rel), rel)
+        end
+    end
+    find:close()
+end
+-- }}}
+
+-- Drive from the configured sources, so an exclude-by-default source with NO
+-- whitelisted entries correctly strips its entire contents. A list entry whose
+-- source is not configured falls through to blacklist (strip it) below.
+local handled = {}
+for subdir, info in pairs(source_map) do
+    handled[subdir] = true
+    if info.include_default then
+        strip_blacklist(by_source[subdir] or {})
+    else
+        strip_whitelist(subdir, by_source[subdir] or {})
+    end
+end
+for subdir, entries in pairs(by_source) do
+    if not handled[subdir] then strip_blacklist(entries) end
 end
 
 -- 2. Excluded notes: each note's source file is input/notes/<id> (no extension).
