@@ -1026,9 +1026,41 @@ run_generate_semantic_colors() {
         return 0
     fi
 
-    # Check if color embeddings exist (generated once, reused)
-    if [ ! -f "$color_embeddings_file" ]; then
-        log_stage "🎨 Stage 6.5/10: Generating color embeddings (one-time)"
+    # color_embeddings.json is derived from the color palette (color_names +
+    # color_associations in config.lua). It used to regenerate ONLY when the file was
+    # missing, so editing the palette -- e.g. dropping gray as a cluster color -- had
+    # no effect until someone deleted the cache by hand (and the config comment that
+    # said "re-run stage 6.5 after editing" was quietly false). We now fingerprint the
+    # palette and regenerate whenever it changes, so editing colors then re-running
+    # actually takes effect. The fingerprint is a sorted, deterministic dump of the
+    # palette -- no server needed to compute it.
+    local palette_fp_file="$(emb_cache_dir)/color_palette.fingerprint"
+    local current_palette_fp
+    current_palette_fp=$(luajit -e "
+        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+        local config = require('config-loader').load()
+        local names = {}
+        for _, n in ipairs(config.color_names or {}) do names[#names+1] = n end
+        table.sort(names)
+        local parts = {}
+        for _, n in ipairs(names) do
+            local a = {}
+            for _, w in ipairs((config.color_associations or {})[n] or {}) do a[#a+1] = w end
+            table.sort(a)
+            parts[#parts+1] = n .. '=' .. table.concat(a, ',')
+        end
+        io.write(table.concat(parts, '|'))
+    ")
+    local stored_palette_fp=""
+    [ -f "$palette_fp_file" ] && stored_palette_fp=$(cat "$palette_fp_file")
+
+    # Regenerate color embeddings if missing OR the palette changed since last time.
+    if [ ! -f "$color_embeddings_file" ] || [ "$current_palette_fp" != "$stored_palette_fp" ]; then
+        if [ -f "$color_embeddings_file" ]; then
+            log_stage "🎨 Stage 6.5/10: Color palette changed -- regenerating color embeddings"
+        else
+            log_stage "🎨 Stage 6.5/10: Generating color embeddings (one-time)"
+        fi
 
         if $DRY_RUN; then
             log_dry_run "luajit semantic-color-calculator (generate color embeddings)"
@@ -1077,6 +1109,9 @@ run_generate_semantic_colors() {
                 echo "Error: Color embedding generation failed" >&2
                 exit 1
             }
+            # Remember the palette we just built from, so the next run can tell
+            # whether it changed (and skip this server round-trip when it hasn't).
+            echo "$current_palette_fp" > "$palette_fp_file"
         fi
     fi
 
@@ -1087,11 +1122,15 @@ run_generate_semantic_colors() {
     # Check freshness: poem_colors.json should be newer than embeddings.json
     # With --force or --force-stage 6: always regenerate regardless of freshness
     if ! $stage_force && [ -f "$poem_colors_file" ] && [ -f "$embeddings_file" ]; then
-        if [ "$poem_colors_file" -nt "$embeddings_file" ]; then
-            log_info "   ⏭️  Semantic colors are fresh (newer than embeddings), skipping..."
+        # Poem colors depend on BOTH the poem embeddings AND the color centroids, so
+        # they are only fresh when newer than both. Watching only embeddings.json
+        # meant a palette change (which rewrites color_embeddings.json but not
+        # embeddings.json) left poem_colors.json stale yet considered "fresh".
+        if [ "$poem_colors_file" -nt "$embeddings_file" ] && [ "$poem_colors_file" -nt "$color_embeddings_file" ]; then
+            log_info "   ⏭️  Semantic colors are fresh (newer than embeddings + palette), skipping..."
             return 0
         fi
-        log_verbose "   poem_colors.json is stale (older than embeddings), regenerating..."
+        log_verbose "   poem_colors.json is stale (older than embeddings or palette), regenerating..."
     elif $stage_force; then
         log_verbose "   --force specified, regenerating semantic colors..."
     fi
