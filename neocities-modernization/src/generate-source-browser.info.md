@@ -68,15 +68,18 @@ defensively so the HTML cannot break.
   pages, a single `output/` entry deep-links to the live site's poem index
   (`#poem-index`), from which every page is reachable.
 
-## Mirrored saved webpages (Issue 10-055, Feature F)
+## Saved webpages link out, not in (Issue 10-055, Feature F)
 
-A saved webpage — an `.html` with a sibling `<name>_files/` directory — is
-**mirrored** rather than shown as source: the page itself is written out (so it
-renders as the real article) and its CSS/image assets are copied beside it. Every
-`<script>` is stripped (the platform is no-JS, and one script is an analytics
-tracker a static mirror must not run); interactive bits degrade, the article
-reads fine. The table-of-contents entry links to the page itself, not a source
-view.
+A saved webpage — an `.html` with a sibling `<name>_files/` directory — is **not
+hosted**. We host no copy: the platform is no-JS, serving a stranger's
+scripts/trackers/CSS is wrong, and the live article is always fresher. Its
+table-of-contents entry is an **external link** (new tab, `rel="noopener"`, a `↗`
+marker) to the original article; neither the `.html` nor its `_files/` assets are
+published. The canonical URL is read from the saved file's own
+`<link rel="canonical">` / `<meta property="og:url">`, so it is self-describing
+and never goes stale; a saved page lacking those tags can be mapped explicitly via
+the `MIRROR_URL_OVERRIDES` table, and one with neither is held back and reported
+(never dumped as source).
 
 ## Known limitations / deferred (see Issues 10-052, 10-055)
 
