@@ -31,9 +31,21 @@ physically-present file in `input/` still uploads.
 One consistent exclusion system for images AND text, where exclusion also REMOVES
 the source from `input/` so it never uploads:
 
-- **`excluded_images`** (new config): a list of relative paths under `input/`
-  (e.g. `input/images/my-art/that-one.png`). Excluded images are never cataloged,
-  embedded, flattened into `output/media`, or rendered.
+- **`excluded_images`** (new config): a list of paths **relative to
+  `input/images/`** -- i.e. `<source>/<path-within-source>` such as
+  `my-art/usa-today/9.png`. The `input/images/` prefix is implied (prepended by
+  the strip script) rather than repeated on every line. Excluded images are never
+  cataloged, embedded, flattened into `output/media`, or rendered.
+- **Build-start validation (hard error).** Before stripping anything,
+  `strip-excluded` resolves every entry back to a real file -- the `input/images/`
+  copy if present, else the entry's rsync source (so it still validates after a
+  prior run already stripped `input/`). Any entry that resolves to nothing is a
+  FATAL error: the script prints the offenders, strips nothing, and exits
+  non-zero; `run.sh` aborts the build. This closes the silent-failure hole where a
+  mistyped path (e.g. omitting a subdirectory like `kooky-dookerie/`) let the
+  image ship anyway. A `--check` flag runs only the validation (no deletion), for
+  a cheap pre-flight. Validation precedes the catalog/embed stages, so a bad path
+  stops the build before any expensive work and the re-run is cheap.
 - **`excluded_poems`** (existing): keep the tombstone (stable anchors) AND strip
   the source from `input/`.
 - **A post-sync strip step** (`scripts/strip-excluded`) deletes the excluded
