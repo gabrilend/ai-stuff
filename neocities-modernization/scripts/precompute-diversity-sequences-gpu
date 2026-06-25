@@ -67,6 +67,24 @@ if not MODEL_NAME or MODEL_NAME == "" then
     MODEL_NAME = inference_config.get_selected_model()
 end
 
+-- Issue 10-057: cap each diversity sequence to the top-K poems any page set can show
+-- (K = pages x poems_per_page, resolved from the run env or config -- the same formula
+-- the similarity cache uses). The walk is built front-to-back, so the first K are
+-- exactly what the diversity pages display; storing the full walk only bloats the JSON
+-- on disk and the RAM the HTML stage parses it back into. Apostrophe-free (see note).
+local TOP_K = 0
+do
+    local config_loader = require("config-loader")
+    config_loader.set_project_root(DIR)
+    local pag = config_loader.load().pagination
+    if not pag then error("config.pagination missing; cannot size the diversity cache") end
+    local pages = tonumber(os.getenv("PAGES")) or pag.minimum_pages
+    local per_page = tonumber(os.getenv("POEMS_PER_PAGE")) or pag.poems_per_page
+    if not pages or not per_page then error("cannot resolve pages/poems_per_page for diversity cache") end
+    TOP_K = pages * per_page
+    print(string.format("[Config] Capping each sequence to top-%d (K = %d pages x %d per page)", TOP_K, pages, per_page))
+end
+
 -- Parse command line arguments
 local SAVE_BINARY = false  -- Optional: save binary format for debug
 for i = 2, #arg do
@@ -280,7 +298,8 @@ local function main()
             generated_at = os.date("%Y-%m-%d %H:%M:%S"),
             generation_time_seconds = math.floor(elapsed),
             embeddings_file_size = get_file_size(embeddings_file),
-            total_sequences = num_poems
+            total_sequences = num_poems,
+            top_k = TOP_K
         },
         sequences = {}
     }
@@ -292,6 +311,12 @@ local function main()
         local sequence = sequences[poem_id]
         if not sequence then
             error(string.format("Missing sequence for poem_id %d", poem_id))
+        end
+        -- Issue 10-057: keep only the first K of the diversity walk (the top-K).
+        if TOP_K > 0 and #sequence > TOP_K then
+            local capped = {}
+            for i = 1, TOP_K do capped[i] = sequence[i] end
+            sequence = capped
         end
         cache.sequences[tostring(poem_id)] = sequence
     end
