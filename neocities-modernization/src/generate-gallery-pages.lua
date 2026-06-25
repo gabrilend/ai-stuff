@@ -169,15 +169,20 @@ end
 -- {{{ get_relative_image_path
 -- Convert absolute path to a URL-safe relative path from output/gallery/.
 local function get_relative_image_path(absolute_path)
-    -- Reference the FLATTENED copy in output/media/, not the original under input/.
-    -- flatten_media_files copies every configured image to output/media/<basename>;
-    -- the original under input/ is never uploaded, so a "../../input/images/..."
-    -- path 404s in production. Gallery pages live in output/gallery/, so
-    -- "../media/<basename>" reaches the flattened copy both locally and deployed
-    -- (both sit under /similar-different/) -- a relative path needing no rewrite.
-    -- This matches how poem-page image attachments already resolve.
-    local basename = absolute_path:match("([^/]+)$") or absolute_path
-    return url_encode_path("../media/" .. basename)
+    -- Reference the copy in output/media/, not the original under input/. The
+    -- original under input/ is never uploaded, so a "../../input/images/..." path
+    -- 404s in production. Gallery pages live in output/gallery/, so a "../media/"
+    -- relative path reaches the copy both locally and deployed (both under
+    -- /similar-different/) with no rewrite.
+    --
+    -- LAYOUT must match flatten_media_files + media_href in the other generators:
+    -- art images keep their <source>/<subpath> (so my-art/x.png and
+    -- my-art/game-design/x.png don't collide into one output/media/x.png);
+    -- Mastodon hashes collapse to the bare basename. url_encode_path preserves
+    -- the slashes between segments.
+    local path = absolute_path or ""
+    local sub = path:match("input/images/(.+)$") or (path:match("([^/]+)$") or path)
+    return url_encode_path("../media/" .. sub)
 end
 -- }}}
 
