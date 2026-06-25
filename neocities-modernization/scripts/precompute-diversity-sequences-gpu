@@ -256,6 +256,31 @@ local function main()
     end
     print()
 
+    -- Issue 10-057: clamp BATCH_SIZE to free GPU VRAM before the batched dispatch. On a
+    -- roomy card this keeps the configured size; it is the guard rail for a much larger
+    -- corpus or a smaller GPU. fixed = the resident FP16 embeddings; per-sequence = the
+    -- output array plus the per-sequence centroid/mask working set (approximate -- the
+    -- budgeter only needs the right order of magnitude). Wrapped in pcall: this is an
+    -- enhancement, so a VRAM-probe failure (e.g. no nvidia-smi) must NOT break the run --
+    -- it just keeps the configured BATCH_SIZE and says so.
+    do
+        local ok, result = pcall(function()
+            local budget = require("memory-budgeter")
+            local fixed_vram = num_poems * embedding_dim * 2
+            local per_seq = num_poems * 5 + embedding_dim * 4
+            return budget.fit_threads({
+                pool = "vram", fixed = fixed_vram, per_thread = per_seq,
+                want = BATCH_SIZE, label = "diversity",
+            })
+        end)
+        if ok and result then
+            BATCH_SIZE = result
+        else
+            print("[GPU] VRAM budget check skipped (" .. tostring(result)
+                .. "); using configured BATCH_SIZE " .. BATCH_SIZE)
+        end
+    end
+
     -- Compute diversity sequences on GPU
     local start_time = wall_clock()
     print("[GPU] Computing diversity sequences (batch parallel processing)...")
