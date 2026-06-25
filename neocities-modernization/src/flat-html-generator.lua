@@ -3438,6 +3438,26 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     num_threads = num_threads or 1
     if num_threads < 1 then num_threads = 1 end
 
+    -- Issue 10-057 (Piece 1, wired): clamp the worker count to what fits in free RAM
+    -- before spawning. After the cache cap (Fix B) the fixed cost is small, so on a
+    -- roomy machine this is a no-op -- but it is the guard rail that keeps a big corpus
+    -- or a small box out of swap, and it logs the estimate either way.
+    if num_threads > 1 then
+        local budget = require("memory-budgeter")
+        local model = inference_config.get_selected_model()
+        -- fixed: the two neighbour caches the orchestrator holds resident (file size x
+        -- ~2.5 for the parsed Lua table) plus the ~12MB poems data already in RAM.
+        local sim_file = utils.embeddings_dir(model) .. "/similarity_rankings_cache.json"
+        local div_file = utils.embeddings_dir_disk(model) .. "/diversity_cache.json"
+        local fixed = ((budget.file_size_bytes(sim_file) or 0)
+            + (budget.file_size_bytes(div_file) or 0)) * 2.5 + 12e6
+        -- per worker: an effil Lua state (~25MB) plus the one page it builds at a time.
+        num_threads = budget.fit_threads({
+            pool = "ram", fixed = fixed, per_thread = 30e6,
+            want = num_threads, label = "HTML",
+        })
+    end
+
     -- Build ordered list of poem indices for batch distribution
     local poem_indices = {}
     for poem_index, _ in pairs(valid_poems) do
