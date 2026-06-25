@@ -33,6 +33,27 @@ local function basename(path)
 end
 -- }}}
 
+-- {{{ local function media_href()
+-- Where a file lives under output/media/, url-encoded for an href/src.
+-- Art images (path under input/images/<source>/...) KEEP their source + subdir
+-- structure, because their human-given basenames collide (e.g.
+-- my-art/proposed-movement-design.png vs my-art/game-design/proposed-movement-design.png)
+-- and a flat output/media/<basename> would let one silently overwrite the other.
+-- flatten_media_files writes art to the very same <source>/<subpath>, so the two
+-- agree. Mastodon attachments (content-addressed hashes, NOT under input/images/)
+-- keep just the basename -- already unique, and we don't want their 7-level
+-- nesting back. Slashes are preserved; space / ? / # / % are percent-encoded.
+-- Inlined (not required from a lib) on purpose: this module also runs inside
+-- effil worker threads with their own Lua state.
+local function media_href(path)
+    path = path or ""
+    local sub = path:match("input/images/(.+)$") or (path:match("([^/]+)$") or path)
+    return (sub:gsub("[^%w%-%._~/]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+-- }}}
+
 -- {{{ local function media_type_for()
 -- Guess a media_type from a filename extension (the manifest stores width/height
 -- but render_attachment_images keys image rendering off "image/...").
@@ -73,8 +94,13 @@ function M.inject_pseudo_poems(poems_data, manifest)
             end
         else
             -- Class 3: build a fresh pseudo-poem carrying the catalog image as a
-            -- normal attachment (filename only -> render_attachment_images finds
-            -- it at output/media/<filename>, where flatten_media_files put it).
+            -- normal attachment. The attachment keeps the FULL relative_path (not
+            -- just the basename) so render_attachment_images can namespace it the
+            -- same way flatten_media_files did -- output/media/<source>/<subpath>.
+            -- Passing only the basename used to work when media was flat, but that
+            -- is exactly what let same-named art images collide; the full path
+            -- carries the source + subdirs that keep them distinct. fname stays
+            -- the basename purely for the human-facing title/type.
             local fname = basename(rec.relative_path)
             poems_data.poems[#poems_data.poems + 1] = {
                 poem_index = pidx,
@@ -87,7 +113,7 @@ function M.inject_pseudo_poems(poems_data, manifest)
                 display_title = rec.display_title or fname,
                 gallery_anchor = rec.gallery_anchor,  -- deep-link to the chrono gallery
                 attachments = {{
-                    relative_path = fname,
+                    relative_path = rec.relative_path,
                     media_type = media_type_for(fname),
                     width = rec.width, height = rec.height,
                     description = rec.display_title or fname,
@@ -99,13 +125,16 @@ function M.inject_pseudo_poems(poems_data, manifest)
 end
 -- }}}
 
--- The same local-file media base the rest of the generator uses; the convert-urls
--- script rewrites it to the production path. flatten_media_files copies every
--- image source into output/media/<basename>, so a bare filename resolves here.
-local MEDIA_BASE = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output/media/"
--- Deep-link base for "open this image in the chronological gallery"; convert-urls
--- rewrites the file:// prefix to the production path like everything else.
-local GALLERY_BASE = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output/gallery/chronological.html#"
+-- Document-relative bases: "up to the site root, then down to the target." These
+-- image entries are only ever rendered into poem pages, which live one directory
+-- below the root (output/similar/, output/different/, output/chronological/), so
+-- the prefix is "../". Relative paths resolve identically whether opened locally
+-- from any folder or served on the site -- no per-environment conversion. (If an
+-- image entry were ever rendered at another depth, this prefix would move with
+-- the page; today every caller is depth 1.) flatten_media_files puts each image
+-- at output/media/<source>/<subpath>, which "../media/" + media_href() reaches.
+local MEDIA_BASE = "../media/"
+local GALLERY_BASE = "../gallery/chronological.html#"
 
 -- {{{ function M.text_image_link()
 -- For a TEXT+IMAGE post (a normal poem that also carries an image attachment),
@@ -116,9 +145,12 @@ local GALLERY_BASE = "file:///home/ritz/programming/ai-stuff/neocities-moderniza
 function M.text_image_link(poem)
     local att = poem.attachments and poem.attachments[1]
     if not att then return "" end
-    local fname = basename(att.relative_path or att.url or "")
-    if fname == "" then return "" end
-    return string.format('<a href="%s%s">image.png</a>', MEDIA_BASE, fname)
+    local raw = att.relative_path or att.url or ""
+    if raw == "" then return "" end
+    -- media_href keeps art's source+subdir structure (collision-safe) and
+    -- url-encodes; Mastodon hashes collapse to the bare name. Matches the <img>
+    -- src in format_image_entry and where flatten_media_files placed the file.
+    return string.format('<a href="%s%s">image.png</a>', MEDIA_BASE, media_href(raw))
 end
 -- }}}
 
@@ -132,8 +164,9 @@ function M.format_image_entry(poem)
     local esc = title:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
     local imgs = {}
     for _, att in ipairs(poem.attachments or {}) do
-        local fname = basename(att.relative_path or att.url or "")
-        local src = MEDIA_BASE .. fname
+        -- media_href namespaces art by source+subdir (so same-named pieces don't
+        -- collide in output/media/) and url-encodes; Mastodon hashes stay flat.
+        local src = MEDIA_BASE .. media_href(att.relative_path or att.url or "")
         if att.width and att.height then
             imgs[#imgs + 1] = string.format(
                 '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
