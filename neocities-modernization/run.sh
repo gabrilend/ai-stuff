@@ -812,17 +812,22 @@ run_extract() {
 # {{{ run_strip_excluded
 # Issue 10-053: After sync/extraction, remove excluded images + note source files
 # from input/ so they are never cataloged, embedded, rendered, or uploaded. Runs
-# before image cataloging. A failure here is non-fatal (the build continues), but
-# the script logs exactly what it stripped.
+# before image cataloging. strip-excluded validates every exclusion BEFORE it
+# deletes anything; a non-zero exit means a broken exclusion path (it points at no
+# real file), which is FATAL -- continuing would ship content that was explicitly
+# marked do-not-ship. The validation happens before any stripping and before the
+# expensive catalog/embed stages, so a bad path costs only the cheap re-run.
 run_strip_excluded() {
     log_stage "🧹 Stripping excluded content from input/"
     if $DRY_RUN; then
         log_dry_run "lua $DIR/scripts/strip-excluded $DIR"
         return 0
     fi
-    lua "$DIR/scripts/strip-excluded" "$DIR" || {
-        echo "Warning: strip-excluded failed, continuing..." >&2
-    }
+    if ! lua "$DIR/scripts/strip-excluded" "$DIR"; then
+        echo "ERROR: strip-excluded failed -- a broken exclusion path in config.lua." >&2
+        echo "       Fix excluded_images and re-run; nothing was stripped or shipped." >&2
+        exit 1
+    fi
 }
 # }}}
 
@@ -1495,6 +1500,11 @@ run_generate_html() {
     $NICE_PREFIX luajit "$DIR/src/generate-source-browser.lua" "$DIR" || {
         echo "Warning: Source browser generation failed, continuing..." >&2
     }
+    # NOTE: the downloadable zip is built at POST time by running
+    # scripts/build-download-zip directly, not here -- it is a deploy artifact, and
+    # there is no point regenerating a multi-GB archive on every local build. (The
+    # site's links are document-relative, so there is no URL-conversion step before
+    # upload; just upload output/ and build the zip.)
 }
 # }}}
 
