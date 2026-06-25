@@ -147,13 +147,34 @@ local function load_word_colors()
     if data and data.word_colors then
         local lookup = {}
         for _, entry in ipairs(data.word_colors) do
-            lookup[entry.word] = entry.color
+            -- Keep the WHOLE entry (best `.color` plus the full `.colors` ranking),
+            -- so the renderer can pick a large word's strongest non-gray color.
+            lookup[entry.word] = entry
         end
         utils.log_info(string.format("Loaded %d word colors from cache", #data.word_colors))
         return lookup
     end
     utils.log_warn("No word colors found - words will display in default color")
     return {}
+end
+-- }}}
+
+-- {{{ top_nongray_color()
+-- The word cloud colors LARGE words by meaning but must never render them gray --
+-- gray is reserved for the de-emphasised small words below the size threshold. Each
+-- word's color entry carries the full palette ranking (strongest first); walk it for
+-- the strongest color that is not gray. With six non-gray colors there is always one;
+-- the trailing fallbacks only guard a missing entry or a pre-`colors` cache (an old
+-- word_colors.json without the ranking, until it is regenerated). Returns a color
+-- NAME or nil.
+local function top_nongray_color(entry)
+    if entry and entry.colors then
+        for _, c in ipairs(entry.colors) do
+            if c.color ~= "gray" then return c.color end
+        end
+    end
+    -- No ranking available: fall back to the single best color (may be gray).
+    return entry and entry.color or nil
 end
 -- }}}
 
@@ -371,6 +392,30 @@ local function generate_poem_index(poems_data)
 end
 -- }}}
 
+-- {{{ archive_wordcloud()
+-- Keep a permanent, timestamped copy of every word cloud we generate. The live
+-- page (output/wordcloud.html) is overwritten on every build, so without this the
+-- history of how the cloud changes over time -- which words rise and fall, how the
+-- "all words" cloud differs from the default -- would be lost. The archive lives
+-- OUTSIDE output/ (under archive/wordclouds/) on purpose: it is a local record, not
+-- something deployed to the site. A failed archive write is a hard error, not a
+-- shrug -- if we meant to keep a copy and couldn't, we want to know.
+local function archive_wordcloud(html, word_count)
+    local archive_dir = DIR .. "/archive/wordclouds"
+    utils.ensure_directory(archive_dir)
+    -- Timestamp + word count in the name: successive builds accumulate instead of
+    -- overwriting, and the count tells "all words" (7082) from a default (200) at a
+    -- glance. No spaces, so the plain mkdir/io paths handle it.
+    local stamp = os.date("%Y-%m-%d_%H-%M-%S")
+    local archive_file = string.format("%s/wordcloud-%s-%dwords.html",
+        archive_dir, stamp, word_count)
+    if not utils.write_file(archive_file, html) then
+        error("Failed to archive word cloud to: " .. archive_file)
+    end
+    utils.log_info("Archived word cloud: " .. archive_file)
+end
+-- }}}
+
 -- {{{ generate_wordcloud_html
 local function generate_wordcloud_html(words, output_dir, poems_data)
     -- Issue 16-010: Load word colors and color configuration for colorized display
@@ -414,8 +459,10 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
         local hex_color = "#868E96"  -- neutral gray for the long tail
         if is_significant then
             bold_open, bold_close = "<b>", "</b>"
-            -- Issue 16-010: Look up semantic color for this word
-            local semantic_color = word_colors[safe_word] or "gray"
+            -- Issue 16-010: Look up this word's semantic color. Large words never
+            -- render gray (gray belongs to the de-emphasised small words), so we take
+            -- the strongest NON-gray color from the word's full color ranking.
+            local semantic_color = top_nongray_color(word_colors[safe_word]) or "gray"
             hex_color = color_config[semantic_color] or "#868E96"
         end
 
@@ -468,6 +515,8 @@ td { text-align: center; } pre { display: inline-block; text-align: left; margin
 
     if success then
         utils.log_info("Generated: " .. output_file)
+        -- Keep a dated copy of this build's cloud in archive/wordclouds/.
+        archive_wordcloud(html, #words)
         return output_file
     else
         utils.log_error("Failed to write: " .. output_file)
