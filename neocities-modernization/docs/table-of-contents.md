@@ -100,7 +100,6 @@ This document provides a hierarchical view of all project documentation.
   - `/issues/completed/phase-9/9-001e-create-lua-c-integration.md` - LuaJIT FFI bindings for Vulkan compute (COMPLETED)
   - `/issues/completed/phase-9/9-001g-batch-parallel-diversity-sequences.md` - Batch parallel diversity computation (COMPLETED)
   - `/issues/9-004-gpu-accelerate-maze-algorithm.md` - GPU acceleration for maze dimension-extremes (blocked by 9-001 + 11-002)
-  - `/issues/completed/phase-9/9-005b-url-switching-helper-script.md` - Helper script to convert file:// URLs to production URLs (COMPLETED)
 - `/issues/10-progress.md` - Phase 10 progress tracking (developer tooling) - CURRENT
   - `/issues/10-009-optimize-incremental-centroid-updates-for-dataset-expansion.md` - Incremental centroid updates for efficient dataset expansion
   - `/issues/10-009-DESIGN.md` - Detailed algorithm design for centroid unwinding
