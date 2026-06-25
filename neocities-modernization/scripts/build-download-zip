@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# build-download-zip
+#
+# WHAT (for a CEO): builds the single "download everything" file offered on the
+# source browser -- one zip containing both the public website AND the source
+# code that generates it, so anyone can take the whole thing home and rebuild it.
+#
+# PRIVACY: the source files are exactly `git ls-files` (which obeys .gitignore,
+# so the raw private inputs -- the poem corpus, LLM transcripts, archives --
+# never appear) filtered to the SAME allowlist the source browser publishes:
+# the src/libs/scripts/issues/docs/notes/demos directories plus code/doc files at
+# the root. If you change that allowlist in generate-source-browser.lua, change
+# it here too (the two must agree, or the download shows more/less than the
+# browser). The rendered site (output/, itself gitignored) is already the public
+# deployable, so it ships whole.
+#
+# HOW: assembles the archive in /tmp (RAM, and outside output/ so it can't zip
+# itself), then moves the finished file into output/<NAME>.zip, served at
+# /similar-different/<NAME>.zip.
+#
+# Usage:  scripts/build-download-zip [DIR]
+
+set -euo pipefail
+
+# {{{ configuration
+# ${DIR} is the project root; hard-coded for the normal case, overridable as the
+# first argument so the script runs from anywhere.
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+NAME="similar-different"
+# Build in RAM, outside output/, so the archive never tries to contain itself.
+ZIP_TMP="/tmp/neocities-modernization/${NAME}.zip"
+FINAL="${DIR}/output/${NAME}.zip"
+# }}}
+
+# {{{ preflight
+if [ ! -d "$DIR/output" ]; then
+    echo "[build-download-zip] ERROR: $DIR/output not found -- generate the site first." >&2
+    exit 1
+fi
+mkdir -p "$(dirname "$ZIP_TMP")"
+rm -f "$ZIP_TMP"
+# }}}
+
+# {{{ source files (allowlisted, git-tracked -> respects .gitignore)
+# A path WITH a slash is kept only if its top directory is allowlisted; a root
+# file is kept only if its extension is a code/doc type. This mirrors
+# generate-source-browser.lua's INCLUDE_DIRS / ROOT_FILE_EXTS exactly.
+SOURCE_LIST="$(cd "$DIR" && git ls-files | awk -F/ '
+    NF > 1 { if ($1 ~ /^(src|libs|scripts|issues|docs|notes|demos)$/) print; next }
+    { if ($0 ~ /\.(lua|sh|md|c|h|json|css|html|txt)$/) print }
+')"
+printf '%s\n' "$SOURCE_LIST" | (cd "$DIR" && zip -q "$ZIP_TMP" -@)
+# }}}
+
+# {{{ LICENSE (added explicitly: it may not be committed yet, so git ls-files
+# would miss it, but it must travel with the bundle it governs)
+if [ -f "$DIR/LICENSE" ]; then
+    (cd "$DIR" && zip -q "$ZIP_TMP" LICENSE)
+fi
+# }}}
+
+# {{{ readme.txt -- orient whoever unzips this (how to open it, what's inside)
+README_TMP="$(dirname "$ZIP_TMP")/readme.txt"
+cat > "$README_TMP" <<'EOF'
+similar-different -- the poetry site, plus the source that builds it.
+
+HOW TO OPEN IT
+  The pages use document-relative links, so just open  output/wordcloud.html
+  (or output/index.html) in any web browser, from wherever you unzipped this, on
+  any computer. Images, navigation, the source browser -- all resolve. No web
+  server needed.
+
+WHAT'S INSIDE
+  output/   the rendered website (what you'd see online), with relative links
+  src/, libs/, scripts/   the Lua that generates it; run.sh drives the pipeline
+  issues/, docs/, notes/  the design record -- how and why it was built
+  LICENSE   what you may do with all of it (everything; just don't be cruel)
+
+ABOUT THE LINKS
+  The pages use document-relative links (../media/x.png, ../wordcloud.html), so
+  they resolve from anywhere with no conversion -- on your disk or re-hosted. The
+  generators emit this form directly; there is no build step that "fixes" paths.
+  To regenerate the whole site from this source, run run.sh.
+EOF
+(cd "$(dirname "$README_TMP")" && zip -q "$ZIP_TMP" readme.txt)
+rm -f "$README_TMP"
+# }}}
+
+# {{{ the rendered site (output/ -> stored under output/ inside the zip)
+# Exclude any previous build's archive sitting in output/ -- otherwise each run's
+# 2.6G zip would swallow the last run's, doubling forever.
+(cd "$DIR" && zip -rq "$ZIP_TMP" output -x "output/${NAME}.zip")
+# }}}
+
+# {{{ publish: move the finished archive into output/ for serving
+mv -f "$ZIP_TMP" "$FINAL"
+SIZE="$(du -h "$FINAL" | cut -f1)"
+COUNT="$(printf '%s\n' "$SOURCE_LIST" | grep -c . || true)"
+echo "[build-download-zip] built $FINAL ($SIZE): $COUNT source files + the rendered site"
+# }}}
