@@ -102,7 +102,6 @@ local function load_config()
         table.insert(image_directories, {
             name = dir.name,
             path = path,
-            optional = dir.optional,
             description = dir.description,
             -- Issue 10-030: Randomization options
             randomize_order = dir.randomize_order or false,
