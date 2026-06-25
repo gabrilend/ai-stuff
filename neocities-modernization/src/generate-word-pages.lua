@@ -218,25 +218,28 @@ local function load_color_embeddings()
 end
 -- }}}
 
--- {{{ local function compute_nearest_color
--- Issue 8-050a: Find the nearest color to a word embedding using cosine similarity
-local function compute_nearest_color(word_embedding, color_embeddings)
+-- {{{ local function compute_color_ranking
+-- Issue 8-050a: Rank EVERY palette color for a word by cosine similarity, strongest
+-- first. ranking[1] is the word's semantic color (same as the old "nearest color").
+-- Storing the whole ranking -- not just the winner -- is cheap and future-proof: the
+-- word cloud reads it to pick each large word's strongest NON-gray color (large
+-- words must never render gray, which is reserved for the de-emphasised small ones)
+-- without recomputing embeddings, and the rest is there if a later feature wants it.
+-- Returns an array of { color = name, similarity = sim }, sorted descending.
+local function compute_color_ranking(word_embedding, color_embeddings)
     if not word_embedding or not color_embeddings then
-        return "gray", 0
+        return {}
     end
 
-    local best_color = "gray"
-    local best_sim = -1
-
+    local ranking = {}
     for color_name, color_embedding in pairs(color_embeddings) do
-        local sim = cosine_similarity(word_embedding, color_embedding)
-        if sim > best_sim then
-            best_sim = sim
-            best_color = color_name
-        end
+        ranking[#ranking + 1] = {
+            color = color_name,
+            similarity = cosine_similarity(word_embedding, color_embedding),
+        }
     end
-
-    return best_color, best_sim
+    table.sort(ranking, function(a, b) return a.similarity > b.similarity end)
+    return ranking
 end
 -- }}}
 
@@ -291,11 +294,16 @@ local function compute_word_colors(word_embeddings)
     local word_colors = {}
     local count = 0
     for word, embedding in pairs(word_embeddings) do
-        local best_color, best_sim = compute_nearest_color(embedding, color_embeddings)
+        local ranking = compute_color_ranking(embedding, color_embeddings)
+        -- ranking[1] is the winner (gray is a valid winner here -- the word pages and
+        -- other consumers keep using `color`). The full ranking rides along in
+        -- `colors` so the word cloud can choose a non-gray color for large words.
+        local best = ranking[1] or { color = "gray", similarity = 0 }
         table.insert(word_colors, {
             word = word,
-            color = best_color,
-            similarity = best_sim
+            color = best.color,
+            similarity = best.similarity,
+            colors = ranking
         })
         count = count + 1
     end
