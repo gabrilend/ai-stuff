@@ -4,11 +4,26 @@
 9-001: Implement Vulkan Compute Infrastructure
 
 ## Current Behavior
-The project uses effil library for multi-threading in:
-- `scripts/generate-html-parallel` - HTML page generation
-- `scripts/precompute-diversity-sequences` - Diversity sequence pre-computation
+effil proved unsuitable due to catastrophic performance with shared table access
+(~17 billion synchronization operations per sequence).
 
-effil proved unsuitable due to catastrophic performance with shared table access (~17 billion synchronization operations per sequence).
+PARTIALLY REMOVED (via Issue 10-057's GPU-only / cache-cap work). effil is now gone
+from the entire SIMILARITY path:
+- `src/similarity-engine-parallel.lua` (the CPU similarity engine) was DELETED.
+- `libs/vulkan-compute/lua/vk_similarity.lua` no longer requires effil at all -- the
+  CPU-sort helpers (`create_sort_write_task`, `generate_rankings_cache`,
+  `load_similarities_from_files`) and the `package.cpath`/`require('effil')` block were
+  removed; similarity is GPU-only.
+- the CPU `scripts/precompute-diversity-sequences` was DELETED (GPU is mandatory now);
+  the GPU `precompute-diversity-sequences-gpu` is the only diversity generator.
+
+STILL USING effil (the remaining work, all HTML-generation threading -- this issue's
+Step 3):
+- `src/flat-html-generator.lua` - the parallel HTML orchestrator (effil workers).
+- `scripts/generate-html-parallel` - the standalone parallel HTML script.
+- `run.sh` - the effil `package.cpath` setup for the above.
+
+So `grep -r effil src/ scripts/` still returns results; the QA criterion is not yet met.
 
 ## Intended Behavior
 - All effil usage replaced with either:

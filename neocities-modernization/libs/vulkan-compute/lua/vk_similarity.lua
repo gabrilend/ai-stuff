@@ -1,26 +1,11 @@
 -- Lua FFI bindings for Vulkan similarity computation
 -- Provides GPU-accelerated cosine similarity calculation for triangular individual files
--- Includes parallel CPU sorting while GPU continues processing
+-- (Issue 10-057: the parallel CPU-sort path was removed; this module is GPU-only now,
+-- so it no longer depends on effil.)
 
 local ffi = require("ffi")
 local utils = require("utils")
 local dkjson = require("dkjson")
-
--- Load effil for parallel CPU sorting (required)
-package.cpath = '/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;' .. package.cpath
-local effil_ok, effil = pcall(require, 'effil')
-if not effil_ok then
-    error([[
-effil library not found! Required for parallel CPU sorting.
-
-Expected location: /home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/effil.so
-
-Build instructions:
-  cd /home/ritz/programming/ai-stuff/libs/lua/effil-jit
-  mkdir build && cd build
-  cmake .. && make
-]])
-end
 
 -- {{{ FFI definitions
 ffi.cdef[[
@@ -88,148 +73,6 @@ local lib_path = DIR .. "/libs/vulkan-compute/build/libvkcompute.so"
 local vklib = ffi.load(lib_path)
 
 local M = {}
-
--- Default thread count for parallel sorting (can be overridden)
-local DEFAULT_SORT_THREADS = 8
-
--- {{{ function create_sort_write_task
--- Creates an effil thread function for sorting and writing a similarity file
--- This runs on CPU while GPU continues computing the next poem
-local function create_sort_write_task()
-    return effil.thread(function(similarities_data, metadata, output_file, dir_path)
-        -- Wrap in pcall to catch any errors
-        local ok, err = pcall(function()
-            -- Re-require modules in thread context
-            package.path = dir_path .. '/libs/?.lua;' .. dir_path .. '/src/?.lua;' .. package.path
-            local json = require('dkjson')
-
-            -- Sort similarities by score (descending)
-            table.sort(similarities_data, function(a, b)
-                return a.similarity > b.similarity
-            end)
-
-            -- Extract sorted indices
-            local sorted_indices = {}
-            for _, entry in ipairs(similarities_data) do
-                table.insert(sorted_indices, tonumber(entry.id))
-            end
-
-            -- Build output data
-            local data = {
-                metadata = metadata,
-                similarities = similarities_data,
-                sorted_indices = sorted_indices
-            }
-
-            -- Write file
-            local file = io.open(output_file, "w")
-            if file then
-                file:write(json.encode(data, {indent = true}))
-                file:close()
-            else
-                error("Failed to open file for writing: " .. output_file)
-            end
-        end)
-
-        if not ok then
-            -- Return error message so main thread can see it
-            return false, tostring(err)
-        end
-        return true
-    end)
-end
--- }}}
-
--- {{{ function M.load_similarities_from_files
--- Load existing similarity files and reconstruct full similarity table for cache generation
--- @param similarities_dir: Path to directory containing similarity files
--- @param embeddings_data: Embeddings data with poem_index information
--- @return full_similarities: Table mapping poem_index -> {{target_index, similarity}, ...}
-function M.load_similarities_from_files(similarities_dir, embeddings_data)
-    print(string.format("[GPU SIMILARITY] Loading similarity files from: %s", similarities_dir))
-
-    -- Build full similarity map: poem_index -> {{target_index, similarity}, ...}
-    local full_similarities = {}
-    local files_processed = 0
-    local start_time = os.time()
-
-    -- Initialize empty arrays for all poems
-    for _, emb in ipairs(embeddings_data.embeddings) do
-        if emb.poem_index then
-            full_similarities[emb.poem_index] = {}
-        end
-    end
-
-    -- Find similarity files (prefer poem_index_*.json format)
-    local handle = io.popen(string.format("find '%s' -maxdepth 1 -name 'poem_index_*.json' 2>/dev/null", similarities_dir))
-    local files = {}
-    for line in handle:lines() do
-        table.insert(files, line)
-    end
-    handle:close()
-
-    -- Fall back to legacy poem_*.json if no poem_index files found
-    if #files == 0 then
-        handle = io.popen(string.format("find '%s' -maxdepth 1 -name 'poem_*.json' ! -name 'poem_index_*' 2>/dev/null", similarities_dir))
-        for line in handle:lines() do
-            table.insert(files, line)
-        end
-        handle:close()
-        if #files > 0 then
-            print(string.format("[GPU SIMILARITY] Using legacy poem_*.json files (%d found)", #files))
-        end
-    else
-        print(string.format("[GPU SIMILARITY] Using poem_index_*.json files (%d found)", #files))
-    end
-
-    if #files == 0 then
-        print("[GPU SIMILARITY ERROR] No similarity files found in: " .. similarities_dir)
-        return nil
-    end
-
-    local total_files = #files
-
-    -- Process each similarity file
-    for _, filepath in ipairs(files) do
-        local data = utils.read_json_file(filepath)
-        if data and data.metadata and data.similarities then
-            local source_index = data.metadata.poem_index
-
-            -- Skip files without poem_index
-            if source_index then
-                -- Process each similarity entry
-                for _, entry in ipairs(data.similarities) do
-                    local target_index = tonumber(entry.id)
-                    local similarity = entry.similarity
-
-                    if target_index and similarity then
-                        -- Store bidirectionally (symmetric matrix)
-                        table.insert(full_similarities[source_index], {target_index, similarity})
-                        if full_similarities[target_index] then
-                            table.insert(full_similarities[target_index], {source_index, similarity})
-                        end
-                    end
-                end
-
-                files_processed = files_processed + 1
-
-                if files_processed % 500 == 0 then
-                    local elapsed = os.time() - start_time
-                    local rate = files_processed / math.max(elapsed, 1)
-                    print(string.format("[GPU SIMILARITY] Loading: %d/%d files (%.1f%%), %.1f files/sec",
-                                      files_processed, total_files,
-                                      (files_processed / total_files) * 100, rate))
-                end
-            end
-        end
-    end
-
-    local elapsed = os.time() - start_time
-    print(string.format("[GPU SIMILARITY] Loaded %d similarity files in %d seconds", files_processed, elapsed))
-
-    return full_similarities
-end
--- }}}
 
 -- {{{ function triangular_size
 -- Calculate size of triangular matrix (number of pairs)
@@ -311,13 +154,11 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
                 end
             end
         end
-        -- Cache missing or empty, need to regenerate
-        print("[GPU SIMILARITY] Cache missing or empty, regenerating from existing files...")
-        local full_similarities = M.load_similarities_from_files(output_dir, embeddings_data)
-        if full_similarities then
-            return M.generate_rankings_cache(full_similarities, num_poems, model_dir, num_threads or 8)
-        end
-        error("[GPU SIMILARITY ERROR] Failed to load existing similarity files")
+        -- Cache missing or empty: fall through to the GPU regeneration below. The old
+        -- Lua effil rebuild was removed (Issue 10-057) -- it sorted on the CPU AND
+        -- bypassed the top-K cap, so it would silently rewrite a full-size cache. The
+        -- GPU path rebuilds the cache capped, which is the only route we keep.
+        print("[GPU SIMILARITY] Cache missing or empty, regenerating on the GPU...")
     end
 
     -- Convert embeddings to flat C array
@@ -435,107 +276,6 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
     end
 
     print("[GPU SIMILARITY] ✅ All similarity generation complete!")
-    return true
-end
--- }}}
-
--- {{{ function M.generate_rankings_cache
--- Generate pre-sorted rankings cache from full_similarities table
-function M.generate_rankings_cache(full_similarities, num_poems, model_dir, max_sort_threads)
-    print(string.format("[GPU SIMILARITY] Generating sorted rankings cache (%d threads)...", max_sort_threads))
-    local cache_start = os.time()
-
-    -- Collect poem indices
-    local poem_indices = {}
-    for poem_index, _ in pairs(full_similarities) do
-        table.insert(poem_indices, poem_index)
-    end
-
-    -- Create shared results table
-    local rankings = effil.table()
-
-    -- Create thread function for cache sorting
-    local cache_sort_task = effil.thread(function(batch_indices, similarities_data, results_table)
-        local count = 0
-        for _, poem_index in ipairs(batch_indices) do
-            local sim_list = similarities_data[poem_index]
-            if sim_list then
-                -- Sort by similarity descending
-                table.sort(sim_list, function(a, b)
-                    return a[2] > b[2]
-                end)
-
-                -- Extract sorted poem indices
-                local sorted_ids = {}
-                for _, entry in ipairs(sim_list) do
-                    table.insert(sorted_ids, entry[1])
-                end
-
-                results_table[tostring(poem_index)] = sorted_ids
-                count = count + 1
-            end
-        end
-        return count
-    end)
-
-    -- Distribute work across threads
-    local cache_threads = {}
-    local batch_size = math.ceil(#poem_indices / max_sort_threads)
-
-    for t = 1, max_sort_threads do
-        local start_idx = (t - 1) * batch_size + 1
-        local end_idx = math.min(t * batch_size, #poem_indices)
-
-        if start_idx <= #poem_indices then
-            local batch = {}
-            for i = start_idx, end_idx do
-                table.insert(batch, poem_indices[i])
-            end
-
-            local thread = cache_sort_task(batch, full_similarities, rankings)
-            table.insert(cache_threads, thread)
-        end
-    end
-
-    -- Wait for all cache sorting threads
-    local total_sorted = 0
-    for i, thread in ipairs(cache_threads) do
-        local status, count = thread:wait()
-        if status == "completed" and count then
-            total_sorted = total_sorted + count
-        end
-    end
-    print(string.format("[GPU SIMILARITY] Sorted %d poem rankings in parallel", total_sorted))
-
-    -- Convert effil.table to regular Lua table
-    local rankings_lua = {}
-    for k, v in pairs(rankings) do
-        local arr = {}
-        for _, item in ipairs(v) do
-            table.insert(arr, item)
-        end
-        rankings_lua[k] = arr
-    end
-
-    -- Write cache file
-    local cache_file = utils.embeddings_dir(model_dir) .. "/similarity_rankings_cache.json"
-    local cache_data = {
-        metadata = {
-            total_poems = num_poems,
-            generated_at = os.date("%Y-%m-%d %H:%M:%S"),
-            algorithm = "gpu_vulkan_parallel_single_dispatch",
-            format = "pre_sorted_rankings",
-            sort_threads = max_sort_threads,
-            description = "Pre-sorted similarity rankings for fast HTML generation"
-        },
-        rankings = rankings_lua
-    }
-
-    utils.write_json_file(cache_file, cache_data)
-
-    local cache_time = os.time() - cache_start
-    print(string.format("[GPU SIMILARITY] ✅ Rankings cache saved in %d seconds: %s", cache_time, cache_file))
-
     return true
 end
 -- }}}
