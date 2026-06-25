@@ -567,7 +567,7 @@ local function format_poem_for_word_page(poem, rank, similarity, poem_colors, co
         { percentage = progress_pct }, semantic_color, is_golden, "top", false).visual
 
     -- Navigation links
-    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+    local base_path = ".."
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
     -- Anchor must match the spans the chronological pages emit, which are
@@ -747,7 +747,7 @@ local function generate_word_page(word, ranked_poems, output_dir, poems_per_page
     local header_color = word_hex_color or "#888888"
 
     -- Issue 8-050e: Use centroid-based chronological link if provided, else default
-    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+    local base_path = ".."
     local chrono_link = chrono_center_link or (base_path .. "/chronological/index.html")
 
     -- Generate HTML
@@ -1079,7 +1079,7 @@ function M.generate_word_html(options)
                         -- Issue 10-036: Use "01" fallback instead of "index" (redirect loses anchors)
                         local chrono_page = chrono_page_map[center_poem.poem_index] or "01"
                         -- Build full link
-                        local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+                        local base_path = ".."
                         chrono_center_link = string.format("%s/chronological/%s.html#%s",
                             base_path, chrono_page, anchor_id)
                     end
