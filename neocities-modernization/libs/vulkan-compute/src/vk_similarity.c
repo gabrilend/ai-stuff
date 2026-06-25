@@ -539,6 +539,7 @@ typedef struct {
     const float* triangular_buffer;
     uint32_t num_poems;
     const uint32_t* poem_indices;
+    uint32_t top_k;            // keep only the top-K neighbours per poem (0 = keep all)
 
     // Shared output (written by threads, each to its own slot)
     PoemRankings* all_rankings;
@@ -597,12 +598,21 @@ static void* cache_gen_thread(void* arg) {
         // Sort by similarity (descending)
         qsort(pairs, pair_count, sizeof(SimilarityPair), compare_similarity_desc);
 
-        // Allocate and fill sorted indices for this poem
-        ctx->all_rankings[array_idx].sorted_indices = (uint32_t*)malloc(pair_count * sizeof(uint32_t));
-        ctx->all_rankings[array_idx].count = pair_count;
+        // Keep only the top-K nearest neighbours. The list is already sorted
+        // descending, so the top-K are simply pairs[0..K-1]. top_k == 0 means keep
+        // all (backward compatible). This is THE memory cap (Issue 10-057): every
+        // place this list later lives -- this RAM array, the JSON written to disk,
+        // and the Lua table the HTML stage parses it back into -- shrinks by the
+        // same factor, because they are all this same data at different moments.
+        uint32_t keep = pair_count;
+        if (ctx->top_k > 0 && ctx->top_k < keep) keep = ctx->top_k;
+
+        // Allocate and fill the (capped) sorted indices for this poem
+        ctx->all_rankings[array_idx].sorted_indices = (uint32_t*)malloc(keep * sizeof(uint32_t));
+        ctx->all_rankings[array_idx].count = keep;
 
         if (ctx->all_rankings[array_idx].sorted_indices) {
-            for (uint32_t k = 0; k < pair_count; k++) {
+            for (uint32_t k = 0; k < keep; k++) {
                 ctx->all_rankings[array_idx].sorted_indices[k] = pairs[k].target_index;
             }
             ctx->poems_sorted++;
@@ -623,7 +633,8 @@ VkComputeResult vks_write_rankings_cache_parallel(
     uint32_t num_poems,
     const uint32_t* poem_indices,
     const char* cache_file,
-    uint32_t num_threads) {
+    uint32_t num_threads,
+    uint32_t top_k) {
 
     if (!triangular_buffer || !poem_indices || !cache_file) {
         fprintf(stderr, "[VKS CACHE ERROR] Invalid parameters\n");
@@ -663,6 +674,7 @@ VkComputeResult vks_write_rankings_cache_parallel(
         contexts[t].triangular_buffer = triangular_buffer;
         contexts[t].num_poems = num_poems;
         contexts[t].poem_indices = poem_indices;
+        contexts[t].top_k = top_k;
         contexts[t].all_rankings = all_rankings;
         contexts[t].next_task = &next_task;
         contexts[t].poems_sorted = 0;
@@ -715,7 +727,8 @@ VkComputeResult vks_write_rankings_cache_parallel(
     fprintf(f, "    \"algorithm\": \"gpu_vulkan_parallel_c\",\n");
     fprintf(f, "    \"format\": \"pre_sorted_rankings\",\n");
     fprintf(f, "    \"sort_threads\": %u,\n", num_threads);
-    fprintf(f, "    \"description\": \"Pre-sorted similarity rankings for fast HTML generation\"\n");
+    fprintf(f, "    \"top_k\": %u,\n", top_k);
+    fprintf(f, "    \"description\": \"Pre-sorted similarity rankings, top-K neighbours per poem (top_k=0 means all)\"\n");
     fprintf(f, "  },\n");
 
     // Write rankings. This is a single-threaded serialization of every poem's

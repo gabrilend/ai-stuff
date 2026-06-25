@@ -121,6 +121,9 @@ VkComputeResult vks_write_similarity_files_parallel(
  * @param poem_indices Array mapping array index (0-based) to poem_index for each poem
  * @param cache_file Path to output cache file (e.g., "assets/.../similarity_rankings_cache.json")
  * @param num_threads Number of worker threads for parallel sorting
+ * @param top_k Keep only the top-K nearest neighbours per poem (0 = keep all).
+ *              Caps the on-disk JSON and the RAM table the HTML stage parses it
+ *              into (Issue 10-057).
  * @return VKC_SUCCESS or error code
  *
  * Output format: JSON with rankings[poem_index] = [sorted_neighbor_indices...]
@@ -130,7 +133,8 @@ VkComputeResult vks_write_rankings_cache_parallel(
     uint32_t num_poems,
     const uint32_t* poem_indices,
     const char* cache_file,
-    uint32_t num_threads);
+    uint32_t num_threads,
+    uint32_t top_k);
 
 /* }}} */
 

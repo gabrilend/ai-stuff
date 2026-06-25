@@ -68,13 +68,16 @@ VkComputeResult vks_write_similarity_files_parallel(
     const char* output_dir,
     uint32_t num_threads);
 
-// Parallel cache generation with pthreads
+// Parallel cache generation with pthreads. top_k caps how many nearest neighbours
+// are stored per poem (0 = all); the cap shrinks the on-disk JSON and the RAM table
+// the HTML stage parses it into (Issue 10-057).
 VkComputeResult vks_write_rankings_cache_parallel(
     const float* triangular_buffer,
     uint32_t num_poems,
     const uint32_t* poem_indices,
     const char* cache_file,
-    uint32_t num_threads);
+    uint32_t num_threads,
+    uint32_t top_k);
 ]]
 -- }}}
 
@@ -251,8 +254,10 @@ end
 -- @param model_name: Model name for output directory
 -- @param force: Force regeneration even if files exist
 -- @param num_threads: Number of CPU threads for parallel file writing
+-- @param top_k: keep only the top-K nearest neighbours per poem in the rankings
+--               cache (nil/0 = keep all). Caps disk + HTML-stage RAM (Issue 10-057).
 -- @return success: boolean
-function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, force, num_threads)
+function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, force, num_threads, top_k)
     print("[GPU SIMILARITY] Embeddings file: " .. embeddings_file)
     print(string.format("[GPU SIMILARITY] Force regeneration: %s", tostring(force)))
 
@@ -420,7 +425,8 @@ function M.generate_similarity_matrix_gpu_parallel(embeddings_file, model_name, 
         num_poems,
         poem_indices_c,
         cache_file,
-        max_sort_threads
+        max_sort_threads,
+        top_k or 0   -- 0 = keep all (backward compatible)
     )
 
     if cache_result ~= 0 then
