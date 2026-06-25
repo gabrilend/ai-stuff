@@ -82,11 +82,11 @@ VkDiversityContext* vkd_init(VkComputeContext* ctx,
     vkc_upload_buffer(ctx, div_ctx->embeddings_buf, embeddings, embeddings_size);
 
     /* Create pipelines */
-    div_ctx->cosine_pipeline = vkc_create_pipeline(ctx, "build/cosine_distance.spv",
+    div_ctx->cosine_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/cosine_distance.spv",
                                                    sizeof(uint32_t) * 2);
-    div_ctx->centroid_pipeline = vkc_create_pipeline(ctx, "build/centroid_update.spv",
+    div_ctx->centroid_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/centroid_update.spv",
                                                      sizeof(uint32_t) * 2);
-    div_ctx->reduction_pipeline = vkc_create_pipeline(ctx, "build/max_reduction.spv",
+    div_ctx->reduction_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/max_reduction.spv",
                                                       sizeof(uint32_t));
 
     if (!div_ctx->cosine_pipeline || !div_ctx->centroid_pipeline || !div_ctx->reduction_pipeline) {
@@ -487,7 +487,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
      * tail of the push-constant struct silently reads as zero in the
      * shader, the chunk loop runs zero iterations, and every dispatch
      * returns instantly having done no work. */
-    batch_ctx->batch_pipeline = vkc_create_pipeline(ctx, "build/diversity_full.spv",
+    batch_ctx->batch_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/diversity_full.spv",
                                                       sizeof(uint32_t) * 5);  /* num_poems, embedding_dim, start_slot, slot_count, tile_size */
     if (!batch_ctx->batch_pipeline) {
         fprintf(stderr, "[VKD Batch ERROR] Failed to create pipeline\n");
@@ -543,7 +543,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     /* Create the scan-tile pipeline. Push constants: num_poems, embedding_dim,
      * tile_start, tile_size — four uints. Reads embeddings/centroids/masks,
      * writes running_max_distance/running_max_index. */
-    batch_ctx->scan_tile_pipeline = vkc_create_pipeline(ctx, "build/diversity_scan_tile.spv",
+    batch_ctx->scan_tile_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/diversity_scan_tile.spv",
                                                          sizeof(uint32_t) * 4);
     if (!batch_ctx->scan_tile_pipeline) {
         fprintf(stderr, "[VKD Batch ERROR] Failed to create scan_tile pipeline\n");
@@ -559,7 +559,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     /* Create the commit-iteration pipeline. Push constants: num_poems,
      * embedding_dim, slot — three uints. Reads embeddings, writes centroid/
      * mask/count/output and resets running_max. */
-    batch_ctx->commit_iteration_pipeline = vkc_create_pipeline(ctx, "build/diversity_commit_iteration.spv",
+    batch_ctx->commit_iteration_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/diversity_commit_iteration.spv",
                                                                 sizeof(uint32_t) * 3);
     if (!batch_ctx->commit_iteration_pipeline) {
         fprintf(stderr, "[VKD Batch ERROR] Failed to create commit_iteration pipeline\n");
