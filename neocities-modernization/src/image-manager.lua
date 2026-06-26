@@ -28,8 +28,30 @@ local function parse_dir_from_args(args)
 end
 -- }}}
 
+-- {{{ parse_seed_from_args
+-- Issue 10-058: pull the build's master seed out of the shared arg vector. run.sh
+-- threads "--seed=N" (equals form, so the bare number is never mistaken for the
+-- positional DIR). Both "--seed=N" and "--seed N" are accepted. Returns a number
+-- or nil (nil => no master seed supplied; per-source random_seed still applies and
+-- a source with neither is randomized by the system RNG, which run.sh warns about).
+local function parse_seed_from_args(args)
+    if not args then return nil end
+    for i = 1, #args do
+        local a = args[i]
+        if a == "--seed" then
+            return tonumber(args[i + 1])
+        end
+        local eq = a:match("^--seed=(.+)$")
+        if eq then return tonumber(eq) end
+    end
+    return nil
+end
+-- }}}
+
 -- Script configuration
 local DIR = setup_dir_path(parse_dir_from_args(arg))
+-- Issue 10-058: master seed (nil unless run.sh / the operator passed --seed).
+local MASTER_SEED = parse_seed_from_args(arg)
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -303,6 +325,23 @@ local function create_seeded_rng(seed)
 end
 -- }}}
 
+-- {{{ local function derive_source_seed(master_seed, source_name)
+-- Issue 10-058: turn the one build-wide master seed into a STABLE per-source seed,
+-- so every randomized source gets its own reproducible order from the same master.
+-- The per-source key is the source NAME (a djb2 string hash), not its position in
+-- the iteration -- so the derived seed does not change if sources are reordered,
+-- added, or removed. Folded to a 31-bit non-negative int to match create_seeded_rng.
+local function derive_source_seed(master_seed, source_name)
+    local hash = 5381
+    for i = 1, #source_name do
+        -- djb2: hash * 33 + byte, kept inside 31 bits each step so it never grows
+        -- past Lua's exact-integer range (no precision drift across machines).
+        hash = ((hash * 33) + source_name:byte(i)) % 2147483647
+    end
+    return (master_seed + hash) % 2147483647
+end
+-- }}}
+
 -- {{{ local function apply_randomization
 -- Issue 10-030: Apply randomized timestamps to images from randomized sources
 local function apply_randomization(all_images)
@@ -338,9 +377,25 @@ local function apply_randomization(all_images)
             local source_name = image.source_name or "default"
             if not source_rngs[source_name] then
                 if image.source_random_seed then
+                    -- Explicit per-source seed (Issue 10-030): a deliberate override,
+                    -- highest precedence -- like --seed beating config.
                     source_rngs[source_name] = create_seeded_rng(image.source_random_seed)
+                elseif MASTER_SEED then
+                    -- Issue 10-058: no explicit seed, so derive one deterministically
+                    -- from the build's master seed + this source's name. Reproducible
+                    -- by default -- the same master seed reorders this source the same
+                    -- way every build, with no per-source config needed.
+                    source_rngs[source_name] = create_seeded_rng(
+                        derive_source_seed(MASTER_SEED, source_name))
                 else
-                    -- Use system random (non-deterministic)
+                    -- No explicit seed AND no master seed (e.g. image-manager run
+                    -- standalone without --seed): fall back to the system RNG. This
+                    -- is NON-reproducible; per CLAUDE.md fallback policy run.sh always
+                    -- supplies --seed so the live pipeline never lands here.
+                    io.stderr:write(string.format(
+                        "[image-manager] WARNING: source '%s' randomized with the system RNG "
+                        .. "(no per-source random_seed and no --seed master seed) -- this build's "
+                        .. "image order is NOT reproducible.\n", source_name))
                     source_rngs[source_name] = math.random
                 end
             end
