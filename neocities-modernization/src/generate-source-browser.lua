@@ -267,6 +267,16 @@ local function sorted_keys(t)
 end
 -- }}}
 
+-- {{{ is_viewable_html()
+-- Issue 10-063: archived HTML pages (the word-cloud snapshots under archive/) are
+-- published as VIEWABLE pages, not as source text -- clicking one opens the rendered
+-- cloud. Scoped to archive/ so ordinary HTML elsewhere still renders as code.
+-- Defined before render_sidebar AND classify_file because both consult it.
+local function is_viewable_html(rel)
+    return (rel:match("^archive/") and rel:match("%.html$")) and true or false
+end
+-- }}}
+
 -- {{{ render_sidebar()
 -- Render the whole tree as nested <details> (collapsible, needs no JS). Dirs on
 -- the path to `current_rel` are opened so the reader sees where they are.
@@ -287,6 +297,14 @@ local function render_sidebar(node, current_rel, link_prefix, path_set, mirror_u
         local ext_url = mirror_url and mirror_url[f.rel]
         if here then
             out[#out + 1] = string.format('<div class="cur">%s</div>', label)
+        elseif is_viewable_html(f.rel) then
+            -- Issue 10-063: an archived HTML page (word-cloud snapshot) is published
+            -- as a real page, not a source view. Link straight to the copied .html
+            -- (no ".html" source-view suffix) and open it in a new tab -- an
+            -- external-style link that happens to point at an internal page.
+            out[#out + 1] = string.format(
+                '<a class="ext" href="%s" target="_blank" rel="noopener">%s</a>',
+                link_prefix .. f.rel, label)
         elseif ext_url then
             -- A saved page (Feature F) is a mirror of an article elsewhere; we host
             -- no copy. Its entry is an external link to the real page -- a new tab,
@@ -717,6 +735,9 @@ end
 -- sidebar still linked them -> a guaranteed 404; now an extensionless TEXT file
 -- renders as prose and only a genuine binary is skipped. Returns (kind, lang_id).
 local function classify_file(rel)
+    -- Issue 10-063: an archived HTML page is shown rendered (kind "view"), not as
+    -- highlighted source -- it is copied raw and the sidebar links straight to it.
+    if is_viewable_html(rel) then return "view" end
     local e, lang_id = ext(rel)
     if lang_id == "md" or TEXT_EXTS[e] == "md" then
         return "md"
@@ -821,6 +842,19 @@ local function main()
             -- Feature F: a saved page is listed in the tree but never written out
             -- -- its sidebar entry links to the original article on the web. There
             -- is nothing to render here; the out-link lives in render_sidebar.
+            goto continue
+        end
+
+        if f.kind == "view" then
+            -- Issue 10-063: an archived HTML page (a word-cloud snapshot) is copied
+            -- byte-for-byte into the source tree so the link resolves on the deployed
+            -- site (only output/source/ is uploaded). No source-view page is written
+            -- -- its sidebar entry (render_sidebar) opens this file directly, rendered.
+            if copy_raw(DIR .. "/" .. rel, out_root .. "/" .. rel) then
+                written = written + 1
+            else
+                write_failed[#write_failed + 1] = rel
+            end
             goto continue
         end
 
