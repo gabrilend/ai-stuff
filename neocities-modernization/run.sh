@@ -1563,6 +1563,19 @@ run_generate_html() {
 run_generate_wordcloud() {
     log_stage "🔤 Stage 10/10: Generating word-cloud menu and per-word pages"
 
+    # Issue 10-059/10-061: wipe the per-word pages before regenerating. A word that
+    # has fallen out of the cloud since the last build leaves an orphan page that the
+    # generator never overwrites -- and an orphan from before a link-scheme change
+    # ships BROKEN links (this is exactly how 134 stale "/similar-different/" pages
+    # survived into a relative-path build). The pages are fully regenerated from the
+    # current word set just below, so clearing every run (not only on --force) is
+    # safe and is the only way to guarantee no stale orphans. Matches the principle
+    # that each stage wipes its own output subdirectory before rebuilding it.
+    if [ -d "$DIR/output/wordcloud" ]; then
+        log_info "   Clearing stale per-word pages before regeneration..."
+        rm -f "$DIR/output/wordcloud/"*.html
+    fi
+
     # Word-cloud arguments. WORDCLOUD_WORDS is a number or "all"; --words carries
     # either ("--words all" == every word, per the generators).
     local wordcloud_words_arg=""
