@@ -320,10 +320,32 @@ This will regenerate both similarity files AND the rankings cache.
 end
 -- }}}
 
+-- {{{ local function media_href
+-- Where a file lives under output/media/, url-encoded for an <img src>/href.
+-- Art images (path under input/images/<source>/...) KEEP their source + subdir
+-- structure -- their human basenames collide (e.g. my-art/x.png vs
+-- my-art/game-design/x.png) and a flat output/media/<basename> would let one
+-- overwrite the other. Mastodon attachments (hashes, NOT under input/images/)
+-- keep just the basename. This MUST match flatten_media_files' target layout and
+-- image-render.lua's copy of this rule, or the src points at the wrong file.
+-- Slashes preserved; space / ? / # / % percent-encoded.
+local function media_href(path)
+    path = path or ""
+    local sub = path:match("input/images/(.+)$") or (path:match("([^/]+)$") or path)
+    return (sub:gsub("[^%w%-%._~/]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end))
+end
+-- }}}
+
 -- {{{ local function flatten_media_files
--- Issue 8-048: Flatten nested Mastodon media structure to simple output/media/ directory
--- This makes deployment to Neocities much easier (single flat directory vs 7+ levels deep)
--- Filenames are already unique (content-addressable hashes from Mastodon)
+-- Issue 8-048: Copy every configured image into output/media/ for easy deploy.
+-- TWO layouts, by species (kept in lockstep with media_href in the renderers):
+--   * Mastodon media: collapse the ~7-level content-addressed nesting to the
+--     bare hash basename (output/media/abc.png) -- unique already.
+--   * Art images (input/images/<source>/...): keep <source>/<subpath>
+--     (output/media/my-art/game-design/x.png), because human-given basenames
+--     collide across subdirs and a flat layout silently dropped the duplicates.
 -- Called once at start of HTML generation; skips files that already exist (idempotent)
 local media_flattening_done = false
 
@@ -391,22 +413,40 @@ local function flatten_media_files(output_dir)
         else
             sources_used = sources_used + 1
 
-            -- Find every file under the resolved source and flatten it into
-            -- output/media/<basename>. Mastodon-style nesting (~7 levels
-            -- deep) collapses to a single directory because filenames are
-            -- already unique (content-addressable).
+            -- Find every file under the resolved source and place it under
+            -- output/media/. TWO species, two layouts (must match media_href in
+            -- the renderers exactly, or the <img src> points at the wrong file):
+            --   * art sources (dir.path = input/images/<source>): keep
+            --     <source>/<subpath>, so two files that share a basename in
+            --     different subdirs (e.g. my-art/x.png and my-art/game-design/x.png)
+            --     stay distinct instead of one silently overwriting the other.
+            --   * everything else (Mastodon media, content-addressed hashes):
+            --     flatten to the bare basename -- already unique, and this
+            --     collapses the ~7-level Mastodon nesting.
+            local ns_prefix = dir.path and dir.path:match("^input/images/(.+)$") or nil
             local find_cmd = string.format('find "%s" -type f', resolved_path)
             local handle = io.popen(find_cmd)
             if handle then
                 for source_path in handle:lines() do
-                    local filename = source_path:match("([^/]+)$")
-                    if filename then
-                        local target_path = target_dir .. "/" .. filename
+                    -- this file's path within its own source dir (art subdirs kept)
+                    local within = source_path:sub(#resolved_path + 2)
+                    local target_sub
+                    if ns_prefix then
+                        target_sub = ns_prefix .. "/" .. within
+                    else
+                        target_sub = source_path:match("([^/]+)$")
+                    end
+                    if target_sub and target_sub ~= "" then
+                        local target_path = target_dir .. "/" .. target_sub
                         local exists_check = io.open(target_path, "r")
                         if exists_check then
                             exists_check:close()
                             skipped = skipped + 1
                         else
+                            -- create the subdirectory before copying (art paths
+                            -- now nest one or more levels under output/media/)
+                            local parent = target_path:match("^(.*)/[^/]+$")
+                            if parent then os.execute('mkdir -p "' .. parent .. '"') end
                             local cp_cmd = string.format('cp "%s" "%s"', source_path, target_path)
                             local success = os.execute(cp_cmd)
                             if success == 0 or success == true then
@@ -1453,16 +1493,22 @@ local function render_attachment_images(attachments)
     end
 
     local media_html = {}
-    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
+    -- "up to the site root" -- these attachments render on poem pages, which sit
+    -- one level below output/ (output/similar/, output/different/, ...), so a
+    -- "../" prefix reaches the root. Document-relative: resolves the same opened
+    -- locally from any folder or served on the site, so no path conversion step.
+    local base_path = ".."
 
     for _, attachment in ipairs(attachments) do
         local media_type = attachment.media_type or ""
-        -- Issue 8-048: Use flat output/media/ path structure for easier deployment
-        -- Extract basename from relative_path (e.g., "files/112/.../abc.png" -> "abc.png")
-        -- The convert-urls script handles conversion to production paths
+        -- Issue 8-048: media lives at output/media/<source>/<subpath> (see
+        -- flatten_media_files); media_href keeps art's source+subdir structure so
+        -- same-named pieces don't collide. "../media/" reaches it from a poem page.
         local relative_path = attachment.relative_path or ""
-        local basename = relative_path:match("([^/]+)$") or relative_path
-        local media_src = base_path .. "/output/media/" .. basename
+        -- media_href namespaces art by source+subdir (collision-safe) and
+        -- url-encodes; Mastodon hashes collapse to the bare name. Matches where
+        -- flatten_media_files placed the file.
+        local media_src = base_path .. "/media/" .. media_href(relative_path)
 
         if media_type:match("^image/") then
             -- Use alt text if available, otherwise generate generic description
@@ -2086,7 +2132,7 @@ local function format_single_poem_with_progress_and_color(poem, total_poems, poe
 
     -- Issue 8-012 Phase E: Link to paginated format (similar/0001-01.html)
     -- Issue 9-003: Use absolute file:// paths - helper script converts to production URLs
-    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+    local base_path = ".."
     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
     -- Issue 8-039: Chronological now in subdirectory
@@ -2733,7 +2779,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <h1>Poetry Collection</h1>
 <p>Poems in true chronological order by post date</p>
 %s
-<p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Menu</a></p>
+<p><a href="../wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2754,7 +2800,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 <center>
 <h1>Poetry Collection</h1>
 <p>All poems in true chronological order by post date</p>
-<p><a href="file:///home/ritz/programming/ai-stuff/neocities-modernization/output/wordcloud.html">Menu</a></p>
+<p><a href="../wordcloud.html">Menu</a></p>
 </center>
 <table align="center"><tr><td>
 <pre>
@@ -2808,7 +2854,7 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
 
             -- Navigation links (absolute paths for consistency)
             -- Issue 9-003: Use absolute file:// paths - helper script converts to production URLs
-            local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+            local base_path = ".."
             local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
             local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
             local chronological_link = nil  -- Issue 9-003 Fix C: No chronological link on chronological pages
@@ -3757,7 +3803,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
                     -- Navigation links (absolute paths for local testing)
                     -- Issue 9-003 Fix: Use absolute file:// paths - helper script converts to production URLs
-                    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization/output"
+                    local base_path = ".."
                     local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
                     local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
                     -- Issue 16-006: Use poem_index for simpler, machine-readable anchor format
@@ -3831,7 +3877,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         local output = { boost_formatted }
 
                         -- Handle media attachments for boosts (same logic as regular poems)
-                        local media_base = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
+                        local media_base = ".."
                         local has_media = false
                         local media_atts = {}
                         if poem.attachments and #poem.attachments > 0 then
@@ -3848,8 +3894,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                             table.insert(output, "</pre>")
                             for _, att in ipairs(media_atts) do
                                 local rpath = att.relative_path or ""
-                                local basename = rpath:match("([^/]+)$") or rpath
-                                local media_src = "/similar-different/media/" .. basename
+                                -- media_href: namespace art by source+subdir,
+                                -- url-encode (this is the path that previously
+                                -- emitted the raw broken "...TROUBLE-U-?...png"
+                                -- link on the similarity pages); Mastodon stays flat.
+                                local media_src = "../media/" .. media_href(rpath)
                                 local media_type = att.media_type or "image/png"
                                 if media_type:match("^image/") then
                                     local alt = att.description and att.description ~= "" and att.description or "Image attachment"
@@ -4045,7 +4094,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                     -- Issue 8-040: Render attached images if present (from ActivityPub extraction)
                     -- Images appear after poem content, before navigation links
                     -- Must be inline since worker thread can't access main scope functions
-                    local base_path = "file:///home/ritz/programming/ai-stuff/neocities-modernization"
+                    local base_path = ".."
 
                     -- Issue 8-049: Check if we have any media to render (images, audio, video)
                     -- Issue 9-010: Media stays with their original post only (no associated_images rendering)
@@ -4069,8 +4118,9 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
                         for _, attachment in ipairs(media_attachments) do
                             -- Issue 8-048: Use flat output/media/ path structure
                             local relative_path = attachment.relative_path or ""
-                            local basename = relative_path:match("([^/]+)$") or relative_path
-                            local media_src = base_path .. "/output/media/" .. basename
+                            -- media_href: namespace art by source+subdir (collision-
+                            -- safe) + url-encode; Mastodon hashes stay flat.
+                            local media_src = base_path .. "/media/" .. media_href(relative_path)
                             local media_type = attachment.media_type or ""
 
                             if media_type:match("^image/") then
