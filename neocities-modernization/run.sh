@@ -147,6 +147,11 @@ Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
   --poems-per-page N  Poems per page for similar/different (default: 200)
   --chrono-per-page N Poems per page for chronological (default: 500)
+  --seed N            Master seed for all randomization (word-cloud shuffle,
+                      image order). Same seed => identical output. Precedence:
+                      this flag > config.randomization.seed > an auto-generated
+                      seed. The resolved seed is recorded to
+                      output/generation-metadata.json. (Issue 10-058)
 
 Word Cloud:
   --wordcloud-words N Number of words in word cloud (default: 200);
@@ -253,6 +258,13 @@ MODEL_NAME="nomic-embed-text-v1.5"
 PAGES=""
 POEMS_PER_PAGE=""
 
+# Issue 10-058: master seed for all randomization. Empty here means "no --seed on
+# the command line"; the resolver below then falls back to config.randomization.seed
+# and finally to an auto-generated, recorded seed. RANDOM_SEED is the resolved value.
+RANDOM_SEED_FLAG=""
+RANDOM_SEED=""
+RANDOM_SEED_SOURCE=""
+
 # Issue 8-043: Word cloud configuration
 # Word-cloud word count: a number, or the literal "all" for every word. Both the
 # CLI (--wordcloud-words all) and the menu's "All Words" checkbox set this single
@@ -307,6 +319,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         --threads=*)
             THREADS="${1#*=}"
+            shift
+            ;;
+        # Issue 10-058: master seed for all randomization. Highest precedence,
+        # overrides config.randomization.seed. Resolved + recorded after DIR setup.
+        --seed)
+            RANDOM_SEED_FLAG="$2"
+            shift 2
+            ;;
+        --seed=*)
+            RANDOM_SEED_FLAG="${1#*=}"
             shift
             ;;
         --force)
@@ -759,6 +781,85 @@ symbol_warning() {
 }
 # }}}
 
+# {{{ Issue 10-058: resolve + record the build's master seed
+# A single integer governs every randomization site this run (the word-cloud
+# shuffle and image-order randomization). Resolved here -- after arg parsing and
+# DIR setup, before any stage -- with this precedence (highest first):
+#   1. --seed N on the command line
+#   2. config.randomization.seed in config.lua
+#   3. an auto-generated seed (so an unseeded build is still reproducible after
+#      the fact, because we RECORD whatever we resolve)
+# The resolved seed is logged, written to output/generation-metadata.json, and
+# threaded to each randomizing subprocess as "--seed=N".
+
+# {{{ resolve_random_seed()
+resolve_random_seed() {
+    if [ -n "$RANDOM_SEED_FLAG" ]; then
+        RANDOM_SEED="$RANDOM_SEED_FLAG"
+        RANDOM_SEED_SOURCE="cli (--seed)"
+        return
+    fi
+    # config.lua is a static `return {...}` table, so dofile reads it without the
+    # Lua config-loader. pcall guards a malformed config (empty => fall through).
+    local cfg_seed
+    cfg_seed=$(luajit -e 'local ok,c=pcall(dofile,"'"$DIR"'/config.lua"); if ok and type(c)=="table" and c.randomization and c.randomization.seed then io.write(tostring(c.randomization.seed)) end')
+    if [ -n "$cfg_seed" ]; then
+        RANDOM_SEED="$cfg_seed"
+        RANDOM_SEED_SOURCE="config.lua (randomization.seed)"
+        return
+    fi
+    # Auto: mix epoch seconds with the PID so two runs in the same second differ;
+    # fold to a 31-bit non-negative int so it round-trips through CLI/JSON/randomseed.
+    RANDOM_SEED=$(( ($(date +%s) * 100000 + $$) % 2147483647 ))
+    RANDOM_SEED_SOURCE="auto-generated"
+}
+# }}}
+
+resolve_random_seed
+
+# No fallback on a bad value: a malformed seed is a hard error, because silently
+# substituting a random one would defeat the reproducibility this whole feature buys.
+case "$RANDOM_SEED" in
+    ''|*[!0-9]*)
+        echo "ERROR: resolved random seed '$RANDOM_SEED' is not a non-negative integer." >&2
+        echo "       Fix --seed or config.randomization.seed and re-run." >&2
+        exit 1
+        ;;
+esac
+
+# The argument every randomizing subprocess receives. Equals-form on purpose: the
+# bare number can never be mistaken for a positional DIR by a child's arg parser.
+RANDOM_SEED_ARG="--seed=$RANDOM_SEED"
+log_info "🎲 Random seed: $RANDOM_SEED (source: $RANDOM_SEED_SOURCE)"
+
+# {{{ write_generation_metadata()
+# The canonical "which seed made this build?" record. A small JSON at the output
+# root; written early (so an interrupted build still leaves it) and at the root
+# (so per-stage clears, which only touch output/ subdirs, never wipe it).
+write_generation_metadata() {
+    local out_dir="${OUTPUT_DIR:-$DIR/output}"
+    mkdir -p "$out_dir"
+    local generated_at
+    generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    cat > "$out_dir/generation-metadata.json" <<EOF
+{
+  "seed": $RANDOM_SEED,
+  "seed_source": "$RANDOM_SEED_SOURCE",
+  "generated_at": "$generated_at",
+  "pages": "${PAGES:-default}",
+  "poems_per_page": "${POEMS_PER_PAGE:-default}"
+}
+EOF
+}
+# }}}
+
+if $DRY_RUN; then
+    log_dry_run "write $DIR/output/generation-metadata.json (seed $RANDOM_SEED)"
+else
+    write_generation_metadata
+fi
+# }}}
+
 # {{{ Stage execution functions
 
 # {{{ run_update_words
@@ -881,11 +982,11 @@ run_catalog_images() {
     $VERBOSE && VERBOSE_ARG="--verbose"
 
     if $DRY_RUN; then
-        log_dry_run "luajit src/main.lua $DIR --catalog-only $VERBOSE_ARG $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua $DIR --catalog-only $VERBOSE_ARG $ASSETS_ARG $RANDOM_SEED_ARG"
         return 0
     fi
 
-    luajit src/main.lua "$DIR" --catalog-only $VERBOSE_ARG $ASSETS_ARG || {
+    luajit src/main.lua "$DIR" --catalog-only $VERBOSE_ARG $ASSETS_ARG $RANDOM_SEED_ARG || {
         echo "Error: Image cataloging failed" >&2
         exit 1
     }
@@ -1426,7 +1527,7 @@ run_generate_html() {
 
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG"
         log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg"
         log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
@@ -1444,7 +1545,7 @@ run_generate_html() {
     # to the SAME chronological pages main.lua just built (separate processes
     # must agree on page size, or every #poem link lands on the wrong page).
     log_info "   Generating word cloud menu..."
-    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_words_arg $chrono_per_page_arg || {
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG || {
         echo "Warning: Word cloud menu generation failed, continuing..." >&2
     }
 

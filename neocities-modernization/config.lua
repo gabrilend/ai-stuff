@@ -236,6 +236,28 @@ return {
     },
     -- }}}
 
+    -- {{{ randomization
+    -- Issue 10-058: One master seed governs every randomization site in a build.
+    -- Today that is the word-cloud word shuffle (src/wordcloud-generator.lua) and
+    -- the image-order randomization for any source that does not pin its own
+    -- per-source random_seed (src/image-manager.lua). Reproducibility needs two
+    -- things: (a) all randomness flowing from ONE known seed, and (b) that seed
+    -- recorded somewhere durable. run.sh resolves the seed -- precedence is the
+    -- --seed CLI flag > this config value > an auto-generated seed -- and records
+    -- the resolved value to output/generation-metadata.json and the run log, so a
+    -- build is always answerable to "which seed produced this?".
+    --
+    --   seed = nil  => run.sh invents a seed each build and RECORDS it, so even a
+    --                  build nobody thought to seed is reproducible after the fact.
+    --   seed = N    => a fixed non-negative integer pins the build: the same seed
+    --                  over the same inputs yields byte-identical shuffled output.
+    --
+    -- A `--seed N` on the run.sh command line overrides this value for one run.
+    randomization = {
+        seed = nil,
+    },
+    -- }}}
+
     -- {{{ excluded_poems
     -- Issue 6-031: Poems to exclude from the collection during extraction.
     -- Excluded poems leave gaps in the ID sequence (tombstoning) - they don't

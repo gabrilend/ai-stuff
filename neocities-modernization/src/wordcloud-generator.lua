@@ -29,11 +29,20 @@ local function parse_args(args)
     local all_words = false
     local max_words = nil  -- nil means use config default
     local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
+    local seed = nil  -- Issue 10-058: master seed for the shuffle; nil => auto at startup
     local i = 1
     while i <= #(args or {}) do
         local a = args[i]
         if a == "--all" then
             all_words = true
+            i = i + 1
+        elseif a == "--seed" then
+            -- Issue 10-058: the build's master seed, threaded from run.sh so the
+            -- word order is reproducible. Both "--seed N" and "--seed=N" forms.
+            seed = tonumber(args[i + 1])
+            i = i + 2
+        elseif a:match("^--seed=") then
+            seed = tonumber(a:match("^--seed=(.+)$"))
             i = i + 1
         elseif a == "--words" then
             -- Accept "all" as a synonym for --all (the two flags are combined).
@@ -60,12 +69,37 @@ local function parse_args(args)
             i = i + 1
         end
     end
-    return dir, all_words, max_words, chrono_per_page
+    return dir, all_words, max_words, chrono_per_page, seed
 end
 -- }}}
 
-local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE = parse_args(arg)
+local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED = parse_args(arg)
 local DIR = setup_dir_path(provided_dir)
+
+-- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
+-- The word shuffle used to call math.randomseed(os.time()) inside the shuffle on
+-- every invocation -- non-reproducible (the seed was never recorded) and, because
+-- os.time() has 1-second resolution, two shuffles in the same second drew the SAME
+-- "random" order. Now the seed is resolved once here and the shuffle just consumes
+-- the already-seeded stream.
+--   --seed N  => run.sh passes the build's recorded master seed (the normal path).
+--   no flag   => standalone run: invent a seed from the clock mixed with the PID
+--                (so back-to-back same-second runs differ) and LOG it, since here
+--                there is no run.sh to record it to generation-metadata.json.
+local MASTER_SEED = CLI_SEED
+if not MASTER_SEED then
+    -- LuaJIT has no portable getpid(), so for the per-process entropy that keeps
+    -- two same-second runs from drawing the same seed we use the hex address of a
+    -- fresh table -- distinct per process like a PID would be. Mixed with the
+    -- 1-second clock and folded into a 31-bit non-negative int (run.sh's range).
+    local process_unique_bits = tonumber(tostring({}):match("0x(%x+)") or "0", 16) or 0
+    MASTER_SEED = (os.time() * 100000 + process_unique_bits) % 2147483647
+    io.stderr:write(string.format(
+        "[wordcloud] no --seed given; using auto seed %d (pass --seed N to reproduce)\n",
+        MASTER_SEED))
+end
+math.randomseed(MASTER_SEED)
+-- }}}
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
@@ -434,8 +468,10 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     local shuffled = {}
     for i, w in ipairs(words) do shuffled[i] = w end
 
-    -- Fisher-Yates shuffle
-    math.randomseed(os.time())
+    -- Fisher-Yates shuffle. Issue 10-058: the RNG was seeded ONCE at startup from
+    -- the resolved master seed (MASTER_SEED) -- do NOT re-seed here. Re-seeding per
+    -- call from os.time() (the old behaviour) was non-reproducible AND, at 1-second
+    -- clock resolution, gave two same-second builds the identical "random" order.
     for i = #shuffled, 2, -1 do
         local j = math.random(i)
         shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
@@ -483,12 +519,15 @@ local function generate_wordcloud_html(words, output_dir, poems_data)
     local font_style = [[<style>body, pre { font-family: 'Hack Nerd Font', 'Hack', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Liberation Mono', 'Courier New', monospace; }
 td { text-align: center; } pre { display: inline-block; text-align: left; margin: 0 auto; } img, video, audio { margin-left: auto; margin-right: auto; }</style>]]
     local html = string.format([[<!DOCTYPE html>
+<!-- Issue 10-058: word order shuffled with master seed %d. Re-run with
+     --seed %d (or set randomization.seed in config.lua) to reproduce this exact
+     word cloud. The canonical record is output/generation-metadata.json. -->
 <html>
 <head>
 <meta charset="UTF-8">
 <title>Menu - Poetry Collection</title>
 %s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], font_style) .. string.format([[
+<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">]], MASTER_SEED, MASTER_SEED, font_style) .. string.format([[
 
 <center>
 <h1>Menu</h1>
@@ -569,7 +608,7 @@ end
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
     if arg[1] == "--help" or arg[1] == "-h" then
-        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N]")
+        print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N]")
         print("")
         print("Generates a word cloud HTML page from the poetry collection.")
         print("Words are sized by frequency, with stop words filtered out.")
@@ -581,6 +620,10 @@ if arg and #arg >= 0 and debug.getinfo(3) == nil then
         print("                       chronological pages were built with, or poem links")
         print("                       point at the wrong page. Defaults to the config value.")
         print("  --words N  Set maximum words to display (default: 200 from config)")
+        print("  --seed N             Master seed for the word shuffle (Issue 10-058).")
+        print("                       Same seed => identical word order. Normally passed")
+        print("                       by run.sh; if omitted a seed is auto-generated and")
+        print("                       logged to stderr.")
         print("  --help     Show this help message")
         os.exit(0)
     end
