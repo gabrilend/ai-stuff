@@ -1,5 +1,20 @@
 # Issue 8-048: Flatten Media Directory Structure for Neocities Deployment
 
+## Update (2026-06-26): path strategy superseded
+
+The flat-basename layout below assumed every media filename is unique (true for
+Mastodon's content-addressed hashes). Once human-authored ART images entered, that
+assumption broke: two art files sharing a basename in different subdirs (e.g.
+`my-art/x.png` and `my-art/game-design/x.png`) both flattened to
+`output/media/x.png`, silently overwriting one. The deployment path strategy is now
+**collision-safe and document-relative**: art images keep their `<source>/<subpath>`
+under `output/media/`, Mastodon hashes still flatten, every link is URL-encoded, and
+absolute `file://` paths were replaced by `../` relative ones (so the `convert-urls`
+step in step 66 below is gone). The shared rule lives in `media_href()`
+(`src/flat-html-generator.lua`, mirrored in `src/image-render.lua` and
+`src/generate-gallery-pages.lua`). See the commit "route every image link through one
+collision-safe, relative rule". The flat-only design described below is historical.
+
 ## Priority
 High
 
