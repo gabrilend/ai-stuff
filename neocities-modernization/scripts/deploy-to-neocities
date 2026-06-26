@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# deploy-to-neocities — publish the poetry site's output/ to the LIVE Neocities
+# site's similar-different/ section, over the Neocities HTTPS API.
+#
+# For the general reader: the generated website lives in output/. The public site
+# has one section at similar-different/. This copies the freshly built pages up to
+# THAT section and only that section -- it never touches the rest of the live site.
+# It stages the upload in RAM (tmp/, off the SSD), shows exactly what will change,
+# and asks before anything goes live. The API key comes from the existing neocities
+# config; no davfs mount is involved.
+#
+# Why a staging copy: `neocities push` uploads a directory to the SITE ROOT and has
+# no option to target a subdirectory. To make files land under similar-different/,
+# we push a directory that itself contains similar-different/. So output/ is mirrored
+# into <tmp>/neocities-deploy/similar-different/ (in RAM) and THAT is pushed. The
+# copy also drops internal build artifacts (debug logs, the diversity cache binary)
+# that live in output/ but must not ship.
+#
+# Usage:
+#   scripts/deploy-to-neocities [DIR] [--dry-run] [--yes] [--mirror]
+#     DIR         project root (default below; pass another path to run elsewhere)
+#     --dry-run   show what would upload; change NOTHING on the live site
+#     --yes, -y   skip the confirmation prompt (unattended use)
+#     --mirror    delete the remote similar-different/ FIRST, then upload -- a clean
+#                 slate that also removes remote files no longer in output/. Without
+#                 it the push is incremental: only changed/new files upload, and
+#                 stale remote files under similar-different/ are left in place.
+
+set -euo pipefail
+
+# {{{ print_usage()
+print_usage() {
+    cat <<'EOF'
+deploy-to-neocities — publish output/ to the live Neocities site's
+similar-different/ section (over the Neocities HTTPS API; no davfs mount).
+
+Usage:
+  scripts/deploy-to-neocities [DIR] [--dry-run] [--yes] [--mirror]
+
+Arguments:
+  DIR          Project root (default: the hard-coded path; pass another to
+               run from anywhere).
+
+Options:
+  --dry-run    Stage the upload and show what WOULD change; touch nothing live.
+  --yes, -y    Skip the confirmation prompt (unattended use).
+  --mirror     Delete the remote similar-different/ first, then upload — a clean
+               slate that also removes remote files no longer in output/. Without
+               it the push is incremental (only changed/new files upload).
+  --help, -h   Show this help and exit.
+
+What it does:
+  Mirrors output/ into a RAM staging dir (tmp/, off the SSD), excluding internal
+  build artifacts (debug-logs/, diversity-cache-gpu-batch.bin), then pushes it so
+  the files land under similar-different/ — and ONLY that section; the rest of the
+  live site is never touched. It previews changes and asks before going live. The
+  API key is read from ~/.config/neocities/config.json (or $NEOCITIES_API_KEY).
+EOF
+}
+# }}}
+
+# {{{ DIR + flag parsing
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+DRY_RUN=false; ASSUME_YES=false; MIRROR=false
+for a in "$@"; do
+    case "$a" in
+        --help|-h) print_usage; exit 0 ;;
+        --dry-run) DRY_RUN=true ;;
+        --yes|-y)  ASSUME_YES=true ;;
+        --mirror)  MIRROR=true ;;
+        -*) echo "deploy-to-neocities: unknown flag '$a' (try --help)" >&2; exit 1 ;;
+        *)  DIR="$a" ;;
+    esac
+done
+
+REMOTE_DIR="similar-different"      # the ONLY live-site section this script writes
+OUTPUT_DIR="${DIR}/output"
+# Internal build artifacts that live in output/ but must never reach the public site.
+# rsync excludes are anchored with a leading "/" so they match only at output/'s root.
+RSYNC_EXCLUDES=( --exclude=/debug-logs/ --exclude=/diversity-cache-gpu-batch.bin )
+STAGING_ROOT=""                    # set in build_staging; referenced by the cleanup trap
+# }}}
+
+# {{{ die()
+die() { echo "deploy-to-neocities: $*" >&2; exit 1; }
+# }}}
+
+# {{{ load_api_key() — export NEOCITIES_API_KEY from the existing config (never printed)
+load_api_key() {
+    [ -n "${NEOCITIES_API_KEY:-}" ] && return    # already provided via the environment
+    local cfg="${HOME}/.config/neocities/config.json"
+    [ -f "$cfg" ] || die "no API key: set NEOCITIES_API_KEY or create ${cfg}"
+    NEOCITIES_API_KEY="$(jq -r '.API_KEY // empty' "$cfg")"
+    [ -n "$NEOCITIES_API_KEY" ] || die "no API_KEY field in ${cfg}"
+    export NEOCITIES_API_KEY
+}
+# }}}
+
+# {{{ build_staging() — mirror output/ into the RAM staging dir under similar-different/
+# A real copy (not hardlinks): the destination is tmpfs, a different filesystem, so
+# hardlinks can't cross into it -- but the copy is into RAM, so it never hits the SSD.
+build_staging() {
+    local tmp="$1"
+    STAGING_ROOT="${tmp}/neocities-deploy"
+    local dest="${STAGING_ROOT}/${REMOTE_DIR}"
+    rm -rf "$STAGING_ROOT"
+    mkdir -p "$dest"
+    rsync -a "${RSYNC_EXCLUDES[@]}" "${OUTPUT_DIR}/" "${dest}/" || die "staging copy failed"
+}
+# }}}
+
+# --- resolve tools + inputs -------------------------------------------------------
+
+# Locate the neocities CLI even when the user-gem bin dir is not on PATH.
+NEOCITIES="$(command -v neocities 2>/dev/null || true)"
+[ -n "$NEOCITIES" ] || NEOCITIES="$(ruby -e 'print Gem.user_dir' 2>/dev/null)/bin/neocities"
+[ -x "$NEOCITIES" ] || die "neocities CLI not found (install: gem install --user-install neocities)"
+
+load_api_key
+[ -d "$OUTPUT_DIR" ] || die "no output/ at ${OUTPUT_DIR} -- run the pipeline first"
+[ -n "$(ls -A "$OUTPUT_DIR" 2>/dev/null)" ] || die "output/ is empty -- nothing to deploy"
+
+# RAM-backed tmp/ (a reboot wipes the tmpfs target, so recreate it before writing).
+[ -x "${DIR}/scripts/ensure-tmp-symlink" ] && "${DIR}/scripts/ensure-tmp-symlink" "$DIR" >/dev/null 2>&1 || true
+TMP="$(readlink -f "${DIR}/tmp" 2>/dev/null || echo "${DIR}/tmp")"
+mkdir -p "$TMP" || die "cannot create tmp target ${TMP}"
+LOG="${TMP}/deploy-to-neocities.log"
+
+# Always clear the RAM staging when we exit, however we exit.
+trap 'rm -rf "${STAGING_ROOT:-/nonexistent}"' EXIT
+
+# --- stage + preview --------------------------------------------------------------
+
+echo "Staging output/ into RAM (excluding internal artifacts) ..."
+build_staging "$TMP"
+staged_files=$(find "${STAGING_ROOT}/${REMOTE_DIR}" -type f | wc -l)
+staged_size=$(du -sh "${STAGING_ROOT}/${REMOTE_DIR}" | cut -f1)
+echo "Staged ${staged_files} files (${staged_size}) destined for ${REMOTE_DIR}/"
+
+# The exact change-list comes from `neocities push --dry-run`, but the client works
+# at roughly one file per network round-trip (~7-8/sec), so on a large delta -- a
+# first/full deploy of tens of thousands of files -- that preview alone takes the
+# better part of an hour. So the full dry-run runs ONLY under --dry-run; the normal
+# path shows the fast staged summary and lets the real push report its own progress.
+if $DRY_RUN; then
+    echo
+    echo "=== DRY RUN: exact changes vs the live site (slow for large deltas) ==="
+    preview="$("$NEOCITIES" push --no-gitignore --dry-run "$STAGING_ROOT" 2>&1 || true)"
+    changed=$(printf '%s\n' "$preview" | grep -c "Uploading" || true)
+    printf '%s\n' "$preview" | grep "Uploading" | head -10
+    [ "${changed:-0}" -gt 10 ] && echo "  ... and $((changed-10)) more"
+    echo "${changed} file(s) would upload to ${REMOTE_DIR}/. Nothing was deployed."
+    exit 0
+fi
+
+echo
+if $MIRROR; then
+    echo "MIRROR: will DELETE the remote ${REMOTE_DIR}/ entirely, then upload all ${staged_files} staged files."
+else
+    echo "Will push to ${REMOTE_DIR}/: up to ${staged_files} files (only those whose"
+    echo "contents differ from the live site actually upload). A first/full deploy of"
+    echo "this many files can take ~an hour at the client's upload rate."
+fi
+
+# --- confirmation gate (the live site is public + outward-facing) -----------------
+
+if ! $ASSUME_YES; then
+    echo
+    read -r -p "Deploy to the LIVE site's ${REMOTE_DIR}/ now? [y/N] " ans
+    [[ "$ans" == "y" || "$ans" == "Y" ]] || { echo "Aborted; nothing deployed."; exit 0; }
+fi
+
+printf 'deploy %s : staged=%s mirror=%s\n' "$(date -u +%FT%TZ)" "$staged_files" "$MIRROR" >> "$LOG"
+
+# --- deploy -----------------------------------------------------------------------
+
+if $MIRROR; then
+    echo "Clearing remote ${REMOTE_DIR}/ for a clean mirror ..."
+    if "$NEOCITIES" list "$REMOTE_DIR" >/dev/null 2>&1; then
+        "$NEOCITIES" delete "$REMOTE_DIR" || die "remote delete of ${REMOTE_DIR}/ failed"
+    fi
+fi
+
+echo "Uploading to ${REMOTE_DIR}/ (this can take a while on a first/full deploy) ..."
+"$NEOCITIES" push --no-gitignore "$STAGING_ROOT" || die "push failed"
+
+echo "Done. Deployed ${staged_files} files to the live ${REMOTE_DIR}/  (log: ${LOG})"
