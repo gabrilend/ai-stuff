@@ -383,7 +383,12 @@ local function flatten_media_files(output_dir)
     local sources_used = 0
 
     for _, dir in ipairs(image_dirs) do
-        local internal_path = DIR .. "/" .. dir.path
+        -- sources-loader's resolve_path already returns an ABSOLUTE path (it
+        -- prepends the project root to relative config entries), so use dir.path
+        -- directly. Prepending DIR again produced a doubled "/root//root/..." path
+        -- that never resolved, so every source looked "missing" -- which the
+        -- mandatory-source check below then turned into a fatal stage-9 failure.
+        local internal_path = dir.path
         local external_path = dir.external and dir.external.source or nil
         local resolved_path = nil
 
@@ -416,14 +421,17 @@ local function flatten_media_files(output_dir)
             -- Find every file under the resolved source and place it under
             -- output/media/. TWO species, two layouts (must match media_href in
             -- the renderers exactly, or the <img src> points at the wrong file):
-            --   * art sources (dir.path = input/images/<source>): keep
+            --   * art sources (path .../input/images/<source>): keep
             --     <source>/<subpath>, so two files that share a basename in
             --     different subdirs (e.g. my-art/x.png and my-art/game-design/x.png)
             --     stay distinct instead of one silently overwriting the other.
             --   * everything else (Mastodon media, content-addressed hashes):
             --     flatten to the bare basename -- already unique, and this
             --     collapses the ~7-level Mastodon nesting.
-            local ns_prefix = dir.path and dir.path:match("^input/images/(.+)$") or nil
+            -- No leading-^ anchor: dir.path is absolute (see above), so we match the
+            -- "input/images/<rest>" tail wherever it appears -- the same tail
+            -- media_href() extracts in the renderers, keeping the two layouts identical.
+            local ns_prefix = dir.path and dir.path:match("input/images/(.+)$") or nil
             local find_cmd = string.format('find "%s" -type f', resolved_path)
             local handle = io.popen(find_cmd)
             if handle then
