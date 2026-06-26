@@ -15,8 +15,8 @@
 #   6. Embeddings       - Generate poem embeddings via the inference server (~2-3 hours)
 #   7. Similarity       - Build similarity matrix (~30 min)
 #   8. Diversity        - Pre-compute diversity cache (~42 hours)
-#   9. Generate HTML    - Generate website HTML pages
-#  10. Generate Index   - Generate numeric similarity index
+#   9. Generate HTML    - Generate poem pages, gallery, and source browser
+#  10. Generate WordCloud - Generate the word-cloud menu and per-word pages
 #
 # Stages are selected individually with named flags (--extract,
 # --generate-diversity, etc.) or by stage number (--stage 8,
@@ -130,8 +130,8 @@ Pipeline Stages (run in order, multiple can be specified):
   --generate-embeddings Stage 6:  Generate embeddings via the inference server (~2-3 hours)
   --generate-similarity Stage 7:  Build similarity matrix (~30 min)
   --generate-diversity  Stage 8:  Pre-compute diversity cache (~42 hours)
-  --generate-html       Stage 9:  Generate website HTML pages
-  --generate-index      Stage 10: Generate numeric similarity index
+  --generate-html       Stage 9:  Generate poem pages, gallery, source browser
+  --generate-wordcloud  Stage 10: Generate word-cloud menu and per-word pages
 
 Stage Selection:
   --stage N           Select stage by number (e.g. --stage 8, --stage=5)
@@ -225,7 +225,7 @@ GENERATE_EMBEDDINGS=false
 GENERATE_SIMILARITY=false
 GENERATE_DIVERSITY=false
 GENERATE_HTML=false
-GENERATE_INDEX=false
+GENERATE_WORDCLOUD=false
 
 # Config flags
 THREADS=""
@@ -540,8 +540,8 @@ while [[ $# -gt 0 ]]; do
             STAGE_FLAG_SET=true
             shift
             ;;
-        --generate-index)
-            GENERATE_INDEX=true
+        --generate-wordcloud)
+            GENERATE_WORDCLOUD=true
             STAGE_FLAG_SET=true
             shift
             ;;
@@ -549,7 +549,7 @@ while [[ $# -gt 0 ]]; do
         # Stage map (numeric): 1=update-words, 2=extract, 3=parse,
         # 4=validate, 5=catalog-images, 6=generate-embeddings,
         # 7=generate-similarity, 8=generate-diversity, 9=generate-html,
-        # 10=generate-index. Can be repeated (e.g. --stage 6 --stage 7).
+        # 10=generate-wordcloud. Can be repeated (e.g. --stage 6 --stage 7).
         --stage)
             case "$2" in
                 1) UPDATE_WORDS=true ;;
@@ -561,7 +561,7 @@ while [[ $# -gt 0 ]]; do
                 7) GENERATE_SIMILARITY=true ;;
                 8) GENERATE_DIVERSITY=true ;;
                 9) GENERATE_HTML=true ;;
-                10) GENERATE_INDEX=true ;;
+                10) GENERATE_WORDCLOUD=true ;;
                 *) echo "Error: --stage expects a number 1-10, got: $2" >&2; exit 1 ;;
             esac
             STAGE_FLAG_SET=true
@@ -579,7 +579,7 @@ while [[ $# -gt 0 ]]; do
                 7) GENERATE_SIMILARITY=true ;;
                 8) GENERATE_DIVERSITY=true ;;
                 9) GENERATE_HTML=true ;;
-                10) GENERATE_INDEX=true ;;
+                10) GENERATE_WORDCLOUD=true ;;
                 *) echo "Error: --stage expects a number 1-10, got: $STAGE_NUM" >&2; exit 1 ;;
             esac
             STAGE_FLAG_SET=true
@@ -596,7 +596,7 @@ while [[ $# -gt 0 ]]; do
             GENERATE_SIMILARITY=true
             GENERATE_DIVERSITY=true
             GENERATE_HTML=true
-            GENERATE_INDEX=true
+            GENERATE_WORDCLOUD=true
             STAGE_FLAG_SET=true
             shift
             ;;
@@ -1512,23 +1512,8 @@ run_generate_html() {
         chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
     fi
 
-    # Issue 8-043: Word cloud arguments. WORDCLOUD_WORDS is a number or "all";
-    # --words carries either ("--words all" == every word, per the generators).
-    local wordcloud_words_arg=""
-    if [ -n "$WORDCLOUD_WORDS" ]; then
-        wordcloud_words_arg="--words $WORDCLOUD_WORDS"
-    fi
-
-    # Issue 8-050d: Poems per word-cloud page
-    local wordcloud_poems_arg=""
-    if [ -n "$WORDCLOUD_POEMS" ]; then
-        wordcloud_poems_arg="--poems-per-page $WORDCLOUD_POEMS"
-    fi
-
     if $DRY_RUN; then
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg"
         log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
         return 0
@@ -1540,19 +1525,9 @@ run_generate_html() {
         exit 1
     }
 
-    # Issue 8-043b: Generate word cloud pages (part of HTML stage)
-    # Issue 10-036: thread chrono_per_page so the word-cloud poem links paginate
-    # to the SAME chronological pages main.lua just built (separate processes
-    # must agree on page size, or every #poem link lands on the wrong page).
-    log_info "   Generating word cloud menu..."
-    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG || {
-        echo "Warning: Word cloud menu generation failed, continuing..." >&2
-    }
-
-    log_info "   Generating word similarity pages..."
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg || {
-        echo "Warning: Word similarity page generation failed, continuing..." >&2
-    }
+    # Issue 10-059: the word-cloud menu and per-word similarity pages moved to their
+    # own stage 10 (run_generate_wordcloud). They run after this stage, so the
+    # chronological pages main.lua just built are already present for their #poem links.
 
     # Issue 10-042: Build the image gallery (masonry pages per source + index +
     # chronological). It was previously a separate manual step, so the gallery
@@ -1579,17 +1554,53 @@ run_generate_html() {
 }
 # }}}
 
-# {{{ run_generate_index
-run_generate_index() {
-    log_stage "🔢 Stage 10/10: Generating numeric similarity index"
+# {{{ run_generate_wordcloud
+# Issue 10-059: the word-cloud stage. Builds the site's entry menu (which carries the
+# live poem index) and the per-word similarity pages. Runs after stage 9, so the
+# chronological pages its #poem links target already exist. Replaces the retired
+# numeric-similarity-index stage, whose output (numeric-index.html) was linked from
+# nowhere and was superseded by the menu's embedded poem index.
+run_generate_wordcloud() {
+    log_stage "🔤 Stage 10/10: Generating word-cloud menu and per-word pages"
+
+    # Word-cloud arguments. WORDCLOUD_WORDS is a number or "all"; --words carries
+    # either ("--words all" == every word, per the generators).
+    local wordcloud_words_arg=""
+    if [ -n "$WORDCLOUD_WORDS" ]; then
+        wordcloud_words_arg="--words $WORDCLOUD_WORDS"
+    fi
+
+    # Issue 8-050d: Poems per word-cloud page
+    local wordcloud_poems_arg=""
+    if [ -n "$WORDCLOUD_POEMS" ]; then
+        wordcloud_poems_arg="--poems-per-page $WORDCLOUD_POEMS"
+    fi
+
+    # Issue 10-036: thread chrono_per_page so the word-cloud poem links paginate to
+    # the SAME chronological pages stage 9 built (separate processes must agree on
+    # page size, or every #poem link lands on the wrong page).
+    local chrono_per_page_arg=""
+    if [ -n "$CHRONO_PER_PAGE" ]; then
+        chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
+    fi
 
     if $DRY_RUN; then
-        log_dry_run "lua $DIR/scripts/generate-numeric-index $DIR $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg"
         return 0
     fi
 
-    lua "$DIR/scripts/generate-numeric-index" "$DIR" $ASSETS_ARG > /dev/null || {
-        echo "Error: Numeric index generation failed" >&2
+    # The word cloud IS the site's menu (and carries the live poem index), so a
+    # failure here is fatal, not a warning -- there is no usable entry page without it.
+    log_info "   Generating word cloud menu..."
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" "$DIR" $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG || {
+        echo "Error: Word cloud menu generation failed" >&2
+        exit 1
+    }
+
+    log_info "   Generating word similarity pages..."
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg || {
+        echo "Error: Word similarity page generation failed" >&2
         exit 1
     }
 }
@@ -1676,9 +1687,9 @@ interactive_mode_tui() {
     menu_add_item "stages" "force_generate_html" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 9"
 
-    menu_add_item "stages" "generate_index" "10. Generate Index" "checkbox" "1" \
-        "Generate numeric similarity index" "" "--generate-index"
-    menu_add_item "stages" "force_generate_index" "    ↳ Force regenerate" "checkbox" "0" \
+    menu_add_item "stages" "generate_wordcloud" "10. Generate Word Cloud" "checkbox" "1" \
+        "Generate the word-cloud menu and per-word similarity pages" "" "--generate-wordcloud"
+    menu_add_item "stages" "force_generate_wordcloud" "    ↳ Force regenerate" "checkbox" "0" \
         "Force regenerate this stage only" "" "--force-stage 10"
 
     # Issue 10-016: Dependencies - per-stage force options disabled when global force is checked
@@ -1701,7 +1712,7 @@ interactive_mode_tui() {
         "Disabled: global force is active" "orange"
     menu_add_dependency "force_generate_html" "force" "1" "true" \
         "Disabled: global force is active" "orange"
-    menu_add_dependency "force_generate_index" "force" "1" "true" \
+    menu_add_dependency "force_generate_wordcloud" "force" "1" "true" \
         "Disabled: global force is active" "orange"
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1775,7 +1786,7 @@ interactive_mode_tui() {
             local similarity_val=$(menu_get_value "generate_similarity")
             local diversity_val=$(menu_get_value "generate_diversity")
             local html_val=$(menu_get_value "generate_html")
-            local index_val=$(menu_get_value "generate_index")
+            local wordcloud_stage_val=$(menu_get_value "generate_wordcloud")
             local threads_val=$(menu_get_value "threads")
             # Issue 8-022: Get pagination values from TUI
             local pages_val=$(menu_get_value "pages")
@@ -1792,7 +1803,7 @@ interactive_mode_tui() {
             local force_similarity_val=$(menu_get_value "force_generate_similarity")
             local force_diversity_val=$(menu_get_value "force_generate_diversity")
             local force_html_val=$(menu_get_value "force_generate_html")
-            local force_index_val=$(menu_get_value "force_generate_index")
+            local force_wordcloud_val=$(menu_get_value "force_generate_wordcloud")
             local dry_val=$(menu_get_value "dry_run")
             local verbose_val=$(menu_get_value "verbose")
             # Issue 8-011: Get boost inclusion value from TUI
@@ -1813,7 +1824,7 @@ interactive_mode_tui() {
             [[ "$similarity_val" == "1" ]] && GENERATE_SIMILARITY=true || GENERATE_SIMILARITY=false
             [[ "$diversity_val" == "1" ]] && GENERATE_DIVERSITY=true || GENERATE_DIVERSITY=false
             [[ "$html_val" == "1" ]] && GENERATE_HTML=true || GENERATE_HTML=false
-            [[ "$index_val" == "1" ]] && GENERATE_INDEX=true || GENERATE_INDEX=false
+            [[ "$wordcloud_stage_val" == "1" ]] && GENERATE_WORDCLOUD=true || GENERATE_WORDCLOUD=false
 
             # Config flags
             [[ -n "$threads_val" && "$threads_val" != "0" ]] && THREADS="$threads_val"
@@ -1832,7 +1843,7 @@ interactive_mode_tui() {
             [[ "$force_similarity_val" == "1" ]] && FORCE_STAGE_7=true || FORCE_STAGE_7=false
             [[ "$force_diversity_val" == "1" ]] && FORCE_STAGE_8=true || FORCE_STAGE_8=false
             [[ "$force_html_val" == "1" ]] && FORCE_STAGE_9=true || FORCE_STAGE_9=false
-            [[ "$force_index_val" == "1" ]] && FORCE_STAGE_10=true || FORCE_STAGE_10=false
+            [[ "$force_wordcloud_val" == "1" ]] && FORCE_STAGE_10=true || FORCE_STAGE_10=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
             # Issue 8-011: Set boost inclusion from TUI
@@ -1852,7 +1863,7 @@ interactive_mode_tui() {
             # Check if at least one stage is selected
             if ! $UPDATE_WORDS && ! $EXTRACT && ! $PARSE && ! $VALIDATE && \
                ! $CATALOG_IMAGES && ! $GENERATE_EMBEDDINGS && ! $GENERATE_SIMILARITY && \
-               ! $GENERATE_DIVERSITY && ! $GENERATE_HTML && ! $GENERATE_INDEX; then
+               ! $GENERATE_DIVERSITY && ! $GENERATE_HTML && ! $GENERATE_WORDCLOUD; then
                 echo ""
                 echo "No stages selected. Please select at least one stage to run."
                 echo "Press Enter to continue..."
@@ -1903,7 +1914,7 @@ if $DRY_RUN || $VERBOSE; then
     $GENERATE_SIMILARITY && echo -e "  7.  generate-similarity $(symbol_warning "⚠️") $(_st generate-similarity medium)"
     $GENERATE_DIVERSITY && echo -e "  8.  generate-diversity $(symbol_warning "⚠️") $(_st generate-diversity medium)"
     $GENERATE_HTML && echo "  9.  generate-html $(_st generate-html medium)"
-    $GENERATE_INDEX && echo "  10. generate-index $(_st generate-index short)"
+    $GENERATE_WORDCLOUD && echo "  10. generate-wordcloud $(_st wordcloud short)"
     echo ""
 fi
 
@@ -2008,7 +2019,7 @@ $GENERATE_SIMILARITY && timed_stage augment-images run_augment_images
 $GENERATE_SIMILARITY && timed_stage generate-similarity run_generate_similarity
 $GENERATE_DIVERSITY && timed_stage generate-diversity run_generate_diversity
 $GENERATE_HTML && timed_stage generate-html run_generate_html
-$GENERATE_INDEX && timed_stage generate-index run_generate_index
+$GENERATE_WORDCLOUD && timed_stage wordcloud run_generate_wordcloud
 
 if ! $QUIET; then
     echo ""
