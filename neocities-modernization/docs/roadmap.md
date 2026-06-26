@@ -229,7 +229,7 @@ This section tracks progress toward deploying the complete website to Neocities.
 | Similar pages | Per-poem HTML similarity pages | Blocked by matrix |
 | Different pages | Per-poem HTML diversity pages | Blocked by cache |
 | Chronological index | Main entry page | No |
-| Numeric index | Searchable poem index | No |
+| Word cloud (menu) | Site entry page; embeds the live poem index | No |
 | Explore page | Discovery instructions | No |
 
 ### Expected Final Output
@@ -238,7 +238,7 @@ This section tracks progress toward deploying the complete website to Neocities.
 output/
 ├── index.html              (→ chronological.html)
 ├── chronological.html      (~12 MB, all poems)
-├── numeric-index.html      (~280 KB)
+├── wordcloud.html          (menu + embedded poem index)
 ├── explore.html            (~1 KB)
 ├── similar/
 │   └── XXXX-NN.html        (per-poem similarity pages, paginated)

@@ -227,7 +227,7 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 │          +             │     │   index.html (→ chronological)  │
 │ generate-html-parallel │ ──→ │   chronological.html (12 MB)    │
 │   (8 threads via effil)│     │   explore.html (1 KB)           │
-│                        │     │   numeric-index.html (289 KB)   │
+│                        │     │   wordcloud.html (menu + index) │
 │ Template engine:       │     │   similar/0001..6860.html       │
 │ /src/html-generator/   │     │   different/*.html              │
 │   template-engine.lua  │     │                                 │
@@ -244,9 +244,9 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
 **Generated pages**:
 | Page Type | Count | Size | Description |
 |-----------|-------|------|-------------|
-| Chronological | 1 | 12 MB | Main entry, all poems in order |
+| Chronological | 1 | 12 MB | All poems in order |
+| Word cloud (menu) | 1 | varies | Site entry page; embeds the live poem index |
 | Explore | 1 | 1 KB | Discovery instructions |
-| Numeric Index | 1 | 289 KB | CTRL+F searchable links |
 | Similarity | ~6,400 | 8.5 MB each | Per-poem similarity rankings |
 | Diversity | ~6,400 | varies | Per-poem diversity chains |
 
@@ -282,10 +282,11 @@ The system follows a **seven-stage pipeline** that cleanly separates data genera
               ┌─────────────┴─────────────┐
               ▼                           ▼
     [chronological.html]          [similar/*.html]
+    [wordcloud.html (menu)]       [different/*.html]
               │                           │
-    [numeric-index.html]         [different/*.html]
-              │
-    [Final Website in /output/]
+              └─────────────┬─────────────┘
+                            ▼
+              [Final Website in /output/]
 ```
 
 ---
