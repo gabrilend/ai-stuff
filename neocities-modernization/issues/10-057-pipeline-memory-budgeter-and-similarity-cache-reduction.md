@@ -4,7 +4,9 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: High
 - **Type**: Feature / Performance
-- **Status**: Open
+- **Status**: In progress — Piece 1 (budgeter) and Piece 2 (cache cap) are built,
+  wired, and live; **remaining: Piece 3 (split passes) + budgeter rollout to the
+  other stages in the candidate table.** (Re-scoped 2026-06-26.)
 - **Builds on**: 10-034 (orchestrator-mode parallel HTML), 10-054 (regenerable
   caches in RAM), 8-058 (eliminate main-thread/worker duplication)
 
@@ -106,11 +108,21 @@ over-subscribe RAM or VRAM with no guard.
   - Path unification: `vk_diversity.c` shaders + `vk_compute.lua` library path are now
     project-root-relative / DIR-based like similarity, so diversity no longer needs a
     cd-into-vulkan-compute wrapper.
-- **Piece 1 is built** (not yet wired): `libs/memory-budgeter.lua` provides the
+- **Piece 1 is built AND wired** (this corrects the earlier "not yet wired" note that
+  contradicted the wiring described above): `libs/memory-budgeter.lua` provides the
   pure `compute_fit()` decision, a live `fit_threads()` wrapper, RAM/VRAM probes, and
   the warn-don't-error swap policy, with `memory-budgeter.test.lua` (19 checks) and an
-  `.info.md`. No stage calls it yet, so it does not affect any run until wired in
-  (Steps 2 and 5).
+  `.info.md`. It is called by TWO stages today — the HTML stage (RAM, clamps effil
+  workers) and the GPU diversity stage (VRAM, clamps batch size). The remaining
+  candidate stages in the table below (similarity matrix, embeddings, word-similarity
+  pages, image catalog) are NOT yet wired — that rollout is Step 5 and is the open
+  remainder of this issue, alongside Piece 3.
+
+- **Piece 3 (split passes) is NOT done.** Both neighbor caches are still loaded at
+  orchestrator start and held co-resident for the whole stage; nothing frees one
+  cache before the other pass. Piece 2's cap shrinks each cache, so the co-resident
+  floor is far lower than before, but the two-pass structure (load similarity → free →
+  load diversity) remains the open architectural step.
 
 ## Intended Behavior
 

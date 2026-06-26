@@ -4,7 +4,12 @@
 - **Phase**: 10 (Developer Tooling)
 - **Priority**: Medium
 - **Type**: Feature / Refactor
-- **Status**: Open
+- **Status**: Completed (2026-06-26)
+- **Note**: The flip eventually STUCK, but not via the `CACHE_IN_RAM` toggle this
+  issue's Progress log describes. The toggle was REMOVED entirely; RAM caching is
+  now unconditional (`libs/utils.lua:477` — "There is no switch any more"). See the
+  reconciled summary at the top of Progress. Two small follow-ups remain optional
+  and non-blocking (orphan on-disk movable-cache cleanup; asset-root caches).
 
 ## Problem
 
@@ -76,7 +81,23 @@ there is exactly one place that decides each cache's location.
    in `tmp/`, diversity stays on disk and is reused, and a simulated reboot
    (clear tmp) regenerates the movable caches without touching diversity.
 
-## Progress (2026-06-23)
+## Progress
+
+### Final state (2026-06-26) — reconciled
+
+The flip is DONE and live. The path centralization (below) was the hard part; once
+every reader and writer resolved through `embeddings_dir()`, the `CACHE_IN_RAM`
+toggle was deleted rather than flipped — a single unconditional RAM location removes
+the whole class of "half the writers still point at disk" desyncs that the toggle
+kept re-introducing (`libs/utils.lua:477-481`). Movable caches always live in
+`tmp/` (tmpfs); only `diversity_cache.json` stays on disk via `embeddings_dir_disk()`.
+The dated log below is the blow-by-blow that led here and is kept for the story; where
+it says "switch still OFF" / "to re-flip set `CACHE_IN_RAM = true`", read "the switch
+was later removed and RAM made unconditional." Optional, non-blocking leftovers:
+delete the orphaned on-disk movable caches (they regenerate to RAM) and decide the
+asset-root caches (`image-catalog.json`, `validation-report.json`).
+
+### Original log (2026-06-23)
 
 - **Done & committed (switch still OFF, behaviour identical to disk):**
   - The foundation: `CACHE_IN_RAM` switch + `embeddings_dir()` (movable) /
