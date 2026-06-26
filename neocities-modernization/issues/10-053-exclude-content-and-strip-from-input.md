@@ -4,10 +4,23 @@
 - **Phase**: 10 (Developer Tooling)
 - **Priority**: Medium
 - **Type**: Feature
-- **Status**: Open
+- **Status**: Completed (2026-06-26)
 - **Related**: 6-031 (excluded_poems / tombstoning), `libs/exclusion-filter.lua`
 
-## Current Behavior
+## Current Behavior (implemented)
+
+The strip-and-exclude system described below is live. `excluded_images` exists in
+`config.lua` (a flat list of paths relative to `input/images/`, with a per-source
+include/exclude switch that decides blacklist vs. whitelist). `scripts/strip-excluded`
+runs after sync/extraction and before image cataloging (wired into `run.sh` via
+`run_strip_excluded`); it validates every exclusion entry back to a real file FIRST
+and aborts the whole build on any unresolved path, so a mistyped exclusion can no
+longer let an image ship silently. The two source images currently absent from the
+working tree (the deleted PNGs in `git status`) are this script doing its job. The
+section below preserves the original pre-implementation problem statement as the
+rationale for why the system was built.
+
+## Original Behavior (pre-implementation)
 
 Poem exclusion exists via the `excluded_poems` config (Issue 6-031), read by
 `libs/exclusion-filter.lua`. It **tombstones**: during extraction the listed
