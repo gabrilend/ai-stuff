@@ -140,6 +140,7 @@ function M.parse_cli_args(args)
         pages = nil,  -- Phase D (Issue 8-012): Pagination control ("1", "all", "1-10")
         poems_per_page = nil,  -- Issue 8-022: Poems per page override
         chrono_per_page = nil,  -- Issue 9-003: Chronological poems per page override
+        seed = nil,  -- Issue 10-058: build master seed (threaded to randomizers)
     }
 
     local i = 1
@@ -180,6 +181,14 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--chrono%-per%-page=") then
             options.chrono_per_page = tonumber(arg:match("^--chrono%-per%-page=(%d+)"))
+        -- Issue 10-058: consume --seed (both forms) so the bare numeric value is
+        -- never swallowed by the dir-override branch below (which would point the
+        -- build at a nonexistent directory named after the seed).
+        elseif arg == "--seed" and args[i + 1] then
+            options.seed = tonumber(args[i + 1])
+            i = i + 1
+        elseif arg:match("^--seed=") then
+            options.seed = tonumber(arg:match("^--seed=(%d+)"))
         elseif not arg:match("^%-") then
             -- Non-flag argument, treat as directory override
             options.dir_override = arg
