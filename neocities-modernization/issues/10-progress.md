@@ -97,6 +97,9 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-019 | Document config structure and field usage | Completed | 2026-04-06 |
 | 10-042a | Gallery pages for standalone images | Completed | 2026-04-06 |
 | 10-051 | Persistent stage timing ring buffer (measured pre-flight estimates) | Completed | 2026-06-24 |
+| 10-053 | Exclude images/poems and strip them from input/ before upload | Completed | 2026-06-26 |
+| 10-054 | Move regenerable caches to RAM (tmp/) to spare the disk | Completed | 2026-06-26 |
+| 10-059 | Give the word cloud its own stage; retire the orphaned numeric index | Completed | 2026-06-26 |
 
 ## Issue Details
 
