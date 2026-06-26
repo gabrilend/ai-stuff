@@ -54,6 +54,11 @@ local markdown = require("markdown")
 local INCLUDE_DIRS = {
     src = true, libs = true, scripts = true, issues = true,
     docs = true, notes = true, demos = true,
+    -- archive/ holds the dated word-cloud snapshots (and the first-published
+    -- keepsake) -- deliberately published so the history of how the cloud changed
+    -- is browsable alongside the source. Safe: it is the project's own output, not
+    -- the private input/ corpus.
+    archive = true,
 }
 -- Root-level files are published only if their extension is a code/doc type.
 local ROOT_FILE_EXTS = {
