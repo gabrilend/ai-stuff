@@ -55,6 +55,8 @@ What it does:
   the files land under similar-different/ — and ONLY that section; the rest of the
   live site is never touched. It previews changes and asks before going live. The
   API key is read from ~/.config/neocities/config.json (or $NEOCITIES_API_KEY).
+  In a terminal, the upload shows a live progress bar per top-level directory
+  (similar/, different/, wordcloud/, chronological/, media/, source/, ...).
 EOF
 }
 # }}}
@@ -181,7 +183,25 @@ if $MIRROR; then
     fi
 fi
 
-echo "Uploading to ${REMOTE_DIR}/ (this can take a while on a first/full deploy) ..."
-"$NEOCITIES" push --no-gitignore "$STAGING_ROOT" || die "push failed"
+echo "Uploading to ${REMOTE_DIR}/ (a first/full deploy of this many files takes ~an hour) ..."
 
-echo "Done. Deployed ${staged_files} files to the live ${REMOTE_DIR}/  (log: ${LOG})"
+# Per-directory progress bars when attached to a terminal: pipe the client's
+# line-per-file output through the viewer, giving it each top-level directory's
+# staged file count as the bar denominators (auto-detected, so new sections get a
+# bar for free). Non-interactive runs (logs/cron) get the raw client output.
+PROGRESS="${DIR}/scripts/neocities-push-progress.lua"
+if [ -t 1 ] && [ -f "$PROGRESS" ] && command -v luajit >/dev/null 2>&1; then
+    bucket_args=()
+    while IFS= read -r d; do
+        n=$(find "$d" -type f | wc -l)
+        [ "$n" -gt 0 ] && bucket_args+=( "$(basename "$d"):${n}" )
+    done < <(find "${STAGING_ROOT}/${REMOTE_DIR}" -mindepth 1 -maxdepth 1 -type d | sort)
+    rootn=$(find "${STAGING_ROOT}/${REMOTE_DIR}" -mindepth 1 -maxdepth 1 -type f | wc -l)
+    [ "$rootn" -gt 0 ] && bucket_args+=( "other:${rootn}" )
+    "$NEOCITIES" push --no-gitignore "$STAGING_ROOT" 2>&1 \
+        | luajit "$PROGRESS" "${bucket_args[@]}" || die "push failed"
+else
+    "$NEOCITIES" push --no-gitignore "$STAGING_ROOT" || die "push failed"
+fi
+
+echo "Deployed to the live ${REMOTE_DIR}/  (log: ${LOG})"
