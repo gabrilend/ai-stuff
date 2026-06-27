@@ -15,6 +15,14 @@ numbers, `generate_explore_page` renders explore.html (the map), and
 `generate_simple_discovery_instructions(output_dir, poems_data)` remains as a
 thin shim that produces both, and `src/main.lua` passes the corpus through.
 
+As of Issue 11-005, the *prose* of both pages no longer lives inline in those
+functions. It is read from editable plain-text files -- `input/pages/explore.txt`
+and `input/pages/explore-math.txt` -- whose `{MARKER}` placeholders are filled
+with the live numbers by `src/page-template.lua`. The render functions now only
+compute the stats, pre-render the loop blocks (the source list and the three
+histograms), and fill the template. The page wording can be changed without
+touching Lua.
+
 - explore.html shows live counts (total poems, sources + per-source counts, date
   span, image-only count), links every navigation mode (chronological, similar,
   different, word-cloud, gallery, maze), links explore-2, and carries a

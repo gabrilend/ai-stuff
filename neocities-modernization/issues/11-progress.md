@@ -33,12 +33,22 @@ Phase 11 focuses on innovative navigation systems that give users agency in how 
 | 11-002c | Generate maze HTML pages | Open | Medium | MVP |
 | 11-002d | Add special room features | Open | Low | MVP |
 | 11-003 | Maze pipeline integration | Open | Low | MVP |
+| 11-004 | Rewrite explore page + add deeper-math page | Open | Medium | (deferred: similarity-score charts) |
 
 ### Completed Issues
 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
-| (none yet) | - | - | - |
+| 11-005 | Externalize explore-page copy into editable templates | Implemented | 2026-06-26 |
+
+The explore page (`explore.html`) and its companion math page (`explore-2.html`)
+now read all their wording from two plain-text files anyone can edit --
+`input/pages/explore.txt` and `input/pages/explore-math.txt` -- while the live
+numbers and ASCII charts stay computed in code. A small substitution engine
+(`src/page-template.lua`) fills `{MARKER}` placeholders, refuses to ship a page
+with an unresolved marker, and can drop a whole line for a fact that does not
+apply. Verified byte-identical to the previous hard-coded output across the full
+7,904-poem corpus.
 
 ### Issue Dependencies
 

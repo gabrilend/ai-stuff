@@ -33,6 +33,9 @@ local text_formatter = require("text-formatter")
 local progress = require("progress-display")
 -- Issue 9-013: render ranked image entries (pseudo-poems) as image boxes
 local image_render = require("image-render")
+-- Issue 11-005: the explore pages read their prose from editable input/pages/*.txt
+-- files; this fills the {MARKER} placeholders with the live numbers.
+local page_template = require("page-template")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -3123,55 +3126,38 @@ end
 -- browser (Issue 10-052). Data/view split: corpus_stats() computes, this renders.
 function M.generate_explore_page(output_dir, poems_data)
     local s = corpus_stats(poems_data)
-    local lines = {}
-    local function add(line) lines[#lines + 1] = line or "" end
 
-    add("Welcome to the Poetry Collection.")
-    add("")
-    add("This is a corpus of poems and posts you can read in several different")
-    add("orders -- by time, by what a poem resembles, by what contrasts with it,")
-    add("by the words it shares with others, or just by wandering.")
-    add("")
-    add("WHAT IS HERE (counted at build time)")
-    add(string.format("  %d poems across %d sources", s.total, #s.source_order))
-    if s.min_date and s.max_date then
-        add(string.format("  spanning %s to %s", s.min_date:sub(1, 10), s.max_date:sub(1, 10)))
-    end
-    if s.image_only > 0 then
-        add(string.format("  %d of them are image-only posts", s.image_only))
-    end
-    add("")
-    add("  sources:")
+    -- The per-source list is a LOOP over the corpus, so it stays rendered here
+    -- and is handed to the template as one ready-made block (Issue 11-005: prose
+    -- and scalars live in the editable file; loops stay in code).
+    local source_rows = {}
     for _, cat in ipairs(s.source_order) do
-        add(string.format("    %-22s %d", cat, s.sources[cat]))
+        source_rows[#source_rows + 1] = string.format("    %-22s %d", cat, s.sources[cat])
     end
-    add("")
-    add("WAYS TO EXPLORE")
-    add("  chronological  -- read the collection in time order, start to finish.")
-    add('  similar        -- from any poem, rank every other poem by how much it')
-    add("                    resembles it. Most alike first. Find more of what")
-    add("                    resonates.")
-    add('  different      -- from any poem, rank every other poem by maximum')
-    add("                    contrast. Most unlike first. Discover the unexpected.")
-    add("  word-cloud     -- jump in by a word; see the poems that lean on it.")
-    add("  gallery        -- the images, packed together to browse by eye.")
-    add("  maze           -- wander the corpus, choosing a direction at each step.")
-    add("")
-    add("Every poem carries 'similar' and 'different' links; each view shows the")
-    add("WHOLE collection, only re-sorted around the poem you started from.")
-    add("")
-    add("LINKS")
-    -- Link straight to the first page, not chronological/index.html (which is just
-    -- a redirect to 01.html) -- skips the "Redirecting..." flash.
-    add('  <a href="chronological/01.html">Start reading (chronological)</a>')
-    add('  <a href="wordcloud.html">Word cloud</a>')
-    add('  <a href="gallery/index.html">Image gallery</a>')
-    add('  <a href="explore-2.html">How the similarity actually works (the math)</a>')
-    -- The self-hosted source browser (Issue 10-052): link-only view of the code.
-    add('  <a href="source/index.html">Browse the source code</a>')
+
+    -- The scalar facts that only make sense when they exist use page_template.OMIT,
+    -- which drops the whole template line -- matching the old "only add this line
+    -- when there is a date / an image-only count" conditionals, with no blank gap.
+    local values = {
+        TOTAL_POEMS  = s.total,
+        SOURCE_COUNT = #s.source_order,
+        MIN_DATE     = (s.min_date and s.max_date) and s.min_date:sub(1, 10) or page_template.OMIT,
+        MAX_DATE     = (s.min_date and s.max_date) and s.max_date:sub(1, 10) or page_template.OMIT,
+        IMAGE_ONLY_COUNT = (s.image_only > 0) and s.image_only or page_template.OMIT,
+        SOURCE_LIST  = table.concat(source_rows, "\n"),
+    }
+
+    local template_path = DIR .. "/input/pages/explore.txt"
+    local body, err = page_template.render_file(template_path, values)
+    -- A broken template (typo'd marker, missing file) is a real error worth
+    -- halting on -- a half-filled page is worse than a loud failure (no fallbacks).
+    if not body then error("generate_explore_page: " .. tostring(err)) end
+    -- The template file ends with a newline; the page shell adds its own, so trim
+    -- trailing newlines to keep the centered <pre> block from gaining a blank tail.
+    body = body:gsub("\n+$", "")
 
     local html = explore_page_shell(
-        "Poetry Collection - Explore", "Poetry Collection - Explore", table.concat(lines, "\n"))
+        "Poetry Collection - Explore", "Poetry Collection - Explore", body)
     local output_file = output_dir .. "/explore.html"
     return utils.write_file(output_file, html) and output_file or nil
 end
@@ -3184,100 +3170,62 @@ end
 -- is deliberately not loaded here, so they are noted as a future addition.
 function M.generate_explore_math_page(output_dir, poems_data)
     local s = corpus_stats(poems_data)
-    local lines = {}
-    local function add(line) lines[#lines + 1] = line or "" end
     local BAR = 40
 
-    add("How the similarity actually works.")
-    add("")
-    add("EMBEDDINGS")
-    add("  Every poem is run through a sentence-embedding model")
-    add("  (nomic-embed-text-v1.5) that turns its text into a fixed-length list")
-    add("  of numbers -- a point in a high-dimensional space. Poems that mean")
-    add("  similar things land near each other. Vectors are stored at half")
-    add("  precision (FP16) to save space and computed at full precision (FP32).")
-    add("")
-    add("COSINE SIMILARITY")
-    add("  To compare two poems we measure the ANGLE between their vectors, not")
-    add("  the distance. Two poems point the same way (angle ~ 0) when they are")
-    add("  alike; they point apart when they differ. 'similar' sorts by smallest")
-    add("  angle; 'different' sorts by largest -- maximum contrast, which is not")
-    add("  the same as 'unrelated noise'.")
-    add("")
-    add("THE MOOD COLOR MAP")
-    add("  Poems are clustered into semantic 'moods' around centroids (average")
-    add("  points), and each mood gets a color. That is why the progress bars and")
-    add("  word colors carry meaning instead of being decorative.")
-    add("")
-    add("DIVERSITY SEQUENCES")
-    add("  The 'different' ordering is precomputed so that CONSECUTIVE poems stay")
-    add("  maximally spread out -- a walk that keeps surprising you rather than")
-    add("  drifting into one corner of the space.")
-    add("")
-    add("THE TRIANGULAR SIMILARITY MATRIX")
-    add("  Similarity is symmetric (A to B equals B to A), so only the upper")
-    add("  triangle is stored -- about half the memory -- and addressed with a")
-    add("  little index arithmetic instead of a full square.")
-    add("")
-    add("THE WORD CLOUD ON THE MENU")
-    add("  The menu's word cloud sizes each word by how often it shows up, on a")
-    add("  LOGARITHMIC scale. Word counts follow Zipf's law -- a handful of words")
-    add("  dominate and a long tail barely appears -- so a plain linear size would")
-    add("  flatten almost everything to the smallest tier; the log stretches the")
-    add("  small counts back out. Frequency decides SIZE, and nothing else.")
-    add("")
-    add("  WHERE each word lands is not computed at all. The words go out as one")
-    add("  plain run of links and the browser flows them left to right, wrapping")
-    add("  the way a paragraph does -- no coordinates, no spiral, no overlap test.")
-    add("  The 'cloud' impression comes from the mix of sizes, not from packing")
-    add("  shapes together.")
-    add("")
-    add("  Left in size order the big words would all bunch at the front, so the")
-    add("  list is shuffled first with a Fisher-Yates pass: walk it from the last")
-    add("  word back to the first, and swap each word with a randomly chosen one at")
-    add("  or before it. A single sweep, and every possible ordering is equally")
-    add("  likely. The shuffle draws from the build's master seed (Issue 10-058),")
-    add("  recorded in output/generation-metadata.json -- so the SAME seed always")
-    add("  produces the SAME arrangement, and the order only changes when the seed")
-    add("  does. The sizes and the colors stay fixed regardless of the seed.")
-    add("")
-    add("  (Placing related words NEAR each other -- a layout driven by the same")
-    add("  embeddings the rest of this page describes -- is something the cloud")
-    add("  does not do today.)")
-    add("")
-    add("THE SHAPE OF THIS CORPUS (counted at build time)")
-    add("")
-    add(string.format("  Poems per source (of %d total):", s.total))
+    -- Each histogram is a LOOP over the corpus, so they stay rendered here and are
+    -- handed to the template as ready-made blocks (Issue 11-005). ascii_bar_row
+    -- draws one labelled monospace bar.
+
+    -- Poems-per-source bars.
     local max_src = 0
     for _, c in ipairs(s.source_order) do if s.sources[c] > max_src then max_src = s.sources[c] end end
+    local source_bars = {}
     for _, cat in ipairs(s.source_order) do
-        add("    " .. ascii_bar_row(cat, s.sources[cat], max_src, BAR, 20))
+        source_bars[#source_bars + 1] = "    " .. ascii_bar_row(cat, s.sources[cat], max_src, BAR, 20)
     end
-    add("")
-    add("  Poem length (characters):")
+
+    -- Poem-length bars.
     local max_len_bucket = 0
     for _, v in ipairs(s.length_hist) do if v > max_len_bucket then max_len_bucket = v end end
+    local length_bars = {}
     for i, label in ipairs(s.length_labels) do
-        add("    " .. ascii_bar_row(label, s.length_hist[i], max_len_bucket, BAR, 20))
+        length_bars[#length_bars + 1] = "    " .. ascii_bar_row(label, s.length_hist[i], max_len_bucket, BAR, 20)
     end
+
+    -- Poems-per-year is a whole conditional section (blank line + heading + bars).
+    -- When the corpus has no dated poems it becomes OMIT, dropping the section's
+    -- template line entirely -- the same guard the inline version used.
+    local year_section
     if #s.year_order > 0 then
-        add("")
-        add("  Poems per year:")
+        local year_lines = { "", "  Poems per year:" }
         local max_year = 0
         for _, y in ipairs(s.year_order) do if s.per_year[y] > max_year then max_year = s.per_year[y] end end
         for _, y in ipairs(s.year_order) do
-            add("    " .. ascii_bar_row(y, s.per_year[y], max_year, BAR, 20))
+            year_lines[#year_lines + 1] = "    " .. ascii_bar_row(y, s.per_year[y], max_year, BAR, 20)
         end
+        year_section = table.concat(year_lines, "\n")
+    else
+        year_section = page_template.OMIT
     end
-    add("")
-    add("  (Similarity-score distributions live in the precomputed matrix that")
-    add("   this page does not load; they are a planned addition -- see issue")
-    add("   11-004.)")
-    add("")
-    add('<a href="explore.html">Back to Explore</a>')
+
+    -- The embedding-model name comes from the live inference config rather than a
+    -- baked-in string, so it can never drift from the model the pipeline actually
+    -- used (per the "reference a source, don't hard-code figures" convention).
+    local values = {
+        EMBEDDING_MODEL = inference_config.get_selected_model(),
+        TOTAL_POEMS = s.total,
+        SOURCE_BARS = table.concat(source_bars, "\n"),
+        LENGTH_BARS = table.concat(length_bars, "\n"),
+        YEAR_SECTION = year_section,
+    }
+
+    local template_path = DIR .. "/input/pages/explore-math.txt"
+    local body, err = page_template.render_file(template_path, values)
+    if not body then error("generate_explore_math_page: " .. tostring(err)) end
+    body = body:gsub("\n+$", "")
 
     local html = explore_page_shell(
-        "Poetry Collection - The Math", "How the Similarity Works", table.concat(lines, "\n"))
+        "Poetry Collection - The Math", "How the Similarity Works", body)
     local output_file = output_dir .. "/explore-2.html"
     return utils.write_file(output_file, html) and output_file or nil
 end
