@@ -12,11 +12,30 @@ local utils = require('utils')  -- Issue 10-054: central cache locations (movabl
 M.config = {
     poems_json = "assets/poems.json",
     embeddings_dir = "assets/embeddings",
-    default_model = "embeddinggemma_latest",
+    -- default_model is filled in below from config.lua (see the resolver), not a
+    -- hardcoded literal, so a model swap in config or a --model on the CLI is
+    -- honored here too. It only acts as a fallback: every check_* function takes
+    -- an explicit model argument and uses this when the caller passes none.
+    default_model = nil,
     output_similar_dir = "output/similar",
     output_different_dir = "output/different",
     verbose = false
 }
+
+-- Resolve default_model from the shared resolver (which reads this run's --model
+-- override notepad, then config.lua). pcall-guarded so a validator used outside a
+-- configured project still loads; a nil default then flows to utils.*_dir(), which
+-- resolves the model through the very same path -- so there is no hardcoded
+-- fallback anywhere in the chain.
+do
+    local ok_req, inference_config = pcall(require, "inference-server-config")
+    if ok_req then
+        local ok_model, model = pcall(inference_config.get_selected_model)
+        if ok_model and model then
+            M.config.default_model = model
+        end
+    end
+end
 -- }}}
 
 -- {{{ Helper: Log functions

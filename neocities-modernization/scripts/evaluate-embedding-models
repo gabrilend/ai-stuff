@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# evaluate-embedding-models  (Issue 10-031)
+# Build the side-by-side embedding-model comparison report.
+#
+# General description (for a CEO): we have several embedding models that each
+# score "how similar are these two poems" differently. This tool picks a fixed
+# line-up of poems once, then loads each model in turn, records its similarity
+# opinions, and finally lays all the opinions side by side as a web page so a
+# human can see what each model is really rewarding -- shared wording, shared
+# meaning, shared theme, similar length.
+#
+# How it works: the GPU can hold one embedding model at a time, so we start the
+# llama.cpp server on model A, embed the sample, stop it, start model B, and so
+# on. The per-model results are cached, so re-running only the report is cheap.
+#
+# Usage:
+#   scripts/evaluate-embedding-models [DIR]
+#   scripts/evaluate-embedding-models --sample 500 --anchors 8 --seed 12345 --top-k 10
+#   scripts/evaluate-embedding-models --models "nomic-embed-text-v1.5:local,mxbai-embed-large-v1:local-mxbai"
+#   scripts/evaluate-embedding-models --report-only   # rebuild the page from cached embeddings
+#   scripts/evaluate-embedding-models --open          # open the report in a browser when done
+
+set -u
+
+# {{{ DIR resolution + defaults
+DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+SAMPLE=500
+ANCHORS=8
+SEED=12345
+TOPK=10
+REPORT_ONLY=0
+OPEN_REPORT=0
+# model:server pairs -- the GGUF must exist in assets/models/ and the server name
+# must be an inference_servers entry in config.lua (which carries the right prompt
+# prefix). Default: the three models from Issue 10-031.
+MODELS_CSV="nomic-embed-text-v1.5:local,mxbai-embed-large-v1:local-mxbai,embeddinggemma-300m:local-gemma"
+# }}}
+
+# {{{ arg parsing
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --sample) SAMPLE="$2"; shift 2 ;;
+        --anchors) ANCHORS="$2"; shift 2 ;;
+        --seed) SEED="$2"; shift 2 ;;
+        --top-k) TOPK="$2"; shift 2 ;;
+        --models) MODELS_CSV="$2"; shift 2 ;;
+        --report-only) REPORT_ONLY=1; shift ;;
+        --open) OPEN_REPORT=1; shift ;;
+        --help|-h)
+            sed -n '2,28p' "$0"; exit 0 ;;
+        -* ) echo "Unknown flag: $1" >&2; exit 1 ;;
+        * ) DIR="$1"; shift ;;
+    esac
+done
+
+EVAL_DIR="${DIR}/output/model-evaluation"
+PID_FILE="${DIR}/tmp/llamacpp-server.pid"
+HEALTH_URL=""   # resolved per model from the server entry's host/port
+# }}}
+
+# {{{ stop_server() -- kill any llama-server we (or a prior run) started
+stop_server() {
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid="$(cat "$PID_FILE" 2>/dev/null)"
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            kill "$pid" 2>/dev/null
+            # Wait for it to actually exit so the next model has the GPU + port.
+            local tries=0
+            while kill -0 "$pid" 2>/dev/null && [ "$tries" -lt 30 ]; do
+                sleep 1
+                tries=$((tries + 1))
+            done
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+        rm -f "$PID_FILE"
+    fi
+}
+# }}}
+
+# {{{ embed_with_model(model, server) -- start the model, embed the sample, stop
+# Errors are fatal: a half-embedded model would make its column meaningless, and
+# we would rather stop than publish a misleading comparison.
+embed_with_model() {
+    local model="$1"
+    local server="$2"
+    echo ""
+    echo "=== ${model}  (server: ${server}) ==="
+
+    stop_server   # never leave a previous model loaded
+
+    if ! "${DIR}/scripts/start-llamacpp-server.sh" "--server=${server}" >/dev/null 2>&1; then
+        echo "ERROR: failed to start server '${server}' for model '${model}'" >&2
+        echo "  (check the GGUF in assets/models/ and the llama.cpp binary)" >&2
+        stop_server
+        return 1
+    fi
+
+    if ! luajit "${DIR}/src/model-comparison.lua" "${DIR}" embed \
+            --server "${server}" --model "${model}"; then
+        echo "ERROR: embedding failed for model '${model}'" >&2
+        stop_server
+        return 1
+    fi
+
+    stop_server
+    return 0
+}
+# }}}
+
+# {{{ main
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null || {
+    echo "ERROR: could not materialize tmp/" >&2; exit 1
+}
+mkdir -p "${EVAL_DIR}"
+
+# Build a clean, ordered model list (just the model names) for the report column
+# order, derived from MODELS_CSV's "model:server" pairs.
+MODELS_ONLY=""
+
+if [ "$REPORT_ONLY" -eq 0 ]; then
+    echo "== Selecting reproducible sample (=${SAMPLE} poems, ${ANCHORS} anchors, seed ${SEED}) =="
+    luajit "${DIR}/src/model-comparison.lua" "${DIR}" select \
+        --sample "${SAMPLE}" --anchors "${ANCHORS}" --seed "${SEED}" || exit 1
+fi
+
+IFS=',' read -ra PAIRS <<< "${MODELS_CSV}"
+for pair in "${PAIRS[@]}"; do
+    model="${pair%%:*}"
+    server="${pair##*:}"
+    if [ -z "$MODELS_ONLY" ]; then MODELS_ONLY="${model}"; else MODELS_ONLY="${MODELS_ONLY},${model}"; fi
+    if [ "$REPORT_ONLY" -eq 0 ]; then
+        embed_with_model "${model}" "${server}" || {
+            echo "Aborting: model '${model}' did not produce embeddings." >&2
+            exit 1
+        }
+    fi
+done
+
+echo ""
+echo "== Building comparison report (top-${TOPK}) =="
+luajit "${DIR}/src/model-comparison.lua" "${DIR}" report \
+    --models "${MODELS_ONLY}" --top-k "${TOPK}" || exit 1
+
+REPORT="${EVAL_DIR}/comparison-report.html"
+echo ""
+echo "Done. Report: ${REPORT}"
+
+if [ "$OPEN_REPORT" -eq 1 ]; then
+    if command -v xdg-open >/dev/null 2>&1; then xdg-open "${REPORT}" >/dev/null 2>&1 &
+    elif command -v firefox >/dev/null 2>&1; then firefox "${REPORT}" >/dev/null 2>&1 &
+    fi
+fi
+# }}}

@@ -56,7 +56,14 @@ DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 # llama.cpp pinned to a known-good tag rather than tracking master, so a
 # future upstream change does not silently break the build. Bump this
 # field after testing.
-LLAMACPP_VERSION="b4404"
+#
+# Bumped b4404 -> b9842 (Issue 10-031): b4404 predates the "gemma-embedding"
+# model architecture, so EmbeddingGemma GGUFs fail to load with "unknown model
+# architecture". b9842 knows it. NOTE: between those tags upstream moved the
+# server/cli/embedding binaries from examples/ to tools/, so the build now also
+# needs -DLLAMA_BUILD_TOOLS=ON (see build_llamacpp) or it produces the shared
+# libs with no llama-server.
+LLAMACPP_VERSION="b9842"
 
 # Model to download. The basename matches what config.lua's local server
 # entry's model_path expects; updating one without the other would mismatch.
@@ -539,18 +546,19 @@ build_llamacpp() {
     mkdir -p "$build_dir"
     cd "$build_dir"
 
-    # LLAMA_BUILD_EXAMPLES MUST be ON: at tag b4404 the binaries we want
-    # (llama-server, llama-cli, llama-embedding) all live under examples/.
-    # The root CMakeLists.txt only descends into examples/ when this flag
-    # is set, so turning it off silently produces a build with the shared
-    # libs but no binaries. LLAMA_BUILD_SERVER is a sub-flag specifically
-    # for examples/server, redundant when LLAMA_BUILD_EXAMPLES=ON but kept
-    # explicit for self-documenting intent.
+    # Binary location moved across the b4404 -> b9842 bump (Issue 10-031):
+    # llama-server / llama-cli / llama-embedding used to live under examples/
+    # (built when LLAMA_BUILD_EXAMPLES=ON); upstream relocated them to tools/,
+    # gated by LLAMA_BUILD_TOOLS. We set BOTH ON so the build descends into
+    # whichever tree the pinned tag uses -- turning the relevant one off
+    # silently produces the shared libs with no llama-server. LLAMA_BUILD_SERVER
+    # stays explicit for self-documenting intent (it gates the server tool).
     local cmake_flags=(
         -DGGML_CUDA=ON
         -DGGML_NATIVE=ON
         -DLLAMA_BUILD_TESTS=OFF
         -DLLAMA_BUILD_EXAMPLES=ON
+        -DLLAMA_BUILD_TOOLS=ON
         -DLLAMA_BUILD_SERVER=ON
         -DLLAMA_CURL=OFF
         -DCMAKE_INSTALL_PREFIX="${LLAMACPP_INSTALL_DIR}"

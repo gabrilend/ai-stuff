@@ -224,8 +224,14 @@ end
 
 -- {{{ local function main()
 local function main()
-    local model = os.getenv("MODEL_NAME") or "nomic-embed-text-v1.5"
-    local model_dir = model:gsub(":", "_")
+    -- Resolve the model through the shared resolver instead of a hardcoded
+    -- default: it reads this run's overrides notepad (tmp/run-overrides.lua,
+    -- written by run.sh from --model) and falls back to config.lua -- so the CLI
+    -- override is honored and there is no source-code default to drift out of
+    -- sync with config. Works standalone too (no notepad => config default).
+    local inference_config = require("inference-server-config")
+    inference_config.set_project_root(DIR)
+    local model = inference_config.get_selected_model()
     local edir = utils.embeddings_dir(model)  -- Issue 10-054: movable (embeddings.json, manifest)
     local emb_path = edir .. "/embeddings.json"
     local manifest_path = edir .. "/image-manifest.json"

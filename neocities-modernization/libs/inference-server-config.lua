@@ -291,6 +291,21 @@ function M.get_selected_model()
         return selected_model
     end
 
+    -- Model-propagation fix: a --model passed to run.sh is recorded once, at
+    -- startup, on the shared per-run notepad (tmp/run-overrides.lua). Consulting
+    -- it here means EVERY short-lived child process -- the HTML, word-cloud and
+    -- word-page stages that call this (or embeddings_dir() with no argument) --
+    -- resolves the SAME model the embedding stage used, instead of silently
+    -- reverting to server.model below. An absent notepad / absent key returns
+    -- nil, so a plain run (no --model) still falls through to config.lua exactly
+    -- as before. project_root is already resolved by get_selected_server above.
+    local overrides = require("runtime-overrides")
+    overrides.set_project_root(project_root)
+    local override_model = overrides.get("model")
+    if override_model then
+        return override_model
+    end
+
     if not server.model then
         error(string.format(
             "inference-server-config: server '%s' has no 'model' field in config.lua's inference_servers entry. "
