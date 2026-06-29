@@ -50,24 +50,20 @@ local wall_clock = socket.gettime
 
 -- Configuration
 local BATCH_SIZE = 3584  -- Optimal for GTX 1080 Ti (3,584 CUDA cores)
--- The MODEL_NAME determines the embeddings directory we read from. Pulled
--- from environment (set by run.sh from MODEL_NAME / --model) with a fall
--- back to the selected model from config.lua so this script works when
--- invoked directly without run.sh setting MODEL_NAME.
+-- The model determines the embeddings directory we read from. It is resolved
+-- through inference-server-config, which reads the overrides notepad for this
+-- run (tmp/run-overrides.lua, written by run.sh from --model) and falls back to
+-- config.lua when no override was set -- so this wrapper agrees with every other
+-- stage and still works when invoked directly without run.sh.
 --
 -- NOTE: this whole chunk runs inside a bash  luajit -e (single-quoted)
 -- string, so an apostrophe in any comment here would terminate that
 -- string early and feed luajit a bogus script name (it once tried to
 -- open a file literally named "selected"). Keep these comments
 -- apostrophe-free, or move this program into its own .lua file.
-local MODEL_NAME = os.getenv("MODEL_NAME")
-if not MODEL_NAME or MODEL_NAME == "" then
-    -- Issue 10-049: the ollama config module was replaced by the
-    -- inference-server-config module in the llama.cpp migration.
-    local inference_config = require("inference-server-config")
-    inference_config.set_project_root(DIR)
-    MODEL_NAME = inference_config.get_selected_model()
-end
+local inference_config = require("inference-server-config")
+inference_config.set_project_root(DIR)
+local MODEL_NAME = inference_config.get_selected_model()
 
 -- Issue 10-057: cap each diversity sequence to the top-K poems any page set can show
 -- (K = pages x poems_per_page, resolved from the run env or config -- the same formula

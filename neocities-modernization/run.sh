@@ -141,7 +141,7 @@ Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
   --force-stage N     Force regenerate specific stage only (1-10)
-  --model NAME        Embedding model name (default: nomic-embed-text-v1.5)
+  --model NAME        Embedding model name (default: the selected server's model in config.lua)
 
 Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
@@ -253,7 +253,15 @@ DRY_RUN=false
 DEBUG=false
 # Issue 10-028: Lower process priority for UI responsiveness
 LOW_PRIORITY=false
-MODEL_NAME="nomic-embed-text-v1.5"
+# Model propagation fix: run.sh no longer hard-codes a default model here, so
+# source code can never disagree with config.lua about the default. CLI_MODEL
+# holds --model ONLY when the operator actually passed it (that is what we record
+# on the per-run overrides notepad); the effective MODEL_NAME used by run.sh's
+# own path/freshness checks is resolved AFTER arg-parsing -- from CLI_MODEL if
+# given, else from config.lua through the same code the child stages use, so
+# every stage agrees by construction. See "Resolve the effective model" below.
+CLI_MODEL=""
+MODEL_NAME=""
 # Issue 8-022: Pagination settings for HTML generation
 PAGES=""
 POEMS_PER_PAGE=""
@@ -412,11 +420,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --model)
-            MODEL_NAME="$2"
+            CLI_MODEL="$2"
             shift 2
             ;;
         --model=*)
-            MODEL_NAME="${1#*=}"
+            CLI_MODEL="${1#*=}"
             shift
             ;;
         # Issue 8-022: Pagination flags for HTML generation
@@ -725,6 +733,51 @@ if $LIST_SERVERS; then
         inference.list_servers()
     "
     exit 0
+fi
+# }}}
+
+# {{{ Resolve the effective embedding model and record this run's overrides
+# Why this exists: run.sh launches a fresh luajit process per stage, and argv/env
+# reach only the stages we remember to thread them through. Before this block, a
+# --model override silently reverted to config.lua's default in the HTML,
+# word-cloud and word-page stages (they resolve the model via get_selected_model()
+# / embeddings_dir() with no argument). The fix is a shared notepad in RAM: we
+# stamp THIS run's choices onto tmp/run-overrides.lua once, here, and the model
+# resolver reads them. It is rewritten every run, so a previous run's --model can
+# never leak in -- the staleness trap a file has but an env var does not. Passing
+# an empty CLI_MODEL records no model key, so a plain run falls back to config.lua.
+# Materialize the tmpfs-backed tmp/ symlink + target before writing into it.
+# A bare `mkdir -p tmp` does NOT work here: tmp/ is a symlink, and if its target
+# is missing (wiped on reboot) mkdir sees the link, reports "exists", and creates
+# nothing. ensure-tmp-symlink is the project's idempotent, fail-loud helper for
+# exactly this -- it creates the /tmp target the symlink points at.
+"$DIR/scripts/ensure-tmp-symlink" "$DIR" || {
+    echo "Error: could not materialize the tmp/ RAM directory (scripts/ensure-tmp-symlink)" >&2
+    exit 1
+}
+"$DIR/scripts/write-run-overrides" "$DIR" --model "$CLI_MODEL" || {
+    echo "Error: failed to record run overrides (scripts/write-run-overrides)" >&2
+    exit 1
+}
+
+# The effective model for run.sh's OWN path/freshness checks and for the stages it
+# hands an explicit model to: the CLI value if given, else config.lua's default
+# for the selected server -- resolved through the SAME resolver the children use
+# (which now also reads the notepad above), so every stage agrees by construction.
+if [ -n "$CLI_MODEL" ]; then
+    MODEL_NAME="$CLI_MODEL"
+else
+    MODEL_NAME="$(luajit -e "
+        package.path = '$DIR/libs/?.lua;$DIR/src/?.lua;' .. package.path
+        local inf = require('inference-server-config')
+        inf.set_project_root('$DIR')
+        if '$INFERENCE_SERVER' ~= '' then inf.set_selected_server('$INFERENCE_SERVER') end
+        io.write(inf.get_selected_model())
+    ")"
+    if [ -z "$MODEL_NAME" ]; then
+        echo "Error: could not resolve embedding model from config.lua" >&2
+        exit 1
+    fi
 fi
 # }}}
 
@@ -1290,7 +1343,7 @@ run_augment_images() {
         log_dry_run "luajit $DIR/src/augment-embeddings-with-images.lua $DIR"
         return 0
     fi
-    MODEL_NAME="$MODEL_NAME" $NICE_PREFIX luajit "$DIR/src/augment-embeddings-with-images.lua" "$DIR" || {
+    $NICE_PREFIX luajit "$DIR/src/augment-embeddings-with-images.lua" "$DIR" || {
         echo "Error: image augmentation failed" >&2
         exit 1
     }
@@ -1454,14 +1507,14 @@ run_generate_diversity() {
             return 0
         fi
 
-        # Issue 10-028: Apply low priority to expensive diversity generation
-        # Export MODEL_NAME so the wrapper resolves the correct embeddings
-        # directory (assets/embeddings/<model>/) when run.sh is what selected
-        # the model. Without this the wrapper falls back to config.lua's
-        # default, which is correct in most cases but loses the CLI override.
+        # Issue 10-028: Apply low priority to expensive diversity generation.
+        # The model is no longer passed via env here: the wrapper resolves it
+        # through inference-server-config, which reads this run's overrides notepad
+        # (tmp/run-overrides.lua, written above from --model) and falls back to
+        # config.lua -- so the CLI override is honored without a per-stage env var.
         # Issue 10-057: pass the run's page settings so the wrapper caps each diversity
         # sequence to the SAME K the similarity cache and the HTML stage use.
-        MODEL_NAME="$MODEL_NAME" PAGES="$PAGES" POEMS_PER_PAGE="$POEMS_PER_PAGE" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
+        PAGES="$PAGES" POEMS_PER_PAGE="$POEMS_PER_PAGE" $NICE_PREFIX "$DIR/scripts/precompute-diversity-sequences-gpu" "$DIR" || {
             echo "Error: GPU diversity cache generation failed" >&2
             exit 1
         }
