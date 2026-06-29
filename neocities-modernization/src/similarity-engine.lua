@@ -47,6 +47,17 @@ local embedding_models = {
         dimensions = 768,
         timeout = 30
     },
+    -- Issue 10-031: GGUF-basename forms for the local model-comparison set.
+    ["mxbai-embed-large-v1"] = {
+        dimensions = 1024,
+        timeout = 30
+    },
+    ["embeddinggemma-300m"] = {
+        dimensions = 768,
+        timeout = 30,
+        -- Uses a clustering task prompt, configured per inference_servers entry.
+        requires_prompt_prefix = true,
+    },
     ["qwen3-embedding:4b"] = {
         dimensions = 2560,
         timeout = 60  -- bigger model, longer per-call
@@ -323,7 +334,9 @@ end
 
 -- {{{ function M.get_model_status
 function M.get_model_status(base_output_dir, model_name)
-    model_name = model_name or "embeddinggemma:latest"
+    -- Default to the configured/overridden model, not a hardcoded literal, so a
+    -- model swap in config.lua (or a --model on the CLI) is reflected here too.
+    model_name = model_name or inference_config.get_selected_model()
     local storage_paths = get_model_storage_path(base_output_dir, model_name)
     
     if utils.file_exists(storage_paths.embeddings) then
@@ -372,7 +385,9 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     -- Issue 10-017: Use build_host_url() instead of deprecated OLLAMA_ENDPOINT
     endpoint = endpoint or inference_config.build_host_url()
     incremental = incremental ~= false -- Default to true
-    model_name = model_name or "embeddinggemma:latest"
+    -- Default to the configured/overridden model, not a hardcoded literal (the
+    -- caller, generate-embeddings.sh, always passes one; this guards direct use).
+    model_name = model_name or inference_config.get_selected_model()
     
     -- Get model-specific configuration
     local model_config = embedding_models[model_name]

@@ -511,6 +511,36 @@ return {
             model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
             embedding_prompt_prefix = "clustering: ",
         },
+        -- Issue 10-031: two more local models, so the evaluation framework can
+        -- compare how each judges poem similarity. Same host/port as "local":
+        -- the comparison harness runs ONE server at a time (loads this GGUF,
+        -- embeds the sample, stops, next), so they never contend for the port.
+        {
+            name = "local-mxbai",
+            description = "Local llama.cpp -- mxbai-embed-large-v1 (model comparison)",
+            host = "192.168.1.100",
+            port = 10265,
+            model = "mxbai-embed-large-v1",
+            model_path = "assets/models/mxbai-embed-large-v1.Q8_0.gguf",
+            -- mxbai-embed-large has no task-prompt training. For symmetric
+            -- poem-to-poem similarity the convention is to embed plain text; the
+            -- "Represent this sentence..." instruction is only for the QUERY side
+            -- of asymmetric retrieval, which would skew a similarity comparison.
+            embedding_prompt_prefix = nil,
+        },
+        {
+            name = "local-gemma",
+            description = "Local llama.cpp -- embeddinggemma-300m (model comparison)",
+            host = "192.168.1.100",
+            port = 10265,
+            model = "embeddinggemma-300m",
+            model_path = "assets/models/embeddinggemma-300M-Q8_0.gguf",
+            -- EmbeddingGemma is trained WITH task prompts; the clustering task --
+            -- which is what grouping poems by likeness wants -- uses this exact
+            -- prefix per the model card. It mirrors the intent of nomic's
+            -- "clustering: " so all three models are asked the same question.
+            embedding_prompt_prefix = "task: clustering | query: ",
+        },
     },
     -- Default server name (must match a name above)
     -- If not set, first server in list is used

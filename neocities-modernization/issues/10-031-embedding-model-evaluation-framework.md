@@ -15,14 +15,29 @@ Embedding model selection is ad-hoc:
 - No visibility into what aspects of text each model emphasizes
 - Results accepted on faith without understanding model biases
 
-Currently using: `nomic-embed-text` (768 dimensions)
+Currently using: `nomic-embed-text-v1.5` (768 dimensions, served locally by
+llama.cpp per Issue 10-049; the Ollama era this issue was first written against
+is gone). The `--model` CLI flag now propagates correctly to every stage via the
+per-run overrides notepad (model-propagation bugfix), so a model swap lands its
+caches in the right per-model directory.
 
-Available alternatives:
-- `mxbai-embed-large` (1024 dimensions)
-- `all-minilm` (384 dimensions)
-- `bge-small` (384 dimensions)
-- `snowflake-arctic-embed` (1024 dimensions)
-- Custom fine-tuned models
+Three models are being compared in the first implementation of this framework
+(the GGUF files live in `assets/models/`):
+- `nomic-embed-text-v1.5` (768 dims; clustering task-prefix `"clustering: "`)
+- `mxbai-embed-large-v1` (1024 dims; no task prefix — symmetric similarity)
+- `embeddinggemma-300m` (768 dims; clustering prompt `"task: clustering | query: "`)
+
+Each model is registered in `src/similarity-engine.lua`'s model table (dimensions)
+and as a local `inference_servers` entry in `config.lua` (its GGUF `model_path`
+plus the clustering-appropriate `embedding_prompt_prefix`, so each model is used
+the way its makers intend for similarity — a fair comparison, not an accidental
+prefix mismatch).
+
+Other models considered and deferred (kept here for the record):
+- A non-neural lexical/TF-IDF baseline (the clearest way to see "structure vs
+  semantics", since every transformer is semantic) — not built this round.
+- `Qwen3-Embedding-0.6B` (instruction-tunable: A/B "theme" vs "style" prompts).
+- `bge-large-en-v1.5` / `e5-large` (a different retrieval lineage).
 
 ## Intended Behavior
 
@@ -32,6 +47,25 @@ Create a framework for systematically evaluating and comparing embedding models 
 2. **Model "personality"** - Does it emphasize verbs? Nouns? Abstract concepts? Concrete imagery?
 3. **Similarity interpretation** - What makes two poems "similar" according to each model?
 4. **Diversity interpretation** - What makes poems "maximally different"?
+
+### Decided Scope (2026-06-29 — first implementation)
+
+To get a usable comparison without embedding the whole corpus three times:
+- **Sample**: ~500 poems chosen from `assets/poems.json` with the project's
+  seeded RNG (Issue 10-058), so the sample — and therefore the comparison — is
+  reproducible. Every candidate a model can rank "most similar" must be embedded
+  in that model's space, so the sample IS the candidate pool.
+- **Anchors**: ~8 poems picked from the sample to span the characteristic table
+  below (short/long, abstract/concrete, emotional, question-heavy, etc.).
+- **Per model**: start the local llama.cpp server on that model's GGUF, embed the
+  500 sample poems (with the model's clustering prompt), stop it, move to the next.
+  Only anchor-vs-sample rankings are needed — NOT the full O(N^2) matrix or the
+  diversity cache — so this is cheap and does not touch the live site's caches.
+- **Deliverable**: `output/model-evaluation/comparison-report.html` — for each
+  anchor, three columns (one per model) of the top-K most similar poems with
+  scores, the agreements/divergences highlighted, the rank-correlation metrics,
+  and a DATA-DRIVEN personality blurb per model (e.g. mean word-count delta and
+  lexical Jaccard between an anchor and its top matches — surface vs semantic).
 
 ### Evaluation Methodology
 
@@ -152,12 +186,32 @@ Add to run.sh interactive mode:
 
 ## Files to Create
 
-| File | Purpose |
-|------|---------|
-| `scripts/evaluate-embedding-models` | Main evaluation script |
-| `libs/model-evaluator.lua` | Comparison algorithms |
-| `output/model-evaluation/` | Evaluation output directory |
-| `docs/embedding-model-analysis.md` | Findings documentation |
+| File | Purpose | Status |
+|------|---------|--------|
+| `scripts/evaluate-embedding-models` | Bash orchestrator: select sample, start a server per model, embed, build report | done |
+| `src/model-comparison.lua` | Data + report layer (`select` / `embed` / `report` subcommands) | done |
+| `libs/model-evaluator.lua` | Pure comparison + personality stats (cosine, rank, Kendall tau, lexical Jaccard) | done |
+| `output/model-evaluation/` | Evaluation output (sample.json, per-model embeddings, comparison-report.html, metrics.json) | generated |
+| `docs/embedding-model-analysis.md` | Findings documentation | pending (write after reading the first report) |
+
+### Build prerequisites discovered during implementation
+
+- **llama.cpp rebuild.** EmbeddingGemma uses the `gemma-embedding` architecture,
+  added to llama.cpp ~Sept 2025. The pinned binary was `b4404` (early 2025) and
+  failed to load the GGUF with "unknown model architecture". `scripts/build-deps.sh`
+  was bumped to `b9842` and gained `-DLLAMA_BUILD_TOOLS=ON` (upstream moved the
+  server/cli/embedding binaries from `examples/` to `tools/` across that range).
+  The CUDA build hit a gcc-14 ICE (segfault in the VRP pass on `peg-parser.cpp`)
+  under 8 parallel jobs — an out-of-memory death; `BUILD_JOBS=1` resolved it.
+- **Context limits + chunking.** `mxbai-embed-large` is BERT-large with a 512-token
+  context; long poems exceed it and the server returns
+  `exceed_context_size_error`. The embed step therefore uses
+  `fuzzy.embed_texts_with_chunking` (Issue 10-050), which splits to the loaded
+  model's budget and averages chunk vectors — nomic/gemma (~2048 ctx) embed whole.
+- **Prompt-prefix fairness.** Each model's `inference_servers` entry carries the
+  clustering-appropriate prefix (nomic `"clustering: "`, gemma
+  `"task: clustering | query: "`, mxbai none) so all three are asked the same
+  question the way their makers intend — not an accidental mismatch.
 
 ## Metrics to Compute
 
