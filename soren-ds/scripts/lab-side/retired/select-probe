@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# select-probe — choose which probe the kernel runs at the next boot
+#
+# General description: runs on the lab laptop. flash-sd has already
+# loaded the whole probe library into a catalog on the microSD card;
+# this picks one of them by NAME and copies it into the "active" probe
+# region the kernel reads at boot. No kernel rebuild, no reflash — the
+# whole edit-run loop is one short word. The writes-enabled bit is
+# already baked into each catalogued probe (from its #WRITES marker),
+# so there is no --writes flag to forget.
+#
+# Run with no name to list what's in the catalog.
+
+set -euo pipefail
+
+# {{{ configuration
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${DIR:-$(dirname "$SCRIPT_DIR")}"
+# shellcheck source=probe-common.sh
+. "${SCRIPT_DIR}/probe-common.sh"
+LOG_FILE="/tmp/select-probe.log"
+# }}}
+
+# {{{ log()
+log() { echo "[$(date '+%H:%M:%S')] $1" | tee -a "$LOG_FILE" >&2; }
+# }}}
+
+# {{{ usage()
+usage() {
+    cat >&2 <<EOF
+usage: select-probe <name> <sd-device>     run only the named probe
+       select-probe --all  <sd-device>     run the whole sweep (default)
+       select-probe --list <sd-device>     list the catalogued probes
+
+  <name>       a probe name as shown by --list (e.g. health-check)
+  <sd-device>  the microSD block device, e.g. /dev/sdb
+
+flash-sd already arms the run-all sweep, so you usually only need this
+to focus on ONE probe; --all puts it back to sweeping everything.
+
+After running, insert the card, reboot the device, then pull it and
+run dump-from-sd to read the results.
+EOF
+    exit 1
+}
+# }}}
+
+# {{{ read_manifest() — pull the catalog's text manifest off the card
+# Slot 0 of the catalog is a plain-text manifest, one line per probe:
+#   <name> <slot> <writes>
+# We dd it off, strip the trailing NUL padding, and hand back the text.
+read_manifest() {
+    local device="$1" tmp
+    tmp="$(mktemp)"
+    sudo dd if="$device" of="$tmp" bs=512 skip="$PROBE_CATALOG_LBA" \
+        count="$PROBE_SLOT_BLOCKS" status=none
+    tr -d '\000' < "$tmp"
+    rm -f "$tmp"
+}
+# }}}
+
+# {{{ argument parsing
+[ "$#" -ge 1 ] || usage
+
+# --all: re-arm the whole-catalog run-all sweep (the flash-sd default).
+if [ "$1" = "--all" ]; then
+    [ "$#" -ge 2 ] || usage
+    DEVICE="$2"
+    [ -b "$DEVICE" ] || { log "not a block device: $DEVICE"; exit 1; }
+    sudo -v || { log "sudo required to write the card"; exit 1; }
+    TMP="$(mktemp)"; trap 'rm -f "$TMP"' EXIT
+    write_runall_marker "$TMP"
+    sudo dd if="$TMP" of="$DEVICE" bs=512 seek="$PROBE_ACTIVE_LBA" conv=fsync status=none
+    sudo sync
+    log "Armed the run-all sweep. Insert the card and reboot; every auto probe runs."
+    exit 0
+fi
+
+# --list: show the catalog in sweep order.
+if [ "$1" = "--list" ]; then
+    [ "$#" -ge 2 ] || usage
+    DEVICE="$2"
+    [ -b "$DEVICE" ] || { log "not a block device: $DEVICE"; exit 1; }
+    sudo -v || { log "sudo required to read the card"; exit 1; }
+    log "Catalogued probes on ${DEVICE} (sweep runs top to bottom):"
+    read_manifest "$DEVICE" | awk '
+        $1!="SPCT" && NF>=2 {
+            tag = ($4=="no" || $4=="") ? "manual" : ("auto " $4)
+            w   = ($3=="yes") ? " writes" : ""
+            printf "  %-24s slot %-3s [%s]%s\n", $1, $2, tag, w
+        }' >&2
+    exit 0
+fi
+
+[ "$#" -ge 2 ] || usage
+NAME="$1"
+DEVICE="$2"
+[ -b "$DEVICE" ] || { log "not a block device: $DEVICE"; exit 1; }
+# }}}
+
+# {{{ activate the named probe
+sudo -v || { log "sudo required to write the card"; exit 1; }
+
+LINE="$(read_manifest "$DEVICE" | awk -v n="$NAME" '$1==n {print; exit}')"
+if [ -z "$LINE" ]; then
+    log "probe '${NAME}' is not in the catalog. Run: select-probe --list ${DEVICE}"
+    exit 1
+fi
+SLOT="$(echo "$LINE" | awk '{print $2}')"
+WRITES="$(echo "$LINE" | awk '{print $3}')"
+SLOT_LBA=$(( PROBE_CATALOG_LBA + SLOT * PROBE_SLOT_BLOCKS ))
+
+# Copy the catalog slot into the active region via a temp file (avoids
+# reading and writing the same device in one dd). The slot already
+# carries the correct header + writes bit, so activation is just a copy.
+TMP="$(mktemp)"
+trap 'rm -f "$TMP"' EXIT
+sudo dd if="$DEVICE" of="$TMP" bs=512 skip="$SLOT_LBA" count="$PROBE_SLOT_BLOCKS" status=none
+sudo dd if="$TMP" of="$DEVICE" bs=512 seek="$PROBE_ACTIVE_LBA" conv=fsync status=none
+sudo sync
+
+log "Activated '${NAME}'${WRITES:+ (writes=${WRITES})}. Insert the card and reboot the device."
+# }}}

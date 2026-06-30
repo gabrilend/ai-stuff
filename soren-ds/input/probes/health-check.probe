@@ -1,0 +1,56 @@
+#AUTO 10
+# Device health check — the "is anything broken?" smoke test.
+#
+# Brings up each controller and verifies it answers with its
+# known-good signature, then dumps the key state registers. Run
+# this whenever the device misbehaves and compare the log against a
+# known-good capture; a changed value points straight at the
+# subsystem that drifted.
+#
+# Load read-only (no --writes flag). The only state changes are the
+# CALL bring-ups, which are the normal boot steps anyway.
+#
+# !!! SAFETY: reading a peripheral whose clock is GATED hangs the
+# bus (this is the exact failure the eMMC bring-up hit). This script
+# only touches blocks that are clocked at probe time: the CRU and
+# GRF families are always on; SD and USB are brought up by
+# kernel_main before the probe runs; the eMMC is read only after
+# CALL emmc_init ungates it. It deliberately does NOT read the
+# display or audio controllers — their clocks are off. To probe one
+# of those, ungate its clock first (a W to the right CLKGATE_CON,
+# needs --writes) and only then read it.
+
+LOG ===== CLOCKS: main CRU gate registers CLKGATE_CON0..19 =====
+LOG (eMMC=CON9 0x324, USB3=CON10 0x328, SDMMC0=CON15 0x33C)
+DUMP 0xFDD20300 20
+
+LOG ===== RESETS: main CRU SOFTRST_CON0..19 =====
+DUMP 0xFDD20400 20
+
+LOG ===== CCLK_EMMC source mux (CLKSEL_CON28 bits 14:12) =====
+R 0xFDD20170
+
+LOG ===== PMU CRU gate registers PMUGATE_CON0..2 =====
+DUMP 0xFDD00180 3
+
+LOG ===== GRF: eMMC pin mux (GPIO1B_H, GPIO1C_L, GPIO1C_H) =====
+DUMP 0xFDC6000C 3
+
+LOG ===== SD card controller (DW MSHC @ 0xFE2B0000) =====
+LOG HCON hardware-config + STATUS (SD is up from kernel_main)
+R 0xFE2B0070
+R 0xFE2B0048
+
+LOG ===== USB2 PHY GRF (@ 0xFDCA0000) =====
+LOG CON0 should be 0x0C52 (OTG port normal, not suspended)
+EXPECT 0xFDCA0000 0x00000C52 0x0000FFFF
+DUMP 0xFDCA0000 4
+
+LOG ===== eMMC: bring up and verify signature =====
+CALL emmc_init
+LOG SDHCI capabilities should read 0x226DC881 on this board
+EXPECT 0xFE310040 0x226DC881 0xFFFFFFFF
+LOG read block 0: rc 0 with a real (non-FFFFFFFF) word0 = healthy
+CALL emmc_read0
+
+LOG ===== health check complete =====

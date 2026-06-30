@@ -208,8 +208,14 @@ do_mount_and_sync() {
         progress_error "$err"
         exit 1
     fi
+    # The lab-side helpers (flash-sd, dump-from-sd) ride along so the lab
+    # laptop can run them off the drive. retired/ is excluded — those are
+    # superseded SD-catalog tools kept only for reference (issue 110i),
+    # of no use on the lab side. Probes are no longer synced at all: they
+    # are compiled into the kernel image now (scripts/build --probes), so
+    # the lab laptop just flashes the image and never reads input/probes/.
     if [[ -d "$LAB_SIDE_DIR" ]]; then
-        if ! err="$(sudo rsync -rt --delete "${LAB_SIDE_DIR}/" "${USB_MOUNT}/scripts/" 2>&1)"; then
+        if ! err="$(sudo rsync -rt --delete --exclude=retired "${LAB_SIDE_DIR}/" "${USB_MOUNT}/scripts/" 2>&1)"; then
             progress_error "$err"
             exit 1
         fi

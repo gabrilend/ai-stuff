@@ -1,0 +1,196 @@
+#!/usr/bin/env luajit
+-- embed-probes — bake input/probes/*.probe into a C array for --probes builds
+--
+-- General description: a debug build of the kernel carries the whole
+-- hardware-probe battery compiled in, rather than reading probes off
+-- the SD card at boot. This generator reads every probe text file,
+-- keeps the ones marked to run in the sweep (a line beginning "#AUTO"),
+-- orders them by that marker's priority number, and writes a small C
+-- fragment that lists each kept probe's name, its writes-enabled flag,
+-- and its full script text as a string literal. The kernel's probe
+-- engine #includes the fragment to populate its builtin_probes[] array.
+--
+-- Runnable from any directory: the project root is a hard-coded DIR you
+-- may override as the first argument; every path hangs off it. The
+-- probe listing is a read-only `ls`; the output is written with native
+-- file I/O. Output goes to the RAM-backed build tree so the SSD never
+-- sees the derived file, and it lands OUTSIDE src/ so a normal build's
+-- source glob never compiles a stale copy into a production image.
+
+-- {{{ configuration — all paths relative to DIR
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/soren-ds"
+local PROBES_DIR = DIR .. "/input/probes"
+local OUT = DIR .. "/tmp/build/generated/probe-list.inc"
+-- }}}
+
+-- {{{ local function read_file()
+-- Slurp a whole file as a binary string. Errors loudly if the file is
+-- unreadable rather than returning an empty probe (a silent fallback
+-- would compile a do-nothing probe into the battery — worse than a
+-- failed build that tells you which file is missing).
+local function read_file(path)
+    local f, err = io.open(path, "rb")
+    if not f then error("cannot read " .. path .. ": " .. tostring(err)) end
+    local data = f:read("*a")
+    f:close()
+    return data
+end
+-- }}}
+
+-- {{{ local function list_probe_files()
+-- Read-only directory listing of *.probe, one path per line, sorted so
+-- the generated output is deterministic across runs (no timestamps, no
+-- filesystem ordering leaking in).
+local function list_probe_files(dir)
+    local p, err = io.popen("ls -1 " .. dir .. "/*.probe")
+    if not p then error("cannot list " .. dir .. ": " .. tostring(err)) end
+    local files = {}
+    for line in p:lines() do files[#files + 1] = line end
+    p:close()
+    table.sort(files)
+    return files
+end
+-- }}}
+
+-- {{{ local function split_lines()
+-- Break text into logical lines, dropping a trailing CR so a CRLF probe
+-- file embeds the same bytes a LF one would. Handles a final line with
+-- or without a trailing newline without emitting a spurious empty line.
+local function split_lines(text)
+    local out = {}
+    local start = 1
+    while true do
+        local nl = text:find("\n", start, true)
+        if not nl then
+            local last = text:sub(start)
+            if last ~= "" then out[#out + 1] = (last:gsub("\r$", "")) end
+            break
+        end
+        out[#out + 1] = (text:sub(start, nl - 1):gsub("\r$", ""))
+        start = nl + 1
+    end
+    return out
+end
+-- }}}
+
+-- {{{ local function probe_priority()
+-- A line beginning "#AUTO" marks a probe for the sweep and sets its run
+-- order (lower goes first). Mirrors scripts/lab-side/probe-common.sh's
+-- probe_auto_priority: the first #AUTO line wins; "#AUTO 10" -> 10; an
+-- #AUTO with no/!numeric argument -> the default 50; no #AUTO line at
+-- all -> nil, meaning the probe is manual-only and excluded from the
+-- compiled-in battery.
+local function probe_priority(lines)
+    for _, line in ipairs(lines) do
+        if line:match("^#AUTO") then
+            local n = line:match("^#AUTO%s+(%d+)")
+            return n and tonumber(n) or 50
+        end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function probe_writes()
+-- A line beginning "#WRITES" (whole word) sets the writes-enabled bit,
+-- so the engine will honour this probe's W/WH/WB register pokes.
+-- Mirrors probe_needs_writes in probe-common.sh.
+local function probe_writes(lines)
+    for _, line in ipairs(lines) do
+        if line == "#WRITES" or line:match("^#WRITES%s") then return true end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function c_escape()
+-- Escape one source line into the body of a C string literal. Backslash
+-- and quote are escaped; tab becomes \t; printable ASCII passes through;
+-- anything else becomes a 3-digit octal escape (\ooo is exactly three
+-- digits, so — unlike \x — it can't accidentally swallow a following
+-- digit). The newline that separates probe lines is added by the caller
+-- as a literal \n, so the runtime text reads one command per line.
+local function c_escape(line)
+    local b = {}
+    for i = 1, #line do
+        local c = line:byte(i)
+        if c == 92 then b[#b + 1] = "\\\\"
+        elseif c == 34 then b[#b + 1] = "\\\""
+        elseif c == 9 then b[#b + 1] = "\\t"
+        elseif c >= 32 and c <= 126 then b[#b + 1] = string.char(c)
+        else b[#b + 1] = string.format("\\%03o", c) end
+    end
+    return table.concat(b)
+end
+-- }}}
+
+-- {{{ local function basename_no_ext()
+-- "/a/b/health-check.probe" -> "health-check".
+local function basename_no_ext(path)
+    return (path:gsub(".*/", ""):gsub("%.probe$", ""))
+end
+-- }}}
+
+-- {{{ local function build_entries()
+-- Turn the probe files into a sorted list of {name, writes, lines}
+-- records, keeping only the #AUTO probes and ordering them by priority
+-- (ties broken by name, already alphabetical from the sorted listing).
+local function build_entries(files)
+    local entries = {}
+    for _, path in ipairs(files) do
+        local lines = split_lines(read_file(path))
+        local prio = probe_priority(lines)
+        if prio ~= nil then
+            entries[#entries + 1] = {
+                name = basename_no_ext(path),
+                writes = probe_writes(lines),
+                lines = lines,
+                prio = prio,
+            }
+        end
+    end
+    table.sort(entries, function(a, b)
+        if a.prio ~= b.prio then return a.prio < b.prio end
+        return a.name < b.name
+    end)
+    return entries
+end
+-- }}}
+
+-- {{{ local function emit()
+-- Write the C fragment: one brace-enclosed initializer per probe, in
+-- sweep order, ready to drop inside `builtin_probes[] = { ... }`. Each
+-- probe's text is a run of adjacent string literals (one per source
+-- line), which C concatenates — readable in the generated file and
+-- byte-identical to the source at runtime.
+local function emit(entries, out_path)
+    local f, err = io.open(out_path, "w")
+    if not f then
+        error("cannot write " .. out_path .. ": " .. tostring(err) ..
+              "\n(create the directory first, e.g. via scripts/build --probes)")
+    end
+    f:write("/* GENERATED by scripts/embed-probes — do not edit by hand.\n")
+    f:write(" * Source: the #AUTO-marked probe files under input/probes.\n")
+    f:write(" * Regenerated on every `scripts/build --probes`. */\n\n")
+    for _, e in ipairs(entries) do
+        f:write(string.format("{ \"%s\", %d,\n", c_escape(e.name), e.writes and 1 or 0))
+        for _, line in ipairs(e.lines) do
+            f:write(string.format("    \"%s\\n\"\n", c_escape(line)))
+        end
+        f:write("},\n")
+    end
+    f:close()
+    return #entries
+end
+-- }}}
+
+-- {{{ main
+local files = list_probe_files(PROBES_DIR)
+local entries = build_entries(files)
+local n = emit(entries, OUT)
+io.stderr:write(string.format("[embed-probes] %d probe(s) embedded -> %s\n", n, OUT))
+for _, e in ipairs(entries) do
+    io.stderr:write(string.format("[embed-probes]   %3d  %s%s\n",
+        e.prio, e.name, e.writes and "  (writes)" or ""))
+end
+-- }}}

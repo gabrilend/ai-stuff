@@ -214,6 +214,35 @@ inspect_debug_log() {
 }
 # }}}
 
+# {{{ split_probe_logs() — one file per probe from the run-all sweep
+# The kernel's run-all sweep brackets each probe's output with banner
+# lines:  "===== PROBE <name> [(writes)] ====="  …  "===== END <name>".
+# We carve the readable log into lab-output/probe-<name>-<stamp>.log so
+# a tech reads each probe's result on its own, instead of scrolling one
+# long combined log. A probe whose START banner has no matching END is
+# the one that hung — its file still holds everything it managed to log.
+split_probe_logs() {
+    local file="$1" stamp="$2" count
+    # awk does the redirect that creates each probe-<name>-<stamp>.log, so
+    # it must run as root: LAB_OUTPUT_DIR was made with `sudo mkdir` and on
+    # the (root-mounted) USB drive only root can create files there. Run
+    # WITHOUT sudo and awk dies with "cannot redirect ... Permission
+    # denied" on the very first probe — matching the dd dumps above, which
+    # are already sudo'd for the same reason. `strings` stays unprivileged
+    # (the log .img is world-readable); only the file-writing awk is sudo.
+    count="$(strings -n 1 "$file" | sudo awk -v dir="$LAB_OUTPUT_DIR" -v stamp="$stamp" '
+        /===== PROBE / { name=$4; cur=dir "/probe-" name "-" stamp ".log";
+                         print "----- probe: " name " -----" > cur; active=1; n++; next }
+        /===== END /   { active=0; next }
+        active         { print >> cur }
+        END            { print n+0 }
+    ')"
+    if [[ "${count:-0}" -gt 0 ]]; then
+        log "Split the sweep into ${count} per-probe logs: ${LAB_OUTPUT_DIR}/probe-*-${stamp}.log"
+    fi
+}
+# }}}
+
 # {{{ inspect_backup() — print the partition layout of the eMMC backup file
 # `file` identifies the format if it's recognizable (DOS/MBR, GPT,
 # etc.); `gdisk -l` walks the GPT if present and prints the partition
@@ -296,6 +325,7 @@ main() {
     dump_region "$sd_device" "$BACKUP_LBA"     "$BACKUP_SECTORS"    "$backup_file" "eMMC partial backup"
 
     inspect_debug_log "$log_file"
+    split_probe_logs  "$log_file" "$stamp"
     inspect_backup    "$backup_file"
 
     eject_device "$sd_device"

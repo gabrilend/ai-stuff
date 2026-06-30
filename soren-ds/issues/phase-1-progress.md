@@ -390,6 +390,31 @@ flash loop from 110c, not Maskrom.
   with the eager-save policy locked in; lazy save is noted
   as a future optimization to revisit once profile data is
   available.
+- 110i — dynamic hardware probe, delivered as a compiled-in probe
+  battery. A `scripts/build --probes` build runs `scripts/embed-probes`
+  to bake every `#AUTO`-marked probe under `input/probes/` into the
+  kernel as a C array that `src/019-probe-engine.c`'s front end walks; a
+  plain build defines nothing and the engine compiles to an empty
+  object, so a production image carries no probe code. The kernel runs
+  the whole battery on boot in priority order, logging each probe
+  bracketed by banners and flushing the SD-backed log between them, then
+  parks. The interpreter (R/W/DUMP/DELAY/EXPECT/POLL/CALL/LOG) and its
+  driver-entry CALL targets carried over unchanged from the earlier
+  SD-card-driven version; only the delivery moved in-tree, because a
+  build flag is already a rebuild and the sweep runs every probe anyway
+  (so neither the no-rebuild benefit nor the per-probe selection had any
+  reason left to exist). The on-card active region + catalog written by
+  lab tooling is retired — `load_probe_catalog` is gone from flash-sd,
+  and `select-probe` / `write-probe` / `probe-common.sh` are archived
+  under `scripts/lab-side/retired/`. Verified on hardware 2026-06-29:
+  the sweep ran all seven probes, none hung, and doubled as a phase-1
+  health report — DRAM memtest PASS, eMMC alive with its DLL locking at
+  200 MHz (greenlighting the HS200 fast path, filed as 110j), USB2 PHY
+  and the DWC3 core up — while surfacing three leads (VOP2 display
+  version constant, SARADC channels 1–5, RK817 PMIC over i2c0). A
+  read-back bug was fixed alongside: `dump-from-sd`'s log-splitter now
+  runs its file-writing awk under sudo so it can create the per-probe
+  files on the root-owned drive.
 
 ## Open issues
 
@@ -459,39 +484,62 @@ fan-out when CDC-ACM is not up, so the kernel's text-side
 narration still reaches the developer through the SD card.
 
 110a (eMMC controller driver) is *reopened* from completed.
-The original closure assumed the bootloader leaves the eMMC
-controller's five clocks (ACLK / HCLK / BCLK / CCLK / TCLK)
-on and its five resets deasserted; on the SD-card boot path
-ROCKNIX's u-boot does not reach the eMMC, so the controller
-arrives at our kernel in an indeterminate state. The first
-MMIO access panics intermittently. The reopen documents the
-specific CRU writes needed (`CLKGATE_CON(9)` at `0xFDD20324`,
-`SOFTRST_CON(7)` at `0xFDD2041C`, both bits 5-9), the
-diagnostic discriminator read against `SDHCI_CAPABILITIES` at
-`0xFE310040`, and three Rockchip-vendor-area register clears
-the original implementation did not perform. The block
-(BCLK) reset is the most commonly missed one — deasserting
-only the AHB and CCLK resets is enough to make register reads
-succeed but leaves writes silently dropping. The full
-register-by-register playbook is in the issue file.
+After many hardware iterations chasing a card that stays
+silent (every response reading the floating-bus 0xFFFFFFFF
+pattern), the datasheet pass (RK3568 TRM, now in
+`docs/datasheets/`) let us **confirm every controller register
+is correctly configured** — and the card still does not
+respond, which rules out controller configuration as the
+cause. A promising TRM lead (the RX sample clock
+`EMMC_DLL_RXCLK` bit 29 being inverted at reset) did not pan
+out: the no-inverter bit applied cleanly and the card stayed
+silent, and upstream Linux leaves it inverted at the
+identification clock anyway. The current hypothesis is
+card-state — the eMMC is never reset on the SD-boot path
+(its VCC is hardwired always-on, so no power-cycle), so the
+driver now pulses the `EMMC_RST_N` hardware-reset line before
+CMD0. If that fails, the next steps are physical-layer (is the
+clock/command reaching the pads) or reverse-engineering
+ROCKNIX u-boot's eMMC probe. The datasheet pass also fixed two
+of our own mistakes: the registers we wrote as "drive
+strength" (`0xC4`/`0xC8`) are actually pad *input-enable*
+(clobbering them can disable the eMMC pins' input buffers),
+and `CCLK_EMMC` sat at its 24 MHz reset default while the
+controller advertised a 200 MHz base — so we now set the
+clock-source mux too. The CRU clock/reset bring-up,
+capabilities discriminator, and 3.0 V power fix from the
+earlier iterations remain. Full write-up:
+`docs/018-emmc-host-controller.md`. Issue closes when the
+next flash run produces a successful eMMC-to-SD backup with
+real card content.
 
-110f (microSD controller driver) is *reopened* from completed.
-Same shape as 110a but worse: u-boot does not touch the SD
-controller at all (it boots from the SD card via the
-BootROM's fixed-offset reads, not through the SDMMC0
-controller's protocol stack), so the first MMIO access
-panics *every* time, not intermittently. The reopen documents
-the CRU writes (`CLKGATE_CON(15)` at `0xFDD2033C` bits 0-1,
-`SOFTRST_CON(13)` at `0xFDD20434` bits 3-4), the diagnostic
-discriminator read against `SDMMC_HCON` at `0xFE2B0070`, a
-missing `RINTSTS` clear at the start of bring-up that lets
-stale interrupt bits survive controller reset and fire the
-CMD_DONE poll immediately, a missing "update clock" no-op
-dance around every CLKENA / CLKDIV / CLKSRC write, and a
-polling-loop refinement to check the wedged-controller
-indicator bits (HLE on `RINTSTS` bit 12 is the one that
-matters). The full register-by-register playbook is in the
-issue file.
+110f (microSD controller driver) is *reopened* from
+completed, with the night-shift playbook now implemented in
+`src/015-sdmmc.c` but not yet validated on hardware. The CRU
+writes happen at the very top of `sd_init` (CLKGATE_CON(15)
+bits 0-1 ungate, SOFTRST_CON(13) bits 3-4 assert-then-
+deassert). HCON at offset 0x70 acts as the diagnostic
+discriminator the same way the eMMC's capabilities register
+does. After the controller's software reset, the very next
+write is `RINTSTS = 0xFFFFFFFF` — the bits in that register
+survive controller reset and would otherwise make the first
+command's CMD_DONE poll fire on stale state. FIFOTH gets the
+upstream-Linux value `0x207F_0080`. The existing update-clock
+no-op dance and the existing HLE bit (RINTSTS bit 12) in the
+error mask cover the remaining items from the playbook.
+Issue closes when the next flash run produces a successful
+SD write — the same test that closes 110a.
+
+110j (fast eMMC path — HS200, 8-bit, DMA) is newly filed. The
+`emmc-dll-tune` probe confirmed the controller's delay-locked loop
+locks at a 200 MHz card clock (lock value 0x3B) — the one speculative
+prerequisite — so the remaining work is negotiating the card into
+HS200 (`CMD6` bus-width and HS_TIMING switches), putting the controller
+in HS200 mode at 200 MHz, and moving transfers from one-block PIO to
+ADMA2 DMA. A soft dependency hangs on the eMMC's 1.8 V signalling rail:
+if it is software-controlled it runs through the RK817 PMIC, whose i2c0
+path the `pmic-dump` probe found unresponsive — the first HS200 read
+decides whether that blocks.
 
 ## Phase demo
 

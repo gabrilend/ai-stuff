@@ -315,3 +315,28 @@ bus faults at best and undefined behaviour at worst. The page
 allocator's pool is bounded above by `0xC000_0000` (the end of
 populated DRAM); the peripheral range above that is the
 hardware's, not ours.
+
+## microSD card region layout (LBAs, not chip addresses)
+
+Separate from the chip's physical address space, the kernel
+reserves two regions *on the external microSD card* for its own
+use. These are logical block addresses (512-byte sectors) on the
+card, both chosen to sit far above the bootable FAT partition (the
+first ~272 MB) so the card stays bootable. Each constant is
+mirrored between the kernel source and a lab-side script; the two
+must change together.
+
+| SD LBA | Offset | Region | Kernel source | Lab script |
+| ------ | ------ | :----- | :------------ | :--------- |
+| `0x20_0000` | ~1 GB | eMMC backup destination — the eMMC→SD dump lands here | `emmc_backup_to_sd` arg in `src/002-main.c` | `dump-from-sd` (`BACKUP_LBA`) |
+| `0x40_0000` | ~2 GB | Debug log ring — `debug_write` flushes narration here | `LOG_SD_REGION_START` in `src/017-debug-log.c` | `dump-from-sd` (`DEBUG_LOG_LBA`) |
+
+The hardware-probe battery used to claim two more card regions here —
+an "active probe" at `0x10_0000` and a "catalog" at `0x18_0000` that
+lab-side tooling wrote onto the card after flashing. Those are gone:
+the probes are compiled into the kernel now (a `scripts/build --probes`
+build embeds every `input/probes/*.probe` and runs them all on boot),
+so nothing probe-related lives on the card any more. The probe results
+still flow through the debug-log region above, and `dump-from-sd` still
+splits the swept log into one file per probe. See issue 110i for why
+the delivery moved in-tree.
