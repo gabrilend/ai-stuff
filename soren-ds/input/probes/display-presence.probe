@@ -1,0 +1,36 @@
+#WRITES
+#AUTO 50
+# Display controller (VOP2) presence + alive check.
+#
+# A layer-4 probe: the VOP2 register block is dark until its clocks
+# are ungated, and reading it while gated hangs the bus — so the
+# ungate writes MUST come first. We ungate the VOP2 + VO bus clocks,
+# make sure the VOP resets are released, then read the VOP2 version
+# register, which holds a fixed version constant. If it reads that
+# constant, the VOP2 is powered, clocked, and out of reset;
+# 0x00000000 or garbage means it isn't.
+#
+# Requires --writes (the ungate / reset-release are CRU writes).
+#
+# Register facts (RK3568 TRM, verified):
+#   CLKGATE_CON20 @ 0xFDD20350 — VOP clocks, 0=on/1=gated. The
+#     load-bearing bits are 2..12 (VOP + VO bus-interface units);
+#     gating any of the BIU clocks hangs AXI/AHB access.
+#   SOFTRST_CON16 @ 0xFDD20440 — VOP resets, 1=held/0=released,
+#     bits 0..8.
+#   VOP2_SYS_VERSION_INFO @ 0xFE040004 — reads 0x40158023 on this
+#     board (observed in the first probe sweep, 2026-06-29). The
+#     RK3568 TRM lists 0x40158588 for a different VOP2 revision; the
+#     high half (0x4015_8xxx) matches, the low half is the sub-rev.
+
+LOG ungate VOP2 + VO bus clocks (CLKGATE_CON20 bits 2..12 -> 0)
+W 0xFDD20350 0x1FFC0000
+LOG release VOP2 resets (SOFTRST_CON16 bits 0..8 -> 0)
+W 0xFDD20440 0x01FF0000
+DELAY 20000
+
+LOG read VOP2 version — expect 0x40158023 if alive and clocked
+EXPECT 0xFE040004 0x40158023 0xFFFFFFFF
+R 0xFE040004
+
+LOG display presence probe complete

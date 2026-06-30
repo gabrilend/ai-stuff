@@ -5,15 +5,40 @@
 # project root. Sets the DIR variable so the Makefile finds the
 # cross-toolchain under libs/cross/ and the source tree under src/
 # regardless of which directory the developer invoked this from.
-# The first positional argument is the make target (defaults to
+#
+# Two build variants:
+#   scripts/build            lean production kernel — no probe code.
+#   scripts/build --probes   diagnostic kernel — every #AUTO-marked
+#                            probe under input/probes/ is generated into
+#                            a C array and compiled in, and the probe
+#                            engine runs them all on boot. --debug is an
+#                            alias for the same thing.
+#
+# Any non-flag positional argument is the make target (defaults to
 # `all`). The DIR override is an environment variable rather than a
 # positional argument so it does not collide with the target name —
 # diverging from the other scripts' convention because they don't
-# carry a target concept.
+# carry a target concept. The probe generation itself is driven by the
+# Makefile (it tracks probe-file changes), so this wrapper only has to
+# flip PROBES=1 on.
 
 set -euo pipefail
 
 DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/soren-ds}"
-TARGET="${1:-all}"
 
-make -C "$DIR" DIR="$DIR" "$TARGET"
+# Separate the --probes/--debug flag from the make target. A recognised
+# flag flips probe mode; anything else is taken as the target.
+PROBES=0
+TARGET="all"
+for arg in "$@"; do
+    case "$arg" in
+        --probes|--debug) PROBES=1 ;;
+        *) TARGET="$arg" ;;
+    esac
+done
+
+if [[ "$PROBES" -eq 1 ]]; then
+    make -C "$DIR" DIR="$DIR" PROBES=1 "$TARGET"
+else
+    make -C "$DIR" DIR="$DIR" "$TARGET"
+fi

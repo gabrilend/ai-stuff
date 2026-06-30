@@ -1,0 +1,53 @@
+#WRITES
+#AUTO 90
+# Fast-eMMC-path reconnaissance: does the DLL lock at 200 MHz?
+#
+# The high-speed eMMC modes (HS200/HS400) that the fast backup
+# needs run the card clock at 100-200 MHz, where the controller's
+# delay-locked loop (DLL) must LOCK to the clock period instead of
+# being bypassed (the bypass+start config we use at the low
+# identification clock). The open hardware question is simply: does
+# the DLL lock at 200 MHz on this board, and what lock value does
+# it report? This probe answers that without committing any C.
+#
+# Register values are taken verbatim from u-boot's
+# rockchip_sdhci.c rk3568 config_dll (the >= 100 MHz branch):
+#   DLL reset     = DLL_CTRL bit 1
+#   DLL start cfg = start-point 5 (<<16) | increment 2 (<<8) | start (bit 0)
+#                 = 0x00050201
+#   lock status   = DLL_STATUS0 (0x840) bit 8; lock value = bits 7:0
+#
+# Requires --writes (it pokes the CRU and the DLL registers, both
+# inside the peripheral allowlist).
+#
+# Scope note: this characterises the DLL lock only. A real HS200
+# bring-up additionally needs a CMD6 switch into HS200 + 8-bit bus
+# and a tuning pass (CMD21) — those are SD-protocol commands the
+# probe language can't issue and belong in 012-emmc.c. If the DLL
+# locks here, that C work is de-risked; if it times out, HS200 on
+# this board needs more investigation before we attempt it.
+
+LOG bring the eMMC up at the low identification/transfer clock
+CALL emmc_init
+
+LOG switch CCLK_EMMC to 200 MHz (CLKSEL_CON28 sel=001)
+W 0xFDD20170 0x70001000
+
+LOG reset the DLL (DLL_CTRL bit 1), then release
+W 0xFE310800 0x00000002
+DELAY 4000
+W 0xFE310800 0x00000000
+
+LOG start the DLL: start-point 5, increment 2, start bit
+W 0xFE310800 0x00050201
+
+LOG poll DLL_STATUS0 bit 8 for lock (up to 100000 tries)
+POLL 0xFE310840 0x00000100 0x00000100 100000
+
+LOG read DLL_STATUS0 — bits 7:0 are the lock value if bit 8 set
+R 0xFE310840
+
+LOG read DLL_STATUS1 (per-line delay values)
+R 0xFE310844
+
+LOG DLL characterisation complete

@@ -1,0 +1,45 @@
+# Example probe script — read-only inspection of the eMMC + CRU.
+#
+# This is the language reference / template. It has no #AUTO marker,
+# so it is NOT part of the compiled-in battery — the run-all sweep
+# skips it. To make it run, add an "#AUTO <N>" line (lower N runs
+# earlier) and rebuild the diagnostic kernel:
+#   scripts/build --probes
+# then flash that image (scripts/push-to-usb here, scripts/lab-side/
+# flash-sd on the lab laptop), boot, pull the card, and read the
+# results with scripts/lab-side/dump-from-sd. (No #WRITES marker → the
+# kernel ignores any W lines; this probe cannot change hardware state.)
+#
+# Language: one command per line. '#' starts a comment. Numbers are
+# hex unless a command says otherwise. Commands:
+#   R/RH/RB <addr>          read a 32/16/8-bit register
+#   W/WH/WB <addr> <val>    write one (needs #WRITES; allowlisted)
+#   DUMP <addr> <count>     log <count> consecutive 32-bit words
+#   DELAY <n>               busy-wait roughly <n> units
+#   EXPECT <addr> <val> <mask>   read, mask, compare; logs PASS/FAIL
+#   CALL <name>             run a driver routine: sd_init, emmc_init,
+#                           emmc_read0, backup200
+#   LOG <text>              echo a marker line into the log
+
+LOG eMMC SDHCI capabilities (base clock, voltages) and version
+R 0xFE310040
+RH 0xFE3100FE
+
+LOG CRU: eMMC clock gate CLKGATE_CON9, reset SOFTRST_CON7
+R 0xFDD20324
+R 0xFDD2041C
+
+LOG CRU: CCLK_EMMC source mux CLKSEL_CON28 (bits 14:12 select rate)
+R 0xFDD20170
+
+LOG first 16 SDHCI standard registers
+DUMP 0xFE310000 16
+
+LOG confirm we are talking to the expected controller (caps value)
+EXPECT 0xFE310040 0x226DC881 0xFFFFFFFF
+
+LOG bring the eMMC up and read block 0 (expect rc 0, real word0)
+CALL emmc_init
+CALL emmc_read0
+
+LOG probe complete

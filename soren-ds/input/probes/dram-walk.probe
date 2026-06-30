@@ -1,0 +1,18 @@
+#AUTO 60
+# DRAM walk — pattern-test a 1 MB window of DRAM to catch bad RAM.
+#
+# Read-only as far as the probe language is concerned (no W lines);
+# the actual write/read pattern test runs in C behind CALL memtest,
+# against a fixed 1 MB window at the 1 GB mark of DRAM that is well
+# clear of the kernel and the page allocator. It writes four
+# marching patterns (0, all-ones, 0x55, 0xAA) plus an
+# address-in-address pass and verifies every read-back, logging the
+# first failing address or "memtest PASS".
+#
+# Requires a kernel built with the memtest CALL target (probe engine
+# 019; added alongside this script). If CALL memtest logs "unknown
+# target", reflash a newer kernel.
+
+LOG DRAM pattern test (1 MB @ 0x40000000)
+CALL memtest
+LOG DRAM walk complete

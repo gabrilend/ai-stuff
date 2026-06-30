@@ -57,6 +57,10 @@ extern int  emmc_backup_to_sd(uint32_t emmc_start_lba,
                               uint32_t sector_count);    /* 016-emmc-backup.c */
 extern void debug_log_init(void);                       /* 017-debug-log.c */
 extern void debug_log_flush(void);                      /* 017-debug-log.c */
+extern void run_bringup_test_suite(void);               /* 018-bringup-test-suite.c */
+#ifdef SOREN_PROBES
+extern int  probe_engine_run(void);                     /* 019-probe-engine.c */
+#endif
 
 #define STAGE_KERNEL_MAIN     0
 #define STAGE_PANIC_GENERIC   1
@@ -193,58 +197,71 @@ void kernel_main(void)
     led_set_stage(STAGE_USB_CONTROLLER);
 
     /* USB endpoint zero configuration is *deferred* — see issue
-     * 109b (reopened). The DWC3 controller acknowledges its
-     * identification register read correctly (which is what
-     * usb_init verifies) but does not process endpoint commands;
-     * the depcmd_issue polling loop hangs forever waiting for
-     * the CMDACT bit to clear. Most likely the controller's
-     * RUN/STOP bit needs to be set in the DCTL register before
-     * endpoint commands can be processed, or the event buffer
-     * setup is missing a step. Phase 1's downstream work (the
-     * eMMC-to-SD backup) does not depend on a working USB
-     * channel — debug_write fan-outs gracefully through the
-     * SD-backed log when CDC-ACM is not up — so we skip endpoint
-     * zero entirely for this round and continue. The USB
-     * controller is alive (stage signal set above); the eventual
-     * fix for the endpoint-command hang re-enables this call. */
+     * 109b. kernel_main does not depend on it; debug_write
+     * fans out to the SD-backed log regardless.
+     *
+     * The eMMC bring-up is now working (issue 110a resolved: the
+     * dwcmshc ignores the SDHCI clock divider, so the card clock
+     * is driven directly from the CRU mux). With the eMMC
+     * readable, this is the real eMMC-to-SD backup the whole
+     * effort was for (issue 110e) — pull the stock boot chain and
+     * partition table off the internal eMMC so it can be analysed
+     * host-side and, eventually, restored. The earlier
+     * bring-up test suite (issue 110h) stays in the tree and will
+     * become a callable target of the probe engine (110i). */
 
-    /* eMMC controller bring-up. */
-    if (emmc_init() != 0) {
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { delay_busy(1000000); }
-    }
-
-    /* Checkpoint A — eMMC up, about to bring SD up. Top green +
-     * bottom amber. If the kernel sits here, sd_init hangs. */
-    led_set(0, 1); led_set(1, 1); led_set(2, 0);
-
-    /* SD card controller bring-up. */
+    /* Bring the SD card up first so the debug log has a backing
+     * surface for everything after it. */
     if (sd_init() != 0) {
         led_set_stage(STAGE_PANIC_GENERIC);
         while (1) { delay_busy(1000000); }
     }
+    /* Checkpoint A — SD up. Top green + bottom amber. */
+    led_set(0, 1); led_set(1, 1); led_set(2, 0);
 
-    /* Checkpoint B — SD up, about to init debug log. Top yellow-
-     * amber + bottom dark. If the kernel sits here,
-     * debug_log_init hangs. */
-    led_set(0, 1); led_set(1, 0); led_set(2, 1);
-
-    /* Bring up the SD-card-backed debug log. */
     debug_log_init();
 
-    /* All four pre-backup steps have completed; advance the LED
-     * back to STAGE_USB_CONTROLLER (bottom amber alone) before
-     * the backup so the heartbeat-blinking-amber pattern reads
-     * cleanly. */
+#ifdef SOREN_PROBES
+    /* Diagnostic (--probes) build: the hardware-probe battery is
+     * compiled in (issue 110i). Run every #AUTO-marked probe in
+     * priority order, flush the results to the SD-backed log, and
+     * park — the log is the deliverable. A normal build omits this
+     * whole block, so a production image carries no probe code at all
+     * and falls straight through to the eMMC backup below. (The old
+     * design read the probe off the card at boot; it is now compiled
+     * in, because a build flag is already a rebuild — see 110i.) */
+    if (probe_engine_run()) {
+        debug_log_flush();
+        led_set_stage(STAGE_BACKUP_COMPLETE);
+        while (1) { delay_busy(1000000); }
+    }
+#endif
+
+    /* Bring up the eMMC. */
+    if (emmc_init() != 0) {
+        debug_log_flush();
+        led_set_stage(STAGE_PANIC_GENERIC);
+        while (1) { delay_busy(1000000); }
+    }
+    /* Checkpoint B — eMMC up. Top yellow-amber + bottom dark. */
+    led_set(0, 1); led_set(1, 0); led_set(2, 1);
+
+    /* Back to the bottom-amber stage so the backup heartbeat
+     * (a blinking bottom amber, one step per ~10 MB) reads
+     * cleanly during the multi-minute copy. */
     led_set_stage(STAGE_USB_CONTROLLER);
 
-    /* Copy a 200 MB slice of the eMMC to the microSD card. The
-     * size covers what issue 110e's GPT analysis actually needs
-     * (the boot partition's table lives in the first sector or
-     * two) and finishes in a small number of minutes at the
-     * chip's currently-slow boot clock. The full 32 GB backup
-     * comes back once the CPU clock is bumped to its rated
-     * speed (phase-2 issue 201a). */
+    /* Copy the first 200 MB of the eMMC (LBA 0 onward) to the
+     * microSD's reserved region at LBA 0x200000 (~1 GB in, clear
+     * of the boot region and the debug log at 0x400000). 200 MB
+     * = 409,600 sectors; at the legacy-mode 1-bit/24 MHz PIO rate
+     * (~3 MB/s) that is on the order of a minute. This captures
+     * the GPT, the Rockchip idbloader/u-boot/trust blobs, and the
+     * start of the stock partitions — enough to read the real
+     * layout and confirm the copy carries genuine card content
+     * (not the stale SD data the pre-fix runs produced). The full
+     * multi-GB stock-OS pull waits on the high-speed eMMC path
+     * (8-bit bus + HS200 + DMA), a later issue. */
     if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
         debug_log_flush();
         led_set_stage(STAGE_PANIC_GENERIC);
@@ -254,79 +271,4 @@ void kernel_main(void)
     led_set_stage(STAGE_BACKUP_COMPLETE);
 
     while (1) { delay_busy(1000000); }
-
-    /* Bring up the USB 2.0 PHY and the DWC3 controller in
-     * device mode. On success, advance the LED stage so the
-     * developer can see the controller is alive without needing
-     * a host computer attached yet. On failure (controller did
-     * not identify), drop into the generic panic pattern. */
-    if (usb_init() != 0) {
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { __asm__ volatile ("wfi"); }
-    }
-    led_set_stage(STAGE_USB_CONTROLLER);
-
-    /* Configure endpoint zero and start the controller. After
-     * this returns successfully, the host can drive bus reset
-     * and start enumeration. usb_poll services control transfers
-     * from the main loop below. */
-    if (usb_endpoint_zero_bringup() != 0) {
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { __asm__ volatile ("wfi"); }
-    }
-
-    /* The START-button bootstrap-flash trigger that issue 110d
-     * documents lived here in commit history but is removed
-     * pending 110e — until the eMMC writer's boot-partition LBA
-     * is confirmed against the real partition table, invoking
-     * the writer could corrupt u-boot. The flash trigger comes
-     * back when 110e closes with the LBA verified. */
-
-    /* Issue 110e: copy the first 200 MB of the eMMC to a
-     * reserved region of the microSD card so the partition
-     * table can be analyzed host-side after the card is pulled.
-     * The reserved region starts at SD LBA 0x200000 (~1 GB
-     * offset) — well above where the BootROM looks for a
-     * bootable loader, leaving the SD card still bootable for
-     * subsequent test cycles. Two hundred megabytes is 409,600
-     * sectors at 512 bytes each. */
-    if (emmc_init() != 0) {
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { __asm__ volatile ("wfi"); }
-    }
-    if (sd_init() != 0) {
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { __asm__ volatile ("wfi"); }
-    }
-    /* Bring up the SD-card-backed debug log now that the SD card
-     * is writable. Every subsequent `debug_write` call also
-     * appends to a ring buffer that periodically flushes to a
-     * reserved region of the SD card. After the card is pulled
-     * the developer can `dd` the region off the card and read it
-     * as plain text. */
-    debug_log_init();
-
-    /* Copy the entire eMMC to the microSD card. The eMMC is
-     * 32 GB = 67,108,864 sectors of 512 bytes. The microSD card
-     * is at least 256 GB per the developer's setup. Reserved
-     * region starts at SD LBA 0x200000 (~1 GB offset) so the
-     * BootROM-relevant low sectors stay untouched and the SD
-     * card remains bootable for subsequent test cycles. */
-    if (emmc_backup_to_sd(0, 0x200000, 67108864) != 0) {
-        debug_log_flush();
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { __asm__ volatile ("wfi"); }
-    }
-    /* Final flush of the SD log before the success signal — make
-     * sure the bring-up narration is on the card before the
-     * developer powers off. */
-    debug_log_flush();
-    led_set_stage(STAGE_BACKUP_COMPLETE);
-
-    while (1) {
-        /* Service the USB event ring on every pass. The kernel
-         * has nothing else to do until later issues land; polling
-         * is the right scheduling discipline for this phase. */
-        usb_poll();
-    }
 }
