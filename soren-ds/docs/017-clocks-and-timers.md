@@ -24,8 +24,18 @@ responsible for the clocks and resets in its part of the chip:
 
 | Block    | Base          | Scope |
 | -------- | ------------- | :---- |
-| Main CRU | `0xFDD2_0000` | Most peripherals (USB, PWM, eMMC, SD, display, etc.). |
-| PMU CRU  | `0xFDD4_0000` | Peripherals in the chip's always-on power domain (the PMU GRF, GPIO0, the PMU's own UART and I²C, the USB-2 PHY reference clocks). |
+| Main CRU | `0xFDD2_0000` | Most peripherals (USB, PWM1/2/3, eMMC, SD, display, etc.). |
+| PMU CRU  | `0xFDD0_0000` | Peripherals in the chip's always-on power domain (the PMU GRF, GPIO0, PWM0, the PMU's own UART0 and I²C0, the USB-2 PHY reference clocks). |
+
+**Base-address correction (confirmed against RK3568 TRM Part 1
+Chapter 2):** the PMU CRU base is `0xFDD0_0000`, *not* `0xFDD4_0000`.
+`0xFDD4_0000` is the I²C0 controller (the PMIC bus). An earlier
+phase-1 register probe of `0xFDD4_0180` read all-zeros because it
+was reading inside I²C0, not the PMU CRU. The PMU CRU's gate
+registers (`PMUGATE_CON0..2`) begin at offset `0x180`
+(`0xFDD0_0180`); its single soft-reset register
+(`PMUSOFTRST_CON00`) is at `0x200`. Reading zeros there is normal:
+a zero gate bit means the clock is *running*.
 
 Both CRUs follow the same register-layout convention:
 
@@ -60,8 +70,11 @@ The clocks our drivers (current and deferred) need to control:
 | `CLK_USB3OTG0_REF`   | -        | `CLKGATE_CON(10)` = `0xFDD20328` | 9 | Reference clock for the USB 3.0 OTG controller. |
 | `CLK_USB3OTG0_SUSPEND` | -      | `CLKGATE_CON(10)` = `0xFDD20328` | 10 | Suspend/low-power clock for the USB 3.0 OTG controller. |
 | `CLK_USBPHY0_REF`    | 19       | PMU CRU mux              | -  | USB 2.0 PHY 0 reference clock, in the PMU CRU. Not a gate — a mux. By reset default sources from the 24 MHz crystal; no software action needed in phase 1. |
-| `PCLK_PWM1`          | -        | TBD — research before 106c lands | TBD | Peripheral-bus clock for the PWM1 controller block. Specific register and bit position needed from `drivers/clk/rockchip/clk-rk3568.c` lookup or RK3568 TRM Part 1 §3.2 reading. |
-| `CLK_PWM1`           | -        | TBD — research before 106c lands | TBD | Source clock for the PWM1 controller block. Same lookup as `PCLK_PWM1`. |
+| `PCLK_PWM1`          | -        | `CLKGATE_CON(31)` = `0xFDD2037C` | 10 | APB bus clock for the PWM1 controller block (controller base `0xFE6E_0000`). Confirmed against TRM Part 1 Chapter 2. |
+| `CLK_PWM1`           | -        | `CLKGATE_CON(31)` = `0xFDD2037C` | 11 | Functional clock for the PWM1 controller block. (PWM1 capture clock is bit 12.) |
+| `PCLK_PWM2`/`CLK_PWM2` | -      | `CLKGATE_CON(31)` = `0xFDD2037C` | 13 / 14 | PWM2 controller block (base `0xFE6F_0000`). Capture clock is bit 15. |
+| `PCLK_PWM3`/`CLK_PWM3` | -      | `CLKGATE_CON(32)` = `0xFDD20380` | 0 / 1 | PWM3 controller block (base `0xFE70_0000`). Capture clock is bit 2. |
+| `PCLK_PWM0`/`CLK_PWM0` | -      | PMU `PMUGATE_CON(1)` = `0xFDD00184` | 6 / 7 | PWM0 lives in the PMU domain (controller base `0xFDD7_0000`), so its gates are in the *PMU* CRU, not the main CRU. Capture clock is bit 8. |
 | `ACLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 5  | AXI bus clock to the eMMC SDHCI controller at `0xFE31_0000`. Required before any controller register access. |
 | `HCLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 6  | AHB register-access clock for the eMMC controller. Required before any controller register read. |
 | `BCLK_EMMC`          | -        | `CLKGATE_CON(9)` = `0xFDD20324`  | 7  | Block / internal core clock for the eMMC controller. Without this, controller register reads return garbage and writes silently drop. *The most commonly missed eMMC clock.* |
@@ -75,6 +88,37 @@ phase-1-deferred USB clock work in issue 109a), one masked
 write to `0xFDD20328`: `0x07000000` — mask bits 8, 9, 10 in
 upper half, value bits zero in lower half (zero in a gate bit
 means ungated).
+
+### Clock-source selection (not just gating)
+
+Ungating a clock is separate from choosing its *source* and
+*rate*. For most peripherals the bootloader has already pointed
+the source mux at a sensible PLL; on the SD-boot path it has
+*not* for the blocks the bootloader never uses. The eMMC card
+clock is the one that bit us:
+
+| Clock | Mux register | Field | Reset default | What to set |
+| ----- | ------------ | :---- | :------------ | :---------- |
+| `CCLK_EMMC` | `CLKSEL_CON(28)` = `0xFDD20170` | bits 14:12 (`cclk_emmc_sel`) | `000` = 24 MHz (`xin_osc0`) | `001` = `clk_gpll_div_200m` (200 MHz) |
+| `BCLK_EMMC` | `CLKSEL_CON(28)` = `0xFDD20170` | bits 9:8 (`bclk_emmc_sel`) | `00` = 200 MHz | leave at default |
+
+The trap: the eMMC SDHCI controller's `CAPABILITIES` register
+*advertises* a 200 MHz base clock (its `Base Clock Frequency For
+SD Clock` field reads `0xC8` = 200). That value is a static
+chip-integration constant, not a live readout of the mux. On the
+SD-boot path the bootloader never programs `cclk_emmc_sel`, so it
+sits at its 24 MHz reset default while the controller's divider
+math assumes 200 MHz — the real card clock comes out ~8× too
+slow. The eMMC driver sets `cclk_emmc_sel = 001` during CRU
+bring-up so the advertised and actual base clocks agree. The full
+source-mux option list for each clock is in TRM Part 1 Chapter 2;
+the source mux for any other never-bootloader-touched block
+should be checked the same way before trusting `CAPABILITIES`-style
+advertised rates.
+
+PWM source muxes (for 106c): `clk_pwm{1,2,3}_sel` live in
+`CLKSEL_CON(72)` = `0xFDD20220` (bits 9:8 / 11:10 / 13:12), reset
+`01` = 24 MHz crystal — fine for the LED PWM as-is.
 
 ## Resets and their register locations
 
@@ -93,6 +137,10 @@ and deferred) need to assert or deassert:
 | `SRST_T_EMMC`     | 121      | `SOFTRST_CON(7)` = `0xFDD2041C` | 9  | eMMC TCLK (timer clock) domain reset. |
 | `SRST_H_SDMMC0`   | 211      | `SOFTRST_CON(13)` = `0xFDD20434`| 3  | microSD AHB clock domain reset. |
 | `SRST_SDMMC0`     | 212      | `SOFTRST_CON(13)` = `0xFDD20434`| 4  | microSD controller reset. u-boot does *not* deassert this on the SD-boot path (the BootROM reads the boot chain blobs via fixed-offset reads, not through the SDMMC0 controller's protocol stack), so the kernel must pulse it before any register access. |
+| `SRST_P_PWM1`/`SRST_PWM1` | - | `SOFTRST_CON(23)` = `0xFDD2045C`| 0 / 1 | PWM1 controller APB and functional resets (for 106c). |
+| `SRST_P_PWM2`/`SRST_PWM2` | - | `SOFTRST_CON(23)` = `0xFDD2045C`| 2 / 3 | PWM2 controller resets. |
+| `SRST_P_PWM3`/`SRST_PWM3` | - | `SOFTRST_CON(23)` = `0xFDD2045C`| 4 / 5 | PWM3 controller resets. |
+| `SRST_P_PWM0`/`SRST_PWM0` | - | PMU `PMUSOFTRST_CON00` = `0xFDD00200` | 7 / 8 | PWM0 (PMU domain) APB and functional resets. |
 
 Reset-identifier-to-register arithmetic: `SOFTRST_CON(n)` is at
 offset `0x400 + n*4`, and reset ID `I` lives in
