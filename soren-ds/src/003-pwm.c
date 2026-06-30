@@ -9,12 +9,18 @@
  * arch/arm64/boot/dts/rockchip/rk356x-base.dtsi pins the exact
  * addresses; we use them directly.
  *
- * The Rockchip PWMv3 register window per channel:
+ * The Rockchip PWM register window per channel (RK3568 TRM Part1 Ch15):
  *
- *   +0x00  counter  (read-only timing counter — we don't use it)
- *   +0x04  duty     (active-time count within a period)
- *   +0x08  period   (total cycle count)
+ *   +0x00  counter  (read-only; only advances when CTRL bit 7 is set)
+ *   +0x04  period   (total cycle count — PERIOD_HPR)
+ *   +0x08  duty     (active-time count within a period — DUTY_LPR)
  *   +0x0C  control  (enable, mode, polarity)
+ *
+ * Earlier this file had +0x04 and +0x08 reversed (duty and period
+ * swapped). It went unnoticed because the LED layer only ever drove
+ * full duty (on) or zero duty (off), where the swap is invisible. The
+ * 106c bring-up probe driving a *partial* duty exposed it — a bright
+ * LED where a dim one was asked for — and the TRM confirmed the order.
  *
  * For LED on/off we only ever push the duty cycle to either the
  * full period (LED on) or zero (LED off). Brightness gradations
@@ -45,9 +51,10 @@
 #define PWM_CHANNEL_6_BASE   0xFE6E0020u   /* amber LED  — CHARGING */
 #define PWM_CHANNEL_7_BASE   0xFE6E0030u   /* red LED    — STATUS   */
 
-/* Per-channel register offsets — same on all PWMv3 channels. */
-#define PWM_DUTY_OFFSET      0x04
-#define PWM_PERIOD_OFFSET    0x08
+/* Per-channel register offsets (RK3568 TRM Part1 Ch15: PERIOD at +0x04,
+ * DUTY at +0x08 — see the header note on the swap that used to be here). */
+#define PWM_PERIOD_OFFSET    0x04
+#define PWM_DUTY_OFFSET      0x08
 #define PWM_CONTROL_OFFSET   0x0C
 
 /* Control register bit definitions, mirroring the values in the

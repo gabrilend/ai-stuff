@@ -27,19 +27,15 @@ the PWM driver:
   "pclk" clock from the CRU; the device tree's clock-cells
   entry for `pwm@fe6e0010` names clock IDs `0x15a` (the pwm
   clock) and `0x159` (the pclk). The CRU's clock-gate
-  register layout — register `CLKGATE_CON(n)` at offset
-  `0x300 + n*4`, write-mask-encoded with the upper 16 bits
-  selecting which of the lower 16 bits the hardware
-  actually changes — is documented in
-  `docs/017-clocks-and-timers.md` alongside the catalogue
-  of the chip's clock infrastructure. The specific
-  `CLKGATE_CON(n)` register and bit position for the PWM1
-  clocks are not yet recorded; the lookup goes through the
-  `clk-rk3568.c` driver in the upstream Linux tree or
-  through the RK3568 TRM Part 1's CRU chapter. Writing the
-  appropriate bit to zero ungates the clock; the
-  controller's counter then ticks and its output toggles
-  per the duty register.
+  register layout is documented in
+  `docs/017-clocks-and-timers.md`. **The lookup is now done**
+  (RK3568 TRM Part 1 Chapter 2, in `docs/datasheets/`): the
+  PWM1 controller block at `0xFE6E_0000` — whose channels
+  `0xFE6E_0010` / `_0020` / `_0030` drive the three LEDs — is
+  gated by `CLKGATE_CON(31)` (`0xFDD2037C`) bit 10 (`PCLK_PWM1`)
+  and bit 11 (`CLK_PWM1`). Writing either bit to zero ungates
+  the clock; the controller's counter then ticks and its output
+  toggles per the duty register.
 - A pin-multiplexer write into the PMU general register
   file at `0xFDC2_0014` (`PMU_GRF_GPIO0C_IOMUX_H`). The
   three LED pins — `GPIO0_C4 / C5 / C6` — currently sit in
@@ -51,12 +47,37 @@ the PWM driver:
   value half changes (each four-bit function field becomes
   `0x1` instead of `0x0`).
 
-A possible third step: deasserting the controller's reset in
-the CRU's `SOFTRST_CON(n)` registers (offset `0x400 + n*4`,
-same write-mask convention as the clock-gate registers).
-Investigate during implementation; not every Rockchip
-controller block needs explicit reset deassertion, but PWM1
-might.
+A possible third step: deasserting the controller's reset.
+The PWM1 block's resets are now located (TRM Part 1 Ch2):
+`SOFTRST_CON(23)` (`0xFDD2045C`) bit 0 (`SRST_P_PWM1`, APB) and
+bit 1 (`SRST_PWM1`, functional). Whether an explicit deassert
+is needed (vs. the block already being out of reset) is for the
+implementer to confirm; the register/bit are recorded in
+`docs/017-clocks-and-timers.md`.
+
+One caveat to resolve during implementation: the three LED
+channels live in the *main-domain* PWM1 block (`0xFE6E_0000`),
+but the LED pins are `GPIO0_C4/C5/C6` in the *PMU* GRF — confirm
+the pin-to-channel routing against the device tree's per-channel
+pinctrl before assuming function 1 on those pins reaches these
+channels.
+
+**Update (probe test, 2026-06-29):** `input/probes/pwm-bringup.probe`
+exercises this on hardware — it ungates/deasserts PWM1, drives channel 7
+(the red LED) at a partial duty, and re-muxes only that pin, so the red
+LED is a visible PASS/FAIL while green and amber stay on the GPIO
+diagnostic. The first run came back *bright* instead of dim, which
+exposed a latent bug: `src/003-pwm.c` had the per-channel PERIOD and
+DUTY offsets swapped (the TRM Part1 Ch15 puts PERIOD at `+0x04`, DUTY at
+`+0x08`). It had stayed invisible because the LED layer only ever drove
+full-on or full-off duty, where the swap doesn't show. Fixed in
+`003-pwm.c` and in the probe. The bright output also means the
+controller *is* clocked and the re-muxed pin *does* reach the channel,
+so the cross-domain-routing caveat above is a non-issue — the next run
+showed a **dim red**, confirming the controller is clocked, the partial
+duty is honoured, and function 1 on the PMU-domain pin reaches the
+main-domain channel. The remaining work is just wiring the LED layer
+(`004-led.c`) back through `pwm_channel_set_duty`.
 
 ## Intended behavior
 
