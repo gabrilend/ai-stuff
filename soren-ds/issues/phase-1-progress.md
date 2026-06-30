@@ -460,6 +460,18 @@ flash loop from 110c, not Maskrom.
   board-fixed at 1.8 V and needs no PMIC programming — clearing the
   fast-eMMC path's last voltage worry. The reference drivers and TRM
   excerpts used live under `tmp/uboot-ref/`.
+- 110k — per-probe run-list. The compiled-in probe battery (110i) gains a
+  third per-probe marker beside `#AUTO` and `#WRITES`: a `#NEEDED` bit the
+  generator collects into a row of 0/1 baked into the image, one bit per
+  probe in sweep order. The engine runs only the selected probes and logs a
+  DE-SELECTED banner where a deselected one would have run, so a skipped
+  probe reads as deliberately skipped, not missing. This is build-time
+  selection — what 110i removed at the lab-side layer, brought back where a
+  build flag is already a rebuild. Verified on hardware (2026-06-30): the
+  deselected probes printed their banners and their bodies did not run.
+  First real uses: parking the slow, garbage-reading v1-layout gamepad ADC
+  probe, staging the HS400 capstone behind a single bit, and keeping the
+  heavy bootloader-backup probe off by default.
 
 ## Open issues
 
@@ -528,16 +540,32 @@ The reopen notes the suspected cause and the deferral —
 fan-out when CDC-ACM is not up, so the kernel's text-side
 narration still reaches the developer through the SD card.
 
-110j (fast eMMC path — HS200, 8-bit, DMA) is newly filed. The
-`emmc-dll-tune` probe confirmed the controller's delay-locked loop
-locks at a 200 MHz card clock (lock value 0x3B) — the one speculative
-prerequisite — so the remaining work is negotiating the card into
-HS200 (`CMD6` bus-width and HS_TIMING switches), putting the controller
-in HS200 mode at 200 MHz, and moving transfers from one-block PIO to
-ADMA2 DMA. A soft dependency hangs on the eMMC's 1.8 V signalling rail:
-if it is software-controlled it runs through the RK817 PMIC, whose i2c0
-path the `pmic-dump` probe found unresponsive — the first HS200 read
-decides whether that blocks.
+110j (fast eMMC path — HS200 → HS400) — the fast *read* path is built and
+proven on hardware (2026-06-30). The card climbs from legacy 1-bit/24 MHz
+up to HS200 (8-bit, 200 MHz single-rate, DLL locked, sampling tuned) and
+onward to HS400 (8-bit double-rate, sampled on the card's own returned
+strobe), and the data is verified byte-identical to the slow read: a
+fingerprint of a non-zero block matches across legacy, HS200, and HS400,
+with the controller's data-error bit now inspected so a corrupt fast read
+cannot pass as clean. The 1.8 V worry is gone (114 found the rail
+board-fixed). The one deferred piece keeping this open is DMA (ADMA2): an
+orthogonal throughput refinement — moving transfers off the
+CPU-copies-every-word PIO loop — that does not change the speed mode.
+
+110l (fast microSD path — 4-bit, High-Speed, UHS-I where the board allows)
+is newly filed: the external card's matching fast-*write* side, the other
+half of a fast backup. The dynamic capability probe is built and confirmed
+on hardware — it reads what the card in the slot supports (4-bit, speed
+class, modes) before any switch, never baking card details in. The mode
+switch (4-bit + High-Speed first; UHS-I behind a 1.8 V voltage switch) is
+the staged next step.
+
+201a (run the CPU at its rated speed) — a read-only recon probe landed
+ahead of the phase-2 work and found a surprise: the ARM PLL is already
+locked near 800 MHz in normal mode, not the ~50 MHz the issue assumed. So
+the ~35x slowness is dominated by the caches/MMU being off, not the clock;
+the clock bump is a secondary ~2x. The recon redirects the lever — see the
+revised note in 201a.
 
 ## Phase demo
 

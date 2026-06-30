@@ -1,5 +1,6 @@
 #WRITES
 #AUTO 50
+#NEEDED 1
 # Display controller (VOP2) presence + alive check.
 #
 # A layer-4 probe: the VOP2 register block is dark until its clocks

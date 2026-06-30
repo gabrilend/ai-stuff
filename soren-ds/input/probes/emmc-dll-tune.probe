@@ -1,5 +1,6 @@
 #WRITES
 #AUTO 90
+#NEEDED 1
 # Fast-eMMC-path reconnaissance: does the DLL lock at 200 MHz?
 #
 # The high-speed eMMC modes (HS200/HS400) that the fast backup

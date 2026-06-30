@@ -1,4 +1,5 @@
 #AUTO 60
+#NEEDED 1
 # DRAM walk — pattern-test a 1 MB window of DRAM to catch bad RAM.
 #
 # Read-only as far as the probe language is concerned (no W lines);

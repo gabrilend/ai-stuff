@@ -24,6 +24,23 @@ of its commented value, every busy-wait constant is
 calibrated for the slow clock rather than for the rated
 speed.
 
+**Update (2026-06-30) — the `cpu-clock-recon` probe corrects the
+premise.** The ~50 MHz figure above was a guess, and it is wrong. The
+ARM PLL (APLL) is configured and *locked* at ~816 MHz in normal
+(PLL-driven) mode, and the core clock mux/divider reads pass-through, so
+the cores are very likely already near 816 MHz. The peripheral PLLs
+decode to their standard values (GPLL 1200, CPLL 1000, NPLL 1200 MHz),
+which confirms the register read is sound. So the ~35x slowness is NOT
+the clock — it is almost certainly the CACHES being off: the MMU is
+disabled in phase 1, and with no instruction cache every fetch stalls on
+DRAM, making an 816 MHz core behave like a ~50 MHz one. The real giant
+lever is the cache/MMU bring-up; the APLL bump from 816 MHz to 1.8 GHz is
+a secondary ~2.2x on top, and it pairs with a core-voltage raise on the
+RK817 (DVFS — a faster clock needs more volts). This issue's clock-bump
+scope stands, but it is no longer the headline; confirm the actual core
+frequency (a cycle-counter measurement) before assuming the 816 MHz read
+is the delivered clock and not just the PLL setting.
+
 ## Intended behavior
 
 The kernel writes to the chip's main clock-and-reset unit

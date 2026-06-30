@@ -138,3 +138,88 @@ uint32_t pwm_full_duty(void)
 {
     return PWM_PERIOD_TICKS;
 }
+
+/* PWM LED control — brightness, and (top window only) colour.
+ *
+ * Three emitters in two windows (found empirically in 103e by driving
+ * each pin and watching the lights):
+ *   TOP    = green emitter + red emitter behind one lens (bicolor). Their
+ *            blend is the colour: green only=green, red only=red, both=
+ *            yellow/orange between. No blue, so no white/cyan/purple.
+ *   BOTTOM = one amber emitter. Brightness only, always amber.
+ *
+ * Each emitter's brightness is the fraction current/max of full, written
+ * to its PWM duty. That one fraction is the whole knob:
+ *
+ *   BRIGHTNESS : current/max IS the brightness. (3,10)=30%, (1,1)=full,
+ *                (0,_)=off.
+ *
+ *   COLOUR (top): the RATIO of the red fraction to the green fraction is
+ *                the colour; their size is the brightness.
+ *                  led_top(1,1, 0,1) = full red
+ *                  led_top(0,1, 1,1) = full green
+ *                  led_top(1,1, 1,1) = full yellow (both full)
+ *                  led_top(1,1, 1,2) = red full, green half = orange
+ *
+ *   SCALING MAX is how you recolour without touching 'current': since
+ *                brightness = current/max, a BIGGER max makes that channel
+ *                DIMMER. Doubling max_green halves green's contribution
+ *                (shifts a yellow toward red); doubling max_red shifts it
+ *                toward green. So to make a progress bar fill TOWARD a
+ *                colour, fill 'current' normally and pre-scale each
+ *                channel's 'max': e.g. max_red=total, max_green=2*total ->
+ *                at 100% the bar is full red + half green = orange.
+ *
+ * Cost: one multiply + one divide per channel, nothing cached.
+ *
+ * Unlike the rest of this file, this section touches the clock gate and
+ * the pin mux, because on the SD-boot path the bootloader leaves the PWM1
+ * block gated and the LED pins routed to GPIO (the gap 106c covers). */
+#define PWM1_CLKGATE_CON31     0xFDD2037Cu  /* bits 10,11 = PWM1 pclk/clk */
+#define PWM1_SOFTRST_CON23     0xFDD2045Cu  /* bits 0,1   = PWM1 resets   */
+#define PMU_GRF_GPIO0C_IOMUX_H 0xFDC20014u  /* LED pins C4/C5/C6 nibbles  */
+
+/* current/max as a PWM duty: off when either is zero, full when
+ * current >= max, the 64-bit ratio otherwise (so a large max cannot
+ * overflow current*period). One multiply + one divide. */
+static uint32_t led_duty(uint32_t current, uint32_t max)
+{
+    if (current == 0u || max == 0u) {
+        return 0u;
+    }
+    if (current >= max) {
+        return PWM_PERIOD_TICKS;
+    }
+    return (uint32_t)(((uint64_t)current * PWM_PERIOD_TICKS) / max);
+}
+
+/* Take the three LED pins off GPIO and onto PWM: ungate the PWM1 clock,
+ * release resets, configure all three channels for continuous output at
+ * zero duty, and route the pins to the PWM function. Call once before
+ * led_top / led_bottom. */
+void led_pwm_init(void)
+{
+    mmio_write32(PWM1_CLKGATE_CON31, 0x0C000000u);   /* ungate pclk + clk */
+    mmio_write32(PWM1_SOFTRST_CON23, 0x00030000u);   /* release resets    */
+    pwm_channel_setup(PWM_CHANNEL_5_BASE, 0);        /* green (top)    off */
+    pwm_channel_setup(PWM_CHANNEL_6_BASE, 0);        /* amber (bottom) off */
+    pwm_channel_setup(PWM_CHANNEL_7_BASE, 0);        /* red (top)      off */
+    /* C4 (green, bits 3:0), C5 (amber, 7:4), C6 (red, 11:8) -> function 1. */
+    mmio_write32(PMU_GRF_GPIO0C_IOMUX_H, 0x0FFF0111u);
+}
+
+/* Bottom amber window: brightness = current/max. */
+void led_bottom(uint32_t current, uint32_t max)
+{
+    mmio_write32(PWM_CHANNEL_6_BASE + PWM_DUTY_OFFSET, led_duty(current, max));
+}
+
+/* Top bicolor window: red = cur_red/max_red, green = cur_green/max_green.
+ * Zeros for one pair give a pure colour; two ratios blend (see the section
+ * comment above on scaling max to recolour). */
+void led_top(uint32_t cur_red, uint32_t max_red,
+             uint32_t cur_green, uint32_t max_green)
+{
+    mmio_write32(PWM_CHANNEL_7_BASE + PWM_DUTY_OFFSET, led_duty(cur_red, max_red));
+    mmio_write32(PWM_CHANNEL_5_BASE + PWM_DUTY_OFFSET, led_duty(cur_green, max_green));
+}

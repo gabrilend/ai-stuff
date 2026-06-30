@@ -1,0 +1,23 @@
+#AUTO 95
+#NEEDED 1
+# eMMC EXT_CSD dump — step 1 of the fast-storage path (issue 110j).
+#
+# Before switching the eMMC into HS200 (200 MHz, 8-bit), confirm the card
+# actually advertises that mode — you don't put a card into a mode it
+# doesn't support. This reads the card's 512-byte EXT_CSD (Extended
+# Card-Specific Data, its capability + config table) and decodes the
+# fields that matter:
+#   DEVICE_TYPE[196]  - supported speed modes; bit 4 = HS200 @ 1.8V
+#   HS_TIMING[185]    - current timing mode (0 = legacy)
+#   BUS_WIDTH[183]    - current data-bus width (0 = 1-bit)
+#   EXT_CSD_REV[192]  - eMMC spec revision the card implements
+# Plus a bonus for the eMMC-overwrite step (110b, which USB flashing
+# builds on): where the boot partition lives and how big it is
+#   PARTITION_CONFIG[179], BOOT_SIZE_MULT[226]
+#
+# Read-only and safe. The read is emmc_read_ext_csd in src/012-emmc.c,
+# invoked via the emmc_ext_csd CALL target. Watch for
+# "HS200 @ 1.8V SUPPORTED".
+
+CALL emmc_init
+CALL emmc_ext_csd

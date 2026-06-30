@@ -1,5 +1,22 @@
 #WRITES
 #AUTO 40
+#NEEDED 0
+# DE-SELECTED (110k run-list, 2026-06-30). As written this probe drives
+# the SARADC with the v1 register layout, but the RK3568 is a v2 part —
+# so it reads a constant 0x3FF on every channel (no real stick data) and
+# spends the full poll timeout on five of six channels, making it the
+# slowest probe in the sweep for zero useful output. Confirmed v2 on
+# hardware: channel 0 "matched" on the first poll while channels 1-5
+# timed out, yet ALL SIX returned the identical 0x3FF — the fingerprint
+# of reading the wrong registers, not of real conversions.
+#
+# Kept compiled in (not deleted) so the v2 rewrite has a home: a v2
+# controller starts a conversion through CONV_CON and reads results from
+# the DATA registers up around offset +0x120 (pull the exact offsets and
+# the start sequence from the kernel's rockchip_saradc.c SARADC_V2_*
+# defines). Flip #NEEDED back to 1 once the body below is rewritten — at
+# which point this becomes the live stick/trigger validation probe.
+#
 # Gamepad / analog SARADC — sweep all 6 ADC channels.
 #
 # The SARADC reads the device's analog inputs (sticks, analog

@@ -1,0 +1,22 @@
+#AUTO 98
+#NEEDED 1
+# SD card capability probe — the dynamic-probe foundation for the SD fast
+# path (issue 110l). Read-only.
+#
+# Before we ever switch the microSD to a faster mode, ask it what it
+# supports — the SD analogue of reading the eMMC EXT_CSD before HS200.
+# sd_probe_capabilities (in src/015-sdmmc.c) reads three small registers
+# over the existing slow 25 MHz / 1-bit path:
+#   SCR (ACMD51)       - SD spec version, and whether 4-bit bus is there
+#   SD_STATUS (ACMD13) - the card's WRITE speed class / UHS grade (the
+#                        "card's own sustained write" ceiling)
+#   SWITCH_FUNC query  - which access modes the card offers
+#     (CMD6 mode 0)      (SDR12 / HS-SDR25 / SDR50 / SDR104 / DDR50)
+#
+# Raw bytes are logged beside each decode (the bit offsets are easy to get
+# wrong blind). Together with the host's top mode and the bus rate, this
+# gives the three speeds to take the lowest of. The actual UHS switch is
+# the next stage of 110l. Needs the sd_caps CALL target (probe engine 019).
+
+CALL sd_init
+CALL sd_caps

@@ -1,5 +1,6 @@
 #WRITES
 #AUTO 80
+#NEEDED 1
 # PWM1 controller bring-up + pin-routing test (issue 106c).
 #
 # The three indicator LEDs CAN be driven by the PWM1 controller's duty

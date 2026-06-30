@@ -1,0 +1,46 @@
+#AUTO 15
+#NEEDED 1
+# CPU clock reconnaissance — what's feeding the cores, and the levers to
+# make them fast (issue 201a, phase 2). Read-only.
+#
+# The cores run at the bootloader's clock (~50 MHz) instead of the chip's
+# rated 1.8 GHz, so everything is ~35x slow. This probe snapshots the CRU
+# registers that decide the CPU frequency, so we can SEE the current state
+# and the levers before 201a actually bumps it — the same "look before you
+# leap" we did with EXT_CSD and the SD capability probe.
+#
+# RK3568 main CRU @ 0xFDD20000. APLL (the ARM PLL) drives the cores in
+# normal mode. PLL output = 24 MHz * FBDIV / (REFDIV * POSTDIV1 * POSTDIV2):
+#   APLL_CON0 @ 0x00:  FBDIV[11:0], POSTDIV1[14:12]
+#   APLL_CON1 @ 0x04:  REFDIV[5:0], POSTDIV2[8:6], DSMPD[12], LOCK[10]
+#   APLL_CON2 @ 0x08:  FRACDIV[23:0] (fractional mode; 0 in integer mode)
+#   MODE_CON0 @ 0xC0:  per-PLL mode. APLL = bits[1:0]: 0 = slow (24 MHz
+#                      bypass), 1 = normal (PLL-driven), 2 = deep slow.
+#   CLKSEL_CON0 @ 0x100: the armclk source mux + divider — which PLL the
+#                      cores actually take, and the divide on top.
+# Peripheral PLLs for reference (GPLL already runs fast — it fed the
+# 200 MHz eMMC clock, so it is the proof a PLL CAN be brought up here):
+#   GPLL_CON0/1 @ 0x40/0x44   CPLL_CON0/1 @ 0x60/0x64   NPLL_CON0/1 @ 0x80/0x84
+#
+# The CRU is always-on, so these reads are safe (no clock-gate hang). The
+# companion lever, NOT read here because it is an i2c transaction, is the
+# CPU's voltage rail (an RK817 DCDC buck): a higher clock needs a higher
+# core voltage, so a real 1.8 GHz bring-up is a clock AND a voltage move
+# (DVFS). The pmic probes reach that rail.
+
+LOG ===== APLL (ARM PLL) config: CON0, CON1, CON2 =====
+R 0xFDD20000
+R 0xFDD20004
+R 0xFDD20008
+LOG ===== PLL mode select (MODE_CON0; APLL bits 1:0: 0=slow/24MHz, 1=PLL) =====
+R 0xFDD200C0
+LOG ===== armclk source mux + divider (CLKSEL_CON0) =====
+R 0xFDD20100
+LOG ===== peripheral PLLs for reference: GPLL CON0/1, CPLL CON0/1, NPLL CON0/1 =====
+R 0xFDD20040
+R 0xFDD20044
+R 0xFDD20060
+R 0xFDD20064
+R 0xFDD20080
+R 0xFDD20084
+LOG ===== CPU clock recon complete =====
