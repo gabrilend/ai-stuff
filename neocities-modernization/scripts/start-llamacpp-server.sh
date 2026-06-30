@@ -22,6 +22,7 @@
 # {{{ Hard-coded project directory and default state
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 SERVER_NAME=""
+MODEL_OVERRIDE=""
 # }}}
 
 # {{{ Color codes
@@ -33,14 +34,22 @@ C_RESET="\033[0m"
 # }}}
 
 # {{{ parse_arguments
-# Two recognized flags:
+# Recognized flags:
 #   --server=NAME : override the default_inference_server from config
+#   --model=NAME  : serve a specific model from that server's available_models
+#                   (loads that model's GGUF); defaults to the server's model
 #   /path/to/dir  : override the project DIR (positional)
 parse_arguments() {
     for arg in "$@"; do
         case "$arg" in
             --server=*)
                 SERVER_NAME="${arg#*=}"
+                ;;
+            --model=*)
+                # Pick a specific model the server can serve (one of its
+                # available_models) and load that model's GGUF instead of the
+                # server default. Used by the model-comparison harness.
+                MODEL_OVERRIDE="${arg#*=}"
                 ;;
             --help|-h)
                 sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
@@ -67,24 +76,33 @@ parse_arguments() {
 # Running the module in a subprocess keeps the parent shell free of any
 # stray Lua state and lets us capture exactly the fields we want.
 resolve_server_config() {
-    local override=""
+    local server_override=""
     if [ -n "$SERVER_NAME" ]; then
-        override="inference.set_selected_server('${SERVER_NAME}')"
+        server_override="inference.set_selected_server('${SERVER_NAME}')"
+    fi
+    local model_override=""
+    if [ -n "$MODEL_OVERRIDE" ]; then
+        model_override="inference.set_selected_model('${MODEL_OVERRIDE}')"
     fi
     luajit -e "
         package.path = '${DIR}/libs/?.lua;' .. package.path
         local inference = require('inference-server-config')
         inference.set_project_root('${DIR}')
-        ${override}
+        ${server_override}
+        ${model_override}
         local server = inference.get_selected_server()
-        if not server.model_path then
-            error('inference-server-config: server \"' .. server.name
-                .. '\" has no model_path field; needed by start-llamacpp-server.sh')
+        -- Resolve the GGUF for the SELECTED model (default = server.model), so a
+        -- --model override on a multi-model server loads the right file.
+        local mc = inference.get_selected_model_config()
+        if not mc.model_path then
+            error('inference-server-config: model \"' .. tostring(mc.model)
+                .. '\" on server \"' .. server.name .. '\" has no model_path; add it '
+                .. 'to the server entry or to that model in available_models')
         end
         print(server.host)
         print(server.port)
-        print(server.model_path)
-        print(server.model)
+        print(mc.model_path)
+        print(mc.model)
     "
 }
 # }}}
@@ -194,6 +212,14 @@ launch_server() {
     # noise during normal runs.
     local -a launch_flags=(
         -m "$abs_model_path"
+        # Advertise the model under the name config.lua uses for it (e.g.
+        # "embeddinggemma-300m"), not the GGUF filename. /v1/models then reports
+        # that exact name, so callers that verify "is my model loaded?" by
+        # matching the model name succeed -- without --alias the server reports
+        # the .gguf path, and a name like embeddinggemma-300m fails to match
+        # embeddinggemma-300M-Q8_0.gguf (the case differs), which read as the
+        # model being absent even though it was loaded and serving fine.
+        --alias "$MODEL"
         --embedding
         --host "$HOST"
         --port "$PORT"
