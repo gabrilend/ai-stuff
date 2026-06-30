@@ -69,3 +69,52 @@ tour; jump in by topic if you already know where you're going.
   (the ARM Generic Timer, the dedicated hardware timer
   blocks, the PWM controllers reconfigured as timers, the
   RTC, the per-core performance counters).
+- `018-emmc-host-controller.md` — what phase-1 hardware
+  testing actually taught us about the eMMC host controller
+  (dwcmshc): the slot's voltage support, base clock, pinmux
+  layout, vendor-area register quirks, hardware-reset path,
+  and a reference register dump from a working bring-up.
+  Captures the empirical answers the upstream datasheet and
+  Linux driver source either don't agree on or don't say
+  cleanly.
+- `019-board-pinmux.md` — every peripheral's pin assignment
+  on the Anbernic RG DS, extracted from the device tree.
+  One table per peripheral family (SDMMC, I²C, UART, PWM,
+  audio, display, touch, gamepad, sensors). The GRF base
+  addresses and bank-window offsets so any future bring-up
+  knows exactly which IOMUX register to write.
+- `020-sdmmc0-host-controller.md` — the SDMMC0 (microSD) DW
+  MSHC controller. Sibling to 018: the CRU dependencies, the
+  HCON discriminator, the FIFOTH value, the update-clock
+  no-op CMD dance, the clock-divider math, and the polling-
+  loop error bits the driver must check explicitly.
+- `021-pmic-and-regulators.md` — the board's RK817 PMIC and
+  every regulator rail it provides. Which rails are always-on
+  vs. switchable, what they power, why phase 1 doesn't need
+  to talk to the PMIC at all, and what the path looks like
+  for when later work does (i2c0, address 0x20, voltage
+  registers from the RK817 datasheet).
+- `022-usb-device-controller.md` — DWC3 USB-3 OTG controller
+  and the USB2 PHY GRF for device-mode bring-up (issues
+  109a/b/c). Decodes the USB2 PHY `CON0` register (the OTG
+  port is already out of suspend at reset — 109a doesn't need
+  to clear a power-down bit), names the CRU clocks/reset and
+  the PHY power-on reset, and points 109b's endpoint-command
+  hang at TRM Part 2 Ch17.
+- `023-display-controller.md` — VOP2 + MIPI DSI + MIPI TX
+  DPHY reconnaissance for the display issues (111a-d, 112).
+  Region maps, the minimum register path to scan one
+  framebuffer to one panel, and the init-ordering constraints
+  the TRM flags. Marks the gaps each 111x issue must still
+  resolve.
+- `024-emmc-partition-map.md` — the factory GPT layout of the
+  internal eMMC, read off a real device once the eMMC bring-up
+  worked. The 15 stock Android partitions with their LBAs and
+  sizes (uboot, trust, boot, recovery, super, userdata, …),
+  what the 200 MB validation backup captured, and what a full
+  factory-restore image needs.
+- `datasheets/INDEX.md` — catalogue of the chip and
+  standards PDFs downloaded to `docs/datasheets/`: RK3568 TRM
+  Parts 1 & 2, RK3568 brief datasheet, SDHCI v4.20 spec,
+  JEDEC eMMC 5.1 spec, Synopsys DWC_mshc excerpt. Includes a
+  "which doc to read for which symptom" table.

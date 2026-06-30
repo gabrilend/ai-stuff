@@ -39,6 +39,26 @@ extern void debug_write(const char *text);
 
 #define SDMMC0_BASE 0xFE2B0000u
 
+/* Main clock-and-reset unit register pairs that feed the SDMMC0
+ * controller. The two SDMMC0 clocks (HCLK_SDMMC0 / CLK_SDMMC0)
+ * live at CLKGATE_CON(15) bits 0-1; the two matching soft-resets
+ * (SRST_H_SDMMC0 / SRST_SDMMC0) live at SOFTRST_CON(13) bits 3-4.
+ * The bit positions deliberately differ between the two
+ * registers — one of the small inconsistencies the RK3568 CRU
+ * lays on top of an otherwise regular pattern. See
+ * docs/017-clocks-and-timers.md for the catalogue. */
+#define CRU_CLKGATE_CON_15 0xFDD2033Cu
+#define CRU_SOFTRST_CON_13 0xFDD20434u
+#define SDMMC0_CLOCK_BITS  0x0003u   /* CLKGATE_CON(15) bits 0-1 */
+#define SDMMC0_RESET_BITS  0x0018u   /* SOFTRST_CON(13) bits 3-4 */
+
+/* The controller's hardware-config register — read-only, holds a
+ * constant the chip designer baked in. We read it after the CRU
+ * bring-up as a diagnostic discriminator: a sensible value means
+ * the bus came up, ones means the AHB clock is still gated, zero
+ * means the controller block is still in reset. */
+#define DW_HCON          0x70
+
 /* DW MSHC register offsets per upstream Linux drivers/mmc/host/dw_mmc.h. */
 #define DW_CTRL          0x00
 #define DW_PWREN         0x04
@@ -125,6 +145,48 @@ static void delay_loops(uint32_t n)
  * CMD3, used as the upper 16 bits of the argument to commands
  * that address a specific card (CMD7, CMD9, etc.). */
 static uint32_t sd_card_rca;
+
+/* Wake the SDMMC0 controller out of the CRU's gated/asserted
+ * post-reset state. Unlike the eMMC's intermittent failure,
+ * SDMMC0 panics on first MMIO every time on the SD-card boot
+ * path: u-boot doesn't talk to the SDMMC0 controller at all (it
+ * reads the kernel from the SD card via the BootROM's fixed-
+ * offset reads, bypassing the protocol stack entirely), so the
+ * controller arrives at our kernel exactly as the chip reset
+ * left it — clocks gated, resets asserted, every register read
+ * either zero or all-ones.
+ *
+ * Both clocks and both resets are essential. The SDMMC0_DRV and
+ * SDMMC0_SAMPLE clocks are phase shifters on top of CLK_SDMMC0
+ * and are programmed during tuning, not bring-up. */
+static int sdmmc_cru_bring_up(void)
+{
+    /* Ungate HCLK_SDMMC0 / CLK_SDMMC0. Mask covers bits 0-1,
+     * value half is zero (clearing the gate bits ungates). */
+    mmio_write32(CRU_CLKGATE_CON_15,
+                 ((uint32_t)SDMMC0_CLOCK_BITS) << 16);
+
+    /* Assert and then deassert SRST_H_SDMMC0 / SRST_SDMMC0. */
+    mmio_write32(CRU_SOFTRST_CON_13,
+                 (((uint32_t)SDMMC0_RESET_BITS) << 16) | SDMMC0_RESET_BITS);
+    delay_loops(1000);
+    mmio_write32(CRU_SOFTRST_CON_13,
+                 ((uint32_t)SDMMC0_RESET_BITS) << 16);
+
+    /* Diagnostic discriminator — HCON should read a sensible
+     * controller-config constant (~0x0003_E47A on this chip).
+     * The two failure modes both produce legible patterns. */
+    uint32_t hcon = mmio_read32(SDMMC0_BASE + DW_HCON);
+    if (hcon == 0x00000000u) {
+        debug_write("[sdmmc] HCON reads 0 — SDMMC0 reset stuck asserted\r\n");
+        return -1;
+    }
+    if (hcon == 0xFFFFFFFFu) {
+        debug_write("[sdmmc] HCON reads ones — AHB clock still gated\r\n");
+        return -2;
+    }
+    return 0;
+}
 
 /* Wait for the controller's busy state to clear after a clock-
  * update command. */
@@ -249,21 +311,49 @@ static int sd_send_command(uint32_t index, uint32_t arg, uint32_t flags)
  * sequence. */
 static int sd_initialize_card(void)
 {
+    /* CRU clocks and resets first — without this every controller
+     * MMIO panics on the SD-card boot path. */
+    debug_write("[sdmmc] CRU bring-up...\r\n");
+    if (sdmmc_cru_bring_up() != 0) {
+        return -100;
+    }
+
     debug_write("[sdmmc] resetting controller...\r\n");
     if (sdmmc_reset() != 0) {
         debug_write("[sdmmc] controller reset failed\r\n");
         return -1;
     }
 
-    /* Power the card slot. */
-    mmio_write32(SDMMC0_BASE + DW_PWREN, 1);
-    delay_loops(100000);
+    /* Clear RINTSTS *before* any other code can read it. The DW
+     * MSHC's interrupt-status bits survive controller reset. Any
+     * bits set when the chip came out of reset would otherwise
+     * make the very first command's CMD_DONE poll fire on stale
+     * state — the driver would think the command succeeded
+     * before the controller had even seen it. Writing ones to
+     * RINTSTS clears the bits in the W1C register. */
+    mmio_write32(SDMMC0_BASE + DW_RINTSTS, 0xFFFFFFFFu);
 
     /* Mask all interrupts — we poll instead. */
     mmio_write32(SDMMC0_BASE + DW_INTMASK, 0);
 
     /* Timeouts — generous. */
     mmio_write32(SDMMC0_BASE + DW_TMOUT, 0xFFFFFFFFu);
+
+    /* FIFO threshold. Value comes from upstream Linux's setup
+     * for this controller variant: fifo-depth is 0x100, RX
+     * watermark is fifo-depth/2 - 1 = 0x7F, TX watermark is
+     * fifo-depth/2 = 0x80, multiple-transaction-size 2 sits in
+     * bits 28-30 as 0x2. Composite value 0x207F_0080.
+     *
+     * Without this write the controller works on register
+     * access but data transfers stall — the FIFO never signals
+     * "ready to be drained" or "ready to be filled" at the
+     * thresholds the rest of the code expects. */
+    mmio_write32(SDMMC0_BASE + DW_FIFOTH, 0x207F0080u);
+
+    /* Power the card slot. */
+    mmio_write32(SDMMC0_BASE + DW_PWREN, 1);
+    delay_loops(100000);
 
     /* 1-bit bus during identification. */
     mmio_write32(SDMMC0_BASE + DW_CTYPE, 0);

@@ -1,0 +1,6 @@
+# The datasheet PDFs are large reference material, not project source —
+# the RK3568 TRM part 2 alone is ~125 MB. Keeping them out of git avoids
+# bloating the repo for everyone who clones it. INDEX.md (tracked) lists
+# what each file is and where it came from; re-download from there if you
+# need the PDFs locally.
+*.pdf

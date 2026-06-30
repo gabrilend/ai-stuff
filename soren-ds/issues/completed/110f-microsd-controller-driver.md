@@ -1,15 +1,57 @@
 # 110f — microSD controller driver
 
+> **RESOLVED on hardware.** SD writes work: the kernel flushes its
+> debug log to the card's reserved region, and the 110i probe sweep's
+> seven per-probe logs were read back off that region with
+> `dump-from-sd` — proof the SDMMC0 driver writes real blocks that
+> survive a power cycle. The night-shift playbook all landed and held
+> (CRU ungate/reset, the HCON discriminator, the post-reset `RINTSTS`
+> clear, the `FIFOTH` value, the update-clock no-op dance, the HLE
+> error bit). Closed alongside 110a as the eMMC/SD base.
+
 ## Current behavior
 
 `src/015-sdmmc.c` brings up the SDMMC0 controller — Synopsys
 DW MSHC, distinct in IP from the SDHCI we drive the eMMC with.
-The controller is software-reset through its CTRL register,
-powered through its PWREN register, has its clock divider set
-for an identification-rate ~400 kHz and then bumped to
-transfer-rate after card-init completes. Interrupts are masked
-in INTMASK; the driver polls RINTSTS for command-done,
-data-over, and error bits.
+
+The very first thing the driver does is wake the controller
+out of the CRU's gated/asserted post-reset state. Unlike the
+eMMC's intermittent failure, the SD controller is *entirely
+untouched* by the SD-card boot path's bootloader — the
+BootROM reads the kernel from the SD card through fixed-offset
+reads, bypassing the SDMMC0 protocol stack — so every first
+MMIO access panics unless we ungate the clocks and pulse the
+resets ourselves. A single write to CLKGATE_CON(15) ungates
+HCLK_SDMMC0 and CLK_SDMMC0 at bits 0-1; two writes to
+SOFTRST_CON(13) assert and then deassert the two matching
+soft-resets at bits 3-4. A read of the controller's hardware-
+config register at offset 0x70 then acts as a diagnostic
+discriminator: a sensible value (the chip designer baked in
+roughly 0x0003_E47A) means the bus came up; zero means the
+SDMMC0 reset is stuck asserted; ones means the AHB clock is
+still gated.
+
+The controller is then software-reset through its CTRL
+register. The very next write clears the raw-interrupt-status
+register — the DW MSHC's interrupt-status bits survive
+controller reset, so without this write the first command's
+CMD_DONE poll fires on stale state before the controller has
+even seen our command. The FIFO threshold register is set to
+0x207F_0080 (RX watermark 0x7F, TX watermark 0x80, multiple-
+transaction size 2) from upstream Linux's setup for this
+controller variant. The card slot is powered through PWREN,
+interrupts masked in INTMASK, timeouts set generous in TMOUT,
+and the bus type set to one bit for identification.
+
+The clock divider is set for an identification-rate ~400 kHz
+and then bumped to transfer-rate after card-init completes.
+Every clock change goes through the "update clock" no-op
+command dance — CMD register write of `0xA0202000` followed
+by polling bit 31 to clear — without which the CLKDIV / CLKENA
+writes silently fail to take effect. The driver polls RINTSTS
+for command-done, data-over, and an error mask that includes
+HW_LOCKED_WERR (bit 12) — the indicator that fires when a
+clock-change dance was missed.
 
 The SD card walks through the standard SD-spec init sequence:
 CMD0, CMD8 to confirm 2.0+ support, ACMD41 in a loop (wrapped in
@@ -37,12 +79,15 @@ codes table is updated to match.
 
 The closing evidence on real hardware — the backup running to
 completion on the device and a `dd`-readable dump on the
-pulled microSD card — has not yet been observed because we
-have not booted from the device. That validation lands when the
-first boot test runs. If the backup hangs or the SD card has
-no dump, the bug is in the DW MSHC register access or the SD
-init-sequence ordering; both reopen this issue with the
-specific failure mode.
+pulled microSD card — has not yet been observed because the
+new CRU bring-up hasn't been flashed and tested yet. That
+validation lands on the next hardware run. If the backup hangs
+or the SD card has no dump *after* the CRU discriminator
+passes (HCON reads roughly 0x0003_E47A but a later command
+still hangs), the suspect list shifts to the clock divider
+math (the source-clock rate the chip is currently running at
+may be a different number than the ~50 MHz the divider math
+assumes) or the FIFOTH watermark choice.
 
 ## Reopened — CRU clock and reset setup missing, plus polling-loop and clock-update fixes
 
