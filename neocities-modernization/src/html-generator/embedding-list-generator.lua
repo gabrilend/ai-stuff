@@ -6,6 +6,10 @@
 package.path = package.path .. ';./?.lua;./libs/?.lua'
 
 local utils = require("libs.utils")
+-- Issue 10-051 family: shared progress renderer (animated bar on a TTY, plain
+-- lines under --debug, silent when piped) so these long loops show one updating
+-- line instead of scrolling a "[INFO] Progress:" line every N items.
+local progress = require("libs.progress-display")
 
 local M = {}
 local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
@@ -38,10 +42,10 @@ function M.generate_most_similar_lists(embeddings_dir, model_name)
     for poem_id, similarities in pairs(similarity_data.similarities) do
         processed_count = processed_count + 1
         
-        if processed_count % 100 == 0 then
-            utils.log_info(string.format("Progress: %d/%d most similar lists generated (%.1f%%)", 
-                                        processed_count, total_poems, 
-                                        (processed_count / total_poems) * 100))
+        -- Animate one progress line; throttle sparser under --debug (verbose).
+        local step = (progress.mode() == 2) and 100 or 25
+        if processed_count % step == 0 then
+            progress.update("   📋 Most-similar lists", processed_count, total_poems)
         end
         
         -- Convert similarities to sorted list
@@ -95,7 +99,8 @@ function M.generate_most_similar_lists(embeddings_dir, model_name)
             return false
         end
     end
-    
+    progress.finish()
+
     utils.log_info(string.format("Generated %d most similar lists", processed_count))
     return true
 end
@@ -220,10 +225,9 @@ function M.generate_diversity_chain_lists(embeddings_dir, model_name, chain_leng
     for starting_poem_id, _ in pairs(similarity_data.similarities) do
         processed_count = processed_count + 1
         
-        if processed_count % 50 == 0 then
-            utils.log_info(string.format("Progress: %d/%d diversity chains generated (%.1f%%)", 
-                                        processed_count, total_poems, 
-                                        (processed_count / total_poems) * 100))
+        local step = (progress.mode() == 2) and 100 or 25
+        if processed_count % step == 0 then
+            progress.update("   🎲 Diversity chains", processed_count, total_poems)
         end
         
         local diversity_chain = M.generate_least_similar_chain(
@@ -249,7 +253,8 @@ function M.generate_diversity_chain_lists(embeddings_dir, model_name, chain_leng
             return false
         end
     end
-    
+    progress.finish()
+
     utils.log_info(string.format("Generated %d diversity chain lists", processed_count))
     return true
 end
