@@ -27,6 +27,11 @@ end
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 local dkjson = require("dkjson")
+-- Shared progress renderer (Issue 10-051 family): one animated \r bar on a TTY,
+-- plain newline-terminated lines under --debug (VKC_DEBUG, so a redirected log
+-- keeps the full history), and silent when piped. Replaces the old every-100
+-- "[INFO] Progress:" lines that scrolled the console during a full run.
+local progress = require("progress-display")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -233,14 +238,22 @@ function M.precompute_poem_colors(poems_data, poem_embeddings_data, color_embedd
 
             processed_count = processed_count + 1
 
-            if processed_count % 100 == 0 then
-                utils.log_info(string.format("Progress: %d/%d poems processed (%.1f%%) - Latest: poem_index %d = %s",
-                                            processed_count, total_poems,
-                                            (processed_count / total_poems) * 100,
-                                            poem.poem_index, color))
+            -- Animate a single progress line instead of printing one every 100.
+            -- Throttle by mode: under --debug (verbose) keep it sparse at every
+            -- 100 so the durable log stays readable; on a live TTY redraw the bar
+            -- more often (every 25) for smooth motion. The suffix shows the most
+            -- recent poem's assigned color, as the old line did.
+            local step = (progress.mode() == 2) and 100 or 25
+            if processed_count % step == 0 then
+                progress.update("   🎨 Semantic colors", processed_count, total_poems,
+                    string.format("poem_index %d = %s", poem.poem_index, color))
             end
         end
     end
+    -- Final frame at the true count (the throttle above can stop short of it),
+    -- then close the animated line so later output starts on a fresh row.
+    progress.update("   🎨 Semantic colors", processed_count, total_poems, "done")
+    progress.finish()
     
     -- Save to file for use during HTML generation
     local output_data = {

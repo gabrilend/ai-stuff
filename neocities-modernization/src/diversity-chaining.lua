@@ -15,6 +15,10 @@ else
 end
 
 local utils = require('utils')
+-- Issue 10-051 family: shared progress renderer (animated bar on a TTY, plain
+-- lines under --debug, silent when piped) -- one updating line instead of a
+-- "Progress:" line every N chains.
+local progress = require('progress-display')
 
 local M = {}
 
@@ -178,21 +182,23 @@ function M.generate_multiple_diversity_chains(poem_ids, poems_data, similarity_d
     utils.log_info(string.format("🔗 Generating diversity chains for %d starting poems", #poem_ids))
     
     for i, poem_id in ipairs(poem_ids) do
+        -- Animate one progress line every iteration (throttled), regardless of
+        -- whether this poem yielded a chain, so the bar tracks real progress.
+        local step = (progress.mode() == 2) and 100 or 25
+        if i % step == 0 then progress.update("   🔗 Diversity chains", i, #poem_ids) end
+
         local chain_result = M.generate_maximum_diversity_chain(poem_id, poems_data, similarity_data, config)
-        
+
         if chain_result and #chain_result.chain > 1 then
             results[poem_id] = chain_result
             successful_chains = successful_chains + 1
             total_diversity = total_diversity + chain_result.metadata.average_diversity
-            
-            if i % 100 == 0 then
-                utils.log_info(string.format("Progress: %d/%d chains generated", i, #poem_ids))
-            end
         else
             utils.log_warn("Failed to generate chain for poem " .. poem_id)
         end
     end
-    
+    progress.finish()
+
     local overall_average_diversity = successful_chains > 0 and (total_diversity / successful_chains) or 0
     
     utils.log_info(string.format("✅ Batch generation complete: %d/%d successful, avg diversity: %.3f", 
