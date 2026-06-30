@@ -1,0 +1,69 @@
+#WRITES
+#AUTO 40
+# Gamepad / analog SARADC — sweep all 6 ADC channels.
+#
+# The SARADC reads the device's analog inputs (sticks, analog
+# triggers, the HOME-button voltage ladder). This probe ungates the
+# SARADC clock, then for each channel 0..5 starts a conversion,
+# polls end-of-conversion, and reads the 10-bit result. Move a stick
+# between runs and watch the channel values change to map which
+# channel is which axis.
+#
+# Requires --writes (the ungate and the per-channel start are
+# writes to the CRU and the SARADC).
+#
+# !!! CAVEAT: the RK3568 TRM documents the *v1* SARADC register
+# layout used here (CTRL/DATA/STAS). Mainline Linux, however, drives
+# the rk3568 SARADC as a *v2* controller (CONV_CON/STATUS/DATA at
+# different offsets). If every channel reads a constant 0 or 0x3FF,
+# the silicon is v2 and this probe needs the v2 offsets — which the
+# TRM does not document; pull them from the kernel's
+# rockchip_saradc.c. Treat a sensible, stick-tracking value as
+# confirmation the v1 layout is correct on this part.
+#
+# Register facts (RK3568 TRM, verified):
+#   CLKGATE_CON26 @ 0xFDD20368 — clk_saradc bit 8, pclk_saradc
+#     bit 7 (0=on).
+#   SARADC base 0xFE720000:
+#     +0x00 DATA  [9:0] = result
+#     +0x04 STAS  [0]   = 1 busy / 0 stop
+#     +0x08 CTRL  [2:0]=channel  [3]=power/START  [5]=int_en
+#                  [6]=int_status (end-of-conversion; our POLL bit)
+#   Start channel n = write (int_en|power|n) = 0x28 | n to CTRL.
+#   Poll CTRL bit 6 (0x40) for done, then read DATA.
+
+LOG ungate SARADC clocks (CLKGATE_CON26 bits 7,8 -> 0)
+W 0xFDD20368 0x01800000
+DELAY 20000
+
+LOG channel 0
+W 0xFE720008 0x00000028
+POLL 0xFE720008 0x00000040 0x00000040 100000
+R 0xFE720000
+
+LOG channel 1
+W 0xFE720008 0x00000029
+POLL 0xFE720008 0x00000040 0x00000040 100000
+R 0xFE720000
+
+LOG channel 2
+W 0xFE720008 0x0000002A
+POLL 0xFE720008 0x00000040 0x00000040 100000
+R 0xFE720000
+
+LOG channel 3
+W 0xFE720008 0x0000002B
+POLL 0xFE720008 0x00000040 0x00000040 100000
+R 0xFE720000
+
+LOG channel 4
+W 0xFE720008 0x0000002C
+POLL 0xFE720008 0x00000040 0x00000040 100000
+R 0xFE720000
+
+LOG channel 5
+W 0xFE720008 0x0000002D
+POLL 0xFE720008 0x00000040 0x00000040 100000
+R 0xFE720000
+
+LOG SARADC sweep complete

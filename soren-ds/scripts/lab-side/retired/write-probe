@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# write-probe — load a hardware-probe script onto the microSD card
+#
+# General description: runs on the air-gapped lab laptop. Takes a
+# plain-text probe script (the little R/W/DUMP/EXPECT/CALL language
+# the kernel's probe engine understands, issue 110i), wraps it in a
+# 16-byte header the kernel recognises, and writes it to a reserved
+# region of the microSD card — 512 MB in, far clear of the bootable
+# partition and the kernel's log and backup regions. On the next
+# boot the kernel finds the script and runs it instead of its normal
+# flow, so a developer can redirect the running kernel by editing a
+# text file and rebooting, with no recompile and no reflash.
+#
+# This script WRITES to the SD card, but only to the probe region;
+# it never touches the boot partition. It refuses to run unless the
+# target device is explicitly named and looks like a removable MMC
+# card, and it asks for confirmation before writing.
+#
+# Reads-only by default: the probe engine ignores W commands unless
+# the --writes flag is given here, which sets the "writes enabled"
+# bit in the header. So a probe script can poke registers only when
+# you deliberately allow it.
+
+set -euo pipefail
+
+# {{{ configuration — paths relative to DIR, kernel-synced constants
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${DIR:-$(dirname "$SCRIPT_DIR")}"
+
+LOG_FILE="/tmp/write-probe.log"
+
+# Shared probe-engine constants + the header-build helper. The active
+# probe region (PROBE_ACTIVE_LBA) and build_probe_payload come from
+# here, kept in one place so the lab tools never drift from the kernel.
+# shellcheck source=probe-common.sh
+. "${SCRIPT_DIR}/probe-common.sh"
+# }}}
+
+# {{{ log() — one timestamped line to stderr and the log file
+log() {
+    local stamp
+    stamp="$(date '+%H:%M:%S')"
+    echo "[${stamp}] $1" | tee -a "$LOG_FILE" >&2
+}
+# }}}
+
+# {{{ usage()
+usage() {
+    cat >&2 <<EOF
+usage: write-probe <probe-script.txt> <sd-device> [--writes]
+
+  <probe-script.txt>  a text probe script (see input/probes/)
+  <sd-device>         the microSD block device, e.g. /dev/sdb
+  --writes            force the header's writes-enabled bit on. Not
+                      usually needed: a probe that pokes registers
+                      should carry a "#WRITES" marker line, which
+                      enables writes automatically. This flag is an
+                      override for ad-hoc scripts without the marker.
+
+Note: for the normal workflow, flash-sd loads the whole probe library
+onto the card and select-probe picks one by name. write-probe is for
+pushing a one-off script straight to the active region.
+
+example:
+  write-probe ${DIR}/input/probes/example-emmc-registers.probe /dev/sdb
+EOF
+    exit 1
+}
+# }}}
+
+# {{{ argument parsing
+[ "$#" -ge 2 ] || usage
+SCRIPT_FILE="$1"
+SD_DEVICE="$2"
+
+[ -f "$SCRIPT_FILE" ] || { log "probe script not found: $SCRIPT_FILE"; exit 1; }
+[ -b "$SD_DEVICE" ]   || { log "not a block device: $SD_DEVICE"; exit 1; }
+
+# Writes are enabled if the probe declares a #WRITES marker (the
+# preferred, can't-forget way) OR the --writes flag is passed (an
+# override for ad-hoc scripts that lack the marker).
+WRITES="no"
+if probe_needs_writes "$SCRIPT_FILE"; then WRITES="yes"; fi
+if [ "${3:-}" = "--writes" ]; then WRITES="yes"; fi
+# }}}
+
+# {{{ safety — the device must be removable and on the MMC transport
+#
+# We refuse to write to anything that does not look like the SD card,
+# so a mistyped device name can't scribble on the laptop's own disk.
+guard_device() {
+    local base removable transport
+    base="$(basename "$SD_DEVICE")"
+    removable="$(cat "/sys/block/${base}/removable" 2>/dev/null || echo 0)"
+    transport="$(lsblk -ndo TRAN "$SD_DEVICE" 2>/dev/null || echo unknown)"
+    if [ "$removable" != "1" ]; then
+        log "refusing: $SD_DEVICE is not a removable device"
+        exit 1
+    fi
+    log "target: $SD_DEVICE (removable=$removable transport=$transport)"
+}
+guard_device
+# }}}
+
+# {{{ sudo — confirmed before any block-device access
+if ! sudo -v; then
+    log "sudo required to write the SD card; aborting before any access"
+    exit 1
+fi
+# }}}
+
+# {{{ build the payload (shared header builder) and write it
+PAYLOAD="$(mktemp /tmp/write-probe.payload.XXXXXX)"
+trap 'rm -f "$PAYLOAD"' EXIT
+build_probe_payload "$SCRIPT_FILE" "$WRITES" "$PAYLOAD"
+# }}}
+
+# {{{ confirm and write
+SCRIPT_BYTES="$(stat -c%s "$SCRIPT_FILE")"
+log "probe script: $SCRIPT_FILE (${SCRIPT_BYTES} bytes), writes=${WRITES}"
+log "will write to $SD_DEVICE at LBA ${PROBE_ACTIVE_LBA} (active region, 512 MB)"
+read -r -p "proceed? [y/N] " answer
+case "$answer" in
+    y|Y) ;;
+    *) log "aborted by user"; exit 1 ;;
+esac
+
+sudo dd if="$PAYLOAD" of="$SD_DEVICE" bs=512 seek="$PROBE_ACTIVE_LBA" \
+    conv=fsync status=none
+sudo sync
+log "probe script written. Insert the card in the device and reboot;"
+log "the kernel will run the script and log results to the SD log."
+log "Pull the card and run dump-from-sd to read the results."
+# }}}
+
+# {{{ goodbye
+echo "goodbye" > "${DIR}/output/goodbye.log" 2>/dev/null || true
+# }}}

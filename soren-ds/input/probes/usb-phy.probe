@@ -1,0 +1,36 @@
+#AUTO 20
+# USB controller + PHY state (issue 109a reconnaissance). Read-only.
+#
+# Snapshots the USB2 PHY GRF and the USB3 OTG clock/reset state so
+# we can see what the bootloader + usb_init left us before tackling
+# the device-mode enumeration hang (109b). Decode help is in
+# docs/022-usb-device-controller.md.
+#
+# The GRF and CRU reads are always safe. The DWC3 controller-core
+# read at the end is only valid if the USB3 clocks are ungated;
+# kernel_main runs usb_init (which must ungate them) before the
+# probe, so it should be safe — but it is placed LAST so that if it
+# ever does hang, every value above it is already in the log.
+
+LOG USB2 PHY GRF CON0 (OTG port): 0x0C52 = controller-driven, normal
+R 0xFDCA0000
+LOG CON1 (host port, parked) and CON2 (shared analog / commononn)
+R 0xFDCA0004
+R 0xFDCA0008
+LOG line-state / disconnect debounce filters (red herrings, for ref)
+R 0xFDCA0040
+R 0xFDCA0044
+
+LOG USB3 OTG clock gates: CLKGATE_CON10 bits 8-10 (0=ungated)
+R 0xFDD20328
+LOG USB3 OTG reset: SOFTRST_CON9 bit 4 (0=deasserted)
+R 0xFDD20424
+
+LOG --- DWC3 core (needs usb3 clocks up; placed last) ---
+LOG GSNPSID identifies the DWC3 IP revision
+R 0xFCC0C120
+LOG DCTL (run/stop + state) and DSTS (device status)
+R 0xFCC0C704
+R 0xFCC0C70C
+
+LOG USB probe complete

@@ -1,0 +1,23 @@
+#AUTO 30
+# PMIC (RK817) reachability + register snapshot over i2c0.
+#
+# Brings the i2c0 controller up bare-metal and reads the first 16
+# registers of the RK817 PMIC (7-bit address 0x20). If the values
+# come back as anything other than TIMEOUT, the PMIC is alive on
+# the bus and we have a working I2C path to it — which unblocks
+# reading regulator states, the battery fuel gauge, and power
+# events later.
+#
+# All the work happens in C behind CALL pmic_dump (i2c0 bring-up +
+# the Rockchip register-read transfer sequence); the probe language
+# can't issue an I2C transaction by itself. Requires a kernel built
+# with the pmic_dump CALL target (probe engine 019). If it logs
+# "unknown target", reflash a newer kernel.
+#
+# Interpreting the register values needs the RK817 datasheet (not
+# yet on hand) — this probe establishes the channel and captures a
+# raw snapshot to decode against that datasheet later.
+
+LOG RK817 PMIC dump over i2c0
+CALL pmic_dump
+LOG PMIC dump complete
