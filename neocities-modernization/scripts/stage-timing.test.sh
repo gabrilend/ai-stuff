@@ -19,11 +19,12 @@ check() { # check <label> <actual> <expected>
 }
 
 # {{{ format_seconds across the unit boundaries
-check "45s"      "$(stage_timing_format_seconds 45)"     "45s"
-check "12m 30s"  "$(stage_timing_format_seconds 750)"    "12m 30s"
-check "2h 14m"   "$(stage_timing_format_seconds 8040)"   "2h 14m"
-check "1d 18h"   "$(stage_timing_format_seconds 151200)" "1d 18h"
-check "boundary 3600 -> 1h 0m" "$(stage_timing_format_seconds 3600)" "1h 0m"
+check "45s"        "$(stage_timing_format_seconds 45)"     "45s"
+check "12m 30s"    "$(stage_timing_format_seconds 750)"    "12m 30s"
+check "2h 14m 0s"  "$(stage_timing_format_seconds 8040)"   "2h 14m 0s"
+check "1h 1m 1s (3 slots)" "$(stage_timing_format_seconds 3661)" "1h 1m 1s"
+check "1d 18h 0m"  "$(stage_timing_format_seconds 151200)" "1d 18h 0m"
+check "boundary 3600 -> 1h 0m 0s" "$(stage_timing_format_seconds 3600)" "1h 0m 0s"
 # }}}
 
 # {{{ ring buffer keeps only the last RING_SIZE, oldest off the top

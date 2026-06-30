@@ -1995,22 +1995,73 @@ fi
 # Show what will be executed (in non-interactive or after TUI selection)
 if $DRY_RUN || $VERBOSE; then
     echo "Pipeline stages to execute:"
-    # Issue 10-051: show measured wall-clock when this box has run the stage before
-    # (avg of the last few). Before any run, show a coarse magnitude word
-    # (short/medium/long) rather than a specific number -- words don't go stale the
-    # way "~42 hours" did. The second arg is that magnitude. Empty string if the
-    # timing library was not sourced.
-    _st() { command -v stage_timing_label >/dev/null 2>&1 && stage_timing_label "$1" "$2"; }
-    $UPDATE_WORDS && echo "  1.  update-words $(_st update-words short)"
-    $EXTRACT && echo "  2.  extract $(_st extract short)"
-    $PARSE && echo "  3.  parse $(_st parse short)"
-    $VALIDATE && echo "  4.  validate $(_st validate short)"
-    $CATALOG_IMAGES && echo "  5.  catalog-images $(_st catalog-images short)"
-    $GENERATE_EMBEDDINGS && echo -e "  6.  generate-embeddings $(symbol_warning "⚠️") $(_st generate-embeddings long)"
-    $GENERATE_SIMILARITY && echo -e "  7.  generate-similarity $(symbol_warning "⚠️") $(_st generate-similarity medium)"
-    $GENERATE_DIVERSITY && echo -e "  8.  generate-diversity $(symbol_warning "⚠️") $(_st generate-diversity medium)"
-    $GENERATE_HTML && echo "  9.  generate-html $(_st generate-html medium)"
-    $GENERATE_WORDCLOUD && echo "  10. generate-wordcloud $(_st wordcloud short)"
+    # Issue 10-051 / alignment: render the plan as a TABLE -- stage names in one
+    # left-aligned column, the measured average time right-aligned in the next --
+    # so durations line up and the eye can scan them. Measured wall-clock (avg of
+    # recent runs) appears once a stage has run here before; until then a coarse
+    # magnitude word (short/medium/long) stands in, since a word can't go stale
+    # the way a hard number can. The ⚠ marks the heavy stages.
+    #
+    # Each row is "enabled|number|name|warned|timing-key|magnitude". The timing
+    # key can differ from the display name (word-cloud history is stored under
+    # "wordcloud" but shown as "generate-wordcloud").
+    _plan_rows=(
+        "$UPDATE_WORDS|1|update-words|0|update-words|short"
+        "$EXTRACT|2|extract|0|extract|short"
+        "$PARSE|3|parse|0|parse|short"
+        "$VALIDATE|4|validate|0|validate|short"
+        "$CATALOG_IMAGES|5|catalog-images|0|catalog-images|short"
+        "$GENERATE_EMBEDDINGS|6|generate-embeddings|1|generate-embeddings|long"
+        "$GENERATE_SIMILARITY|7|generate-similarity|1|generate-similarity|medium"
+        "$GENERATE_DIVERSITY|8|generate-diversity|1|generate-diversity|medium"
+        "$GENERATE_HTML|9|generate-html|0|generate-html|medium"
+        "$GENERATE_WORDCLOUD|10|generate-wordcloud|0|wordcloud|short"
+    )
+    _have_timing=false
+    command -v stage_timing_mean >/dev/null 2>&1 && _have_timing=true
+
+    # Pass 1: collect enabled rows + each one's time string and tail, and track
+    # the widest label and widest time. The ⚠ glyph is counted as ONE display
+    # column (not its byte length) so the multibyte char does not skew alignment.
+    _p_num=(); _p_label=(); _p_lvis=(); _p_time=(); _p_tail=()
+    _labelw=0; _timew=0
+    for _row in "${_plan_rows[@]}"; do
+        IFS='|' read -r _en _num _name _warn _key _mag <<< "$_row"
+        [ "$_en" = "true" ] || continue
+        _lbl="$_name"; _lvis=${#_name}
+        if [ "$_warn" = "1" ]; then _lbl="$_name $(symbol_warning "⚠")"; _lvis=$(( ${#_name} + 2 )); fi
+        _time=""; _tail="$_mag"
+        if $_have_timing; then
+            _mean="$(stage_timing_mean "$_key" 2>/dev/null)"
+            if [ -n "$_mean" ]; then
+                _cnt="$(stage_timing_count "$_key")"
+                _pl="s"; [ "$_cnt" = "1" ] && _pl=""
+                _time="$(stage_timing_format_seconds "$_mean")"
+                _tail="last ${_cnt} run${_pl}"
+            fi
+        fi
+        _p_num+=("$_num"); _p_label+=("$_lbl"); _p_lvis+=("$_lvis")
+        _p_time+=("$_time"); _p_tail+=("$_tail")
+        [ "$_lvis" -gt "$_labelw" ] && _labelw=$_lvis
+        [ "${#_time}" -gt "$_timew" ] && _timew=${#_time}
+    done
+
+    # Pass 2: print aligned. Number in a 3-wide field ("1." / "10."), label padded
+    # to _labelw, time right-aligned to _timew inside "(avg <time>, <tail>)".
+    _i=0
+    while [ "$_i" -lt "${#_p_num[@]}" ]; do
+        _pad=$(( _labelw - ${_p_lvis[$_i]} ))
+        _sp=""; [ "$_pad" -gt 0 ] && _sp="$(printf '%*s' "$_pad" '')"
+        if [ -n "${_p_time[$_i]}" ]; then
+            printf "  %-3s %s%s (avg %*s, %s)\n" \
+                "${_p_num[$_i]}." "${_p_label[$_i]}" "$_sp" \
+                "$_timew" "${_p_time[$_i]}" "${_p_tail[$_i]}"
+        else
+            printf "  %-3s %s%s (%s)\n" \
+                "${_p_num[$_i]}." "${_p_label[$_i]}" "$_sp" "${_p_tail[$_i]}"
+        fi
+        _i=$(( _i + 1 ))
+    done
     echo ""
 fi
 

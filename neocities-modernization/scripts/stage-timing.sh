@@ -107,16 +107,17 @@ stage_timing_count() {
 # }}}
 
 # {{{ stage_timing_format_seconds <int>  -- human-readable duration
-# 45 -> "45s", 750 -> "12m 30s", 8040 -> "2h 14m", 151200 -> "1d 18h".
-# Two units of resolution is enough for a pre-flight hint; we drop the finer unit
-# once hours/days lead, where seconds of precision are noise.
+# 45 -> "45s", 750 -> "12m 30s", 8040 -> "2h 14m 0s", 151200 -> "1d 18h 0m".
+# Three units of resolution once an hour or more is involved (h m s, or d h m),
+# two below that (m s). Showing the seconds slot at the hour scale keeps every
+# row the same shape, which the pre-flight table relies on to line the times up.
 stage_timing_format_seconds() {
     local s="$1"
     case "$s" in (*[!0-9]*|'') return 0;; esac
     if   [ "$s" -lt 60 ];    then echo "${s}s"
     elif [ "$s" -lt 3600 ];  then echo "$((s / 60))m $((s % 60))s"
-    elif [ "$s" -lt 86400 ]; then echo "$((s / 3600))h $(((s % 3600) / 60))m"
-    else                          echo "$((s / 86400))d $(((s % 86400) / 3600))h"
+    elif [ "$s" -lt 86400 ]; then echo "$((s / 3600))h $(((s % 3600) / 60))m $((s % 60))s"
+    else                          echo "$((s / 86400))d $(((s % 86400) / 3600))h $(((s % 3600) / 60))m"
     fi
 }
 # }}}
