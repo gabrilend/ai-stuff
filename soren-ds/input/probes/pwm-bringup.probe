@@ -1,0 +1,62 @@
+#WRITES
+#AUTO 80
+# PWM1 controller bring-up + pin-routing test (issue 106c).
+#
+# The three indicator LEDs CAN be driven by the PWM1 controller's duty
+# hardware (smooth brightness), but the GPIO LED layer (106b) re-muxed
+# their pins to plain GPIO. This probe brings PWM1 up and drives ONLY
+# the red LED (channel 7) at a low duty, re-muxing ONLY its pin — so the
+# green and amber LEDs stay on the GPIO diagnostic and the sweep's done
+# signal is still readable. The red LED's state when the device parks is
+# the test result:
+#   dim red  = PWM works AND function 1 on GPIO0_C6 reaches PWM channel 7
+#   bright   = duty wrong (>= period) or GPIO still driving the pin
+#   dark     = the pad isn't reaching the PWM channel
+#
+# The FIRST run of this probe came back bright because PERIOD and DUTY
+# were swapped — RK3568 TRM Part1 Ch15 puts PERIOD at +0x04 and DUTY at
+# +0x08, the OPPOSITE of what src/003-pwm.c assumed. Writing duty=1000
+# into a period of 100 pins the output on. This version uses the
+# TRM-correct order.
+#
+# Register facts (RK3568 TRM Part1 Ch15):
+#   CLKGATE_CON31 @ 0xFDD2037C — PWM1 clocks, bit 10 (pclk) / 11 (clk),
+#     0=on. (PWM1 is already clocked at boot — the green LED is lit at
+#     u-boot handoff — so this is belt-and-braces, harmless if redundant.)
+#   SOFTRST_CON23 @ 0xFDD2045C — PWM1 resets, bits 0 (APB) / 1 (func).
+#   PWM1 channel 7 @ 0xFE6E0030: +0x00 CNT (RO; only advances when CTRL
+#     bit 7 ch_cnt_en is set), +0x04 PERIOD_HPR, +0x08 DUTY_LPR, +0x0C
+#     CTRL (bit0 pwm_en, bits2:1 mode=01 continuous, bit3 duty_pol
+#     positive, bit7 ch_cnt_en).
+#   GPIO0C_IOMUX_H @ 0xFDC20014 — red pin GPIO0_C6 nibble at bits 11:8,
+#     function 1 = PWM.
+#
+# !!! This leaves the red pin muxed to PWM, so the final "top red"
+# done-indicator shows the PWM-driven red rather than the GPIO one.
+# Expected — the red LED IS the readout. The next normal boot re-muxes
+# everything back to GPIO at LED init.
+
+LOG ungate PWM1 clocks (CLKGATE_CON31 bits 10,11 -> 0)
+W 0xFDD2037C 0x0C000000
+LOG deassert PWM1 resets (SOFTRST_CON23 bits 0,1 -> 0)
+W 0xFDD2045C 0x00030000
+DELAY 10000
+
+LOG configure PWM1 ch7 (red): PERIOD@+0x04 = 1000, DUTY@+0x08 = 100 (~10%)
+W 0xFE6E0034 0x000003E8
+W 0xFE6E0038 0x00000064
+LOG control = pwm_en | continuous | duty-positive | ch_cnt_en (0x8B)
+W 0xFE6E003C 0x0000008B
+DELAY 10000
+
+LOG route red pin GPIO0_C6 to PWM function 1 (GPIO0C_IOMUX_H)
+W 0xFDC20014 0x0F000100
+DELAY 50000
+
+LOG read PWM1 ch7 counter twice — it should advance now ch_cnt_en is set
+R 0xFE6E0030
+DELAY 50000
+R 0xFE6E0030
+LOG dump PWM1 ch7 registers (counter, period, duty, control)
+DUMP 0xFE6E0030 4
+LOG PWM bring-up complete — check the RED LED at park: dim = works, dark = routing

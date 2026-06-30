@@ -267,6 +267,13 @@ static void memtest_run(void)
 #define I2C0_RXDATA0  (I2C0_BASE + 0x200u)
 #define RK817_ADDR    0x20u
 
+/* Diagnostics captured the instant a read times out, so pmic_dump can
+ * report WHY instead of a bare "timeout": a NAK (IPD bit 6) means the
+ * bus works but the chip stayed silent (pins / address / its own
+ * clock); an all-zero IPD means the controller never ran a transaction
+ * at all (its functional clock is gated). */
+static uint32_t i2c0_fail_ipd, i2c0_fail_con;
+
 static void i2c0_setup(void)
 {
     /* Ungate i2c0's PMU-domain clocks (PMUGATE_CON01 bits 0,1)
@@ -287,23 +294,71 @@ static void i2c0_setup(void)
  * success with the byte in *out, or -1 on timeout. */
 static int i2c0_read_reg(uint32_t dev, uint32_t reg, uint8_t *out)
 {
-    mmio_w32(I2C0_IPD, 0xFFu);                       /* clear stale pending */
-    mmio_w32(I2C0_MRXADDR, 0x01000000u | (dev << 1));/* addlvld | dev<<1 */
-    mmio_w32(I2C0_MRXRADDR, 0x01000000u | reg);      /* sraddlvld | reg */
-    mmio_w32(I2C0_MRXCNT, 1u);                        /* read 1 byte */
-    /* CON: enable | mode 01 (reg-addr then read) | start | NAK-last */
-    mmio_w32(I2C0_CON, 0x0000002Bu);
+    uint32_t budget;
 
-    uint32_t budget = 1000000u;
-    while (!(mmio_r32(I2C0_IPD) & 0x08u)) {           /* wait MBRF */
-        if (budget-- == 0u) { mmio_w32(I2C0_CON, 0u); return -1; }
+    /* Canonical Rockchip i2c register read, matching u-boot's rk_i2c.c
+     * (saved in tmp/uboot-ref/rk_i2c.c). The order is strict, and our
+     * earlier versions got it wrong in three ways: START must be its OWN
+     * step first; the slave address must carry the read bit; the
+     * transfer CON has NO start bit; and writing MRXCNT *last* is what
+     * actually triggers the controller to clock the bus. Writing MRXCNT
+     * before CON, and folding START into the mode write, left the
+     * controller started but never transferring — the "STARTIPD then
+     * nothing" we captured on hardware. */
+
+    /* Step 1 — START on its own: CON = EN | START, wait the start
+     * interrupt, clear it. */
+    mmio_w32(I2C0_IPD, 0x7Fu);
+    mmio_w32(I2C0_CON, 0x09u);                         /* EN | START */
+    budget = 1000000u;
+    while (!(mmio_r32(I2C0_IPD) & 0x10u)) {            /* STARTIPD */
+        if (budget-- == 0u) {
+            i2c0_fail_ipd = mmio_r32(I2C0_IPD);
+            i2c0_fail_con = mmio_r32(I2C0_CON);
+            mmio_w32(I2C0_CON, 0u);
+            return -1;
+        }
+    }
+    mmio_w32(I2C0_IPD, 0x10u);                         /* clear STARTIPD */
+
+    /* Step 2 — slave address WITH the read bit, then the register
+     * address. In TRX mode the controller sends addr+W, the register
+     * address, a restart, then addr+R, so MRXADDR carries the read form. */
+    mmio_w32(I2C0_MRXADDR, 0x01000000u | (dev << 1) | 1u);
+    mmio_w32(I2C0_MRXRADDR, 0x01000000u | reg);
+
+    /* Step 3 — transfer CON, NO start: EN | mode TRX(01) | NAK-the-last. */
+    mmio_w32(I2C0_CON, 0x00000023u);
+
+    /* Step 4 — writing MRXCNT is what triggers the receive. */
+    mmio_w32(I2C0_MRXCNT, 1u);
+
+    /* Step 5 — wait for the byte, or a NAK if the chip stays silent. */
+    budget = 1000000u;
+    for (;;) {
+        uint32_t ipd = mmio_r32(I2C0_IPD);
+        if (ipd & 0x08u) break;                       /* MBRF — byte ready */
+        if (ipd & 0x40u) {                            /* NAK — no ACK */
+            i2c0_fail_ipd = ipd;
+            i2c0_fail_con = mmio_r32(I2C0_CON);
+            mmio_w32(I2C0_IPD, 0x40u);
+            mmio_w32(I2C0_CON, 0u);
+            return -1;
+        }
+        if (budget-- == 0u) {
+            i2c0_fail_ipd = ipd;
+            i2c0_fail_con = mmio_r32(I2C0_CON);
+            mmio_w32(I2C0_CON, 0u);
+            return -1;
+        }
     }
     mmio_w32(I2C0_IPD, 0x08u);                         /* clear MBRF */
     *out = (uint8_t)(mmio_r32(I2C0_RXDATA0) & 0xFFu);
 
-    mmio_w32(I2C0_CON, 0x00000011u);                  /* enable | stop */
+    /* Step 6 — STOP. */
+    mmio_w32(I2C0_CON, 0x00000011u);                  /* EN | STOP */
     budget = 1000000u;
-    while (!(mmio_r32(I2C0_IPD) & 0x20u)) {            /* wait STOP done */
+    while (!(mmio_r32(I2C0_IPD) & 0x20u)) {            /* STOPIPD */
         if (budget-- == 0u) break;
     }
     mmio_w32(I2C0_IPD, 0x20u);
@@ -311,10 +366,50 @@ static int i2c0_read_reg(uint32_t dev, uint32_t reg, uint8_t *out)
     return 0;
 }
 
+/* Log "  label=0xVALUE" for a register readback. */
+static void i2c0_log_reg(const char *label, uint32_t addr)
+{
+    debug_write("[probe]   ");
+    debug_write(label);
+    debug_write("=");
+    write_hex32(mmio_r32(addr));
+    debug_write("\r\n");
+}
+
 static void pmic_dump(void)
 {
     i2c0_setup();
+
+    /* Read the setup back so we can see whether the writes took. These
+     * are write-mask registers (upper-16 mask, lower-16 value), so a
+     * read returns the live value with the mask half zero — a set bit
+     * here means our ungate / route actually landed on the hardware. */
+    debug_write("[probe] i2c0 setup readback:\r\n");
+    i2c0_log_reg("PMUGATE_CON01@0xFDD00184", 0xFDD00184u);
+    i2c0_log_reg("PMUSOFTRST_CON00@0xFDD00200", 0xFDD00200u);
+    i2c0_log_reg("GPIO0B_IOMUX@0xFDC20008", 0xFDC20008u);
+    i2c0_log_reg("PMU_GRF_SOC_CON0@0xFDC20100", 0xFDC20100u);
+    i2c0_log_reg("I2C0_CON@0xFDD40000", I2C0_CON);
+    i2c0_log_reg("I2C0_CLKDIV@0xFDD40004", I2C0_CLKDIV);
+    /* SCL/SDA idle line levels. GPIO0_EXT_PORT shows the pad level
+     * regardless of pin mux (per the TRM): B1=SCL is bit 9, B2=SDA is
+     * bit 10. Both high = the bus is idle and the fault is the
+     * controller not clocking; either low = that line is stuck (no
+     * pull-up, the RK817's codec half holding it, or a routing fault) —
+     * which is exactly what freezes a transaction right after START. */
+    {
+        uint32_t ext = mmio_r32(0xFDD60070u);
+        debug_write("[probe]   GPIO0_EXT_PORT@0xFDD60070=");
+        write_hex32(ext);
+        debug_write("  SCL(bit9)=");
+        write_hex32((ext >> 9) & 1u);
+        debug_write(" SDA(bit10)=");
+        write_hex32((ext >> 10) & 1u);
+        debug_write("\r\n");
+    }
+
     debug_write("[probe] RK817 PMIC @ i2c0 0x20, registers 0x00..0x0F:\r\n");
+    int reported = 0;
     for (uint32_t reg = 0; reg <= 0x0Fu; reg++) {
         uint8_t v = 0;
         debug_write("[probe]   reg ");
@@ -324,7 +419,21 @@ static void pmic_dump(void)
             write_hex32((uint32_t)v);
             debug_write("\r\n");
         } else {
-            debug_write(" = TIMEOUT (PMIC not responding)\r\n");
+            debug_write(" = TIMEOUT");
+            if (!reported) {
+                /* One-time decode on the first failure. IPD bit 6
+                 * (0x40) = NAK received: bus works, chip silent. IPD
+                 * all-zero = the controller never transacted at all
+                 * (clock/enable). CON still showing start (bit 3) =
+                 * it began the transaction but stalled mid-way. */
+                debug_write("  [IPD@timeout=");
+                write_hex32(i2c0_fail_ipd);
+                debug_write(" CON@timeout=");
+                write_hex32(i2c0_fail_con);
+                debug_write("  (IPD&0x40=NAK, IPD==0=controller idle)]");
+                reported = 1;
+            }
+            debug_write("\r\n");
         }
     }
 }
