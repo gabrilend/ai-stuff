@@ -1,0 +1,29 @@
+#AUTO 99
+#NEEDED 0
+# eMMC -> SD bootloader backup — DE-SELECTED by default (110k run-list).
+# A safety copy of just the eMMC's BOOTLOADER region — the Rockchip boot
+# chain (GPT at LBA 1, idbloader at LBA 64, u-boot at LBA 16384), the
+# 16 MB before the first partition — onto the microSD's reserved region.
+# Moved OUT of the automatic boot flow (it used to grind a 200 MB copy on
+# every production boot) and INTO a deliberate, de-selectable probe. Flip
+# #NEEDED to 1 to run it.
+#
+# Targeted on purpose: we only need the boot chain, not 200 MB of stock
+# partitions. When we install our OWN boot image (110b — SoreOS in the
+# eMMC boot partition; we deliberately keep stock u-boot, replacing it is
+# a brick risk), retarget backup_boot to wherever that image lands so this
+# always snapshots whatever the device actually boots from.
+#
+# Currently the LEGACY-speed path: eMMC read + SD write both at the slow
+# 1-bit clocks, single-buffered (and slower still until the CPU leaves its
+# ~50 MHz bootloader clock, phase 2 / 201a). The fast version waits on the
+# eMMC HS200 read path (110j, working) AND the SD UHS-I write path (110l,
+# in progress); once both land, this same probe routes through them. The
+# copy is emmc_backup_to_sd in src/016-emmc-backup.c, via the backup_boot
+# CALL target (16 MB = 32768 sectors).
+#
+# Writes to the SD card's reserved region (LBA 0x200000), NOT the eMMC, so
+# it is non-destructive to the device's own storage.
+
+CALL emmc_init
+CALL backup_boot

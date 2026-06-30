@@ -1,0 +1,25 @@
+#AUTO 96
+#NEEDED 1
+# eMMC HS200 bring-up — stage A of the fast-storage path (issue 110j).
+#
+# The EXT_CSD probe (95) confirmed the card advertises HS200 @ 1.8V; this
+# actually switches it there and proves a read. emmc_switch_hs200 (in
+# src/012-emmc.c) does the whole stage: CMD6 to an 8-bit SDR bus, CMD6
+# HS_TIMING=HS200, HOST_CONTROL_2 to the HS200 mode + 1.8V signalling,
+# CCLK_EMMC to 200 MHz, the locked-DLL config (the 200 MHz lock the
+# emmc-dll-tune probe measured), then CMD21 sampling tuning.
+#
+# The go/no-go is comparing the verify fingerprints: emmc_verify reads a
+# fixed NON-ZERO block (the idbloader at LBA 64) and logs a fingerprint of
+# it. Run at legacy, then at HS200 — the two fingerprints must MATCH, be
+# non-zero, and carry rc 0. That proves HS200 returns byte-identical data
+# at 8-bit/200 MHz. A mismatch, an all-zero, or a "DATA ERROR" rc means the
+# sampling or the 1.8 V signalling is wrong.
+#
+# Safe to re-run: CMD6 changes card config, not data; no blocks written.
+# Needs emmc_hs200 + emmc_verify CALL targets (probe engine 019).
+
+CALL emmc_init
+CALL emmc_verify
+CALL emmc_hs200
+CALL emmc_verify

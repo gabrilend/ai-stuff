@@ -1,4 +1,5 @@
 #AUTO 20
+#NEEDED 1
 # USB controller + PHY state (issue 109a reconnaissance). Read-only.
 #
 # Snapshots the USB2 PHY GRF and the USB3 OTG clock/reset state so

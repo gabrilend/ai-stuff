@@ -562,6 +562,142 @@ int sd_write_block(uint32_t lba, const uint8_t *buffer)
     return 0;
 }
 
+/* {{{ sd_log_byte() — log "label=0xXX" for a single byte */
+static void sd_log_byte(const char *label, uint8_t v)
+{
+    static const char d[] = "0123456789ABCDEF";
+    char b[5];
+    b[0] = '0'; b[1] = 'x';
+    b[2] = d[(v >> 4) & 0xFu];
+    b[3] = d[v & 0xFu];
+    b[4] = 0;
+    debug_write(label);
+    debug_write(b);
+    debug_write("\r\n");
+}
+/* }}} */
+
+/* {{{ sd_read_small() — a command with a small data-phase read
+ * Like sd_read_block, but for the few-byte register reads the capability
+ * probe needs (SCR 8B, SD_STATUS 64B, SWITCH_FUNC 64B): set the byte
+ * count, fire the command with DATA_EXPECTED, drain that many bytes out
+ * of the FIFO, wait for DATA_OVER. */
+static int sd_read_small(uint32_t index, uint32_t arg, uint32_t flags,
+                         uint8_t *buf, uint32_t bytes)
+{
+    mmio_write32(SDMMC0_BASE + DW_BLKSIZ, bytes);
+    mmio_write32(SDMMC0_BASE + DW_BYTCNT, bytes);
+    if (sd_send_command(index, arg, flags | CMD_DATA_EXPECTED) != 0) {
+        return -1;
+    }
+    uint32_t words = (bytes + 3u) / 4u;
+    uint32_t got = 0;
+    uint32_t budget = 10000000;
+    while (got < words) {
+        uint32_t status = mmio_read32(SDMMC0_BASE + DW_STATUS);
+        uint32_t fc = (status & STATUS_FIFO_COUNT_MASK) >> STATUS_FIFO_COUNT_SHIFT;
+        if (fc > 0) {
+            uint32_t w = mmio_read32(SDMMC0_BASE + DW_DATA);
+            buf[got * 4 + 0] = (uint8_t)(w & 0xFFu);
+            buf[got * 4 + 1] = (uint8_t)((w >> 8) & 0xFFu);
+            buf[got * 4 + 2] = (uint8_t)((w >> 16) & 0xFFu);
+            buf[got * 4 + 3] = (uint8_t)((w >> 24) & 0xFFu);
+            got++;
+        } else if (budget-- == 0) {
+            return -2;
+        }
+    }
+    budget = 1000000;
+    while (!(mmio_read32(SDMMC0_BASE + DW_RINTSTS) & INT_DATA_OVER)) {
+        if (budget-- == 0) {
+            return -3;
+        }
+    }
+    mmio_write32(SDMMC0_BASE + DW_RINTSTS, INT_DATA_OVER);
+    return 0;
+}
+/* }}} */
+
+/* {{{ sd_probe_capabilities() — read what the card can do (issue 110l)
+ *
+ * The "dynamically probe the card" step for the SD fast path: before we
+ * ever switch the card to a faster mode, ask it what it supports — the
+ * same shape as reading the eMMC's EXT_CSD before HS200. Three tiny
+ * data-phase reads:
+ *   - SCR (ACMD51, 8B): SD spec version and bus widths (is 4-bit there?).
+ *   - SD_STATUS (ACMD13, 64B): the card's WRITE speed class and UHS
+ *     grade — the card's own sustained-write ceiling, which together
+ *     with the bus rate and the host's top mode are the three speeds we
+ *     take the lowest of.
+ *   - SWITCH_FUNC query (CMD6 mode 0, 64B): which access modes the card
+ *     offers (SDR12 / HS-SDR25 / SDR50 / SDR104 / DDR50).
+ *
+ * Read-only: CMD6 mode 0 only QUERIES, it does not switch. Each field is
+ * logged as a raw byte next to its decode, because the exact bit/byte
+ * offsets are easy to get wrong blind and the raw byte is ground truth
+ * (it also confirms the controller's FIFO byte order). The actual mode
+ * switch is the next stage of 110l. */
+void sd_probe_capabilities(void)
+{
+    static uint8_t buf[64];
+    int rc;
+
+    debug_write("[sdmmc] --- card capability probe ---\r\n");
+
+    /* SCR via ACMD51 (CMD55 first — it is an application command). */
+    if (sd_send_command(55, sd_card_rca << 16,
+                        CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC) == 0) {
+        rc = sd_read_small(51, 0,
+                           CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC, buf, 8);
+        sd_log_byte("[sdmmc] SCR rc=", (uint8_t)rc);
+        if (rc == 0) {
+            sd_log_byte("[sdmmc]   SCR[0] (low nibble = SD_SPEC)=", buf[0]);
+            sd_log_byte("[sdmmc]   SCR[1] (bit2 = 4-bit bus)=", buf[1]);
+            debug_write((buf[1] & 0x04u)
+                        ? "[sdmmc]   -> 4-bit bus supported\r\n"
+                        : "[sdmmc]   -> 4-bit NOT advertised\r\n");
+        }
+    }
+
+    /* SD_STATUS via ACMD13 (CMD55 first). */
+    if (sd_send_command(55, sd_card_rca << 16,
+                        CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC) == 0) {
+        rc = sd_read_small(13, 0,
+                           CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC, buf, 64);
+        sd_log_byte("[sdmmc] SD_STATUS rc=", (uint8_t)rc);
+        if (rc == 0) {
+            /* SPEED_CLASS byte 8 (0..4 = Class 0/2/4/6/10); UHS grade in
+             * byte 14 high nibble (1 = U1 10MB/s, 3 = U3 30MB/s); video
+             * class byte 16. The card's guaranteed write rate is here. */
+            sd_log_byte("[sdmmc]   SPEED_CLASS[8]=", buf[8]);
+            sd_log_byte("[sdmmc]   UHS_GRADE[14]=", buf[14]);
+            sd_log_byte("[sdmmc]   VIDEO_CLASS[16]=", buf[16]);
+        }
+    }
+
+    /* SWITCH_FUNC query (CMD6 mode 0 — not an app command, no CMD55). */
+    rc = sd_read_small(6, 0x00FFFFFFu,
+                       CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC, buf, 64);
+    sd_log_byte("[sdmmc] SWITCH_FUNC query rc=", (uint8_t)rc);
+    if (rc == 0) {
+        /* Access-mode support bitmap at byte 13: bit0 SDR12, bit1
+         * HS/SDR25, bit2 SDR50, bit3 SDR104, bit4 DDR50. */
+        sd_log_byte("[sdmmc]   GRP1_SUPPORT[12]=", buf[12]);
+        sd_log_byte("[sdmmc]   GRP1_SUPPORT[13]=", buf[13]);
+        uint8_t s = buf[13];
+        debug_write("[sdmmc]   modes:");
+        if (s & 0x01u) debug_write(" SDR12");
+        if (s & 0x02u) debug_write(" HS/SDR25");
+        if (s & 0x04u) debug_write(" SDR50");
+        if (s & 0x08u) debug_write(" SDR104");
+        if (s & 0x10u) debug_write(" DDR50");
+        debug_write("\r\n");
+    }
+
+    debug_write("[sdmmc] --- end capability probe ---\r\n");
+}
+/* }}} */
+
 int sd_init(void)
 {
     return sd_initialize_card();
