@@ -1566,11 +1566,22 @@ run_generate_html() {
     fi
 
     if $DRY_RUN; then
+        log_dry_run "$DIR/scripts/sync-page-templates $DIR (restore explore-page copy into input/pages/)"
         log_dry_run "luajit src/main.lua $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
         log_dry_run "luajit $DIR/src/generate-gallery-pages.lua $DIR"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua $DIR"
         return 0
     fi
+
+    # Issue 11-005: restore the authored explore-page copy into the ephemeral
+    # input/pages/ before generating. The canonical, version-controlled source is
+    # page-templates/*.txt; input/ is wiped + re-synced from external sources each
+    # run and does NOT carry this prose, so it is copied back in here. (Edit the
+    # files in page-templates/ -- input/pages/ is overwritten from them.)
+    "$DIR/scripts/sync-page-templates" "$DIR" || {
+        echo "Error: failed to restore page templates into input/pages/" >&2
+        exit 1
+    }
 
     # Issue 10-028: Apply low priority to HTML generation (parallel processing)
     $NICE_PREFIX luajit src/main.lua "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
