@@ -322,6 +322,7 @@ return {
         "my-art/help-me-obiwan-kenobi-3.png",
         "my-art/help-me-obiwan-kenobi-2.png",
         "my-art/help-me-obiwan-kenobi-1.png",
+        "my-art/help-me-obiwan-kenobi.png",
         "my-art/legion-td-idea.png",
         "my-art/chat-application-with-arrows.png",
         "my-art/air-defence-drones-1.png",

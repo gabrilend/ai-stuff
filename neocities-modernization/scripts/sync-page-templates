@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# sync-page-templates
+# Copy the authored page-copy templates into the ephemeral input/pages/ where the
+# HTML generator reads them.
+#
+# General description (for a CEO): the explore pages' words are written by hand
+# and kept under version control in page-templates/. The input/ folder, by
+# contrast, is wiped and rebuilt from external sources on every sync and does NOT
+# carry these words -- so this little step puts the committed copy back in place
+# before the site is built. It is the reason a sync can no longer silently erase
+# the explore-page text (Issue 11-005): the words now have a canonical home, and
+# input/pages/ is just a regenerated copy of it.
+#
+# Edit the canonical files in page-templates/. input/pages/ is OVERWRITTEN from
+# them on every build, so edits made directly in input/pages/ would be lost.
+#
+# Usage:
+#   scripts/sync-page-templates [DIR]
+# DIR defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
+
+set -eu
+
+# {{{ paths
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+SRC="${DIR}/page-templates"
+DEST="${DIR}/input/pages"
+# }}}
+
+# {{{ copy
+# A missing canonical source is a hard error, not a silent skip: generating the
+# explore pages without their prose would emit a broken page (page-template errors
+# on the missing file anyway, but failing here names the real cause).
+if [ ! -d "$SRC" ]; then
+    echo "Error: canonical page-template source not found: $SRC" >&2
+    exit 1
+fi
+mkdir -p "$DEST"
+cp -f "${SRC}"/*.txt "$DEST"/
+# }}}
