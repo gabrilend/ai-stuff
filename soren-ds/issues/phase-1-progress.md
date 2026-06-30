@@ -443,6 +443,23 @@ flash loop from 110c, not Maskrom.
   read-back bug was fixed alongside: `dump-from-sd`'s log-splitter now
   runs its file-writing awk under sudo so it can create the per-probe
   files on the root-owned drive.
+- 114 — i2c0 and the RK817 PMIC. Brought up the i2c0 bus (the 2-wire
+  control bus) to the power-management chip and built read, write, and
+  voltage-rail control over it. The bus refused to transact at first;
+  instrumenting the controller's status at the instant of timeout, then
+  matching u-boot's reference driver, found the transaction *sequence*
+  was wrong — the start condition must be its own step, and the trigger
+  is the byte-count write, which has to come last. With that fixed the
+  RK817 answers (real real-time-clock registers), a write round-trip
+  passed on a safe register, and a small abstraction
+  (`rk817_ldo_get_mv` / `rk817_ldo_set_mv`) reads and sets any of the
+  nine LDO rails in millivolts — verified by reading the whole power tree
+  as sensible voltages (1.8 / 0.9 / 3.3 / 2.8 V) and a non-destructive
+  set round-trip. Along the way it answered 110j's open question: the
+  eMMC's I/O rail has no `vqmmc-supply` in the device tree, so it is
+  board-fixed at 1.8 V and needs no PMIC programming — clearing the
+  fast-eMMC path's last voltage worry. The reference drivers and TRM
+  excerpts used live under `tmp/uboot-ref/`.
 
 ## Open issues
 
