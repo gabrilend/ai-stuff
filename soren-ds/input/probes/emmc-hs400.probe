@@ -1,0 +1,32 @@
+#AUTO 97
+#NEEDED 1
+# eMMC HS400 bring-up — stage B of the fast-storage path (issue 110j).
+# Enabled 2026-06-30 now that the HS200 read (probe 96) is green on
+# hardware (DLL locked 0x13B, tuning TUNED_CLK, read rc 0) — twice. This
+# exercises the HS400 leg: the DDR step-down, the 8-bit DDR bus, HS400
+# timing, 200 MHz DDR, and the DLL re-lock with the data strobe.
+#
+# HS400 is reached THROUGH HS200 (the spec routes HS200 -> HS -> HS400),
+# so this probe brings up HS200 first, reads block 0, then transitions to
+# HS400 and reads again. emmc_switch_hs400 (in src/012-emmc.c) does the
+# step-down to High-Speed, the CMD6 to an 8-bit DDR bus, CMD6
+# HS_TIMING=HS400, HOST_CONTROL_2 to the HS400 mode, 200 MHz DDR, and the
+# DLL re-lock with the HS400 taps + the command-output and data-strobe
+# (DQS) paths.
+#
+# Three fingerprints, three speeds (emmc_verify reads the NON-ZERO
+# idbloader block at LBA 64 and logs a fingerprint): legacy, then HS200,
+# then HS400. All three must MATCH, be non-zero, and carry rc 0 — that is
+# the byte-for-byte proof that the DDR + data-strobe read path returns
+# correct data, which a zero word0 alone never could give.
+#
+# Safe to re-run; needs emmc_hs400 + emmc_verify CALL targets. This is plain
+# HS400, not Enhanced Strobe (HS400ES is a later upgrade: the EMMC_CONTROL
+# enhanced-strobe bit + a CMD6 BUS_WIDTH=0x86).
+
+CALL emmc_init
+CALL emmc_verify
+CALL emmc_hs200
+CALL emmc_verify
+CALL emmc_hs400
+CALL emmc_verify

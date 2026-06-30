@@ -246,27 +246,14 @@ void kernel_main(void)
     /* Checkpoint B — eMMC up. Top yellow-amber + bottom dark. */
     led_set(0, 1); led_set(1, 0); led_set(2, 1);
 
-    /* Back to the bottom-amber stage so the backup heartbeat
-     * (a blinking bottom amber, one step per ~10 MB) reads
-     * cleanly during the multi-minute copy. */
-    led_set_stage(STAGE_USB_CONTROLLER);
-
-    /* Copy the first 200 MB of the eMMC (LBA 0 onward) to the
-     * microSD's reserved region at LBA 0x200000 (~1 GB in, clear
-     * of the boot region and the debug log at 0x400000). 200 MB
-     * = 409,600 sectors; at the legacy-mode 1-bit/24 MHz PIO rate
-     * (~3 MB/s) that is on the order of a minute. This captures
-     * the GPT, the Rockchip idbloader/u-boot/trust blobs, and the
-     * start of the stock partitions — enough to read the real
-     * layout and confirm the copy carries genuine card content
-     * (not the stale SD data the pre-fix runs produced). The full
-     * multi-GB stock-OS pull waits on the high-speed eMMC path
-     * (8-bit bus + HS200 + DMA), a later issue. */
-    if (emmc_backup_to_sd(0, 0x200000, 409600) != 0) {
-        debug_log_flush();
-        led_set_stage(STAGE_PANIC_GENERIC);
-        while (1) { delay_busy(1000000); }
-    }
+    /* The eMMC->SD backup is no longer an automatic boot step. It used to
+     * run right here on every boot — a multi-minute, 200 MB, legacy-speed
+     * copy — which meant any probe-free production build silently ground
+     * for minutes (and was easy to flash by accident). It now lives as a
+     * de-selectable probe (the emmc-backup probe, off by default; see
+     * 110j/110k), triggered deliberately and headed for the fast HS200
+     * (eMMC read) + UHS-I (SD write) path. The production kernel brings
+     * its hardware up and parks. */
     debug_log_flush();
     led_set_stage(STAGE_BACKUP_COMPLETE);
 

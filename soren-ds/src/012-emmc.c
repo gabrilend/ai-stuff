@@ -1015,7 +1015,70 @@ int emmc_read_block(uint32_t lba, uint8_t *buffer)
         buffer[i * 4 + 3] = (uint8_t)((word >> 24) & 0xFFu);
     }
 
-    /* Wait for transfer-complete. */
+    /* Wait for transfer-complete OR a data error. Checking the error
+     * bit here matters: a mis-sampled high-speed read (HS200/HS400) can
+     * finish the data phase with a CRC mismatch, and without this check
+     * it would slip through as a clean rc 0. INT_ERROR (bit 15) is the
+     * composite error flag; the high half of INT_STATUS names which one
+     * (bit 21 data-CRC, 22 data-end-bit, 20 data-timeout). */
+    budget = 1000000;
+    for (;;) {
+        uint32_t st = mmio_read32(SDHCI_BASE + SDHCI_INT_STATUS);
+        if (st & INT_ERROR) {
+            debug_write("[emmc]   read DATA ERROR, INT_STATUS=");
+            debug_write_hex32(st);
+            debug_write("\r\n");
+            mmio_write32(SDHCI_BASE + SDHCI_INT_STATUS, 0xFFFFFFFFu);
+            return -4;
+        }
+        if (st & INT_XFER_COMPLETE) {
+            break;
+        }
+        if (budget-- == 0) {
+            return -3;
+        }
+    }
+    mmio_write32(SDHCI_BASE + SDHCI_INT_STATUS, INT_XFER_COMPLETE);
+    return 0;
+}
+
+/* Read the card's 512-byte EXT_CSD (Extended Card-Specific Data) — its
+ * configuration-and-capabilities table. CMD8 SEND_EXT_CSD returns it as
+ * a data block, so this is mechanically identical to emmc_read_block
+ * (CMD17): command index 8 instead of 17, and a stuff-bits (0) argument
+ * instead of a block address. The interesting bytes are DEVICE_TYPE
+ * (196 — which speed modes the card advertises), HS_TIMING (185), and
+ * BUS_WIDTH (183). Reading this is the first step of the HS200 bring-up
+ * (110j): you do not switch a card into a mode it does not advertise. */
+int emmc_read_ext_csd(uint8_t *buffer)
+{
+    mmio_write16(SDHCI_BASE + SDHCI_BLOCK_SIZE, EMMC_BLOCK_SIZE);
+    mmio_write16(SDHCI_BASE + SDHCI_BLOCK_COUNT, 1);
+    mmio_write16(SDHCI_BASE + SDHCI_TRANSFER_MODE, XFER_DAT_DIRECTION_READ);
+
+    if (sdhci_send_command(CMD_IDX(8)
+                           | CMD_RESPONSE_LEN_48
+                           | CMD_DATA_PRESENT
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK,
+                           0) != 0) {
+        return -1;
+    }
+
+    uint32_t budget = 1000000;
+    while (!(mmio_read32(SDHCI_BASE + SDHCI_PRESENT_STATE)
+             & PSTATE_BUFFER_READ_RDY)) {
+        if (budget-- == 0) {
+            return -2;
+        }
+    }
+    for (uint32_t i = 0; i < EMMC_BLOCK_SIZE / 4; i++) {
+        uint32_t word = mmio_read32(SDHCI_BASE + SDHCI_BUFFER_PORT);
+        buffer[i * 4 + 0] = (uint8_t)(word & 0xFFu);
+        buffer[i * 4 + 1] = (uint8_t)((word >> 8) & 0xFFu);
+        buffer[i * 4 + 2] = (uint8_t)((word >> 16) & 0xFFu);
+        buffer[i * 4 + 3] = (uint8_t)((word >> 24) & 0xFFu);
+    }
+
     budget = 1000000;
     while (!(mmio_read32(SDHCI_BASE + SDHCI_INT_STATUS) & INT_XFER_COMPLETE)) {
         if (budget-- == 0) {
@@ -1064,6 +1127,350 @@ int emmc_write_block(uint32_t lba, const uint8_t *buffer)
     }
     mmio_write32(SDHCI_BASE + SDHCI_INT_STATUS, INT_XFER_COMPLETE);
     return 0;
+}
+
+/* ===================================================================
+ * High-speed bring-up: HS200 (stage A) and HS400 (stage B) — issue 110j
+ *
+ * The legacy path above leaves the card at 1-bit / 24 MHz. This layer
+ * walks it up to the fast modes the card advertises (EXT_CSD DEVICE_TYPE
+ * bit 4 = HS200 @ 1.8 V, bit 6 = HS400 @ 1.8 V, both confirmed on this
+ * board). It is additive — emmc_initialize() and the legacy read/write
+ * path are untouched, so a failure here cannot regress the working slow
+ * path.
+ *
+ * Every magic number below is derived from u-boot's rockchip_sdhci.c
+ * (rk3568_data + rk3568_sdhci_config_dll, in tmp/uboot-ref/); the
+ * bit-by-bit derivations live in issues/110j. The DLL words fold the
+ * rk3568 tap numbers into the layout that driver builds, with
+ * dll_tap_value = 0 (rk3568 has no FLAG_TAPVALUE_FROM_SW) and the RX
+ * no-inverter bit set (rk3568 has FLAG_INVERTER_FLAG_IN_RXCLK).
+ * =================================================================== */
+
+/* SDHCI Host Control 2 (0x3E, 16-bit): UHS speed-mode select + 1.8 V. */
+#define SDHCI_HOST_CONTROL2    0x3E
+#define HC2_UHS_MASK           0x0007u
+#define HC2_UHS_HS_SDR25       0x0001u   /* the HS (<=52 MHz) step-down */
+#define HC2_UHS_HS200          0x0003u   /* SDR104 encoding = eMMC HS200 */
+#define HC2_UHS_HS400          0x0007u   /* dwcmshc vendor HS400 mode */
+#define HC2_VDD_180            0x0008u   /* 1.8 V signalling enable */
+#define HC2_EXEC_TUNING        0x0040u   /* start tuning (self-clears) */
+#define HC2_TUNED_CLK          0x0080u   /* tuning locked a sampling point */
+
+/* HOST_CONTROL_1 (0x28) data-bus width: bit 5 (8-bit "extended data
+ * width") overrides bit 1 (4-bit). */
+#define HC1_BUS_WIDTH_8BIT     (1u << 5)
+
+/* CCLK_EMMC source mux: the 200 MHz tap (clk_gpll_div_200m, sel=001) —
+ * the same tap the emmc-dll-tune probe drove with 0x70001000. */
+#define CCLK_EMMC_SEL_200M     (0x1u << 12)
+
+/* dwcmshc DLL vendor-area registers used only at high speed. */
+#define DWCMSHC_EMMC_AT_CTRL     0x540
+#define DWCMSHC_EMMC_DLL_CMDOUT  0x810
+#define DWCMSHC_EMMC_DLL_STATUS0 0x840
+#define DLL_CTRL_RESET         (1u << 1)
+#define DLL_LOCKED             (1u << 8)
+#define DLL_TIMEOUT            (1u << 9)
+
+/* Pre-computed locked-DLL register words (rk3568). Derivations in the
+ * section header above and issue 110j. */
+#define DLL_AT_CTRL_VAL        0x001F0000u  /* pre/post change dly 3 + tune-clk-stop */
+#define DLL_START_VAL          0x00050201u  /* start-point 5, increment 2, START */
+#define DLL_RXCLK_HS_VAL       0xA8000000u  /* DLYENA | ORI_GATE | NO_INVERTER */
+#define DLL_TXCLK_HS200_VAL    0x29000010u  /* DLYENA | FROM_SW | NO_INVERTER | tap 0x10 */
+#define DLL_TXCLK_HS400_VAL    0x29000008u  /* ... tap 0x8 */
+#define DLL_STRBIN_HS_VAL      0x09000004u  /* DLYENA | FROM_SW | tap 0x4 */
+#define DLL_CMDOUT_HS400_VAL   0x59000008u  /* SRC_CLK_NEG | BOTH_EDGE | DLYENA | FROM_SW | tap 0x8 */
+
+/* EXT_CSD byte indices and the values we CMD6-SWITCH them to. */
+#define EXTCSD_BUS_WIDTH       183u
+#define EXTCSD_HS_TIMING       185u
+#define BUSW_8BIT_SDR          2u
+#define BUSW_8BIT_DDR          6u
+#define HSTIMING_HS            1u
+#define HSTIMING_HS200         2u
+#define HSTIMING_HS400         3u
+
+/* CMD6 SWITCH argument, "Write Byte" access (0b11): set EXT_CSD[index]
+ * to value. arg = [25:24]=3 access | [23:16]=index | [15:8]=value. */
+#define CMD6_WRITE_BYTE(index, value) \
+    ((3u << 24) | ((uint32_t)(index) << 16) | ((uint32_t)(value) << 8))
+
+/* CMD6 SWITCH — change one EXT_CSD byte. R1b: the card holds DAT0 low
+ * (busy) while it applies the change. Issue the command, wait the busy
+ * out (present-state DAT line frees), then CMD13 SEND_STATUS to confirm
+ * the card didn't reject it (status bit 7 = SWITCH_ERROR). Returns 0 on
+ * a clean switch. */
+static int emmc_switch(uint8_t index, uint8_t value)
+{
+    if (sdhci_send_command(CMD_IDX(6)
+                           | CMD_RESPONSE_LEN_48_BSY
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK,
+                           CMD6_WRITE_BYTE(index, value)) != 0) {
+        return -1;
+    }
+    /* Wait out the R1b busy: DAT_INHIBIT stays set while DAT0 is held. */
+    uint32_t budget = 1000000;
+    while (mmio_read32(SDHCI_BASE + SDHCI_PRESENT_STATE) & PSTATE_DAT_INHIBIT) {
+        if (budget-- == 0) {
+            debug_write("[emmc]   switch busy never cleared\r\n");
+            return -2;
+        }
+    }
+    /* CMD13: read card status; bit 7 (SWITCH_ERROR) means rejection. If
+     * CMD13 itself fails to send, the busy already cleared, so treat the
+     * switch as applied. */
+    if (sdhci_send_command(CMD_IDX(13)
+                           | CMD_RESPONSE_LEN_48 | CMD_CRC_CHECK | CMD_INDEX_CHECK,
+                           card_rca << 16) == 0) {
+        uint32_t status = sdhci_read_response_word0();
+        if (status & (1u << 7)) {
+            debug_write("[emmc]   SWITCH_ERROR in card status\r\n");
+            return -3;
+        }
+    }
+    return 0;
+}
+
+/* Card + host to an 8-bit data bus. Card side is a CMD6 to EXT_CSD
+ * BUS_WIDTH; host side sets HOST_CONTROL_1 bit 5, preserving the
+ * card-detect bits set during init. `ddr` selects 8-bit DDR (HS400)
+ * over 8-bit SDR (HS200). */
+static int emmc_set_bus_width_8bit(int ddr)
+{
+    if (emmc_switch(EXTCSD_BUS_WIDTH, ddr ? BUSW_8BIT_DDR : BUSW_8BIT_SDR) != 0) {
+        return -1;
+    }
+    uint8_t hc1 = mmio_read8(SDHCI_BASE + SDHCI_HOST_CONTROL_1);
+    hc1 |= HC1_BUS_WIDTH_8BIT;
+    mmio_write8(SDHCI_BASE + SDHCI_HOST_CONTROL_1, hc1);
+    return 0;
+}
+
+/* Set HOST_CONTROL_2's UHS mode field, keeping 1.8 V signalling on (the
+ * board's VCCQ is fixed at 1.8 V, so we run 1.8 V from HS200 onward). */
+static void emmc_set_host_mode(uint16_t uhs)
+{
+    uint16_t hc2 = mmio_read16(SDHCI_BASE + SDHCI_HOST_CONTROL2);
+    hc2 &= ~HC2_UHS_MASK;
+    hc2 |= (uhs & HC2_UHS_MASK) | HC2_VDD_180;
+    mmio_write16(SDHCI_BASE + SDHCI_HOST_CONTROL2, hc2);
+}
+
+/* Point CCLK_EMMC at its 200 MHz tap and restabilise the SD clock. The
+ * card clock comes straight from CCLK (the driver's clocking model), so
+ * the SDHCI divider stays pass-through (0). */
+static int emmc_set_clock_200mhz(void)
+{
+    mmio_write16(SDHCI_BASE + SDHCI_CLOCK_CONTROL, 0);   /* stop card clock */
+    mmio_write32(CRU_CLKSEL_CON_28,
+                 (CCLK_EMMC_SEL_MASK << 16) | CCLK_EMMC_SEL_200M);
+    return sdhci_set_clock(0);
+}
+
+/* Low-speed (bypass) DLL config — the same words emmc_initialize applies,
+ * factored out so the HS400 step-down (which passes briefly through a
+ * <100 MHz High-Speed window to reconfigure the bus to DDR) can restore
+ * bypass before re-locking at HS400. */
+static void emmc_config_dll_bypass(void)
+{
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_CTRL,   DWCMSHC_DLL_CTRL_LOWSPEED);
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_RXCLK,  DWCMSHC_DLL_RXCLK_LOWSPEED);
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_TXCLK,  0);
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_STRBIN, DWCMSHC_DLL_STRBIN_LOWSPEED);
+}
+
+/* Lock the DLL for >=100 MHz and program the sample (RX), drive (TX),
+ * strobe-in, and — for HS400 — command-out tap delays. Returns 0 with
+ * the DLL locked, -1 if it never locks. Mirrors the clock>=100 MHz
+ * branch of rk3568_sdhci_config_dll. */
+static int emmc_config_dll_locked(int hs400)
+{
+    /* Reset the DLL, release, then start it (start-point 5, inc 2). */
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_CTRL, DLL_CTRL_RESET);
+    delay_loops(2000);
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_CTRL, 0);
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_AT_CTRL, DLL_AT_CTRL_VAL);
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_CTRL, DLL_START_VAL);
+
+    /* Poll for lock (bit 8 set, timeout bit 9 clear). */
+    uint32_t budget = 100000;
+    uint32_t st = 0;
+    while (budget--) {
+        st = mmio_read32(SDHCI_BASE + DWCMSHC_EMMC_DLL_STATUS0);
+        if ((st & DLL_LOCKED) && !(st & DLL_TIMEOUT)) {
+            break;
+        }
+        delay_loops(64);
+    }
+    debug_write("[emmc]   DLL_STATUS0=");
+    debug_write_hex32(st);
+    if (!((st & DLL_LOCKED) && !(st & DLL_TIMEOUT))) {
+        debug_write("[emmc]   DLL did not lock\r\n");
+        return -1;
+    }
+
+    /* Program the tap delays. RX/STRBIN are common; TX differs by mode,
+     * and HS400 adds the command-output path (negative + both edges). */
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_RXCLK, DLL_RXCLK_HS_VAL);
+    if (hs400) {
+        mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_CMDOUT, DLL_CMDOUT_HS400_VAL);
+        mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_TXCLK, DLL_TXCLK_HS400_VAL);
+    } else {
+        mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_TXCLK, DLL_TXCLK_HS200_VAL);
+    }
+    mmio_write32(SDHCI_BASE + DWCMSHC_EMMC_DLL_STRBIN, DLL_STRBIN_HS_VAL);
+    return 0;
+}
+
+/* Run the controller's HS200 sampling tuning. Set EXEC_TUNING, then send
+ * CMD21 (SEND_TUNING_BLOCK; 128-byte pattern on an 8-bit bus) up to 40
+ * times while the controller sweeps the sampling phase; it clears
+ * EXEC_TUNING and sets TUNED_CLK when it locks one in. Returns 0 if
+ * TUNED_CLK is set; negative if tuning never converged (sampling then
+ * falls back to the DLL-derived point, so the caller treats this as a
+ * warning, not a hard failure, on the first bring-up). */
+static int emmc_execute_tuning(void)
+{
+    uint16_t hc2 = mmio_read16(SDHCI_BASE + SDHCI_HOST_CONTROL2);
+    hc2 |= HC2_EXEC_TUNING;
+    mmio_write16(SDHCI_BASE + SDHCI_HOST_CONTROL2, hc2);
+
+    int i;
+    for (i = 0; i < 40; i++) {
+        mmio_write16(SDHCI_BASE + SDHCI_BLOCK_SIZE, 128);
+        mmio_write16(SDHCI_BASE + SDHCI_BLOCK_COUNT, 1);
+        mmio_write16(SDHCI_BASE + SDHCI_TRANSFER_MODE, XFER_DAT_DIRECTION_READ);
+        (void)sdhci_send_command(CMD_IDX(21)
+                                 | CMD_RESPONSE_LEN_48 | CMD_DATA_PRESENT | CMD_CRC_CHECK,
+                                 0);
+        hc2 = mmio_read16(SDHCI_BASE + SDHCI_HOST_CONTROL2);
+        if (!(hc2 & HC2_EXEC_TUNING)) {
+            break;   /* controller converged (or gave up) */
+        }
+    }
+    debug_write("[emmc]   tuning loops=");
+    debug_write_hex32((uint32_t)i);
+    debug_write("[emmc]   HOST_CONTROL2=");
+    debug_write_hex32((uint32_t)hc2);
+    if (hc2 & HC2_EXEC_TUNING) {
+        /* Never cleared — abandon tuning cleanly so the bus is usable. */
+        hc2 &= ~(HC2_EXEC_TUNING | HC2_TUNED_CLK);
+        mmio_write16(SDHCI_BASE + SDHCI_HOST_CONTROL2, hc2);
+        return -1;
+    }
+    return (hc2 & HC2_TUNED_CLK) ? 0 : -2;
+}
+
+/* Stage A — take the card from legacy transfer state up to HS200: 8-bit
+ * SDR bus, HS200 timing, 200 MHz, DLL locked, sampling tuned. Call after
+ * emmc_init(). Returns 0 on success. */
+int emmc_switch_hs200(void)
+{
+    debug_write("[emmc] === HS200 bring-up ===\r\n");
+
+    debug_write("[emmc] CMD6 BUS_WIDTH = 8-bit SDR\r\n");
+    if (emmc_set_bus_width_8bit(0) != 0) {
+        debug_write("[emmc] HS200: bus-width switch failed\r\n");
+        return -1;
+    }
+    debug_write("[emmc] CMD6 HS_TIMING = HS200\r\n");
+    if (emmc_switch(EXTCSD_HS_TIMING, HSTIMING_HS200) != 0) {
+        debug_write("[emmc] HS200: timing switch failed\r\n");
+        return -2;
+    }
+    emmc_set_host_mode(HC2_UHS_HS200);
+    debug_write("[emmc] clock -> 200 MHz\r\n");
+    if (emmc_set_clock_200mhz() != 0) {
+        debug_write("[emmc] HS200: 200 MHz clock failed\r\n");
+        return -3;
+    }
+    if (emmc_config_dll_locked(0) != 0) {
+        return -4;
+    }
+    debug_write("[emmc] HS200 tuning (CMD21)\r\n");
+    (void)emmc_execute_tuning();   /* DLL is a usable fallback if it misses */
+    debug_write("[emmc] === HS200 ready ===\r\n");
+    return 0;
+}
+
+/* Stage B — from a working HS200 state, transition to HS400: step down
+ * through High-Speed to reconfigure the bus to DDR, switch the card and
+ * host to HS400, raise to 200 MHz DDR, re-lock the DLL with the HS400
+ * taps + the data-strobe path. Call only after emmc_switch_hs200()
+ * succeeded. Returns 0 on success. */
+int emmc_switch_hs400(void)
+{
+    debug_write("[emmc] === HS400 transition ===\r\n");
+
+    /* 1. Drop to High-Speed (<=52 MHz). The spec routes HS200 -> HS400
+     * through HS so the bus can be reconfigured to DDR. Restore the
+     * bypass DLL and a 24 MHz clock for the switch commands. */
+    debug_write("[emmc] CMD6 HS_TIMING = HS (step down)\r\n");
+    if (emmc_switch(EXTCSD_HS_TIMING, HSTIMING_HS) != 0) {
+        debug_write("[emmc] HS400: HS step-down failed\r\n");
+        return -1;
+    }
+    emmc_set_host_mode(HC2_UHS_HS_SDR25);
+    mmio_write16(SDHCI_BASE + SDHCI_CLOCK_CONTROL, 0);
+    mmio_write32(CRU_CLKSEL_CON_28, (CCLK_EMMC_SEL_MASK << 16) | CCLK_EMMC_SEL_24M);
+    (void)sdhci_set_clock(0);
+    emmc_config_dll_bypass();
+
+    /* 2. DDR 8-bit bus. */
+    debug_write("[emmc] CMD6 BUS_WIDTH = 8-bit DDR\r\n");
+    if (emmc_set_bus_width_8bit(1) != 0) {
+        debug_write("[emmc] HS400: DDR bus-width failed\r\n");
+        return -2;
+    }
+    /* 3. HS400 card timing. */
+    debug_write("[emmc] CMD6 HS_TIMING = HS400\r\n");
+    if (emmc_switch(EXTCSD_HS_TIMING, HSTIMING_HS400) != 0) {
+        debug_write("[emmc] HS400: timing switch failed\r\n");
+        return -3;
+    }
+    /* 4. Host to HS400 + 200 MHz DDR. */
+    emmc_set_host_mode(HC2_UHS_HS400);
+    debug_write("[emmc] clock -> 200 MHz DDR\r\n");
+    if (emmc_set_clock_200mhz() != 0) {
+        debug_write("[emmc] HS400: 200 MHz clock failed\r\n");
+        return -4;
+    }
+    /* 5. Re-lock the DLL with the HS400 taps + the command-output and
+     * data-strobe paths. */
+    if (emmc_config_dll_locked(1) != 0) {
+        return -5;
+    }
+    debug_write("[emmc] === HS400 ready ===\r\n");
+    return 0;
+}
+
+/* Verify the fast read returns correct data: read a fixed NON-ZERO
+ * block and log a position-sensitive fingerprint of it. Run at each
+ * speed (legacy / HS200 / HS400); the fingerprints must all match, be
+ * non-zero, and carry rc 0 (no error bit) for the fast read to be
+ * proven byte-identical to the slow one. This is the discriminating
+ * check that word0 of an all-zero block 0 could not give. LBA 64 is the
+ * Rockchip idbloader — guaranteed non-zero on a card that boots. */
+#define EMMC_VERIFY_LBA 64u
+void emmc_verify(void)
+{
+    static uint8_t blk[EMMC_BLOCK_SIZE];
+    int rc = emmc_read_block(EMMC_VERIFY_LBA, blk);
+    uint32_t fp = 0;
+    int nonzero = 0;
+    for (uint32_t i = 0; i < EMMC_BLOCK_SIZE; i += 4) {
+        uint32_t w = ((uint32_t)blk[i]) | ((uint32_t)blk[i + 1] << 8)
+                   | ((uint32_t)blk[i + 2] << 16) | ((uint32_t)blk[i + 3] << 24);
+        fp = ((fp << 1) | (fp >> 31)) ^ w;   /* rotate-then-xor: order matters */
+        if (w != 0u) nonzero = 1;
+    }
+    debug_write("[emmc] verify LBA 64: rc=");
+    debug_write_hex32((uint32_t)rc);
+    debug_write(" fingerprint=");
+    debug_write_hex32(fp);
+    debug_write(nonzero ? " (non-zero)\r\n" : " (ALL-ZERO: pick another LBA)\r\n");
 }
 
 /* Public entry: bring up the eMMC controller and the card. */
