@@ -2,14 +2,15 @@
 
 ## Current behavior
 
-The kernel cannot talk to the power-management chip. The RK817 PMIC —
-the companion chip that generates every voltage rail (CPU core, DRAM,
-the 1.8 V / 3.3 V supplies, the eMMC's I/O rail), charges the battery,
-and carries a fuel gauge — sits on the i2c0 bus at 7-bit address 0x20.
-A bring-up and a single-register read already exist as the probe
-engine's `pmic_dump` CALL target (`src/019-probe-engine.c`): it ungates
-i2c0's PMU-domain clocks, routes the SCL/SDA pins, sets a slow SCL
-divider, and issues Rockchip "register-address then read" transactions.
+The kernel can read, write, and program the power-management chip. The
+RK817 PMIC — the companion chip that generates every voltage rail (CPU
+core, DRAM, the 1.8 V / 3.3 V supplies, the eMMC's I/O rail), charges the
+battery, and carries a fuel gauge and a real-time clock — sits on the
+i2c0 bus at 7-bit address 0x20. The probe engine's `pmic_dump`,
+`pmic_write_test`, and `pmic_ldo_test` CALL targets
+(`src/019-probe-engine.c`) bring i2c0 up (ungate its PMU-domain clocks,
+route the SCL/SDA pins, set a slow SCL divider) and exercise it. Getting
+the bus working took the debugging recorded below.
 
 The original read routine timed out on every register. Instrumenting it
 (setup-register read-back plus capturing the controller status the
@@ -35,13 +36,32 @@ found three sequencing errors, all now fixed:
 
 The read routine now follows the canonical order (START alone → address
 with read bit → mode `CON` → `MRXCNT` → wait byte/NAK → STOP).
-**Confirmed on hardware (2026-06-29): the RK817 answers** with real,
-varied register values (`0x07=0x25`, `0x08=0x17`, `0x0C=0x26`, …) where
-every read used to time out — so reachability, this issue's layer 1, is
-done. The TRM i2c chapter (Part1 Ch22) and both reference drivers
-(`rk_i2c.c`, `i2c-rk3x.c`) are in `tmp/uboot-ref/`. Still open: a write
-path (layer 2) and identifying the `VCCQ` rail (layer 3), both of which
-want the RK817 datasheet for the register map.
+**Confirmed on hardware: the RK817 answers** with real, varied register
+values where every read used to time out. The TRM i2c chapter (Part1
+Ch22) and both reference drivers (`rk_i2c.c`, `i2c-rk3x.c`) are in
+`tmp/uboot-ref/`.
+
+**All three layers are done (2026-06-30):**
+
+- **Layer 1 — read.** The RK817 returns real RTC/alarm registers (a BCD
+  timestamp), proving reachability.
+- **Layer 2 — write.** `i2c0_write_reg` (TX mode, modeled on u-boot's
+  `rk_i2c_write`) plus a non-destructive RTC-register round-trip logged
+  `WRITE PASS` (wrote 0x5A, read back 0x5A, restored the original).
+- **Layer 3 — rail control.** `rk817_ldo_get_mv` / `rk817_ldo_set_mv`
+  read and set any of the nine LDOs (`mV = 600 + sel*25`, register
+  `0xCC + (n-1)*2`, range 600–3400 mV — from the Linux rk808 driver,
+  `tmp/uboot-ref/`). The sweep read all nine as sensible voltages
+  (LDO1/7/8 = 1.8 V, LDO2/3 = 0.9 V, LDO4/5/6 = 3.3 V, LDO9 = 2.8 V) and
+  round-tripped the set path.
+
+The original `VCCQ` motivation — the eMMC's I/O rail for HS200 (110j) —
+turned out NOT to need any of this: the eMMC device-tree node has no
+`vqmmc-supply`, so its VCCQ is a fixed board rail, not PMIC-controlled,
+and the board's 1.8 V LDOs plus the DLL locking at 200 MHz say that fixed
+rail is already 1.8 V. So 110j's voltage dependency is resolved without
+programming a regulator. The rail-control capability stands on its own
+for the power work ahead (DVFS, battery, thermal).
 
 ## Intended behavior
 

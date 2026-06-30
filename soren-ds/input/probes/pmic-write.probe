@@ -1,0 +1,16 @@
+#AUTO 35
+# RK817 i2c WRITE round-trip test (issue 114, layer 2).
+#
+# Now that reads work, this confirms the write path. It writes a
+# distinctive byte (0x5A) to the RK817's RTC compensation LSB register
+# (reg 0x10) — a plain-binary, no-power-rail register that is safe to
+# poke and immediately restore — then reads it back, then writes the
+# original value back. The whole sequence (write, read-back, restore)
+# lives in the pmic_write_test CALL target in src/019-probe-engine.c,
+# because an i2c write is a controller transaction, not a single MMIO
+# poke, so it cannot be expressed as a probe-language W.
+#
+# Non-destructive: the original byte is restored before the probe ends.
+# Watch the log for "WRITE PASS" with read-back = 0x5A.
+
+CALL pmic_write_test

@@ -59,16 +59,15 @@ data path to DMA:
 ### The signalling-voltage dependency
 
 HS200 runs the eMMC's `VCCQ` I/O rail at 1.8 V (or 1.2 V), not the 3.3 V
-legacy mode tolerates. Two outcomes are possible and the probe tells us
-which:
-
-- If the board hardwires eMMC `VCCQ` to 1.8 V (common on handhelds),
-  nothing extra is needed — the DLL already locking at 200 MHz is
-  consistent with the pads already being at 1.8 V.
-- If `VCCQ` is software-controlled, it goes through the RK817 PMIC —
-  **which currently does not answer over i2c0** (issue surfaced by the
-  `pmic-dump` probe). In that case this issue is *blocked on the PMIC
-  i2c path* until the rail can be commanded to 1.8 V.
+legacy mode tolerates. **Resolved: it is a fixed board rail at 1.8 V, so
+nothing is needed here.** The eMMC's device-tree node (`mmc@fe310000`)
+has no `vqmmc-supply` property — meaning its VCCQ is not
+software-controlled, just hardwired — and the board declares the eMMC at
+`max-frequency = 200 MHz`, which only works at 1.8 V signalling. The PMIC
+work (114) corroborates it: the RK817 carries several 1.8 V LDO rails,
+and the DLL locked cleanly at 200 MHz — exactly what pads already at
+1.8 V would do. (Chasing this question is what sent us through the whole
+PMIC bring-up; the answer is that this rail needs no programming.)
 
 The first read at HS200 settles it: real data means the rail is already
 right; all-`0xFF`/corruption with a locked DLL points at the voltage.
@@ -119,7 +118,7 @@ made it speculative (does the DLL lock at speed?) is now measured.
 ## Blocked by
 
 110a (eMMC controller driver) — up and working. The 200 MHz DLL lock
-prerequisite is confirmed (110i). Soft dependency: if eMMC `VCCQ` is
-software-controlled rather than board-fixed at 1.8 V, blocked on the
-RK817 PMIC i2c0 path (the `pmic-dump` finding) until the rail can be
-set; the first HS200 read decides whether this dependency is live.
+prerequisite is confirmed (110i), and the signalling-voltage dependency
+is resolved — the eMMC `VCCQ` is a board-fixed 1.8 V rail (see above), so
+the PMIC path is *not* needed. Nothing blocks this issue; it is ready to
+implement.
