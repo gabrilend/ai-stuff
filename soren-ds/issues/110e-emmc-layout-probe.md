@@ -1,5 +1,19 @@
 # 110e — eMMC layout probe (via microSD dump)
 
+> **RESOLVED.** With the eMMC bring-up working (110a), the
+> kernel copied the first 200 MB of the eMMC to the microSD,
+> `dump-from-sd` pulled it, and `gdisk -l` walked a valid GPT.
+> The full factory layout is recorded in
+> `docs/024-emmc-partition-map.md`. **Critical correction it
+> surfaced:** 110b's hard-coded boot-partition LBA `0x4000`
+> (16384) is actually the **`uboot`** partition — writing a
+> kernel there would corrupt u-boot. The real `boot` partition
+> starts at **LBA 51200** (64 MiB, partition 7); `recovery` is at
+> LBA 182272. 110b must be corrected to target LBA 51200 before
+> it is ever enabled. The dump also confirmed the eMMC reads
+> genuine content (named Android partitions, the Rockchip trust
+> blob) rather than the stale SD data the pre-fix runs produced.
+
 ## Current behavior
 
 The eMMC writer in 110b assumes the boot partition lives at LBA

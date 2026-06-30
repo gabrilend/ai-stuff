@@ -1,19 +1,103 @@
 # 110a — eMMC controller driver
 
+> **RESOLVED on hardware.** The eMMC now identifies and reads:
+> `CID[0]` returns a real value (not `0xFFFFFFFF`), `emmc_init`
+> and `emmc_read_block(0)` both pass. The root cause of the long
+> silent-card saga was that the **rk3568 dwcmshc ignores the
+> SDHCI internal clock divider** — the card clock is whatever
+> `CCLK_EMMC` is set to. The driver had `CCLK_EMMC` at 200 MHz
+> and relied on the divider for ~390 kHz, so the card was actually
+> clocked at 200 MHz and could never answer. Fix: drive
+> `CCLK_EMMC` directly via the CRU mux (375 kHz for
+> identification, 24 MHz for legacy transfer) with the SDHCI
+> divider at pass-through, matching u-boot's `rockchip_sdhci.c`.
+> The many other things fixed along the way (CRU clock/reset
+> bring-up, pinmux, 3.0 V power, DLL bypass+start, the
+> input-enable-vs-drive-strength mix-up) were all genuinely
+> required too — the clock was simply the last and decisive one.
+> Full write-up in `docs/018-emmc-host-controller.md`.
+>
+> Re-confirmed by the 110i probe sweep (2026-06-29): the `health-check`
+> and `emmc-dll-tune` probes both read `CID[0]=0x00010AA9`, caps
+> `0x226DC881`, and block 0 returning real (non-`0xFFFFFFFF`) data, and
+> the controller's DLL locks at 200 MHz — the prerequisite for the fast
+> path filed as 110j.
+
 ## Current behavior
 
-`src/012-emmc.c` brings up the RK3568's dedicated SDHCI
-controller and walks the eMMC card through the JEDEC
-identification sequence. The controller is software-reset
-through its reset register, powered at 3.3 V, its internal
-clock divider set for a ~400 kHz identification rate. CMD0
-puts the card into idle state; CMD1 polls for operating-
-condition readiness; CMD2, CMD3, CMD9, and CMD7 carry the card
-through identifying itself, accepting a relative address of 1,
-reporting its capacity descriptor, and selecting itself into
-transfer state. After identification, the clock bumps to a
-compatibility-mode transfer rate (~25 MHz from the controller's
-typical 200 MHz input).
+`src/012-emmc.c` brings up the RK3568's dedicated SDHCI host
+controller (a Synopsys dwcmshc variant) and walks the eMMC
+card through the JEDEC identification sequence. Most of what
+the driver does was learned empirically over a series of
+phase-1 hardware iterations; the controller-side answers it
+relies on are captured in `docs/018-emmc-host-controller.md`
+with a reference register dump.
+
+The first thing the driver does is route the eMMC pins to
+function 1 on the IOMUX. Eight data lines, CMD, CLK,
+DataStrobe, and RSTn all live in GPIO1's B and C banks; three
+masked writes to the main GRF at `0xFDC60000` set the function
+field of each pin without touching the per-pin reserved bit.
+The SD-card boot path's bootloader never touches the eMMC
+pinmux, so the pins arrive at our kernel still wired to GPIO
+function — the controller would otherwise drive commands into
+pads that aren't connected to the eMMC die. Each pinmux write
+is followed by a readback for diagnostic confirmation.
+
+The CRU clocks and resets come next. A single write to
+CLKGATE_CON(9) ungates all five eMMC clocks (ACLK / HCLK /
+BCLK / CCLK / TCLK); two writes to SOFTRST_CON(7) — assert,
+brief delay, deassert — pulse all five matching soft-resets.
+A read of the controller's CAPABILITIES register at offset
+0x40 then acts as a diagnostic discriminator: a sensible
+non-zero value means the bus came up; zero means the BCLK
+reset is stuck asserted; ones means the AHB clock is still
+gated.
+
+The dwcmshc vendor-area registers at `base + 0x500` get a set
+of clearing writes next. HOST_CTRL3 at offset 0x508 is written
+with a **byte-width** write — a 32-bit write to this offset
+clobbers neighbouring bytes the controller then restores,
+leaving bit 0 set in the readback. The DLL_CTRL, DLL_RXCLK,
+DLL_TXCLK, and DLL_STRBIN registers are each cleared to zero,
+matching upstream Linux's `rk35xx_init`. EMMC_CONTROL gets the
+CARD_IS_EMMC bit set so the controller frames commands and
+responses using eMMC timing rather than SD-card timing — the
+bit phase-1 testing identified as critical for the response
+register to ever hold a real card response.
+
+The SDHCI software reset follows. After it completes, four
+register writes restore the post-reset configuration the
+controller needs but the spec doesn't make automatic:
+INT_ENABLE = 0xFFFFFFFF (without this, the COMMAND_COMPLETE
+status bit never appears in INT_STATUS — every command looks
+like a timeout), HOST_CONTROL_1 = 0xC0 (card-detect test level
+= card present, since eMMC has no real CD pin), TIMEOUT_CTRL
+= 0x0E (max data timeout), and POWER_CONTROL = 0x0D
+(3.0V + power on — **not 3.3V**, because the slot's
+CAPABILITIES register reports it doesn't support 3.3V on this
+board; writing 3.3V results in the slot never powering up and
+the card going dark).
+
+The `emmc_dump_controller_state` helper runs once before any
+card command, dumping every controller-side register that
+could explain a silent bus. Its first output landed in the
+phase-1 debug log and the answers are codified in
+`docs/018-emmc-host-controller.md`.
+
+After clock and power are configured, the standard JEDEC eMMC
+init sequence runs: CMD0 puts the card into idle state, CMD1
+polls for operating-condition readiness, CMD2 / CMD3 / CMD9
+/ CMD7 carry the card through identifying itself, accepting
+a relative address of 1, reporting its capacity descriptor,
+and selecting itself into transfer state. A validation check
+after CMD2 confirms the response register holds something
+other than the floating-bus 0xFFFFFFFF pattern — phase-1
+testing showed CMD2 can spuriously report COMMAND_COMPLETE
+even when no card responded, so a phantom-success at this
+stage would otherwise propagate forward as a confusing CMD3
+timeout. After identification, the clock bumps to a
+compatibility-mode transfer rate.
 
 Two block-IO operations are exposed: `emmc_read_block` and
 `emmc_write_block`. Each takes a 32-bit logical block address
@@ -34,14 +118,17 @@ stream from 110 narrates each step of bring-up so a failure
 mid-sequence is visible to a developer with a host computer
 attached.
 
-The closing evidence on real hardware — successful round-trip
-of a known pattern to a safe block, narrated through CDC-ACM —
-has not yet been observed because we have not booted from the
-device. That validation lands when 110b lights up. If the
-round-trip fails, the SDHCI controller's Rockchip-specific
-quirks (a small set of vendor extensions to the base SDHCI
-register surface) and the controller's input-clock rate are
-the first places to look.
+The closing evidence on real hardware — the eMMC-to-SD backup
+in `kernel_main` running to completion, with a successful
+round-trip of a known pattern to a safe block narrated through
+the SD-backed debug log — has not yet been observed because
+the new CRU bring-up hasn't been flashed and tested yet. That
+validation lands on the next hardware run. If the round-trip
+fails *after* the CRU bring-up's discriminator passes (i.e.
+the capabilities register read returns a sensible value but
+the JEDEC init sequence still hangs), the controller's input-
+clock rate or one of the vendor-area writes is the first place
+to look.
 
 ## Reopened — CRU clock and reset setup missing, plus dwcmshc vendor-area writes
 
