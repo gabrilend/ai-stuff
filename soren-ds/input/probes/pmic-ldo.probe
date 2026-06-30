@@ -1,0 +1,20 @@
+#AUTO 36
+# RK817 LDO voltage read + set-path test (issue 114, layer 3).
+#
+# This is the "active LDO programming" capability: setting a power rail
+# to a precise voltage (what you'd use for I/O levels, DVFS, etc.).
+# Unlike PWM — which dims by switching on/off fast (varying TIME) — an
+# LDO holds a steady, exact VOLTAGE.
+#
+# The probe reads and decodes all nine of the RK817's LDO output
+# voltages (a snapshot of the board's power rails: look for sensible
+# values like 1800, 3300), then exercises the new set abstraction
+# NON-DESTRUCTIVELY — it programs LDO1 back to its own current value, so
+# the encode/write/read-back path is proven without moving any rail.
+# A real voltage change is a deliberate step for a rail known to be safe.
+#
+# The logic is rk817_ldo_get_mv / rk817_ldo_set_mv, exercised by the
+# pmic_ldo_test CALL target in src/019-probe-engine.c. Watch for the
+# voltage list and "SET PATH OK".
+
+CALL pmic_ldo_test

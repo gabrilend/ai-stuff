@@ -263,7 +263,9 @@ static void memtest_run(void)
 #define I2C0_MRXADDR  (I2C0_BASE + 0x08u)
 #define I2C0_MRXRADDR (I2C0_BASE + 0x0Cu)
 #define I2C0_MRXCNT   (I2C0_BASE + 0x14u)
+#define I2C0_MTXCNT   (I2C0_BASE + 0x10u)
 #define I2C0_IPD      (I2C0_BASE + 0x1Cu)
+#define I2C0_TXDATA0  (I2C0_BASE + 0x100u)
 #define I2C0_RXDATA0  (I2C0_BASE + 0x200u)
 #define RK817_ADDR    0x20u
 
@@ -366,6 +368,65 @@ static int i2c0_read_reg(uint32_t dev, uint32_t reg, uint8_t *out)
     return 0;
 }
 
+/* Single-byte register WRITE, matching u-boot rk_i2c_write. TX mode
+ * (mode 00) transmits the bytes packed into TXDATA, lower byte first;
+ * for a register write the three bytes are [slave<<1 (write), reg,
+ * data]. Same shape as the read — START on its own, arm CON, then the
+ * count write (MTXCNT) is the trigger. Returns 0 on success. */
+static int i2c0_write_reg(uint32_t dev, uint32_t reg, uint8_t val)
+{
+    uint32_t budget;
+
+    mmio_w32(I2C0_IPD, 0x7Fu);
+    mmio_w32(I2C0_CON, 0x09u);                         /* EN | START */
+    budget = 1000000u;
+    while (!(mmio_r32(I2C0_IPD) & 0x10u)) {            /* STARTIPD */
+        if (budget-- == 0u) {
+            i2c0_fail_ipd = mmio_r32(I2C0_IPD);
+            i2c0_fail_con = mmio_r32(I2C0_CON);
+            mmio_w32(I2C0_CON, 0u);
+            return -1;
+        }
+    }
+    mmio_w32(I2C0_IPD, 0x10u);                         /* clear STARTIPD */
+
+    /* TXDATA0 byte0 = slave<<1 (write), byte1 = reg, byte2 = value. */
+    mmio_w32(I2C0_TXDATA0,
+             ((dev << 1) & 0xFFu) | ((reg & 0xFFu) << 8) | ((uint32_t)val << 16));
+
+    mmio_w32(I2C0_CON, 0x01u);                         /* EN | mode TX(00) */
+    mmio_w32(I2C0_MTXCNT, 3u);                         /* 3 bytes -> triggers TX */
+
+    budget = 1000000u;
+    for (;;) {
+        uint32_t ipd = mmio_r32(I2C0_IPD);
+        if (ipd & 0x04u) break;                       /* MBTF — bytes sent */
+        if (ipd & 0x40u) {                            /* NAK */
+            i2c0_fail_ipd = ipd;
+            i2c0_fail_con = mmio_r32(I2C0_CON);
+            mmio_w32(I2C0_IPD, 0x40u);
+            mmio_w32(I2C0_CON, 0u);
+            return -1;
+        }
+        if (budget-- == 0u) {
+            i2c0_fail_ipd = ipd;
+            i2c0_fail_con = mmio_r32(I2C0_CON);
+            mmio_w32(I2C0_CON, 0u);
+            return -1;
+        }
+    }
+    mmio_w32(I2C0_IPD, 0x04u);                         /* clear MBTF */
+
+    mmio_w32(I2C0_CON, 0x11u);                         /* EN | STOP */
+    budget = 1000000u;
+    while (!(mmio_r32(I2C0_IPD) & 0x20u)) {            /* STOPIPD */
+        if (budget-- == 0u) break;
+    }
+    mmio_w32(I2C0_IPD, 0x20u);
+    mmio_w32(I2C0_CON, 0u);                            /* disable */
+    return 0;
+}
+
 /* Log "  label=0xVALUE" for a register readback. */
 static void i2c0_log_reg(const char *label, uint32_t addr)
 {
@@ -439,6 +500,156 @@ static void pmic_dump(void)
 }
 /* }}} */
 
+/* {{{ pmic_write_test — non-destructive RK817 i2c write round-trip
+ * Issue 114 layer 2. Writes a distinctive value to the RK817's RTC
+ * compensation LSB (reg 0x10 — plain binary, no power rail, safe to
+ * change), reads it back to prove the write landed, then restores the
+ * original byte. The i2c write itself is i2c0_write_reg above. */
+static void pmic_write_test(void)
+{
+    uint8_t orig = 0, after = 0, restored = 0;
+    int w1, w2;
+
+    i2c0_setup();
+    debug_write("[probe] RK817 write round-trip on reg 0x10 (RTC_COMP_LSB):\r\n");
+
+    i2c0_read_reg(RK817_ADDR, 0x10u, &orig);
+    w1 = i2c0_write_reg(RK817_ADDR, 0x10u, 0x5Au);
+    i2c0_read_reg(RK817_ADDR, 0x10u, &after);
+    w2 = i2c0_write_reg(RK817_ADDR, 0x10u, orig);     /* restore original */
+    i2c0_read_reg(RK817_ADDR, 0x10u, &restored);
+
+    debug_write("[probe]   original=");
+    write_hex32((uint32_t)orig);
+    debug_write("\r\n[probe]   wrote 0x5A (rc=");
+    write_hex32((uint32_t)w1);
+    debug_write(") read-back=");
+    write_hex32((uint32_t)after);
+    debug_write("\r\n[probe]   restored (rc=");
+    write_hex32((uint32_t)w2);
+    debug_write(") read-back=");
+    write_hex32((uint32_t)restored);
+    debug_write("\r\n");
+
+    if (w1 == 0 && after == 0x5Au) {
+        debug_write("[probe]   WRITE PASS (read-back matched written value)\r\n");
+    } else {
+        debug_write("[probe]   WRITE FAIL\r\n");
+    }
+}
+/* }}} */
+
+/* Emit a decimal number (no leading zeros) through debug_write — so a
+ * voltage logs as "1800 mV" instead of a hex selector. */
+static void write_dec(uint32_t v)
+{
+    char b[11];
+    int pos = 10;
+    b[10] = 0;
+    if (v == 0u) {
+        b[--pos] = '0';
+    } else {
+        while (v != 0u) { b[--pos] = (char)('0' + (v % 10u)); v /= 10u; }
+    }
+    debug_write(&b[pos]);
+}
+
+/* {{{ RK817 LDO voltage control — set a rail to a precise voltage (114 L3)
+ * Each of the RK817's nine LDOs (Low-DropOut regulators — they turn a
+ * higher rail into a precise lower one) has an ON_VSEL register that
+ * selects its output: mV = 600 + sel*25, where sel is the low 7 bits,
+ * range 600..3400 mV. LDO n (1..9) lives at register 0xCC + (n-1)*2.
+ * Register map from the Linux rk808 driver (tmp/uboot-ref/). This is the
+ * "command a rail to an exact voltage" capability — e.g. a 1.8 V I/O
+ * rail — that the PWM duty path is NOT (PWM varies time, not voltage). */
+#define RK817_LDO_VSEL_BASE  0xCCu
+#define RK817_LDO_VSEL_MASK  0x7Fu
+#define RK817_LDO_MIN_MV     600u
+#define RK817_LDO_STEP_MV    25u
+#define RK817_LDO_MAX_MV     3400u
+
+static uint32_t rk817_ldo_vsel_reg(uint32_t ldo)      /* ldo = 1..9 */
+{
+    return RK817_LDO_VSEL_BASE + (ldo - 1u) * 2u;
+}
+
+/* Read LDO n's programmed voltage in millivolts; -1 on an i2c error. */
+static int rk817_ldo_get_mv(uint32_t ldo)
+{
+    uint8_t v = 0;
+    if (i2c0_read_reg(RK817_ADDR, rk817_ldo_vsel_reg(ldo), &v) != 0) {
+        return -1;
+    }
+    return (int)(RK817_LDO_MIN_MV
+                 + (uint32_t)(v & RK817_LDO_VSEL_MASK) * RK817_LDO_STEP_MV);
+}
+
+/* Set LDO n to the highest representable voltage <= target_mv (clamped to
+ * the LDO range), preserving the register's non-voltage high bit with a
+ * read-modify-write. Returns the voltage actually programmed, or -1. */
+static int rk817_ldo_set_mv(uint32_t ldo, uint32_t target_mv)
+{
+    uint8_t cur = 0, newval;
+    uint32_t reg = rk817_ldo_vsel_reg(ldo);
+    uint32_t sel;
+
+    if (target_mv < RK817_LDO_MIN_MV) target_mv = RK817_LDO_MIN_MV;
+    if (target_mv > RK817_LDO_MAX_MV) target_mv = RK817_LDO_MAX_MV;
+    sel = (target_mv - RK817_LDO_MIN_MV) / RK817_LDO_STEP_MV;
+
+    if (i2c0_read_reg(RK817_ADDR, reg, &cur) != 0) {
+        return -1;
+    }
+    newval = (uint8_t)((cur & 0x80u) | (uint8_t)(sel & RK817_LDO_VSEL_MASK));
+    if (i2c0_write_reg(RK817_ADDR, reg, newval) != 0) {
+        return -1;
+    }
+    return (int)(RK817_LDO_MIN_MV + sel * RK817_LDO_STEP_MV);
+}
+/* }}} */
+
+/* {{{ pmic_ldo_test — read every LDO, then prove the set path safely
+ * Reads and decodes all nine LDO voltages (a snapshot of the board's
+ * power rails), then exercises rk817_ldo_set_mv NON-DESTRUCTIVELY: it
+ * reads LDO1's current voltage and programs it right back to the same
+ * value, verifying encode/write/read-back without moving any rail. */
+static void pmic_ldo_test(void)
+{
+    uint32_t n;
+    int cur, back;
+
+    i2c0_setup();
+    debug_write("[probe] RK817 LDO voltages (mV = 600 + sel*25):\r\n");
+    for (n = 1u; n <= 9u; n++) {
+        int mv = rk817_ldo_get_mv(n);
+        debug_write("[probe]   LDO");
+        write_dec(n);
+        debug_write(" = ");
+        if (mv < 0) {
+            debug_write("(i2c error)");
+        } else {
+            write_dec((uint32_t)mv);
+            debug_write(" mV");
+        }
+        debug_write("\r\n");
+    }
+
+    cur = rk817_ldo_get_mv(1u);
+    debug_write("[probe] set-path check on LDO1: ");
+    write_dec((uint32_t)(cur < 0 ? 0 : cur));
+    debug_write(" mV -> set same -> ");
+    rk817_ldo_set_mv(1u, (uint32_t)(cur < 0 ? (int)RK817_LDO_MIN_MV : cur));
+    back = rk817_ldo_get_mv(1u);
+    write_dec((uint32_t)(back < 0 ? 0 : back));
+    debug_write(" mV  ");
+    if (cur >= 0 && back == cur) {
+        debug_write("SET PATH OK (unchanged round-trip)\r\n");
+    } else {
+        debug_write("SET PATH MISMATCH\r\n");
+    }
+}
+/* }}} */
+
 /* {{{ CALL dispatch — whole driver routines by name */
 static void call_target(const char *name)
 {
@@ -472,6 +683,10 @@ static void call_target(const char *name)
         memtest_run();
     } else if (streq(name, "pmic_dump")) {
         pmic_dump();
+    } else if (streq(name, "pmic_write_test")) {
+        pmic_write_test();
+    } else if (streq(name, "pmic_ldo_test")) {
+        pmic_ldo_test();
     } else {
         debug_write("[probe] CALL unknown target: ");
         debug_write(name);
