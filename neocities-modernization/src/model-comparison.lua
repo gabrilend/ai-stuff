@@ -184,6 +184,10 @@ local function cmd_embed(flags)
     local inference = require("inference-server-config")
     inference.set_project_root(DIR)
     inference.set_selected_server(server)
+    -- Select the model too, so format_embedding_prompt resolves THIS model's
+    -- prefix from the server's available_models (nomic clusters, gemma has its
+    -- own clustering prompt, mxbai none) -- not the server default's.
+    inference.set_selected_model(model)
     local fuzzy = require("fuzzy-computing")
     local endpoint = inference.build_host_url()
     local format_fn = inference.format_embedding_prompt

@@ -16,6 +16,14 @@ cd "$DIR" || {
 # Export DIR so Lua can access it
 export DIR
 
+# Ensure the on-disk diversity-cache directory exists BEFORE the (~40-minute) GPU
+# run, inferring it from the selected model via scripts/cache-dir --disk (the one
+# place that maps a model name to its directory). run.sh already creates this at
+# model-load; this keeps the wrapper safe when invoked on its own. Without it a
+# brand-new model would compute for an hour and only then fail at the final write.
+_disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --disk)"
+[ -n "$_disk_dir" ] && mkdir -p "$_disk_dir"
+
 # Run the Lua script
 exec luajit -e '
 -- Pre-computes diversity sequences using GPU acceleration (Vulkan compute shaders)
@@ -115,6 +123,8 @@ local function main()
     -- diversity cache to disk (embeddings_dir_disk) so it survives a reboot.
     local embeddings_file = utils.embeddings_dir(MODEL_NAME) .. "/embeddings.json"
     local output_file = utils.embeddings_dir_disk(MODEL_NAME) .. "/diversity_cache.json"
+    -- The on-disk output directory is created by the wrapper (bash, above) and by
+    -- run.sh at model-load, so it exists by the time we write here.
     local binary_file = string.format("%s/output/diversity-cache-gpu-batch.bin", DIR)
 
     print(string.format("[Config] Model: %s", MODEL_NAME))

@@ -511,36 +511,33 @@ return {
             model = "nomic-embed-text-v1.5",
             model_path = "assets/models/nomic-embed-text-v1.5.Q8_0.gguf",
             embedding_prompt_prefix = "clustering: ",
-        },
-        -- Issue 10-031: two more local models, so the evaluation framework can
-        -- compare how each judges poem similarity. Same host/port as "local":
-        -- the comparison harness runs ONE server at a time (loads this GGUF,
-        -- embeds the sample, stops, next), so they never contend for the port.
-        {
-            name = "local-mxbai",
-            description = "Local llama.cpp -- mxbai-embed-large-v1 (model comparison)",
-            host = "192.168.1.100",
-            port = 10265,
-            model = "mxbai-embed-large-v1",
-            model_path = "assets/models/mxbai-embed-large-v1.Q8_0.gguf",
-            -- mxbai-embed-large has no task-prompt training. For symmetric
-            -- poem-to-poem similarity the convention is to embed plain text; the
-            -- "Represent this sentence..." instruction is only for the QUERY side
-            -- of asymmetric retrieval, which would skew a similarity comparison.
-            embedding_prompt_prefix = nil,
-        },
-        {
-            name = "local-gemma",
-            description = "Local llama.cpp -- embeddinggemma-300m (model comparison)",
-            host = "192.168.1.100",
-            port = 10265,
-            model = "embeddinggemma-300m",
-            model_path = "assets/models/embeddinggemma-300M-Q8_0.gguf",
-            -- EmbeddingGemma is trained WITH task prompts; the clustering task --
-            -- which is what grouping poems by likeness wants -- uses this exact
-            -- prefix per the model card. It mirrors the intent of nomic's
-            -- "clustering: " so all three models are asked the same question.
-            embedding_prompt_prefix = "task: clustering | query: ",
+            -- This one machine can serve several local GGUFs (one at a time:
+            -- start-llamacpp-server.sh --server=local --model=NAME loads the
+            -- chosen file). The default model above is nomic; the entries below
+            -- add the others. A plain-string entry (or the default model itself)
+            -- uses the server-level model_path/prefix above; a table entry brings
+            -- its OWN GGUF and the prompt phrasing its makers intend for
+            -- clustering/similarity, so each model is asked the same question
+            -- the right way. Switching the served model needs a server restart
+            -- (and regenerating the caches that depend on the embedding space).
+            available_models = {
+                "nomic-embed-text-v1.5",
+                {
+                    model = "mxbai-embed-large-v1",
+                    model_path = "assets/models/mxbai-embed-large-v1.Q8_0.gguf",
+                    -- No task-prompt training; embed plain text for symmetric
+                    -- poem-to-poem similarity (the "Represent this sentence..."
+                    -- instruction is only for the query side of retrieval).
+                    embedding_prompt_prefix = nil,
+                },
+                {
+                    model = "embeddinggemma-300m",
+                    model_path = "assets/models/embeddinggemma-300M-Q8_0.gguf",
+                    -- Trained WITH task prompts; the clustering task uses this
+                    -- exact prefix per the model card, mirroring nomic's intent.
+                    embedding_prompt_prefix = "task: clustering | query: ",
+                },
+            },
         },
     },
     -- Default server name (must match a name above)

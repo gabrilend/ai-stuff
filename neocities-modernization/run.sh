@@ -141,7 +141,6 @@ Stage Configuration:
   --threads N         Thread count for parallel operations (default: 4)
   --force             Force regeneration even if files are fresh
   --force-stage N     Force regenerate specific stage only (1-10)
-  --model NAME        Embedding model name (default: the selected server's model in config.lua)
 
 Pagination (HTML Generation):
   --pages N           Pages per poem (default: from config, 1)
@@ -167,7 +166,8 @@ External Files (Issue 10-003b):
 
 Inference Server (Issue 10-017):
   --server NAME       Use specific Inference server from config.lua
-  --model NAME        Override embedding model (default from server config)
+  --model NAME        Embedding model to use; must be one of the server's
+                      available_models (default: the server's configured model)
   --list-servers       List available Inference servers and exit
 
 Output Control:
@@ -779,6 +779,25 @@ else
         exit 1
     fi
 fi
+
+# Create this model's cache directories ONCE here, at model-load, instead of
+# making each stage remember to mkdir its own output dir before its first write.
+# The paths are inferred from the model name by scripts/cache-dir (the single
+# place that maps a model -> its directories): the movable (RAM) dir, its
+# similarities/ subdir, and the reboot-surviving on-disk dir (--disk). A
+# brand-new model otherwise has no assets/embeddings/<model>/ folder, which once
+# let a 40-minute diversity run finish and then fail at its final write. Adding a
+# new model now needs no manual mkdir -- selecting it is enough.
+_ram_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME")"
+_disk_dir="$(luajit "$DIR/scripts/cache-dir" "$DIR" --model "$MODEL_NAME" --disk)"
+if [ -z "$_ram_dir" ] || [ -z "$_disk_dir" ]; then
+    echo "Error: could not resolve cache directories for model $MODEL_NAME" >&2
+    exit 1
+fi
+mkdir -p "$_ram_dir/similarities" "$_disk_dir" || {
+    echo "Error: could not create cache directories for model $MODEL_NAME" >&2
+    exit 1
+}
 # }}}
 
 # {{{ Logging functions

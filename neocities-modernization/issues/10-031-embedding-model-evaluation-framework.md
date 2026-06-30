@@ -28,10 +28,13 @@ Three models are being compared in the first implementation of this framework
 - `embeddinggemma-300m` (768 dims; clustering prompt `"task: clustering | query: "`)
 
 Each model is registered in `src/similarity-engine.lua`'s model table (dimensions)
-and as a local `inference_servers` entry in `config.lua` (its GGUF `model_path`
-plus the clustering-appropriate `embedding_prompt_prefix`, so each model is used
-the way its makers intend for similarity — a fair comparison, not an accidental
-prefix mismatch).
+and listed under the single `local` server's `available_models` in `config.lua`.
+That one server can serve several local GGUFs (one at a time): each entry there
+carries its own `model_path` and the clustering-appropriate `embedding_prompt_prefix`,
+and `start-llamacpp-server.sh --server=local --model=NAME` loads the chosen file.
+So each model is used the way its makers intend for similarity — a fair comparison,
+not an accidental prefix mismatch — while `--list-servers` shows one tidy `local`
+entry with all three under "Available models" (mirroring the remote `gpu-server`).
 
 Other models considered and deferred (kept here for the record):
 - A non-neural lexical/TF-IDF baseline (the clearest way to see "structure vs
@@ -208,10 +211,12 @@ Add to run.sh interactive mode:
   `exceed_context_size_error`. The embed step therefore uses
   `fuzzy.embed_texts_with_chunking` (Issue 10-050), which splits to the loaded
   model's budget and averages chunk vectors — nomic/gemma (~2048 ctx) embed whole.
-- **Prompt-prefix fairness.** Each model's `inference_servers` entry carries the
-  clustering-appropriate prefix (nomic `"clustering: "`, gemma
-  `"task: clustering | query: "`, mxbai none) so all three are asked the same
-  question the way their makers intend — not an accidental mismatch.
+- **Prompt-prefix fairness.** Each model's entry under the `local` server's
+  `available_models` carries the clustering-appropriate prefix (nomic
+  `"clustering: "`, gemma `"task: clustering | query: "`, mxbai none) so all three
+  are asked the same question the way their makers intend — not an accidental
+  mismatch. `inference-server-config.get_selected_model_config()` resolves the
+  GGUF + prefix for the selected model so one server can serve all three.
 
 ## Metrics to Compute
 

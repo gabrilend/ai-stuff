@@ -407,7 +407,13 @@ function M.list_servers()
         print(string.format("    Model: %s", server.model or "nomic-embed-text"))
 
         if server.available_models and #server.available_models > 0 then
-            print(string.format("    Available models: %s", table.concat(server.available_models, ", ")))
+            -- available_models entries may be plain strings or {model=...} tables
+            -- (a table also carries its own GGUF + prompt); show just the names.
+            local names = {}
+            for _, entry in ipairs(server.available_models) do
+                names[#names + 1] = (type(entry) == "table") and entry.model or entry
+            end
+            print(string.format("    Available models: %s", table.concat(names, ", ")))
         end
         print("")
     end
@@ -427,12 +433,45 @@ end
 -- edit even when the new model has different prefix requirements; no
 -- caller needs to know which model is active to embed text correctly.
 function M.format_embedding_prompt(text)
-    local server = M.get_selected_server()
-    local prefix = server and server.embedding_prompt_prefix
+    local cfg = M.get_selected_model_config()
+    local prefix = cfg and cfg.embedding_prompt_prefix
     if prefix and prefix ~= "" then
         return prefix .. text
     end
     return text
+end
+-- }}}
+
+-- {{{ get_selected_model_config
+-- Resolve { model, model_path, embedding_prompt_prefix } for the SELECTED model
+-- on the selected server. This is what lets one server entry serve several local
+-- GGUFs: each available_models entry may be a table carrying its own model_path
+-- and prompt prefix, so `--server local --model X` loads X with X's phrasing.
+--
+-- Resolution: if the selected model matches a TABLE entry in available_models,
+-- use that entry's fields. Otherwise (a plain-string entry, or a server whose
+-- available_models is documentation-only like the remote gpu-server) fall back
+-- to the server's top-level model_path / embedding_prompt_prefix -- the default
+-- model. So the common case (no --model, default model) is unchanged.
+function M.get_selected_model_config()
+    local server = M.get_selected_server()
+    local model = M.get_selected_model()
+    if server.available_models then
+        for _, entry in ipairs(server.available_models) do
+            if type(entry) == "table" and entry.model == model then
+                return {
+                    model = model,
+                    model_path = entry.model_path or server.model_path,
+                    embedding_prompt_prefix = entry.embedding_prompt_prefix,
+                }
+            end
+        end
+    end
+    return {
+        model = model,
+        model_path = server.model_path,
+        embedding_prompt_prefix = server.embedding_prompt_prefix,
+    }
 end
 -- }}}
 

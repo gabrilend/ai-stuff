@@ -30,10 +30,12 @@ SEED=12345
 TOPK=10
 REPORT_ONLY=0
 OPEN_REPORT=0
-# model:server pairs -- the GGUF must exist in assets/models/ and the server name
-# must be an inference_servers entry in config.lua (which carries the right prompt
-# prefix). Default: the three models from Issue 10-031.
-MODELS_CSV="nomic-embed-text-v1.5:local,mxbai-embed-large-v1:local-mxbai,embeddinggemma-300m:local-gemma"
+# One server that can serve several local models (config.lua's `local` entry, via
+# its available_models). The harness loads each model in turn on this server.
+SERVER="local"
+# Comma-separated model names to compare; each must be in the server's
+# available_models (config.lua) so its GGUF + prompt prefix resolve.
+MODELS_CSV="nomic-embed-text-v1.5,mxbai-embed-large-v1,embeddinggemma-300m"
 # }}}
 
 # {{{ arg parsing
@@ -43,6 +45,7 @@ while [ $# -gt 0 ]; do
         --anchors) ANCHORS="$2"; shift 2 ;;
         --seed) SEED="$2"; shift 2 ;;
         --top-k) TOPK="$2"; shift 2 ;;
+        --server) SERVER="$2"; shift 2 ;;
         --models) MODELS_CSV="$2"; shift 2 ;;
         --report-only) REPORT_ONLY=1; shift ;;
         --open) OPEN_REPORT=1; shift ;;
@@ -78,26 +81,26 @@ stop_server() {
 }
 # }}}
 
-# {{{ embed_with_model(model, server) -- start the model, embed the sample, stop
-# Errors are fatal: a half-embedded model would make its column meaningless, and
-# we would rather stop than publish a misleading comparison.
+# {{{ embed_with_model(model) -- load this model on $SERVER, embed sample, stop
+# The server can serve several models (one at a time); --model picks which GGUF
+# to load. Errors are fatal: a half-embedded model would make its column
+# meaningless, and we would rather stop than publish a misleading comparison.
 embed_with_model() {
     local model="$1"
-    local server="$2"
     echo ""
-    echo "=== ${model}  (server: ${server}) ==="
+    echo "=== ${model}  (server: ${SERVER}) ==="
 
     stop_server   # never leave a previous model loaded
 
-    if ! "${DIR}/scripts/start-llamacpp-server.sh" "--server=${server}" >/dev/null 2>&1; then
-        echo "ERROR: failed to start server '${server}' for model '${model}'" >&2
+    if ! "${DIR}/scripts/start-llamacpp-server.sh" "--server=${SERVER}" "--model=${model}" >/dev/null 2>&1; then
+        echo "ERROR: failed to start '${model}' on server '${SERVER}'" >&2
         echo "  (check the GGUF in assets/models/ and the llama.cpp binary)" >&2
         stop_server
         return 1
     fi
 
     if ! luajit "${DIR}/src/model-comparison.lua" "${DIR}" embed \
-            --server "${server}" --model "${model}"; then
+            --server "${SERVER}" --model "${model}"; then
         echo "ERROR: embedding failed for model '${model}'" >&2
         stop_server
         return 1
@@ -114,23 +117,16 @@ embed_with_model() {
 }
 mkdir -p "${EVAL_DIR}"
 
-# Build a clean, ordered model list (just the model names) for the report column
-# order, derived from MODELS_CSV's "model:server" pairs.
-MODELS_ONLY=""
-
 if [ "$REPORT_ONLY" -eq 0 ]; then
     echo "== Selecting reproducible sample (=${SAMPLE} poems, ${ANCHORS} anchors, seed ${SEED}) =="
     luajit "${DIR}/src/model-comparison.lua" "${DIR}" select \
         --sample "${SAMPLE}" --anchors "${ANCHORS}" --seed "${SEED}" || exit 1
 fi
 
-IFS=',' read -ra PAIRS <<< "${MODELS_CSV}"
-for pair in "${PAIRS[@]}"; do
-    model="${pair%%:*}"
-    server="${pair##*:}"
-    if [ -z "$MODELS_ONLY" ]; then MODELS_ONLY="${model}"; else MODELS_ONLY="${MODELS_ONLY},${model}"; fi
+IFS=',' read -ra MODELS <<< "${MODELS_CSV}"
+for model in "${MODELS[@]}"; do
     if [ "$REPORT_ONLY" -eq 0 ]; then
-        embed_with_model "${model}" "${server}" || {
+        embed_with_model "${model}" || {
             echo "Aborting: model '${model}' did not produce embeddings." >&2
             exit 1
         }
@@ -140,7 +136,7 @@ done
 echo ""
 echo "== Building comparison report (top-${TOPK}) =="
 luajit "${DIR}/src/model-comparison.lua" "${DIR}" report \
-    --models "${MODELS_ONLY}" --top-k "${TOPK}" || exit 1
+    --models "${MODELS_CSV}" --top-k "${TOPK}" || exit 1
 
 REPORT="${EVAL_DIR}/comparison-report.html"
 echo ""
