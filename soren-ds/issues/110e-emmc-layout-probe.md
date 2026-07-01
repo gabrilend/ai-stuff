@@ -13,6 +13,15 @@
 > it is ever enabled. The dump also confirmed the eMMC reads
 > genuine content (named Android partitions, the Rockchip trust
 > blob) rather than the stale SD data the pre-fix runs produced.
+>
+> **Since resolved:** the ongoing boot-chain safety copy was
+> retargeted from that blind 200 MB front-of-card dump to a
+> 16 MiB targeted copy (GPT + uboot + trust, eMMC LBA 0..32767)
+> and moved out of the boot flow into the de-selectable
+> `emmc-backup` probe (`backup_boot` → `emmc_backup_to_sd(0,
+> 0x200000, 32768)`); whole-layout capture is now the `emmc-dump`
+> probe (110m). `docs/024` and `dump-from-sd`'s `BACKUP_SECTORS`
+> follow the 16 MiB size.
 
 ## Current behavior
 

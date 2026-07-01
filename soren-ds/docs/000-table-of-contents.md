@@ -111,7 +111,7 @@ tour; jump in by topic if you already know where you're going.
   internal eMMC, read off a real device once the eMMC bring-up
   worked. The 15 stock Android partitions with their LBAs and
   sizes (uboot, trust, boot, recovery, super, userdata, …),
-  what the 200 MB validation backup captured, and what a full
+  what the 16 MiB boot-chain backup captures, and what a full
   factory-restore image needs.
 - `datasheets/INDEX.md` — catalogue of the chip and
   standards PDFs downloaded to `docs/datasheets/`: RK3568 TRM
