@@ -10,12 +10,14 @@ single-color amber bottom window. Issue 103e's hardware
 diagnostic mapped this out by cycling each pin alone and
 watching which physical light responded.
 
-The kernel currently drives all three pins through the chip's
-GPIO controller, not its PWM controller (issue 106b). Boot
-stage signals are binary on/off; the PWM-side smooth-fade and
-breathing-heartbeat vocabulary returns when issue 106c brings
-the PWM controllers up cleanly. Until then the layer's
-vocabulary is "each pin on or off, no in-between."
+The kernel drives all three pins through the chip's PWM
+controller's duty hardware (issue 106c). Boot-stage signals
+use only full-on / full-off duty, so their vocabulary is
+still "each light on or off, no in-between" and the table
+below reads the same either way. The graded-brightness path
+that PWM unlocks is used by the long-operation breathing
+heartbeat, and is available to any future stage that wants
+partial brightness or the top window's colour blend.
 
 Their state at any moment encodes roughly where in the boot
 sequence the kernel is, or that it has hit a fatal exception.
@@ -75,16 +77,18 @@ distinguishing feature is duration.
 ## Long-operation heartbeat
 
 During the multi-minute eMMC-to-microSD backup, the bottom
-amber LED blinks on and off at roughly a one-second cadence —
-each call to `led_heartbeat` in the backup loop flips the
-amber pin. Visually, the bottom window pulses between dark
-and amber while the top window holds whatever stage signal
-was last set. If the blinking stops mid-operation, the kernel
-is stuck on a particular sector.
+amber light breathes — fading smoothly in and out — as each
+call to `led_heartbeat` in the backup loop steps the amber
+channel's PWM duty up or down by a tenth of full, bouncing at
+the extremes. Visually, the bottom window pulses between dark
+and full amber while the top window holds whatever stage
+signal was last set. If the fade freezes mid-operation, the
+kernel is stuck on a particular sector.
 
-(The PWM-era heartbeat from issue 106a was a smooth breathing
-fade rather than a discrete blink. The blink replaces the
-fade until issue 106c brings the PWM controller up.)
+(This is the smooth breathing fade from issue 106a's original
+design, restored now that the LED layer drives PWM. The
+discrete on/off blink the GPIO pivot (106b) used in the
+interim is gone.)
 
 ## Reading the lights
 
@@ -130,12 +134,12 @@ USB endpoint-zero bring-up succeeded; the hang is in the eMMC
 controller bring-up, the microSD controller bring-up, the
 debug-log init, or the backup itself.
 
-**You see top yellow-amber + bottom amber, blinking the
-bottom amber against a steady top yellow-amber.** The kernel
-is mid-backup; the blink is the heartbeat. Wait. If the
-blink stops without the LEDs advancing to
-`STAGE_BACKUP_COMPLETE`, the kernel is stuck on a particular
-sector.
+**You see top yellow-amber + bottom amber, the bottom amber
+breathing (fading in and out) against a steady top yellow-
+amber.** The kernel is mid-backup; the breathing fade is the
+heartbeat. Wait. If the fade freezes without the LEDs
+advancing to `STAGE_BACKUP_COMPLETE`, the kernel is stuck on a
+particular sector.
 
 **You see top red, bottom amber, steady.** The kernel
 finished its backup successfully. Power the device off and

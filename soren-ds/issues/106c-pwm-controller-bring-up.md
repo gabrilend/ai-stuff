@@ -2,82 +2,88 @@
 
 ## Current behavior
 
-The PWM driver in `src/003-pwm.c` writes to the per-channel
-registers of the PWM1 controller block, but the controller
-itself is not in a state where those writes drive output. Two
-things the bootloader on the SD-card path does not configure
-for us — both of which the PWM driver currently assumes are
-already in place — keep the PWM signal from reaching the LED
-pins. The first SD-card boot test surfaced this as silent
-LEDs when the LED layer drove its PWM channels at full duty;
-the diagnosis (issue 103e) confirmed the kernel reaches the
-PWM writes and the writes are landing at the right addresses,
-which leaves "the controller isn't running" and "the pins
-aren't routed to the controller's output" as the remaining
-possibilities. The LED layer pivoted to GPIO output in issue
-106b so phase 1 hardware bring-up can proceed without
-waiting on this work.
+The PWM1 controller is up and drives the indicator lights through
+its duty-cycle hardware — brought up, proven dim on real hardware,
+and already carrying the two places where smooth brightness matters
+most. What the SD-boot bootloader leaves undone, the driver now
+does itself (`led_pwm_init` in `src/003-pwm.c`): three register
+moves before the per-channel setup.
 
-The deferred work is to add two register-write sequences to
-the PWM driver:
+- **Ungate the PWM1 clock.** `CLKGATE_CON(31)` at `0xFDD2037C`,
+  bits 10 (`PCLK_PWM1`) and 11 (`CLK_PWM1`) written to zero
+  (mask-and-value word `0x0C000000`) so the block's counter ticks.
+  Belt-and-braces: the block is already clocked at u-boot handoff
+  (the green light is lit then), so this is harmless if redundant.
+- **Release the PWM1 resets.** `SOFTRST_CON(23)` at `0xFDD2045C`,
+  bits 0 (`SRST_P_PWM1`, APB) and 1 (`SRST_PWM1`, functional),
+  deasserted (`0x00030000`).
+- **Route the pins to PWM.** The three LED pins `GPIO0_C4/C5/C6`
+  sit in plain-GPIO function zero (where the GPIO-driven LED layer
+  left them); `PMU_GRF_GPIO0C_IOMUX_H` at `0xFDC20014` moves all
+  three to function one (value `0x0FFF0111`) so the controller's
+  output reaches the pads.
 
-- A clock-gate write into the chip's main clock-reset unit
-  (CRU) at `0xFDD2_0000`. The PWM1 controller block draws
-  both a per-channel "pwm" clock and a peripheral-bus
-  "pclk" clock from the CRU; the device tree's clock-cells
-  entry for `pwm@fe6e0010` names clock IDs `0x15a` (the pwm
-  clock) and `0x159` (the pclk). The CRU's clock-gate
-  register layout is documented in
-  `docs/017-clocks-and-timers.md`. **The lookup is now done**
-  (RK3568 TRM Part 1 Chapter 2, in `docs/datasheets/`): the
-  PWM1 controller block at `0xFE6E_0000` — whose channels
-  `0xFE6E_0010` / `_0020` / `_0030` drive the three LEDs — is
-  gated by `CLKGATE_CON(31)` (`0xFDD2037C`) bit 10 (`PCLK_PWM1`)
-  and bit 11 (`CLK_PWM1`). Writing either bit to zero ungates
-  the clock; the controller's counter then ticks and its output
-  toggles per the duty register.
-- A pin-multiplexer write into the PMU general register
-  file at `0xFDC2_0014` (`PMU_GRF_GPIO0C_IOMUX_H`). The
-  three LED pins — `GPIO0_C4 / C5 / C6` — currently sit in
-  pin function zero (plain GPIO), the function the GPIO-
-  driven LED layer set them to. Routing them to function
-  one (PWM) lets the PWM controller's output reach the
-  pads. The write-mask convention is the same one
-  `led_init` uses for its function-zero write; only the
-  value half changes (each four-bit function field becomes
-  `0x1` instead of `0x0`).
-
-A possible third step: deasserting the controller's reset.
-The PWM1 block's resets are now located (TRM Part 1 Ch2):
-`SOFTRST_CON(23)` (`0xFDD2045C`) bit 0 (`SRST_P_PWM1`, APB) and
-bit 1 (`SRST_PWM1`, functional). Whether an explicit deassert
-is needed (vs. the block already being out of reset) is for the
-implementer to confirm; the register/bit are recorded in
+With those in place the per-channel PERIOD (`+0x04`) and DUTY
+(`+0x08`) registers behave as the TRM describes, and brightness is
+just a `current/max` fraction written as duty. The top window
+blends its red and green emitters by their two duty ratios into a
+colour; the bottom window is amber brightness only (`led_top` /
+`led_bottom` in `003-pwm.c`). The register offsets, bit positions,
+and mask convention are all recorded in
 `docs/017-clocks-and-timers.md`.
 
-One caveat to resolve during implementation: the three LED
-channels live in the *main-domain* PWM1 block (`0xFE6E_0000`),
-but the LED pins are `GPIO0_C4/C5/C6` in the *PMU* GRF — confirm
-the pin-to-channel routing against the device tree's per-channel
-pinctrl before assuming function 1 on those pins reaches these
-channels.
+**The cross-domain-routing worry turned out to be a non-issue.**
+The three channels live in the *main-domain* PWM1 block while the
+pins are in the *PMU-domain* GRF; hardware confirmed function-1 on
+those pins does reach these channels.
 
-**Update (probe test, 2026-06-29):** `input/probes/pwm-bringup.probe`
-exercises this on hardware — it ungates/deasserts PWM1, drives channel 7
-(the red LED) at a partial duty, and re-muxes only that pin, so the red
-LED is a visible PASS/FAIL while green and amber stay on the GPIO
-diagnostic. The first run came back *bright* instead of dim, which
-exposed a latent bug: `src/003-pwm.c` had the per-channel PERIOD and
-DUTY offsets swapped (the TRM Part1 Ch15 puts PERIOD at `+0x04`, DUTY at
-`+0x08`). It had stayed invisible because the LED layer only ever drove
-full-on or full-off duty, where the swap doesn't show. Fixed in
-`003-pwm.c` and in the probe. The bright output also means the
-controller *is* clocked and the re-muxed pin *does* reach the channel,
-so the cross-domain-routing caveat above is a non-issue — the next run
-showed a **dim red**, confirming the controller is clocked, the partial
-duty is honoured, and function 1 on the PMU-domain pin reaches the
-main-domain channel. The remaining work is just wiring the LED layer
-(`004-led.c`) back through `pwm_channel_set_duty`.
+**A latent driver bug surfaced and was fixed.** The original driver
+had the per-channel PERIOD and DUTY offsets swapped (TRM Part1 Ch15
+puts PERIOD at `+0x04`, DUTY at `+0x08`). It stayed invisible
+because the LED layer only ever drove full-on or full-off duty,
+where the swap does not show; the first partial-duty test came back
+*bright* instead of dim and exposed it. Fixed in both `003-pwm.c`
+and the bring-up probe.
+
+**Confirmed on hardware (2026-06-29).** The bring-up probe
+(`input/probes/pwm-bringup.probe`) ungates/deasserts PWM1, drives
+the red channel at ~10% duty, and re-muxes only its pin — leaving
+green and amber on the GPIO diagnostic as a control. It came back a
+steady **dim red**: controller clocked, partial duty honoured,
+function-1 routing working. (Commit: "PWM dimming — confirmed on
+device.")
+
+**Where the PWM path is used today.** Three layers drive it:
+
+- The **boot-stage indicator layer** (`src/004-led.c`) now drives
+  every ordinary stage signal, the hello flash, and the backup
+  heartbeat through the PWM duty path — `led_init` calls
+  `led_pwm_init`, `led_set` writes full/zero duty, and the heartbeat
+  breathes again (a tenth-of-full triangle on the amber channel).
+  The GPIO code — the PMU-GRF pinmux to function zero, the GPIO0
+  direction and data writes — is gone. The visible on/off stage
+  vocabulary is unchanged, so the diagnostic-codes table still holds;
+  graded brightness and the top-window colour blend are now available
+  to any future stage that wants them.
+- The **probe sweep** (`src/019-probe-engine.c`) calls
+  `led_pwm_init` at the start of a run, shows a green "running" top
+  window, fills the amber bottom window as a smooth progress bar
+  across the probe count, and ends on red = done.
+- The **eMMC long operations** (`src/012-emmc.c`) drive the amber
+  window as a breathing progress heartbeat during a backup or dump
+  — the smooth "still working" signal issue 106a wanted and 106b
+  had downgraded to a discrete toggle.
+
+**What remains.** Only a hardware smoke-test. The boot-stage layer
+rewrite (step 5) is done in source; the one thing to confirm on
+device is that the earliest "kernel alive" signal — the hello flash
+and `STAGE_KERNEL_MAIN` — still lights now that it depends on the PWM
+bring-up rather than the always-on GPIO controller. PWM1 is already
+clocked at u-boot handoff (the green light is lit before our kernel
+runs) and the main-domain clock unit is already reached at the top of
+`kernel_main` for the watchdog silence, so the risk is low — but the
+signal is load-bearing enough (it is the "did the kernel start at
+all?" tell) to warrant an explicit look before the issue closes.
 
 ## Intended behavior
 
@@ -94,11 +100,14 @@ internal multiplexer carries those writes to the pads.
 
 ## Why deferred
 
-Bringing PWM up cleanly requires register-by-register
+Bringing PWM up cleanly required register-by-register
 investigation across two peripheral blocks (the CRU and the
 PMU GRF) and a bit-position discovery from the chip's
-technical reference manual that the project has not
-harvested yet. The bring-up is not strictly necessary for
+technical reference manual — all now harvested and recorded in
+`docs/017-clocks-and-timers.md`, and the controller itself is up
+(see current behavior). The remaining deferral is only the
+boot-stage LED layer rewrite (step 5). The bring-up is not
+strictly necessary for
 any kernel feature that phase 1's roadmap calls for — the
 GPIO-driven LED layer carries the boot-stage signal
 vocabulary the diagnostic-codes document specifies, and the
