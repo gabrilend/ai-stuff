@@ -13,8 +13,8 @@ destination wants it, without a context-switch back into eMMC internals.
 The eMMC works, but slowly. `src/012-emmc.c` brings the card up in the
 most conservative mode there is: a 1-bit data bus, a ~24 MHz card clock
 (`CCLK_EMMC` mux at its 24 MHz tap), and programmed I/O one block at a
-time. The 200 MB validation backup takes minutes (~3 MB/s); the full
-multi-GB stock-OS pull is impractical at this rate.
+time. At that rate (~3 MB/s) the full ~29 GiB card dump is impractical
+— the motivation for the fast path below.
 
 Two prerequisites are now measured and clear:
 

@@ -1,10 +1,13 @@
 # Soren DS — stock eMMC partition map
 
 The factory GPT partition layout of the internal 32 GB eMMC, read
-off a real device. Obtained by the eMMC→SD backup (issue 110e):
-`kernel_main` brings up the eMMC, copies the first 200 MB to the
-microSD's reserved region, and the lab-side `dump-from-sd` pulls
-it; `gdisk -l` on the dump walks the GPT.
+off a real device. Confirmed against the full eMMC→SD dump (the
+`emmc-dump` probe, issue 110m): the kernel copies the whole card
+to the microSD's dump region, the lab-side `dump-from-sd` pulls
+and gunzips it, and `gdisk -l` on the image walks the GPT. A
+separate, de-selectable `emmc-backup` probe copies just the
+16 MiB boot chain as a restore safety net (issue 110e); earlier
+revisions of that gate blindly copied the first 200 MB instead.
 
 This is the authoritative reference for any code that touches the
 eMMC by partition — the boot-image writer (110b), the eventual
@@ -45,13 +48,17 @@ below the first partition, at the BootROM's fixed sector offsets
 the `uboot`/`trust` partitions). The GPT primary header is at LBA
 1; its entries span LBA 2-33.
 
-## What the 200 MB backup captured
+## What the 16 MiB boot-chain backup captures
 
-200 MB = 409,600 sectors covers LBA 0 through 409,599 —
-**partitions 1 through 8 in full** (security, uboot, trust, misc,
-dtbo, vbmeta, boot, recovery), plus the first ~15 MB of the
-`backup` partition. That is the entire bootloader + boot +
-recovery chain: enough to restore the device to a bootable state.
+16 MiB = 32,768 sectors covers LBA 0 through 32,767 — the GPT
+plus **partitions 1 through 3** (security, uboot, trust), ending
+exactly where `misc` begins (LBA 32768). That is the raw Rockchip
+boot chain the BootROM and u-boot load — the idbloader (sector
+64), u-boot, and the ARM trusted-firmware / OP-TEE blob — enough
+to bring the device back to a working **bootloader**. It stops
+short of the Android `misc` / `boot` / `recovery` partitions on
+purpose; the older blind 200 MB copy (partitions 1-8, through
+recovery) was trimmed to just this once the layout was known.
 
 ## What a full factory-restore backup needs
 
