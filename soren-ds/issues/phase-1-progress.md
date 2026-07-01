@@ -118,8 +118,10 @@ into a three-step pipeline added during issue 101 research:
   of the USB bus are code we wrote, so the daily loop never
   trusts closed-source Anbernic firmware on the wire.
 - A safety gate (110e) before the first eMMC write: copy the
-  first 200 MB of the eMMC to a reserved region of the external
-  microSD card, eject the card, analyze on the lab laptop via
+  eMMC's boot chain — the first 16 MiB, GPT plus the uboot and
+  trust partitions (originally a blind first-200 MB copy) — to a
+  reserved region of the external microSD card, eject the card,
+  analyze on the lab laptop via
   raw `dd` (no mount, no execution), find where the boot
   partition actually lives, before invoking 110b's writer on
   real hardware. This requires a microSD driver (110f) to
@@ -483,22 +485,20 @@ first hardware run produces a dump that lets us identify the
 boot partition's real LBA), the four display sub-issues
 (111a, 111b, 111c, 111d), 112, and 113.
 
-106c (bring the PWM controllers up properly) is open as
-deferred work from the LED-layer pivot. The PWM driver code
-in `src/003-pwm.c` is unused while the LED layer drives the
-indicator lights through the GPIO controller (issue 106b);
-106c brings PWM back, restoring the smooth-fade brightness
-vocabulary and the breathing heartbeat from 106a. The work
-splits into a clock-gate write in the chip's clock-reset
-unit, a pin-multiplexer write in the PMU general register
-file, and possibly a reset deassertion. The specific CRU
-register layout is now catalogued in
-`docs/017-clocks-and-timers.md`; the PWM1 clock-gate bit
-position remains the open piece of research before 106c
-lands. Not blocking any other phase 1 issue — the GPIO-
-driven LED layer is a sufficient diagnostic channel for the
-remaining bring-up work — so the timing depends on when the
-smooth fades become worth their bring-up cost.
+106c (bring the PWM controllers up properly) is nearly
+closed. The PWM1 controller is up and proven dim on hardware
+— the driver ungates its clock, releases its resets, and
+routes the three LED pins to their PWM function itself
+(`src/003-pwm.c`), and the probe sweep and the eMMC long-
+operation heartbeat both drive smooth brightness through it.
+A latent PERIOD/DUTY register-offset swap was found and fixed
+along the way (invisible while only full-on/off duty was ever
+driven). The last piece — moving the everyday boot-stage
+indicator layer (`src/004-led.c`) off its GPIO on/off path and
+onto the PWM duty path, restoring the breathing heartbeat from
+106a — is done in source and awaits a hardware smoke-test to
+confirm the earliest "kernel alive" signal still comes up
+before the issue closes. Not blocking any other phase 1 issue.
 
 103g (watchdog handling) — phase 1 silence is unblocked and
 needed *immediately* before any further hardware bring-up can
