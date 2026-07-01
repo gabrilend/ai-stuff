@@ -35,13 +35,18 @@
  * qualifier on the access functions stops the compiler from
  * collapsing repeated stores.
  *
- * This file does not touch clocks or pinctrl. The bootloader leaves
- * the PWM1 block clocked (the green LED is on at the moment u-boot
- * hands off to us, which is only possible if PWM5 is already
- * receiving its source clock) and the iomux of all three LED pins
- * configured for their PWM functions. If the LEDs ever fail to
- * respond, the clock and iomux configuration are the first place
- * to check.
+ * Clocks and pinctrl: two worlds live in this file. The plain
+ * per-channel accessors (pwm_channel_setup / pwm_channel_set_duty)
+ * assume the block is already clocked and the pins already routed —
+ * true at u-boot handoff, where the green LED is lit (only possible
+ * if PWM channel 5 already has its source clock). The bring-up path
+ * (led_pwm_init, near the bottom of this file) does NOT assume that:
+ * it ungates the PWM1 clock, releases the block's resets, and routes
+ * the three LED pins to their PWM function itself, because the
+ * SD-boot bootloader leaves the block gated and the pins on GPIO for
+ * everything except the green LED. If the LEDs ever fail to respond,
+ * led_pwm_init's clock-gate / reset / iomux writes are the first
+ * place to check.
  */
 
 #include <stdint.h>
