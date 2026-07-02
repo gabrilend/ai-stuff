@@ -52,14 +52,15 @@ extern void emmc_dump_to_debug(uint32_t start_lba,
 extern int  sd_init(void);                              /* 015-sdmmc.c */
 extern int  sd_write_block(uint32_t lba,
                            const uint8_t *buffer);       /* 015-sdmmc.c */
-extern int  emmc_backup_to_sd(uint32_t emmc_start_lba,
-                              uint32_t sd_start_lba,
-                              uint32_t sector_count);    /* 016-emmc-backup.c */
+/* emmc_backup_to_sd (016-emmc-backup.c) is no longer called from here —
+ * the boot-chain backup moved into the de-selectable emmc-backup probe,
+ * so its only extern now lives in 019-probe-engine.c. */
 extern void debug_log_init(void);                       /* 017-debug-log.c */
 extern void debug_log_flush(void);                      /* 017-debug-log.c */
 extern void run_bringup_test_suite(void);               /* 018-bringup-test-suite.c */
-#ifdef SOREN_PROBES
-extern int  probe_engine_run(void);                     /* 019-probe-engine.c */
+#ifdef SOREN_DEBUG
+extern void probe_seed_defaults(void);   /* 019-probe-engine.c (110n) */
+extern void run_probes(void);            /* 019-probe-engine.c (110n) */
 #endif
 
 #define STAGE_KERNEL_MAIN     0
@@ -221,20 +222,25 @@ void kernel_main(void)
 
     debug_log_init();
 
-#ifdef SOREN_PROBES
-    /* Diagnostic (--probes) build: the hardware-probe battery is
-     * compiled in (issue 110i). Run every #AUTO-marked probe in
-     * priority order, flush the results to the SD-backed log, and
-     * park — the log is the deliverable. A normal build omits this
-     * whole block, so a production image carries no probe code at all
-     * and falls straight through to the eMMC backup below. (The old
-     * design read the probe off the card at boot; it is now compiled
-     * in, because a build flag is already a rebuild — see 110i.) */
-    if (probe_engine_run()) {
-        debug_log_flush();
-        led_set_stage(STAGE_BACKUP_COMPLETE);
-        while (1) { delay_busy(1000000); }
-    }
+#ifdef SOREN_DEBUG
+    /* Diagnostic (--debug) build: seed the probe run-flags from each
+     * probe's compiled-in #NEEDED default and run the armed ones through
+     * the callable runner (issue 110n). Each probe self-clears once its
+     * results are flushed to the SD-backed log; heavy/de-selected probes
+     * stay unarmed. Then the kernel is DONE and parks — the log is the
+     * deliverable, the parked state is bottom amber full + top red, and
+     * there is deliberately nothing to do after the diagnostics for now.
+     * This is a decision, not a placeholder: booting THROUGH the sweep
+     * into an ongoing bring-up only makes sense once our own boot image
+     * (110b/110c) and the soramech runtime (phase 3) exist — and that
+     * also wants the health-check-to-probe conversion first, so a probe
+     * cannot re-init a driver the continued boot then re-inits again. A
+     * lean build omits this block and carries no probe code. */
+    probe_seed_defaults();
+    run_probes();
+    debug_log_flush();
+    led_set_stage(STAGE_BACKUP_COMPLETE);
+    while (1) { delay_busy(1000000); }
 #endif
 
     /* Bring up the eMMC. */

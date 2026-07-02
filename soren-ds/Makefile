@@ -21,15 +21,17 @@ OBJCOPY := $(CROSS_PREFIX)/bin/aarch64-elf-objcopy
 SRC_DIR    := $(DIR)/src
 OUTPUT_DIR := $(DIR)/output
 
-# Probe-battery build variant. `scripts/build --probes` sets PROBES=1,
-# which compiles with -DSOREN_PROBES (019-probe-engine.c switches on and
-# #includes the generated probe list) and uses a SEPARATE object dir, so
-# a probe build and a lean build never reuse each other's objects — they
-# were compiled with different -D flags. A normal build defines nothing
-# and produces a probe-free production image.
+# Diagnostic build variant. `scripts/build --debug` sets DEBUG=1, which
+# compiles with -DSOREN_DEBUG (019-probe-engine.c switches on and
+# #includes the generated probe list, and any --debug-only extra logging
+# is compiled in) and uses a SEPARATE object dir, so a debug build and a
+# lean build never reuse each other's objects — they were compiled with
+# different -D flags. A normal build defines nothing and produces a
+# probe-free production image. (--probes is a deprecated alias for
+# --debug; see issue 110n.)
 GEN_DIR := $(DIR)/tmp/build/generated
-ifeq ($(PROBES),1)
-BUILD_DIR := $(DIR)/tmp/build/kernel-probes
+ifeq ($(DEBUG),1)
+BUILD_DIR := $(DIR)/tmp/build/kernel-debug
 else
 BUILD_DIR := $(DIR)/tmp/build/kernel
 endif
@@ -51,11 +53,11 @@ CFLAGS := -ffreestanding -nostdlib -nostartfiles \
           -fno-builtin \
           -mgeneral-regs-only
 
-# Under --probes, switch on the probe engine and add the generated
-# fragment's directory to the include path so 019-probe-engine.c can
-# #include "probe-list.inc".
-ifeq ($(PROBES),1)
-CFLAGS += -DSOREN_PROBES -I$(GEN_DIR)
+# Under --debug, switch on the probe engine (and any --debug-only extra
+# logging) and add the generated fragment's directory to the include path
+# so 019-probe-engine.c can #include "probe-list.inc".
+ifeq ($(DEBUG),1)
+CFLAGS += -DSOREN_DEBUG -I$(GEN_DIR)
 endif
 
 # --no-warn-rwx-segments silences a linker warning that fires on every
@@ -71,12 +73,12 @@ S_SRCS := $(shell find $(SRC_DIR) -name '*.s' 2>/dev/null)
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SRCS)) \
         $(patsubst $(SRC_DIR)/%.s,$(BUILD_DIR)/%.o,$(S_SRCS))
 
-# Under --probes, the probe engine #includes the generated probe list.
+# Under --debug, the probe engine #includes the generated probe list.
 # Make cannot see an #include, so name the dependency explicitly and
 # give a rule that (re)generates the fragment whenever a probe file or
-# the generator itself changes — keeping a direct `make PROBES=1`
+# the generator itself changes — keeping a direct `make DEBUG=1`
 # correct without relying on scripts/build to pre-generate.
-ifeq ($(PROBES),1)
+ifeq ($(DEBUG),1)
 PROBE_SRCS := $(wildcard $(DIR)/input/probes/*.probe)
 $(GEN_DIR)/probe-list.inc: $(PROBE_SRCS) $(DIR)/scripts/embed-probes
 	@mkdir -p $(GEN_DIR)
