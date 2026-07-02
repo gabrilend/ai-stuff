@@ -3,22 +3,30 @@
 #NEEDED 1
 # Display controller (VOP2) presence + alive check.
 #
-# A layer-4 probe: the VOP2 register block is dark until its clocks
-# are ungated, and reading it while gated hangs the bus — so the
-# ungate writes MUST come first. We ungate the VOP2 + VO bus clocks,
-# make sure the VOP resets are released, then read the VOP2 version
-# register, which holds a fixed version constant. If it reads that
-# constant, the VOP2 is powered, clocked, and out of reset;
-# 0x00000000 or garbage means it isn't.
+# A layer-4 probe: reading the VOP2 register block while its clocks
+# are gated hangs the AXI/AHB bus, so we ungate the VOP2 + VO bus
+# clocks and release the VOP resets FIRST. Per the TRM these RESET to
+# enabled/released (see below), so on a clean boot the ungate is a
+# defensive no-op — kept so the probe stays safe even if some earlier
+# stage had gated them. We then read the VOP2 version register, a fixed
+# constant. If it reads that constant, the VOP2 is powered, clocked,
+# and out of reset; 0x00000000 or garbage means it isn't.
+#
+# NOTE: because these registers reset to clocks-ON, a readable version
+# register does NOT prove anything actively drove the panel — the block
+# is clocked at power-on regardless. To tell whether firmware is really
+# scanning out a framebuffer, read VOP2's window-enable / scanout
+# registers, not these.
 #
 # Requires --writes (the ungate / reset-release are CRU writes).
 #
 # Register facts (RK3568 TRM, verified):
-#   CLKGATE_CON20 @ 0xFDD20350 — VOP clocks, 0=on/1=gated. The
+#   CLKGATE_CON20 @ 0xFDD20350 — VOP clocks, 0=on/1=gated, reset
+#     0x00000000 (all ON at power-on, TRM Part1 CRU detail). The
 #     load-bearing bits are 2..12 (VOP + VO bus-interface units);
 #     gating any of the BIU clocks hangs AXI/AHB access.
 #   SOFTRST_CON16 @ 0xFDD20440 — VOP resets, 1=held/0=released,
-#     bits 0..8.
+#     bits 0..8, reset 0x00000000 (all RELEASED at power-on).
 #   VOP2_SYS_VERSION_INFO @ 0xFE040004 — reads 0x40158023 on this
 #     board (observed in the first probe sweep, 2026-06-29). The
 #     RK3568 TRM lists 0x40158588 for a different VOP2 revision; the
@@ -31,12 +39,15 @@
 SAVE 0xFDD20350
 SAVE 0xFDD20440
 # And note whether they were still at their power-on defaults when we arrived.
-# CLKGATE_CON20 bits 2..12 default to 1 (gated); SOFTRST_CON16 bits 0..8
-# default to 1 (held), per the RK3568 TRM. A NON-DEFAULT result just means
-# something (the bootloader, another subsystem) already brought the display
-# up — the SAVE above still captured the true as-found state to restore to.
-DEFAULT 0xFDD20350 0x00001FFC 0x00001FFC
-DEFAULT 0xFDD20440 0x000001FF 0x000001FF
+# Per the RK3568 TRM Part1 (CRU chapter, register detail): CRU_GATE_CON20
+# (0x350) and CRU_SOFTRST_CON16 (0x440) BOTH reset to 0x00000000 — every VOP2
+# clock bit resets to 0 = ENABLED (polarity "1 = disable clock"), every VOP2
+# reset bit resets to 0 = RELEASED ("1 = reset logic"). So the reset value for
+# the bits we touch is 0, and a NON-DEFAULT result here would mean something
+# GATED the display after reset — worth knowing, but not required for the
+# restore below, which returns whatever the SAVE above captured.
+DEFAULT 0xFDD20350 0x00000000 0x00001FFC
+DEFAULT 0xFDD20440 0x00000000 0x000001FF
 
 LOG ungate VOP2 + VO bus clocks (CLKGATE_CON20 bits 2..12 -> 0)
 W 0xFDD20350 0x1FFC0000
