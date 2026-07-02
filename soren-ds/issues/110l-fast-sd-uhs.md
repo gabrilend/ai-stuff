@@ -125,10 +125,17 @@ wall-clock collapses to the slow side — the SD write.
 2. **Board-voltage check** — inspect the SDMMC0 device-tree node for a
    `vqmmc-supply`. Its presence (and which PMIC rail) decides whether
    Stage 2 is reachable at all.
-3. **Stage 1** — `ACMD6` 4-bit + `CTYPE`; `CMD6` High-Speed + 50 MHz
-   `CLKDIV`. Re-verify a read/write at the new setting (a small
-   write-read-compare, mirroring the eMMC fingerprint check) before
-   trusting it for the backup.
+3. **Dynamic speed select** — built directly as the picker, *not* a
+   hardcoded stage (no sense building scaffolding we'd replace, and a fixed
+   speed surfaces no debug information). Read the card's width and modes
+   (SCR + the SWITCH_FUNC query) and weigh them against the host's ceiling
+   at the current 3.3 V signalling (High-Speed; UHS needs the 1.8 V switch
+   of step 5), log all the inputs, and apply the safe minimum: `ACMD6`
+   4-bit + the DW MSHC `CTYPE`, then `CMD6` SWITCH_FUNC to High-Speed + a
+   50 MHz `CLKDIV` when both sides offer it. Validate with the proven IDMAC
+   write + PIO read round-trip *at* the new speed. For this card it lands
+   on 4-bit High-Speed; the same min-of-ceilings logic reaches UHS for free
+   once step 5 adds that ceiling.
 4. **Wire the backup probe's SD writes through Stage 1** and re-run the
    `emmc-backup` probe; measure the new throughput.
 5. **Stage 2** (if voltage allows) — `CMD11` 1.8 V, `CMD6` SDR50/SDR104,

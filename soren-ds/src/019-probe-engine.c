@@ -53,7 +53,12 @@ extern int  emmc_read_ext_csd(uint8_t *buffer);
 extern int  emmc_switch_hs200(void);                    /* 012-emmc.c (110j) */
 extern int  emmc_switch_hs400(void);                    /* 012-emmc.c (110j) */
 extern void emmc_verify(void);                          /* 012-emmc.c (110j) */
+extern void emmc_verify_dma(void);                      /* 012-emmc.c (110m) */
+extern int  emmc_dump_to_sd(void);                      /* 012-emmc.c (110m) */
+extern int  emmc_scan_map(void);                        /* 012-emmc.c (110m) */
 extern void sd_probe_capabilities(void);                /* 015-sdmmc.c (110l) */
+extern void sd_dma_write_test(void);                    /* 015-sdmmc.c (110m) */
+extern void sd_select_speed(void);                      /* 015-sdmmc.c (110l) */
 extern void led_pwm_init(void);                         /* 003-pwm.c */
 extern void led_bottom(uint32_t current, uint32_t max);
 extern void led_top(uint32_t cur_red, uint32_t max_red,
@@ -761,10 +766,35 @@ static void call_target(const char *name)
         /* Read a fixed non-zero block and log its fingerprint — run at
          * each speed to prove the fast read is byte-identical (110j). */
         emmc_verify();
+    } else if (streq(name, "emmc_verify_dma")) {
+        /* Read that block via ADMA2 (DMA) and fingerprint it — must match
+         * the PIO fingerprint to prove the descriptor path is correct (110m). */
+        emmc_verify_dma();
+    } else if (streq(name, "emmc_dump")) {
+        /* Sparse eMMC -> SD dump (110m) — packs only the non-zero chunks to
+         * the SD and logs a MAP for reconstruct-emmc to rebuild from (110m). */
+        debug_write("[probe] CALL emmc_dump -> ");
+        write_hex32((uint32_t)emmc_dump_to_sd());
+        debug_write("\r\n");
+    } else if (streq(name, "emmc_scan")) {
+        /* Scan the whole eMMC and log where the NON-ZERO data is (110m) —
+         * a cheap layout map for a mostly-zero card, no big SD write. */
+        debug_write("[probe] CALL emmc_scan -> ");
+        write_hex32((uint32_t)emmc_scan_map());
+        debug_write("\r\n");
     } else if (streq(name, "sd_caps")) {
         /* Read what the SD card supports (SCR / SD_STATUS / SWITCH_FUNC) —
          * the dynamic-probe foundation for the SD fast path (110l). */
         sd_probe_capabilities();
+    } else if (streq(name, "sd_dma")) {
+        /* Write a pattern to a reserved SD block via the IDMAC, read it
+         * back PIO, and compare — proves the microSD DMA *write* engine,
+         * the direction the eMMC dump needs (110m). */
+        sd_dma_write_test();
+    } else if (streq(name, "sd_speed")) {
+        /* Dynamically pick the safe SD bus speed (the minimum of the card
+         * and host ceilings) and apply it, logging the decision (110l). */
+        sd_select_speed();
     } else {
         debug_write("[probe] CALL unknown target: ");
         debug_write(name);
