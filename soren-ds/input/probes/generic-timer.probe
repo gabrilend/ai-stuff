@@ -1,0 +1,19 @@
+#AUTO 12
+#NEEDED 1
+# Generic-timer recon (issue 110n / phase-2 prep).
+#
+# The ARM architected timer is a counter every core carries that ticks at a
+# fixed frequency, independent of the CPU clock — so it keeps real wall-clock
+# time even as the CPU clock changes. This probe reads that frequency
+# (CNTFRQ_EL0) and the counter (CNTPCT_EL0) twice across a fixed nop delay,
+# so the delta is a real elapsed span. It answers three things at once:
+#   - what frequency firmware programmed the timer at (expected ~24 MHz),
+#   - how long our nop-counted busy_delay REALLY is (to calibrate delay_busy),
+#   - and it de-risks phase-2 scheduling, which leans on this counter.
+#
+# Read-only: the counter and frequency registers are read via MRS, done in C
+# (the interpreter's R only touches MMIO). Priority 12 puts it right after the
+# health check — it is foundational (measurement) and unblocks later probes
+# and dumps that want to report real time.
+
+CALL timer_recon

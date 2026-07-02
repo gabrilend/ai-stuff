@@ -1,0 +1,15 @@
+#AUTO 94
+#NEEDED 1
+# eMMC wear / lifetime (issue 110n).
+#
+# The soldered-in eMMC reports how much of its rated write life it has used,
+# in its EXT_CSD: a coarse health flag (PRE_EOL_INFO) and two 10%-step
+# lifetime estimates (DEVICE_LIFE_TIME_EST_TYP_A/B). This probe reads and
+# decodes them so we know how much life the internal flash has left — useful
+# on a used device and before we start writing images back to it.
+#
+# Read-only; reuses the EXT_CSD read the fast-storage path already uses.
+# Priority 94 sits right beside the other EXT_CSD probe (emmc-extcsd @ 95).
+
+CALL emmc_init
+CALL emmc_wear

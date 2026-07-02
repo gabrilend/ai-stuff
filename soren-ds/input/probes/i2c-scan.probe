@@ -1,0 +1,13 @@
+#AUTO 37
+#NEEDED 1
+# i2c0 bus liveness scan (issue 110n).
+#
+# Walks every 7-bit address on i2c0 and logs which ones respond. The value is
+# LIVENESS, not discovery: "is the chip still answering?" A device that responds
+# but misbehaves (say a controller that ACKs but its downstream is dead) is a
+# more hopeful failure than one gone silent — that distinction is actionable.
+# Which address is which is decoded from the board device tree (0x20 = RK817
+# PMIC). Reuses the working i2c0 read path; read-only intent. Runs after the
+# PMIC probes (@30-36) so i2c0 is known-good first.
+
+CALL i2c_scan

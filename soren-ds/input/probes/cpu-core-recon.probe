@@ -1,0 +1,15 @@
+#AUTO 16
+#NEEDED 1
+# CPU core recon (issue 110n / phase-2 prep) — gather once, then de-select.
+#
+# Reads the boot core's fixed identity and current execution state via the
+# system registers: MIDR (core type/revision), MPIDR (which physical core we
+# booted on), CurrentEL (which exception level), and SCTLR (whether the MMU
+# and data cache are on — expected OFF in phase 1). The identity is fixed
+# silicon: gather it once, record it in the hardware docs, then set #NEEDED 0.
+#
+# The other three cores' STATE (parked where?) cannot be read from here
+# without waking them — that belongs to phase-2 multi-core bring-up, where a
+# fresh probe confirms the wake landed. System registers -> MRS, done in C.
+
+CALL cpu_recon

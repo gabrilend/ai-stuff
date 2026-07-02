@@ -1,6 +1,10 @@
 #WRITES
 #AUTO 90
-#NEEDED 1
+#NEEDED 0
+# DE-SELECTED: question answered — the DLL locks at 200 MHz on this board
+# (proven, and the HS200/HS400 probes exercise the locked DLL in practice),
+# so this write-enabled characterisation is spent recon. Re-enable it on its
+# own if the DLL lock ever needs re-checking (a clock or board change).
 # Fast-eMMC-path reconnaissance: does the DLL lock at 200 MHz?
 #
 # The high-speed eMMC modes (HS200/HS400) that the fast backup

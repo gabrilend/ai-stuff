@@ -1,0 +1,15 @@
+#AUTO 44
+#NEEDED 1
+# Crypto accelerator recon (issue 110n) — gather once, then de-select.
+#
+# The crypto block (0xFE380000) has no dedicated version/ID register on this
+# part, so this is a presence/clocking check: ungate the crypto clocks and
+# release their resets (a read while gated HANGS the bus), then read the first
+# control register. A non-hanging read is the whole result — it confirms the
+# block is reachable and clocked, for later crypto/identity work.
+#
+# Base, clock/reset bits, and the CLK_CTL read target are all confirmed against
+# the TRM (Part1 Table 1-1 + Ch2, Part2 Ch4); see the note in
+# src/019-probe-engine.c (crypto_probe). CRU writes done in C behind a CALL.
+
+CALL crypto_probe
