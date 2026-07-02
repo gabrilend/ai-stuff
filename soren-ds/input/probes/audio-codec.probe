@@ -1,0 +1,14 @@
+#AUTO 38
+#NEEDED 1
+# Audio-codec recon (issue 110n) — TEMPORARY, probe-and-remove.
+#
+# The RK817 PMIC integrates the audio codec, reachable over i2c0 (which is up).
+# We don't have the RK817 datasheet yet to name the codec registers, so this
+# dumps the chip's whole i2c register space (0x00-0xFF) to capture the raw
+# codec state — recon-ahead for the audio path, no I2S bring-up needed.
+#
+# This is a one-board OS: once the board's audio-codec registers are recorded
+# in the audio issue file, this probe has done its job — run it once, save the
+# dump, then REMOVE it (probe-and-remove). Read-only over i2c.
+
+CALL audio_recon

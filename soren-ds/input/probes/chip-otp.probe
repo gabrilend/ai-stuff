@@ -1,0 +1,17 @@
+#AUTO 42
+#NEEDED 1
+# OTP / eFuse controller recon (issue 110n) — gather once, then de-select.
+#
+# The non-secure OTP block (0xFE38C000) holds the chip ID / device serial. This
+# probe ungates its clock and releases its reset (a read while gated HANGS the
+# bus), then reads a status register to confirm the controller is reachable.
+#
+# The base and clock/reset bits are confirmed against the TRM (Part1 Table 1-1
+# + Ch2). The full chip-ID readout is a small state-machine (set user mode,
+# address the cpuid word, enable, poll done, read the data register) whose
+# control-bit values are NOT in the public TRM (no OTP-controller chapter) —
+# they come from Rockchip's driver and are unconfirmed, so this does the safe
+# presence read only. See the note in src/019-probe-engine.c (otp_probe). CRU
+# clock/reset writes done in C behind a CALL, so no #WRITES needed.
+
+CALL otp_probe

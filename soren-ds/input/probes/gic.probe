@@ -1,0 +1,14 @@
+#AUTO 18
+#NEEDED 1
+# Interrupt-controller (GIC-600) recon (issue 110n / phase-2 prep).
+#
+# NOT a "what's enabled this instant" dump (ephemeral, not actionable). It reads
+# the STABLE facts phase-2 must build on: GICD_IIDR (which GIC, reachable) and
+# GICD_TYPER (how many interrupt IDs it supports, security state) — like the
+# timer frequency, fixed numbers you size setup against. Plus one actionable
+# ephemeral check: did the bootloader leave any interrupt enabled? If so,
+# phase-2 must clear the distributor before it unmasks or a stale interrupt
+# fires at once. Read-only; GIC base 0xFD400000 (TRM Part1 Table 1-1 / Ch9).
+# Gather-once: record the config in the docs, then set #NEEDED 0.
+
+CALL gic_probe

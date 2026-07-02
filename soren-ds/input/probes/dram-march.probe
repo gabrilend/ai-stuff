@@ -1,0 +1,16 @@
+#AUTO 61
+#NEEDED 0
+# Whole-DRAM striped march (issue 110n) — DE-SELECTED by default.
+#
+# The routine dram-walk probe (@60) tests a 1 MB window. This is the thorough
+# version: a striped march (one word per 4 KB page) across the whole 2 GB
+# above the kernel (0x40000000..0xC0000000), for when you actually suspect
+# bad RAM. Four marching patterns plus an address-in-address pass, reporting
+# the first failing word.
+#
+# DE-SELECTED by default: it is slow (caches off) and clobbers that whole 2 GB
+# range, so it is a deliberate on-demand check, not a routine one. The 1 MB
+# walk is enough for the boot health report. DRAM only (never a peripheral);
+# done in C behind a CALL because the interpreter's W is peripheral-only.
+
+CALL memtest_full

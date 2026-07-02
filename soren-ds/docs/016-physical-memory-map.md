@@ -334,7 +334,7 @@ must change together.
 The hardware-probe battery used to claim two more card regions here —
 an "active probe" at `0x10_0000` and a "catalog" at `0x18_0000` that
 lab-side tooling wrote onto the card after flashing. Those are gone:
-the probes are compiled into the kernel now (a `scripts/build --probes`
+the probes are compiled into the kernel now (a `scripts/build --debug`
 build embeds every `input/probes/*.probe` and runs them all on boot),
 so nothing probe-related lives on the card any more. The probe results
 still flow through the debug-log region above, and `dump-from-sd` still

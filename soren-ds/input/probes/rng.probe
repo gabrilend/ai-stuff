@@ -1,0 +1,19 @@
+#AUTO 43
+#NEEDED 1
+# Hardware RNG recon (issue 110n).
+#
+# The SoC's true-random-number generator lives in the crypto complex
+# (0xFE388000). This probe ungates the crypto bus + RNG clocks and releases
+# their resets (a read while gated HANGS the AHB), starts a draw, polls the
+# START bit until it self-clears (data ready) with a BOUNDED loop so a wrong
+# control value can only time out, and reads the eight output words. Run it
+# twice: the words should differ run-to-run; all-equal or all-zero means the
+# generator is stuck or the start sequence didn't take.
+#
+# The start sequence is CONFIRMED against TRM Part 2 Chapter 5 (TRNG): set
+# rng_enable, then rng_start (self-clears when data is ready), then read the
+# eight output words. Register bases confirmed against TRM Part 1 Table 1-1.
+# CRU clock/reset writes done in C behind a CALL. See src/019-probe-engine.c
+# (rng_probe) for the register-level detail.
+
+CALL rng_probe
