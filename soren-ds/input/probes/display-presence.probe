@@ -24,6 +24,20 @@
 #     RK3568 TRM lists 0x40158588 for a different VOP2 revision; the
 #     high half (0x4015_8xxx) matches, the low half is the sub-rev.
 
+# Snapshot the two CRU registers as-found BEFORE we touch them (issue 110o),
+# so the restore at the bottom returns them to exactly this state — even if
+# the display was already turned on for other reasons and our ungate/release
+# below changes nothing. The point is to leave it as we found it, on or off.
+SAVE 0xFDD20350
+SAVE 0xFDD20440
+# And note whether they were still at their power-on defaults when we arrived.
+# CLKGATE_CON20 bits 2..12 default to 1 (gated); SOFTRST_CON16 bits 0..8
+# default to 1 (held), per the RK3568 TRM. A NON-DEFAULT result just means
+# something (the bootloader, another subsystem) already brought the display
+# up — the SAVE above still captured the true as-found state to restore to.
+DEFAULT 0xFDD20350 0x00001FFC 0x00001FFC
+DEFAULT 0xFDD20440 0x000001FF 0x000001FF
+
 LOG ungate VOP2 + VO bus clocks (CLKGATE_CON20 bits 2..12 -> 0)
 W 0xFDD20350 0x1FFC0000
 LOG release VOP2 resets (SOFTRST_CON16 bits 0..8 -> 0)
@@ -33,5 +47,16 @@ DELAY 20000
 LOG read VOP2 version — expect 0x40158023 if alive and clocked
 EXPECT 0xFE040004 0x40158023 0xFFFFFFFF
 R 0xFE040004
+
+# Put the display block back exactly as we found it (issue 110o): restore the
+# saved reset register, then the saved clock gate. The maskbits (0x01FF, 0x1FFC)
+# name the bits we touched; RESTORE writes them in write-mask form, which is
+# mandatory for these CRU registers — a raw write-back of a masked register
+# no-ops. If the display was already on when we arrived, these restore the
+# on-state (a no-op); if we turned it on here, they turn it back off.
+LOG restore VOP2 reset register to as-found
+RESTORE 0xFDD20440 0x01FF
+LOG restore VOP2 clock gate to as-found
+RESTORE 0xFDD20350 0x1FFC
 
 LOG display presence probe complete

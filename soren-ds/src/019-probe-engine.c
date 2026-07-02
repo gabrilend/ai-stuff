@@ -132,6 +132,24 @@ static void busy_delay(uint32_t n)
     while (r--) { __asm__ volatile ("nop"); }
 }
 
+/* {{{ cru_restore() — write a value read earlier back to a write-mask register
+ * The CRU / PMU-CRU / GRF "CON" registers carry a per-bit write-enable in
+ * bits 31:16 and the values in bits 15:0. A read returns the live low half
+ * with the mask half ZERO — so writing that value back verbatim enables no
+ * bits and changes nothing, and a naive read-then-writeback restore silently
+ * no-ops. To put such a register back to a value read from it earlier, set
+ * every write-enable bit and write the saved low half. This is the ONE place
+ * that formula lives; every C routine that ungates a clock or releases a
+ * reset and then restores it calls through here (issue 110o). Plain
+ * (non-masked) peripheral registers — I2C0_CLKDIV, the RNG/OTP data
+ * registers — are NOT restored through this; they take a raw mmio_w32 of the
+ * full saved word, because both of their 16-bit halves are real data. */
+static void cru_restore(uint32_t addr, uint32_t saved)
+{
+    mmio_w32(addr, 0xFFFF0000u | (saved & 0xFFFFu));
+}
+/* }}} */
+
 /* {{{ helpers — tiny freestanding string / number parsing */
 
 static int streq(const char *a, const char *b)
@@ -318,8 +336,23 @@ static void memtest_run(void)
  * at all (its functional clock is gated). */
 static uint32_t i2c0_fail_ipd, i2c0_fail_con;
 
+/* Entry snapshot for i2c0_teardown to restore, so a probe leaves the bus the
+ * way it found it (issue 110o). i2c0_setup captures these before it changes
+ * anything. The first four are write-mask CON registers (restored via
+ * cru_restore); I2C0_CLKDIV is a plain register restored raw. */
+static uint32_t i2c0_saved_pmugate, i2c0_saved_pmurst, i2c0_saved_iomux,
+                i2c0_saved_soccon, i2c0_saved_clkdiv;
+
 static void i2c0_setup(void)
 {
+    /* Snapshot every register we are about to change first, so i2c0_teardown
+     * can put the bus back as we found it (issue 110o). */
+    i2c0_saved_pmugate = mmio_r32(0xFDD00184u);
+    i2c0_saved_pmurst  = mmio_r32(0xFDD00200u);
+    i2c0_saved_iomux   = mmio_r32(0xFDC20008u);
+    i2c0_saved_soccon  = mmio_r32(0xFDC20100u);
+    i2c0_saved_clkdiv  = mmio_r32(I2C0_CLKDIV);
+
     /* Ungate i2c0's PMU-domain clocks (PMUGATE_CON01 bits 0,1)
      * and release its resets (PMUSOFTRST_CON00 bits 3,4). */
     mmio_w32(0xFDD00184u, 0x00030000u);
@@ -333,6 +366,22 @@ static void i2c0_setup(void)
      * too-fast clock would just NAK. (No write-mask on this IP.) */
     mmio_w32(I2C0_CLKDIV, 0x00FF00FFu);
 }
+
+/* {{{ i2c0_teardown() — undo i2c0_setup, restoring the bus to as-found
+ * Re-gates the clocks, re-holds the resets, and puts the two GPIO pads back
+ * to whatever function they carried before (issue 110o). Called at the end
+ * of every probe that called i2c0_setup, so the shared bring-up doesn't leak
+ * a powered i2c0 and a re-muxed pad pair into the rest of the sweep. The four
+ * CON registers are write-mask (cru_restore); I2C0_CLKDIV is restored raw. */
+static void i2c0_teardown(void)
+{
+    cru_restore(0xFDD00184u, i2c0_saved_pmugate);
+    cru_restore(0xFDD00200u, i2c0_saved_pmurst);
+    cru_restore(0xFDC20008u, i2c0_saved_iomux);
+    cru_restore(0xFDC20100u, i2c0_saved_soccon);
+    mmio_w32(I2C0_CLKDIV, i2c0_saved_clkdiv);
+}
+/* }}} */
 
 /* Read one 8-bit register from an i2c device. Returns 0 on
  * success with the byte in *out, or -1 on timeout. */
@@ -539,6 +588,7 @@ static void pmic_dump(void)
             debug_write("\r\n");
         }
     }
+    i2c0_teardown();          /* leave i2c0 (clocks + pinmux) as we found it (110o) */
 }
 /* }}} */
 
@@ -578,6 +628,8 @@ static void pmic_write_test(void)
     } else {
         debug_write("[probe]   WRITE FAIL\r\n");
     }
+    i2c0_teardown();          /* restore the i2c0 bus bring-up (110o); the
+                               * RK817 reg 0x10 was already restored above */
 }
 /* }}} */
 
@@ -689,6 +741,8 @@ static void pmic_ldo_test(void)
     } else {
         debug_write("SET PATH MISMATCH\r\n");
     }
+    i2c0_teardown();          /* restore the i2c0 bus bring-up (110o); LDO1
+                               * was already programmed back to its own value */
 }
 /* }}} */
 
@@ -958,6 +1012,7 @@ static void i2c0_scan(void)
     }
     if (found == 0u) debug_write(" (none)");
     debug_write("\r\n[i2c0-scan] (expect 0x20 = RK817 PMIC; others = undocumented board devices)\r\n");
+    i2c0_teardown();          /* leave i2c0 as we found it (110o) */
 }
 /* }}} */
 
@@ -991,6 +1046,7 @@ static void audio_codec_recon(void)
         }
     }
     debug_write("[audio] (codec regs are in here; decode needs the RK817 datasheet)\r\n");
+    i2c0_teardown();          /* leave i2c0 as we found it (110o) */
 }
 /* }}} */
 
@@ -1016,6 +1072,13 @@ static void audio_codec_recon(void)
  * driver); this probe does the presence read and then calls it. */
 static void otp_probe(void)
 {
+    /* Snapshot the OTP clock gate + reset before we ungate/release them, so
+     * we can put the OTP domain back gated on the way out (issue 110o).
+     * otp_read_cpuid() further toggles SOFTRST_CON22 during its FSM; the
+     * single restore at the end covers all of it. */
+    uint32_t saved_gate = mmio_r32(0xFDD20368u);   /* CLKGATE_CON26 */
+    uint32_t saved_rst  = mmio_r32(0xFDD20458u);   /* SOFTRST_CON22  */
+
     debug_write("[otp] ungate CON26 b9-11 + release CON22 b12\r\n");
     mmio_w32(0xFDD20368u, 0x0E000000u);
     mmio_w32(0xFDD20458u, 0x10000000u);
@@ -1024,6 +1087,12 @@ static void otp_probe(void)
     write_hex32(mmio_r32(0xFE38C304u));
     debug_write("\r\n");
     otp_read_cpuid();
+
+    /* As-found restore: re-assert the reset, then re-gate the clock (the
+     * reverse of bring-up). Nothing past the sweep expects OTP powered. */
+    cru_restore(0xFDD20458u, saved_rst);
+    cru_restore(0xFDD20368u, saved_gate);
+    debug_write("[otp] restored OTP clock gate + reset to as-found\r\n");
 }
 /* }}} */
 
@@ -1043,6 +1112,13 @@ static void otp_probe(void)
  * Ch2); and the RNG_CTL start sequence + DOUT register offsets (Part2 Ch5). */
 static void rng_probe(void)
 {
+    /* Snapshot the crypto-complex clock gate + reset before ungating, to
+     * restore the domain on exit (issue 110o). CON8/CON6 are shared with
+     * crypto_probe; each probe saves and restores its own view, which
+     * composes because they run one at a time in sweep order. */
+    uint32_t saved_gate = mmio_r32(0xFDD20320u);   /* CLKGATE_CON8 */
+    uint32_t saved_rst  = mmio_r32(0xFDD20418u);   /* SOFTRST_CON6 */
+
     debug_write("[rng] ungate CON8 b12/15 + release CON6 b8/11\r\n");
     mmio_w32(0xFDD20320u, 0x90000000u);
     mmio_w32(0xFDD20418u, 0x09000000u);
@@ -1071,6 +1147,13 @@ static void rng_probe(void)
         }
         debug_write("\r\n[rng] (words should differ run-to-run; all-equal/zero = stuck)\r\n");
     }
+
+    /* As-found restore: clear rng_enable (masked bit1 — rng_start already
+     * self-cleared), then re-assert reset and re-gate the clock (110o). */
+    mmio_w32(0xFE388400u, 0x00020000u);            /* rng_enable = 0 */
+    cru_restore(0xFDD20418u, saved_rst);
+    cru_restore(0xFDD20320u, saved_gate);
+    debug_write("[rng] restored crypto clock gate + reset to as-found\r\n");
 }
 /* }}} */
 
@@ -1087,6 +1170,12 @@ static void rng_probe(void)
  * (Part1 Ch2). A non-hanging read is the whole result — no version/ID reg. */
 static void crypto_probe(void)
 {
+    /* Snapshot the crypto-complex clock gate + reset before ungating, to
+     * restore the domain on exit (issue 110o). Shares CON8/CON6 with
+     * rng_probe; sequential save/restore keeps the two consistent. */
+    uint32_t saved_gate = mmio_r32(0xFDD20320u);   /* CLKGATE_CON8 */
+    uint32_t saved_rst  = mmio_r32(0xFDD20418u);   /* SOFTRST_CON6 */
+
     debug_write("[crypto] ungate CON8 b11-15 + release CON6 b7-11\r\n");
     mmio_w32(0xFDD20320u, 0xF8000000u);
     mmio_w32(0xFDD20418u, 0x0F800000u);
@@ -1094,6 +1183,11 @@ static void crypto_probe(void)
     debug_write("[crypto] CRYPTO_CLK_CTL @0xFE380000 = ");
     write_hex32(mmio_r32(0xFE380000u));
     debug_write("\r\n[crypto] (CLK_CTL reset=0x1 per TRM Part2 Ch4; no version reg; non-hang = reachable)\r\n");
+
+    /* As-found restore: re-assert reset, then re-gate the clock (110o). */
+    cru_restore(0xFDD20418u, saved_rst);
+    cru_restore(0xFDD20320u, saved_gate);
+    debug_write("[crypto] restored crypto clock gate + reset to as-found\r\n");
 }
 /* }}} */
 
@@ -1252,6 +1346,65 @@ static void call_target(const char *name)
 }
 /* }}} */
 
+/* {{{ per-probe SAVE/RESTORE table — snapshot a register's entry value
+ *
+ * The as-found restore for a script probe (issue 110o). SAVE reads a
+ * register and stashes (addr, value); RESTORE writes that exact value back,
+ * so a probe returns hardware to the state it FOUND — not to the chip's
+ * reset value. The distinction matters when the probe runs after something
+ * else legitimately turned a block on: restore-to-reset would wrongly turn
+ * it off, restore-to-saved leaves it on (and our ungate was a no-op the
+ * whole time). This is the script-side equivalent of the C routines' own
+ * read-at-entry / cru_restore-at-exit brackets.
+ *
+ * The table is cleared at the start of every probe (run_probe_text), so one
+ * probe's snapshots can never be restored by another. Sixteen slots is far
+ * more than any probe touches; overflow is logged, never silently dropped. */
+#define PROBE_SAVE_SLOTS 16
+static struct { uint32_t addr; uint32_t val; uint8_t used; }
+    probe_saves[PROBE_SAVE_SLOTS];
+
+static void probe_saves_clear(void)
+{
+    for (int i = 0; i < PROBE_SAVE_SLOTS; i++) probe_saves[i].used = 0u;
+}
+
+/* Snapshot addr's current 32-bit value. Re-SAVEing an addr overwrites its
+ * slot (the latest snapshot wins) rather than consuming a second slot. */
+static void probe_save(uint32_t addr)
+{
+    int free_slot = -1;
+    for (int i = 0; i < PROBE_SAVE_SLOTS; i++) {
+        if (probe_saves[i].used && probe_saves[i].addr == addr) {
+            probe_saves[i].val = mmio_r32(addr);
+            return;
+        }
+        if (!probe_saves[i].used && free_slot < 0) free_slot = i;
+    }
+    if (free_slot < 0) {
+        debug_write("[probe] SAVE: table full, cannot snapshot ");
+        write_hex32(addr);
+        debug_write("\r\n");
+        return;
+    }
+    probe_saves[free_slot].addr = addr;
+    probe_saves[free_slot].val  = mmio_r32(addr);
+    probe_saves[free_slot].used = 1u;
+}
+
+/* Look up a saved value; returns 1 and fills *out on a hit, 0 on a miss. */
+static int probe_saved_value(uint32_t addr, uint32_t *out)
+{
+    for (int i = 0; i < PROBE_SAVE_SLOTS; i++) {
+        if (probe_saves[i].used && probe_saves[i].addr == addr) {
+            *out = probe_saves[i].val;
+            return 1;
+        }
+    }
+    return 0;
+}
+/* }}} */
+
 /* {{{ execute one script line */
 static void run_line(const char *line, int writes_enabled)
 {
@@ -1339,6 +1492,89 @@ static void run_line(const char *line, int writes_enabled)
         write_hex32(want & mask);
         debug_write("\r\n");
 
+    } else if (streq(cmd, "DEFAULT")) {
+        /* DEFAULT <addr> <reset-value> [mask] — read addr and log whether it
+         * still holds its power-on value. Belongs at the TOP of a probe,
+         * before any write. Reads only; it changes nothing. Unlike EXPECT
+         * (which checks the value a probe WANTS after acting), this checks
+         * the value the register held BEFORE we touched it: a NON-DEFAULT
+         * result means the bootloader or firmware already moved it, so a
+         * later restore-to-reset line will not return it to its true entry
+         * state — the case to notice rather than silently mis-restore
+         * (issue 110o). The optional mask narrows the check to the bits this
+         * probe cares about (default: all 32). */
+        uint32_t addr = parse_hex(&p, &ok);
+        if (!ok) { debug_write("[probe] DEFAULT: bad address\r\n"); return; }
+        uint32_t want = parse_hex(&p, &ok);
+        if (!ok) { debug_write("[probe] DEFAULT: bad value\r\n"); return; }
+        uint32_t mask = parse_hex(&p, &ok);
+        if (!ok) mask = 0xFFFFFFFFu;
+        uint32_t got = mmio_r32(addr) & mask;
+        debug_write("[probe] DEFAULT ");
+        write_hex32(addr);
+        debug_write(got == (want & mask) ? " at-reset got=" : " NON-DEFAULT got=");
+        write_hex32(got);
+        debug_write(" reset=");
+        write_hex32(want & mask);
+        debug_write("\r\n");
+
+    } else if (streq(cmd, "SAVE")) {
+        /* SAVE <addr> — snapshot addr's current value so a later RESTORE can
+         * put it back to what we FOUND, not to reset (issue 110o). Read-only,
+         * so it needs no writes-enabled. Belongs at the top of a probe,
+         * before the first write to addr. */
+        uint32_t addr = parse_hex(&p, &ok);
+        if (!ok) { debug_write("[probe] SAVE: bad address\r\n"); return; }
+        probe_save(addr);
+        uint32_t v = 0;
+        probe_saved_value(addr, &v);
+        debug_write("[probe] SAVE ");
+        write_hex32(addr);
+        debug_write(" = ");
+        write_hex32(v);
+        debug_write("\r\n");
+
+    } else if (streq(cmd, "RESTORE")) {
+        /* RESTORE <addr> [maskbits] — write the value SAVEd earlier back to
+         * addr, returning it to as-found (issue 110o). With no maskbits, a
+         * raw full-word write, for a plain register. With maskbits (a low-16
+         * bit-set naming the bits this probe touched), a write-mask write:
+         * (maskbits<<16) | (saved & maskbits) — the ONLY way to move a
+         * CRU/GRF write-mask register, since a raw write-back of its
+         * read-value enables no bits and no-ops. Restoring just the named
+         * bits leaves the rest of a shared register untouched. Needs
+         * writes-enabled and the allowlist, exactly like W. */
+        uint32_t addr = parse_hex(&p, &ok);
+        if (!ok) { debug_write("[probe] RESTORE: bad address\r\n"); return; }
+        uint32_t maskbits = parse_hex(&p, &ok);
+        int have_mask = ok;
+        if (!writes_enabled) {
+            debug_write("[probe] RESTORE skipped (writes not enabled): ");
+            write_hex32(addr); debug_write("\r\n");
+            return;
+        }
+        if (!write_allowed(addr)) {
+            debug_write("[probe] RESTORE BLOCKED (outside allowlist): ");
+            write_hex32(addr); debug_write("\r\n");
+            return;
+        }
+        uint32_t saved = 0;
+        if (!probe_saved_value(addr, &saved)) {
+            debug_write("[probe] RESTORE: no SAVE for ");
+            write_hex32(addr);
+            debug_write(" — did the probe SAVE it first?\r\n");
+            return;
+        }
+        uint32_t towrite = have_mask
+            ? (((maskbits & 0xFFFFu) << 16) | (saved & maskbits & 0xFFFFu))
+            : saved;
+        mmio_w32(addr, towrite);
+        debug_write("[probe] RESTORE ");
+        write_hex32(addr);
+        debug_write(" <= ");
+        write_hex32(towrite);
+        debug_write(have_mask ? "  (masked)\r\n" : "  (raw)\r\n");
+
     } else if (streq(cmd, "POLL")) {
         /* POLL <addr> <want> <mask> <maxtries> — read addr until
          * (value & mask) == (want & mask), or maxtries elapse.
@@ -1402,6 +1638,10 @@ static void run_probe_text(const char *name, int writes_enabled, const char *tex
     debug_write("\r\n[probe] ===== PROBE ");
     debug_write(name);
     debug_write(writes_enabled ? " (writes) =====\r\n" : " =====\r\n");
+
+    /* Fresh snapshot table per probe: one probe's SAVEd registers must never
+     * be RESTOREable by the next (issue 110o). */
+    probe_saves_clear();
 
     uint32_t len = 0;
     while (text[len] != 0 && len < PROBE_BUF_BYTES - 1u) {
