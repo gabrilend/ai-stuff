@@ -1,0 +1,8 @@
+ai-can-benefit-from the fact that humans need to read from left-to-right
+but robots can read laterally.
+
+"here's a string of 600 zeroes, then a series of 35 random numbers, then 200 zeroes"
+and
+"here's a string of 600 random characters, then a string of information, then 200 zeroes"
+
+looks exactly the same to an LLM.
