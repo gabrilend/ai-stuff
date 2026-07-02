@@ -39,10 +39,18 @@ for this device (`knulli-rk3568-rg-ds-scarab-...img.gz`)
 explicitly names the RK3568, which matches Anbernic's own spec
 sheet. We treat the SoC as RK3568.
 
-**Known unknowns:** which of the RK3568's clock trees, PMU
-sub-blocks, and power gates Anbernic actually wired up — the chip
-is configurable enough that the same datasheet covers a range of
-board designs.
+**Partly answered by phase-1 bring-up.** The clock trees and
+gates the phase-1 drivers actually touch are now confirmed live:
+the `cpu-clock-recon` probe read the ARM PLL locked at ~816 MHz
+in normal (PLL-driven) mode and the peripheral PLLs at their
+standard taps (GPLL 1200 MHz, CPLL 1000 MHz, NPLL 1200 MHz), and
+the i2c0 (PMU-domain), PWM1, eMMC/SDHCI, SDMMC0, and USB3-OTG
+clock gates and resets were each ungated and driven successfully
+(issues 114, 106c, 110a, 110f, 109a). **Still unknown:** the
+gates and PMU sub-blocks for the blocks phase 1 does not touch —
+the display / DSI clock tree, the WiFi-SDIO gate, the audio
+path — which later phases will confirm as they bring each block
+up.
 
 ## Memory — 3 GB LPDDR4 / LPDDR4X
 
@@ -57,12 +65,21 @@ physical map is what `docs/007-memory-model.md` step one needs to
 commit to, and it is read straight out of the datasheet rather
 than guessed.
 
-**Known unknowns:** the exact RAM type (LPDDR4 vs LPDDR4X), the
-manufacturer, the size and offset of any reserved-for-GPU
+**Known unknowns:** the exact RAM type (LPDDR4 vs LPDDR4X) and
+the manufacturer, and the size and offset of any reserved-for-GPU
 carve-out the boot chain has already claimed at the moment our
 kernel takes control. The page allocator built in issue 108 must
 not hand out memory the GPU or the display controller already
-holds.
+holds. What *is* now settled: the DRAM physical map is committed
+in `docs/016-physical-memory-map.md` (base `0x0000_0000`, 3 GB
+populated to `0xC000_0000`, verified against the u-boot load
+address on the SD-boot path), and the memtest probe passed a
+marching-pattern test in the middle of the range. The type bit
+and the carve-out both live in state the DDR-init firmware left
+behind — the DRAM-init scratch registers in the PMU GRF for the
+type, the Anbernic u-boot boot argument for the carve-out —
+neither of which phase 1 needs, so both wait on the phase that
+does.
 
 ## Storage — 32 GB internal eMMC plus external microSD
 
@@ -97,9 +114,22 @@ hosts the WiFi SDIO module — see the WiFi section.)
 This is the foundation of the install path we adopted in the
 section below.
 
-**Known unknowns:** the exact eMMC manufacturer and part number,
-the exact partition layout Anbernic shipped (the names and
-offsets of the rest of `mmcblk2p1` through `mmcblk2pN`).
+**Mostly answered by the eMMC bring-up (110a, 110j).** The card
+was brought up and interrogated on hardware: it reports as an
+**eMMC 5.0** device (`EXT_CSD_REV = 7`) whose `DEVICE_TYPE`
+advertises both **HS200 and HS400 at 1.8 V** (`0x57`, bits 4 and
+6), the controller's delay-locked loop locks at 200 MHz, and the
+`VCCQ` I/O rail is a board-fixed 1.8 V (no `vqmmc-supply` in the
+device tree — confirmed while bringing up the PMIC, 114). The card's
+CID register reads real values (it answers the identification
+sequence) and the host's capability register reads back
+correctly. **Still unknown:** the manufacturer
+and part number decoded out of the full CID (the init reads the
+CID but nothing decodes its manufacturer-ID and product-name
+fields yet), and the exact partition layout Anbernic shipped
+(`mmcblk2p1` through `mmcblk2pN`) — the `emmc-scan` probe maps the
+card's non-zero regions when re-selected, which is the tool that
+answers it.
 
 ## Displays — dual 4-inch 640×480 IPS, capacitive touch
 
@@ -125,13 +155,18 @@ sits on I2C bus 3 (RK3568 i2c3), the top panel's on I2C bus 5
 (i2c5). Identical part on identical-looking address but on two
 separate buses, so they don't collide.
 
-**Known unknowns:** the JD9365DA-H3's full initialization
-register sequence (long table of MIPI DSI command writes; the
-panel's datasheet has it, but we have not pulled the datasheet
-yet — 111a will), the backlight PWM channel and its rated
-maximum current, the touch controllers' reset and interrupt
-GPIOs (pinctrl groups in the DTS name them but the summary
-didn't expose the exact pins — pull on demand when 504 work
+**Known unknowns, narrowed.** The display controller itself is
+now confirmed reachable: the `VOP2` version register reads
+`0x40158023` on hardware, and both DSI D-PHY bases are catalogued
+in `docs/016-physical-memory-map.md` (DSI0 `0xFE85_0000`, DSI1
+`0xFE86_0000`). The JD9365DA-H3 initialization sequence no longer
+needs the paper datasheet — the upstream Linux panel driver
+`drivers/gpu/drm/panel/panel-jadard-jd9365da.c` carries the DCS
+command table (issue 111c); it is transcribed from there. **Still
+to extract:** that command table (into our own driver), the
+backlight PWM channel and its rated maximum current, and the
+touch controllers' reset and interrupt GPIOs (the DTS pinctrl
+groups name them; pull the exact pins on demand when 504 work
 starts).
 
 ## Sensors and switches
@@ -152,7 +187,14 @@ starts).
   I2C5 for addresses other than the ones already named below.
 
 **Known unknowns:** whether the gyro physically exists; if so,
-its I2C bus and address.
+its I2C bus and address. The resolution is a targeted scan of the
+common six-axis-IMU addresses (0x68 / 0x69 / 0x6A / 0x6B) across
+i2c0 / i2c2 / i2c3 / i2c5, looking for an ACK at an address none
+of the chips catalogued elsewhere in this document occupy. The
+probe engine can drive i2c0 today (the PMIC-bus setup in
+`src/019-probe-engine.c`) but not the other three buses, so this
+scan waits on a generalized i2c-bus-scan CALL target — the
+clearest remaining hardware probe to write.
 
 ## Buttons and analog sticks
 
@@ -205,7 +247,15 @@ mux-select GPIO; the exact location of the **Maskrom trigger
 button** inside the case (the button or pad that, when held
 during power-on, forces the chip ROM into recovery mode
 regardless of what is on storage — still nothing public for the
-RG DS specifically).
+RG DS specifically). One concrete finding narrows the ADC work:
+the `saradc-gamepad` probe established that this part's SAR-ADC is
+a **v2 controller**, not the v1 layout the RK3568 TRM documents —
+driven with v1 register offsets every channel reads a constant
+`0x3FF` and channels 1–5 time out, the fingerprint of reading the
+wrong registers. Mapping the stick channels therefore needs a
+probe rewritten to the v2 register layout (the `SARADC_V2_*`
+offsets in the kernel's `rockchip_saradc.c`); the existing probe
+is kept compiled-in but de-selected to host that rewrite.
 
 ## USB-C controller
 
@@ -223,8 +273,14 @@ When Maskrom is active, the device enumerates as USB vendor
 tool that talks to it is `rkdeveloptool`.
 
 **Known unknowns:** whether the USB-C port supports the full
-PD profile or only basic charging. Whether the type-C orientation
-detection is handled in the chip or in a separate USB-C PHY chip.
+PD profile or only basic charging, and whether the type-C
+orientation detection is handled in the chip or in a separate
+USB-C PHY chip. The controller side, by contrast, is confirmed:
+the DWC3 core reads its `GSNPSID` as `0x5533300A` at base
+`0xFCC0_0000`, the USB2 PHY sits in its OTG-normal state, and the
+device-mode enumeration path is implemented (issues 109a–109c).
+The PD / orientation questions are about the analog front-end
+(the CC pins), which nothing in phase 1 exercises.
 
 ## WiFi and Bluetooth
 
@@ -310,32 +366,50 @@ PMIC USB-detect bit), and the Hall switch re-opening (GPIO0 PC3
 is marked `wakeup-source` in the device tree, so the kernel can
 configure it as a wake input).
 
-**Known unknowns:** the exact battery-gauge register surface of
-the RK817 vs the disabled CW2015 — likely irrelevant unless we
-re-enable CW2015, which we won't.
+**Answered for the rails, still open for the gauge.** The PMIC
+bring-up (114) reached the RK817 over i2c0 and read, wrote, and
+set-path-tested it on hardware: all nine LDO rails read as
+sensible voltages (LDO1/7/8 = 1.8 V, LDO2/3 = 0.9 V,
+LDO4/5/6 = 3.3 V, LDO9 = 2.8 V; `mV = 600 + sel*25`, register
+`0xCC + (n-1)*2`), a write round-trip passed on a safe register,
+and the set path round-tripped without moving a rail. **Still
+unknown:** the exact battery-gauge register surface of the RK817
+vs the disabled CW2015 — likely irrelevant unless we re-enable
+CW2015, which we won't.
 
-## LEDs — three PWM-driven indicators
+## LEDs — three PWM channels, two physical lights
 
-Three discrete LEDs, each tied to a PWM channel rather than a
-plain GPIO. PWM is used so the brightness can be controlled
-smoothly, but for on/off purposes we can drive 0% duty cycle
-(off) and 100% duty cycle (on) — or, more often on Rockchip
-parts, repurpose the pin as a GPIO output through the pinctrl
-mux. Either path is fine; the PWM path is what the mainline
-device tree uses.
+The device tree describes three PWM channels driving three pin
+names — green, amber, red — but issue 103e's on-device diagnostic
+(cycling each pin alone and watching which light responded)
+established that on this board variant those three pins drive
+**two physical lights**, not three: a bicolor top window with
+independent green and red emitters behind one diffuser, and a
+single-color amber bottom window. The full account and the
+boot-stage pattern table live in
+`docs/015-led-diagnostic-codes.md`.
 
-| LED   | PWM channel | Function (per the DTS) | Default at boot |
-| ----- | ----------- | ---------------------- | --------------- |
-| Green | PWM5        | POWER indicator        | on              |
-| Amber | PWM6        | CHARGING indicator     | off (auto)      |
-| Red   | PWM7        | STATUS indicator       | off             |
+Each pin is tied to a PWM channel rather than a plain GPIO, so
+brightness is controllable: for on/off we drive 0% or 100% duty,
+and the graded-brightness path is what the long-operation
+"breathing" heartbeat uses. Issue 106c brought the PWM1 controller
+up on hardware — ungating its gate (`CLKGATE_CON(31)`), deasserting
+its reset, and routing the three pins to PWM function 1 via
+`PMU_GRF_GPIO0C_IOMUX_H` — and a partial-duty test dimmed the red
+emitter to confirm the duty path.
 
-This is the data issue 106 (LED earliest boot signal) needs to
-move from blocked to implementable. The boot-stage encoding it
-proposes maps naturally onto the three colors — green for
-healthy progress, amber for in-progress slow operations, red for
-panic — but the exact pattern table belongs in
-`notes/diagnostics/000-led-codes.md` once 106 lands.
+| PWM channel | Pin      | Drives                     |
+| ----------- | -------- | -------------------------- |
+| PWM5        | GPIO0_C4 | top window — green emitter  |
+| PWM6        | GPIO0_C6 | bottom window — amber       |
+| PWM7        | GPIO0_C5 | top window — red emitter    |
+
+This is the data issue 106 (LED earliest boot signal) needed to
+move from blocked to implemented: the boot-stage encoding maps
+onto the two windows' eight combined states — green for healthy
+progress, amber for in-progress slow operations, red for panic —
+and the exact pattern table now lives in
+`docs/015-led-diagnostic-codes.md`.
 
 ## Stock OS — Android 14 (we do not run it)
 
@@ -439,6 +513,13 @@ by a specific later issue. Tracked here so they don't get lost.
   Several "known unknowns" that the rest of this document
   marked are now resolved; the remaining ones are listed
   in-section.
+- **Phase-1 bring-up closed several more gaps.** The eMMC's
+  HS200/HS400 capability and 200 MHz DLL lock, the RK817's rail
+  map and read/write reachability, the DWC3 / USB2-PHY state, the
+  VOP2 version, the APLL/GPLL/CPLL/NPLL frequencies, and the
+  SAR-ADC's v2 lineage are all now measured on hardware — folded
+  into the sections above and recorded with dates in
+  `issues/phase-1-progress.md`.
 - **Confirm IBSS support** on the Realtek WiFi chip on real
   hardware. Affects whether phase 7's plan needs adjustment.
 - **Confirm Maskrom triggerability from outside the case.** The
@@ -446,13 +527,19 @@ by a specific later issue. Tracked here so they don't get lost.
   research item independent of issue 101. If it cannot be
   triggered from outside, the design rules in the safety doc
   become mandatory rather than recommended.
-- **Read the JD9365DA-H3 panel datasheet** for issue 111a's
-  initialization-register sequence.
+- ~~**Read the JD9365DA-H3 panel datasheet** for issue 111a's
+  initialization-register sequence.~~ — superseded. The sequence
+  is carried by the upstream Linux panel driver
+  `drivers/gpu/drm/panel/panel-jadard-jd9365da.c` (issue 111c);
+  the DCS command table is transcribed from there rather than from
+  the paper datasheet.
 - **Probe for the six-axis gyro** when an app needs it. The
   mainline DTS doesn't list one; Anbernic's spec sheet does.
   Resolution waits on an actual scan of I2C0/I2C2/I2C3/I2C5 for
   unaccounted addresses (or alternatively, Anbernic's own
-  Android device tree, which is harder to obtain).
+  Android device tree, which is harder to obtain). The probe
+  engine drives i2c0 today but not the other three buses, so the
+  scan needs a generalized i2c-bus-scan CALL target first.
 
 ## Sources
 

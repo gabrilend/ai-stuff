@@ -113,6 +113,12 @@ tour; jump in by topic if you already know where you're going.
   sizes (uboot, trust, boot, recovery, super, userdata, …),
   what the 16 MiB boot-chain backup captures, and what a full
   factory-restore image needs.
+- `025-recovery-and-download-modes.md` — how to push code onto a
+  wedged device without opening the case: what Maskrom is and how
+  it is driven, the three doors into USB download mode, what
+  Anbernic's own u-boot checks for a download trigger (Volume Up as
+  an ADC key; Ctrl+B on serial), and the wipe-from-SD → Maskrom
+  recovery lever. Narrows the safety doc's highest-priority unknown.
 - `datasheets/INDEX.md` — catalogue of the chip and
   standards PDFs downloaded to `docs/datasheets/`: RK3568 TRM
   Parts 1 & 2, RK3568 brief datasheet, SDHCI v4.20 spec,
