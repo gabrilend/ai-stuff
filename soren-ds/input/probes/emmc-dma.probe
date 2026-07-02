@@ -1,0 +1,31 @@
+#AUTO 100
+#NEEDED 1
+# eMMC ADMA2 (DMA) read validation — issue 110m, the throughput half of
+# fast storage and the thing that makes a full eMMC dump practical.
+#
+# Instead of the CPU hand-copying every word out of the controller FIFO
+# (PIO), this hands the controller a descriptor — "move these bytes to
+# this RAM address" — and lets it burst the data itself. emmc_read_blocks_dma
+# (in src/012-emmc.c) does an ADMA2 + CMD18 multi-block read; emmc_verify_dma
+# reads 8 blocks from the non-zero idbloader region (LBA 64) that way and
+# fingerprints the first block.
+#
+# The go/no-go is the fingerprint: the DMA fingerprint must MATCH the PIO
+# emmc_verify fingerprint (0xC4FBFA8B on this card), be non-zero, and carry
+# rc 0, at each speed. That proves the descriptor path moves correct bytes.
+# A mismatch / DATA ERROR / rc -10 (count) means the ADMA2 setup is wrong.
+#
+# Run at all three speeds so DMA correctness is isolated from speed mode:
+#   PIO legacy (baseline)  -> DMA legacy
+#   DMA at HS200
+#   DMA at HS400  (the full-speed, CPU-free read the dump will use)
+#
+# Read-only, safe to re-run. Needs emmc_verify_dma + emmc_verify (engine 019).
+
+CALL emmc_init
+CALL emmc_verify
+CALL emmc_verify_dma
+CALL emmc_hs200
+CALL emmc_verify_dma
+CALL emmc_hs400
+CALL emmc_verify_dma

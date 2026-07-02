@@ -1,0 +1,26 @@
+#AUTO 101
+#NEEDED 1
+# microSD IDMAC multi-block (DMA) WRITE validation — issue 110m, the write
+# side of a full eMMC dump.
+#
+# Plain PIO writes to the SD are already proven (every boot's debug log,
+# the backup). What we validate here is the DMA *engine* in its multi-block
+# form — the mode the dump uses: one CMD25 (WRITE_MULTIPLE_BLOCK) writing a
+# run of blocks described by a CHAIN of IDMAC descriptors (each <= 8 KB),
+# with the controller's auto-stop sending the trailing CMD12.
+#
+# sd_dma_write_test (in src/015-sdmmc.c) fills a 24-block buffer with a
+# position-dependent pattern, writes it in one chained CMD25 to a reserved
+# SD region (LBA 0x300000), reads all 24 blocks back through the proven PIO
+# path, and compares byte for byte. 24 blocks spans three chained
+# descriptors, so a broken chain link (a dropped middle buffer, a bad
+# next-pointer) shows up as a mismatch rather than passing.
+#
+# Go/no-go: "IDMAC MULTI-BLOCK WRITE OK (24 blocks read back correct)" with
+# both rc 0. A MISMATCH / INCONCLUSIVE / logged RINTSTS points at the chain
+# or the auto-stop. Green here is the gate to enabling the full dump (103).
+#
+# Safe — writes only the reserved LBA 0x300000. Needs the sd_dma CALL.
+
+CALL sd_init
+CALL sd_dma

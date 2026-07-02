@@ -81,6 +81,14 @@ extern void debug_write(const char *text);
 #define DW_FIFOTH        0x4C
 #define DW_CDETECT       0x50
 
+/* SDMMC0 data-FIFO depth, in 32-bit words: 256 for this RK3568 variant,
+ * NOT the 16 an earlier PIO loop assumed. It is the depth the FIFOTH we
+ * program (0x207F0080) implies — RX watermark 0x7F, so depth = (0x7F+1)*2
+ * = 256 (docs/020-sdmmc0-host-controller.md). The old 16 was a safe
+ * under-fill: it never overflows, it just throttled PIO writes. DMA (issue
+ * 110m) is the real transfer path, so this only tightens the fallback. */
+#define SD_FIFO_DEPTH    256u
+
 /* DW MSHC FIFO data port. Lives at offset 0x200 in the modern
  * variants the RK3568 uses (rev 2+); older controllers had it at
  * 0x100. We use 0x200. */
@@ -145,6 +153,13 @@ static void delay_loops(uint32_t n)
  * CMD3, used as the upper 16 bits of the argument to commands
  * that address a specific card (CMD7, CMD9, etc.). */
 static uint32_t sd_card_rca;
+
+/* The card's CSD (Card-Specific Data), 128 bits, captured verbatim from the
+ * CMD9 long response during init while the card is in stand-by state (CMD9
+ * is only valid there, before CMD7 selects the card). sd_csd[3] is the
+ * most-significant word (CSD[127:96]) down to sd_csd[0] (CSD[31:0]);
+ * sd_sector_count() decodes the card's capacity from it. */
+static uint32_t sd_csd[4];
 
 /* Wake the SDMMC0 controller out of the CRU's gated/asserted
  * post-reset state. Unlike the eMMC's intermittent failure,
@@ -437,9 +452,12 @@ static int sd_initialize_card(void)
     }
     sd_card_rca = mmio_read32(SDMMC0_BASE + DW_RESP0) >> 16;
 
-    /* CMD9: SEND_CSD. We don't parse the CSD for phase 1 but we
-     * issue it because some controllers require it before
-     * transferring to the data-transfer state. */
+    /* CMD9: SEND_CSD (long response). Issued in stand-by state — the only
+     * state CMD9 is valid in — both because some controllers want it before
+     * the data-transfer state AND because its response IS the card's CSD,
+     * which sd_sector_count() reads the capacity from. Stash the four
+     * response words now; after CMD7 the card leaves stand-by and CMD9 can
+     * no longer be re-issued cleanly. */
     debug_write("[sdmmc] CMD9 send-csd...\r\n");
     if (sd_send_command(9, sd_card_rca << 16,
                         CMD_RESPONSE_EXPECT
@@ -448,6 +466,10 @@ static int sd_initialize_card(void)
         debug_write("[sdmmc] CMD9 failed\r\n");
         return -9;
     }
+    sd_csd[0] = mmio_read32(SDMMC0_BASE + DW_RESP0);
+    sd_csd[1] = mmio_read32(SDMMC0_BASE + DW_RESP1);
+    sd_csd[2] = mmio_read32(SDMMC0_BASE + DW_RESP2);
+    sd_csd[3] = mmio_read32(SDMMC0_BASE + DW_RESP3);
 
     /* CMD7: SELECT_CARD. After this the card is in transfer
      * state and ready for read / write commands. */
@@ -536,10 +558,8 @@ int sd_write_block(uint32_t lba, const uint8_t *buffer)
         uint32_t status = mmio_read32(SDMMC0_BASE + DW_STATUS);
         uint32_t fifo_count = (status & STATUS_FIFO_COUNT_MASK)
                               >> STATUS_FIFO_COUNT_SHIFT;
-        /* For a 16-entry FIFO (typical), check it's not full. The
-         * exact size lives in HCON but we use a conservative
-         * inequality. */
-        if (fifo_count < 16) {
+        /* Fill while the FIFO has room (depth SD_FIFO_DEPTH words). */
+        if (fifo_count < SD_FIFO_DEPTH) {
             uint32_t word = ((uint32_t)buffer[words_written * 4 + 0])
                           | ((uint32_t)buffer[words_written * 4 + 1] << 8)
                           | ((uint32_t)buffer[words_written * 4 + 2] << 16)
@@ -656,6 +676,15 @@ void sd_probe_capabilities(void)
             debug_write((buf[1] & 0x04u)
                         ? "[sdmmc]   -> 4-bit bus supported\r\n"
                         : "[sdmmc]   -> 4-bit NOT advertised\r\n");
+            /* SCR[2] bit7 = SD_SPEC3: with SD_SPEC=2 it distinguishes an
+             * SD 3.0+ (UHS-capable) card from a plain SD 2.0. Without this
+             * byte you cannot tell a UHS card from a High-Speed-only one at
+             * 3.3V, because the SWITCH_FUNC group-1 view shows only the
+             * 3.3V modes either way (the 110l capability-decode gap). */
+            sd_log_byte("[sdmmc]   SCR[2] (bit7 = SD_SPEC3)=", buf[2]);
+            debug_write((buf[2] & 0x80u)
+                        ? "[sdmmc]   -> SD 3.0+ (UHS-capable spec generation)\r\n"
+                        : "[sdmmc]   -> SD 2.0 (no UHS)\r\n");
         }
     }
 
@@ -671,6 +700,14 @@ void sd_probe_capabilities(void)
              * class byte 16. The card's guaranteed write rate is here. */
             sd_log_byte("[sdmmc]   SPEED_CLASS[8]=", buf[8]);
             sd_log_byte("[sdmmc]   UHS_GRADE[14]=", buf[14]);
+            /* Decode the HIGH nibble (the low nibble is UHS_AU_SIZE): e.g.
+             * 0x39 -> grade 3 = U3. Logging the raw byte alone reads like
+             * "0x39" and invites misreading a U3 card as non-UHS. */
+            debug_write((buf[14] >> 4) == 3u
+                        ? "[sdmmc]   -> UHS grade U3 (>=30 MB/s sustained write)\r\n"
+                      : (buf[14] >> 4) == 1u
+                        ? "[sdmmc]   -> UHS grade U1 (>=10 MB/s)\r\n"
+                        : "[sdmmc]   -> UHS grade 0 (no UHS speed class)\r\n");
             sd_log_byte("[sdmmc]   VIDEO_CLASS[16]=", buf[16]);
         }
     }
@@ -695,6 +732,330 @@ void sd_probe_capabilities(void)
     }
 
     debug_write("[sdmmc] --- end capability probe ---\r\n");
+}
+/* }}} */
+
+/* {{{ sd_log_hex32() — log "label=0xXXXXXXXX" */
+static void sd_log_hex32(const char *label, uint32_t v)
+{
+    static const char d[] = "0123456789ABCDEF";
+    char b[11];
+    b[0] = '0'; b[1] = 'x';
+    for (int i = 0; i < 8; i++) {
+        b[2 + i] = d[(v >> ((7 - i) * 4)) & 0xFu];
+    }
+    b[10] = 0;
+    debug_write(label);
+    debug_write(b);
+    debug_write("\r\n");
+}
+/* }}} */
+
+/* {{{ microSD IDMAC (DMA) read — issue 110m
+ *
+ * The DW MSHC's Internal DMA Controller moves data between the card and a
+ * RAM buffer described by a descriptor, instead of the CPU draining the
+ * FIFO word by word. Distilled from RK3568 TRM 6.3.3 (see issue 110m):
+ *   - descriptor (32-bit, 16 bytes): DES0 control (OWN|FS|LD), DES1 size
+ *     (BS1[12:0], <= 8 KB), DES2 buffer address, DES3 next/buffer-2.
+ *   - CTRL bit25 enables the IDMAC; BMOD @0x80 bus mode (SWR/FB/DE);
+ *     DBADDR @0x88 descriptor base; completion shows as DATA_OVER.
+ * When the IDMAC is enabled the FIFO can't be reached through the slave
+ * path, so we disable it again after the transfer so the PIO calls work. */
+#define DW_BMOD                 0x80
+#define DW_DBADDR               0x88
+#define DW_IDINTEN              0x90
+#define CTRL_USE_INTERNAL_DMAC  (1u << 25)
+#define BMOD_SWR                (1u << 0)
+#define BMOD_FB                 (1u << 1)
+#define BMOD_DE                 (1u << 7)
+#define IDMAC_DES0_LD           (1u << 2)
+#define IDMAC_DES0_FS           (1u << 3)
+#define IDMAC_DES0_CH           (1u << 4)   /* DES3 is the next-descriptor address (chained) */
+#define IDMAC_DES0_OWN          (1u << 31)
+#define CMD_SEND_AUTO_STOP      (1u << 12)  /* DW MSHC CMD reg: auto-CMD12 after a multi-block */
+#define IDMAC_DESC_MAX_BYTES    4096u       /* 8 blocks/descriptor; BS1 is 13-bit (<= 8191 bytes) */
+#define SD_IDMAC_MAX_DESC       20u         /* covers a 128-block dump chunk (16 descriptors) + margin */
+
+struct idmac_desc {
+    uint32_t des0;   /* control: OWN(31) FS(3) LD(2) */
+    uint32_t des1;   /* BS1[12:0] buffer-1 byte size */
+    uint32_t des2;   /* buffer-1 physical address */
+    uint32_t des3;   /* next desc / buffer-2 (unused for one descriptor) */
+};
+static struct idmac_desc sd_idmac_table[SD_IDMAC_MAX_DESC] __attribute__((aligned(8)));
+
+/* Multi-block SD write via the IDMAC — the dump's write side. One CMD25
+ * (WRITE_MULTIPLE_BLOCK) writes the whole run; a chain of descriptors
+ * (each <= 8 KB, the 13-bit BS1 limit) describes the RAM buffer, and the
+ * controller's auto-stop sends the trailing CMD12. This amortizes the
+ * command + engine setup over the run instead of paying it per block.
+ * `count` up to SD_IDMAC_MAX_DESC * 8 blocks. Returns 0 on success. */
+int sd_write_blocks_dma(uint32_t lba, uint32_t count, const uint8_t *buffer)
+{
+    if (count == 0u) {
+        return 0;
+    }
+    uint32_t total_bytes = count * SD_BLOCK_SIZE;
+    uint32_t ndesc = (total_bytes + IDMAC_DESC_MAX_BYTES - 1u) / IDMAC_DESC_MAX_BYTES;
+    if (ndesc > SD_IDMAC_MAX_DESC) {
+        return -10;                                       /* run too big for the table */
+    }
+
+    /* Build the descriptor chain: each covers up to 8 KB of the buffer,
+     * DES3 points at the next, FS on the first, LD on the last. */
+    uint32_t off = 0;
+    for (uint32_t i = 0; i < ndesc; i++) {
+        uint32_t bytes = (total_bytes - off < IDMAC_DESC_MAX_BYTES)
+                         ? (total_bytes - off) : IDMAC_DESC_MAX_BYTES;
+        uint32_t d0 = IDMAC_DES0_OWN | IDMAC_DES0_CH;
+        if (i == 0u)          d0 |= IDMAC_DES0_FS;
+        if (i == ndesc - 1u)  d0 |= IDMAC_DES0_LD;
+        sd_idmac_table[i].des0 = d0;
+        sd_idmac_table[i].des1 = bytes;                   /* BS1 */
+        sd_idmac_table[i].des2 = (uint32_t)(uintptr_t)(buffer + off);
+        sd_idmac_table[i].des3 = (i == ndesc - 1u)
+                                 ? 0u
+                                 : (uint32_t)(uintptr_t)&sd_idmac_table[i + 1u];
+        off += bytes;
+    }
+
+    uint32_t ctrl = mmio_read32(SDMMC0_BASE + DW_CTRL);
+
+    /* Reset, then enable the IDMAC and point it at the head of the chain. */
+    mmio_write32(SDMMC0_BASE + DW_BMOD, BMOD_SWR);
+    delay_loops(1000);
+    mmio_write32(SDMMC0_BASE + DW_CTRL, ctrl | CTRL_USE_INTERNAL_DMAC);
+    mmio_write32(SDMMC0_BASE + DW_IDINTEN, 0);
+    mmio_write32(SDMMC0_BASE + DW_DBADDR, (uint32_t)(uintptr_t)sd_idmac_table);
+    mmio_write32(SDMMC0_BASE + DW_BMOD, BMOD_DE | BMOD_FB);
+
+    mmio_write32(SDMMC0_BASE + DW_BLKSIZ, SD_BLOCK_SIZE);
+    mmio_write32(SDMMC0_BASE + DW_BYTCNT, total_bytes);
+
+    int rc = 0;
+    if (sd_send_command(25, lba,                          /* WRITE_MULTIPLE_BLOCK */
+                        CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC
+                        | CMD_DATA_EXPECTED | CMD_WRITE | CMD_SEND_AUTO_STOP) != 0) {
+        rc = -1;
+    } else {
+        /* The IDMAC streams the whole run RAM->card; wait for DATA_OVER
+         * (the auto-stop CMD12 follows), watching the error mask. */
+        uint32_t budget = 20000000;
+        for (;;) {
+            uint32_t rint = mmio_read32(SDMMC0_BASE + DW_RINTSTS);
+            if (rint & INT_ERROR_MASK) {
+                sd_log_hex32("[sdmmc]   IDMAC multi-write error RINTSTS=", rint);
+                rc = -2;
+                break;
+            }
+            if (rint & INT_DATA_OVER) {
+                break;
+            }
+            if (budget-- == 0u) {
+                rc = -3;
+                break;
+            }
+        }
+        mmio_write32(SDMMC0_BASE + DW_RINTSTS, INT_DATA_OVER);
+    }
+
+    /* Disable the IDMAC so the PIO (slave-FIFO) calls work again. */
+    mmio_write32(SDMMC0_BASE + DW_BMOD, 0);
+    mmio_write32(SDMMC0_BASE + DW_CTRL, ctrl);
+    return rc;
+}
+
+/* Validate the IDMAC WRITE — the direction the eMMC dump actually needs.
+ * Plain PIO writes are already proven (every boot's debug log, and the
+ * backup); what's unproven is the DMA *engine*. Fill a buffer with a
+ * non-zero, position-dependent pattern, write it to a safe reserved SD
+ * region via the IDMAC, read it back through the proven PIO path, and
+ * compare BYTE FOR BYTE — plus an explicit "read-back isn't all zeros"
+ * guard. (An earlier version compared a weak fingerprint that folded a
+ * structured pattern to 0, so "0 == 0" passed vacuously; a byte compare
+ * with a non-zero guard can't be fooled that way.) The first word of each
+ * buffer is logged raw so the pattern is visible in the log. */
+#define SD_DMA_TEST_LBA    0x300000u  /* reserved: clear of boot, backup (0x200000), log (0x400000) */
+#define SD_DMA_TEST_BLOCKS 24u        /* 24 blocks = 3 chained IDMAC descriptors (8 each) -> exercises a middle link */
+static uint8_t sd_dma_wr_buf[SD_DMA_TEST_BLOCKS * SD_BLOCK_SIZE] __attribute__((aligned(8)));
+static uint8_t sd_dma_rb_buf[SD_DMA_TEST_BLOCKS * SD_BLOCK_SIZE] __attribute__((aligned(8)));
+
+static uint32_t sd_word0(const uint8_t *b)
+{
+    return ((uint32_t)b[0]) | ((uint32_t)b[1] << 8)
+         | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24);
+}
+
+/* Validate the multi-block IDMAC WRITE (the dump's write path) — fill a
+ * 24-block buffer with a non-zero position-dependent pattern, write it in
+ * one chained CMD25, read it all back through the proven PIO path, and
+ * compare byte for byte (with a non-zero guard). 24 blocks spans three
+ * chained descriptors, so a broken chain link shows up. */
+void sd_dma_write_test(void)
+{
+    uint32_t nbytes = SD_DMA_TEST_BLOCKS * SD_BLOCK_SIZE;
+    debug_write("[sdmmc] --- IDMAC multi-block write test (24 blocks, DMA write -> PIO read-back) ---\r\n");
+    for (uint32_t i = 0; i < nbytes; i++) {
+        sd_dma_wr_buf[i] = (uint8_t)(0xA5u ^ (i * 13u));   /* non-zero, position-dependent */
+        sd_dma_rb_buf[i] = 0u;                             /* so a no-op read shows as zeros */
+    }
+    int rw = sd_write_blocks_dma(SD_DMA_TEST_LBA, SD_DMA_TEST_BLOCKS, sd_dma_wr_buf);
+    int rr = 0;
+    for (uint32_t b = 0; b < SD_DMA_TEST_BLOCKS && rr == 0; b++) {
+        rr = sd_read_block(SD_DMA_TEST_LBA + b, sd_dma_rb_buf + b * SD_BLOCK_SIZE);
+    }
+
+    int match = 1, nonzero = 0;
+    for (uint32_t i = 0; i < nbytes; i++) {
+        if (sd_dma_rb_buf[i] != sd_dma_wr_buf[i]) match = 0;
+        if (sd_dma_rb_buf[i] != 0u) nonzero = 1;
+    }
+
+    sd_log_byte("[sdmmc]   DMA multi-write rc=", (uint8_t)rw);
+    sd_log_byte("[sdmmc]   PIO read-back rc=", (uint8_t)rr);
+    sd_log_hex32("[sdmmc]   wrote    [0..3]=", sd_word0(sd_dma_wr_buf));
+    sd_log_hex32("[sdmmc]   readback [0..3]=", sd_word0(sd_dma_rb_buf));
+    if (rw == 0 && rr == 0 && match && nonzero) {
+        debug_write("[sdmmc]   IDMAC MULTI-BLOCK WRITE OK (24 blocks read back correct)\r\n");
+    } else if (!nonzero) {
+        debug_write("[sdmmc]   INCONCLUSIVE: read-back all zeros (DMA write did not land)\r\n");
+    } else {
+        debug_write("[sdmmc]   IDMAC MULTI-BLOCK WRITE MISMATCH\r\n");
+    }
+}
+/* }}} */
+
+/* {{{ dynamic SD speed select — pick the safe minimum and apply it (110l)
+ *
+ * Instead of hardcoding a bus speed, read what the card supports, compare
+ * it to the host's ceiling at the current signalling voltage, and switch
+ * the bus to the safe minimum of the two — logging all the inputs and the
+ * choice so the decision is visible (that visibility is the point; a fixed
+ * speed tells us nothing). At 3.3 V (no voltage switch yet) the host
+ * ceiling is High-Speed (50 MHz); UHS (SDR50/104) needs a 1.8 V switch,
+ * and the card only advertises UHS after that anyway. So the picker lands
+ * on the fastest of {default, High-Speed} the card offers, at 4-bit if the
+ * card has it — and extends to UHS for free once the voltage switch
+ * exists: same min-of-ceilings logic, one more ceiling. */
+
+/* ACMD6 SET_BUS_WIDTH to 4-bit (arg 2), then the DW MSHC CTYPE to 4-bit. */
+static int sd_set_bus_width_4bit(void)
+{
+    if (sd_send_command(55, sd_card_rca << 16,
+                        CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC) != 0) {
+        return -1;
+    }
+    if (sd_send_command(6, 0x2u,                       /* ACMD6 arg 2 = 4-bit */
+                        CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC) != 0) {
+        return -2;
+    }
+    mmio_write32(SDMMC0_BASE + DW_CTYPE, 1u);          /* card 0 -> 4-bit */
+    return 0;
+}
+
+/* CMD6 SWITCH_FUNC (mode 1 = set) group 1 -> function 1 (High-Speed), then
+ * raise the host clock to 50 MHz (CLKDIV divisor 0 = f_src, undivided). */
+static int sd_switch_high_speed(void)
+{
+    static uint8_t status[64];
+    int rc = sd_read_small(6, 0x80FFFFF1u,             /* set group1=HS, other groups no-change */
+                           CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC, status, 64);
+    if (rc != 0) {
+        return rc;
+    }
+    return set_clock_divider(0);                        /* 50 MHz */
+}
+
+/* {{{ sd_sector_count() — card capacity in 512-byte sectors, from the CSD */
+/* Decode the card's capacity from the CSD captured at init. Only the CSD
+ * version-2 layout (SDHC/SDXC — every card larger than 2 GB) is decoded,
+ * which is all a modern dump target will be. Returns 0 for "unknown" (not
+ * v2, or an implausible result) so callers fall back rather than trust a
+ * bad number.
+ *
+ * CSD v2 (SD Physical Layer spec, CSD Register Version 2.0):
+ *   CSD_STRUCTURE = CSD[127:126]   (1 = version 2)
+ *   C_SIZE        = CSD[69:48]     (22 bits)
+ *   capacity      = (C_SIZE + 1) x 512 KB = (C_SIZE + 1) x 1024 sectors
+ * With sd_csd[3]=CSD[127:96] down to sd_csd[0]=CSD[31:0]:
+ *   CSD_STRUCTURE = sd_csd[3] >> 30
+ *   C_SIZE        = ((sd_csd[2] & 0x3F) << 16) | (sd_csd[1] >> 16)
+ *
+ * The raw words are logged next to the decode on purpose: the bit/byte
+ * alignment of a long response out of this controller is exactly the kind
+ * of thing that is easy to get wrong blind, so the first hardware run must
+ * confirm the printed capacity matches the known card before this number is
+ * trusted to gate a real transfer. Until then a caller treats 0 as unknown
+ * and falls back loudly. */
+uint32_t sd_sector_count(void)
+{
+    uint32_t structure = sd_csd[3] >> 30;
+    uint32_t c_size    = ((sd_csd[2] & 0x3Fu) << 16) | (sd_csd[1] >> 16);
+    uint32_t sectors   = (structure == 1u) ? ((c_size + 1u) * 1024u) : 0u;
+
+    debug_write("[sdmmc] --- SD capacity (from CSD) ---\r\n");
+    sd_log_hex32("[sdmmc]   CSD[127:96]=", sd_csd[3]);
+    sd_log_hex32("[sdmmc]   CSD[95:64] =", sd_csd[2]);
+    sd_log_hex32("[sdmmc]   CSD[63:32] =", sd_csd[1]);
+    sd_log_hex32("[sdmmc]   CSD[31:0]  =", sd_csd[0]);
+    sd_log_hex32("[sdmmc]   CSD_STRUCTURE=", structure);
+    sd_log_hex32("[sdmmc]   C_SIZE=", c_size);
+    sd_log_hex32("[sdmmc]   -> sectors=", sectors);
+
+    /* Sanity floor: any real dump-target card dwarfs ~512 MB. Below it, the
+     * decode (or the card) is wrong — report unknown so the caller falls
+     * back loudly instead of truncating a good dump on a bad number. */
+    if (sectors != 0u && sectors < 0x00100000u) {
+        debug_write("[sdmmc]   CSD decode implausible -> capacity UNKNOWN\r\n");
+        return 0u;
+    }
+    return sectors;
+}
+/* }}} */
+
+/* The picker: read the card's ceilings, weigh against the host's, apply
+ * the safe minimum. */
+void sd_select_speed(void)
+{
+    static uint8_t buf[64];
+    int four_bit = 0, high_speed = 0;
+
+    debug_write("[sdmmc] --- dynamic speed select ---\r\n");
+
+    /* Card ceilings: SCR bit2 = 4-bit support; SWITCH_FUNC query group-1
+     * byte 13 bit1 = High-Speed support. */
+    if (sd_send_command(55, sd_card_rca << 16,
+                        CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC) == 0
+        && sd_read_small(51, 0,
+                         CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC, buf, 8) == 0) {
+        four_bit = (buf[1] & 0x04u) ? 1 : 0;
+    }
+    if (sd_read_small(6, 0x00FFFFFFu,
+                      CMD_RESPONSE_EXPECT | CMD_CHECK_RESPONSE_CRC, buf, 64) == 0) {
+        high_speed = (buf[13] & 0x02u) ? 1 : 0;
+    }
+
+    debug_write(four_bit ? "[sdmmc]   card width: 4-bit"
+                         : "[sdmmc]   card width: 1-bit only");
+    debug_write(high_speed ? ", card speed: up to High-Speed\r\n"
+                           : ", card speed: default only\r\n");
+    debug_write("[sdmmc]   host ceiling @3.3V: High-Speed (UHS needs 1.8V switch, not built)\r\n");
+
+    /* Apply the safe minimum. */
+    if (four_bit) {
+        debug_write((sd_set_bus_width_4bit() == 0)
+                    ? "[sdmmc]   -> applied: 4-bit bus\r\n"
+                    : "[sdmmc]   -> 4-bit switch FAILED\r\n");
+    }
+    if (high_speed) {
+        debug_write((sd_switch_high_speed() == 0)
+                    ? "[sdmmc]   -> applied: High-Speed (50 MHz)\r\n"
+                    : "[sdmmc]   -> High-Speed switch FAILED\r\n");
+    } else {
+        debug_write("[sdmmc]   -> staying at default speed (25 MHz)\r\n");
+    }
+    debug_write("[sdmmc] --- speed select done ---\r\n");
 }
 /* }}} */
 

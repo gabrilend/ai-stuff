@@ -1,0 +1,30 @@
+#AUTO 103
+#NEEDED 0
+# DE-SELECTED: this is a deliberate whole-disk action, not a routine health
+# check — a full 29 GiB sector-for-sector copy that takes many minutes.
+# Trigger it on purpose (its own run) when you actually want a full image;
+# the routine sweep should never grind through 29 GiB. Kept in the image so
+# the roster shows it was deliberately skipped, not missing.
+# Full linear eMMC -> SD dump (issue 110m) — the plain, simple version:
+# copy the WHOLE eMMC to the SD's dump region, sector for sector, no map.
+# eMMC sector N lands at SD sector 0x800000 + N, so getting the image back
+# is just "read that region back and concatenate" — nothing to reconstruct,
+# nothing that can tear in the log. Moves all 29 GiB (zeros included), so
+# it is slower than a sparse dump but dead simple and idempotent (safe to
+# re-run / resume after a power cut).
+#
+# emmc_dump_to_sd (in src/012-emmc.c) reads chunk by chunk via ADMA2 at
+# HS200 and writes each with the multi-block IDMAC writer. Bottom LED is the
+# progress bar; "[dump] at <lba>" prints ~every 256 MB; the final
+# "[dump] complete total=.. packed=.." line (packed=total) tells the pull
+# side to read the whole region.
+#
+# NOTE the 29 GiB does not fit a 28.9 GiB FAT32 USB drive raw — pull it
+# compressed (dd | gzip), which collapses the ~22 GiB of zeros to almost
+# nothing. Writes only the SD dump region (from 0x800000), never the eMMC.
+
+CALL sd_init
+CALL sd_speed
+CALL emmc_init
+CALL emmc_hs200
+CALL emmc_dump

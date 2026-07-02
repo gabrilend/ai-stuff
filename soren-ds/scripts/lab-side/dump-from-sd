@@ -9,8 +9,8 @@
 # isn't a removable device or on the MMC transport, dd two regions
 # off the card — the kernel's SD-backed debug log at LBA 0x4000000
 # (per the 110g-debug-log convention in src/017-debug-log.c) and the
-# kernel's eMMC partial-backup region at LBA 0x200000 (per the 110e-
-# layout-probe convention in src/002-main.c) — drop both as
+# eMMC boot-chain backup region at LBA 0x200000 (the emmc-backup
+# probe's backup_boot target in src/019-probe-engine.c, 16 MiB) — drop both as
 # timestamped files into a lab-output/ directory on the USB drive,
 # and print the readable text from the debug log plus whatever
 # partition layout the backup shows for the developer to read on
@@ -61,7 +61,22 @@ DEBUG_LOG_LBA=4194304             # 0x400000 — 2 GB into the SD card.
 DEBUG_LOG_SECTORS=32768           # 16 MiB — well above the ring buffer's actual size
 
 BACKUP_LBA=2097152                # 0x200000 — ~1 GB into the SD card
-BACKUP_SECTORS=409600             # 200 MiB — matches the kernel's current backup size
+BACKUP_SECTORS=32768              # 16 MiB — matches the emmc-backup probe's boot-chain
+                                  # copy: emmc_backup_to_sd(0, 0x200000, 32768) grabs eMMC
+                                  # LBA 0..32767 (GPT + uboot + trust, the Rockchip boot
+                                  # chain). Was 409600 (200 MiB) when the gate blindly
+                                  # copied the front of the card; trimmed once the layout
+                                  # was known. Keep in sync with the probe's sector count.
+
+# The sparse eMMC dump (src/012-emmc.c emmc_dump_to_sd) packs only its
+# non-zero chunks onto the card from DUMP_DEST_LBA and logs how many sectors
+# it packed ("[dump] complete ... packed=<sectors>"). We read exactly that
+# many sectors back and split them into <4 GiB pieces so the whole ~7 GiB
+# survives a FAT32 USB drive (whose files can't exceed 4 GiB); reconstruct-
+# emmc reassembles the pieces and replays the MAP into a full image. Keep
+# DUMP_DEST_LBA in sync with the kernel's copy.
+DUMP_DEST_LBA=8388608             # 0x800000 — ~4 GB into the SD card
+SPLIT_SIZE=3G                     # each packed piece stays under FAT32's 4 GiB cap
 # }}}
 
 # {{{ log() — single timestamped line to stderr and to the log file
@@ -243,6 +258,53 @@ split_probe_logs() {
 }
 # }}}
 
+# {{{ pull_full_dump() — copy the eMMC dump off the SD, gzipped + split for FAT32
+# The full linear dump writes the whole eMMC to the SD from DUMP_DEST_LBA and
+# logs "[dump] complete ... packed=<sectors>" (packed = the whole card) into
+# its per-probe log. Here we read exactly that many sectors off the card
+# (fast, 4 MiB reads, byte-precise skip/count), pipe them through gzip — the
+# ~22 GiB of zeros collapse to almost nothing, so a 29 GiB card fits a small
+# FAT32 drive — and split the gzip stream into numbered <4 GiB pieces. The
+# dev side reassembles with `cat pieces | gunzip`. Skipped quietly if there
+# is no finished dump log, so runs that didn't dump aren't affected.
+pull_full_dump() {
+    local device="$1" stamp="$2"
+    local dumplog="${LAB_OUTPUT_DIR}/probe-emmc-dump-${stamp}.log"
+    if [[ ! -f "$dumplog" ]]; then
+        log "No dump log for this run; skipping eMMC pull."
+        return 0
+    fi
+    # `|| true` inside the $(): a dump that didn't finish has no summary line,
+    # so grep finds nothing and the pipeline "fails". Without the guard that
+    # failed assignment trips `set -e` and kills the whole script (this is a
+    # plain call, errexit is active) instead of the graceful skip below. That
+    # case is real — a cancelled or powered-off dump.
+    local packed_hex
+    packed_hex="$(grep -a 'complete total=' "$dumplog" | sed -E 's/.*packed=(0x[0-9A-Fa-f]+).*/\1/' | head -1 || true)"
+    if [[ -z "$packed_hex" ]]; then
+        log "Dump log has no 'packed=' summary (dump may not have finished); skipping eMMC pull."
+        return 0
+    fi
+    local sectors=$(( packed_hex ))
+    if (( sectors == 0 )); then
+        log "Dump wrote 0 sectors; nothing to pull."
+        return 0
+    fi
+    local prefix="${LAB_OUTPUT_DIR}/emmc-${stamp}.img.gz."
+    local mib=$(( sectors * 512 / 1024 / 1024 ))
+    log "Pulling ${sectors} sectors (~${mib} MiB raw) from LBA ${DUMP_DEST_LBA}, gzip + split into ${SPLIT_SIZE} pieces → ${prefix}NN"
+    # Three-stage pipe: sudo dd reads the raw card; gzip (unprivileged)
+    # collapses the zeros; sudo split writes the root-owned USB drive. The
+    # cached sudo credential covers both privileged ends. skip_bytes/
+    # count_bytes let bs be a fast 4 MiB while skip/count stay byte-exact.
+    sudo dd if="$device" bs=4M iflag=skip_bytes,count_bytes \
+        skip="$(( DUMP_DEST_LBA * 512 ))" count="$(( sectors * 512 ))" status=progress \
+        | gzip | sudo split -b "$SPLIT_SIZE" -d - "$prefix"
+    log "Compressed pieces written:"
+    ls -la "${prefix}"* >&2 || true
+}
+# }}}
+
 # {{{ inspect_backup() — print the partition layout of the eMMC backup file
 # `file` identifies the format if it's recognizable (DOS/MBR, GPT,
 # etc.); `gdisk -l` walks the GPT if present and prints the partition
@@ -250,7 +312,7 @@ split_probe_logs() {
 # long as the GPT header at sector 1 is present.
 inspect_backup() {
     local file="$1"
-    printf '\n=== eMMC partial backup: format and partition layout ===\n' >&2
+    printf '\n=== eMMC boot-chain backup: format and partition layout ===\n' >&2
     file "$file" >&2
     printf '\n' >&2
     if command -v gdisk >/dev/null 2>&1; then
@@ -322,10 +384,11 @@ main() {
     local backup_file="${LAB_OUTPUT_DIR}/emmc-backup-${stamp}.img"
 
     dump_region "$sd_device" "$DEBUG_LOG_LBA"  "$DEBUG_LOG_SECTORS" "$log_file"    "debug log"
-    dump_region "$sd_device" "$BACKUP_LBA"     "$BACKUP_SECTORS"    "$backup_file" "eMMC partial backup"
+    dump_region "$sd_device" "$BACKUP_LBA"     "$BACKUP_SECTORS"    "$backup_file" "eMMC boot-chain backup"
 
     inspect_debug_log "$log_file"
     split_probe_logs  "$log_file" "$stamp"
+    pull_full_dump  "$sd_device" "$stamp"
     inspect_backup    "$backup_file"
 
     eject_device "$sd_device"
@@ -334,6 +397,18 @@ main() {
     printf '\nFiles saved (carry the USB drive back to the main machine to analyze further):\n' >&2
     printf '  %s\n' "$log_file" >&2
     printf '  %s\n' "$backup_file" >&2
+    local piece
+    for piece in "${LAB_OUTPUT_DIR}/emmc-${stamp}.img.gz."*; do
+        [[ -e "$piece" ]] || continue
+        printf '  %s\n' "$piece" >&2
+    done
+    if [[ -e "${LAB_OUTPUT_DIR}/emmc-${stamp}.img.gz.00" ]]; then
+        printf '\nOn the main machine (somewhere with room; NOT the FAT32 drive):\n' >&2
+        printf '  cat %s/emmc-%s.img.gz.* > emmc-%s.img.gz      # the gzip archive (~a few GB)\n' \
+            "$LAB_OUTPUT_DIR" "$stamp" "$stamp" >&2
+        printf '  gunzip -k emmc-%s.img.gz                       # -> emmc-%s.img (29 GiB) to examine\n' \
+            "$stamp" "$stamp" >&2
+    fi
 }
 # }}}
 

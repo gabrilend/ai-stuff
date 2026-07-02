@@ -263,6 +263,27 @@ static void debug_write_hex32(uint32_t value)
     debug_write(buf);
 }
 
+/* Format "0x" + 8 hex digits into dst (no NUL); return the next slot. */
+static char *fmt_hex32_into(char *dst, uint32_t v)
+{
+    static const char *digits = "0123456789ABCDEF";
+    *dst++ = '0';
+    *dst++ = 'x';
+    for (int i = 0; i < 8; i++) {
+        *dst++ = digits[(v >> ((7 - i) * 4)) & 0xFu];
+    }
+    return dst;
+}
+
+/* Copy a literal into dst (no NUL); return the next slot. */
+static char *fmt_str_into(char *dst, const char *s)
+{
+    while (*s) {
+        *dst++ = *s++;
+    }
+    return dst;
+}
+
 /* Route the eMMC pins to the eMMC controller. On the SD-card
  * boot path the bootloader never uses the eMMC, so it never
  * touches the eMMC pin multiplexer either — the eight data
@@ -1471,6 +1492,321 @@ void emmc_verify(void)
     debug_write(" fingerprint=");
     debug_write_hex32(fp);
     debug_write(nonzero ? " (non-zero)\r\n" : " (ALL-ZERO: pick another LBA)\r\n");
+}
+
+/* ===================================================================
+ * ADMA2 — descriptor-driven (DMA) reads (issue 110m)
+ *
+ * Hand the controller a descriptor table and let it move the data into
+ * RAM itself, instead of the CPU hand-copying every word out of the FIFO.
+ * The eMMC's CAPABILITIES advertises ADMA2 (bit 19). This is the read
+ * side; the write side (CMD25) and the microSD's separate IDMAC engine
+ * follow in 110m.
+ *
+ * Coherency note: with the MMU and caches off (phase 1) the DMA write
+ * lands in DRAM and the CPU reads DRAM directly, so no flush/invalidate
+ * is needed. This MUST be revisited when caches come on.
+ * =================================================================== */
+#define SDHCI_ADMA_ADDRESS    0x58       /* 32-bit descriptor-table pointer */
+#define HC1_DMA_SELECT_ADMA2  0x10u      /* HOST_CONTROL_1 bits[4:3] = 10 */
+#define XFER_DMA_ENABLE       (1u << 0)
+#define XFER_BLK_COUNT_EN     (1u << 1)
+#define XFER_AUTO_CMD12       (1u << 2)
+#define XFER_MULTI_BLOCK      (1u << 5)
+
+/* One ADMA2 descriptor (32-bit address mode): 16-bit attributes
+ * (bit0 Valid, bit1 End, bit2 Int, bits5:4 Act — 10 = Tran/transfer),
+ * 16-bit byte length (0 means 65536), 32-bit DRAM address. */
+struct adma2_desc {
+    uint16_t attr;
+    uint16_t len;
+    uint32_t addr;
+} __attribute__((packed));
+
+/* Descriptor table in .bss (DRAM, DMA-reachable), 8-byte aligned. One
+ * descriptor covers up to 128 blocks (64 KB); a real dump links several
+ * (110m step 4). */
+static struct adma2_desc emmc_adma_table[4] __attribute__((aligned(8)));
+
+/* Read `count` contiguous blocks (count <= 128) from `lba` into `buffer`
+ * via ADMA2 + CMD18 multi-block. The controller moves the data; the CPU
+ * only waits for transfer-complete and inspects the error bit (which also
+ * catches the ADMA error). Returns 0 on success. */
+int emmc_read_blocks_dma(uint32_t lba, uint32_t count, uint8_t *buffer)
+{
+    if (count == 0u || count > 128u) {
+        return -10;                       /* single-descriptor limit for now */
+    }
+    uint32_t bytes = count * EMMC_BLOCK_SIZE;
+
+    emmc_adma_table[0].attr = 0x23u;      /* Valid | End | Act=Tran */
+    emmc_adma_table[0].len  = (uint16_t)bytes;   /* 65536 wraps to 0, read as 65536 */
+    emmc_adma_table[0].addr = (uint32_t)(uintptr_t)buffer;
+
+    mmio_write16(SDHCI_BASE + SDHCI_BLOCK_SIZE, EMMC_BLOCK_SIZE);
+    mmio_write16(SDHCI_BASE + SDHCI_BLOCK_COUNT, (uint16_t)count);
+
+    /* Select ADMA2, preserving the card-detect and bus-width bits. */
+    uint8_t hc1 = mmio_read8(SDHCI_BASE + SDHCI_HOST_CONTROL_1);
+    hc1 = (uint8_t)((hc1 & ~0x18u) | HC1_DMA_SELECT_ADMA2);
+    mmio_write8(SDHCI_BASE + SDHCI_HOST_CONTROL_1, hc1);
+
+    mmio_write32(SDHCI_BASE + SDHCI_ADMA_ADDRESS,
+                 (uint32_t)(uintptr_t)emmc_adma_table);
+
+    /* DMA, block-count, auto-CMD12 (stop after the run), read, multi. */
+    mmio_write16(SDHCI_BASE + SDHCI_TRANSFER_MODE,
+                 XFER_DMA_ENABLE | XFER_BLK_COUNT_EN | XFER_AUTO_CMD12
+                 | XFER_DAT_DIRECTION_READ | XFER_MULTI_BLOCK);
+
+    if (sdhci_send_command(CMD_IDX(18)
+                           | CMD_RESPONSE_LEN_48 | CMD_DATA_PRESENT
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK, lba) != 0) {
+        return -1;
+    }
+
+    /* No FIFO drain — the controller writes RAM directly. Wait for
+     * transfer-complete or an error (INT_ERROR, bit 15, also raised by the
+     * ADMA error at bit 25). */
+    uint32_t budget = 10000000;
+    for (;;) {
+        uint32_t st = mmio_read32(SDHCI_BASE + SDHCI_INT_STATUS);
+        if (st & INT_ERROR) {
+            debug_write("[emmc]   DMA read DATA ERROR, INT_STATUS=");
+            debug_write_hex32(st);
+            debug_write("\r\n");
+            mmio_write32(SDHCI_BASE + SDHCI_INT_STATUS, 0xFFFFFFFFu);
+            return -4;
+        }
+        if (st & INT_XFER_COMPLETE) {
+            break;
+        }
+        if (budget-- == 0u) {
+            return -3;
+        }
+    }
+    mmio_write32(SDHCI_BASE + SDHCI_INT_STATUS, INT_XFER_COMPLETE);
+    return 0;
+}
+
+/* Validate the DMA read: read 8 blocks from the non-zero verify LBA via
+ * ADMA2 and fingerprint the first block. Run at each speed; the
+ * fingerprint must match the PIO emmc_verify fingerprint (0xC4FBFA8B on
+ * this card) — proving the descriptor path moves correct bytes. */
+void emmc_verify_dma(void)
+{
+    static uint8_t buf[8u * EMMC_BLOCK_SIZE];
+    int rc = emmc_read_blocks_dma(EMMC_VERIFY_LBA, 8u, buf);
+    uint32_t fp = 0;
+    int nonzero = 0;
+    for (uint32_t i = 0; i < EMMC_BLOCK_SIZE; i += 4) {
+        uint32_t w = ((uint32_t)buf[i]) | ((uint32_t)buf[i + 1] << 8)
+                   | ((uint32_t)buf[i + 2] << 16) | ((uint32_t)buf[i + 3] << 24);
+        fp = ((fp << 1) | (fp >> 31)) ^ w;
+        if (w != 0u) nonzero = 1;
+    }
+    debug_write("[emmc] verify-DMA LBA 64 (8 blocks): rc=");
+    debug_write_hex32((uint32_t)rc);
+    debug_write(" fp[blk0]=");
+    debug_write_hex32(fp);
+    debug_write(nonzero ? " (non-zero)\r\n" : " (ALL-ZERO)\r\n");
+}
+
+/* ===================================================================
+ * Full eMMC dump (issue 110m) — read the whole card and stream it to the
+ * SD via the proven DMA paths, to examine on the dev machine.
+ *
+ * Runs on the eMMC ADMA2 multi-block read + the microSD multi-block IDMAC
+ * write (both validated by their probes). A few pieces are still stubbed —
+ * grep "PLACEHOLDER(dump)" for every one (the destination/capacity check,
+ * double-buffering, a throughput readout) to finish before leaning on it.
+ * =================================================================== */
+extern int  sd_write_blocks_dma(uint32_t lba, uint32_t count, const uint8_t *b); /* 015-sdmmc.c */
+extern uint32_t sd_sector_count(void);                                           /* 015-sdmmc.c */
+extern void led_bottom(uint32_t current, uint32_t max);   /* 003-pwm.c — progress bar */
+extern void debug_log_flush(void);                        /* 017-debug-log.c */
+
+/* The eMMC's total sector count, from EXT_CSD SEC_COUNT (bytes 212-215,
+ * little-endian, in 512-byte sectors). 0 = unreadable. */
+uint32_t emmc_sector_count(void)
+{
+    static uint8_t ext[EMMC_BLOCK_SIZE];
+    if (emmc_read_ext_csd(ext) != 0) {
+        return 0;
+    }
+    return ((uint32_t)ext[212]) | ((uint32_t)ext[213] << 8)
+         | ((uint32_t)ext[214] << 16) | ((uint32_t)ext[215] << 24);
+}
+
+#define DUMP_CHUNK_BLOCKS 128u      /* 64 KB per eMMC ADMA2 read */
+#define DUMP_DEST_LBA     0x800000u /* SD dump region (~4 GB in), clear of boot/backup/log. The eMMC copies here linearly: eMMC sector N -> SD sector DUMP_DEST_LBA + N */
+
+/* Full linear eMMC -> SD dump: copy every sector of the eMMC to the SD's
+ * dump region, in order — no map, no zero-skipping. eMMC sector N lands at
+ * DUMP_DEST_LBA + N, so the dev side just concatenates the pulled pieces to
+ * get the image back; nothing to reconstruct, nothing that can tear. Moves
+ * the whole card (zeros and all), so compress it on the way off the SD if
+ * space is tight. Idempotent — re-running after a power-off rewrites the
+ * same sectors to the same places, so it can be resumed by starting the
+ * loop at the last sector reached. Call after the eMMC is up + in a fast
+ * mode and the SD is up + sped (sd_select_speed). */
+int emmc_dump_to_sd(void)
+{
+    uint32_t total = emmc_sector_count();
+    debug_write("[dump] eMMC sector count = ");
+    debug_write_hex32(total);
+    if (total == 0u) {
+        debug_write("[dump] sector count unreadable, aborting\r\n");
+        return -1;
+    }
+    /* How much of the eMMC actually fits in the SD's dump region: the dump
+     * lands at DUMP_DEST_LBA, so the room is (SD sectors - DUMP_DEST_LBA).
+     * If the whole card fits, dump it all (the development case). If not,
+     * dump only what fits this pass and log the boundary: the operator
+     * pulls the card, dump-from-sd reads it off, re-inserts, and a later
+     * pass resumes where this one stopped (110m installment dump — the
+     * multi-pass reassembly on the dev side is still to build). */
+    uint32_t sd_cap  = sd_sector_count();
+    uint32_t avail   = (sd_cap > DUMP_DEST_LBA) ? (sd_cap - DUMP_DEST_LBA) : 0u;
+    uint32_t to_dump = total;
+    if (sd_cap == 0u) {
+        /* Capacity unknown (the CSD decode is not yet hardware-confirmed).
+         * Fall back to dumping the whole card — correct only when the SD is
+         * known-large, which it is in development. Loud, so this cannot
+         * pass silently into a production run on an unknown card. */
+        debug_write("[dump] WARNING: SD capacity unknown -> dumping full card with no fit check\r\n");
+    } else if (total > avail) {
+        to_dump = avail;
+        debug_write("[dump] SD too small for one pass -> partial dump\r\n");
+        debug_write("[dump]   SD sectors=");        debug_write_hex32(sd_cap);
+        debug_write("[dump]   region avail=");      debug_write_hex32(avail);
+        debug_write("[dump]   eMMC total=");        debug_write_hex32(total);
+        debug_write("[dump]   this pass eMMC 0.."); debug_write_hex32(to_dump);
+    }
+
+    debug_write("[dump] linear copy to SD from LBA ");
+    debug_write_hex32(DUMP_DEST_LBA);
+
+    static uint8_t chunk[DUMP_CHUNK_BLOCKS * EMMC_BLOCK_SIZE] __attribute__((aligned(8)));
+    for (uint32_t lba = 0; lba < to_dump; lba += DUMP_CHUNK_BLOCKS) {
+        uint32_t n = (to_dump - lba < DUMP_CHUNK_BLOCKS) ? (to_dump - lba)
+                                                         : DUMP_CHUNK_BLOCKS;
+        if (emmc_read_blocks_dma(lba, n, chunk) != 0) {
+            debug_write("[dump] eMMC read failed @ ");
+            debug_write_hex32(lba);
+            return -2;
+        }
+        if (sd_write_blocks_dma(DUMP_DEST_LBA + lba, n, chunk) != 0) {
+            debug_write("[dump] SD write failed @ ");
+            debug_write_hex32(DUMP_DEST_LBA + lba);
+            return -3;
+        }
+        if ((lba % 0x80000u) == 0u) {     /* ~every 256 MB: bar + progress */
+            led_bottom(lba, to_dump);
+            debug_write("[dump]   at ");
+            debug_write_hex32(lba);
+            debug_log_flush();            /* preserve progress on a power cut */
+        }
+    }
+    led_bottom(1u, 1u);
+    /* Summary. total = the eMMC size; packed = what THIS pass actually
+     * wrote (equal when the whole card fit). The pull side reads `packed`.
+     * One write so it can't tear across a log flush. */
+    char sum[96];
+    char *sp = sum;
+    sp = fmt_str_into(sp, "[dump] complete total=");
+    sp = fmt_hex32_into(sp, total);
+    sp = fmt_str_into(sp, " packed=");
+    sp = fmt_hex32_into(sp, to_dump);
+    sp = fmt_str_into(sp, "\r\n");
+    *sp = '\0';
+    debug_write(sum);
+    debug_log_flush();
+    return 0;
+}
+
+/* Scan the whole eMMC and log where the NON-ZERO data is — a cheap map of
+ * the card's real layout, for a mostly-zero card, without writing gigabytes
+ * to the SD. Reads chunk by chunk (ADMA2), checks each for any non-zero
+ * byte, and logs coalesced non-zero LBA ranges; the gaps between them are
+ * zeros. This is run-length encoding at the block level. The map then
+ * drives a sparse dump of just the interesting regions. Call after the
+ * eMMC is up + in a fast mode. */
+int emmc_scan_map(void)
+{
+    uint32_t total = emmc_sector_count();
+    debug_write("[scan] eMMC sector count = ");
+    debug_write_hex32(total);
+    debug_write("\r\n");
+    if (total == 0u) {
+        debug_write("[scan] sector count unreadable, aborting\r\n");
+        return -1;
+    }
+
+    static uint8_t scan_chunk[DUMP_CHUNK_BLOCKS * EMMC_BLOCK_SIZE] __attribute__((aligned(8)));
+    uint32_t run_start = 0;
+    int in_run = 0;
+    uint32_t nranges = 0;
+    uint32_t nonzero_chunks = 0;
+
+    for (uint32_t lba = 0; lba < total; lba += DUMP_CHUNK_BLOCKS) {
+        uint32_t n = (total - lba < DUMP_CHUNK_BLOCKS) ? (total - lba)
+                                                       : DUMP_CHUNK_BLOCKS;
+        if (emmc_read_blocks_dma(lba, n, scan_chunk) != 0) {
+            debug_write("[scan] read failed @ ");
+            debug_write_hex32(lba);
+            debug_write("\r\n");
+            return -2;
+        }
+
+        /* Any non-zero byte in the chunk? Scan 64-bit words, early-exit on
+         * the first (non-zero chunks quit early; zero chunks scan fully). */
+        int nz = 0;
+        const uint64_t *w = (const uint64_t *)(const void *)scan_chunk;
+        uint32_t words = (n * EMMC_BLOCK_SIZE) / 8u;
+        for (uint32_t i = 0; i < words; i++) {
+            if (w[i] != 0u) { nz = 1; break; }
+        }
+
+        if (nz) {
+            nonzero_chunks++;
+            if (!in_run) { in_run = 1; run_start = lba; }
+        } else if (in_run) {
+            in_run = 0;
+            debug_write("[scan] NON-ZERO ");
+            debug_write_hex32(run_start);
+            debug_write(" .. ");
+            debug_write_hex32(lba);
+            debug_write("\r\n");
+            nranges++;
+        }
+
+        if ((lba % 0x80000u) == 0u) {        /* progress ~every 256 MB */
+            led_bottom(lba, total);
+            debug_write("[scan]   at ");
+            debug_write_hex32(lba);
+            debug_write("\r\n");
+            debug_log_flush();
+        }
+    }
+    if (in_run) {
+        debug_write("[scan] NON-ZERO ");
+        debug_write_hex32(run_start);
+        debug_write(" .. ");
+        debug_write_hex32(total);
+        debug_write(" (to end)\r\n");
+        nranges++;
+    }
+    led_bottom(1u, 1u);
+    debug_write("[scan] done: non-zero ranges=");
+    debug_write_hex32(nranges);
+    debug_write(" non-zero 64KB-chunks=");
+    debug_write_hex32(nonzero_chunks);
+    debug_write(" of ");
+    debug_write_hex32((total + DUMP_CHUNK_BLOCKS - 1u) / DUMP_CHUNK_BLOCKS);
+    debug_write("\r\n");
+    debug_log_flush();
+    return 0;
 }
 
 /* Public entry: bring up the eMMC controller and the card. */
