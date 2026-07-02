@@ -1,0 +1,28 @@
+#AUTO 104
+#NEEDED 0
+# eMMC scan-and-map (issue 110m) — read the WHOLE card and log where the
+# NON-ZERO data is, without writing gigabytes to the SD.
+#
+# DE-SELECTED while the sparse dump (103) runs: that dump does the same
+# zero-scan and logs its own MAP as it packs, so running this too would just
+# read all 29 GiB a second time. Re-enable it on its own when you want a
+# fast layout map without writing anything.
+#
+# For a mostly-zero card this is the cheap way to see the real layout: the
+# map (a handful of LBA ranges) tells you where the GPT, boot chain, and
+# partitions actually live. It is run-length encoding at the block level —
+# the logged ranges are the data, the gaps between them are zeros.
+#
+# emmc_scan_map (in src/012-emmc.c) reads chunk by chunk via ADMA2 at
+# HS200, checks each 64 KB chunk for any non-zero byte (early-exit), and
+# logs coalesced "[scan] NON-ZERO start .. end" ranges, then a summary line
+# with the range count and how many 64 KB chunks were non-zero out of the
+# whole card. Reads the full ~29 GiB, so it takes a few minutes; the bottom
+# LED fills as a progress bar and "[scan] at <lba>" prints ~every 256 MB.
+#
+# Read-only on the eMMC; the only SD writes are the debug log itself. The
+# map then drives a sparse dump of just the interesting regions.
+
+CALL emmc_init
+CALL emmc_hs200
+CALL emmc_scan

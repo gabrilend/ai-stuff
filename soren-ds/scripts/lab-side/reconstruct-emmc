@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# reconstruct-emmc — rebuild the full eMMC image from a sparse dump
+#
+# General description: the handheld's sparse dump wrote only the non-zero
+# regions of its eMMC onto the SD card, packed end to end, and logged a MAP
+# in its debug log saying where each packed run belongs in the original
+# card. This script replays that MAP: for every run it copies `len` sectors
+# out of the packed data into a sparse output image at the run's original
+# offset, leaving the ~three-quarters of the card that was zero as file
+# holes. The result is a full, byte-accurate ~29 GiB image that costs only
+# ~7 GiB of real disk.
+#
+# It takes the packed data three ways, so it fits whatever made it back:
+#   - the live SD block device      (/dev/sdX — run it where the card is)
+#   - a single packed-region file   (one dd of the region)
+#   - a prefix of split pieces      (emmc-packed-<stamp>.part — dump-from-sd
+#                                    splits the region for a FAT32 USB drive;
+#                                    this reassembles them)
+#
+# The reconstructed image is written to the project's output/ on real disk,
+# NOT onto the USB drive: that drive is often FAT32, which caps files at 4
+# GiB and cannot hold a 29 GiB image (sparse or not). Then, to archive it,
+# gzip the result — the zeros collapse away and the round trip (pieces →
+# full image → gzip) is itself the proof the dump reconstructs correctly.
+#
+# Read-only against its source. The only thing written is the output image.
+
+set -euo pipefail
+
+# {{{ configuration — DIR self-locates; override with the SOREN_DIR env var
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"                     # scripts/lab-side
+DIR="${SOREN_DIR:-$(dirname "$(dirname "$SCRIPT_DIR")")}"  # project root
+
+LAB_OUTPUT_DIR="${DIR}/lab-output"
+# Reconstructed images land in dumps/, NOT output/: they are large sparse
+# binaries (up to ~29 GiB apparent), and output/ is exactly what push-to-usb
+# rsyncs onto the (FAT32, 4 GiB-per-file) USB drive. dumps/ is gitignored
+# and never synced.
+DUMP_DIR="${DIR}/dumps"
+LOG_FILE="/tmp/reconstruct-emmc.log"
+
+# Must stay in sync with the kernel's DUMP_DEST_LBA in src/012-emmc.c: the
+# SD LBA where the sparse dump starts packing non-zero chunks. Reading the
+# packed data as a file (rather than the raw card) it begins at this LBA, so
+# a run's offset within the file is (packed - DUMP_DEST_LBA).
+DUMP_DEST_LBA=8388608                                     # 0x800000 — ~4 GB in
+SECTOR=512
+
+RESOLVED_SRC=""                    # resolve_source() sets this (a device or a file)
+RECON_TMP=""                       # a reassembled-pieces temp, cleaned on exit
+trap 'if [[ -n "$RECON_TMP" && -e "$RECON_TMP" ]]; then rm -f "$RECON_TMP"; fi' EXIT
+# }}}
+
+# {{{ log() — one timestamped line to stderr and the log file
+log() {
+    local message="$1" stamp
+    stamp="$(date -Iseconds)"
+    printf '[reconstruct-emmc] %s\n' "$message" >&2
+    printf '%s [reconstruct-emmc] %s\n' "$stamp" "$message" >> "$LOG_FILE"
+}
+# }}}
+
+# {{{ die() — log an error and exit non-zero
+die() {
+    log "ERROR: $1"
+    exit 1
+}
+# }}}
+
+# {{{ resolve_source() — turn the source argument into one readable packed blob
+# A block device or a plain file is used as-is. Anything else is treated as
+# a prefix of split pieces (<prefix>*, sorted): those are concatenated into a
+# temp file — `split -d` numbers them so lexical order is byte order — and
+# that temp becomes the source. Sets the globals RESOLVED_SRC (what to read)
+# and, when it built a temp, RECON_TMP (so the EXIT trap can delete it).
+# NOTE: sets globals rather than printing a path, precisely so it does NOT
+# run in a $(...) subshell — a subshell's RECON_TMP would be invisible to
+# the parent's cleanup trap, orphaning the 7 GiB temp (an earlier bug).
+resolve_source() {
+    local raw="$1"
+    if [[ -b "$raw" || -f "$raw" ]]; then
+        RESOLVED_SRC="$raw"
+        return
+    fi
+    local parts=( "${raw}"* )
+    if [[ -e "${parts[0]}" ]]; then
+        RECON_TMP="$(mktemp "${DUMP_DIR}/emmc-packed-reassembled.XXXXXX")"
+        log "Reassembling ${#parts[@]} pieces (${raw}*) into ${RECON_TMP}..."
+        cat "${parts[@]}" > "$RECON_TMP"
+        RESOLVED_SRC="$RECON_TMP"
+        return
+    fi
+    die "source '${raw}' is not a block device, a file, or a split-pieces prefix"
+}
+# }}}
+
+# {{{ newest_maplog() — the most recent per-probe dump log under lab-output/
+# dump-from-sd splits the sweep into probe-<name>-<stamp>.log files; the
+# sparse dump's MAP lines land in probe-emmc-dump-<stamp>.log.
+newest_maplog() {
+    ls -t "${LAB_OUTPUT_DIR}"/probe-emmc-dump-*.log 2>/dev/null | head -1
+}
+# }}}
+
+# {{{ image_sectors() — total eMMC sector count from the dump's summary line
+# The kernel logs "[dump] complete total=0x.... ranges=.. packed=..". That
+# total sizes the output image (its holes included).
+image_sectors() {
+    local maplog="$1" hex
+    hex="$(grep -a 'complete total=' "$maplog" | sed -E 's/.*total=(0x[0-9A-Fa-f]+).*/\1/' | head -1)"
+    [[ -n "$hex" ]] || die "no '[dump] complete total=' line in ${maplog}; wrong log, or the dump didn't finish?"
+    printf '%d' "$((hex))"
+}
+# }}}
+
+# {{{ emit_map() — one "orig packed len" line (decimal) per MAP record
+# grep -oE extracts only the exact well-formed record substring, so a record
+# torn across a log page (missing its packed= or len=) simply doesn't match
+# and is skipped — rather than passing through and crashing the arithmetic
+# under `set -e`. reconstruct() cross-checks the surviving count against the
+# dump's own summary and warns if any were dropped.
+emit_map() {
+    local maplog="$1"
+    grep -a -oE 'MAP orig=0x[0-9A-Fa-f]+ packed=0x[0-9A-Fa-f]+ len=0x[0-9A-Fa-f]+' "$maplog" \
+        | sed -E 's/MAP orig=(0x[0-9A-Fa-f]+) packed=(0x[0-9A-Fa-f]+) len=(0x[0-9A-Fa-f]+)/\1 \2 \3/' \
+        | while read -r orig packed len; do
+              printf '%d %d %d\n' "$((orig))" "$((packed))" "$((len))"
+          done
+}
+# }}}
+
+# {{{ reconstruct() — replay the MAP, copying each run into the sparse image
+# For a block-device source we skip to the run's absolute LBA; for packed
+# file/pieces we skip to its offset within the packed data
+# (packed - DUMP_DEST_LBA). The output is pre-sized sparse, so untouched
+# gaps stay zero-filled holes.
+reconstruct() {
+    local src="$1" maplog="$2" out="$3" sudo_prefix="$4"
+    local total runs=0 packed_sectors=0 orig packed len skip
+
+    total="$(image_sectors "$maplog")"
+    log "Output image: ${out} (${total} sectors, $(( total * SECTOR / 1024 / 1024 )) MiB, sparse)"
+    truncate -s "$(( total * SECTOR ))" "$out"
+
+    while read -r orig packed len; do
+        if [[ -b "$src" ]]; then
+            skip="$packed"                               # raw card: absolute LBA
+        else
+            skip="$(( packed - DUMP_DEST_LBA ))"         # packed data: relative
+        fi
+        # bs=1M with byte-exact offsets: fast large reads instead of a
+        # per-sector syscall storm, and correct for any (even unaligned) run.
+        $sudo_prefix dd if="$src" of="$out" bs=1M \
+            iflag=skip_bytes,count_bytes oflag=seek_bytes \
+            skip="$(( skip * SECTOR ))" seek="$(( orig * SECTOR ))" count="$(( len * SECTOR ))" \
+            conv=notrunc status=none
+        runs=$(( runs + 1 ))
+        packed_sectors=$(( packed_sectors + len ))
+        if (( runs % 100 == 0 )); then
+            log "  ${runs} runs placed (${packed_sectors} sectors, $(( packed_sectors * SECTOR / 1024 / 1024 )) MiB so far)"
+        fi
+    done < <(emit_map "$maplog")
+
+    (( runs > 0 )) || die "no MAP records found in ${maplog}"
+
+    # Integrity: the dump's own summary states how many ranges + packed
+    # sectors it wrote. Placing fewer means the MAP was torn in the log and
+    # the image is INCOMPLETE — shout, don't pass it off as good.
+    local want_r want_p
+    want_r="$(grep -a 'complete total=' "$maplog" | sed -E 's/.*ranges=(0x[0-9A-Fa-f]+).*/\1/' | head -1)"
+    want_p="$(grep -a 'complete total=' "$maplog" | sed -E 's/.*packed=(0x[0-9A-Fa-f]+).*/\1/' | head -1)"
+    if [[ -n "$want_r" && -n "$want_p" ]]; then
+        if (( runs != $((want_r)) || packed_sectors != $((want_p)) )); then
+            log "WARNING: placed ${runs} runs / ${packed_sectors} sectors, but the dump logged $((want_r)) ranges / $((want_p)) packed."
+            log "WARNING: the MAP in the log is torn — this image is INCOMPLETE. Re-dump with the atomic-map kernel, then reconstruct again."
+        else
+            log "Integrity OK: ${runs} runs / ${packed_sectors} sectors match the dump summary ($((want_r)) / $((want_p)))."
+        fi
+    fi
+    log "Done: ${runs} runs, ${packed_sectors} real sectors ($(( packed_sectors * SECTOR / 1024 / 1024 )) MiB) placed into ${out}"
+}
+# }}}
+
+# {{{ main() — resolve source + map log + output, then reconstruct
+main() {
+    local raw="${1:-}"
+    [[ -n "$raw" ]] || die "usage: reconstruct-emmc <sd-device|packed-file|pieces-prefix> [maplog] [output.img]   (SOREN_DIR overrides the project dir)"
+
+    local maplog="${2:-$(newest_maplog)}"
+    [[ -n "$maplog" && -f "$maplog" ]] || die "no map log given and none found under ${LAB_OUTPUT_DIR}"
+
+    mkdir -p "$DUMP_DIR"
+    local stamp out
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    out="${3:-${DUMP_DIR}/emmc-${stamp}.img}"
+
+    # Call WITHOUT command substitution so RECON_TMP lands in this shell and
+    # the EXIT trap can clean it (a $(...) subshell would hide it).
+    resolve_source "$raw"
+    local src="$RESOLVED_SRC"
+
+    # Raw block-device reads need sudo; a plain file or reassembled temp does not.
+    local sudo_prefix=""
+    if [[ -b "$src" ]]; then
+        log "Source ${src} is a block device — confirming sudo for raw reads."
+        sudo -v || die "sudo could not be confirmed; aborting before any read."
+        sudo_prefix="sudo"
+    fi
+
+    log "DIR=${DIR}"
+    log "Source: ${raw}"
+    log "Map log: ${maplog}"
+    reconstruct "$src" "$maplog" "$out" "$sudo_prefix"
+
+    printf '\nReconstructed eMMC image:\n  %s\n' "$out" >&2
+    printf 'Examine:  fdisk -l %s    |    strings -n 8 %s | less\n' "$out" "$out" >&2
+    printf 'Archive:  gzip -k %s     (zeros collapse; keeps the sparse original)\n' "$out" >&2
+}
+# }}}
+
+main "$@"

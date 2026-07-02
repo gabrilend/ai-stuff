@@ -1,0 +1,25 @@
+#AUTO 102
+#NEEDED 1
+# Dynamic SD bus-speed select + validation — issue 110l.
+#
+# Rather than hardcode a speed, sd_select_speed (in src/015-sdmmc.c) reads
+# what the card supports (4-bit? High-Speed?), weighs it against the host's
+# ceiling at the current 3.3V signalling (High-Speed; UHS needs a 1.8V
+# switch we haven't built), logs all three inputs, and applies the safe
+# minimum — for this card, 4-bit + High-Speed (50 MHz). Then it re-runs the
+# proven IDMAC write-read round-trip AT the new speed to confirm transfers
+# still land cleanly when the bus is faster and wider.
+#
+# Read the log for the decision lines ("card width", "card speed", "host
+# ceiling", and the "-> applied" results) and then the round-trip verdict:
+#   IDMAC WRITE OK (read-back matches the non-zero pattern)  = transfers
+#     work at 4-bit / 50 MHz, so the dump's write side is now ~8x faster
+#   MISMATCH / INCONCLUSIVE / a switch FAILED = the faster bus or the
+#     mode switch needs a look (the per-step logs + RINTSTS point the way)
+#
+# Safe — the round-trip writes only the reserved LBA 0x300000. Needs the
+# sd_speed + sd_dma CALL targets (probe engine 019).
+
+CALL sd_init
+CALL sd_speed
+CALL sd_dma
