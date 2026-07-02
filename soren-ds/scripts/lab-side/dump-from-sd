@@ -347,6 +347,21 @@ write_goodbye() {
 }
 # }}}
 
+# {{{ flush_outputs() — force the extracted logs and dumps out to the USB drive
+# This script writes all its output (the log/backup images, the per-probe
+# split logs, the gzip dump pieces) into lab-output/ on the ALREADY-mounted
+# USB drive, and it only ever ejects the SD card — it never unmounts the USB
+# drive. So unlike push-to-usb (where the umount flushes on its way out),
+# nothing here guarantees those writes reached the physical drive rather than
+# sitting in the page cache. A plain sync flushes every mounted filesystem's
+# dirty pages; once it returns, the files are safe on the drive and the
+# developer can pull it and carry it back to the main machine.
+flush_outputs() {
+    log "Flushing extracted files to the USB drive..."
+    sync
+}
+# }}}
+
 # {{{ main() — orchestration
 main() {
     log "DIR=${DIR}"
@@ -393,6 +408,7 @@ main() {
 
     eject_device "$sd_device"
     write_goodbye
+    flush_outputs
 
     printf '\nFiles saved (carry the USB drive back to the main machine to analyze further):\n' >&2
     printf '  %s\n' "$log_file" >&2
