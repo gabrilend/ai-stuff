@@ -30,12 +30,13 @@
  *   - SHA-1 ID is left as zeros — Anbernic's u-boot does not
  *     verify image integrity at this layer
  *
- * The boot partition's location on eMMC is hard-coded for phase 1
- * because parsing the GPT to find it dynamically adds substantial
- * code surface (signature checks, partition-entry walking, UTF-16
- * name matching). The hard-coded LBA is a placeholder marked
- * NEEDS_HARDWARE_VERIFY — the first hardware run will tell us if
- * it lands in the right partition; if not, the constant changes.
+ * The boot partition's location on eMMC is a fixed LBA for phase 1
+ * rather than parsed from the GPT (which would add signature
+ * checks, partition-entry walking, UTF-16 name matching). The value
+ * was validated on hardware by the 110e layout probe — it is LBA
+ * 51200, the `boot` partition per the device GPT. A fixed LBA is
+ * still a per-device assumption; the general version parses the GPT
+ * to find `boot` by name.
  */
 
 #include <stdint.h>
@@ -56,12 +57,15 @@ extern char __image_end[];
  * boot.img header's kernel_addr field. */
 #define KERNEL_LOAD_ADDR 0x02000000u
 
-/* Hard-coded boot partition LBA. Placeholder for phase 1.
- * NEEDS_HARDWARE_VERIFY: the first hardware test will check
- * whether this address actually lands in the boot partition the
- * Anbernic u-boot reads. If not, this constant changes to match
- * the layout the GPT reports. */
-#define BOOT_PARTITION_LBA 0x4000u
+/* Boot-partition LBA, confirmed from the device's own GPT by the
+ * 110e layout probe (see docs/024-emmc-partition-map.md): the
+ * `boot` partition (partition 7, 64 MiB) starts at LBA 51200. The
+ * earlier placeholder 0x4000 (16384) was WRONG — that LBA is the
+ * `uboot` partition, and writing a kernel there would corrupt the
+ * bootloader and brick the device. This value is device-confirmed,
+ * not datasheet-general; the assumption-free version parses the GPT
+ * to locate `boot` by name rather than trusting a fixed LBA. */
+#define BOOT_PARTITION_LBA 51200u
 
 /* Android boot.img header — version 0. The struct layout is
  * exactly what the format specifies; any reordering breaks the
