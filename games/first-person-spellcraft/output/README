@@ -1,0 +1,6 @@
+output/ — whatever you'd like the program to return to you.
+
+A program's LAST act is to write to output/ — specifically, to write goodbye.
+Results, farewells, and anything the run wants to hand back to you land here.
+
+The file `goodbye` is the canonical last thing written.

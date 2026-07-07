@@ -1,0 +1,8 @@
+# goodbye — the last thing the program writes.
+#
+# When First Person Spellcraft finishes a run, its final act is to write here.
+# This seed file exists so that "write goodbye last" is true even on day zero,
+# before there is a run to end.
+#
+# goodbye, for now. the wand is set down. the two hands rest. the lair remembers
+# how well you did, and will be here when you return.
