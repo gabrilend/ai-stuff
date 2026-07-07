@@ -1,0 +1,8 @@
+input/ — whatever you'd like to feed into the program box.
+
+A program's FIRST act is to read input/. It is how the program knows how to
+start up: before rendering a room, before opening a mouse device, before waking
+the Dungeon Master, it looks here to learn what it is meant to do this run.
+
+Drop startup instructions, seed values, or run-configuration here. The file
+`startup` is the canonical first thing read.

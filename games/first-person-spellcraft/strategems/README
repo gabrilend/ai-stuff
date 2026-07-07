@@ -1,0 +1,24 @@
+strategems/ — reusable dataflow patterns proven useful across many areas.
+
+A strategem is a shape of data flow that keeps working no matter where you point
+it: the same pattern that routes a spell's aim also routes an NCP's aim; the
+same "configure the template, never the instantiation" pattern governs both the
+NPC inventory UI and the settlement's worker shops. When a pattern earns its keep
+in more than one place, write it down here so the next area can reuse it instead
+of reinventing it.
+
+Write here whenever a pattern proves itself twice. Re-read at random — a
+strategem from the economy might be exactly what the Dungeon Master needs.
+
+Seed observations (patterns already visible in the vision, to grow into full
+strategems as they prove out):
+- **Aim once, aim everywhere.** One input abstraction layer that spells, NCPs,
+  and the player all aim through — the source of the motion changes, the routing
+  does not.
+- **Configure templates, never instantiations.** The NPC inventory UI and the
+  settlement worker allocation are the same pattern: you edit the mold, the world
+  stamps the copies.
+- **Remember the demonstrated, re-estimate the meaning.** The Dungeon Master
+  watches what a party actually does, then updates what a "level" means — a
+  feedback loop that could tune difficulty, prices, or province relationships
+  alike.
