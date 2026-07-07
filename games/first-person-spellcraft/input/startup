@@ -1,0 +1,12 @@
+# startup — the first thing the program reads.
+#
+# On launch, before anything else, First Person Spellcraft reads input/ to learn
+# how to begin. This seed file exists so that "read input/ first" is true even
+# on day zero, when there is nothing yet to run.
+#
+# When the engine exists, expect keys like:
+#   world      = which square-room map to load
+#   input_mode = dual-mouse | single-mouse | (stretch) bci-ceiling-headset
+#   role       = player | ncp   (are you aiming as a New Character Person?)
+#
+# For now: hello, engine. Wake up gently. Read this, then greet the world.
