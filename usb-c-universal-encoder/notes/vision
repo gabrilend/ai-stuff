@@ -1,0 +1,13 @@
+hi, I'd like to make a programming abstraction interface that lets a user
+put any type of data into a USB-C datapath and receive it on the other end.
+without risks of malware arbitrary code execution style, due to the usage of a
+bytecode interpreter that simply stores and manages data. everything is a file.
+stored in RAM, which the receiving program(s) whatever they are can consume or
+modify the data that is then sent to the other side of the USB-C line, TCP style
+
+run a function, make / modify a new file. click a button, assign directions for
+how that file should be handled. Then, fill it with whatever datasource you
+want, like sensor data, written text, generated encodings, meaning captures,
+or other binary or non-binary forms of digital prose.
+
+sent over USB-C, where it is received. Universal USB-C Translation.
