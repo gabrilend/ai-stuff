@@ -70,3 +70,12 @@ Bytes that came from the far end are touched by exactly one piece of local logic
 the interpreter — and that logic's entire vocabulary is "change a file in the
 store." No stage between the wire and the store can be steered into running the
 received bytes as code, because no such capability is wired into the path.
+
+## When the ends are a mounted filesystem
+
+The `datasource` and `consumer` nodes are often not bespoke code but a **FUSE mount**
+(see `docs/mount-as-filesystem.md`). Then `cp file /mnt/usb-c-<peer>/` is stages 1–2
+(a write into the store, encoded to opcodes), and an `ls`/`cat` on the far side is
+stages 6–7 (the interpreter has already populated that side's store). The datapath is
+identical; only the thing touching the store at each end is the kernel's VFS instead
+of an application.
