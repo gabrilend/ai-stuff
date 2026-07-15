@@ -87,3 +87,15 @@ host addresses, so the two ends need not share an OS, a word size, or an endiann
 "Modify the actual RAM locations, without the OS in the path" is honored *and* kept
 safe: the pokes are direct, but bounded to the arena we own (see the security
 argument in `docs/safe-opcode-format.md`), so it is not a DMA-attack primitive.
+
+## The filesystem front door (FUSE)
+
+The `datasource` and `consumer` at the top of the picture need not be custom code —
+they can be the operating system itself. A **FUSE** adapter mounts a directory (over
+its arena) at a path like `/mnt/usb-c-<peer>/`, so `cp`/`cat`/`rm` become the
+interface: writing a file pokes the arena and (in peer mode) emits the matching
+opcode across the link, while incoming opcodes surface as files on the next listing.
+This adds *no* new trust boundary — every kernel file operation already maps onto the
+safe opcode set — and the mount is made `noexec,nosuid,nodev`, so nothing on it can
+be run. It is more edge-glue: FUSE on Linux, macFUSE/WinFsp elsewhere, the core
+unchanged. See `docs/mount-as-filesystem.md`.

@@ -22,6 +22,12 @@ carries its own ordering via indexed filenames, and issues live under `issues/`.
 - `docs/safe-opcode-format.md` — the "bytecode": the exact opcode set, its
   primitive encodings, the security argument (safety = absence of capability), and
   why the address-free wire format is portable across any OS.
+- `docs/mount-as-filesystem.md` — how a USB-C peer is mounted under `/mnt/` via
+  FUSE, the VFS-operation → opcode mapping, the mount safety options that keep the
+  no-execution promise, and local vs peer mode.
+- `docs/delivery-self-installing-cable.md` — how the cable carries and installs its
+  own software: the packager, the one-command self-installer, why there is no silent
+  autorun (BadUSB), and how dependencies are reported rather than hidden.
 
 ## The phases (functionality clusters)
 
@@ -36,6 +42,10 @@ functionality; they are not a schedule.
 4. **Phase 4 — USB host.** libusb via LuaJIT FFI, bulk transfer.
 5. **Phase 5 — Handling interface & demos.** File `direction` metadata routed to
    consumers, datasources, and the phase demos as deliverables.
+6. **Phase 6 — Mount USB-C links as filesystems.** A connected peer appears under
+   `/mnt/` via FUSE; `cp`/`ls`/`cat`/`rm` are the interface, mounted no-exec.
+7. **Phase 7 — Delivery: the self-installing cable.** The cable bears the software;
+   plug it in and it runs in place or installs with one explicit command.
 
 ---
 Whenever a document is added here, add it to the tree above. Numbers and
