@@ -83,6 +83,37 @@ for how a file should be handled, fill it with whatever datasource you want."
 - Datasources: sensor data, text, generated encodings — anything that fills a file.
 - The phase demos, treated as part of the deliverable, not just dev artifacts.
 
+## Phase 6 — Mount USB-C links as filesystems
+
+The front door the vision implies: a connected USB-C peer appears under `/mnt/`
+(e.g. `/mnt/usb-c-<peer>/`), so the ordinary tools *are* the interface — `cp` a
+file in to send it, `ls`/`cat` to read what the far end sent, `rm` to delete.
+
+- A FUSE adapter maps kernel file operations onto the store: read/write become
+  direct arena access; create/delete/truncate become the matching opcodes. Mounted
+  `noexec,nosuid,nodev`, so the no-execution promise holds at the VFS layer too.
+- Local mode first (mount one arena, no peer — buildable on the dev machine today),
+  then peer mode (per-cable mount, write-through over the link).
+- Universal by the same argument as the wire: FUSE on Linux, macFUSE on macOS,
+  WinFsp on Windows — only the adapter is OS-specific. See
+  `docs/mount-as-filesystem.md`.
+- Cable-as-courier sync: the cable holds its own slot and ferries data between
+  machines, reconciling on contact (newest-first fill, oldest evicted when two slots
+  overflow their union). See `issues/63-cable-courier-sync.md`.
+
+## Phase 7 — Delivery: the self-installing cable
+
+The cable bears the software. Everything the project produces is packaged into a
+portable bundle on the cable's storage; plug it in and it runs in place or installs
+with one explicit command, then works.
+
+- A packager assembles the whole project into a "cable image"; a self-installer that
+  rides on it checks dependencies, asks consent, and drops a launcher on `PATH`.
+- No silent autorun — that is the BadUSB attack the project refuses. "Easy" is one
+  command; the bundle is also portable enough to run straight from the mount.
+- Re-run as the project grows: whatever exists is what gets delivered. See
+  `docs/delivery-self-installing-cable.md`.
+
 ---
 
 Issues are derived from these phases in `issues/`. Statistics about progress are
