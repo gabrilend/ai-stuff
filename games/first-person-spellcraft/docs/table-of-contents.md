@@ -16,6 +16,8 @@
 ```
 notes/
   vision ................................. the source of truth (and the poetry)
+  vision-control-scheme ................. the two-mouse locomotion / fire control map
+  note-to-claude-ai ..................... the single-namespace coding-methodology note
 
 docs/
   vision-overview.md .................... structured distillation of the vision
@@ -40,6 +42,15 @@ docs/
 ### Narrative source
 - [notes/vision](../notes/vision) — the original vision. Source of truth, and in
   places source of poetry; treated as sacrosanct.
+- [notes/vision-control-scheme](../notes/vision-control-scheme) — the dual-mouse
+  control scheme: the "helicopter jetpack" locomotion map, the fire/alt split, and
+  the screen-center grip↔trigger swap. Implemented by issue 208 (208a/208b);
+  sacrosanct where it speaks in specifics.
+- [notes/note-to-claude-ai](../notes/note-to-claude-ai) — the project's proposed
+  single-namespace / narrative-`main()` coding methodology (contiguous file with
+  include-continuation, story-named functions, "a step beyond could be assembly").
+  Kept as a narrative note, not an issue: it is a project-wide coding-style intent,
+  cross-referenced here so it stays discoverable.
 
 ### Overview & planning
 - [vision-overview.md](vision-overview.md) — structured feature distillation,

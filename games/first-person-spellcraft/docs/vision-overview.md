@@ -82,6 +82,16 @@ deliberately not hardcoded here — see "A note on counts and statistics" below.
 - Each mouse drives one hand (left mouse → left hand, right mouse → right hand).
 - Hand animation derived live from the dual-mouse input.
 - An input abstraction layer that later systems aim through.
+- The **dual-mouse control scheme** (see
+  [notes/vision-control-scheme](../notes/vision-control-scheme)): a "helicopter
+  jetpack" wand-pilot locomotion map — both right-mouse buttons surge forward, a
+  right-click turns, scroll wheels are the two thrusters (height inertia) — plus
+  the trigger hand's click fires and the off hand's raises an alt action (a
+  flashlight, or a jetpack rocket aimed at the reticle), with the grip↔trigger
+  roles swapping when the reticle crosses screen centre. The vision offers turn and
+  strafe *alternatives* (turn-by-click vs by reticle screen-position; strafe vs a
+  held "hover mode") kept as selectable modes. Middle-mouse ally signals are noted
+  but deferred with the sequel's party system.
 - **Stretch (documented, not built):** brain-computer interface reading patterns
   like "look up and to the left", and a ceiling-mounted attention-tracking
   headset held "at just the right tension."
