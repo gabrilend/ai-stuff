@@ -19,7 +19,7 @@
 | `102` | Core loop & program lifecycle | runnable loop delivered via `102a`+`102b`; residual is the Phase-2 input seam |
 | `102a` | **Dataflow substrate — slots, pool, dispatch** | ✅ **complete** |
 | `102b` | **Runnable loop — lifecycle, raylib window, render thread, story main()** | ✅ **complete** |
-| `103` | Square-room world data model | open |
+| `103` | **Square-room world data model** | ✅ **complete** |
 | `104a` / `104b` | Renderer (raylib data-driven scene; supersedes the old software rasterizer) | open (to be revised per `101`) |
 | `105` | Player movement & wall collision | open |
 | `106` | Platforming: gravity, jumping, vertical collision | open |
@@ -61,6 +61,24 @@ The substrate made into a program you launch:
 `./run` now shows a rectangle the graph nudges across a room and quits cleanly.
 With the loop live, the phase moves on to the world model (`103`), the renderer
 (`104`), and movement (`105`/`106`) — each a box or system plugged into this loop.
+
+### `103` — Square-room world data model
+
+The map, as two lenses over one set of cells (`src/001-world`):
+
+- **Tile grid** (`cell_t`: solid, wall id, floor/ceiling height, room id) for the
+  renderer and collision; **room table + door graph** for gameplay.
+- **Room-behaviour dispatch** (enter/step/exit) with trivial `plain`/`spawn`
+  entries — the seam Phase 4/6 fill with puzzles/combat.
+- A **builder** (two rooms, a wall, a door, a step-up) and a **validator**
+  (coherence + counts); `001-world-test.c` passes.
+- Made visible: the engine draws the world **top-down** (a debug view, not the
+  first-person renderer `104`) with the mover "player" wandering and bouncing off
+  walls — the first taste of `105` collision. `FPS_SHOT=<abs.png> FPS_FRAMES=60
+  ./run` captures the view.
+
+Next: the real first-person renderer (`104`) that draws the world from a camera,
+and full movement/collision (`105`/`106`).
 
 ## What phase 1 proves when it's done
 

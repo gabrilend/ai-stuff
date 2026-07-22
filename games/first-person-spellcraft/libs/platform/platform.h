@@ -37,6 +37,10 @@ void   platform_draw_rect(float x, float y, float w, float h,
                           uint8_t r, uint8_t g, uint8_t b);
 void   platform_end_frame(void);
 
+/* Save the current frame to a PNG at `path`. For debugging/demos — capture what
+ * the render thread drew without a human at the window. */
+void   platform_screenshot(const char *path);
+
 /* Close the surface and release the GL context. */
 void   platform_close(void);
 

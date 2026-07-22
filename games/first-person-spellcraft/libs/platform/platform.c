@@ -58,6 +58,15 @@ void platform_end_frame(void)
 }
 /* }}} */
 
+/* {{{ platform_screenshot() */
+void platform_screenshot(const char *path)
+{
+    /* raylib writes the PNG relative to its working directory, so pass an
+     * absolute path from the caller. Call it right after a frame is presented. */
+    TakeScreenshot(path);
+}
+/* }}} */
+
 /* {{{ platform_close() */
 void platform_close(void)
 {

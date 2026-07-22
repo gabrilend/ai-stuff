@@ -1,6 +1,6 @@
 # Conversation Summary: d56354f8-b859-47d0-9d82-52213cf9faba
 
-Generated on: 2026-07-22 00:05:33
+Generated on: 2026-07-22 12:07:21
 
 --------------------------------------------------------------------------------
 
@@ -2013,6 +2013,210 @@ seam behind the four-verb Platform abstraction so it stays swappable.
 
 Want me to keep going into the lifecycle + raylib window next, or pause here on
 the committed substrate?
+
+
+--------------------------------------------------------------------------------
+
+### User Request 14
+
+- The untracked llm-transcripts/ in the project is your export tooling, not mine
+— left alone.
+
+
+llm-transcripts should be included in every commit.
+
+
+1. Lifecycle bookends — read input/startup first, write output/goodbye last.
+
+2. raylib window + the dedicated always-unblocked render thread — reading
+renderables from a
+
+FIFO slot.
+
+3. Story main() per note-to-claude-ai — wires the real graph and says "run."
+
+
+
+great can we start working on it?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 14
+
+Two things — the transcript rule first, then we build.
+
+
+**"llm-transcripts in every commit"** — noted, and I'll fold the project's `llm-transcripts/` into every commit's pathspec from here on. Since `a8c43d4a` already went out without it, let me catch it up now. But first let me see what's actually in there (and check raylib, since it's about to be our first real dependency):
+
+
+Good findings:
+
+- **Transcripts:** just 3 small files (this session + the earlier Jul-7 one). Easy to commit.
+
+- **raylib:** not in pkg-config, but `/usr/local/include/raylib.h` **exists** — so it's installed locally. I'll verify it links before building on it.
+
+- **Display:** `DISPLAY=:0` is set, so a real window may actually open here.
+
+
+Catching up the transcripts into history now (pathspec commit, and I'll bundle
+them into every commit going forward):
+
+
+Right — `git commit -- <pathspec>` can't reach *untracked* files; they have to
+be staged first. Staging just the transcripts, then committing only them:
+
+
+Transcripts in (`98c3e755`), only mine, the 381 others untouched. Now verifying
+raylib actually links and a window can open here before I build the Platform
+seam on it:
+
+
+raylib is fully live here — **it links** (`libraylib.a`), and the probe
+**opened a window, drew a frame, and closed cleanly** (exit 0). So there's a
+real GL/display; I can actually run and see the loop, not just compile it. That
+removes the risk from this whole step.
+
+
+Now building issue 102's runnable loop. The Platform seam first (the four-verb
+raylib backend the render thread drives):
+
+
+You've hit your monthly spend limit · raise it at claude.ai/settings/usage
+
+
+--------------------------------------------------------------------------------
+
+### User Request 15
+
+please continue
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 15
+
+Now the story `main()` — the narrative spine per `note-to-claude-ai`: read
+`input/` first, boot the machine, spin up the threads, run until quit, break
+down, write `goodbye` last:
+
+
+Now compile the whole engine — substrate + platform + story `main()` —
+against raylib, and run it with a frame budget so it auto-quits (opens a window,
+draws, writes `goodbye`):
+
+
+Clean build, but a `-Wformat-truncation` warning — and house rule is "warnings
+are errors." The key buffer is pointless anyway (I only compare a prefix), so
+I'll compare the parsed pointer directly:
+
+
+It runs. Clean build, and the full loop worked end-to-end: **hello → read
+`input/` → open a raylib window → render thread + mover box turning for 90
+frames → clean quit → `output/goodbye` written → exit 0.** That's issue
+102's runnable skeleton alive — the substrate turned into an actual window
+with the graph driving what's drawn.
+
+
+Now the house-rule completeness so this is a clean, launchable, committable
+milestone. The two `.info.md` companions:
+
+
+Now the reproducible build (Makefile) and the launchable entry (`run` script,
+`${DIR}` convention + RAM-tier symlinks per house rules):
+
+
+Making `run` executable and verifying the whole build system works — `make
+test` (all three substrate provers) and `make run` (the game, frame-budgeted):
+
+
+The binary built fine but won't execute — `/dev/shm` (where
+`tmp/shared-memory` points) is mounted **noexec**. That's actually what the
+house rule encodes: `/dev/shm` is for non-executable artifacts/logs;
+*executable* code belongs in the `/tmp` tier (which I confirmed is exec-capable
+— the earlier runs launched from there). So the binary must build into `tmp/`
+(the `/tmp` tier), not `tmp/shared-memory`. Fixing the Makefile and run script:
+
+
+The whole build system works: `make test` runs all three substrate provers
+green, and the `run` script builds + launches the game and writes `goodbye`. The
+runnable loop is real and reproducible.
+
+
+Now the sub-issue record (mirroring 102a), then I'll checkpoint-commit. Writing
+**102b** as the completed runnable-loop blueprint:
+
+
+Updating the phase-1 progress index and issue 102's status:
+
+
+The runnable loop is complete and recorded (102b). Now the checkpoint commit —
+staging only my runnable-loop files plus the transcripts (per your rule),
+scoped-verifying before committing:
+
+
+Exactly my 10 files — no `output/goodbye`, no `datapath`, no `101`. (The
+transcripts didn't re-stage because they're unchanged since `98c3e755` —
+already in history, so "every commit" is satisfied.) Committing via pathspec:
+
+
+Committed clean: **`c41f24ba`** — exactly my 10 runnable-loop files, the 381
+concurrent entries still staged and untouched. (`run` even carried its
+executable bit.)
+
+
+## Where phase 1 stands
+
+
+Three scoped commits landed this session, each only my files:
+
+- **`a8c43d4a`** — the dataflow substrate (102a)
+
+- **`98c3e755`** — session transcripts
+
+- **`c41f24ba`** — the runnable loop (102b)
+
+
+And the result is real: **`./run` opens a window and shows a rectangle the
+dataflow graph pushes across the room, then writes `goodbye` on close.** The
+pure-C SoraMech-style engine — wires, threads, a self-turning graph, a
+swappable window seam, a dedicated render thread, and the
+read-`input/`→run→write-`goodbye` lifecycle — is alive. The hardest
+foundational part of the whole project is behind us.
+
+
+You can see it yourself: `./run` (no frame budget = runs until you close the
+window).
+
+
+**Still uncommitted on purpose:**
+
+- `issue 101` edits + the `datapath` banner — my *architecture-decision* concern, a separate commit I'll make when that's finalized (or on your word).
+
+- `output/goodbye` — a runtime artifact my runs rewrote; not mine to commit. Worth gitignoring `output/` runtime files at some point.
+
+
+## Natural next steps (phase 1 continues)
+
+
+1. **`103` — the square-room world model** — the actual room the player
+stands in (tile grid + room table), replacing the empty backdrop.
+
+2. **`104` — the real first-person renderer** — raylib drawing the
+Doom-style view from the world + camera, replacing the placeholder rectangle.
+This is where "first-person" finally appears on screen.
+
+3. **`105`/`106` — movement, collision, platforming** — as boxes/systems on
+the loop.
+
+
+Then **Phase 2** brings the signature feature: the two mice driving the body —
+which our substrate (drain-and-sum, the pose box) was designed for from the
+start.
+
+
+This is a clean checkpoint. Want me to keep going into the world model (`103`),
+wire up something you'd rather see first, or pause here?
 
 
 --------------------------------------------------------------------------------
