@@ -57,7 +57,11 @@ the NCP AI all read without ever knowing a mouse existed.
 The stages map onto the issue files: [1]-[2] are issues 201a/201b, [3] is 202 (+
 203 calibration), [4] is 204, hand animation off [3]/[4] is 205, and the
 canonical aim state plus the source registry is the capstone, 206. The stretch
-source is 207.
+source is 207. The **control binding** that fills the movement + action intents
+from the two mice (the locomotion/fire scheme in
+[notes/vision-control-scheme](../notes/vision-control-scheme)) is issue 208 —
+208a locomotion/body, 208b fire/alt + the screen-center grip↔trigger swap. See the
+"control binding" section below.
 
 ---
 
@@ -140,6 +144,45 @@ source is 207.
 
 ---
 
+## The control binding — two mice to body & action intents (issue 208)
+
+Stages [1]-[5] answer *where the wand points* and whether a *spell* intent
+(fire/charge/release/alt) is raised. They do **not** answer how the two mice
+**move the body** — forward, turn, strafe, thrust, height — which Phase 1's loop
+defers to Phase 2 as "the intent translator" (see
+[datapath-engine-foundation.md](datapath-engine-foundation.md)'s IntentFrame). The
+**control binding** is that translator, specified by
+[notes/vision-control-scheme](../notes/vision-control-scheme) and built in issue
+208. It reads the two hands' buttons / wheels / reticle-position each tick and
+fills **two** output channels:
+
+- **Phase 1's movement IntentFrame** — forward, strafe, turn, jump/thrust/height —
+  so the movers (105/106) walk the body without knowing a mouse exists. The vision
+  frames the body as a **"helicopter jetpack"** wand-pilot rig: both right-mouse
+  buttons together surge forward; a right-click on one mouse turns that way; the
+  two scroll wheels are the two thrusters driving height inertia. Two feel
+  experiments the vision leaves open are carried as **selectable modes** (both
+  built + tested, one primary): turn-by-click vs turn-by-reticle-screen-position
+  (the vision's 0–24% ⇒ left, 76–100% ⇒ right bands), and mouse-strafe vs a held
+  "hover mode" that turns left/right mouse into strafes. (issue 208a)
+- **The [5] aim state's discrete intents** — fire, alt, and new action signals —
+  where the **trigger hand's** click fires and the **off hand's** click raises the
+  vision's alt (a flashlight, or a jetpack rocket "aimed at the current position of
+  your reticle"). Which hand is the trigger hand is not fixed: when the reticle
+  crosses the screen's centre the **grip↔trigger roles swap** (edge-triggered, with
+  a hysteresis band), so the trigger stays on the natural side of the sweep. This
+  transient trigger/grip swap is distinct from 202's persisted left/right
+  handedness swap. (issue 208b)
+
+Everything here is a **binding into an intent**, on the source side of the [5]
+wall — so the Phase 9 gamepad ([datapath-platform-packaging.md](datapath-platform-packaging.md))
+produces the same movement + action intents from sticks and buttons with no
+upstream change. The vision's middle-mouse **ally signals** ("look over here" /
+"control the air") presume a party and are reserved-but-deferred with the sequel's
+party system, like the BCI source in 207.
+
+---
+
 ## Where other phases plug in (the seams)
 
 - **Phase 1 — Engine Foundation** ([datapath-engine-foundation.md](datapath-engine-foundation.md)):
@@ -184,4 +227,6 @@ source is 207.
 - [roadmap.md](roadmap.md) — where Phase 2 sits in the dependency graph
   (needs Phase 1; feeds Phases 3, 5, 9).
 - Issue files implementing this datapath: 201a, 201b, 202, 203, 204, 205, 206,
-  and stretch 207 (in `issues/`).
+  the control binding 208 (208a/208b), and stretch 207 (in `issues/`).
+- [notes/vision-control-scheme](../notes/vision-control-scheme) — the sacrosanct
+  source of the locomotion/fire control map (issue 208).
