@@ -23,6 +23,7 @@ docs/
   vision-overview.md .................... structured distillation of the vision
   roadmap.md ............................ time-gated, dependency-driven phase plan
   table-of-contents.md .................. this file
+  soramech-notes.md .................... dataflow-substrate patterns (shared w/ SoraMech)
   datapath-engine-foundation.md ........ (planned) Phase 1 datapath
   datapath-dual-mouse-input.md ......... (planned) Phase 2 datapath
   datapath-spell-system.md ............. (planned) Phase 3 datapath
@@ -58,6 +59,11 @@ docs/
 - [roadmap.md](roadmap.md) — the nine phases as **time-gated** milestone buckets
   with an explicit dependency graph.
 - [table-of-contents.md](table-of-contents.md) — this index.
+- [soramech-notes.md](soramech-notes.md) — design patterns found while building the
+  engine on a SoraMech-style dataflow substrate (long-running circular maps,
+  two-tier value transport, drain-and-sum, build-then-publish ownership, the
+  bucketed sorted index). Canonical here; a copy is shared into the SoraMech
+  project so lessons learned downstream reach it upstream.
 
 ### Per-phase datapath docs *(planned — one per phase)*
 Each describes how data flows through that phase's feature. Created by the
