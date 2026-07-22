@@ -1,0 +1,26 @@
+the aiming reticle could be swapped from left hand on grip right hand on trigger
+to left hand on trigger right hand on grip when the reticle passes over the
+screen's center.
+
+then, I'm thinking... helicopter jetpacks
+
+right click uses the corresponding half of your lower body, left click does
+the same. so if the left hand is on the trigger, then clicking with the left
+mouse will fire the weapon. the right trigger would do something else (right-
+-mouse click) like flashlight or something like rocket launcher launched from
+the jetpack and aimed at the current position of your reticle.
+
+similarly, if the user uses the right-click on the left or right mouse, the
+character would turn left or right correspondingly.
+
+if the user clicked BOTH right mouth buttons at the same time, the character
+would move forward. scroll wheels control height inertia, left and right
+thruster implied. middle mouse click does some other command, like make a
+signal to your allies "look over here" or "go over there" or "control the air"
+
+or, bear with me, instead of flashlight the off-hand could enable "hover mode"
+while held which meant that left and right mouse would be strafe-es.
+
+alternatively, instead of turning with the mouse clicks, we could just turn
+according to the aiming of the mouse. between 0% and 24% of the screen would
+turn the camera left, 76% of the screen and 100% of the screen would turn right.

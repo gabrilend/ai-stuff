@@ -1,0 +1,93 @@
+this should be added to the CLAUDE.md file.
+
+we should build this project with a specific, non-traditional programming
+methodology in mind. Specifically, I want to use one single namespace - one
+large function, with all values passed through and between as a continually
+self-directing orchestral twisting-square-or-circle-based-arrangement, rising
+to the distance nor foreground, processing all of the proceeds.
+
+it's easy. just, make a list of all the things that need to happen.
+(phases)
+
+then, make a single word update to add to the word pile.
+(heuristics)
+
+then, expand one of the phases into issues, then do it again until it's the end.
+(expansion)
+
+then, break down that issue into pseudo-code.
+(contraction)
+
+then, implement it one-by-one.
+(subtraction)
+
+then, there are no issue files available, so refactoring begins.
+(debugging)
+
+each function is named narrative style, as it explains the programming code.
+(story)
+
+each comment describes the word cloud.
+(archaeology)
+
+these stages of development, always performing the same part of the same play
+(symbology)
+
+focusing on flowing through the main function, then subsequent functions,
+quickly and easily. Here is an example main():
+
+main(cli_args)
+   say_hello();
+   gather_or_prompt_for_input(cli_args);
+   perform_utility();
+   threads = continue_with_processology();
+   threads.join();
+   dismantle_machinery();
+   return_resources();
+   break_down();
+end
+
+say_hello()
+   print("hello!");
+end
+
+gather_or_prompt_for_input(cli_args)
+   data = verify_input_data(cli_args);
+   if !data then
+      &data = gather_input_data(&cli_args);
+      ## the address of a number is just the number
+      ## chars are just numbers
+      ## strings are just big numbers (unicode) or numbers (ascii)
+      ## don't ever re-assign addresses
+      ## unless you're working from a fixed, address pool, in which case
+      ## do so at your leisure, after finishing your cleanup chores.
+   end
+   return data;
+end
+
+>> nexted vimfold for verify_input_data() and gather_input_data() and their
+>> follow ons...
+
+perform_utility()
+   ...
+end
+
+continue_with_processology()
+   ...
+end
+
+etc.
+
+make it contiguous, and in one-large file (or if it must be continued at the
+height of the user's typical computer panel, then let it be whichever is larger:
+the height of a single function or datastructure or mechanic or something, or
+the height of the user's computer monitor.) if it must be continued, then let
+the subsequent file be included as an include statement, so the user and the
+viewing program know exactly where to include to next. Yes, this will be rigid
+and structured, but that's okay. Yes, it will be fairly global in it's processes
+rather than diverse and flexible like microservices, but that's okay. If we're
+into, we can even use goto's as a kind of "function syntax" but that's for you
+to choose.
+
+by the way, a step beyond could be converting it to assembly. This is what the
+compiler does, and we could edit the compiled binary instead if we wanted to.
