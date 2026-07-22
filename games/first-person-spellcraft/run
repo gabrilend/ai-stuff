@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# run — launch First Person Spellcraft.
+#
+# For the general: makes sure the RAM-backed scratch folders exist, builds the
+# engine if anything changed, and starts the game. Works from any directory —
+# the project location is hard-coded below and overridable as the first argument.
+
+set -euo pipefail
+
+# Hard-coded project directory, overridable as $1. All paths are relative to it.
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/games/first-person-spellcraft}"
+PROJECT="first-person-spellcraft"
+
+# Ensure the RAM tiers + the tmp/shared-memory symlink are present before any
+# build or log is written (the run script's job, per house convention).
+mkdir -p "/tmp/${PROJECT}" "/dev/shm/${PROJECT}"
+[ -e "${DIR}/tmp" ]               || ln -s "/tmp/${PROJECT}"      "${DIR}/tmp"
+[ -e "${DIR}/tmp/shared-memory" ] || ln -s "/dev/shm/${PROJECT}" "${DIR}/tmp/shared-memory"
+
+# Build (the Makefile compiles into the exec-capable tmp/ tier), then launch.
+make -C "${DIR}" all
+
+# FPS_FRAMES in the environment auto-quits after N frames; unset = until close.
+exec "${DIR}/tmp/fps" "${DIR}"

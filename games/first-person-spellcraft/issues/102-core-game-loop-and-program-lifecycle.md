@@ -25,11 +25,16 @@ far, all headless:
   differentials → drain-and-sum → checked against an independent authoritative
   sum; 40/40 under stress).
 
-Still missing: the read-`input/`-first / write-`goodbye`-last lifecycle bookends,
-the raylib window + dedicated always-unblocked render thread, and the
-story-structured `main()` that wires and runs the real graph. The seed files
-`input/startup` and `output/goodbye` describe the contract, but no program
-honours it yet. No window runs.
+The runnable loop is now delivered (sub-issue `102b`): `src/000-main.c` reads
+`input/startup` first and writes `output/goodbye` last; a four-verb Platform seam
+(`libs/platform`, raylib) opens a window; a dedicated always-unblocked render
+thread draws the latest renderable from a slot; and the story `main()` wires it
+all — a `mover` source box stands in for the frame-clock heartbeat. `./run` (or
+`make run`) launches it; `make test` runs the substrate provers.
+
+Residual, deferred to later issues: the raw-input→intent seam (Phase 2 mice), and
+replacing the mover box's `nanosleep` pacing with the real timer box (SoraMech
+issue 251) once it exists.
 
 ## Intended Behavior
 
