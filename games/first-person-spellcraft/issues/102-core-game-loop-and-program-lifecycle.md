@@ -13,10 +13,23 @@ issues replace the stubs with real systems without touching the loop.
 
 ## Current Behavior
 
-Nothing exists. There is no entry point, no clock, no update/render rhythm, and
-no wiring of the project's read-`input/`-first / write-`goodbye`-last lifecycle.
-The seed files `input/startup` and `output/goodbye` exist and describe the
-contract, but no program honours it yet.
+Reframed for the dataflow substrate (see issue `101`): the "core loop" is now the
+worker pool + shared-memory slots + a **trigger-on-ready dispatch** driven by a
+re-arming **frame-clock box** — not a hand-rolled `while`. Built and tested so
+far, all headless:
+
+- the slot store (`libs/engine-core/slot.{c,h}`) — the wires;
+- the worker pool (`libs/task-pool/pool.{c,h}`) — the threads boxes run on;
+- the trigger-on-ready dispatch (`libs/engine-core/graph.{c,h}`) — the graph
+  turning, proven by a self-checking mouse round-trip (heartbeat → random
+  differentials → drain-and-sum → checked against an independent authoritative
+  sum; 40/40 under stress).
+
+Still missing: the read-`input/`-first / write-`goodbye`-last lifecycle bookends,
+the raylib window + dedicated always-unblocked render thread, and the
+story-structured `main()` that wires and runs the real graph. The seed files
+`input/startup` and `output/goodbye` describe the contract, but no program
+honours it yet. No window runs.
 
 ## Intended Behavior
 
@@ -42,8 +55,8 @@ A single, legible main loop that owns the program's whole life:
 - **Quit path.** A quit intent (or Platform close) drops out of the loop cleanly.
 - **Last act — write `output/goodbye`.** On exit, write the goodbye file. This is
   the final thing the program does, every run, success or clean quit.
-- **Ephemeral logs** are written under the project-local `tmp/` symlink (a
-  RAM-backed `/tmp/` directory); the run script ensures that symlink exists
+- **Ephemeral logs** are written under the project-local `tmp/shared-memory/`
+  tier (a RAM-backed `/dev/shm/` directory); the run script ensures the symlinks exist
   before the loop starts.
 - A **run script** launches the game: hard-coded `${DIR}` at the top, overridable
   by argument, all paths relative to `${DIR}`, so it works launched from anywhere
