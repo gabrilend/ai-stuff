@@ -16,8 +16,9 @@
 | Issue | What | State |
 |---|---|---|
 | `101` | Engine architecture & framework decision | decision recorded (pure C + raylib + dataflow); proving program pending |
-| `102` | Core loop & program lifecycle | **in progress** — substrate done (`102a`); lifecycle/window/`main()` remain |
+| `102` | Core loop & program lifecycle | runnable loop delivered via `102a`+`102b`; residual is the Phase-2 input seam |
 | `102a` | **Dataflow substrate — slots, pool, dispatch** | ✅ **complete** |
+| `102b` | **Runnable loop — lifecycle, raylib window, render thread, story main()** | ✅ **complete** |
 | `103` | Square-room world data model | open |
 | `104a` / `104b` | Renderer (raylib data-driven scene; supersedes the old software rasterizer) | open (to be revised per `101`) |
 | `105` | Player movement & wall collision | open |
@@ -41,9 +42,25 @@ window exists:
   self-checking mouse round-trip (20,000 differentials conserved exactly vs. an
   independent authoritative sum; 40/40 under stress).
 
-This unblocks the rest of `102` (the lifecycle bookends, the raylib window +
-dedicated render thread, the story `main()`), after which the phase can move on
-to the world model (`103`), the renderer (`104`), and movement (`105`/`106`).
+This unblocked the rest of `102`, delivered in `102b`.
+
+### `102b` — Runnable loop (lifecycle, raylib window, render thread, story main())
+
+The substrate made into a program you launch:
+
+- **Lifecycle** — reads `input/startup` first, writes `output/goodbye` last.
+- **Platform seam** (`libs/platform`) — the four-verb raylib window abstraction,
+  swappable for SDL/framebuffer later.
+- **Render thread** — dedicated, always-unblocked, owns GL, draws the latest
+  renderable from a slot.
+- **Story `main()`** — hello → input → boot → threads → run → break down →
+  goodbye; a `mover` box stands in for the frame-clock heartbeat.
+- **Build/launch** — `Makefile` + `${DIR}` `run` script; `make test` runs all
+  three substrate provers, `./run` opens the window.
+
+`./run` now shows a rectangle the graph nudges across a room and quits cleanly.
+With the loop live, the phase moves on to the world model (`103`), the renderer
+(`104`), and movement (`105`/`106`) — each a box or system plugged into this loop.
 
 ## What phase 1 proves when it's done
 
