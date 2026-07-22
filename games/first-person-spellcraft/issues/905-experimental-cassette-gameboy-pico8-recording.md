@@ -10,9 +10,33 @@
 
 ## Current Behavior
 
-None of this exists yet. There is no audio encoding of the game, no cassette
-format, no gameboy-control-interface link, and no pico-8-style player. This delivery
-path lives, for now, entirely in the vision as a wish.
+**In progress — the software round-trip is built and proven; the hardware link
+remains a research question.** Under `src/experimental-cassette/` there is now a
+Kansas-City-Standard-flavoured FSK pipeline: an **encoding descriptor** (`000`,
+data-at-rest scheme + validator), a **tone encoder** (`001`, bytes → audio
+samples), a **tone decoder** (`002`, samples → bytes, the exact inverse), a
+**viewer/exporter** (`003`, an ASCII symbol strip plus a real 16-bit-PCM-mono WAV
+writer), a **WAV reader** (`005`, a WAV file on disk back into samples), and a
+**round-trip prover + demo** (`004`) driven by `run-cassette-experiment.sh` (the
+`${DIR}` convention, runs from any directory, reads `input/` first, writes
+artifacts to the RAM tier). Tests pass for **every byte value 0–255**, the full
+loop runs through a real WAV file on disk (`bytes → tones → .wav → tones → bytes`),
+and malformed descriptors, flipped stop bits, and truncated streams are caught as
+loud errors (no silent fallback). Running the launcher emits a listenable
+`cassette-demo.wav` (verified as valid RIFF/WAVE PCM), reads it back to confirm it
+decodes to the same bytes, and writes a report.
+
+Still only a wish (deferred, so this issue stays open): the **cassette →
+gameboy-control-interface → load** hardware link — the Game Boy has no analog audio
+input, so an external demodulator is required and *that box*, not the Game Boy,
+reads the tones (see `src/experimental-cassette/FINDINGS.md`); any **noise / jitter
+/ error-correction** model (the zero-crossing decoder is exact only for clean
+synthesised tones, and there is no checksum yet — the WAV reader `005` likewise
+trusts the clean files this branch writes); and the actual **pico-8-sized game
+slice** to encode (this branch
+forks off Phases 1–8, which do not exist yet, so the pipe was proven with
+placeholder text). At 300 baud a 32 KB slice is ~18 minutes of tape — the honest
+cost that keeps the payload a tiny slice, not the whole game.
 
 ## Intended Behavior
 
@@ -83,3 +107,8 @@ about this path is preserved here as part of the record.
 - [notes/vision](../notes/vision) — the source of this whimsy (lines ~126–128);
   sacrosanct.
 - Issue **903** — the built game/data this branch forks off from.
+- `src/experimental-cassette/` — the built software round-trip (descriptor 000,
+  encoder 001, decoder 002, viewer/exporter 003, prover+demo 004, WAV reader 005,
+  the run script) and each module's `.info.md`.
+- `src/experimental-cassette/FINDINGS.md` — the candid feasibility record: what is
+  proven, the Game-Boy-has-no-audio-input problem, and the open next questions.
