@@ -3,7 +3,8 @@
 > **Phase:** 1 (Engine Foundation) · **Depends on:** `101` (language/framework
 > choice only; this is mostly pure data) · **Blocks:** `104` (renderer walks it),
 > `105`/`106` (collision tests against it), and the Phase 4 & Phase 6 seams ·
-> **Difficulty:** medium · **Kind:** foundational data structure.
+> **Difficulty:** medium · **Kind:** foundational data structure · **Status:**
+> COMPLETE.
 
 The map. This issue defines *what a world is* — a lattice of square rooms, each
 with something special about it, connected by doors — held as **two views of one
@@ -12,9 +13,18 @@ room-level handles.
 
 ## Current Behavior
 
-Nothing exists. There is no map format, no notion of a room, a wall, a door, or a
-"special property." The vision fixes the shape ("square rooms that each have
-something special about them") but nothing represents it yet.
+Built and tested (`src/001-world.{c,h}`). A **World** holds both lenses over one
+map: a tile grid (`cell_t`: solid, wall id, floor/ceiling height, room id) the
+renderer and collision walk, and a room table + door graph gameplay reasons
+about. The room-behaviour dispatch table (enter/step/exit) is registered with the
+trivial `plain`/`spawn` entries — the seam Phase 4/6 fill in. A world builder
+hand-lays a two-room test map with a dividing wall, one passable door, and a
+step-up between the rooms; a validator checks coherence and reports counts
+(`src/001-world-test.c` passes — grid 20×12, 69 walls / 171 floor, 2 rooms, 1
+door). The engine renders it **top-down** (a debug view, not the first-person
+renderer `104`), with the mover "player" wandering the rooms and bouncing off
+walls (the first taste of `105`'s per-axis collision). Capture the view headless
+with `FPS_SHOT=<abs.png> FPS_FRAMES=60 ./run`.
 
 ## Intended Behavior
 

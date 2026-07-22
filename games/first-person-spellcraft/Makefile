@@ -26,7 +26,8 @@ ENGINE := $(ROOT)/libs/engine-core/slot.c \
           $(ROOT)/libs/task-pool/pool.c \
           $(ROOT)/libs/engine-core/graph.c \
           $(ROOT)/libs/platform/platform.c
-MAIN   := $(ROOT)/src/000-main.c
+GAME   := $(ROOT)/src/001-world.c \
+          $(ROOT)/src/000-main.c
 BIN    := $(BUILD)/fps
 
 .PHONY: all dirs run test clean
@@ -40,8 +41,8 @@ dirs:
 	@[ -e $(ROOT)/tmp ] || ln -s $(EXEC_TMP) $(ROOT)/tmp
 	@[ -e $(ROOT)/tmp/shared-memory ] || ln -s $(SHM) $(ROOT)/tmp/shared-memory
 
-$(BIN): $(ENGINE) $(MAIN) | dirs
-	$(CC) $(CFLAGS) $(ENGINE) $(MAIN) -o $(BIN) $(LDFLAGS) $(LIBS)
+$(BIN): $(ENGINE) $(GAME) | dirs
+	$(CC) $(CFLAGS) $(ENGINE) $(GAME) -o $(BIN) $(LDFLAGS) $(LIBS)
 
 # Build + run the game. FPS_FRAMES (if set in the environment) auto-quits after
 # N frames; unset means run until the window is closed.
@@ -53,6 +54,7 @@ test: dirs
 	@echo "== slot =="  && $(CC) $(CFLAGS) $(ROOT)/libs/engine-core/slot.c  $(ROOT)/libs/engine-core/slot-test.c  -o $(BUILD)/slot-test  && $(BUILD)/slot-test
 	@echo "== pool =="  && $(CC) $(CFLAGS) $(ROOT)/libs/task-pool/pool.c    $(ROOT)/libs/task-pool/pool-test.c    -o $(BUILD)/pool-test  && $(BUILD)/pool-test
 	@echo "== graph ==" && $(CC) $(CFLAGS) $(ROOT)/libs/engine-core/slot.c $(ROOT)/libs/task-pool/pool.c $(ROOT)/libs/engine-core/graph.c $(ROOT)/libs/engine-core/graph-test.c -o $(BUILD)/graph-test && $(BUILD)/graph-test
+	@echo "== world ==" && $(CC) $(CFLAGS) $(ROOT)/src/001-world.c $(ROOT)/src/001-world-test.c -o $(BUILD)/world-test && $(BUILD)/world-test
 
 clean:
-	rm -f $(BUILD)/fps $(BUILD)/slot-test $(BUILD)/pool-test $(BUILD)/graph-test
+	rm -f $(BUILD)/fps $(BUILD)/slot-test $(BUILD)/pool-test $(BUILD)/graph-test $(BUILD)/world-test
