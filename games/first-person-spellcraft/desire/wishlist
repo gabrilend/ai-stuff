@@ -3,3 +3,7 @@
 - I wish the two hands felt like *my* two hands: that waving the wand with two
   mice were as natural and thoughtless as gesturing while you talk, so that the
   boomstick disappears and only the spell remains.
+- I wish the heartbeat were a true clock and not a borrowed sleep: that the frame
+  tick came from a real timer box on a wire (SoraMech's issue 251), so the
+  engine's pulse were part of the graph itself and not a `nanosleep` holding its
+  breath. Until then the room breathes on loan.

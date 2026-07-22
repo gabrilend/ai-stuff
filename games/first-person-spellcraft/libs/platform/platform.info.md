@@ -19,6 +19,9 @@ the single render thread that called `platform_open` — never a pool worker.
 - `void platform_draw_rect(x, y, w, h, r, g, b)` — one filled rectangle, screen
   pixels.
 - `void platform_end_frame(void)` — present the frame (vsync-paced).
+- `void platform_screenshot(const char *path)` — save the current frame to a PNG
+  (for debug/demos). Note: raylib strips to the basename and writes relative to
+  the working directory, so the file lands in CWD under that name.
 - `void platform_close(void)` — close the surface, release the GL context.
 
 ## Not here yet
