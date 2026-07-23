@@ -11,6 +11,14 @@
 # anything else transient, and there is no chance of accidentally
 # committing a binary.
 #
+# NOTE: under the two-tier RAM convention, tmp/ is the EXEC tier (-> /tmp),
+# and a project's non-executable data goes in a nested tmp/shared-memory/ tier
+# (-> /dev/shm). 3d-rts writes ONLY executables to tmp/ — the compiled binary is
+# executed straight out of it (run: exec "$(DIR)/tmp/3d-rts") — so it has no
+# shared-memory tier; everything stays in tmp/. Do NOT move the binary to
+# /dev/shm: that mount is commonly noexec, so running from there fails with
+# permission-denied. /tmp allows execution; /dev/shm reliably does not.
+#
 # DIR is the project root. Override on the command line or in the
 # environment if the project has been moved (e.g. `make DIR=/elsewhere`).
 # Every path inside this Makefile is derived from $(DIR) so the build

@@ -363,7 +363,7 @@ install_cuda_runfile() {
     rm -rf "$LOCAL_CUDA"
     mkdir -p "$LOCAL_CUDA"
 
-    local log_file="${DIR}/tmp/cuda-installer-output.log"
+    local log_file="${DIR}/tmp/shared-memory/cuda-installer-output.log"
 
     echo -e "${C_BLUE}== Installing CUDA $CUDA_VERSION toolkit into libs/cuda (no sudo) ==${C_RESET}"
     echo -e "  prefix:  $LOCAL_CUDA"
@@ -749,7 +749,7 @@ smoke_test() {
     local server_bin="${LLAMACPP_INSTALL_DIR}/bin/llama-server"
     local model_path="${DIR}/assets/models/${MODEL_FILE}"
     local port=18080  # Non-default to avoid collision with any running server
-    local log="${DIR}/tmp/llamacpp-smoketest.log"
+    local log="${DIR}/tmp/shared-memory/llamacpp-smoketest.log"
 
     # The server binary needs CUDA runtime libs at load time. The install
     # also bakes $ORIGIN/../lib into the binary RPATH so llama.cpp's own

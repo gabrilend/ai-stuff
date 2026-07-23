@@ -8,11 +8,11 @@ local htmlgen = require("html_gen")
 print("HTML Generator Library Test")
 print("============================")
 
--- Issue 8-059: route this test's output through the project's tmpfs-backed
--- tmp/ symlink. DIR resolves from arg[1] or the hard-coded project path.
+-- Issue 8-059: route this test's output through the project's RAM-backed
+-- tmp/shared-memory/ tier. DIR resolves from arg[1] or the hard-coded project path.
 local DIR = (arg and arg[1]) or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
-local TEST_DIR = DIR .. "/tmp/htmlgen-test"
+local TEST_DIR = DIR .. "/tmp/shared-memory/htmlgen-test"
 
 -- Create test directory
 os.execute("mkdir -p " .. TEST_DIR)

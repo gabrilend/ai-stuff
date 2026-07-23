@@ -1,5 +1,5 @@
 #AUTO 95
-#NEEDED 1
+#NEEDED 0
 # eMMC EXT_CSD dump — step 1 of the fast-storage path (issue 110j).
 #
 # Before switching the eMMC into HS200 (200 MHz, 8-bit), confirm the card

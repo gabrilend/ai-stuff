@@ -1,0 +1,6 @@
+- the project is Symbeline Rumble. Warcraft Rumble clone for the Anbernic DS.
+- one source tree, two targets (nds, native), divergences in patches/, charted in docs/005-divergence-grid.md.
+- fixed-point in gameplay. no floats. ever.
+- the trunk is DS-shaped. the native build adapts down, not the other way.
+- the canonical vision lives at notes/vision. read it before assuming.
+- the user is gabrilend. they care about software design, not product.

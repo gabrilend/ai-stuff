@@ -1,0 +1,40 @@
+#WRITES
+#AUTO 52
+#NEEDED 0
+# backlight-duty — read the live state of both backlight PWM channels.
+#
+# display-recon (prio 51) reports whether the VOP2 is scanning pixels; this
+# reads the other half of "is the screen lit": the backlight. The two
+# pwm-backlights are PWM3 (0xFE700000) channel 0 for screen 0 and the next
+# channel (0xFE700010) for screen 1, both 40 kHz (per the device tree). Reading
+# a PWM register while its pclk is gated hangs the bus, so SAVE the PWM3 clock
+# gate, ungate it, read, and RESTORE to as-found (issue 110o).
+#
+# Per-channel register block (each channel is 0x10 apart), from the PWM1
+# bring-up in 003-pwm.c / pwm-bringup.probe (RK3568 TRM Part1 Ch15):
+#   +0x00 CNT (RO)   +0x04 PERIOD_HPR   +0x08 DUTY_LPR   +0x0C CTRL (bit0 pwm_en)
+# Brightness = DUTY / PERIOD. CTRL bit0 set = the channel is driving; if a
+# channel reads pwm_en=0 (or CTRL 0x0), that backlight is not being driven.
+#
+# Clock gate: CRU_CLKGATE_CON32 @ 0xFDD20380 — bit0 pclk_pwm3, bit1 clk_pwm3
+# (0 = on). Masked ungate of bits 0,1 = 0x00030000 (TRM Part1 CRU, confirmed).
+
+SAVE 0xFDD20380
+LOG ungate PWM3 pclk+clk (CLKGATE_CON32 bits 0,1 -> 0) so its registers read
+W 0xFDD20380 0x00030000
+DELAY 10000
+
+LOG screen0 backlight (pwm@0xFE700000): PERIOD, DUTY, CTRL (bit0 = enabled)
+R 0xFE700004
+R 0xFE700008
+R 0xFE70000C
+LOG screen1 backlight (pwm@0xFE700010): PERIOD, DUTY, CTRL (bit0 = enabled)
+R 0xFE700014
+R 0xFE700018
+R 0xFE70001C
+
+LOG restore PWM3 clock gate to as-found
+RESTORE 0xFDD20380 0x0003
+
+LOG backlight-duty complete: DUTY/PERIOD is the brightness fraction; CTRL bit0
+LOG   clear or CTRL=0x0 means that screen's backlight PWM is not running

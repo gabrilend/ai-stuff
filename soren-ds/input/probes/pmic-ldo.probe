@@ -1,5 +1,5 @@
 #AUTO 36
-#NEEDED 1
+#NEEDED 0
 # RK817 LDO voltage read + set-path test (issue 114, layer 3).
 #
 # This is the "active LDO programming" capability: setting a power rail

@@ -37,6 +37,24 @@ void   platform_draw_rect(float x, float y, float w, float h,
                           uint8_t r, uint8_t g, uint8_t b);
 void   platform_end_frame(void);
 
+/* 3D bracket, used inside a frame: begin sets a first-person camera (eye at
+ * (px,py,pz) looking at (tx,ty,tz), vertical field of view `fovy` degrees, world
+ * "up" is +Y); tri/line draw filled triangles and colored edges in world space,
+ * with the GPU depth buffer resolving occlusion; end closes 3D mode. Coordinate
+ * convention: the caller maps its world (x, y horizontal; z up) into raylib
+ * space (x, z-height, y) — see src/002-render.c. Raw raylib never leaks past
+ * this seam. */
+void   platform_begin_3d(float px, float py, float pz,
+                         float tx, float ty, float tz, float fovy);
+void   platform_draw_tri3d(float ax, float ay, float az,
+                           float bx, float by, float bz,
+                           float cx, float cy, float cz,
+                           uint8_t r, uint8_t g, uint8_t b);
+void   platform_draw_line3d(float ax, float ay, float az,
+                            float bx, float by, float bz,
+                            uint8_t r, uint8_t g, uint8_t b);
+void   platform_end_3d(void);
+
 /* Save the current frame to a PNG at `path`. For debugging/demos — capture what
  * the render thread drew without a human at the window. */
 void   platform_screenshot(const char *path);

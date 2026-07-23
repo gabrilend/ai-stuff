@@ -21,6 +21,7 @@
 #include "../libs/task-pool/pool.h"
 #include "../libs/platform/platform.h"
 #include "001-world.h"
+#include "002-render.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,21 +29,22 @@
 #include <stdatomic.h>
 #include <pthread.h>
 #include <time.h>
+#include <math.h>
 
 /* {{{ shared shapes + the one global quit flag */
-/* A renderable is, for now, the player's position in WORLD tile coordinates.
- * Later this grows into the culled renderables list the render thread sweeps. */
-typedef struct { float x, y; } renderable_t;
+/* A renderable is the player's eye state: world position (x,y), eye height (z),
+ * and horizontal facing (fx,fy). The render thread flies the first-person camera
+ * by it. Later this grows into the culled renderables the thread sweeps. */
+typedef struct { float x, y, z, fx, fy; } renderable_t;
 
 /* The single quit signal. The render thread raises it when the window closes (or
  * the frame budget runs out); main and the mover box both watch it to wind down.
  * Atomic because it crosses threads. */
 static _Atomic int g_quit;
 
-#define CELL_PX   32                /* pixels per world tile in the top-down view */
-#define WIN_W     (20 * CELL_PX)    /* matches the test world's 20-wide grid */
-#define WIN_H     (12 * CELL_PX)    /* ... and 12 tall */
-#define PLAYER_PX 18.0f
+#define WIN_W      800
+#define WIN_H      500
+#define EYE_HEIGHT 0.55f   /* eye height above the floor, tile units */
 
 typedef struct { const char *dir; long frames; } run_config_t;
 /* }}} */
@@ -134,10 +136,19 @@ static int mover_box(box_t *b)
     if (world_is_solid(m->world, (int)nx, (int)m->y)) m->vx = -m->vx; else m->x = nx;
     if (world_is_solid(m->world, (int)m->x, (int)ny)) m->vy = -m->vy; else m->y = ny;
 
-    renderable_t r = { m->x, m->y };
+    /* Eye state to publish: height is the current cell's floor plus eye height;
+     * facing is the (normalised) direction of travel, so the camera looks where
+     * the player is going. */
+    const cell_t *here = world_cell(m->world, (int)m->x, (int)m->y);
+    float floor_h = here ? here->floor_h : 0.0f;
+    float sp = sqrtf(m->vx * m->vx + m->vy * m->vy);
+    float fx = (sp > 0.0001f) ? m->vx / sp : 1.0f;
+    float fy = (sp > 0.0001f) ? m->vy / sp : 0.0f;
+
+    renderable_t r = { m->x, m->y, floor_h + EYE_HEIGHT, fx, fy };
     /* Latest-position semantics: if the tiny renderables ring is momentarily
      * full (render stalled), just drop this update — the next tick carries a
-     * fresher position anyway. */
+     * fresher one anyway. */
     (void)slot_push(m->slots, m->out, &r);
     return 1;   /* re-arm */
 }
@@ -145,35 +156,13 @@ static int mover_box(box_t *b)
 
 /* {{{ render_thread — the dedicated, always-unblocked drawer */
 /* Owns the raylib window/GL context. Loops as fast as vsync allows: drain the
- * renderables slot to the latest player position, draw the world top-down plus
- * the player, present. Never blocks on the pool — if no new position arrived, it
- * redraws the current one. Raises g_quit on window close or frame budget.
- *
- * This top-down view is a DEBUG visualisation of the world (issue 103), not the
- * real first-person renderer (issue 104) — it just lets us see the rooms, the
- * walls, the step-up, and the player moving among them. */
+ * renderables slot to the latest player eye state, draw the world first-person
+ * from that camera, present. Never blocks on the pool — if no new state arrived,
+ * it redraws from the current one. Raises g_quit on window close or frame budget.
+ * The scene (per-room 3D meshes) is built once and read-only here. */
 typedef struct {
-    slot_store_t *slots; slot_id_t rend; const world_t *world; long frames;
+    slot_store_t *slots; slot_id_t rend; const scene_t *scene; long frames;
 } render_ctx_t;
-
-/* {{{ draw_world_topdown() */
-static void draw_world_topdown(const world_t *w)
-{
-    for (int y = 0; y < w->height; y++)
-        for (int x = 0; x < w->width; x++) {
-            const cell_t *c = world_cell(w, x, y);
-            float px = (float)x * CELL_PX, py = (float)y * CELL_PX;
-            if (c->solid) {
-                platform_draw_rect(px, py, CELL_PX, CELL_PX, 70, 70, 84); /* wall */
-            } else {
-                /* Floor tinted by room so the two rooms and the step-up read at a
-                 * glance — the higher room (id 1) draws a touch brighter. */
-                uint8_t g = (c->room_id == 1) ? 66 : 42;
-                platform_draw_rect(px, py, CELL_PX, CELL_PX, 26, g, 34);
-            }
-        }
-}
-/* }}} */
 
 static void *render_thread(void *arg)
 {
@@ -184,23 +173,27 @@ static void *render_thread(void *arg)
         return NULL;
     }
 
-    renderable_t cur = { rc->world->width / 2.0f, rc->world->height / 2.0f };
+    /* A placeholder eye until the player's first state arrives. */
+    renderable_t cur = { 3.0f, 3.0f, EYE_HEIGHT, 1.0f, 0.0f };
     long n = 0;
     while (!atomic_load(&g_quit)) {
         renderable_t r;
         while (slot_pop(rc->slots, rc->rend, &r)) cur = r;   /* drain to latest */
 
         platform_begin_frame();
-        draw_world_topdown(rc->world);
-        platform_draw_rect(cur.x * CELL_PX - PLAYER_PX / 2,
-                           cur.y * CELL_PX - PLAYER_PX / 2,
-                           PLAYER_PX, PLAYER_PX, 230, 200, 90);   /* the player */
+        scene_render(rc->scene, cur.x, cur.y, cur.z, cur.fx, cur.fy);
         platform_end_frame();
 
         n++;
-        /* Optional one-shot screenshot (FPS_SHOT=<abs path>) once the player has
-         * moved a little, so demos can capture the view without a human present. */
-        if (n == 40) { const char *shot = getenv("FPS_SHOT"); if (shot) platform_screenshot(shot); }
+        /* Optional one-shot screenshot: FPS_SHOT=<path> captures at frame
+         * FPS_SHOT_FRAME (default 40), so demos can grab a chosen moment of the
+         * fly-through without a human at the window. */
+        {
+            const char *sf = getenv("FPS_SHOT_FRAME");
+            long at = sf ? strtol(sf, NULL, 10) : 40;
+            const char *shot = getenv("FPS_SHOT");
+            if (shot && n == at) platform_screenshot(shot);
+        }
         if (platform_should_close() || (rc->frames > 0 && n >= rc->frames))
             atomic_store(&g_quit, 1);
     }
@@ -225,10 +218,12 @@ int main(int argc, char **argv)
     slot_id_t rend_slot = slot_alloc(slots, SLOT_QUEUE, sizeof(renderable_t), 8);
     world_t *world = world_build_test();
     if (!world) { fprintf(stderr, "FATAL: could not build the world.\n"); return 1; }
+    scene_t *scene = scene_build(world);
+    if (!scene) { fprintf(stderr, "FATAL: could not build the scene geometry.\n"); return 1; }
 
     /* Spin up the one thread that is NOT a box: the render thread (GL affinity).
-     * It reads the world (built once, read-only) and the latest player position. */
-    render_ctx_t rctx = { slots, rend_slot, world, cfg.frames };
+     * It reads the scene (built once, read-only) and the latest player eye state. */
+    render_ctx_t rctx = { slots, rend_slot, scene, cfg.frames };
     pthread_t rthread;
     pthread_create(&rthread, NULL, render_thread, &rctx);
 
@@ -257,6 +252,7 @@ int main(int argc, char **argv)
      * g_quit, stops re-arming, so the pool drains and joins), free world + wires. */
     pthread_join(rthread, NULL);
     pool_destroy(pool);
+    scene_destroy(scene);
     world_destroy(world);
     slot_store_destroy(slots);
 

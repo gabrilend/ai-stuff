@@ -61,6 +61,7 @@ extern void run_bringup_test_suite(void);               /* 018-bringup-test-suit
 #ifdef SOREN_DEBUG
 extern void probe_seed_defaults(void);   /* 019-probe-engine.c (110n) */
 extern void run_probes(void);            /* 019-probe-engine.c (110n) */
+extern void display_bringup(void);       /* 024-display.c (111a-d) */
 #endif
 
 #define STAGE_KERNEL_MAIN     0
@@ -239,6 +240,19 @@ void kernel_main(void)
     probe_seed_defaults();
     run_probes();
     debug_log_flush();
+    /* Bring both screens up (111a-d): both panels scan a colour-bar test
+     * pattern. Placed AFTER the probe sweep + flush so the probe logs are
+     * safely on the SD card even if a display step stalls — the display
+     * drivers have bounded waits, but this ordering keeps the log honest. */
+    display_bringup();
+    debug_log_flush();
+    /* The interactive counterpart — run_chips() in 020-chips.c, the
+     * chip-script launcher (menus, human verdicts over the USB console) —
+     * is deliberately NOT called here (issues 115/116: "not enabled just
+     * yet"). Unlike the fire-and-log sweep above, it BLOCKS on the console
+     * for a keypress, so it belongs behind a trigger — a button chord, a
+     * console command — not in the boot path. This park is the seam where
+     * such a trigger would hand off to it. */
     led_set_stage(STAGE_BACKUP_COMPLETE);
     while (1) { delay_busy(1000000); }
 #endif

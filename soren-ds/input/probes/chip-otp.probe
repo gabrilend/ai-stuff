@@ -1,5 +1,5 @@
 #AUTO 42
-#NEEDED 1
+#NEEDED 0
 # OTP / eFuse controller recon (issue 110n) — gather once, then de-select.
 #
 # The non-secure OTP block (0xFE38C000) holds the chip ID / device serial. This

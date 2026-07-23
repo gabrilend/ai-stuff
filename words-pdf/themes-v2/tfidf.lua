@@ -21,9 +21,9 @@ if arg[1] and arg[1] ~= "" then DIR = arg[1] end
 
 package.path = package.path .. ";" .. DIR .. "/?.lua;" .. DIR .. "/libs/?.lua"
 
-local INPUT_TEXTS    = DIR .. "/tmp/poem-texts.lua"
-local INPUT_CLUSTERS = DIR .. "/tmp/clusters.lua"
-local OUTPUT_TFIDF   = DIR .. "/tmp/cluster-tfidf.lua"
+local INPUT_TEXTS    = DIR .. "/tmp/shared-memory/poem-texts.lua"
+local INPUT_CLUSTERS = DIR .. "/tmp/shared-memory/clusters.lua"
+local OUTPUT_TFIDF   = DIR .. "/tmp/shared-memory/cluster-tfidf.lua"
 
 local TOP_N = 20  -- words to keep per cluster
 

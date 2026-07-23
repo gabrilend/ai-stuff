@@ -164,7 +164,7 @@ print("")
 
 -- Test 13: write_to_file and verify content
 print("Test Group: File Operations")
-local temp_file = DIR .. "/tmp/hope-card-formatter-test.txt"
+local temp_file = DIR .. "/tmp/shared-memory/hope-card-formatter-test.txt"
 local test_write_poems = {
     {id = 1, content = "Test poem for file writing"},
     {id = 2, content = "Second test poem"}

@@ -9,6 +9,9 @@ DIR="${DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 MONOREPO_ROOT="$(dirname "$DIR")"
 DELTA_VERSION_DIR="${MONOREPO_ROOT}/delta-version"
 LIBS_DIR="${DIR}/libs"
+# Transcripts are recognised by their header line, not a filename suffix, so
+# date-range renaming leaves this batch tool finding them unchanged.
+source "${LIBS_DIR}/transcript-discovery.sh"
 # }}}
 
 # -- {{{ Configuration Variables
@@ -233,9 +236,9 @@ backup_project() {
     local backup_output
     backup_output=$("$backup_script" "$project_dir" 2>&1)
 
-    # Count baseline summary files created
+    # Count baseline transcript files created
     local baseline_files
-    baseline_files=$(find "$transcripts_dir" -name "*_summary.md" 2>/dev/null | wc -l)
+    baseline_files=$(transcript_list_files "$transcripts_dir" | wc -l)
 
     if [[ $baseline_files -eq 0 ]]; then
         warn "  No summary files created by backup-conversations"
@@ -263,12 +266,12 @@ backup_project() {
 
         # Export each conversation at each verbosity level
         local conv_num=0
-        for summary_file in "$transcripts_dir"/*_summary.md; do
-            [[ ! -f "$summary_file" ]] && continue
+        while IFS= read -r summary_file; do
+            [[ -f "$summary_file" ]] || continue
             ((conv_num++))
 
             local conv_id
-            conv_id=$(basename "$summary_file" _summary.md)
+            conv_id=$(transcript_conv_id "$summary_file")
 
             echo "    Processing $conv_num/$baseline_files: $conv_id"
 
@@ -295,7 +298,7 @@ backup_project() {
             done
 
             echo "      Generated ${#verbosity_levels[@]} verbosity variants"
-        done
+        done < <(transcript_list_files "$transcripts_dir")
 
         success "  Total files generated: $total_files (baseline + variants)"
     else

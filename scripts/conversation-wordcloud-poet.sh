@@ -10,6 +10,12 @@ MONOREPO_ROOT="$(dirname "$DIR")"
 DELTA_VERSION_DIR="${MONOREPO_ROOT}/delta-version"
 # }}}
 
+# -- {{{ Transcript discovery library
+# Transcripts are recognised by their header line, not a filename suffix, so
+# the date-range renaming leaves this analysis finding them unchanged.
+source "${DIR}/libs/transcript-discovery.sh"
+# }}}
+
 # -- {{{ Configuration Variables
 TARGET_PROJECT=""
 PROCESS_ALL=false
@@ -143,8 +149,8 @@ generate_word_frequencies() {
     local transcripts_dir="$1"
     local output_file="$2"
 
-    # Combine all summary files, extract words, count frequencies
-    cat "$transcripts_dir"/*_summary.md 2>/dev/null | \
+    # Combine all transcripts, extract words, count frequencies
+    transcript_list_files "$transcripts_dir" | xargs -r cat 2>/dev/null | \
         tr '[:upper:]' '[:lower:]' | \
         grep -oE '\b[a-z]{'"${MIN_WORD_LENGTH}"',}\b' | \
         sort | uniq -c | sort -rn > "$output_file"
@@ -206,8 +212,8 @@ extract_context_for_word() {
     local context_lines=2
 
     # Find occurrences of word and extract context
-    grep -i -B "$context_lines" -A "$context_lines" "\b$word\b" \
-        "$transcripts_dir"/*_summary.md 2>/dev/null | head -20
+    transcript_list_files "$transcripts_dir" | xargs -r \
+        grep -i -B "$context_lines" -A "$context_lines" "\b$word\b" 2>/dev/null | head -20
 }
 # }}}
 

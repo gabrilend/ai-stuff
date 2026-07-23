@@ -57,7 +57,7 @@ while [ $# -gt 0 ]; do
 done
 
 EVAL_DIR="${DIR}/output/model-evaluation"
-PID_FILE="${DIR}/tmp/llamacpp-server.pid"
+PID_FILE="${DIR}/tmp/shared-memory/llamacpp-server.pid"
 HEALTH_URL=""   # resolved per model from the server entry's host/port
 # }}}
 

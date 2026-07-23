@@ -5,11 +5,11 @@
 package.cpath = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so;" .. package.cpath
 local effil = require("effil")
 
--- Issue 8-059: route the test file write through the project's tmpfs-backed
--- tmp/ symlink instead of raw /tmp/.
+-- Issue 8-059: route the test file write through the project's RAM-backed
+-- tmp/shared-memory/ tier instead of raw /tmp/.
 local DIR = (arg and arg[1]) or "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
-local TEST_FILE = DIR .. "/tmp/effil-test.txt"
+local TEST_FILE = DIR .. "/tmp/shared-memory/effil-test.txt"
 
 -- Simple worker function
 local function worker(x)

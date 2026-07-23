@@ -42,6 +42,7 @@
 #ifdef SOREN_DEBUG
 
 extern void debug_write(const char *text);
+extern int  usb_endpoint_zero_bringup(void);   /* 010-usb-enumeration.c (109b) */
 
 /* Driver entry points reachable from the CALL command. Kept to a
  * small, hand-picked set of no-argument routines — the script can
@@ -51,6 +52,8 @@ extern int  sd_init(void);
 extern int  emmc_init(void);
 extern int  emmc_read_block(uint32_t lba, uint8_t *buffer);
 extern int  emmc_read_ext_csd(uint8_t *buffer);
+extern int  emmc_erase_all(void);                       /* 012-emmc.c (110q wipe) */
+extern int  emmc_sanitize(void);                        /* 012-emmc.c (110q sanitize) */
 extern int  emmc_switch_hs200(void);                    /* 012-emmc.c (110j) */
 extern int  emmc_switch_hs400(void);                    /* 012-emmc.c (110j) */
 extern void emmc_verify(void);                          /* 012-emmc.c (110j) */
@@ -459,6 +462,30 @@ static int i2c0_read_reg(uint32_t dev, uint32_t reg, uint8_t *out)
     return 0;
 }
 
+/* {{{ pmic_reg_write_allowed() — the RK817 register-write allow-list
+ * Default-DENY guard for writes to the RK817 PMIC. The PMIC controls every
+ * power rail on the board over i2c; a write to a buck/LDO voltage register or
+ * the charger block can push a rail out of spec and PERMANENTLY damage the
+ * silicon or the battery — the one software path to a physically dead board
+ * (notes/safety/000, scenario S5). Unlike the MMIO W commands (guarded by
+ * write_allowed), this i2c write path had no floor at all. Returns 1 ONLY for
+ * an explicit table of registers known harmless; everything else — every VSEL
+ * voltage register, the charger, and every register we don't recognise — is
+ * refused. Extend the table with one line and a comment PROVING the register
+ * can't move a rail, only when a probe genuinely needs it. */
+static int pmic_reg_write_allowed(uint32_t reg)
+{
+    static const uint32_t allowed[] = {
+        0x10u,   /* RTC_COMP_LSB — plain binary, no power rail; the register
+                  * pmic_write_test writes and restores as a round-trip. */
+    };
+    for (unsigned i = 0; i < sizeof(allowed) / sizeof(allowed[0]); i++) {
+        if (reg == allowed[i]) return 1;
+    }
+    return 0;
+}
+/* }}} */
+
 /* Single-byte register WRITE, matching u-boot rk_i2c_write. TX mode
  * (mode 00) transmits the bytes packed into TXDATA, lower byte first;
  * for a register write the three bytes are [slave<<1 (write), reg,
@@ -467,6 +494,16 @@ static int i2c0_read_reg(uint32_t dev, uint32_t reg, uint8_t *out)
 static int i2c0_write_reg(uint32_t dev, uint32_t reg, uint8_t val)
 {
     uint32_t budget;
+
+    /* Hard safety floor (cannot be overridden by a #WRITES probe, exactly
+     * like write_allowed for MMIO): refuse any RK817 write that isn't on the
+     * allow-list, so a voltage/charger poke can never reach the chip. */
+    if (dev == RK817_ADDR && !pmic_reg_write_allowed(reg)) {
+        debug_write("[probe] PMIC WRITE BLOCKED (not on allow-list): reg ");
+        write_hex32(reg);
+        debug_write("  <- voltage/charger writes are refused to protect the board\r\n");
+        return -1;
+    }
 
     mmio_w32(I2C0_IPD, 0x7Fu);
     mmio_w32(I2C0_CON, 0x09u);                         /* EN | START */
@@ -728,18 +765,23 @@ static void pmic_ldo_test(void)
         debug_write("\r\n");
     }
 
+    /* Guard self-test. This used to be a "set-path OK" round-trip that
+     * reprogrammed LDO1 to its own value. Now that writing ANY voltage
+     * register is forbidden (the one software path to a physically dead board,
+     * notes/safety S5), the probe instead PROVES the allow-list is doing its
+     * job: it attempts the (same-value) write and confirms it is refused and
+     * the rail is unchanged. rk817_ldo_set_mv returns -1 when the write is
+     * blocked. */
     cur = rk817_ldo_get_mv(1u);
-    debug_write("[probe] set-path check on LDO1: ");
-    write_dec((uint32_t)(cur < 0 ? 0 : cur));
-    debug_write(" mV -> set same -> ");
-    rk817_ldo_set_mv(1u, (uint32_t)(cur < 0 ? (int)RK817_LDO_MIN_MV : cur));
-    back = rk817_ldo_get_mv(1u);
-    write_dec((uint32_t)(back < 0 ? 0 : back));
-    debug_write(" mV  ");
-    if (cur >= 0 && back == cur) {
-        debug_write("SET PATH OK (unchanged round-trip)\r\n");
-    } else {
-        debug_write("SET PATH MISMATCH\r\n");
+    debug_write("[probe] guard self-test: LDO1 voltage write must be refused... ");
+    {
+        int rc = rk817_ldo_set_mv(1u, (uint32_t)(cur < 0 ? (int)RK817_LDO_MIN_MV : cur));
+        back = rk817_ldo_get_mv(1u);
+        if (rc < 0 && back == cur) {
+            debug_write("REFUSED, rail unchanged -- guard OK\r\n");
+        } else {
+            debug_write("!!! NOT REFUSED -- PMIC GUARD FAILED\r\n");
+        }
     }
     i2c0_teardown();          /* restore the i2c0 bus bring-up (110o); LDO1
                                * was already programmed back to its own value */
@@ -1096,26 +1138,97 @@ static void otp_probe(void)
 }
 /* }}} */
 
-/* {{{ rng_probe — draw from the hardware RNG (inside the crypto complex)
- * Base 0xFE388000. A read while HCLK_CRYPTO_NS is gated hangs the AHB, so
- * ungate + release reset FIRST:
+/* {{{ rng_draw_256 — one full 256-bit TRNG draw at a given sample rate (data gen)
+ * The GENERATOR half of the quality sweep (issue 110p). Programs RNG_SAMPLE_CNT
+ * to the caller's rate, requests a 256-bit draw (rng_len = 2'b11), enables and
+ * starts it, and waits — bounded — for rng_start to self-clear, which IS "256
+ * bits collected". On success copies the eight DOUT words into out[0..7] and
+ * returns 1; on timeout returns 0. Assumes the caller already ungated the
+ * crypto clock domain. Generates data only — no interpretation here — so one
+ * generator pairs with one viewer (project rule: keep the two apart).
+ *
+ * RNG_CTL (+0x400) field map, CONFIRMED against TRM Part 2 (TRNG chapter): the
+ * write-enable mask is bits 21:16 (each arms the matching bit 5:0, NOT the
+ * usual 31:16); bit0 rng_start (self-clearing), bit1 rng_enable, bits 3:2
+ * ring_sel (reset 0x3 = fastest ring, left untouched), bits 5:4 rng_len
+ * (00=64b 01=128b 10=192b 11=256b). TRM order: set SAMPLE_CNT + everything
+ * except rng_start first, then rng_start on its own. */
+static int rng_draw_256(uint32_t sample_cnt, uint32_t out[8])
+{
+    mmio_w32(0xFE388404u, sample_cnt & 0xFFFFu);   /* RNG_SAMPLE_CNT (bits 15:0) */
+    mmio_w32(0xFE388400u, 0x00300030u);            /* rng_len = 2'b11 -> 256-bit */
+    mmio_w32(0xFE388400u, 0x00020002u);            /* rng_enable = 1 (bit1)      */
+    mmio_w32(0xFE388400u, 0x00010001u);            /* rng_start  = 1 (bit0)      */
+
+    /* A larger sample_cnt spaces the bit captures farther apart, so a draw at a
+     * high rate takes proportionally longer to finish; the budget is generous
+     * and bounded, so a rate that never completes times out rather than hangs.
+     * Breaks the instant rng_start clears. */
+    int ready = 0;
+    for (int i = 0; i < 8000000; i++) {
+        if ((mmio_r32(0xFE388400u) & 0x1u) == 0u) { ready = 1; break; }
+    }
+    if (!ready) return 0;
+    for (uint32_t o = 0; o < 8u; o++) out[o] = mmio_r32(0xFE388410u + o * 4u);
+    return 1;
+}
+/* }}} */
+
+/* {{{ rng_report_quality — nibble histogram + bit balance for one draw (data view)
+ * The VIEWER half of the sweep (issue 110p). Tallies how often each of the
+ * sixteen nibble values 0..F turns up across the 32 bytes (64 nibbles) of a
+ * 256-bit draw, prints that histogram, and counts the 1-bits out of 256. A
+ * well-whitened draw sits near ~4 per nibble and ~128 one-bits; the
+ * alternating-pattern bias seen at the fastest rate shows as spikes at 0x5
+ * (0101) and 0xA (1010) and a skewed bit count. Reads its input only — no
+ * hardware traffic, so the generator above is the only thing that touches the
+ * TRNG. */
+static void rng_report_quality(const uint32_t words[8])
+{
+    static const char hexd[] = "0123456789ABCDEF";
+    uint32_t nib[16];
+    uint32_t ones = 0;
+    for (int i = 0; i < 16; i++) nib[i] = 0u;
+    for (int w = 0; w < 8; w++) {
+        uint32_t v = words[w];
+        for (int n = 0; n < 8; n++) nib[(v >> (n * 4)) & 0xFu]++;
+        for (int b = 0; b < 32; b++) ones += (v >> b) & 1u;
+    }
+    debug_write("[rng]   nibbles (of 64, ideal ~4 each):");
+    for (int i = 0; i < 16; i++) {
+        char lbl[4];
+        lbl[0] = ' '; lbl[1] = hexd[i]; lbl[2] = ':'; lbl[3] = 0;
+        debug_write(lbl);
+        write_dec(nib[i]);
+    }
+    debug_write("\r\n[rng]   ones=");
+    write_dec(ones);
+    debug_write("/256 (ideal 128)\r\n");
+}
+/* }}} */
+
+/* {{{ rng_probe — sweep the TRNG sample rate and report entropy quality
+ * Base 0xFE388000 (TRNG_NS). A read while HCLK_CRYPTO_NS is gated hangs the
+ * AHB, so ungate + release reset FIRST:
  *   CLKGATE_CON(8) @0xFDD20320 bit 12 (HCLK) + bit 15 (RNG) -> ungate 0x90000000
  *   SOFTRST_CON(6) @0xFDD20418 bit 8 (H_CRYPTO) + bit 11 (RNG) -> release 0x09000000
- * then start a draw via TRNG_RNG_CTL @+0x0400 and poll until its START bit
- * self-clears (that clear IS "data ready"), then read the eight output words
- * at +0x0410..+0x042C. The poll is BOUNDED so a wrong CTL value can only time
- * out, never hang.
+ * then, for each sample rate in a geometric spread, draw a full 256-bit block
+ * (rng_draw_256) and print its nibble histogram (rng_report_quality). The
+ * point is to SEE which rate whitens the oscillator-ring output: the fastest
+ * rate (sample_cnt=0) captures correlated adjacent bits and skews toward a
+ * 0x5/0xA alternating pattern; slower rates give each bit more independent
+ * jitter (TRM: "the value more bigger, the rate more slower"). Issue 110p.
  *
  * CONFIRMED against the TRM (extracted with ghostscript txtwrite): base
  * 0xFE388000 = TRNG_NS (Part1 Table 1-1); clock gates CLKGATE_CON8 bit 12
  * (hclk_crypto_ns) + bit 15 (clk_crypto_ns_rng) and reset SOFTRST_CON6 (Part1
- * Ch2); and the RNG_CTL start sequence + DOUT register offsets (Part2 Ch5). */
+ * Ch2); RNG_CTL / SAMPLE_CNT / DOUT (Part2 TRNG chapter). */
 static void rng_probe(void)
 {
     /* Snapshot the crypto-complex clock gate + reset before ungating, to
      * restore the domain on exit (issue 110o). CON8/CON6 are shared with
-     * crypto_probe; each probe saves and restores its own view, which
-     * composes because they run one at a time in sweep order. */
+     * crypto_probe; each probe saves and restores its own view, which composes
+     * because they run one at a time in sweep order. */
     uint32_t saved_gate = mmio_r32(0xFDD20320u);   /* CLKGATE_CON8 */
     uint32_t saved_rst  = mmio_r32(0xFDD20418u);   /* SOFTRST_CON6 */
 
@@ -1124,28 +1237,25 @@ static void rng_probe(void)
     mmio_w32(0xFDD20418u, 0x09000000u);
     busy_delay(10000u);
 
-    /* TRNG start sequence, CONFIRMED against TRM Part 2 Ch5. RNG_CTL (+0x400)
-     * uses the upper-16-bit write-enable mask (bits 31:16 select which of
-     * 15:0 change). The TRM's order: set rng_enable (bit1) FIRST, then set
-     * rng_start (bit0) on its own — rng_start self-clears to 0 when the draw
-     * is done. ring_sel (bits 3:2) defaults to fastest (RNG_CTL reset 0x0C)
-     * and a masked write leaves it untouched. */
-    mmio_w32(0xFE388404u, 0x00000000u);   /* RNG_SAMPLE_CNT = default rate    */
-    mmio_w32(0xFE388400u, 0x00020002u);   /* rng_enable = 1 (mask+value bit1) */
-    mmio_w32(0xFE388400u, 0x00010001u);   /* rng_start  = 1 (mask+value bit0) */
-    int ready = 0;
-    for (int i = 0; i < 200000; i++) {
-        if ((mmio_r32(0xFE388400u) & 0x1u) == 0u) { ready = 1; break; }
-    }
-    debug_write(ready ? "[rng] rng_start self-cleared -> data ready\r\n"
-                      : "[rng] TIMEOUT (rng_start never cleared)\r\n");
-    if (ready) {
-        debug_write("[rng] DOUT0-7:");
-        for (uint32_t o = 0; o < 8u; o++) {
-            debug_write(" ");
-            write_hex32(mmio_r32(0xFE388410u + o * 4u));
+    /* The knob sweep: sample_cnt = osc samples between captured bits. 0 is the
+     * fastest (most correlated) rate; the values climb geometrically to show
+     * the whitening trend without a punishingly slow high-rate draw. Add or
+     * change values here to explore further — the histogram makes the effect
+     * of each visible. */
+    static const uint32_t sample_cnts[] = { 0u, 16u, 64u, 256u, 1024u };
+    static const unsigned n_rates = sizeof(sample_cnts) / sizeof(sample_cnts[0]);
+    uint32_t words[8];
+    for (unsigned r = 0; r < n_rates; r++) {
+        debug_write("[rng] sample_cnt=");
+        write_dec(sample_cnts[r]);
+        if (rng_draw_256(sample_cnts[r], words)) {
+            debug_write(" DOUT0-7:");
+            for (uint32_t o = 0; o < 8u; o++) { debug_write(" "); write_hex32(words[o]); }
+            debug_write("\r\n");
+            rng_report_quality(words);
+        } else {
+            debug_write(" TIMEOUT (rng_start never cleared at this rate)\r\n");
         }
-        debug_write("\r\n[rng] (words should differ run-to-run; all-equal/zero = stuck)\r\n");
     }
 
     /* As-found restore: clear rng_enable (masked bit1 — rng_start already
@@ -1338,6 +1448,82 @@ static void call_target(const char *name)
         /* Dynamically pick the safe SD bus speed (the minimum of the card
          * and host ceilings) and apply it, logging the decision (110l). */
         sd_select_speed();
+    } else if (streq(name, "usb_enum")) {
+        /* Actually RUN the EP0 enumeration bring-up (issue 109b), so the SusPHY
+         * fix is exercised and reported. usb_endpoint_zero_bringup is declared
+         * in 002-main.c but NEVER CALLED at boot, so a plain reflash tests none
+         * of it — calling it here from the sweep does. usb_init already ran at
+         * boot (device mode, clocks up); the bounded depcmd_issue is the safety
+         * net so a still-stuck command logs and returns instead of hanging.
+         * GUSB2PHYCFG0 (0xFCC0C200) bit 6 is SusPHY: reading it before/after the
+         * bring-up shows whether the fix (which clears it) actually ran.
+         *
+         * The last two flashes narrowed it down. SusPHY was already clear, and
+         * writing the PHY node base 0xFE8A0000 read back all-zero (wrong
+         * interface). The inno-usb2 driver's cfg offsets are relative to the
+         * usb2phy0_grf SYSCON at 0xFDCA0000 — the same block docs/022 read as
+         * CON0=0x0C52. clkout_ctl = CON2 bit 4 (usbphy_commononn) @ 0xFDCA0008:
+         * 0 = "480 MHz PLL always on", 1 = "PLL off when both ports suspend"
+         * (docs/022 + rk3568_phy_cfgs). With no port active the PLL was off ->
+         * mac2_clk dead -> every DEPCMD stalls. Force it on (masked GRF write,
+         * bit 4 -> 0). The OTG port already reads resumed at reset (CON0), so we
+         * do NOT write phy_sus (that risks re-suspending it). In the sweep, not
+         * usb_init, so a bad access fails into the watchdog, not a boot hang. */
+        debug_write("[usb] force USB2 PHY 480M PLL always-on (CON2 commononn=0 @0xFDCA0008)\r\n");
+        mmio_w32(0xFDCA0008u, 0x00100000u);   /* CON2 bit4 usbphy_commononn -> 0 */
+        busy_delay(200000u);                  /* let the 480M PLL lock */
+        debug_write("[usb]   CON2@0xFDCA0008=");
+        write_hex32(mmio_r32(0xFDCA0008u));
+        debug_write("\r\n");
+
+        /* Is anything actually plugged into the peripheral port right now? OTG
+         * GRF status @0xFDCA00C0 (rk3568 usb2phy0 otg, driver ref): bit 9
+         * b_valid = VBUS present (a host or charger on the cable), bit 6 id,
+         * bits [17:16] linestate. With nothing plugged in, VBUS is absent and
+         * there is no host to enumerate to. The DEPCMDs below can still complete
+         * (they only need mac2_clk), but the device only *appears on a PC* with
+         * a real host cabled to THIS port. */
+        uint32_t otgst = mmio_r32(0xFDCA00C0u);
+        debug_write("[usb] OTG status@0xFDCA00C0=");
+        write_hex32(otgst);
+        debug_write((otgst & (1u << 9)) ? "  VBUS=PRESENT (something is plugged in)\r\n"
+                                        : "  VBUS=absent (nothing plugged into this port)\r\n");
+
+        uint32_t before = mmio_r32(0xFCC0C200u);
+        debug_write("[usb] GUSB2PHYCFG before=");
+        write_hex32(before);
+        debug_write((before & (1u << 6)) ? "  SusPHY=1\r\n" : "  SusPHY=0\r\n");
+        int rc = usb_endpoint_zero_bringup();
+        uint32_t after = mmio_r32(0xFCC0C200u);
+        debug_write("[usb] GUSB2PHYCFG after =");
+        write_hex32(after);
+        debug_write((after & (1u << 6)) ? "  SusPHY=1 (fix did NOT clear it!)\r\n"
+                                        : "  SusPHY=0 (fix cleared it)\r\n");
+        debug_write("[usb] EP0 bring-up rc=");
+        write_hex32((uint32_t)rc);
+        debug_write("  (NO '[usb] DEPCMD stuck' line above == the commands completed)\r\n");
+    } else if (streq(name, "emmc_wipe")) {
+        /* THE ONE-SHOT eMMC WIPE (issue 110q). Erases the entire eMMC so the
+         * device boots ONLY from SD and the eMMC stops claiming the OTG port —
+         * the prerequisite for testing USB device mode against a PC. Armed by
+         * input/probes/emmc-wipe.probe, a TEMPORARY probe to DELETE after use.
+         * Recovery before you run it: archives/golden-sd-*.img.gz boots our
+         * kernel regardless; archives/bootchain-*.bin.gz restores stock. */
+        debug_write("[wipe] ########## WIPING THE ENTIRE eMMC (one-shot) ##########\r\n");
+        /* Pass 1 — ERASE the addressable range (blanks the current, mapped
+         * content). Pass 2 — SANITIZE (physically purges the unmapped/stale
+         * pages ERASE can't reach), so no recoverable data remains anywhere.
+         * The JEDEC-recommended order: erase, then sanitize. */
+        int r = emmc_erase_all();
+        debug_write("[wipe] emmc_erase_all rc=");
+        write_hex32((uint32_t)r);
+        debug_write(r == 0 ? "  (erase OK)\r\n"
+                           : "  (erase FAILED — see the reason above)\r\n");
+        int s = emmc_sanitize();
+        debug_write("[wipe] emmc_sanitize rc=");
+        write_hex32((uint32_t)s);
+        debug_write(s == 0 ? "  (sanitize OK — no orphaned data remains)\r\n"
+                           : "  (sanitize NOT completed — see above; erase pass still stands)\r\n");
     } else {
         debug_write("[probe] CALL unknown target: ");
         debug_write(name);

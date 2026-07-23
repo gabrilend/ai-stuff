@@ -1,5 +1,5 @@
 #AUTO 30
-#NEEDED 1
+#NEEDED 0
 # PMIC (RK817) reachability + register snapshot over i2c0.
 #
 # Brings the i2c0 controller up bare-metal and reads the first 16

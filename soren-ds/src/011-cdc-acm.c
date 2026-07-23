@@ -112,11 +112,34 @@ static struct dwc3_trb *trb_bulk_in;
 static uint8_t         *bulk_in_staging;
 #define BULK_MAX_PACKET 64u
 
-/* Read the event ring counter without dispatching events. We use
- * this to know when a posted bulk-IN TRB has completed. The full
- * event dispatch lives in 010-usb-enumeration.c's usb_poll; this
- * helper just watches for the specific event we care about. */
-static int wait_for_bulk_in_complete(void)
+/* Bulk-OUT (host->device) state — the console READ path (issue 116).
+ * `debug_write` narrates AT the developer; a chip-script (020-chips.c)
+ * needs to hear back — a menu selection, a y/n verdict. The DWC3 receives
+ * a host packet by DMA into a buffer a Normal TRB points at; on completion
+ * it writes the untransferred residual into that TRB's size field, so
+ * bytes_received = requested - residual. The OUT TRB shares the IN TRB's
+ * page (a page holds 256 of them); the receive buffer is its own page.
+ *
+ * console_getchar hands bytes out one at a time, so a host packet carrying
+ * several characters (a typed line arrives as one 64-byte OUT) is buffered
+ * here and drained across calls rather than dropped after the first byte —
+ * `rx_len` is how many landed, `rx_pos` how many we have handed back. */
+static struct dwc3_trb *trb_bulk_out;
+static uint8_t         *bulk_out_staging;
+static uint32_t         rx_len;    /* bytes in the last completed packet   */
+static uint32_t         rx_pos;    /* how many we have handed back so far   */
+static int              rx_armed;  /* a receive TRB is posted, not yet done */
+
+/* Read the event ring counter without dispatching events, watching for
+ * an XferComplete on ONE named endpoint. Used both directions: the
+ * bulk-IN path (debug_write) waits on EP_BULK_IN, the bulk-OUT path
+ * (console_read) waits on EP_BULK_OUT. The full event dispatch lives in
+ * 010-usb-enumeration.c's usb_poll; this helper just watches for the one
+ * event we care about and acks the ring. Returns 0 on that completion,
+ * -1 if the loop budget runs out — the escape hatch that keeps a
+ * disconnected host (whose transfer never completes) from hanging the
+ * kernel forever, the same budget debug_write has always relied on. */
+static int wait_for_ep_xfer_complete(unsigned ep)
 {
     extern uint64_t event_buffer_address;
     uint32_t budget = 1000000u;
@@ -130,7 +153,7 @@ static int wait_for_bulk_in_complete(void)
         for (uint32_t i = 0; i < event_count; i++) {
             uint32_t event = events[i];
             if (!EVT_IS_DEVICE_EVENT(event)
-                && EVT_ENDPOINT_NUM(event) == EP_BULK_IN
+                && EVT_ENDPOINT_NUM(event) == ep
                 && EVT_ENDPOINT_TYPE(event) == EVT_EPTYPE_XFERCOMPLETE) {
                 mmio_write32(DWC3_GEVNTCOUNT, available);
                 return 0;
@@ -166,6 +189,19 @@ void cdc_acm_init(void)
     }
     trb_bulk_in     = (struct dwc3_trb *)(uintptr_t)trb_page;
     bulk_in_staging = (uint8_t *)(uintptr_t)staging_page;
+
+    /* The bulk-OUT TRB shares the IN TRB's page (both are 16-byte
+     * structures; a 4 KB page holds 256), so only the receive buffer
+     * needs a fresh page. A failed alloc leaves trb_bulk_out NULL and
+     * console_read stays a no-op — reads are best-effort, exactly as
+     * writes are: a missing console must never wedge the kernel. */
+    trb_bulk_out = trb_bulk_in + 1;
+    uint64_t rx_page = alloc_page();
+    bulk_out_staging = (rx_page != 0)
+                     ? (uint8_t *)(uintptr_t)rx_page
+                     : (uint8_t *)0;
+    rx_len = 0;
+    rx_pos = 0;
 
     /* Configure the three CDC endpoints. */
     configure_endpoint(EP_NOTIFY,   3, 16);
@@ -230,7 +266,7 @@ void debug_write(const char *text)
                      (uint32_t)((uint64_t)(uintptr_t)trb_bulk_in >> 32),
                      (uint32_t)((uint64_t)(uintptr_t)trb_bulk_in & 0xFFFFFFFFu),
                      0);
-        if (wait_for_bulk_in_complete() != 0) {
+        if (wait_for_ep_xfer_complete(EP_BULK_IN) != 0) {
             /* Host stopped reading or never connected. Drop the
              * remaining bytes silently. */
             return;
@@ -238,3 +274,98 @@ void debug_write(const char *text)
         sent += this_chunk;
     }
 }
+
+/* {{{ console_getchar()
+ *
+ * The read half of the console (issue 116): block until the host sends a
+ * byte and return it (0..255), or -1 if none arrived within the transfer
+ * budget. This is the primitive every chip-script menu reads its selection
+ * through.
+ *
+ * Exactly ONE receive transfer is ever outstanding. We arm a Normal TRB on
+ * the bulk-OUT endpoint pointing at bulk_out_staging, then wait for its
+ * completion. If the wait times out (the developer simply has not typed
+ * yet), the TRB stays armed — `rx_armed` remembers that — and the next call
+ * waits again on the SAME transfer rather than starting a second one, which
+ * on a DWC3 endpoint that already has one active would be an error. A
+ * caller that wants to block for a key loops while the return is < 0.
+ *
+ * When the transfer completes, the controller has DMA'd the host's bytes
+ * into bulk_out_staging and written the UNTRANSFERRED residual into the
+ * TRB's size field. The residual read must go through a volatile access:
+ * fill_trb stored BULK_MAX_PACKET there and the compiler cannot see the
+ * controller overwrite it, so a plain read could hand back the stale
+ * request size. bytes_received = requested - residual. A packet can carry
+ * several characters (a typed line arrives as one OUT), so we buffer the
+ * whole packet and hand it out one byte per call before re-arming. */
+int console_getchar(void)
+{
+    /* Still draining the last completed packet? Hand back the next byte. */
+    if (rx_pos < rx_len) {
+        return (int)bulk_out_staging[rx_pos++];
+    }
+
+    if (trb_bulk_out == 0 || bulk_out_staging == 0) {
+        return -1;              /* cdc_acm_init has not run / alloc failed */
+    }
+
+    /* Arm a fresh receive only if the previous one already completed;
+     * a timed-out transfer is still armed and must not be re-posted. */
+    if (!rx_armed) {
+        fill_trb(trb_bulk_out,
+                 (uint64_t)(uintptr_t)bulk_out_staging,
+                 BULK_MAX_PACKET,
+                 TRB_TYPE_NORMAL);
+        depcmd_issue(EP_BULK_OUT, DEPCMD_DEPSTRTXFER,
+                     (uint32_t)((uint64_t)(uintptr_t)trb_bulk_out >> 32),
+                     (uint32_t)((uint64_t)(uintptr_t)trb_bulk_out & 0xFFFFFFFFu),
+                     0);
+        rx_armed = 1;
+    }
+
+    if (wait_for_ep_xfer_complete(EP_BULK_OUT) != 0) {
+        /* No key within the budget. Leave the transfer armed so the next
+         * call resumes waiting on it — do NOT re-arm. */
+        return -1;
+    }
+    rx_armed = 0;
+
+    uint32_t residual =
+        *(volatile uint32_t *)&trb_bulk_out->size_pcm & 0x00FFFFFFu;
+    rx_len = (residual <= BULK_MAX_PACKET) ? (BULK_MAX_PACKET - residual) : 0;
+    rx_pos = 0;
+    if (rx_len == 0) {
+        return -1;              /* a zero-length packet — nothing to hand back */
+    }
+    return (int)bulk_out_staging[rx_pos++];
+}
+/* }}} */
+
+/* {{{ console_readline()
+ *
+ * Read a whole line into `buf` (issue 116): accumulate bytes from
+ * console_getchar until Enter (CR or LF) or the buffer is one shy of full,
+ * NUL-terminate, and return the length. Blocks for the developer to finish
+ * the line — the intended semantics of "type something and press Enter";
+ * a -1 from console_getchar (no key yet) is simply waited through. For a
+ * single-key selection a menu reads console_getchar directly instead. */
+uint32_t console_readline(char *buf, uint32_t max)
+{
+    uint32_t n = 0;
+    if (max == 0) {
+        return 0;
+    }
+    while (n + 1u < max) {
+        int c = console_getchar();
+        if (c < 0) {
+            continue;           /* nothing typed yet — keep waiting */
+        }
+        if (c == '\r' || c == '\n') {
+            break;
+        }
+        buf[n++] = (char)c;
+    }
+    buf[n] = 0;
+    return n;
+}
+/* }}} */

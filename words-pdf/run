@@ -21,6 +21,51 @@ DIR="/home/ritz/programming/ai-stuff/words-pdf"
 # Both flags are pulled out of the positional-arg list here so the mode
 # dispatch below ($1 = "pdf"|"web"|... ; $2 = ordering) does not see
 # them as values.
+# {{{ usage()
+# Printed by --help/-h. Handled in the flag loop below so it fires before
+# any of the heavy setup (log tee, server launch, transcript backup) — a
+# bare `./run --help` should be instant and side-effect-free. Keep this in
+# sync with the flag list here and the mode dispatch at the bottom.
+usage() {
+    cat <<'EOF'
+run — words-pdf build & serve driver
+
+USAGE:
+  ./run [MODE] [ARG] [--natural-themes] [--no-rebuild]
+  ./run --help
+
+MODES (first positional argument; default is "pdf"):
+  pdf [ordering]     Generate the PDF. ordering is "normal" (default) or
+                     "reverse". Used when no mode is given.
+  -I, interactive    Generate the PDF after an interactive prompt for the
+                     poem ordering (normal / reverse / both).
+  themes-rebuild     Rebuild the theme taxonomy from the corpus (embed,
+                     cluster, name, map to generators) and exit. Needed
+                     after the corpus or the generator registry changes;
+                     plain runs auto-rebuild when the taxonomy is stale.
+  web [char_limit]   Start the simple continuous chat server (default 80).
+  web-chatbot [n]    Start the conversational chatbot server with the
+                     WebAssembly input guard (char limit default 80).
+  web-old            Start the legacy web server.
+
+OPTIONS:
+  --natural-themes   Pick every theme by raw embedding similarity, turning
+                     off the frequency weighting that otherwise evens out
+                     the distribution. For comparing the two selections.
+  --no-rebuild       Skip the stale-taxonomy auto-rebuild and use whatever
+                     taxonomy is already on disk. Handy while iterating on
+                     the renderer. Errors only if the taxonomy is missing.
+  --help, -h         Show this help and exit.
+
+NOTES:
+  Every mode launches the project-local llama.cpp embedding and chat
+  servers and stops them again on exit (an already-running instance is
+  left alone). PDFs are written to output/compile-ai/; every run tees a
+  log to tmp/shared-memory/logs/.
+EOF
+}
+# }}}
+
 NATURAL_THEMES_FLAG=""
 NO_REBUILD=0
 FILTERED_ARGS=()
@@ -29,6 +74,9 @@ for arg in "$@"; do
         NATURAL_THEMES_FLAG="--natural-themes"
     elif [ "$arg" = "--no-rebuild" ]; then
         NO_REBUILD=1
+    elif [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then
+        usage
+        exit 0
     else
         FILTERED_ARGS+=("$arg")
     fi
@@ -36,18 +84,20 @@ done
 set -- "${FILTERED_ARGS[@]}"
 
 cd "${DIR}"
-# tmp/ is a symlink into /tmp/words-pdf (tmpfs); the target gets wiped on
-# reboot, so re-establish it before any mkdir tries to dereference it.
+# Two-tier RAM scratch: tmp/ -> /tmp/words-pdf (exec tier), and
+# tmp/shared-memory/ -> /dev/shm/words-pdf (noexec) for logs/data. The helper
+# re-establishes both before any mkdir tries to dereference them (targets are
+# wiped on reboot). Logs/embeddings are data, so they live under shared-memory.
 "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
-mkdir -p output/compile-ai output/compile tmp/embeddings tmp/logs
+mkdir -p output/compile-ai output/compile tmp/shared-memory/embeddings tmp/shared-memory/logs
 
 # Tee all output (stdout + stderr) of this script through to a log file
-# under tmp/logs, while still showing it on the terminal. Each run gets a
-# fresh timestamped log file so previous runs aren't clobbered. The log
-# file lives in tmp/ (RAM-backed via /tmp/words-pdf/) so it doesn't
-# accumulate on disk; reboot wipes it along with the other ephemeral state.
+# under tmp/shared-memory/logs, while still showing it on the terminal. Each run
+# gets a fresh timestamped log file so previous runs aren't clobbered. The log
+# file lives in tmp/shared-memory/ (RAM-backed via /dev/shm/words-pdf/) so it
+# doesn't accumulate on disk; reboot wipes it along with the other ephemeral state.
 # Determine a mode tag so each mode's log lands in a separately-named
-# file. Easier to grep tmp/logs/ later when you want "the most recent
+# file. Easier to grep tmp/shared-memory/logs/ later when you want "the most recent
 # themes-rebuild" vs "the most recent PDF run." The case-arg matches
 # the mode dispatch below; keep them in sync if either changes.
 case "${1:-}" in
@@ -58,7 +108,7 @@ case "${1:-}" in
     web-old)                    LOG_MODE_TAG="web-old" ;;
     *)                          LOG_MODE_TAG="pdf" ;;
 esac
-LOG_FILE="${DIR}/tmp/logs/${LOG_MODE_TAG}-$(date +%Y%m%d-%H%M%S).log"
+LOG_FILE="${DIR}/tmp/shared-memory/logs/${LOG_MODE_TAG}-$(date +%Y%m%d-%H%M%S).log"
 # Issue 026: libs/progress-ui.lua needs LOG_FILE in its environment so it
 # can mirror the per-page redraw region into the same log this script
 # tees to. Without the export the lua process sees a nil env var and
@@ -107,7 +157,7 @@ export \
 stop_llamacpp_servers() {
     local label pid pid_file waited
     for label in embed chat; do
-        pid_file="${DIR}/tmp/llamacpp-${label}.pid"
+        pid_file="${DIR}/tmp/shared-memory/llamacpp-${label}.pid"
         if [ ! -f "${pid_file}" ]; then
             continue
         fi
@@ -145,11 +195,11 @@ trap stop_llamacpp_servers EXIT
 # input/compiled.txt is the user's source of truth. The embedding server's
 # JSON parser hard-rejects ill-formed UTF-8 and goes silly on whole-block
 # binary blobs (one block in this corpus is/was an embedded PDF), so we
-# pre-clean the file into a transient copy under tmp/ on every run. The
+# pre-clean the file into a transient copy under tmp/shared-memory/ on every run. The
 # cleaner is idempotent — running it twice produces the same bytes — and
 # the original input/compiled.txt is never touched.
 "${DIR}/scripts/clean-compiled-input.sh" "${DIR}"
-INPUT_FILE="${DIR}/tmp/compiled-cleaned.txt"
+INPUT_FILE="${DIR}/tmp/shared-memory/compiled-cleaned.txt"
 
 # {{{ Interactive poem ordering selection function
 show_poem_ordering_menu() {

@@ -1,0 +1,10 @@
+# input/ is read FIRST, before the walk begins. Any file here can pre-set where
+# the walk starts. Uncomment (remove the leading #) a line to activate it; lines
+# starting with # are ignored by the reader.
+#
+# mode=chronological      # chronological | similar | different
+# field=created           # created | modified
+# direction=asc           # asc (oldest first) | desc (newest first)
+#
+# As shipped, every line is commented, so this file changes nothing. Copy it,
+# uncomment, and the next `./run.sh` starts already pointed the way you want.

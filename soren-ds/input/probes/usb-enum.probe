@@ -1,0 +1,22 @@
+#AUTO 22
+#NEEDED 0
+# usb-enum — actually RUN the EP0 enumeration bring-up and report where it gets.
+#
+# The SusPHY fix for the 109b hang lives in usb_endpoint_zero_bringup(), but
+# that function is declared in 002-main.c and NEVER CALLED at boot — usb_init()
+# brings the PHY + controller up and stops there. So a plain reflash exercises
+# none of the enumeration path. This probe calls it from the sweep, where
+# usb_init has already put the controller in device mode, with the bounded
+# depcmd_issue as the safety net: a still-stuck endpoint command logs "[usb]
+# DEPCMD stuck ..." and returns instead of hanging the whole sweep.
+#
+# What to read in the log after the sweep:
+#   "GUSB2PHYCFG after ... SusPHY=0 (fix cleared it)"  -> the fix ran
+#   no "[usb] DEPCMD stuck" lines                       -> commands completed
+#   a "[usb] DEPCMD stuck" line                         -> still hung: the PHY
+#       clock is dead for another reason (next suspect: the CRU
+#       resetn_usb2phy0_por reset, which 009's usb2_phy_bring_up doesn't touch).
+#
+# No #WRITES marker needed: the register writes happen inside the C CALL target
+# (like otp/rng/crypto), not through the DSL W command.
+CALL usb_enum

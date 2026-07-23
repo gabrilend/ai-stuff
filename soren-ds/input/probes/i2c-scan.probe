@@ -1,5 +1,5 @@
 #AUTO 37
-#NEEDED 1
+#NEEDED 0
 # i2c0 bus liveness scan (issue 110n).
 #
 # Walks every 7-bit address on i2c0 and logs which ones respond. The value is

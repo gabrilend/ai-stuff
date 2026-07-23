@@ -279,26 +279,45 @@ Request a PMIC sleep (which preserves battery state) at a defined
 safe threshold, typically 3.4V per cell — well above the danger
 zone. Never override the PMIC's built-in discharge cutoff.
 
-### S8 — Display panel damage
+### S8 — Display panel damage — CLOSED (2026-07-02)
 
-**Likelihood:** Very low if we use documented modes.
+**Likelihood:** Negligible. Both damage mechanisms are removed by
+what the board hardware and device tree actually are — see below.
 
-**Cause:** Driving the display controller at frequencies or
-voltages outside the panel's documented range, or setting the
-backlight LED current above its rated value.
+**Cause (as originally feared):** Driving the display controller at
+frequencies or voltages outside the panel's documented range, or
+setting the backlight LED current above its rated value.
 
 **Mechanism:** LCD panels are tolerant of many input variations
 but can be damaged by sustained out-of-spec timing. Backlight
 LEDs burn out if driven above their rated forward current for
 sustained periods.
 
-**Recovery:** Replace the panel, which requires opening the case.
+**Why this is closed:**
 
-**Severity:** Functional component damage.
+- **No software path to burn the backlight.** The backlight is a
+  `pwm-backlight` (device tree: `backlight0`/`backlight1`, PWM
+  channels at `0xFE700000` / `0xFE700010`, 40 kHz, enabled via a
+  gpio4 line). Brightness is PWM *duty only*; the LED forward
+  current is fixed in hardware by the boost stage's design. A PWM
+  duty can dim the string but physically cannot push current past
+  the hardware-set limit — so there is no "rated current" for
+  software to exceed and no way for us to over-drive the LEDs.
+- **Panel timing comes from documented modes.** The panel's exact
+  timing (640×480, 42.134 MHz pixel clock, porches) and its full
+  DCS init sequence are embedded in the board device tree
+  (`panel_description`) and used verbatim — we do not synthesize
+  out-of-spec timing. See `docs/023-display-controller.md`.
 
-**Design rule:** Use only display modes documented in the
-panel's datasheet (which 101 must retrieve). Don't experiment
-with backlight PWM values outside the documented range.
+**Recovery:** N/A (no realistic damage path remains).
+
+**Severity:** Was functional component damage; now not reachable
+from software.
+
+**Design rule (retained):** Drive the panel only with the
+device-tree timing and init sequence; drive the backlight only
+through its PWM duty. Both are already the only paths the driver
+takes, so the rule is structural, not a caution to remember.
 
 ### S9 — eFuse / OTP writes
 

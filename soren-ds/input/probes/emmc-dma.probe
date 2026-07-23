@@ -1,5 +1,5 @@
 #AUTO 100
-#NEEDED 1
+#NEEDED 0
 # eMMC ADMA2 (DMA) read validation — issue 110m, the throughput half of
 # fast storage and the thing that makes a full eMMC dump practical.
 #

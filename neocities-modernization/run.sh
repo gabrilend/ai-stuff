@@ -69,7 +69,7 @@ cleanup_inference_server() {
     if ! $WE_STARTED_INFERENCE_SERVER; then
         return
     fi
-    local pid_file="$DIR/tmp/llamacpp-server.pid"
+    local pid_file="$DIR/tmp/shared-memory/llamacpp-server.pid"
     if [ ! -f "$pid_file" ]; then
         return
     fi
@@ -742,7 +742,7 @@ fi
 # --model override silently reverted to config.lua's default in the HTML,
 # word-cloud and word-page stages (they resolve the model via get_selected_model()
 # / embeddings_dir() with no argument). The fix is a shared notepad in RAM: we
-# stamp THIS run's choices onto tmp/run-overrides.lua once, here, and the model
+# stamp THIS run's choices onto tmp/shared-memory/run-overrides.lua once, here, and the model
 # resolver reads them. It is rewritten every run, so a previous run's --model can
 # never leak in -- the staleness trap a file has but an env var does not. Passing
 # an empty CLI_MODEL records no model key, so a plain run falls back to config.lua.
@@ -1529,7 +1529,7 @@ run_generate_diversity() {
         # Issue 10-028: Apply low priority to expensive diversity generation.
         # The model is no longer passed via env here: the wrapper resolves it
         # through inference-server-config, which reads this run's overrides notepad
-        # (tmp/run-overrides.lua, written above from --model) and falls back to
+        # (tmp/shared-memory/run-overrides.lua, written above from --model) and falls back to
         # config.lua -- so the CLI override is honored without a per-stage env var.
         # Issue 10-057: pass the run's page settings so the wrapper caps each diversity
         # sequence to the SAME K the similarity cache and the HTML stage use.

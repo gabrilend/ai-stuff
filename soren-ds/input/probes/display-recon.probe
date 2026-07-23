@@ -1,0 +1,61 @@
+#WRITES
+#AUTO 51
+#NEEDED 0
+# display-recon — is firmware actually SCANNING OUT to a panel right now?
+#
+# display-presence (prio 50) proves the VOP2 is reachable. This asks the next
+# question, silently and read-only: is a video port out of standby, is a MIPI
+# interface enabled, is a layer enabled pointing at a real framebuffer? If yes,
+# something (u-boot / ROCKNIX) is driving the panel; if no, the block is merely
+# clocked-at-reset and idle. Settles "does the bootloader light the screen"
+# with zero user interaction.
+#
+# Same safety shape as display-presence: the VOP2 register block hangs the bus
+# if read while its clocks are gated, so SAVE the VOP2 clock/reset CRU regs,
+# ungate to read, then RESTORE to as-found (issue 110o). Every offset below is
+# from docs/023-display-controller.md (TRM Part 2 Ch13, VOP2).
+#
+# What the DTS + docs already answered, so we deliberately DON'T probe it:
+#   panel   = JD9365DA-H3, 640x480 RGB888, 4-lane MIPI DSI per screen; its DCS
+#             init sequence is in the device tree's panel_description string.
+#   backlight = pwm-backlight, pwm@0xFE700000 ch0 (screen 0) / 0xFE700010
+#             (screen 1), 40 kHz, enable on gpio4 pins 4/3. Brightness is PWM
+#             DUTY only; the LED forward current is fixed in HARDWARE. A
+#             pwm-backlight can dim but cannot over-drive the LEDs, so there is
+#             no software path to burn the backlight and no "rated current" for
+#             us to enforce. (This resolves safety scenario S8.)
+#
+# VOP2 scanout registers read below (base 0xFE040000):
+#   +0x0004 VERSION            0x40158023 on this board (alive check)
+#   +0x0028 SYS_DSP_INFACE_EN  bit4 mipi_out_en(DSI0), bit20 mipi1_out_en(DSI1)
+#   +0x0C00 POST0_DSP_CTRL     bit31 standby: 1 = idle, 0 = SCANNING (VP0)
+#   +0x0D00 POST1_DSP_CTRL     VP1 standby
+#   +0x0E00 POST2_DSP_CTRL     VP2 standby
+#   +0x1810 Esmart0 MST_CTL    bit0 layer enable
+#   +0x1814 Esmart0 MST_YRGB   framebuffer base address (0 = none programmed)
+
+SAVE 0xFDD20350
+SAVE 0xFDD20440
+LOG ungate VOP2 + VO bus clocks, release VOP2 resets (needed to read the block)
+W 0xFDD20350 0x1FFC0000
+W 0xFDD20440 0x01FF0000
+DELAY 20000
+
+LOG VOP2 version (expect 0x40158023 = alive)
+R 0xFE040004
+LOG SYS_DSP_INFACE_EN: bit4=DSI0 on, bit20=DSI1 on (0x0 = no MIPI interface up)
+R 0xFE040028
+LOG POST0/1/2 DSP_CTRL: bit31=standby -> 0x8.. = idle, top bit clear = SCANNING
+R 0xFE040C00
+R 0xFE040D00
+R 0xFE040E00
+LOG Esmart0 layer enable (bit0), then framebuffer base (0x0 = no buffer set)
+R 0xFE041810
+R 0xFE041814
+
+LOG restore VOP2 clock + reset to as-found
+RESTORE 0xFDD20440 0x01FF
+RESTORE 0xFDD20350 0x1FFC
+
+LOG display-recon complete: a cleared POST bit31 + enabled layer + nonzero
+LOG   framebuffer = firmware is driving that panel; all-standby, no layer = idle

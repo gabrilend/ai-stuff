@@ -41,7 +41,32 @@ Useful for documenting how AI assistance was used during development.
 - **Markdown Formatting**: Outputs clean, readable markdown summaries
 - **Text Wrapping**: Wraps long lines at 80 characters while preserving markdown structure
 - **Timestamp Preservation**: Sets file modification times to match the conversation's final timestamp
-- **Descriptive Naming**: Uses local LLM (if available via fuzzy-computing) to generate descriptive filenames
+- **Date-Range Naming**: Names each file by the span of dates the conversation covers (see *File Naming* below)
+- **Idempotent**: Re-running reuses each conversation's existing file (matched by its header id), renaming it only when the conversation continues into a new day
+
+## File Naming
+
+Files are named by the calendar span they cover, so a directory listing reads
+like a timeline:
+
+- single-day conversation: `jul-3-26.md`
+- multi-day conversation: `jul-3-26-through-jul-5-26.md`
+
+The date token is `<lowercase-month>-<day>-<2-digit-year>`. When several
+transcripts resolve to the same span in one folder — typically a conversation
+and its agent sidechains — the first keeps the bare name and the rest take a
+suffix placed just before `.md`: `jul-3-26_agent-1.md`, `jul-3-26_agent-2.md`,
+and so on.
+
+The header line `# Conversation Summary: <id>` is the file's stable identity.
+It is how this tool re-finds a conversation's file on later runs (so re-running
+never duplicates), and how the sibling analytics/export scripts tell transcripts
+apart from the derived files that share the folder. The filename may change; the
+header never does.
+
+Older, id-named transcripts are brought onto this scheme by
+`migrate-transcript-names.sh`, which dates each by its end date (its mtime) and
+is safe to re-run.
 
 ## Output Format
 

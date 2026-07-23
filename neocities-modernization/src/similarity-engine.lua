@@ -133,11 +133,11 @@ end
 -- because the wrong model silently produces wrong-shape embeddings.
 local function generate_embedding(text, endpoint, model_name)
     -- Create a temporary file to avoid shell escaping issues.
-    -- Issue 8-059: route through the project's tmpfs-backed tmp/ symlink so
-    -- parallel checkouts of this repository do not collide on a single shared
-    -- /tmp/ filename.
+    -- Issue 8-059: route through the project's RAM-backed tmp/shared-memory/
+    -- tier so parallel checkouts of this repository do not collide on a single
+    -- shared /tmp/ filename. (Data, not code — the noexec tier is correct.)
     os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
-    local temp_file = DIR .. "/tmp/embedding_input.json"
+    local temp_file = DIR .. "/tmp/shared-memory/embedding_input.json"
     local payload = {
         model = model_name,
         -- Apply the active server's task-prefix (e.g. "clustering: " for
@@ -580,7 +580,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     local user = os.getenv("USER") or "ritz"  -- fallback to ritz
     -- Issue 8-059: shared with scripts/generate-embeddings.sh which reads
     -- this file; both sides now agree on the project-local tmpfs path.
-    local progress_file = DIR .. "/tmp/embedding_progress_" .. user .. ".txt"
+    local progress_file = DIR .. "/tmp/shared-memory/embedding_progress_" .. user .. ".txt"
     -- Issue 8-021 Fix: Use safe_completed to cap progress at total_poems
     local safe_completed = math.min(skipped_count + newly_processed, total_poems)
     local initial_progress = string.format("%d,%d", safe_completed, total_poems)
@@ -596,7 +596,7 @@ function M.generate_all_embeddings(poems_file, base_output_dir, endpoint, increm
     -- Issue 8-021: cap at total_poems so a key mismatch can't overcount.
     local function write_progress()
         local user = os.getenv("USER") or "ritz"
-        local progress_file = DIR .. "/tmp/embedding_progress_" .. user .. ".txt"
+        local progress_file = DIR .. "/tmp/shared-memory/embedding_progress_" .. user .. ".txt"
         local safe_completed = math.min(skipped_count + newly_processed, total_poems)
         local pf = io.open(progress_file, "w")
         if pf then

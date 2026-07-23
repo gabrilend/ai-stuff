@@ -1,5 +1,5 @@
 #AUTO 15
-#NEEDED 1
+#NEEDED 0
 # CPU clock reconnaissance — what's feeding the cores, and the levers to
 # make them fast (issue 201a, phase 2). Read-only.
 #

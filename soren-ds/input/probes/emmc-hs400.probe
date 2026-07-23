@@ -1,5 +1,5 @@
 #AUTO 97
-#NEEDED 1
+#NEEDED 0
 # eMMC HS400 bring-up — stage B of the fast-storage path (issue 110j).
 # Enabled 2026-06-30 now that the HS200 read (probe 96) is green on
 # hardware (DLL locked 0x13B, tuning TUNED_CLK, read rc 0) — twice. This

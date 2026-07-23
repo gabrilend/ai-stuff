@@ -234,7 +234,7 @@ and are worth stating explicitly so they don't get rediscovered:
   moment to flush atomically.
 - **Minimize SD-card writes generally.** Frequent small writes shorten
   the card's life and create latency spikes. `tmp/` is RAM-backed (a
-  symlink to `/tmp/apple-IIds`). The broker coalesces writes and
+  symlink to `/tmp/apple-IIds`, the exec/build tier). The broker coalesces writes and
   flushes only when necessary. A future analysis
   (`issues/pending/iigs-write-frequency-analysis.md`) will profile
   GS/OS's own write patterns and inform what we can intercept.

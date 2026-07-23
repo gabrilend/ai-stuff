@@ -10,6 +10,15 @@ way to know what for. The downstream display path — MIPI DSI,
 panel init, framebuffer — depends on a known-good controller
 state to build on top of.
 
+**Confirmed by recon (2026-07-02).** VOP2 is at **`0xFE040000`**
+(not the stale `0xFEA00000` this issue first wrote), and it is
+**alive**: its version register (`0xFE040004`) reads `0x40158023`.
+Its clocks (`CLKGATE_CON20` @ `0xFDD20350`, bits 2..12) and resets
+(`SOFTRST_CON16` @ `0xFDD20440`, bits 0..8) both reset to
+ON / released at power-on, so a clean boot arrives with the block
+already clocked — the `display-presence` probe demonstrated all of
+this. So this bring-up starts from proven-reachable, not unknown.
+
 ## Intended behavior
 
 The VOP2 controller is brought up to a known state from which

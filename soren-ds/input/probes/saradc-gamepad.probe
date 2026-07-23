@@ -1,86 +1,102 @@
 #WRITES
 #AUTO 40
 #NEEDED 0
-# DE-SELECTED (110k run-list, 2026-06-30). As written this probe drives
-# the SARADC with the v1 register layout, but the RK3568 is a v2 part —
-# so it reads a constant 0x3FF on every channel (no real stick data) and
-# spends the full poll timeout on five of six channels, making it the
-# slowest probe in the sweep for zero useful output. Confirmed v2 on
-# hardware: channel 0 "matched" on the first poll while channels 1-5
-# timed out, yet ALL SIX returned the identical 0x3FF — the fingerprint
-# of reading the wrong registers, not of real conversions.
+# SARADC v1 conversion — read the analog gamepad inputs (sticks + button ladder).
 #
-# Kept compiled in (not deleted) so the v2 rewrite has a home: a v2
-# controller starts a conversion through CONV_CON and reads results from
-# the DATA registers up around offset +0x120 (pull the exact offsets and
-# the start sequence from the kernel's rockchip_saradc.c SARADC_V2_*
-# defines). Flip #NEEDED back to 1 once the body below is rewritten — at
-# which point this becomes the live stick/trigger validation probe.
+# HISTORY (two wrong turns, both corrected on hardware).
+#   1. The first version drove the v1 registers but read a constant 0x3FF on
+#      every channel. That was misread as "the chip is a v2 part."
+#   2. A v2 rewrite (registers at 0x104/0x110/0x120) was tried. The on-hardware
+#      register DUMP (2026-07-02) DISPROVED it: the whole window mirrors a
+#      16-byte block — DATA@0x00=0, STAS@0x04=0, CTRL@0x08=0, DLY_PU_SOC@0x0C=
+#      0x08 (the documented v1 reset), repeating every 0x10. There are NO
+#      distinct v2 registers; the chip decodes only 4 address bits here. So the
+#      registers ARE v1 and present.
+#   => The real bug was never the registers — it was the CONVERSION PROTOCOL.
+#      The old probe skipped the mandatory power-DOWN-first step, wrote channel
+#      select and power-up in a single write, and polled the wrong bit, so the
+#      converter never ran cleanly and DATA held a saturated 0x3FF.
 #
-# Gamepad / analog SARADC — sweep all 6 ADC channels.
+# This version follows the TRM Part1 §17.6 procedure exactly, per channel:
+#   CTRL[3]=0  power DOWN the converter (clears its state)
+#   CTRL[2:0]=ch + CTRL[5]=1   select channel, enable the EOC interrupt
+#   CTRL[3]=1  power UP  — THIS starts the conversion (fires DLY_PU_SOC+2
+#              sclk periods after power-up, then converts in ~13 clocks)
+#   poll CTRL[6]  int_status = end-of-conversion, set to 1 when done
+#   read DATA[9:0]  the 10-bit result
 #
-# The SARADC reads the device's analog inputs (sticks, analog
-# triggers, the HOME-button voltage ladder). This probe ungates the
-# SARADC clock, then for each channel 0..5 starts a conversion,
-# polls end-of-conversion, and reads the 10-bit result. Move a stick
-# between runs and watch the channel values change to map which
-# channel is which axis.
+# Verified facts: CLKGATE_CON26@0xFDD20368 — clk_saradc bit8, pclk_saradc bit7
+# (0=on). SOFTRST_CON24@0xFDD20460 — presetn_saradc bit0 (0=released; the old
+# probe never released it). SARADC base 0xFE720000: DATA@0x00, STAS@0x04,
+# CTRL@0x08 (bit6 EOC, bit5 int_en, bit3 power-up, bits2:0 channel 0..5).
 #
-# Requires --writes (the ungate and the per-channel start are
-# writes to the CRU and the SARADC).
-#
-# !!! CAVEAT: the RK3568 TRM documents the *v1* SARADC register
-# layout used here (CTRL/DATA/STAS). Mainline Linux, however, drives
-# the rk3568 SARADC as a *v2* controller (CONV_CON/STATUS/DATA at
-# different offsets). If every channel reads a constant 0 or 0x3FF,
-# the silicon is v2 and this probe needs the v2 offsets — which the
-# TRM does not document; pull them from the kernel's
-# rockchip_saradc.c. Treat a sensible, stick-tracking value as
-# confirmation the v1 layout is correct on this part.
-#
-# Register facts (RK3568 TRM, verified):
-#   CLKGATE_CON26 @ 0xFDD20368 — clk_saradc bit 8, pclk_saradc
-#     bit 7 (0=on).
-#   SARADC base 0xFE720000:
-#     +0x00 DATA  [9:0] = result
-#     +0x04 STAS  [0]   = 1 busy / 0 stop
-#     +0x08 CTRL  [2:0]=channel  [3]=power/START  [5]=int_en
-#                  [6]=int_status (end-of-conversion; our POLL bit)
-#   Start channel n = write (int_en|power|n) = 0x28 | n to CTRL.
-#   Poll CTRL bit 6 (0x40) for done, then read DATA.
+# READING THE RESULT: a working read is a mid-scale value that MOVES with the
+# input — hold a stick to one corner before/through the run and the channel(s)
+# that are its axes read near 0x000 or 0x3FF while a centred axis reads ~0x200.
+# A channel still stuck at a constant 0x3FF across positions means the analog
+# front-end (reference/supply) needs bringing up — the next thing to chase.
 
+LOG ===== SARADC v1 conversion (TRM 17.6) =====
 LOG ungate SARADC clocks (CLKGATE_CON26 bits 7,8 -> 0)
 W 0xFDD20368 0x01800000
+LOG release SARADC reset (SOFTRST_CON24 presetn_saradc bit0 -> 0)
+W 0xFDD20460 0x00010000
 DELAY 20000
+LOG confirm the four v1 registers (DATA, STAS, CTRL, DLY_PU_SOC)
+DUMP 0xFE720000 4
 
-LOG channel 0
+LOG --- channel 0 ---
+W 0xFE720008 0x00000000
+DELAY 2000
+W 0xFE720008 0x00000020
 W 0xFE720008 0x00000028
-POLL 0xFE720008 0x00000040 0x00000040 100000
+DELAY 5000
+POLL 0xFE720008 0x00000040 0x00000040 20000
 R 0xFE720000
 
-LOG channel 1
+LOG --- channel 1 ---
+W 0xFE720008 0x00000000
+DELAY 2000
+W 0xFE720008 0x00000021
 W 0xFE720008 0x00000029
-POLL 0xFE720008 0x00000040 0x00000040 100000
+DELAY 5000
+POLL 0xFE720008 0x00000040 0x00000040 20000
 R 0xFE720000
 
-LOG channel 2
+LOG --- channel 2 ---
+W 0xFE720008 0x00000000
+DELAY 2000
+W 0xFE720008 0x00000022
 W 0xFE720008 0x0000002A
-POLL 0xFE720008 0x00000040 0x00000040 100000
+DELAY 5000
+POLL 0xFE720008 0x00000040 0x00000040 20000
 R 0xFE720000
 
-LOG channel 3
+LOG --- channel 3 ---
+W 0xFE720008 0x00000000
+DELAY 2000
+W 0xFE720008 0x00000023
 W 0xFE720008 0x0000002B
-POLL 0xFE720008 0x00000040 0x00000040 100000
+DELAY 5000
+POLL 0xFE720008 0x00000040 0x00000040 20000
 R 0xFE720000
 
-LOG channel 4
+LOG --- channel 4 ---
+W 0xFE720008 0x00000000
+DELAY 2000
+W 0xFE720008 0x00000024
 W 0xFE720008 0x0000002C
-POLL 0xFE720008 0x00000040 0x00000040 100000
+DELAY 5000
+POLL 0xFE720008 0x00000040 0x00000040 20000
 R 0xFE720000
 
-LOG channel 5
+LOG --- channel 5 ---
+W 0xFE720008 0x00000000
+DELAY 2000
+W 0xFE720008 0x00000025
 W 0xFE720008 0x0000002D
-POLL 0xFE720008 0x00000040 0x00000040 100000
+DELAY 5000
+POLL 0xFE720008 0x00000040 0x00000040 20000
 R 0xFE720000
 
-LOG SARADC sweep complete
+LOG SARADC v1 conversion complete — hold a stick to a corner and compare channels across positions

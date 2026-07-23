@@ -3,8 +3,10 @@
 ## Current behavior
 
 The project's root-level `tmp/` is a symbolic link to `/tmp/neocities-modernization/`
-(tmpfs-backed RAM storage). The shell pipeline's ZIP-extraction working space
-and the Lua side's worker-script staging both route through this single path.
+(the exec-capable RAM tier); nested inside it, `tmp/shared-memory/` links to
+`/dev/shm/neocities-modernization/` (guaranteed-RAM, noexec) for logs and data.
+The shell pipeline's ZIP-extraction working space and the Lua side's worker-script
+staging both route through the shared-memory tier.
 A helper `scripts/ensure-tmp-symlink` materialises the symlink on demand and
 fails loudly if the path is present but pointing somewhere unexpected.
 
@@ -32,10 +34,12 @@ to the old `temp/` path. The current state, after the second pass, is:
 
 ## Intended behavior
 
-(unchanged) The project has a single ephemeral-output directory, `tmp/`,
-which is a symbolic link to a project-specific subdirectory of the system
-tmpfs at `/tmp/neocities-modernization/`. Every script that writes
-ephemeral files goes through this single path.
+The project's ephemeral output lives in a two-tier RAM scratch: `tmp/` links to
+`/tmp/neocities-modernization/` (RAM where /tmp is tmpfs, and — crucially —
+exec-capable, for build trees and installers), and a nested `tmp/shared-memory/`
+links to `/dev/shm/neocities-modernization/` (a guaranteed-RAM tmpfs on any modern
+Linux, but noexec). Executable artifacts go in `tmp/`; logs and data go in
+`tmp/shared-memory/`. Every script that writes ephemeral files goes through one.
 
 Every entry point that produces ephemeral output ensures the symlink and
 its target exist before any write, via a shared helper. If the symlink
@@ -46,7 +50,9 @@ is missing or points to the wrong place, the helper recreates it.
 ### First pass (completed in commit f45f587c)
 
 1. Created helper `scripts/ensure-tmp-symlink`. Accepts `${DIR}` as first
-   argument with a hard-coded default, targets `/tmp/neocities-modernization/`,
+   argument with a hard-coded default, builds both tiers (`tmp/` ->
+   `/tmp/neocities-modernization/`, `tmp/shared-memory/` ->
+   `/dev/shm/neocities-modernization/`),
    idempotent, fails loudly when the path exists but is not the expected
    symlink.
 2. Updated `scripts/update` to invoke the helper and to write its

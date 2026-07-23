@@ -27,6 +27,7 @@ ENGINE := $(ROOT)/libs/engine-core/slot.c \
           $(ROOT)/libs/engine-core/graph.c \
           $(ROOT)/libs/platform/platform.c
 GAME   := $(ROOT)/src/001-world.c \
+          $(ROOT)/src/002-render.c \
           $(ROOT)/src/000-main.c
 BIN    := $(BUILD)/fps
 

@@ -84,6 +84,89 @@ local function format_content(content)
 end
 -- }}}
 
+-- {{{ extract_askq_answers
+-- Recover each AskUserQuestion answer from the tool-result string by anchoring
+-- on the exact question text (known from the tool call). The result reads
+-- '"Q1"="A1", "Q2"="A2", … . You can now continue…', and answers can themselves
+-- contain commas or quotes, so we bound each answer by the *next question's*
+-- anchor rather than by naive splitting. Returns answers[i] keyed by question
+-- index; a question with no locatable answer is simply absent.
+local function extract_askq_answers(result_string, questions)
+    local answers = {}
+    if type(result_string) ~= "string" then return answers end
+    for i, q in ipairs(questions) do
+        local anchor = '"' .. (q.question or "") .. '"="'
+        local s = result_string:find(anchor, 1, true)
+        if s then
+            local astart = s + #anchor
+            local aend
+            local nq = questions[i + 1]
+            if nq then
+                -- '"Ai", "Q(i+1)"=' — the closing quote of Ai sits right before
+                -- this anchor, so aend lands on Ai's last character.
+                local ns = result_string:find('", "' .. (nq.question or "") .. '"="', astart, true)
+                if ns then aend = ns - 1 end
+            end
+            if not aend then
+                -- Last answer (or the next anchor was not found): stop before
+                -- the trailing '". You can now continue…' sentence, else drop a
+                -- single trailing closing quote.
+                local suf = result_string:find('". You can now continue', astart, true)
+                if suf then
+                    aend = suf - 1
+                else
+                    aend = #result_string
+                    if result_string:sub(aend, aend) == '"' then aend = aend - 1 end
+                end
+            end
+            answers[i] = result_string:sub(astart, aend)
+        end
+    end
+    return answers
+end
+-- }}}
+
+-- {{{ format_askuserquestion
+-- Render one AskUserQuestion tool call, with its recorded answers, as readable
+-- markdown — so the decision it captured survives in the transcript instead of
+-- being dropped with the rest of the tool stream. For each question: the header
+-- and question, every option offered, and the outcome. An answer that exactly
+-- matches an option label is shown as a Selection; anything else (a typed
+-- correction, or a multi-select join) is shown as an Answer, so the user's own
+-- words stay visibly distinct from a menu pick.
+local function format_askuserquestion(input, result_string)
+    local questions = input and input.questions
+    if type(questions) ~= "table" then return "" end
+    local answers = extract_askq_answers(result_string, questions)
+
+    local parts = { "**[Asked the user]**" }
+    for i, q in ipairs(questions) do
+        parts[#parts + 1] = ""
+        local header = q.header and (" — " .. q.header) or ""
+        parts[#parts + 1] = string.format("*Q%d%s:* %s", i, header, q.question or "")
+        if type(q.options) == "table" then
+            for _, opt in ipairs(q.options) do
+                local desc = opt.description and (" — " .. opt.description) or ""
+                parts[#parts + 1] = string.format("- %s%s", opt.label or "", desc)
+            end
+        end
+        local ans = answers[i]
+        if ans then
+            local is_option = false
+            if type(q.options) == "table" then
+                for _, opt in ipairs(q.options) do
+                    if opt.label == ans then is_option = true break end
+                end
+            end
+            parts[#parts + 1] = (is_option and "→ **Selected:** " or "→ **Answered:** ") .. ans
+        else
+            parts[#parts + 1] = "→ *(no answer recorded)*"
+        end
+    end
+    return table.concat(parts, "\n")
+end
+-- }}}
+
 -- {{{ parse_timestamp
 -- Parse timestamp from various formats
 local function parse_timestamp(timestamp_value)
@@ -131,6 +214,31 @@ local function parse_timestamp(timestamp_value)
 end
 -- }}}
 
+-- {{{ to_date_string
+-- Reduce a raw timestamp value to a calendar date "YYYY-MM-DD".
+-- We read the date straight off the ISO string when we can, on purpose:
+-- the recorded timestamps are UTC ("...Z"), and pulling the date fields
+-- verbatim keeps the filename date matching the date the file's mtime lands
+-- on (mtime is stamped from the same fields via os.time), so naming and the
+-- on-disk timestamp never disagree. Only if the value arrives as a bare epoch
+-- number do we fall back to formatting it.
+local function to_date_string(timestamp_value)
+    if type(timestamp_value) == "string" then
+        local year, month, day = timestamp_value:match("(%d%d%d%d)%-(%d%d)%-(%d%d)")
+        if year then
+            return year .. "-" .. month .. "-" .. day
+        end
+    end
+
+    local epoch = parse_timestamp(timestamp_value)
+    if epoch then
+        return os.date("!%Y-%m-%d", epoch) -- '!' formats in UTC to match above
+    end
+
+    return nil
+end
+-- }}}
+
 -- {{{ parse_conversation
 -- Parse JSONL conversation file and generate markdown summary
 local function parse_conversation(jsonl_file, output_file)
@@ -138,6 +246,10 @@ local function parse_conversation(jsonl_file, output_file)
 
     -- Read and parse all messages
     local messages = {}
+    -- first_timestamp anchors the start date, final_timestamp the end date.
+    -- Some JSONL lines (summaries, file snapshots) carry no timestamp, so we
+    -- keep the first and last that actually have one rather than head/tail.
+    local first_timestamp = nil
     local final_timestamp = nil
 
     local f = io.open(jsonl_file, "r")
@@ -151,8 +263,11 @@ local function parse_conversation(jsonl_file, output_file)
             local success, data = pcall(json.decode, line)
             if success and type(data) == "table" then
                 table.insert(messages, data)
-                -- Track the latest timestamp
+                -- Track the first and latest timestamps
                 if data.timestamp then
+                    if not first_timestamp then
+                        first_timestamp = data.timestamp
+                    end
                     final_timestamp = data.timestamp
                 end
             end
@@ -181,6 +296,24 @@ local function parse_conversation(jsonl_file, output_file)
     local user_count = 1
     local current_user_uuid = nil
     local assistant_responses = {}
+
+    -- Pre-pass: map every tool-result back to the tool call it answers, so the
+    -- AskUserQuestion renderer can pair a question block with its answer. The
+    -- map covers all results (cheap); only AskUserQuestion is looked up below.
+    local tool_results_by_id = {}
+    for _, msg in ipairs(messages) do
+        if (msg.type or "") == "user" then
+            local content = msg.message and msg.message.content
+            if type(content) == "table" then
+                for _, item in ipairs(content) do
+                    if type(item) == "table" and item.tool_use_id
+                        and item.type == "tool_result" then
+                        tool_results_by_id[item.tool_use_id] = item.content
+                    end
+                end
+            end
+        end
+    end
 
     for _, msg in ipairs(messages) do
         local msg_type = msg.type or ""
@@ -245,6 +378,15 @@ local function parse_conversation(jsonl_file, output_file)
                         if text ~= "" then
                             table.insert(assistant_responses, text)
                         end
+                    elseif type(item) == "table" and item.type == "tool_use"
+                        and item.name == "AskUserQuestion" then
+                        -- Rescue the decision this question captured instead of
+                        -- dropping it like every other tool call.
+                        local block = format_askuserquestion(item.input,
+                            tool_results_by_id[item.id])
+                        if block ~= "" then
+                            table.insert(assistant_responses, block)
+                        end
                     end
                 end
             end
@@ -265,8 +407,12 @@ local function parse_conversation(jsonl_file, output_file)
 
     out:close()
 
-    -- Return final timestamp for file dating
-    return parse_timestamp(final_timestamp)
+    -- Hand back three dating signals: the end epoch (used to stamp the file's
+    -- mtime, unchanged) plus the start and end calendar dates (used to build
+    -- the date-range filename).
+    return parse_timestamp(final_timestamp),
+        to_date_string(first_timestamp),
+        to_date_string(final_timestamp)
 end
 -- }}}
 
@@ -281,16 +427,24 @@ local function main(args)
     local jsonl_file = args[1]
     local output_file = args[2]
 
-    local success, timestamp = pcall(parse_conversation, jsonl_file, output_file)
+    local success, timestamp, start_date, final_date =
+        pcall(parse_conversation, jsonl_file, output_file)
 
     if not success then
         io.stderr:write("Error parsing conversation: " .. tostring(timestamp) .. "\n")
         os.exit(1)
     end
 
-    -- Output timestamp to stderr for shell capture
+    -- Emit the dating signals to stderr for the shell wrapper to capture.
+    -- FINAL_TIMESTAMP drives the mtime; START_DATE/FINAL_DATE drive the name.
     if timestamp then
         io.stderr:write("FINAL_TIMESTAMP:" .. timestamp .. "\n")
+    end
+    if start_date then
+        io.stderr:write("START_DATE:" .. start_date .. "\n")
+    end
+    if final_date then
+        io.stderr:write("FINAL_DATE:" .. final_date .. "\n")
     end
 
     return 0

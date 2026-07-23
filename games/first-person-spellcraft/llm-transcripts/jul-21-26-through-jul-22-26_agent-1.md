@@ -1,6 +1,6 @@
 # Conversation Summary: d56354f8-b859-47d0-9d82-52213cf9faba
 
-Generated on: 2026-07-22 12:07:21
+Generated on: 2026-07-22 13:56:42
 
 --------------------------------------------------------------------------------
 
@@ -2217,6 +2217,173 @@ start.
 
 This is a clean checkpoint. Want me to keep going into the world model (`103`),
 wire up something you'd rather see first, or pause here?
+
+
+--------------------------------------------------------------------------------
+
+### User Request 16
+
+okay let's keep working on phase 1, you can do whichever tasks seem easiest.
+make sure you reshuffle things around if you think of a better way to be
+organized. if you reclaim all references to a particular piece of code, then you
+can even rename or delete it. make sure you write your lessons learned to the
+various lesson directories.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 16
+
+Good mandate — I'll take the cleanest foundational next piece, keep the
+organization honest, and record what I've learned. Let me read the existing
+issue-103 blueprint and the lesson-directory files before I build, so I align
+with the plan and match the house voice.
+
+
+I have 103's blueprint and the lesson-directory voice. I'll build **issue 103
+— the square-room world model** (the cleanest foundational next piece: pure
+data, fully testable), then make it *visible* by drawing it top-down with the
+mover bouncing inside real walls — which also seeds collision (105). Starting
+with the world module's header, coordinate conventions written right on the
+structures:
+
+
+Now the implementation — builder, queries, validator, and the behaviour
+dispatch table:
+
+
+The world test — validate coherence, probe walls/floors/rooms/doors, and
+exercise the behaviour dispatch:
+
+
+Wiring the world into the build — adding it to the game binary and the test
+suite:
+
+
+Let me verify the world model passes before integrating it into the render:
+
+
+All 16 world checks pass — coherent map, walls/floors/rooms/doors as authored,
+dispatch firing (grid 20×12, 69 walls / 171 floor, 2 rooms, 1 door). Now making
+it **visible**: I'll wire the world into `main.c` — draw it top-down, and turn
+the mover into a "player" that wanders the rooms and bounces off real walls (the
+first taste of collision, issue 105).
+
+
+And the `main()` body — build the world, wire it into the mover and render
+thread, tear it down cleanly:
+
+
+Building and running the world view (120-frame budget), then I'll capture a
+screenshot to actually *see* it's right:
+
+
+Clean build (no warnings), ran and wrote goodbye. Now let me actually *see* the
+render — adding a screenshot verb to the Platform seam so I can capture a
+frame and view it:
+
+
+The screenshot didn't land where expected and the run exited non-zero — let me
+diagnose directly (raylib's `TakeScreenshot` may resolve paths oddly), capturing
+full output, the real exit code, and hunting for any PNG:
+
+
+Exit 0 (the earlier "2" was just the grep pipeline). And the screenshot landed
+— raylib strips to the basename and writes to the working dir, so it's at
+`world-view.png` in the project. Let me look at it:
+
+
+That's issue 103 confirmed **visually** — two rooms (the brighter right room
+is the step-up), the perimeter and dividing walls in gray, the **door** punched
+through the middle, and the player (yellow) wandering room 0. The world model,
+its validator, the top-down debug view, and the first collision all work.
+
+
+The `world-view.png` is a regenerable debug artifact (via `FPS_SHOT`), so I
+won't commit it — I'll clean it up. Now marking 103 complete and recording the
+lessons. First the issue updates:
+
+
+The world module needs its `.info.md` (house rule), then the lessons:
+
+
+Now the lessons learned — to the strategems (proven dataflow shapes), and the
+desire/faith directories in their voice:
+
+
+Updating the phase-1 progress index for 103, then moving it to `completed/` and
+cleaning up the stray screenshot:
+
+
+Removing the stray screenshot and moving issue 103 into `completed/`:
+
+
+The `platform.info.md` should list the new screenshot verb (house rule):
+
+
+Staging this turn's work — the world module, the render integration, the
+lessons — by explicit path, then verifying the project-scoped staged set:
+
+
+Exactly my intended set staged (and the transcripts re-staged — the tooling
+grew them, so "every commit" holds). The only things left unstaged are the three
+I'm deliberately excluding: `101` + `datapath` (architecture-decision concern)
+and the runtime `output/goodbye`. Committing via pathspec, including both sides
+of the 103 rename:
+
+
+Committed clean: **`7b7e5d10`** — 17 files, all mine (including the 103 rename
+into `completed/`), the 381 concurrent entries untouched.
+
+
+## This turn's work: issue 103 complete
+
+
+**The square-room world model** — and it's not just data, it's on screen:
+
+
+- **`src/001-world.{c,h}`** — the map as two lenses: a tile grid (solid, wall id, floor/ceiling height, room id) for renderer + collision, and a room table + door graph for gameplay. Plus the **room-behaviour dispatch seam** (enter/step/exit — the Phase 4/6 hook), a hand-authored two-room test map with a door and a step-up, and a validator. 16 world-tests pass.
+
+- **Made visible** — the render thread draws it top-down, the player wanders both rooms and **bounces off real walls** (the first taste of 105 collision). You saw the screenshot: two rooms, the dividing wall, the door, the step-up, the player.
+
+- **Lessons written** to the three directories, as asked: `strategems/dataflow-shapes.md` (the self-checking round-trip, publish-with-one-write, trigger-on-ready, two handoff disciplines), plus a `desire/` wish (a true timer box instead of the borrowed `nanosleep`) and a `faith/` expectation (the one dataflow shape carrying the whole game).
+
+
+On the reorg invitation: I reclaimed the old `BOX_SIZE` constant (replaced by
+`CELL_PX`/`PLAYER_PX`) and looked at the layout — `libs/` for the engine
+substrate, `src/` for the game story reads cleanly, so I left it. Nothing else
+earned a rename or delete yet.
+
+
+## Phase 1 status
+
+
+| | | |
+
+|---|---|---|
+
+| `101` | architecture decision | recorded (proving-program residual) |
+
+| `102` (`102a`+`102b`) | substrate + runnable loop | ✅ done |
+
+| `103` | world model | ✅ done |
+
+| `104` | first-person renderer | **next big visual leap** |
+
+| `105`/`106` | movement / platforming | seeded (bounce collision) |
+
+| `107` | capstone demo | open |
+
+
+Four clean commits landed this session (`a8c43d4a`, `98c3e755`, `c41f24ba`,
+`7b7e5d10`), each only my files. Still pending on purpose: the `101` +
+`datapath` architecture-decision edits (their own commit when you're ready).
+
+
+The natural next piece is **104 — the real first-person renderer** (raylib
+drawing the world from a camera, so "first-person" finally appears), which turns
+the top-down debug view into the actual game view. Want me to keep going into
+that, or pause here?
 
 
 --------------------------------------------------------------------------------

@@ -12,10 +12,24 @@ without a rewrite.
 
 ## Current Behavior
 
-Nothing exists. `src/` holds only a placeholder. There is no window, no main
-loop, no chosen framework, and no decision on record about how the game reaches a
-screen, a clock, or an input device. Every later Phase 1 issue is blocked on this
-choice being made and written down.
+The decision is made and recorded (see Intended Behavior): the engine is a
+**pure-C SoraMech-style dataflow substrate** — C boxes that fire when their input
+slots are ready, values carried through shared-memory ring-buffer slots, a
+re-arming frame-clock box as the heartbeat, all on one worker pool (no Lua, no
+FFI) — rendered by **raylib** from a data-driven scene, with a dedicated,
+always-unblocked render thread reading a FIFO slot.
+
+The foundation is built and tested: the C slot store at
+`libs/engine-core/slot.{c,h}` — three flavors (FIFO queue for drain-and-sum,
+latest-wins for the render blackboard, atomic fan-out counter), with a per-slot
+spinlock + atomic counter modelled on SoraMech's `009-slot-store.c`. Its
+regression prover (`slot-test.c`) passes the single-thread contract plus two
+threaded tests: exactness under 8 concurrent producers, and zero torn reads under
+concurrent writers. The pure-Lua reference that prototyped this contract has been
+translated into that C store and removed. Still to build: vendor the worker pool,
+the lean C trigger-on-ready dispatch (+ iterator re-arm, frame-clock heartbeat),
+the dedicated render thread, the C boxes, and the story-structured `main()`. No
+window or loop runs yet.
 
 ## Intended Behavior
 
@@ -33,16 +47,46 @@ A recorded decision, plus a thin **Platform seam** that embodies it:
     firmwares. Costs us hand-writing the window/timing/input plumbing through FFI.
   - **Raw framebuffer (DRM/KMS) + evdev via FFI** — leanest possible, most
     firmware-fragile; noted as a fallback target, not a starting point.
-- **The recommendation (top = most likely to succeed):** build on **LÖVE now**
-  for fast iteration, but keep the engine speaking only to a **Platform seam** —
-  a module exposing exactly four verbs: *open a drawing surface*, *report the
-  current time*, *drain raw input events*, *blit a pixel buffer to the screen*.
-  The engine never names LÖVE directly. Because our renderer is our own software
-  rasterizer (issue `104`), the framework only has to hand us a surface to blit,
-  a clock, and input — all four verbs. That makes the framework genuinely
-  swappable: Phase 9 can drop an SDL+FFI Platform behind the same four verbs
-  without touching engine code, honouring the roadmap's "packaging and porting,
-  not rewriting" promise.
+- **The decision (recorded 2026-07-21, superseding the LÖVE recommendation now
+  kept on record below):** the engine is a **SoraMech-style dataflow substrate**
+  rendered by **raylib**.
+  - *Substrate.* Not a plain fixed-timestep loop but a graph of **boxes** that
+    fire when their input **slots** are ready, values carried through per-port
+    **ring buffers**, driven by a **re-arming frame-clock box** — the heartbeat
+    that keeps the map from quiescing. The game is therefore a long-running
+    circular SoraMech map; issue `102`'s "loop" is that heartbeat box, not a
+    hand-rolled `while`.
+  - *Platform = raylib.* raylib builds a **data-driven scene** from the world's
+    positions, replacing the hand-written software column rasterizer. Issue `104`
+    shifts from "column rasterizer + framebuffer" to "feed raylib a culled
+    renderables list" — issues `104a`/`104b` are to be revised to match.
+  - *One language: pure C.* The whole engine is C — no Lua orchestration layer,
+    no FFI bridge. This consciously overrides the project's usual LuaJIT default
+    (the user's call) so that **everything is a SoraMech box** with no bespoke
+    threads outside the box/pool model. It also fits the narrative-`main()`
+    methodology of `notes/note-to-claude-ai`, which is already C-flavored (it
+    speaks of addresses and "a step beyond could be assembly").
+  - *Threads.* All work is C boxes on one worker pool, with **one deliberate
+    exception**: the renderer. GL affinity — raylib's context is bound to the
+    thread that created the window — forces one dedicated **render thread** that
+    owns GL and runs an **always-unblocked** draw loop as fast as it can. It
+    reads renderables from the graph through a **FIFO queue slot** with a
+    non-blocking pop, and is allowed to lag the pool by a task or two (invisible
+    at frame rate). We chose this over pinning a render *box* to a worker: a
+    dead-simple always-running thread beats adding affinity machinery to the
+    pool. Values cross between boxes through shared-memory slots
+    (`libs/engine-core/slot.c`); the read never tears because a slot copies a
+    whole struct under its lock. See
+    [`docs/soramech-notes.md`](../docs/soramech-notes.md).
+  - *The Platform seam survives.* The engine still speaks to a thin seam (open a
+    surface, report time, drain input, present a frame); raylib is merely its
+    first implementation, so a later SDL/framebuffer backend stays swappable. The
+    LÖVE / SDL / raw-framebuffer options above remain on record as alternatives
+    behind that seam.
+- **The earlier recommendation (superseded, kept on record per this issue's own
+  instruction to preserve losing options):** build on **LÖVE now** for fast
+  iteration behind the same four-verb Platform seam. Recorded so the choice can
+  be re-litigated with context if raylib proves wrong on the Anbernic target.
 - **No fallbacks.** If the chosen platform library is absent or fails to open a
   surface, the Platform module **errors loudly and stops** — it does not quietly
   degrade to a headless or stub mode (a fallback is a warning; a warning is an

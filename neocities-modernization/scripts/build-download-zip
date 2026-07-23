@@ -14,7 +14,7 @@
 # browser). The rendered site (output/, itself gitignored) is already the public
 # deployable, so it ships whole.
 #
-# HOW: assembles the archive in /tmp (RAM, and outside output/ so it can't zip
+# HOW: assembles the archive in /dev/shm (RAM, and outside output/ so it can't zip
 # itself), then moves the finished file into output/<NAME>.zip, served at
 # /similar-different/<NAME>.zip.
 #
@@ -28,7 +28,9 @@ set -euo pipefail
 DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 NAME="similar-different"
 # Build in RAM, outside output/, so the archive never tries to contain itself.
-ZIP_TMP="/tmp/neocities-modernization/${NAME}.zip"
+# A zip is data (never executed), so it belongs in the shared-memory tier:
+# tmp/shared-memory/ -> /dev/shm/{project}, guaranteed RAM on any host.
+ZIP_TMP="${DIR}/tmp/shared-memory/${NAME}.zip"
 FINAL="${DIR}/output/${NAME}.zip"
 # }}}
 
@@ -37,6 +39,8 @@ if [ ! -d "$DIR/output" ]; then
     echo "[build-download-zip] ERROR: $DIR/output not found -- generate the site first." >&2
     exit 1
 fi
+# Materialise the two-tier tmp/ (incl. tmp/shared-memory/) before writing into it.
+"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
 mkdir -p "$(dirname "$ZIP_TMP")"
 rm -f "$ZIP_TMP"
 # }}}

@@ -100,7 +100,7 @@ function M.test_embedding(endpoint, model)
     print("Testing embedding generation...")
 
     os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
-    local result_path = DIR .. "/tmp/embedding_test.json"
+    local result_path = DIR .. "/tmp/shared-memory/embedding_test.json"
 
     local test_cmd = string.format(
         "curl -s -X POST %s/v1/embeddings -H 'Content-Type: application/json' " ..
