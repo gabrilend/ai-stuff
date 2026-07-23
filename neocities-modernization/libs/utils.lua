@@ -479,7 +479,7 @@ end
 --                    currently selected and use that"; pass an explicit
 --                    string only if you need a different model's directory.
 -- @return: full path to that model's embeddings directory
--- Issue 10-054: movable, regenerable caches live in RAM (tmp/, a tmpfs symlink)
+-- Issue 10-054: movable, regenerable caches live in RAM (tmp/shared-memory/, the /dev/shm tier)
 -- to spare SSD write endurance. Only diversity_cache.json stays on disk (it costs
 -- ~45-50 min to recompute) via embeddings_dir_disk(); everything else is RAM.
 --
@@ -497,7 +497,7 @@ local function safe_model(model_name)
 end
 
 function M.embeddings_dir(model_name)
-    return M.DIR .. "/tmp/cache/embeddings/" .. safe_model(model_name)
+    return M.DIR .. "/tmp/shared-memory/cache/embeddings/" .. safe_model(model_name)
 end
 -- }}}
 

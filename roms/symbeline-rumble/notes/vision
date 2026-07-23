@@ -1,0 +1,50 @@
+a game designed for the Nintendo DS which is a clone of Warcraft Rumble.
+
+The game is designed for a vertical orientation device, so the DS will suffice.
+
+the intended gameplay architecture is an Anbernic DS device. That's it's name.
+
+Here is a limited description of the mechanics:
+
+gameplay takes place on a map. This map is two-tiles-by-two-tiles, a departure
+from Warcraft Rumble. In Symbeline Rumble, pushing R will move you to the right
+map (from the left map) and pushing it again will open up a menu. From the
+right map, pushing L will bring you to the left map, and pushing it again will
+open the same menu. Specifically, the menu to do operations related to the units
+on that part of the map - you can cast spells this way, rather than managing
+them on the touchscreen. The Anbernic DS has the capability to tap on the top,
+but the original hardware does not. Depending on how the scope is delineated,
+we may or may not be able to target above directly. If not, then we must do it
+(cast spells) by casting them on a unit. (Or, indeed, perhaps not at all)
+
+In this map, the enemy typically has a home base or territory, and the player
+does as well. Units will path outward from the places where they are spawned
+(next to a barracks or guardhouse) and follow the natural curves of the map.
+The paths are pre-defined, just as in a strategy game they are coralled. Think
+WC3 style maps, with pathways that go about. Through trees and such, WC3 maps
+are renowned for being detailed in their architecture. Such a powerful engine.
+
+When they encounter combat, they do battle. It is valorous on both sides.
+
+Units are recruited with gold that is earned passively and actively, from
+gemstone mines and treasure-chests. Units must bring back treasure for it to be
+counted. Then they return to the fight.
+
+other mechanics are similar to Warcraft Rumble. The game will be 3D, with a
+tilt-shift inspired visual dynamic. No units will be on parts of the map that
+are blurred, only scenery.
+
+there are no bars on the map, nor menus, nor text. Some button prompts or
+notifications may be shown on the map, speech-bubble style.
+
+gold is shown as section-marks on a bar near important infrastructure - the
+total gold that may be accumulated is determined by the structures you claim on
+the map. If units are unplayable, they are disabled and removed from your
+cycling unit deck until they are playable again.
+
+units in this game are adventurers that gain equipment, classes, and levels
+inbetween matches. Sorta like Fire Emblem. They behave different on the map,
+according to how you spec them, and also the behavior patterns you request be
+applied.
+
+this is the basic vision, other things should be considered as they come up.

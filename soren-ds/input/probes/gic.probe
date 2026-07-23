@@ -1,5 +1,5 @@
 #AUTO 18
-#NEEDED 1
+#NEEDED 0
 # Interrupt-controller (GIC-600) recon (issue 110n / phase-2 prep).
 #
 # NOT a "what's enabled this instant" dump (ephemeral, not actionable). It reads

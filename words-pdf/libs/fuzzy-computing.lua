@@ -23,7 +23,7 @@ end
 -- no ambiguity around the boundary.
 local function embedding_cache_path(text, model)
     local key = model .. "\0" .. text
-    return string.format("tmp/embeddings/%08x.lua", djb2_hash(key))
+    return string.format("tmp/shared-memory/embeddings/%08x.lua", djb2_hash(key))
 end
 -- }}}
 
@@ -50,7 +50,7 @@ local function embedding_cache_write(text, model, embedding)
     if not f then
         error("Embedding cache write failed at " .. path .. ": " ..
               (err or "unknown") ..
-              "\nEnsure tmp/embeddings/ exists (the ./run script creates it).")
+              "\nEnsure tmp/shared-memory/embeddings/ exists (the ./run script creates it).")
     end
     f:write("return {")
     for i, v in ipairs(embedding) do
@@ -351,7 +351,7 @@ end
 -- call this at startup so the user can see at a glance whether the cache is
 -- warm ("8423 entries") or cold ("0 entries — full embedding-server pass ahead").
 function M.embedding_cache_status()
-    local handle = io.popen("ls -1 tmp/embeddings/ 2>/dev/null | wc -l")
+    local handle = io.popen("ls -1 tmp/shared-memory/embeddings/ 2>/dev/null | wc -l")
     if not handle then return 0 end
     local count = handle:read("*all")
     handle:close()

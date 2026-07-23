@@ -33,15 +33,15 @@ int main(void)
     check("world validates coherent (0 problems)", ok && s.problems == 0);
     check("cell count = grid area", s.n_cells == s.grid_w * s.grid_h);
     check("solid + open = all cells", s.n_solid + s.n_open == s.n_cells);
-    check("two rooms, one door", s.n_rooms == 2 && s.n_doors == 1);
+    check("four rooms, four doors", s.n_rooms == 4 && s.n_doors == 4);
 
     /* Geometry reads as authored: perimeter solid, interiors open, the step-up. */
     check("outer corner is solid (the void wall)", world_is_solid(w, 0, 0));
     check("off-map is solid too", world_is_solid(w, -1, 5) && world_is_solid(w, 999, 5));
     check("room 0 interior is open", !world_is_solid(w, 5, 5));
     check("room 1 interior is open", !world_is_solid(w, 15, 5));
-    check("dividing wall is solid", world_is_solid(w, 10, 3));
-    check("door punched through the wall is open", !world_is_solid(w, 10, 6));
+    check("dividing wall is solid", world_is_solid(w, 12, 3));
+    check("door punched through the wall is open", !world_is_solid(w, 12, 4));
 
     check("cell (5,5) belongs to room 0", world_room_at(w, 5, 5) == 0);
     check("cell (15,5) belongs to room 1", world_room_at(w, 15, 5) == 1);

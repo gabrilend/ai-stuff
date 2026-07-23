@@ -1,0 +1,76 @@
+progress bars are fucked. this one:
+
+ -> file: messages/260
+══════════════════════════════════════════════════════════════════════════════════─
+ Also, if they delete it we should be entitled to a copy of it so we can post it
+ elsewhere. Otherwise they're destroying our content, which they orient their
+ business around and which we own.
+┌─────────┐                                                           ┌───────────┐
+│ similar │                       chronological                       │ different │
+╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
+
+progress bar is almost full. yet it's from messages 260, which is clearly near
+the beginning of my corpus.
+
+also...
+
+progress bars and the similar/different boxes are just totally mangled on mobile.
+we should ensure that our monospace font is not only used on all computers, but
+is also properly padded no matter the screen size.
+
+also, the similarity calculations are way off. they're just, totally unrelated.
+
+also. clicking "chronological" takes you to chronological page 1.
+
+if you click "next page" then it takes you to "page not found"
+
+also there seems to be two different background panel colors?
+
+also on the similar pages the first poem (the anchor poem) is repeated twice,
+once to show it's the anchor, and then again because it's the most similar to
+itself of course.
+
+also sometimes progress bars are too long? Like these two:
+
+ -> file: messages/1514
+═════════════════════════════════════════════════════════════════════════════════════════════════
+ just because someone is giving you what you need doesn't mean they'll help you
+ when in need.
+┌─────────┐                                                           ┌───────────┐
+│ similar │                       chronological                       │ different │
+╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
+
+ -> file: messages/1106
+═══════════════════════════════════════════════════════════════════════════════════════════
+ "save yourself, do it for you" ugh what if I don't wanna
+┌─────────┐                                                           ┌───────────┐
+│ similar │                       chronological                       │ different │
+╘═════════╧═══════════════════════════════════════════════════════════╧═══════════┘
+
+dear AI, please write a character counting script and count every line before the
+program is is finished.
+
+for this one:
+
+ -> file: fediverse/696
+═════════──────────────────────────────────────────────────────────────────────────
+ ┌──────────────────────────────────────────────────────────────────────────────┐
+ │ CW: re:                                                                      │
+ │ scary-absurdist-magic-symbolism-discipline-honor-dedication-virtue-safehavens-meditation-[presupposed │
+ │ destinations]-hypnosis-[clarity of purpose]-[something about how turntables turn │
+ │ or something]                                                                │
+ └──────────────────────────────────────────────────────────────────────────────┘
+ 
+ 
+ @user-521 
+ 
+ am i not wretched enough to be
+┌─────────┐                                                           ┌───────────┐
+│ similar │                       chronological                       │ different │
+╘════════─┴───────────────────────────────────────────────────────────┴───────────┘
+
+the content warning is wrapped weirdly. we should be able to wrap on dashes as
+well as spaces. A character counting script, run on the entire output, would
+help identify these issues, which we could solve one by one.
+
+`

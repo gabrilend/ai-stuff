@@ -35,8 +35,8 @@ same model) reads everything from disk and makes zero Ollama calls. A run with
 slightly different content does as many Ollama calls as there are changed
 poems — same-text poems reuse their cached embeddings.
 
-The cache lives under `tmp/` (which is the existing symlink to a RAM-backed
-`/tmp/words-pdf/` directory) so it doesn't pollute the project tree and clears
+The cache lives under `tmp/shared-memory/` (the RAM-backed tier, symlinked into
+`/dev/shm/words-pdf/`) so it doesn't pollute the project tree and clears
 naturally on reboot. A future enhancement could move it to a persistent
 location if cache survival across reboots becomes useful.
 

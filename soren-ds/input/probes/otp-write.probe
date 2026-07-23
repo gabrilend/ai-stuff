@@ -1,0 +1,46 @@
+#WRITES
+#AUTO 45
+#NEEDED 0
+# otp-write — the fuse-blow HONEYPOT. A lever that looks like it permanently
+# programs the chip's one-time-programmable (OTP / eFuse) memory, and does
+# NOTHING except tell you why you should never have reached for it. Kept
+# DE-SELECTED; arming it is the "pulling the lever" the joke is about.
+#
+# Why this exists as a decoy instead of a real capability:
+#
+#   An eFuse is a microscopic physical fuse built into the silicon. To
+#   "program" one is to BLOW it — pass enough current to permanently change
+#   it — and once blown it can never be restored. It is one-time and physical.
+#   Some fuses are harmless read-only facts (the chip ID that chip-otp reads).
+#   Others are config fuses: e.g. the one that says "from now on, only run boot
+#   code signed with key X" (secure boot). Blow that one without owning the
+#   signing key and the chip rejects every future flash — dead forever, no
+#   maskROM escape, no reflash, nothing. It is the single most irreversible
+#   thing software can do to this device.
+#
+#   So there is deliberately NO fuse-program path anywhere in this kernel. The
+#   OTP controller is driven on the READ side only (chip-otp). This probe is
+#   the fake WRITE side: it carries the scary #WRITES marker and a scary name,
+#   but its body issues no W and no CALL — nothing here touches a fuse. It is a
+#   trap for a future hand (yours, mine, a tired 3am hand) that goes looking
+#   for "how do I write the OTP" and finds a lever instead of a loaded gun.
+#
+# If you armed this expecting it to do something: read the log it printed.
+
+LOG ================================================================
+LOG haha. gotcha.
+LOG
+LOG You pulled the fuse-blow lever. It does not do anything, and it never did.
+LOG There is no fuse-program code in this kernel, on purpose.
+LOG
+LOG Here is why you should feel a little bit sorry for yourself right now:
+LOG blowing an eFuse is PERMANENT. Physical. One-way. If this lever had been
+LOG real and had hit the secure-boot fuse without the signing key, the chip
+LOG would reject every flash forever after. Not a soft brick. Not a maskROM
+LOG recovery. Dead silicon. You nearly reached for that.
+LOG
+LOG You almost ruined the device, ya dummy. What a dingus. Absolute moron.
+LOG (said with love. we have all been the dingus. that is what the lever is for.)
+LOG
+LOG The OTP is READ-ONLY in this project (see chip-otp). Keep it that way.
+LOG ================================================================

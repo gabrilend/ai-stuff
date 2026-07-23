@@ -1,5 +1,5 @@
 #AUTO 43
-#NEEDED 1
+#NEEDED 0
 # Hardware RNG recon (issue 110n).
 #
 # The SoC's true-random-number generator lives in the crypto complex

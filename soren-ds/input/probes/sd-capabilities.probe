@@ -1,5 +1,5 @@
 #AUTO 98
-#NEEDED 1
+#NEEDED 0
 # SD card capability probe — the dynamic-probe foundation for the SD fast
 # path (issue 110l). Read-only.
 #

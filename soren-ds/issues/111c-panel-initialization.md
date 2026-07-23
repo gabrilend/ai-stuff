@@ -8,6 +8,22 @@ panels. But the panels themselves are still in their reset
 state and will not accept pixel data until their internal
 register sequence has been programmed.
 
+**Implemented (2026-07-02) in `src/023-mipi-panel.c`.** `panel_init_all()`
+resets each panel (GPIO0_B3 bottom / B4 top), replays the JD9365 DCS init
+table in low-power mode, then sends Sleep-Out and Display-On, for both
+panels. The 203-command init table was **extracted from the board device
+tree's `panel_description`** (not hand-typed — see `tmp/extract-panel-seq.lua`);
+the two panels differ by exactly one byte (register 0x37), handled as a
+per-panel override. The command-FIFO registers + low-power `CMD_MODE_CFG`
+(TRM Part2 Ch29) and the GPIO reset registers (TRM Part1 Ch16) are all
+TRM-verified; the one flagged assumption is the DCS-vs-Generic data type for
+the register writes (using DCS short-write 0x15, the mainline convention).
+Compile-verified, not yet wired into boot. **Deferred to 111d:** the
+command-mode → video-mode switch, because it needs the video timing (the
+panel porch numbers, whose field order is still being confirmed) — so this
+file leaves the panel initialized but the host still in command mode, rather
+than guess the timing.
+
 The Jadard JD9365DA-H3 datasheet specifies a long table of MIPI
 DSI command writes — typically dozens of register writes — that
 configure the panel's internal logic, gamma curves, gate driver

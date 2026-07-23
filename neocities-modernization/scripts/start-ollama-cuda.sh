@@ -12,10 +12,10 @@ setup_dir_path() {
 
 DIR=$(setup_dir_path "$1")
 
-# Issue 8-059: ensure the tmpfs-backed tmp/ symlink exists before any
-# write into it.
+# Issue 8-059: ensure the two-tier tmp/ (and tmp/shared-memory/) exist before
+# any write into it. A log is data, so it lives in the shared-memory tier.
 "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
-OLLAMA_LOG="${DIR}/tmp/ollama-cuda.log"
+OLLAMA_LOG="${DIR}/tmp/shared-memory/ollama-cuda.log"
 
 echo "================================="
 echo "🔧 CUDA-Enabled Ollama Startup"

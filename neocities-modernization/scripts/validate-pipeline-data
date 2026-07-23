@@ -419,9 +419,9 @@ list_missing_entries() {
     # Use temporary files for efficient set operations.
     # Issue 8-059: route through the project's tmpfs-backed tmp/ symlink.
     "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
-    local all_poems_file="${DIR}/tmp/all_poems_$$"
-    local existing_files_file="${DIR}/tmp/existing_files_$$"
-    local missing_file="${DIR}/tmp/missing_$$"
+    local all_poems_file="${DIR}/tmp/shared-memory/all_poems_$$"
+    local existing_files_file="${DIR}/tmp/shared-memory/existing_files_$$"
+    local missing_file="${DIR}/tmp/shared-memory/missing_$$"
 
     # Get list of all poem indices from poems.json (sorted)
     jq -r '.poems[] | .poem_index' "$POEMS_JSON" 2>/dev/null | sort -n > "$all_poems_file"

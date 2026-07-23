@@ -15,13 +15,18 @@ Base addresses (device tree):
 
 - VOP2: `0xFE04_0000`
 - MIPI DSI0 host: `0xFE06_0000`; DSI1 host: `0xFE07_0000`
-- MIPI TX DPHY: reached via a DSI-host PHY window / GRF region —
-  **absolute base not stated in the TRM; confirm against the
-  device tree (gap for 111b).**
+- MIPI TX DPHY: **DPHY0 `0xFE85_0000`, DPHY1 `0xFE86_0000`**
+  (device-tree `mipi-dphy@fe850000`/`@fe860000`, compatible
+  `rockchip,rk3568-dsi-dphy`). Resolved from the board DTB
+  2026-07-02 — the TRM did not state it. See the resolved-values
+  section below.
 
-The two screens are two independent panels (dsi0 + dsi1); the
-panel is a **JD9365DA-H3** (its DCS init sequence is panel-vendor
-data, not in the TRM — gap for 111c).
+The two screens are two independent panels (dsi0 → bottom via
+VP0, dsi1 → top via VP1). The panel binds as `rocknix,generic-dsi`
+and its **entire DCS init sequence, timings, lane count, and reset
+GPIO are embedded in the board device tree** (the panel node's
+`panel_description` strings) — so the vendor datasheet is not
+needed. Decoded in the resolved-values section below.
 
 ## VOP2 (Chapter 13) — region map
 
@@ -142,15 +147,82 @@ picked up:
    each runs single-link or dual-link and which GRF bits select
    that (gap for 111b/111c).
 
+## Device-tree resolved values (board DTB, 2026-07-02)
+
+Decoded from `libs/sd-image-parts/rk3568-anbernic-rg-ds.dtb`
+(`dtc -I dtb -O dts`). These are re-derivable — re-run the decompile
+rather than trusting the copy here if the board DTB changes.
+
+**Topology.** VP0 → DSI0 (`0xFE060000`) → DPHY0 (`0xFE850000`) →
+**bottom** panel. VP1 → DSI1 (`0xFE070000`) → DPHY1 (`0xFE860000`) →
+**top** panel. Both DSI/DPHY pairs are identical IP at different
+bases; one parameterized bring-up serves both.
+
+**Panel (both screens), from the `panel_description` strings:**
+
+- format **RGB888**, **4 data lanes**, DSI mode flags `0xc03`.
+- **640×480**, pixel clock **42.134 MHz** (`clock=42134` kHz),
+  horizontal `640,260,220,260`, vertical `480,10,2,16` (active +
+  three porch/sync fields, ordering per the ROCKNIX `generic-dsi`
+  parser — confirm field order there before trusting HS/porch math).
+  ~60 Hz.
+- reset/settle delays `20,10,50,120,50` ms; physical size 81×61 mm.
+- **DCS init sequence** = the `I seq=RRVV` list: each is a
+  single-parameter DCS write (register `0xRR`, value `0xVV`),
+  opening with the JD9365 `E0/E1/E2/E3` page-unlock writes. ~200
+  entries. The two panels' sequences are near-identical (a few
+  per-panel values differ, e.g. register `0x37`). This is the whole
+  of what 111c needs — no vendor datasheet.
+
+**Reset GPIOs** (active-low, controller `gpio@fdd60000` = GPIO0):
+bottom **GPIO0_B3** (pin 11), top **GPIO0_B4** (pin 12). Panel power
+is `vdd-supply` + `iovcc-supply` regulators per panel.
+
+**Backlight (resolved — no burn risk, safety S8 closed).**
+`backlight0` (bottom) / `backlight1` (top) are `pwm-backlight`:
+brightness on PWM channels **`0xFE700000`** (ch0) / **`0xFE700010`**
+(ch1), 40 kHz, gated by enable lines on gpio4. Those are channels 0
+and 1 of the **same PWM controller** whose channel 2 (`0xFE700020`)
+is the rumble motor — one controller clock-ungate / reset / pin-mux
+bring-up serves the two backlights and the rumble together. Crucially,
+brightness is **PWM duty only**: the LED forward current is fixed in
+hardware, so a `pwm-backlight` can dim but physically cannot
+over-drive the LEDs. There is no software path to burn the backlight
+and no rated current for us to enforce — this closes bricking
+scenario S8 (`notes/safety/000-bricking-and-recovery.md`).
+
+**Clocks / resets (CRU ids; gate/reset bit positions still TBD).**
+VOP2: aclk `0xdd`, hclk `0xde`, dclk_vp0/1/2 `0xdf`/`0xe0`/`0xe1` —
+gate `CLKGATE_CON20` (`0xFDD20350` bits 2..12) + reset
+`SOFTRST_CON16` (`0xFDD20440` bits 0..8), both ON/released at boot
+(already resolved by the `display-presence` probe). DSI0/1 pclk
+`0xe8`/`0xe9`, apb reset `0x110`/`0x111`. DPHY0/1 ref + pclk
+`0x17a`/`0x17b`, reset `0x1bb`/`0x1bc`. The gate/reset register+bit
+for the DSI/DPHY ids are the remaining CRU-table lookup (gap below).
+
 ## Open gaps to resolve during 111x
 
 - 111a/111d: exact `REG_CFG_DONE` per-VP commit bit; `dsp_out_mode`
   encoding for MIPI RGB888.
-- 111b: absolute base + access path of the Ch30 TX DPHY; PLL
-  divider math for the JD9365DA-H3 pixel clock; GRF MIPI-mode/lane
-  bits.
-- 111c: JD9365DA-H3 DCS init sequence (panel-vendor data).
-- 111x: all CRU clock-gate/reset bit positions for VOP2 and DSI.
+- 111x: confirm the ROCKNIX `generic-dsi` porch field ordering so the
+  DSI HSA/HBP/HLINE/VSA/VBP/VFP timing is derived correctly. Needed only
+  for VIDEO mode (end of 111c / 111d), not for the command-mode bring-up.
+  Best determination so far (~70%): `active, front-porch, sync, back-porch`
+  (sync is the middle of the three trailing numbers — the vertical `2` is a
+  textbook 2-line vsync). Confirm against the ROCKNIX `panel-generic-dsi.c`
+  parser when network access allows.
+
+*(Resolved 2026-07-02, DPHY bases + panel data from the board DTB.)*
+
+*(Resolved 2026-07-02 for 111b — see `src/022-mipi-dsi.c`: the CRU
+gate/reset bits (TRM Part1: DSI-host `GATE_CON21` b6/7 + `SOFTRST_CON17`
+b0/1; D-PHY `GATE_CON33` b14/15 + `SOFTRST_CON27` b11/12), the full D-PHY
+MIPI-mode init sequence + PLL formula (TRM Part2 §30.3/§30.4), and the DSI
+host command-mode sequence + `PHY_STATUS` lock/stopstate bits (TRM Part2
+Ch29). No GRF write is needed — MIPI is the D-PHY's power-on default. Three
+hardware-tunable residuals remain, flagged in the driver: the D-PHY word
+stride `index<<2`, the exact PLL divider triple (~324 Mbps/lane target),
+and the assumption that the VO-domain parent clocks are on at boot.)*
 
 ## Related documents
 

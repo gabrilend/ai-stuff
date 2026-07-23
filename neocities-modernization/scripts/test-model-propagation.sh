@@ -67,7 +67,7 @@ check "resolver default == config.lua default" "$CONFIG_DEFAULT" "$CONFIG_RAW"
 "${DIR}/scripts/write-run-overrides" "${DIR}" --model "propagation-probe:1b"
 check "get_selected_model honors override" "$(resolve)" "propagation-probe:1b"
 check "embeddings_dir(nil) keys off override" \
-    "$(resolve_dir)" "${DIR}/tmp/cache/embeddings/propagation-probe_1b"
+    "$(resolve_dir)" "${DIR}/tmp/shared-memory/cache/embeddings/propagation-probe_1b"
 # }}}
 
 # {{{ no --model falls back to config.lua (override absent, not a hardcoded value)
@@ -79,7 +79,7 @@ check "no override -> config default" "$(resolve)" "$CONFIG_RAW"
 "${DIR}/scripts/write-run-overrides" "${DIR}" --model "first-run:9b"
 "${DIR}/scripts/write-run-overrides" "${DIR}" --model "second-run:9b"
 check "second write overwrites first" "$(resolve)" "second-run:9b"
-occurrences="$(grep -c "first-run" "${DIR}/tmp/run-overrides.lua" || true)"
+occurrences="$(grep -c "first-run" "${DIR}/tmp/shared-memory/run-overrides.lua" || true)"
 check "no stale value from prior run remains" "$occurrences" "0"
 # }}}
 

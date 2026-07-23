@@ -14,6 +14,9 @@ DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
 # Raylib version tag to checkout (empty string means latest master)
 RAYLIB_VERSION="5.0"
 
+# cJSON version tag to checkout (empty string means latest master)
+CJSON_VERSION="v1.7.18"
+
 # {{{ parse_arguments
 parse_arguments() {
     CLEAN_BUILD=0
@@ -157,10 +160,58 @@ build_raylib() {
 }
 # }}}
 
+# {{{ clean_cjson
+clean_cjson() {
+    local cjson_dir="${DIR}/libs/cjson"
+
+    if [ -d "$cjson_dir" ]; then
+        echo "Removing existing cjson directory..."
+        rm -rf "$cjson_dir"
+    fi
+}
+# }}}
+
+# {{{ download_cjson
+# cJSON is a single-translation-unit library (cJSON.c + cJSON.h). The project's
+# Makefile compiles cJSON.c directly, so we only need the source tree in place.
+# Pinning a tag avoids surprise breakage from upstream master.
+download_cjson() {
+    local cjson_dir="${DIR}/libs/cjson"
+
+    if [ -d "$cjson_dir" ]; then
+        echo "cJSON already exists at: $cjson_dir"
+        echo "Use --clean to force a fresh download."
+        return 0
+    fi
+
+    echo "Cloning cJSON repository..."
+    git clone --depth 1 https://github.com/DaveGamble/cJSON.git "$cjson_dir"
+
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to clone cJSON repository"
+        exit 1
+    fi
+
+    if [ -n "$CJSON_VERSION" ]; then
+        echo "Checking out cJSON version: $CJSON_VERSION"
+        cd "$cjson_dir"
+        git fetch --tags --depth 1
+        git checkout "$CJSON_VERSION" 2>/dev/null || {
+            echo "WARNING: Version $CJSON_VERSION not found, using latest"
+        }
+        cd "${DIR}"
+    fi
+
+    echo "cJSON downloaded successfully."
+}
+# }}}
+
 # {{{ verify_build
 verify_build() {
     local raylib_lib="${DIR}/libs/raylib/src/libraylib.a"
     local raylib_header="${DIR}/libs/raylib/src/raylib.h"
+    local cjson_header="${DIR}/libs/cjson/cJSON.h"
+    local cjson_source="${DIR}/libs/cjson/cJSON.c"
 
     echo "Verifying build..."
 
@@ -174,13 +225,24 @@ verify_build() {
         exit 1
     fi
 
+    if [ ! -f "$cjson_header" ]; then
+        echo "ERROR: cJSON.h not found at: $cjson_header"
+        exit 1
+    fi
+
+    if [ ! -f "$cjson_source" ]; then
+        echo "ERROR: cJSON.c not found at: $cjson_source"
+        exit 1
+    fi
+
     echo "Build verification successful."
     echo ""
     echo "Raylib library: $raylib_lib"
     echo "Raylib headers: ${DIR}/libs/raylib/src/"
+    echo "cJSON sources: ${DIR}/libs/cjson/"
     echo ""
     echo "To use local raylib, update your Makefile:"
-    echo "  CFLAGS += -I\$(DIR)/libs/raylib/src"
+    echo "  CFLAGS += -I\$(DIR)/libs/raylib/src -I\$(DIR)/libs/cjson"
     echo "  LDFLAGS = \$(DIR)/libs/raylib/src/libraylib.a -lm -lpthread -lGL -ldl -lrt -lX11"
 }
 # }}}
@@ -202,10 +264,12 @@ main() {
 
     if [ $CLEAN_BUILD -eq 1 ]; then
         clean_raylib
+        clean_cjson
     fi
 
     download_raylib
     build_raylib
+    download_cjson
     verify_build
 
     echo ""

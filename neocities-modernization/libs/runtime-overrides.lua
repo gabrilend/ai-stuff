@@ -56,10 +56,12 @@ end
 -- }}}
 
 -- {{{ function M.path()
--- The notepad lives in tmp/ (a tmpfs symlink): RAM, wiped on reboot -- which is
--- exactly right, since one run's choices have no meaning after that run ends.
+-- The notepad lives in tmp/shared-memory/ (the /dev/shm RAM tier): wiped on
+-- reboot -- exactly right, since one run's choices have no meaning after that
+-- run ends. It is data, not code, so the noexec shared-memory tier is the right
+-- home; Lua loadfile reads it as text, which noexec permits.
 function M.path()
-    return resolve_root() .. "/tmp/run-overrides.lua"
+    return resolve_root() .. "/tmp/shared-memory/run-overrides.lua"
 end
 -- }}}
 
@@ -85,7 +87,7 @@ end
 -- meaningful result ("return {}"): a present-but-empty notepad says "this run set
 -- nothing special", and every reader then falls back to config.lua.
 --
--- The tmp/ directory (a tmpfs symlink target wiped on reboot) must already exist;
+-- The tmp/shared-memory/ directory (the /dev/shm RAM tier, wiped on reboot) must already exist;
 -- run.sh creates it just before calling the writer. If it does not, io.open
 -- returns nil and we error loudly rather than silently lose the note -- a missing
 -- notepad would reintroduce exactly the config-fallback bug this module fixes.

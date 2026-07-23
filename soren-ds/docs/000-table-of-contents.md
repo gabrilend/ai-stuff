@@ -119,6 +119,12 @@ tour; jump in by topic if you already know where you're going.
   Anbernic's own u-boot checks for a download trigger (Volume Up as
   an ADC key; Ctrl+B on serial), and the wipe-from-SD → Maskrom
   recovery lever. Narrows the safety doc's highest-priority unknown.
+- `026-chip-scripts.md` — the interactive-tool category beside the
+  fire-and-log probe battery: what a "chip" is, the console read
+  path that lets a menu hear a keypress, the menu primitive and
+  chip registry, and the data flow from a device driver out to a
+  human's yes-or-no and back to the log. Covers the I/O device
+  validation chip (issue 115) and the framework (issue 116).
 - `datasheets/INDEX.md` — catalogue of the chip and
   standards PDFs downloaded to `docs/datasheets/`: RK3568 TRM
   Parts 1 & 2, RK3568 brief datasheet, SDHCI v4.20 spec,

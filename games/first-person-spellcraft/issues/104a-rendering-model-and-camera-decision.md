@@ -3,7 +3,9 @@
 > **Phase:** 1 (Engine Foundation) · **Depends on:** `101` (Framebuffer/Platform),
 > `103` (the World it will draw) · **Blocks:** `104b` (the rasterizer implements
 > this decision) · **Difficulty:** medium-hard (decision-heavy) · **Kind:**
-> architecture-decision sub-issue of the renderer.
+> architecture-decision sub-issue of the renderer · **Status:** in progress —
+> first-person 3D built; pitch, portal culling, and lighting pending. Supersedes
+> `104b`.
 
 The renderer is the largest single feature in Phase 1, so it is split. This
 half **decides how the world becomes a first-person image** and defines the
@@ -13,45 +15,47 @@ target is a weak handheld. The rendering model has to serve all three.
 
 ## Current Behavior
 
-Nothing exists. There is no camera, no projection, no chosen rendering technique.
-The World (issue `103`) can describe rooms with per-cell floor and ceiling
-heights, but nothing turns that description into a view.
+Reconceived — the software raycaster described below is superseded, and `104b`
+(the column rasterizer) is obsolete. The engine renders the world **first-person
+in 3D on the GPU** (raylib). Built and running (`src/002-render.{c,h}`,
+`libs/platform` 3D verbs): the world's tile grid is turned once into **per-room
+vertex meshes** — a floor and ceiling per open cell, and a wall wherever open
+floor meets solid stone or a taller floor — each face carrying its corners, a
+**normal** (for lighting to come), and a **fill + bright edge colour**. A
+first-person camera flies from the player's eye, following the wandering player
+through a four-room realm; the GPU depth buffer resolves occlusion. (Screenshots
+in the session transcript.) Still to come: pitch/vertical-look, portal culling,
+and lighting.
 
 ## Intended Behavior
 
-A recorded rendering-model decision plus a defined **Camera**:
+A recorded rendering-model decision (superseding the raycaster) plus the camera:
 
-- **The tension to resolve.** A textbook Wolfenstein-style raycaster is the
-  cheapest thing that runs on weak hardware, but in its pure form every floor and
-  ceiling is flat and the same height — which **kills platforming**. Doom's own
-  sector/BSP renderer allows per-region floor/ceiling heights (real ledges and
-  drops) but is heavier to build and reason about. The world is square-room /
-  grid-shaped (issue `103`), which is a gift: it means a grid raycaster is
-  viable *if* we extend it.
-- **The recommendation (top = most likely to succeed):** a **grid raycaster
-  extended with per-cell floor and ceiling heights** — cast one ray per screen
-  column across the tile grid, and at each cell draw the wall slice using that
-  cell's floor/ceiling heights rather than a single global horizon. This keeps
-  the cheap, grid-friendly cost model of a raycaster while gaining the vertical
-  steps platforming needs. It does not attempt rooms-stacked-over-rooms (Doom
-  can't either), which the square-room vision doesn't require.
-  - Alternative kept on record: a small **sector renderer** (more faithful to
-    Doom, more capable, more expensive) if height-extended raycasting proves too
-    limiting for the puzzles Phase 4 wants. Documented so the choice can be
-    revisited with context.
-- **The Camera**, defined here and derived from the Player each frame: eye
-  position (x, y, and z + eye-height above the feet), **yaw** (facing), **pitch**
-  (look up/down — required so verticality actually reads on screen when you jump
-  or stand on a ledge), and field of view. Kept separate from the Player so a
-  later spectator / NCP-possession view (Phase 5) can drive the camera from
-  something other than the local player.
-- **Fixed internal resolution.** Render into a small internal Framebuffer and let
-  the Platform scale it up on blit, so the software rasterizer's per-frame pixel
-  cost is constant regardless of window or screen size — the handheld budget
-  wants this pinned down.
-- **No fallbacks in the math.** Degenerate cases (ray parallel to an axis, camera
-  exactly on a cell boundary) are handled explicitly with a correct branch, not
-  papered over with a fudge factor that silently misdraws.
+- **The decision: GPU 3D with per-object vertex meshes.** Geometry is built once
+  into per-object datastructures — one mesh per room now, chunked for heavy
+  objects later — each face carrying its vertices, a normal, and a fill + edge
+  colour. raylib draws it; the depth buffer gives correct per-pixel occlusion for
+  free. This replaces the height-extended grid raycaster + software Framebuffer
+  plan (kept on record below): the pure-C + raylib pivot (issue `101`) made the
+  GPU path both simpler and truer to the vision's 3D, edge-lit look.
+- **Visibility, in layers.** Per-pixel occlusion is the GPU depth buffer (free,
+  in now). Coarse culling is the next layer: frustum-cull off-screen rooms, then
+  **portal-cull through doors** — draw the room you're in, then each adjacent room
+  clipped to the door it's seen through, recursively. That is the exact, elegant
+  form of "only render what's visible through the openings," fitted to a
+  rooms-and-doors world; it lands when the realm is big enough to need it. (The
+  raycast-from-object-to-camera idea maps onto this portal walk.)
+- **Colored edges** are drawn now (bright lines on every face); **normals** are
+  stored now and will drive **diffuse + specular lighting** later.
+- **The Camera**, derived from the player each frame: eye position (x, y, z +
+  eye-height), **yaw** (facing — follows travel direction for now), **pitch**
+  (look up/down for verticality — still to wire), and FOV. Kept separate from the
+  player so a later spectator / NCP-possession view (Phase 5) can drive it.
+- **Superseded, kept on record:** the height-extended grid raycaster rendering
+  into a fixed-resolution software Framebuffer (and its sector-renderer
+  alternative). Recorded so the software path can be revisited if the GPU target
+  ever fails on the Anbernic. Issue `104b` (the column rasterizer) belongs to
+  that superseded path.
 
 ## Suggested Implementation Steps
 

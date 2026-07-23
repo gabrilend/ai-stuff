@@ -1,5 +1,5 @@
 #AUTO 44
-#NEEDED 1
+#NEEDED 0
 # Crypto accelerator recon (issue 110n) — gather once, then de-select.
 #
 # The crypto block (0xFE380000) has no dedicated version/ID register on this

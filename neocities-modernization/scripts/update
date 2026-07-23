@@ -122,7 +122,7 @@ echo "🔄 Starting content extraction with ZIP archive support..."
 "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
 
 # Create temporary extraction directory
-TEMP_EXTRACT_DIR="${DIR}/tmp/extract-$(date +%s)"
+TEMP_EXTRACT_DIR="${DIR}/tmp/shared-memory/extract-$(date +%s)"
 mkdir -p "${TEMP_EXTRACT_DIR}"
 
 # Extract ZIP archives to temporary locations

@@ -26,9 +26,10 @@
  *
  * What this file deliberately does not do yet:
  *
- *   - Multi-page contiguous allocation (alloc_pages(N)). The
- *     framebuffer in issue 111a is the first caller that wants
- *     contiguous memory; that issue extends the API.
+ *   - (added in 111d) Multi-page contiguous allocation, alloc_pages(N) /
+ *     free_pages(addr, N). The display framebuffers are the first caller:
+ *     VOP2 scans a framebuffer as one linear span from a single base
+ *     address, so it must be physically contiguous, not a page list.
  *
  *   - Concurrency control. The kernel is still single-core at
  *     this point. Phase 2's threading core adds atomics; the page
@@ -148,6 +149,62 @@ void free_page(uint64_t page_address)
     page_bitmap[byte_index] &= (uint8_t)~(1u << bit_index);
 }
 
+/* {{{ uint64_t alloc_pages() */
+/* Allocate N physically-contiguous free pages; returns the address of the
+ * first, or 0 if no run of N free pages exists (issue 111d). The display
+ * framebuffers need this: VOP2 reads a framebuffer as one linear region from
+ * a single base register, so its ~300 pages (640x480x4) must be adjacent, not
+ * scattered. Slides a window over the page bitmap for the first run of N free
+ * pages, marks them all used, and returns the run's base. O(managed pages);
+ * called a handful of times at boot, never on a hot path. N == 0 acts as 1. */
+uint64_t alloc_pages(uint64_t n)
+{
+    if (n == 0) {
+        n = 1;
+    }
+    /* run_start = first page of the current candidate run; run_len = how many
+     * consecutive free pages seen so far. A used page resets the run. */
+    uint64_t run_start = 0;
+    uint64_t run_len = 0;
+    for (uint64_t page_index = 0; page_index < managed_pool_pages; page_index++) {
+        unsigned used = (page_bitmap[page_index >> 3] >> (page_index & 7)) & 1u;
+        if (used) {
+            run_len = 0;
+            continue;
+        }
+        if (run_len == 0) {
+            run_start = page_index;
+        }
+        run_len++;
+        if (run_len == n) {
+            for (uint64_t p = run_start; p < run_start + n; p++) {
+                page_bitmap[p >> 3] |= (uint8_t)(1u << (p & 7));
+            }
+            return managed_pool_base + (run_start << PAGE_SHIFT);
+        }
+    }
+    return 0;
+}
+/* }}} */
+
+/* {{{ void free_pages() */
+/* Return an N-page contiguous run (from alloc_pages) to the pool. Mirrors
+ * free_page's bounds trust; clears each page's bit. */
+void free_pages(uint64_t page_address, uint64_t n)
+{
+    if (n == 0) {
+        n = 1;
+    }
+    if (page_address < managed_pool_base) {
+        return;
+    }
+    uint64_t first = (page_address - managed_pool_base) >> PAGE_SHIFT;
+    for (uint64_t p = first; p < first + n && p < managed_pool_pages; p++) {
+        page_bitmap[p >> 3] &= (uint8_t)~(1u << (p & 7));
+    }
+}
+/* }}} */
+
 /* Expose a few counters for the eventual diagnostic dump and for
  * any phase 1 self-test that wants to verify the bitmap math. */
 uint64_t allocator_total_pages(void)
@@ -198,6 +255,20 @@ int allocator_self_test(void)
     if (p3 != p1) {
         return 0;
     }
+
+    /* Contiguous allocation (111d): a run of three pages must come back
+     * page-aligned and truly adjacent, and free_pages must return them so
+     * the next single alloc reuses the lowest one. */
+    uint64_t run = alloc_pages(3);
+    if (run == 0 || (run & (PAGE_SIZE - 1)) != 0) {
+        return 0;
+    }
+    free_pages(run, 3);
+    uint64_t after = alloc_page();
+    if (after != run) {          /* the freed run's first page is lowest-free */
+        return 0;
+    }
+    free_page(after);
 
     /* Restore the allocator to its original state for downstream
      * callers — nobody else has held a page during the test, so

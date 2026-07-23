@@ -2,20 +2,28 @@
 
 # ensure-tmp-symlink
 #
-# Guarantees that the project's `tmp/` directory exists as a symbolic link into
-# a project-specific subdirectory of the system tmpfs at /tmp/, so that all
-# ephemeral output the project produces lives in RAM rather than on disk.
+# Sets up the project's two-tier RAM scratch, per the CLAUDE.md convention:
 #
-# Idempotent: safe to call repeatedly from any script that is about to write
-# into tmp/. The first call materialises the tmpfs target and the symlink; later
-# calls verify them and exit cleanly. If the path already exists as a real
-# directory or as a symlink pointing somewhere else, the helper fails loudly
-# rather than silently rewriting it — silently moving someone's data into a
-# tmpfs would be worse than refusing and asking a human to investigate.
+#   tmp/                -> /tmp/words-pdf/        (RAM, EXEC allowed)
+#   tmp/shared-memory/  -> /dev/shm/words-pdf/    (RAM, noexec)
+#
+# The project's tmp/ points at a per-project dir under /tmp/, which is RAM where
+# /tmp is a tmpfs and — crucially — allows execution, so compiled binaries and
+# dlopen'd .so files can live and run there. Nested inside it, tmp/shared-memory/
+# points at /dev/shm/, which every modern Linux guarantees to be RAM but commonly
+# mounts noexec: the right home for logs, compiled build artifacts, and other
+# NON-executable data. Rule of thumb: things you RUN go in tmp/; things you WRITE
+# (logs, dumps, caches) go in tmp/shared-memory/.
 #
 # This is mirrored from the sibling neocities-modernization project; the
-# convention is documented in the user-level CLAUDE.md (logs and other
-# ephemeral outputs live in tmp/, which symlinks into /tmp/<project>/).
+# convention is documented in the user-level CLAUDE.md (logs live in
+# tmp/shared-memory/, which symlinks into /dev/shm/<project>/).
+#
+# Idempotent and self-healing: it creates whatever is missing and repoints a
+# symlink that aims at the wrong target (a symlink holds no data, so re-aiming it
+# loses nothing). It refuses loudly only when a real directory or file sits where
+# a symlink belongs — those bytes might be someone's, and moving them into
+# volatile RAM would be worse than a loud refusal that asks a human to look.
 #
 # Usage:
 #   scripts/ensure-tmp-symlink                          # uses hard-coded DIR
@@ -31,64 +39,60 @@ DIR="${1:-/mnt/mtwo/programming/ai-stuff/words-pdf}"
 # }}}
 
 # {{{ TARGET resolution
-# The tmpfs-backed target lives under /tmp/ with a name that uniquely
-# identifies this project, so multiple projects on the same host do not
-# collide.
-TMPFS_TARGET="/tmp/words-pdf"
-SYMLINK_PATH="${DIR}/tmp"
+# EXEC_TARGET is the exec-capable RAM tier (under /tmp); SHM_TARGET is the
+# guaranteed-RAM, noexec tier (under /dev/shm). Names are unique per project so
+# multiple projects on one host do not collide. The shared-memory symlink lives
+# INSIDE the exec target, so it is reached from the project as tmp/shared-memory/.
+EXEC_TARGET="/tmp/words-pdf"
+SHM_TARGET="/dev/shm/words-pdf"
+TMP_LINK="${DIR}/tmp"                    # -> EXEC_TARGET
+SHM_LINK="${EXEC_TARGET}/shared-memory"  # -> SHM_TARGET; reached as tmp/shared-memory/
 # }}}
 
-# {{{ ensure_tmpfs_target_exists
-ensure_tmpfs_target_exists() {
-    # If the target subdirectory of /tmp/ does not exist yet, create it. Empty
-    # tmpfs directories cost nothing and are wiped on reboot, so the only
-    # consequence of a stale target is that it might have leftover bytes from a
-    # previous boot — harmless, since this directory is for ephemera anyway.
-    if [ ! -d "${TMPFS_TARGET}" ]; then
-        mkdir -p "${TMPFS_TARGET}"
-    fi
+# {{{ ensure_targets_exist()
+ensure_targets_exist() {
+    # Both RAM dirs are cheap and wiped on reboot; create whichever is missing.
+    [ -d "${EXEC_TARGET}" ] || mkdir -p "${EXEC_TARGET}"
+    [ -d "${SHM_TARGET}" ]  || mkdir -p "${SHM_TARGET}"
 }
 # }}}
 
-# {{{ ensure_symlink_correct
-ensure_symlink_correct() {
-    # Case 1: the symlink path does not exist at all. Create the symlink.
-    # This is the fresh-clone case.
-    if [ ! -e "${SYMLINK_PATH}" ] && [ ! -L "${SYMLINK_PATH}" ]; then
-        ln -s "${TMPFS_TARGET}" "${SYMLINK_PATH}"
+# {{{ ensure_symlink()
+# Make ${1} a symlink to ${2}. Shared by both tiers so they obey identical rules:
+# create when missing, repoint a wrong-target symlink in place, refuse a real
+# directory/file loudly.
+ensure_symlink() {
+    local link_path="${1}"
+    local want_target="${2}"
+
+    # Case: already a symlink. Repoint only if it aims at the wrong place — a
+    # symlink holds no data, so removing and recreating it loses nothing. This
+    # is what self-heals an old target (e.g. a pre-two-tier /dev/shm symlink).
+    if [ -L "${link_path}" ]; then
+        if [ "$(readlink "${link_path}")" != "${want_target}" ]; then
+            echo "ensure-tmp-symlink: repointing ${link_path}: '$(readlink "${link_path}")' -> '${want_target}'" >&2
+            rm "${link_path}"
+            ln -s "${want_target}" "${link_path}"
+        fi
         return 0
     fi
 
-    # Case 2: the path is a symlink and points to the right place. Nothing to
-    # do. This is the steady-state happy path that most calls hit.
-    if [ -L "${SYMLINK_PATH}" ]; then
-        local current_target
-        current_target=$(readlink "${SYMLINK_PATH}")
-        if [ "${current_target}" = "${TMPFS_TARGET}" ]; then
-            return 0
-        fi
-        # Case 3: the path is a symlink, but points somewhere else. Fail loud.
-        # The user may have configured an override they care about; we will not
-        # silently break it.
-        echo "ERROR: ${SYMLINK_PATH} is a symlink to '${current_target}'," >&2
-        echo "       expected target '${TMPFS_TARGET}'. Investigate before" >&2
-        echo "       re-running. To accept the expected target:" >&2
-        echo "           rm '${SYMLINK_PATH}'" >&2
+    # Case: a real file/dir sits where the symlink belongs. Refuse loudly rather
+    # than relocate whatever bytes are there into volatile RAM.
+    if [ -e "${link_path}" ]; then
+        echo "ERROR: ${link_path} exists but is not a symbolic link." >&2
+        echo "       Move its contents elsewhere, then remove it, then re-run." >&2
+        echo "       Suggested:" >&2
+        echo "           mv '${link_path}' '${link_path}.preserved'" >&2
         echo "           scripts/ensure-tmp-symlink" >&2
         exit 1
     fi
 
-    # Case 4: the path exists but is not a symlink. Real directory or file.
-    # Fail loud — silent migration would risk losing whatever bytes the user
-    # has placed there.
-    echo "ERROR: ${SYMLINK_PATH} exists but is not a symbolic link." >&2
-    echo "       Move its contents elsewhere, then remove it, then re-run." >&2
-    echo "       Suggested:" >&2
-    echo "           mv '${SYMLINK_PATH}' '${SYMLINK_PATH}.preserved'" >&2
-    echo "           scripts/ensure-tmp-symlink" >&2
-    exit 1
+    # Case: nothing there yet. Fresh-clone path.
+    ln -s "${want_target}" "${link_path}"
 }
 # }}}
 
-ensure_tmpfs_target_exists
-ensure_symlink_correct
+ensure_targets_exist
+ensure_symlink "${TMP_LINK}" "${EXEC_TARGET}"
+ensure_symlink "${SHM_LINK}" "${SHM_TARGET}"

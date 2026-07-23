@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en" data-darkreader-mode="dynamic" data-darkreader-scheme="dark"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"><style class="darkreader darkreader--fallback" media="screen"></style><style class="darkreader darkreader--user-agent" media="screen">@layer {
+html {
+    color-scheme: dark !important;
+}
+iframe {
+    color-scheme: dark !important;
+}
+html, body {
+    border-color: var(--darkreader-border-4c4c4c, #736b5e);
+    color: var(--darkreader-text-000000, #e8e6e3);
+}
+a {
+    color: var(--darkreader-text-0040ff, #3391ff);
+}
+table {
+    border-color: var(--darkreader-border-808080, #545b5e);
+}
+mark {
+    color: var(--darkreader-text-000000, #e8e6e3);
+}
+::placeholder {
+    color: var(--darkreader-text-a9a9a9, #b2aba1);
+}
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    background-color: var(--darkreader-background-faffbd, #404400) !important;
+    color: var(--darkreader-text-000000, #e8e6e3) !important;
+}
+* {
+    scrollbar-color: var(--darkreader-background-b0b0b0, #454a4d) var(--darkreader-background-f1f1f1, #202324);
+}
+::selection {
+    background-color: var(--darkreader-background-0060d4, #004daa) !important;
+    color: var(--darkreader-text-ffffff, #e8e6e3) !important;
+}
+::-moz-selection {
+    background-color: var(--darkreader-background-0060d4, #004daa) !important;
+    color: var(--darkreader-text-ffffff, #e8e6e3) !important;
+}
+}</style><style class="darkreader darkreader--text" media="screen"></style><style class="darkreader darkreader--invert" media="screen">.jfk-bubble.gtx-bubble, .captcheck_answer_label > input + img, span#closed_text > img[src^="https://www.gstatic.com/images/branding/googlelogo"], span[data-href^="https://www.hcaptcha.com/"] > #icon, img.Wirisformula, a[data-testid="headerMediumLogo"]>svg, .d2l-navigation-link-image-container, .d2l-iframe-loading-container, div.mc-ip-hide[style*="background: rgb(255, 255, 255) !important"], [style*="color: rgb(0, 0, 1) !important;"] {
+    filter: invert(100%) hue-rotate(180deg) contrast(90%) !important;
+}
+.gsc-loading-image, main .gsc-loading-image {
+    filter: none !important;
+    color: var(--darkreader-neutral-text) !important;
+}
+.gsc-loading-image > *, main .gsc-loading-image > * {
+    filter: none !important;
+}</style><style class="darkreader darkreader--inline" media="screen">[data-darkreader-inline-bgcolor] {
+  background-color: var(--darkreader-inline-bgcolor) !important;
+}
+[data-darkreader-inline-bgimage] {
+  background-image: var(--darkreader-inline-bgimage) !important;
+}
+[data-darkreader-inline-border] {
+  border-color: var(--darkreader-inline-border) !important;
+}
+[data-darkreader-inline-border-bottom] {
+  border-bottom-color: var(--darkreader-inline-border-bottom) !important;
+}
+[data-darkreader-inline-border-left] {
+  border-left-color: var(--darkreader-inline-border-left) !important;
+}
+[data-darkreader-inline-border-right] {
+  border-right-color: var(--darkreader-inline-border-right) !important;
+}
+[data-darkreader-inline-border-top] {
+  border-top-color: var(--darkreader-inline-border-top) !important;
+}
+[data-darkreader-inline-boxshadow] {
+  box-shadow: var(--darkreader-inline-boxshadow) !important;
+}
+[data-darkreader-inline-color] {
+  color: var(--darkreader-inline-color) !important;
+}
+[data-darkreader-inline-fill] {
+  fill: var(--darkreader-inline-fill) !important;
+}
+[data-darkreader-inline-stroke] {
+  stroke: var(--darkreader-inline-stroke) !important;
+}
+[data-darkreader-inline-outline] {
+  outline-color: var(--darkreader-inline-outline) !important;
+}
+[data-darkreader-inline-stopcolor] {
+  stop-color: var(--darkreader-inline-stopcolor) !important;
+}
+[data-darkreader-inline-bg] {
+  background: var(--darkreader-inline-bg) !important;
+}
+[data-darkreader-inline-border-short] {
+  border: var(--darkreader-inline-border-short) !important;
+}
+[data-darkreader-inline-border-bottom-short] {
+  border-bottom: var(--darkreader-inline-border-bottom-short) !important;
+}
+[data-darkreader-inline-border-left-short] {
+  border-left: var(--darkreader-inline-border-left-short) !important;
+}
+[data-darkreader-inline-border-right-short] {
+  border-right: var(--darkreader-inline-border-right-short) !important;
+}
+[data-darkreader-inline-border-top-short] {
+  border-top: var(--darkreader-inline-border-top-short) !important;
+}
+[data-darkreader-inline-invert] {
+    filter: invert(100%) hue-rotate(180deg);
+}</style><style class="darkreader darkreader--variables" media="screen">:root {
+   --darkreader-neutral-background: var(--darkreader-background-ffffff, #181a1b);
+   --darkreader-neutral-text: var(--darkreader-text-000000, #e8e6e3);
+   --darkreader-selection-background: var(--darkreader-background-0060d4, #004daa);
+   --darkreader-selection-text: var(--darkreader-text-ffffff, #e8e6e3);
+}</style><style class="darkreader darkreader--root-vars" media="screen"></style><meta charset="utf-8"><meta name="viewport" content="width=device-width"><!-- base href="https://giscus.app/en/widget?origin=https%3A%2F%2Fcarteakey.dev%2Fblog%2Flocal-inference%2Flocal-llm-optimization%2F&session=&theme=light&reactionsEnabled=0&emitMetadata=0&inputPosition=bottom&repo=carteakey%2Fcarteakey.dev&repoId=R_kgDOIHTsrg&category=Announcements&categoryId=DIC_kwDOIHTsrs4CnZpB&strict=0&description=A+living+deep-dive+into+every+layer+of+local+LLM+inference+-+hardware%2C+OS%2C+backend+choice%2C+and+every+llama.cpp+flag+worth+tuning+-+synthesized+from+months+of+running+large+models+on+consumer+hardware.&backLink=https%3A%2F%2Fcarteakey.dev%2Fblog%2Flocal-inference%2Flocal-llm-optimization%2F&term=%2Fblog%2Flocal-inference%2Flocal-llm-optimization%2F" --><title>giscus</title><meta name="next-head-count" content="4"><link rel="icon" href="https://giscus.app/favicon.ico"><link rel="preconnect" href="https://api.github.com/"><link rel="preconnect" href="https://avatars3.githubusercontent.com/"><link rel="apple-touch-icon" sizes="180x180" href="https://giscus.app/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="https://giscus.app/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="https://giscus.app/favicon-16x16.png"><meta name="color-scheme" content="light dark"><link rel="manifest" href="https://giscus.app/site.webmanifest"><link rel="preload" href="widget_data/1ba63f4f1b975b30.css" as="style"><link rel="stylesheet" href="widget_data/1ba63f4f1b975b30.css" data-n-g=""><style class="darkreader darkreader--sync" media="screen"></style><noscript data-n-css=""></noscript><script defer="defer" nomodule="" src="widget_data/polyfills-c67a75d1b6f99dc8.js"></script><script src="widget_data/webpack-6b2584c51f2fda40.js" defer="defer"></script><script src="widget_data/framework-821422f1c2a18a27.js" defer="defer"></script><script src="widget_data/main-150a3b60f55bb087.js" defer="defer"></script><script src="widget_data/_app-f0e12f9072ad11d5.js" defer="defer"></script><script src="widget_data/727f57db-503fa32904b535ea.js" defer="defer"></script><script src="widget_data/3006-c974b2cdab4c9b95.js" defer="defer"></script><script src="widget_data/4947-ef88ba5ef051af3d.js" defer="defer"></script><script src="widget_data/widget-20a96669d847c90c.js" defer="defer"></script><script src="widget_data/_buildManifest.js" defer="defer"></script><script src="widget_data/_ssgManifest.js" defer="defer"></script><meta name="darkreader" content="4c00c5d1932847cb84407d323ac2853f"><style class="darkreader darkreader--override" media="screen">.jfk-bubble.gtx-bubble {
+    background-color: white !important;
+}
+.vimvixen-hint {
+    background-color: var(--darkreader-background-ffd76e, #684b00) !important;
+    border-color: var(--darkreader-background-c59d00, #9e7e00) !important;
+    color: var(--darkreader-text-302505, #d7d4cf) !important;
+}
+#vimvixen-console-frame {
+    color-scheme: light !important;
+}
+::placeholder {
+    opacity: 0.5 !important;
+}
+#edge-translate-panel-body,
+.MuiTypography-body1,
+.nfe-quote-text {
+    color: var(--darkreader-neutral-text) !important;
+}
+gr-main-header {
+    background-color: var(--darkreader-background-add8e6, #1b4958) !important;
+}
+.tou-z65h9k,
+.tou-mignzq,
+.tou-1b6i2ox,
+.tou-lnqlqk {
+    background-color: var(--darkreader-neutral-background) !important;
+}
+.tou-75mvi {
+    background-color: var(--darkreader-background-cfecf5, #0f3a47) !important;
+}
+.tou-ta9e87,
+.tou-1w3fhi0,
+.tou-1b8t2us,
+.tou-py7lfi,
+.tou-1lpmd9d,
+.tou-1frrtv8,
+.tou-17ezmgn {
+    background-color: var(--darkreader-background-f5f5f5, #1e2021) !important;
+}
+.tou-uknfeu {
+    background-color: var(--darkreader-background-faedda, #432c09) !important;
+}
+.tou-6i3zyv {
+    background-color: var(--darkreader-background-85c3d8, #245d70) !important;
+}
+div.mermaid-viewer-control-panel .btn {
+    background-color: var(--darkreader-neutral-background);
+    fill: var(--darkreader-neutral-text);
+}
+svg g rect.er {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.er.entityBox {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.er.attributeBoxOdd {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.er.attributeBoxEven {
+    fill: var(--darkreader-selection-background);
+    fill-opacity: 0.8 !important;
+}
+svg rect.er.relationshipLabelBox {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g g.nodes rect,
+svg g g.nodes polygon {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.task {
+    fill: var(--darkreader-selection-background) !important;
+}
+svg line.messageLine0,
+svg line.messageLine1 {
+    stroke: var(--darkreader-neutral-text) !important;
+}
+div.mermaid .actor {
+    fill: var(--darkreader-neutral-background) !important;
+}
+mitid-authenticators-code-app > .code-app-container {
+    background-color: white !important;
+    padding-top: 1rem;
+}
+iframe#unpaywall[src$="unpaywall.html"] {
+    color-scheme: light !important;
+}
+select {
+    --darkreader-bg--form-control-background-color: rgba(22, 22, 22, 0) !important;
+}
+body#tumblr {
+    --darkreader-bg--secondary-accent: 31, 32, 34 !important;
+    --darkreader-bg--white: 23, 23, 23 !important;
+    --darkreader-text--black: 228, 224, 218 !important;
+}
+:host {
+    --d2l-border-color: var(--darkreader-bg--d2l-color-gypsum) !important;
+    --d2l-button-icon-background-color-hover: var(--darkreader-bg--d2l-color-gypsum) !important;
+    --d2l-color-ferrite: var(--darkreader-neutral-text) !important;
+    --d2l-color-sylvite: var(--darkreader-bg--d2l-color-sylvite) !important;
+    --d2l-dropdown-background-color: var(--darkreader-neutral-background) !important;
+    --d2l-dropdown-border-color: var(--darkreader-border--d2l-color-mica) !important;
+    --d2l-input-backgroud-color: var(--darkreader-neutral-background) !important;
+    --d2l-menu-border-color: var(--darkreader-bg--d2l-color-gypsum) !important;
+    --d2l-tooltip-background-color: var(--darkreader-neutral-background) !important;
+    --d2l-tooltip-border-color: var(--darkreader-bg--d2l-color-gypsum) !important;
+}
+:host([_floating]) .d2l-floating-buttons-container {
+    background-color: var(--darkreader-neutral-background) !important;
+    border-top-color: var(--darkreader-border--d2l-color-mica) !important;
+    opacity: 0.88 !important;
+}
+d2l-card {
+    background: var(--darkreader-neutral-background) !important;
+    border-color: var(--darkreader-border--d2l-color-gypsum) !important;
+}
+d2l-dropdown-content > div,
+d2l-menu-item {
+    background-color: var(--darkreader-neutral-background) !important;
+    border-radius: 10px !important;
+}
+d2l-empty-state-simple {
+    border-color: var(--darkreader-bg--d2l-color-gypsum) !important;
+}
+.d2l-button-filter > ul > li > a.vui-button {
+    border-color: var(--darkreader-border--d2l-color-mica) !important;
+}
+.d2l-label-text:has(.d2l-button-subtle-content):hover,
+.d2l-label-text:has(.d2l-button-subtle-content):focus,
+.d2l-label-text:has(.d2l-button-subtle-content):active {
+    background-color: var(--darkreader-bg--d2l-color-gypsum) !important;
+}
+.d2l-navigation-centerer {
+    color: inherit !important;
+}
+.d2l-tabs-layout {
+    border-color: var(--darkreader-border--d2l-color-gypsum) !important;
+}
+.d2l-input,
+.d2l-calendar-date,
+.d2l-htmleditor-container {
+    background-color: var(--darkreader-neutral-background) !important;
+}
+.d2l-collapsible-panel {
+    border: 1px solid var(--darkreader-border--d2l-color-mica) !important;
+    border-radius: 0.4rem !important;
+}
+.d2l-collapsible-panel-divider {
+    border-bottom: 1px solid var(--darkreader-border--d2l-color-mica) !important;
+}
+.d2l-w2d-flex {
+    border-bottom: 2px solid var(--darkreader-border--d2l-color-mica) !important;
+}
+.d2l-collapsible-panel scrolled,
+.d2l-collapsible-panel-header,
+.d2l-w2d-collection-fixed {
+    background-color: var(--darkreader-neutral-background) !important;
+}
+.d2l-loading-spinner-bg {
+    fill: var(--darkreader-bg--d2l-color-gypsum) !important;
+}
+.d2l-loading-spinner-bg-stroke {
+    stroke: var(--darkreader-border--d2l-color-mica) !important;
+}
+.d2l-loading-spinner-wrapper svg path,
+.d2l-loading-spinner-wrapper svg circle {
+    fill: var(--darkreader-neutral-background) !important;
+}
+.d2l-twopanelselector-side.d2l-twopanelselector-side-sep {
+    background: var(--darkreader-bg--d2l-color-mica) !important;
+}
+.d2l-le-TreeAccordionItem-anchor::before {
+    background: var(--darkreader-bg--d2l-color-corundum) !important;
+}
+table[class|="moz-header"] {
+    background: none;
+}
+*[style*="color: rgba(0,0,0,"]:not([style*="color: rgba(0,0,0,0)"]),
+*[style*="color: rgba(0, 0, 0,"]:not([style*="color: rgba(0, 0, 0, 0)"]),
+*[style*="color:#000"],
+*[style*="color:black"],
+*[style*="color:#282828"],
+*[style*="color:#444"] {
+    color: var(--darkreader-neutral-text) !important;
+}
+*[style*="background:#fff"],
+*[style*="background-color:#fff"] {
+    background: var(--darkreader-neutral-background) !important;
+}
+*[bgcolor="#F5F5F5"],
+*[style*="background-color: #F5F5F5"] {
+    background: var(--darkreader-background-f5f5f5, #1e2021) !important;
+}
+body[style*="background: rgb(255, 255, 255) !important"] *:not(a),
+.body[style*="background-color: rgb(254, 254, 254) !important"] *:not(a) {
+    background-color: var(--darkreader-neutral-background) !important;
+}
+div[style*="www.gstatic.com/android/"] {
+    background: none !important;
+}
+*[style*="background:#f9f9f9"] {
+    background: var(--darkreader-background-f9f9f9, #1b1e1f) !important;
+}
+body.mediawiki.skin-vector #mw-page-base {
+    background-image: none !important;
+}
+.overflow-hidden .spinning-bg,
+.overflow-hidden .solid-bg {
+    background: transparent !important;
+}
+embed[type="application/pdf"] { filter: invert(100%) contrast(90%); }</style><link id="giscus-theme" rel="stylesheet" crossorigin="anonymous" href="widget_data/light.css"><style class="darkreader darkreader--sync" media="screen"></style></head><body><div id="__next"><main data-theme="light" class="w-full mx-auto"><div class="color-text-primary gsc-main"><div class="gsc-comments"><div class="gsc-header"><div class="gsc-left-header"><h4 class="gsc-comments-count">0 comments</h4></div></div><div class="gsc-timeline hidden"></div><form class="color-bg-primary color-border-primary gsc-comment-box  "><div class="color-bg-tertiary color-border-primary gsc-comment-box-tabs"><div class="mx-2 mb-[-1px] mt-2"><button type="button" class="rounded-t border border-b-0 px-4 py-2 color-text-primary color-bg-canvas color-border-primary">Write</button><button type="button" class="ml-1 rounded-t border border-b-0 px-4 py-2 color-text-secondary border-transparent">Preview</button></div><div class="gsc-comment-box-md-toolbar"><button type="button" title="Enable fixed-width (monospace) font in the editor" tabindex="-1" class="gsc-toolbar-item"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom;" class="octicon octicon-typography"><path d="M6.71 10H2.332l-.874 2.498a.75.75 0 0 1-1.415-.496l3.39-9.688a1.217 1.217 0 0 1 2.302.018l3.227 9.681a.75.75 0 0 1-1.423.474Zm3.13-4.358C10.53 4.374 11.87 4 13 4c1.5 0 3 .939 3 2.601v5.649a.75.75 0 0 1-1.448.275C13.995 12.82 13.3 13 12.5 13c-.77 0-1.514-.231-2.078-.709-.577-.488-.922-1.199-.922-2.041 0-.694.265-1.411.887-1.944C11 7.78 11.88 7.5 13 7.5h1.5v-.899c0-.54-.5-1.101-1.5-1.101-.869 0-1.528.282-1.84.858a.75.75 0 1 1-1.32-.716ZM6.21 8.5 4.574 3.594 2.857 8.5Zm8.29.5H13c-.881 0-1.375.22-1.637.444-.253.217-.363.5-.363.806 0 .408.155.697.39.896.249.21.63.354 1.11.354.732 0 1.26-.209 1.588-.449.35-.257.412-.495.412-.551Z"></path></svg></button></div></div><div class="gsc-comment-box-main"><div class="gsc-comment-box-write"><textarea dir="auto" placeholder="Sign in to comment" disabled="disabled" class="form-control input-contrast gsc-comment-box-textarea "></textarea><div class="form-control input-contrast gsc-comment-box-textarea-extras"><a rel="nofollow noopener noreferrer" target="_blank" href="https://guides.github.com/features/mastering-markdown/" title="Styling with Markdown is supported" class="link-secondary gsc-comment-box-markdown-hint flex gap-2"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom;" class="octicon octicon-markdown mr-1"><path d="M14.85 3c.63 0 1.15.52 1.14 1.15v7.7c0 .63-.51 1.15-1.15 1.15H1.15C.52 13 0 12.48 0 11.84V4.15C0 3.52.52 3 1.15 3ZM9 11V5H7L5.5 7 4 5H2v6h2V8l1.5 1.92L7 8v3Zm2.99.5L14.5 8H13V5h-2v3H9.5Z"></path></svg></a></div></div></div><div class="gsc-comment-box-bottom"><div class="gsc-comment-box-buttons"><a target="_top" href="https://giscus.app/api/oauth/authorize?redirect_uri=https%3A%2F%2Fcarteakey.dev%2Fblog%2Flocal-inference%2Flocal-llm-optimization%2F" class="btn btn-primary inline-flex items-center ml-1 rounded-md border hover:no-underline"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom;" class="octicon octicon-mark-github mr-2"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg> Sign in with GitHub</a></div></div></form></div></div></main></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"origin":"https://carteakey.dev/blog/local-inference/local-llm-optimization/","session":"","repo":"carteakey/carteakey.dev","term":"/blog/local-inference/local-llm-optimization/","category":"Announcements","number":0,"strict":false,"repoId":"R_kgDOIHTsrg","categoryId":"DIC_kwDOIHTsrs4CnZpB","description":"A living deep-dive into every layer of local LLM inference - hardware, OS, backend choice, and every llama.cpp flag worth tuning - synthesized from months of running large models on consumer hardware.","reactionsEnabled":false,"emitMetadata":false,"inputPosition":"bottom","defaultCommentOrder":"oldest","theme":"light","originHost":"https://carteakey.dev","backLink":"https://carteakey.dev/blog/local-inference/local-llm-optimization/","__lang":"en","__namespaces":{"common":{"reactions":{"0":"{{count}} reactions","one":"{{count}} reaction","other":"{{count}} reactions"},"comment":"Comment","comments":{"0":"{{count}} comments","one":"{{count}} comment","other":"{{count}} comments"},"reply":"Reply","replies":{"0":"{{count}} replies","one":"{{count}} reply","other":"{{count}}{{plus}} replies"},"upvotes":{"0":"{{count}} upvotes","one":"{{count}} upvote","other":"{{count}} upvotes"},"hiddenItems":{"0":"{{count}} hidden items","one":"{{count}} hidden item","other":"{{count}} hidden items"},"genericError":"An error occurred: {{message}}","loadMore":"Load more","loading":"Loading","loadingComments":"Loading comments…","loadingPreview":"Loading preview…","poweredBy":"– powered by \u003ca\u003egiscus\u003c/a\u003e","oldest":"Oldest","newest":"Newest","showPreviousReplies":{"0":"Show {{count}} previous replies","one":"Show {{count}} previous reply","other":"Show {{count}} previous replies"},"seePreviousRepliesOnGitHub":{"0":"See {{count}} previous replies on GitHub","one":"See {{count}} previous reply on GitHub","other":"See {{count}} previous replies on GitHub"},"edited":"edited","thisCommentWasDeleted":"This comment was deleted.","thisCommentWasMinimized":"This comment has been minimized.","thisCommentWasHidden":"This comment has been hidden.","write":"Write","preview":"Preview","enableFixedWidth":"Enable fixed-width (monospace) font in the editor","disableFixedWidth":"Disable fixed-width (monospace) font in the editor","lastEditedAt":"Last edited at {{date}}","writeAComment":"Write a comment","signInToComment":"Sign in to comment","stylingWithMarkdownIsSupported":"Styling with Markdown is supported","signOut":"Sign out","cancel":"Cancel","signInWithGitHub":"Sign in with GitHub","writeAReply":"Write a reply","upvote":"Upvote","youMustBeSignedInToUpvote":"You must be signed in to upvote.","addReactions":"Add reactions","pleaseWait":"Please wait…","pickYourReaction":"Pick your reaction","addTheReaction":"Add {{reaction}} reaction","removeTheReaction":"Remove {{reaction}} reaction","signInToAddYourReaction":"\u003ca\u003eSign in\u003c/a\u003e to add your reaction.","youMustBeSignedInToAddReactions":"You must be signed in to add reactions.","peopleReactedWith":{"0":"{{count}} people reacted with {{reaction}} {{emoji}}","one":"{{count}} person reacted with {{reaction}} {{emoji}}","other":"{{count}} people reacted with {{reaction}} {{emoji}}"},"emoji":"emoji","nothingToPreview":"Nothing to preview","THUMBS_UP":"+1","THUMBS_DOWN":"-1","LAUGH":"Laugh","HOORAY":"Hooray","CONFUSED":"Confused","HEART":"Love","ROCKET":"Rocket","EYES":"Eyes","COLLABORATOR":"Collaborator","CONTRIBUTOR":"Contributor","FIRST_TIMER":"First-timer","FIRST_TIME_CONTRIBUTOR":"First-time contributor","MANNEQUIN":"Mannequin","MEMBER":"Member","NONE":"None","OWNER":"Owner","APP":"App"}}},"__N_SSP":true},"page":"/widget","query":{"origin":"https://carteakey.dev/blog/local-inference/local-llm-optimization/","session":"","theme":"light","reactionsEnabled":"0","emitMetadata":"0","inputPosition":"bottom","repo":"carteakey/carteakey.dev","repoId":"R_kgDOIHTsrg","category":"Announcements","categoryId":"DIC_kwDOIHTsrs4CnZpB","strict":"0","description":"A living deep-dive into every layer of local LLM inference - hardware, OS, backend choice, and every llama.cpp flag worth tuning - synthesized from months of running large models on consumer hardware.","backLink":"https://carteakey.dev/blog/local-inference/local-llm-optimization/","term":"/blog/local-inference/local-llm-optimization/"},"buildId":"GqWWgLl6veNV_vhow6sKY","isFallback":false,"gssp":true,"locale":"en","locales":["en","ar","be","bg","ca","cs","da","de","eo","es","eu","fa","fr","gr","gsw","hbs","he","hu","id","it","ja","kh","ko","nl","pl","pt","ro","ru","th","tr","vi","uk","uz","zh-CN","zh-Hans","zh-Hant","zh-TW","zh-HK"],"defaultLocale":"en","scriptLoader":[]}</script><next-route-announcer><p aria-live="assertive" id="__next-route-announcer__" role="alert" style="border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; width: 1px; white-space: nowrap; overflow-wrap: normal; --darkreader-inline-border-top: 0px; --darkreader-inline-border-right: 0px; --darkreader-inline-border-bottom: 0px; --darkreader-inline-border-left: 0px;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></p></next-route-announcer></body></html>

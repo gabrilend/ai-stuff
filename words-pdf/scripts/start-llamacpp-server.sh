@@ -5,7 +5,7 @@
 #   - Foreground (default): blocks with logs streaming to the terminal AND
 #     to per-server log files. Ctrl+C cleanly stops both servers.
 #   - Background (--background): launches each server detached, writes its
-#     PID to tmp/llamacpp-<label>.pid, waits for readiness, exits 0. ./run
+#     PID to tmp/shared-memory/llamacpp-<label>.pid, waits for readiness, exits 0. ./run
 #     uses this mode and reads the PID files on its own EXIT trap to kill
 #     the servers when the PDF pipeline finishes (or errors out).
 #
@@ -47,8 +47,8 @@ DEFAULT BEHAVIOR (foreground):
     - Embedding server on port 20165 (nomic-embed-text v1.5 Q8_0, --embeddings)
     - Chat server      on port 20166 (Qwen3-8B Q4_K_M)
   Each server's output streams to the terminal AND to a log file:
-    - DIR/tmp/logs/llamacpp-embed.log
-    - DIR/tmp/logs/llamacpp-chat.log
+    - DIR/tmp/shared-memory/logs/llamacpp-embed.log
+    - DIR/tmp/shared-memory/logs/llamacpp-chat.log
   Blocks until you Ctrl+C; signal handling kills both servers cleanly.
 
   If a port is already serving /v1/models, the script tails that server's
@@ -57,8 +57,8 @@ DEFAULT BEHAVIOR (foreground):
 BACKGROUND BEHAVIOR (--background):
   Launches each non-running server detached from the controlling terminal,
   records its PID to:
-    - DIR/tmp/llamacpp-embed.pid
-    - DIR/tmp/llamacpp-chat.pid
+    - DIR/tmp/shared-memory/llamacpp-embed.pid
+    - DIR/tmp/shared-memory/llamacpp-chat.pid
   Waits for /v1/models on each port, then exits 0. The caller is
   responsible for killing the PIDs when done.
 
@@ -125,8 +125,8 @@ EMBED_CTX=8192
 # 2048 get truncated by the model (degraded similarity), but the server
 # itself no longer errors on them.
 EMBED_BATCH=8192
-EMBED_LOG="${DIR}/tmp/logs/llamacpp-embed.log"
-EMBED_PID_FILE="${DIR}/tmp/llamacpp-embed.pid"
+EMBED_LOG="${DIR}/tmp/shared-memory/logs/llamacpp-embed.log"
+EMBED_PID_FILE="${DIR}/tmp/shared-memory/llamacpp-embed.pid"
 
 CHAT_PORT=20166
 CHAT_MODEL="${DIR}/models/Qwen3-8B-Q4_K_M.gguf"
@@ -135,8 +135,8 @@ CHAT_ALIAS="Qwen3-8B"
 # which accumulates lines into one growing prompt. 80-char-per-line
 # responses on top, so most sessions never approach the limit.
 CHAT_CTX=16384
-CHAT_LOG="${DIR}/tmp/logs/llamacpp-chat.log"
-CHAT_PID_FILE="${DIR}/tmp/llamacpp-chat.pid"
+CHAT_LOG="${DIR}/tmp/shared-memory/logs/llamacpp-chat.log"
+CHAT_PID_FILE="${DIR}/tmp/shared-memory/llamacpp-chat.pid"
 
 # How long to wait for /v1/models to respond after starting a server.
 # Cold-loading a Q4 8B model from disk on the 1080 Ti takes ~5-15s; 60s
@@ -153,10 +153,11 @@ declare -a CHILD_PIDS=()
 # the script expects. A missing model gives a cleaner error here than the
 # "failed to load" llama-server would produce thirty seconds in.
 preflight() {
-    # tmp/ is a symlink into /tmp/words-pdf which gets wiped on reboot;
-    # ensure-tmp-symlink materialises the target dir before any writes.
+    # tmp/ -> /tmp/words-pdf (exec tier); logs are data, so they go in the
+    # tmp/shared-memory/ tier (-> /dev/shm/words-pdf). Both are wiped on reboot;
+    # ensure-tmp-symlink materialises them before any writes.
     "${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
-    mkdir -p "${DIR}/tmp/logs"
+    mkdir -p "${DIR}/tmp/shared-memory/logs"
     if [ ! -x "${LLAMA_BIN}" ]; then
         echo "❌ ${LLAMA_BIN} not found or not executable." >&2
         echo "   Run ./scripts/build-llamacpp.sh first." >&2
@@ -333,7 +334,7 @@ if [ "${BACKGROUND}" = "1" ]; then
         echo "   See ${CHAT_LOG}" >&2
         exit 1
     fi
-    echo "✅ Both servers ready (PIDs written to tmp/llamacpp-*.pid)"
+    echo "✅ Both servers ready (PIDs written to tmp/shared-memory/llamacpp-*.pid)"
     exit 0
 fi
 
