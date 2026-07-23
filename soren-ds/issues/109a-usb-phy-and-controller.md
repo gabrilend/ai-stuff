@@ -41,15 +41,24 @@ trigger an exception that the bootloader's installed handler
 treats as a reset condition.
 
 This is the bring-up gap surfaced during the phase-1 hardware-
-test investigation. Closing it requires three more register
-writes during `usb_init`: two into the main CRU at
-`0xFDD2_0000` to ungate the USB 3.0 OTG controller's clocks
-and deassert its hardware reset, and one into the PMU GRF at
-`0xFDC2_0000` to clear the USB 2.0 PHY's power-down bits.
-The specific register addresses, bit positions, and write
-values are catalogued in `docs/017-clocks-and-timers.md`.
-Without these writes, the controller cannot come alive
-regardless of what the rest of the bring-up sequence does.
+test investigation. The datasheet pass
+(`docs/022-usb-device-controller.md`) refined what's actually
+required. Two CRU writes are still needed in `usb_init`: ungate
+the USB 3.0 OTG controller's clocks (`CLKGATE_CON(10)`
+= `0xFDD20328`, bits 8/9/10) and deassert its reset
+(`SOFTRST_CON(9)` = `0xFDD20424`, bit 4) — both catalogued in
+`docs/017-clocks-and-timers.md`.
+
+The "clear the USB 2.0 PHY power-down bits" step turned out to
+be **mostly a non-issue**: the USB2 PHY's OTG-port control
+register (`USBPHY_U3_GRF_CON0` at `0xFDCA0000`) reads its reset
+value `0x0C52` on our boot path, which already decodes to
+"controller-driven, not suspended." There is no dedicated
+power-down bit in that GRF to clear; the PHY's real analog
+power-up is the CRU's `resetn_usb2phy0_por` reset. So the PHY
+arrives essentially ready, and the remaining work is the two CRU
+writes plus the DWC3 register sequence. Full decode in
+`docs/022-usb-device-controller.md`.
 
 The closing evidence — the laptop's `dmesg` showing raw USB
 activity on plug-in — has not yet been observed on real

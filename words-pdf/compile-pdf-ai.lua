@@ -194,7 +194,40 @@ function normalize_poem_spacing(poem) -- {{{
     
     local result = {}
     local poem_type = detect_poem_type(poem)
-    
+
+    -- Issue 032: drop structural lines now that detect_poem_type has used
+    -- them to classify. Two kinds, neither of which is poem content:
+    --   * the "-> file: <path>" source header — injects path tokens (mainly
+    --     "fediverse", ~77% of blocks) into the embedding and prints the
+    --     path inside the rendered poem box; and
+    --   * lines whose whole body is an attachment filename or bare timestamp
+    --     ("screenshot_20250414_154457.jpg", "temp1239...PDF",
+    --     "cameron-king-resume.txt") — image-only / file-only posts that
+    --     otherwise form spurious filename-token micro-clusters.
+    -- Keep this block byte-identical with the copy in
+    -- themes-v2/load-poem-embeddings.lua: the embedding cache key is the
+    -- normalized text, so any divergence desyncs the cache.
+    do
+        local KNOWN_EXT = " jpg jpeg png gif webp bmp heic pdf txt mp4 mov webm "
+        local function is_structural(line)
+            if line:match("^%s*%-+>%s*file:") then return true end
+            local s = line:gsub("^%s+", ""):gsub("%s+$", "")
+            if s:match("^[%w._%-]+$") then  -- one token, no spaces
+                local ext = s:match("%.([%a%d]+)$")
+                if ext and KNOWN_EXT:find(" " .. ext:lower() .. " ", 1, true) then
+                    return true
+                end
+                if s:match("^%d%d%d%d%d%d%d%d_%d%d%d%d%d%d$") then return true end
+            end
+            return false
+        end
+        local stripped = {}
+        for _, line in ipairs(poem) do
+            if not is_structural(line) then table.insert(stripped, line) end
+        end
+        poem = stripped
+    end
+
     if poem_type == "fediverse_with_cw" then
         -- Format: CW line, blank line, then poem content
         local cw_line = ""
@@ -661,6 +694,7 @@ function compute_axis_percentiles(book)
         end
     end
 
+    local total_pages = #book.pages
     for page_num, page in ipairs(book.pages) do
         local page_text = ""
         for _, poem in ipairs(page.left or {}) do
@@ -680,7 +714,12 @@ function compute_axis_percentiles(book)
                 end
             end
         end
+        -- This loop embeds every page (one server round-trip each), so it
+        -- is the slow part of the pass — show an in-place bar rather than
+        -- leaving the terminal frozen on the "Scoring pages..." line.
+        progress_ui.bar("📊 Scoring pages", page_num, total_pages)
     end
+    progress_ui.bar_finish()
 
     -- Rank each (theme, param) independently. Pages with no score (empty,
     -- or embedding failed) get the median 0.5 percentile as a safe default.
@@ -745,6 +784,7 @@ function compute_poem_axis_percentiles(book)
         end
     end
 
+    local total_poems = #book.poems
     for poem_index, poem in ipairs(book.poems) do
         local poem_text = poem._full_text or table.concat(poem, " ")
         if #poem_text >= 10 then
@@ -757,7 +797,13 @@ function compute_poem_axis_percentiles(book)
                 end
             end
         end
+        -- The per-poem pass is the longest embedding loop in the run (one
+        -- round-trip per poem, ~thousands of poems), so the bar matters
+        -- most here. Cache-warm runs fly; a cold cache crawls — either way
+        -- the operator can watch it advance instead of guessing.
+        progress_ui.bar("📊 Scoring poems", poem_index, total_poems)
     end
+    progress_ui.bar_finish()
 
     -- Rank each (theme, param) independently. Poems with no score (too short
     -- or embedding failed) get no entry and fall back to 0.5 at render time.
@@ -889,7 +935,7 @@ function analyze_column_with_ai(column_poems) -- {{{
     if not theme_embeddings or not theme_embeddings.tier1 or table_length(theme_embeddings.tier1) == 0 then
         error("analyze_text_themes: Tier 1 theme embeddings are empty/unavailable. "
             .. "The embedding server (see scripts/start-llamacpp-server.sh) probably failed to "
-            .. "initialize the theme set. Check tmp/logs/llamacpp-embed.log.")
+            .. "initialize the theme set. Check tmp/shared-memory/logs/llamacpp-embed.log.")
     end
 
     -- Get embedding for the column text
@@ -930,7 +976,7 @@ function analyze_individual_poem_theme(poem) -- {{{
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier3 or table_length(theme_embeddings.tier3) == 0 then
         error("analyze_individual_poem_theme: Tier 3 theme embeddings are empty/unavailable. "
-            .. "Check tmp/logs/llamacpp-embed.log.")
+            .. "Check tmp/shared-memory/logs/llamacpp-embed.log.")
     end
 
     -- Get embedding for the poem text
@@ -974,7 +1020,7 @@ function analyze_individual_poem_for_tier2(poem) -- {{{
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier2 or table_length(theme_embeddings.tier2) == 0 then
         error("analyze_individual_poem_for_tier2: Tier 2 theme embeddings are empty/unavailable. "
-            .. "Check tmp/logs/llamacpp-embed.log.")
+            .. "Check tmp/shared-memory/logs/llamacpp-embed.log.")
     end
 
     -- Get embedding for the poem text. get_embedding hard-errors on failure,
@@ -1026,7 +1072,7 @@ function analyze_column_themes(column_poems) -- {{{
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier2 or table_length(theme_embeddings.tier2) == 0 then
         error("combined-themes pass: Tier 2 theme embeddings are empty/unavailable. "
-            .. "Check tmp/logs/llamacpp-embed.log.")
+            .. "Check tmp/shared-memory/logs/llamacpp-embed.log.")
     end
 
     -- Get embedding for the combined themes. get_embedding hard-errors on
@@ -1076,7 +1122,7 @@ function analyze_page_themes(left_column_poems, right_column_poems) -- {{{
     local theme_embeddings = initialize_theme_embeddings()
     if not theme_embeddings or not theme_embeddings.tier1 or table_length(theme_embeddings.tier1) == 0 then
         error("page-themes pass: Tier 1 theme embeddings are empty/unavailable. "
-            .. "Check tmp/logs/llamacpp-embed.log.")
+            .. "Check tmp/shared-memory/logs/llamacpp-embed.log.")
     end
 
     -- Get embedding for the entire page text. get_embedding hard-errors on

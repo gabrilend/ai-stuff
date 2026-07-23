@@ -32,8 +32,8 @@ DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 GENERATOR="$DIR/src/wordcloud-generator.lua"
 WORDCLOUD_HTML="$DIR/output/wordcloud.html"
 POEMS_JSON="$DIR/assets/poems.json"
-# Ephemeral snapshots go to the RAM-backed tmp/ symlink (project convention).
-SNAP_DIR="$DIR/tmp/seed-test"
+# Ephemeral snapshots go to the RAM-backed tmp/shared-memory/ tier (project convention).
+SNAP_DIR="$DIR/tmp/shared-memory/seed-test"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 

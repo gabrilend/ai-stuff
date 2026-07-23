@@ -1,5 +1,5 @@
 #AUTO 35
-#NEEDED 1
+#NEEDED 0
 # RK817 i2c WRITE round-trip test (issue 114, layer 2).
 #
 # Now that reads work, this confirms the write path. It writes a

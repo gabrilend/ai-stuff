@@ -1,5 +1,5 @@
 #AUTO 16
-#NEEDED 1
+#NEEDED 0
 # CPU core recon (issue 110n / phase-2 prep) — gather once, then de-select.
 #
 # Reads the boot core's fixed identity and current execution state via the

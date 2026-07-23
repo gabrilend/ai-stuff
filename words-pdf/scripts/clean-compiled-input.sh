@@ -18,7 +18,7 @@
 #    the half-bytes; the rest of the surrounding text stays intact.
 #
 # The input file is read-only (it is the user's source of truth); cleaned
-# output is written to ${DIR}/tmp/compiled-cleaned.txt and overwritten on
+# output is written to ${DIR}/tmp/shared-memory/compiled-cleaned.txt and overwritten on
 # every invocation, so re-running this script is always safe and produces
 # the same bytes for the same input.
 
@@ -27,7 +27,7 @@ set -euo pipefail
 # {{{ DIR + paths
 DIR="${1:-/home/ritz/programming/ai-stuff/words-pdf}"
 INPUT="${INPUT:-${DIR}/input/compiled.txt}"
-OUTPUT="${OUTPUT:-${DIR}/tmp/compiled-cleaned.txt}"
+OUTPUT="${OUTPUT:-${DIR}/tmp/shared-memory/compiled-cleaned.txt}"
 # }}}
 
 # {{{ preflight

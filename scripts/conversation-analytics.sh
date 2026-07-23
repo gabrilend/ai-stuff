@@ -12,6 +12,9 @@
 DIR="${DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 MONOREPO_ROOT="$(dirname "$DIR")"
 DELTA_VERSION_DIR="${MONOREPO_ROOT}/delta-version"
+# Transcripts are recognised by their header line, not a filename suffix, so
+# date-range renaming leaves this analytics tool finding them unchanged.
+source "${DIR}/libs/transcript-discovery.sh"
 # }}}
 
 # -- {{{ Configuration Variables
@@ -355,11 +358,11 @@ generate_notebook_format() {
     local total_words=0
     local total_chars=0
 
-    for conv_file in "$transcripts_dir"/*_summary.md; do
-        [[ ! -f "$conv_file" ]] && continue
+    while IFS= read -r conv_file; do
+        [[ -f "$conv_file" ]] || continue
 
         local conv_id
-        conv_id=$(basename "$conv_file" _summary.md)
+        conv_id=$(transcript_conv_id "$conv_file")
 
         local metadata
         metadata=$(extract_conversation_metadata "$conv_file")
@@ -375,7 +378,7 @@ generate_notebook_format() {
         ((total_code_blocks += code_blocks))
         ((total_words += words))
         ((total_chars += chars))
-    done
+    done < <(transcript_list_files "$transcripts_dir")
 
     if [[ $conv_count -eq 0 ]]; then
         warn "No conversations found in $transcripts_dir"

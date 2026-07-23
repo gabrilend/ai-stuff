@@ -45,9 +45,9 @@ for _, a in ipairs(arg) do
     elseif a:sub(1, 1) ~= "-" then DIR = a end
 end
 
-local INPUT_BIN    = DIR .. "/tmp/poem-embeddings.bin"
-local OUTPUT_LUA   = DIR .. "/tmp/clusters.lua"
-local OUTPUT_BIN   = DIR .. "/tmp/cluster-centroids.bin"
+local INPUT_BIN    = DIR .. "/tmp/shared-memory/poem-embeddings.bin"
+local OUTPUT_LUA   = DIR .. "/tmp/shared-memory/clusters.lua"
+local OUTPUT_BIN   = DIR .. "/tmp/shared-memory/cluster-centroids.bin"
 
 -- HDBSCAN tunables. MIN_SAMPLES sets the k-NN neighborhood that drives
 -- core-distance estimation; small values make the algorithm sensitive

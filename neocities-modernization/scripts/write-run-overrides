@@ -1,7 +1,7 @@
 #!/usr/bin/env luajit
 -- write-run-overrides
 -- Stamp this run's command-line choices onto the shared notepad in RAM
--- (tmp/run-overrides.lua) so every helper program the pipeline launches
+-- (tmp/shared-memory/run-overrides.lua) so every helper program the pipeline launches
 -- afterward reads the same answers -- the embedding model, especially.
 --
 -- General description (for a CEO): the pipeline runs as a series of separate

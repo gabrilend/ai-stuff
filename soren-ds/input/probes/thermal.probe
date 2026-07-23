@@ -1,0 +1,95 @@
+#WRITES
+#AUTO 14
+#NEEDED 0
+# thermal — bring the TSADC up, read a real on-die temperature, then restore.
+#
+# The read-only version found the TSADC idle at boot (AUTO_CON bit0 = 0, DATA =
+# 0): firmware doesn't start it on the SD path. This version brings it up per
+# the Linux driver (docs/driver-refs/rockchip-thermal.c: rk_tsadcv7_initialize
+# + rk_tsadcv3_control for RK3568), reads the CPU/GPU codes, then RESTORES every
+# register it touched to as-found (110o) — the sensor is left idle again,
+# exactly as we found it. The temperature is captured in the log during the
+# read, before the restore.
+#
+# Registers (TSADC base 0xFE710000; SYS_GRF analog control at 0xFDC60600),
+# every value verified against the driver ref:
+#   USER_CON 0x00, AUTO_CON 0x04, HIGHT_INT_DEBOUNCE 0x60, HIGHT_TSHUT_DEBOUNCE
+#   0x64, AUTO_PERIOD 0x68, AUTO_PERIOD_HT 0x6c, DATA0 0x20 (CPU), DATA1 0x24
+#   (GPU). The TSADC regs take NO write-mask; the SYS_GRF analog reg DOES
+#   (0x10001<<n = value bit n + write-enable bit 16+n).
+# Decode code -> deg C (rk3568_code_table): 1856=0C 2024=25C 2196=50C
+#   2500=95C(tshut) 2704=125C ; rough  degC ~= (code - 1856) / 6.78.
+# Clock gate CLKGATE_CON26 @ 0xFDD20368 bit4 pclk / 5 tsen / 6 clk — shared with
+#   the OTP clocks (bits 9-11); the masked RESTORE touches only bits 4-6.
+
+# --- ungate the TSADC clock, then snapshot every register we will change ---
+SAVE 0xFDD20368
+W 0xFDD20368 0x00700000
+DELAY 10000
+SAVE 0xFE710000
+SAVE 0xFE710004
+SAVE 0xFE710060
+SAVE 0xFE710064
+SAVE 0xFE710068
+SAVE 0xFE71006C
+SAVE 0xFDC60600
+SAVE 0xFE710040
+SAVE 0xFE710044
+
+# --- rk_tsadcv7_initialize: interrupt PD, auto periods, debounces, polarity ---
+LOG initialize TSADC (USER_CON, AUTO_PERIOD x2, debounces, low-active polarity)
+W 0xFE710000 0x00000FC0
+W 0xFE710068 0x00000656
+W 0xFE710060 0x00000004
+W 0xFE71006C 0x00000656
+W 0xFE710064 0x00000004
+W 0xFE710004 0x00000000
+# --- SYS_GRF analog power-up: TSEN, settle, then ANA_REG0/1/2 (masked writes) ---
+LOG power up TSADC analog via SYS_GRF (TSEN, then ANA_REG0/1/2)
+W 0xFDC60600 0x01000100
+DELAY 30000
+W 0xFDC60600 0x00010001
+W 0xFDC60600 0x00020002
+W 0xFDC60600 0x00040004
+DELAY 200000
+LOG read back SYS_GRF TSADC analog reg — did TSEN/ANA land? (low bits set = powered)
+R 0xFDC60600
+
+# --- set a REAL overheat threshold (COMP_SHUT0/1 = 0x9A4 = ~90 C) before arming
+#     the channels: if the die is genuinely that hot, the tshut -> GPIO -> PMIC
+#     line SHOULD cut power — better a shutdown than a cooked chip. Room temp
+#     (~25-35 C, code ~2100) is far below 90 C (code 2468), so it won't trip
+#     during normal probing. Then enable auto-conversion WITH the per-channel
+#     source bits: rk_tsadcv2_tshut_temp sets AUTO_SRC_EN = bit 4+chn, which the
+#     first attempt (AUTO_EN alone) missed — that's why DATA stayed 0. AUTO_CON is
+#     written raw, no write-mask. All of this is restored to as-found after the
+#     read, so the protection is active only during the probe window. ---
+LOG set tshut threshold to ~90C (COMP_SHUT0/1 = 0x9A4) — real overheat protection
+W 0xFE710040 0x000009A4
+W 0xFE710044 0x000009A4
+LOG enable auto-convert + both channel sources (AUTO_CON = EN|Q_SEL|SRC0|SRC1 = 0x33)
+W 0xFE710004 0x00000033
+LOG wait several auto-convert periods for the first samples to land
+DELAY 10000000
+
+LOG AUTO_CON (bit0 should now read 1 = converting)
+R 0xFE710004
+LOG DATA0 = CPU temp code (& 0xFFF): 2024~=25C, 2196~=50C, 2500~=95C
+R 0xFE710020
+LOG DATA1 = GPU temp code (& 0xFFF): same scale
+R 0xFE710024
+
+# --- restore every touched register to as-found (110o), then re-gate the clock ---
+LOG restore TSADC + GRF analog to as-found (sensor left idle, as we found it)
+RESTORE 0xFE710004
+RESTORE 0xFE710040
+RESTORE 0xFE710044
+RESTORE 0xFE710000
+RESTORE 0xFE710060
+RESTORE 0xFE710064
+RESTORE 0xFE710068
+RESTORE 0xFE71006C
+RESTORE 0xFDC60600 0xFFFF
+RESTORE 0xFDD20368 0x0070
+
+LOG thermal complete: decode DATA0/DATA1 code->C via docs/driver-refs/rockchip-thermal.c

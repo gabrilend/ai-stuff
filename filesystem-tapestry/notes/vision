@@ -1,0 +1,73 @@
+# Filesystem Tapestry — Vision
+
+A hard drive is a spindle of thread. Every file was created at some moment and
+touched at another, and if you follow those moments end to end you get a single
+linear story: the chronology of your own machine. That thread is real and
+useful, but it is only one way to walk the fabric.
+
+This project takes the spindle and weaves it into a tapestry. We record, for
+every file across the user's data drives, the two moments that matter — when it
+was **created** (the filesystem birth time) and when it was last **modified** —
+and then we let a person walk that catalog three different ways:
+
+- **Chronological** — the linear thread. Oldest to newest, or newest to oldest.
+  The original story of the disk, re-anchoring.
+- **Similar** — "this reminds me of…". Nearest-neighbour ordering. Step from a
+  file to the ones most like it.
+- **Different** — "show me something unexpected…". A diversity chain that hops,
+  at every step, to the least-similar file it has not yet visited. The
+  schizophrenic walk, on purpose.
+
+Chronological is measured in seconds. Similar and Different, though, cannot be
+measured on the bytes themselves — you cannot embed a ten-gigabyte video. So
+similarity is measured on **policy descriptions**: short texts, one per file (or
+per group of files), that describe the policies surrounding the contents — what
+the file is, what it is for, what the machine should do with it. These policies
+are written by a person, sourced by a person, or auto-generated, and it is the
+policies that get embedded and compared. The bytes stay on disk; the meaning
+lives in the description.
+
+Once you are standing on a file, you can **walk**: `next` and `previous` move
+the cursor along whichever ordering is active, and `open` hands the file to the
+right program for its kind — a movie to mpv, a text file to neovim, an image to
+feh, a document to zathura. The viewer is chosen from a dispatch table keyed by
+media type, never a ladder of if-else.
+
+Certain directories are noise — build outputs, caches, `.git`, `node_modules`,
+the ten thousand tiny files no human will ever open. Those are **excluded** from
+the walk so `next`/`previous` never strands you in a cache folder. But they are
+not forgotten: they are still catalogued, still counted, still referenced in the
+chronological record. Excluded from browsing, present in the history. The list
+of what counts as noise is not invented here — it is read at runtime from the
+shared, unified `.gitignore` that the delta-version project already maintains
+across every project on these drives. One source of truth for "what to ignore."
+
+## Separation of concerns
+
+Two halves that never bleed into each other:
+
+1. **Generation** — walking the drives and producing the catalog of dates and
+   metadata. It knows nothing about how anything is viewed.
+2. **Viewing** — orderings, the cursor, next/previous, and handing files to
+   programs. It reads the catalog and never re-walks the disk.
+
+An error in one half cannot corrupt the other. Data is produced, then, entirely
+apart, data is consumed.
+
+## Prior art this grows from
+
+- **neocities-modernization** — where "chronological / similar / different"
+  navigation was born (Phase 14, "Narrative Tapestry"), along with the cosine
+  similarity engine and the greedy diversity-chaining algorithm. We reuse the
+  same three-way navigation grammar, pointed at files instead of poems.
+- **delta-version** — the unified/shared `.gitignore` system. We consume its
+  generated exclusion list rather than maintaining our own.
+
+## The feeling of the thing
+
+You should be able to sit down at a machine you have used for years and *wander*
+it — not through folders, which are where things were filed, but through time
+and through kind. Find the evening you recorded six videos in a row. Jump from
+this one to the least like it on the whole drive. Re-anchor to the chronology
+when you get lost. The disk stops being a filing cabinet and becomes a place you
+can take a walk.

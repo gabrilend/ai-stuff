@@ -99,7 +99,7 @@ world_t *world_build_test(void)
 {
     ensure_default_behaviours();
 
-    const int W = 20, H = 12;
+    const int W = 26, H = 18;
     world_t *w = calloc(1, sizeof *w);
     if (!w) return NULL;
     w->width = W; w->height = H;
@@ -114,26 +114,40 @@ world_t *world_build_test(void)
         w->cells[i].room_id = -1;
     }
 
-    /* Two rooms with a one-tile wall between them at column x=10. Room 1 sits a
-     * step higher (floor_h 1.0) so there is something to jump onto (issue 106). */
-    carve_room(w, 1, 1, 10, 11, /*room*/0, /*floor*/0.0f, /*ceil*/3.0f);
-    carve_room(w, 11, 1, 19, 11, /*room*/1, /*floor*/1.0f, /*ceil*/4.0f);
+    /* Four rooms in a 2x2 block, split by a wall at column x=12 and row y=8, with
+     * varied floor heights so there are steps between them (issue 106). */
+    carve_room(w,  1,  1, 12,  8, /*room*/0, 0.0f, 3.0f);   /* top-left (spawn) */
+    carve_room(w, 13,  1, 25,  8, /*room*/1, 1.0f, 4.0f);   /* top-right, a step up */
+    carve_room(w,  1,  9, 12, 17, /*room*/2, 0.0f, 3.0f);   /* bottom-left */
+    carve_room(w, 13,  9, 25, 17, /*room*/3, 0.5f, 3.5f);   /* bottom-right */
 
-    /* The door: one open cell punched through the dividing wall at (10, 6),
-     * assigned to room 0 as a threshold. */
-    cell_t *d = &w->cells[6 * W + 10];
-    d->solid = 0; d->wall_id = 0; d->room_id = 0; d->floor_h = 0.0f; d->ceil_h = 3.0f;
+    /* Doors: one open cell punched through each shared wall; each threshold takes
+     * the lower neighbour's floor. Four doors weave the four rooms into a loop. */
+    struct { int x, y, room; float f, c; } dr[4] = {
+        { 12,  4, 0, 0.0f, 3.0f },   /* room 0 <-> 1 */
+        { 12, 12, 2, 0.0f, 3.0f },   /* room 2 <-> 3 */
+        {  6,  8, 0, 0.0f, 3.0f },   /* room 0 <-> 2 */
+        { 18,  8, 3, 0.5f, 3.5f },   /* room 1 <-> 3 */
+    };
+    for (int i = 0; i < 4; i++) {
+        cell_t *d = &w->cells[dr[i].y * W + dr[i].x];
+        d->solid = 0; d->wall_id = 0; d->room_id = (int16_t)dr[i].room;
+        d->floor_h = dr[i].f; d->ceil_h = dr[i].c;
+    }
 
-    w->n_rooms = 2;
-    w->rooms = calloc(2, sizeof *w->rooms);
-    w->rooms[0] = (room_t){ .id = 0, .x0 = 1,  .y0 = 1, .x1 = 10, .y1 = 11,
-                            .floor_h = 0.0f, .ceil_h = 3.0f, .special = ROOM_SPAWN };
-    w->rooms[1] = (room_t){ .id = 1, .x0 = 11, .y0 = 1, .x1 = 19, .y1 = 11,
-                            .floor_h = 1.0f, .ceil_h = 4.0f, .special = ROOM_PLAIN };
+    w->n_rooms = 4;
+    w->rooms = calloc(4, sizeof *w->rooms);
+    w->rooms[0] = (room_t){ .id=0, .x0=1,  .y0=1, .x1=12, .y1=8,  .floor_h=0.0f, .ceil_h=3.0f, .special=ROOM_SPAWN };
+    w->rooms[1] = (room_t){ .id=1, .x0=13, .y0=1, .x1=25, .y1=8,  .floor_h=1.0f, .ceil_h=4.0f, .special=ROOM_PLAIN };
+    w->rooms[2] = (room_t){ .id=2, .x0=1,  .y0=9, .x1=12, .y1=17, .floor_h=0.0f, .ceil_h=3.0f, .special=ROOM_PLAIN };
+    w->rooms[3] = (room_t){ .id=3, .x0=13, .y0=9, .x1=25, .y1=17, .floor_h=0.5f, .ceil_h=3.5f, .special=ROOM_PLAIN };
 
-    w->n_doors = 1;
-    w->doors = calloc(1, sizeof *w->doors);
-    w->doors[0] = (door_t){ .room_a = 0, .room_b = 1, .x = 10, .y = 6, .passable = 1 };
+    w->n_doors = 4;
+    w->doors = calloc(4, sizeof *w->doors);
+    w->doors[0] = (door_t){ .room_a=0, .room_b=1, .x=12, .y=4,  .passable=1 };
+    w->doors[1] = (door_t){ .room_a=2, .room_b=3, .x=12, .y=12, .passable=1 };
+    w->doors[2] = (door_t){ .room_a=0, .room_b=2, .x=6,  .y=8,  .passable=1 };
+    w->doors[3] = (door_t){ .room_a=1, .room_b=3, .x=18, .y=8,  .passable=1 };
 
     w->spawn_room = 0;
     return w;

@@ -48,52 +48,89 @@ function write-transcripts-to-project-directory(){ # {{{
    
    echo "Extracting transcripts from $CLAUDE_PROJECT_DIR to $TRANSCRIPT_DIR"
    
-   # Process each JSONL file
+   # Naming, identity, and collision rules all live in one shared library so the
+   # producer, the migrator, and the analytics consumers can never disagree.
+   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+   source "${SCRIPT_DIR}/libs/transcript-discovery.sh"
+   PARSER="${SCRIPT_DIR}/libs/conversation-parser.lua"
+
+   # Order matters. The main conversation should claim the bare date name and
+   # its agent sidechains should fall into the "_agent-N" collision slots, so we
+   # feed the main "<uuid>.jsonl" files first and the "agent-*.jsonl" ones last.
+   local ordered_jsonl=()
    for jsonl_file in "$CLAUDE_PROJECT_DIR"/*.jsonl; do
-      if [ -f "$jsonl_file" ]; then
-         conversation_id=$(basename "$jsonl_file" .jsonl)
-         output_file="$TRANSCRIPT_DIR/${conversation_id}_summary.md"
-         
-         echo "Processing conversation: $conversation_id"
-
-         # Use Lua conversation parser instead of Python
-         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-         PARSER="${SCRIPT_DIR}/libs/conversation-parser.lua"
-
-         # Run the Lua parser and capture timestamp from stderr
-         TIMESTAMP_OUTPUT=$(lua "$PARSER" "$jsonl_file" "$output_file" 2>&1 >/dev/null)
-         FINAL_TIMESTAMP=$(echo "$TIMESTAMP_OUTPUT" | grep "FINAL_TIMESTAMP:" | cut -d: -f2)
-         
-         # Set file modification time if we have a timestamp
-         if [ ! -z "$FINAL_TIMESTAMP" ] && [ "$FINAL_TIMESTAMP" -gt 0 ]; then
-            touch -d "@$FINAL_TIMESTAMP" "$output_file" 2>/dev/null || true
-         fi
-         
-         # Generate descriptive name using local LLM if available
-         # Get the directory of this script to find fuzzy-computing
-         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-         FUZZY_COMPUTING="${SCRIPT_DIR}/fuzzy-computing/fuzzy-computing"
-         
-         if [ -x "$FUZZY_COMPUTING" ]; then
-            echo "Generating descriptive name for conversation..."
-            
-            # Extract first user request for naming
-            FIRST_REQUEST=$(head -50 "$output_file" | grep -A 20 "### User Request 1" | tail -n +3 | head -10 | tr '\n' ' ' | sed 's/^[ \t]*//;s/[ \t]*$//')
-            
-            if [ ! -z "$FIRST_REQUEST" ]; then
-               DESCRIPTIVE_NAME=$(echo "Generate a short (3-5 words), descriptive filename for a conversation that starts with: \"$FIRST_REQUEST\". Only respond with the filename, no quotes, no file extension, use dashes instead of spaces." | source "$FUZZY_COMPUTING" && fuzz 2>/dev/null | tr -d '\n' | sed 's/[^a-zA-Z0-9-]//g' | head -c 50)
-               
-               if [ ! -z "$DESCRIPTIVE_NAME" ] && [ ${#DESCRIPTIVE_NAME} -gt 5 ]; then
-                  NEW_OUTPUT_FILE="$TRANSCRIPT_DIR/${DESCRIPTIVE_NAME}_${conversation_id}.md"
-                  mv "$output_file" "$NEW_OUTPUT_FILE" 2>/dev/null && output_file="$NEW_OUTPUT_FILE"
-               fi
-            fi
-         fi
-         
-         echo "Created: $output_file"
-      fi
+      [ -f "$jsonl_file" ] || continue
+      case "$(basename "$jsonl_file")" in
+         agent-*) : ;;                       # held back for the second pass
+         *) ordered_jsonl+=("$jsonl_file") ;;
+      esac
    done
-   
+   for jsonl_file in "$CLAUDE_PROJECT_DIR"/agent-*.jsonl; do
+      [ -f "$jsonl_file" ] || continue
+      ordered_jsonl+=("$jsonl_file")
+   done
+
+   for jsonl_file in "${ordered_jsonl[@]}"; do
+      conversation_id=$(basename "$jsonl_file" .jsonl)
+      echo "Processing conversation: $conversation_id"
+
+      # Parse into a temp file first: the final name depends on the start/end
+      # dates that only the parser can report. The temp name is hidden and lacks
+      # a .md suffix, so the discovery library never mistakes it for a claimant.
+      local temp_file="$TRANSCRIPT_DIR/.transcript-${conversation_id}.tmp"
+      local parser_signals
+      parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null)
+
+      if [ ! -f "$temp_file" ]; then
+         echo "  (parser produced no output for $conversation_id)"
+         continue
+      fi
+
+      local final_timestamp start_date final_date
+      final_timestamp=$(echo "$parser_signals" | grep "FINAL_TIMESTAMP:" | cut -d: -f2 || true)
+      start_date=$(echo "$parser_signals" | grep "START_DATE:" | cut -d: -f2 || true)
+      final_date=$(echo "$parser_signals" | grep "FINAL_DATE:" | cut -d: -f2 || true)
+
+      # Build the date-span basename. If the parser found no dates at all, we
+      # keep the conversation id so nothing is silently mis-filed (a warning
+      # path, per house rule: warnings are errors).
+      local base
+      if [ -n "$start_date" ] || [ -n "$final_date" ]; then
+         base=$(transcript_span_basename "$start_date" "$final_date")
+      else
+         echo "  WARNING: no timestamps for $conversation_id; keeping id as name"
+         base="$conversation_id"
+      fi
+
+      # Idempotency: if this conversation already owns a transcript, reuse it,
+      # re-placing it only when the span (hence the base) grew - e.g. the
+      # conversation continued into a new day.
+      local claim dest claim_base
+      claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id" || true)
+      if [ -n "$claim" ]; then
+         claim_base=$(transcript_strip_suffix "$claim")
+         if [ "$claim_base" = "$base" ]; then
+            dest="$claim"                               # same span: overwrite in place
+         else
+            dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base" "$claim")
+         fi
+      else
+         dest=$(transcript_pick_free_name "$TRANSCRIPT_DIR" "$base")
+      fi
+
+      # Move content into place, retire any stale prior name, stamp the mtime
+      # from the last message so the file's timestamp matches its name's date.
+      mv -f "$temp_file" "$dest"
+      if [ -n "$claim" ] && [ "$claim" != "$dest" ]; then
+         rm -f "$claim"
+      fi
+      if [ -n "$final_timestamp" ] && [ "$final_timestamp" -gt 0 ]; then
+         touch -d "@$final_timestamp" "$dest" 2>/dev/null || true
+      fi
+
+      echo "Created: $dest"
+   done
+
    echo "Transcript extraction complete!"
 } # }}}
 

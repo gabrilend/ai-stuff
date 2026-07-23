@@ -326,9 +326,9 @@ main() {
     fi
 
     # Persist the PID so other processes (run.sh's auto-start cleanup, or
-    # a manual operator using `kill $(cat tmp/llamacpp-server.pid)`) can
-    # find the server later. The PID file is overwritten on each start.
-    local pid_file="${DIR}/tmp/llamacpp-server.pid"
+    # a manual operator using `kill $(cat tmp/shared-memory/llamacpp-server.pid)`)
+    # can find the server later. The PID file is overwritten on each start.
+    local pid_file="${DIR}/tmp/shared-memory/llamacpp-server.pid"
     echo "$SERVER_PID" > "$pid_file"
 
     echo -e "${C_GREEN}✅ llama-server ready at http://${HOST}:${PORT}${C_RESET}"

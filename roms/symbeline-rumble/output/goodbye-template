@@ -1,0 +1,7 @@
+[goodbye / {{profile}} / frame {{frame_count}} / {{wall_clock}}]
+
+The match closed because: {{end_reason}}.
+Surviving units returned to the deck: {{survivors}}.
+Gold remaining in the pool: {{gold}}.
+
+See you again.

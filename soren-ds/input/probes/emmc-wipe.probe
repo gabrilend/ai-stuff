@@ -1,0 +1,21 @@
+#AUTO 200
+#NEEDED 1
+# emmc-wipe — ONE-SHOT, DESTRUCTIVE: erase the ENTIRE eMMC. TEMPORARY probe,
+# DELETE THIS FILE (and the emmc_wipe CALL target) after it has run once. See
+# issue 110q. It must never be left armed in a future image.
+#
+# Why it exists: to test USB device-mode enumeration against a PC (milestone b),
+# the eMMC must be blank so the device boots only from SD and the stock Rockchip
+# boot chain stops claiming the OTG port when a host is connected. This erases
+# the whole card via the card's own ERASE command (CMD35/36/38 in
+# emmc_erase_all) — fast and gentle on the flash, unlike writing 29 GB of zeros
+# block by block.
+#
+# THIS ERASES EVERYTHING ANBERNIC SHIPPED. The recovery net is already in hand:
+#   archives/golden-sd-*.img.gz   — a known-good SD that always boots our kernel
+#   archives/bootchain-*.bin.gz   — the stock boot chain (LBA 0..32767), writable
+#                                   back to the eMMC via emmc_write_block
+#
+# Priority 200 = runs LAST, so every other probe's data (and any final read of
+# the eMMC) is captured before the card is erased.
+CALL emmc_wipe

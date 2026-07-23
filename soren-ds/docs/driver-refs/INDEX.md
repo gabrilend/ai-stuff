@@ -25,6 +25,21 @@ way source comments cite the TRM (part + chapter): name the file + function.
   Used by: `otp_probe` in `src/019-probe-engine.c` (presence read today;
   the full chip-ID FSM is the follow-up this file unblocks).
 
+- **`rockchip-thermal.c`** — Rockchip thermal / TSADC driver (Linux
+  `drivers/thermal/rockchip_thermal.c`). The RK3568 TRM Part 2's TSADC chapter
+  did not extract cleanly, so this driver is the register-map + code-table spec.
+  Base `0xFE710000`; `TSADCV2_DATA(chn) = 0x20 + chn*4` (chn 0 = CPU, chn 1 =
+  GPU, per `rk3568_tsadc_data`), `AUTO_CON` 0x04, `USER_CON` 0x00, 12-bit code
+  (`TSADCV2_DATA_MASK` 0xfff), `ADC_INCREMENT` — higher code = hotter.
+  `rk3568_code_table[]` maps code→°C: 1856=0, 2024=25, 2196=50, 2368=75,
+  2500=95, 2704=125 (≈6.78 codes/°C). Firmware enable = `rk_tsadcv7_initialize`
+  (USER_CON/AUTO_PERIOD + GRF analog TSEN/ANA_REG0-2) then `rk_tsadcv3_control`
+  writes `AUTO_EN | AUTO_Q_SEL_EN` to `AUTO_CON`; the TSADC regs use NO
+  write-enable mask (unlike the CRU). Clock gate: `CLKGATE_CON26` (`0xFDD20368`)
+  bit 4 pclk / 5 tsen / 6 clk — shared with the OTP clocks (bits 9-11). Used by:
+  the `thermal` probe (read-only DATA recon today; a full sensor bring-up via
+  the GRF analog init is the follow-up this file unblocks).
+
 ## How to add one
 
 `curl -fsSL --create-dirs -o docs/driver-refs/<name>.c <raw-url>` — the raw

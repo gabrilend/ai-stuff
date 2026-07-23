@@ -7,8 +7,23 @@ parallel pixel streams; the actual electrical signal that goes
 to each panel is a MIPI DSI (Display Serial Interface) data
 stream. The RK3568 has two MIPI DSI controllers (DSI0 and DSI1)
 each fronted by a MIPI D-PHY that does the electrical encoding.
-None of these are configured. Even if VOP2 were configured to
-output pixels right now, those pixels would have nowhere to go.
+
+**Implemented (2026-07-02) in `src/022-mipi-dsi.c`.** `mipi_dsi_init()`
+brings both controllers + D-PHYs up to command mode with the PLL locked,
+parameterized on the instance and run twice (DSI0/D-PHY0 → bottom via VP0,
+DSI1/D-PHY1 → top via VP1). All register values were derived from the
+RK3568 TRM (the local PDFs, extracted with ghostscript, since there is no
+network here to pull the Linux drivers): the CRU clock-gate/reset bits
+(Part 1), the D-PHY register map + MIPI init sequence + PLL formula
+(Part 2 Ch30), and the DSI-host command-mode sequence + PHY_STATUS
+lock/stopstate bits (Part 2 Ch29). Three residuals are flagged in the
+driver for a hardware run to confirm: the D-PHY register stride
+(`index<<2`), the exact PLL divider triple (targeting ~324 Mbps/lane),
+and the assumption that the VO-domain parent clocks are on at boot. The
+function is written and compile-verified but not yet wired into boot — the
+display path is wired in as a whole once panel init (111c) and scanout
+(111d) land. Not yet done: everything downstream (panel wake-up, video
+mode, framebuffers).
 
 ## Intended behavior
 

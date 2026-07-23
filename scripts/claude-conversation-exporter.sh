@@ -4,6 +4,12 @@
 PROJECTS_BASE_DIR="/home/ritz/programming/ai-stuff"
 DIR="$PROJECTS_BASE_DIR"
 
+# Shared transcript naming/identity rules. Transcripts are now recognised by
+# their header line rather than a "_summary.md" suffix, so recovering the real
+# conversation id no longer depends on how the file is named.
+EXPORTER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${EXPORTER_SCRIPT_DIR}/libs/transcript-discovery.sh"
+
 # Global verbosity level (default: 2 = standard)
 export VERBOSITY=2
 
@@ -1704,8 +1710,12 @@ print_conversation() {
         # Print context files first
         print_project_context_files "$project_dir" displayed_files
         
-        # Process raw conversation data for specific conversation
-        local conversation_id=$(basename "$conversation_file" _summary.md)
+        # Process raw conversation data for specific conversation. Read the id
+        # from the header so it works whatever the file is named; fall back to
+        # the filename stem only if the header is somehow absent.
+        local conversation_id
+        conversation_id=$(transcript_conv_id "$conversation_file" 2>/dev/null || true)
+        [ -n "$conversation_id" ] || conversation_id=$(basename "$conversation_file" .md)
         
         # Find the JSONL file by searching claude project directories
         local jsonl_file=""

@@ -1,5 +1,5 @@
 #AUTO 96
-#NEEDED 1
+#NEEDED 0
 # eMMC HS200 bring-up — stage A of the fast-storage path (issue 110j).
 #
 # The EXT_CSD probe (95) confirmed the card advertises HS200 @ 1.8V; this

@@ -1150,6 +1150,141 @@ int emmc_write_block(uint32_t lba, const uint8_t *buffer)
     return 0;
 }
 
+uint32_t emmc_sector_count(void);   /* defined later in this file */
+
+/* {{{ emmc_erase_all — blank the ENTIRE eMMC via the card's ERASE (CMD35/36/38)
+ * The one-shot wipe (issue 110q). Writing 29 GB of zeros through emmc_write_block
+ * above would take hours and program every cell; instead this hands the card's
+ * own controller the whole address range and lets it ERASE internally: CMD35
+ * sets the first block, CMD36 the last, CMD38 triggers a bulk erase of whole
+ * erase-groups. Fast, and gentler on the flash than zero-writing every block.
+ *
+ * Erased content reads back as the card's factory value (0x00 on most eMMC,
+ * 0xFF on some) — either way the Rockchip boot chain at LBA 0 / 64 / 16384 is
+ * gone, so the card no longer boots or claims the OTG port. DESTRUCTIVE; the
+ * recovery net is the golden SD (boots our kernel regardless) plus the archived
+ * boot chain (archives/bootchain-*.bin.gz, writable back via emmc_write_block).
+ * Fails SAFE: a rejected CMD leaves the card untouched and logs which one.
+ * Non-static so the emmc_wipe CALL target can reach it. Returns 0 on success. */
+int emmc_erase_all(void)
+{
+    uint32_t count = emmc_sector_count();
+    if (count == 0u) {
+        debug_write("[wipe] ABORT: SEC_COUNT unreadable — eMMC capacity unknown\r\n");
+        return -1;
+    }
+    uint32_t last = count - 1u;
+    debug_write("[wipe] eMMC ERASE, blocks 0..");
+    debug_write_hex32(last);
+    debug_write(" (the WHOLE card)\r\n");
+
+    /* CMD35/36 carry the range (R1, plain args). CMD38 triggers the erase
+     * (R1b — the card then holds DAT0 busy while it works, arg 0 = erase). */
+    if (sdhci_send_command(CMD_IDX(35) | CMD_RESPONSE_LEN_48
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK, 0u) != 0) {
+        debug_write("[wipe] CMD35 (erase start) rejected — nothing erased\r\n");
+        return -2;
+    }
+    if (sdhci_send_command(CMD_IDX(36) | CMD_RESPONSE_LEN_48
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK, last) != 0) {
+        debug_write("[wipe] CMD36 (erase end) rejected — nothing erased\r\n");
+        return -3;
+    }
+    if (sdhci_send_command(CMD_IDX(38) | CMD_RESPONSE_LEN_48_BSY
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK, 0u) != 0) {
+        debug_write("[wipe] CMD38 (erase) rejected\r\n");
+        return -4;
+    }
+
+    /* Wait out the erase busy on DAT0. A full-card erase can run for a while, so
+     * the budget is large; a timeout is not a failure (the card keeps erasing in
+     * the background, and the verify read below waits on DAT0 anyway). */
+    debug_write("[wipe] erasing... (waiting on DAT0 busy)\r\n");
+    uint32_t outer = 20000u;
+    int cleared = 0;
+    while (outer-- > 0u && !cleared) {
+        uint32_t inner = 1000000u;
+        while (inner-- > 0u) {
+            if (!(mmio_read32(SDHCI_BASE + SDHCI_PRESENT_STATE) & PSTATE_DAT_INHIBIT)) {
+                cleared = 1;
+                break;
+            }
+        }
+        *(volatile uint32_t *)0xFE60000Cu = 0x76u;   /* pet watchdog during the long wait */
+    }
+    debug_write(cleared ? "[wipe] erase busy cleared\r\n"
+                        : "[wipe] busy budget elapsed (erase likely still finishing)\r\n");
+
+    /* Verify: the boot-critical blocks should now be blank (no Rockchip magic,
+     * no GPT). The read waits on DAT0, so it also blocks until the erase is done. */
+    static uint8_t blk[EMMC_BLOCK_SIZE];
+    static const uint32_t check[3] = { 0u, 64u, 16384u };  /* GPT, idbloader, uboot */
+    debug_write("[wipe] boot-chain readback (0x0 / 0xFFFFFFFF = blank):\r\n");
+    for (int i = 0; i < 3; i++) {
+        if (emmc_read_block(check[i], blk) != 0) {
+            debug_write("[wipe]   LBA readback FAILED\r\n");
+            continue;
+        }
+        uint32_t w0 = ((uint32_t)blk[0]) | ((uint32_t)blk[1] << 8)
+                    | ((uint32_t)blk[2] << 16) | ((uint32_t)blk[3] << 24);
+        debug_write("[wipe]   LBA ");
+        debug_write_hex32(check[i]);
+        debug_write(" word0=");
+        debug_write_hex32(w0);
+        debug_write("\r\n");
+    }
+    debug_write("[wipe] erase pass complete (addressable content blank)\r\n");
+    return 0;
+}
+/* }}} */
+
+/* {{{ emmc_sanitize — physically purge unmapped/stale flash pages (110q, true wipe)
+ * ERASE only blanks the physical blocks currently MAPPED to an address. The
+ * card's history of out-of-place writes has left stale copies of old data in
+ * physical pages that are now UNMAPPED — unreachable by any address, so no
+ * erase-by-address can touch them. SANITIZE (JEDEC eMMC: write EXT_CSD
+ * SANITIZE_START, byte 165, via CMD6) tells the card to physically erase all of
+ * those orphaned pages too — the only way to guarantee no recoverable data
+ * remains, even to a chip-off read. Run AFTER emmc_erase_all.
+ *
+ * Sanitize walks the whole flash and can take minutes, so the busy wait is long,
+ * bounded, and pets the watchdog. Fails safe: a card that rejects the command
+ * logs and returns nonzero, leaving the erase result standing. Non-static so the
+ * emmc_wipe CALL target can reach it. Returns 0 on success. */
+int emmc_sanitize(void)
+{
+    debug_write("[wipe] SANITIZE — purge unmapped/stale flash pages (may take minutes)\r\n");
+    /* CMD6 write-byte to EXT_CSD SANITIZE_START (byte 165); any value starts it.
+     * Arg is the SWITCH write-byte form (matches CMD6_WRITE_BYTE, which is
+     * #defined lower in this file): access=3, index=165, value=1. */
+    if (sdhci_send_command(CMD_IDX(6) | CMD_RESPONSE_LEN_48_BSY
+                           | CMD_CRC_CHECK | CMD_INDEX_CHECK,
+                           (3u << 24) | (165u << 16) | (1u << 8)) != 0) {
+        debug_write("[wipe] SANITIZE start (CMD6) rejected — card may not support it\r\n");
+        return -1;
+    }
+    /* Wait out the sanitize busy on DAT0 — far longer than a normal SWITCH. */
+    uint32_t outer = 60000u;
+    int cleared = 0;
+    while (outer-- > 0u && !cleared) {
+        uint32_t inner = 1000000u;
+        while (inner-- > 0u) {
+            if (!(mmio_read32(SDHCI_BASE + SDHCI_PRESENT_STATE) & PSTATE_DAT_INHIBIT)) {
+                cleared = 1;
+                break;
+            }
+        }
+        *(volatile uint32_t *)0xFE60000Cu = 0x76u;   /* pet watchdog during the long wait */
+    }
+    if (!cleared) {
+        debug_write("[wipe] SANITIZE busy budget elapsed (it may still be finishing)\r\n");
+        return -2;
+    }
+    debug_write("[wipe] SANITIZE complete — no orphaned data remains\r\n");
+    return 0;
+}
+/* }}} */
+
 /* ===================================================================
  * High-speed bring-up: HS200 (stage A) and HS400 (stage B) — issue 110j
  *

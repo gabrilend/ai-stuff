@@ -181,14 +181,11 @@ function M.start_page(page_num)
     state.bar_plain = bar_plain
     state.log:write(bar_plain .. "\n")
     state.log:flush()
-
-    if state.tty then
-        if state.pages_done > 0 then
-            state.tty:write(string.format("\27[%dA\27[0J", state.max_region_height))
-        end
-        state.tty:write(bar_tty .. "\n")
-        state.tty:flush()
-    end
+    -- No tty write here anymore. The whole frame (bar + content + padding)
+    -- is composed into ONE string and written once in end_page, so the
+    -- terminal never shows a half-cleared region between pages. Painting
+    -- the bar here would be a second write per page and reintroduce the
+    -- clear-then-redraw flicker this redesign exists to remove.
 end
 -- }}}
 
@@ -207,11 +204,9 @@ function M.log(text)
     table.insert(state.content_lines, text)
     state.log:write(text .. "\n")
     state.log:flush()
-
-    if state.tty and #state.content_lines <= state.frame_cap - 2 then
-        state.tty:write(text .. "\n")
-        state.tty:flush()
-    end
+    -- tty rendering is deferred to end_page, which paints the whole frame
+    -- in a single write. See start_page for why lines are no longer
+    -- streamed to the terminal one at a time.
 end
 -- }}}
 
@@ -229,42 +224,66 @@ end
 --   3. Grow max_region_height up to (but never past) frame_cap.
 function M.end_page()
     if state.tty then
+        -- Compose the ENTIRE frame — reposition, bar, content, and the
+        -- blank padding that erases a taller previous frame — into one
+        -- string, then emit it with a single tty:write. Every line clears
+        -- to end-of-line (\27[K) as it is overwritten, and leftover rows
+        -- are blanked the same way, so we never issue a clear-to-end-of-
+        -- screen (\27[0J). That full-region clear is what made the area
+        -- below the bar flash black between pages; overwriting in place in
+        -- one write removes the blank moment entirely.
+        local parts = {}
+
+        -- Reposition to the top of the region (the bar's row). On the very
+        -- first page there is no prior frame, so there is nothing to move
+        -- back over.
+        if state.pages_done > 0 then
+            parts[#parts + 1] = string.format("\27[%dA", state.max_region_height)
+        end
+
+        -- Bar occupies row 1 of the frame.
+        parts[#parts + 1] = state.bar_tty .. "\27[K\n"
+
+        -- Content rows, capped so bar + content never exceed frame_cap.
         local total = #state.content_lines
-        local live_cap = state.frame_cap - 2  -- mirrored from M.log
-        local frame_content_lines
-
-        if total <= live_cap then
-            -- Everything got streamed live by log(). Nothing more to draw.
-            frame_content_lines = total
-        elseif total == live_cap + 1 then
-            -- Exactly one more line than log() was allowed to stream.
-            -- No indicator needed — there's room to show it as-is.
-            state.tty:write(state.content_lines[total] .. "\n")
-            frame_content_lines = total
-        else
-            -- More content than fits even with one extra slot. Replace
-            -- the would-be (live_cap + 1)th line with an indicator so
-            -- the user knows there are extra lines, viewable in the log.
-            state.tty:write(string.format(
-                "  … +%d more lines (see log)\n",
-                total - live_cap))
-            frame_content_lines = live_cap + 1
-        end
-
-        local frame_height = 1 + frame_content_lines  -- +1 for the bar
-        if frame_height > state.max_region_height then
-            state.max_region_height = frame_height
-        else
-            for _ = frame_height + 1, state.max_region_height do
-                state.tty:write("\n")
+        local content_cap = state.frame_cap - 1  -- minus the bar row
+        local shown_content
+        if total <= content_cap then
+            shown_content = total
+            for i = 1, total do
+                parts[#parts + 1] = state.content_lines[i] .. "\27[K\n"
             end
+        else
+            -- Show (content_cap - 1) real lines plus one indicator line so
+            -- the operator knows the remainder lives in the log.
+            shown_content = content_cap
+            for i = 1, content_cap - 1 do
+                parts[#parts + 1] = state.content_lines[i] .. "\27[K\n"
+            end
+            parts[#parts + 1] = string.format(
+                "  … +%d more lines (see log)\27[K\n",
+                total - (content_cap - 1))
         end
+
+        -- Erase any rows the previous, taller frame left behind. These
+        -- blank cleared lines keep the cursor landing exactly
+        -- max_region_height rows below the anchor — the invariant the next
+        -- page's cursor-up relies on. The region only ever grows (high-
+        -- water mark), so it never visually shrinks mid-run.
+        local frame_height = 1 + shown_content  -- +1 for the bar
+        if frame_height < state.max_region_height then
+            for _ = frame_height + 1, state.max_region_height do
+                parts[#parts + 1] = "\27[K\n"
+            end
+        elseif frame_height > state.max_region_height then
+            state.max_region_height = frame_height
+        end
+
+        state.tty:write(table.concat(parts))
         state.tty:flush()
     else
-        -- Non-interactive fallback: nothing was streamed live (log()
-        -- only writes to tty when it exists), so dump the whole frame
-        -- via print() now. No truncation — consumers of the captured
-        -- stream (file, pipe, CI) want the complete record.
+        -- Non-interactive fallback: dump the whole frame via print(). No
+        -- truncation — consumers of the captured stream want everything.
         print(state.bar_plain)
         for _, line in ipairs(state.content_lines) do
             print(line)
@@ -276,7 +295,7 @@ end
 
 -- {{{ function M.finish
 -- Tear down the tty side after the page loop. The log file handle
--- is left open intentionally — it lives in tmp/ (tmpfs), the OS
+-- is left open intentionally — it lives in tmp/shared-memory/ (tmpfs), the OS
 -- closes it on process exit, and we never need to read from it
 -- during this process's lifetime.
 function M.finish()
@@ -286,6 +305,96 @@ function M.finish()
         state.tty:close()
         state.tty = nil
     end
+end
+-- }}}
+
+-- {{{ standalone single-line progress bar (M.bar / M.bar_finish)
+-- A lightweight in-place bar for the pre-render scoring passes (page and
+-- per-poem axis projection) and any other long count-up loop that runs
+-- OUTSIDE the page-frame model above. It owns no frame state: it redraws
+-- one line on /dev/tty with a carriage return, throttled to integer-
+-- percent changes so the loop doesn't spend its time in write(), and drops
+-- a milestone line into $LOG_FILE every 10% so the captured log shows
+-- progress without one line per iteration.
+--
+-- Unlike M.init, both sinks are optional here: this bar is purely
+-- cosmetic, so a missing /dev/tty (piped run) or missing $LOG_FILE (a
+-- direct lua invocation that bypassed ./run) degrades silently rather than
+-- aborting the render. Call M.bar(label, current, total) each iteration
+-- and M.bar_finish() once when the loop ends. It reuses the same no-red
+-- gradient as the page bar via ansi_color_for_fraction.
+local bar_state = { tty = nil, log = nil, opened = false, label = nil, last_pct = -1 }
+
+-- {{{ local function bar_open
+local function bar_open()
+    if bar_state.opened then return end
+    bar_state.opened = true
+    -- Flush buffered stdout first so the "Scoring…" header printed just
+    -- before the loop lands on the terminal BEFORE the first /dev/tty
+    -- write — otherwise tee can drip it out on top of the bar line. Same
+    -- precaution M.init takes for the page frame.
+    io.stdout:flush()
+    bar_state.tty = io.open("/dev/tty", "w")  -- nil when non-interactive
+    local log_path = os.getenv("LOG_FILE")
+    if log_path and log_path ~= "" then
+        bar_state.log = io.open(log_path, "a")
+    end
+end
+-- }}}
+
+-- {{{ function M.bar
+function M.bar(label, current, total)
+    if total <= 0 then return end
+    bar_open()
+    if current > total then current = total end
+    local pct = math.floor((current / total) * 100)
+    -- A new label resets the throttle so a second bar in the same run draws
+    -- immediately instead of waiting for the percent to move off the old one.
+    if label ~= bar_state.label then
+        bar_state.label = label
+        bar_state.last_pct = -1
+    end
+    -- Throttle: only repaint when the integer percent moved, except always
+    -- paint the final tick so the bar lands on 100%.
+    if pct == bar_state.last_pct and current < total then return end
+    bar_state.last_pct = pct
+
+    local filled = math.floor(pct / 5)
+    local filled_str = string.rep("█", filled)
+    local empty_str = string.rep("░", 20 - filled)
+
+    if bar_state.tty then
+        local color = ansi_color_for_fraction(current / total)
+        bar_state.tty:write(string.format(
+            "\r\27[38;5;15m%s %d/%d [\27[38;5;%dm%s\27[38;5;15m%s] %d%%\27[0m\27[0K",
+            label, current, total, color, filled_str, empty_str, pct))
+        bar_state.tty:flush()
+    end
+    if bar_state.log and pct % 10 == 0 then
+        bar_state.log:write(string.format("%s %d/%d %d%%\n", label, current, total, pct))
+        bar_state.log:flush()
+    end
+end
+-- }}}
+
+-- {{{ function M.bar_finish
+function M.bar_finish()
+    -- Move off the bar line (it was drawn with \r and no trailing newline)
+    -- so the next print() doesn't overwrite it, and release the handles so
+    -- the page-frame M.init can reopen its own cleanly afterward.
+    if bar_state.tty then
+        bar_state.tty:write("\n")
+        bar_state.tty:flush()
+        bar_state.tty:close()
+    end
+    if bar_state.log then
+        bar_state.log:close()
+    end
+    bar_state.tty = nil
+    bar_state.log = nil
+    bar_state.opened = false
+    bar_state.label = nil
+    bar_state.last_pct = -1
 end
 -- }}}
 

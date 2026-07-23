@@ -31,9 +31,9 @@ if arg[1] and arg[1] ~= "" then DIR = arg[1] end
 package.path = package.path .. ";" .. DIR .. "/?.lua;" .. DIR .. "/libs/?.lua"
 package.cpath = package.cpath .. ";" .. DIR .. "/libs/luahpdf/?.so"
 
-local INPUT_FILE  = DIR .. "/tmp/compiled-cleaned.txt"
-local OUTPUT_BIN  = DIR .. "/tmp/poem-embeddings.bin"
-local OUTPUT_TEXT = DIR .. "/tmp/poem-texts.lua"
+local INPUT_FILE  = DIR .. "/tmp/shared-memory/compiled-cleaned.txt"
+local OUTPUT_BIN  = DIR .. "/tmp/shared-memory/poem-embeddings.bin"
+local OUTPUT_TEXT = DIR .. "/tmp/shared-memory/poem-texts.lua"
 
 local LLM_MODEL    = "nomic-embed-text:v1.5"
 local NOMIC_PREFIX = "clustering: "
@@ -94,6 +94,38 @@ local function normalize_poem_spacing(poem)
     if #poem == 0 then return poem end
     local result = {}
     local poem_type = detect_poem_type(poem)
+
+    -- Issue 032: drop structural lines now that detect_poem_type has used
+    -- them to classify. Two kinds, neither of which is poem content:
+    --   * the "-> file: <path>" source header — injects path tokens (mainly
+    --     "fediverse", ~77% of blocks) into the embedding; and
+    --   * lines whose whole body is an attachment filename or bare timestamp
+    --     ("screenshot_20250414_154457.jpg", "temp1239...PDF",
+    --     "cameron-king-resume.txt") — image-only / file-only posts that
+    --     otherwise form spurious filename-token micro-clusters.
+    -- Keep this block byte-identical with the copy in
+    -- compile-pdf-ai.lua:normalize_poem_spacing — the cache key is the
+    -- normalized text, so any divergence desyncs the embedding cache.
+    do
+        local KNOWN_EXT = " jpg jpeg png gif webp bmp heic pdf txt mp4 mov webm "
+        local function is_structural(line)
+            if line:match("^%s*%-+>%s*file:") then return true end
+            local s = line:gsub("^%s+", ""):gsub("%s+$", "")
+            if s:match("^[%w._%-]+$") then  -- one token, no spaces
+                local ext = s:match("%.([%a%d]+)$")
+                if ext and KNOWN_EXT:find(" " .. ext:lower() .. " ", 1, true) then
+                    return true
+                end
+                if s:match("^%d%d%d%d%d%d%d%d_%d%d%d%d%d%d$") then return true end
+            end
+            return false
+        end
+        local stripped = {}
+        for _, line in ipairs(poem) do
+            if not is_structural(line) then table.insert(stripped, line) end
+        end
+        poem = stripped
+    end
 
     if poem_type == "fediverse_with_cw" then
         local cw_line = ""

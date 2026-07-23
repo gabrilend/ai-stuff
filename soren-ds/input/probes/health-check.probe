@@ -1,5 +1,5 @@
 #AUTO 10
-#NEEDED 1
+#NEEDED 0
 # Device health check — the "is anything broken?" smoke test.
 #
 # Brings up each controller and verifies it answers with its

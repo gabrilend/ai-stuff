@@ -1,5 +1,5 @@
 #AUTO 12
-#NEEDED 1
+#NEEDED 0
 # Generic-timer recon (issue 110n / phase-2 prep).
 #
 # The ARM architected timer is a counter every core carries that ticks at a

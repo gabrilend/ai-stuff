@@ -1,5 +1,5 @@
 #AUTO 102
-#NEEDED 1
+#NEEDED 0
 # Dynamic SD bus-speed select + validation — issue 110l.
 #
 # Rather than hardcode a speed, sd_select_speed (in src/015-sdmmc.c) reads

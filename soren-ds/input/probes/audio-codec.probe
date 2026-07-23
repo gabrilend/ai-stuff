@@ -1,5 +1,5 @@
 #AUTO 38
-#NEEDED 1
+#NEEDED 0
 # Audio-codec recon (issue 110n) — TEMPORARY, probe-and-remove.
 #
 # The RK817 PMIC integrates the audio codec, reachable over i2c0 (which is up).

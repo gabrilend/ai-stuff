@@ -428,6 +428,13 @@ static inline uint8_t setup_descriptor_index(const struct usb_setup_packet *s)
 #define DWC3_GEVNTSIZ    (DWC3_BASE + 0xC408u)
 #define DWC3_GEVNTCOUNT  (DWC3_BASE + 0xC40Cu)
 
+/* USB2 PHY configuration. Bit 6 (suspendusb20, "SusPHY") MUST be cleared in
+ * device mode before issuing any endpoint command at USB 2.0 speeds: per TRM
+ * Part 2 (GUSB2PHYCFG0), a DEPCMD issued while it is set can find mac2_clk
+ * gated and "will not get completed" — the 109b enumeration hang exactly. */
+#define DWC3_GUSB2PHYCFG0  (DWC3_BASE + 0xC200u)
+#define GUSB2PHYCFG_SUSPHY (1u << 6)
+
 /* Per-endpoint command registers. DWC3 numbers endpoints as
  * (physical_ep_number) where ep0out=0 and ep0in=1. The command
  * registers are spaced 0x10 bytes apart. */
@@ -534,9 +541,19 @@ static inline uint32_t mmio_read32(uintptr_t address)
     return *(volatile uint32_t *)address;
 }
 
-/* Issue a DEPCMD and spin until the hardware clears CMDACT.
+extern void debug_write(const char *text);   /* SD-backed debug log (017) */
+
+/* Issue a DEPCMD and wait, BOUNDED, until the hardware clears CMDACT.
  * Non-static so the CDC-ACM bring-up in 011-cdc-acm.c can reuse it
- * for the bulk endpoints. */
+ * for the bulk endpoints.
+ *
+ * The wait used to be an unbounded spin. CMDACT clears within microseconds
+ * ONCE the command state machine is clocked — but that machine runs on the
+ * USB2 PHY's mac2_clk, and if the PHY has gated it (SusPHY; see
+ * usb_endpoint_zero_bringup) the command never completes and the old loop hung
+ * the whole kernel with no diagnostic. Bound it and log the stuck command
+ * instead: fail loud, let the watchdog reset us, and leave a breadcrumb naming
+ * the endpoint and the likely cause rather than a silent freeze. (Issue 109b.) */
 void depcmd_issue(unsigned ep, uint32_t cmd_with_params,
                   uint32_t par0, uint32_t par1, uint32_t par2)
 {
@@ -544,8 +561,18 @@ void depcmd_issue(unsigned ep, uint32_t cmd_with_params,
     mmio_write32(DWC3_DEPCMDPAR1(ep), par1);
     mmio_write32(DWC3_DEPCMDPAR0(ep), par0);
     mmio_write32(DWC3_DEPCMD(ep), cmd_with_params | DEPCMD_CMDACT);
+
+    uint32_t budget = 2000000u;
     while (mmio_read32(DWC3_DEPCMD(ep)) & DEPCMD_CMDACT) {
-        /* Spin; the command completes within microseconds. */
+        if (--budget == 0u) {
+            char epc[2];
+            epc[0] = "0123456789ABCDEF"[ep & 0xFu];
+            epc[1] = 0;
+            debug_write("[usb] DEPCMD stuck: CMDACT never cleared on ep ");
+            debug_write(epc);
+            debug_write(" (mac2_clk gated? check GUSB2PHYCFG SusPHY)\r\n");
+            return;
+        }
     }
 }
 
@@ -614,6 +641,18 @@ static void arm_setup_receive(void)
  * Page allocator pages are already page-aligned. */
 int usb_endpoint_zero_bringup(void)
 {
+    /* Keep the USB2 PHY awake for the command sequence below (issue 109b).
+     * TRM Part 2 (GUSB2PHYCFG0, bit 6 suspendusb20): in device mode, clear
+     * this bit BEFORE issuing any endpoint command at 2.0 speeds, or a DEPCMD
+     * can find mac2_clk gated and never complete — the CMDACT hang. The
+     * databook suggests re-setting it after init for power saving; we leave it
+     * clear because the debug channel wants the PHY running. */
+    {
+        uint32_t phycfg = mmio_read32(DWC3_GUSB2PHYCFG0);
+        phycfg &= ~GUSB2PHYCFG_SUSPHY;
+        mmio_write32(DWC3_GUSB2PHYCFG0, phycfg);
+    }
+
     /* Event buffer for the controller's events. */
     event_buffer_address = alloc_page();
     if (event_buffer_address == 0) {

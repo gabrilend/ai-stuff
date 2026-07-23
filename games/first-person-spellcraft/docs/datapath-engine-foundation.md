@@ -8,6 +8,17 @@
 >
 > Back to the [table of contents](table-of-contents.md) · phase plan in the
 > [roadmap](roadmap.md) · feature context in the [vision overview](vision-overview.md).
+>
+> **⚠ Architecture update (2026-07-21).** Issue `101` now records a different
+> substrate than the software-rasterizer engine described below. The engine is a
+> **SoraMech-style dataflow substrate** — boxes firing when their input slots are
+> ready, values in ring buffers, a re-arming frame-clock heartbeat, everything on
+> separate threads — **rendered by raylib** from a data-driven scene, not a
+> hand-written column rasterizer on LÖVE. The data *roles* below (RunConfig,
+> EngineState, IntentFrame, the world's two views) still hold; the render and loop
+> *mechanism* sections and issues `104a`/`104b` need a rewrite to match. See issue
+> `101` and [`soramech-notes.md`](soramech-notes.md). Until that rewrite lands,
+> read the render/loop specifics below as the superseded plan.
 
 ---
 
@@ -201,8 +212,8 @@ internals behind them.
 - **World** is built once, mutated only through the room/door seams (a door
   opening, a special tile toggling) — never rebuilt mid-run in Phase 1.
 - **Player / Camera / Framebuffer** are per-run, rewritten every tick/frame.
-- **Ephemeral logs** go to the project-local `tmp/` symlink (a RAM-backed
-  `/tmp/` directory), created by the run script before the loop starts.
+- **Ephemeral logs** go to the project-local `tmp/shared-memory/` tier (a
+  RAM-backed `/dev/shm/` directory), created by the run script before the loop starts.
 
 ---
 

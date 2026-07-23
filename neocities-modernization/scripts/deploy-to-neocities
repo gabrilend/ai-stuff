@@ -23,6 +23,9 @@
 --                   that are not in the local build (a true mirror). Destructive;
 --                   asks separately. Upload-then-prune keeps the site working
 --                   throughout (current content goes up before stale is removed).
+--                   The COMPLETE stale list is written to tmp/prune-list (RAM),
+--                   whether or not you confirm the delete; the terminal shows
+--                   the first 50 and points at the file for the rest.
 --     --only PREFIX restrict BOTH passes to remote paths under PREFIX (e.g.
 --                   similar-different/gallery) -- for testing on a small slice
 -- }}}
@@ -246,16 +249,48 @@ else
 end
 -- }}}
 
+-- {{{ write_prune_list(paths) -- persist the FULL stale set, one path per line,
+-- to the RAM-backed tmp/ so the complete list outlives the terminal scrollback
+-- and can be fed to other tools (sort, grep, a manual delete) -- even when it is
+-- far longer than is sane to eyeball. Returns the absolute path written.
+--
+-- We deliberately do NOT shell out to ensure-tmp-symlink here: the listing step
+-- above already drove a curl through tmp/neocities-curl.cfg, so by the time a
+-- prune preview runs the tmp/ tmpfs symlink is provably materialised. (It also
+-- honours the project rule against using exec for directory-targeting work.) If
+-- tmp/ somehow is not there, the assert fails loudly rather than papering over a
+-- missing directory -- a real error we would want surfaced, not swallowed.
+local function write_prune_list(paths)
+    local path = DIR .. "/tmp/shared-memory/prune-list"
+    local f = assert(io.open(path, "w"), "could not write prune list: " .. path)
+    for _, p in ipairs(paths) do f:write(p, "\n") end
+    f:close()
+    return path
+end
+-- }}}
+
 -- {{{ PRUNE pass (destructive; separate confirmation + a preview)
 if prune then
     if #stale == 0 then
         io.write("Nothing to prune -- no remote files are absent locally.\n")
     else
+        -- Write the complete list to RAM first; the file is the durable record
+        -- (the WHOLE stale set, every run). The terminal then shows only the
+        -- first PREVIEW_N so the y/N prompt below stays on screen even when the
+        -- stale set is thousands of paths -- anything past the cap lives only in
+        -- the file, which the trailing line points at.
+        local PREVIEW_N = 50
+        local list_path = write_prune_list(stale)
         io.write(string.format("\n%d remote file(s) under %s/ are NOT in the local build", #stale, REMOTE_DIR))
         if present_n > 0 then io.write(string.format(" (%.0f%% of what is on the site)", 100 * #stale / present_n)) end
-        io.write(" -- examples:\n")
-        for i = 1, math.min(8, #stale) do io.write("    " .. stale[i] .. "\n") end
-        if #stale > 8 then io.write(string.format("    ... and %d more\n", #stale - 8)) end
+        io.write(":\n")
+        local shown = math.min(PREVIEW_N, #stale)
+        for i = 1, shown do io.write("    " .. stale[i] .. "\n") end
+        if #stale > shown then
+            io.write(string.format("    ... and %d more -- full list in %s\n", #stale - shown, list_path))
+        else
+            io.write(string.format("(full list also written to %s)\n", list_path))
+        end
         if not confirm(string.format("DELETE these %d file(s) from the LIVE site?", #stale)) then
             io.write("Skipped prune; uploads (if any) are live.\n"); return
         end
