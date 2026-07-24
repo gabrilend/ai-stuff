@@ -224,6 +224,12 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 008**: Validation and Documentation (partial - CLAUDE.md template created, user docs pending)
 
 ## Recently Completed
+- **Issue 057**: Centralized Transcript Storyline Library (2026-07-23)
+  - One symlink per transcript collection-wide in `library/storyline/`, ISO-date-prefixed so a plain listing reads as a chronology
+  - Reverse date parser (token → ISO date) contributed to the shared transcript-discovery rulebook
+  - Regeneration is surgical (deletes symlinks only); date-less files reported loudly, never guessed into the timeline
+  - Implemented: scripts/build-storyline-library.sh, scripts/test-storyline-library.sh, library/README.md
+
 - **Issue 050**: Earliest Version Extraction for History Reconstruction (2026-02-12)
   - Enhances reconstruct-history.sh to extract file versions from existing git history
   - 8 new functions: has_meaningful_history, extract_file_history, get_file_version_at_date, etc.

@@ -20,6 +20,8 @@
 - [External Projects Guide](external-projects-guide.md) - Configure external project directories 📝
 - [Git Worktree Guide](worktree-guide.md) - Multi-agent parallel development with git worktrees 📝
 - [Project Metadata Schema](project-metadata-schema.md) - project.meta.json format and manage-metadata.sh
+- [Storyline Library Builder](../scripts/build-storyline-library.info.md) - Chronological transcript shelf: usage, pieces, and deliberate behaviors
+- [The Library](../library/README.md) - Generated read-only views over the collection's history
 - [HISTORY.txt](HISTORY.txt) - Generated commit history narrative
 
 ### Design Documents

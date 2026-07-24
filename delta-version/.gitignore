@@ -1,0 +1,5 @@
+# The storyline shelf is a generated artifact - hundreds of symlinks rebuilt
+# by scripts/build-storyline-library.sh on demand. Tracking it would smear
+# regeneration churn across every commit; the tracked library/README.md
+# explains how to rebuild it. (Issue 057.)
+library/storyline/
