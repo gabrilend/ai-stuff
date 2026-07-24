@@ -27,8 +27,12 @@ local FADE_POWER = 1.5
 -- Integrate everyone, then reap. Drag is exponential-by-steps
 -- (each tick keeps 1 - drag*dt of the velocity), jitter is a seeded
 -- shove in a random direction, scaled by the square root of the
--- tick so wander strength does not depend on frame rate.
-function physics.tick(p, rng, dt)
+-- tick so wander strength does not depend on frame rate. fx and fy
+-- are a constant force on everyone (a fountain's gravity, a wind) —
+-- explicit at every call site, zero when unwanted, because an
+-- optional argument silently absent is a nil check waiting to lie.
+-- (Added with the burst-demo issue: fountains need to fall.)
+function physics.tick(p, rng, dt, fx, fy)
     local root_dt = math.sqrt(dt)
     for i = 0, p.live - 1 do
         local keep = 1 - p.drag[i] * dt
@@ -37,8 +41,8 @@ function physics.tick(p, rng, dt)
         if keep < 0 then keep = 0 end
         local ang = emit.uniform(rng) * 2 * math.pi
         local shove = p.jitter[i] * root_dt
-        p.vx[i] = p.vx[i] * keep + math.cos(ang) * shove
-        p.vy[i] = p.vy[i] * keep + math.sin(ang) * shove
+        p.vx[i] = p.vx[i] * keep + math.cos(ang) * shove + fx * dt
+        p.vy[i] = p.vy[i] * keep + math.sin(ang) * shove + fy * dt
         p.x[i] = p.x[i] + p.vx[i] * dt
         p.y[i] = p.y[i] + p.vy[i] * dt
         p.age[i] = p.age[i] + dt

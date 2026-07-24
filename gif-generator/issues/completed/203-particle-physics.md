@@ -11,6 +11,11 @@ one tick too long — that reasoning is a comment at the loop. Fade is
 derived on demand, never stored. Ten assertions, including
 exponential decay checked to the digit and swarm-level determinism.
 
+Amended with the burst demo: the tick takes an explicit constant
+force (a fountain's gravity, a wind) — passed as zero at every call
+site that wants none, because an optionally-absent argument is a nil
+check waiting to lie. Proven by a linear-speed-growth assertion.
+
 ## Intended Behavior
 
 The integrator: the loop that touches every live particle every tick.
