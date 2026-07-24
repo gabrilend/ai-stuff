@@ -11,7 +11,9 @@ watched in a browser.
       color out; white-shift, soft knee, gamma; ten proofs green.
 - [x] 103 glow palette and indexing — seven hues in the vocabulary,
       ramps seated on purpose, indexing by arithmetic; twelve proofs.
-- [ ] 104 gif encoder
+- [x] 104 gif encoder — handwritten GIF89a with flat-dictionary LZW;
+      round-trip decoder caught a width-timing desync on first run
+      (lesson recorded in the source); ImageMagick reads us clean.
 - [ ] 105 first-light demo (capstone)
 
 The skeleton stands and the house wakes on command; pixels are next.

@@ -2,8 +2,15 @@
 
 ## Current Behavior
 
-Indexed frames and a palette exist in memory (canvas and palette work);
-no file format knows how to hold them.
+Complete. The encoder emits the full block sequence with the flat
+LZW dictionary as specified. One lesson learned and recorded in the
+source: the code-width bump must happen when the entry *being added*
+needs more bits (checked before the add) — bumping after the add
+desyncs encoder and decoder by exactly one code; the round-trip test
+caught it on first run. Eleven assertions pass, including noise that
+forces dictionary resets; ImageMagick independently reads a
+ten-frame probe file cleanly, so the timing agrees with the world,
+not just with our own decoder.
 
 ## Intended Behavior
 
