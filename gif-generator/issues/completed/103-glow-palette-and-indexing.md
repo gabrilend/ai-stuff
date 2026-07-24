@@ -2,8 +2,13 @@
 
 ## Current Behavior
 
-Tone-mapped frames (from the light canvas work) end as 8-bit RGB with
-nowhere to go; GIF needs palette indices.
+Complete. The hue vocabulary (seven named hues, extendable by adding
+a row) and the seating chart live as the second indexed module: black
+alone at zero, gamma-spaced ramps per declared hue with a gentle lean
+toward white at their tops so the hand-off to the gray ramp shows no
+seam, and the gray ramp spanning full dark-to-white so desaturated
+pixels of any brightness have an honest seat. Indexing is arithmetic
+as specified. Twelve assertions cover the chart and the walls.
 
 ## Intended Behavior
 
