@@ -4,7 +4,8 @@ Goal: time learns to steer — clock-face paths, the easing library,
 timeline tracks, growing fill regions, and the vision's two-clocks
 gesture staged directly in code.
 
-- [ ] 301 parametric paths
+- [x] 301 parametric paths — the clock convention in one home; arcs
+      that refuse to guess their turn; tangents true.
 - [ ] 302 easing library
 - [ ] 303 timeline tracks
 - [ ] 304 fill regions

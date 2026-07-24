@@ -2,8 +2,14 @@
 
 ## Current Behavior
 
-Emitters sit where they are placed; nothing can carry one along a
-curve. The clock-face convention exists only as documentation.
+Complete. The convention lives in exactly one place with the
+documented mapping; arcs demand their turn direction and wind the
+sweep accordingly (both of the vision's hands verified at
+three-sevenths of their journeys); tangents are unit, perpendicular
+to radii, signed by the turn; lines refuse zero length; points have
+zero heading so aim honestly means nothing extra for them. Spoken
+hours ("7 o'clock", "7.2 o'clock") parse beside bare numbers.
+Eighteen assertions, all green on first run.
 
 ## Intended Behavior
 
