@@ -1,0 +1,41 @@
+#!/bin/bash
+# demo — asks which completed phase to perform, then performs it.
+# What it does, generally: looks at which phase demos actually exist
+# (never a hard-coded count), offers the list, runs the chosen one.
+# Each phase demo is a small stage production of everything that
+# phase learned to do.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+DEMOS_DIR="${DIR}/issues/completed/demos"
+PHASES=()
+for d in "${DEMOS_DIR}"/phase-*/run; do
+    if [ -x "$d" ]; then
+        PHASES+=("$d")
+    fi
+done
+
+COUNT=${#PHASES[@]}
+if [ "$COUNT" -eq 0 ]; then
+    echo "demo: no phase demos exist yet — the stage is still being built."
+    exit 1
+fi
+
+echo "Completed phase demos:"
+for i in $(seq 1 "$COUNT"); do
+    NAME=$(dirname "${PHASES[$((i-1))]}")
+    NAME=$(basename "$NAME")
+    echo "  $i) $NAME"
+done
+printf "Which phase shall perform? (1-%s) " "$COUNT"
+read -r PICK
+
+if [ -z "$PICK" ] || [ "$PICK" -lt 1 ] || [ "$PICK" -gt "$COUNT" ]; then
+    echo "demo: '$PICK' is not on the playbill."
+    exit 1
+fi
+
+"${PHASES[$((PICK-1))]}" "${DIR}"

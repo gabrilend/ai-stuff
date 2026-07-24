@@ -1,0 +1,21 @@
+#!/bin/bash
+# run — performs the phase-1 demo: first light, an orbiting glow.
+# What it does, generally: wakes the house, renders the orbit gif
+# through the whole phase-1 pipeline, prints its measured numbers,
+# and opens the loop in a browser when a display is around to see it.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+"${DIR}/bootstrap" "${DIR}"
+luajit "${DIR}/issues/completed/demos/phase-1/first-light.lua" "${DIR}"
+
+GIF="${DIR}/issues/completed/demos/phase-1/first-light.gif"
+# a browser needs a display; without one the numbers above are the show
+if [ -n "$DISPLAY" ] && command -v xdg-open > /dev/null; then
+    xdg-open "${GIF}" &
+else
+    echo "(no display here — open ${GIF} in a browser to watch the loop)"
+fi
