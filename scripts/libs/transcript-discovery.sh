@@ -93,6 +93,60 @@ transcript_span_basename() {
 }
 # }}}
 
+# Month-name -> month-number dispatch table for the reverse parser below.
+# These are the English %b abbreviations that transcript_date_token emits;
+# a lookup miss means the token is not a date and the caller must not guess.
+# The -g flag matters: some consumers source this rulebook from inside a
+# function, and a plain "declare -A" there would silently create a LOCAL
+# table that vanishes when the sourcing function returns, failing every
+# date lookup afterward. -g pins it global regardless of sourcing context.
+declare -gA TRANSCRIPT_MONTH_NUMBER=(
+   [jan]=01 [feb]=02 [mar]=03 [apr]=04 [may]=05 [jun]=06
+   [jul]=07 [aug]=08 [sep]=09 [oct]=10 [nov]=11 [dec]=12
+)
+
+# {{{ transcript_token_to_ymd()
+# The mirror image of transcript_date_token: "jul-3-26" -> "2026-07-03".
+# Added for the storyline library (delta-version issue 057), which needs a
+# sortable ISO date where the filenames only carry the compact token. The
+# century is fixed at 20xx because the token format itself only stores two
+# year digits and the transcript corpus begins in 2025. Prints nothing and
+# fails on anything that is not a real date token - no guessing.
+transcript_token_to_ymd() {
+   local token="$1"
+   [[ "$token" =~ ^([a-z]{3})-([0-9]{1,2})-([0-9]{2})$ ]] || return 1
+   local mon="${BASH_REMATCH[1]}"
+   local day="${BASH_REMATCH[2]}"
+   local yy="${BASH_REMATCH[3]}"
+   local mm="${TRANSCRIPT_MONTH_NUMBER[$mon]:-}"
+   [ -n "$mm" ] || return 1
+   printf '20%s-%s-%02d\n' "$yy" "$mm" "$((10#$day))"
+}
+# }}}
+
+# {{{ transcript_basename_start_ymd()
+# Recover the ISO *start* date of a transcript from its filename alone:
+# "jul-1-26-through-jul-2-26_agent-1.md" -> "2026-07-01". The date token is
+# matched from the END of the name so that a future "<slug>-<date>.md" rename
+# (delta-version issue 056) parses identically. Span names use the start date
+# because that is when the session's story began. Fails, printing nothing,
+# when no trailing date token exists (e.g. uuid-named or hand-written files).
+transcript_basename_start_ymd() {
+   local base
+   base="$(transcript_strip_suffix "$1")"
+   local tok='[a-z]{3}-[0-9]{1,2}-[0-9]{2}'
+   # Span first: for "start-through-end" the start token is what orders the
+   # file. The plain branch would otherwise match the span's END token.
+   if [[ "$base" =~ (${tok})-through-(${tok})$ ]]; then
+      transcript_token_to_ymd "${BASH_REMATCH[1]}"
+   elif [[ "$base" =~ (${tok})$ ]]; then
+      transcript_token_to_ymd "${BASH_REMATCH[1]}"
+   else
+      return 1
+   fi
+}
+# }}}
+
 # {{{ transcript_is_new_format()
 # True when a filename is already in the date-range scheme, so the migrator can
 # skip it and stay idempotent. Matches "mon-d-yy", an optional "-through-..."
