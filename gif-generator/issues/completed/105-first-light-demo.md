@@ -2,8 +2,13 @@
 
 ## Current Behavior
 
-Canvas, palette, and encoder each pass their own tests but have never
-been joined; no gif of ours has ever been watched.
+Complete — the project's first gif exists and has been watched: an
+ember glow orbiting on black, 100 frames, pulsing to prove additive
+light never clips. The demo prints measured numbers (bytes, bytes per
+frame, palette seats actually lit — 205 of 256 on first render) from
+the emitted file, never from constants. The root `demo` picker reads
+which phase demos exist rather than hard-coding a count. The gif is
+committed beside the demo as a deliverable.
 
 ## Intended Behavior
 
