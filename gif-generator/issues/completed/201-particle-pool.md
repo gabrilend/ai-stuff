@@ -2,8 +2,13 @@
 
 ## Current Behavior
 
-Phase 1 moves a single hand-driven glow; there is no notion of a
-particle as a thing with its own life.
+Complete. The pool lives as specified — parallel flat arrays, solid
+live prefix, swap-with-last, overflow wall naming its asker — plus
+two fields the blueprint implied but did not name: per-particle drag
+and jitter, set at spawn from the recipe, so strokes of different
+characters share one pool without per-tick lookups. Sizing is the
+numeric standing-population peak with headroom and a floor. Eleven
+assertions including a twenty-thousand-step churn fuzz.
 
 ## Intended Behavior
 
