@@ -7,7 +7,8 @@ watched in a browser.
 - [x] 101 project skeleton and run harness — bootstrap recreates the
       RAM tiers and probes LuaJIT; `run` opens onto the newest
       runnable thing; the index counter waits at zero.
-- [ ] 102 light canvas and tone-mapping
+- [x] 102 light canvas and tone-mapping — energy floats in, [0,1]
+      color out; white-shift, soft knee, gamma; ten proofs green.
 - [ ] 103 glow palette and indexing
 - [ ] 104 gif encoder
 - [ ] 105 first-light demo (capstone)

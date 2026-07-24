@@ -2,8 +2,14 @@
 
 ## Current Behavior
 
-No pixels exist. The rendering datapath document describes the intended
-light buffer but nothing implements it.
+Complete. The light canvas lives as the project's first indexed source
+file (with the index ritual documented at its head, per the skeleton
+issue). Energy accumulates in flat float triples, row-major, y
+downward; the only write is additive deposit; out-of-bounds deposits
+and degenerate sizes are hard errors. Tone-mapping does white-shift,
+soft knee, then gamma, into a reused mapped plane. Ten assertions
+prove the datapath's promises, including luminance monotonicity and
+hue-keeps-when-dim / bleaches-when-blazing.
 
 ## Intended Behavior
 
