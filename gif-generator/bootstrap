@@ -1,0 +1,47 @@
+#!/bin/bash
+# bootstrap — prepares the gif-generator project to run on this machine.
+# What it does, generally: recreates the RAM-backed scratch directories
+# (which vanish on reboot), re-points the project's tmp symlinks at them,
+# and confirms the LuaJIT runtime exists. It changes nothing else; run it
+# any time, from anywhere, as often as you like.
+
+# Hard-coded project home; override by passing a different one as $1.
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+# {{{ ensure_tmp_tiers()
+# Two RAM tiers: /tmp/gif-generator may execute code; /dev/shm/gif-generator
+# holds logs and artifacts. Both die on reboot, so recreation must be cheap
+# and idempotent — this function is the one place that knows the layout.
+ensure_tmp_tiers() {
+    mkdir -p /tmp/gif-generator
+    mkdir -p /dev/shm/gif-generator
+    # -sfn: replace a stale link if the machine changed under us,
+    # never follow a link into the wrong place.
+    ln -sfn /tmp/gif-generator "${DIR}/tmp"
+    ln -sfn /dev/shm/gif-generator /tmp/gif-generator/shared-memory
+}
+# }}}
+
+# {{{ probe_luajit()
+# LuaJIT is the only runtime this project accepts. If it is absent we say
+# so and stop — falling back to another lua would render differently and
+# lie about it, which is worse than not rendering.
+probe_luajit() {
+    if ! command -v luajit > /dev/null; then
+        echo "bootstrap: luajit not found in PATH. This project runs on"
+        echo "LuaJIT only (see docs/architecture.md). Install it, then"
+        echo "run bootstrap again."
+        exit 1
+    fi
+    VERSION=$(luajit -v)
+    echo "bootstrap: runtime is ${VERSION}"
+}
+# }}}
+
+ensure_tmp_tiers
+probe_luajit
+echo "bootstrap: tmp tiers ready at ${DIR}/tmp and ${DIR}/tmp/shared-memory"
+echo "bootstrap: the house is awake."
