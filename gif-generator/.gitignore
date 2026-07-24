@@ -1,0 +1,3 @@
+# Runtime artifacts regenerate via `run`; the record keeps blueprints.
+# Phase demos commit their own gifs — those are deliverables, not scratch.
+output/

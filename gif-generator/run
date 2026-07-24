@@ -1,0 +1,32 @@
+#!/bin/bash
+# run — the project's front door from a shell.
+# What it does, generally: makes sure the RAM scratch tiers exist, then
+# hands the request to the newest thing that can honor it. Until the
+# phase-4 runner exists, that is the most recent phase demo; afterwards,
+# this script becomes a thin wrapper over the runner (score name in,
+# gif out).
+
+# Hard-coded project home; override by passing a different one as $1
+# *when it is a directory*; otherwise arguments pass through to the
+# runner. (Decision: a directory first-arg means "run me from over
+# there"; anything else means "render this".)
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+
+"${DIR}/bootstrap" "${DIR}"
+
+# The phase-4 runner is the true tenant of this door. If it has moved in,
+# use it; if not, fall through to the demo picker so the door always
+# opens onto something real. (This is a stage of construction, not a
+# fallback: the picker path is removed when the runner lands — see the
+# command-line runner issue.)
+RUNNER="${DIR}/src/026-render-main.lua"
+if [ -f "${RUNNER}" ]; then
+    luajit "${RUNNER}" "${DIR}" "$@"
+else
+    echo "run: the score runner is not built yet; opening the demo picker."
+    "${DIR}/demo" "${DIR}"
+fi
