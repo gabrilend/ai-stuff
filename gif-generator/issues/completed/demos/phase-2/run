@@ -1,0 +1,21 @@
+#!/bin/bash
+# run — performs the phase-2 demo: the bloom and the fountain.
+# What it does, generally: wakes the house, renders both particle
+# pieces through the full phase-2 machinery riding the phase-1
+# substrate, prints their measured numbers, and opens them in a
+# browser when a display is around.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+"${DIR}/bootstrap" "${DIR}"
+luajit "${DIR}/issues/completed/demos/phase-2/burst.lua" "${DIR}"
+
+if [ -n "$DISPLAY" ] && command -v xdg-open > /dev/null; then
+    xdg-open "${DIR}/issues/completed/demos/phase-2/bloom.gif" &
+    xdg-open "${DIR}/issues/completed/demos/phase-2/fountain.gif" &
+else
+    echo "(no display here — open the gifs in a browser to watch)"
+fi

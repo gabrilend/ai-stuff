@@ -108,7 +108,7 @@ local recipe = emit.recipe({ rate = 800, jitter = 60 }, 0)
 local carry = 0
 for _ = 1, 12 do
     carry = emit.step(swarm, rng, recipe, "t", 32, 32, 0, -1, 1, 0.04, carry)
-    physics.tick(swarm, rng, 0.04)
+    physics.tick(swarm, rng, 0.04, 0, 0)
 end
 local snap = splat.snapshot(swarm.capacity)
 splat.take(swarm, snap)

@@ -2,8 +2,17 @@
 
 ## Current Behavior
 
-Pool, emitters, physics, and splatting each pass their tests; no gif
-has ever shown a living particle population.
+Complete. Both pieces render and both were watched: the bloom is a
+breath of gold that rings outward and embers (frame 12 shows the
+ring mid-flight); the fountain is a teal jet with a rose heart whose
+white-hot core sheds sparks that rise against gravity and fall. Peak
+populations landed at 75-78% of the pool's estimates — the headroom
+is honest. One extension made along the way and recorded where it
+lives: the integrator gained an explicit constant-force argument
+(zero when unwanted, at every call site — no optional-nil games)
+because a fountain must fall; the completed physics issue carries
+the cross-note. The demo's piece-runner is a hand-made preview of
+what compiled scores will hand the phase-4 runner.
 
 ## Intended Behavior
 
