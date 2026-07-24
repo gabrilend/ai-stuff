@@ -2,8 +2,15 @@
 
 ## Current Behavior
 
-The pool can hold particles but nothing creates them with intent; there
-is no notion of "a source of particles at a place, with a character."
+Complete. Recipes carry the documented defaults (misspelled fields
+refused with the legal list — a typo must never silently mean "use
+the default"); the emit step births by fractional carry, blends
+scatter with heading by an aim weight, and rolls each particle's
+bright-seed and lifetime once at birth. The xorshift32 generator
+lives here too — one stream per render, machine-independent, seed
+zero legal. One design note beyond the blueprint: the carry lives
+with the caller, one per stroke, because recipes are shared and
+carries must not be. Eleven assertions.
 
 ## Intended Behavior
 

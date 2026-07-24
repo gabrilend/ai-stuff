@@ -6,7 +6,8 @@ splatting, a bloom and a fountain on screen.
 
 - [x] 201 particle pool — solid prefix, swap-with-last, an overflow
       wall that names its asker; churn-fuzzed.
-- [ ] 202 emitters
+- [x] 202 emitters — fractional carry, aim-blended velocities, one
+      seeded voice of chance per render.
 - [ ] 203 particle physics
 - [ ] 204 glow rendering
 - [ ] 205 burst demo (capstone)
