@@ -9,7 +9,8 @@ watched in a browser.
       runnable thing; the index counter waits at zero.
 - [x] 102 light canvas and tone-mapping — energy floats in, [0,1]
       color out; white-shift, soft knee, gamma; ten proofs green.
-- [ ] 103 glow palette and indexing
+- [x] 103 glow palette and indexing — seven hues in the vocabulary,
+      ramps seated on purpose, indexing by arithmetic; twelve proofs.
 - [ ] 104 gif encoder
 - [ ] 105 first-light demo (capstone)
 
