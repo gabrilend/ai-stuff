@@ -2,8 +2,14 @@
 
 ## Current Behavior
 
-Phase 1's demo splats one hand-positioned glow; nothing renders a
-population of particles from the pool onto the light canvas.
+Complete. The snapshot freezes the live prefix with fades computed at
+freeze time (fade rides in doubles — it is the one value born at the
+border, and narrower storage made the two render paths disagree in
+the last bits; the identity test caught it and the reasoning lives at
+the field). The splatter stamps squared-falloff bells at true
+fractional positions; the pool-direct render path exists only so the
+tests can prove the border loses nothing. Ten assertions, including
+last-float identity over a real simulated swarm.
 
 ## Intended Behavior
 
