@@ -1,0 +1,20 @@
+pipeline of snapshots
+
+A producer that must run in order (a simulation, time depending on
+time) and consumers that don't care about order (rasterizing,
+compressing) are decoupled by one copy: the producer emits a compact
+snapshot of its state each step and immediately moves on. Workers take
+snapshots in any order; results are reassembled by sequence number at
+the end.
+
+The copy looks like waste and is the whole trick — it is the fence
+that lets the sequential heart beat at full speed while the
+parallelizable limbs swing freely. Seen before in: double-buffered
+renderers, WAL-shipping databases, film pipelines (frames to render
+farm). Used here: particle sim → frame snapshots → splatting + LZW
+workers → gif assembly.
+
+Corollary: design the snapshot to be small and flat (numbers, not
+references) and the pattern pays for itself even single-threaded,
+because it draws a clean testable border through the middle of the
+machine.

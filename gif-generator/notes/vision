@@ -1,0 +1,16 @@
+a simple particle sim that we can use to generate .gif files.
+
+usually black background, vibrant glowing particles (we can change that stuff)
+
+okay true true okay so first we describe a motion, like "sweeping circle, slow
+at first but then fast like a stroke. Two circles, both starting at 12o'clock
+and sweeping to around 7. the particles are drawn at the tip of the hands, and
+they are both oriented inward - the one on the left starts at 12 and goes to 7,
+the one on the right is reversed such that it starts at 12 and sweeps around to
+about 5, counterclockwise. After 5 for the left hand and 7 for the right hand,
+fade in a line between 7 on the left clock and 5 on the right clock. Fill the
+"triangle" between 7 on the left clock, 5 on the right clock, slowly."
+
+that sort of thing. And it would render to like, 256x256 or larger .gif files,
+not created through diffusion modeling, but rather through a particle sim, to
+illustrate motion.
