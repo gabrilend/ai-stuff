@@ -8,7 +8,8 @@ splatting, a bloom and a fountain on screen.
       wall that names its asker; churn-fuzzed.
 - [x] 202 emitters — fractional carry, aim-blended velocities, one
       seeded voice of chance per render.
-- [ ] 203 particle physics
+- [x] 203 particle physics — drag, frame-rate-honest jitter, backward
+      reaping with its reasoning written where it happens.
 - [ ] 204 glow rendering
 - [ ] 205 burst demo (capstone)
 
