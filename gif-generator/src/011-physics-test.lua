@@ -49,7 +49,7 @@ end
 -- drag-only: speed decays exactly as (1 - drag*dt)^ticks
 local p = lone_particle(100, 2.0, 0, 999)
 local rng = emit.rng(3)
-for _ = 1, 25 do physics.tick(p, rng, DT) end
+for _ = 1, 25 do physics.tick(p, rng, DT, 0, 0) end
 local expected = 100 * (1 - 2.0 * DT) ^ 25
 check("drag alone slows exponentially, to the digit",
       math.abs(p.vx[0] - expected) < 0.01)
@@ -57,13 +57,13 @@ check("drag alone never bends the path sideways", p.vy[0] == 0)
 
 -- nothing at all: motion is exactly linear
 local p2 = lone_particle(50, 0, 0, 999)
-for _ = 1, 50 do physics.tick(p2, emit.rng(1), DT) end
+for _ = 1, 50 do physics.tick(p2, emit.rng(1), DT, 0, 0) end
 check("no drag, no jitter: exactly linear drift",
       math.abs(p2.x[0] - 50 * DT * 50) < 1e-3)
 
 -- overdrag clamps to rest instead of vibrating backward
 local p3 = lone_particle(100, 100, 0, 999)
-physics.tick(p3, emit.rng(1), DT)
+physics.tick(p3, emit.rng(1), DT, 0, 0)
 check("absurd drag reads as rest, not as vibration", p3.vx[0] >= 0)
 
 -- a cohort with one lifetime dies on the same tick, together
@@ -76,9 +76,9 @@ for n = 1, 32 do
     cohort.seed[i], cohort.hue[i] = 1, 0
 end
 local rngc = emit.rng(2)
-for _ = 1, 4 do physics.tick(cohort, rngc, DT) end
+for _ = 1, 4 do physics.tick(cohort, rngc, DT, 0, 0) end
 check("the cohort lives while its time remains", cohort.live == 32)
-physics.tick(cohort, rngc, DT)
+physics.tick(cohort, rngc, DT, 0, 0)
 check("the cohort dies together, on time", cohort.live == 0)
 
 -- fade: newborn blazes near one, the dying ember near zero, and the
@@ -89,7 +89,7 @@ local mono = true
 local last = newborn
 local rf = emit.rng(4)
 for _ = 1, 24 do
-    physics.tick(pf, rf, DT)
+    physics.tick(pf, rf, DT, 0, 0)
     local f = physics.fade_of(pf, 0)
     if f > last then mono = false end
     last = f
@@ -97,6 +97,12 @@ end
 check("a newborn blazes", newborn > 0.9)
 check("an elder embers", last < 0.15)
 check("the fade only ever descends", mono)
+
+-- a constant force builds speed linearly (a fountain's fall)
+local pg = lone_particle(0, 0, 0, 999)
+for _ = 1, 25 do physics.tick(pg, emit.rng(1), DT, 0, 120) end
+check("constant force builds speed linearly, to the digit",
+      math.abs(pg.vy[0] - 120 * DT * 25) < 0.01)
 
 -- determinism: jittered swarms replay exactly under one seed
 -- {{{ local function swarm_run()
@@ -110,7 +116,7 @@ local function swarm_run(seed)
     local carry = 0
     for _ = 1, 20 do
         carry = emit.step(sp, sr, rec, "t", 128, 128, 0, -1, 1, DT, carry)
-        physics.tick(sp, sr, DT)
+        physics.tick(sp, sr, DT, 0, 0)
     end
     return sp
 end

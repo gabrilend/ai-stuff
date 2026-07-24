@@ -12,6 +12,13 @@ splatting, a bloom and a fountain on screen.
       reaping with its reasoning written where it happens.
 - [x] 204 glow rendering — the snapshot border proven lossless to
       the last float; sub-pixel stamps lean the way they move.
-- [ ] 205 burst demo (capstone)
+- [x] 205 burst demo (capstone) — the bloom rings outward in gold,
+      the fountain rises teal against real gravity; both watched;
+      pool estimates held at honest headroom.
 
-Nothing started; architecture complete, blueprints written.
+Phase 2 is complete: particles are born with character, move and
+wander and die on schedule, and a living population renders through
+the lossless snapshot border onto the phase-1 substrate untouched.
+The integrator learned one honest extension along the way (a
+constant force, explicit everywhere) so fountains can fall.
+Choreography is next: time learns to steer.
