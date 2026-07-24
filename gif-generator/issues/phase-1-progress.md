@@ -14,6 +14,11 @@ watched in a browser.
 - [x] 104 gif encoder — handwritten GIF89a with flat-dictionary LZW;
       round-trip decoder caught a width-timing desync on first run
       (lesson recorded in the source); ImageMagick reads us clean.
-- [ ] 105 first-light demo (capstone)
+- [x] 105 first-light demo (capstone) — an ember orbit on black, 100
+      frames, watched and committed; the demo picker reads the
+      playbill from disk.
 
-The skeleton stands and the house wakes on command; pixels are next.
+Phase 1 is complete: light accumulates, seats itself in a purposeful
+palette, and leaves the building as a real gif that independent
+readers (our test decoder, ImageMagick, a pair of eyes) all accept.
+The substrate is ready for particles.
