@@ -213,6 +213,8 @@ declare -a UTILITY_REGISTRY=(
     "validate-gitignore|scripts/validate-gitignore.sh|optional|Gitignore validation"
     "import-project-histories|scripts/import-project-histories.sh|optional|Project history import"
     "history-viewer|scripts/history-viewer.sh|optional|TUI history viewer"
+    "build-storyline-library|scripts/build-storyline-library.sh|optional|Chronological transcript shelf builder"
+    "test-storyline-library|scripts/test-storyline-library.sh|optional|Storyline shelf test suite"
 )
 # }}}
 
