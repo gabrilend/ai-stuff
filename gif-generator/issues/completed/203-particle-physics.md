@@ -2,8 +2,14 @@
 
 ## Current Behavior
 
-Particles are born with position and velocity and then nothing happens
-to them; there is no motion, aging, or death.
+Complete. The integrator runs on LuaJIT's happy path (flat indexing,
+nothing allocated in the loop); drag clamps at rest rather than
+vibrating backward; jitter scales with the square root of the tick so
+wander strength is frame-rate independent; the reap walks backward
+because swap-with-last would otherwise let a swapped-in particle live
+one tick too long — that reasoning is a comment at the loop. Fade is
+derived on demand, never stored. Ten assertions, including
+exponential decay checked to the digit and swarm-level determinism.
 
 ## Intended Behavior
 
