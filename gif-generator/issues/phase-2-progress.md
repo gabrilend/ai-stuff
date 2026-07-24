@@ -10,7 +10,8 @@ splatting, a bloom and a fountain on screen.
       seeded voice of chance per render.
 - [x] 203 particle physics — drag, frame-rate-honest jitter, backward
       reaping with its reasoning written where it happens.
-- [ ] 204 glow rendering
+- [x] 204 glow rendering — the snapshot border proven lossless to
+      the last float; sub-pixel stamps lean the way they move.
 - [ ] 205 burst demo (capstone)
 
 Nothing started; architecture complete, blueprints written.
