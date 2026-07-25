@@ -2,10 +2,18 @@
 
 ## Current Behavior
 
-Numbers about renders (frames per second of wall time, peak particles,
-bytes per frame, palette occupancy) are printed by demo scripts ad hoc
-and quoted nowhere durable — the documentation has no honest way to
-cite performance.
+Complete, with one deliberate deviation recorded. The utility
+measures (rendering a scene sequentially or with any worker count,
+reporting stage CPU clocks and true wall time — the CPU-versus-wall
+distinction documented at its head, since CPU clocks make parallel
+work look slower) and summarizes (every report in output/ as one
+table, read-only). The gallery already captions from the same
+reports. The deviation: the earlier phase demos keep their bespoke
+prints rather than being rewired — they measure demo-specific facts
+(peak against estimate, identity checks) inline from renders they
+themselves stage, and the utility is the one truth for score
+renders and summaries. The phase-5 demo uses the utility from
+birth.
 
 ## Intended Behavior
 
