@@ -1,0 +1,105 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>305-two-clocks-demo</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-305-two-clocks-demo.html">305</a> — two-clocks demo (phase 3 capstone)</h1>
+<h2>Current Behavior</h2>
+<p>Complete — the vision renders and was watched act by act: hands
+converging inward mid-sweep with ember trails, the violet seal-line
+arriving whole and breathing in between the resting tips, the
+triangle flooding downward while the tips ember at its corners. Six
+tracks, 114 frames, peak population at 74% of the pool's estimate.
+Two interpretation choices recorded: the vision's text swaps the
+hands' resting hours in its second mention, and the line description
+("between 7 on the left clock and 5 on the right") settles it — left
+rests at 7, right at 5; and the triangle's unnamed third vertex is a
+low center point, stated as a choice in the demo where the vertices
+are defined. The dress rehearsal surfaced one vocabulary need that
+already made it into the fills issue: lines that arrive whole
+(at-once) versus lines that draw themselves (along).</p>
+<h2>Intended Behavior</h2>
+<p>The phase-3 demo: the vision, choreographed directly in Lua (the scene
+<em>language</em> is phase 4; this proves the machinery it will compile to):</p>
+<ul>
+<li>Left clock: hand sweeping clockwise from 12 to 7, stroke easing,</li>
+<p>  ember glow at the tip, velocity biased inward.</p>
+<li>Right clock: mirrored — 12 sweeping counterclockwise to 5.</li>
+<li>When both hands rest: a line fades in between the two tips</li>
+<p>  (zero-thickness field emitter, fade-in easing).</p>
+<li>Then the triangle between the tips and the lower midpoint fills</li>
+<p>  slowly, downward sweep. (The vision says "the triangle" without
+  naming a third vertex; the demo picks the natural reading — the two
+  tips plus a low center point — and states this choice in a comment
+  where the vertices are defined, so a future reader knows it was a
+  choice, not a fact.)</p>
+<li>Rendered to <code>output/</code>, registered with the phase-picker, statistics</li>
+<p>  printed: track count, peak particles, frames, bytes.</p>
+</ul>
+<h2>Blockers</h2>
+<ul>
+<li><a href="issue-301-parametric-paths.html">301</a>–<a href="issue-304-fill-regions.html">304</a>, and all of phase 2.</li>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. Translate the vision prose into tracks, keeping a side-by-side
+   comment: prose phrase → track element. This mapping is the dress
+   rehearsal for the scene language — anything that translates
+   awkwardly here is a vocabulary bug to fix <em>before</em> phase 4 freezes
+   the format.
+2. The demo script, picker registration, measurements.
+3. Watch it against the vision text, phrase by phrase. Tune timings in
+   docs/balance-updates.md entries, not silently.</p>
+<h2>Related Documents</h2>
+<ul>
+<li>notes/vision (the text being staged)</li>
+<li>docs/roadmap.md (phase 3)</li>
+</ul>
+</main></body></html>

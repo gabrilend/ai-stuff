@@ -1,0 +1,102 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>202-emitters</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-202-emitters.html">202</a> — emitters</h1>
+<h2>Current Behavior</h2>
+<p>Complete. Recipes carry the documented defaults (misspelled fields
+refused with the legal list — a typo must never silently mean "use
+the default"); the emit step births by fractional carry, blends
+scatter with heading by an aim weight, and rolls each particle's
+bright-seed and lifetime once at birth. The xorshift32 generator
+lives here too — one stream per render, machine-independent, seed
+zero legal. One design note beyond the blueprint: the carry lives
+with the caller, one per stroke, because recipes are shared and
+carries must not be. Eleven assertions.</p>
+<p>Amended with the fill-regions issue: the single birth and the
+fractional-due arithmetic became public atoms, so field emitters can
+place every birth at its own sampled point while the spot-tick step
+remains one caller among others. Behavior byte-identical; the suite
+passed unchanged.</p>
+<h2>Intended Behavior</h2>
+<p>Emitter recipes and the emit step.</p>
+<ul>
+<li>A recipe is data: spawn rate (particles per second), positional</li>
+<p>  spread, initial-velocity character (speed, direction bias — e.g.
+  "inward" from the vision), lifetime range, hue name.</p>
+<li>Point emitters spawn at a given position (later: the moving tip of a</li>
+<p>  path). Field emitters spawn across a region via a sampler function —
+  the same mechanism will serve lines and growing fills in phase 3.</p>
+<li>Spawn counts accumulate fractionally across ticks: a rate of 400 per</li>
+<p>  second at 25 fps yields exactly 16 per tick, and awkward rates never
+  drift — the accumulator carries the remainder.</p>
+<li>All randomness (spread, velocity jitter, lifetime roll, bright-seed)</li>
+<p>  draws from the render's seeded generator: same scene, same gif.</p>
+<li>Tests: exact counts for divisible rates, no drift for awkward ones</li>
+<p>  over long runs, determinism across two runs with one seed,
+  divergence across two seeds.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The recipe table and its documented defaults (vocabulary, not
+   fallback — absent optional fields have written-down meanings).
+2. The emit step against the pool from the previous issue.
+3. The fractional accumulator.
+4. Tests as described.</p>
+<h2>Blockers</h2>
+<ul>
+<li><a href="issue-201-particle-pool.html">201</a> (particle pool).</li>
+</ul>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/datapath-particle-sim.md (one tick, in order — the emit stage)</li>
+</ul>
+</main></body></html>

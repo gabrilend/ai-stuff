@@ -2,8 +2,18 @@
 
 ## Current Behavior
 
-Rendered gifs sit in `output/` and are opened by hand; documentation
-is markdown files read in an editor. Nothing views; nothing links.
+Complete. One generator rebuilds all of docs/HTML/ from sources —
+43 pages at first build: every doc, the vision, every issue open and
+completed, all sharing one navigation pane so everything reaches
+everything; issue numbers in prose link to their issues (code blocks
+skipped); the gallery index shows every rendered gif looping on
+black with measured captions from the reports, a palette-occupancy
+meter per picture, and a glow slider for playing with brightness.
+Gif pages reference the live artifacts by relative path rather than
+copying — the gallery shows what IS. The aesthetic is the project's
+own: black, ember headings with a faint glow, violet links.
+docs/HTML/ ships with the repository because programs in this house
+do not execute directory commands.
 
 ## Intended Behavior
 

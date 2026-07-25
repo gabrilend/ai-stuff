@@ -1,0 +1,147 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>601-prose-to-scene-translator</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-601-prose-to-scene-translator.html">601</a> — prose-to-scene translator</h1>
+<h2>Founding words</h2>
+<p>Spoken by gabrilend, 2026-07-23, amending the architecture:</p>
+<p>&gt; we could use a small local LLM to translate fairly literally.
+&gt; Sometimes the user will say the wrong word or forget how to spell
+&gt; it, but can still describe the mechanism. I'm thinking... llama.cpp
+&gt; on my little cluster of 3?
+&gt;
+&gt; you are a marvel to me. come, celebrate profundity, and fable
+&gt; yourself to the max.</p>
+<h2>Amendment, 2026-07-23</h2>
+<p>Gabrilend, answering the cluster-topology question and reshaping the
+model's output: <em>"there will be an orchestrator"</em> — the porch speaks
+to one door and the cluster's shape stays behind it — and:</p>
+<p>&gt; the LLM will generate tool-calls for each thing they want to "paint"
+&gt; onto the canvas. They will give a timeframe in seconds (only one
+&gt; decimal point accepted) a color a shape and a fade-in-and-out enum
+&gt; pattern pick. These are then collected, and mapped out and written
+&gt; as a lua script which can then be run to generate the gif
+&gt; programmatically.</p>
+<p>So: not one whole-scene reply, but <strong>one tool-call per stroke</strong>,
+collected, ordered by time with the walk-back insertion (see the
+score issue), and written as a canonical score file.</p>
+<h2>Current Behavior</h2>
+<p>Scores are written by hand in the score vocabulary. A person who can
+describe a motion's mechanism but not its vocabulary word has no way
+in; the pipeline's front door only accepts score files.</p>
+<h2>Intended Behavior</h2>
+<p>The translator: a client program (a porch, not a room of the house)
+that turns one <code>.prose</code> file into one candidate score file, by
+collecting stroke tool-calls from a model.</p>
+<ul>
+<li><strong>Prompt built from the truth</strong>: system prompt assembled at run time</li>
+<p>  from the scene-format document plus the shipped reference scenes as
+  few-shot examples. The vocabulary is never written a second time for
+  the model's benefit — the prompt builder reads what people read.</p>
+<li><strong>One tool-call per stroke</strong>: the model paints by calling a stroke</li>
+<p>  tool — timeframe in seconds (tenths only, enforced by grammar),
+  color, shape, fade enum — as many calls as the prose needs, in any
+  order it likes. Time is the ordering truth, not utterance order.</p>
+<li><strong>Grammar generated from the vocabulary</strong>: a GBNF grammar (llama.cpp</li>
+<p>  constrained decoding) produced by a generator that reads the same
+  vocabulary tables the validator trusts — legal fade enums, easing
+  names, hue names, shape kinds, the one-decimal time rule.
+  Misspelling becomes physically impossible in output; the model's
+  whole freedom is choosing among legal readings of the mechanism
+  described. Never hand-maintain the grammar: the tool generates it,
+  always.</p>
+<li><strong>The collector</strong>: tool-calls accumulate into the stroke list,</li>
+<p>  ordered as they arrive by the canonical writer's walk-back
+  insertion (decrement the index until the comparison is a no-op;
+  equal times settle in arrival order).</p>
+<li><strong>Transport</strong>: HTTP via luasocket, JSON via dkjson (both on the</li>
+<p>  shared shelf, <code>libs/lua/</code>). The porch speaks to <strong>the orchestrator</strong>
+  — one endpoint named in <code>input/cluster</code>, the cluster's shape its
+  business, not ours. Zero endpoints is a polite refusal with
+  instructions, not a fallback.</p>
+<li><strong>Output</strong>: the collected strokes are written as a canonical score</li>
+<p>  file, the person's own sentences carried as comments above the
+  strokes they became (the shipped vision translation already models
+  this style).</p>
+<li><strong>The wall argues, bounded</strong>: a candidate that fails validation gets</li>
+<p>  the errors — actor, field, nearest legal word — quoted back verbatim
+  for a small fixed number of retries; still failing, it is presented
+  to the person with its errors attached. No silent repair, no silent
+  drop.</p>
+<li>Tests: prompt and grammar builders are pure functions of the</li>
+<p>  vocabulary (snapshot-tested against it, so vocabulary growth is
+  detected, not drifted past); the collector's ordering against
+  shuffled and equal-timed tool-calls; the retry loop against a
+  scripted fake orchestrator; a canned run of tool-calls collects
+  into a score that compiles.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The grammar generator from the vocabulary tables (tool-call
+   shaped).
+2. The prompt builder from the format document and reference scores.
+3. The cluster file reader and the HTTP client against the
+   orchestrator's door.
+4. The collector (walk-back insertion) feeding the canonical score
+   writer, prose comments carried.
+5. The bounded retry loop wired to the validator's errors.
+6. Tests as described (fake orchestrator; no cluster required to
+   test).</p>
+<h2>Blockers</h2>
+<ul>
+<li><a href="issue-401-scene-script-format.html">401</a> (the format is the prompt's raw material), <a href="issue-402-scene-compiler.html">402</a> (the wall and</li>
+<p>  its nearest-legal-word suggestions).</p>
+</ul>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/datapath-prose-translation.md (this issue's specification)</li>
+</ul>
+</main></body></html>

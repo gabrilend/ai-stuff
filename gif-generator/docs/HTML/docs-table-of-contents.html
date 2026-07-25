@@ -1,0 +1,109 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>table-of-contents</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>Table of Contents</h1>
+<h2>The phases (clusters of functionality, not a schedule)</h2>
+<p>1. <strong>The canvas and the file</strong> — light buffer, tone-mapping, glow
+   palette, handwritten GIF89a encoder.
+2. <strong>Particle life</strong> — preallocated pool, emitters, physics, additive
+   glow splatting.
+3. <strong>Choreography</strong> — clock-face paths, easings, timeline tracks,
+   growing fill-regions.
+4. <strong>The scene language</strong> — declarative scene scripts, the compiler and
+   its validation wall, the command-line runner, the HTML gallery.
+5. <strong>Many hands</strong> — threaded rasterize-and-encode pipeline, the render
+   statistics utility.
+6. <strong>The listening porch</strong> — prose files translated to scene scripts
+   by small local models (llama.cpp cluster), grammar-constrained to
+   the vocabulary, three readings offered, the person picks.</p>
+<h2>Documents</h2>
+<pre><code>
+notes/
+└── vision ................ the founding description: particle-drawn
+                            motion, glowing on black, out to .gif
+
+docs/
+├── table-of-contents.md .. this file
+├── architecture.md ....... the six-stage pipeline and the design
+│                           decisions that shape it
+├── roadmap.md ............ the five phases and their issues
+├── score-format.md ....... the language's contract: every word a
+│                           score may speak, and what each means
+├── datapath-scene-script.md
+│                           score file → compiled timeline (the
+│                           vocabulary, the clock-face convention,
+│                           the validation wall)
+├── datapath-particle-sim.md
+│                           timeline → particle states (the pool,
+│                           one tick in order, frame snapshots)
+├── datapath-rendering.md . snapshot → indexed frame (light buffer,
+│                           splatting, tone-mapping, the palette)
+├── datapath-gif-encoding.md
+│                           indexed frames → .gif bytes (blocks,
+│                           LZW, round-trip verification)
+└── datapath-prose-translation.md
+                            prose file → scene script (the porch:
+                            grammar-constrained local models, three
+                            readings, the person picks)
+
+strategems/
+└── pipeline-of-snapshots . the producer-snapshot-workers pattern,
+                            recorded for reuse
+</code></pre>
+<p>Conventions: source files carry a project-wide reading-order index in
+their names, tracked by the hidden <code>.file-index-counter</code> at the project
+root (it holds the next unused index; take it, then increment it).
+Every source file gets a sibling <code>.info.md</code> describing its usable
+surface. Ephemeral logs go to <code>tmp/shared-memory/</code> (RAM); executable
+scratch to <code>tmp/</code> (also RAM, exec-permitted tier).</p>
+</main></body></html>

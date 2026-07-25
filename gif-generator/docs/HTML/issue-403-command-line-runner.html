@@ -1,0 +1,101 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>403-command-line-runner</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-403-command-line-runner.html">403</a> — command-line runner</h1>
+<h2>Current Behavior</h2>
+<p>Complete. <code>./run</code> (or the runner module directly) renders one named
+score or everything in input/, lands gifs by atomic rename from a
+same-directory dot-partial (cross-filesystem rename fails with EXDEV
+— reasoning commented), writes a plain-data report beside each gif,
+streams history to the RAM log tier (a missing tier names bootstrap
+rather than working around it), and writes goodbye last — what was
+made, and what was not. Failures don't stop siblings; the exit code
+remembers. The pipeline spine is a module shared by everything that
+renders. Proven over both reference scores; the compiled two-clocks
+immediately caught the phase-3 demo flooring 4.6×25 to 114 frames
+(floats), which the capstone will fix in the demo.</p>
+<h2>Intended Behavior</h2>
+<p>The runner: the program the vision describes, end to end.</p>
+<ul>
+<li>First act: read <code>input/</code> — run the named scene, or with no argument,</li>
+<p>  every scene found there.</p>
+<li>The full pipeline per scene: read, compile (wall included), size the</li>
+<p>  pool, tick the sim, snapshot, splat, tone-map, index, encode.</p>
+<li>Last act: write to <code>output/</code> — the gif(s), a render report (frames,</li>
+<p>  peak particles, bytes, elapsed — measured, not estimated), and
+  goodbye.</p>
+<li>Logs stream to <code>tmp/shared-memory/</code> (the runner recreates the RAM</li>
+<p>  tiers if a reboot emptied them, per the skeleton issue's bootstrap).</p>
+<li>The root <code>run</code> script becomes a thin wrapper over this runner,</li>
+<p>  keeping its DIR convention.</p>
+<li>Exit status honest: any validation or render error is nonzero with</li>
+<p>  the error on standard output, no partial gif left behind in
+  <code>output/</code> (partials go to scratch and are only moved in on success —
+  an atomic-rename finish).</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The runner's spine (the pipeline order above, each stage already
+   existing).
+2. Scene discovery in <code>input/</code>; the atomic finish into <code>output/</code>.
+3. The report and goodbye writers.
+4. Rewire the root <code>run</code> script.</p>
+<h2>Blockers</h2>
+<ul>
+<li><a href="issue-402-scene-compiler.html">402</a> (compiler) and all rendering machinery beneath it.</li>
+</ul>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/architecture.md (the pipeline, told as a story — this issue is</li>
+<p>  that story as a program)</p>
+</ul>
+</main></body></html>

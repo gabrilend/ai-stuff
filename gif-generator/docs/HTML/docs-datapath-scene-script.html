@@ -1,0 +1,175 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>datapath-scene-script</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>Datapath — from score to timeline</h1>
+<p>This document follows a motion description from the file the user (or
+the porch) wrote to the moment-by-moment answer sheet the simulator
+reads.</p>
+<p>Amended 2026-07-23 at gabrilend's direction: the surface language is
+no longer a nested table of actors but a <strong>score</strong> — a flat, linear
+todo list of strokes. Start at the top, proceed down.</p>
+<h2>The input: a score</h2>
+<p>A score is a Lua file in <code>input/</code> that makes a sequence of declarative
+calls — one per stroke of light — inside a sandbox that offers exactly
+the vocabulary and nothing else. Each stroke is a single function call
+in a linear list of operations; each gives its own time, so the file
+reads top-to-bottom in playing order. A sketch (the two-clocks vision,
+abridged):</p>
+<pre><code>
+canvas{ size = 256, fps = 25, length = 4.0, seed = 7 }
+
+stroke{ name = "left-hand", at = 0.0, lasts = 2.0,
+        color = "ember", fade = "in", ease = "stroke",
+        shape = arc{ center = {88,128}, radius = 60,
+                     from = "12 o'clock", to = "7 o'clock",
+                     turn = "clockwise" },
+        aim = "inward" }
+
+stroke{ name = "seal-line", at = 2.2, lasts = 0.8,
+        color = "violet", fade = "in",
+        shape = line{ from = tip("left-hand"), to = tip("right-hand") } }
+
+stroke{ at = 2.6, lasts = 1.2, color = "violet", fade = "in-out",
+        shape = fill{ vertices = { tip("left-hand"), tip("right-hand"),
+                                   {128, 190} },
+                      sweep = "downward" } }
+</code></pre>
+<p>The elements of a stroke:</p>
+<ul>
+<li><strong>at</strong> — when it begins, in seconds. <strong>Times speak in tenths</strong>: one</li>
+<p>  decimal place accepted, more is a validation error. (The porch's
+  models are held to the same rule by grammar.)</p>
+<li><strong>lasts</strong> — its duration, same tenths rule.</li>
+<li><strong>color</strong> — a hue name from the palette vocabulary.</li>
+<li><strong>shape</strong> — arc, line, point, or fill, built by the sandbox's</li>
+<p>  constructors; arcs speak clock-face; fills give vertices and a
+  sweep style.</p>
+<li><strong>fade</strong> — an envelope pick from a small enum: how brightness</li>
+<p>  enters and leaves (<code>in</code>, <code>out</code>, <code>in-out</code>, <code>hold</code>, <code>flash</code>).</p>
+<li><strong>ease</strong> — optional; how <em>progress along the shape</em> is shaped</li>
+<p>  (<code>stroke</code> = slow then fast, etc.). Defaults to <code>linear</code>.</p>
+<li><strong>name</strong> — optional; lets later strokes borrow landmarks</li>
+<p>  (<code>tip("left-hand")</code> = where that stroke's shape ends), resolved to
+  plain coordinates at compile time.</p>
+<li><strong>emit</strong> — optional overrides for particle character (rate, spread,</li>
+<p>  life); every field has a documented default. Vocabulary, not
+  fallback.</p>
+</ul>
+<h2>Order is time's job, not the author's</h2>
+<p>The author (person or model) may declare strokes in any order; the
+<code>at</code> value is the truth. The canonical writer sorts strokes by time
+when it writes a score file, using an index that walks back up the
+list: place the newcomer at the end, then decrement the index while
+the entry above starts later than it, and stop at the first
+comparison that would be a no-op — stop-instead-of-GOTO-and-do. Equal
+times mean the order genuinely does not matter, and the walk stops
+there too, so later arrivals settle just below their equal-timed
+kin.</p>
+<p>In gabrilend's founding words: *"Just... a todo list, start at the top
+and proceed down… When we need to iterate the list, we just decrement
+that index until A·B+(1−A)·C = 0, as in a no-op, instead of 'GOTO and
+DO'."*</p>
+<p>The compiler accepts any order (activation windows are absolute); the
+sort is for the reading human. A machine-written score is always
+sorted; a hand-written one is merely encouraged to be.</p>
+<h2>The clock-face convention</h2>
+<p>The vision speaks in clock positions, so the system does too. This is
+a data-format decision worth pinning down once, here:</p>
+<ul>
+<li>The canvas uses screen coordinates: x grows rightward, y grows</li>
+<p>  <em>downward</em>. This flips the usual math convention, so "clockwise" on
+  screen is the direction of <em>increasing</em> angle.</p>
+<li>"12 o'clock" is straight up from an arc's center. Each hour is 30</li>
+<p>  degrees. Hour h converts to the angle (h / 12) x 360° - 90°,
+  measured in screen space.</p>
+<li>Fractional hours are legal ("about 7" may become 7.2 by eye).</li>
+</ul>
+<h2>Validation is a wall, not a net</h2>
+<p>The compiler checks the score before anything runs: unknown fade or
+easing or hue names (each error carrying the nearest legal word),
+arcs missing a direction of turn, landmarks borrowed from strokes
+that don't exist, times outside the canvas length or spoken in more
+than tenths — each is a hard, named error that says which stroke and
+which field, and all errors are reported together in one pass. There
+are no defaults quietly filled in for malformed input. (Absent
+<em>optional</em> fields have documented defaults; that is vocabulary, not
+fallback.)</p>
+<h2>The output: a compiled timeline</h2>
+<p>Compilation turns each stroke into a <strong>track</strong>:</p>
+<ul>
+<li>a <em>path function</em>: progress (0 to 1) → position on the canvas</li>
+<p>  (fills return a region sampler — coverage → random point inside the
+  covered portion — instead).</p>
+<li>an <em>easing function</em>: raw time-fraction → shaped progress, applied</li>
+<p>  before the path is consulted.</p>
+<li>an <em>envelope function</em>: the fade enum realized — raw time-fraction</li>
+<p>  → emission strength.</p>
+<li>an <em>activation window</em>: start and end in seconds.</li>
+<li>an <em>emitter recipe</em>: rate, spread, lifetime, hue — the defaults</li>
+<p>  plus any overrides, resolved to numbers.</p>
+</ul>
+<p>Landmark borrowings are resolved at compile time into fixed
+coordinates — the timeline holds no name lookups, only numbers.
+Downstream, the simulator asks one question per track per frame:
+<em>"at time t, where are you, how strongly are you emitting?"</em> — and
+gets numbers back.</p>
+<h2>Relevant pieces</h2>
+<ul>
+<li>the score reader (runs the file in the constructor sandbox)</li>
+<li>the canonical writer (the walk-back insertion; used by the porch</li>
+<p>  and by any tool that emits scores)</p>
+<li>the score validator (the wall described above)</li>
+<li>the track compiler (paths, easings, envelopes, windows, recipes)</li>
+<li>the timeline (the array of tracks the simulator iterates)</li>
+</ul>
+</main></body></html>
