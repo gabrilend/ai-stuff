@@ -74,16 +74,16 @@ device.")
   — the smooth "still working" signal issue 106a wanted and 106b
   had downgraded to a discrete toggle.
 
-**What remains.** Only a hardware smoke-test. The boot-stage layer
-rewrite (step 5) is done in source; the one thing to confirm on
-device is that the earliest "kernel alive" signal — the hello flash
-and `STAGE_KERNEL_MAIN` — still lights now that it depends on the PWM
-bring-up rather than the always-on GPIO controller. PWM1 is already
-clocked at u-boot handoff (the green light is lit before our kernel
-runs) and the main-domain clock unit is already reached at the top of
-`kernel_main` for the watchdog silence, so the risk is low — but the
-signal is load-bearing enough (it is the "did the kernel start at
-all?" tell) to warrant an explicit look before the issue closes.
+**Confirmed complete (2026-07-24).** The last item — the hardware
+smoke-test of the earliest "kernel alive" signal through the PWM
+layer — passed. The hello flash and `STAGE_KERNEL_MAIN` light on
+every boot (the same boots that lit both panels and ran the eMMC
+wipe), so the PWM-driven boot-stage layer carries the load-bearing
+"did the kernel start at all?" tell, exactly as the GPIO layer did.
+Nothing remains: the controller is up, partial-duty dimming and the
+breathing heartbeat are proven on hardware, the boot-stage vocabulary
+is unchanged, and `106b`'s interim GPIO LED layer is fully superseded.
+Issue closed.
 
 ## Intended behavior
 
