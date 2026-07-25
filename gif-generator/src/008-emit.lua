@@ -25,7 +25,9 @@ local emit = {}
 
 -- Recipe defaults: the documented vocabulary of an emit block.
 -- Absent fields mean these numbers — that is a definition, not a
--- fallback; the score format document points here.
+-- fallback; the score format document points here. Exposed on the
+-- module (emit.DEFAULTS below) so the compiler's wall can offer
+-- nearest-legal-word suggestions from the same truth.
 local DEFAULTS = {
     rate        = 300,   -- particles per second
     spread      = 1.6,   -- birth scatter radius, pixels
@@ -36,6 +38,7 @@ local DEFAULTS = {
     drag        = 2.2,   -- how quickly motion gives up, per second
     jitter      = 30,    -- wander force, pixels per second squared
 }
+emit.DEFAULTS = DEFAULTS
 
 -- {{{ function emit.rng()
 -- One xorshift32 stream per render. Seed 0 would lock the generator

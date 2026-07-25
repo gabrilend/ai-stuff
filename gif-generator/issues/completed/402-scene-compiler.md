@@ -2,8 +2,17 @@
 
 ## Current Behavior
 
-Score files can be read as stroke lists; nothing turns them into the
-tracks the simulator runs, and nothing guards the gate.
+Complete, except the render-identity proof, which belongs to the
+vision-render capstone where the demo it compares against gets its
+tips from the landmark machinery. The wall collects every error and
+reports them together, naming stroke and field, teaching the nearest
+legal word by edit distance against the live vocabulary tables (the
+emitter module exposed its defaults table for this — cross-noted).
+Resolution turns names to numbers: hues seat in first-use play
+order, tips resolve recursively with forward borrowings legal
+(geometry, not history) and circles refused ("someone must stand on
+solid ground"). Nineteen assertions, including three-mistakes-arrive-
+as-three.
 
 ## Intended Behavior
 
