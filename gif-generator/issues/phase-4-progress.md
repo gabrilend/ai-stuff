@@ -8,7 +8,9 @@ from a scene file by one command.
 - [x] 401 scene script format — the score vocabulary frozen in its
       contract document; sandboxed reader; canonical writer proven a
       fixed point; both reference scores shipped.
-- [ ] 402 scene compiler
+- [x] 402 scene compiler — the wall reports everything at once and
+      teaches nearest words; names all become numbers; identity
+      proof rides with the capstone.
 - [ ] 403 command-line runner
 - [ ] 404 html gallery viewer
 - [ ] 405 vision render (capstone)
