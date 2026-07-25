@@ -145,13 +145,23 @@ local function sub_blocks(raw)
 end
 -- }}}
 
--- {{{ function gif.encode()
--- The whole file, block by block, in the order the datapath document
--- tells it: header, screen, palette, loop-forever, frames, trailer.
--- spec: { width, height, palette_bytes (uint8_t[768] ffi array),
---         frames (list of uint8_t[w*h] ffi arrays), delay_cs }
-function gif.encode(spec)
-    if #spec.frames < 1 then
+-- {{{ function gif.compress_frame()
+-- One frame's complete image data: the minimum-code-size byte plus
+-- the LZW sub-blocks. Split out with the parallel-pipeline issue so
+-- worker threads can compress frames independently — compression is
+-- the expensive half, and frames don't know about each other.
+function gif.compress_frame(pixels, npix)
+    return string.char(8) .. sub_blocks(lzw_compress(pixels, npix))
+end
+-- }}}
+
+-- {{{ function gif.assemble()
+-- The container around already-compressed frames: header, screen,
+-- palette, loop-forever, each frame's control + descriptor + data,
+-- trailer. spec: { width, height, palette_bytes, compressed (list
+-- of strings from compress_frame), delay_cs }
+function gif.assemble(spec)
+    if #spec.compressed < 1 then
         error("gif: a gif with no frames is not a gif")
     end
     if spec.delay_cs < 1 or spec.delay_cs % 1 ~= 0 then
@@ -177,7 +187,7 @@ function gif.encode(spec)
     parts[#parts + 1] = "NETSCAPE2.0"
     parts[#parts + 1] = string.char(0x03, 0x01, 0x00, 0x00, 0x00)
 
-    for _, frame in ipairs(spec.frames) do
+    for _, data in ipairs(spec.compressed) do
         -- graphic control: draw-over disposal, no transparency
         parts[#parts + 1] = string.char(0x21, 0xF9, 0x04, 0x04)
         parts[#parts + 1] = u16le(spec.delay_cs)
@@ -189,13 +199,30 @@ function gif.encode(spec)
         parts[#parts + 1] = u16le(w)
         parts[#parts + 1] = u16le(h)
         parts[#parts + 1] = string.char(0x00)
-        -- minimum LZW code size, then the compressed sub-blocks
-        parts[#parts + 1] = string.char(8)
-        parts[#parts + 1] = sub_blocks(lzw_compress(frame, w * h))
+        parts[#parts + 1] = data
     end
 
     parts[#parts + 1] = string.char(0x3B)
     return table.concat(parts)
+end
+-- }}}
+
+-- {{{ function gif.encode()
+-- The one-sitting path: compress every frame here, then assemble.
+-- spec: { width, height, palette_bytes, frames (index arrays),
+--         delay_cs } — behavior identical to before the split; the
+-- parallel pipeline simply calls the two halves itself.
+function gif.encode(spec)
+    local compressed = {}
+    for i, frame in ipairs(spec.frames) do
+        compressed[i] = gif.compress_frame(frame,
+                                           spec.width * spec.height)
+    end
+    return gif.assemble{
+        width = spec.width, height = spec.height,
+        palette_bytes = spec.palette_bytes,
+        compressed = compressed, delay_cs = spec.delay_cs,
+    }
 end
 -- }}}
 
