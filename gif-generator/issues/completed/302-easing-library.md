@@ -2,8 +2,14 @@
 
 ## Current Behavior
 
-Progress along anything is raw clock time; nothing can be slow at
-first and then fast like a stroke.
+Complete, with one scope growth folded in deliberately: the fade
+*envelopes* (the score's fade enum — hold, in, out, in-out, flash)
+live here beside the motion easings, because both are small pure
+curves over the same raw time-fraction and the validator wants one
+address for vocabulary truth. The property test walks both whole
+tables so a curve added later cannot forget its contract; lookups
+refuse misspellings and teach the legal words back. Thirty-two
+assertions.
 
 ## Intended Behavior
 
