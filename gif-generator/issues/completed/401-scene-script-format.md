@@ -19,9 +19,18 @@ implementation began:
 
 ## Current Behavior
 
-Choreography is written directly in Lua against internal machinery
-(the two-clocks demo); there is no declarative document a person could
-write without knowing the internals.
+Complete. The vocabulary froze in docs/score-format.md (the tour;
+the implementation tables are the law). The sandboxed reader offers
+exactly the constructors and nothing else — scores that compute are
+refused; the walk-back insertion lives beside it, stable at equal
+times because emission order is the random stream's order; the
+canonical writer emits fixed-field-order text that is a proven fixed
+point (write, read, write — byte-identical) and carries prose
+comments above their strokes. Both reference scores ship in input/:
+the minimal orbit, and the vision translation whose comments are the
+vision's own sentences — including a note where the vision
+contradicts itself about which hand rests at which hour, and how
+its line description settles the reading. Twelve assertions.
 
 ## Intended Behavior
 
