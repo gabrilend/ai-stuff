@@ -52,8 +52,9 @@ extern int  sd_init(void);
 extern int  emmc_init(void);
 extern int  emmc_read_block(uint32_t lba, uint8_t *buffer);
 extern int  emmc_read_ext_csd(uint8_t *buffer);
-extern int  emmc_erase_all(void);                       /* 012-emmc.c (110q wipe) */
-extern int  emmc_sanitize(void);                        /* 012-emmc.c (110q sanitize) */
+/* The emmc_erase_all / emmc_sanitize externs and the emmc_wipe CALL target were
+ * removed at 110q teardown (the one-shot wipe ran 2026-07-23 and is gone). The
+ * two routines remain in 012-emmc.c as dormant storage primitives. */
 extern int  emmc_switch_hs200(void);                    /* 012-emmc.c (110j) */
 extern int  emmc_switch_hs400(void);                    /* 012-emmc.c (110j) */
 extern void emmc_verify(void);                          /* 012-emmc.c (110j) */
@@ -1502,28 +1503,6 @@ static void call_target(const char *name)
         debug_write("[usb] EP0 bring-up rc=");
         write_hex32((uint32_t)rc);
         debug_write("  (NO '[usb] DEPCMD stuck' line above == the commands completed)\r\n");
-    } else if (streq(name, "emmc_wipe")) {
-        /* THE ONE-SHOT eMMC WIPE (issue 110q). Erases the entire eMMC so the
-         * device boots ONLY from SD and the eMMC stops claiming the OTG port —
-         * the prerequisite for testing USB device mode against a PC. Armed by
-         * input/probes/emmc-wipe.probe, a TEMPORARY probe to DELETE after use.
-         * Recovery before you run it: archives/golden-sd-*.img.gz boots our
-         * kernel regardless; archives/bootchain-*.bin.gz restores stock. */
-        debug_write("[wipe] ########## WIPING THE ENTIRE eMMC (one-shot) ##########\r\n");
-        /* Pass 1 — ERASE the addressable range (blanks the current, mapped
-         * content). Pass 2 — SANITIZE (physically purges the unmapped/stale
-         * pages ERASE can't reach), so no recoverable data remains anywhere.
-         * The JEDEC-recommended order: erase, then sanitize. */
-        int r = emmc_erase_all();
-        debug_write("[wipe] emmc_erase_all rc=");
-        write_hex32((uint32_t)r);
-        debug_write(r == 0 ? "  (erase OK)\r\n"
-                           : "  (erase FAILED — see the reason above)\r\n");
-        int s = emmc_sanitize();
-        debug_write("[wipe] emmc_sanitize rc=");
-        write_hex32((uint32_t)s);
-        debug_write(s == 0 ? "  (sanitize OK — no orphaned data remains)\r\n"
-                           : "  (sanitize NOT completed — see above; erase pass still stands)\r\n");
     } else {
         debug_write("[probe] CALL unknown target: ");
         debug_write(name);
