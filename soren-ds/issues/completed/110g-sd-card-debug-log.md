@@ -4,14 +4,21 @@
 
 `src/017-debug-log.c` owns a 4 KB ring buffer in DRAM, set up
 by `debug_log_init` after the microSD card is brought up. The
-ring buffer's page comes from the page allocator (108).
+buffer is a static `.bss` array (`log_static_buffer`), not an
+allocator page: an earlier best-effort `alloc_page` version once
+silently disabled the only diagnostic channel when the alloc
+returned zero, so the buffer is now always present and
+`debug_log_init` cannot fail to have one.
 
 `debug_write` in `src/011-cdc-acm.c` is extended at its top to
 call `debug_log_append` before the existing CDC-ACM transfer
 logic. The append copies bytes into the ring buffer, and when
 the buffer crosses 75% full it triggers a flush — eight blocks
-(4 KB) written out to the SD card starting at LBA `0x4000000`,
-the next write tracked through a static counter so successive
+(4 KB) written out to the SD card starting at LBA `0x400000`
+(2 GB in; the region constant is `LOG_SD_REGION_START` — an
+earlier `0x4000000` was an extra-zero typo that put the log at
+32 GB, off the end of smaller cards), the next write tracked
+through a static counter so successive
 flushes append rather than overwrite. When the counter reaches
 the region's end (`LOG_SD_REGION_SIZE` = 32,768 blocks =
 16 MB), it wraps back to the start.
@@ -24,6 +31,26 @@ within the per-sector narration. A final `debug_log_flush`
 call after the backup completes (or on panic) ensures the
 buffer's tail bytes land on the card before the
 `STAGE_BACKUP_COMPLETE` signal lights up.
+
+End-of-log marker. The region is never wiped between boots, and
+`debug_log_init` restarts each boot at the region's start, so a
+short boot only overwrites the front and the tail still holds
+GHOST bytes from earlier, longer boots — which made a dumped log
+look like the display init ran twice (it was a previous boot's
+copy) and made the tail render as garble. To separate this
+boot's log from the ghosts, `debug_log_finalize` — called once
+at the deliberate end of logging, in place of the last
+`debug_log_flush` — stamps a 16-byte end-of-log sentinel
+(`LOG_EOL_MAGIC`) after the last real byte, then flushes. The
+sentinel's guard bytes are non-ASCII, so it can never occur
+inside the ASCII log text. `scripts/lab-side/view-log` (also
+used by `dump-from-sd`'s on-the-spot inspect) scans the front of
+the region for the FIRST sentinel, prints only up to it, and
+strips NUL padding and trailing CR so lines don't overlay; it
+announces when no marker is found (a pre-marker image, or a boot
+that crashed before finalize) and when it skipped ghost markers.
+The reader is read-only — the region is not erased, per the
+"never wipe it" decision; the marker is what makes that safe.
 
 After the SD card is pulled from the device, the developer
 `dd`s the reserved region off the card on the lab laptop:

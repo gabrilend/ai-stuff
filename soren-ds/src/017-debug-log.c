@@ -88,6 +88,22 @@ static int      log_ready;
  */
 static uint8_t log_static_buffer[LOG_BUFFER_SIZE];
 
+/* End-of-log sentinel (issue 110g). debug_log_finalize() stamps this once,
+ * right after the last real byte of a boot's log. The region is never wiped
+ * between boots — a boot only overwrites the front, as far as its own log
+ * reaches — so a reader that carves the fixed 16 MB region sees this boot's log
+ * followed by GHOST bytes from earlier, longer boots. The reader
+ * (scripts/lab-side/view-log, and dump-from-sd's inspect step) scans the front
+ * of the region for the FIRST occurrence of this sentinel and treats it as the
+ * true end of this boot's log. Sixteen bytes, chosen so the sequence can never
+ * occur in the log itself: the guard bytes 0x8E and 0xA5 are non-ASCII (the log
+ * is pure ASCII text, so no run of characters can contain them), and the whole
+ * sequence is neither all-0x00 nor all-0xFF (so it can't match NUL padding or
+ * erased flash). The ASCII middle keeps it greppable by eye. */
+static const uint8_t LOG_EOL_MAGIC[16] = {
+    0x8E, 'S', 'O', 'R', 'E', 'N', '_', 'L', 'O', 'G', '_', 'E', 'N', 'D', 0xA5, 'Z'
+};
+
 static void zero_buffer(void)
 {
     for (uint32_t i = 0; i < LOG_BUFFER_SIZE; i++) {
@@ -167,4 +183,29 @@ void debug_log_flush(void)
     if (log_buffer_pos > 0) {
         flush_to_sd();
     }
+}
+
+/* Stamp the end-of-log sentinel, then force the final flush. Call this ONCE, at
+ * the deliberate end of a boot's logging (just before the core parks), so the
+ * reader can find where this boot's log truly ends and ignore the ghost bytes
+ * that follow it (see LOG_EOL_MAGIC's comment). Intentionally NOT folded into
+ * debug_log_flush(): that runs at several intermediate points, and the marker
+ * must appear exactly once, at the true tail. A boot that dies before reaching
+ * this leaves no marker — deliberately; a crash that hard is a hardware
+ * question, not a logging one, and the reader reports "no end-of-log marker"
+ * rather than guessing. Writes the sentinel byte-for-byte (not via
+ * debug_log_append, which stops at the first NUL — and the magic contains none
+ * anyway, but it also isn't NUL-terminated). */
+void debug_log_finalize(void)
+{
+    if (!log_ready) {
+        return;
+    }
+    for (uint32_t i = 0; i < sizeof(LOG_EOL_MAGIC); i++) {
+        if (log_buffer_pos >= LOG_BUFFER_SIZE) {
+            flush_to_sd();
+        }
+        log_buffer[log_buffer_pos++] = LOG_EOL_MAGIC[i];
+    }
+    flush_to_sd();
 }
