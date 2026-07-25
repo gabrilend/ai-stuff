@@ -16,7 +16,6 @@
 <h2>notes</h2>
 <a href="notes-vision.html">vision</a>
 <h2>issues, open</h2>
-<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
 <a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
 <a href="issue-602-three-readings.html">602-three-readings</a>
 <a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
@@ -49,12 +48,22 @@
 <a href="issue-405-vision-render.html">405-vision-render</a>
 <a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
 <a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
 </nav>
 <main>
 <h1><a href="issue-503-big-canvas-demo.html">503</a> — big-canvas demo (phase 5 capstone)</h1>
 <h2>Current Behavior</h2>
-<p>Demos render at the vision's founding 256; the parallel pipeline and
-the statistics utility exist without a public performance.</p>
+<p>Complete — the numbers below are what the demo printed on its first
+public run, recorded as history (run the demo or the statistics
+utility for current truth): the doubled vision rendered in 4.81
+wall-seconds with one worker and 1.56 with four — a 3.08x speedup —
+and both files were byte-identical at 1,049,800 bytes, asserted in
+the demo where the audience can watch it fail. The forge showpiece
+(three rings, a radially blooming violet heart peaking at 4,017
+particles, gold seals between the rings' resting tips) rendered its
+150 frames at 512 in 2.79 wall-seconds with the crew. Both scores
+are input/ citizens; both gifs joined the gallery beside everything
+earlier.</p>
 <h2>Intended Behavior</h2>
 <p>The phase-5 demo: the flagship vision scene at 512 or larger, rendered
 twice — worker count one, then many — with the statistics utility's

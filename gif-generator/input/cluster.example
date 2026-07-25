@@ -1,0 +1,9 @@
+# cluster.example — copy to input/cluster and name the doors.
+#
+# The porch speaks to the orchestrator: one line per door,
+#   name host port
+# What stands behind each door — three little minds, one split
+# model, something stranger — is the orchestrator's business.
+# One door is enough; the porch will ask it for three readings.
+#
+# orchestrator 192.168.1.40 8080
