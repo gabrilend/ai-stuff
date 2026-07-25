@@ -1,0 +1,96 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>104-gif-encoder</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-104-gif-encoder.html">104</a> — gif encoder</h1>
+<h2>Current Behavior</h2>
+<p>Complete. The encoder emits the full block sequence with the flat
+LZW dictionary as specified. One lesson learned and recorded in the
+source: the code-width bump must happen when the entry <em>being added</em>
+needs more bits (checked before the add) — bumping after the add
+desyncs encoder and decoder by exactly one code; the round-trip test
+caught it on first run. Eleven assertions pass, including noise that
+forces dictionary resets; ImageMagick independently reads a
+ten-frame probe file cleanly, so the timing agrees with the world,
+not just with our own decoder.</p>
+<h2>Intended Behavior</h2>
+<p>A handwritten GIF89a encoder, pure LuaJIT, no external libraries.</p>
+<ul>
+<li>Emits, in order: header, logical screen descriptor, global color</li>
+<p>  table (the 256-entry palette), the Netscape loop-forever extension,
+  then per frame a graphic control extension (delay in hundredths of a
+  second) + image descriptor + LZW-compressed data, and the trailer.</p>
+<li>All multi-byte numbers little-endian; frame delay quantization is the</li>
+<p>  documented reason the default frame rate is 25 (exactly 4/100 s).</p>
+<li>Every frame fully replaces the previous; no transparency, no dirty</li>
+<p>  rectangles — correctness over cleverness at these canvas sizes.</p>
+<li>LZW with the GIF dialect: 9-bit codes growing to the 12-bit ceiling,</li>
+<p>  clear-code resets, little-endian bit packing, 255-byte sub-blocks.
+  The dictionary is flat and keyed by (previous-code, next-byte) — no
+  string building in the hot loop.</p>
+<li>The test suite contains an independent minimal LZW <em>decoder</em> (tests</li>
+<p>  only, never the pipeline) and round-trips every encoded frame
+  byte-for-byte; a block-walker verifies file structure; the final
+  proof is a browser looping the file.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The byte writer (little-endian words, sub-block chopping).
+2. Block emitters in file order.
+3. The LZW compressor.
+4. The test-side decoder and round-trip tests; a structure walker.
+5. Encode a tiny hand-made two-frame animation and open it in a
+   browser as the human check.</p>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/datapath-gif-encoding.md (this issue's specification)</li>
+</ul>
+</main></body></html>

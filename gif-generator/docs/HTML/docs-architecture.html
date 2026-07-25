@@ -1,0 +1,195 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>architecture</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>Architecture — the shape of the machine</h1>
+<p>The gif-generator is a pipeline of six small machines. A description of
+motion goes in one end; an animated .gif file comes out the other. No
+diffusion models, no neural guesswork — every pixel is the deterministic
+consequence of a particle that was somewhere, glowing.</p>
+<p>This document is the map. Each stage has its own datapath document that
+follows the bytes through it (see the table of contents).</p>
+<h2>The pipeline, told as a story</h2>
+<p>1. <strong>A score is read.</strong> The score is a flat todo list of strokes —
+   each one declarative call: at 0.0 seconds, lasting 2.0, an
+   ember-colored arc from twelve o'clock to seven, fading in, eased
+   like a brush stroke. Times speak in tenths of seconds; the list
+   reads top-to-bottom in playing order because a canonical writer
+   sorted it by time. It lives in <code>input/</code> as a sandboxed Lua file.
+   The program's first act is to read it. (datapath: scene script)</p>
+<p>2. <strong>The score is compiled into a timeline.</strong> Strokes become tracks:
+   for any moment in time, the timeline can answer "where is every
+   emitter, how strongly is it emitting, and how far along its
+   journey is it?" Paths (arcs, lines, points, fill-regions), easing
+   curves (slow-then-fast, linear), and fade envelopes (in, out,
+   in-out, hold, flash) are the vocabulary here.
+   (datapath: scene script)</p>
+<p>3. <strong>Particles are born, drift, and die.</strong> Each frame-tick, every active
+   emitter spawns particles at its current position on its path. A
+   particle is a handful of numbers — position, velocity, age, hue —
+   living in one big block of memory allocated up front. Physics is
+   simple: drift, drag, a little jitter, and a fade curve toward death.
+   (datapath: particle sim)</p>
+<p>4. <strong>Particles are splatted onto a canvas.</strong> Each particle stamps a
+   small radial glow — bright at the center, falling off toward the
+   edge — onto a floating-point light-accumulation buffer. Glows <em>add</em>:
+   where many particles crowd, the light saturates toward white-hot.
+   The background stays black because nothing is ever drawn there.
+   (datapath: rendering)</p>
+<p>5. <strong>Light becomes indexed color.</strong> GIF files speak in palettes of at
+   most 256 colors. Because we know our aesthetic — vibrant glows on
+   black — we build the palette on purpose: ramps of each scene hue
+   from near-black up through vivid to white-hot core. Each frame's
+   accumulated light is tone-mapped and snapped to the nearest ramp
+   entry. (datapath: rendering)</p>
+<p>6. <strong>Indexed frames become a .gif.</strong> A GIF89a file is written by hand:
+   header, palette, a looping instruction, then each frame LZW-
+   compressed into sub-blocks. The format froze in 1989; it will not
+   move while our back is turned. (datapath: gif encoding)</p>
+<p>The last act of the program is to write the finished file — and a
+goodbye — into <code>output/</code>.</p>
+<h2>The porch (before stage 1, and outside the house)</h2>
+<p>The pipeline's front door only accepts scores. But a person
+describing motion sometimes says the wrong word, or forgets how to
+spell it, while describing the mechanism perfectly. So a **translator
+sits on the porch**: plain-English <code>.prose</code> files in <code>input/</code> are read
+to small local language models (llama.cpp, behind an orchestrator
+whose cluster shape is its own business), and the model <em>paints</em> — one
+grammar-constrained tool-call per stroke, so it physically cannot
+misspell a vocabulary word; its only freedom is choosing among legal
+readings. The collector orders arriving strokes by their declared
+times and writes a canonical score. Three independent readings are
+gathered; each is compiled, checked by the same validation wall as any
+hand-written score, rendered as a small fast thumbnail, and offered
+side by side for the person to pick. The chosen score enters through
+the front door like any other. The pipeline never knows a model was
+involved. (datapath: prose translation)</p>
+<h2>Design decisions, and why</h2>
+<ul>
+<li><strong>One language, one runtime (LuaJIT).</strong> The simulation logic and the</li>
+<p>  byte-level file encoding both live comfortably in LuaJIT: Lua tables
+  for the choreography vocabulary, FFI-allocated flat arrays for the
+  hot pixel and particle loops. No build step, no linker, no version
+  skew. LuaJIT 2.1 is confirmed present on this system.</p>
+</ul>
+<ul>
+<li><strong>We write our own GIF encoder.</strong> The encoder is a few hundred lines</li>
+<p>  against a frozen specification. Owning it means the palette can be
+  designed for glow-on-black instead of for photographs, and there is
+  no dependency to go missing. The system's giflib (<code>libgif.so.7</code>)
+  exists and was noted, but is deliberately not used — if our encoder
+  breaks, we want a loud error in our own code, not a silent fallback
+  into someone else's.</p>
+</ul>
+<ul>
+<li><strong>Everything is particles.</strong> The vision asks for swept arcs, a line</li>
+<p>  that fades in, and a triangle that fills slowly. All three are the
+  same machine wearing different clothes: a point-emitter riding an
+  arc, a line-shaped emitter field, an area-shaped emitter field whose
+  coverage grows over time. One renderer, one aesthetic, no special
+  cases.</p>
+</ul>
+<ul>
+<li><strong>Generation and viewing never touch.</strong> The simulator and encoder</li>
+<p>  produce artifacts (frames, gifs, stats). The viewer — an HTML gallery
+  opened in a browser — only reads artifacts. Errors in one can never
+  hide inside the other.</p>
+</ul>
+<ul>
+<li><strong>Memory first, then work.</strong> The particle pool is allocated once, as</li>
+<p>  parallel flat arrays (all the x-positions together, all the y-
+  positions together, and so on) — friendly to the cache, and friendly
+  to splitting across threads later, because a worker can own a span of
+  indices with no pointer-chasing.</p>
+</ul>
+<ul>
+<li><strong>Determinism.</strong> Every render seeds its random generator from the</li>
+<p>  scene. The same scene file always produces byte-identical output,
+  which makes tests honest and bugs reproducible.</p>
+</ul>
+<ul>
+<li><strong>Time is quantized twice, and we admit it.</strong> The sim steps at a</li>
+<p>  fixed tick equal to the frame interval. GIF frame delays are measured
+  in hundredths of a second, so the default frame rate is 25 fps —
+  exactly 4 hundredths per frame — rather than 30 fps, which the format
+  cannot represent without drift.</p>
+</ul>
+<ul>
+<li><strong>Many hands, later.</strong> Simulation is sequential in time (each frame's</li>
+<p>  particles depend on the last), but rasterizing and compressing
+  finished frames is embarrassingly parallel. The pipeline is designed
+  so frame snapshots can be handed to worker threads (effil for Lua
+  threads, or the house C threadpool over FFI) without redesign. That
+  is a phase of its own.</p>
+</ul>
+<ul>
+<li><strong>The model lives on the porch, not in the house.</strong> The prose</li>
+<p>  translator is a client of the pipeline, never a component of it: it
+  speaks HTTP to llama-server endpoints listed in a configuration
+  file, emits candidate scene files, and submits them to the same
+  validation wall as everyone else. Determinism of renders is
+  untouched — a scene file plus a seed still yields identical bytes no
+  matter who or what wrote the scene. Three independent readings are
+  preferred over one refined guess: three perspectives, three
+  understandings, and the person's taste does the choosing.</p>
+</ul>
+<h2>What this project is not</h2>
+<ul>
+<li>Not a natural-language parser — the <em>pipeline</em> never reads English.</li>
+<p>  The scene vocabulary is designed so prose translates nearly
+  word-for-word, and the porch's small local model does that literal
+  translation when asked; but its output enters through the same door,
+  faces the same wall, and earns no special trust.</p>
+<li>Not a general image library. It draws glowing particles on black.</li>
+<p>  Vibrantly.</p>
+</ul>
+</main></body></html>

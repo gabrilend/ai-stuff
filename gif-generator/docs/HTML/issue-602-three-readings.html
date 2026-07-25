@@ -1,0 +1,100 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>602-three-readings</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-602-three-readings.html">602</a> — three readings</h1>
+<h2>Current Behavior</h2>
+<p>The translator (once built) produces one reading from one node; a
+single guess, however constrained, carries a single perspective.</p>
+<h2>Intended Behavior</h2>
+<p>Three perspectives, then taste. It is better to approach the same
+prose from three angles and get three understandings than to refine
+one understanding three times.</p>
+<ul>
+<li>The prose goes to every endpoint in <code>input/cluster</code> concurrently;</li>
+<p>  one lone endpoint answers three times with three seeds instead.
+  Node count and seed policy are configuration, not code.</p>
+<li>Each reading that passes the wall is rendered as a <strong>thumbnail</strong>:</li>
+<p>  low resolution, ordinary pipeline, nothing bespoke — a small honest
+  preview of the motion, cheap enough to make three of.</p>
+<li>A <strong>pick page</strong> (a viewing artifact, styled like the gallery, built</li>
+<p>  by the same generator) shows the original prose beside the three
+  looping thumbnails, each with its reading's scene text a click away.
+  Readings that failed the wall appear too, dimmed, errors shown —
+  a failed understanding is information, not embarrassment.</p>
+<li>Picking promotes that reading's scene file into <code>input/</code> as a</li>
+<p>  first-class citizen and records which node's understanding won —
+  over time the cluster file's affectionate names accumulate a little
+  history of who hears best.</p>
+<li>Tests: fan-out against fake servers (three answers reassembled,</li>
+<p>  one server down is a named report, not a hang); promotion is an
+  atomic rename; the pick page builds from canned readings with no
+  cluster present.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. Concurrent fan-out over the endpoints (the pipeline-of-snapshots
+   habit again: independent work, reassembled by label).
+2. Thumbnail render settings as one documented profile.
+3. The pick page in the gallery generator.
+4. Promotion, with the winner recorded beside the cluster file.
+5. Tests as described.</p>
+<h2>Blockers</h2>
+<ul>
+<li><a href="issue-601-prose-to-scene-translator.html">601</a> (the translator being fanned out), <a href="issue-404-html-gallery-viewer.html">404</a> (the gallery generator</li>
+<p>  that builds the pick page).</p>
+</ul>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/datapath-prose-translation.md (three readings, the person picks)</li>
+<li>strategems/pipeline-of-snapshots (independent work, reassembled)</li>
+</ul>
+</main></body></html>

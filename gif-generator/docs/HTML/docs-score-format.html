@@ -1,0 +1,152 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>score-format</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>The Score Format — every word of the language</h1>
+<p>A score is a Lua file in <code>input/</code> that makes declarative calls inside
+a sandbox offering exactly the vocabulary below and nothing else. It
+is a todo list for light: one <code>canvas</code> call, then <code>stroke</code> calls, top
+to bottom in playing order (the canonical writer sorts by time; the
+compiler accepts any order, since time values are the truth).</p>
+<p>This document is the language's contract. The compiler's validation
+wall, the porch's prompt, and the porch's grammar are all derived
+from the same vocabulary tables the implementation uses — this prose
+is the tour; the tables are the law.</p>
+<h2>The canvas call — one per score</h2>
+<pre><code>
+canvas{ size = 256, fps = 25, length = 4.6, seed = 77 }
+</code></pre>
+<ul>
+<li><strong>size</strong> — canvas width and height in pixels (square). At least 16.</li>
+<li><strong>fps</strong> — frames per second. Must divide 100 evenly (50, 25, 20,</li>
+<p>  10, 5, 4, 2, 1), because GIF delays are whole hundredths of a
+  second and any other rate drifts. 25 is the house default tempo.</p>
+<li><strong>length</strong> — total seconds, spoken in tenths (one decimal place).</li>
+<li><strong>seed</strong> — any integer. The same score and seed render the same</li>
+<p>  bytes on any machine, always.</p>
+<li><strong>gravity</strong> — optional <code>{x, y}</code> force on every particle (a</li>
+<p>  fountain's fall, a wind). Absent means none. y grows downward.</p>
+</ul>
+<h2>The stroke call — as many as the piece needs</h2>
+<pre><code>
+stroke{ name = "left-hand", at = 0.0, lasts = 2.0,
+        color = "ember", fade = "hold", ease = "stroke",
+        shape = arc{ center = {76, 108}, radius = 52,
+                     from = "12 o'clock", to = "7 o'clock",
+                     turn = "clockwise" },
+        emit = { rate = 700, speed = 26, aim = 0.7 } }
+</code></pre>
+<ul>
+<li><strong>at</strong> — when the stroke begins, seconds, tenths only. Two decimal</li>
+<p>  places is a validation error, not a rounding.</p>
+<li><strong>lasts</strong> — its duration, same rule, greater than zero.</li>
+<li><strong>color</strong> — a hue name. The legal hues live in the palette module's</li>
+<p>  vocabulary table (currently: ember, gold, ice, jade, rose, teal,
+  violet — but the table is the law, and it grows by rows).</p>
+<li><strong>fade</strong> — the brightness envelope: <code>hold</code>, <code>in</code>, <code>out</code>, <code>in-out</code>,</li>
+<p>  or <code>flash</code>.</p>
+<li><strong>ease</strong> — optional, default <code>linear</code>: how progress along the shape</li>
+<p>  rides time — <code>linear</code>, <code>stroke</code> (slow then fast, the brush
+  gesture), <code>ease-out</code>, <code>smoothstep</code>. For fills this shapes the
+  frontier's advance.</p>
+<li><strong>name</strong> — optional. Names a stroke so later strokes may borrow its</li>
+<p>  landmark with <code>tip(...)</code>. Must be unique when present.</p>
+<li><strong>emit</strong> — optional overrides of the particle character. Legal</li>
+<p>  fields and their defaults live in the emitter module's table:
+  rate, spread, speed, aim, life, life_jitter, drag, jitter. A
+  misspelled field is refused (it would otherwise silently mean
+  "default", which is a lie).</p>
+</ul>
+<h2>Shapes</h2>
+<ul>
+<li><strong>arc{ center, radius, from, to, turn }</strong> — clock-face positions</li>
+<p>  for <code>from</code>/<code>to</code>: a number (7, 7.2) or a spoken hour ("7 o'clock").
+  <code>turn</code> is required: <code>"clockwise"</code> or <code>"counterclockwise"</code> — from
+  12 to 7 could sweep either way, and the machine never guesses.
+  Twelve is straight up; y grows downward, so clockwise is the
+  direction of increasing angle.</p>
+<li><strong>line{ from, to }</strong> — two points (or <code>tip</code> landmarks). The</li>
+<p>  emitter rides tip-to-tip over the stroke's window.</p>
+<li><strong>point{ at }</strong> — stands still.</li>
+<li><strong>fill{ vertices, sweep }</strong> — a field of glow whose coverage grows.</li>
+<p>  Two vertices make a zero-thickness line-field; three or more make
+  a polygon. Sweeps: <code>"at-once"</code> (the whole region from the first
+  breath — for things that fade in as one), <code>"downward"</code> (a frontier
+  descends), <code>"radial"</code> (a disc grows from the centroid), <code>"along"</code>
+  (two-vertex lines drawing themselves). Fill particles scatter by
+  their recipe; aim means nothing extra for a field.</p>
+</ul>
+<h2>Landmarks</h2>
+<p><code>tip("name")</code> — where the named stroke's shape ends, resolved to
+plain coordinates at compile time. Forward references are legal (the
+endpoint is geometry, not history). Fills have no tip; borrowing one
+is an error.</p>
+<h2>Ordering, and the walk-back</h2>
+<p>Authors may declare strokes in any order — <code>at</code> is the truth. The
+canonical writer keeps its list sorted as strokes arrive: place the
+newcomer at the end, decrement an index while the entry above starts
+later, and stop at the first comparison that would be a no-op. Equal
+times stop the walk too, so simultaneous strokes keep their arrival
+order — which the compiler preserves, because emission order is the
+random stream's order, and determinism is a promise here.</p>
+<h2>What a score may not do</h2>
+<p>Compute. The sandbox offers the vocabulary and nothing else — no
+loops, no math library, no reading files. A score that tries is an
+error, not a plugin. Scores stay portable, diffable, safe to share,
+and speakable by grammar-constrained small models.</p>
+<h2>Validation</h2>
+<p>The wall (see the scene-script datapath) checks everything before
+anything runs, collects every error, and reports them together, each
+naming its stroke and field, with the nearest legal word when a name
+misses. Documented defaults for absent optional fields are
+vocabulary, not fallback; everything else malformed stops the render.</p>
+</main></body></html>
