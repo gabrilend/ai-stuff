@@ -29,9 +29,53 @@
 
 set -euo pipefail
 
+# {{{ usage() — what this script does and its one option; the caller then exits
+# Added so `--help` explains the build vs. package split: this script packages an
+# already-compiled kernel, it does not compile one. Kept in step with the header
+# comment above; update both together if the layout changes.
+usage() {
+    cat <<'EOF'
+build-bootable-sd — assemble a Rockchip-bootable SD card image for the RG DS.
+
+Packages the compiled kernel at output/kernel.img together with the three durable
+boot-chain blobs under libs/sd-image-parts/ (Rockchip idbloader, u-boot FIT, RG DS
+device tree) into one flashable image at output/bootable-sd.img:
+  - idbloader spliced in at sector 64, u-boot FIT at sector 16384 — fixed offsets
+    the BootROM reads by address, not from the partition table
+  - one bootable FAT32 partition at sector 32768 holding /KERNEL, the device tree,
+    and an extlinux.conf pointing u-boot at both
+
+It compiles NOTHING. Run scripts/build (lean) or scripts/build --debug (with the
+probe battery baked in) first, to produce output/kernel.img. No sudo, no loop
+mounts — the output is a plain file written with sfdisk + dd + mtools.
+
+Usage:
+  scripts/build-bootable-sd [DIR]
+  scripts/build-bootable-sd --help
+
+Arguments:
+  DIR         Project root. Defaults to the directory this script lives under, so
+              it runs correctly invoked from anywhere; every path hangs off it.
+
+Options:
+  -h, --help  Show this help and exit without building.
+
+After a successful build: scripts/push-to-usb, then on the lab laptop
+scripts/flash-sd.
+EOF
+}
+# }}}
+
 # {{{ configuration — paths and sector layout, all relative to DIR
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+# Answer --help/-h before reading DIR or touching the disk, so a help request can
+# never be misread as a project-root path (DIR reads the same $1).
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+esac
+
 DIR="${1:-$(dirname "$SCRIPT_DIR")}"
 
 TMP_DIR="${DIR}/tmp"
