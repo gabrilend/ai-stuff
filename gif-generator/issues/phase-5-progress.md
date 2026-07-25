@@ -9,7 +9,9 @@ counts.
       snapshots, reassembled by sequence; byte-identical across
       worker counts; the C threadpool's structural disqualification
       recorded where the choice lives.
-- [ ] 502 render statistics utility
+- [x] 502 render statistics utility — measure any scene at any
+      worker count with real wall time; summarize every report as
+      one table; documentation cites the tool, never a memory.
 - [ ] 503 big-canvas demo (capstone)
 
 Nothing started; architecture complete, blueprints written.
