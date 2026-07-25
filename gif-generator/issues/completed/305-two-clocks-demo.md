@@ -5,7 +5,14 @@
 Complete — the vision renders and was watched act by act: hands
 converging inward mid-sweep with ember trails, the violet seal-line
 arriving whole and breathing in between the resting tips, the
-triangle flooding downward while the tips ember at its corners. Six
+triangle flooding downward while the tips ember at its corners.
+
+Amended with the vision-render capstone: the demo's tips now come
+from the landmark machinery (the same arithmetic the compiler uses
+to resolve borrowed tips — independent computation differed in the
+last floating-point bits), and its frame count rounds instead of
+floors (floats shave 4.6 x 25 to 114.999). Both changes exist so the
+compiled score could prove itself byte-identical to this staging. Six
 tracks, 114 frames, peak population at 74% of the pool's estimate.
 Two interpretation choices recorded: the vision's text swaps the
 hands' resting hours in its second mention, and the line description

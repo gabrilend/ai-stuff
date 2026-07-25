@@ -15,6 +15,12 @@ from a scene file by one command.
       output/, atomic landings, honest reports, goodbye last.
 - [x] 404 html gallery viewer — 43 linked pages and a gallery of
       moving pictures, rebuilt whole from sources by one generator.
-- [ ] 405 vision render (capstone)
+- [x] 405 vision render (capstone) — the vision score renders
+      byte-identical to the hand staging, proven in public by the
+      demo; the gallery seats it beside every earlier piece.
 
-Nothing started; architecture complete, blueprints written.
+Phase 4 is complete: the choreography has a front door. A person
+writes sentences of the score language in input/, and the same
+machine that staged the vision by hand renders their words to the
+same bytes. The wall teaches, the runner lands atomically and says
+goodbye, and the gallery lets everything be wandered and watched.
