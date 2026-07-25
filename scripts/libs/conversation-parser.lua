@@ -24,40 +24,83 @@ end
 -- }}}
 
 -- {{{ wrap_text
--- Wrap text to specified width, preserving markdown structure
+-- Wrap prose to the target width while leaving structure alone.
+--
+-- What wraps: plain paragraphs (including ones that OPEN with **bold** - the
+-- old "^%*" exemption meant to spare "* " bullets caught those by accident),
+-- list items ("- ", "* ", "1. ") with a hanging indent so continuations sit
+-- under the item's text, and blockquotes with their "> " repeated.
+--
+-- What passes through untouched, because wrapping corrupts its meaning:
+-- headers (a split header stops being a header), everything between ```
+-- fences (the old code had no fence state and word-wrapped code), table
+-- rows, and tab/4-space indented code. A single token longer than the
+-- width - a URL, a path - also stays long: there is no honest place to
+-- break it.
 local function wrap_text(text, width)
     width = width or 80
     local lines = {}
+    local in_code_block = false
+
+    -- {{{ wrap_with_prefix
+    -- Word-wrap one line's body; the first output line carries first_prefix
+    -- (indent plus any list marker), continuations carry cont_prefix.
+    local function wrap_with_prefix(first_prefix, cont_prefix, body)
+        local current = nil
+        for word in body:gmatch("%S+") do
+            if current == nil then
+                current = first_prefix .. word
+            elseif #current + 1 + #word <= width then
+                current = current .. " " .. word
+            else
+                table.insert(lines, current)
+                current = cont_prefix .. word
+            end
+        end
+        table.insert(lines, current or first_prefix)
+    end
+    -- }}}
 
     for line in text:gmatch("[^\n]*") do
-        if line:match("^%s*$") then
-            -- Empty line
+        if line:match("^%s*```") then
+            -- Fence line: emit as-is and flip code state.
+            table.insert(lines, line)
+            in_code_block = not in_code_block
+        elseif in_code_block then
+            -- Inside a fence: verbatim, always.
+            table.insert(lines, line)
+        elseif line:match("^%s*$") then
             table.insert(lines, "")
-        elseif line:match("^#") or line:match("^%-") or line:match("^%*") or line:match("^```") then
-            -- Don't wrap markdown headers, lists, or code blocks
+        elseif #line <= width then
+            -- Already fits (this also spares horizontal rules and the
+            -- 80-dash separators the exporter itself writes).
+            table.insert(lines, line)
+        elseif line:match("^#") or line:match("^%s*|")
+            or line:match("^    ") or line:match("^\t") then
+            -- Unwrappable structure: headers, table rows, indented code.
             table.insert(lines, line)
         else
-            -- Wrap regular text
-            local wrapped = ""
-            local current_line = ""
-
-            for word in line:gmatch("%S+") do
-                if #current_line + #word + 1 <= width then
-                    if #current_line > 0 then
-                        current_line = current_line .. " " .. word
-                    else
-                        current_line = word
-                    end
-                else
-                    if #current_line > 0 then
-                        table.insert(lines, current_line)
-                    end
-                    current_line = word
-                end
+            -- Prose. Split off a list marker or quote marker if present so
+            -- continuations can be indented to match.
+            local indent, marker, body = line:match("^(%s*)([%-%*] )(.*)$")
+            if not indent then
+                indent, marker, body = line:match("^(%s*)(%d+%. )(.*)$")
             end
-
-            if #current_line > 0 then
-                table.insert(lines, current_line)
+            if indent then
+                -- List item: continuations hang under the text, not the marker.
+                wrap_with_prefix(indent .. marker,
+                    indent .. string.rep(" ", #marker), body)
+            else
+                indent, marker, body = line:match("^(%s*)(>%s?)(.*)$")
+                if indent then
+                    -- Blockquote: every continuation repeats the quote mark.
+                    wrap_with_prefix(indent .. marker, indent .. marker, body)
+                else
+                    -- Plain paragraph (this is where **bold openers land now);
+                    -- any leading indent is preserved on every line.
+                    indent = line:match("^(%s*)")
+                    wrap_with_prefix(indent, indent, line:sub(#indent + 1))
+                end
             end
         end
     end
