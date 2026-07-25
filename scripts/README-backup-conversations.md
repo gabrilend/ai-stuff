@@ -64,9 +64,23 @@ never duplicates), and how the sibling analytics/export scripts tell transcripts
 apart from the derived files that share the folder. The filename may change; the
 header never does.
 
-Older, id-named transcripts are brought onto this scheme by
-`migrate-transcript-names.sh`, which dates each by its end date (its mtime) and
-is safe to re-run.
+**This tool is the single naming authority** (issue 020): it is the only
+program that names, renames, or removes transcript files, and it re-derives
+every name from the session log on every run. Renaming a transcript by hand
+does not stick — the next Stop hook re-places it. The one-time migration tool
+that once shared this job has been retired.
+
+Two guards ride along with every export:
+
+- **Race guard**: the Stop hook and the session log's final append are
+  siblings, not a sequence, so the exporter can read a log before the last
+  reply lands. When a conversation ends with an unanswered user message —
+  the only shape that race can produce — the exporter waits a beat and
+  re-reads, a few bounded tries, then exports as-is with a printed warning.
+- **No husks**: a session with no messages (opened, titled, never spoken in)
+  gets no transcript at all, and any stale file claiming it — under any
+  name — is retired, keyed by the header. The warning is a printed line,
+  not a UUID filename.
 
 ## Output Format
 

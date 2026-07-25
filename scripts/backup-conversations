@@ -37,9 +37,12 @@ function write-transcripts-to-project-directory(){ # {{{
    fi
    mkdir -p "$TRANSCRIPT_DIR"
    
-   # Find the corresponding Claude project directory
+   # Find the corresponding Claude project directory. The sessions root is
+   # overridable so tests can point the exporter at fixture JSONLs instead of
+   # the real ~/.claude/projects (issue 020).
    PROJECT_NAME=$(basename "$DIR")
-   CLAUDE_PROJECT_DIR="$HOME/.claude/projects/-$(echo "$DIR" | sed 's|^/||' | tr '/' '-')"
+   CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
+   CLAUDE_PROJECT_DIR="$CLAUDE_SESSIONS_ROOT/-$(echo "$DIR" | sed 's|^/||' | tr '/' '-')"
    
    if [ ! -d "$CLAUDE_PROJECT_DIR" ]; then
       echo "Could not find Claude project directory: $CLAUDE_PROJECT_DIR"
@@ -48,8 +51,15 @@ function write-transcripts-to-project-directory(){ # {{{
    
    echo "Extracting transcripts from $CLAUDE_PROJECT_DIR to $TRANSCRIPT_DIR"
    
+   # THE NAMING AUTHORITY RULE (issue 020): this exporter is the one and only
+   # program that names, renames, or removes transcript files. It re-derives
+   # every name from the session JSONL on every run and enforces the result,
+   # so any other writer will simply be overruled on the next Stop hook - the
+   # one-shot migrator learned this the hard way and was retired. Tools that
+   # need names read them through the shared rulebook; they never write them.
+   #
    # Naming, identity, and collision rules all live in one shared library so the
-   # producer, the migrator, and the analytics consumers can never disagree.
+   # producer and the analytics consumers can never disagree.
    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
    source "${SCRIPT_DIR}/libs/transcript-discovery.sh"
    PARSER="${SCRIPT_DIR}/libs/conversation-parser.lua"
@@ -81,6 +91,32 @@ function write-transcripts-to-project-directory(){ # {{{
       local parser_signals
       parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null)
 
+      # Race guard (issue 020). ENDS_WITH_USER is the fingerprint of the
+      # Stop-hook race: the hook and the JSONL append of the final reply are
+      # sibling effects of the same completion, so the exporter can read the
+      # log before the reply's line lands. On the fingerprint: wait a beat and
+      # re-parse, bounded. Three outcomes per retry: the reply appears (guard
+      # ends, export is complete); the fingerprint persists (retry again); the
+      # budget runs out (surrender LOUDLY below and export as-is - some other
+      # live session mid-reply is a legitimate owner of this shape, and it
+      # repairs itself on its own next Stop).
+      local guard_tries=0
+      while [ "$guard_tries" -lt 3 ]; do
+         case "$parser_signals" in
+            *"ENDS_WITH_USER:1"*)
+               guard_tries=$((guard_tries + 1))
+               sleep 0.2
+               parser_signals=$(lua "$PARSER" "$jsonl_file" "$temp_file" 2>&1 >/dev/null)
+               ;;
+            *) break ;;
+         esac
+      done
+      case "$parser_signals" in
+         *"ENDS_WITH_USER:1"*)
+            echo "  WARNING: $conversation_id ends with an unanswered user message; exported as-is"
+            ;;
+      esac
+
       if [ ! -f "$temp_file" ]; then
          echo "  (parser produced no output for $conversation_id)"
          continue
@@ -91,15 +127,25 @@ function write-transcripts-to-project-directory(){ # {{{
       start_date=$(echo "$parser_signals" | grep "START_DATE:" | cut -d: -f2 || true)
       final_date=$(echo "$parser_signals" | grep "FINAL_DATE:" | cut -d: -f2 || true)
 
-      # Build the date-span basename. If the parser found no dates at all, we
-      # keep the conversation id so nothing is silently mis-filed (a warning
-      # path, per house rule: warnings are errors).
-      local base
+      # Build the date-span basename. No dates at all means a husk: a session
+      # that was opened and titled but never exchanged a message. Husks used
+      # to be written under their raw conversation id as a warning-name; that
+      # flag kept being misread as a misspelling and "fixed" by hand (issue
+      # 020), so now the warning is a printed line and no file: nothing to
+      # shelve, nothing to misname. If an earlier run or a stray rename left
+      # a file claiming this conversation, retire it - the header, not the
+      # name, identifies the claim.
+      local base husk_claim
       if [ -n "$start_date" ] || [ -n "$final_date" ]; then
          base=$(transcript_span_basename "$start_date" "$final_date")
       else
-         echo "  WARNING: no timestamps for $conversation_id; keeping id as name"
-         base="$conversation_id"
+         echo "  WARNING: no messages in $conversation_id; no transcript written"
+         rm -f "$temp_file"
+         if husk_claim=$(transcript_find_claim "$TRANSCRIPT_DIR" "$conversation_id"); then
+            rm -f "$husk_claim"
+            echo "  retired husk transcript: $(basename "$husk_claim")"
+         fi
+         continue
       fi
 
       # Idempotency: if this conversation already owns a transcript, reuse it,
