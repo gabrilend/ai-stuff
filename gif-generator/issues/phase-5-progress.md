@@ -12,6 +12,12 @@ counts.
 - [x] 502 render statistics utility — measure any scene at any
       worker count with real wall time; summarize every report as
       one table; documentation cites the tool, never a memory.
-- [ ] 503 big-canvas demo (capstone)
+- [x] 503 big-canvas demo (capstone) — the doubled vision, one hand
+      then four, byte-identical with a measured 3x speedup; the
+      forge showpiece blooms at half a thousand pixels square.
 
-Nothing started; architecture complete, blueprints written.
+Phase 5 is complete: every core earns its keep. The sequential
+heart beats in order while worker threads draw and compress the
+frames it freezes, reassembled by sequence number alone — and the
+proof is not a benchmark but an identity: same scene, same seed,
+same bytes, any number of hands.
