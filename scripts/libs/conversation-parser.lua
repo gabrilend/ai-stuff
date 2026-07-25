@@ -393,6 +393,14 @@ local function parse_conversation(jsonl_file, output_file)
         end
     end
 
+    -- The race fingerprint (issue 020): a user turn exists but no assistant
+    -- prose followed it. At Stop-hook time this almost always means the
+    -- exporter read the JSONL before the reply's line was flushed - the one
+    -- shape the Stop-hook race can produce. Computed here, at the same
+    -- boundary the final flush uses, so the two can never disagree.
+    local ends_with_user = (current_user_uuid ~= nil)
+        and (#assistant_responses == 0)
+
     -- Final flush: same combining behavior as the mid-stream flush above,
     -- for any trailing assistant prose after the last user message.
     if current_user_uuid and #assistant_responses > 0 then
@@ -409,10 +417,12 @@ local function parse_conversation(jsonl_file, output_file)
 
     -- Hand back three dating signals: the end epoch (used to stamp the file's
     -- mtime, unchanged) plus the start and end calendar dates (used to build
-    -- the date-range filename).
+    -- the date-range filename) - and the race fingerprint, so the shell
+    -- wrapper can decide to wait and re-read (issue 020).
     return parse_timestamp(final_timestamp),
         to_date_string(first_timestamp),
-        to_date_string(final_timestamp)
+        to_date_string(final_timestamp),
+        ends_with_user
 end
 -- }}}
 
@@ -427,7 +437,7 @@ local function main(args)
     local jsonl_file = args[1]
     local output_file = args[2]
 
-    local success, timestamp, start_date, final_date =
+    local success, timestamp, start_date, final_date, ends_with_user =
         pcall(parse_conversation, jsonl_file, output_file)
 
     if not success then
@@ -437,6 +447,7 @@ local function main(args)
 
     -- Emit the dating signals to stderr for the shell wrapper to capture.
     -- FINAL_TIMESTAMP drives the mtime; START_DATE/FINAL_DATE drive the name.
+    -- ENDS_WITH_USER drives the exporter's wait-and-re-read race guard.
     if timestamp then
         io.stderr:write("FINAL_TIMESTAMP:" .. timestamp .. "\n")
     end
@@ -445,6 +456,9 @@ local function main(args)
     end
     if final_date then
         io.stderr:write("FINAL_DATE:" .. final_date .. "\n")
+    end
+    if ends_with_user then
+        io.stderr:write("ENDS_WITH_USER:1\n")
     end
 
     return 0

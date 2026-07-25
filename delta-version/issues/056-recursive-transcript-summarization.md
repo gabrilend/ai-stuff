@@ -149,10 +149,19 @@ Ordered foundational → capstone: 056a is a dependency of 056b; 056b feeds 056c
 - Prepend the blurb block under the header with an idempotency marker (see Implementation Details).
 - Append the blurb (with a link to the file) to `<repo>/llm-transcripts/table-of-contents.md`,
   creating it if absent.
-- **Extend `transcript-discovery.sh`**: `transcript_is_new_format` currently matches only bare
-  date names, so the migrator would try to rename a `<slug>-<date>.md` file back. Widen its regex
-  to accept an optional `<slug>-` prefix before the date token so summarized files are recognized
-  as already-in-scheme and left alone. Grep the monorepo for other consumers of that function.
+- **Respect the naming authority (scripts issue 020)**: the exporter
+  (`backup-conversations`) is the one and only program that names transcript files, and it
+  re-derives every name from the session JSONL after every assistant reply. As designed above,
+  a `<slug>-<date>.md` rename would be REVERTED on the next Stop hook for any conversation
+  whose JSONL still exists: the exporter compares its claim's stripped basename against the
+  derived date-span base, sees a mismatch, re-places the file at the bare date name and
+  deletes the slug-named claim. Before the applier renames anything, teach the shared
+  rulebook (`transcript-discovery.sh`) a claim-equivalence rule — a claim whose name *ends
+  with* the derived date token is already in scheme — and route the exporter's claim
+  comparison through it. Widen `transcript_is_new_format` the same way. The one-shot
+  migrator this bullet used to worry about is retired; the exporter is the only enforcer
+  left, and it must learn slug names before they exist. Grep the monorepo for other
+  consumers of these functions.
 - Grep `delta-version/scripts/reconstruct-history.sh` and `test-transcript-provenance.sh` (the
   provenance tooling) for filename references and update any that break.
 

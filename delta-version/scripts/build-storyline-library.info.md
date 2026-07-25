@@ -53,8 +53,11 @@ scripts/build-storyline-library.sh [--dir <ai-stuff-root>] [--help]
 ## Deliberate behaviors, so nobody "fixes" them
 
 - Files with no parseable date token are **excluded and loudly reported** —
-  never guessed into the timeline. Rename them with
-  `scripts/migrate-transcript-names.sh` and re-run.
+  never guessed into the timeline. The exporter (`backup-conversations`) is
+  the single naming authority; re-running it on the offending project either
+  renames the file correctly or retires it as an empty husk (issue 020 in the
+  scripts project). Never rename transcripts by hand — the exporter re-derives
+  every name from the session log and will overrule you on the next Stop hook.
 - The in-file `Generated on:` line is ignored on purpose: it records when the
   export ran, not when the session happened.
 - The storyline directory is generated and gitignored; edit the generator,

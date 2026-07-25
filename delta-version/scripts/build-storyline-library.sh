@@ -240,7 +240,7 @@ function print_report() {
             for reason in "${EXCLUDED[@]}"; do
                 echo "    - $reason"
             done
-            echo "  (date-less names can be fixed with scripts/migrate-transcript-names.sh)"
+            echo "  (a date-less name is a husk or straggler; re-run backup-conversations on that project to fix or retire it)"
         } >&2
     fi
 }
