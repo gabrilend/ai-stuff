@@ -6,7 +6,8 @@ gesture staged directly in code.
 
 - [x] 301 parametric paths — the clock convention in one home; arcs
       that refuse to guess their turn; tangents true.
-- [ ] 302 easing library
+- [x] 302 easing library — motion curves and fade envelopes in one
+      truthful home; the property walk guards every future entry.
 - [ ] 303 timeline tracks
 - [ ] 304 fill regions
 - [ ] 305 two-clocks demo (capstone)
