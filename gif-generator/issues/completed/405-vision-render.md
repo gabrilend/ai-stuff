@@ -2,9 +2,19 @@
 
 ## Current Behavior
 
-The two-clocks gesture renders from hand-written choreography; the
-scene language, compiler, and runner each work; the three have never
-been walked as one road by the founding example.
+Complete — the road is one road. The vision score in input/ (its
+comments the vision's own sentences) renders through the front door
+byte-identical to phase 3's hand-staged demo: the same 333536 bytes,
+proven by comparison inside the phase-4 demo where everyone can
+watch it fail if it ever does. Getting there required two honest
+fixes to the phase-3 demo, both cross-noted there: its tips now come
+from the landmark machinery (independent computation differed in the
+last floating-point bits, and byte-identity is the whole proof), and
+its frame count rounds instead of floors (4.6 x 25 is 114.999... in
+floats — the runner's first outing caught the stolen frame). The
+demo then rebuilds the gallery so the vision loops beside every
+earlier piece with its measured numbers. The phase-picker gained
+phase 4 by existing — it reads the playbill from disk.
 
 ## Intended Behavior
 
