@@ -8,7 +8,8 @@ gesture staged directly in code.
       that refuse to guess their turn; tangents true.
 - [x] 302 easing library — motion curves and fade envelopes in one
       truthful home; the property walk guards every future entry.
-- [ ] 303 timeline tracks
+- [x] 303 timeline tracks — windows half-open and exact, sequencing
+      is nothing but numbers, paint-then-move keeps tips smooth.
 - [ ] 304 fill regions
 - [ ] 305 two-clocks demo (capstone)
 
