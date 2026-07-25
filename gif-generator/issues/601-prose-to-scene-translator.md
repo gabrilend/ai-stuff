@@ -31,9 +31,22 @@ score issue), and written as a canonical score file.
 
 ## Current Behavior
 
-Scores are written by hand in the score vocabulary. A person who can
-describe a motion's mechanism but not its vocabulary word has no way
-in; the pipeline's front door only accepts score files.
+In progress — everything testable without the cluster is built and
+proven; the live transport waits for the orchestrator to light.
+Working today: the grammar generator (pure function of the
+vocabulary tables, times structurally tenths, misspelling
+impossible), the prompt builder (the format contract and both
+reference scores, verbatim), the tool-call parser and collector
+(walk-back insertion as calls arrive), the canonical score writer
+carrying prose sentences as comments, the bounded retry loop with
+the wall's teaching quoted back verbatim (proven against a scripted
+fake orchestrator: a misspelled hue corrected in exactly two
+attempts), exhausted patience surfacing errors beside the best
+draft, and the cluster roster reader with its polite refusals
+(input/cluster.example ships). Deferred until the cluster lights:
+the HTTP adapter that turns a roster door into a live transport
+function — the translate loop takes any transport, so the adapter
+is a thin last mile.
 
 ## Intended Behavior
 
