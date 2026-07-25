@@ -10,7 +10,8 @@ gesture staged directly in code.
       truthful home; the property walk guards every future entry.
 - [x] 303 timeline tracks — windows half-open and exact, sequencing
       is nothing but numbers, paint-then-move keeps tips smooth.
-- [ ] 304 fill regions
+- [x] 304 fill regions — coverage-shaped proposals never starve at
+      the opening sliver; the frontier glows as it advances.
 - [ ] 305 two-clocks demo (capstone)
 
 Nothing started; architecture complete, blueprints written.
