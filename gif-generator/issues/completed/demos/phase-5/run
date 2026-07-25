@@ -1,0 +1,25 @@
+#!/bin/bash
+# run — performs the phase-5 demo: many hands at a big canvas.
+# What it does, generally: wakes the house, renders the doubled
+# vision with one worker and with a crew (asserting both give the
+# same bytes — determinism performed in public), renders the forge
+# showpiece, prints measured speedups, rebuilds the gallery, and
+# opens the new pieces when a display is around.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+"${DIR}/bootstrap" "${DIR}"
+luajit "${DIR}/issues/completed/demos/phase-5/big-canvas.lua" "${DIR}"
+
+echo ""
+luajit "${DIR}/src/027-gallery.lua" "${DIR}"
+
+GIF="${DIR}/issues/completed/demos/phase-5/showpiece.gif"
+if [ -n "$DISPLAY" ] && command -v xdg-open > /dev/null; then
+    xdg-open "${GIF}" &
+else
+    echo "(no display here — open ${GIF} in a browser to watch)"
+fi
