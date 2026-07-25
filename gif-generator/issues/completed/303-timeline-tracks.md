@@ -2,8 +2,14 @@
 
 ## Current Behavior
 
-Paths and easings exist as loose parts; nothing binds an emitter to a
-path under a schedule.
+Complete. Tracks bind window, easing, envelope, path, and recipe;
+windows are half-open so meeting windows hand off without gap or
+double; each track carries its own emit closure so field tracks (the
+fills issue) join the same timeline without the step asking kinds;
+the endpoint landmark serves later strokes' borrowings. The timeline
+step paints then moves, in that order, so birth and motion share the
+frame and tips never stutter. Ten assertions, waypoints checked
+against hand arithmetic.
 
 ## Intended Behavior
 
