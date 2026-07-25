@@ -1,0 +1,104 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>datapath-gif-encoding</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>Datapath — from indexed frames to a .gif file</h1>
+<p>This document follows the palette and the stack of index-rectangles
+into the finished file in <code>output/</code>. The target is GIF89a — a format
+frozen since 1989, which is precisely its charm.</p>
+<h2>The file, block by block</h2>
+<p>A GIF is a sequence of blocks, and we emit them in this order:</p>
+<p>1. <strong>Header</strong>: the six bytes <code>GIF89a</code>.
+2. <strong>Logical screen descriptor</strong>: canvas width and height (16-bit,
+   little-endian — as is every multi-byte number in the format), and a
+   flag saying a global color table follows.
+3. <strong>Global color table</strong>: our purpose-built palette, 256 entries of
+   three bytes each, written once and shared by every frame.
+4. <strong>Looping instruction</strong>: the Netscape application extension — the
+   historical, universally honored way to say "loop forever."
+5. <strong>Per frame</strong>: a graphic control extension (frame delay, in
+   hundredths of a second — the reason the default frame rate is 25),
+   then an image descriptor (frame position and size — always the full
+   canvas), then the LZW-compressed pixel data.
+6. <strong>Trailer</strong>: the single byte that means "no more blocks."</p>
+<p>Every frame fully replaces the last (disposal method "draw over";
+no transparency). At our canvas sizes, chasing dirty-rectangle
+optimizations buys little and costs correctness risk; if file size
+ever matters, that is a measured decision for later, not a default.</p>
+<h2>LZW, in one paragraph</h2>
+<p>The pixel bytes are compressed with the GIF flavor of LZW: a
+dictionary starts holding every single-byte string plus two special
+codes (clear, end); the encoder greedily matches the longest known
+string, emits its code, and adds that string-plus-next-byte as a new
+entry. Codes are written with just enough bits to address the
+dictionary (starting at 9 bits for 256-color data), growing a bit at a
+time as the dictionary fills, and the dictionary is reset with a clear
+code when it reaches the 12-bit ceiling. The bit-stream is packed
+little-endian into bytes, and the bytes are chopped into sub-blocks of
+at most 255, each prefixed by its length.</p>
+<p>The dictionary is a flat FFI table keyed by (previous-code, next-byte)
+— no string concatenation in the hot loop, which is the difference
+between milliseconds and seconds per frame in a dynamic language.</p>
+<h2>Trust, but verify</h2>
+<p>The encoder's tests decode what was encoded: an independent, dumb LZW
+<em>decoder</em> lives in the test suite (never in the pipeline) and must
+round-trip every frame byte-for-byte. File-level checks confirm block
+structure by walking the emitted file with an offset ruler. The proof
+of the pudding remains a real browser looping the gif.</p>
+<h2>Relevant pieces</h2>
+<ul>
+<li>the byte writer (little-endian words, sub-block chopping)</li>
+<li>the block emitters (header, screen descriptor, palette, loop, frame)</li>
+<li>the LZW compressor (flat dictionary, growing code width, clear/reset)</li>
+<li>the test-side LZW decoder (round-trip honesty, tests only)</li>
+</ul>
+</main></body></html>

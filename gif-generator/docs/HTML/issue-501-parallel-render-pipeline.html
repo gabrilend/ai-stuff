@@ -1,0 +1,96 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>501-parallel-render-pipeline</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-501-parallel-render-pipeline.html">501</a> — parallel render pipeline</h1>
+<h2>Current Behavior</h2>
+<p>Everything runs on one thread: the sim ticks, then the frame is
+splatted, tone-mapped, indexed, and compressed, then the next tick.
+The frame snapshot border exists but only one worker stands at it.</p>
+<h2>Intended Behavior</h2>
+<p>The pipeline-of-snapshots strategem made real: the simulator keeps
+ticking while worker threads rasterize and LZW-compress finished
+snapshots; the encoder reassembles frames by sequence number and
+writes the file.</p>
+<ul>
+<li>Two candidate vehicles, decided by measurement, not taste — and the</li>
+<p>  measurement recorded in this issue when taken: effil Lua threads
+  (<code>libs/lua/effil-jit</code> in the shared library area) with snapshots
+  through channels, versus the house C threadpool
+  (<code>my-libs/threadpool</code>) driven over FFI with snapshots in shared FFI
+  memory.</p>
+<li>Additive splatting and per-frame LZW are order-independent by</li>
+<p>  construction (decisions recorded in the rendering and encoding
+  datapaths); reassembly is the only ordering point.</p>
+<li>Determinism must survive: same scene, same seed, same bytes,</li>
+<p>  regardless of worker count — this is the pipeline's honesty test,
+  run with one, two, and many workers.</p>
+<li>Single-thread mode remains a first-class path (worker count one,</li>
+<p>  same code road), not a preserved fossil.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The measurement: render a heavy reference scene both ways, small;
+   pick; record numbers and choice here and in the datapath docs.
+2. Snapshot hand-off and sequence-numbered reassembly on the chosen
+   vehicle.
+3. The determinism test across worker counts.</p>
+<h2>Blockers</h2>
+<ul>
+<li><a href="issue-403-command-line-runner.html">403</a> (a whole pipeline to parallelize); the snapshot border from <a href="issue-204-glow-rendering.html">204</a>.</li>
+</ul>
+<h2>Related Documents</h2>
+<ul>
+<li>strategems/pipeline-of-snapshots (the pattern)</li>
+<li>docs/datapath-particle-sim.md, docs/datapath-rendering.md (the</li>
+<p>  border and the order-independence it rests on)</p>
+</ul>
+</main></body></html>

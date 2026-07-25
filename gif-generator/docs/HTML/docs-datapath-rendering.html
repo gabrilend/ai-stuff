@@ -1,0 +1,116 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>datapath-rendering</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>Datapath — from particle snapshot to indexed frame</h1>
+<p>This document follows a frame snapshot (positions, life-fractions,
+hues) into a rectangle of palette indices ready for the encoder.</p>
+<h2>The light buffer</h2>
+<p>The canvas is a floating-point accumulation buffer — three floats
+(red, green, blue light energy) per pixel, FFI-allocated once and
+cleared to zero each frame. Zero is the black background; it costs
+nothing and can never be contaminated, because nothing is ever drawn
+<em>as</em> background.</p>
+<p>Floats, not bytes, because glow is additive: twenty overlapping faint
+particles must sum into one brilliant core without clipping at every
+intermediate step. Clipping happens exactly once, at tone-mapping.</p>
+<h2>Splatting a particle</h2>
+<p>Each particle stamps a small radial glow:</p>
+<ul>
+<li>The stamp is a square of a few pixels' radius around the particle's</li>
+<p>  position. Within it, brightness falls off smoothly from center to rim
+  (a squared-falloff bell — cheap, and indistinguishable from a
+  Gaussian at this size).</p>
+<li>The particle's hue selects a color; its remaining-life fraction and</li>
+<p>  bright-seed scale the intensity — young particles blaze, old ones
+  ember out.</p>
+<li>The stamp <em>adds</em> into the light buffer. Order of particles is</li>
+<p>  irrelevant; addition commutes, which is also what will make threaded
+  rendering safe span-by-span later.</p>
+</ul>
+<p>Sub-pixel positions are honored: the stamp's falloff is evaluated at
+each pixel's true distance from the particle's fractional position, so
+motion stays silky instead of snapping to the grid.</p>
+<h2>Tone-mapping: light to color</h2>
+<p>Accumulated light can far exceed 1.0 where particles crowd. A soft-knee
+curve (linear when dim, gentle shoulder into saturation) compresses
+energy into displayable range, and <em>desaturates toward white</em> as energy
+climbs — that is what makes a dense core read as "white-hot" while its
+halo keeps the hue. Gamma is applied last so the dark end of each glow
+uses the palette's dark entries well.</p>
+<h2>The purpose-built palette</h2>
+<p>GIF allows 256 colors. We spend them deliberately:</p>
+<ul>
+<li>index 0: pure black, reserved for the untouched background.</li>
+<li>For each hue the scene declares: a ramp of steps from near-black</li>
+<p>  through vivid to near-white, gamma-spaced so more steps live in the
+  dark half, where banding would otherwise show in glow falloffs.</p>
+<li>A shared white-hot ramp at the top for saturated cores.</li>
+</ul>
+<p>Ramp sizes divide the remaining 255 slots among declared hues. Mapping
+a tone-mapped pixel to its palette index is then arithmetic — find the
+hue's ramp, index by brightness — not a nearest-neighbor search over
+256 candidates. A scene declaring more hues than the palette can seat
+is a hard error at compile time, never a silent merge of look-alike
+colors.</p>
+<h2>The output</h2>
+<p>One byte per pixel: the palette index. This rectangle, plus the shared
+palette built once per render, is everything the GIF encoder needs.</p>
+<h2>Relevant pieces</h2>
+<ul>
+<li>the light buffer (float RGB accumulation, cleared per frame)</li>
+<li>the splatter (radial stamp, additive, sub-pixel aware)</li>
+<li>the tone-mapper (soft knee, white-shift, gamma)</li>
+<li>the palette builder (per-hue gamma ramps, reserved black)</li>
+<li>the indexer (brightness-to-ramp arithmetic)</li>
+</ul>
+</main></body></html>

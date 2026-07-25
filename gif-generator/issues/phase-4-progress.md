@@ -13,7 +13,8 @@ from a scene file by one command.
       proof rides with the capstone.
 - [x] 403 command-line runner — the front door opens: input/ to
       output/, atomic landings, honest reports, goodbye last.
-- [ ] 404 html gallery viewer
+- [x] 404 html gallery viewer — 43 linked pages and a gallery of
+      moving pictures, rebuilt whole from sources by one generator.
 - [ ] 405 vision render (capstone)
 
 Nothing started; architecture complete, blueprints written.

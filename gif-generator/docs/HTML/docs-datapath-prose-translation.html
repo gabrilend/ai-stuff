@@ -1,0 +1,137 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>datapath-prose-translation</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1>Datapath — from spoken prose to a scene script</h1>
+<p>This document follows a plain-English motion description onto the
+porch, through three small minds, and in through the same front door
+every scene uses. The pipeline behind that door never learns that a
+model was involved.</p>
+<h2>The premise</h2>
+<p>A person describing motion will sometimes say the wrong word, or
+forget how to spell the right one, while describing the <em>mechanism</em>
+perfectly. "It swooshes — slow, then quick, like flicking a brush."
+That sentence contains the easing called <code>stroke</code>; it just doesn't
+know the name. A small local language model is exactly enough machine
+to hear the mechanism and write down the vocabulary word.</p>
+<h2>The input: a prose file</h2>
+<p>A <code>.prose</code> file in <code>input/</code>: plain English, no format at all. The
+founding vision file is the genre's first example.</p>
+<h2>The porch, step by step</h2>
+<p>1. <strong>The prompt is assembled from the truth.</strong> The system prompt is
+   built from the scene-format document and the shipped reference
+   scenes (the vision translation is the flagship few-shot example).
+   Nothing about the vocabulary is written twice — the prompt builder
+   reads the same format document people read.</p>
+<p>2. **The model paints in tool-calls, and the grammar makes
+   misspelling impossible.** The model does not answer with a whole
+   scene; it <em>paints</em>, one tool-call per stroke — a timeframe in
+   seconds (tenths only), a color, a shape, a fade enum — in whatever
+   order the prose brings them to mind. llama.cpp accepts a GBNF
+   grammar that constrains every token it may emit; we <em>generate</em>
+   that grammar from the vocabulary tables — the legal fade enums,
+   easing names, hue names, shape kinds, the one-decimal time rule.
+   The model is physically unable to output <code>strok</code> or invent
+   <code>swoosh</code>; its entire freedom is <em>choosing among legal readings</em>.
+   The collector orders arriving strokes by time (the canonical
+   writer's walk-back insertion — decrement until no-op; equal times
+   keep arrival order) and writes the canonical Lua score — a linear
+   todo list, the person's own sentences carried as comments above
+   the strokes they became.</p>
+<p>3. <strong>Three readings, not one refinement.</strong> The prose goes to all
+   three cluster nodes independently (or three seeds when only one
+   node answers). Approaching the same problem from three perspectives
+   yields three understandings — cheaper and stranger and better than
+   polishing one guess three times. Each reading is compiled and
+   rendered small and fast (low resolution, short duration — a
+   thumbnail of the motion, not the final render).</p>
+<p>4. <strong>The wall does the arguing.</strong> Each candidate scene faces the same
+   validation wall as a hand-written one. Errors — which name their
+   actor, their field, and their nearest legal word — are quoted back
+   to the model verbatim for a bounded number of retries. A reading
+   that still fails is shown to the person <em>with its errors</em>, never
+   silently repaired, never silently dropped.</p>
+<p>5. <strong>The person picks.</strong> A pick page (a viewing artifact, built like
+   the gallery) shows the three moving thumbnails beside the original
+   prose. Choosing one promotes its scene file into <code>input/</code> as a
+   first-class citizen — indistinguishable, from that moment, from a
+   scene someone typed.</p>
+<h2>The cluster is configuration, not code — and it has an orchestrator</h2>
+<p><em>"there will be an orchestrator"</em> (gabrilend, 2026-07-23). The porch
+speaks to one door: the orchestrator's endpoint, named in
+<code>input/cluster</code> (host, port, a name for affection). What stands
+behind that door — three little minds, one split model, something
+stranger — is the orchestrator's business, and the porch asks only
+for readings. Multiple entries are still legal (the porch will fan
+out to whatever doors it is given); zero entries means the porch
+politely refuses with instructions, because a missing cluster is a
+fact to report, not a condition to hide.</p>
+<p>Transport is llama-server's HTTP completion interface via luasocket;
+JSON via dkjson — both already on the shared library shelf
+(<code>libs/lua/</code>). No new dependencies.</p>
+<h2>What the porch may never do</h2>
+<ul>
+<li>Reach past the wall (its output is validated like anyone's).</li>
+<li>Render the final gif (it renders thumbnails through the ordinary</li>
+<p>  pipeline at small settings, nothing bespoke).</p>
+<li>Auto-pick a reading. Taste belongs to the person.</li>
+</ul>
+<h2>Relevant pieces</h2>
+<ul>
+<li>the prompt builder (format document + reference scenes, one truth)</li>
+<li>the grammar generator (vocabulary tables → GBNF, one truth)</li>
+<li>the cluster client (endpoints file, HTTP, three readings)</li>
+<li>the retry loop (wall errors quoted verbatim, bounded)</li>
+<li>the scene writer (JSON reading → Lua scene with prose comments)</li>
+<li>the pick page (thumbnails beside prose; promotion into input/)</li>
+</ul>
+</main></body></html>

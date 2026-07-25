@@ -1,0 +1,94 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>103-glow-palette-and-indexing</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-103-glow-palette-and-indexing.html">103</a> — glow palette and indexing</h1>
+<h2>Current Behavior</h2>
+<p>Complete. The hue vocabulary (seven named hues, extendable by adding
+a row) and the seating chart live as the second indexed module: black
+alone at zero, gamma-spaced ramps per declared hue with a gentle lean
+toward white at their tops so the hand-off to the gray ramp shows no
+seam, and the gray ramp spanning full dark-to-white so desaturated
+pixels of any brightness have an honest seat. Indexing is arithmetic
+as specified. Twelve assertions cover the chart and the walls.</p>
+<h2>Intended Behavior</h2>
+<p>The purpose-built 256-color palette and the arithmetic that maps
+tone-mapped pixels onto it.</p>
+<ul>
+<li>Index 0 is reserved: pure black, the untouched background.</li>
+<li>Each hue a scene declares gets a ramp from near-black through vivid</li>
+<p>  toward white, gamma-spaced so the dark half — where glow falloffs
+  band most visibly — gets more steps.</p>
+<li>A shared white-hot ramp near the top serves saturated cores of every</li>
+<p>  hue.</p>
+<li>Ramp widths divide the 255 non-black slots among the declared hues;</li>
+<p>  declaring more hues than can be seated is a hard error at scene-
+  compile time (never a silent merge).</p>
+<li>Mapping is arithmetic — hue picks the ramp, brightness picks the</li>
+<p>  step — not a nearest-neighbor search over the whole palette.</p>
+<li>A named-hue vocabulary ("ember", "violet", ...) lives here as data:</li>
+<p>  hue angle plus saturation character, extendable without code.</p>
+<li>Tests: black maps to 0 and nothing else does; brightness</li>
+<p>  monotonicity within a ramp; the seat-count error fires.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The hue vocabulary table and the ramp builder.
+2. The palette assembly (reserved black, hue ramps, white-hot ramp)
+   producing the 256×3-byte table the encoder will embed.
+3. The indexer from tone-mapped pixel to palette byte.
+4. Tests as described.</p>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/datapath-rendering.md (the purpose-built palette section)</li>
+<li>docs/datapath-gif-encoding.md (where the palette bytes land)</li>
+</ul>
+</main></body></html>

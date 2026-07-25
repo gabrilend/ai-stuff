@@ -1,0 +1,100 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>101-project-skeleton-and-run-harness</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-101-project-skeleton-and-run-harness.html">101</a> — project skeleton and run harness</h1>
+<h2>Current Behavior</h2>
+<p>Complete. The directory skeleton stands (docs, notes, src, libs,
+assets, issues, input, output, strategems); <code>bootstrap</code> recreates the
+RAM tiers idempotently and refuses to run without LuaJIT (probed, not
+assumed); <code>run</code> opens onto the newest runnable thing — the demo picker
+until the phase-4 runner moves in, the runner afterwards; the hidden
+<code>.file-index-counter</code> sits at the project root holding the next unused
+index; runtime <code>output/</code> artifacts are kept out of the record by the
+project's ignore file (demos keep their own gifs — those are
+deliverables). The index-taking ritual is documented at the top of the
+first indexed source file, per this blueprint.</p>
+<h2>Intended Behavior</h2>
+<p>A contributor (human or otherwise) can clone the repository, run one
+bootstrap script, and be standing in a working project:</p>
+<ul>
+<li><code>tmp/</code> resolves to <code>/tmp/gif-generator</code> (executable scratch tier) and</li>
+<p>  <code>tmp/shared-memory/</code> resolves to <code>/dev/shm/gif-generator</code> (logs and
+  artifacts tier). The bootstrap recreates both if the machine rebooted
+  and emptied them — every run script checks this before writing logs.</p>
+<li>The hidden <code>.file-index-counter</code> at the project root holds the next</li>
+<p>  unused source-file index (single number, starts at 0). Creating a
+  source file means: read the counter, prefix the filename with the
+  three-digit index, increment the counter. The indices give the whole
+  project one reading order.</p>
+<li>A <code>run</code> script at the project root executes a scene render (phase 4</li>
+<p>  will give it its true form; until then it runs the newest demo). Like
+  all scripts here: a hard-coded project path at the top in a <code>DIR</code>
+  variable, overridable by first argument, all internal paths relative
+  to it.</p>
+<li>LuaJIT is the runtime everywhere; a version probe in the bootstrap</li>
+<p>  fails loudly if <code>luajit</code> is absent rather than falling back to any
+  other lua.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. Write the bootstrap script (recreate tmp tiers, probe luajit,
+   report what it found).
+2. Write the root <code>run</code> script shell with the DIR convention and a
+   dispatch that phase capstones will extend.
+3. Document the index-taking ritual in a comment at the top of the
+   counter file's first consumer.</p>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/architecture.md (design decisions this skeleton serves)</li>
+<li>docs/table-of-contents.md (conventions section)</li>
+</ul>
+</main></body></html>

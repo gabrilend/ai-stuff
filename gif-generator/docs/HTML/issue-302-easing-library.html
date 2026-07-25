@@ -1,0 +1,88 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><title>302-easing-library</title><link rel="stylesheet" href="style.css"></head><body>
+<nav><h2>gif-generator</h2>
+<h2>gallery</h2>
+<a href="index.html">the moving pictures</a>
+<h2>docs</h2>
+<a href="docs-architecture.html">architecture</a>
+<a href="docs-datapath-gif-encoding.html">datapath-gif-encoding</a>
+<a href="docs-datapath-particle-sim.html">datapath-particle-sim</a>
+<a href="docs-datapath-prose-translation.html">datapath-prose-translation</a>
+<a href="docs-datapath-rendering.html">datapath-rendering</a>
+<a href="docs-datapath-scene-script.html">datapath-scene-script</a>
+<a href="docs-roadmap.html">roadmap</a>
+<a href="docs-score-format.html">score-format</a>
+<a href="docs-table-of-contents.html">table-of-contents</a>
+<h2>notes</h2>
+<a href="notes-vision.html">vision</a>
+<h2>issues, open</h2>
+<a href="issue-405-vision-render.html">405-vision-render</a>
+<a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
+<a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
+<a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
+<a href="issue-602-three-readings.html">602-three-readings</a>
+<a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
+<a href="issue-phase-1-progress.html">phase-1-progress</a>
+<a href="issue-phase-2-progress.html">phase-2-progress</a>
+<a href="issue-phase-3-progress.html">phase-3-progress</a>
+<a href="issue-phase-4-progress.html">phase-4-progress</a>
+<a href="issue-phase-5-progress.html">phase-5-progress</a>
+<a href="issue-phase-6-progress.html">phase-6-progress</a>
+<h2>issues, completed</h2>
+<a href="issue-101-project-skeleton-and-run-harness.html">101-project-skeleton-and-run-harness</a>
+<a href="issue-102-light-canvas-and-tonemapping.html">102-light-canvas-and-tonemapping</a>
+<a href="issue-103-glow-palette-and-indexing.html">103-glow-palette-and-indexing</a>
+<a href="issue-104-gif-encoder.html">104-gif-encoder</a>
+<a href="issue-105-first-light-demo.html">105-first-light-demo</a>
+<a href="issue-201-particle-pool.html">201-particle-pool</a>
+<a href="issue-202-emitters.html">202-emitters</a>
+<a href="issue-203-particle-physics.html">203-particle-physics</a>
+<a href="issue-204-glow-rendering.html">204-glow-rendering</a>
+<a href="issue-205-burst-demo.html">205-burst-demo</a>
+<a href="issue-301-parametric-paths.html">301-parametric-paths</a>
+<a href="issue-302-easing-library.html">302-easing-library</a>
+<a href="issue-303-timeline-tracks.html">303-timeline-tracks</a>
+<a href="issue-304-fill-regions.html">304-fill-regions</a>
+<a href="issue-305-two-clocks-demo.html">305-two-clocks-demo</a>
+<a href="issue-401-scene-script-format.html">401-scene-script-format</a>
+<a href="issue-402-scene-compiler.html">402-scene-compiler</a>
+<a href="issue-403-command-line-runner.html">403-command-line-runner</a>
+<a href="issue-404-html-gallery-viewer.html">404-html-gallery-viewer</a>
+</nav>
+<main>
+<h1><a href="issue-302-easing-library.html">302</a> — easing library</h1>
+<h2>Current Behavior</h2>
+<p>Complete, with one scope growth folded in deliberately: the fade
+<em>envelopes</em> (the score's fade enum — hold, in, out, in-out, flash)
+live here beside the motion easings, because both are small pure
+curves over the same raw time-fraction and the validator wants one
+address for vocabulary truth. The property test walks both whole
+tables so a curve added later cannot forget its contract; lookups
+refuse misspellings and teach the legal words back. Thirty-two
+assertions.</p>
+<h2>Intended Behavior</h2>
+<p>A small dispatch table of named easing curves: raw time-fraction in,
+shaped progress out.</p>
+<ul>
+<li>The founding set: <strong>linear</strong>; <strong>stroke</strong> (slow start accelerating</li>
+<p>  hard into the finish — the vision's brush gesture; implemented as a
+  power-curve ease-in whose exponent is an aesthetic knob); <strong>fade-in</strong>
+  (for tracks whose <em>intensity</em> rather than position ramps — easing
+  applies to emitter strength there); <strong>ease-out</strong>; <strong>smoothstep</strong>.</p>
+<li>Curves are pure functions in a table keyed by name — adding one is</li>
+<p>  adding a row, and the scene validator's list of legal names is
+  <em>derived from this table</em>, never a second copy that can drift.</p>
+<li>Every curve maps 0 to 0 and 1 to 1 and stays within bounds; a</li>
+<p>  property test enforces this for all registered names at once, so a
+  new curve cannot forget the contract.</p>
+</ul>
+<h2>Suggested Implementation Steps</h2>
+<p>1. The dispatch table and the founding five curves.
+2. The property test over the whole table plus shape spot-checks
+   (stroke's midpoint lands well below one-half; ease-out mirrors it).</p>
+<h2>Related Documents</h2>
+<ul>
+<li>docs/datapath-scene-script.md (easing in the compiled track)</li>
+</ul>
+</main></body></html>
