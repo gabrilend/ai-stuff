@@ -3,7 +3,13 @@
 ## Current Behavior
 
 Complete. The encoder emits the full block sequence with the flat
-LZW dictionary as specified. One lesson learned and recorded in the
+LZW dictionary as specified.
+
+Amended with the parallel-pipeline issue: the one-sitting encode
+split into two public halves — compress-frame (the expensive,
+per-frame, order-free half that worker threads own) and assemble
+(the container around already-compressed frames). The one-sitting
+path calls the halves; behavior byte-identical, suite unchanged. One lesson learned and recorded in the
 source: the code-width bump must happen when the entry *being added*
 needs more bits (checked before the add) — bumping after the add
 desyncs encoder and decoder by exactly one code; the round-trip test
