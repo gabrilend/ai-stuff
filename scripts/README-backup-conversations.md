@@ -84,6 +84,12 @@ Two guards ride along with every export:
 
 ## Output Format
 
+Prose is wrapped at 80 columns — including paragraphs that open with
+`**bold**`, list items (whose continuations get a hanging indent), and
+blockquotes. Structure is never wrapped: headers, fenced code and everything
+inside it, table rows, and indented code pass through verbatim, and a single
+token longer than 80 (a URL, a path) stays long rather than being broken.
+
 Each conversation is saved as a markdown file with:
 
 ```markdown
