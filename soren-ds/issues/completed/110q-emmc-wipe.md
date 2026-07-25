@@ -1,5 +1,15 @@
 # 110q — one-shot eMMC wipe (temporary, delete after use)
 
+> **RESOLVED (2026-07-24).** The wipe ran on hardware 2026-07-23: whole-card
+> ERASE + SANITIZE, boot-chain blocks 0/64/16384 read back blank — the device
+> now boots only from SD. Teardown is done: `input/probes/emmc-wipe.probe` and
+> the `emmc_wipe` CALL target in `019-probe-engine.c` are deleted, so no future
+> image can re-arm it. `emmc_erase_all` / `emmc_sanitize` remain in `012-emmc.c`
+> as dormant storage primitives (a future user-release eMMC-prep path may reuse
+> them). Note: the "unblock USB device-mode" motive below is now moot — USB is
+> deferred (2026-07-24) and dev stays on SD-boot; the wipe's lasting value is
+> that the device boots *only* from SD, with no stock OS to fall through to.
+
 A deliberate, destructive, **one-shot** tool that erases the entire eMMC, so the
 device boots only from SD and the stock Rockchip boot chain stops claiming the
 USB OTG port when a host is connected. This unblocks the USB device-mode test
@@ -15,9 +25,18 @@ confirmed, the probe and its CALL target are to be REMOVED (see "Teardown").
 `emmc_erase_all()` in `src/012-emmc.c` blanks the whole card via the card's own
 ERASE command — `CMD35` (erase-group start = 0), `CMD36` (erase-group end =
 `SEC_COUNT-1`), `CMD38` (erase) — then waits out the DAT0 busy and reads back the
-boot-critical blocks (LBA 0 / 64 / 16384) to confirm they are blank. It is
-reached by the `emmc_wipe` CALL target in `src/019-probe-engine.c`, armed by the
+boot-critical blocks (LBA 0 / 64 / 16384) to confirm they are blank. A second
+pass, `emmc_sanitize()`, issues the JEDEC SANITIZE (EXT_CSD byte 165 via `CMD6`)
+to physically purge the unmapped/stale pages ERASE can't reach. Both are reached
+by the `emmc_wipe` CALL target in `src/019-probe-engine.c`, armed by the
 `emmc-wipe.probe` at priority 200 (runs last, after all recon).
+
+The probe brings the card up itself — its script is `CALL emmc_init` then
+`CALL emmc_wipe`. This matters because `emmc_erase_all` reads EXT_CSD `SEC_COUNT`
+first, which needs an initialized card. In the wipe-only image every other probe
+is de-selected, so nothing else runs `emmc_init`; without the explicit call the
+wipe would abort SAFE (`SEC_COUNT unreadable`) and erase nothing. `emmc-extcsd`
+and `emmc-wear` are self-sufficient the same way.
 
 Why ERASE and not zero-writing: our only eMMC write path is single-block PIO
 (`emmc_write_block`); zeroing all ~29 GB that way would take hours and program
