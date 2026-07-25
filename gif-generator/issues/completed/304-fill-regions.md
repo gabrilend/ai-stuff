@@ -2,8 +2,19 @@
 
 ## Current Behavior
 
-Emitters ride points, lines, and arcs; nothing can slowly flood an
-area with glow — the vision's "fill the triangle, slowly" has no home.
+Complete, with two design discoveries recorded. First: naive
+rejection sampling starves exactly when the frontier is a sliver —
+which is every fill's opening moment — so sampling proposes inside a
+shape that already respects the frontier (a strip, a disc, a prefix)
+and rejects only on the polygon test. Second: an "at-once" sweep
+joined the founding styles, because the vision's seal-line fades in
+as one whole thing rather than drawing itself; "along" covers the
+draw-itself case for lines. Zero coverage births nothing and banks
+nothing (the flash nobody choreographed, refused — reasoning at the
+decision). The emit module gained public single-birth and
+fractional-due atoms so field births each land at their own sampled
+point; the completed emitters issue carries the cross-note. Fifteen
+assertions, uniformity tested statistically with tolerance stated.
 
 ## Intended Behavior
 

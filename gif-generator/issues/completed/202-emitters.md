@@ -12,6 +12,12 @@ zero legal. One design note beyond the blueprint: the carry lives
 with the caller, one per stroke, because recipes are shared and
 carries must not be. Eleven assertions.
 
+Amended with the fill-regions issue: the single birth and the
+fractional-due arithmetic became public atoms, so field emitters can
+place every birth at its own sampled point while the spot-tick step
+remains one caller among others. Behavior byte-identical; the suite
+passed unchanged.
+
 ## Intended Behavior
 
 Emitter recipes and the emit step.
