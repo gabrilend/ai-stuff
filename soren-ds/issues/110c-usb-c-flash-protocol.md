@@ -1,5 +1,13 @@
 # 110c — USB-C flash protocol
 
+> **Status: DEFERRED (2026-07-24).** Development iteration stays on SD-boot
+> (see `docs/014-hardware-overview.md` → "The install path SoreOS commits to").
+> The eMMC is written only when deploying a release to users, via 110b — never
+> over a live USB link during development, which we don't trust for now. SD-boot
+> plus the SD-backed debug log (read with `scripts/lab-side/view-log`) is a
+> sufficient dev loop, so this issue waits for a concrete release/OTA need
+> before it is built.
+
 ## Current behavior
 
 A minimal bootstrap version of the flash trigger is in place.
