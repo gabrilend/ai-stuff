@@ -223,8 +223,24 @@ dump_region() {
 # can hold thousands.
 inspect_debug_log() {
     local file="$1"
-    printf '\n=== Debug log contents (first 100 readable lines) ===\n' >&2
-    strings -n 4 "$file" | head -100 >&2 || true
+    printf '\n=== Debug log contents (this boot, ghost-free) ===\n' >&2
+    # Invoked through `bash` rather than gated on the exec bit: this script runs
+    # off the FAT32 USB drive, where rsync -rt doesn't carry the executable
+    # permission across, so `-x "$viewer"` would be false even when it's present.
+    local viewer="${SCRIPT_DIR}/view-log"
+    if [[ -f "$viewer" ]]; then
+        # view-log finds the kernel's end-of-log marker, shows only this boot's
+        # log (dropping ghost bytes left in the never-wiped region by earlier,
+        # longer boots), and cleans NUL/CR so the lines don't overlay. Far more
+        # honest than the old raw `strings` dump, which showed prior boots'
+        # leftovers as if they were this run's (issue 110g). Merged stdout+stderr
+        # (2>&1) so the marker note rides along; capped so a pre-marker image
+        # doesn't flood the terminal. Read-only, same as the rest of this script.
+        bash "$viewer" "$file" 2>&1 | head -200 >&2 || true
+    else
+        printf 'view-log not found beside this script; falling back to a raw strings dump — it may show ghosts from earlier boots.\n' >&2
+        strings -n 4 "$file" | head -100 >&2 || true
+    fi
     printf '=== end of debug log ===\n\n' >&2
 }
 # }}}
