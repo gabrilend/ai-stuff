@@ -5,7 +5,10 @@ with measured vehicle choice, the one-truth statistics utility, and a
 big-canvas public performance with byte-identical proof across worker
 counts.
 
-- [ ] 501 parallel render pipeline
+- [x] 501 parallel render pipeline — effil threads over packed
+      snapshots, reassembled by sequence; byte-identical across
+      worker counts; the C threadpool's structural disqualification
+      recorded where the choice lives.
 - [ ] 502 render statistics utility
 - [ ] 503 big-canvas demo (capstone)
 
