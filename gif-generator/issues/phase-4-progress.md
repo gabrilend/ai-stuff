@@ -11,7 +11,8 @@ from a scene file by one command.
 - [x] 402 scene compiler — the wall reports everything at once and
       teaches nearest words; names all become numbers; identity
       proof rides with the capstone.
-- [ ] 403 command-line runner
+- [x] 403 command-line runner — the front door opens: input/ to
+      output/, atomic landings, honest reports, goodbye last.
 - [ ] 404 html gallery viewer
 - [ ] 405 vision render (capstone)
 
