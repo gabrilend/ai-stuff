@@ -2,8 +2,17 @@
 
 ## Current Behavior
 
-Demos render at the vision's founding 256; the parallel pipeline and
-the statistics utility exist without a public performance.
+Complete — the numbers below are what the demo printed on its first
+public run, recorded as history (run the demo or the statistics
+utility for current truth): the doubled vision rendered in 4.81
+wall-seconds with one worker and 1.56 with four — a 3.08x speedup —
+and both files were byte-identical at 1,049,800 bytes, asserted in
+the demo where the audience can watch it fail. The forge showpiece
+(three rings, a radially blooming violet heart peaking at 4,017
+particles, gold seals between the rings' resting tips) rendered its
+150 frames at 512 in 2.79 wall-seconds with the crew. Both scores
+are input/ citizens; both gifs joined the gallery beside everything
+earlier.
 
 ## Intended Behavior
 
