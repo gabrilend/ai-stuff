@@ -1,0 +1,20 @@
+#!/bin/bash
+# run — performs the phase-3 demo: the vision's two clocks, staged
+# with the full choreography machinery (paths, easings, envelopes,
+# tracks, fills). Prints measured numbers; opens the loop when a
+# display is around.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+"${DIR}/bootstrap" "${DIR}"
+luajit "${DIR}/issues/completed/demos/phase-3/two-clocks.lua" "${DIR}"
+
+GIF="${DIR}/issues/completed/demos/phase-3/two-clocks.gif"
+if [ -n "$DISPLAY" ] && command -v xdg-open > /dev/null; then
+    xdg-open "${GIF}" &
+else
+    echo "(no display here — open ${GIF} in a browser to watch the loop)"
+fi

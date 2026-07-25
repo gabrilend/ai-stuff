@@ -2,8 +2,19 @@
 
 ## Current Behavior
 
-Every choreography part exists tested and alone; the vision's founding
-gesture has never been rendered.
+Complete — the vision renders and was watched act by act: hands
+converging inward mid-sweep with ember trails, the violet seal-line
+arriving whole and breathing in between the resting tips, the
+triangle flooding downward while the tips ember at its corners. Six
+tracks, 114 frames, peak population at 74% of the pool's estimate.
+Two interpretation choices recorded: the vision's text swaps the
+hands' resting hours in its second mention, and the line description
+("between 7 on the left clock and 5 on the right") settles it — left
+rests at 7, right at 5; and the triangle's unnamed third vertex is a
+low center point, stated as a choice in the demo where the vertices
+are defined. The dress rehearsal surfaced one vocabulary need that
+already made it into the fills issue: lines that arrive whole
+(at-once) versus lines that draw themselves (along).
 
 ## Intended Behavior
 

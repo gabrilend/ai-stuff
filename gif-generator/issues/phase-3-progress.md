@@ -12,6 +12,12 @@ gesture staged directly in code.
       is nothing but numbers, paint-then-move keeps tips smooth.
 - [x] 304 fill regions — coverage-shaped proposals never starve at
       the opening sliver; the frontier glows as it advances.
-- [ ] 305 two-clocks demo (capstone)
+- [x] 305 two-clocks demo (capstone) — the vision staged and watched
+      act by act; six tracks; the prose-to-track mapping rides as
+      comments in the demo, rehearsing the score vocabulary.
 
-Nothing started; architecture complete, blueprints written.
+Phase 3 is complete: time steers. Paths speak clock-face, easings
+carry the stroke gesture, envelopes breathe, tracks schedule by
+nothing but numbers, and regions flood with light behind advancing
+frontiers. The founding gesture exists as a watchable loop, and
+everything it taught is queued for the score language.
