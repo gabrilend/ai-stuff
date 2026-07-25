@@ -85,41 +85,55 @@ function emit.recipe(block, hue_index)
 end
 -- }}}
 
--- {{{ function emit.step()
--- One tick of one stroke's emission. Arguments tell the story:
--- where the tip is (x, y), which way it faces (hx, hy — a unit
--- heading; fills pass their own scattered headings), how strongly
--- the envelope says to emit (0..1), how long this tick is, and the
--- carried fraction from last tick. Returns the new carry.
-function emit.step(p, rng, recipe, asker, x, y, hx, hy, strength, dt, carry)
-    local due = recipe.rate * strength * dt + carry
-    local births = math.floor(due)
-    local new_carry = due - births
+-- {{{ function emit.birth()
+-- One particle, born at one place with one heading. Made public
+-- with the fill-regions issue: field emitters place EVERY birth at
+-- its own sampled point, so the single birth is the shared atom and
+-- the tick-step below is one caller of it.
+function emit.birth(p, rng, recipe, asker, x, y, hx, hy)
+    local i = pool.spawn(p, asker)
+    -- birth scatter: uniform in a disc, via angle plus rooted
+    -- radius (the root keeps the disc uniform, not center-heavy)
+    local ang = emit.uniform(rng) * 2 * math.pi
+    local rad = math.sqrt(emit.uniform(rng)) * recipe.spread
+    p.x[i] = x + math.cos(ang) * rad
+    p.y[i] = y + math.sin(ang) * rad
+    -- velocity: a blend of scatter and heading. aim = 0 wanders
+    -- every way; aim = 1 rides the stroke's motion entirely
+    local vang = emit.uniform(rng) * 2 * math.pi
+    local vmag = recipe.speed * (0.5 + emit.uniform(rng))
+    local sx, sy = math.cos(vang) * vmag, math.sin(vang) * vmag
+    p.vx[i] = sx * (1 - recipe.aim) + hx * vmag * recipe.aim
+    p.vy[i] = sy * (1 - recipe.aim) + hy * vmag * recipe.aim
+    p.age[i] = 0
+    p.life[i] = recipe.life
+                * (1 + (emit.uniform(rng) - 0.5) * 2 * recipe.life_jitter)
+    p.drag[i] = recipe.drag
+    p.jitter[i] = recipe.jitter
+    -- bright-seed: some particles simply burn brighter, rolled
+    -- once at birth so each keeps its temperament for life
+    p.seed[i] = 0.6 + emit.uniform(rng) * 0.8
+    p.hue[i] = recipe.hue
+end
+-- }}}
 
+-- {{{ function emit.due()
+-- The fractional-carry arithmetic, shared by every kind of emitter:
+-- how many whole births this tick, and what fraction rides forward.
+function emit.due(recipe, strength, dt, carry)
+    local owed = recipe.rate * strength * dt + carry
+    local births = math.floor(owed)
+    return births, owed - births
+end
+-- }}}
+
+-- {{{ function emit.step()
+-- One tick of one SPOT stroke's emission: every birth at the same
+-- tip, with the same heading. Returns the new carry.
+function emit.step(p, rng, recipe, asker, x, y, hx, hy, strength, dt, carry)
+    local births, new_carry = emit.due(recipe, strength, dt, carry)
     for _ = 1, births do
-        local i = pool.spawn(p, asker)
-        -- birth scatter: uniform in a disc, via angle plus rooted
-        -- radius (the root keeps the disc uniform, not center-heavy)
-        local ang = emit.uniform(rng) * 2 * math.pi
-        local rad = math.sqrt(emit.uniform(rng)) * recipe.spread
-        p.x[i] = x + math.cos(ang) * rad
-        p.y[i] = y + math.sin(ang) * rad
-        -- velocity: a blend of scatter and heading. aim = 0 wanders
-        -- every way; aim = 1 rides the stroke's motion entirely
-        local vang = emit.uniform(rng) * 2 * math.pi
-        local vmag = recipe.speed * (0.5 + emit.uniform(rng))
-        local sx, sy = math.cos(vang) * vmag, math.sin(vang) * vmag
-        p.vx[i] = sx * (1 - recipe.aim) + hx * vmag * recipe.aim
-        p.vy[i] = sy * (1 - recipe.aim) + hy * vmag * recipe.aim
-        p.age[i] = 0
-        p.life[i] = recipe.life
-                    * (1 + (emit.uniform(rng) - 0.5) * 2 * recipe.life_jitter)
-        p.drag[i] = recipe.drag
-        p.jitter[i] = recipe.jitter
-        -- bright-seed: some particles simply burn brighter, rolled
-        -- once at birth so each keeps its temperament for life
-        p.seed[i] = 0.6 + emit.uniform(rng) * 0.8
-        p.hue[i] = recipe.hue
+        emit.birth(p, rng, recipe, asker, x, y, hx, hy)
     end
     return new_carry
 end
