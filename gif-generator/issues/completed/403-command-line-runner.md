@@ -2,8 +2,17 @@
 
 ## Current Behavior
 
-Renders happen by running demo scripts; there is no front door that
-takes a scene file and returns a gif.
+Complete. `./run` (or the runner module directly) renders one named
+score or everything in input/, lands gifs by atomic rename from a
+same-directory dot-partial (cross-filesystem rename fails with EXDEV
+— reasoning commented), writes a plain-data report beside each gif,
+streams history to the RAM log tier (a missing tier names bootstrap
+rather than working around it), and writes goodbye last — what was
+made, and what was not. Failures don't stop siblings; the exit code
+remembers. The pipeline spine is a module shared by everything that
+renders. Proven over both reference scores; the compiled two-clocks
+immediately caught the phase-3 demo flooring 4.6×25 to 114 frames
+(floats), which the capstone will fix in the demo.
 
 ## Intended Behavior
 

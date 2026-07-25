@@ -18,15 +18,7 @@ fi
 
 "${DIR}/bootstrap" "${DIR}"
 
-# The phase-4 runner is the true tenant of this door. If it has moved in,
-# use it; if not, fall through to the demo picker so the door always
-# opens onto something real. (This is a stage of construction, not a
-# fallback: the picker path is removed when the runner lands — see the
-# command-line runner issue.)
-RUNNER="${DIR}/src/026-render-main.lua"
-if [ -f "${RUNNER}" ]; then
-    luajit "${RUNNER}" "${DIR}" "$@"
-else
-    echo "run: the score runner is not built yet; opening the demo picker."
-    "${DIR}/demo" "${DIR}"
-fi
+# The runner: a score name renders that score; no arguments renders
+# everything in input/. (The demo picker lives at ./demo for the
+# phase performances.)
+luajit "${DIR}/src/026-render-main.lua" "${DIR}" "$@"
