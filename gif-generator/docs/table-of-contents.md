@@ -28,8 +28,10 @@ docs/
 ├── architecture.md ....... the six-stage pipeline and the design
 │                           decisions that shape it
 ├── roadmap.md ............ the five phases and their issues
+├── score-format.md ....... the language's contract: every word a
+│                           score may speak, and what each means
 ├── datapath-scene-script.md
-│                           scene file → compiled timeline (the
+│                           score file → compiled timeline (the
 │                           vocabulary, the clock-face convention,
 │                           the validation wall)
 ├── datapath-particle-sim.md

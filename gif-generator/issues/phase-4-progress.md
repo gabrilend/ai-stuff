@@ -5,7 +5,9 @@ compiler and its validation wall, the runner that reads input/ and
 writes output/ and goodbye, the HTML gallery, and the vision rendered
 from a scene file by one command.
 
-- [ ] 401 scene script format
+- [x] 401 scene script format — the score vocabulary frozen in its
+      contract document; sandboxed reader; canonical writer proven a
+      fixed point; both reference scores shipped.
 - [ ] 402 scene compiler
 - [ ] 403 command-line runner
 - [ ] 404 html gallery viewer
