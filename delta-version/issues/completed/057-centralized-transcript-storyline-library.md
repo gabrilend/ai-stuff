@@ -19,7 +19,8 @@
 Built and passing its test suite. `scripts/build-storyline-library.sh` rebuilds
 `library/storyline/` on demand: at completion time, 409 transcripts shelved
 across 17 projects, spanning 2025-09-18 through 2026-07-24, with 2 UUID-named
-files loudly excluded (they carry no date token; the migrator can fix them).
+files loudly excluded (they carried no date token; they were later found to be
+empty husk sessions and are retired by the exporter — scripts issue 020).
 `scripts/test-storyline-library.sh` proves the seven promises: builder
 completes, every link resolves, shelf count matches an independent recount,
 every name carries an ISO date prefix, spans shelve under their start date,
