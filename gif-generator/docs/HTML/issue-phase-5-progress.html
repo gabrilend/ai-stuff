@@ -16,7 +16,6 @@
 <h2>notes</h2>
 <a href="notes-vision.html">vision</a>
 <h2>issues, open</h2>
-<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
 <a href="issue-601-prose-to-scene-translator.html">601-prose-to-scene-translator</a>
 <a href="issue-602-three-readings.html">602-three-readings</a>
 <a href="issue-603-spoken-vision-demo.html">603-spoken-vision-demo</a>
@@ -49,6 +48,7 @@
 <a href="issue-405-vision-render.html">405-vision-render</a>
 <a href="issue-501-parallel-render-pipeline.html">501-parallel-render-pipeline</a>
 <a href="issue-502-render-statistics-utility.html">502-render-statistics-utility</a>
+<a href="issue-503-big-canvas-demo.html">503-big-canvas-demo</a>
 </nav>
 <main>
 <h1>Phase 5 progress — many hands</h1>
@@ -64,7 +64,13 @@ counts.</p>
 <li>[x] <a href="issue-502-render-statistics-utility.html">502</a> render statistics utility — measure any scene at any</li>
 <p>      worker count with real wall time; summarize every report as
       one table; documentation cites the tool, never a memory.</p>
-<li>[ ] <a href="issue-503-big-canvas-demo.html">503</a> big-canvas demo (capstone)</li>
+<li>[x] <a href="issue-503-big-canvas-demo.html">503</a> big-canvas demo (capstone) — the doubled vision, one hand</li>
+<p>      then four, byte-identical with a measured 3x speedup; the
+      forge showpiece blooms at half a thousand pixels square.</p>
 </ul>
-<p>Nothing started; architecture complete, blueprints written.</p>
+<p>Phase 5 is complete: every core earns its keep. The sequential
+heart beats in order while worker threads draw and compress the
+frames it freezes, reassembled by sequence number alone — and the
+proof is not a benchmark but an identity: same scene, same seed,
+same bytes, any number of hands.</p>
 </main></body></html>
