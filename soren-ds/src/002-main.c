@@ -57,6 +57,7 @@ extern int  sd_write_block(uint32_t lba,
  * so its only extern now lives in 019-probe-engine.c. */
 extern void debug_log_init(void);                       /* 017-debug-log.c */
 extern void debug_log_flush(void);                      /* 017-debug-log.c */
+extern void debug_log_finalize(void);                   /* 017-debug-log.c — stamps the end-of-log marker */
 extern void run_bringup_test_suite(void);               /* 018-bringup-test-suite.c */
 #ifdef SOREN_DEBUG
 extern void probe_seed_defaults(void);   /* 019-probe-engine.c (110n) */
@@ -245,7 +246,11 @@ void kernel_main(void)
      * safely on the SD card even if a display step stalls — the display
      * drivers have bounded waits, but this ordering keeps the log honest. */
     display_bringup();
-    debug_log_flush();
+    /* End-of-log marker (110g): stamp the EOL sentinel and do the final flush,
+     * so the reader knows where this boot's log ends — everything past it is a
+     * ghost from an earlier, longer boot, since the SD log region is never
+     * wiped between boots. This replaces the plain final flush. */
+    debug_log_finalize();
     /* The interactive counterpart — run_chips() in 020-chips.c, the
      * chip-script launcher (menus, human verdicts over the USB console) —
      * is deliberately NOT called here (issues 115/116: "not enabled just
@@ -274,7 +279,7 @@ void kernel_main(void)
      * 110j/110k), triggered deliberately and headed for the fast HS200
      * (eMMC read) + UHS-I (SD write) path. The production kernel brings
      * its hardware up and parks. */
-    debug_log_flush();
+    debug_log_finalize();          /* stamp the end-of-log marker, then flush (110g) */
     led_set_stage(STAGE_BACKUP_COMPLETE);
 
     while (1) { delay_busy(1000000); }

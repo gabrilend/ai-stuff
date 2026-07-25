@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# view-log — print the kernel's SD-backed debug log as clean, ghost-free text
+#
+# General description: the kernel writes its bring-up narration to a fixed 16 MB
+# region of the microSD card (src/017-debug-log.c) and never wipes that region
+# between boots — each boot only overwrites the front, as far as its own log
+# reaches. So the raw region is this boot's log followed by leftover bytes from
+# earlier, longer boots ("ghosts"). On the final flush the kernel stamps a
+# 16-byte end-of-log sentinel (LOG_EOL_MAGIC); this viewer finds the FIRST
+# sentinel, treats everything after it as ghost, and prints only the real log —
+# with NUL padding stripped and carriage returns normalised so a plain terminal
+# (or an LLM reading stdout) sees clean lines instead of the \r-overlaid garble
+# you get from cat-ing the raw image.
+#
+# It is strictly READ-ONLY. Point it at either a dumped debug-log .img file OR
+# the SD card's block device directly — given a device it dd's the first section
+# of the log region itself (no mount needed, same as the other lab-side tools).
+#
+# Fallbacks are announced, never silent: if no end-of-log marker is found (an
+# image built before the marker existed, or a boot that crashed before its final
+# flush) it says so and shows the whole first section; if more than one marker is
+# found it says how many ghosts it skipped.
+
+set -euo pipefail
+
+# {{{ configuration — all paths and sizes relative to DIR / the region layout
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+DIR="${DIR:-$(dirname "$(dirname "$SCRIPT_DIR")")}"
+
+# The debug-log region on the SD card, kept in sync with the kernel's own copy
+# (src/017-debug-log.c LOG_SD_REGION_START) and with dump-from-sd's DEBUG_LOG_LBA.
+LOG_REGION_LBA=4194304            # 0x400000 — 2 GB into the card
+
+# We only ever scan/print the FIRST SECTION of the region: a single boot's log
+# can't exceed this, so the real end-of-log marker always lives inside it, and
+# bounding the scan keeps us away from deep ghosts entirely. 4 MB is ~25x the
+# longest observed single-boot log (a full probe sweep, ~150 KB).
+FIRST_SECTION_BYTES=4194304       # 4 MiB
+
+# RAM-backed scratch (project convention: /dev/shm tier). Falls back to /tmp if
+# the shared-memory dir isn't present (e.g. on the lab laptop, a fresh boot).
+SCRATCH_DIR="${DIR}/tmp/shared-memory"
+[[ -d "$SCRATCH_DIR" ]] || SCRATCH_DIR="/tmp"
+
+# The 16-byte end-of-log sentinel, byte-for-byte identical to LOG_EOL_MAGIC in
+# src/017-debug-log.c. The 0x8E / 0xA5 guard bytes are non-ASCII so the pattern
+# can never occur inside the ASCII log text. Built with printf so the raw bytes
+# reach grep intact.
+EOL_MAGIC="$(printf '\x8eSOREN_LOG_END\xa5Z')"
+# }}}
+
+# {{{ usage() — what this reads and how, then the caller exits
+usage() {
+    cat <<'EOF'
+view-log — print the kernel's SD debug log as clean, ghost-free text.
+
+Finds the kernel's end-of-log marker and prints only the current boot's log,
+with NUL padding and carriage returns cleaned up. Read-only.
+
+Usage:
+  scripts/lab-side/view-log <debug-log.img>      # a file dumped by dump-from-sd
+  scripts/lab-side/view-log /dev/sdX             # the SD card device (auto-reads the region)
+  scripts/lab-side/view-log --help
+
+Clean text goes to stdout (redirect or pipe it freely); notes and warnings go to
+stderr. If no end-of-log marker is found, it says so and shows the whole first
+section (which may include ghosts from earlier boots).
+EOF
+}
+# }}}
+
+# {{{ die() — message to stderr, exit non-zero
+die() {
+    printf 'view-log: %s\n' "$1" >&2
+    exit 1
+}
+# }}}
+
+# {{{ resolve_section() — produce a plain file holding the first section of the log
+# Given a regular file, we just cap it to the first section. Given a block
+# device, we dd the first section of the log region off the card (read-only)
+# into RAM-backed scratch. Either way the caller gets a path to <= FIRST_SECTION
+# bytes to scan and clean. Echoes the scratch path (or empty for the file case,
+# meaning "use the original, capped by head").
+resolve_section() {
+    local source="$1"
+    if [[ -b "$source" ]]; then
+        # Block device: read the first section of the log region directly. bs=512
+        # with skip in sectors and count sized to the section; status=none keeps
+        # stdout clean for the text we print later.
+        local scratch="${SCRATCH_DIR}/view-log-section.$$"
+        local sectors=$(( FIRST_SECTION_BYTES / 512 ))
+        printf 'view-log: reading %d MiB of the log region (LBA %d) off %s...\n' \
+            "$(( FIRST_SECTION_BYTES / 1024 / 1024 ))" "$LOG_REGION_LBA" "$source" >&2
+        # sudo only if we can't read the device unprivileged (raw devices usually
+        # need it); try without first so a readable file/loop dev doesn't prompt.
+        if ! dd if="$source" of="$scratch" bs=512 skip="$LOG_REGION_LBA" \
+                count="$sectors" status=none 2>/dev/null; then
+            sudo dd if="$source" of="$scratch" bs=512 skip="$LOG_REGION_LBA" \
+                count="$sectors" status=none
+        fi
+        printf '%s' "$scratch"
+    elif [[ -f "$source" ]]; then
+        printf ''                       # caller reads the original, capped by head
+    else
+        die "source '$source' is neither a readable file nor a block device."
+    fi
+}
+# }}}
+
+# {{{ first_marker_offsets() — byte offsets of every end-of-log marker in the section
+# LC_ALL=C + grep -a treats the binary region as bytes; -o -b -F reports the byte
+# offset of each fixed-string match. head bounds the scan to the first section.
+first_marker_offsets() {
+    local file="$1"
+    LC_ALL=C head -c "$FIRST_SECTION_BYTES" "$file" \
+        | LC_ALL=C grep -aboF "$EOL_MAGIC" \
+        | cut -d: -f1
+}
+# }}}
+
+# {{{ emit_clean() — print the first N bytes of the file as clean text
+# Strip NUL padding, drop the trailing CR of each CRLF line so a terminal renders
+# one line per line instead of overwriting at column 0. N<=0 means "the whole
+# first section".
+emit_clean() {
+    local file="$1" nbytes="$2"
+    if (( nbytes > 0 )); then
+        head -c "$nbytes" "$file"
+    else
+        head -c "$FIRST_SECTION_BYTES" "$file"
+    fi | tr -d '\000' | sed 's/\r$//'
+}
+# }}}
+
+# {{{ cleanup() — remove any RAM scratch we created
+SCRATCH_FILE=""
+cleanup() {
+    [[ -n "$SCRATCH_FILE" && -f "$SCRATCH_FILE" ]] && rm -f "$SCRATCH_FILE"
+    return 0
+}
+# }}}
+
+# {{{ main() — orchestration
+main() {
+    case "${1:-}" in
+        -h|--help) usage; exit 0 ;;
+        "") usage; die "no source given." ;;
+    esac
+    local source="$1"
+
+    trap cleanup EXIT
+    local scratch
+    scratch="$(resolve_section "$source")"
+    local scan_file="$source"
+    if [[ -n "$scratch" ]]; then
+        SCRATCH_FILE="$scratch"
+        scan_file="$scratch"
+    fi
+
+    # Collect marker offsets (may be several: this boot's, then ghosts').
+    local offsets
+    offsets="$(first_marker_offsets "$scan_file" || true)"
+
+    if [[ -z "$offsets" ]]; then
+        # Announced fallback: no marker. Old image, or a boot that died before
+        # its final flush. Show the whole first section and say it may be dirty.
+        printf 'view-log: NO end-of-log marker found — this is a pre-marker image, or the boot crashed before its final flush. Showing the whole first section; it may contain ghosts from earlier boots.\n' >&2
+        emit_clean "$scan_file" 0
+        return 0
+    fi
+
+    local first count
+    first="$(printf '%s\n' "$offsets" | head -1)"
+    count="$(printf '%s\n' "$offsets" | grep -c .)"
+    if (( count > 1 )); then
+        printf 'view-log: found %d end-of-log markers; showing up to the first (offset %d). The other %d are ghosts from earlier, longer boots.\n' \
+            "$count" "$first" "$(( count - 1 ))" >&2
+    else
+        printf 'view-log: end-of-log marker at offset %d; showing this boot only.\n' "$first" >&2
+    fi
+    emit_clean "$scan_file" "$first"
+}
+# }}}
+
+main "$@"
