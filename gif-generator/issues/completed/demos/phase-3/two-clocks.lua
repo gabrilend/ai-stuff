@@ -34,20 +34,9 @@ local DT = 1 / FPS
 local SECONDS = 4.6
 local SEED = 77
 
--- the two clock faces, side by side, and where their hands rest
+-- the two clock faces, side by side
 local LEFT  = { center = { 76, 108}, radius = 52 }
 local RIGHT = { center = {180, 108}, radius = 52 }
--- {{{ local function tip_of()
--- where a hand's sweep ends: on the circle at the resting hour
-local function tip_of(clock, hour)
-    local a = paths.clock_angle(hour)
-    return { clock.center[1] + math.cos(a) * clock.radius,
-             clock.center[2] + math.sin(a) * clock.radius }
-end
--- }}}
-local LEFT_TIP  = tip_of(LEFT, 7)
-local RIGHT_TIP = tip_of(RIGHT, 5)
-local LOW_POINT = { 128, 208 }
 
 local HUES = { "ember", "violet" }
 local EMBER, VIOLET = 0, 1
@@ -58,30 +47,44 @@ local hand_recipe = { rate = 700, spread = 2.2, speed = 26, aim = 0.7,
                       drag = 3.0, jitter = 18, life = 0.65,
                       life_jitter = 0.35 }
 
+-- "Two circles, both starting at 12 o'clock... the one on the
+--  left starts at 12 and goes to 7" — "slow at first but then
+--  fast like a stroke"
+local left_hand = tracks.track{
+    name = "left-hand", from = 0.0, lasts = 2.0,
+    ease = easing.motion("stroke"),
+    envelope = easing.envelope("hold"),
+    path = paths.arc{ center = LEFT.center, radius = LEFT.radius,
+                      from = 12, to = 7, turn = "clockwise" },
+    recipe = emit.recipe(hand_recipe, EMBER),
+}
+
+-- "the one on the right is reversed such that it starts at 12
+--  and sweeps around to about 5, counterclockwise"
+local right_hand = tracks.track{
+    name = "right-hand", from = 0.0, lasts = 2.0,
+    ease = easing.motion("stroke"),
+    envelope = easing.envelope("hold"),
+    path = paths.arc{ center = RIGHT.center, radius = RIGHT.radius,
+                      from = 12, to = 5, turn = "counterclockwise" },
+    recipe = emit.recipe(hand_recipe, EMBER),
+}
+
+-- the tips come from the landmark machinery itself — the same
+-- arithmetic the score compiler uses to resolve tip("left-hand"),
+-- so the compiled vision renders byte-identical to this staging
+-- (computing them independently differed in the last floating-point
+-- bits, and byte-identity is the whole proof)
+local ltx, lty = tracks.endpoint(left_hand)
+local rtx, rty = tracks.endpoint(right_hand)
+local LEFT_TIP  = { ltx, lty }
+local RIGHT_TIP = { rtx, rty }
+local LOW_POINT = { 128, 208 }
+
 local timeline = tracks.timeline({
 
-    -- "Two circles, both starting at 12 o'clock... the one on the
-    --  left starts at 12 and goes to 7" — "slow at first but then
-    --  fast like a stroke"
-    tracks.track{
-        name = "left-hand", from = 0.0, lasts = 2.0,
-        ease = easing.motion("stroke"),
-        envelope = easing.envelope("hold"),
-        path = paths.arc{ center = LEFT.center, radius = LEFT.radius,
-                          from = 12, to = 7, turn = "clockwise" },
-        recipe = emit.recipe(hand_recipe, EMBER),
-    },
-
-    -- "the one on the right is reversed such that it starts at 12
-    --  and sweeps around to about 5, counterclockwise"
-    tracks.track{
-        name = "right-hand", from = 0.0, lasts = 2.0,
-        ease = easing.motion("stroke"),
-        envelope = easing.envelope("hold"),
-        path = paths.arc{ center = RIGHT.center, radius = RIGHT.radius,
-                          from = 12, to = 5, turn = "counterclockwise" },
-        recipe = emit.recipe(hand_recipe, EMBER),
-    },
+    left_hand,
+    right_hand,
 
     -- the resting tips keep a quiet ember while the seal is drawn —
     -- the vision keeps them as the triangle's upper corners, so the
@@ -151,7 +154,9 @@ local colors = splat.colors_for(HUES)
 local cv = canvas.new(SIZE, SIZE)
 local snap = splat.snapshot(p.capacity)
 
-local FRAMES = math.floor(SECONDS * FPS)
+-- round, not floor: 4.6 x 25 is 114.999... in floats, and flooring
+-- it stole a frame (the runner's first outing caught this)
+local FRAMES = math.floor(SECONDS * FPS + 0.5)
 local frames = {}
 local peak = 0
 for f = 0, FRAMES - 1 do

@@ -1,0 +1,44 @@
+#!/bin/bash
+# run — performs the phase-4 demo: the scene language, end to end.
+# What it does, generally: renders every score in input/ through the
+# front door, then proves the language transparent — the compiled
+# vision must be byte-identical to phase 3's hand-choreographed
+# staging — then rebuilds the linked gallery and opens it, so the
+# vision loops beside every earlier demo with its measured numbers.
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+"${DIR}/bootstrap" "${DIR}"
+
+echo "— the front door: every score in input/ —"
+luajit "${DIR}/src/026-render-main.lua" "${DIR}"
+
+echo ""
+echo "— the identity proof: language versus hand —"
+STAGED="${DIR}/issues/completed/demos/phase-3/two-clocks.gif"
+SPOKEN="${DIR}/output/two-clocks.gif"
+if cmp -s "${STAGED}" "${SPOKEN}"; then
+    BYTES=$(wc -c < "${SPOKEN}")
+    echo "byte-identical: the compiled score and the hand-staged"
+    echo "vision are the same ${BYTES} bytes. The language adds"
+    echo "nothing and loses nothing."
+else
+    echo "IDENTITY BROKEN: the compiled vision differs from the"
+    echo "hand-staged one. The language is coloring the picture —"
+    echo "that is a bug, and the render above is not to be trusted."
+    exit 1
+fi
+
+echo ""
+echo "— the gallery —"
+luajit "${DIR}/src/027-gallery.lua" "${DIR}"
+
+PAGE="${DIR}/docs/HTML/index.html"
+if [ -n "$DISPLAY" ] && command -v xdg-open > /dev/null; then
+    xdg-open "${PAGE}" &
+else
+    echo "(no display here — open ${PAGE} in a browser to wander)"
+fi

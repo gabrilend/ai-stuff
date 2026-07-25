@@ -2,9 +2,9 @@
 
 ## Current Behavior
 
-Complete, except the render-identity proof, which belongs to the
-vision-render capstone where the demo it compares against gets its
-tips from the landmark machinery. The wall collects every error and
+Complete. The render-identity proof landed with the vision-render
+capstone: the compiled score and the hand-staged phase-3 demo render
+the same bytes, compared publicly in the phase-4 demo script. The wall collects every error and
 reports them together, naming stroke and field, teaching the nearest
 legal word by edit distance against the live vocabulary tables (the
 emitter module exposed its defaults table for this — cross-noted).
