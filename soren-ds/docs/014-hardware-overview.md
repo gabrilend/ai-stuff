@@ -473,13 +473,29 @@ trusting closed-source Anbernic firmware on the USB bus, is:
    Android's kernel is gone; u-boot, the miniloader, and the
    chip ROM are all untouched.
 
-3. **Daily iteration runs over USB-C through SoreOS itself.**
-   Issue 110c makes SoreOS-on-eMMC enter a flash-receive mode at
-   boot if a flag is set (a button held, or a recent reset
-   reason). The laptop-side build tool sends the new image over
-   the USB CDC channel from issue 110, SoreOS writes it to the
-   eMMC, SoreOS reboots. Both ends of the USB bus are code we
-   wrote. Anbernic's firmware never participates.
+3. **Daily iteration stays on SD-boot; the eMMC is written only
+   for user releases.** *(Refined 2026-07-24.)* In-progress builds
+   are never written to the eMMC. Each dev cycle rebuilds the
+   microSD image (`scripts/build-bootable-sd`) and reflashes the
+   card; the device boots our kernel from SD and diagnostics come
+   back off the card's debug-log region, read with
+   `scripts/lab-side/view-log`. The eMMC boot-partition writer
+   (110b) runs ONLY when deploying a release build to users — not
+   for iteration. Two properties fall out for free: every dev
+   build is recoverable by definition (a bad build is one card
+   reflash away, and the eMMC is never left half-written), and the
+   device stays off any active USB bus during development.
+
+   The USB-C flash loop originally planned here (issue 110c) is
+   **deferred**. It would remove the card swap, but it depends on
+   trusting a live USB link between the laptop and the device
+   during development, and we are not comfortable with that link
+   for now. SD-boot iteration is fast enough with the log tooling
+   in place, so 110c waits for a concrete need (a release/OTA
+   story) rather than being built speculatively. The eMMC wipe
+   (110q) has already run, so the device boots ONLY from SD — no
+   stock OS to fall through to — which makes SD-boot iteration
+   unambiguous.
 
 4. **Recovery paths beneath this, in increasing order of pain.**
    - First failure (SoreOS on eMMC is broken): insert SD card
