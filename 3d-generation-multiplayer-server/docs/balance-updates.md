@@ -19,7 +19,7 @@ value changed at eleven at night does not leave four documents lying.
 
 ### 2026-07-31 — the file exists before anything can be tuned
 
-No values yet. The dials that will land here first, once phase 4 draws anything:
+No values yet. The dials that will land here first, once phase 5 draws anything:
 
 - **the whisp** — arm count range, points per arm, arm length, wander
   frequencies and amplitudes, the exponent on the amplitude ramp, spin rate,

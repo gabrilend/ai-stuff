@@ -1,17 +1,16 @@
 # input/world/first-room.shape
 #
-# A TEST FIXTURE, not a world. The real map format is the game's own — see
-# docs/datapath-the-world-of-shapes.md — and nothing here is ever turned into
-# server-side collision, height, or navigation data.
+# A world, in text. This is the authoring format: there is no client data to
+# extract from, so our geometry is the authority and everything the server needs
+# — height, collision, and the navigation mesh built from those two — is derived
+# from files like this one. See docs/datapath-the-fabricated-data.md.
 #
-# This file exists for two jobs. It gives the renderer something to draw before
-# the extraction pipeline is standing, so a window with a triangle in it does
-# not have to wait on a toolchain. And it is small enough to reason about by
-# hand, which is what you want the day the camera matrix is wrong and you need a
-# scene where you already know every coordinate.
+# Both halves read what comes out of it, which means what a player sees and what
+# the server believes are the same triangles. There is no second copy to drift.
 #
 # The smallest useful thing: a floor big enough to walk across, four walls so
-# there is an inside, one ramp so height exists, and two blocks to stand behind.
+# there is an inside, one ramp so height exists, and two blocks to stand behind
+# so line of sight has something to test.
 #
 # ─── format ────────────────────────────────────────────────────────────────
 #
