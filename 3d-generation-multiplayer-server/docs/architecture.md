@@ -14,14 +14,15 @@ are peeled straight back off — so the clone always round-trips to a pristine
 copy of upstream. Against that server we write our own client, in C, which
 speaks the authentic wire protocol from its very first run. There is no copy of
 the original client anywhere in this, so everything that server expects a client
-to have provided — a hundred fixed-layout data tables, and the terrain — is
-generated instead, from schemas read out of the server's own source. Then,
-config by config and patch by patch, the game is *selected* down: nobody is
-handed an ability, the maps become squares and triangles, and the players become
-pink star squiggles, while everything unreached stays present and silent. When
-what we have built needs something the protocol cannot say, we add a message
-rather than replace the protocol, and the client and the server stop being two
-projects that agree on a format and become one project that has an inside.
+to have provided is either generated — from schemas read out of the server's own
+source — or gated off until something actually wants it, which is how the first
+world is a featureless void that boots and talks. Then, one gate and one patch
+at a time, a game is *selected* out of what is there: nobody is handed an
+ability, the ground becomes squares and triangles, the players become pink star
+squiggles, and everything unreached stays present and silent. An original client
+should still be able to connect to that void and hold a conversation, because a
+second implementation of the format is the only thing that can tell us we are
+wrong. It is not done until our own client can do it instead.
 
 ---
 
@@ -131,12 +132,23 @@ day 30   our client ──authentic protocol──▶ fabricated world     ✓ s
 day 90   our client ──protocol + our own─▶ a server, configured  ✓ arrived
 ```
 
-The protocol is not thrown away in the end. If all of what it carries may
-eventually be wanted, discarding the messages that carry it would mean paying
-twice for the same ground — so what happens instead is that we add messages
-where the game we built needs something the format cannot say, and keep what
-already works. Learning the format thoroughly turns out to be the durable
-investment rather than the temporary one.
+Whether the protocol is eventually replaced is left open — *"I never said
+never"* — but it is not a goal, and there is a property being held on purpose in
+the meantime:
+
+> **An original client should be able to connect to us and talk, standing in a
+> blank featureless void.** And ideally in whatever we manage to build after
+> that, too.
+
+That is worth holding for a reason beyond sentiment. A real client is an
+**independent implementation of the format**, written by people who had the
+specification, and it will disagree with us wherever we are wrong. Nothing else
+available gives a second opinion about whether our server is correct. It is the
+only oracle in the project that we did not also write.
+
+The completion criterion is the other direction and is not negotiable: **there
+is a custom client before any of this is called done.** Compatibility is a
+property we keep because it is useful; our own client is the point.
 
 The client also gets to be radically incomplete. It needs enough of the
 protocol to log in, enumerate characters, enter a world, move, click a thing,

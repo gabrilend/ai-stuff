@@ -16,6 +16,9 @@ the index at the head of each filename; the issues are indexed by
 │   ├── vision ............................ the original request, unedited
 │   └── spoken-while-building.md .......... the person's words during the making, verbatim
 │
+├── llm-transcripts/                    the whole assembly, session by session
+│   └── (written by the transcript tooling, not by hand)
+│
 ├── docs/
 │   ├── table-of-contents.md .............. this file
 │   ├── architecture.md ................... three trees, two protocols, one thesis
@@ -23,7 +26,7 @@ the index at the head of each filename; the issues are indexed by
 │   │
 │   ├── datapath-the-patch-machine.md ..... clone → apply → build → revert → audit
 │   ├── datapath-the-handshake.md ......... a proof that never carries the password
-│   ├── datapath-the-fabricated-data.md ... the tables and terrain no client provided
+│   ├── datapath-the-fabricated-data.md ... the gates, and the tables opened one at a time
 │   ├── datapath-the-world-stream.md ...... encrypted headers, opcodes, update blocks
 │   ├── datapath-the-whisp.md ............. how a pink star squiggle is made
 │   ├── datapath-the-world-of-shapes.md ... terrain, four schemes, and the authoring format
@@ -99,7 +102,7 @@ detailed in `docs/roadmap.md`.
 |---|---|---|
 | 1 | **The Tree That Isn't Ours** | changing code we did not write, safely and reversibly, forever |
 | 2 | **The Handshake** | the login conversation; a session key, headless |
-| 3 | **The Fabricated Data** | the tables and terrain a client would have provided, made instead |
+| 3 | **The Void That Boots** | routing past the data requirement instead of satisfying it |
 | 4 | **The World Stream** | the encrypted duplex stream, and a model of what exists |
 | 5 | **The World of Shapes** | the first time anyone sees anything |
 | 6 | **The Selection** | choosing what the game is, without deciding what the server may never do |
