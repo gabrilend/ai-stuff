@@ -29,14 +29,64 @@ they are absent. This is a hard boot requirement, not a degradation:
 | **collision data** | triangle soup for line of sight | extracted, per map |
 | **navigation data** | pathfinding mesh | *built from the two above*, by a tool |
 
-And one large thing that is **not** on this list, which is the whole reason this
-is possible: the **world database** — creatures, items, quests, spawns,
-gameobjects, starting positions — ships as SQL alongside the server source. It
-was never client data. It is already ours to use.
+One large thing is **not** on this list: the **world content** — creatures,
+items, quests, spawns, gameobjects, starting positions — which ships as SQL
+alongside the server source and was never client data.
 
-So the gap is narrower than it first looks. We are not reconstructing a game. We
-are producing the fixed-layout tables and the terrain grids that the server reads
-before it will agree the world exists.
+We are not going to use that either.
+
+> *"We shouldn't need any of that SQL data either, except as a reference."*
+
+Consistent, and worth stating outright, because "it is right there and it is
+free" is a genuinely tempting argument. Taking it would mean the first world
+that boots is somebody else's world with our geometry laid over the top, and
+every identifier in it would be a decision inherited rather than made. It is
+kept as a **reference** — a large, working, internally consistent example of how
+the tables relate to one another, which is the best documentation of that
+relationship available — and nothing more.
+
+Database *schemas* are a separate matter from the content in them. Accounts and
+characters still have to be stored somewhere.
+
+---
+
+## Do not satisfy the requirement — route past it
+
+Everything above says: generate the hundred tables, then start the server.
+There is a cheaper first move, and it is the one being taken.
+
+> Data is not needed by "the server." It is needed by *particular subsystems*,
+> and those subsystems form a chain. No map means no world; no world means
+> nothing is standing in it; nothing standing in it means no character designs
+> are needed. Cut the chain at the top and everything below stops asking.
+
+So the requirement becomes **a gate per subsystem** rather than one wall at the
+front door, and the server boots with every gate closed and nothing loaded. A
+closed gate skips the load, disables the subsystem so nothing reaches into a
+hole, and — not optional — announces itself by name at every startup. A gate is
+a configured absence rather than a fallback, and that difference has to be
+visible or it is not worth the distinction.
+
+What is reachable with nothing whatsoever loaded:
+
+```
+   client                                          world server
+     │◀─── AUTH_CHALLENGE ──────────────────────────│   it started
+     │──── AUTH_SESSION ───────────────────────────▶│   it is listening
+     │◀─── AUTH_RESPONSE  accepted ─────────────────│   it knows who we are
+     │──── CHAR_ENUM ──────────────────────────────▶│
+     │◀─── CHAR_ENUM  (empty list) ─────────────────│   it is talking
+```
+
+An empty character list is the *correct* answer for an account with no
+characters. None of that exchange needs a map, a race table, a display, or a row
+of content. It is the whole of "running and talking," and it is reached before a
+single table has been written.
+
+Everything in the rest of this document is therefore not a prerequisite. It is
+what happens **one gate at a time**, each opened by the subsystem that wanted it,
+in whatever order we turn out to want them.
+`issues/301-boot-the-server-with-no-data.md` is where that starts.
 
 ---
 
@@ -170,22 +220,21 @@ format, and the generated files are derived from it. It went from authoritative,
 to a fixture, and back, across three answers in one sitting; this note is here
 so that flip is visible rather than looking like it was always obvious.
 
-### The constraint that keeps the SQL usable
+### The identifiers are ours
 
-The world database ships with the server and references identifiers that the
-tables are expected to contain: a starting position on a particular map, a race,
-a class, a display. If we invent identifiers freely, that SQL stops matching and
-we inherit the job of rewriting it too.
+The shipped content references identifiers the tables are expected to contain: a
+starting position on a particular map, a race, a class, a display. Reusing those
+numbers would make that content work immediately, and it is not being reused.
 
-So the rule for the first fabricated set is: **keep the identifiers, replace the
-content.** Race one is still race one; the row that describes it is ours. The
-starting map is a map we made, and the starting position is moved onto it by a
-data change — which is an idempotent insert, reversible, and therefore an
-ordinary patch.
+**Every identifier is one we chose.** Not because the alternative is difficult,
+but because the alternative is inheriting a hundred decisions nobody here made
+and then discovering, a year in, that some of them mean something. A world with
+one race in it should have one race in it, numbered whatever we like, described
+by a row we wrote.
 
-Diverging from the shipped identifiers is a decision available later, once
-something is actually gained by it. Doing it on day one would cost a rewrite of
-data we were handed for free.
+The cost is real and small: nothing shipped will match, so nothing shipped can
+be dropped in. Since the shipped content is reference material rather than
+material, that cost is already paid.
 
 ---
 
