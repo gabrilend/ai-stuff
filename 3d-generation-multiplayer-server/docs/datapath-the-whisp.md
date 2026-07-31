@@ -86,8 +86,9 @@ pays for years:
 - **Everyone sees the same one.** No synchronisation, because there is nothing
   to synchronise — the function is deterministic and the input is public.
 - **It costs nothing.** Not one byte on the wire, not one row in a database.
-- **It survives the narrowing.** When phase 5 deletes most of the character
-  system, appearance is not among the casualties, because it was never stored.
+- **Nothing downstream can take it away.** Appearance is not a field in a table
+  that a later decision about characters could drop, rename, or fail to migrate.
+  It is a function, and its input is the one thing a character cannot lose.
 
 The mixing function must be a real avalanche mix, not a truncation. Sequential
 identifiers are common — characters made in a row on a fresh server differ only

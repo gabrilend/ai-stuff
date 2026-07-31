@@ -17,10 +17,11 @@ scripts/enter-sandbox.sh
 build/
 install/
 
-# Extracted client data (DBC tables, map/vmap/mmap collision and pathing files).
-# These come out of a copy of the retail client nobody should be redistributing,
-# and the custom ones are generated from assets/geometry by our own tools.
-assets/extracted/
+# The fabricated client data: the fixed-layout tables the world server refuses
+# to start without, plus terrain, collision, and the navigation mesh. All of it
+# is generated from input/ and from schemas read out of the clone, so it is a
+# build artifact on exactly the same footing as the patched tree — regenerate,
+# never commit. See docs/datapath-the-fabricated-data.md.
 assets/generated/
 
 # The account and realm the client logs into are the person's own. The example

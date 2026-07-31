@@ -196,8 +196,8 @@ machines. The selection is data, in a table:
 declare -A PREBUILD_PATCHES=(
     ["stock"]=""                        # unmodified upstream: the day-1 baseline
     ["compile"]="P001 P004"             # only what our toolchain needs to build
-    ["narrowed"]="P001 P004 P009 …"     # compile fixes + the gameplay stripping
-    ["ours"]="P001 … P0nn"              # everything, including our own protocol
+    ["world"]="P001 P004 P009 …"        # + what the fabricated data needs to load
+    ["ours"]="P001 … P0nn"              # everything, including messages of our own
 )
 ```
 

@@ -32,46 +32,60 @@ change none of it.
 
 ---
 
-## The part that falls out for free
+## The pipeline, with no client anywhere in it
 
-The collision file is **a triangle soup with a spatial index over it.** Our
-renderer wants triangles. So:
+There is no retail data to extract from, so nothing is extracted. Our own
+geometry is the authority and everything else is derived from it:
 
 ```
-   3.3.5a map data  (the client's own archives)
+   input/world/*.shape        authored, in text, hand-editable
           │
-          ▼   the stock extraction tools, unpatched
-   .map  ·  .vmap  ·  .mmap
+          ▼   tools/fabricate
+   .map (height)  ·  .vmap (collision)
+          │                    │
+          │                    ▼   the server's own tool, unmodified
+          │              .mmap (navigation)
           │
           ├──────────────▶  the server:  height, sight, paths
-          │
           └──────────────▶  our client:  the geometry it draws
 ```
 
-**Both halves read the same files.** What you see is what you collide with — not
-by careful synchronisation, but because there is only one set of data and no
-second copy to drift from. The class of bug where the wall on screen is not the
-wall the server believes in cannot occur, because there is no second wall.
+Two properties fall out, and the first is the good one.
 
-The heightfield gives the ground; the collision soup gives everything standing
-on it. Flat-shade both, index the colours into a scheme, and a real map comes
-out the other side as pure abstract geometry — which is, almost exactly, the
-thing the vision describes.
+**Both halves read the same files.** The collision file is a triangle soup with
+a spatial index; our renderer wants triangles. So what you see is what you
+collide with — not by careful synchronisation, but because there is one set of
+data and no second copy to drift from. The class of bug where the wall on screen
+is not the wall the server believes in cannot occur, because there is no second
+wall.
 
-### Which means the first world is free
+**The navigation mesh is never written.** It is built by a tool that ships with
+the server, from height and collision data. Producing those two correctly is the
+entire job, and the hardest-sounding artifact costs nothing — which is most of
+why keeping the game's own format was worth it.
 
-Point the extractors at a copy of the retail client's data, and phase 4 has
-somewhere to stand on its first day: real maps, real collision, real
-pathfinding, rendered as untextured flat polygons in four colour schemes. No
-authoring, no custom-map pipeline, no generator.
+### The order this arrives in
 
-That is a very large early payoff for one decision, and it reorders the work —
-seeing a world comes *before* making one, instead of after.
+Collision does not come first. Flat ground does.
 
-Custom maps, when they come, emit these same formats. Whether by writing the
-client-side format and running the stock extractors over it, or by emitting the
-extracted files directly, is a later question that this decision does not block.
-That is the point of the decision.
+```
+   flat ground, no collision, no paths     ← the server boots; a character walks
+        │
+        ▼   once there is geometry worth having
+   collision from our shapes                ← line of sight, standing on things
+        │
+        ▼   built by the server's own tool
+   navigation mesh                          ← free
+```
+
+The height format has a flag meaning *this tile is flat at one height*, under
+which there is no grid at all — a few dozen bytes for a whole tile. And line of
+sight, collision height, and pathfinding are each switchable off in the server's
+own configuration, which is a supported setting rather than a hack. So the first
+world that boots is a floor, and everything else is added when there is a reason
+to.
+
+`docs/datapath-the-fabricated-data.md` carries the generation mechanism.
 
 ---
 
@@ -122,10 +136,11 @@ rule with a reason, and it is checkable by a small tool rather than by memory.
    whisps on top, billboarded, two passes each
 ```
 
-Real maps are tiled — a large world is a grid of them, and only the ones nearby
-are ever needed. That is inherited structure, and it is exactly the structure
-streaming wants, so tile-at-a-time loading is the natural shape rather than an
-optimisation bolted on later.
+The format is tiled — a large world is a grid of tiles, and only the ones nearby
+are ever needed. That is inherited structure, and it happens to be exactly the
+structure streaming wants, so tile-at-a-time loading is the natural shape rather
+than an optimisation bolted on later. Our worlds start as one tile, which makes
+the machinery unnecessary and present, which is the right order.
 
 Flat shading takes its value from a face's normal, computed once at load. No
 lighting at runtime, no textures, no normals in the file — the normal is derived
@@ -138,26 +153,51 @@ it is to implement the cheap version of each and look.
 
 ---
 
-## The scratch format, and what it is *not*
+## The authoring format
 
-`input/world/*.shape` is a small text format — quads, triangles, boxes — that
-exists to give the renderer something to draw before the extraction pipeline is
-standing, and to make a deliberately awkward test case when one is wanted.
+`input/world/*.shape` is where worlds are written. Text, hand-editable, read out
+of `input/` — because a program should learn how to start by reading `input/`,
+and because a world you cannot edit in a text editor is a world you will not
+experiment with.
 
-**It is not the world format and it is not authoritative.** Nothing derives
-server data from it. If it ever starts to look like the place worlds are
-authored, that is a decision to make on purpose and write down, not a drift to
-allow.
+The primitives are the ones the vision names, and no others:
+
+```
+    # a floor: a quad on the ground plane, one palette slot
+    quad   0,0,0   16,0,0   16,16,0   0,16,0   c=2
+
+    # a wall: a quad standing up
+    quad   0,0,0   16,0,0   16,0,8    0,0,8   c=3
+
+    # a ramp: a triangle, which is how height happens without curves
+    tri    0,0,0   16,0,0   16,0,8            c=2
+
+    # a block: shorthand that expands to six quads
+    box    32,32,0  →  48,48,12               c=1
+```
+
+Coordinates are the server's own world coordinates, in its own units, so nothing
+is transformed between what we draw and what it believes. `c=` is a palette
+**slot**, never a literal colour, which is what makes one file render four ways.
+
+**No curves. No textures. No normals.** A face's shade comes from its winding,
+computed at load.
+
+> This file's status flipped twice in one sitting — authoritative, then a test
+> fixture when it looked like retail data would supply the worlds, then
+> authoritative again once it was clear no retail data was coming. The note is
+> here so the flip is visible rather than looking like it was obvious all along.
 
 ---
 
 ## Registering a map with the server
 
 A row in the server's map table saying the map exists, its numeric id, its
-directory name, and its type. Needed only once custom maps arrive; the retail
-maps are already registered.
+directory name, and its type — plus moving the starting position onto it, since
+the shipped SQL puts new characters somewhere that no longer exists.
 
-This is a **non-textual patch** and follows the same contract as every other one:
+The row itself is fabricated with the rest of the tables. The starting position
+is a **non-textual patch**, and it follows the same contract as every other one:
 apply is an idempotent insert keyed on the map id, unapply is the matching
 delete, and the guard is a row-presence check. Same four properties as a text
 patch, different substrate.
@@ -173,10 +213,11 @@ same reason a module beats a source edit.
 
 ```
 src/world/
+    shape       the authoring format: text → polygons, one pass
     mapfile     the heightfield: tiles, grids, area identifiers
     vmapfile    the collision soup and its spatial index
-    shape       the scratch text format — fixtures only
 tools/
+    fabricate      shapes → the height and collision files the server reads
     scheme-check   asserts no scheme contains pink, and that every palette
                    slot clears the contrast threshold against its background
 src/draw/

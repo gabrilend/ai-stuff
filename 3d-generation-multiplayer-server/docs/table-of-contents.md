@@ -1,9 +1,9 @@
 # 3d-generation-multiplayer-server — table of contents
 
 An existing server we did not write, cloned fresh on every build and never
-committed, narrowed patch by reversible patch until the game it hosts is
-movement, one click, and waiting — played by pink star squiggles in a world of
-squares and triangles.
+committed, fed on tables and terrain no client ever provided, and configured
+down to a game of movement, one click, and waiting — played by pink star
+squiggles in a world of squares and triangles.
 
 Source files and issue files are not listed here. The source order is given by
 the index at the head of each filename; the issues are indexed by
@@ -19,20 +19,22 @@ the index at the head of each filename; the issues are indexed by
 ├── docs/
 │   ├── table-of-contents.md .............. this file
 │   ├── architecture.md ................... three trees, two protocols, one thesis
-│   ├── roadmap.md ........................ six phases, and the open questions
+│   ├── roadmap.md ........................ seven phases, and the open questions
 │   │
 │   ├── datapath-the-patch-machine.md ..... clone → apply → build → revert → audit
 │   ├── datapath-the-handshake.md ......... a proof that never carries the password
+│   ├── datapath-the-fabricated-data.md ... the tables and terrain no client provided
 │   ├── datapath-the-world-stream.md ...... encrypted headers, opcodes, update blocks
 │   ├── datapath-the-whisp.md ............. how a pink star squiggle is made
-│   ├── datapath-the-world-of-shapes.md ... terrain, four schemes, and custom maps
+│   ├── datapath-the-world-of-shapes.md ... terrain, four schemes, and the authoring format
 │   │
 │   ├── balance-updates.md ................ knobs turned and levers pulled, append-only
 │   ├── patches/ .......................... generated: the registry, and audit reports
-│   └── HTML/ ............................. generated documentation pages (phase 6)
+│   └── HTML/ ............................. generated documentation pages (phase 7)
 │
 ├── strategems/                         patterns that proved useful beyond this project
-│   └── the-tree-is-a-build-artifact.md ... version the intent, regenerate the result
+│   ├── the-tree-is-a-build-artifact.md ... version the intent, regenerate the result
+│   └── the-upstream-tree-is-the-schema.md  never transcribe what you can extract
 │
 ├── desire/
 │   └── what-would-be-better.md ........... wanting that has not earned a blueprint yet
@@ -43,7 +45,8 @@ the index at the head of each filename; the issues are indexed by
 ├── input/                              read first; how the program learns to start
 │   ├── account.example ................... where to log in; copy to input/account
 │   ├── realm.example ..................... which world to enter; copy to input/realm
-│   └── world/ ............................ scratch geometry: renderer fixtures, NOT the map format
+│   ├── world/ ............................ the geometry, in text — the authority for both halves
+│   └── (map and area definitions, once phase 3 needs them)
 │
 ├── output/                             written last; where goodbye goes
 │   └── sessions/ ......................... recorded packet logs, gitignored, replayable
@@ -96,10 +99,11 @@ detailed in `docs/roadmap.md`.
 |---|---|---|
 | 1 | **The Tree That Isn't Ours** | changing code we did not write, safely and reversibly, forever |
 | 2 | **The Handshake** | the login conversation; a session key, headless |
-| 3 | **The World Stream** | the encrypted duplex stream, and a model of what exists |
-| 4 | **The World of Shapes** | the first time anyone sees anything |
-| 5 | **The Narrowing** | taking things away, one reversible patch at a time |
-| 6 | **One Project** | the client and the engine become one thing |
+| 3 | **The Fabricated Data** | the tables and terrain a client would have provided, made instead |
+| 4 | **The World Stream** | the encrypted duplex stream, and a model of what exists |
+| 5 | **The World of Shapes** | the first time anyone sees anything |
+| 6 | **The Selection** | choosing what the game is, without deciding what the server may never do |
+| 7 | **One Project** | the client and the engine become one thing |
 
 ## Where to start reading
 

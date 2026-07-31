@@ -40,7 +40,13 @@ wire. The same trick twice.
 world in characters. Not for players — for proving the world model really is
 independent of the renderer, which is a claim currently made only on paper.
 
-**Knowing whether anyone else has done the extractor trick.** Patching the
-front end of an extraction tool instead of the server itself feels too tidy to
-be original. Somebody has done this, and their scar tissue would be worth
-reading.
+**Knowing whether anyone else has run a server on fabricated data.** Generating
+the whole set of client-side tables from scratch, rather than extracting them,
+feels like something people must have attempted. Their scar tissue — which
+tables turned out to hide requirements, what broke six months in — would be
+worth more than any amount of reading the loader.
+
+**A viewer for the fabricated tables.** They are opaque binary files with no
+checksums, where a column miscount produces plausible garbage rather than an
+error. Something that renders one as a grid, using the extracted schema for the
+column names, would turn a class of silent bug into something visible.
