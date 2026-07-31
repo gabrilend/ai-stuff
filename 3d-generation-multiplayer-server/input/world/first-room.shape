@@ -1,0 +1,58 @@
+# input/world/first-room.shape
+#
+# A TEST FIXTURE, not a world. The real map format is the game's own — see
+# docs/datapath-the-world-of-shapes.md — and nothing here is ever turned into
+# server-side collision, height, or navigation data.
+#
+# This file exists for two jobs. It gives the renderer something to draw before
+# the extraction pipeline is standing, so a window with a triangle in it does
+# not have to wait on a toolchain. And it is small enough to reason about by
+# hand, which is what you want the day the camera matrix is wrong and you need a
+# scene where you already know every coordinate.
+#
+# The smallest useful thing: a floor big enough to walk across, four walls so
+# there is an inside, one ramp so height exists, and two blocks to stand behind.
+#
+# ─── format ────────────────────────────────────────────────────────────────
+#
+#   quad  x,y,z  x,y,z  x,y,z  x,y,z   c=N     four corners, wound counter-clockwise
+#   tri   x,y,z  x,y,z  x,y,z          c=N     three corners, same winding
+#   box   x,y,z → x,y,z                c=N     shorthand: expands to six quads
+#
+# Coordinates are the server's own world units, so nothing needs transforming
+# between what we draw and what it thinks. c= is a PALETTE SLOT, never a colour
+# — which is what lets one file render four different ways. Slot meanings are in
+# docs/datapath-the-world-of-shapes.md; the values are in the scheme tables.
+#
+# Winding decides which way a face points, and facing decides its shade, since
+# there is no lighting at runtime. A quad wound the wrong way is a face that is
+# both dark and invisible from the side you meant.
+#
+# ───────────────────────────────────────────────────────────────────────────
+
+# the ground — 64 units square, slot 1
+quad    0,0,0     64,0,0    64,64,0    0,64,0     c=1
+
+# four walls, 8 high, slot 2. Note the winding: each is wound so its face turns
+# INWARD, because the room is meant to be seen from inside.
+quad    0,0,0     0,0,8     64,0,8     64,0,0     c=2
+quad   64,0,0    64,0,8    64,64,8    64,64,0     c=2
+quad   64,64,0   64,64,8    0,64,8     0,64,0     c=2
+quad    0,64,0    0,64,8     0,0,8      0,0,0     c=2
+
+# a ramp against the north wall — this is how height happens without curves.
+# Two triangles and a quad: the sloped face, and the two sides that close it.
+tri    16,64,0   32,64,0   32,56,0                c=3
+quad   16,64,0   32,64,0   32,56,4   16,56,4      c=3
+tri    16,64,0   16,56,4   16,56,0                c=3
+tri    32,64,0   32,56,0   32,56,4                c=3
+
+# two blocks to stand behind. The whole point of these is collision: they are
+# the first test of whether "can I see you" and "can I walk here" agree with
+# what is on screen.
+box    20,20,0 → 28,28,6                          c=4
+box    40,36,0 → 44,52,10                         c=4
+
+# a low step, one unit high, to find out whether small height changes read at
+# all in flat shading — or whether they need an edge line to be visible.
+box     8,8,0  → 14,14,1                          c=3
