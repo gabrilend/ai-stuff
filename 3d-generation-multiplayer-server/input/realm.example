@@ -1,0 +1,24 @@
+# input/realm.example
+#
+# Copy to input/realm and fill in. Read after input/account, once the login
+# server has told us which worlds exist.
+#
+# Note what is NOT in this file: the world server's address. That is deliberate.
+# The login server sends a realm list containing "host:port" for each world, and
+# taking the address from there rather than from a config file is the difference
+# between a client that can be pointed at a server and a client that has one
+# compiled into it. See docs/datapath-the-handshake.md.
+
+# Which realm from the list to enter, by name. Matched case-insensitively.
+# If it is not in the list, the client says which realms it DID see and stops —
+# it does not pick the first one and hope. A fallback here would mean logging
+# into the wrong world without being told.
+realm = AzerothCore
+
+# Which character to play, by name. Empty means "list them and stop", which is
+# the useful behaviour before any character exists.
+character =
+
+# Which colour scheme to open in: white, black, blue, or green.
+# Switchable in-world by keypress; this is only where it starts.
+scheme = black

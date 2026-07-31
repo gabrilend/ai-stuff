@@ -1,0 +1,19 @@
+azerothcore, except with a custom client and new graphic styles and custom maps.
+the graphic styles should be more abstract, with lots of geometry and shapes.
+white background, bright colors
+black background, bright colors
+blue background, muted colors
+green background, muted colors
+anyway we can take the gameplay mechanics of wow and strip out almost everything
+and just leave like... moving to a location, click on a thing, waiting until the
+thing is done, with the ability to use potions and new equipment and such.
+NO ABILITIES?? nope none, or if they are they're passive utilities.
+
+new maps... characters are floating multicolor whisps, navigating a world of
+squares and triangles. the client and engine would be considered the same
+project, which is why the first thing this project should do is clone azeroth-
+-core and implement a patching system. Then, we write increasingly complicated
+and complex patches which narrow down the default built-in implementation and
+liberate it from being bound to a single client on the internet we found.
+
+then, we treat the server and client as one, and we build a world with it.

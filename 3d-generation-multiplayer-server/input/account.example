@@ -1,0 +1,28 @@
+# input/account.example
+#
+# Copy to input/account and fill in. The real file is gitignored; this example
+# is tracked. The client reads input/ first, because that is how a program
+# learns how to start.
+#
+# Keys are name = value. Blank lines and lines starting with # are ignored.
+# An unrecognised key is an error, not a warning — a typo'd key that gets
+# silently skipped produces a login failure with no diagnostic, which is the
+# worst possible failure mode for this particular file.
+
+# Where the login server lives. Host and port, separated by a colon.
+# The stock server listens on 3724 by default.
+auth = 127.0.0.1:3724
+
+# The account, as created on the server. Case does not matter on the wire — the
+# protocol uppercases both the name and the password before hashing them — but
+# it is stored here as typed.
+account = TESTER
+
+# The password. Plain text, in a file, on your own machine. It never crosses the
+# socket: the protocol proves knowledge of it without sending it, and the server
+# does not store it either. See docs/datapath-the-handshake.md.
+password = TESTER
+
+# Which client build to claim. The protocol we speak is 3.3.5a, build 12340.
+# Changing this is how you find out what a version mismatch looks like.
+build = 12340
