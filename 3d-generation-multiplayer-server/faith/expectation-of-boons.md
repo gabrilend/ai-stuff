@@ -11,7 +11,7 @@ than as a mysterious week.
 The whole patch machine assumes there is an upstream to track. If it stops
 moving, the pruning machine has nothing to do and we have quietly acquired a
 fork. If the hook system it exposes goes away, work that was going to be
-modules becomes patches, and phase 5 gets substantially heavier.
+modules becomes patches, and phase 6 gets substantially heavier.
 
 **That the protocol is genuinely as documented by its many implementations.**
 Several independent servers speak this format. That much agreement is strong
@@ -36,30 +36,41 @@ running timers, not filling logs, not sending the client messages about things
 that do not exist. If they turn out to be noisy rather than silent, selection
 starts costing what deletion would have cost, one system at a time.
 
-**That the headless client is enough to trust.** Phases 2 and 3 produce a
-program with no window, and phase 4 is built on the belief that the world model
+**That the headless client is enough to trust.** Phases 2 through 4 produce a
+program with no window, and phase 5 is built on the belief that the world model
 is already right. If rendering turns up protocol bugs the headless client never
 noticed, that belief was worth less than it looked.
 
-**That the extraction tools still run, on data we can actually obtain.** The
-whole map plan rests on the existing pipeline working as documented, against
-archives that have to exist somewhere. This replaced what had been the least
-verified assumption in the project — generating collision from a format of our
-own invention — with a much smaller one, and the residue is a supply question
-rather than an engineering one.
+**That the server's own source really does define every layout it loads.** The
+whole fabrication plan rests on this. If some table's real shape lives somewhere
+other than the loader's format descriptor — in a comment, in a tool, in
+somebody's head — then that table has to be reverse engineered from nothing, and
+the pattern that made this phase tractable stops covering it.
 
-**That collision geometry is worth looking at.** Drawing the server's collision
-soup means the world on screen is exactly the world you can touch. Counting on
-that geometry being *pleasant* — it was authored to be invisible, and it may
-carry simplifications that look wrong once anybody can see them.
+**That the server can be talked into running without collision and paths.**
+Both are configuration settings, and turning them off is supported. Counting on
+"supported" meaning genuinely exercised rather than merely present. If some
+subsystem quietly assumes a navigation mesh exists, flat ground stops being the
+cheap first step and phase 3 grows a collision generator it was not going to
+need yet.
+
+**That the shipped world data still makes sense on a world we invented.**
+Creatures, items, and starting positions arrive as SQL referencing identifiers
+the tables are expected to contain. Counting on being able to keep those numbers
+and replace only their content. If the SQL turns out to encode assumptions about
+the *places* as well as the numbers, we inherit rewriting it.
+
+**That the navigation mesh builder is as separable as it looks.** It consumes
+height and collision data and produces paths. Counting on it not also reaching
+back into client data we do not have.
 
 **That the identity trick keeps giving.** Appearance from the character
 identifier costs nothing and survives everything. Counting on being able to
 reuse the same move — sound, name, small behaviours — rather than it being a
 one-off.
 
-**That the person will still want this in a month.** Six phases is a long walk.
-The ordering exists so that stopping after phase 3 leaves a real thing behind: a
+**That the person will still want this in a month.** Seven phases is a long walk.
+The ordering exists so that stopping after phase 4 leaves a real thing behind: a
 server that can be changed safely, and a client that proves the changes did not
 break it. Counting on that being true, and on it being worth having even if the
 squiggles never get drawn.

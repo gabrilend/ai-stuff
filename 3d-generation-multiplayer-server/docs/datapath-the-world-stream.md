@@ -68,7 +68,7 @@ The first two messages are plaintext. The cipher engages immediately after, and
 it does so on **both sides at once** — there is no acknowledgement, no
 negotiation, and no way to detect a mismatch except that everything afterward is
 noise. Turning the cipher on at the wrong moment is the single most likely bug
-in phase 3, and the only defence is a byte-level log of the first four packets
+in phase 4, and the only defence is a byte-level log of the first four packets
 in each direction, which is worth building before it is needed.
 
 ---
@@ -158,10 +158,10 @@ Three things follow from this, and they are why it is worth the extractor:
 
 1. **We cannot mistype an opcode.** A transcription error in a number produces a
    packet that is silently ignored, with no diagnostic anywhere.
-2. **The narrowing stays honest.** When phase 5 patches remove opcodes from the
-   server, the generated header shrinks, and any handler we still have for a
-   deleted opcode fails to compile. The client learns about the server's
-   amputation at build time instead of at run time.
+2. **Our subset stays honest.** If upstream ever retires a message we still
+   handle, the generated header shrinks and that handler fails to compile. The
+   client learns about the change at build time rather than by quietly ignoring
+   traffic that stopped arriving.
 3. **It is the same discipline as the registry.** A derived artifact that is
    recomputed cannot drift; one that is hand-maintained always does.
 
@@ -262,7 +262,7 @@ src/world/
 
 `src/world/` receives a list of changes and knows nothing about how they were
 encoded. That boundary is what lets the whole lower half run without a window
-for the entirety of phases 2 and 3.
+for the entirety of phases 2 through 4.
 
 ---
 
@@ -278,4 +278,4 @@ finished, and every remaining problem in the project is one we chose.
 - `docs/datapath-the-handshake.md` — where `K` comes from
 - `docs/datapath-the-whisp.md` — what the positions eventually become
 - `docs/architecture.md` — the one-way arrows between net, world, and draw
-- `docs/roadmap.md` — phase 3 is this document, made real
+- `docs/roadmap.md` — phase 4 is this document, made real

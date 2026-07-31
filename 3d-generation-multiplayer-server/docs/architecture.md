@@ -12,12 +12,16 @@ fresh on every build and never committed. A directory of small reversible
 scripts stamps our changes into that clone, the build happens, and the changes
 are peeled straight back off — so the clone always round-trips to a pristine
 copy of upstream. Against that server we write our own client, in C, which
-speaks the authentic wire protocol from its very first run. Then, patch by
-patch, the server is narrowed: abilities go, most of the verbs go, the maps
-become squares and triangles, and the players become pink star squiggles. When
-the narrowing is far enough along that the original protocol is mostly dead
-weight, the client and the server stop being two projects that agree on a
-format and become one project that has an inside.
+speaks the authentic wire protocol from its very first run. There is no copy of
+the original client anywhere in this, so everything that server expects a client
+to have provided — a hundred fixed-layout data tables, and the terrain — is
+generated instead, from schemas read out of the server's own source. Then,
+config by config and patch by patch, the game is *selected* down: nobody is
+handed an ability, the maps become squares and triangles, and the players become
+pink star squiggles, while everything unreached stays present and silent. When
+what we have built needs something the protocol cannot say, we add a message
+rather than replace the protocol, and the client and the server stop being two
+projects that agree on a format and become one project that has an inside.
 
 ---
 
@@ -99,10 +103,9 @@ source. This ordering is not a style preference — it is the difference between
 a change that survives an upstream refactor untouched and a change that has to
 be re-anchored every time the surrounding function moves.
 
-So the narrowing work of phase 5 splits in two before it starts: *what can be
-done from outside* (a module that refuses to let spells be cast) and *what
-requires reaching in* (a terrain loader taught to read a format that did not
-exist when it was written).
+So the selection work of phase 6 splits in two before it starts: *what can be
+done from outside* (a module that hands nobody a spell) and *what requires
+reaching in* (anything with no hook near it).
 
 ---
 
@@ -123,22 +126,26 @@ unverifiable — nothing runs end to end until both halves are simultaneously
 finished, and every bug is ambiguous between the two of them.
 
 ```
-day 1    our client ──authentic protocol──▶ stock server        ✓ walks
-day 30   our client ──authentic protocol──▶ patched, no spells  ✓ still walks
-day 90   our client ──────our protocol────▶ narrowed server     ✓ arrived
+day 1    our client ──authentic protocol──▶ stock server         ✓ walks
+day 30   our client ──authentic protocol──▶ fabricated world     ✓ still walks
+day 90   our client ──protocol + our own─▶ a server, configured  ✓ arrived
 ```
 
-The protocol is thrown away in the end. It is thrown away *from a position of
-knowing exactly what it was doing*, which is the only position from which
-throwing something away is safe.
+The protocol is not thrown away in the end. If all of what it carries may
+eventually be wanted, discarding the messages that carry it would mean paying
+twice for the same ground — so what happens instead is that we add messages
+where the game we built needs something the format cannot say, and keep what
+already works. Learning the format thoroughly turns out to be the durable
+investment rather than the temporary one.
 
 The client also gets to be radically incomplete. It needs enough of the
 protocol to log in, enumerate characters, enter a world, move, click a thing,
 receive other players' movement, and read its own inventory. That is a few
 dozen message types out of roughly fifteen hundred. Everything about combat,
 spellcasting, chat channels, guilds, auctions, mail, battlegrounds, and pets is
-simply never implemented — and by phase 5 it is being deleted from the server
-too, so the omission stops being an omission and becomes the design.
+simply never implemented. Those systems stay alive on the server, unreached and
+silent, which is what makes the omission a decision that can be revisited rather
+than a door that has been bricked up.
 
 ---
 
@@ -265,75 +272,111 @@ nobody ever handed them one.
 
 ---
 
-## Maps: keep the format, inherit the toolchain
+## No client data, which turns out to be the stronger position
 
-We do not invent a map format.
+There is no copy of the original client, and there will not be one.
 
-The server independently needs, for any map it hosts, a heightfield for ground
-level, a collision soup for line of sight and standing, a navigation mesh for
-pathfinding, and a table row saying the map exists. All of it is produced by
-extraction tools that already ship alongside the server, and the navigation mesh
-is built from the first two by a substantial piece of third-party machinery that
-we very much do not want to reimplement.
+This matters more than it first appears, because the world server does not
+*degrade* without the client-derived data tables — it refuses to start. About a
+hundred fixed-layout binary tables, plus terrain grids per map, are a hard boot
+requirement. So they get fabricated.
 
-So the existing format stays, and everything downstream of it works unchanged.
-Building on a format that already has a toolchain is what leaves us free to
-build whatever we want on top of it later, rather than owing a new format its
-entire pipeline before anything can move.
+The vision asked for exactly this, in its own word:
 
-Two consequences, and the first is the good one:
+> *"…liberate it from being bound to a single client on the internet we found."*
 
-**The collision file is a triangle soup, and our renderer wants triangles.** So
-both halves read the *same files*. What you see is what you collide with — not
-by synchronisation, but because there is only one set of data and no second copy
-to drift from. The bug where the wall on screen is not the wall the server
-believes in cannot happen, because there is no second wall.
+A server fed with extracted retail data is still bound to that client; it just
+holds the binding at one remove, in a directory of files somebody else's program
+produced. A server fed data we generated is not bound to it at all. There is no
+copy of anything, anywhere in the pipeline. Being unable to obtain the data
+forced the more complete version of what was already wanted.
 
-**The first world is free.** Point the extractors at a copy of the retail
-client's data and phase 4 has somewhere to stand on day one: real maps, real
-collision, real pathfinding, drawn as untextured flat polygons in four colour
-schemes. Which is very nearly the thing the vision describes, arriving before
-anyone has authored anything.
+Three things make it tractable:
 
-That reorders the work in a way worth noticing — seeing a world comes *before*
-making one. Custom maps, when they come, emit these same formats, and that is a
-later question this decision deliberately does not block.
-`docs/datapath-the-world-of-shapes.md` carries the detail.
+**The schema is in the tree we already clone.** The server's own loading code
+declares the layout of every table it reads — the format descriptor *is* the
+schema, in the strongest sense, because it is what will actually be applied to
+our bytes. Nothing is transcribed; an extractor reads it at build time. This is
+the third appearance of that pattern (opcodes, cipher constants, table layouts),
+and it is now `strategems/the-upstream-tree-is-the-schema.md`.
+
+**The world database was never client data.** Creatures, items, quests, spawns,
+starting positions — all of it ships as SQL alongside the server source. We are
+not reconstructing a game; we are producing the tables and terrain grids the
+server reads before it will agree a world exists.
+
+**Flat ground is nearly free, and the hard artifact is not written at all.** The
+height format carries a flag meaning *this tile is flat at one height*, under
+which there is no grid to generate. Collision and pathfinding are each
+switchable off in the server's own configuration and are not needed to stand and
+walk. When collision does arrive, the navigation mesh comes free — it is built
+by a tool that ships with the server, consuming height and collision data, so
+producing those two correctly is the entire job.
+
+The map format itself stays the game's own, which is what keeps that toolchain
+usable and leaves us free to build whatever we want on top of it later. And
+because the collision file is a triangle soup and our renderer wants triangles,
+**both halves read the same files** — what you see is what you collide with, not
+by synchronisation but because there is no second copy to drift from.
+
+`docs/datapath-the-fabricated-data.md` carries the mechanism;
+`docs/datapath-the-world-of-shapes.md` carries what the geometry becomes.
 
 ---
 
 ## Where the pieces live
 
 ```
-   notes/vision ─────────────────────────────── the ask
+   notes/vision ───────────────────────────────────────────── the ask
         │
         ▼
    upstream/azerothcore/  ◀── cloned fresh, gitignored, disposable
-        ▲
+        ▲       │
+        │       │  its headers are read, not copied:
+        │       ├──────▶ opcode numbers ┐
+        │       ├──────▶ cipher seeds   ├─▶ generated, never transcribed
+        │       └──────▶ table layouts  ┘
+        │
         │  patches/   apply → build → unapply, exact inverse, verified
         │  modules/   the seam upstream already cut; preferred
         │
         ▼
-   authserver (port 3724)      worldserver (port 8085)
-        │                            │
-        │  SRP6 login                │  RC4-encrypted packet stream
-        ▼                            ▼
-   ┌────────────────────────────────────────┐
-   │  src/   our client, in C               │
-   │    net/   ─▶ world/ ─▶ draw/           │
-   │    SDL2 for the window, OpenGL to draw │
-   └────────────────────────────────────────┘
+   authserver (port 3724)          worldserver (port 8085)
+        │                                │   ▲
+        │  SRP6 login                    │   │ reads the fabricated
+        │                                │   │ tables and terrain
+        │            input/world/*.shape ────┘
+        │                  │             │
+        │                  │  tools/fabricate
+        │                  ▼             │
+        │            .map · .vmap · .mmap│  RC4-encrypted packet stream
+        │                  │             │
+        ▼                  ▼             ▼
+   ┌──────────────────────────────────────────────┐
+   │  src/   our client, in C                     │
+   │    net/  ─▶ world/ ─▶ draw/                  │
+   │    reads the SAME terrain files as the server│
+   │    SDL2 for the window, OpenGL to draw       │
+   └──────────────────────────────────────────────┘
         │
         ▼
    output/   ── written last; where goodbye goes
 ```
 
+Note what is not in the diagram: any file that came from somewhere else. The
+clone is regenerated from a commit hash, the tables and terrain are generated
+from `input/` plus the clone's own schemas, and the opcode table and cipher
+constants are extracted at build time. Nothing in the repository is a copy of
+anything.
+
 ## Related
 
-- `docs/roadmap.md` — six phases, and the open questions each one carries
+- `docs/roadmap.md` — seven phases, and the open questions each one carries
 - `docs/datapath-the-patch-machine.md` — clone, apply, build, revert, audit
 - `docs/datapath-the-handshake.md` — SRP6, and proving a password without one
+- `docs/datapath-the-fabricated-data.md` — the tables and terrain no client gave us
 - `docs/datapath-the-world-stream.md` — header encryption, opcodes, update blocks
 - `docs/datapath-the-whisp.md` — how a pink star squiggle is made
-- `docs/datapath-the-world-of-shapes.md` — terrain, the four schemes, custom maps
+- `docs/datapath-the-world-of-shapes.md` — the authoring format and the four schemes
+- `strategems/the-upstream-tree-is-the-schema.md` — the extraction pattern, three times
 - `docs/table-of-contents.md` — every document, indexed
