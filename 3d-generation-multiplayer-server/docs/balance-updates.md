@@ -22,11 +22,21 @@ value changed at eleven at night does not leave four documents lying.
 No values yet. The dials that will land here first, once phase 5 draws anything:
 
 - **the whisp** — arm count range, points per arm, arm length, wander
-  frequencies and amplitudes, the exponent on the amplitude ramp, spin rate,
-  velocity stretch factor
+  frequencies, spin rate, velocity stretch factor
+- **the gate on each arm** — where along the arm the wander is allowed to begin,
+  and the amplitude past it. The gate position is not free: it belongs at a zero
+  crossing of the wave, which ties it to the frequency. Moving one without the
+  other puts a kink at the root. The doubling in the original drawing is an
+  amplitude and lands here.
+- **the hue range** — how far either side of pink a creature's colour may sit.
+  Too narrow and every whisp is the same one; too wide and it stops reading as
+  pink, which is the property the whole contrast rests on.
 - **the trail** — sample interval, buffer length, taper curve, opacity falloff
 - **the schemes** — every palette slot, four times over, plus each scheme's
   whisp contrast colour and the minimum contrast threshold the checker enforces
-- **the camera** — height, angle, distance, follow lag, field of view
+- **the witch camera** — spring stiffness and damping toward the target offset,
+  offset height and distance, lean into turns and overshoot out of them, the
+  idle drift, and how much it rises with speed. The three rigs it can be tuned
+  toward are extremes of these numbers, not separate modes.
 - **the waiting verb** — how long a thing takes, and how far you can drift
   before it cancels
