@@ -34,9 +34,8 @@ No values yet. The dials that will land here first, once phase 5 draws anything:
 - **the trail** — sample interval, buffer length, taper curve, opacity falloff
 - **the schemes** — every palette slot, four times over, plus each scheme's
   whisp contrast colour and the minimum contrast threshold the checker enforces
-- **the witch camera** — spring stiffness and damping toward the target offset,
-  offset height and distance, lean into turns and overshoot out of them, the
-  idle drift, and how much it rises with speed. The three rigs it can be tuned
-  toward are extremes of these numbers, not separate modes.
+- **the camera** — spring stiffness and damping toward the target offset, offset
+  height and distance, lean into turns, and the idle drift. Overhead and
+  over-the-shoulder are extremes of these numbers, not separate modes.
 - **the waiting verb** — how long a thing takes, and how far you can drift
   before it cancels
