@@ -1,0 +1,34 @@
+# game.example — copy to input/game and say which world you are playing in.
+#
+# The first thing this program does is read input/. This file is how it learns
+# where Dominions lives, which savegame is being played, and which nation is
+# yours. Nothing is discovered by searching the disk, because a program that
+# guesses which of a hundred savegames you meant will eventually guess wrong
+# and write a turn into somebody else's game.
+#
+# Lines are "key value". Blank lines and lines beginning with # are ignored.
+
+# Where the game keeps its data. This is the folder holding savedgames/, mods/
+# and maps/ — not the Steam install.
+dominions-home    /mnt/mtwo/.dominions6
+
+# Where the executable lives. Needed for --verify and --host; the graphical
+# interface is never opened.
+dominions-binary  /mnt/mtwo/games/steam-games/steamapps/common/Dominions6/dom6_amd64
+
+# The savegame folder name, under savedgames/.
+game              december-woes
+
+# Your nation, as the turn file names it. If this is left out the program will
+# list the turn files it found and ask, rather than choosing for you — a
+# savegame folder can hold several, and being wrong here means narrating
+# somebody else's fog of war.
+nation            late_pangaea
+
+# Where working copies are made. The live savegame is never written to; a copy
+# is made here, orders are written into the copy, the game is asked to verify
+# it, and installing the result back into the live game is a separate act.
+work              work/
+
+# Optional. The chronicle for this game. Defaults to output/<game>.chronicle
+# chronicle       output/december-woes.chronicle

@@ -1,0 +1,28 @@
+# The two RAM tiers. tmp/ is a symlink into /tmp, and everything under it —
+# logs, transcripts of a session, a scratch copy of a savegame — is by
+# definition not worth keeping across a reboot.
+tmp
+tmp/
+
+# Working copies of savegames. A game folder is tens of megabytes of rendered
+# map data that never changes, and it belongs to the game, not to this
+# repository. The chronicler project already version-controls savegames; this
+# one only borrows them.
+work/
+*.trn
+*.2h
+*.chk
+ftherlnd
+*.d6m
+*.tga
+
+# Session records land in output/ and are the user's, not the project's. The
+# examples that ship with the project are named .example and are kept.
+output/*
+!output/.gitkeep
+!output/*.example
+
+# The roster names machines on a private network. The example is tracked; the
+# real one is not, because it is a description of somebody's house.
+input/cluster
+!input/cluster.example
