@@ -1,0 +1,4 @@
+# tmp/ is a symlink into RAM — /tmp for executables, /dev/shm for artifacts.
+# Nothing under it is the record, and the link itself is machine-local, so it is
+# recreated by the run scripts rather than tracked.
+tmp
