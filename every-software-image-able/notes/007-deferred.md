@@ -4,9 +4,10 @@ Things worked out in conversation and then explicitly set aside. They are writte
 down so that they are not rediscovered from scratch later, and so that the line
 between "decided" and "not yet" stays visible.
 
-Nothing here is rejected. Everything here is waiting on the machine underneath it
-running first. The stated focus is: **actually making a system that does whatever
-it needs to.**
+Nothing here is rejected and nothing here is abandoned. These are **on a
+different part of the same sheet of paper** — not relevant to this particular
+part of the equation, and being worked on elsewhere or later. The stated focus
+for this part is: *actually making a system that does whatever it needs to.*
 
 Each section names where it was said. Line numbers refer to
 `llm-transcripts/jul-31-26-through-aug-1-26.md`, so that un-parking one of these
@@ -46,13 +47,19 @@ than one person.
 
 ## The people
 
-*Line 453. Set aside at line 1309.*
+*Line 453, and moved elsewhere at line 1309. The correction at line 1912 is the
+part to keep:*
+
+> I'm not letting anyone go, that sounds like I'm abandoning them. Not so! They
+> are just not relevant to this particular part of the equation. They are on a
+> different part of the same sheet of paper.
 
 The machine takes in images of a person's life and designs itself with them in
 mind, being guided as it goes.
 
-**Why it is parked.** *Don't worry about the people, the people will use this
-kind of computer as they please.*
+**Why it is not here.** *Don't worry about the people, the people will use this
+kind of computer as they please.* The human question is separable from the
+machine question on purpose, and separating them is not the same as dropping one.
 
 **Worth keeping from it.** This was, for a while, the answer to how an unbounded
 set of imaginable software fits on a bounded drive — *imaginable for this person*

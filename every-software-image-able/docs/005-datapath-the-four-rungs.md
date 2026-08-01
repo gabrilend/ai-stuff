@@ -18,6 +18,39 @@ request answered at rung one costs nothing; one answered at rung three costs
 space that had to come from somewhere, and rung four is how that somewhere is
 found without losing anything.
 
+## Before anything is asked
+
+**The machine grows fully before it accepts a request.** On an empty drive, with
+nobody waiting, it builds out every piece of software it can think of and fit.
+Only afterward does it start answering, and from then on it keeps learning and
+co-evolving as it continues to grow.
+
+This is the seed page's instruction taken literally rather than as a job
+description. Building every piece of software imaginable is not what the machine
+does *when asked* — it is what it does first, unprompted, and the asking comes
+later to a machine that has already built most of what it will need.
+
+Growth runs the same four rungs with the machine as its own requester, weighted
+heavily toward the last two, because at the start there is nothing to use and
+nothing to alter. The apparent stopping condition falls out of rung four:
+**growth ends when building one more thing would cost a capability rather than a
+duplication** — when there is no verbosity left to squeeze and the next byte has
+to come out of something the machine can actually do.
+
+The consequence for rung one is large. By the time a request arrives, the honest
+answer is usually that the machine already has what it needs, because it spent
+its youth building rather than waiting.
+
+## These are patterns, not laws
+
+The four rungs, the dispatch tables, the refusal to keep two copies of the same
+knowledge — these are useful shapes that keep proving themselves, and they are
+written down because a machine reading them will find them useful.
+
+**The system can build itself as it pleases.** Nothing here binds it. A document
+describing how the machine ought to be organised is a suggestion made by someone
+who has not yet seen the hardware it woke up on.
+
 ## Rung one — use what is here
 
 The machine has to be able to ask "can anything I already have do this?" and get
