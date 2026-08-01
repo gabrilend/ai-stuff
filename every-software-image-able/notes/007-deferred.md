@@ -8,9 +8,16 @@ Nothing here is rejected. Everything here is waiting on the machine underneath i
 running first. The stated focus is: **actually making a system that does whatever
 it needs to.**
 
+Each section names where it was said. Line numbers refer to
+`llm-transcripts/jul-31-26-through-aug-1-26.md`, so that un-parking one of these
+starts from what was actually meant rather than from this summary of it.
+
 ---
 
 ## The canvas
+
+*Lines 555 and 1309. It began at line 454 as "there's no desktop, it's only
+windows," and was revised into a desktop two messages later.*
 
 An infinitely scrolling shared space, described as *rooms, but with zoomed
 concern* — go low and you see what relates to you specifically, go high and the
@@ -39,6 +46,8 @@ than one person.
 
 ## The people
 
+*Line 453. Set aside at line 1309.*
+
 The machine takes in images of a person's life and designs itself with them in
 mind, being guided as it goes.
 
@@ -57,6 +66,10 @@ question 6.
 ---
 
 ## The table
+
+*Line 625. The wish at line 345 — "I wanna raid Razorfen Kraul" — arrived nearly
+three hundred lines earlier, in the middle of a paragraph about error counters,
+and belongs here.*
 
 An ongoing game, run under old-school rules, with a model as referee updating
 world state from what players do. Parties of models that talk amongst themselves
@@ -88,6 +101,8 @@ scheduling policy: attention is what buys compute.
 
 ## Mail between machines
 
+*Line 562.*
+
 Sending things back and forth over the network, built into every system as
 fine-tuning on the suggested models, at least until people train their own for
 this kind of seed.
@@ -106,6 +121,8 @@ wrong-coloured reply instead of as quiet nonsense.
 
 ## Ring buffers, and cheap backward reach
 
+*Line 1142.*
+
 Building in a soramech way, so that previous values can be read out of buffers
 that have been released but not yet overwritten — stepping back at least a couple
 of seconds from anywhere in a program, and on error, ceasing to hand out work in
@@ -122,6 +139,8 @@ slot that has already been reused.
 ---
 
 ## Deployment, when there is something to deploy
+
+*Pointed at, line 625.*
 
 The civics project at `/home/ritz/programming/civics/algorism/` has this worked
 out already, and most of it transfers.
