@@ -77,6 +77,34 @@ The seed page asks for free access to hardware so the machine can learn what it
 is connected to and what its senses are. This step is that, and it is more
 literal than it sounds: the machine polls itself to find out what limbs it has.
 
+## Where anything permanent goes
+
+**The medium the image was delivered on.** It is the one place certain to exist,
+because the machine is running from it, and it is where everything permanent goes
+until somewhere better is found — the intent notes written before dangerous
+experiments (`003a`), the values that arrived from outside (`006`), and this map.
+
+So enumerating attached storage is an early concern rather than a later one.
+Search, find a better place to put things, and put them there.
+
+```
+what did I boot from?                       → the store, provisionally
+what else is attached that can hold bytes?  → enumerate all of it
+which is largest, fastest, least likely to leave?
+   → move what has accumulated so far
+   → keep writing there
+```
+
+The image may be on removable media, or may not, and the machine cannot assume
+either. Finding somewhere better is therefore survival rather than tidiness: a
+machine that keeps its only account of itself on a stick somebody can pull out
+has an account that can walk away mid-sentence.
+
+This mirrors step one exactly. There, the allocator's first job was to find where
+its own author sits in memory so it never hands those bytes away. Here, the
+storage layer's first job is to know which blocks hold the image it is running
+from, so it never writes over itself while writing about itself.
+
 ## The gap between finding and operating
 
 Enumeration is complete about **what is attached** and silent about **how any of
@@ -136,6 +164,35 @@ can be asked by typing. One with a network card can be asked from elsewhere. One
 with a camera can be shown things. One with neither has nothing to do, and that
 is a correct outcome rather than a failure.
 
+## Three ways the image could be made
+
+They are not alternatives to choose between so much as a ladder, and where a
+given build sits on it decides how much the machine has to work out for itself.
+
+| | What is known when the image is built | What it buys |
+|---|---|---|
+| Practical | A specific type of hardware, named in advance | Descriptions can be carried for the exact parts, so tier two of the knowledge table covers nearly everything and dangerous exploration is rare |
+| Better | Nothing fixed; crucial details supplied at generation time | One recipe serves many targets, the way a description of the board and a description of the machine can be kept apart and combined |
+| Most ideal | Nothing at all | The image feels around and builds from scratch on whatever device it lands on |
+
+The most ideal is also the one that most needs `003a`, because it is the one with
+no carried knowledge to fall back on.
+
+## If the delivery medium cannot be written
+
+The machine does what it can with what it has: probes, and holds what it finds in
+working memory until it finds somewhere to put it down. Memory is writable
+whether or not the boot medium is, so a read-only medium stops the machine
+keeping things rather than stops it thinking.
+
+The real cost lands on `003a`. The intent note written before a dangerous
+experiment cannot be written at all, so a machine that dies exploring learns
+nothing from having died. It will rediscover the same lethal register on every
+boot, forever, and each rediscovery costs another piece of hardware.
+
+A machine on read-only media should therefore treat finding writable storage as
+its most urgent task, ahead of anything else it might do with what it has found.
+
 ## What the bootstrap leaves behind
 
 A hardware map: the memory regions, the devices, which of them are operable, by
@@ -152,7 +209,10 @@ does not know about itself.
 - **Is the hardware map rebuilt every boot, or read from the last one?** Rebuilt
   is honest and slow and rediscovers everything dangerous. Read is fast and wrong
   the first time somebody plugs something in.
-- **Where does the map live before storage works?** It is produced by step two
-  and storage is step three, so the first version of it exists only in memory,
-  and a machine that dies during step three loses it. This is the same problem
-  `003a` solves for probing intent, and it may want the same answer.
+- **When is the store considered moved?** Migrating to better media means there
+  is a window where the account exists in two places, or in neither. A machine
+  that dies in that window is the one case where the thing designed to survive
+  crashes does not.
+- **What happens if the delivery medium is read-only?** Some are. The machine
+  would then have nowhere to write until it finds something else, which puts the
+  intent notes of `003a` out of reach during exactly the phase that needs them.

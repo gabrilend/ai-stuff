@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 16:04:10
+Generated on: 2026-08-01 16:36:34
 
 --------------------------------------------------------------------------------
 
@@ -1873,6 +1873,225 @@ write about which one it belongs to.
 
 I'm asking now rather than later because whichever it is, deciding after there's
 data means rewriting the format of everything already written by then.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 21
+
+  llm-transcripts/ in this project is still untracked. Every other project in
+  the tree has theirs committed, so it probably wants to be in, but the contents
+  aren't mine and I left it alone.
+
+
+the contents are yours. examine the claude.md file to find out what to do with
+them.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 21
+
+A transcript is already there — `jul-31-26-through-aug-1-26.md`, written
+today. Checking how current it is before committing it.
+
+
+The transcript is this conversation, current through my last message. Committing
+it — and while I have it, wiring the deferred note to the lines it came from,
+so each parked thing points at where it was said.
+
+
+Committed. `75857aae`.
+
+
+What the instructions said to do with them: the transcripts are the complete
+history of the development process, and documents should carry line references
+into them so a reader can reach where something was actually decided. There are
+no completed issue files yet, so the half of that rule about linking tickets to
+lines has nothing to attach to — but the parked-ideas note did, and now each
+section names its lines.
+
+
+Three things that wiring caught, which the note alone had flattened:
+
+
+- The canvas entered as its own opposite. Line 454 is "there's no desktop, it's
+  only windows"; by line 555 there is a desktop and it scrolls forever. The note
+  recorded the destination and lost the reversal.
+
+- "I wanna raid Razorfen Kraul" sits at line 345, three hundred lines before the
+  game gets proposed, in the middle of a paragraph about error counters. It
+  reads as an aside there and as a first draft from here.
+
+- The people were let go in the same message that described the space they'd
+  have been standing in — line 1309 does both.
+
+
+One stale spot in your global instructions, since it's the kind of thing that
+only shows up when someone follows it: the rule about keeping transcripts
+current says to use "the tools at `[LLM_transcript_update_dir]`" — the
+placeholder was never filled in. The tools appear to be
+`claude-conversation-exporter.sh` and `backup-conversations` in
+`/home/ritz/programming/ai-stuff/scripts/`. Want me to put the real path in?
+
+
+Still four blocking questions, and the one I asked is still open — you
+redirected to the transcripts before answering it, which was the right call, but
+it's still the thing standing in front of everything else.
+
+
+**How many stores are there?** Three parts of the design have separately asked
+for somewhere permanent to write, and their needs pull apart: the intent note
+before a dangerous hardware experiment is tiny, rare, and has to be readable at
+next boot by the most primitive reader that exists; the outside-arriving values
+for replay are constant, high-volume, and only mean anything in order; the
+hardware map gets produced one step before storage exists to hold it.
+
+
+One store means one format doing all three, and the format that survives a
+machine dying mid-write will be the slow one. Three stores means three things to
+build and three that can go missing on their own.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 22
+
+can you explain in your own words what the system does and is for?
+
+
+  - The people were let go in the same message that described the space they'd
+    have been standing in — line 1309 does both.
+
+
+omg don't say it like that. I'm not letting anyone go, that sounds like I'm
+abandoning them. Not so! They are just not relevant to this particular part of
+the equation. They are on a different part of the same sheet of paper. This
+project is mostly about... well, you tell me, silly robot computer thing. ;)
+
+
+  One stale spot in your global instructions, since it's the kind of thing that
+  only shows up when someone follows it: the rule about keeping transcripts
+  current says to use "the tools at [LLM_transcript_update_dir]" — the
+  placeholder was never filled in. The tools appear to be
+
+  claude-conversation-exporter.sh and backup-conversations in
+  /home/ritz/programming/ai-stuff/scripts/. Want me to put the real path in?
+
+
+no don't worry about it.
+
+
+  How many stores are there? Three parts of the design have separately asked for
+  somewhere permanent to write, and their needs pull apart: the intent note
+  before a dangerous hardware experiment is tiny, rare, and has to be readable
+  at next boot by the most primitive reader that
+
+  exists; the outside-arriving values for replay are constant, high-volume, and
+  only mean anything in order; the hardware map gets produced one step before
+  storage exists to hold it.
+
+
+the storage medium that the device's image is delivered upon. Enumerating the
+attached storage devices should be a pretty important initial concern, so...
+search, find out a better place to put things, then put them there. Keep in mind
+that the image might be on a removable storage device, or it might not.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 22
+
+Fixing that — the phrasing was mine and it was wrong.
+
+
+Here's what I think it is.
+
+
+**What it does.** You flash a drive and turn the computer on. There is nothing
+on it but a way of thinking. It works out how much memory it has and where in
+that memory its own mind is sitting, so that it never hands itself out as
+scratch space. Then it feels around for what it is attached to — slowly, one
+change at a time, because a wrong write to the wrong register kills a chip
+permanently and no amount of software brings it back. It works out how to
+operate what it finds, and the moment it can hear anything, it waits. Something
+asks it for something. It checks whether it can already do that. If not, whether
+it can alter something it has so it can, without breaking whatever leans on that
+thing. If not, it makes room and builds it. Then it squeezes duplication back
+out, so that the room came from repetition rather than from anything it was able
+to do. Then it waits again. That is the whole life.
+
+
+**What it's for.** Three readings, and I think the third is the real one.
+
+
+The plain one: a computer with no inheritance. Every ordinary machine is a stack
+of other people's decisions — someone's kernel, someone's C library, someone's
+compiler, someone's opinions about how a package should be laid out — and you
+get all of it including the parts you would never have chosen, because it
+arrived as a block. This one inherits nothing. Everything above the bare metal
+is something it decided itself, in response to the hardware it actually woke up
+on and the things it was actually asked for. Which is also why no two of them
+are alike, and why that isn't a defect to be engineered away.
+
+
+The one about shape: it's an argument that the floor is lower than nearly
+everyone assumes. The seed page said the given floor is "usually a compiler."
+The design says not even that. What you actually have to hand a machine is a way
+of turning intent into instructions, and permission to touch its own body.
+Everything normally treated as bedrock — the scheduler, memory protection, the
+driver model, the door between a program and the machine — turns out to be
+*output* rather than input. The floor rises from underneath, as the machine
+notices it keeps losing work to things it hasn't built yet.
+
+
+The one I think it's actually about: **a computer that isn't finished.** Every
+computer you have ever used was finished before it reached you, and using it
+means discovering which of the things you want happen to fall inside what
+somebody already decided to allow. Nothing here is unsupported. There is only
+which rung it took to get there, and the machine tells you which one, and shows
+you what it chose against. That's what the four rungs are, read as a promise
+instead of as an algorithm.
+
+
+Underneath all three there's one habit the design keeps repeating, and it's
+yours rather than mine: **it refuses to store the same thing twice.** Branches
+become tables you index into. The door a program knocks on and the catalogue of
+what exists are one object. One reading tells the compiler what to work on and
+tells the machine when to stop and think backward. Deleting takes verbosity and
+leaves capability. That isn't thrift — it's a claim that repetition is where
+errors live, and that something said once can be trusted in a way that something
+said in four places cannot be.
+
+
+And it isn't a product. The interest is in the design: what is the smallest seed
+that grows the whole tree. The people are on a different part of the same sheet,
+which is not the same as not being on it.
+
+
+---
+
+
+Corrected the note — the people section now carries your words rather than
+mine, and the file's opening says nothing here is abandoned. Question 10 is
+answered and written into `003`: the store is the medium the image arrived on,
+enumerating storage is an early concern, and it moves to somewhere better once
+somewhere better is known. That mirrors step one nicely — the allocator has to
+know where its own author lives so it doesn't overwrite it, and the storage
+layer has to know which blocks are the image it's running from so it doesn't
+write over itself while writing about itself.
+
+
+Two new questions came out of that answer: what happens if the delivery medium
+is read-only, and what happens to a machine that dies during the migration to
+better media — the one window where the thing designed to survive crashes
+doesn't.
+
+
+Three blocking questions left. Next is the biggest: **what mediates between
+altering and condensing?** Every merge makes space cheaper and the next change
+harder, because more things now lean on whatever absorbed the others. The
+machine does both for its whole life and nothing arbitrates.
 
 
 --------------------------------------------------------------------------------
