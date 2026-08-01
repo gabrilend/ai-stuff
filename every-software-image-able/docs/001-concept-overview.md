@@ -12,8 +12,13 @@ The machine wakes with no floor under it, finds out what body it has, and writes
 the floor itself — memory management first, in assembly, against hardware that
 nobody surveyed in advance.
 
-After that it does one thing for the rest of its life: something asks for a
-capability it does not have, and it acquires one.
+Then it grows. **It builds itself out fully before it is asked to do anything** —
+every piece of software it can think of and fit, while nobody is waiting. Only
+after that does it accept requests, and from then on it keeps learning and
+co-evolving as it continues to grow.
+
+So the seed page's instruction is not a job description for a machine sitting at
+a prompt. It is the first thing that happens, on an empty drive, unprompted.
 
 ## The floor, and why it is not where you would expect
 
@@ -88,7 +93,11 @@ flashed image: a model, and an instruction
    → find memory                    write an allocator, in assembly       003
    → find the body                  enumerate what is attached            003
    → learn to operate the body      one datasheet per class, carefully    003
-   → open a channel on each part    now the machine can be asked things
+   → open a channel on each part    now the machine could be asked things
+   →
+   ↻ GROW — nobody is waiting yet                                         005
+        build everything it can think of and fit
+        ends when one more thing would cost a capability, not a repetition
    →
    ↻ a request arrives from anywhere
         can what is here already do it?              rung 1               005
@@ -96,7 +105,8 @@ flashed image: a model, and an instruction
         make room, and build it                      rung 3               005
         condense, so the room came from duplication  rung 4               005
      every step of that emits a status, in colour and shape               006
-     when a status saturates, the machine stops and works backward        006
+     when tolerance goes far enough from fifty, the machine stops
+     and works backward                                                   006
 ```
 
 ## Reading order

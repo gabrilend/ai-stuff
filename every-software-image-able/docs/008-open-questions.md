@@ -42,6 +42,28 @@ be given and nothing more. Definitions are looked up through a dispatch table th
 machine builds from scratch, returning each code's meaning as a markdown table,
 so no two machines have the same one. `006`.
 
+**10 — Where does anything permanent get written?**
+The medium the image was delivered on. It is the one place guaranteed to exist at
+boot, because the machine is running from it. Enumerating attached storage is
+therefore an early concern rather than a later one: the machine searches, finds a
+better place to keep things, and moves them there. The delivery medium may be
+removable, so finding somewhere better is a matter of survival rather than of
+tidiness. `003`.
+
+**9 — What mediates between altering and condensing?**
+The machine does. No arbitration rule is designed, and designing one would be the
+wrong move: *the system can build itself as it pleases.* The four rungs, the
+dispatch tables and the refusal to hold two copies of the same knowledge are
+patterns that keep proving useful, not laws the machine is bound by. `005`.
+
+**14 — What if the delivery medium is read-only?**
+It does what it can with what it has — probes, and holds what it finds in its own
+working memory until it finds somewhere to unload it. Memory is writable
+regardless of whether the boot medium is, so a read-only medium prevents keeping
+rather than thinking. The real cost is in `003a`: the intent note before a
+dangerous experiment cannot be written, so a machine that dies exploring learns
+nothing from it and rediscovers the same lethal register on every boot. `003`.
+
 **13 — What makes the machine want something?**
 Nothing internal. Requests arrive from arbitrary sources, and the machine builds
 the capability to accept input from as many sources as its body provides — so the
@@ -58,21 +80,6 @@ reproduce. Either the machine keeps an account of everything it did between the
 image and now — which makes that account the only evidence of what it is — or the
 question is answered by giving it up, and these machines are simply not verifiable
 by anyone who did not watch. Blocks: anything to do with shipping more than one.
-
-**9 — What mediates rungs two and four?**
-Condensing makes space cheap and modification expensive; the denser the machine
-gets, the more hangs off each remaining piece and the harder every future change
-becomes. They pull against each other permanently. Nothing arbitrates. The same
-tension shows up one layer down in the interpreter's operation table, where every
-new capability lengthens the table read on every instruction fetch. Blocks: `005`
-rung four, `002` table growth.
-
-**10 — How many stores are there, and what is in them?**
-Three things now want somewhere permanent to be written: the intent recorded
-before a dangerous hardware experiment (`003a`), the outside-arriving values
-needed to replay a moment (`006`), and the hardware map produced before storage
-works (`003`). They may be one store or three. Deciding late means retrofitting
-the format of everything already written. Blocks: `003`, `003a`, `006`.
 
 **12 — How many different ways are tried before moving on?**
 The machine tries several approaches to one constraint before it is allowed to go
@@ -115,12 +122,10 @@ Held in full at the end of each document; listed here so the count is honest.
 
 ## Next
 
-**10 — how many stores are there.** Three separate things now want somewhere
-permanent to be written, and they were arrived at from three unrelated
-directions: the intent written before a hardware experiment that might not
-return, the outside-arriving values needed to replay a moment, and the hardware
-map that exists before storage works. If they are one store it needs a format
-that suits all three. If they are three, the machine has three things to build
-and three things that can be lost independently. It is asked next because the
-cost of deciding it late is rewriting the format of everything already written
-by then.
+**5 — what verification means after self-modification.** It has just become live
+rather than distant, because the three ways an image might be produced (`003`)
+are three different answers to how much a second machine can be expected to
+resemble the first. An image built for known hardware can carry descriptions and
+be checked against them. An image generated from supplied details can be
+reproduced by anyone with the same details. An image that feels its way from
+scratch can be reproduced by nobody, including itself.
