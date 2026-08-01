@@ -20,9 +20,9 @@ world is a featureless void that boots and talks. Then, one gate and one patch
 at a time, a game is *selected* out of what is there: nobody is handed an
 ability, the ground becomes squares and triangles, the players become pink star
 squiggles, and everything unreached stays present and silent. An original client
-should still be able to connect to that void and hold a conversation, because a
-second implementation of the format is the only thing that can tell us we are
-wrong. It is not done until our own client can do it instead.
+should still be able to connect to that void and hold a conversation, though the
+thing we read to find out what a message means is the server, which is open. It
+is not done until our own client can do it instead.
 
 ---
 
@@ -133,22 +133,18 @@ day 90   our client ──protocol + our own─▶ a server, configured  ✓ arr
 ```
 
 Whether the protocol is eventually replaced is left open — *"I never said
-never"* — but it is not a goal, and there is a property being held on purpose in
-the meantime:
+never"* — but it is not a goal. An original client should be able to connect and
+talk in the void, and that stays true as a property of the format rather than as
+something we go and check.
 
-> **An original client should be able to connect to us and talk, standing in a
-> blank featureless void.** And ideally in whatever we manage to build after
-> that, too.
+**The reference implementation is the server, not the client.** The server is
+fully open source and already in our tree; it implements the same protocol from
+the other side, and any question about what a message means is answered by
+reading it. Examining a client would need a specific reason that reading the
+server could not satisfy, and there is not one yet.
 
-That is worth holding for a reason beyond sentiment. A real client is an
-**independent implementation of the format**, written by people who had the
-specification, and it will disagree with us wherever we are wrong. Nothing else
-available gives a second opinion about whether our server is correct. It is the
-only oracle in the project that we did not also write.
-
-The completion criterion is the other direction and is not negotiable: **there
-is a custom client before any of this is called done.** Compatibility is a
-property we keep because it is useful; our own client is the point.
+The completion criterion is the other direction: **there is a custom client
+before any of this is called done.**
 
 The client also gets to be radically incomplete. It needs enough of the
 protocol to log in, enumerate characters, enter a world, move, click a thing,

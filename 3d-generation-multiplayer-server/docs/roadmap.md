@@ -120,7 +120,7 @@ in the project is one we chose.
 | `401-the-cipher-on-the-headers` | two keystreams from the session key, and the moment they engage |
 | `402-the-variable-header` | one byte peeked, then three or four more; the mixed endianness |
 | `403-opcodes-are-generated-not-typed` | extracting the table from the clone, so a rename cannot silently rot |
-| `404-the-dispatch-table` | opcode to handler by index, with a default that names what it dropped |
+| `404-the-dispatch-table` | opcode to handler by index; the default entry drops, silently |
 | `405-getting-in` | the digest, character enumeration, entering the world |
 | `406-the-update-block` | packed identifiers, mask blocks, and the movement structure |
 | `407-the-world-model` | what exists, where, with what fields — fed by events, not by a socket |
@@ -194,11 +194,10 @@ that nothing else is needed. That is the completion criterion: there is a custom
 client before any of this is called done.
 
 Replacing the protocol is not ruled out — *"I never said never"* — but it is not
-the goal, and one property is held on purpose along the way: an original client
-should be able to connect and hold a conversation, in the void or in whatever we
-build after it. Not for sentiment. A second implementation of the format,
-written by people who had the specification, is the only thing in this project
-capable of telling us we are wrong about it.
+the goal. An original client should be able to connect and hold a conversation,
+in the void or in whatever we build after it, and that stays a property of the
+format rather than something we go and check: the reference we read is the
+server, which is open and already in our tree.
 
 So the default move is extension. Where the game we have built needs something
 the format cannot say, we add a message and keep the rest.
@@ -207,11 +206,10 @@ the format cannot say, we add a message and keep the rest.
 |---|---|
 | `701-what-the-protocol-does-not-carry` | measuring what we need and it cannot say, before designing anything |
 | `702-messages-of-our-own` | new opcodes alongside the old ones, on both sides |
-| `703-still-answering-the-old-client` | the compatibility property, as a test rather than a promise |
-| `704-the-world-built-with-it` | a place played in that could not have been made before |
-| `705-the-documentation-pages` | generated HTML, everything linked to everything, in the project's own look |
-| `706-the-output-gate` | writing goodbye, which is how a program ends |
-| `707-the-client-and-the-server-in-one-tree` | **capstone** — one project, one build, one thing |
+| `703-the-world-built-with-it` | a place played in that could not have been made before |
+| `704-the-documentation-pages` | generated HTML, everything linked to everything, in the project's own look |
+| `705-the-output-gate` | writing goodbye, which is how a program ends |
+| `706-the-client-and-the-server-in-one-tree` | **capstone** — one project, one build, one thing |
 
 ---
 
@@ -246,54 +244,55 @@ question that belongs to it is in progress, not finished.
 
 ### Live
 
-**Q1 — Write the modular arithmetic, or link the library?**
-Still open, and worth restating because it was answered sideways. This one is
-not about waves: it is the arithmetic behind the login proof — raising a
-256-bit number to a 256-bit power, modulo a 256-bit prime, which is how the
-server is convinced we know a password without a password crossing the wire. A
-few hundred lines of C by hand, with no constant-time discipline needed, and one
-of the places where *"can you write this part in assembly?"* has an obviously
-interesting answer. Linking what the server already depends on is faster to a
-working login. *(Blocks: `202`.)*
+**Q1 — Do the login proof at all, or patch it away?**
 
-**Q2 — Is there an original client to test compatibility against?**
-The design now holds a property — that an original client can connect to our
-void and hold a conversation — precisely because a second implementation of the
-format is the only thing capable of telling us we are wrong. Holding a property
-nobody can check is a different and weaker thing than holding one we test. Note
-this asks about the **program**, not the data: no data is needed to reach an
-empty character list. *(Blocks: `703`.)*
+*Why there is arithmetic here in the first place:* the login convinces the
+server we know a password without a password crossing the wire. Both sides raise
+a number to a power and take the remainder against a fixed 32-byte prime,
+reaching the same value by different routes. The values are 32 bytes, so the
+arithmetic runs over an array of words rather than a single one — which is not
+an obstacle, just what multi-word arithmetic is. It happens **once per login**,
+so nothing about it is a performance path.
 
-**Q3 — What does the client do with a message it does not implement?**
-Given that all of the original functionality may eventually be wanted, the
-unhandled case is not an error — it is a *not yet*. Log the name and drop, log
-once per opcode, or record unhandled traffic to a file so the shape of what we
-are ignoring can be *measured* before deciding what to implement next? The third
-turns the exposure boundary into something observed rather than guessed.
-*(Blocks: `404`, `605`.)*
+The real fork is whether to have it:
 
-**Q4 — How many people, at once?**
-Nothing in the design is sized yet. The answer changes whether the whisp
-generation loop ever needs threading, and whether the server's own tuning is
-worth touching at all.
+- **Implement it.** A few hundred lines of C. Our client then logs into an
+  unpatched server, which is the day-one baseline that makes every later patch
+  checkable against something that already ran.
+- **Patch it away.** The login server is ours; a patch could accept a simpler
+  proof, and the client's arithmetic disappears entirely. The cost is that
+  baseline, which matters less now that examining an original client is
+  deliberately not something we do.
 
-**Q5 — Which upstream commit, and how often do we chase it?**
-The pruning machine exists precisely so updating is cheap, but cheap is not
-free. Pin and update deliberately, or track the default branch and let the audit
-say what moved?
+*(Blocks: `202`.)*
 
 ### Answered
 
-**Multicolour, or pink?** — *"Boy vs girl?"* The question was declined rather
-than answered, and the design stops choosing: pink is the centre of a hue range
-rather than one of two options, and every whisp lives somewhere inside it
-without leaving. A centre and a drift — the same shape as the geometry, arrived
-at twice.
+**What does the client do with a message it does not implement?** — *"Um,
+nothing I guess?"* Nothing. It is dropped, silently, in a default table entry.
+No log, no counter, no measurement pass.
+
+**How many people, at once?** — *"Like a bunch."* Not sized. No threading design
+up front, no server tuning; the whisp loop fills a pre-allocated buffer in order,
+which leaves splitting it available without planning for it.
+
+**Which upstream commit, and how often do we chase it?** — *"Whichever."* Track
+the default branch and let the pruning machine report what moved.
+
+**Is there an original client to test compatibility against?** — Wrong question.
+*"We want to distance ourselves from it. We would need very specific reasons to
+examine the client. Much preferred is to examine the server, because that is
+fully open source."* The reference implementation is the server, which is in our
+tree and readable. Compatibility remains a property of the format rather than a
+thing we go and verify.
+
+**Multicolour, or pink?** — *"Boy vs girl?"* Both. Pink is the centre of a hue
+range rather than one of two options.
 
 **Which camera?** — *"If it's my camera, it's a witch camera, thank you very
-much."* All three rigs offered were mounts; a witch camera flies. It becomes
-another floating thing in a world of floating things, with lag, lean, drift, and
-rise. The three rigs survive as extremes it can be tuned toward.
+much."* It flies rather than being mounted: its own velocity, spring-pulled
+toward a target, lagging and drifting. The three rigs are extremes of those
+numbers.
 
 **Do we need the shipped world content?** — No. *"We shouldn't need any of that
 SQL data either, except as a reference."* Every identifier in our world is one

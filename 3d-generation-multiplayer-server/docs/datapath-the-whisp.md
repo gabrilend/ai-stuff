@@ -149,37 +149,18 @@ Three components, three jobs:
   rigid waving arm into a travelling ripple. Without it each arm is a straight
   segment that swings; with it the arm itself curves.
 
-### The gate, which came from a graph
+### The gate
 
-The wander does not begin at the root. It begins partway along the arm — and at
-the point where it begins, it is worth **exactly zero**.
-
-That comes from a drawing handed over before this document had a use for it:
+The wander does not begin at the root. It begins partway along the arm, and at
+that point it is worth **exactly zero** — from the shape in
+`notes/spoken-while-building.md`:
 
     y = { x > 2 :  -sin(π·x / 2) · 2
 
-```
-        y
-        2 ┤        ╭─╮                 ╭─╮
-          │       ╱   ╲               ╱   ╲
-        0 ┼──────●─────╲─────────────●─────╲──────  x
-          │      2      ╲    ╱        6     ╲   ╱
-       -2 ┤              ╰──╯                ╰─╯
-                 ↑
-                 nothing at all, to the left of here
-```
-
-The period is four and the gate is at two, so at the moment the wave is allowed
-to exist, its value is zero. Move the gate to one and it would begin at full
-amplitude — a cliff, appearing out of nowhere.
+Period four, gate at two, so the wave's first allowed value is zero. Gate it at
+one instead and it starts at full amplitude: a cliff.
 
 **Gate the wave where it crosses zero, and it emerges instead of appearing.**
-
-Applied to an arm, that is the whole of why a whisp reads as soft rather than as
-broken. The inner portion of every arm is *exactly* straight — not nearly
-straight, not damped, straight — so the centre stays a coherent, findable point,
-which is the thing a player actually tracks. Past the gate the arm is free, and
-because the wave was zero at the seam there is no kink where the two meet.
 
 ```
     ●━━━━━━━━━━━╮
@@ -188,11 +169,10 @@ because the wave was zero at the seam there is no kink where the two meet.
    centre          ╰──╮    free from here out
 ```
 
-An amplitude ramp past the gate — the wander growing further as it goes — is the
-obvious next dial, and it is a dial rather than a decision: the gate is what
-makes the shape work, and the ramp only adjusts how much. Both live in
-`docs/balance-updates.md`. The doubling in the original is an amplitude and
-belongs there too.
+The inner arm is exactly straight, not damped-toward-straight, so the centre
+stays a findable point — which is what a player tracks. Past the gate it is
+free, with no kink at the seam. Gate position, period, and amplitude are tied to
+each other and live in `docs/balance-updates.md`.
 
 Motion deforms the star as well. Velocity from the movement block stretches the
 whisp along its direction of travel and compresses it across, so a moving whisp
@@ -245,34 +225,12 @@ drawn first, then the **core** in pink on top. On white the halo is dark, on
 black it is light. A whisp is therefore never lost against terrain that happens
 to sit near its own colour — the outline does the work that colour alone cannot.
 
-### Pink and multicolour, which were never two things
+### Pink and multicolour
 
-The vision says characters are *multicolour* whisps. The person said *pink*.
-Asked which, the answer was **"boy vs girl?"** — which does not pick a side. It
-names the shape of the question and declines it: a binary laid over something
-that was never two things.
-
-So the design stops choosing.
-
-```
-        the hue range                  every whisp lives somewhere in here
-    ◀───────────●───────────▶          and none of them leaves
-     warm      pink      cool
-```
-
-Pink is the **centre**, not one of the options. A creature's hue is drawn from a
-range with pink at the middle — far enough for two whisps side by side to be
-plainly different creatures, never far enough to stop reading as pink. The
-multicolour is *inside* the pink rather than beside it, so there is no palette
-entry called "the whisp colour" and no second entry called "the other one."
-
-Which is the same shape as the geometry: a root that holds still and a wander
-that does not. A centre and a drift, twice — once in space and once in hue. When
-a design produces the same shape twice without being asked to, that is usually
-the sign it has found its own grain, and the cheapest thing to do is let it.
-
-The offset within the range comes from the same identity seed as everything
-else, so it costs nothing, needs no synchronising, and is yours.
+Both. Pink is the centre of a hue range rather than one of two options, and a
+creature's offset within that range comes from its seed — far enough that two
+whisps side by side are different, never far enough to stop reading as pink. The
+range is a number in `docs/balance-updates.md`.
 
 ---
 
