@@ -1,0 +1,12 @@
+hi, can you make an AI system that takes a dominions 6 save file and uses that as
+context along with it's previously generated messages, and then using a cluster
+of 3 mini computers I have running open weight models using llama.cpp can you
+have it create an interactive experience where a user and a computer talk to
+determine what to do next in the game? It should save the intended moves and
+resolve them using the actual game system, I just want the capability to talk to
+a computer, roleplay in the moment with the characters involved, and generate a
+turn for a player that way. Might be helpful to open up the game to players who
+are vision impaired, or who can't get past the interface. It should be narrative
+focused, and try to tie the previous events into the moment going forward. But,
+keep in mind, not everything is related to everything else, so it's better to
+make accurate assumptions than fearless deductions.
