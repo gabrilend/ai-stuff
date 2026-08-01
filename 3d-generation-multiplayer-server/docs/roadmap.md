@@ -244,29 +244,29 @@ question that belongs to it is in progress, not finished.
 
 ### Live
 
-**Q1 — Do the login proof at all, or patch it away?**
-
-*Why there is arithmetic here in the first place:* the login convinces the
-server we know a password without a password crossing the wire. Both sides raise
-a number to a power and take the remainder against a fixed 32-byte prime,
-reaching the same value by different routes. The values are 32 bytes, so the
-arithmetic runs over an array of words rather than a single one — which is not
-an obstacle, just what multi-word arithmetic is. It happens **once per login**,
-so nothing about it is a performance path.
-
-The real fork is whether to have it:
-
-- **Implement it.** A few hundred lines of C. Our client then logs into an
-  unpatched server, which is the day-one baseline that makes every later patch
-  checkable against something that already ran.
-- **Patch it away.** The login server is ours; a patch could accept a simpler
-  proof, and the client's arithmetic disappears entirely. The cost is that
-  baseline, which matters less now that examining an original client is
-  deliberately not something we do.
-
-*(Blocks: `202`.)*
+None. Every question raised so far has been answered or withdrawn. New ones will
+arrive; this section is where they go, and a phase holding an unanswered one
+that belongs to it is in progress rather than finished.
 
 ### Answered
+
+**Do the login proof, or patch it away?** — Both. The question was malformed:
+a profile is a named subset of the patch set, so a simplified login is one more
+patch in one more profile and does not compete with the client implementing the
+proof properly. Nothing was being traded.
+
+The client implements it, which is what keeps an unpatched server reachable as
+the day-one baseline. The arithmetic runs over an array of words rather than a
+single one, which is not an obstacle — it is what multi-word arithmetic is — and
+it happens once per login, so it is not a performance path. A patch that
+simplifies the login is available in the bin if a reason to want one turns up.
+
+*Why there is arithmetic here at all:* the login convinces the server we know a
+password without a password crossing the wire. The server stores a value derived
+from the password and never the password. Both sides raise a number to a power
+and take the remainder against a fixed 32-byte prime, arriving at the same value
+by different routes — so the server can check the answer and cannot reconstruct
+the secret.
 
 **What does the client do with a message it does not implement?** — *"Um,
 nothing I guess?"* Nothing. It is dropped, silently, in a default table entry.
