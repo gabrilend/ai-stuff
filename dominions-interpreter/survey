@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# survey — report what a Dominions savegame collection actually contains.
+#
+# Reads every savegame folder, opens sixteen bytes of each world state file,
+# and says what turn each game is on, which version last wrote it, who is being
+# played, and which mods it needs. With --deep it also opens orders files in
+# full and measures the record arrays inside them.
+#
+# This exists so that no number about the collection is ever written into a
+# document by hand, where it would be wrong within a month. If a document and
+# this disagree, this is right.
+#
+# Usage:
+#   ./survey                    use the folder named in input/game
+#   ./survey --deep             also measure record arrays (reads whole files)
+#   ./survey /path/to/.dominions6
+#
+# The project directory is hard-coded below and may be overridden by setting
+# DIR in the environment, so this runs correctly from anywhere.
+
+set -euo pipefail
+
+DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/dominions-interpreter}"
+
+if [ ! -d "${DIR}/src" ]; then
+    echo "cannot find the project at ${DIR}" >&2
+    echo "set DIR to where dominions-interpreter lives" >&2
+    exit 1
+fi
+
+# The RAM tiers do not survive a reboot, so they are made every run rather than
+# at install. A script that assumes they are still there fails on the first
+# cold morning.
+mkdir -p /tmp/dominions-interpreter
+mkdir -p /dev/shm/dominions-interpreter
+ln -sfn /dev/shm/dominions-interpreter /tmp/dominions-interpreter/shared-memory
+
+export DOMINIONS_INTERPRETER_DIR="${DIR}"
+exec luajit "${DIR}/src/011-survey-main.lua" "$@"

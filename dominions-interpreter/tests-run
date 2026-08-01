@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# tests-run — run every test in the project.
+#
+# Tests are cheap, so there are many of them and they run in a second. The ones
+# that matter most read the real Dominions savegame collection, because a
+# parser that agrees with a hundred real files spanning eighteen game versions
+# has been tested harder than any hand-written fixture could test it. If no
+# collection is found the suite still runs and says which parts it skipped.
+#
+# Usage:
+#   ./tests-run                     find the collection from input/game
+#   ./tests-run /path/to/.dominions6
+#
+# The project directory is hard-coded below and may be overridden by setting
+# DIR in the environment, so this runs correctly from anywhere.
+
+set -uo pipefail
+
+DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/dominions-interpreter}"
+
+if [ ! -d "${DIR}/src" ]; then
+    echo "cannot find the project at ${DIR}" >&2
+    exit 1
+fi
+
+mkdir -p /tmp/dominions-interpreter
+mkdir -p /dev/shm/dominions-interpreter
+ln -sfn /dev/shm/dominions-interpreter /tmp/dominions-interpreter/shared-memory
+
+HOME_DIR="${1:-}"
+
+# No collection named on the command line: ask the settings file, if there is
+# one. Absent that, run without - the suite is built to say what it skipped
+# rather than to fail for want of a game installation.
+if [ -z "${HOME_DIR}" ] && [ -f "${DIR}/input/game" ]; then
+    HOME_DIR="$(awk '$1 == "dominions-home" { $1 = ""; sub(/^ +/, ""); print }' \
+        "${DIR}/input/game")"
+fi
+
+if [ -n "${HOME_DIR}" ] && [ ! -d "${HOME_DIR}" ]; then
+    echo "the Dominions folder ${HOME_DIR} does not exist" >&2
+    exit 1
+fi
+
+export DOMINIONS_INTERPRETER_DIR="${DIR}"
+exec luajit "${DIR}/src/012-test-main.lua" "${HOME_DIR}"
