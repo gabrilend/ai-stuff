@@ -146,43 +146,16 @@ Flat shading takes its value from a face's normal, computed once at load. No
 lighting at runtime, no textures, no normals in the file — the normal is derived
 from the winding.
 
-## The camera is a witch camera
+## The camera flies
 
-Three rigs were offered to choose between — overhead, isometric,
-over-the-shoulder. The answer was **"if it's my camera, it's a witch camera,
-thank you very much,"** and the question fell over, because all three are
-*mounts*: a camera bolted to an offset and dragged along behind a player.
+It is not mounted to a fixed offset and dragged along behind the player. It has
+its own position and velocity, pulled toward a target by a spring rather than
+snapped to it — so it lags, leans into turns, and drifts slowly when you hold
+still.
 
-A witch camera is not mounted. It flies.
-
-```
-        ✳                   the whisp goes where it goes
-       ╱
-      ╱      ◉  ~~~,        the camera follows, lagging, leaning,
-     ╱                      drifting on its own while it does
-```
-
-So the camera stops being a value in a config file and becomes **another
-floating thing in a world of floating things**. It has the same right to wander
-that the arms of a star do:
-
-- it **lags** — the whisp moves first and the camera catches up, so acceleration
-  is visible rather than inferred
-- it **leans** into turns, and overshoots slightly coming out of them
-- it **drifts** when you hold still, on its own slow wander, so a stationary
-  frame is never a dead one
-- it **rises** when you move fast and settles when you slow, which is the whole
-  of "this is urgent" said without any interface
-
-Mechanically that is a position with its own velocity, pulled toward a target
-offset by a spring rather than snapped to it, plus the same kind of gated wave
-the whisps use. The three rigs survive as the extremes it can be tuned toward,
-which is a more useful role for them than being voted on: overhead is the spring
-stiff and the height high, over-the-shoulder is the offset short and the lag
-long.
-
-Every constant in that list is a dial, and dials live in
-`docs/balance-updates.md`.
+Overhead, isometric, and over-the-shoulder are extremes of the same few numbers
+— stiff spring and high offset, or short offset and long lag — rather than
+separate modes. The numbers live in `docs/balance-updates.md`.
 
 ---
 

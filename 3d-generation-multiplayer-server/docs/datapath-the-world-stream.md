@@ -166,9 +166,10 @@ Three things follow from this, and they are why it is worth the extractor:
    recomputed cannot drift; one that is hand-maintained always does.
 
 The dispatch itself is a **table indexed by opcode**, not a chain of comparisons
-— a jump through a pointer array rather than a walk down a ladder of branches,
-and the unhandled case is a single default entry that logs the name (which we
-have, from the generated table) and returns.
+— a jump through a pointer array rather than a walk down a ladder of branches.
+The unhandled case is a single default entry that returns. No log, no counter: a
+message we do not implement is dropped, silently, and the receive loop carries
+on to the next one.
 
 ---
 
