@@ -514,12 +514,12 @@ run_one("ln -sfn /dev/shm/every-software-image-able /tmp/every-software-image-ab
 local out_directory = DIR .. "/tmp/shared-memory/payloads"
 run_one("mkdir -p " .. out_directory)
 
--- {{{ local function build_blob_report(out_directory)
-local function build_blob_report(out_directory)
-  -- A payload that carries a packed model inside itself and reads its header
-  -- aloud -- issue 102 proved in the small. Only x86-64 so far; the other two
-  -- need the same routine written again in their own instructions.
-  local base = out_directory .. "/blob-report-x86_64"
+-- {{{ local function build_blob_report(arch, out_directory)
+local function build_blob_report(arch, out_directory)
+  -- A payload that carries a packed model inside itself, reads its header
+  -- aloud, reads the firmware's memory map, and computes which memory
+  -- strategy it can afford -- issue 102, on all three architectures.
+  local base = out_directory .. "/blob-report-" .. arch
 
   -- the model it will carry. Built by the same test that proves the format
   -- round-trips, so there is one small model rather than two.
@@ -529,24 +529,34 @@ local function build_blob_report(out_directory)
     run_one("luajit " .. DIR .. "/src/027-test-blob.lua --dir " .. DIR .. " > /dev/null")
   end
 
-  -- ask the wrapper where it puts an appended payload rather than keeping a
-  -- second copy of the answer here.
+  -- ask the wrapper how it lays an image out rather than keeping a second
+  -- copy of the answer here: where an appended payload begins, and how far
+  -- into the loaded image the code starts.
   local pipe = io.popen("luajit " .. DIR .. "/src/029-wrap-uefi.lua --blob-offset")
   local blob_offset = tonumber(pipe:read("*l"))
   pipe:close()
   if not blob_offset then die("the wrapper did not say where it puts an appended payload") end
+
+  pipe = io.popen("luajit " .. DIR .. "/src/029-wrap-uefi.lua --text-rva")
+  local text_rva = tonumber(pipe:read("*l"))
+  pipe:close()
+  if not text_rva then die("the wrapper did not say where its code begins") end
 
   -- where each header field sits, taken from the layout description that the
   -- packer and the reader also use, so the payload cannot drift from them.
   local format = dofile(DIR .. "/src/024-blob-format.lua")
   local emit_report = dofile(DIR .. "/src/033-emit-blob-report.lua")
   local offsets = emit_report.field_offsets(format)
+  local geometry = { blob_offset = blob_offset, text_rva = text_rva, dir = DIR }
+
+  local emitter = emit_report[arch]
+    or die("033 knows no architecture called " .. arch)
 
   local handle = io.open(base .. ".s", "w") or die("cannot write " .. base .. ".s")
-  handle:write(emit_report.x86_64(blob_offset, offsets))
+  handle:write(emitter(geometry, offsets))
   handle:close()
 
-  local assembled = run_one("clang --target=" .. clang_target.x86_64
+  local assembled = run_one("clang --target=" .. clang_target[arch]
                             .. " -c " .. base .. ".s -o " .. base .. ".o")
   if not assembled then die("assembly failed for blob-report (see " .. base .. ".s)") end
 
@@ -554,7 +564,7 @@ local function build_blob_report(out_directory)
   if not extracted then die("extraction failed for blob-report") end
 
   local wrapped = run_one("luajit " .. DIR .. "/src/029-wrap-uefi.lua --from "
-                          .. base .. ".raw --to " .. base .. ".efi --arch x86_64"
+                          .. base .. ".raw --to " .. base .. ".efi --arch " .. arch
                           .. " --append " .. blob .. " > /dev/null")
   if not wrapped then die("wrapping failed for blob-report") end
 
@@ -595,7 +605,7 @@ for _, name in ipairs(known_payloads()) do
     for _, arch in ipairs({ "x86_64", "aarch64", "riscv64" }) do
       if only_arch == nil or only_arch == arch then
         if name == "blob-report" then
-          if arch == "x86_64" then build_blob_report(out_directory) end
+          build_blob_report(arch, out_directory)
         elseif name == "uefi-hello" then
           build_uefi(arch, out_directory)
         elseif buildable(name, arch) then
