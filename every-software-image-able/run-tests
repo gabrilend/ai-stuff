@@ -69,6 +69,7 @@ run_test "the same words into the same numbers" "060-test-assembly-tokenizer.lua
 run_test "choosing what to say next"          "041-test-sampler.lua"
 run_test "choosing the same word, twice over" "058-test-assembly-sampler.lua"
 run_test "what the machine is thinking with"  "053-test-context.lua"
+run_test "the loop, closed, and its stoppers" "062-test-thinking-loop.lua"
 
 if [ -z "${QUICK}" ]; then
   # These boot real emulated machines on three architectures and take minutes.
