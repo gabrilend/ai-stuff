@@ -13,7 +13,8 @@ belongs beside its neighbour rather than after it: `003a` is the downward half o
 every-software-image-able/
 ├── notes/
 │   ├── vision ....................... the page it started from
-│   └── 007-deferred.md .............. worked out, then set aside, and why
+│   ├── 007-deferred.md .............. worked out, then set aside, and why
+│   └── 014-spoken-while-building.md . things said in passing, kept whole
 │
 ├── docs/
 │   ├── table-of-contents.md ......... this file

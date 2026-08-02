@@ -12,20 +12,23 @@ and doing, and everything in phase 2 hangs off the shape chosen here.
 
 ## Suggested implementation steps
 
-1. Choose how a call is recognised. Parsing structured text out of the stream is
-   simple and forgiving of a model that phrases things slightly differently.
-   Reserving tokens for it is exact and unambiguous and costs vocabulary. The
-   choice decides how often the machine fails to act because it phrased a request
-   in a way nothing matched.
-2. Decide what happens on a malformed call. The rule in this project is that
+1. **Do not choose the call format here.** How a call is written and recognised
+   depends on the model, and the model is not chosen by this project (`101`) — it
+   is a parameter of the build. Reserved tokens are ruled out for the same reason:
+   an arbitrary model was not trained with tokens we invented. Beyond that, treat
+   the specifics as arbitrary and settle them at implementation time against
+   whichever model is in front of you.
+2. Build the parser as a swappable part, and test it per model rather than once.
+   It is one of the few places where changing the model can break the machine
+   while everything else keeps working.
+3. Decide what happens on a malformed call. The rule in this project is that
    errors beat fallbacks: a call that does not parse should come back saying it
    did not parse, in a form the model can read and correct, rather than being
    guessed at.
-3. Define how results return — including large results. A call that reads a
-   million bytes of memory cannot put a million bytes into the thinking loop, so
-   there has to be a way to hand back a summary and a handle rather than the
-   whole thing.
-4. Define how a call that does not return is survived. Some of these hands touch
+4. Define how results return. Small ones come back as text. Large ones go through
+   `201a`, which searches them in a scratch context so that only the useful part
+   ever reaches the machine's own.
+5. Define how a call that does not return is survived. Some of these hands touch
    hardware, and hardware hangs (`docs/003a`). A call needs a way to be given up
    on, or the first bad probe ends the machine.
 5. Keep the list of available calls readable **by the model**. It should be able

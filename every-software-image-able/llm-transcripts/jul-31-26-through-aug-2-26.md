@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 22:20:45
+Generated on: 2026-08-01 22:28:36
 
 --------------------------------------------------------------------------------
 
@@ -3744,6 +3744,317 @@ Phase 1 has nothing blocking left.
 Want phase 2 next? It's the seven hands, and the one with teeth is running code
 the machine just wrote — specifically getting control back from it when it
 doesn't return.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 35
+
+z The entropy file is a clock, and it might be a very short one. Ten thousand
+numbers, at one draw per token, is ten thousand tokens. That may not cover the
+machine writing its own allocator, let alone growing. Which means either the
+file wants to be much larger, or — the option I'd
+
+  suggest — each number from it seeds a cheap generator that produces
+  thousands of draws before being re-seeded from the next one. That stretches a
+  hundred kilobytes across a very long life while keeping the property you
+  wanted: same image, same seed, same machine, exactly.
+
+
+sure agreed the generator with a small seed works great.
+
+
+  Either way there's a deadline in the design now, and it's the only one. The
+  machine has to build its own source of randomness before the carried supply
+  runs out. Wrapping around silently is the failure to avoid — it would start
+  making the same choices again without noticing, and
+
+  nothing would look wrong.
+
+
+it would only produce the same choices if we asked the same questions, which
+would only happen if we made no progress at all. If we run through the entire
+list of random numbers before solving even a single problem... We have bigger
+problems.
+
+
+  The mutable initialising context means the brakes are editable. This follows
+  correctly from everything being mutable and from the context being atoms and
+  nothing else — but it lands somewhere specific. The two things this design
+  treats as prohibitions rather than suggestions, never
+
+  writing to the registers that destroy hardware and never modifying a mind
+  that's running, are now text in a file the machine is permitted to change.
+  Nothing prevents a machine from editing them away.
+
+
+  I've written that down as true rather than quietly preventing it, and flagged
+  it as something nobody has decided is correct. It's the one place where the
+  "everything is mutable" principle and the "two exceptions" principle disagree,
+  and they'll keep disagreeing until you say which
+
+  wins.
+
+
+
+so... if you modify a machine while it's running, it might break. If you are
+trying to keep the system stable, you might want to... not do that...
+
+
+  Want phase 2 next? It's the seven hands, and the one with teeth is running
+  code the machine just wrote — specifically getting control back from it when
+  it doesn't return.
+
+
+sure, unless you want to talk about those things I just said above.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 35
+
+Both corrections land.
+
+
+On wrapping — you're right and I overstated it. The number is applied to a
+different distribution every time, so reusing the stream only reproduces choices
+if the questions repeat, and if the machine burned ten thousand numbers without
+solving anything then the randomness isn't what's wrong. With a generator seeded
+from the file the supply is effectively unbounded anyway, so the deadline
+dissolves.
+
+
+And the prohibitions: that dissolves the contradiction rather than picking a
+side. **The two exceptions are about what gets specified, not about what gets
+prevented.** There was never a lock available — a machine that can rewrite its
+own mind can rewrite anything. What we can do is write the procedure out in full
+with the reason attached, and let the consequence be the enforcement. Fixing
+both documents to say that.
+
+
+Committed.
+
+
+# Phase 2 — the hands, in detail
+
+
+**Goal.** Thinking that can touch the machine. A model that can't act has
+nothing to be instructed about, which is why this comes before the words.
+
+
+**Order within the phase.** `201` first because everything hangs off the shape
+it picks. Then `202` immediately, because every remaining ticket is debugged
+through it. Then `203`, `204`, `206`, then `205` — which needs `206` — and
+`207` last.
+
+
+## 201 — the shape of a tool call
+
+
+**One decision I'd left open is now closed by the model being a build
+parameter.** Recognising calls by reserved tokens is out: an arbitrary
+off-the-shelf model wasn't trained with tokens we invented. So calls are
+structured text, parsed out of the stream.
+
+
+That has a consequence worth planning for. Different models phrase things
+differently, so the parser is one of the few places where swapping the model can
+break the machine, and it wants testing per model rather than once.
+
+
+Recognition should be forgiving and interpretation strict: find the call even if
+it's phrased loosely, then reject a malformed one clearly, in a form the model
+can read and correct. Guessing at a call that didn't parse is the fallback this
+project's rules forbid.
+
+
+Two things that are easy to leave until they hurt. **Large results** — a call
+that reads a megabyte of memory cannot put a megabyte into the thinking loop, so
+there has to be a way to return a summary and a handle rather than the contents.
+And **calls that never return**, because several of these hands touch hardware
+and hardware hangs; a call needs a way to be abandoned, which is the same
+machinery `204` needs and should be built once.
+
+
+Finally, the catalogue of available calls has to be readable *by the model*, not
+just told to it once. It should be able to ask what its hands are — the same
+object that becomes the grown machine's operation table, where the door and the
+catalogue are one thing.
+
+
+## 202 — say something
+
+
+A serial port is a handful of registers and almost no ceremony. Set a divisor
+for the speed, set the format — eight bits, no parity, one stop bit — and
+then for every byte: poll the status register until the transmit holding
+register reports empty, and write the byte. That's the whole driver. On x86 it's
+port access at a fixed address; on ARM and RISC-V it's a memory-mapped register
+block whose location comes from the board description.
+
+
+Unbuffered on purpose. Buffering loses exactly the last thing said, which is
+precisely what you want to read after a crash.
+
+
+The engine should narrate its own startup through this — memory found, weights
+located, first token produced — so the machine is describing itself before
+it's capable of being asked to. And handle the no-serial-port board at build
+time rather than in the field: a machine that can't speak is a machine nobody
+can help.
+
+
+## 203 — touch memory
+
+
+Read and write at physical addresses, in the widths the processor supports. No
+translation and no permission layer — adding one here would be inventing the
+kernel this design deliberately doesn't have.
+
+
+Two refusals: the ranges holding the engine and the weights, known from `102`;
+and addresses outside the usable map, because on some machines a read from
+nothing hangs the bus and turns a typo into a dead computer.
+
+
+Return what was actually read rather than what was expected. Some addresses are
+devices and don't hold what was last written to them, and that difference is
+information the model needs.
+
+
+And provide bulk forms — fill a range, copy a range, compare two ranges —
+because a model issuing one call per byte spends its entire context on
+addresses.
+
+
+## 204 — run what it wrote
+
+
+Everything downstream depends on this. Three parts, and the third is the real
+work.
+
+
+**An assembler on the chip, rather than raw machine code from the model.** With
+the model swappable, relying on an arbitrary model to emit correct instruction
+encodings by hand is a bad bet — but writing textual assembly is something
+most can do well. So the seed carries an assembler. That's more software on the
+chip and it makes everything afterward easier to write and readable back. Worth
+noting it's a fifth thing on the chip that nothing had counted.
+
+
+**A calling convention, defined once and written into the patterns**, so
+everything the machine writes later agrees with everything else it wrote. That
+agreement has to start somewhere and this is where.
+
+
+**Getting control back**, which is where the teeth are. Code a model wrote will
+loop forever, and without a way to regain control the first bad function ends
+the machine.
+
+
+The proper answer is interrupt handling: a table of handler addresses, a timer
+programmed to fire, a handler that can unwind. That's a small kernel piece and
+it's genuine work.
+
+
+But there's a plain-version-first answer that mirrors how `103` is structured.
+**Run the generated code single-stepped** — trap after each instruction, count
+them, abandon past a budget. It needs no timer setup, it cannot be escaped, and
+it's very slow. Correctness first, speed later. It's also the same
+instruction-counting shape the grown machine's interpreter uses for its
+countdown, arrived at from the opposite direction.
+
+
+The honest limit: generated machine code can scribble anywhere, and bounds can't
+be enforced on raw instructions without hardware help. Putting it in an isolated
+arena reduces the blast radius rather than removing it. That is the strongest
+argument in the project for the machine getting to bytecode quickly — once
+it's running its own interpreter, the check comes free in the fetch.
+
+
+Keep the text the model wrote beside the bytes it became. That pair is what
+makes `703` possible, and it's the first thing the machine builds that outlives
+the thought that made it.
+
+
+## 205 — touch the hardware
+
+
+Enumeration differs by architecture and not in shape: on x86, a pair of ports
+where you write a slot address and read back who answered; on ARM and RISC-V, a
+tree the firmware leaves describing the board. Either way you get, per device,
+its maker, its part, its class, where its registers sit and which interrupt line
+it pulls.
+
+
+Read and write as separate calls, with write harder to reach than read, because
+reads hold nearly all the information and nearly none of the danger.
+
+
+The five destroying categories refused by default, openable only by a confirmed
+description — and confirmation is read-only, always. Intent written before the
+attempt, which is why this lands after `206` rather than before it. A prediction
+required with every exploratory write, since a call that says what's expected
+can be evaluated and one that doesn't produces a result nobody can interpret.
+
+
+## 206 — keep something
+
+
+Storage through a standard class interface, and this is not a preference —
+it's what opens the circle. Operating an unknown device safely requires writing
+a note first; writing requires storage; the circle only opens because storage
+almost always answers to something standard.
+
+
+**One divergence to put on `705`'s list immediately:** the simplest storage in
+an emulator is a paravirtual block device — a queue in memory and two
+registers — while real hardware means NVMe or SATA or USB storage. So the
+emulator loop and the hardware loop will be exercising different drivers from
+the first day, and that gap is exactly the kind that stays invisible until first
+light.
+
+
+Blocks, a size query, and a writability query — because a read-only delivery
+medium is the expected case and must be reported rather than discovered by a
+write that silently does nothing. Enumeration, so the machine can judge "least
+likely to be unplugged." And the move itself: write a copy, hand control to it,
+with the two-places-or-neither window as short as the medium allows and obvious
+in the code.
+
+
+No filesystem. The machine can build one if it wants one. What the seed needs is
+blocks, an extent it owns, and the ability to find that extent again next boot.
+
+
+## 207 — emit a status
+
+
+Aspect, code, magnitude — reachable both as a tool call and from code produced
+by `204`, because the machine emits during its own thinking and the things it
+builds emit during theirs. Driven onto whatever lamps the board has, with the
+aspect carried as colour *and* shape so the reading survives a failed lamp or a
+person who doesn't distinguish colours. Machine-wide in memory rather than
+private per program. Falls back to serial when there's no display, and says
+that's what it's doing.
+
+
+The meanings stay untouched. The seed provides the mechanism; the lookup that
+says what a code means is something the grown machine builds for itself, and
+baking a vocabulary in would be deciding something that isn't ours to decide.
+
+
+---
+
+
+**What done looks like:** the machine narrates its own startup, then is asked
+for something it can only answer by writing a function, assembling it, running
+it, and reporting what came back — with the whole thing surviving a function
+that never returns.
+
+
+**Where it goes wrong:** `204`, step three. Everything else in the phase has a
+known shape.
 
 
 --------------------------------------------------------------------------------

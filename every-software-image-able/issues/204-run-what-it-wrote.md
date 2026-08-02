@@ -23,11 +23,23 @@ every program the machine ever has are downstream of this one call.
 3. Call it, with arguments, and return what it returned. Define the convention
    once and write it into the bundled patterns (`303`), so that everything the
    machine writes afterward agrees with everything else it wrote.
-4. **Survive it not returning.** Code written by a model will sometimes loop
-   forever or jump somewhere meaningless. Without a way to regain control the
-   first bad function ends the machine. Whatever mechanism the board offers —
-   a timer that interrupts, a watchdog that resets — has to be in place before
-   this call is offered, or the machine can only be given one chance.
+4. **Survive it not returning, using the status emission.** Code written by a
+   model will sometimes loop forever, and without a way to regain control the
+   first bad function ends the machine.
+
+   The assembler is ours, so **it inserts a status emission at every loop
+   back-edge** rather than relying on the model to remember. Any loop therefore
+   reports, repetition pushes the magnitude away from fifty, and crossing a
+   threshold is where control gets taken (`docs/006`). This is the same trick the
+   grown machine's interpreter uses in its fetch loop, one layer further down, and
+   it costs a few instructions per iteration rather than a timer, an interrupt
+   table and a handler.
+
+   Two holes worth naming rather than discovering. Code that did not come through
+   our assembler — raw bytes, or a jump into the middle of something — escapes the
+   emission. And a loop with no back-edge our assembler recognises escapes it too.
+   For those, single-stepping with an instruction budget is the slow fallback that
+   cannot be escaped, and it is worth having even if it is rarely reached.
 5. Keep what was produced, alongside the text it came from. The pair is what
    makes a later reading of "why is this here" possible, and it is the first
    thing the machine builds that outlives the thought that made it.
