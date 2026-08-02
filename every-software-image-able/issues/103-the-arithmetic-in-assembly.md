@@ -40,6 +40,24 @@ Kernels touch only the memory handed to them, so they need no symbol
 references and the same instructions run hosted — where a test takes a fraction
 of a second — and on bare metal, where it would take minutes.
 
+**The working memory question is answered too** — the part of this ticket that
+would have been `103c`. `src/045` itemises what a machine needs to think:
+weights at a chosen storage format, the cache that grows with the length of a
+thought, the vectors one step needs while it happens, and the engine. `src/046`
+prints that across several model shapes and board sizes and checks the
+arithmetic against itself, 6 of 6.
+
+It reports **which term runs out first**, because the remedy differs. Weights
+dominating means only a smaller model will do. Cache dominating means a shorter
+thought is also an answer — and a machine that cannot hold its full context can
+still think in shorter breaths, which beats refusing to start. The arrangement
+of a model decides which wall it meets: at the same context length, one
+reference shape is weight-bound and another is cache-bound.
+
+This is the whitepaper's top risk turned from an argument into arithmetic. It
+does not say whether a model that fits is also good enough to write assembly
+unaided. Nothing arithmetic can.
+
 **Still to write:** everything from the attention onwards, and both other
 architectures.
 
