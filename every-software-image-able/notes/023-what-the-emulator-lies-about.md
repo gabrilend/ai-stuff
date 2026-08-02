@@ -309,6 +309,55 @@ convention also requires.
 
 ---
 
+### Where a rounding happens is part of the answer, and the assembly found it
+
+**Class:** specification. **Cost:** three attempts at a fix, because the first
+two were confidently aimed at the wrong line.
+
+Composing every kernel into a whole forward pass produced one disagreement with
+the recorded answer: four parts in a thousand million, at the second token, on
+one score out of forty-eight. The first token matched exactly.
+
+**That pattern was the diagnosis.** At the first position there is a single
+score, softmax of a single value is one whatever the value was, and the rotation
+by a zero angle is the identity. Anything that only acts from the second
+position onward was a suspect; everything else was cleared by the first token
+matching.
+
+The cause was in the reference. Written the obvious way, accumulating a weighted
+value reads
+
+    total = total + weight * value
+
+which computes the product and the sum together in double and rounds once when
+it lands in a single-precision array. A machine does the multiply and the add as
+separate instructions and rounds after each. **One rounding against two**, and
+the results differ in the last bit.
+
+**Two wrong fixes came first**, and both are worth recording because they were
+plausible:
+
+- The attention scale was a double slipped into single-precision arithmetic.
+  Real, and fixed, and not this — it changed nothing, because it was not the
+  only unrounded thing.
+- Rounding the square root before dividing rather than after. This *moved* the
+  disagreement instead of removing it, because the other side rounded only the
+  final result. Two implementations of one constant, differing in where the
+  rounding sat.
+
+**Structural response.** Every place a rounding occurs is now stated: the scale
+is one value rounded once; the small constant in normalisation is a named
+single-precision quantity rather than a literal written twice; and accumulation
+rounds after the multiply and again after the add, because that is what the
+hardware does.
+
+**What this says about the fixture.** A recorded answer catches a change in
+arithmetic. It cannot catch a specification that was never precise enough to
+implement twice. What caught this was a *second implementation* — and it found a
+bug in the reference, which is the direction that was not expected.
+
+---
+
 ### The one failure so far that was loud
 
 Worth recording precisely because it is the exception. A function reserved

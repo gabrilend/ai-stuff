@@ -479,10 +479,185 @@ swiglu:
 ]]
 -- }}}
 
+-- {{{ the rest of a forward pass
+--
+-- Four small operations that together with the five above cover everything a
+-- step does. None of them needs a specification of its own: they are
+-- multiplication and addition, which agree everywhere.
+
+-- void rotate(float *vec, const float *turns, int heads, int head_width)
+--
+-- Turn each pair of numbers in each head by the angle for this position,
+-- reading the cosine and sine from the carried table rather than computing
+-- them. `turns` points at the row for the position already.
+M.x86_64.rotate = [[
+  .globl rotate
+  .type rotate, @function
+rotate:
+  testl %edx, %edx
+  jle 9f
+  testl %ecx, %ecx
+  jle 9f
+  pushq %rbx                    # one register short without it
+  movl %ecx, %r9d
+  shrl $1, %r9d                 # pairs per head
+  testl %r9d, %r9d
+  jle 8f
+  xorl %r10d, %r10d             # head
+1:
+  movl %r10d, %eax
+  imull %ecx, %eax              # head * head_width
+  xorl %r11d, %r11d             # pair
+2:
+  movl %r11d, %ebx
+  addl %ebx, %ebx               # pair * 2 -- where in the row of turns
+  movl %ebx, %r8d
+  addl %eax, %r8d               # ... and where in this head of the vector
+
+  movss (%rdi,%r8,4), %xmm0     # x
+  movss 4(%rdi,%r8,4), %xmm1    # y
+  movss (%rsi,%rbx,4), %xmm2    # cosine
+  movss 4(%rsi,%rbx,4), %xmm3   # sine
+
+  movaps %xmm0, %xmm4
+  mulss %xmm2, %xmm4            # x cos
+  movaps %xmm1, %xmm5
+  mulss %xmm3, %xmm5            # y sin
+  subss %xmm5, %xmm4            # x cos - y sin
+
+  movaps %xmm0, %xmm6
+  mulss %xmm3, %xmm6            # x sin
+  movaps %xmm1, %xmm7
+  mulss %xmm2, %xmm7            # y cos
+  addss %xmm7, %xmm6            # x sin + y cos
+
+  movss %xmm4, (%rdi,%r8,4)
+  movss %xmm6, 4(%rdi,%r8,4)
+
+  incl %r11d
+  cmpl %r9d, %r11d
+  jl 2b
+  incl %r10d
+  cmpl %edx, %r10d
+  jl 1b
+8:
+  popq %rbx
+9:
+  retq
+]]
+
+-- void attention_scores(float *scores, const float *query, const float *keys,
+--                      int count, int width, int stride, float scale)
+--
+-- How well this token's question matches each earlier token's answer. The keys
+-- live in the cache one position apart by `stride`, because every layer and
+-- every key head shares that array.
+M.x86_64.attention_scores = [[
+  .globl attention_scores
+  .type attention_scores, @function
+attention_scores:
+  testl %ecx, %ecx
+  jle 9f
+  xorl %r10d, %r10d             # which past position
+1:
+  movl %r10d, %eax
+  imull %r9d, %eax              # position * stride
+  leaq (%rdx,%rax,4), %r11      # that position's keys
+
+  xorps %xmm1, %xmm1            # running total
+  xorl %eax, %eax
+2:
+  cmpl %r8d, %eax
+  jge 3f
+  movss (%rsi,%rax,4), %xmm2
+  mulss (%r11,%rax,4), %xmm2
+  addss %xmm2, %xmm1
+  incl %eax
+  jmp 2b
+3:
+  mulss %xmm0, %xmm1            # times the scale
+  movss %xmm1, (%rdi,%r10,4)
+  incl %r10d
+  cmpl %ecx, %r10d
+  jl 1b
+9:
+  retq
+]]
+
+-- void attention_mix(float *out, const float *weights, const float *values,
+--                   int count, int width, int stride)
+--
+-- What to carry forward: each earlier token's value, weighted by how well it
+-- matched. Accumulated position by position in ascending order, which is the
+-- order the reference uses and therefore part of the answer.
+M.x86_64.attention_mix = [[
+  .globl attention_mix
+  .type attention_mix, @function
+attention_mix:
+  testl %r8d, %r8d
+  jle 9f
+  xorl %eax, %eax               # clear the destination first
+1:
+  cmpl %r8d, %eax
+  jge 2f
+  movl $0, (%rdi,%rax,4)
+  incl %eax
+  jmp 1b
+2:
+  testl %ecx, %ecx
+  jle 9f
+  xorl %r10d, %r10d             # which past position
+3:
+  movl %r10d, %eax
+  imull %r9d, %eax
+  leaq (%rdx,%rax,4), %r11      # that position's values
+  movss (%rsi,%r10,4), %xmm0    # its weight
+
+  xorl %eax, %eax
+4:
+  cmpl %r8d, %eax
+  jge 5f
+  movss (%r11,%rax,4), %xmm1
+  mulss %xmm0, %xmm1
+  addss (%rdi,%rax,4), %xmm1
+  movss %xmm1, (%rdi,%rax,4)
+  incl %eax
+  jmp 4b
+5:
+  incl %r10d
+  cmpl %ecx, %r10d
+  jl 3b
+9:
+  retq
+]]
+
+-- void add_into(float *destination, const float *addend, int count)
+--
+-- What carries a token's meaning past a layer rather than through it.
+M.x86_64.add_into = [[
+  .globl add_into
+  .type add_into, @function
+add_into:
+  testl %edx, %edx
+  jle 9f
+  xorl %eax, %eax
+1:
+  movss (%rdi,%rax,4), %xmm0
+  addss (%rsi,%rax,4), %xmm0
+  movss %xmm0, (%rdi,%rax,4)
+  incl %eax
+  cmpl %edx, %eax
+  jl 1b
+9:
+  retq
+]]
+-- }}}
+
 -- {{{ M.names -- what exists, so a test can ask rather than be told
 M.names = {
   "matrix_vector_plain", "matrix_vector_wide", "rms_normalise",
   "exp_one", "softmax", "swiglu",
+  "rotate", "attention_scores", "attention_mix", "add_into",
 }
 -- }}}
 

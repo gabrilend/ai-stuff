@@ -66,6 +66,12 @@ local function f(value)
   round[0] = value
   return round[0]
 end
+
+-- The constant added before the square root in normalisation, at single
+-- precision. Part of the specification and exported so that everything using
+-- it -- this file, the assembly's caller, any future port -- takes the same
+-- one rather than each writing it out.
+local EPSILON = f(1e-5)
 -- }}}
 
 -- {{{ local function read_header(blob, format)
@@ -147,8 +153,11 @@ local function rms_normalise(out, input, weight, size)
   for index = 0, size - 1 do
     sum = f(sum + f(input[index] * input[index]))
   end
-  -- square root is exactly specified, so this much is reproducible anywhere
-  local scale = f(1 / f(math.sqrt(f(f(sum / size) + 1e-5))))
+  -- square root is exactly specified, so this much is reproducible anywhere.
+  -- The small constant is rounded to single first, for the same reason the
+  -- attention scale is: a double slipped into single-precision arithmetic
+  -- changes the answer by an amount that looks like rounding and is not.
+  local scale = f(1 / f(math.sqrt(f(f(sum / size) + EPSILON))))
   for index = 0, size - 1 do
     out[index] = f(f(input[index] * scale) * weight[index])
   end
@@ -301,7 +310,28 @@ function M.forward(model, cache, token, position)
     apply_rotation(query, tensors.rotation, position, heads, head_width)
     apply_rotation(key_here, tensors.rotation, position, kv_heads, head_width)
 
-    local scale = 1 / math.sqrt(head_width)
+    -- Rounded to single precision before it is used, like everything else.
+    --
+    -- It was not, and the assembly found it. A constant computed in double and
+    -- multiplied into a single-precision total is computed in double and
+    -- rounded once at the end, which is a different answer from doing the
+    -- multiplication in single -- by about four parts in a thousand million,
+    -- which is exactly the size of thing that gets dismissed as rounding.
+    --
+    -- It only showed from the second token onward: at the first position there
+    -- is one score, and softmax of a single value is one whatever the value
+    -- was, so the scale never reached the answer. That is worth remembering --
+    -- a constant can be wrong for a whole class of inputs and invisible on the
+    -- simplest one.
+    -- Rounded ONCE, at the end. Rounding the square root first and then
+    -- dividing is a different number, and the first attempt at this fix did
+    -- exactly that while the assembly's caller rounded only the result -- so
+    -- the difference moved rather than went away.
+    --
+    -- The specification is: the scale is one over the square root of the head
+    -- width, as a single-precision number. One value, one rounding, and
+    -- everything that needs it takes it the same way.
+    local scale = f(1 / math.sqrt(head_width))
     local scores = vector(position + 1)
 
     for head = 0, heads - 1 do
@@ -328,8 +358,16 @@ function M.forward(model, cache, token, position)
                         + kv_head * head_width
         local weight = scores[past]
         for index = 0, head_width - 1 do
-          attended[query_base + index] = attended[query_base + index]
-            + weight * cache.values[past_slot + index]
+          -- Two roundings, not one. Multiply, round; add, round.
+          --
+          -- Written the obvious way this line computes the product and the sum
+          -- together in double and rounds once when it lands in the array. A
+          -- machine does the multiply and the add as separate instructions,
+          -- rounding after each. The two disagree in the last bit, and the
+          -- disagreement only appears from the second token onward -- at the
+          -- first position there is one value to mix and no accumulation to do.
+          attended[query_base + index] = f(attended[query_base + index]
+            + f(weight * cache.values[past_slot + index]))
         end
       end
     end
