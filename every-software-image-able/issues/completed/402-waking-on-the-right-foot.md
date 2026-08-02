@@ -2,15 +2,42 @@
 
 ## Current behavior
 
-**The mechanism is proved, ahead of the engines it will select between.** All
-three architectures now boot through real UEFI firmware (`src/030`–`032`),
-each starting an executable wrapped by `src/029`, and each firmware finds only
-its own — by the machine number in the envelope and by the filename it looks
-for. Nothing detects anything and nothing dispatches, exactly as this ticket
-says.
+**Done, and proved on real firmware** — `src/086` emits the waking payload,
+`src/087` checks it, 18 of 18 on 2026-08-02.
 
-What remains is the within-architecture detection: which vector extensions a
-particular processor turned out to have.
+**The between-architecture half was already proved.** All three architectures
+boot through real UEFI firmware (`src/030`–`032`), each starting an
+executable wrapped by `src/029`, and each firmware finds only its own — by
+the machine number in the envelope and by the filename it looks for. Nothing
+detects anything and nothing dispatches, exactly as this ticket says.
+
+**The within-architecture half now exists.** The payload asks the processor
+who made it and what it is, reads which vector arrangement it actually has,
+says all of that on the serial port, and names the engine it would start.
+The baseline is never asked about on any architecture — it is what the
+architecture guarantees, and asking about a guarantee is how a detector gets
+a wrong answer from a processor that answers oddly. On RISC-V that baseline
+has no vectors at all, which is the shape of that architecture's problem
+rather than a conservative choice.
+
+**A maker nothing was built against stops the machine**, and says why: the
+register the vector answers come back in is that maker's convention, so an
+unknown maker means the answers cannot be trusted either. Tested by telling
+the emulator to claim a maker nobody has heard of.
+
+**The detection is proved by disagreement.** The check that matters is not
+that the machine says something plausible — a payload that always said the
+same thing would pass that. It is booted on two different processors and the
+answers are required to differ, including which engine gets named.
+
+That replaced a check written against a wrong premise, and the premise is now
+in `notes/023`: **the emulated processor is not the host's processor.** It
+presents its own synthetic part, with a different maker and different
+capabilities. Comparing the machine's answer against the host compares two
+unrelated machines.
+
+The launcher gained `--cpu` for this, which is not a convenience: running a
+detection on one machine cannot show that it detects anything.
 
 ## Intended behavior
 

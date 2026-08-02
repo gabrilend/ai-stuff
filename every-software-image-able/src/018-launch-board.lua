@@ -68,7 +68,7 @@ local function parse_arguments(argv)
   -- one handler per flag: a dispatch table rather than an if-chain.
   local takes_value = {
     ["--payload"] = "payload", ["--disk"] = "disk",
-    ["--memory"] = "memory", ["--seconds"] = "seconds",
+    ["--memory"] = "memory", ["--seconds"] = "seconds", ["--cpu"] = "cpu",
     ["--screenshot"] = "screenshot", ["--capture-after"] = "capture_after",
     ["--dir"] = "dir",
   }
@@ -295,7 +295,11 @@ local function build_command(board, options, serial_log)
   argv[#argv + 1] = "-machine"
   argv[#argv + 1] = board.machine
   argv[#argv + 1] = "-cpu"
-  argv[#argv + 1] = board.cpu
+  -- The board names the processor it describes, and a caller may ask for a
+  -- different one. That is not a convenience: the only way to test that a
+  -- machine really detects what it is running on is to run it on more than
+  -- one thing and require the answers to differ (issue 402).
+  argv[#argv + 1] = options.cpu or board.cpu
 
   -- memory: a named size from the board, or a literal like 512M. Named
   -- sizes exist so the small board stays small -- the ratchet in issue
