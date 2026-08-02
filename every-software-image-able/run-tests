@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+#
+# run-tests -- runs everything this project knows how to check, and says what
+# held and what did not.
+#
+# For a general: a project is only as trustworthy as the things it re-checks
+# without being asked. This runs all of them in one go, from anywhere, and
+# ends with a single line saying whether anything broke.
+#
+# Tests are cheap. Make many of them, and run them during the build.
+#
+# usage:
+#   ./run-tests            everything
+#   ./run-tests --quick    skip the ones that boot emulated machines
+#   ./run-tests DIR        run against a project at another path
+
+# {{{ DIR -- the project root, hard-coded, overridable by an argument
+DIR="/mnt/mtwo/programming/ai-stuff/every-software-image-able"
+# }}}
+
+QUICK=""
+for word in "$@"; do
+  case "$word" in
+    --quick) QUICK="yes" ;;
+    --*)     echo "run-tests: unknown option $word" >&2 ; exit 1 ;;
+    *)       DIR="$word" ;;
+  esac
+done
+
+# the RAM directories, before anything tries to write a log into them.
+mkdir -p /tmp/every-software-image-able
+mkdir -p /dev/shm/every-software-image-able
+ln -sfn /tmp/every-software-image-able "${DIR}/tmp"
+ln -sfn /dev/shm/every-software-image-able /tmp/every-software-image-able/shared-memory
+
+PASSED=0
+FAILED=0
+FAILED_NAMES=""
+
+# {{{ run_test -- one test, its name, and whether it held
+run_test() {
+  local name="$1"
+  local script="$2"
+
+  printf '\n=== %s ===\n' "$name"
+
+  if luajit "${DIR}/src/${script}" --dir "${DIR}"; then
+    PASSED=$((PASSED + 1))
+  else
+    FAILED=$((FAILED + 1))
+    FAILED_NAMES="${FAILED_NAMES}  ${name}\n"
+  fi
+}
+# }}}
+
+printf '\n'
+printf 'checking everything in %s\n' "${DIR}"
+
+# The quick ones first, so a broken build is reported in seconds rather than
+# after several minutes of booting emulated computers.
+run_test "the packed model, round-tripped"   "027-test-blob.lua"
+run_test "the arithmetic, against its record" "037-test-forward.lua"
+run_test "text into numbers, and back"        "039-test-tokenizer.lua"
+run_test "choosing what to say next"          "041-test-sampler.lua"
+
+if [ -z "${QUICK}" ]; then
+  # These boot real emulated machines on three architectures and take minutes.
+  run_test "the discipline, held and broken"  "022-test-traps.lua"
+else
+  printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
+fi
+
+printf '\n'
+printf '%s\n' "--------------------------------------------------------------"
+if [ "${FAILED}" -eq 0 ]; then
+  printf 'all %d test programs held\n' "${PASSED}"
+else
+  printf '%d of %d test programs held. These did not:\n' \
+    "${PASSED}" "$((PASSED + FAILED))"
+  printf "${FAILED_NAMES}"
+fi
+printf '\n'
+
+mkdir -p "${DIR}/output"
+printf '%d of %d test programs held\ngoodbye\n' \
+  "${PASSED}" "$((PASSED + FAILED))" > "${DIR}/output/goodbye"
+
+[ "${FAILED}" -eq 0 ]
