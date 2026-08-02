@@ -88,14 +88,23 @@ run_one("mkdir -p " .. DIR .. "/tmp/kernels")
 
 local specification = dofile(DIR .. "/src/047-reference-exp.lua")
 local source = DIR .. "/tmp/shared-memory/kernels/kernels-" .. arch .. ".s"
+local conductor_source = DIR .. "/tmp/shared-memory/kernels/conductor-" .. arch .. ".s"
 local library = DIR .. "/tmp/kernels/kernels-" .. arch .. ".so"
 local handle = io.open(source, "w")
 handle:write(emit.source(arch, specification))
 handle:close()
-run_one("clang -shared -O2 -o " .. library .. " " .. source)
+
+-- the conducting rides along, so the fully-assembly pass can be timed too.
+local conduct = dofile(DIR .. "/src/056-emit-conductor.lua")
+handle = io.open(conductor_source, "w")
+handle:write(conduct[arch]())
+handle:write('  .section .note.GNU-stack,"",@progbits\n')
+handle:close()
+run_one("clang -shared -O2 -o " .. library .. " " .. source .. " " .. conductor_source)
 
 local assembly = dofile(DIR .. "/src/049-assembly-forward.lua")
 assembly.declare()
+conduct.declare()
 local kernels = ffi.load(library)
 
 local format = dofile(DIR .. "/src/024-blob-format.lua")
@@ -165,9 +174,19 @@ local wide = time_it("the assembly, four at a time", function(position)
   assembly.forward(kernels, model, assembly_cache, 1, position, true)
 end)
 
+-- the whole pass in assembly, conducting included -- what a bare machine
+-- actually runs, with no readable language anywhere in the loop.
+local conducted_cache = assembly.new_cache(shape)
+local conducted_holder = conduct.new_plan(kernels, model, conducted_cache, true)
+local conducted_logits = ffi.new("float[?]", shape.vocabulary)
+local conducted = time_it("the assembly, conducted end to end", function(position)
+  kernels.forward_conduct(conducted_holder.plan, 1, position, conducted_logits)
+end)
+
 say("")
 say(string.format("  the assembly is %.0f times the readable version", plain / slow))
 say(string.format("  reading four at a time is %.2f times one at a time", wide / plain))
+say(string.format("  conducting in assembly is %.2f times the readable conducting", conducted / wide))
 say("")
 
 -- {{{ what this implies for a model worth carrying
@@ -175,7 +194,7 @@ say("")
 -- The work in a forward pass is very nearly one multiply-and-add per weight,
 -- so a rate measured on a small model carries to a large one far better than
 -- most extrapolations do. It is still an extrapolation and is marked as one.
-local per_second_operations = wide * shapes.weight_count(shape)
+local per_second_operations = conducted * shapes.weight_count(shape)
 
 say(string.format("  that is %.1f million multiply-and-adds per second",
                   per_second_operations / 1e6))
@@ -220,10 +239,25 @@ say("")
 -- }}}
 -- }}}
 
+-- {{{ the results as data, so nothing has to be rewritten to compare later
+run_one("mkdir -p " .. DIR .. "/tmp/shared-memory/measurements")
+local data = io.open(DIR .. "/tmp/shared-memory/measurements/native.lua", "w")
+if data then
+  data:write("-- written by 051-measure-engine; read it back with dofile\n")
+  data:write(string.format(
+    "return { arch = %q, readable = %.3f, plain = %.3f, wide = %.3f,\n"
+    .. "         conducted = %.3f, operations_per_second = %.0f }\n",
+    arch, slow, plain, wide, conducted, per_second_operations))
+  data:close()
+  say("  kept as data in tmp/shared-memory/measurements/native.lua")
+  say("")
+end
+-- }}}
+
 run_one("mkdir -p " .. DIR .. "/output")
 local goodbye = io.open(DIR .. "/output/goodbye", "w")
 if goodbye then
-  goodbye:write(string.format("engine: %.1f tokens per second on the test model\ngoodbye\n", wide))
+  goodbye:write(string.format("engine: %.1f tokens per second on the test model\ngoodbye\n", conducted))
   goodbye:close()
 end
 -- }}}

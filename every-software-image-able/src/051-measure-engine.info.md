@@ -1,32 +1,53 @@
-# 051 — how fast it thinks — info
+# 051, 063 — how fast it thinks, and the boards — info
 
-Times the real kernels over a real model and extrapolates to models worth
-carrying. Issue `106`.
+`051` times the real kernels over a real model, natively, and extrapolates
+to models worth carrying. `063` switches on the three emulated boards and
+times each from power to the machine finding its own model and saying what
+room it has. Issue `106`, both halves. Together with `046` they are the
+phase 1 demo (`issues/completed/demos/phase-1-the-engine.sh`, reachable
+through `run-demo` at the project root).
 
-## Running it
+Both write their results as data under `tmp/shared-memory/measurements/`,
+so a later architecture or a real board is a new row rather than a rewrite —
+and so no document has to carry a figure and go stale. Run the tools when a
+number is needed; the tables below are a dated record, not the truth.
+
+## Running them
 
 ```
 luajit src/051-measure-engine.lua [--seconds N]
+luajit src/063-measure-boards.lua [--seconds N]
 ```
 
 ## What is measured, and what is not
 
-**Measured:** the actual kernels, natively, doing every operation a forward
-pass does. The instructions timed are the instructions a bare machine runs.
+**Measured:** the actual kernels and the assembly conducting, natively,
+doing every operation a forward pass does. The instructions timed are the
+instructions a bare machine runs. And per board: seconds from power to the
+payload's report, and the engine-plus-weights footprint as a fraction of
+what the firmware says the board has.
 
-**Not measured:** a bare machine's memory system, which has no operating system
-caching behind it; the other two architectures; and anything about a real
-model, since the timing model is small and the rest is extrapolation.
+**Not measured:** a bare machine's memory system, which has no operating
+system caching behind it; the other two architectures' engines, which do
+not exist yet (`401`); real wall-clock on real silicon — the board times are
+the emulator's clocks, which rank the roads against each other and say what
+development costs, nothing more; and the accelerator comparison `docs/010`
+wants, which cannot be made until something drives an accelerator.
 
 ## Results on 2026-08-02
 
 | | tokens per second |
 |---|---|
-| the readable version | 10,774 |
-| the assembly, one at a time | 47,038 |
-| the assembly, four at a time | 54,315 |
+| the readable version | 9,912 |
+| the assembly, one at a time | 44,007 |
+| the assembly, four at a time | 56,233 |
+| the assembly, conducted end to end | 62,401 |
 
-**1.18 billion multiply-and-adds per second.**
+**1.36 billion multiply-and-adds per second**, conducting included.
+
+Per board, from power to the full self-report: x86-64 in about three and a
+half seconds, ARM in six and a half, RISC-V in about nine — emulator time,
+under one firmware road each.
 
 Extrapolated by weight count, which carries better than most extrapolations
 because a forward pass is very nearly one multiply-and-add per weight — though
