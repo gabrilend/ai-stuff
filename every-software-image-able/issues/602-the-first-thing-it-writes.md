@@ -33,13 +33,18 @@ being a seed.
 6. Then leave it alone and watch it grow. What it builds, in what order, and what
    it does when it runs out of room, are the first observations anybody has of
    this kind of machine, and they belong in `notes/` rather than in a ticket.
-7. **Decide when to pull the card, and record why.** Until it comes out, the
-   original of everything the machine was told is still readable from it, so an
-   overwritten instruction can be recovered. After it comes out the machine is
-   only what it has become. Nothing tests readiness for this — it is a judgement
-   about whether something has finished learning to walk, made by whoever is
-   standing there, and the reasoning is worth more than the moment (question 21 in
-   `docs/008`).
+7. **Pull the card, at the right one of two moments.** Once the machine is running
+   from memory with nothing still being read off the card, it *can* come out —
+   nothing needs it. Once the machine can boot itself from disk into memory, it is
+   *safe* for it to come out, because the machine can be turned off and on again.
+
+   Between those two the machine exists only in volatile memory with nothing
+   anywhere able to recreate it, and losing power there ends that machine rather
+   than interrupting it. Test both milestones deliberately: confirm nothing is
+   still reading the card, then power-cycle and confirm it comes back.
+
+   After the card is out, the original of everything it was told is gone, and its
+   own instruction is genuinely irreversible for the first time.
 
 ## What would count as failure
 

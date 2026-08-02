@@ -16,9 +16,15 @@ becomes a new description file and no code.
    carried device descriptions, and any bundled drivers — with versions pinned.
    It never names a board.
 2. Write the board description: architecture, how the firmware locates something
-   to start, which device the console is on and at what rate, what the board can
-   boot from, how the medium is laid out, and where the description was
-   transcribed from. It never names a part of the seed.
+   to start **and where it looks for it**, which device the console is on and at
+   what rate, which storage controllers to expect, what the board can boot from,
+   how the medium is laid out, and where the description was transcribed from. It
+   never names a part of the seed.
+3. The "where it looks" field is load-bearing rather than incidental. Nothing
+   shared can detect a processor and choose an engine (`402`), so the way each
+   architecture ends up running its own code is that its firmware finds only its
+   own payload in the place its convention names. That place is board knowledge,
+   and the builder in `502` needs it to lay the medium out.
 3. Record what each board description was transcribed from, for the same reason
    the device descriptions do (`302`) — a transcription whose source is not named
    cannot be re-checked when a board revision lands.
