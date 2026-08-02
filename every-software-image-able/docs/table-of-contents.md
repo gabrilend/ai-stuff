@@ -26,7 +26,10 @@ every-software-image-able/
 │   ├── 005-datapath-the-four-rungs.md  use it, alter it, build it, condense it
 │   ├── 006-datapath-status-and-tolerance.md  the colourshape, the square, and walking backward
 │   │
-│   └── 008-open-questions.md ........ every question not yet closed, in one place
+│   └── 008-open-questions.md ........ every question, closed and open, in one place
+│
+├── strategems/
+│   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
 │
 ├── llm-transcripts/ ................. the dialogue this was built out of
 ├── issues/ .......................... tickets; blueprints for building this
@@ -40,7 +43,6 @@ every-software-image-able/
 ├── output/ .......................... what they return, ending in goodbye
 ├── desire/ .......................... notes on what should be better
 ├── faith/ ........................... expectation of boons and blessings
-├── strategems/ ...................... data flow patterns that keep proving useful
 └── tmp/ ............................. symlink to RAM; nothing here is kept
 ```
 
@@ -56,8 +58,10 @@ order.
 **To understand one mechanism:** go straight to its datapath document. Each names
 its data down to primitives and ends with what is still open about it.
 
-**Before writing any code:** `008`. Five questions are open and blocking, and
-four of them would change the shape of something already described here.
+**Before writing any code:** `008`, then `strategems/009`. Nothing is blocking.
+What remains open are the things whoever writes the code will meet while writing
+it, and three of the answered questions came out the same way — handed to the
+machine rather than settled by a rule written here.
 
 **To find out what was deliberately not decided:** `notes/007-deferred.md`. The
 canvas, the people, the game, the mail between machines, and the cheap backward
@@ -77,12 +81,13 @@ out the duplication so the room came from verbosity rather than from capability.
 
 ## Not yet written
 
-- **The roadmap.** Phases have not been defined, so the phase table that belongs
-  in this file is absent. Cluster boundaries are visible in the documents — the
-  interpreter, the bootstrap, hardware, compilation, the rungs, the status
-  square — but grouping them into phases while five blocking questions are open
-  would fix an order that the answers may move.
-- **Issue files.** None. Every one of them depends on the roadmap.
+- **The roadmap.** Phases are not defined yet, so the phase table that belongs in
+  this file is absent. The clusters are visible in the documents — the
+  interpreter, the bootstrap, learning hardware, compilation, the rungs, the
+  status reading — and nothing is blocking the work of grouping them now.
+- **Issue files.** None. Every one depends on the roadmap. The thing to watch
+  while writing them: a ticket that dictates how the machine must be organised is
+  the same mistake as a schedule (`strategems/009`).
 - **The HTML build** at `docs/HTML/`, cross-linked, with the status square as
   something you can move around in and the four rungs as something you can watch
   a request descend.
