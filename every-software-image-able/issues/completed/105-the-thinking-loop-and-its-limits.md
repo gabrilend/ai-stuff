@@ -28,9 +28,33 @@ overrunning.
 machine can edit its own prohibitions, because they are atoms in a mutable
 list. Nothing prevents it, deliberately, and `docs/013` says why.
 
-Still to do: the loop itself, which needs the tokenizer and sampler wired to
-the forward pass; and the disk half of the atom operations, which waits on
-storage (`304`).
+**The loop is closed** — `src/061`, checked by `src/062`, 13 of 13. Text
+becomes tokens through the assembly tokenizer, tokens run through the
+assembly conductor reusing the cache, a token is drawn by the assembly
+sampler and joins the input. Four stoppers, each named in the answer: a
+finish token (swallowed), a length limit, an interruption asked between
+tokens — because a machine that cannot be interrupted mid-thought cannot be
+told to stop doing something — and the room running out, which is reported
+honestly rather than thought past. What to let go of then is the machine's
+own decision through the context operations, never the loop's policy.
+
+The cache reuse is proven both ways: a second thought costs only its new
+tokens, and the reused cache's scores equal a fresh replay of the whole
+conversation, bit for bit. Two seam refusals are tested: a byte the
+vocabulary cannot say, and a tokenizer table that can say more than the
+weights know — a broken image named plainly rather than an embedding read
+past its edge.
+
+**Closing the loop found a defect in the context mechanism.** Atoms joined
+with a newline — exactly the "separator nobody named" that `docs/013`'s rule
+forbids. The separator belonged to no atom, drifted the token accounting
+from the real encoding, and broke the cache's prefix reuse at every atom
+boundary. Atoms now join with nothing between; an atom that wants a boundary
+owns the boundary in its content.
+
+The disk half of the atom operations remains `304`'s: writing an atom out
+and recalling it needs storage, and loading the boot set from the image
+needs the builder (`502`). Hosted callers hand boot atoms in directly.
 
 ## Intended behavior
 
