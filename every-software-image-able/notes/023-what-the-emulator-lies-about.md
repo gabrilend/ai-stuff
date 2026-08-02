@@ -374,6 +374,37 @@ is a plausible answer nobody questions.
 
 ---
 
+### The emulated processor is not the host's processor
+
+**What was assumed.** That an emulator asked for the best processor it can
+manage presents something close to the machine underneath it, so a detection
+running inside could be checked against what the host reports about itself.
+
+**What is actually true.** It presents its own synthetic part. On this
+machine the host reports one maker and the emulated processor reports the
+other, and their vector capabilities differ too — the host has the widest
+arrangement and the emulated part does not.
+
+**Cost.** One test written against the wrong premise, which failed
+immediately and loudly rather than passing. Cheap, and worth recording
+because the fix was better than the original: a detection is proved by
+running it on **two different emulated processors and requiring the answers
+to differ**, which tests what the detection is for rather than whether two
+unrelated machines happen to agree.
+
+**And the emulator is better than the hardware here.** It will present any
+maker asked of it, including one nothing was built against, which is how the
+refusal path gets tested at all. A real board has one processor and will not
+pretend to be another.
+
+**One real constraint surfaced through it.** The maker's name is exactly
+twelve characters — the size of the field the processor answers in, read
+back as three registers in an order nobody would guess. The emulator refuses
+anything else, which is the hardware's shape showing through rather than the
+emulator's rule.
+
+---
+
 ## Expected, unpaid
 
 Written down before being met, so that meeting them is cheaper. None of these

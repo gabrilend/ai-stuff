@@ -467,7 +467,7 @@ end
 -- {{{ local function known_payloads()
 local function known_payloads()
   local names = { "first-light", "draw-something", "uefi-hello", "blob-report",
-                  "draw-on-firmware" }
+                  "draw-on-firmware", "waking" }
   for _, category in ipairs(hazards.categories) do
     names[#names + 1] = "hazard-" .. category
   end
@@ -622,6 +622,37 @@ local function build_draw_on_firmware(arch, out_directory)
 end
 -- }}}
 
+-- {{{ local function build_waking(arch, out_directory)
+local function build_waking(arch, out_directory)
+  -- The first thing of ours that runs: what processor is this, said out
+  -- loud, and which engine it would start. Issue 402.
+  local emit_waking = dofile(DIR .. "/src/086-emit-waking.lua")
+  local emitter = emit_waking[arch]
+  if not emitter then
+    say("skipped waking for " .. arch
+        .. ": the detection is not written in its instructions yet")
+    return
+  end
+
+  local base = out_directory .. "/waking-" .. arch
+  local handle = io.open(base .. ".s", "w") or die("cannot write " .. base .. ".s")
+  handle:write(emitter({ engines = { "baseline", "wider" } }))
+  handle:close()
+
+  local assembled = run_one("clang --target=" .. clang_target[arch]
+                            .. " -c " .. base .. ".s -o " .. base .. ".o")
+  if not assembled then die("assembly failed for waking (see " .. base .. ".s)") end
+  local extracted = run_one("llvm-objcopy -O binary " .. base .. ".o " .. base .. ".raw")
+  if not extracted then die("extraction failed for waking") end
+  local wrapped = run_one("luajit " .. DIR .. "/src/029-wrap-uefi.lua --from "
+                          .. base .. ".raw --to " .. base .. ".efi --arch " .. arch
+                          .. " > /dev/null")
+  if not wrapped then die("wrapping failed for waking") end
+
+  say("built " .. base .. ".efi")
+end
+-- }}}
+
 -- {{{ local function build_uefi(arch, out_directory)
 local function build_uefi(arch, out_directory)
   -- A UEFI payload takes a different road out: assembled the same way, but
@@ -658,6 +689,8 @@ for _, name in ipairs(known_payloads()) do
           build_blob_report(arch, out_directory)
         elseif name == "draw-on-firmware" then
           build_draw_on_firmware(arch, out_directory)
+        elseif name == "waking" then
+          build_waking(arch, out_directory)
         elseif name == "uefi-hello" then
           build_uefi(arch, out_directory)
         elseif buildable(name, arch) then
