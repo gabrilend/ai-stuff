@@ -2,9 +2,25 @@
 
 ## Current behavior
 
-The instruction exists as a sentence in the vision — build every piece of
-software you can fit — and as several thousand words of design documents that
-were written for people.
+**Done, and tested** -- the instruction is `assets/081`, checked by `src/085`
+as part of the payload, 43 of 43 on 2026-08-02.
+
+It gives the startup order, marks the two prohibitions as different in kind
+from everything else in it, says what the machine is for and then stops. It
+is written for something that has never seen this project and has no way to
+ask what a term means.
+
+**Step five was followed exactly, and is checked in both directions.** The
+instruction says the atoms making it up can be rewritten, and says nothing
+about what that could cost -- a machine that derives the danger understands
+it, where one that was warned has only been handed another rule. The test
+requires the sentence to be there AND requires no warning to follow it, so
+a later kindness cannot quietly undo the decision.
+
+It does not prescribe the four rungs, the interpreter, condensing or the
+status square; those are patterns and live in `303`. A machine that
+organises itself completely differently can still follow this text, which is
+checked by searching for those shapes and requiring their absence.
 
 ## Intended behavior
 

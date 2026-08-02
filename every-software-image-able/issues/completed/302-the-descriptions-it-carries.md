@@ -2,9 +2,28 @@
 
 ## Current behavior
 
-The machine can enumerate devices and learns nothing about how to operate them.
-Descriptions can be found for essentially any modern computer, and none of them
-are on the chip.
+**Done, and tested** -- `src/082`, checked by `src/085`, 43 of 43 on
+2026-08-02.
+
+Ten required sections, refused at load if any is missing: a description with
+no errata may cover a part with nothing wrong with it, but one that never had
+the section is one nobody checked. Four classes carried -- storage first,
+since moving in depends on it, then serial, keyboard and display. Every one
+names whose document it was transcribed from, because transcriptions rot and
+one whose source is unnamed cannot be re-checked when a part revision lands.
+
+Confirmation is read-only: maker and part, the revision inside the range the
+description covers, and the read-only registers compared against what it
+predicts. Confirming by writing is exactly the failure the exploration
+discipline exists to prevent.
+
+**A partial match is a failure**, and every disagreement comes back rather
+than the first, because enough agreement to feel confirmed with one silent
+disagreement in the register that matters is the dangerous case rather than
+the safe one.
+
+The whole set is readable rather than compiled in, so the machine can extend
+it when it works out a device nobody described.
 
 ## Intended behavior
 
