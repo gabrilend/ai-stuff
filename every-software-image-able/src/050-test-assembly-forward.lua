@@ -67,18 +67,29 @@ run_one("mkdir -p " .. DIR .. "/tmp/kernels")
 
 local specification = dofile(DIR .. "/src/047-reference-exp.lua")
 local source = DIR .. "/tmp/shared-memory/kernels/kernels-" .. arch .. ".s"
+local conductor_source = DIR .. "/tmp/shared-memory/kernels/conductor-" .. arch .. ".s"
 local library = DIR .. "/tmp/kernels/kernels-" .. arch .. ".so"
 
 local handle = io.open(source, "w")
 handle:write(emit.source(arch, specification))
 handle:close()
-if not run_one("clang -shared -o " .. library .. " " .. source) then
+
+-- the conducting rides in the same library as the arithmetic it directs.
+local conduct = dofile(DIR .. "/src/056-emit-conductor.lua")
+handle = io.open(conductor_source, "w")
+handle:write(conduct[arch]())
+handle:write('  .section .note.GNU-stack,"",@progbits\n')
+handle:close()
+
+if not run_one("clang -shared -o " .. library .. " " .. source
+               .. " " .. conductor_source) then
   say("  the kernels would not assemble")
   os.exit(1)
 end
 
 local assembly = dofile(DIR .. "/src/049-assembly-forward.lua")
 assembly.declare()
+conduct.declare()
 local kernels = ffi.load(library)
 
 local format = dofile(DIR .. "/src/024-blob-format.lua")
@@ -221,14 +232,51 @@ check("adding a token does not change earlier answers", unchanged,
       "something later is reaching backwards through the attention")
 -- }}}
 
+-- {{{ the conducting, in assembly
+-- The same pass again with nothing readable left in the loop: the layer
+-- walk, the head walk and every pointer handed to a kernel are now assembly
+-- too (056). If this matches the recorded answer, the whole thought is
+-- assembly end to end -- and any later disagreement must be in a port,
+-- because on this architecture there is nothing else left to move.
+local function run_conducted(wide)
+  local cache = assembly.new_cache(model.shape)
+  local holder = conduct.new_plan(kernels, model, cache, wide)
+  local rows = {}
+  for step, token in ipairs(fixture.prompt) do
+    local row = ffi.new("float[?]", model.shape.vocabulary)
+    kernels.forward_conduct(holder.plan, token, step - 1, row)
+    rows[step] = row
+  end
+  return rows
+end
+
+local conducted = run_conducted(false)
+compare_to_fixture(conducted, "the assembly conducting matches the record exactly")
+
+local conducted_wide = run_conducted(true)
+local conducted_same = true
+local conducted_where = nil
+for step = 1, #conducted do
+  for slot = 0, model.shape.vocabulary - 1 do
+    if conducted[step][slot] ~= conducted_wide[step][slot] then
+      conducted_same = false
+      conducted_where = conducted_where
+        or string.format("step %d, score %d: %.9g against %.9g", step, slot,
+                         conducted[step][slot], conducted_wide[step][slot])
+    end
+  end
+end
+check("and conducts the wide kernel to the identical answer",
+      conducted_same, conducted_where)
+-- }}}
+
 say("")
 say("  " .. string.rep("-", 58))
 say("  " .. passed .. " of " .. (passed + failed) .. " as expected")
 say("")
 say("  what this leaves:")
-say("    - the conducting, which is still in a readable language. It has no")
-say("      floating point in it, which is why it was left for last.")
-say("    - the other two architectures.")
+say("    - the other two architectures. The readable conductor (049) stays")
+say("      as the reference the ports are held against.")
 say("")
 
 run_one("mkdir -p " .. DIR .. "/output")

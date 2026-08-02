@@ -12,7 +12,7 @@ be run is a file.
 |---|---|---|
 | `101` | Package a model, whichever one | **completed** — 10 of 10 round-trip checks, re-verified with the full suite before closing |
 | `102` | Find the weights without a filesystem | **completed** — finding, memory map and ratchet on all three architectures, 27 of 27 against the host's arithmetic |
-| `103` | The arithmetic, in assembly | nine kernels bit-exact 37 of 37; a whole pass on them 4 of 4; exponential specified 8 of 8; memory budget 6 of 6 |
+| `103` | The arithmetic, in assembly | **completed** — nine kernels bit-exact 37 of 37; the conducting in assembly too, 6 of 6; a whole thought is assembly end to end on x86-64 |
 | `104` | Sampling, and the carried seed | reference done, 9 of 9; assembly not started |
 | `105` | The thinking loop, and its limits | not started |
 | `105a` | The tokenizer | reference done, 21 of 21; assembly not started |
