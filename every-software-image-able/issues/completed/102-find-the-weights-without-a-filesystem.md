@@ -2,11 +2,14 @@
 
 ## Current behavior
 
-**The finding half works, on x86-64.** A payload booted by real UEFI firmware
-locates a packed model riding inside its own image and reads its header aloud:
-magic, version, layers, hidden size, heads, vocabulary, context, tensor count,
-token count and total size — every one matching what the host-side reader says
-about the same blob.
+**Done, on all three architectures, and held to the host's arithmetic by a
+test.** A payload booted by real UEFI firmware locates a packed model riding
+inside its own image, reads its header aloud, reads the memory map the
+firmware leaves behind, verifies its own body sits outside every usable
+range, and computes — before touching anything — which memory strategy the
+machine can afford. `src/033` emits it for all three architectures, `src/019`
+builds it, and `src/055` boots all three boards and compares every spoken
+number against the host: 27 of 27 on 2026-08-02.
 
 The model **travels inside the program that will run it** rather than beside
 it. The wrapper (`src/029 --append`) places it a fixed distance past the code
@@ -19,15 +22,32 @@ Field offsets are computed from the layout description (`src/024`) rather than
 counted, after counting them by hand produced a model with a hundred and
 seventy-six word vocabulary and a size of zero.
 
-Still to do:
+**The memory map.** The firmware is asked for its map into a buffer on the
+stack — the image's own pages can be mapped read-only, which one board's
+firmware really does. Conventional ranges are summed as free; the engine and
+the weights are verified to sit outside every usable range rather than
+assumed to, because the seam where the loader's allocation and the map
+disagree is exactly where a machine would fail with the least information.
+The report prints total, engine, weights and free, and the first thing the
+machine can say about itself is what room it has.
 
-- The memory map. Nothing yet reads what firmware leaves behind, so nothing
-  marks the engine and the weights as occupied, and nothing reports what is
-  free.
-- The ratchet. All three rungs are still undecided in practice because nothing
-  yet needs the memory.
-- The other two architectures. The routine must be written again in their own
-  instructions, and the RISC-V one without a single symbol reference.
+**The ratchet.** Cache and working costs are computed from the header's own
+numbers — the same two formulas as `src/045`, re-implemented in each
+architecture's instructions — and the ladder is walked fastest-first:
+everything in memory, the hot quarter resident, everything read in place, or
+a refusal that says which number was too large. The weights term is the whole
+blob, because the blob is the unit copied or read in place; `045.strategy`
+takes the same number through `weights_bytes` so the builder and the engine
+answer the same question, and `055` requires their answers to match on every
+board. Nothing is copied or read in place yet — the ratchet is computed and
+spoken, not acted on, and acting on it belongs to the engine that needs the
+memory (`103`, `105`).
+
+**The third tongue needed a tool.** The RISC-V assembler leaves every branch
+— even to `. + 12` — as a relocation for a linker this project deliberately
+does not have, so `src/054` lays payloads out and encodes every branch as a
+raw instruction word with the distance already inside it. The engine port
+(`401`) inherits that tool.
 
 ## Intended behavior
 

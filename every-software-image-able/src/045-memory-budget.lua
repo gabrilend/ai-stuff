@@ -150,7 +150,14 @@ end
 -- large, not run unusably and let somebody guess.
 function M.strategy(options, available_bytes)
   local shape = options.shape
-  local weights = M.weights(shape, options.precision or "f32", options.shapes_module)
+  -- A caller may hand in the weight bytes directly instead of having them
+  -- computed from the shape. The machine on the metal knows the size of the
+  -- blob it is carrying, not the sum of its tensors -- the blob is the unit
+  -- that gets copied or read in place, tokenizer tables riding along -- and
+  -- the test that compares its arithmetic to this one (055) must ask this
+  -- function the same question the machine asked itself.
+  local weights = options.weights_bytes
+    or M.weights(shape, options.precision or "f32", options.shapes_module)
   local cache = M.cache(shape, options.context or shape.context,
                         options.cache_bytes_per_number or 4)
   local working = M.working(shape, 4)

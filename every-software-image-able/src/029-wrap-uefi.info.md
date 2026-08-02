@@ -8,10 +8,19 @@ loader trick.
 
 ```
 luajit src/029-wrap-uefi.lua --from RAW --to APP --arch NAME [--entry N]
+                             [--append BLOB]
 ```
 
 `--arch` is `x86_64`, `aarch64` or `riscv64`. `--entry` is the offset of the
-entry point within the raw code, defaulting to zero.
+entry point within the raw code, defaulting to zero. `--append` places a
+payload a fixed distance past the code in the same section, which is how a
+packed model rides inside the program that runs it (issue 102).
+
+Two query flags answer layout questions so nobody keeps a second copy of the
+answers: `--blob-offset` prints where an appended payload begins, measured
+from the code; `--text-rva` prints how far into the loaded image the code
+begins, with the headers below it. Their sum is the whole footprint of an
+engine with no model aboard.
 
 ## Why this exists rather than a linker
 

@@ -238,6 +238,13 @@ while index <= #arg do
     -- carrying its own copy of the answer.
     print(string.format("0x%x", BLOB_OFFSET))
     os.exit(0)
+  elseif word == "--text-rva" then
+    -- how far into the loaded image the code begins -- the headers sit below
+    -- it. A payload that wants to know its whole footprint (issue 102's
+    -- memory report) adds this to where it is standing to find the image
+    -- base, rather than carrying a second copy of the layout.
+    print(string.format("0x%x", SECTION_ALIGNMENT))
+    os.exit(0)
   else
     die("unknown option: " .. word)
   end

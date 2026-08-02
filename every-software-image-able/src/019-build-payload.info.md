@@ -26,6 +26,8 @@ assembly is kept beside the binary, so what ran is always readable.
 |---|---|
 | `first-light` | says `first light: <arch>` and sleeps |
 | `hazard-<category>` | announces the register it is about to write, writes the fatal value there, then announces that it survived |
+| `uefi-hello` | says hello through real firmware's own console, wrapped in the envelope from `029` |
+| `blob-report` | carries a packed model inside itself, reads its header aloud, reads the firmware's memory map, and computes the ratchet (`033`); all three architectures |
 
 The hazard categories come from the forbidden register map (020), so adding a
 category there adds a payload here. The addresses come from there too, which
