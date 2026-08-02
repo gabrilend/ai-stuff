@@ -2,8 +2,28 @@
 
 ## Current behavior
 
-The engine runs. Nobody knows how fast, how large, or on what hardware it stops
-being viable.
+**Timed, on real kernels, natively.** `src/051`, on 2026-08-02: the assembly
+manages about 1.18 billion multiply-and-adds per second on this processor, four
+times the readable version.
+
+Extrapolated by weight count — which carries better than most extrapolations,
+since a forward pass is very nearly one multiply-and-add per weight — a small
+model writes roughly a page of assembly in six minutes, a middling one in
+three quarters of an hour, and a large one in five and a half hours. The last
+of those is a machine that will not build very much; the first is one that
+will, given that it has no deadline and nothing else to do.
+
+**The finding that was not expected: reading four numbers at a time is only
+1.15 times faster, not four.** The wide kernel keeps a single running total so
+that its answer is bit-identical to the plain one, which forces the additions
+to wait for each other. Four independent partial sums would run in parallel and
+be very much faster, and would give a different answer. That is the measured
+price of exact comparability, and it is most of the available speedup.
+
+Still to measure: time from power to first token on a real board, memory as a
+fraction of what a board has, and anything at all on the other two
+architectures. The accelerator comparison the ticket asks for cannot be made
+until something drives an accelerator.
 
 ## Intended behavior
 

@@ -16,7 +16,7 @@ be run is a file.
 | `104` | Sampling, and the carried seed | reference done, 9 of 9; assembly not started |
 | `105` | The thinking loop, and its limits | not started |
 | `105a` | The tokenizer | reference done, 21 of 21; assembly not started |
-| `106` | Measure the engine | not started |
+| `106` | Measure the engine | timed natively — 1.18 G multiply-adds/s; the wide kernel buys only 1.15x |
 
 ## Where the risk is
 

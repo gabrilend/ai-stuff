@@ -204,7 +204,7 @@ say("    - whether a model that fits is also good enough to write correct")
 say("      assembly unaided. That is the question the project rests on and")
 say("      no arithmetic answers it.")
 say("    - anything about speed. A model that fits and thinks too slowly to")
-say("      finish is a model that does not fit.")
+say("      finish is a model that does not fit -- and 051 times that half.")
 say("")
 
 run_one("mkdir -p " .. DIR .. "/output")
