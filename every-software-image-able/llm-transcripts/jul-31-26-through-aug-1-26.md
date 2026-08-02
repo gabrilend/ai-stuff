@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 16:36:34
+Generated on: 2026-08-01 16:59:26
 
 --------------------------------------------------------------------------------
 
@@ -2092,6 +2092,145 @@ Three blocking questions left. Next is the biggest: **what mediates between
 altering and condensing?** Every merge makes space cheaper and the next change
 harder, because more things now lean on whatever absorbed the others. The
 machine does both for its whole life and nothing arbitrates.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 23
+
+  What it does. You flash a drive and turn the computer on. There is nothing on
+  it but a way of thinking. It works out how much memory it has and where in
+  that memory its own mind is sitting, so that it never hands itself out as
+  scratch space. Then it feels around for what it is
+
+  attached to — slowly, one change at a time, because a wrong write to the
+  wrong register kills a chip permanently and no amount of software brings it
+  back. It works out how to operate what it finds, and the moment it can hear
+  anything, it waits. Something asks it for something. It
+
+  checks whether it can already do that. If not, whether it can alter something
+  it has so it can, without breaking whatever leans on that thing. If not, it
+  makes room and builds it. Then it squeezes duplication back out, so that the
+  room came from repetition rather than from anything
+
+  it was able to do. Then it waits again. That is the whole life.
+
+
+
+yes, but it should grow fully before it is asked to do anything. Then, it can
+continuously learn and co-evolve as it grows.
+
+
+  Underneath all three there's one habit the design keeps repeating, and it's
+  yours rather than mine: it refuses to store the same thing twice. Branches
+  become tables you index into. The door a program knocks on and the catalogue
+  of what exists are one object. One reading tells the
+
+  compiler what to work on and tells the machine when to stop and think
+  backward. Deleting takes verbosity and leaves capability. That isn't thrift
+  — it's a claim that repetition is where errors live, and that something said
+  once can be trusted in a way that something said in four
+
+  places cannot be.
+
+
+
+these are useful patterns but the system can build itself as it pleases.
+
+
+  Two new questions came out of that answer: what happens if the delivery medium
+  is read-only, and what happens to a machine that dies during the migration to
+  better media — the one window where the thing designed to survive crashes
+  doesn't.
+
+
+if the delivery medium is read only, then it will do what it can with what it
+has. Probably by just, probing, and using it's own context window to hold
+information it finds until it finds somewhere to unload it. But hang on, if it's
+read only, then won't it have problems even keeping that in memory at all?
+Sounds like read-only delivery medium might have difficulties. Let's assume it's
+fine though - it means we'll need to be able to access the system's RAM from
+initial boot, so... probably we'd design the image for a specific type of
+hardware. That's fine. It allows us to include datasheets too. However, ideally,
+we'd be able to generate an image after providing crucial details. And that's
+not even the most ideal state, the most ideal state is that we'd be able to feel
+around and build from scratch on the device.
+
+
+  Three blocking questions left. Next is the biggest: what mediates between
+  altering and condensing? Every merge makes space cheaper and the next change
+  harder, because more things now lean on whatever absorbed the others. The
+  machine does both for its whole life and nothing
+
+  arbitrates.
+
+
+the machine handles that sort of thing.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 23
+
+Three corrections to fold in, and the growth phase is a real change to what I'd
+written — I had it purely reactive.
+
+
+Your RAM worry doesn't bite. Memory and the boot medium are separate hardware
+— read-only describes the storage, not the machine. The processor writes to
+RAM directly, with nothing in between that could refuse, and the image gets
+copied into memory at startup anyway. So a machine on a read-only stick thinks
+perfectly well. What it cannot do is *keep* anything past a power cycle.
+
+
+The real cost is narrower and worse than that. The intent note in the
+exploration document — the one written down before a dangerous attempt, so
+that a machine which never comes back still tells the next boot what killed it
+— is exactly the thing that cannot be written. So a read-only machine
+explores, dies, forgets, and walks into the same lethal register again on the
+next boot. Every rediscovery costs another chip. That's the argument against
+read-only delivery, and it's why the document now says finding writable storage
+should outrank everything else such a machine might do with what it has already
+found.
+
+
+Your three tiers went in as a ladder rather than a choice. The middle one is the
+same separation the civics project already uses — a description of the machine
+and a description of the board kept apart, so a new target is a file and no
+code. The top one is the only rung with nothing to fall back on, which is
+precisely why the careful-exploration discipline exists.
+
+
+The growth correction was the larger fix. I had written the machine as reactive
+— waiting, then acquiring. Having it build itself out fully first inverts the
+character of the whole loop: the first rung goes from being the one that usually
+fails to the one that usually succeeds, because the machine spent its youth
+building rather than waiting. It also stops the seed page's instruction from
+reading as a job description and puts it back where it belongs, as the first
+thing that happens on an empty drive with nobody watching.
+
+
+Committed: `09ed8cd2`. Questions 9, 10 and 14 are answered and written in.
+
+
+Two blocking left, and your image ladder made this one live:
+
+
+**Do you want these machines to be verifiable at all?**
+
+
+At the bottom rung, two machines built from the same image for the same hardware
+start out identical — and diverge the moment they're asked different things,
+which is within the first day. At the top rung, one that felt its way from
+scratch cannot be reproduced by anybody, including a second run of itself.
+
+
+So either verification means "here is my account of everything I did between the
+image and now," which makes the store the thing you'd hand someone to prove what
+a machine is, and puts real weight on a file that currently exists to record
+hardware experiments. Or it means nothing, and one of these computers is
+trustworthy only to whoever watched it grow — which is a coherent position,
+and it means you can't hand one to a stranger and have them check it.
 
 
 --------------------------------------------------------------------------------
