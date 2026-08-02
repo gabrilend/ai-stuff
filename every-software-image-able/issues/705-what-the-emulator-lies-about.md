@@ -6,6 +6,20 @@ Passing every emulated test is treated as meaning the seed works. It does not
 mean that, and the places where it does not are currently discovered one at a
 time, painfully, at first light.
 
+**Three entries already exist and should start the list.** All three were paid
+for during `701` and `702a` rather than predicted:
+
+| Difference | What it cost |
+|---|---|
+| Traps cover only addresses somebody wrote down; a real board is full of devices nobody described | Not yet paid. A machine exploring an undescribed device passes the whole matrix while destroying hardware. |
+| A write that ends the machine cannot be reported by a watchpoint — the connection dies with it | One run. Found immediately because the real RISC-V hazard was in the map beside the synthetic ones. |
+| The debugger must be told the *processor's* architecture, not the mode the code runs in | One run, and it reported a false clean while connected to nothing. |
+
+The middle one is worth keeping as an argument as much as a fact: it was found
+only because one genuine fatal register sat in a map otherwise full of
+invented ones. A map of purely synthetic hazards would have passed everything
+and taught nothing.
+
 ## Intended behavior
 
 A maintained list of every known difference between the emulated machine and real
