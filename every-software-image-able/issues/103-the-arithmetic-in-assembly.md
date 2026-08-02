@@ -58,7 +58,26 @@ This is the whitepaper's top risk turned from an argument into arithmetic. It
 does not say whether a model that fits is also good enough to write assembly
 unaided. Nothing arithmetic can.
 
-**Still to write:** everything from the attention onwards, and both other
+**Every function in a forward pass now agrees exactly.** There is no tolerance
+anywhere, and getting there took removing two obstacles rather than accepting
+them.
+
+Sine and cosine left the engine entirely: the turns that carry position depend
+only on the position and the pair, never on what the model is thinking, so they
+are computed once and carried with the weights (`034`). Nothing to approximate
+and nothing to disagree about.
+
+The exponential was specified rather than borrowed (`047`) — the range
+reduction, the polynomial, the order of operations, the clamps. Two candidate
+polynomials were kept and measured across the ranges a model actually produces;
+the longer wins tenfold where softmax spends nearly all its arguments (`048`).
+
+So the assembly now covers the matrix-vector product, normalisation, the
+exponential, softmax and the gate, all bit-exact — 37 of 37 (`044`).
+
+**Still to write:** the attention loop and the rotation as assembly kernels
+(their arithmetic is already exact, so this is assembly work rather than
+specification work), the whole pass composed end to end, and both other
 architectures.
 
 ## Intended behavior

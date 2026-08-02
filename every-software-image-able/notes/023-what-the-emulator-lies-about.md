@@ -269,6 +269,62 @@ booting a machine.
 
 ---
 
+### A constant transcribed by hand was wrong, and would have stayed wrong
+
+**What happened.** Assembly cannot say "one seven-hundred-and-twentieth" — a
+constant must arrive as the exact bits of a single-precision number. Writing
+those out by hand produced `0x3a83b8ac` where the correct pattern is
+`0x3ab60b61`.
+
+**What it would have caused.** An exponential quietly slightly wrong, in a
+function used by every softmax and every gate in every layer. No failure. A
+model very slightly worse at everything, forever, with a comparison against the
+reference that would have disagreed and been blamed on rounding.
+
+**Structural response.** The constants are computed from the same values the
+reference uses and the assembly is generated with them already in place. There
+is no longer an opportunity to transcribe. The whole exponential is now built
+by a function rather than held as text, for that reason alone.
+
+**Cost.** One check — comparing the written patterns against computed ones
+before running anything. It was found because the constants were verifiable,
+and it is in this list because the class it belongs to is not.
+
+---
+
+### Anything left below the stack pointer is destroyed by the next call
+
+**Class:** convention. **Cost:** one run, and a softmax whose every value was a
+fraction of a fraction of nothing.
+
+There is a small region below the stack pointer that a function may use without
+asking, and it is the obvious place to keep a value across a call. It is the
+one place that cannot be used for that: a call writes its return address
+exactly there. Anything left below the pointer is destroyed by the very
+instruction it had to survive.
+
+**Structural response.** Scratch space is allocated above the pointer, and
+sized so the pointer stays sixteen-byte aligned at each call, which the
+convention also requires.
+
+---
+
+### The one failure so far that was loud
+
+Worth recording precisely because it is the exception. A function reserved
+thirty-two bytes of stack and released eight — the prologue was corrected and
+the epilogue was not. The stack pointer never returned to where it started, the
+function returned to whatever happened to be there, and the process died
+immediately.
+
+**Cost.** One run, and about a minute, because a crash says where it happened.
+
+Every other defect in this document had to be hunted. That is the whole
+argument of the report: this failure mode is the rare one, and the ordinary one
+is a plausible answer nobody questions.
+
+---
+
 ## Expected, unpaid
 
 Written down before being met, so that meeting them is cheaper. None of these

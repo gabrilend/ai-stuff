@@ -101,8 +101,10 @@ run_one("mkdir -p " .. runnable)
 local source = artifacts .. "/kernels-" .. arch .. ".s"
 local library = runnable .. "/kernels-" .. arch .. ".so"
 
+local exponential = dofile(DIR .. "/src/047-reference-exp.lua")
+
 local handle = io.open(source, "w")
-handle:write(emit.source(arch))
+handle:write(emit.source(arch, exponential))
 handle:close()
 
 -- Built as a shared library only so this test can call it. The same
@@ -121,6 +123,9 @@ ffi.cdef[[
                           int rows, int columns);
   void rms_normalise(float *out, const float *input, const float *weight,
                      int size, float epsilon);
+  float exp_one(float x);
+  void softmax(float *values, int count);
+  void swiglu(float *gate, const float *up, int count);
 ]]
 local kernels = ffi.load(library)
 -- }}}
@@ -225,6 +230,97 @@ for _, size in ipairs({ 1, 3, 32, 33, 64 }) do
 
   local same, where = identical(expected, got, size)
   check(string.format("normalising %d numbers", size), same, where)
+end
+-- }}}
+
+-- {{{ the exponential, and the two things built on it
+--
+-- These are the parts that used to force a tolerance. The exponential is now
+-- specified rather than borrowed (047) and the turns that carry position are
+-- carried rather than computed (034), so every function in a forward pass is
+-- one that agrees across implementations -- and this comparison can be exact
+-- like the others.
+local exp_bits = ffi.new("float[1]")
+local exp_check = ffi.new("float[1]")
+local exact_exp = true
+local exp_detail = nil
+for step = -880, 880 do
+  local x = step / 10
+  exp_bits[0] = exponential.exp(x)
+  exp_check[0] = kernels.exp_one(x)
+  if not identical(exp_bits, exp_check, 1) then
+    exact_exp = false
+    exp_detail = string.format("at %.1f: %.9g and %.9g", x, exp_bits[0], exp_check[0])
+    break
+  end
+end
+check("the exponential agrees exactly across its whole range", exact_exp, exp_detail)
+
+-- past both clamps, where the answer is exact rather than approximated
+exp_bits[0] = exponential.exp(200)
+exp_check[0] = kernels.exp_one(200)
+check("and past the top of its range", identical(exp_bits, exp_check, 1))
+exp_bits[0] = exponential.exp(-200)
+exp_check[0] = kernels.exp_one(-200)
+check("and past the bottom", identical(exp_bits, exp_check, 1))
+
+-- Softmax over lengths that are and are not multiples of anything, including
+-- one, because a single score must come out as certainty rather than as a
+-- division by itself going wrong.
+for _, count in ipairs({ 1, 2, 5, 16, 48 }) do
+  local scores = drawn(count, 300 + count)
+  local mine = ffi.new("float[?]", count)
+  ffi.copy(mine, scores, count * 4)
+
+  -- the reference's softmax is not exposed on its own, so it is applied here
+  -- exactly as the forward pass applies it: largest removed, then the
+  -- specified exponential, then divided by the total.
+  local largest = mine[0]
+  for slot = 1, count - 1 do if mine[slot] > largest then largest = mine[slot] end end
+  local box = ffi.new("float[1]")
+  local total = 0
+  for slot = 0, count - 1 do
+    box[0] = mine[slot] - largest
+    mine[slot] = exponential.exp(box[0])
+    box[0] = total + mine[slot]
+    total = box[0]
+  end
+  for slot = 0, count - 1 do
+    box[0] = mine[slot] / total
+    mine[slot] = box[0]
+  end
+
+  local theirs = ffi.new("float[?]", count)
+  ffi.copy(theirs, scores, count * 4)
+  kernels.softmax(theirs, count)
+
+  local same, where = identical(mine, theirs, count)
+  check(string.format("softmax over %d scores", count), same, where)
+end
+
+-- The gate, which raises e to minus each value and divides by one plus it.
+for _, count in ipairs({ 1, 7, 64 }) do
+  local gate = drawn(count, 700 + count)
+  local up = drawn(count, 800 + count)
+
+  local mine = ffi.new("float[?]", count)
+  local box = ffi.new("float[1]")
+  for slot = 0, count - 1 do
+    local value = gate[slot]
+    box[0] = -value
+    box[0] = 1 + exponential.exp(box[0])
+    local divisor = box[0]
+    box[0] = value / divisor
+    box[0] = box[0] * up[slot]
+    mine[slot] = box[0]
+  end
+
+  local theirs = ffi.new("float[?]", count)
+  ffi.copy(theirs, gate, count * 4)
+  kernels.swiglu(theirs, up, count)
+
+  local same, where = identical(mine, theirs, count)
+  check(string.format("the gate over %d numbers", count), same, where)
 end
 -- }}}
 
