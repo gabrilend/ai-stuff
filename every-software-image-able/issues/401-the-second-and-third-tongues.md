@@ -3,52 +3,74 @@
 ## Current behavior
 
 **In progress. Three of nine kernels written for the second tongue; the
-harness that would prove them is built and does not yet report.**
+harness runs them on a real ARM machine and reports, and they do not yet
+agree.**
 
 **Written** (`src/099`): the matrix product plain, the matrix product four at
-a time, and the normalisation — the three built only from multiplication,
+a time, and the normalisation -- the three built only from multiplication,
 addition and square root, which are the ones that CAN be required to match
-exactly rather than closely. They assemble for the second architecture.
+exactly rather than closely.
 
 The wide one deliberately does not use the instruction that sums a whole
-vector in one step, for the same reason the first tongue's does not: that
+vector in one step, for the same reason the first tongue does not: that
 answer differs in the last bit, which makes it a different specification
 rather than a better implementation of this one.
 
 **Not written**: `exp_one`, `softmax`, `swiglu`, `rotate`,
-`attention_scores`, `attention_mix`, `add_into` — named in `src/099` rather
+`attention_scores`, `attention_mix`, `add_into` -- named in `src/099` rather
 than omitted, because a port that quietly covers less than the first looks
 finished. The third tongue is not begun.
 
-**The harness is the interesting half, and it is right in shape.** The host
-cannot test these by calling them — it does not speak this language — so
-`src/100` records what the FIRST tongue produces for a set of shapes, bakes
-those exact bit patterns into a payload along with the second tongue's
-kernels (`src/101`), boots a real ARM machine, and has it compare its own
-results against them **as integers**, so nothing rounds and "close" cannot
-happen. That is the right test and it is what the fixture in `103` was built
-for.
+**The harness works and the shape of it is right.** The host cannot test
+these by calling them -- it does not speak this language -- so `src/100`
+records what the FIRST tongue produces, bakes those exact bit patterns into a
+payload alongside the second tongue kernels (`src/101`), boots a real ARM
+machine, and has it compare its own results **as integers**, so nothing
+rounds and "close" cannot happen.
 
-**Where it stands:** the payload assembles, boots, and prints its greeting
-through firmware. It then stops before its first progress mark, and the
-report never arrives. Two defects were found and fixed on the way there, both
-worth keeping:
+**Where it stands: 28 of 58 matrix answers agree, and 36 of 133
+normalisation values.** That is a real arithmetic disagreement in the port,
+and it is now measurable instead of silent. It is the next thing to chase,
+and the roughly-half shape of it is a clue rather than noise.
 
-- **The first instruction must be ours.** Firmware enters at offset zero, so
-  emitting the kernels first meant the machine entered `matrix_vector_plain`
-  with the firmware's registers as arguments — which happened to mean "no
-  rows", so it returned immediately and the firmware carried on booting to
-  its own shell. Nothing failed and nothing was reported.
-- **There is nowhere writable inside the payload.** Firmware that honours
-  section rights maps the code read-only, so a results buffer in `.text` is a
-  crash on some machines and not others. It lives on the stack now, which is
-  the same lesson `033` learned for its memory map.
+## Four errors on the way here, and what each taught
 
-The remaining failure is between the greeting and the first mark. The
-generated assembly around that point reads correctly, which means the next
-step is the debugger rather than the listing — `021` already attaches one,
-and `703` now turns an address into a place. That is the tool this needs and
-it did not exist when this ticket was written.
+**One: the first instruction must be ours.** Firmware enters at offset zero,
+so emitting the kernels first meant the machine entered the matrix product
+with the firmware registers as arguments -- which happened to mean "no rows",
+so it returned immediately, and the firmware, handed control back, carried on
+booting to its own shell. Nothing failed and nothing was reported.
+
+**Two: there is nowhere writable inside the payload.** Firmware that honours
+section rights maps the code read-only, so a results buffer in `.text` faults
+on some machines and not others. It lives on the stack now, which is the same
+lesson `033` learned for its memory map.
+
+**Three: a CALL to an exported name is a note for a linker.** The kernels
+carry `.globl` because the hosted build needs them exported to load the
+library. Every call into them left a relocation; extraction dropped it; the
+branch offset stayed zero; and a call whose offset is zero is a call to
+ITSELF. The machine printed its first mark and span forever -- no fault, no
+exception, no dump, because firmware never regained control.
+
+This is the third appearance of one trap, and the rule is now stated to cover
+all three (`notes/023`): nothing in a payload may REFER to an exported name
+-- not read from it, not jump to it, not call it. A file that needs its
+exports for a hosted build has them stripped by the payload that embeds it.
+
+**Four, and it was not mine: the RAM disk was full.** An unrelated project
+had filled `/dev/shm` to capacity, so the extraction step wrote a truncated
+binary -- exactly 4096 bytes of a 7988-byte program, a round number that is
+the signature of a write cut off midway. The machine booted half a program,
+ran off the end of it, and took a synchronous exception that the firmware
+handler asserted on.
+
+**And the diagnostic that lied.** For a while the evidence said the machine
+stopped before its first mark. It had not; the shell command reading the log
+printed only the remainder of the matched line, and everything after the
+greeting sat on later lines. A bad reading of the evidence cost more than any
+of the four defects. The lesson is the project own: a tool that answers
+confidently is worth checking before the thing it is reporting on.
 
 ## Intended behavior
 
