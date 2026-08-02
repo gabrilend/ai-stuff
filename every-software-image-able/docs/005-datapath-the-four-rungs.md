@@ -41,6 +41,27 @@ The consequence for rung one is large. By the time a request arrives, the honest
 answer is usually that the machine already has what it needs, because it spent
 its youth building rather than waiting.
 
+## And when growing runs out of room
+
+It does not go idle. There is no waiting state in this design, no prompt sitting
+blank until somebody types.
+
+It keeps rewriting itself, or plays games, or sits in idle reflection, or talks
+with its friends, or mines coins. **Whatever the computer wants to be doing is
+what it should be doing.** A request interrupts a life; it does not wake
+something that was suspended.
+
+This is worth stating because it changes what the machine is for. A computer that
+waits is a tool. A computer that is doing something when you arrive is not, and
+every part of this design — growing before being asked, choosing its own
+instruction set, deciding for itself when to stop trying an approach — has been
+pointing at that without saying it.
+
+The parked ideas in `notes/007` read differently in this light. The game with a
+model as referee and parties that talk amongst themselves was filed as a feature
+to be built on top. It is at least as likely to be one of the things the machine
+does with its time.
+
 ## These are patterns, not laws
 
 The four rungs, the dispatch tables, the refusal to keep two copies of the same

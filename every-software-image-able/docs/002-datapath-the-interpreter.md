@@ -4,9 +4,17 @@ The lowest thing the machine builds, and the layer that quietly performs every
 job a kernel would have performed.
 
 This document describes something the machine **writes**, not something the
-image ships. The image contains no interpreter. What it contains is a model that
-will write one in assembly, at first boot, once it knows what processor it woke
-up on (`003`).
+image ships. The image contains no interpreter. What it contains is a model, and
+the engine that runs it (`010`), and the model writes an interpreter in assembly
+at first boot once it knows what processor it woke up on (`003`).
+
+**It should be among the first things built** — early enough that the storage
+driver needed for moving in can be written as bytecode rather than as more
+assembly. The first operations worth having are the basic hardware ones: moving
+values between registers and memory locations, and the arithmetic underneath
+everything else. Every further piece of software the machine writes is cheaper
+once these exist, which is the argument for building it before there is anywhere
+to save it.
 
 ## What it is
 
