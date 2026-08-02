@@ -76,10 +76,10 @@ So the assembly now covers the matrix-vector product, normalisation, the
 exponential, softmax and the gate, all bit-exact — 37 of 37 (`044`).
 
 **A whole forward pass now runs on the assembly arithmetic and matches the
-recorded answer bit for bit** (`src/049`, `src/050`, 4 of 4). Nine kernels
-cover everything a step does; the order of operations is still decided in a
-readable language, which is deliberate — what remains has no floating point in
-it, and is the easy half.
+recorded answer bit for bit** (`src/049`, `src/050`). Nine kernels cover
+everything a step does; the order of operations was kept in a readable
+language until the arithmetic was proven, which is deliberate — what remained
+had no floating point in it, and was the easy half.
 
 Composing them found a defect the kernel tests could not: a disagreement of
 four parts in a thousand million, at the second token only. It was in the
@@ -92,7 +92,19 @@ The lesson is about fixtures generally: a recorded answer catches a change in
 arithmetic, and cannot catch a specification too imprecise to implement twice.
 Only a second implementation catches that.
 
-**Still to write:** the conducting in assembly, and both other architectures.
+**The conducting is now assembly too** (`src/056`, 6 of 6 in `050`). The
+layer loop, the head loop and every pointer handed to a kernel are the
+processor's own instructions, driven by a plan — one table holding the
+counts, the two floating constants, every tensor and scratch address, and
+the address of every kernel. The conductor reaches nothing by name, because
+on bare metal there are no names; the plan's layout is declared once as
+data, the assembly offsets are computed from it, and the host's FFI view is
+checked against it slot by slot. A whole thought is assembly end to end on
+the first architecture, with no tolerance anywhere.
+
+**This ticket is complete on x86-64.** The other two tongues are `401`'s
+whole purpose and are held against the readable conductor (`049`), which
+stays as the reference.
 
 ## Intended behavior
 
