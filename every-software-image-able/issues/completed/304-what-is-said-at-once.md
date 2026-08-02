@@ -2,9 +2,31 @@
 
 ## Current behavior
 
-The instruction, the patterns and the device descriptions together are far larger
-than anything the machine can hold in one thought. Nothing decides which part it
-wakes up holding.
+**Done, and tested** -- `src/084`, checked by `src/085`, 43 of 43 on
+2026-08-02.
+
+The payload is atoms. The instruction is split at its own headings so the
+boot set can be chosen finely -- one atom would mean waking holding all of it
+or none. Patterns and descriptions are one atom each and none are resident,
+because a pattern is relevant when the machine is about to build something of
+that shape, which is not at boot. Every atom says where it came from.
+
+The index, the fetching and the room it costs are all hands, so what the
+machine is thinking with stays a decision it keeps making.
+
+**The disk half that `105` left as a seam is closed here**: an atom written
+out stops taking room and comes back exactly when fetched again.
+
+**The boot set is a mutable file, and the machine can drop the prohibitions
+from it.** Nothing prevents that, deliberately, and it is tested so nobody
+later builds on the assumption that it is untrue.
+
+One defect worth keeping: being held now and being in the boot set were
+briefly one thing. They move independently -- fetching something does not
+change what the next start wakes with, and rewriting the boot set does not
+disturb the thought in progress. Reading one from the other made the boot set
+unchangeable, which quietly turned this design most uncomfortable property
+into something the machine could not do.
 
 ## Intended behavior
 

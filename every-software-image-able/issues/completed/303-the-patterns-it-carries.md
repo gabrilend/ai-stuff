@@ -2,9 +2,27 @@
 
 ## Current behavior
 
-Recommended shapes are scattered through documents written for people, phrased as
-descriptions of what the machine does rather than as suggestions it may take or
-leave.
+**Done, and tested** -- `src/083`, checked by `src/085`, 43 of 43 on
+2026-08-02.
+
+Eleven patterns, each with four parts, and every one is checked for having
+all four: what it is, where it has worked, what it costs, and **where it
+stops working**. The last is what makes a pattern usable rather than
+decorative -- a shape recommended without its failure mode is a trap with a
+good reputation.
+
+Each says out loud that it is a suggestion and that a machine doing something
+else entirely has done nothing wrong. The pattern about patterns is carried
+with them.
+
+The calling convention is the one exception and is marked as one: an
+agreement rather than a suggestion, because everything the machine writes has
+to agree with everything else it wrote and that has to start somewhere. It
+carries what the flags defect in `204` taught -- a watch that changes what it
+watches is not a watch.
+
+`strategems/` in this repository remains this bundle at an earlier stage, and
+the two should not be allowed to drift.
 
 ## Intended behavior
 
