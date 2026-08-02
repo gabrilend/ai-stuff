@@ -64,6 +64,18 @@ rather than thinking. The real cost is in `003a`: the intent note before a
 dangerous experiment cannot be written, so a machine that dies exploring learns
 nothing from it and rediscovers the same lethal register on every boot. `003`.
 
+**5 — What does verification mean after self-modification?**
+**A stranger can verify one of these machines as well as its owner can.** Neither
+of them can reproduce it — divergence begins at the first token and is expected,
+since a model's output is a weighted random choice — so verification is not
+reproduction. It is reading the account the machine kept of what it did.
+
+That puts a requirement on the account: it has to be legible to someone who was
+not there. Which is the same apparatus the machine already builds in order to
+explain itself — the picture showing what each choice was made against (`004`),
+and the lookup returning what a code means (`006`). Explaining itself and being
+verified are one job.
+
 **13 — What makes the machine want something?**
 Nothing internal. Requests arrive from arbitrary sources, and the machine builds
 the capability to accept input from as many sources as its body provides — so the
@@ -72,14 +84,6 @@ set of possible requests is a function of the hardware map. `003`.
 ---
 
 ## Open, and blocking
-
-**5 — What does verification mean after self-modification?**
-A machine that rewrites its own floor diverges from its image in the first minute
-and never converges back. There is no hash of it afterward that anyone can
-reproduce. Either the machine keeps an account of everything it did between the
-image and now — which makes that account the only evidence of what it is — or the
-question is answered by giving it up, and these machines are simply not verifiable
-by anyone who did not watch. Blocks: anything to do with shipping more than one.
 
 **12 — How many different ways are tried before moving on?**
 The machine tries several approaches to one constraint before it is allowed to go
@@ -122,10 +126,11 @@ Held in full at the end of each document; listed here so the count is honest.
 
 ## Next
 
-**5 — what verification means after self-modification.** It has just become live
-rather than distant, because the three ways an image might be produced (`003`)
-are three different answers to how much a second machine can be expected to
-resemble the first. An image built for known hardware can carry descriptions and
-be checked against them. An image generated from supplied details can be
-reproduced by anyone with the same details. An image that feels its way from
-scratch can be reproduced by nobody, including itself.
+**12 — how many different ways are tried before moving on.** The last blocking
+one, and the only one that is a number rather than a shape. The machine tries
+several approaches to one constraint before it is permitted to work elsewhere,
+which cannot ping-pong between constraints but can grind on one whose approaches
+are exhausted. Nothing currently stops the grinding.
+
+It may also turn out to be the machine's own business, in which case it is
+answered the same way question 9 was.

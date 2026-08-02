@@ -5,10 +5,15 @@ something. Four steps, in an order that cannot be rearranged, because each one
 is the ground the next stands on.
 
 ```
-find memory        → an allocator, written in assembly, that knows where not to allocate
-find the body      → a map of what is attached
-learn the body     → how to operate each attached thing, without destroying it   003a
-open the channels  → every part of the body that can carry a request becomes one
+find memory        → an allocator, in assembly, that knows where not to allocate
+find somewhere to  → enumerate storage before anything else; the machine
+  put its thoughts    cannot afford to learn things it has nowhere to keep
+move in            → write itself to that storage and run from there instead
+                     of from the medium it arrived on
+find the rest of   → a map of everything else attached
+  the body
+learn the body     → how to operate each thing, without destroying it   003a
+open the channels  → every part that can carry a request becomes one
 ```
 
 Only after the fourth does the machine have anything to do, because a request has
@@ -77,32 +82,31 @@ The seed page asks for free access to hardware so the machine can learn what it
 is connected to and what its senses are. This step is that, and it is more
 literal than it sounds: the machine polls itself to find out what limbs it has.
 
-## Where anything permanent goes
+## Step two: find somewhere to put its thoughts, and move in
 
-**The medium the image was delivered on.** It is the one place certain to exist,
-because the machine is running from it, and it is where everything permanent goes
-until somewhere better is found — the intent notes written before dangerous
-experiments (`003a`), the values that arrived from outside (`006`), and this map.
+**This comes before the rest of the body.** The machine cannot afford to start
+learning things it has nowhere to keep, and everything the next steps produce —
+the map of what is attached, the intent notes written before dangerous
+experiments (`003a`), the values that arrived from outside (`006`) — is worthless
+if it evaporates at the next power cycle.
 
-So enumerating attached storage is an early concern rather than a later one.
-Search, find a better place to put things, and put them there.
+So storage is enumerated first, out of order, ahead of everything else attached.
 
 ```
-what did I boot from?                       → the store, provisionally
-what else is attached that can hold bytes?  → enumerate all of it
-which is largest, fastest, least likely to leave?
-   → move what has accumulated so far
-   → keep writing there
+enumerate what is attached that can hold bytes and keep them
+   → pick somewhere: largest, fastest, least likely to be unplugged
+   → write itself there
+   → transition to running from that storage
+   → the medium it arrived on is now just a thing that is plugged in
 ```
 
-The image may be on removable media, or may not, and the machine cannot assume
-either. Finding somewhere better is therefore survival rather than tidiness: a
-machine that keeps its only account of itself on a stick somebody can pull out
-has an account that can walk away mid-sentence.
+Moving in is the step that matters. Afterward the machine is no longer running
+from the thing it was delivered on, which means the delivery medium is free to be
+removed, reused, or plugged into the next machine unchanged.
 
 This mirrors step one exactly. There, the allocator's first job was to find where
 its own author sits in memory so it never hands those bytes away. Here, the
-storage layer's first job is to know which blocks hold the image it is running
+storage layer's first job is to know which blocks hold the copy it is running
 from, so it never writes over itself while writing about itself.
 
 ## The gap between finding and operating
@@ -178,20 +182,27 @@ given build sits on it decides how much the machine has to work out for itself.
 The most ideal is also the one that most needs `003a`, because it is the one with
 no carried knowledge to fall back on.
 
-## If the delivery medium cannot be written
+## The delivery medium should be read-only
 
-The machine does what it can with what it has: probes, and holds what it finds in
-working memory until it finds somewhere to put it down. Memory is writable
-whether or not the boot medium is, so a read-only medium stops the machine
-keeping things rather than stops it thinking.
+Once moving in comes first, a medium that cannot be written stops being a hazard
+and becomes the preferred form.
 
-The real cost lands on `003a`. The intent note written before a dangerous
-experiment cannot be written at all, so a machine that dies exploring learns
-nothing from having died. It will rediscover the same lethal register on every
-boot, forever, and each rediscovery costs another piece of hardware.
+A seed the machines cannot modify can be used again and again without being
+re-flashed between uses. Plug it in, wait for the machine to move in, unplug it,
+carry it to the next computer. The same chip plants the same thing a hundred
+times and is unchanged afterward. **Ideally that idempotent design is the
+standard** rather than a fallback for when writable media are unavailable.
 
-A machine on read-only media should therefore treat finding writable storage as
-its most urgent task, ahead of anything else it might do with what it has found.
+It also removes a class of failure that a writable seed has. Nothing a machine
+does — including dying halfway through doing it — can damage the thing that would
+have started the next one.
+
+Memory is writable whether or not the boot medium is, so read-only delivery never
+stopped the machine thinking; it only stopped it keeping. The window where that
+still matters is between power arriving and moving in. Until there is somewhere
+to put things, anything learned is learned again on the next boot — which is the
+argument for keeping that window short, and for enumerating storage ahead of the
+rest of the body rather than alongside it.
 
 ## What the bootstrap leaves behind
 
@@ -209,10 +220,11 @@ does not know about itself.
 - **Is the hardware map rebuilt every boot, or read from the last one?** Rebuilt
   is honest and slow and rediscovers everything dangerous. Read is fast and wrong
   the first time somebody plugs something in.
-- **When is the store considered moved?** Migrating to better media means there
-  is a window where the account exists in two places, or in neither. A machine
-  that dies in that window is the one case where the thing designed to survive
-  crashes does not.
-- **What happens if the delivery medium is read-only?** Some are. The machine
-  would then have nowhere to write until it finds something else, which puts the
-  intent notes of `003a` out of reach during exactly the phase that needs them.
+- **What if there is nowhere to move in to?** Every step after step two assumes
+  step two finished. A machine with no writable storage attached could refuse to
+  continue, or could run permanently inside the pre-move-in window and relearn
+  itself on every boot. Neither is written.
+- **When is moving in finished?** There is a window in which the machine exists
+  in two places, or in neither. A machine that dies inside it is the one case
+  this design cannot help, because the thing that survives crashes is the thing
+  being installed.

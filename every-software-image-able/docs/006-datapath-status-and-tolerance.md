@@ -143,6 +143,19 @@ is holding, per moment. A list of things that arrived from outside costs bytes
 per moment, because a machine spends nearly all of its time computing rather than
 receiving.
 
+**The machine's own thinking belongs on that list.** Nearly all the software here
+is built by a model, and a model's output is not deterministic — each token is a
+weighted random choice among the likely next ones. That choice is a number drawn
+at random, which the rule above already says to write down. Recording the draws
+makes the machine's own reasoning replayable alongside everything else, so the
+backward walk can step through decisions the model made and not only through
+instructions a program ran.
+
+The non-determinism is not a defect to be engineered out. **A single token is a
+weighted random choice; a paragraph is not random at all.** Two machines diverge
+from the first token and it does not matter, because what matters is the choices
+going forward rather than whether both picked the same word.
+
 **A cheaper reach, deferred.** Ring buffers give a short window backward for
 nothing: memory that has been released still physically holds its values until
 something overwrites them, and a buffer written in a circle keeps the previous
