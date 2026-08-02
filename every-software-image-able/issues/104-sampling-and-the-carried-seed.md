@@ -2,8 +2,26 @@
 
 ## Current behavior
 
-The arithmetic in `103` produces a score for every token in the vocabulary.
-Nothing turns that into a choice.
+**The reference exists and is tested.** `src/040` chooses; `src/041` checks it,
+9 of 9 on 2026-08-02.
+
+Determinism holds: the same carried numbers give the same choices, different
+ones give different choices. Each carried number seeds a generator yielding
+four thousand draws, so the file lasts. Running off the end is noticed and
+recorded rather than passed over silently.
+
+Three things the tests pinned down that are easy to get wrong: temperature
+below one sharpens and above one flattens (reversed, the machine is frozen or
+incoherent with no error either way); a temperature of zero is a different
+instruction rather than a very small one; and with nothing cut away **every**
+token must be reachable, since an unreachable tail is a word the model can
+never say.
+
+Sorting breaks ties by token number, so two identical images cannot disagree
+through an unstable sort.
+
+**The assembly version does not exist yet**, and neither does the image builder
+step that bakes the file in — `generate_file` is here, `502` has to call it.
 
 ## Intended behavior
 

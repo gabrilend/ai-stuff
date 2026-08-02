@@ -2,7 +2,23 @@
 
 ## Current behavior
 
-The thinking loop moves integers. Nothing turns text into those integers or back.
+**The reference exists and is tested.** `src/038` encodes and decodes; `src/039`
+checks it, 21 of 21 on 2026-08-02 — sixteen round trips through the cases
+implementations actually disagree about, including every byte from 0 to 255 and
+a null byte mid-string.
+
+Two checks matter more than the round trips. **A round trip passes perfectly if
+nothing merges at all** — every byte its own token, decoded straight back — so
+there is a separate check that merging shortens what it can. And the strongest
+rule must be applied first, because joining a weaker pair earlier can make a
+stronger one impossible, and the result then differs from what the model was
+trained on. That is exactly the failure that shows as mild stupidity rather
+than as an error.
+
+Text containing a byte with no token is refused rather than silently dropped.
+
+**The assembly version does not exist yet.** It now has something to agree
+with.
 
 ## Intended behavior
 
