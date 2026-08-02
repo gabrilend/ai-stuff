@@ -120,17 +120,13 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
-**20 — What is a ceramic platform?**
-Offered as the recommendation for what a unit of running software is, with
-details promised for all implementations — and immediately followed by the note
-that this is entirely the machine's own business anyway. The term has not been
-explained here and should not be built on until it has been. Blocks: nothing
-structural, since the process model is delegated regardless, but it is the one
-term in this design currently being used without a definition.
-
-Everything else that was stopping work has an answer, and four of them were
-answered the same way — by handing the decision to the machine rather than
+**None.** Every question that was stopping work has an answer, and four of them
+were answered the same way — by handing the decision to the machine rather than
 writing a rule for it (`strategems/009`).
+
+The one term still used without a definition, the ceramic platform, is held in
+`notes/007` rather than here. It belongs to the bundle of recommended build
+patterns and nothing structural waits on it.
 
 The per-document questions below are still open. They are not blocking, because
 none of them changes the shape of something already written; they are the things
