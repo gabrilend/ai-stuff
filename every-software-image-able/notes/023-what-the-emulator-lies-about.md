@@ -107,6 +107,80 @@ that waits on UEFI.
 
 ---
 
+### Three firmwares, three different ways of being handed over
+
+**What was assumed.** That "boot through UEFI" is one arrangement, and a board
+description would differ from its neighbours only in a filename.
+
+**What is actually true.** Each of the three wanted something else, and none of
+it was derivable from the others:
+
+| Architecture | How the firmware must arrive |
+|---|---|
+| x86-64 | as two flash chips — code, and a writable copy of the variable store |
+| ARM64 | handed over whole; the flash arrangement is not what this build expects |
+| RISC-V | as two flash chips again; handed over whole it asserts inside its own startup before reaching anything of ours |
+
+**Cost.** Two failed boots and a firmware assertion. All three are now in the
+board descriptions where board knowledge belongs, which is exactly what those
+files are for.
+
+The other half of the same lesson: **the boot filesystem must arrive on the
+board's own storage controller.** Attaching it as IDE worked on x86 and the ARM
+board has no IDE at all. A launcher that hardcodes a controller is a launcher
+that only ever ran on one machine.
+
+---
+
+### An image base that is memory on one machine is nowhere on another
+
+**What emulation shows.** On x86, a UEFI application demanding to be loaded at
+a fixed address loads and runs perfectly.
+
+**What is actually true.** That address was ordinary memory there and is
+outside RAM entirely on the ARM board, which refused with `ConvertPages:
+failed to find range 400000`. The demand came from marking the executable as
+carrying no relocation table — firmware reads that as *load me here or not at
+all*.
+
+The fix is to stop demanding. The code refers to itself relative to where it
+is standing rather than by absolute address, so the firmware can put it
+anywhere and nothing needs fixing up — the same property that let it be built
+with no linker in the first place.
+
+**Cost.** One boot, and it only surfaced because a second architecture existed
+to try. A project with one target would have shipped this.
+
+---
+
+### With no linker, every symbol reference becomes a silent zero
+
+**What emulation shows.** On x86 and ARM, code that refers to a label a few
+instructions away works exactly as written.
+
+**What is actually true.** Those two assemblers resolve such references
+themselves. The RISC-V one does not — it leaves a note for a linker, and this
+project has no linker, so extracting the raw bytes drops the note and leaves a
+zero behind.
+
+Neither failure announced itself:
+
+- An address computation pointed into the middle of the program instead of at
+  its message. The machine printed one character and stopped.
+- A jump to a label two instructions ahead became a jump to itself. The machine
+  sat at its entry point forever.
+
+Both look identical to a machine that simply died. The rule that came out of
+it: **RISC-V payloads contain no symbol references at all** — compression
+switched off so every instruction is four bytes, the message placed last so
+nothing jumps over it, the loop written as a jump to the current address, and
+the one distance that matters counted by hand and written as a number.
+
+**Cost.** An hour, and two rounds of disassembling output to find that an
+instruction which reads `addi a1, a1, 0` was supposed to say `0x10`.
+
+---
+
 ## Expected, unpaid
 
 Written down before being met, so that meeting them is cheaper. None of these
