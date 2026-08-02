@@ -47,6 +47,22 @@ function M.tensors(shape)
   -- one row per token in the vocabulary: what that token means, as a vector.
   add("token_embedding", { vocabulary, hidden })
 
+  -- The turns that tell a token where it is, worked out once and carried.
+  --
+  -- The rotation applied at each position is a fixed angle per pair of
+  -- numbers, depending only on the position and how far into a head the pair
+  -- sits -- so it depends on nothing the model is currently thinking about and
+  -- can be computed before the machine ever runs.
+  --
+  -- Carrying it removes sine and cosine from the engine entirely. That matters
+  -- more than the arithmetic saved: those two functions differ between
+  -- implementations, so any part of the engine downstream of them could only
+  -- ever be compared to a reference approximately. Precomputing them means the
+  -- comparison stays exact.
+  --
+  -- One row per position; within a row, a cosine and a sine for each pair.
+  add("rotation", { shape.context, head_width })
+
   for layer = 0, shape.layers - 1 do
     local prefix = "layer" .. layer .. "."
 
@@ -118,6 +134,32 @@ M.SMALL = {
   vocabulary = 48,
   context = 16,
 }
+-- }}}
+
+-- {{{ M.rotation_table(shape)
+-- The carried turns, as a flat array of numbers in the order the tensor holds
+-- them: for each position, for each pair, a cosine then a sine.
+--
+-- Computed here so that the packer and anything checking the packer derive it
+-- the same way. The angles come from the position and the pair's depth into a
+-- head: pairs further in turn more slowly, so nearby positions differ sharply
+-- in the early pairs and gently in the late ones.
+function M.rotation_table(shape)
+  local head_width = shape.head_width
+  local pairs_per_head = head_width / 2
+  local out = {}
+
+  for position = 0, shape.context - 1 do
+    for pair = 0, pairs_per_head - 1 do
+      local rate = 1 / (10000 ^ (2 * pair / head_width))
+      local angle = position * rate
+      out[#out + 1] = math.cos(angle)
+      out[#out + 1] = math.sin(angle)
+    end
+  end
+
+  return out
+end
 -- }}}
 
 return M

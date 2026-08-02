@@ -20,6 +20,15 @@
 
 local ffi = require("ffi")
 
+-- The exponential is specified rather than borrowed (047). Sine and cosine do
+-- not appear at all: the turns that carry position are read from a table
+-- carried with the model (034). Between them, every function in this file is
+-- one that agrees across implementations, which is what lets an assembly
+-- version be required to match exactly rather than closely.
+local exponential = dofile(
+  (os.getenv("ESIA_DIR") or "/mnt/mtwo/programming/ai-stuff/every-software-image-able")
+  .. "/src/047-reference-exp.lua")
+
 local M = {}
 
 -- {{{ single precision, on purpose and by specification
@@ -173,21 +182,24 @@ end
 -- Nothing is added to the vector -- the information about position lives in
 -- the angles, which is why two identical tokens in different places produce
 -- different keys and queries.
-local function apply_rotation(vec, position, heads, head_width)
+local function apply_rotation(vec, turns, position, heads, head_width)
+  -- The angles are read from the carried table rather than computed, which
+  -- removes sine and cosine from this arithmetic entirely (034). They differ
+  -- between implementations in the last bits, so anything downstream of them
+  -- could only ever be compared approximately -- and there is nothing about
+  -- them worth recomputing, since the turn at a given position never changes.
+  local row = position * head_width
   for head = 0, heads - 1 do
     local base = head * head_width
     for pair = 0, head_width / 2 - 1 do
-      -- pairs further into the head turn more slowly, so nearby positions
-      -- differ sharply in some pairs and gently in others.
-      local rate = 1 / (10000 ^ (2 * pair / head_width))
-      local angle = position * rate
-      local cosine, sine = math.cos(angle), math.sin(angle)
+      local cosine = turns[row + pair * 2]
+      local sine = turns[row + pair * 2 + 1]
 
       local first = base + pair * 2
       local second = first + 1
       local x, y = vec[first], vec[second]
-      vec[first] = x * cosine - y * sine
-      vec[second] = x * sine + y * cosine
+      vec[first] = f(f(x * cosine) - f(y * sine))
+      vec[second] = f(f(x * sine) + f(y * cosine))
     end
   end
 end
@@ -202,12 +214,14 @@ local function softmax(values, count)
   for index = 1, count - 1 do
     if values[index] > largest then largest = values[index] end
   end
-  local total = 0
+  local total = f(0)
   for index = 0, count - 1 do
-    values[index] = math.exp(values[index] - largest)
-    total = total + values[index]
+    -- the specified exponential (047), not the language's, so that assembly
+    -- can reproduce this exactly rather than approximately
+    values[index] = exponential.exp(f(values[index] - largest))
+    total = f(total + values[index])
   end
-  for index = 0, count - 1 do values[index] = values[index] / total end
+  for index = 0, count - 1 do values[index] = f(values[index] / total) end
 end
 -- }}}
 
@@ -284,8 +298,8 @@ function M.forward(model, cache, token, position)
     matrix_vector(key_here, tensors[prefix .. "wk"], normalised, kv_width, hidden)
     matrix_vector(value_here, tensors[prefix .. "wv"], normalised, kv_width, hidden)
 
-    apply_rotation(query, position, heads, head_width)
-    apply_rotation(key_here, position, kv_heads, head_width)
+    apply_rotation(query, tensors.rotation, position, heads, head_width)
+    apply_rotation(key_here, tensors.rotation, position, kv_heads, head_width)
 
     local scale = 1 / math.sqrt(head_width)
     local scores = vector(position + 1)
@@ -298,11 +312,11 @@ function M.forward(model, cache, token, position)
       for past = 0, position do
         local past_slot = (layer * shape.context + past) * cache.width
                         + kv_head * head_width
-        local sum = 0
+        local sum = f(0)
         for index = 0, head_width - 1 do
-          sum = sum + query[query_base + index] * cache.keys[past_slot + index]
+          sum = f(sum + f(query[query_base + index] * cache.keys[past_slot + index]))
         end
-        scores[past] = sum * scale
+        scores[past] = f(sum * scale)
       end
 
       softmax(scores, position + 1)
@@ -334,7 +348,8 @@ function M.forward(model, cache, token, position)
     -- smooth everywhere rather than a hard cutoff.
     for index = 0, shape.feedforward - 1 do
       local value = gate[index]
-      gate[index] = value / (1 + math.exp(-value)) * up[index]
+      local opened = f(value / f(1 + exponential.exp(f(-value))))
+      gate[index] = f(opened * up[index])
     end
 
     matrix_vector(projected, tensors[prefix .. "w_down"], gate, hidden, shape.feedforward)
