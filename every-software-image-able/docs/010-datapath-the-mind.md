@@ -14,6 +14,7 @@ documents:
 | The weights | The model |
 | The engine | The code that runs the model, applies its results, and handles basic tool calls |
 | The instruction | Build every piece of software you can fit |
+| The patterns | Recommended build patterns — suggestions, not code (below) |
 
 The engine is real software and it has to work before the machine can have its
 first thought. It cannot be built by the machine, because building requires
@@ -40,6 +41,27 @@ situation where the seed is not self-sufficient.
 
 Writing the same program three times is the cost of not having a compiler. It is
 paid once, by people, before any of these machines exist.
+
+## The bundled patterns
+
+A set of recommended build patterns rides along on the chip. Named so far:
+dispatch tables, thread pools, looping iterators, and the ceramic platform, which
+is undefined here and is held in `notes/007` until it is described.
+
+They are patterns rather than implementations, and that distinction is the whole
+point of carrying them. Code would decide how the machine is built. A pattern
+says only that this shape has worked before, on other hardware, for other people,
+and leaves every detail of applying it to whoever is applying it.
+
+This is where all the "these are suggestions rather than rules" language
+throughout the other documents belongs. A machine that writes everything from
+nothing would otherwise rediscover, alone and slowly, arrangements that are
+already known — and being handed one costs it nothing, because it remains free to
+ignore them.
+
+The `strategems/` directory is the same object at an earlier stage: portable
+patterns found to work in many places. What ships on the chip is that directory,
+grown up.
 
 ## Thinking speed, and the driver problem
 
