@@ -2,8 +2,43 @@
 
 ## Current behavior
 
-The machine can think and cannot be heard. Everything that goes wrong before this
-ticket is diagnosed by watching a computer sit still.
+**Done, and photographed** — `src/068` is the font, `src/069` emits the
+drawing, `src/070` checks both, 13 of 13 on 2026-08-02. The sentence *first
+light, drawn from the firmware's own framebuffer* appeared on a machine with
+no operating system, and every pixel of every letter was compared against
+what the font holds — in both directions, since checking only the lit pixels
+would pass a machine that filled the line solid.
+
+The font is **drawn as pictures in its own source**, dots and hashes, turned
+into bytes at load. A wrong hex byte in a font is a letter that looks
+slightly odd forever and nobody suspects the right thing; a wrong hash is
+visible while typing it. The bytes are rendered back to a picture and
+required to equal the source, so the derivation is proven rather than
+assumed. Every row is checked for width and stray characters, which caught a
+typo in the `C` while the font was being written.
+
+The model can speak, not only the engine: `say` reaches every voice at once,
+`say_on` names one, `voices` says what there is. A machine with no voice is
+refused when its hands are built rather than discovered in the field, and a
+`say` that no voice carried is a refusal rather than a quiet zero.
+
+**Two things learned that were not in the plan.**
+
+The pixels-per-row sits at offset thirty-two of the mode structure, not
+twenty — twenty is inside the pixel bitmask. It read zero, and every row of
+every letter collapsed onto the first scanline: one confident horizontal
+line, with the serial port reporting success. Same failure as the header
+offsets in `033`, found the same way, by looking at what was drawn rather
+than at what was written.
+
+The carried font must be **contiguous** over its whole code range, with a
+visible box where no picture exists, because a glyph is found by subtracting
+rather than searching. A table of only the drawn characters indexes wrong at
+every gap — the screen fills with real letterforms spelling something else.
+The stand-in is a box rather than a blank, since a blank says the machine
+printed a space it never printed.
+
+Only x86-64 draws so far; the other two tongues are `401`'s.
 
 ## Intended behavior
 

@@ -270,6 +270,83 @@ function M.offer_the_catalogue(catalogue)
 end
 -- }}}
 
+-- {{{ M.offer_speaking(catalogue, voices)
+-- The hands of issue 202: the machine talking, rather than only the engine.
+--
+-- `voices` is a list of { name, note, write(text) } -- whatever this board
+-- actually has. A board with none of them is a board nobody can help, and
+-- that is said here rather than discovered in the field.
+--
+-- Two hands rather than one per voice: `say` reaches every voice there is,
+-- because the ordinary case is wanting to be heard rather than wanting to be
+-- heard on a particular wire; and `say_on` names one, for when the
+-- difference matters.
+function M.offer_speaking(catalogue, voices)
+  if #voices == 0 then
+    error("064-the-hands: this machine has no way to speak. A machine that "
+      .. "cannot say anything is a machine nobody can help, and finding that "
+      .. "out here is better than finding it out in the field.")
+  end
+
+  local named = {}
+  local list = {}
+  for _, voice in ipairs(voices) do
+    named[voice.name] = voice
+    list[#list + 1] = voice.name
+  end
+
+  M.offer(catalogue, {
+    name = "say", takes = { "text" }, gives = "how many heard it",
+    note = "says something everywhere this machine can be heard: "
+      .. table.concat(list, ", "),
+    does = function(arguments)
+      local spoken = 0
+      local trouble = nil
+      for _, voice in ipairs(voices) do
+        local ok, why = voice.write(arguments[1])
+        if ok then spoken = spoken + 1 else trouble = trouble or why end
+      end
+      -- Every voice failing is a refusal, not a quiet zero: a machine that
+      -- believes it spoke and did not is worse off than one that knows.
+      if spoken == 0 then
+        return nil, "nothing carried it: " .. tostring(trouble)
+      end
+      return "heard on " .. spoken .. " of " .. #voices
+    end,
+  })
+
+  M.offer(catalogue, {
+    name = "say_on", takes = { "where", "text" }, gives = "whether it carried",
+    note = "says something on one voice in particular",
+    does = function(arguments)
+      local voice = named[arguments[1]]
+      if not voice then
+        return nil, "there is no voice called '" .. arguments[1]
+          .. "'. There is: " .. table.concat(list, ", ")
+      end
+      local ok, why = voice.write(arguments[2])
+      if not ok then return nil, "'" .. arguments[1] .. "' did not carry it: "
+        .. tostring(why) end
+      return "carried on " .. arguments[1]
+    end,
+  })
+
+  M.offer(catalogue, {
+    name = "voices", takes = {}, gives = "what this machine can be heard on",
+    does = function()
+      local lines = { "this machine can be heard on:" }
+      for _, voice in ipairs(voices) do
+        lines[#lines + 1] = "  " .. voice.name
+          .. (voice.note and ("  -- " .. voice.note) or "")
+      end
+      return table.concat(lines, "\n")
+    end,
+  })
+
+  return list
+end
+-- }}}
+
 -- {{{ M.open(catalogue, name, confirmation)
 -- Opens a dangerous hand. The confirmation is a description that has been
 -- read and confirmed (302); confirming is a read-only act, which is why

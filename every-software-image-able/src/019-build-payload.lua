@@ -466,7 +466,8 @@ end
 
 -- {{{ local function known_payloads()
 local function known_payloads()
-  local names = { "first-light", "draw-something", "uefi-hello", "blob-report" }
+  local names = { "first-light", "draw-something", "uefi-hello", "blob-report",
+                  "draw-on-firmware" }
   for _, category in ipairs(hazards.categories) do
     names[#names + 1] = "hazard-" .. category
   end
@@ -572,6 +573,55 @@ local function build_blob_report(arch, out_directory)
 end
 -- }}}
 
+-- {{{ local function build_draw_on_firmware(arch, out_directory)
+local function build_draw_on_firmware(arch, out_directory)
+  -- A payload that asks real firmware for the screen and draws words on it
+  -- with a carried font -- issue 202's central claim, that a machine can
+  -- draw from its first instant with no driver underneath.
+  local base = out_directory .. "/draw-on-firmware-" .. arch
+
+  local font = dofile(DIR .. "/src/068-bitmap-font.lua")
+  local emit_say = dofile(DIR .. "/src/069-emit-say.lua")
+  local emitter = emit_say[arch]
+  if not emitter then
+    say("skipped draw-on-firmware for " .. arch
+        .. ": the drawing is not written in its instructions yet")
+    return
+  end
+
+  -- contiguous, so the payload finds a glyph by subtracting. A table of only
+  -- the drawn characters is smaller and indexes wrong: the gaps shift every
+  -- later letter, and the screen fills with real letterforms spelling
+  -- something else.
+  local glyphs, missing = font.contiguous_table()
+  local handle = io.open(base .. ".s", "w") or die("cannot write " .. base .. ".s")
+  handle:write(emitter({
+    text = "first light, drawn from the firmware's own framebuffer",
+    first_code = font.FIRST,
+    font_bytes = glyphs,
+  }))
+  handle:close()
+  if missing > 0 then
+    say("  (" .. missing .. " characters in the range have no picture and "
+        .. "carry the box instead)")
+  end
+
+  local assembled = run_one("clang --target=" .. clang_target[arch]
+                            .. " -c " .. base .. ".s -o " .. base .. ".o")
+  if not assembled then die("assembly failed for draw-on-firmware (see " .. base .. ".s)") end
+
+  local extracted = run_one("llvm-objcopy -O binary " .. base .. ".o " .. base .. ".raw")
+  if not extracted then die("extraction failed for draw-on-firmware") end
+
+  local wrapped = run_one("luajit " .. DIR .. "/src/029-wrap-uefi.lua --from "
+                          .. base .. ".raw --to " .. base .. ".efi --arch " .. arch
+                          .. " > /dev/null")
+  if not wrapped then die("wrapping failed for draw-on-firmware") end
+
+  say("built " .. base .. ".efi")
+end
+-- }}}
+
 -- {{{ local function build_uefi(arch, out_directory)
 local function build_uefi(arch, out_directory)
   -- A UEFI payload takes a different road out: assembled the same way, but
@@ -606,6 +656,8 @@ for _, name in ipairs(known_payloads()) do
       if only_arch == nil or only_arch == arch then
         if name == "blob-report" then
           build_blob_report(arch, out_directory)
+        elseif name == "draw-on-firmware" then
+          build_draw_on_firmware(arch, out_directory)
         elseif name == "uefi-hello" then
           build_uefi(arch, out_directory)
         elseif buildable(name, arch) then
