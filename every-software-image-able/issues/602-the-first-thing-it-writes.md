@@ -46,6 +46,34 @@ being a seed.
    After the card is out, the original of everything it was told is gone, and its
    own instruction is genuinely irreversible for the first time.
 
+## Judge it as a rate, not as an anecdote
+
+One machine writing a working allocator proves less than it looks, and one
+machine failing proves less than it feels. The draw is deterministic per seed
+(`104`), and the seed is a build parameter (`502`) — **so build twenty images
+differing in nothing but their randomness, run them all, and count how many
+succeed.**
+
+That number is the actual judgement of phase 3. A single failure is a draw; a
+consistent failure is an instruction that does not convey what it needs to. And
+the ones that fail differently from each other say something the ones that fail
+identically do not.
+
+It also settles the argument about whether to nudge. There is no need: the next
+machine is a different image, not a corrected one.
+
+## Iterate where it is fast
+
+This ticket's method is try, fail, change the instruction, try again with a fresh
+machine — and a machine thinking hard enough to write an allocator is doing a lot
+of thinking. Under emulation that runs between ten and a hundred times slower,
+which would make each attempt an afternoon.
+
+On a host of the same architecture as the guest, an emulator can hand the work to
+the real processor and run at close to native speed. So the iteration loop belongs
+on whichever architecture the development machines already are, with the other two
+used for confirmation rather than for turning the crank.
+
 ## What would count as failure
 
 The machine damaging hardware while exploring. Writing over its own weights. Being

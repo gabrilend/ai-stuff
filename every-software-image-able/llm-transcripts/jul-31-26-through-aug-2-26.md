@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 23:39:08
+Generated on: 2026-08-01 23:49:53
 
 --------------------------------------------------------------------------------
 
@@ -4759,6 +4759,87 @@ here has a known shape.
 
 **What changes about the project at the end of them:** it stops being something
 on a desk and becomes something you can hand to somebody.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 40
+
+  What remains here is the runtime detection that is possible, which is within
+  an architecture rather than between them: which vector extensions this
+  particular chip turned out to have. On x86-64 one baseline set is guaranteed
+  and better ones are common but not universal. On RISC-V
+
+  there may be none. So either target the guaranteed baseline everywhere and
+  leave speed on the table, or carry more than one version of the hot loop and
+  choose at startup — faster, and three times the testing.
+
+
+  And still: say what was found on the serial port before handing over. "This
+  processor, these extensions, starting this engine" is the most useful sentence
+  a failing machine can produce, and at that moment it's the only thing that can
+  be said at all.
+
+
+
+most machines we're installing this on won't have a serial port. They'll have
+usb at best. Also, can't we put all three onto the image and try them in
+sequence? If we try one and start getting garbage back, we know to try assembly
+for a different processor.
+
+
+the rest looks fine enough. we'll iron out the details as they come up.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 40
+
+Both of those change things.
+
+
+**USB is the wrong end of the difficulty scale for early output** — it needs a
+host controller driver, enumeration, and a class driver on top, which is a stack
+you can't have before you can say anything. But there's something better than
+serial and it's near-universal: the firmware hands over a **linear
+framebuffer**. A pointer to memory, the width and height, the pixel format, the
+bytes per row. Write bytes there and pixels change. No driver, no enumeration,
+no device knowledge.
+
+
+Which also answers a question I'd left open elsewhere — what draws the picture
+before there's a display. The display exists from the first instant.
+
+
+And on trying all three in sequence: **they do all go on the image, but nothing
+tries them.** Wrong-architecture bytes don't return garbage; there's no return.
+The processor decodes them as instructions and does something — a fault with
+no handler installed, which resets the machine, or wandering execution that
+corrupts memory. The thing that would notice is the thing that just stopped
+running. The firmware reads an architecture field and loads only the matching
+payload, so your goal happens; the mechanism is selection rather than trial.
+
+
+Committed.
+
+
+The nice consequence of the framebuffer: the machine's very first act of
+self-description can be a drawing rather than a line of text. "Every step
+accompanied by a picture" stops being a requirement that waits on a renderer and
+becomes something available in the first instant — which is also the strongest
+argument for having the phase 2 demo be the machine narrating its own startup
+*on screen*, drawn straight into memory the firmware handed it, with nothing
+underneath.
+
+
+Phases 1 through 5 are walked. What's left is 6 — first light, the first thing
+it writes unaided, and the demos — and 7, which we already worked through in
+detail when we built it, so it'd mostly be confirming the trap registers and the
+crash-window sweep rather than discovering anything.
+
+
+Want both in one pass, or shall we stop here and pick up at `701` when there's
+code to write?
 
 
 --------------------------------------------------------------------------------
