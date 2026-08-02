@@ -2,8 +2,35 @@
 
 ## Current behavior
 
-A call that reads a megabyte returns a megabyte, and a megabyte cannot enter the
-thinking loop.
+**Done, and tested** — `src/066` reads, `src/067` checks it, 19 of 19 on
+2026-08-02, including the seam with the hands: a hand answering with
+thirty-five thousand characters crossing as one labelled piece under six
+hundred.
+
+The judgement is handed in rather than built in. The reader walks windows
+and asks the machine a question with a shape that can be answered cheaply —
+is what is wanted in here, and should the search widen — because a scan
+producing prose about every chunk would cost more than reading the whole
+document. What counts as an answer is never the reader's decision.
+
+Cutting prefers a blank line, then a line ending, then a space, each looked
+for in the last quarter of the chunk so a cut is never dragged far from
+where it was wanted. Content with no boundary anywhere is cut at the byte,
+which is correct rather than a fallback: there is nothing meaningful to cut
+on.
+
+A single piece crosses as a piece; several pieces are summarised only when
+a summariser was given, and the atom then says in words that it is a
+summary. Both name which pieces of how many they came from, and both carry
+`derived_from`, so the machine can go back for more.
+
+An empty result distinguishes *the whole thing was read and none of it
+answered* from *the search itself failed*, which are different facts and
+were worth separate sentences.
+
+The second context this needed turned out to cost nothing: the loop keeps
+everything a machine thinks with in one object, so a scratch context is a
+second object rather than a mode.
 
 ## Intended behavior
 

@@ -11,7 +11,7 @@ why this comes before the words.
 | | | Status |
 |---|---|---|
 | `201` | The shape of a tool call | **completed** — the door and the catalogue as one object, a swappable grammar, every refusal a sentence, and a live exchange on the real engine, 27 of 27 |
-| `201a` | Reading something too big to hold | not started |
+| `201a` | Reading something too big to hold | **completed** — windows searched by the machine's own judgement, only the useful part crossing, summaries labelled as summaries, 19 of 19 |
 | `202` | Say something | not started |
 | `203` | Touch memory | not started |
 | `204` | Run what it wrote | not started |
