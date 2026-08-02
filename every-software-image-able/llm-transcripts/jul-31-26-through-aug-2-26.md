@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 21:53:34
+Generated on: 2026-08-01 22:20:45
 
 --------------------------------------------------------------------------------
 
@@ -3538,6 +3538,212 @@ rather than merely slow.
 
 **Where it goes wrong:** `103`, and underneath it the model choice. Everything
 else in the phase is tractable work with a known shape.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 34
+
+  Which model? Nobody has picked one, and it's the decision the whole project
+  balances on. The chain of constraints is tight: the weights have to fit on the
+  medium, then fit in RAM alongside working memory and the key-value cache, and
+  then produce tokens fast enough that a machine
+
+  writing assembly finishes this decade. And it has to be good enough to write
+  correct assembly unaided, which is not a small model. That tension is the
+  single biggest risk in the project and it is decided here rather than
+  discovered later.
+
+
+the model should be swappable when generating the image. Let the user decide
+when they are using the image building utility.
+
+
+  Which board, and which architecture first? Everything numeric in phase 1
+  depends on what hardware exists to test on. A retired desktop makes x86-64 the
+  obvious first target; a small ARM board makes the memory budget much tighter
+  and the speed question much sharper.
+
+
+the point is that we don't need to know. Let's make several test example types
+in the emulator - make sure we have at least one for x86, ARM_64, and risc-v
+each.
+
+
+  What are the host-side tools written in? The packer, the image builder, the
+  flasher and the emulator launcher all run on your machine, not on the seed.
+  Your standing preference is LuaJIT with shell around it, and I'd follow that
+  unless you say otherwise — the engine itself is
+
+  assembly regardless.
+
+
+sure that's fine.
+
+
+  And one gap I found while walking through it: there is no ticket for the
+  tokenizer. Turning text into tokens is a byte-pair merge table and a matching
+  loop, it has to be packed alongside the weights, and the matching has to be
+  written in assembly like everything else. It's real
+
+  work that currently belongs to nobody. I'd add it as 101a, since the table is
+  part of what gets packed. Say if you'd rather it sat with the thinking loop.
+
+
+doesn't the model handle this? There's certain tokens that correspond to certain
+weights, and the model defines the weights, so...? I know the tokenizer is
+software, but we have to use the model to make the tokenizer, right? Or can we
+just make it alongside the rest of the LLM computation machinery?
+
+
+  102 — find the weights without a filesystem
+
+
+  Also decide here whether the weights are copied into RAM or read in place.
+  In-place costs nothing and is slow if the medium is slow; copying costs the
+  memory twice. The delivery medium being read-only makes in-place safe, not
+  necessarily fast.
+
+
+try the fast option, if there's not enough space then do the slightly slower
+option, if there's not enough space (calculated beforehand) then do the slowest
+option. Ratchet down until you find a performance metric that fits the needs of
+the system.
+
+
+  Finding randomness is not free here. There's no operating system to ask. The
+  processor may offer an instruction for it; failing that, the timestamp
+  counter's low bits gathered across unpredictable events. Whatever the source,
+  it gets written down as a device the machine knows it
+
+  has.
+
+
+  Every draw is recorded, because it's precisely the kind of thing that can't be
+  recomputed. Two things fall out: the model's own reasoning becomes replayable,
+  and a machine can be stepped back into why it chose an approach rather than
+  only into what the approach then did.
+
+
+
+no need to record random numbers. for now. let's just, bake in a 100kb long file
+that's just like, ten thousand lines of randomized numbers, created at image
+creation time. We can use this to seed the first random numbers, which means
+that with the same seed, we can deterministically recreate the exact system...
+at least until it develops it's own randomness module, using whatever methods it
+pleases.
+
+
+  The real subject of this ticket is what happens when the context fills, which
+  it will within the first day of a machine that runs for months. Drop the
+  oldest and lose the beginning; summarise the older part and lose fidelity
+  while keeping shape; or write the older part out and
+
+  fetch pieces back when they're relevant. The design leans toward the third —
+  it calls this cognition space, and frames it as retrieval rather than as a
+  limit — but retrieval needs storage and storage doesn't exist in phase 1.
+  So: implement the simple answer, leave a marked seam,
+
+  and solve it properly in 304.
+
+
+
+write to the context in atomic chunks grouped by topic. Then, decide via tool
+calls which ones to carry forward, which ones to drop, and which ones to write
+to disk. You can recall memories too by reading files. You can also merge two
+atomic pieces, summarize them, or otherwise transform them. They are mutable.
+But they should be indexed, and the context should consist of a concatenation of
+these atomic artifacts and nothing else. The system prompt is one or several of
+these atomic artifacts. Everything is. There is a file or something somewhere
+that is the "default initializing context" that is loaded automatically when the
+system boots. This should be a mutable file.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 34
+
+Answering the tokenizer question first, because your instinct is half right in a
+way that decides where it goes.
+
+
+**The model never sees text.** It operates on integers. The weights include an
+embedding table that maps token number to vector — so the weights know there
+are fifty thousand tokens and what each one *means* — but nothing in them says
+which string each number corresponds to. That mapping is a separate table: a
+vocabulary, plus a ranked list of merge rules. Turning "hello" into tokens means
+starting from individual bytes and repeatedly merging the highest-ranked
+adjacent pair until no rule applies. The ranking was learned when the model was
+trained and is published beside it.
+
+
+So it isn't derivable from the weights, and we don't make it — we carry it.
+But you're right that it's a property of the model rather than a thing we
+design: pick a model and you've picked its tokenizer.
+
+
+Which puts it exactly where you said. The table gets packed with the weights;
+the matching loop is engine machinery like the arithmetic. Making it `105a`,
+beside the thinking loop, rather than its own thing hanging off packaging.
+
+
+Now the larger one. Atoms deserve their own document.
+
+
+Two filenames no longer match their tickets. Renaming, and checking what points
+at them.
+
+
+Phase 1 changed shape in three places, and two of the answers have a consequence
+worth looking at before we move on.
+
+
+**The entropy file is a clock, and it might be a very short one.** Ten thousand
+numbers, at one draw per token, is ten thousand tokens. That may not cover the
+machine writing its own allocator, let alone growing. Which means either the
+file wants to be much larger, or — the option I'd suggest — each number from
+it seeds a cheap generator that produces thousands of draws before being
+re-seeded from the next one. That stretches a hundred kilobytes across a very
+long life while keeping the property you wanted: same image, same seed, same
+machine, exactly.
+
+
+Either way there's a deadline in the design now, and it's the only one. The
+machine has to build its own source of randomness before the carried supply runs
+out. Wrapping around silently is the failure to avoid — it would start making
+the same choices again without noticing, and nothing would look wrong.
+
+
+**The mutable initialising context means the brakes are editable.** This follows
+correctly from everything being mutable and from the context being atoms and
+nothing else — but it lands somewhere specific. The two things this design
+treats as prohibitions rather than suggestions, never writing to the registers
+that destroy hardware and never modifying a mind that's running, are now text in
+a file the machine is permitted to change. Nothing prevents a machine from
+editing them away.
+
+
+I've written that down as true rather than quietly preventing it, and flagged it
+as something nobody has decided is correct. It's the one place where the
+"everything is mutable" principle and the "two exceptions" principle disagree,
+and they'll keep disagreeing until you say which wins.
+
+
+The rest went in cleanly: the model became a build-time parameter rather than a
+project decision, with the fits-on-this-board check moving into the tool that
+knows the board; the weights ratchet down through everything-in-memory,
+hot-parts-in-memory, everything-in-place, and refuse rather than limp; the
+emulator gets an example machine per architecture, each with more than one
+memory size so the ratchet is exercised instead of assumed; and the tokenizer
+sits beside the thinking loop with its table packed alongside the weights.
+
+
+Phase 1 has nothing blocking left.
+
+
+Want phase 2 next? It's the seven hands, and the one with teeth is running code
+the machine just wrote — specifically getting control back from it when it
+doesn't return.
 
 
 --------------------------------------------------------------------------------
