@@ -12,7 +12,7 @@ paid once, by people, before any of these machines exist.
 | | | Status |
 |---|---|---|
 | `401` | The second and third tongues | not started |
-| `402` | Waking on the right foot | not started |
+| `402` | Waking on the right foot | the selection mechanism proved on all three architectures |
 
 ## Where the risk is
 

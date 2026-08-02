@@ -2,7 +2,15 @@
 
 ## Current behavior
 
-Three engines exist on one chip and nothing chooses between them.
+**The mechanism is proved, ahead of the engines it will select between.** All
+three architectures now boot through real UEFI firmware (`src/030`–`032`),
+each starting an executable wrapped by `src/029`, and each firmware finds only
+its own — by the machine number in the envelope and by the filename it looks
+for. Nothing detects anything and nothing dispatches, exactly as this ticket
+says.
+
+What remains is the within-architecture detection: which vector extensions a
+particular processor turned out to have.
 
 ## Intended behavior
 
