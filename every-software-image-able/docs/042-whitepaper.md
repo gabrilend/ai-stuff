@@ -26,8 +26,16 @@ survived casual inspection: a test suite reporting a clean run while connected
 to nothing; a payload printing a single character because an address
 computation pointed into its own middle; a header reader announcing a
 vocabulary of 176 words and a total size of zero in the same aligned column as
-the correct values beside them. Four of the seven catalogued failures share a
+the correct values beside them. Four of the eight catalogued failures share a
 single cause, and it is one that would not occur in a conventional build.
+
+An eighth arrived after this report was first drafted and is the only one
+caught before it cost anything, by inspection rather than by failure: our
+recorded fixture accumulated in double precision while any assembly
+implementation would accumulate in single, so the two could never have agreed
+exactly. We include it because its failure mode is instructive — an assembly
+implementation that was *correct* would have disagreed in the final bits and
+been "fixed" until it matched.
 
 We report these failures with their observed cost, the testing techniques that
 now catch them, and an argument that the correct response to this failure class
@@ -135,8 +143,8 @@ from memory.*
 
 ## 3. What was built
 
-Five test programs, fifty-three checks, all passing, runnable in one command.
-The following exists and works:
+Seven test programs, all passing, runnable in one command. The following exists
+and works:
 
 **A proving ground.** Six board descriptions — legacy-firmware and
 modern-firmware variants across three processor architectures — expressed as
@@ -179,9 +187,37 @@ sixteen round trips through the cases where implementations disagree. A sampler
 tested for determinism, temperature direction, and full reachability of the
 distribution's tail.
 
-**What does not exist:** the engine in assembly, on any architecture; any tool
-call; the instruction text; the image builder; any evidence whatsoever that a
-model can write a working allocator unaided.
+**Two kernels in assembly, matching the reference exactly.** The
+matrix-by-vector product and the normalisation, compared on raw bit patterns
+rather than numeric values. The four-at-a-time variant retains a single running
+accumulator and folds each group into it in the reference's order: four
+independent partial sums would be faster and would produce a different result,
+because floating-point addition is not associative. Such a variant is
+legitimate and would require its own reference and fixture; it would not be
+comparable to this one.
+
+Because a kernel touches only the memory passed to it, the same instructions
+run both hosted — where a test completes in a fraction of a second — and on
+bare metal, where the equivalent test costs minutes. This is the only component
+of the engine that can be tested without booting anything, and it is the
+component that must be written three times.
+
+**A memory budget.** What a machine of a given shape costs to run, itemised
+into weights, the cache that grows with the length of a thought, the working
+vectors of a single step, and the engine — with the term that runs out first
+reported alongside the total, because the remedy differs. Weights dominating
+admits only a smaller model. Cache dominating also admits a shorter thought,
+and a machine that cannot hold its full context can still operate in shorter
+ones. At equal context length, one reference shape is weight-bound and another
+with fewer key heads is cache-bound.
+
+This does not answer §7's leading risk. It converts it from an argument into
+arithmetic.
+
+**What does not exist:** the attention, feedforward and sampling stages in
+assembly; the kernels on the other two architectures; any tool call; the
+instruction text; the image builder; any evidence whatsoever that a model can
+write a working allocator unaided.
 
 ---
 
@@ -348,7 +384,48 @@ principle already governed the hazard map, which is shared between the probe
 generator and the trap runner so that a probe and a trap cannot disagree about
 where a landmine is.
 
-### 4.8 Summary
+### 4.8 A fixture with unstated precision can be approached but never matched
+
+**Class:** specification. **Cost:** none, and this is the only entry in the
+table for which that is true.
+
+Our reference implementation is written in a language whose numbers are
+double-precision. Accumulating a dot product in the obvious way therefore sums
+in double and stores a single-precision result at the end. An assembly
+implementation accumulating in a single-precision register does not do this.
+Adding one tenth to itself ten times yields `1.0000000149011612` by the first
+route and `1.0000001192092896` by the second.
+
+The magnitude of the difference is irrelevant. What matters is that a fixture
+matchable only within a tolerance converts every subsequent disagreement into a
+judgement about whether a difference is small enough — which is precisely the
+judgement a fixture exists to eliminate. The failure mode is worse than a wrong
+answer: a *correct* assembly implementation disagrees in the final bits and is
+then adjusted until it agrees, by a developer with no principled basis for
+deciding which of the two is right.
+
+**Structural response.** Precision became part of the specification rather than
+a consequence of implementation language: **every accumulation is single
+precision, in ascending index order.** The reference implements this literally,
+rounding through a single-precision value after each operation. It is slower,
+which is acceptable, because it is the definition rather than the engine.
+
+Rounding a double result to single once per operation yields the same value as
+performing the operation in single precision: double carries 53 bits and
+single-precision rounding is safe above 50, so no operation is rounded twice.
+
+**This also establishes where exactness stops.** Multiplication, addition and
+square root are exactly specified and agree across implementations. Exponential,
+sine and cosine are not. Kernels composed of the first three can therefore be
+required to match bit for bit; anything downstream of the second three cannot,
+and is checked against the whole-pass fixture with a stated tolerance. Both test
+programs state which side of that line they are on.
+
+We report 26 of 26 kernel comparisons passing on raw bit patterns rather than
+numeric values, across nine matrix shapes, five vector lengths, and three edge
+cases.
+
+### 4.9 Summary
 
 | # | Finding | Class | Cost |
 |---|---|---|---|
@@ -359,9 +436,19 @@ where a landmine is.
 | 4.5 | Armed nothing indistinguishable from caught nothing | harness | 1 run |
 | 4.6 | Fatal writes cannot be reported by watchpoints | limit | 1 run |
 | 4.7 | Hand-counted offsets | duplication | 1 boot |
+| 4.8 | Fixture with unstated precision | specification | none — caught by inspection |
 
-Seven failures. Zero crashes. Zero diagnostics. Every one produced output that
+Eight failures. Zero crashes. Zero diagnostics. Every one produced output that
 a reasonable person would accept at a glance.
+
+Two further items are properties of the *development host* rather than of the
+target, and are recorded in the project's running list rather than here: a
+built library placed on a memory-backed filesystem mounted to forbid execution
+refuses to load, and hand-written assembly lacking an explicit stack-permission
+note is marked by the linker as requiring an executable stack, which current
+loaders reject. Both cost one run. Neither would have appeared if these kernels
+had been tested only by booting emulated machines, which is an argument for
+testing at more than one level.
 
 ---
 
@@ -586,8 +673,12 @@ A machine that destroys physical hardware during exploration despite passing the
 full trap matrix would falsify the adequacy of the testing approach in §5.1 and
 would require device modelling rather than address modelling.
 
-An eighth failure in our catalogue that announced itself loudly would weaken the
-central empirical claim of this report proportionally.
+A ninth failure in our catalogue that announced itself loudly would weaken the
+central empirical claim of this report proportionally. We note that the eighth,
+added after first drafting, was also silent — and was the first caught before
+it cost anything, by asking what the arithmetic did rather than by watching it
+fail. That is the only defence we have found against this failure class that
+does not require the failure first.
 
 ---
 
@@ -624,10 +715,10 @@ changed and why; the failures in §4 correspond to identifiable commits.
 ./run-tests --quick     host-side checks only
 ```
 
-Fifty-three checks across five programs at time of writing. The board
-descriptions, the payload generator, the executable wrapper, and the trap runner
-are each accompanied by an information file describing their interface and the
-constraints discovered while building them.
+Seven test programs at time of writing. Every source file is accompanied by an
+information file describing its interface and the constraints discovered while
+building it; those files are where the findings in §4 are recorded in the form
+a future implementer will meet them.
 
 ## Appendix B: Status of the enclosing project
 
@@ -643,7 +734,10 @@ constraints discovered while building them.
 | Reference forward pass and fixture | working, 7/7 |
 | Reference tokenizer | working, 21/21 |
 | Reference sampler | working, 9/9 |
-| Engine in assembly | **not started** |
+| Matrix-vector and normalisation in assembly, bit-exact | working, 26/26, one architecture |
+| Memory budget and fitting analysis | working, 6/6 |
+| Attention, feedforward, sampling in assembly | **not started** |
+| Kernels on the other two architectures | **not started** |
 | Tool calls | **not started** |
 | Instruction text | **not started** |
 | Image builder and flasher | **not started** |
