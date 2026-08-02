@@ -9,9 +9,12 @@ different part of the same sheet of paper** — not relevant to this particular
 part of the equation, and being worked on elsewhere or later. The stated focus
 for this part is: *actually making a system that does whatever it needs to.*
 
-Each section names where it was said. Line numbers refer to
-`llm-transcripts/jul-31-26-through-aug-1-26.md`, so that un-parking one of these
-starts from what was actually meant rather than from this summary of it.
+Each section names where it was said. Line numbers refer to the transcript in
+`llm-transcripts/`, so that un-parking one of these starts from what was actually
+meant rather than from this summary of it. The transcript is appended to as the
+conversation continues and gets renamed when it crosses a day boundary, so the
+line numbers stay put while the filename does not — which is why the filename is
+not written here.
 
 ---
 

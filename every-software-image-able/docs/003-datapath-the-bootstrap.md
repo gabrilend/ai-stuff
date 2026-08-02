@@ -220,6 +220,14 @@ does not know about itself.
 - **Is the hardware map rebuilt every boot, or read from the last one?** Rebuilt
   is honest and slow and rediscovers everything dangerous. Read is fast and wrong
   the first time somebody plugs something in.
+- **Moving in needs a storage driver, and drivers are learned after moving in.**
+  To write itself to storage the machine must already be able to operate a
+  storage device, but the discipline that makes learning a device safe (`003a`)
+  depends on being able to write a note first. The circle only opens if storage
+  is reachable through a standard class interface, which most storage is — so
+  tier one of the knowledge table is not a convenience, it is what makes step two
+  possible at all. A machine whose storage controller answers to nothing standard
+  has to explore its way in with no way to record what killed it.
 - **What if there is nowhere to move in to?** Every step after step two assumes
   step two finished. A machine with no writable storage attached could refuse to
   continue, or could run permanently inside the pre-move-in window and relearn

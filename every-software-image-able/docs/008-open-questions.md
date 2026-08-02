@@ -65,16 +65,26 @@ dangerous experiment cannot be written, so a machine that dies exploring learns
 nothing from it and rediscovers the same lethal register on every boot. `003`.
 
 **5 — What does verification mean after self-modification?**
-**A stranger can verify one of these machines as well as its owner can.** Neither
-of them can reproduce it — divergence begins at the first token and is expected,
-since a model's output is a weighted random choice — so verification is not
-reproduction. It is reading the account the machine kept of what it did.
+It is not a concern of this project, and the question arrived here from
+elsewhere — the civics work next door turns on never asking anyone to trust a box
+they cannot check, and nothing here turns on that.
 
-That puts a requirement on the account: it has to be legible to someone who was
-not there. Which is the same apparatus the machine already builds in order to
-explain itself — the picture showing what each choice was made against (`004`),
-and the lookup returning what a code means (`006`). Explaining itself and being
-verified are one job.
+What is true and sufficient: **a stranger can verify one of these machines as
+well as its owner can.** Nobody has privileged standing. That is a statement
+about equal access, not a duty to make checking easy, and no part of the design
+should be shaped around making it easier.
+
+Machines diverge from the first token, because a model's output is a weighted
+random choice. That is expected and fine.
+
+**12 — How many different ways are tried before moving on?**
+The machine decides. Same answer as 9, and the same reason:
+
+> Let's delegate it to the computer — dear computer, try and solve this problem,
+> do so as you please. That sounds better to me than "you must show up at 9 and
+> leave by 5."
+
+`strategems/009-ask-do-not-schedule.md`.
 
 **13 — What makes the machine want something?**
 Nothing internal. Requests arrive from arbitrary sources, and the machine builds
@@ -85,11 +95,13 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
-**12 — How many different ways are tried before moving on?**
-The machine tries several approaches to one constraint before it is allowed to go
-work elsewhere. That rule cannot ping-pong between constraints, but it can grind
-on one whose space of approaches is empty. The number that stops the grinding is
-unchosen. Blocks: `004`.
+**None.** Every question that was stopping work has an answer, and three of them
+were answered the same way — by handing the decision to the machine rather than
+writing a rule for it (`strategems/009`).
+
+The per-document questions below are still open. They are not blocking, because
+none of them changes the shape of something already written; they are the things
+whoever writes the code will meet.
 
 ---
 
@@ -126,11 +138,12 @@ Held in full at the end of each document; listed here so the count is honest.
 
 ## Next
 
-**12 — how many different ways are tried before moving on.** The last blocking
-one, and the only one that is a number rather than a shape. The machine tries
-several approaches to one constraint before it is permitted to work elsewhere,
-which cannot ping-pong between constraints but can grind on one whose approaches
-are exhausted. Nothing currently stops the grinding.
+**The roadmap.** It was held back because four unanswered questions could have
+moved the phase boundaries. They are answered, and three of them dissolved into
+"the machine decides," which removes rather than adds structure. Nothing is
+waiting on a decision now.
 
-It may also turn out to be the machine's own business, in which case it is
-answered the same way question 9 was.
+After that, the issue files — and the thing to be careful of while writing them
+is that a ticket describing how the machine must be organised is the same mistake
+as a schedule. State what is wanted and what it costs to get wrong; leave the
+approach to whoever is holding the problem.
