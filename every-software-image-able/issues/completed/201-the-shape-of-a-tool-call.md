@@ -2,7 +2,43 @@
 
 ## Current behavior
 
-The engine produces text. Text does nothing.
+**Done, and tested** — `src/064` is the boundary, `src/065` checks it, 27 of
+27 on 2026-08-02, including a live exchange on the real assembly engine.
+
+The door and the catalogue are one object. The table the answering walks to
+find a hand is the same table the machine reads to find out what its hands
+are, and a hand offered later — including by something the machine built —
+appears in it immediately. That answers `docs/002`'s open question about
+whether a program can widen the door from inside: it can.
+
+The call format is not chosen here. The recogniser is a swappable grammar
+object and nothing above it assumes one, proven by running the same hands
+under a second grammar and requiring the first grammar's calls to mean
+nothing to it. The default is deliberately ordinary — `<call name argument>`
+answered `<result name ...>` — in characters any vocabulary can say.
+
+Every refusal is a sentence the machine can read and act on: unparsed, no
+such hand, wrong argument count, a dangerous hand still closed, a hand that
+could not do it, and a hand that came apart entirely. No hand moves in any
+of those cases, and a hand that raises is caught rather than allowed to take
+the thought down with it.
+
+The loop (`061`) gained `converse`: thinking stops at a completed asking,
+the hand moves, the answer joins the context as its own atom, and thinking
+resumes. Two properties that came out of building it and are now tested:
+
+- **A call in a request moves nothing.** Only the machine's own speech is
+  scanned. Otherwise anything that talks to the machine reaches through it
+  to its hands, which is a different machine than this one.
+- **An exchange is bounded and says when the bound is reached**, because a
+  machine stopped by a limit it cannot see looks like one that gave up.
+
+Large answers go to the reader (`201a`) or are refused with both numbers
+named — never truncated.
+
+Still open, and belonging to the tickets that own the hands that can hang:
+a call that never returns. Nothing here can hang; `205` is where that starts
+being possible and where giving up on one is designed.
 
 ## Intended behavior
 
