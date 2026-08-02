@@ -20,10 +20,31 @@ to wait for each other. Four independent partial sums would run in parallel and
 be very much faster, and would give a different answer. That is the measured
 price of exact comparability, and it is most of the available speedup.
 
-Still to measure: time from power to first token on a real board, memory as a
-fraction of what a board has, and anything at all on the other two
-architectures. The accelerator comparison the ticket asks for cannot be made
-until something drives an accelerator.
+**The conducting is timed too**, now that it exists: the fully-assembly pass
+runs about eleven percent faster than the same arithmetic under readable
+conducting, bringing the machine to 1.36 billion multiply-and-adds per
+second, and the extrapolations improve accordingly.
+
+**The boards are timed** (`src/063`): each emulated computer switched on and
+clocked from power to the machine finding its own model and reporting what
+room it has — about three and a half seconds on x86-64, six and a half on
+ARM, nine on RISC-V — with the engine-and-weights footprint reported as a
+fraction of what the firmware says the board holds. These clocks are the
+emulator's, which rank the roads against each other and price development;
+a real board's numbers replace them in the same table the day one is
+plugged in. Both tools keep their results as data under
+`tmp/shared-memory/measurements/`, so nothing has to be rewritten to add a
+row and no document has to carry a figure and go stale.
+
+**The phase 1 demo exists and runs the measurements**
+(`issues/completed/demos/phase-1-the-engine.sh`, chosen through `run-demo`
+at the project root): what fits, how fast it thinks, and the boards from
+power to speech.
+
+What remains unmeasurable today, named rather than forgotten: the other two
+architectures' engines (`401` builds them; this tool gains two rows), real
+wall-clock on real silicon, and the accelerator comparison `docs/010` wants,
+which cannot be made until something drives an accelerator.
 
 ## Intended behavior
 
