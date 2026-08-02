@@ -37,7 +37,17 @@ can see — a trap it can observe teaches it that forbidden writes give immediat
 survivable feedback, which is the opposite of what hardware teaches.
 
 `705` is the ticket that never finishes, and should not be closed. It is a list
-that grows every time the board disagrees with the emulator.
+that grows every time the board disagrees with the emulator — with a price beside
+each entry, since a list of differences is interesting and a list of differences
+with costs attached is the argument for how often to leave the emulator.
+
+## What changed about this phase's relationship to phase 5
+
+An emulated machine is a board, so it gets a board description like any other and
+the emulator's command line is generated from it. Which means an image for an
+emulated machine is built by the same builder, from the same recipe, as one for a
+real board — and `502` is under test from the first week rather than from phase 5.
+The seam most likely to break first light is the one exercised most.
 
 ## Demo
 

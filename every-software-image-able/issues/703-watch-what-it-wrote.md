@@ -20,6 +20,13 @@ at a time.
    kept by `204` — the text the model wrote beside the bytes it became — and
    something has to turn that into "you are at instruction eleven of the thing it
    called the allocator."
+3. **Which puts a requirement back on `204`: the machine's own bookkeeping has to
+   be readable from outside.** A debugger attached to the emulator sees raw guest
+   memory, so the layout of the structure pairing text with bytes — and the memory
+   map, and the list of arenas — is part of a contract with a tool that lives
+   outside the machine, even though nothing inside the machine needs it to be.
+   Fix those layouts and write them down, or every debugging session begins by
+   working out where things are.
 3. Provide a way to break at the moment the machine hands control to code it just
    produced. That transition is where the interesting failures are, and it happens
    at an address nobody knew in advance.
