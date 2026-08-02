@@ -148,6 +148,28 @@ slot that has already been reused.
 
 ---
 
+## The ceramic platform
+
+Offered as the recommendation for what a unit of running software is, and then
+set aside — it goes into the bundle of recommended build patterns that rides on
+the chip (`docs/010`), alongside dispatch tables, thread pools, and looping
+iterators.
+
+**Why it is not here.** *Don't worry about it for now. We'll bundle it as
+instructions for recommended build patterns.* Details to come for all
+implementations.
+
+**What to be careful of when it un-parks.** The term has been used without a
+definition, and everything else in this design that got built on before being
+defined had to be pulled back out afterward. It should be described before it is
+referred to again.
+
+Nothing structural waits on it. What a unit of running software is stays the
+machine's own business either way — the pattern would be a recommendation, not a
+process model.
+
+---
+
 ## Deployment, when there is something to deploy
 
 *Pointed at, line 625.*
