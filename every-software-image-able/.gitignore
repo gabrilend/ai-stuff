@@ -2,3 +2,10 @@
 # Nothing under it is the record, and the link itself is machine-local, so it is
 # recreated by the run scripts rather than tracked.
 tmp
+
+# output/ holds what the last program to run returned to you -- the goodbye of
+# whichever tool finished most recently. It is a mailbox, not a record: the
+# contents are overwritten every run and mean nothing to anyone who was not
+# there. The directory is kept; the messages are not.
+output/*
+!output/.gitkeep
