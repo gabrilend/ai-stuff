@@ -13,10 +13,27 @@ Two empirical findings are recorded in the board info files: the ARM board
 needs its processor pointed at the payload by a second loader entry, and the
 RISC-V board with no firmware jumps from its reset vector to the start of DRAM.
 
-Still to do from the steps below: the framebuffer is attached but not yet
-inspectable from outside; hardware acceleration is an option but untested; the
-small-memory ratchet configurations exist but nothing exercises them yet; and
-the seed itself does not exist to boot.
+**Screens can now be photographed and read.** The launcher takes
+`--screenshot`, driving the emulator's monitor from outside while the machine
+runs, and `src/028` renders the result as text so a drawing can be confirmed in
+the same terminal that started the machine. Proved on 2026-08-02: a machine
+with no operating system wrote `first light, drawn` into BIOS text memory,
+photographed and read back as legible letterforms.
+
+**Hardware acceleration works** where guest and host share an architecture, and
+is declined out loud rather than silently where they do not.
+
+**The memory configurations work**, named and literal, on all three boards.
+
+Two things remain, and the first is a finding rather than a chore:
+
+- **These boards cannot provide the framebuffer the design depends on.** The
+  linear framebuffer of issue `202` is UEFI's handover, and these boards use
+  BIOS and no-firmware. The payload builder now refuses to emit a `draw` step
+  where there is nowhere to draw, with the reason in the refusal. UEFI board
+  descriptions are the way out and the firmware for all three architectures is
+  already present. Recorded in `notes/023`.
+- The seed itself does not exist to boot.
 
 ## Intended behavior
 
