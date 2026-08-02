@@ -2,10 +2,36 @@
 
 ## Current behavior
 
-`docs/003` names one failure this design cannot help with: the window during
-moving in where the machine exists in two places, or in neither. Nothing tests it,
-and on real hardware it can only be met by pulling a plug and hoping to hit the
-moment.
+**Done, and tested** -- `src/095`, checked by `src/096`, 19 of 19 on
+2026-08-02.
+
+The sweep bisects rather than scans: a window of a hundred thousand
+instructions is mapped in a few dozen runs instead of a hundred thousand,
+because what is wanted is where the boundaries are rather than what happens
+at every instant.
+
+**And it does not assume a single boundary**, which was the warning in the
+ticket and is the thing the test is built around. It samples coarsely first,
+finds every band it can see, and narrows each edge -- so a window with two
+separate unrecoverable stretches yields both. The test uses exactly that
+shape, because a sweep that assumed one boundary would have found the first
+and missed the second, and the missed one is the sort of thing that only ever
+happens to somebody else machine.
+
+**What the sampling could still be hiding is said out loud**: any band
+shorter than one sampling step could sit entirely between two samples and has
+not been ruled out. A sweep that reported only what it found would read as a
+sweep that found everything.
+
+The shape of the damage is reported rather than a pass or a fail, and the
+band where the machine comes back CONFUSED is called out on its own -- that
+is the worse outcome than not coming back, because a machine that returns not
+knowing what it knew will act on what it has.
+
+Not covered: a real emulator snapshots. The sweep runs against a pretend
+machine whose answers are known, which tests the sweeping rather than the
+snapshotting. Pointing it at a real one is configuration and belongs with the
+move-in it exists to test, which is `601`.
 
 ## Intended behavior
 
