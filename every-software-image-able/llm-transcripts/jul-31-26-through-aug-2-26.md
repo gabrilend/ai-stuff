@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 21:03:31
+Generated on: 2026-08-01 21:10:49
 
 --------------------------------------------------------------------------------
 
@@ -2950,6 +2950,94 @@ all points at the patterns.
 What's still unwritten: any code, the demos, and the runner script in the
 project root — that last one is blocked on there being a completed phase to
 run.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 30
+
+can we add as a design target the ability to test in a virtual machine? I
+mean... it should be a "virtual machine" but we might have to write something
+ourselves, because, well, a virtual machine is a little OS running in a system
+that emulates hardware by doing the various operating system calls for it. BUT
+we don't even have an OS. What do you think we should do to simulate the system
+as we build it?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 30
+
+Good question, and the answer is better than you'd expect: **you don't need an
+OS in the guest, and you don't need to write the emulator.**
+
+
+The word covers three unrelated things, which is where the confusion comes from.
+Writing it up.
+
+
+Short answer: **a hardware emulator doesn't need an operating system inside it,
+and you don't have to write one.**
+
+
+The confusion is that three unrelated things share the name. A *container*
+shares the host's kernel — that one genuinely is a little OS, and it's not
+what you want. A *language machine* runs bytecode through a dispatch loop —
+that's the thing your own design has the machine build, and it runs programs
+rather than computers. A *hardware emulator* pretends to be a processor, memory,
+a bus and devices, and it doesn't emulate operating system calls at all. There's
+nothing to fill in, because there's nothing there that would have called an OS.
+
+
+What it hands the boot code is exactly what a board hands it: a processor of a
+chosen architecture, firmware that hands over, a memory map to read, a serial
+port, and a bus with devices on it. Whatever runs on that is on its own. That's
+how every kernel ever written was developed.
+
+
+So most of the project becomes testable with nothing on the desk. The emulated
+serial port is the terminal you launched from, so "say something" works the
+first time it's tried. Storage is a file on the host. The bus has devices to
+enumerate. And a debugger attaches from outside and steps through assembly that
+has no source and no symbols, because a model wrote it thirty seconds ago —
+which is otherwise close to undebuggable.
+
+
+The one that surprised me: **snapshots make the unhelpable failure measurable.**
+The design says power lost during the move into storage is the one window it
+can't help with. On hardware you meet that by pulling a plug and hoping to hit
+the moment. With exact state save and restore you can cut power at *every
+instruction* in that window, thousands of times, and find out whether the
+unrecoverable band is one instruction wide or a million.
+
+
+**What it hides is the thing you'd have to build.** An emulated device ignores
+the write that would kill the real part. Voltage register, clock divider,
+thermal limit, non-volatile config — write anything, it carries on. So the
+only place in this design where a mistake is permanent is the only place
+development gives no feedback, and a machine could pass every test by exploring
+recklessly and then destroy the first real board it touched.
+
+
+That's the ticket: **a device that can die.** Answers normally, stops answering
+forever when mistreated, stays dead across a restart, and — the harder part
+— reproduces the *ambiguity* rather than the death, because from inside a
+destroyed part, a busy part and an unpowered part all look identical. Its demo
+is a machine exploring under the discipline with a running count of parts
+destroyed, next to the same run with the discipline switched off.
+
+
+Everything else in that phase is configuration of a tool that already exists.
+
+
+Two loops: the emulator every day for behaviour and crash windows, real hardware
+less often for speed and firmware reality. Emulated tokens-per-second isn't
+slow-but-indicative, it's meaningless, so those numbers stay in separate tables.
+
+
+Numbered phase 7 and meant to be built first — everything in the other six
+goes onto the chip or makes the chip, and nothing here ever ships. That's what
+the number means.
 
 
 --------------------------------------------------------------------------------
