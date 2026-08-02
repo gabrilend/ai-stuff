@@ -2,7 +2,53 @@
 
 ## Current behavior
 
-The engine runs on one architecture. Most computers are not that architecture.
+**In progress. Three of nine kernels written for the second tongue; the
+harness that would prove them is built and does not yet report.**
+
+**Written** (`src/099`): the matrix product plain, the matrix product four at
+a time, and the normalisation — the three built only from multiplication,
+addition and square root, which are the ones that CAN be required to match
+exactly rather than closely. They assemble for the second architecture.
+
+The wide one deliberately does not use the instruction that sums a whole
+vector in one step, for the same reason the first tongue's does not: that
+answer differs in the last bit, which makes it a different specification
+rather than a better implementation of this one.
+
+**Not written**: `exp_one`, `softmax`, `swiglu`, `rotate`,
+`attention_scores`, `attention_mix`, `add_into` — named in `src/099` rather
+than omitted, because a port that quietly covers less than the first looks
+finished. The third tongue is not begun.
+
+**The harness is the interesting half, and it is right in shape.** The host
+cannot test these by calling them — it does not speak this language — so
+`src/100` records what the FIRST tongue produces for a set of shapes, bakes
+those exact bit patterns into a payload along with the second tongue's
+kernels (`src/101`), boots a real ARM machine, and has it compare its own
+results against them **as integers**, so nothing rounds and "close" cannot
+happen. That is the right test and it is what the fixture in `103` was built
+for.
+
+**Where it stands:** the payload assembles, boots, and prints its greeting
+through firmware. It then stops before its first progress mark, and the
+report never arrives. Two defects were found and fixed on the way there, both
+worth keeping:
+
+- **The first instruction must be ours.** Firmware enters at offset zero, so
+  emitting the kernels first meant the machine entered `matrix_vector_plain`
+  with the firmware's registers as arguments — which happened to mean "no
+  rows", so it returned immediately and the firmware carried on booting to
+  its own shell. Nothing failed and nothing was reported.
+- **There is nowhere writable inside the payload.** Firmware that honours
+  section rights maps the code read-only, so a results buffer in `.text` is a
+  crash on some machines and not others. It lives on the stack now, which is
+  the same lesson `033` learned for its memory map.
+
+The remaining failure is between the greeting and the first mark. The
+generated assembly around that point reads correctly, which means the next
+step is the debugger rather than the listing — `021` already attaches one,
+and `703` now turns an address into a place. That is the tool this needs and
+it did not exist when this ticket was written.
 
 ## Intended behavior
 
