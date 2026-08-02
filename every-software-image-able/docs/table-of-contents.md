@@ -28,7 +28,8 @@ every-software-image-able/
 │   │
 │   ├── 008-open-questions.md ........ every question, closed and open, in one place
 │   ├── 010-datapath-the-mind.md ..... what arrives rather than being built, and changing it
-│   └── 011-roadmap.md ............... six phases; what people build, not what it becomes
+│   ├── 011-roadmap.md ............... seven phases; what people build, not what it becomes
+│   └── 012-datapath-the-proving-ground.md  testing it without a computer, and what that hides
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
@@ -86,9 +87,13 @@ last ticket finished may well be an early-phase one.
 | 4 | Three tongues — the other two architectures, and choosing between them |
 | 5 | The image — recipe, board descriptions, build, flash, verify |
 | 6 | Waking — first light, and the first thing it makes unaided |
+| 7 | The proving ground — an emulated computer, and devices that can be destroyed |
 
 Phase 6 is the capstone and the only one that proves anything. What happens after
 it is not planned, on purpose.
+
+Phase 7 is numbered last and built first: nothing in it ever ships, which is what
+its number means. `701` is where the other twenty-two tickets get developed.
 
 **Issue names** are `{PHASE}{ID}-{description}`, with the ID two digits — read
 from the right, so `204` is the fourth issue of phase 2. A trailing letter marks a
