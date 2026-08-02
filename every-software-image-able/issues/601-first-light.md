@@ -21,9 +21,21 @@ first moment this project has anything rather than parts.
    and finding those on one board is cheaper than on three.
 2. Watch the serial port for the whole sequence. Every step from `402` and `102`
    narrates itself, and the last line before silence is the diagnosis.
-3. Expect the failures to be in the seams rather than in the parts: offsets that
-   the builder and the engine disagree about, firmware handing over in a state
-   nobody tested against, memory that the map says is usable and is not.
+3. Expect the failures to be in the seams rather than in the parts. Every part was
+   tested alone under emulation; what has never been tested is the joins between
+   them. The likely ones, in the order they will hurt:
+
+   | | Why emulation missed it |
+   |---|---|
+   | Offsets the builder and the engine disagree about | Both were right about their own half |
+   | Firmware handing over in a state nobody tested against | Emulated firmware is tidier — interrupts, processor mode, cache state |
+   | Memory the map calls usable that is not | Real maps have holes in awkward places; emulated ones do not |
+   | Unaligned access that a real processor refuses | Some emulators tolerate what some hardware faults on |
+   | Initialisation waits that are too short | Timing is meaningless under emulation, so a wrong wait passes |
+
+4. **Narrate more than feels reasonable.** The last thing drawn before the machine
+   stops is the entire diagnosis. Verbose by default at first light; quieten it
+   afterward, never before.
 4. Record the time from power to first token. It is the number that says whether
    this is a computer or a demonstration.
 5. Then repeat on the other two architectures, and on a board with no display, and

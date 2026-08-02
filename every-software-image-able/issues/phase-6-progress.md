@@ -27,6 +27,12 @@ about an unhelped one, so the first attempt at the allocator must be allowed to
 fail without correction, and the failure fixed in `301` rather than at the
 keyboard.
 
+The way to make that bearable is to stop judging single machines. The draw is
+deterministic per seed and the seed is a build parameter, so twenty images
+differing in nothing but their randomness give a success rate rather than an
+anecdote — and the ones that fail differently from each other say more than the
+ones that fail alike.
+
 Three outcomes would count as failure, and each points at a specific document
 rather than at the idea: hardware damaged during exploration (`003a`), the weights
 overwritten (`301`), no working assembly produced at all (`303`).
