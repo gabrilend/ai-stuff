@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# run-demo -- asks which completed phase to show, and runs its demo.
+#
+# For a general: each finished phase leaves behind a demonstration that
+# prints real numbers rather than describing features. This lists the ones
+# that exist, asks for a number, and runs the chosen one. The demos are part
+# of the deliverable, not a development artifact (docs/011).
+
+# {{{ DIR -- the project root, hard-coded, overridable by an argument
+DIR="/mnt/mtwo/programming/ai-stuff/every-software-image-able"
+if [ -n "$1" ] && [ -d "$1" ]; then DIR="$1"; shift; fi
+# }}}
+
+DEMOS_DIR="${DIR}/issues/completed/demos"
+
+# the demos that exist, in phase order
+DEMOS=()
+for demo in "${DEMOS_DIR}"/phase-*.sh; do
+  [ -e "$demo" ] || continue
+  DEMOS+=("$demo")
+done
+
+if [ "${#DEMOS[@]}" -eq 0 ]; then
+  echo "no phase demos exist yet"
+  exit 1
+fi
+
+echo ""
+echo "the demonstrations that exist:"
+echo ""
+number=0
+for demo in "${DEMOS[@]}"; do
+  number=$((number + 1))
+  name=$(basename "$demo" .sh)
+  echo "  ${number}  ${name}"
+done
+echo ""
+
+# a number may arrive as an argument; otherwise, ask. Once taken, it is
+# taken -- whatever follows it belongs to the demo, not to this script.
+choice="$1"
+if [ -z "$choice" ]; then
+  printf "which one? [1-%d] " "$number"
+  read -r choice
+else
+  shift
+fi
+
+case "$choice" in
+  ''|*[!0-9]*)
+    echo "that is not a number"
+    exit 1
+    ;;
+esac
+if [ "$choice" -lt 1 ] || [ "$choice" -gt "$number" ]; then
+  echo "there are ${number} demos; ${choice} is not one of them"
+  exit 1
+fi
+
+chosen="${DEMOS[$((choice - 1))]}"
+bash "$chosen" "$DIR" "$@"
