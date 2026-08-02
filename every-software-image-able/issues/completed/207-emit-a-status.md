@@ -2,7 +2,31 @@
 
 ## Current behavior
 
-Nothing the machine does leaves a trace anyone can read at a glance.
+**Done, and tested** — `src/079` emits, `src/080` checks it, 24 of 24 on
+2026-08-02.
+
+Three numbers, shown as colour **and** shape, so the reading survives a
+failed lamp, a dim room, or a person who does not distinguish the colours.
+No two aspects share either encoding, which is checked rather than intended:
+one encoding failing would otherwise make two aspects the same thing.
+
+Lamps first, then the framebuffer from `202`, then the serial port — and
+which one took it is reported. A machine with none of them is refused rather
+than left believing it spoke, because a status shown nowhere looks exactly
+like nothing having happened.
+
+The reading lives at one address, shared, and it is **the same address the
+assembler's loop emissions push on** (`073`). A runaway program and a
+worried machine appear on one dial rather than two, which is what makes the
+picture comparable across everything running at once. Settling returns the
+magnitude to ordinary and keeps the crossings, since the thresholds crossed
+on the way are the record of how close it came.
+
+The meanings are left alone, and the machine is told so in words when it
+asks: the codes mean whatever the emitting program needs, two machines
+emitting seventeen mean unrelated things, and building the lookup that
+answers *what is this one* is the first thing worth doing once anything is
+emitting at all — and it is the grown machine's to build.
 
 ## Intended behavior
 
