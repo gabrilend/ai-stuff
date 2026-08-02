@@ -18,10 +18,30 @@ answer. Seven of seven on 2026-08-02.
 Which tensors a model contains is in `src/034`, so nothing works out names for
 itself.
 
-**The assembly does not exist yet.** That remains the largest single piece of
-work in the project. What has changed is that it now has something to be
-checked against, on every architecture, without anybody having to decide
-case by case whether an answer looks right.
+**The first two kernels exist in assembly and match exactly.** `src/043`
+generates them, `src/044` compares them against the reference bit for bit —
+26 of 26 on x86-64, including a four-at-a-time version that keeps one running
+accumulator so its answer is identical rather than merely close.
+
+This forced a decision the fixture had left implicit. The reference summed in
+double because that language's numbers are doubles; assembly sums in single;
+they can never agree. **Precision is now part of the specification** — every
+accumulation single precision, ascending index order — and the reference
+implements it literally. That is what makes an exact comparison possible, and
+an exact comparison is worth far more than a tolerance, which turns every
+future disagreement into a judgement call.
+
+The line where exactness stops is drawn explicitly: multiplication, addition
+and square root agree everywhere, so kernels built from them are compared by
+bits. Exponential, sine and cosine do not, so anything downstream of them is
+checked by the whole-pass fixture with a stated tolerance.
+
+Kernels touch only the memory handed to them, so they need no symbol
+references and the same instructions run hosted — where a test takes a fraction
+of a second — and on bare metal, where it would take minutes.
+
+**Still to write:** everything from the attention onwards, and both other
+architectures.
 
 ## Intended behavior
 

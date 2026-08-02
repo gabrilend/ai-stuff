@@ -12,7 +12,7 @@ be run is a file.
 |---|---|---|
 | `101` | Package a model, whichever one | done — 10 of 10 round-trip checks |
 | `102` | Find the weights without a filesystem | finding works on x86-64; memory map and ratchet remain |
-| `103` | The arithmetic, in assembly | reference and fixture done, 7 of 7; the assembly itself not started |
+| `103` | The arithmetic, in assembly | reference 7 of 7; first two kernels in assembly, bit-exact, 26 of 26 |
 | `104` | Sampling, and the carried seed | reference done, 9 of 9; assembly not started |
 | `105` | The thinking loop, and its limits | not started |
 | `105a` | The tokenizer | reference done, 21 of 21; assembly not started |

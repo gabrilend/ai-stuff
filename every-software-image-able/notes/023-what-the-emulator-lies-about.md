@@ -209,6 +209,66 @@ cannot drift from the format it is reading. One source, three consumers.
 
 ---
 
+### A fixture with an unstated precision cannot be matched, only approached
+
+**What was assumed.** That a recorded answer is a recorded answer, and an
+assembly implementation either reproduces it or does not.
+
+**What is actually true.** The reference is written in a language whose numbers
+are doubles, so accumulating a dot product the obvious way sums in double and
+stores a float at the end. Assembly accumulating in a single-precision register
+does not do that. Adding 0.1 to itself ten times gives `1.0000000149011612` one
+way and `1.0000001192092896` the other.
+
+The difference is tiny and it is fatal to the only comparison worth having. A
+fixture matchable only within a tolerance turns every future disagreement into
+a judgement about whether a difference is small enough — which is exactly the
+judgement the fixture exists to remove.
+
+**Structural response.** The precision became part of the specification:
+**every accumulation is single precision, in ascending index order.** The
+reference implements that literally, rounding through a float after each step.
+Assembly then matches bit for bit — 26 of 26 checks comparing raw bit patterns
+rather than numbers.
+
+**And the line where exactness stops.** Multiplication, addition and square
+root are exactly specified and agree everywhere. Exponential, sine and cosine
+are not. So kernels built from the first three can be required to match
+exactly, and anything downstream of the second three cannot — which is why the
+kernel tests compare bits and the whole-pass fixture states a tolerance.
+
+**Cost.** Caught before it cost anything, by checking the accumulation
+behaviour before writing the assembly rather than after. It is in this list
+because it would have been expensive: the failure mode is an assembly
+implementation that is correct, disagrees in the last bits, and gets "fixed"
+until it agrees.
+
+---
+
+### The two RAM tiers exist for a reason, and it is enforced
+
+**What happened.** A built shared library placed on the artifact tier refused
+to load: *failed to map segment from shared object*. That tier is mounted so
+nothing on it may be executed.
+
+**Why this is right.** The project's own convention separates an executable
+tier from an artifact tier. Source and logs are artifacts; a built library must
+run. Putting a build on the artifact tier is a category error the filesystem
+catches.
+
+**And a second one immediately after.** Hand-written assembly carries no note
+declaring whether it needs an executable stack, so a linker meeting an object
+without one assumes the worst and marks the whole result as requiring one —
+which current loaders refuse. The note is meaningless on bare metal and
+required whenever the same instructions are loaded into a running system for
+testing.
+
+**Cost.** Two runs. Both are properties of the *host*, not of the emulator, and
+would not have appeared at all if the kernels had only ever been tested by
+booting a machine.
+
+---
+
 ## Expected, unpaid
 
 Written down before being met, so that meeting them is cheaper. None of these
