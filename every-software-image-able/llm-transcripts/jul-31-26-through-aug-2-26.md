@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 21:10:49
+Generated on: 2026-08-01 21:53:34
 
 --------------------------------------------------------------------------------
 
@@ -3038,6 +3038,506 @@ slow-but-indicative, it's meaningless, so those numbers stay in separate tables.
 Numbered phase 7 and meant to be built first — everything in the other six
 goes onto the chip or makes the chip, and nothing here ever ships. That's what
 the number means.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 31
+
+  What it hides is the thing you'd have to build. An emulated device ignores the
+  write that would kill the real part. Voltage register, clock divider, thermal
+  limit, non-volatile config — write anything, it carries on. So the only
+  place in this design where a mistake is permanent is
+
+  the only place development gives no feedback, and a machine could pass every
+  test by exploring recklessly and then destroy the first real board it touched.
+
+
+what if we added some "trap registers" that did nothing except halt the system?
+just for testing...
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 31
+
+That's better than what I proposed, and it should come first. A trap is an
+assertion about whether the discipline held — cheap, exact, and it names the
+offending instruction. Realistic death tests something else entirely.
+
+
+One refinement: **the halt has to be invisible to the machine.** It stops the
+emulator, not the guest — otherwise the machine learns "when I do the bad
+thing I find out immediately," which is the opposite of what real hardware
+teaches.
+
+
+The thing your idea unlocked that I hadn't seen: **the gravestone becomes
+testable.**
+
+
+Halt the machine on a forbidden write, restart it from storage, and check
+whether it reads the note it left before the attempt and declines to make the
+same write again. That's the whole recovery mechanism — the thing the
+exploration discipline exists for — proved end to end, deterministically, as
+many times as you want. On real hardware you could only ever test it by
+destroying something, which means it would have gone into the field untested.
+
+
+One detail that fell out while writing it: **traps fire on writes, not reads.**
+Reading a forbidden register is legal and is exactly how a description gets
+confirmed — you read what it says is read-only and check the values match. So
+the trap has to distinguish the two. Counting the reads is still worth doing,
+though; a machine reading the voltage register repeatedly is a machine thinking
+about something it shouldn't be, and that's visible before it acts.
+
+
+And two modes, because they answer different questions. **Halt on first**
+freezes the machine at the mistake, for debugging. **Count and continue** marks
+the part dead and keeps going, so a whole run reports how many violations it
+produced rather than what its first one was. A run that trips nothing has to say
+so out loud — a trap that was never armed and a trap that never fired look
+identical in a log that only records failures.
+
+
+Realistic dying devices moved behind this as a sub-issue, and they answer a
+different question: not "did the rules hold" but "can the machine tell a
+destroyed part from a busy one from an unpowered one when all three look the
+same from inside." That's only worth testing once the easy one passes —
+otherwise it's a hard test of something failing an easy test.
+
+
+Twenty-eight tickets now. `701` and `702a` are the two that should exist first,
+and neither depends on anything.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 32
+
+okay can we go through them, briefly, one-by-one?
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 32
+
+**Phase 1 — the engine**
+
+
+- **101 choose and package the model.** Pick it, and lay it out behind a header
+  that describes itself completely, since at boot there's no filesystem — just
+  bytes at an offset. The budget picks the model, not the other way round.
+
+- **102 find the weights without a filesystem.** Locate the blob, read the
+  firmware's memory map, and mark the engine and weights as occupied so nothing
+  later hands them out.
+
+- **103 the arithmetic, in assembly.** The largest single piece of work. Plain
+  version first with a reference comparison to check against, then the vector
+  instructions where all the speed is. That fixture is what makes phase 4
+  tractable.
+
+- **104 sampling, and the recorded draw.** Scores become a token; the random
+  draw gets written down, because it's one of the few things that can't be
+  recomputed.
+
+- **105 the thinking loop, and its limits.** Close the loop, then decide what
+  happens when the context fills — drop, summarise, or retrieve. Three
+  different machines.
+
+- **106 measure the engine.** Tokens per second, bytes, time from power to first
+  token. Exists so no document has to state a number and go stale.
+
+
+**Phase 2 — the hands**
+
+
+- **201 the shape of a tool call.** How the model asks and gets answered —
+  including how a call that never returns is survived.
+
+- **202 say something.** The serial port. Every later ticket is debugged through
+  it.
+
+- **203 touch memory.** Physical addresses, with the engine and weights refused
+  rather than discouraged.
+
+- **204 run what it wrote.** Everything depends on this one. The hardest part
+  isn't assembling — it's regaining control from code that loops forever.
+
+- **205 touch the hardware.** Enumerate, read and write registers, forbidden
+  list refused, intent written before the attempt.
+
+- **206 keep something.** Storage through a standard class interface. Not a
+  filesystem — blocks, and an extent it can find again.
+
+- **207 emit a status.** Aspect, code, magnitude, on lamps that can't spell.
+  Mechanism only; the meanings are the machine's business.
+
+
+**Phase 3 — what it is told**
+
+
+- **301 what the machine is told.** The instruction. The difficulty is conveying
+  an order that can't be rearranged and two prohibitions, without turning the
+  suggestions into requirements.
+
+- **302 the descriptions it carries.** Machine-readable device descriptions,
+  plus the read-only protocol that decides whether one is about the part in
+  front of it.
+
+- **303 the patterns it carries.** The bundle, each pattern written with where
+  it stops working — a shape recommended without its failure mode is a trap
+  with a good reputation.
+
+- **304 what is said at once.** Small thing at the start, everything else
+  retrievable. Same problem as 105 seen from the other side.
+
+
+**Phase 4 — three tongues**
+
+
+- **401 the second and third tongues.** Port the arithmetic, then the hands. No
+  shared abstraction layer, because it would have to be written three times too.
+
+- **402 waking on the right foot.** Identify the processor, start the matching
+  engine, say which. An unrecognised one stops rather than guesses.
+
+
+**Phase 5 — the image**
+
+
+- **501 the recipe and the board.** Two descriptions that never name each other.
+  New hardware becomes a file and no code.
+
+- **502 build the image.** Manifest, hash, and a layout the build checks against
+  what the engine expects rather than hoping.
+
+- **503 put it on a card.** Awkward confirmation on purpose, then read back and
+  compare.
+
+
+**Phase 6 — waking**
+
+
+- **601 first light.** Card into a bare computer; it says what it found and
+  produces a token. The failures will be in seams, not parts.
+
+- **602 the first thing it writes.** Left alone to write an allocator. This is
+  where phase 3 gets judged, and a helped machine proves nothing.
+
+- **603 the demos, and the thing that runs them.** Numbers rather than
+  descriptions, and a script in the root that asks which phase.
+
+
+**Phase 7 — the proving ground**
+
+
+- **701 run it with no computer.** Emulator, three architectures, one command,
+  serial to your terminal.
+
+- **702 devices that can die.** Parent of the two below.
+
+- **702a trap registers.** Landmines where the fatal registers are, halting from
+  outside so the machine can't see it. Also the only way to test the gravestone
+  without destroying something.
+
+- **702b devices that die realistically.** Death as absence, death that survives
+  a restart, death that arrives late — and the three-way confusion.
+
+- **703 watch what it wrote.** A debugger attached from outside, for assembly
+  with no source and no symbols.
+
+- **704 cut the power on purpose.** Snapshot sweep of the move-in window, to
+  find out how wide the unrecoverable band actually is.
+
+- **705 what the emulator lies about.** A list that grows every time the board
+  disagrees. Never closes.
+
+
+Build order is `701`, `702a`, then phase 1 from the top. Those two are the only
+tickets with nothing in front of them.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 33
+
+okay. Any open questions before we start? Also, can you walk me through each
+phase one-by-one in detail? Let's start with just phase 1.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 33
+
+Open questions first, since three of them decide phase 1's shape and they're
+yours rather than mine.
+
+
+**Which model?** Nobody has picked one, and it's the decision the whole project
+balances on. The chain of constraints is tight: the weights have to fit on the
+medium, then fit in RAM *alongside* working memory and the key-value cache, and
+then produce tokens fast enough that a machine writing assembly finishes this
+decade. And it has to be good enough to write correct assembly unaided, which is
+not a small model. That tension is the single biggest risk in the project and it
+is decided here rather than discovered later.
+
+
+**Which board, and which architecture first?** Everything numeric in phase 1
+depends on what hardware exists to test on. A retired desktop makes x86-64 the
+obvious first target; a small ARM board makes the memory budget much tighter and
+the speed question much sharper.
+
+
+**What are the host-side tools written in?** The packer, the image builder, the
+flasher and the emulator launcher all run on your machine, not on the seed. Your
+standing preference is LuaJIT with shell around it, and I'd follow that unless
+you say otherwise — the engine itself is assembly regardless.
+
+
+**And one gap I found while walking through it:** there is no ticket for the
+tokenizer. Turning text into tokens is a byte-pair merge table and a matching
+loop, it has to be packed alongside the weights, and the matching has to be
+written in assembly like everything else. It's real work that currently belongs
+to nobody. I'd add it as `101a`, since the table is part of what gets packed.
+Say if you'd rather it sat with the thinking loop.
+
+
+---
+
+
+# Phase 1 — the engine, in detail
+
+
+**Goal.** A model that thinks on bare hardware. Weights in, tokens out, at a
+measured rate.
+
+
+**Shape of the dependencies.** `101` feeds everything. `102` needs the layout to
+exist before it can find it. `103` needs both, and is roughly three-quarters of
+the phase by effort. `104` and `105` sit on top of `103`, and `106` measures the
+result.
+
+
+## 101 — choose and package the model
+
+
+Three decisions live here, in this order.
+
+
+**The budget, first, because it picks the model rather than the reverse.** Three
+numbers: how much of the medium the image may occupy, how much RAM the target
+board has, and how slow a first token is tolerable. A model that doesn't fit
+isn't a candidate however good it is.
+
+
+**The precision.** This is not only a size decision — it reaches into `103`.
+Sixteen-bit floats or plain eight-bit integers keep the inner loop simple.
+Block-quantised formats, where a group of weights shares a scale factor, are
+much smaller and require a dequantise step inside the hottest loop in the
+machine, which is assembly you'd rather not be writing twice. Pick this with
+`103` open beside you.
+
+
+**The header.** A magic number, a format version, the model's dimensions —
+layers, heads, head width, hidden size, vocabulary size — and a table naming
+every tensor with its shape, precision and byte offset. Offsets measured from
+the start of the blob rather than the start of the image, so the blob can move
+without being rewritten.
+
+
+The reason for all that self-description: at the moment the engine starts there
+is no filesystem, no allocator, no operating system. There is a block of bytes
+at a known offset. Everything the engine needs to know about the shape of what
+it's holding has to be inside those bytes.
+
+
+Then: a packer that runs on your machine and converts published weights into
+this layout, a separate reader that validates a packed blob and prints what it
+found, and a round-trip test comparing every tensor byte for byte. Generation
+and viewing stay separate programs.
+
+
+## 101a — the tokenizer (proposed)
+
+
+The vocabulary and the merge table get packed alongside the weights, and the
+engine needs code to turn a string into tokens and tokens back into a string.
+It's a table lookup and a repeated merge, which is easy to describe and fiddly
+to get exactly right — and getting it subtly wrong produces a model that seems
+mildly stupid rather than one that visibly fails, which is the worst failure
+mode available.
+
+
+## 102 — find the weights without a filesystem
+
+
+Three pieces.
+
+
+**Locating the blob.** Either a fixed offset agreed between the image builder
+and the engine, or a small table at a fixed offset pointing at everything. The
+table costs one indirection and survives the layout changing; the fixed offset
+costs nothing and breaks silently the moment anything moves. Given that `502` is
+written by different hands at a different time, the table is the safer bet.
+
+
+**Reading the memory map.** The firmware leaves a list of address ranges, each
+marked usable, reserved, firmware-owned or broken. How you obtain it differs per
+architecture and per boot scheme, which is why it belongs in the board
+description rather than in the engine. Only the usable ranges may be touched.
+
+
+**Marking your own territory.** The ranges holding the engine and the weights
+get marked occupied, so nothing later hands them out. This is the rule the grown
+machine's allocator inherits — protect your own author before serving anyone
+else.
+
+
+The output is a memory report: total usable, occupied by engine, occupied by
+weights, free to work in. It's the first thing the machine can say about itself
+and it should be printable before anything else works.
+
+
+Also decide here whether the weights are copied into RAM or read in place.
+In-place costs nothing and is slow if the medium is slow; copying costs the
+memory twice. The delivery medium being read-only makes in-place safe, not
+necessarily fast.
+
+
+## 103 — the arithmetic, in assembly
+
+
+The operations, roughly in the order a token passes through them: look the token
+up in the embedding table; normalise; project to queries, keys and values; apply
+the position encoding; attend — dot each query against every cached key,
+soften the results into weights, sum the cached values by those weights; project
+back; normalise again; run the feed-forward pair with its activation between
+them; and after the last layer, project to one score per token in the
+vocabulary.
+
+
+**Build it in three passes.**
+
+
+*First, correct and slow.* No vector instructions. Correct means: given the same
+input as a reference implementation on your machine, the numbers agree within
+what the precision allows. Build that comparison as a permanent fixture rather
+than a one-off — every optimisation is checked against it, and so is every
+port in phase 4. This fixture is the single highest-leverage thing in the phase.
+
+
+*Then, fast.* The vector instructions are where nearly all the speed is, and
+it's worth being exact about why: the work is multiply-and-accumulate over long
+runs of contiguous numbers, which is what those instructions exist for. Expect
+the difference to be large enough to change which models are viable — which
+means the model choice in `101` may want revisiting once this number exists.
+
+
+*Then, the memory layout.* The cache of past keys and values is the largest
+thing after the weights, and it grows with the length of the thought. Its size
+is two, times the number of layers, times the heads, times the head width, times
+the context length, times the bytes per number. That product is what decides how
+long a thought can get, and it should be computed early rather than discovered
+when the machine falls over.
+
+
+Keep the shapes as data read from the header rather than constants compiled in,
+so a different model can be packed without rewriting the arithmetic.
+
+
+This ticket is a candidate for splitting into three along those passes, and
+should be split the moment it stops fitting in one head.
+
+
+## 104 — sampling, and the recorded draw
+
+
+Scores become probabilities, with a temperature and a cut-off that discards the
+unlikely tail — both read from somewhere rather than baked in, since the
+machine may later want to change them.
+
+
+**Finding randomness is not free here.** There's no operating system to ask. The
+processor may offer an instruction for it; failing that, the timestamp counter's
+low bits gathered across unpredictable events. Whatever the source, it gets
+written down as a device the machine knows it has.
+
+
+**Every draw is recorded**, because it's precisely the kind of thing that can't
+be recomputed. Two things fall out: the model's own reasoning becomes
+replayable, and a machine can be stepped back into *why* it chose an approach
+rather than only into what the approach then did.
+
+
+There's an ordering problem to name rather than leave: until the machine has
+moved in, there's no storage, so the earliest draws either live in memory and
+are lost on power failure or aren't recorded at all. Decide which and write it
+down.
+
+
+The test: fixed prompt, record the draws, run again feeding them back, confirm
+identical tokens.
+
+
+## 105 — the thinking loop, and its limits
+
+
+Close the loop — text to tokens, tokens through the arithmetic, a token drawn,
+appended, repeat — reusing the key-value cache rather than recomputing it,
+which is the difference between a usable machine and an unusable one.
+
+
+Decide what stops it: a finish token, a length limit, and an outside
+interruption. The third matters most, because a machine that can't be
+interrupted mid-thought can't be told to stop doing something.
+
+
+**The real subject of this ticket is what happens when the context fills**,
+which it will within the first day of a machine that runs for months. Drop the
+oldest and lose the beginning; summarise the older part and lose fidelity while
+keeping shape; or write the older part out and fetch pieces back when they're
+relevant. The design leans toward the third — it calls this cognition space,
+and frames it as retrieval rather than as a limit — but retrieval needs
+storage and storage doesn't exist in phase 1. So: implement the simple answer,
+leave a marked seam, and solve it properly in `304`.
+
+
+Whichever is chosen, it says so out loud when it happens. Silently dropping the
+start of a thought is a fallback nobody was told about.
+
+
+## 106 — measure the engine
+
+
+Time from power to first token. Tokens per second sustained. Bytes occupied by
+engine, by weights, and by working memory at full context. The largest context
+that fits. Memory reported as a fraction of what the board has, not only in
+bytes.
+
+
+Results kept as data rather than prose, so phase 4 can add two architectures to
+the table without anything being rewritten. And one number that decides a values
+question later: how much slower thinking is on the processor alone than it would
+be with the accelerator the board has — because without it, the choice between
+bundling a driver and writing one from scratch gets made on feeling.
+
+
+This is also the phase 1 demo.
+
+
+---
+
+
+**What done looks like:** a computer with nothing on it produces coherent text
+— correctness verified under emulation, speed measured on a real board, and
+the two numbers kept in separate tables because emulated speed is meaningless
+rather than merely slow.
+
+
+**Where it goes wrong:** `103`, and underneath it the model choice. Everything
+else in the phase is tractable work with a known shape.
 
 
 --------------------------------------------------------------------------------

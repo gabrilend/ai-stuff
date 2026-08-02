@@ -25,10 +25,26 @@ the allocator is something the grown machine writes later (`docs/003`).
    nothing later hands them out. This is the same rule the grown machine's
    allocator inherits — protect your own author before serving anyone else — and
    it is stated in `docs/003` step one for that reason.
-4. Decide whether the weights are copied into memory or read in place. Copying
-   costs the memory twice and buys speed; reading in place costs nothing and is
-   slow if the medium is slow. The delivery medium is expected to be read-only
-   (`docs/003`), which makes reading in place safe but not necessarily fast.
+4. **Ratchet down until it fits.** Do not choose between copying the weights into
+   memory and reading them in place — compute, before committing to any of them,
+   which of the options the machine can actually afford, and take the fastest one
+   that fits:
+
+   ```
+   everything in memory                fastest; costs the weights twice
+      → not enough room?
+   the hot parts in memory, the rest read in place
+      → still not enough room?
+   everything read in place            slowest; costs nothing
+      → still not enough room?
+   say so, and stop
+   ```
+
+   The calculation happens first, from the memory report below and the sizes in
+   the header, so the machine never starts a copy it cannot finish. The last rung
+   is a refusal rather than a fallback: a machine that cannot hold its own weights
+   should say which number was too large rather than run unusably and let somebody
+   guess.
 5. Produce a memory report: total usable, occupied by engine, occupied by
    weights, free for working memory. It is the first thing the machine can say
    about itself and it should be printable before anything else works.
