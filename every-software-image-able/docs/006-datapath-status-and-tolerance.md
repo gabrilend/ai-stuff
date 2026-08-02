@@ -50,6 +50,17 @@ Carrying it as colour **and** shape rather than colour alone means the reading
 survives a failed lamp, a dim room, and a person who does not distinguish the
 colours. The two encodings say the same thing, on purpose.
 
+What that looks like from outside, said while this was being designed and kept in
+`notes/014`:
+
+> they're like eggs, you see? you gotta let them cook for a bit. It's okay, we'll
+> just leave them in a dark room — when we come back tomorrow, they'll be lit up
+> with all sorts of lights, colors, and sounds. Sometimes it's cacophanous.
+
+The cacophony is correct rather than a defect to be tuned out. Each machine's
+codes mean what that machine decided they mean, so a room of them growing
+overnight has no shared vocabulary and is not supposed to.
+
 ## Looking a code up
 
 Codes mean nothing without their definitions, and the definitions are

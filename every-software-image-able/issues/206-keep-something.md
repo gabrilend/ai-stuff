@@ -17,6 +17,13 @@ and so the intent notes of `205` have somewhere to land.
    writing a note requires storage, and the circle only opens because storage
    almost always answers to something standard. The seed therefore carries this
    one driver rather than expecting the machine to explore its way in.
+2. **Target the interfaces real hardware uses, not the emulator's convenient
+   one.** An emulator offers a paravirtual block device — a queue in memory and
+   two registers — that is far simpler than anything on a real board, and taking
+   it would mean the emulator loop and the hardware loop exercise different code
+   from the first day. Emulators also model the real interfaces, so declining the
+   easy one costs configuration rather than work. Write against those, and use the
+   paravirtual device only as a known-good comparison when something is wrong.
 2. Provide read and write of blocks, and a way to ask how large the device is and
    whether it can be written at all. A read-only delivery medium is the expected
    case (`docs/003`) and must be reported rather than discovered by a write that
