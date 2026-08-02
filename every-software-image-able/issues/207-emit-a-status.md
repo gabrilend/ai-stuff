@@ -24,9 +24,10 @@ those can be shown on hardware that cannot spell.
    or a person who does not distinguish the colours.
 4. Keep the current reading in memory as a machine-wide value, so the picture is
    comparable across everything running rather than private to each program.
-5. Fall back to the serial port from `202` when there is no display, and say that
-   is what is happening. A status shown nowhere is worse than no status, because
-   it looks like nothing happened.
+5. Where there are no lamps, draw the colourshape on the framebuffer from `202` —
+   which most machines have and most will not have lamps. Fall back to the serial
+   port after that, and say which is happening. A status shown nowhere is worse
+   than no status, because it looks like nothing happened.
 6. Leave the meanings alone. The seed provides the mechanism; the lookup that says
    what a given code means is something the grown machine builds for itself
    (`docs/006`), and baking a vocabulary in here would be deciding something that

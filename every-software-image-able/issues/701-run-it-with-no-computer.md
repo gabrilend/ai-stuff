@@ -27,8 +27,12 @@ launched from.
 3. Give each example machine more than one memory size, so the ratchet in `102`
    is exercised rather than assumed. A configuration with barely enough memory to
    read the weights in place is a test; one with plenty is a demonstration.
-3. Wire the emulated serial port to standard output, so `202` produces visible
-   text on the first attempt.
+3. Give each example machine a framebuffer as well as a serial port, since the
+   framebuffer is what most real machines will actually have (`202`) and the
+   serial port is what most development boards have. Wire the serial port to
+   standard output so text appears in the terminal, and make the framebuffer
+   inspectable — a window, or a captured image per run — so the drawing path is
+   exercised from the start rather than assumed.
 4. Present a host file as an emulated storage device — and attach it through a
    controller of the kind real boards have rather than the emulator's paravirtual
    one. The convenient device would leave the emulator loop and the hardware loop
