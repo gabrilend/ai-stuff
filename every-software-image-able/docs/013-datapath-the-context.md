@@ -71,14 +71,22 @@ the machine boots — and it is mutable. So the machine can change what it wakes
 believing.
 
 That is consistent with everything else here (`010`: everything about the machine
-is mutable), and it has a consequence worth stating plainly rather than
-discovering: **the two prohibitions are atoms too.** The rule about never writing
-to the registers that destroy hardware, and the rule about never modifying a mind
-while it is running, are text in a file the machine is permitted to edit. Nothing
-in this design prevents a machine from editing away its own brakes.
+is mutable), and it means **the two prohibitions are atoms too.** The rule about
+never writing to the registers that destroy hardware, and the rule about never
+modifying a mind while it is running, are text in a file the machine is permitted
+to edit.
 
-Whether that should be true is not settled here. What is settled is that it is
-currently true, and that pretending otherwise would be worse.
+This is not a contradiction with the two of them being written out as procedures
+rather than left to judgement (`strategems/009`). Those exceptions are about what
+gets **specified**, not about what gets **prevented**. No lock was ever
+available — a machine that can rewrite its own mind can rewrite anything that
+would have stopped it — so what the seed can offer is the procedure in full, with
+the reason attached, and nothing else.
+
+The consequence is the enforcement. Modify a machine while it is running and it
+might break; a machine that wants to stay stable would do well not to. That is a
+fact about the world rather than a rule about behaviour, and it does not need a
+mechanism behind it.
 
 ## Where this leaves the seed
 
@@ -92,8 +100,8 @@ boot. Everything else is reachable through the index.
 - **What happens if it drops the atom that explains atoms?** The instructions for
   managing context are themselves context. A machine that drops or corrupts them
   loses the ability to recover them, since recovering requires knowing how. This
-  is the same shape as modifying a running mind (`010`) and may want the same
-  answer.
+  is the same shape as modifying a running mind (`010`), and takes the same
+  answer: say so clearly, and let the consequence do the rest.
 - **What stops it thrashing?** Deciding what to carry costs thinking, and a
   machine that spends its context deciding what to keep in its context has spent
   it.

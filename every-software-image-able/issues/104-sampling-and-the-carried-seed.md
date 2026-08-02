@@ -17,9 +17,12 @@ exactly, until it makes randomness of its own.
    a cut-off that discards the unlikely tail — belong here and should be read from
    somewhere rather than baked in, since the machine may later want to change
    them.
-2. **Read the randomness from the carried file.** The image builder generates
-   around a hundred kilobytes of random numbers at build time (`502`) and bakes
-   them in. Sampling walks that file.
+2. **Seed a generator from the carried file.** The image builder puts around a
+   hundred kilobytes of random numbers on the image at build time (`502`). Each
+   one seeds a cheap generator that produces many thousands of draws before the
+   next number from the file is taken. That stretches the file across a very long
+   life while keeping the property that matters: same image, same file, same
+   machine, exactly.
 3. Keep the position in the file as part of what the machine knows about itself.
    Two machines from the same image, given the same inputs, walk the same
    positions and make the same choices — which makes a failure reproducible by
@@ -28,24 +31,23 @@ exactly, until it makes randomness of its own.
    down so that thinking could be replayed. Carrying a seed achieves the same
    determinism for far less machinery, and the recording can be added later if
    something turns out to want it.
-5. **Decide what happens when the file runs out**, because it will. A hundred
-   kilobytes is a finite budget of unpredictability, and a machine that thinks for
-   a day will spend it. Wrapping around silently is the worst option available —
-   the machine would begin making the same choices again without noticing. See
-   below.
+5. Say something when the file is exhausted and the stream wraps. Not as an
+   alarm — see below — but because reaching the end of it at all is a fact worth
+   knowing about a running machine.
 6. Test that determinism holds: same image, same file, same input, same tokens.
 
-## The file is a clock
+## Why exhaustion is not the hazard it looks like
 
-This is the consequence worth noticing. The carried randomness gives the machine a
-countable supply, and **it has to build its own source before the supply is
-gone.** That is a deadline, in a design that otherwise has none.
+A drawn number is applied to a different set of probabilities every time, because
+the context differs every time. So reusing the stream only reproduces earlier
+choices if the same questions are being asked, and the same questions only recur
+if the machine has made no progress at all — which is a problem the randomness
+was never going to solve.
 
-Whatever the machine eventually builds — a processor instruction for it, timing
-jitter, noise from a device it found — is its own business (`strategems/009`).
-What the seed owes it is a clear signal that the supply is running low, early
-enough to do something about it, and a refusal rather than a quiet wrap-around
-when it is gone.
+With a generator seeded from the file the supply is effectively unbounded in any
+case. Whatever source the machine eventually builds for itself — a processor
+instruction, timing jitter, noise from a device it found — is its own business
+(`strategems/009`).
 
 ## Blocks
 
