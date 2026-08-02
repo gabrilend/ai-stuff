@@ -72,6 +72,7 @@ run_test "what the machine is thinking with"  "053-test-context.lua"
 run_test "the loop, closed, and its stoppers" "062-test-thinking-loop.lua"
 run_test "asking for something, and being answered" "065-test-the-hands.lua"
 run_test "reading something too big to hold"  "067-test-the-reader.lua"
+run_test "touching memory, and what it will not touch" "072-test-touch-memory.lua"
 
 if [ -z "${QUICK}" ]; then
   # These boot real emulated machines on three architectures and take minutes.
