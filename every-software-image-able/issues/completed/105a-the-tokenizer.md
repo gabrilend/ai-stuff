@@ -17,8 +17,27 @@ than as an error.
 
 Text containing a byte with no token is refused rather than silently dropped.
 
-**The assembly version does not exist yet.** It now has something to agree
-with.
+**The assembly version exists and agrees exactly** — `src/059` emits it,
+`src/060` holds it to the reference over the awkward corpus: fifteen cases
+including every byte from 0 to 255, a null byte mid-string and a long
+stretch of prose, plus both refusals landing at the same positions. 17 of 17
+on 2026-08-02.
+
+The think-time halves never touch a string while encoding. Once, at load
+time, the carried tables are walked into a prepared form — which token says
+each byte, what token each merge rule produces, where each token's text
+lies — and the assembly works entirely in numbers from there. The
+preparation is host code for now and belongs to the engine's startup on the
+metal (`105`); it is all table-walking with no floating point. A rule whose
+joined text is not in the vocabulary is refused while preparing, earlier
+than the reference notices it, and earlier is the right direction for a
+refusal.
+
+The merge order is the reference's, provably: walking the rules in rank
+order and taking the first that applies is the same choice as finding the
+lowest-ranked applicable pair, with the same tie-breaks and the same
+re-scan after every join. The naive cost is deliberate — correct first,
+faster later — and `106` measures it.
 
 ## Intended behavior
 
