@@ -33,8 +33,17 @@ number=0
 for demo in "${DEMOS[@]}"; do
   number=$((number + 1))
   name=$(basename "$demo" .sh)
-  echo "  ${number}  ${name}"
+  # the line under the name in each demo's own comment, so what a
+  # demonstration shows is written once -- in the demo -- rather than here
+  # where it would drift the first time one of them changed.
+  # everything after the first " -- ", because every demo's name has hyphens
+  # in it and a pattern that stopped at one matched nothing at all.
+  about=$(sed -n '3s/^#.* -- //p' "$demo")
+  printf '  %d  %-28s %s\n' "$number" "$name" "$about"
 done
+echo ""
+echo "  some take several minutes because they boot emulated machines."
+echo "  pass --quick after the number to skip those parts."
 echo ""
 
 # a number may arrive as an argument; otherwise, ask. Once taken, it is
