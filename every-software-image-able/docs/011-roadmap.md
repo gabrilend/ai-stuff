@@ -36,10 +36,17 @@ so the last ticket finished may well be an early-phase one.
 | 4 | **Three tongues** — the other two architectures, and choosing between them | One chip that runs on the machines people actually have |
 | 5 | **The image** — recipe, board descriptions, build, flash, verify | Something you can put on a card |
 | 6 | **Waking** — integration, and the first thing it does unaided | A flashed machine that boots, thinks, and writes its own allocator |
+| 7 | **The proving ground** — developing without a computer in front of you | An emulated machine, and devices that can be destroyed |
 
 Phase 6 is the capstone and the only one that proves anything. Phases 1 through 5
 each produce a part that can be tested alone; phase 6 is where a chip is put into
 a computer that has nothing on it and the computer starts.
+
+**Phase 7 is numbered last and built first.** Everything in phases 1 through 6
+either goes onto the chip or makes the chip. Nothing in phase 7 ever ships — it
+is scaffolding, and that is what its number means rather than any statement about
+when to do it. In practice `701` is the first ticket anybody should finish,
+because it is where the other twenty-two are developed.
 
 ## Why this order
 

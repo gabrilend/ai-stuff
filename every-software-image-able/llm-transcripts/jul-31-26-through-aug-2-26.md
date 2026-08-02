@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 20:51:38
+Generated on: 2026-08-01 21:03:31
 
 --------------------------------------------------------------------------------
 
@@ -2883,6 +2883,73 @@ ticket that dictates how the machine must be organised is the same mistake as a
 schedule. So they'd say what is wanted and what it costs to get wrong, and stop
 there — except for the two places where the procedure is the point, which get
 written out in full.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 29
+
+um... you can write the issue files normally. there should be instructions in
+the CLAUDE.md file. Remember, we're building a system that builds itself. What
+we're building issue files for right now is the seed. This is not the seed, not
+yet, it is the plan for the seed. We can use my paradigm for building the seed,
+but we shouldn't insist upon it when the seed is growing.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 29
+
+That's the distinction I was blurring. The docs are the plan for the seed; the
+issue files build the seed; the seed's own growth isn't ours to plan. Normal
+tickets, normal conventions.
+
+
+Roadmap first.
+
+
+Phase 2 — the hands.
+
+
+Roadmap, twenty-two tickets, and a progress file per phase. The ordering is
+forced rather than chosen: nothing means anything until a model runs, a machine
+that can think but not act has nothing to be instructed about, and the words are
+worth settling while there's one engine to test against rather than three.
+
+
+Three things surfaced while writing them that weren't visible from the design
+documents.
+
+
+**The hand everything depends on is "run what it wrote."** The allocator, the
+interpreter, every driver, every program the machine ever has — all downstream
+of one tool call that takes text, turns it into instructions, and jumps to them.
+And its hardest part isn't the assembling. It's regaining control when the code
+loops forever, which it will, because a model wrote it. Whatever the board
+offers for taking control back has to be working *before* that hand is offered
+at all, or the machine gets exactly one attempt at its own first program.
+
+
+**Touching hardware and keeping things have to land together.** The discipline
+that makes exploring an unknown device survivable is writing the intent down
+before the attempt — and writing requires storage. Sequence them apart and the
+exploration ticket ships with a safety mechanism that has nowhere to write,
+which is decoration.
+
+
+**The last ticket has to be uncomfortable to execute.** The machine writes its
+own allocator with nobody helping, and the first attempt has to be allowed to
+fail without correction, because a helped machine proves nothing about an
+unhelped one. If it fails, the fix belongs in what the machine was told, not at
+the keyboard. Three outcomes count as failure and each points at a specific
+document rather than at the idea — damaged hardware points at the exploration
+discipline, overwritten weights point at the instruction, no working assembly at
+all points at the patterns.
+
+
+What's still unwritten: any code, the demos, and the runner script in the
+project root — that last one is blocked on there being a completed phase to
+run.
 
 
 --------------------------------------------------------------------------------
