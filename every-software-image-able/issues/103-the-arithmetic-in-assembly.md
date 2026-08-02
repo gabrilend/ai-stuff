@@ -75,10 +75,24 @@ the longer wins tenfold where softmax spends nearly all its arguments (`048`).
 So the assembly now covers the matrix-vector product, normalisation, the
 exponential, softmax and the gate, all bit-exact — 37 of 37 (`044`).
 
-**Still to write:** the attention loop and the rotation as assembly kernels
-(their arithmetic is already exact, so this is assembly work rather than
-specification work), the whole pass composed end to end, and both other
-architectures.
+**A whole forward pass now runs on the assembly arithmetic and matches the
+recorded answer bit for bit** (`src/049`, `src/050`, 4 of 4). Nine kernels
+cover everything a step does; the order of operations is still decided in a
+readable language, which is deliberate — what remains has no floating point in
+it, and is the easy half.
+
+Composing them found a defect the kernel tests could not: a disagreement of
+four parts in a thousand million, at the second token only. It was in the
+**reference**. Accumulating a weighted value the obvious way rounds once where
+a machine rounds twice, and where a rounding happens is part of the answer.
+Two earlier fixes were plausible and wrong; the whole episode is in
+`notes/023`.
+
+The lesson is about fixtures generally: a recorded answer catches a change in
+arithmetic, and cannot catch a specification too imprecise to implement twice.
+Only a second implementation catches that.
+
+**Still to write:** the conducting in assembly, and both other architectures.
 
 ## Intended behavior
 
