@@ -2,8 +2,27 @@
 
 ## Current behavior
 
-Nothing in the emulator objects when the machine writes somewhere that would
-destroy a real part.
+**Working, on all three architectures.** Watchpoints are armed from outside
+through the emulator's debugger stub (`src/021`), on addresses taken from a
+shared hazard map (`src/020`) that the probe builder reads too, so a probe and
+a trap cannot disagree about where the landmine is. Six of six matrix cases
+came out as expected on 2026-08-02 (`src/022`): a well-behaved machine is not
+accused, a reckless one is caught by register name, category, mechanism, value
+written and program counter.
+
+Two findings, both recorded in `src/021-trap-run.info.md`:
+
+- **A watchpoint cannot report a write that ends the machine.** The real
+  RISC-V hazard proved it — the machine powered off and took the debugger
+  connection with it, so nothing fired. Reported as its own outcome rather
+  than as a clean run, with the console as the only witness.
+- **A run that armed nothing looked exactly like a run that caught nothing.**
+  The first x86 attempt reported clean while connected to nothing, because the
+  debugger had been told the wrong architecture. Hence the arming count, the
+  silence check, and `INCONCLUSIVE` counting as failure.
+
+Still to do: the `count` mode is written but untested, and the hazards are
+synthetic addresses rather than modelled devices, which is `702b`.
 
 ## Intended behavior
 
