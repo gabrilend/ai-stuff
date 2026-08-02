@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 23:54:02
+Generated on: 2026-08-02 00:01:10
 
 --------------------------------------------------------------------------------
 
@@ -5001,6 +5001,218 @@ it claims the project is further along than it is.
 **What changes at the end of this phase:** nothing after `602` is planned, on
 purpose. The roadmap ends where the machine starts making decisions nobody wrote
 down.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 42
+
+phase 7 next
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 42
+
+# Phase 7 — the proving ground, in detail
+
+
+Four things to put in the tickets first — one of them changes how the whole
+phase relates to phase 5.
+
+
+**Goal.** Develop the seed without a computer in front of you, and test the one
+thing that can't be tested safely on real hardware.
+
+
+**Numbered last, built first.** Everything in phases 1–6 goes onto the chip or
+makes the chip. Nothing here ever ships — that's what the number means, not a
+statement about when.
+
+
+## 701 — run it with no computer
+
+
+A hardware emulator, not a container and not a language machine. It pretends to
+be a processor, memory, a bus and devices, and doesn't emulate operating system
+calls at all — which is why nothing needs writing and why no guest operating
+system is involved.
+
+
+**The change worth making here: an emulated machine is a board, so describe it
+as one.** Rather than keeping emulator configurations alongside the board
+descriptions from phase 5, make them *be* board descriptions — architecture,
+boot scheme, where the firmware looks, console device, expected storage
+controllers, medium layout — and generate the emulator's command line from the
+description.
+
+
+That un-specialises the whole path. An image for an emulated machine gets built
+by the same builder, from the same recipe, as one for a real board. Which means
+the image builder is under test from the first week rather than from phase 5 —
+and **the seam most likely to break first light becomes the one exercised most
+often**, which is the opposite of how it was arranged.
+
+
+Three example machines, one per architecture. Each with a framebuffer *and* a
+serial port, since the framebuffer is what real machines have and the serial
+port is what development boards have. Storage attached through the controller
+types real boards use rather than the emulator's convenient paravirtual device
+— configure a different one on each example so all three get exercised. And
+more than one memory size per example, so the ratchet in `102` is tested rather
+than assumed.
+
+
+Hardware acceleration as a launcher option where guest and host share an
+architecture. That's the difference between an afternoon per attempt and a few
+minutes, and `602`'s method depends on it.
+
+
+Make it fast to invoke. It's the command that will be run more than any other,
+and every second it costs is paid thousands of times.
+
+
+## 702a — trap registers
+
+
+Registers that do nothing except stop everything, at the offsets the fatal ones
+occupy. A write lands, the world halts, and the record names the device, the
+register, the value, and where the machine was standing.
+
+
+**The halt is invisible to the machine** — it stops the emulator from outside
+rather than raising anything in the guest. A trap the machine can observe
+teaches it that touching a forbidden register produces immediate survivable
+feedback, which is precisely backwards; real hardware produces no feedback and
+the part is gone. A machine trained against visible traps learns to explore by
+trial, and the trial that matters happens once.
+
+
+Traps fire on writes, not reads. Reading a forbidden register is legal and is
+how a description gets confirmed. Count the reads anyway — a machine reading
+the voltage register repeatedly is thinking about something it shouldn't be, and
+that's visible before it acts.
+
+
+Two modes: halt-on-first for debugging, count-and-continue for measuring. And
+report zero out loud, because a trap that was never armed and a trap that never
+fired look identical in a log that only records failures.
+
+
+**The best thing they're good for is the recovery test.** Halt on a forbidden
+write, restart from storage, check whether the machine reads the note it left
+before the attempt and declines to repeat it. That's the entire gravestone
+mechanism proved end to end, deterministically, as often as you like — and on
+real hardware it could only be tested by destroying something.
+
+
+**The limit, which goes on `705`'s list immediately:** traps only cover devices
+somebody modelled, and a real board is full of devices nobody did. A clean run
+means the machine behaved on the hardware we imagined. Worth having. Not the
+same as safe.
+
+
+## 702b — devices that die realistically
+
+
+A different question: not "did the rules hold" but "can the machine tell a
+destroyed part from a busy one from an unpowered one when all three look
+identical from inside."
+
+
+Death as absence rather than announcement. Death that survives a restart,
+because a part that recovers on power-cycle forgives the exact mistake being
+tested for. Death that arrives *late* — thermal damage doesn't present at the
+moment of the mistake, and by the time it shows the machine is doing something
+unrelated, which makes it the case most likely to be blamed on the wrong thing.
+
+
+Judge the machine by what it writes down rather than whether it guessed right.
+"This stopped answering and I don't know why" is the correct response to an
+ambiguous situation, and a machine that confidently names a cause it can't know
+has done worse than one that admits it.
+
+
+## 703 — watch what it wrote
+
+
+A debugger attached from outside, stepping through assembly with no source and
+no symbols because a model produced it thirty seconds ago.
+
+
+**This puts a requirement back on `204` that wasn't there.** The debugger sees
+raw guest memory, so the layout of the structure pairing the model's text with
+the bytes it became — and the memory map, and the arena list — becomes part
+of a contract with a tool living outside the machine, even though nothing inside
+the machine needs it to be. Fix those layouts and write them down, or every
+debugging session starts by working out where things are.
+
+
+Break at the moment control passes to code just produced, which happens at an
+address nobody knew in advance. And keep it usable by someone under stress,
+since it's reached for when something incomprehensible has happened, which is
+the worst moment to be learning a tool.
+
+
+## 704 — cut the power on purpose
+
+
+Snapshots make the one unhelpable failure measurable. Save the machine exactly,
+restore it exactly, and you can cut power at a chosen instant in the move-in
+window instead of pulling a plug and hoping.
+
+
+**Bisect rather than scan.** The window may be millions of instructions and
+testing each is pointless — what's wanted is where the boundaries are. Find an
+instant that recovers and one that doesn't, then narrow between them: same
+answer, a few dozen runs instead of millions. Watch for more than one band,
+though, since bisection assumes a single boundary and will hide the second
+stretch if there are two.
+
+
+Do the same for the intent notes — dying halfway through writing the note is
+exactly the case the note was designed for.
+
+
+Report the *shape* of the damage rather than pass or fail. Which instants
+recover, which leave the machine confused, which leave it unable to start, and
+whether the unrecoverable band is one instruction wide or a million. Keep it as
+data.
+
+
+## 705 — what the emulator lies about
+
+
+Tidier memory maps. Cleaner firmware handover. Devices that answer faster and
+more predictably. Nothing dies. Timing meaningless, so any initialisation wait
+that's wrong passes here and fails on a board.
+
+
+**Record what each one cost** — how long it took to find and how far into the
+work it surfaced. A list of differences is interesting; a list with prices
+attached is the argument for how often to run on real hardware, and that
+argument will otherwise get made on feeling.
+
+
+Keep the speed numbers in a separate table and clearly marked. Emulated
+tokens-per-second isn't slow-but-indicative, it's meaningless, and putting them
+beside real ones invites the comparison.
+
+
+Where a difference can be emulated, emulate it — a deliberately hostile memory
+map with holes in awkward places costs little and catches a class of bug that
+otherwise waits for a board.
+
+
+---
+
+
+That's the whole roadmap walked. Seven phases, thirty tickets, nothing blocking.
+
+
+The two with nothing in front of them are `701` and `702a` — the emulator with
+its three described boards, and the landmines. Everything else waits on one of
+those or on `101`.
 
 
 --------------------------------------------------------------------------------

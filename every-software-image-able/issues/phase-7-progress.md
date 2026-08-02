@@ -13,7 +13,7 @@ later," since in practice `701` is the first ticket anyone should finish.
 
 | | | Status |
 |---|---|---|
-| `701` | Run it with no computer | not started |
+| `701` | Run it with no computer | in progress — first light on all three architectures |
 | `702` | Devices that can die — the parent of the two below | not started |
 | `702a` | Trap registers | not started |
 | `702b` | Devices that die realistically | not started |

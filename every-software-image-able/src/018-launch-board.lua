@@ -1,0 +1,376 @@
+#!/usr/bin/env luajit
+-- 018-launch-board.lua
+--
+-- Boots a described board in its emulator. The board description says what
+-- the machine is; this script turns that into an emulator command and runs
+-- it. Nobody writes a qemu command line by hand -- an emulated machine is a
+-- board like any other, and the command is generated from its description
+-- the same way the image builder will generate layouts from real ones.
+--
+-- For a general: point it at a board, give it something to boot, and it
+-- starts that computer. The computer's serial wire lands in a log file in
+-- RAM, or in your terminal if you ask.
+--
+-- usage:
+--   luajit 018-launch-board.lua <board> [--payload FILE] [--disk FILE]
+--                               [--memory small|plenty|SIZE] [--seconds N]
+--                               [--stdio] [--gdb] [--accel] [--dry-run]
+--                               [--dir PROJECT_ROOT]
+--
+--   <board> is the short name from a src/*-board-<name>.lua file,
+--   e.g. qemu-x86-64, qemu-arm64, qemu-riscv64 -- or a path to one.
+
+-- {{{ DIR -- the project root, hard-coded, overridable by --dir
+local DIR = "/mnt/mtwo/programming/ai-stuff/every-software-image-able"
+-- }}}
+
+-- {{{ local function say(text)
+local function say(text)
+  io.write(text, "\n")
+end
+-- }}}
+
+-- {{{ local function die(text)
+local function die(text)
+  -- errors beat fallbacks: when something is wrong, stop and name it.
+  io.stderr:write("018-launch-board: ", text, "\n")
+  os.exit(1)
+end
+-- }}}
+
+-- {{{ local function file_exists(path)
+local function file_exists(path)
+  local handle = io.open(path, "r")
+  if handle then
+    handle:close()
+    return true
+  end
+  return false
+end
+-- }}}
+
+-- {{{ local function run_one(command)
+local function run_one(command)
+  -- every shell command runs alone: one command, no chains, no pipes,
+  -- so it can be understood where what is going when and why.
+  local ok, _, code = os.execute(command)
+  return ok == true or ok == 0, code
+end
+-- }}}
+
+-- {{{ local function parse_arguments(argv)
+local function parse_arguments(argv)
+  local options = { board = nil, payload = nil, disk = nil,
+                    memory = "small", seconds = nil,
+                    stdio = false, gdb = false, accel = false,
+                    dry_run = false }
+  -- one handler per flag: a dispatch table rather than an if-chain.
+  local takes_value = {
+    ["--payload"] = "payload", ["--disk"] = "disk",
+    ["--memory"] = "memory", ["--seconds"] = "seconds",
+    ["--dir"] = "dir",
+  }
+  local is_switch = {
+    ["--stdio"] = "stdio", ["--gdb"] = "gdb",
+    ["--accel"] = "accel", ["--dry-run"] = "dry_run",
+  }
+  local index = 1
+  while index <= #argv do
+    local word = argv[index]
+    if takes_value[word] then
+      index = index + 1
+      if index > #argv then die("missing value after " .. word) end
+      if word == "--dir" then
+        DIR = argv[index]
+      else
+        options[takes_value[word]] = argv[index]
+      end
+    elseif is_switch[word] then
+      options[is_switch[word]] = true
+    elseif word:sub(1, 2) == "--" then
+      die("unknown option: " .. word)
+    elseif options.board == nil then
+      options.board = word
+    else
+      die("more than one board named: " .. options.board .. " and " .. word)
+    end
+    index = index + 1
+  end
+  return options
+end
+-- }}}
+
+-- {{{ local function read_input_defaults(options)
+local function read_input_defaults(options)
+  -- the first thing a program does is read the input/ files -- from there
+  -- it knows exactly how to start up. Anything given on the command line
+  -- wins over a default.
+  local path = DIR .. "/input/launch-defaults.lua"
+  if not file_exists(path) then return end
+  local chunk = loadfile(path)
+  if not chunk then die("input/launch-defaults.lua exists but does not load") end
+  local defaults = chunk()
+  if type(defaults) ~= "table" then return end
+  for key, value in pairs(defaults) do
+    if options[key] == nil then options[key] = value end
+  end
+end
+-- }}}
+
+-- {{{ local function ensure_ram_directories()
+local function ensure_ram_directories()
+  -- tmp/ points at the exec tier in /tmp; tmp/shared-memory points at the
+  -- artifact tier in /dev/shm (guaranteed RAM). Run scripts ensure both
+  -- exist before writing logs, because RAM directories vanish on reboot.
+  run_one("mkdir -p /tmp/every-software-image-able")
+  run_one("mkdir -p /dev/shm/every-software-image-able")
+  run_one("ln -sfn /tmp/every-software-image-able " .. DIR .. "/tmp")
+  run_one("ln -sfn /dev/shm/every-software-image-able /tmp/every-software-image-able/shared-memory")
+  run_one("mkdir -p " .. DIR .. "/tmp/shared-memory/logs")
+end
+-- }}}
+
+-- {{{ local function find_board(name)
+local function find_board(name)
+  -- a board is named by the part after "-board-" in its filename, so
+  -- adding a new board is adding a file and nothing else.
+  if file_exists(name) then return dofile(name), name end
+  local listing = io.popen("ls " .. DIR .. "/src")
+  if not listing then die("cannot list " .. DIR .. "/src") end
+  for entry in listing:lines() do
+    local found = entry:match("^%d+%-board%-(.+)%.lua$")
+    if found == name then
+      listing:close()
+      local path = DIR .. "/src/" .. entry
+      return dofile(path), path
+    end
+  end
+  listing:close()
+  die("no board named '" .. name .. "' -- boards are src/*-board-<name>.lua files")
+end
+-- }}}
+
+-- {{{ attach_payload -- one attacher per way a firmware finds its payload
+local attach_payload = {
+
+  -- {{{ ["boot-sector"] = function(board, path, argv)
+  ["boot-sector"] = function(board, path, argv)
+    -- the BIOS road: sector zero to 0x7c00. Attached as a raw disk rather
+    -- than -kernel because the point of the harness is to walk the road
+    -- the hardware walks.
+    argv[#argv + 1] = "-drive"
+    argv[#argv + 1] = "file=" .. path .. ",format=raw,if=ide"
+  end,
+  -- }}}
+
+  -- {{{ ["loader-device"] = function(board, path, argv)
+  ["loader-device"] = function(board, path, argv)
+    -- the generic loader places raw bytes at an address; a second entry
+    -- points the processor there when the board's reset vector does not.
+    if board.payload.bios then
+      argv[#argv + 1] = "-bios"
+      argv[#argv + 1] = board.payload.bios
+    end
+    local address = string.format("0x%x", board.payload.load_addr)
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = "loader,file=" .. path .. ",addr=" .. address .. ",force-raw=on"
+    if board.payload.set_pc then
+      argv[#argv + 1] = "-device"
+      argv[#argv + 1] = "loader,addr=" .. address .. ",cpu-num=0"
+    end
+  end,
+  -- }}}
+}
+-- }}}
+
+-- {{{ attach_storage -- one attacher per controller kind, so all three
+--     kinds real boards use get exercised (and never the emulator's
+--     convenient paravirtual one -- see issue 206).
+local attach_storage = {
+
+  -- {{{ ahci = function(board, path, argv)
+  ahci = function(board, path, argv)
+    argv[#argv + 1] = "-drive"
+    argv[#argv + 1] = "id=maindisk,file=" .. path .. ",format=raw,if=none"
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = "ahci,id=ahci0"
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = "ide-hd,drive=maindisk,bus=ahci0.0"
+  end,
+  -- }}}
+
+  -- {{{ nvme = function(board, path, argv)
+  nvme = function(board, path, argv)
+    argv[#argv + 1] = "-drive"
+    argv[#argv + 1] = "id=maindisk,file=" .. path .. ",format=raw,if=none"
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = "nvme,drive=maindisk,serial=esia0001"
+  end,
+  -- }}}
+
+  -- {{{ ["usb-storage"] = function(board, path, argv)
+  ["usb-storage"] = function(board, path, argv)
+    argv[#argv + 1] = "-drive"
+    argv[#argv + 1] = "id=maindisk,file=" .. path .. ",format=raw,if=none"
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = "qemu-xhci,id=xhci0"
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = "usb-storage,drive=maindisk,bus=xhci0.0"
+  end,
+  -- }}}
+}
+-- }}}
+
+-- {{{ local function host_architecture()
+local function host_architecture()
+  local pipe = io.popen("uname -m")
+  if not pipe then return "unknown" end
+  local name = pipe:read("*l")
+  pipe:close()
+  return name or "unknown"
+end
+-- }}}
+
+-- {{{ local function build_command(board, options, serial_log)
+local function build_command(board, options, serial_log)
+  local argv = { board.emulator }
+
+  argv[#argv + 1] = "-machine"
+  argv[#argv + 1] = board.machine
+  argv[#argv + 1] = "-cpu"
+  argv[#argv + 1] = board.cpu
+
+  -- memory: a named size from the board, or a literal like 512M. Named
+  -- sizes exist so the small board stays small -- the ratchet in issue
+  -- 102 is only a test if some board forces the slower rungs.
+  local memory = board.memory_sizes[options.memory] or options.memory
+  argv[#argv + 1] = "-m"
+  argv[#argv + 1] = memory
+
+  -- no window; the framebuffer device still exists and can be inspected
+  -- through the monitor later. Serial is the early truth channel.
+  argv[#argv + 1] = "-display"
+  argv[#argv + 1] = "none"
+  if board.framebuffer and board.framebuffer.kind ~= "vga" then
+    -- virt machines have no display until one is plugged in; the pc
+    -- machine has its VGA already.
+    argv[#argv + 1] = "-device"
+    argv[#argv + 1] = board.framebuffer.kind
+  end
+
+  if options.stdio then
+    argv[#argv + 1] = "-serial"
+    argv[#argv + 1] = "mon:stdio"
+  else
+    argv[#argv + 1] = "-serial"
+    argv[#argv + 1] = "file:" .. serial_log
+  end
+
+  if options.payload then
+    local attacher = attach_payload[board.payload.kind]
+    if not attacher then die("board declares unknown payload kind: " .. board.payload.kind) end
+    attacher(board, options.payload, argv)
+  end
+
+  if options.disk then
+    local attacher = attach_storage[board.storage.controller]
+    if not attacher then die("board declares unknown storage controller: " .. board.storage.controller) end
+    attacher(board, options.disk, argv)
+  end
+
+  if options.gdb then
+    -- frozen at the first instruction, waiting for a debugger on :1234.
+    argv[#argv + 1] = "-S"
+    argv[#argv + 1] = "-gdb"
+    argv[#argv + 1] = "tcp::1234"
+  end
+
+  if options.accel then
+    if host_architecture() == board.arch then
+      argv[#argv + 1] = "-accel"
+      argv[#argv + 1] = "kvm"
+    else
+      -- declining the option rather than falling back silently: the run
+      -- still happens, but the user is told the speed they asked for is
+      -- not available on this pairing.
+      say("note: --accel needs guest and host to share an architecture ("
+          .. board.arch .. " vs " .. host_architecture() .. "); running emulated")
+    end
+  end
+
+  -- a runaway guest should not take the terminal with it; a wrong guest
+  -- should not reboot forever either (an x86 triple fault reboots, and a
+  -- rebooting boot sector is an endless loop nobody asked for).
+  argv[#argv + 1] = "-no-reboot"
+
+  local command = table.concat(argv, " ")
+  if options.seconds then
+    -- for tests: a machine that runs forever is correct behaviour, so the
+    -- clock lives outside it.
+    command = "timeout " .. options.seconds .. " " .. command
+  end
+  return command
+end
+-- }}}
+
+-- {{{ local function write_goodbye(summary)
+local function write_goodbye(summary)
+  -- the last thing a program does is write to output/ -- specifically,
+  -- goodbye.
+  run_one("mkdir -p " .. DIR .. "/output")
+  local handle = io.open(DIR .. "/output/goodbye", "w")
+  if not handle then return end
+  handle:write(summary, "\ngoodbye\n")
+  handle:close()
+end
+-- }}}
+
+-- {{{ main
+local options = parse_arguments(arg)
+if not options.board then
+  die("no board named; try: luajit 018-launch-board.lua qemu-x86-64 --payload FILE")
+end
+read_input_defaults(options)
+ensure_ram_directories()
+
+local board, board_path = find_board(options.board)
+local serial_log = DIR .. "/tmp/shared-memory/logs/" .. board.board_id .. "-serial.log"
+
+if options.payload and not file_exists(options.payload) then
+  die("payload does not exist: " .. options.payload)
+end
+if options.disk and not file_exists(options.disk) then
+  die("disk does not exist: " .. options.disk)
+end
+
+local command = build_command(board, options, serial_log)
+
+say("board:   " .. board.board_id .. "  (" .. board_path .. ")")
+say("command: " .. command)
+if not options.stdio then
+  say("serial:  " .. serial_log)
+end
+
+if options.dry_run then
+  write_goodbye("dry run for " .. board.board_id .. "; nothing was started")
+  os.exit(0)
+end
+
+local started = os.time()
+local ok, code = run_one(command)
+local ran_for = os.time() - started
+
+-- timeout's 124 means the allotted seconds elapsed -- for a test run that
+-- is the machine surviving, not failing.
+local outcome
+if options.seconds and code == 124 then
+  outcome = "ran its full " .. options.seconds .. "s"
+elseif ok then
+  outcome = "exited cleanly after " .. ran_for .. "s"
+else
+  outcome = "exited with code " .. tostring(code) .. " after " .. ran_for .. "s"
+end
+say("outcome: " .. outcome)
+
+write_goodbye(board.board_id .. " " .. outcome .. "; serial at " .. serial_log)
+-- }}}

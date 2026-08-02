@@ -2,8 +2,21 @@
 
 ## Current behavior
 
-Testing anything requires a board, a card, and a flash — which is a slow loop for
-work that fails a hundred times a day.
+**In progress.** The harness exists and all three architectures have produced
+first light through it: a board description per machine (`src/015`–`017`), a
+launcher that generates the emulator command from a description (`src/018`),
+and a stub builder that generates provable payloads from a message string
+(`src/019`). Each stub said `first light: <arch>` over its board's console on
+the first attempt, with the serial logs landing in `tmp/shared-memory/logs/`.
+
+Two empirical findings are recorded in the board info files: the ARM board
+needs its processor pointed at the payload by a second loader entry, and the
+RISC-V board with no firmware jumps from its reset vector to the start of DRAM.
+
+Still to do from the steps below: the framebuffer is attached but not yet
+inspectable from outside; hardware acceleration is an option but untested; the
+small-memory ratchet configurations exist but nothing exercises them yet; and
+the seed itself does not exist to boot.
 
 ## Intended behavior
 
