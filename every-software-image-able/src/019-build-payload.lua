@@ -101,6 +101,30 @@ local emit = {
       }
     end,
 
+    draw = function(text)
+      -- VGA text memory, which on this board exists the moment the machine
+      -- starts -- no driver, no enumeration, no knowledge of a part. Each
+      -- cell is two bytes: the character, then its colour.
+      --
+      -- It lives at 0xb8000, which a 16-bit register cannot reach on its own,
+      -- so the address is split: segment 0xb800 in the extra segment
+      -- register, offset counted from there.
+      local out = {
+        "  movw $0xb800, %ax",
+        "  movw %ax, %es",
+        "  xorw %bx, %bx",
+      }
+      for index = 1, #text do
+        out[#out + 1] = "  movb $" .. text:byte(index) .. ", %al"
+        out[#out + 1] = "  movb %al, %es:(%bx)"
+        out[#out + 1] = "  incw %bx"
+        out[#out + 1] = "  movb $0x0a, %al"     -- bright green on black
+        out[#out + 1] = "  movb %al, %es:(%bx)"
+        out[#out + 1] = "  incw %bx"
+      end
+      return out
+    end,
+
     epilogue = function()
       -- a boot sector must be exactly one sector and end in these two bytes.
       return { "sleep:", "  hlt", "  jmp sleep", "  .org 510", "  .byte 0x55, 0xaa", "" }
@@ -141,6 +165,20 @@ local emit = {
       out[#out + 1] = "  str w3, [x2]"
       return out
     end,
+
+    -- No draw. THIS IS THE FINDING, not an omission.
+    --
+    -- Issue 202 says the firmware hands over a linear framebuffer, so the
+    -- machine can draw from its first instant with no driver. That is true of
+    -- UEFI, which provides one. It is NOT true of this board, which boots
+    -- with a generic loader and no firmware at all -- its display device is a
+    -- virtio GPU that needs a driver, enumeration and a command queue before
+    -- a single pixel moves.
+    --
+    -- Refusing here rather than pretending keeps the gap visible in the code
+    -- rather than buried in a document. It is recorded in
+    -- notes/023-what-the-emulator-lies-about.md, and the way out is a UEFI
+    -- board description -- the firmware for it exists.
 
     epilogue = function()
       return { "sleep:", "  wfi", "  b sleep", "" }
@@ -198,6 +236,19 @@ local function assemble(arch, steps, name, out_directory)
   local handle_step = {
     say  = function(step) return generator.say(step.text) end,
     poke = function(step) return generator.poke(step.address, step.value) end,
+    draw = function(step)
+      -- refuse rather than silently skipping. A payload that quietly does not
+      -- draw would come back looking like a machine that drew nothing, which
+      -- is the same shape as the false-clean the trap runner already had to
+      -- learn about.
+      if not generator.draw then
+        die("this architecture has nowhere to draw at boot.\n"
+            .. "  Only the BIOS board has a display that exists before any driver.\n"
+            .. "  The linear framebuffer issue 202 relies on comes from UEFI, and\n"
+            .. "  these boards do not use it yet. See notes/023.")
+      end
+      return generator.draw(step.text)
+    end,
   }
 
   for _, step in ipairs(steps) do
@@ -252,6 +303,16 @@ local function payload_steps(name, arch)
     return { { kind = "say", text = "first light: " .. arch .. "\n" } }
   end
 
+  -- proves the machine can put something on a screen before it can do
+  -- anything else -- the claim issue 202 rests on. Only buildable where a
+  -- display exists at boot; elsewhere it refuses, on purpose.
+  if name == "draw-something" then
+    return {
+      { kind = "say",  text = "drawing\n" },
+      { kind = "draw", text = "first light, drawn" },
+    }
+  end
+
   -- a probe named "hazard-<category>" says what it is about to do, then does
   -- it. Saying first matters: when the trap halts the machine, the console
   -- already carries the confession, and the last line before silence is the
@@ -273,11 +334,22 @@ end
 
 -- {{{ local function known_payloads()
 local function known_payloads()
-  local names = { "first-light" }
+  local names = { "first-light", "draw-something" }
   for _, category in ipairs(hazards.categories) do
     names[#names + 1] = "hazard-" .. category
   end
   return names
+end
+-- }}}
+
+-- {{{ local function buildable(name, arch)
+-- Whether a payload can exist for an architecture at all. Only "draw-something"
+-- is limited, and only because a board with no firmware has no display until
+-- somebody writes a driver for one. Building everything by default would then
+-- stop at the first refusal, so the loop asks first.
+local function buildable(name, arch)
+  if name == "draw-something" then return arch == "x86_64" end
+  return true
 end
 -- }}}
 -- }}}
@@ -314,7 +386,14 @@ for _, name in ipairs(known_payloads()) do
   if only_payload == nil or only_payload == name then
     for _, arch in ipairs({ "x86_64", "aarch64", "riscv64" }) do
       if only_arch == nil or only_arch == arch then
-        assemble(arch, payload_steps(name, arch), name, out_directory)
+        if buildable(name, arch) then
+          assemble(arch, payload_steps(name, arch), name, out_directory)
+        elseif only_payload and only_arch then
+          -- asked for precisely this one, so say why it cannot exist rather
+          -- than saying nothing and letting it look built.
+          say("skipped " .. name .. " for " .. arch
+              .. ": no display exists on that board before a driver does")
+        end
       end
     end
   end

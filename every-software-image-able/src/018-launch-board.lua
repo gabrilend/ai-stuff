@@ -62,12 +62,14 @@ end
 local function parse_arguments(argv)
   local options = { board = nil, payload = nil, disk = nil,
                     memory = "small", seconds = nil,
+                    screenshot = nil, capture_after = 3, monitor_port = 4444,
                     stdio = false, gdb = false, accel = false,
                     dry_run = false }
   -- one handler per flag: a dispatch table rather than an if-chain.
   local takes_value = {
     ["--payload"] = "payload", ["--disk"] = "disk",
     ["--memory"] = "memory", ["--seconds"] = "seconds",
+    ["--screenshot"] = "screenshot", ["--capture-after"] = "capture_after",
     ["--dir"] = "dir",
   }
   local is_switch = {
@@ -285,6 +287,14 @@ local function build_command(board, options, serial_log)
     argv[#argv + 1] = "tcp::1234"
   end
 
+  if options.screenshot then
+    -- the emulator's monitor, so a picture of the screen can be taken from
+    -- outside while the machine runs. The display device still draws with
+    -- no window attached; -display none only means nobody is watching live.
+    argv[#argv + 1] = "-monitor"
+    argv[#argv + 1] = "tcp:127.0.0.1:" .. options.monitor_port .. ",server,nowait"
+  end
+
   if options.accel then
     if host_architecture() == board.arch then
       argv[#argv + 1] = "-accel"
@@ -357,13 +367,50 @@ if options.dry_run then
 end
 
 local started = os.time()
-local ok, code = run_one(command)
+local ok, code
+
+if options.screenshot then
+  -- With a picture wanted, the machine runs in the background so this process
+  -- is free to reach through the monitor and take one while it is still up.
+  -- A screenshot after the machine has stopped would be a picture of nothing.
+  if not options.seconds then
+    die("--screenshot needs --seconds, so there is a moment to take it in")
+  end
+  run_one(command .. " &")
+  run_one("sleep " .. options.capture_after)
+
+  -- one command per line, so what is going where stays legible.
+  local request = DIR .. "/tmp/screendump-request"
+  local handle = io.open(request, "w")
+  handle:write("screendump " .. options.screenshot .. "\n")
+  handle:close()
+  -- -c closes the connection when the request runs out, and -w gives up if
+  -- the monitor never answers. The flags differ between netcat variants; these
+  -- are GNU netcat's. A variant that rejects them will say so rather than hang,
+  -- which is why the reply is kept.
+  run_one("nc -c -w 2 127.0.0.1 " .. options.monitor_port .. " < " .. request
+          .. " > " .. DIR .. "/tmp/shared-memory/logs/monitor-reply.log 2>&1")
+
+  -- let the machine live out the rest of its allotted time, then take it down.
+  local remaining = options.seconds - options.capture_after
+  if remaining > 0 then run_one("sleep " .. remaining) end
+  run_one("pkill -f 'monitor tcp:127.0.0.1:" .. options.monitor_port .. "'")
+
+  ok = file_exists(options.screenshot)
+  code = ok and 0 or 1
+else
+  ok, code = run_one(command)
+end
+
 local ran_for = os.time() - started
 
 -- timeout's 124 means the allotted seconds elapsed -- for a test run that
 -- is the machine surviving, not failing.
 local outcome
-if options.seconds and code == 124 then
+if options.screenshot then
+  outcome = ok and ("captured " .. options.screenshot)
+                or "no picture was produced -- was anything drawing?"
+elseif options.seconds and code == 124 then
   outcome = "ran its full " .. options.seconds .. "s"
 elseif ok then
   outcome = "exited cleanly after " .. ran_for .. "s"
