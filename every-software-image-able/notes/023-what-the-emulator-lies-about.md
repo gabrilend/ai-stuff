@@ -3,6 +3,12 @@
 A living list. It never closes, and it should be added to every time a real
 board disagrees with an emulated one.
 
+**Not every entry is the emulator's fault, and that is deliberate.** Several
+below are properties of the host, of the assembler, or of a specification too
+loose to implement twice. They belong here because they share the shape that
+makes this list worth keeping: no failure, just a plausible wrong answer that
+somebody would otherwise find at first light.
+
 **Each entry carries what it cost.** A list of differences is interesting; a
 list of differences with prices attached is the argument for how often to stop
 developing against emulation and go put something on a card. That argument
