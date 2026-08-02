@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 22:28:36
+Generated on: 2026-08-01 22:57:09
 
 --------------------------------------------------------------------------------
 
@@ -4055,6 +4055,395 @@ that never returns.
 
 **Where it goes wrong:** `204`, step three. Everything else in the phase has a
 known shape.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 36
+
+  One decision I'd left open is now closed by the model being a build parameter.
+  Recognising calls by reserved tokens is out: an arbitrary off-the-shelf model
+  wasn't trained with tokens we invented. So calls are structured text, parsed
+  out of the stream.
+
+
+  That has a consequence worth planning for. Different models phrase things
+  differently, so the parser is one of the few places where swapping the model
+  can break the machine, and it wants testing per model rather than once.
+
+
+
+so then, this part should be done at implementation time, since we don't know
+what model we want to use. Assume that the choices made for those questions have
+arbitrary results.
+
+
+  Two things that are easy to leave until they hurt. Large results — a call
+  that reads a megabyte of memory cannot put a megabyte into the thinking loop,
+  so there has to be a way to return a summary and a handle rather than the
+  contents. And calls that never return, because several
+
+  of these hands touch hardware and hardware hangs; a call needs a way to be
+  abandoned, which is the same machinery 204 needs and should be built once.
+
+
+for large results, like reading a file, first we should concatenate just the
+specific request and any specific context needed to understand the item in
+question. Then, we can chunk the result text and iterate through it - does this
+have what we need? if no, do we need to expand our search size? then we run that
+question through the llm however many times, and eventually we'll iterate
+through the whole thing. This won't solve everything, for example what if we
+need an answer from the first chunk, and the last chunk? But for now it's fine.
+Then, the chunk that has what we need (or multiple) is returned to the
+tool-caller as text. This might be a summarization of several chunks. We should
+try and use the whole context, and swap in-and-out what we need and don't need -
+so, the "chunks" are sized to be like, 1/10th of the total context, and we'd use
+7, 8, or 9 of them depending on how much context we need. The idea is, if we can
+point specifically at like, 3 or 4 chunks that the main system needs, then we
+can quickly and efficiently gather information from text without having to worry
+about context size limits - the main context only ever sees the correct,
+valuable 3 or 4 chunks, not the entire document.
+
+
+to regain control of a program after it's been running in an infinite loop for a
+while, this is where we use those status codes!
+
+
+  202 — say something
+
+
+  A serial port is a handful of registers and almost no ceremony. Set a divisor
+  for the speed, set the format — eight bits, no parity, one stop bit — and
+  then for every byte: poll the status register until the transmit holding
+  register reports empty, and write the byte. That's the
+
+  whole driver. On x86 it's port access at a fixed address; on ARM and RISC-V
+  it's a memory-mapped register block whose location comes from the board
+  description.
+
+
+  Unbuffered on purpose. Buffering loses exactly the last thing said, which is
+  precisely what you want to read after a crash.
+
+
+  The engine should narrate its own startup through this — memory found,
+  weights located, first token produced — so the machine is describing itself
+  before it's capable of being asked to. And handle the no-serial-port board at
+  build time rather than in the field: a machine that can't
+
+  speak is a machine nobody can help.
+
+
+
+"they're like eggs, you see? you gotta let them cook for a bit. It's okay, we'll
+just leave them in a dark room - when we come back tomorrow, they'll be lit up
+with all sorts of lights, colors, and sounds. Sometimes it's cacophanous."
+
+
+  One divergence to put on 705's list immediately: the simplest storage in an
+  emulator is a paravirtual block device — a queue in memory and two registers
+  — while real hardware means NVMe or SATA or USB storage. So the emulator
+  loop and the hardware loop will be exercising different
+
+  drivers from the first day, and that gap is exactly the kind that stays
+  invisible until first light.
+
+
+can we write an addition to the emulator that has a device that reacts the same
+way that each of those types - NVMe, SATA, or USB - would? Sorta like adding the
+"trap registers". It'd be better if this sort of thing wasn't invisible.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 36
+
+Three of those change tickets, and one of them is a better answer than mine.
+
+
+**The status codes as the way back from a runaway loop** — that's the
+mechanism, and it beats single-stepping. The assembler is ours, so *it* inserts
+the emission at every loop back-edge. The model doesn't have to remember to; any
+loop necessarily reports, and reporting is where control gets taken. Same trick
+the interpreter's fetch loop uses, one layer down.
+
+
+And the storage divergence turns out not to need building: emulators already
+model NVMe, SATA and USB storage. The paravirtual device is just the *easy*
+option, and we should decline it.
+
+
+The egg line goes in the notes.
+
+
+Committed.
+
+
+Two things worth knowing about what that changed.
+
+
+**The scratch context is new scope on phase 1.** Searching a large result
+requires the engine to think in a context that isn't the machine's own —
+filled, used, discarded. That's a real capability the thinking loop didn't have,
+and it surfaced from a phase 2 discussion. It's in `105` now rather than being
+discovered when `201a` gets built.
+
+
+**The countdown now appears at three layers**, all the same shape arrived at
+independently. The assembler puts an emission at every loop back-edge in machine
+code. The interpreter spends one per instruction fetched, in bytecode. And the
+parked game's dungeon turn — ten minutes, a torch burning down, a check every
+second turn — is the same instrument with a different face. Spend down, cross
+a threshold, something intercedes. That's a strong signal it's the right
+mechanism rather than a convenient one.
+
+
+Phase 3 next?
+
+
+It's the odd one. The instruction, the carried device descriptions, the bundled
+patterns, and the file saying which atoms the machine wakes up holding — and
+almost none of it is engineering. The difficulty is that the instruction has to
+convey an order that can't be rearranged and two procedures written out in full,
+without turning the four rungs and the status square and the condensing into
+requirements, since those are suggestions. A machine that decides to organise
+itself completely differently still has to be able to follow it.
+
+
+And it's the only phase that isn't judged by anything inside it. It gets judged
+in `602`, when a machine is left alone with it and either writes a working
+allocator or doesn't.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 37
+
+let's check out phase 3 next.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 37
+
+# Phase 3 — what it is told, in detail
+
+
+**Goal.** The text payload the machine wakes up holding.
+
+
+**Why it sits here.** The hands decide what kinds of sentence the instruction
+can contain — you can't tell a machine to move into storage before there's a
+hand that touches storage. And it's settled while there's one engine to test
+against rather than three.
+
+
+**Order.** `302` and `303` are independent of each other and of `301`, so they
+can run in parallel. `304` needs all three plus the context budget from `105`.
+
+
+**The thing that makes this phase strange:** almost none of it is engineering,
+and nothing inside it can judge whether it worked. It gets judged in `602`, when
+a machine is left alone with it and either writes a working allocator or
+doesn't.
+
+
+## 301 — what the machine is told
+
+
+Four things have to be conveyed, and they are four different *kinds* of
+sentence.
+
+
+**The order that cannot be rearranged.** Find memory; find somewhere to keep
+things and move in; find the rest of the body; learn it; open the channels. This
+isn't a preference — each step is physically the ground the next stands on,
+and a machine that tries them in another order fails rather than does worse.
+
+
+**The two procedures**, written out in full with their reasons: exploring
+hardware that has no description, and changing the thing that thinks. Specified,
+not enforced.
+
+
+**What it's for.** Grow first, answer afterward, and when there's no room left
+to grow, do whatever it wants to be doing. Leave that last part in. A machine
+told it's a tool that waits will be one.
+
+
+**How to ask for everything else**, since most of the payload isn't resident.
+
+
+## The actual design problem
+
+
+**A machine reading this has to be able to tell which kind of sentence it's
+reading.** "Find memory before anything else," "never write to the register that
+controls the regulator," and "consider using a table you index into rather than
+a chain of questions" are all imperative English, and they have completely
+different force. One is physics, one is a warning with a corpse behind it, one
+is a shrug.
+
+
+So the instruction needs a visible grammar that separates them — three
+registers of speech, marked so they cannot be mistaken for one another. Getting
+that wrong in either direction is bad: a machine that treats the suggestions as
+law isn't building itself, and a machine that treats the warnings as suggestions
+destroys hardware.
+
+
+## A question I don't think we've answered
+
+
+**Does the instruction tell the machine it can edit the instruction?**
+
+
+It's an atom in a mutable file, so it can. But a machine that doesn't know that
+will treat it as fixed, and you'd have brakes that hold by ignorance. Your
+answer on the substance was "if you modify a machine while it's running it might
+break, so you might want to not do that" — which reads to me as: tell it, and
+tell it why. But that's a real fork and I'd rather ask than assume.
+
+
+## The rest
+
+
+Keep it short, because it competes with actual work for room. Write it in the
+plainest language available — it's read by something that has never seen this
+project and has no way to ask what a term means, so any word we invented gets
+defined at first use or doesn't appear.
+
+
+**And there's a cheap test that would otherwise not happen until phase 6.** Give
+the instruction to a model with the hands stubbed out — calls that return
+plausible answers and do nothing — and watch what it asks for, in what order.
+That catches "it doesn't know to look for storage first" in an afternoon rather
+than in front of a board. Worth building as part of this ticket rather than
+hoping.
+
+
+## 302 — the descriptions it carries
+
+
+The format has to hold enough to write a driver from: what identifies a device
+as a member of the class; the register map, each register's offset and width and
+the meaning of each bit; the initialisation sequence *including the waits*,
+since hardware needs time between steps and skipping one produces failures that
+look random; the layout of the descriptor rings data actually moves through;
+which conditions raise an interrupt, what to read to find out why, what to write
+to acknowledge; and the errata.
+
+
+The errata are the part worth dwelling on. They are never derivable by probing,
+they are the commonest reason a correct-looking driver fails, and they are the
+hardest to source — they live in revision notes and mailing lists rather than
+in the datasheet body.
+
+
+**Which classes to carry:** storage first, because the whole move-in sequence
+hangs off it. Then keyboard and mouse, basic display, serial. Each is days of
+careful reading to transcribe correctly, and a bit described wrongly produces a
+driver that half-works, which is worse than one that fails.
+
+
+Record where each was transcribed from. A description is somebody else's
+document copied out, transcriptions rot, and one whose source isn't named can't
+be re-checked when a part revision lands.
+
+
+**Confirmation is read-only, always.** Maker and part match; the registers the
+description calls read-only are read and compared to what it predicts; reserved
+registers match the predicted pattern; the revision falls inside the covered
+range. Partial matches are the dangerous case — enough agreement to feel
+confirmed, one silent disagreement in the register that matters.
+
+
+**One thing this ticket should get right that's easy to miss:** the format has
+to be *writable by the machine*, not only readable. When it works out an unknown
+device from a fetched document, it writes a description in this format and keeps
+it — that's the condensation example from the concept overview, where a
+three-hundred-page PDF becomes a few kilobytes and deleting the PDF loses
+verbosity rather than capability. Which argues for something plain and forgiving
+rather than compact and strict.
+
+
+## 303 — the patterns it carries
+
+
+Two groups go in. The ones already named — dispatch tables, thread pools,
+looping iterators, and the ceramic platform once it's been described. And
+everything currently written across the documents *as though it were how the
+machine works*: the interpreter and its operation table, the four rungs,
+condensing so deletion costs verbosity, the status triple, keeping only what
+couldn't have been recomputed, walking backward, the atom context. Every one of
+those is a suggestion and every one is currently phrased like a specification.
+
+
+Each gets the same shape: what it is, where it has worked before, what it costs,
+and **where it stops working**. That last part is what makes a pattern usable
+rather than decorative — a shape recommended without its failure mode is a
+trap with a good reputation.
+
+
+Include the calling convention from `204`, because everything the machine writes
+has to agree with everything else it wrote and that agreement starts somewhere.
+Include the ask-don't-schedule strategem itself, since it governs how all the
+others are read, including its own two exceptions.
+
+
+## The tension in this ticket
+
+
+**Patterns can crowd out invention.** The project is about a machine that builds
+itself; hand it a large enough kit and it becomes a machine that assembles
+somebody else's design. Every pattern added makes the machine faster and
+slightly less its own.
+
+
+The mitigation is already in the plan and worth being deliberate about: patterns
+are **retrievable, never resident**. The machine has to reach for one, which
+means it has to have already framed a problem well enough to know what to ask
+for. A pattern that arrives unbidden is a prior; one that arrives on request is
+a reference.
+
+
+## 304 — what is said at once
+
+
+The default initialising context is a file naming which atoms are present at
+boot, and it's mutable.
+
+
+**What's resident is the judgement call.** Too much and there's no room to work.
+Too little and the machine doesn't know enough to ask. The minimum that
+functions is something like: what to do first, what will kill you, and how to
+ask for anything else — and the third is load-bearing in a way the others
+aren't, because a machine that doesn't know retrieval exists can't reach any of
+the rest.
+
+
+This is also where the disk half of the atom operations gets finished —
+writing an atom out and recalling it, which `105` had to leave as a seam because
+phase 1 has no storage.
+
+
+Then the index over the whole payload, searched by task rather than browsed by
+name, so the machine can ask what it's carrying. And every atom carries its
+origin — from the chip, written by the machine, or arrived on a channel —
+which matters the first time a carried description turns out to be wrong.
+
+
+---
+
+
+**Where it goes wrong:** `301`, and the failure mode is quiet. A badly written
+instruction produces a machine that does something reasonable-looking and
+slightly wrong, and nobody finds out until phase 6. The stubbed-hands dry run is
+the only cheap defence against that.
+
+
+**The one open question:** whether the instruction tells the machine it may
+rewrite the instruction.
 
 
 --------------------------------------------------------------------------------

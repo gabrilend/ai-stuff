@@ -120,8 +120,16 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
-**None.** Every question that was stopping work has an answer, and four of them
-were answered the same way — by handing the decision to the machine rather than
+**21 — when is a machine ready for the card to come out?**
+While the delivery medium is plugged in, the original of everything the machine
+was told is still readable, so an overwritten instruction can be recovered.
+Removing it ends that, and the machine becomes only what it has become. Nothing
+defines when it is ready — it is a judgement about whether something has finished
+learning to walk, made by whoever is standing there. Blocks: nothing yet, and it
+will block `602` the first time somebody has to decide.
+
+Everything else that was stopping work has an answer, and four of them were
+answered the same way — by handing the decision to the machine rather than
 writing a rule for it (`strategems/009`).
 
 The one term still used without a definition, the ceramic platform, is held in
