@@ -19,9 +19,14 @@ often enough to keep finding them.
    faster and more predictably. Nothing dies. Timing is meaningless, so any
    initialisation sequence whose waits are wrong will pass in emulation and fail
    on the board.
-2. Add to it every time first light fails for a reason emulation did not catch.
-   That list is the real output of this ticket and it will be more valuable in a
-   year than anything else in phase 7.
+2. Add to it every time first light fails for a reason emulation did not catch,
+   **and record what each one cost** — how long it took to find, and how far into
+   the work it surfaced. A list of differences is interesting; a list of
+   differences with prices attached is the argument for how often to run on real
+   hardware, and that argument will otherwise be made on feeling.
+3. Start it with the one `702a` cannot help: traps only cover devices somebody
+   modelled, and a real board is full of devices nobody did. A clean run means the
+   machine behaved on the hardware we imagined.
 3. Keep the speed numbers separate and clearly marked. Emulated
    tokens-per-second is not slow-but-indicative, it is meaningless, and putting
    the two in one table invites somebody to compare them.

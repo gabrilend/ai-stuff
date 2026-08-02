@@ -21,9 +21,21 @@ launched from.
 2. **Stand up an example machine for each of the three architectures from the
    start** — one for x86-64, one for 64-bit ARM, one for RISC-V. This is what
    replaces knowing which board the project targets: it does not need to know.
-   Each example is a named configuration with a stated processor, memory size, set
-   of attached devices and boot scheme, kept beside the board descriptions of
-   `501` so the two stay recognisable as the same kind of thing.
+3. **An emulated machine is a board, so describe it as one.** Rather than keeping
+   emulator configurations beside the board descriptions of `501`, make them *be*
+   board descriptions — architecture, boot scheme and where the firmware looks,
+   console device, expected storage controllers, medium layout — with the
+   emulator's command line generated from the description rather than written by
+   hand.
+
+   The payoff is that the emulator stops being a special path. An image for an
+   emulated machine is built by the same builder, from the same recipe, in the
+   same way as one for a real board — which means `502` is exercised from the
+   first day of the project rather than from phase 5, and the seam between the
+   builder and the engine is under test long before first light depends on it.
+4. Provide hardware acceleration as a launcher option for the case where guest and
+   host share an architecture. It is the difference between an afternoon per
+   attempt and a few minutes, and `602`'s method depends on it.
 3. Give each example machine more than one memory size, so the ratchet in `102`
    is exercised rather than assumed. A configuration with barely enough memory to
    read the weights in place is a test; one with plenty is a demonstration.
