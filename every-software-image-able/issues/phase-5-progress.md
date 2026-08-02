@@ -8,9 +8,9 @@ tooling that turns them into bytes on a medium.
 
 | | | Status |
 |---|---|---|
-| `501` | The recipe and the board | not started |
-| `502` | Build the image | not started |
-| `503` | Put it on a card | not started |
+| `501` | The recipe and the board | **completed** — two descriptions that do not name each other, enforced by looking; six existing boards pass unchanged |
+| `502` | Build the image | **completed** — image, manifest and identity; the seam with the engine checked by the build; a model too large refused with the three numbers |
+| `503` | Put it on a card | **completed** — device and size both named and checked, every objection at once, written then read back then compared; pretend devices only, deliberately |
 
 ## Where the risk is
 

@@ -2,7 +2,30 @@
 
 ## Current behavior
 
-The parts of the seed exist as separate things nobody has described as a whole.
+**Done, and tested** -- `src/088` holds both descriptions and the rules they
+must satisfy, `input/example-recipe.lua` is one, `src/090` checks them, 34 of
+34 on 2026-08-02 across this ticket and the two below it.
+
+The two never name each other, and that is enforced rather than intended: a
+recipe mentioning a machine is refused with the reason said plainly -- a
+recipe that names a board has become a recipe FOR that board, and supporting
+another means editing it rather than writing beside it. A board description
+naming a part of the seed is refused the same way.
+
+The six board descriptions already in the tree pass these rules unchanged.
+They were written for the emulator harness before there was a builder to read
+them, and an emulated machine is a board, so they are the same kind of thing.
+
+**The where-it-looks field turned out to have two honest shapes.** Some boot
+schemes carry the answer in themselves -- a BIOS always reads sector zero,
+and repeating that in the description would be a second copy of a fact that
+cannot vary. The schemes that DO vary must say, and that is the load-bearing
+half. Making every description repeat it would have been the tidier rule and
+the wrong one.
+
+Adding a board requires touching nothing else, which is the whole portability
+claim, and it is tested by inventing one during the test run and building for
+it.
 
 ## Intended behavior
 

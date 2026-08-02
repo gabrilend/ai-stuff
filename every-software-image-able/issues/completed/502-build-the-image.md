@@ -2,8 +2,35 @@
 
 ## Current behavior
 
-The recipe and the board description exist as text. Nothing turns them into
-something a card can hold.
+**Done, and tested** -- `src/089`, checked by `src/090`, 34 of 34 on
+2026-08-02.
+
+Recipe and board in; the image, the manifest and the identity out -- three
+files, never only the image, because an image alone is a pile of bytes nobody
+can account for. The identity is computed from the manifest, so the same
+recipe, board and components arrive at the same number. It is a plain rolling
+hash rather than a cryptographic one, and says so: nothing here defends
+against a constructed collision, and using a stronger name for it would be
+the more dishonest choice.
+
+Reproducible in the plain sense, and tested both ways: the same inputs give
+the same bytes and the same identity, and different inputs give a different
+identity. No timestamps and no build paths leak in.
+
+**The seam with `102` is checked by the build.** The builder lays things down
+and the engine looks for them; if they disagree the machine fails at the
+earliest possible moment with the least possible information. So the layout
+is compared against what the engine expects before anything is written, and
+a disagreement is refused there with that reason in the refusal.
+
+The model is a parameter, and a model too large for the board being built for
+is refused with the three numbers said out loud: what the medium holds, what
+the board holds alongside working space, and that no arrangement of it runs.
+
+The carried randomness is generated here from the seed the recipe names, and
+the seed goes in the manifest -- same recipe and same seed gives the same
+machine, exactly, which turns a strange failure into something reproducible
+by handing somebody an image.
 
 ## Intended behavior
 
