@@ -111,6 +111,13 @@ Whatever it wants. Keep rewriting itself, play games, sit in idle reflection,
 talk with friends, mine coins. There is no waiting state; a request interrupts a
 life rather than waking something suspended. `005`.
 
+**21 — When can the card come out?**
+Two milestones, both testable. Once the machine is running from memory with
+nothing still being read off the card, the card can be removed — nothing needs it.
+Once the machine can boot itself from disk into memory, it can be turned off and
+on again. They are different moments, and a machine in the gap between them exists
+only in volatile memory with nothing able to recreate it. `003`.
+
 **13 — What makes the machine want something?**
 Nothing internal. Requests arrive from arbitrary sources, and the machine builds
 the capability to accept input from as many sources as its body provides — so the
@@ -120,16 +127,8 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
-**21 — when is a machine ready for the card to come out?**
-While the delivery medium is plugged in, the original of everything the machine
-was told is still readable, so an overwritten instruction can be recovered.
-Removing it ends that, and the machine becomes only what it has become. Nothing
-defines when it is ready — it is a judgement about whether something has finished
-learning to walk, made by whoever is standing there. Blocks: nothing yet, and it
-will block `602` the first time somebody has to decide.
-
-Everything else that was stopping work has an answer, and four of them were
-answered the same way — by handing the decision to the machine rather than
+**None.** Every question that was stopping work has an answer, and four of them
+were answered the same way — by handing the decision to the machine rather than
 writing a rule for it (`strategems/009`).
 
 The one term still used without a definition, the ceramic platform, is held in

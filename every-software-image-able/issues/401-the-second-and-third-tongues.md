@@ -15,9 +15,20 @@ majority of machines — all three carried on the same chip.
    speed. The reference comparison built in `103` is what makes this tractable:
    each port is correct when it agrees with the same fixture the first one agreed
    with.
-2. Port the hands next. Reaching memory, ports and storage differs per
-   architecture in the details and not in the shape, and the shape settled in
-   `201` should not move.
+2. Be honest about which half is a translation and which is a rewrite. The plain
+   version of the arithmetic ports almost mechanically. The fast version does not:
+   the vector instruction sets on the three architectures have nothing in common,
+   the register counts differ, and the extension that provides them is not even
+   guaranteed to exist on RISC-V. Budget the fast half as three separate pieces of
+   work rather than one done thrice.
+3. Port the hands next, and expect one of them to change shape rather than
+   detail. **x86 has a separate address space for talking to devices, reached by
+   its own instructions; the other two do not** — everything there is
+   memory-mapped. So the hand that touches ports exists in one form on one
+   architecture and collapses into memory access on the others. The catalogue of
+   hands is therefore not identical across machines, which is survivable because
+   the machine reads its catalogue rather than being told it — but it means the
+   instruction (`301`) must not assume any particular hand exists.
 3. Keep the three implementations recognisably the same program. Where they must
    differ, say why in a comment beside the difference — a future reader needs to
    know whether a divergence is a necessity or an accident.
