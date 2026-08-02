@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 22:57:09
+Generated on: 2026-08-01 23:32:09
 
 --------------------------------------------------------------------------------
 
@@ -4444,6 +4444,73 @@ the only cheap defence against that.
 
 **The one open question:** whether the instruction tells the machine it may
 rewrite the instruction.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 38
+
+  The one open question: whether the instruction tells the machine it may
+  rewrite the instruction.
+
+
+it should know that it can rewrite the atomics that make up the instructions. It
+should derive the fact that it can accidentally overwrite it's prime
+directive... except from the flashing medium, which is probably going to stay in
+place (referenced probably? as some sort of holy truth grail or something?)
+until the system has fully built itself. Though it could be removed as soon as
+the system is running independently - learning to walk on it's own.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 38
+
+That gives the read-only medium a third job, and it resolves the whole thing
+without a single lock.
+
+
+It's already the reusable seed, and already undamageable by the machine. Now
+it's also **the original text, still readable** — so while the card is in, a
+machine that overwrote its own instruction can go and look at what it was given.
+The mistake is undoable for exactly as long as the card is there.
+
+
+Which makes not warning it safe. And makes pulling the card a real event rather
+than tidying up.
+
+
+Committed.
+
+
+Worth noticing what this design's safety story now looks like, because it
+settled into something consistent without anyone aiming at it: **there are three
+places where something can go irreversibly wrong, and not one of them is
+prevented.**
+
+
+Exploring hardware without a description — a procedure written out in full,
+with the mechanism behind each forbidden register, and nothing stopping the
+machine. Changing the thing that thinks — same, a procedure and a reason and
+no lock. And overwriting its own instruction — not even warned about, because
+a physical property of the medium makes it recoverable instead.
+
+
+Specification, or a fact about the world. Never a mechanism that says no. That's
+the whole of it.
+
+
+**One new question, and it's the only blocking one in the design.** When is a
+machine ready for the card to come out? Nothing can test it. It's a judgement
+about whether something has finished learning to walk, made by whoever is
+standing there — and `602` now asks for the reasoning to be recorded, since
+the reasoning will be worth more than the moment. It's the first question in
+this project that isn't answerable by thinking harder about it.
+
+
+Phase 4 next? It's small — two tickets, and one of them is a few hundred bytes
+that decides which engine to start. Given the size, we could take 4 and 5 in one
+pass and leave 6 and 7 with room to breathe.
 
 
 --------------------------------------------------------------------------------

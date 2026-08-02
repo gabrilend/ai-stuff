@@ -96,9 +96,14 @@ So storage is enumerated first, out of order, ahead of everything else attached.
 enumerate what is attached that can hold bytes and keep them
    → pick somewhere: largest, fastest, least likely to be unplugged
    → write itself there
-   → transition to running from that storage
+   → establish a boot path, so the next power-on loads from that storage
+     into memory rather than from the card
    → the medium it arrived on is now just a thing that is plugged in
 ```
+
+Note what "running from storage" does and does not mean. Nothing executes from a
+disk; code runs in memory. What moving in changes is **where the next start comes
+from**.
 
 Moving in is the step that matters. Afterward the machine is no longer running
 from the thing it was delivered on, which means the delivery medium is free to be
@@ -212,10 +217,21 @@ Removing the delivery medium is a real event rather than tidying up. Before it,
 the machine can always check itself against what it was told. After it, the
 machine is only what it has become.
 
-Nothing needs it after moving in — the engine, the weights and the payload were
-all copied to storage — so it can come out as soon as the machine runs
-independently. When that is depends on judgement rather than on a condition
-anything can test, which is question 21 in `008`.
+Two milestones decide when, and both are testable rather than matters of
+judgement:
+
+| Milestone | What it permits |
+|---|---|
+| The machine is running from memory, with nothing still being read off the card | **The card can be removed.** Nothing needs it. |
+| The machine can boot itself from disk into memory | **The machine can be turned off and on again.** It can come back. |
+
+**They are not the same moment, and the gap between them is a hazard.** A machine
+with the card out that cannot yet start itself exists only in volatile memory,
+with nothing anywhere able to recreate it. Losing power there is not a crash — it
+is the end of that machine, and re-flashing produces a different one.
+
+So the card *may* come out at the first milestone and is *safe* to remove at the
+second. Anyone pulling it in between should know which of those they are doing.
 
 Memory is writable whether or not the boot medium is, so read-only delivery never
 stopped the machine thinking; it only stopped it keeping. The window where that
