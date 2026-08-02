@@ -22,6 +22,43 @@ local ffi = require("ffi")
 
 local M = {}
 
+-- {{{ single precision, on purpose and by specification
+--
+-- THE PRECISION IS PART OF THE ANSWER, NOT AN IMPLEMENTATION DETAIL.
+--
+-- This language's numbers are doubles, so accumulating a dot product the
+-- obvious way sums in double and stores a float at the end. Assembly
+-- accumulating in a single-precision register does not do that, and the two
+-- results differ in the last bits -- summing 0.1 ten times gives
+-- 1.0000000149011612 one way and 1.0000001192092896 the other.
+--
+-- That difference is small and it is fatal to the only comparison worth
+-- having. A fixture that can only be matched approximately turns every future
+-- disagreement into a judgement call about whether the difference is "small
+-- enough", which is precisely the judgement this fixture exists to remove.
+--
+-- So the specification is: **every accumulation is single precision, in
+-- ascending index order**, and this reference implements that literally by
+-- rounding through a float after each step. It is slower. It is meant to be.
+--
+-- Rounding a double result to float once per operation gives the same answer
+-- as doing the operation in float: a double carries fifty-three bits and
+-- single-precision needs fifty for the rounding to be safe, so no operation
+-- here is rounded twice.
+--
+-- WHAT THIS DOES NOT MAKE EXACT. Square root is exactly specified and matches
+-- everywhere. Exponential, sine and cosine are not, and differ between
+-- implementations. So the kernels built from arithmetic alone can be compared
+-- bit for bit, and anything downstream of a transcendental function cannot --
+-- see 044, which draws that line explicitly.
+local round = ffi.new("float[1]")
+
+local function f(value)
+  round[0] = value
+  return round[0]
+end
+-- }}}
+
 -- {{{ local function read_header(blob, format)
 local function read_header(blob, format)
   local at, header = 0, {}
@@ -97,10 +134,15 @@ end
 -- feedforward, and it is why the numbers flowing through stay in a range the
 -- rest of the arithmetic can work with.
 local function rms_normalise(out, input, weight, size)
-  local sum = 0
-  for index = 0, size - 1 do sum = sum + input[index] * input[index] end
-  local scale = 1 / math.sqrt(sum / size + 1e-5)
-  for index = 0, size - 1 do out[index] = input[index] * scale * weight[index] end
+  local sum = f(0)
+  for index = 0, size - 1 do
+    sum = f(sum + f(input[index] * input[index]))
+  end
+  -- square root is exactly specified, so this much is reproducible anywhere
+  local scale = f(1 / f(math.sqrt(f(f(sum / size) + 1e-5))))
+  for index = 0, size - 1 do
+    out[index] = f(f(input[index] * scale) * weight[index])
+  end
 end
 -- }}}
 
@@ -113,10 +155,10 @@ end
 -- vectorised version can read straight down each row without gathering.
 local function matrix_vector(out, matrix, input, rows, columns)
   for row = 0, rows - 1 do
-    local sum = 0
+    local sum = f(0)
     local base = row * columns
     for column = 0, columns - 1 do
-      sum = sum + matrix[base + column] * input[column]
+      sum = f(sum + f(matrix[base + column] * input[column]))
     end
     out[row] = sum
   end
@@ -167,6 +209,19 @@ local function softmax(values, count)
   end
   for index = 0, count - 1 do values[index] = values[index] / total end
 end
+-- }}}
+
+-- {{{ M.kernels -- the arithmetic alone, exposed so assembly can be compared
+--
+-- These two are built from multiplication, addition and square root only, so
+-- an assembly implementation can be required to match them bit for bit rather
+-- than approximately. Everything else in this file passes through an
+-- exponential, a sine or a cosine at some point, and those differ between
+-- implementations -- which is why only these two are offered here.
+M.kernels = {
+  matrix_vector = matrix_vector,
+  rms_normalise = rms_normalise,
+}
 -- }}}
 
 -- {{{ M.new_cache(shape)
