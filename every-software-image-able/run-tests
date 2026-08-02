@@ -83,6 +83,7 @@ if [ -z "${QUICK}" ]; then
   run_test "the discipline, held and broken"  "022-test-traps.lua"
   run_test "the machine's arithmetic, against the host's" "055-test-blob-report.lua"
   run_test "saying something with nothing underneath" "070-test-say.lua"
+  run_test "waking up, and knowing what it woke on" "087-test-waking.lua"
 else
   printf '\n=== skipped: the discipline, held and broken (--quick) ===\n'
   printf '\n=== skipped: the machine'"'"'s arithmetic, against the host'"'"'s (--quick) ===\n'
