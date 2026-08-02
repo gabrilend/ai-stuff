@@ -29,7 +29,8 @@ every-software-image-able/
 │   ├── 008-open-questions.md ........ every question, closed and open, in one place
 │   ├── 010-datapath-the-mind.md ..... what arrives rather than being built, and changing it
 │   ├── 011-roadmap.md ............... seven phases; what people build, not what it becomes
-│   └── 012-datapath-the-proving-ground.md  testing it without a computer, and what that hides
+│   ├── 012-datapath-the-proving-ground.md  testing it without a computer, and what that hides
+│   └── 013-datapath-the-context.md .. atoms; what the machine is thinking with, and its choosing
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
