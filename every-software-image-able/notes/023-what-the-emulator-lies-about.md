@@ -380,6 +380,34 @@ is a plausible answer nobody questions.
 
 ---
 
+### A CALL to an exported symbol is a note for a linker too
+
+**Class:** no linker. **Cost:** most of an afternoon, and it is the third
+appearance of the same trap.
+
+The rule was already written down twice: with no linker, a symbol reference
+becomes a silent zero, and the way out is to measure from a local label
+rather than an exported one. Both earlier sightings were about *addressing*
+something -- computing where a message was.
+
+This one is about **calling** something. A payload embedded the arithmetic
+kernels, which carry `.globl` because the hosted build genuinely needs them
+exported to load the library. Every `bl` into them left an
+`R_AARCH64_CALL26` relocation; extraction dropped it; the branch offset
+stayed zero; and a call whose offset is zero is a call to ITSELF.
+
+**What it looked like.** The machine printed its first progress mark and
+then said nothing, forever. No fault, no exception, no reset -- the firmware
+never regained control, so there was not even a dump. Indistinguishable from
+a machine that had simply stopped.
+
+**The rule, restated to cover both:** on every architecture, nothing in a
+payload may REFER to an exported name -- not to read from it, not to jump to
+it, not to call it. If a file needs its exports for a hosted build, the
+payload that embeds it strips them.
+
+---
+
 ### The emulated processor is not the host's processor
 
 **What was assumed.** That an emulator asked for the best processor it can
