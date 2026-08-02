@@ -13,7 +13,7 @@ why this comes before the words.
 | `201` | The shape of a tool call | **completed** — the door and the catalogue as one object, a swappable grammar, every refusal a sentence, and a live exchange on the real engine, 27 of 27 |
 | `201a` | Reading something too big to hold | **completed** — windows searched by the machine's own judgement, only the useful part crossing, summaries labelled as summaries, 19 of 19 |
 | `202` | Say something | **completed** — a font drawn as pictures, letters on a real firmware framebuffer checked pixel for pixel, and the model given voices of its own, 13 of 13 |
-| `203` | Touch memory | not started |
+| `203` | Touch memory | **completed** — six hands, the one refusal holding in every form, and what is read is what is there, 22 of 22 |
 | `204` | Run what it wrote | not started |
 | `205` | Touch the hardware | not started |
 | `206` | Keep something | not started |
