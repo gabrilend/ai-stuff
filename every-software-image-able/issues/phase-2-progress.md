@@ -15,8 +15,8 @@ why this comes before the words.
 | `202` | Say something | **completed** — a font drawn as pictures, letters on a real firmware framebuffer checked pixel for pixel, and the model given voices of its own, 13 of 13 |
 | `203` | Touch memory | **completed** — six hands, the one refusal holding in every form, and what is read is what is there, 22 of 22 |
 | `204` | Run what it wrote | **completed** — an assembler that watches its own loops, real instructions run on a real processor, and a runaway caught, 18 of 18 |
-| `205` | Touch the hardware | not started |
-| `206` | Keep something | not started |
+| `205` | Touch the hardware | **completed** — the body found, the five destroying kinds refused until confirmed, the note written before every probe |
+| `206` | Keep something | **completed** — blocks, an extent that survives a forgetting, and a read-only medium that refuses rather than pretending; 28 of 28 across both |
 | `207` | Emit a status | not started |
 
 ## Where the risk is
