@@ -466,7 +466,7 @@ end
 
 -- {{{ local function known_payloads()
 local function known_payloads()
-  local names = { "first-light", "draw-something", "uefi-hello" }
+  local names = { "first-light", "draw-something", "uefi-hello", "blob-report" }
   for _, category in ipairs(hazards.categories) do
     names[#names + 1] = "hazard-" .. category
   end
@@ -514,6 +514,54 @@ run_one("ln -sfn /dev/shm/every-software-image-able /tmp/every-software-image-ab
 local out_directory = DIR .. "/tmp/shared-memory/payloads"
 run_one("mkdir -p " .. out_directory)
 
+-- {{{ local function build_blob_report(out_directory)
+local function build_blob_report(out_directory)
+  -- A payload that carries a packed model inside itself and reads its header
+  -- aloud -- issue 102 proved in the small. Only x86-64 so far; the other two
+  -- need the same routine written again in their own instructions.
+  local base = out_directory .. "/blob-report-x86_64"
+
+  -- the model it will carry. Built by the same test that proves the format
+  -- round-trips, so there is one small model rather than two.
+  local blob = DIR .. "/tmp/shared-memory/blob-test/small-model.blob"
+  if not io.open(blob, "rb") then
+    say("building the small model first")
+    run_one("luajit " .. DIR .. "/src/027-test-blob.lua --dir " .. DIR .. " > /dev/null")
+  end
+
+  -- ask the wrapper where it puts an appended payload rather than keeping a
+  -- second copy of the answer here.
+  local pipe = io.popen("luajit " .. DIR .. "/src/029-wrap-uefi.lua --blob-offset")
+  local blob_offset = tonumber(pipe:read("*l"))
+  pipe:close()
+  if not blob_offset then die("the wrapper did not say where it puts an appended payload") end
+
+  -- where each header field sits, taken from the layout description that the
+  -- packer and the reader also use, so the payload cannot drift from them.
+  local format = dofile(DIR .. "/src/024-blob-format.lua")
+  local emit_report = dofile(DIR .. "/src/033-emit-blob-report.lua")
+  local offsets = emit_report.field_offsets(format)
+
+  local handle = io.open(base .. ".s", "w") or die("cannot write " .. base .. ".s")
+  handle:write(emit_report.x86_64(blob_offset, offsets))
+  handle:close()
+
+  local assembled = run_one("clang --target=" .. clang_target.x86_64
+                            .. " -c " .. base .. ".s -o " .. base .. ".o")
+  if not assembled then die("assembly failed for blob-report (see " .. base .. ".s)") end
+
+  local extracted = run_one("llvm-objcopy -O binary " .. base .. ".o " .. base .. ".raw")
+  if not extracted then die("extraction failed for blob-report") end
+
+  local wrapped = run_one("luajit " .. DIR .. "/src/029-wrap-uefi.lua --from "
+                          .. base .. ".raw --to " .. base .. ".efi --arch x86_64"
+                          .. " --append " .. blob .. " > /dev/null")
+  if not wrapped then die("wrapping failed for blob-report") end
+
+  say("built " .. base .. ".efi")
+end
+-- }}}
+
 -- {{{ local function build_uefi(arch, out_directory)
 local function build_uefi(arch, out_directory)
   -- A UEFI payload takes a different road out: assembled the same way, but
@@ -546,7 +594,9 @@ for _, name in ipairs(known_payloads()) do
   if only_payload == nil or only_payload == name then
     for _, arch in ipairs({ "x86_64", "aarch64", "riscv64" }) do
       if only_arch == nil or only_arch == arch then
-        if name == "uefi-hello" then
+        if name == "blob-report" then
+          if arch == "x86_64" then build_blob_report(out_directory) end
+        elseif name == "uefi-hello" then
           build_uefi(arch, out_directory)
         elseif buildable(name, arch) then
           assemble(arch, payload_steps(name, arch), name, out_directory)

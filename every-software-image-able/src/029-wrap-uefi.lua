@@ -107,15 +107,41 @@ local function align_up(value, to)
 end
 -- }}}
 
--- {{{ local function wrap(code, machine, entry_offset)
-local function wrap(code, machine, entry_offset)
+-- {{{ BLOB_OFFSET -- where an appended payload begins, measured from the code
+--
+-- A packed model rides inside the image rather than beside it, so the engine
+-- finds it by measuring from where it is standing rather than by asking a
+-- filesystem it does not have (issue 102). The distance is fixed rather than
+-- recorded anywhere, because a number the engine must look up is a number it
+-- must first find.
+--
+-- Sixty-four kilobytes is far more than any payload here needs and keeps the
+-- boundary obvious in a dump.
+local BLOB_OFFSET = 0x10000
+-- }}}
+
+-- {{{ local function wrap(code, machine, entry_offset, blob)
+local function wrap(code, machine, entry_offset, blob)
   local headers_bytes = DOS_STUB_BYTES + #PE_SIGNATURE + COFF_HEADER_BYTES
     + OPTIONAL_HEADER_BYTES + SECTION_HEADER_BYTES
   local headers_on_disk = align_up(headers_bytes, FILE_ALIGNMENT)
 
   local text_rva = SECTION_ALIGNMENT
-  local text_on_disk = align_up(#code, FILE_ALIGNMENT)
-  local image_bytes = align_up(text_rva + #code, SECTION_ALIGNMENT)
+
+  -- with something appended, the section runs from the code, through the gap,
+  -- to the end of what was appended -- one section holding both, so firmware
+  -- maps it all in without being told there is anything unusual about it.
+  local content = code
+  if blob then
+    if #code > BLOB_OFFSET then
+      die("the code is " .. #code .. " bytes, past the " .. BLOB_OFFSET
+          .. " where an appended payload begins")
+    end
+    content = code .. string.rep("\0", BLOB_OFFSET - #code) .. blob
+  end
+
+  local text_on_disk = align_up(#content, FILE_ALIGNMENT)
+  local image_bytes = align_up(text_rva + #content, SECTION_ALIGNMENT)
 
   local parts = {}
 
@@ -168,7 +194,7 @@ local function wrap(code, machine, entry_offset)
 
   -- {{{ the section header -- one section, all of it code
   parts[#parts + 1] = ".text\0\0\0"
-  parts[#parts + 1] = u32(#code)                   -- size once loaded
+  parts[#parts + 1] = u32(#content)                -- size once loaded
   parts[#parts + 1] = u32(text_rva)
   parts[#parts + 1] = u32(text_on_disk)            -- size on disk
   parts[#parts + 1] = u32(headers_on_disk)         -- where on disk
@@ -184,8 +210,8 @@ local function wrap(code, machine, entry_offset)
         .. headers_on_disk .. " the section header promised")
   end
   parts[#parts + 1] = string.rep("\0", headers_on_disk - written)
-  parts[#parts + 1] = code
-  parts[#parts + 1] = string.rep("\0", text_on_disk - #code)
+  parts[#parts + 1] = content
+  parts[#parts + 1] = string.rep("\0", text_on_disk - #content)
   -- }}}
 
   return table.concat(parts), image_bytes
@@ -193,7 +219,7 @@ end
 -- }}}
 
 -- {{{ main
-local from_path, to_path, arch, entry_offset = nil, nil, nil, 0
+local from_path, to_path, arch, entry_offset, append_path = nil, nil, nil, 0, nil
 local index = 1
 while index <= #arg do
   local word = arg[index]
@@ -205,6 +231,13 @@ while index <= #arg do
     index = index + 1 ; arch = arg[index] or die("missing value after --arch")
   elseif word == "--entry" then
     index = index + 1 ; entry_offset = tonumber(arg[index]) or die("--entry wants a number")
+  elseif word == "--append" then
+    index = index + 1 ; append_path = arg[index] or die("missing value after --append")
+  elseif word == "--blob-offset" then
+    -- so a payload can ask where an appended thing will be, rather than
+    -- carrying its own copy of the answer.
+    print(string.format("0x%x", BLOB_OFFSET))
+    os.exit(0)
   else
     die("unknown option: " .. word)
   end
@@ -222,7 +255,15 @@ local code = handle:read("*a")
 handle:close()
 if #code == 0 then die(from_path .. " is empty") end
 
-local application, image_bytes = wrap(code, machine, entry_offset)
+local blob = nil
+if append_path then
+  local appended = io.open(append_path, "rb") or die("cannot open " .. append_path)
+  blob = appended:read("*a")
+  appended:close()
+  if #blob == 0 then die(append_path .. " is empty") end
+end
+
+local application, image_bytes = wrap(code, machine, entry_offset, blob)
 
 local out = io.open(to_path, "wb") or die("cannot write " .. to_path)
 out:write(application)
@@ -231,4 +272,8 @@ out:close()
 say("wrapped " .. to_path)
 say(string.format("  for %s (machine 0x%x), %d bytes of code, %d once loaded",
                   arch, machine, #code, image_bytes))
+if blob then
+  say(string.format("  carrying %d bytes, beginning 0x%x past the code",
+                    #blob, BLOB_OFFSET))
+end
 -- }}}
