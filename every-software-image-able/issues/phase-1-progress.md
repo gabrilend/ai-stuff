@@ -10,7 +10,7 @@ be run is a file.
 
 | | | Status |
 |---|---|---|
-| `101` | Package a model, whichever one | not started |
+| `101` | Package a model, whichever one | done — 10 of 10 round-trip checks |
 | `102` | Find the weights without a filesystem | not started |
 | `103` | The arithmetic, in assembly | not started |
 | `104` | Sampling, and the carried seed | not started |
