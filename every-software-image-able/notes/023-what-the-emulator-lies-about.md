@@ -72,6 +72,41 @@ cannot say whether the discipline held has not tested the discipline.
 
 ---
 
+### There is no framebuffer to draw on unless the firmware is UEFI
+
+**What the design says.** Issue `202`: the firmware hands over a linear
+framebuffer — an address, a geometry, a pixel format — so the machine can draw
+from its first instant with no driver at all. That answered an open question
+in `004` about what draws the picture justifying a choice.
+
+**What is actually true.** That handover is UEFI's, and only UEFI's. Neither
+of the other two ways a machine can start provides it:
+
+| How the board starts | What a display costs at boot |
+|---|---|
+| UEFI firmware | nothing — the framebuffer is handed over with the memory map |
+| BIOS firmware | text memory exists at a fixed address, but it is 80x25 characters, not pixels |
+| No firmware at all | nothing exists. The display device needs a driver, enumeration and a command queue before one pixel moves |
+
+The example boards built for `701` use the second and third, because those
+were the shortest road to first light. Which was right then and is the thing to
+move past now: **the design's boot story and its framebuffer story both point
+at UEFI**, and the firmware for all three architectures is already on this
+machine.
+
+**Cost.** One afternoon, and it was found by trying to draw rather than by
+reading. The payload builder now refuses `draw` on the two boards that cannot,
+with the reason in the refusal, so the gap stays visible in the code rather
+than only here.
+
+**What was proved anyway.** On the BIOS board, a machine with no operating
+system wrote `first light, drawn` into text memory and it was photographed
+through the emulator's monitor and read back as text (`src/028`). Drawing
+before anything else exists is real. It is the *linear framebuffer* specifically
+that waits on UEFI.
+
+---
+
 ## Expected, unpaid
 
 Written down before being met, so that meeting them is cheaper. None of these

@@ -54,12 +54,34 @@ be the thing the design assumes.
    discovering it in the field. A machine that cannot speak is a machine nobody
    can help.
 
+## Which firmware, and what it costs
+
+The handover above is **UEFI's**, and only UEFI's. This was assumed rather than
+checked when the ticket was written, and building the harness proved it
+matters:
+
+| How the board starts | What a display costs at boot |
+|---|---|
+| UEFI | nothing; the framebuffer arrives with the memory map |
+| BIOS | text memory at a fixed address — characters, not pixels |
+| No firmware | nothing exists until a driver, an enumeration and a command queue do |
+
+So a board that boots any other way cannot draw at its first instant, and the
+seed should target UEFI on all three architectures — which is also what makes
+`402` work, since the architecture field a firmware matches on is UEFI's too.
+**The boot story and the drawing story point at the same place.**
+
 ## What this also settles
 
 `docs/004` asks what draws the picture that justifies a choice, given that the
 renderer is software that has to be built and the display may not be operable
 yet. The framebuffer answers it: **the machine can draw from the first instant,
-before it has a driver for anything.** Charts showing what a choice was made
+before it has a driver for anything** — on a UEFI machine.
+
+Proved in the small on 2026-08-02: a machine with no operating system wrote
+into BIOS text memory and the result was photographed through the emulator and
+read back as legible text. Drawing before anything else exists is real; the
+linear framebuffer specifically waits on UEFI boards. Charts showing what a choice was made
 against are available immediately rather than in a late phase.
 
 ## Blocks
