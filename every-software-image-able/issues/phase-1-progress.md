@@ -10,7 +10,7 @@ be run is a file.
 
 | | | Status |
 |---|---|---|
-| `101` | Package a model, whichever one | done — 10 of 10 round-trip checks |
+| `101` | Package a model, whichever one | **completed** — 10 of 10 round-trip checks, re-verified with the full suite before closing |
 | `102` | Find the weights without a filesystem | finding works on x86-64; memory map and ratchet remain |
 | `103` | The arithmetic, in assembly | nine kernels bit-exact 37 of 37; a whole pass on them 4 of 4; exponential specified 8 of 8; memory budget 6 of 6 |
 | `104` | Sampling, and the carried seed | reference done, 9 of 9; assembly not started |
