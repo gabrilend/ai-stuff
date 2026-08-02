@@ -46,6 +46,22 @@ Ties are broken by token number. An unstable sort would let two identical
 images disagree, which would quietly break the only reproducibility this design
 has.
 
+## Precision is part of the specification here too
+
+Every floating step is single precision, rounded where the machine rounds,
+and the exponential is the specified one (`047`) rather than the host
+library's — because a chosen token is discrete, and a hair of difference at
+one boundary sends two implementations down different lives. The assembly
+twin (`057`) is held to this reference choice for choice and bit for bit by
+`058`.
+
+The generator is exact sixty-four bit integers. The first version multiplied
+in ordinary host numbers, which hold integers exactly only to fifty-three
+bits — and the product here reaches sixty-one. It looked like an integer
+generator and quietly was not, which is precisely the kind of specification
+no assembly could ever match. The same lesson as the forward pass (`notes/023`),
+found before a fixture froze it in place this time.
+
 ## What `041` checks
 
 Probabilities that add to one and never invert the score order; determinism
@@ -57,4 +73,4 @@ say; and that running out of carried numbers is noticed.
 
 ## Result on 2026-08-02
 
-9 of 9.
+9 of 9, at the single-precision specification.

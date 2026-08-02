@@ -20,8 +20,29 @@ never say.
 Sorting breaks ties by token number, so two identical images cannot disagree
 through an unstable sort.
 
-**The assembly version does not exist yet**, and neither does the image builder
-step that bakes the file in — `generate_file` is here, `502` has to call it.
+**The assembly version exists and agrees exactly** — `src/057` emits it,
+`src/058` holds it to the reference: fifteen thousand draws across ordinary,
+sharpened, flattened, tail-cut, frozen and wrapped settings, every choice
+identical and every chance identical to the bit, with the two streams walking
+in step. 8 of 8 on 2026-08-02.
+
+Getting there respecified the reference the same way the forward pass was
+respecified. Every floating step is now single precision and the exponential
+is the specified one (`047`) — a chosen token is discrete, and a hair of
+difference at a boundary sends two implementations down different lives. And
+the generator moved to exact sixty-four bit integers: the first version
+multiplied in host numbers that hold integers exactly only to fifty-three
+bits while the product reaches sixty-one. It looked like an integer generator
+and quietly was not — the same lesson as `notes/023`, caught before a fixture
+froze it.
+
+The assembly reaches the reference's sorted-and-cut order without sorting:
+it repeatedly extracts the first strict maximum, and the tie rule (equal
+chances go to the lower token) is what makes the two walks provably
+identical.
+
+The image builder step that bakes the file in remains `502`'s: `generate_file`
+is here, and `502` calls it when there is an image to bake it into.
 
 ## Intended behavior
 
