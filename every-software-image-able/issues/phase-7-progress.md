@@ -14,7 +14,9 @@ later," since in practice `701` is the first ticket anyone should finish.
 | | | Status |
 |---|---|---|
 | `701` | Run it with no computer | not started |
-| `702` | Devices that can die | not started |
+| `702` | Devices that can die — the parent of the two below | not started |
+| `702a` | Trap registers | not started |
+| `702b` | Devices that die realistically | not started |
 | `703` | Watch what it wrote | not started |
 | `704` | Cut the power on purpose | not started |
 | `705` | What the emulator lies about | not started |
@@ -22,12 +24,17 @@ later," since in practice `701` is the first ticket anyone should finish.
 ## Where the risk is
 
 `702`, and it is a risk of omission rather than of difficulty. Emulated devices
-ignore the writes that destroy real ones, so without this ticket the exploration
+ignore the writes that destroy real ones, so without this the exploration
 discipline is an intention with no failing test attached — and a machine could
 pass everything by exploring recklessly, then kill the first real board it met.
 
 It is also the only substantial thing built in this phase. The rest is
 configuration of a tool that already exists.
+
+`702a` is cheap and should exist within a day of `701`. The one thing to get right
+in it is that the halt stops the emulator rather than raising anything the machine
+can see — a trap it can observe teaches it that forbidden writes give immediate
+survivable feedback, which is the opposite of what hardware teaches.
 
 `705` is the ticket that never finishes, and should not be closed. It is a list
 that grows every time the board disagrees with the emulator.

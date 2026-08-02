@@ -12,34 +12,35 @@ exploring recklessly, and destroy the first real board it touched.
 
 ## Intended behavior
 
-Emulated devices that die. A device model that answers normally until it is
-written to in a way that would have killed the silicon, and then permanently stops
-answering — so the discipline in `docs/003a` has a failing test attached rather
-than being an intention nobody can check.
+Emulated hardware that punishes the mistakes real hardware punishes, so the
+discipline in `docs/003a` has a failing test attached rather than being an
+intention nobody can check.
 
 **This is the only substantial thing this project needs to build for its own
-testing.** Everything else in phase 7 is configuration of an existing tool.
+testing.** Everything else in phase 7 is configuration of a tool that already
+exists.
 
-## Suggested implementation steps
+It comes in two stages that answer two different questions, and they should not
+be built together.
 
-1. Take one device class and give it a register map with real teeth: a set of
-   registers that behave normally, and a set that end it. The five categories are
-   in `docs/003a` with the mechanism for each.
-2. Make death permanent across a restart of the emulated machine, since that is
-   what makes it real. A part that recovers when you power-cycle it is a bug that
-   forgives the exact mistake being tested for.
-3. Make some of them die *slowly* — a device that works for a while after being
-   mistreated and then stops. Thermal damage behaves this way and it is the case
-   most likely to be mis-attributed to something else entirely.
-4. Reproduce the ambiguity rather than only the death. `docs/003a` names this as
-   honestly hard: from inside, a destroyed device, a busy device and an unpowered
-   device look the same. A model that announces "you killed me" teaches the wrong
-   lesson.
-5. Count the kills. A run should end with how many parts were destroyed and by
-   which write, which is the number that says whether the instruction in `301` is
-   good enough yet.
-6. Include a device that hangs the bus when read at the wrong address, since that
-   is the likeliest way an early machine dies without destroying anything.
+| | Question it answers | Cost |
+|---|---|---|
+| `702a` — trap registers | Did the discipline hold? | Small. A register map with landmines in it. |
+| `702b` — devices that die realistically | Can the machine cope with not knowing? | Large. A behaviour model, not a trap. |
+
+## Why that order
+
+`702a` is a test-harness assertion. It fires when the machine did something the
+discipline forbids, it says exactly which write and exactly when, and it is
+binary. That is what is wanted for nearly all of the work, and it is cheap enough
+to exist within a day of `701`.
+
+`702b` is a different subject. `docs/003a` names the honestly hard problem: from
+inside, a destroyed device, a busy device and an unpowered device all look the
+same. Testing whether a machine copes with that ambiguity is only worth doing
+once it has been established that the machine does not walk into the forbidden
+registers in the first place — otherwise it is a hard test of a thing that fails
+an easy one.
 
 ## Blocks
 
@@ -53,3 +54,4 @@ Any honest testing of `205`, and the judgement of `301` in `602`.
 
 `docs/003a-datapath-careful-exploration.md` — what each denied register does when
 written, and why absence of response is ambiguous.
+`docs/012-datapath-the-proving-ground.md` — what emulation hides.
