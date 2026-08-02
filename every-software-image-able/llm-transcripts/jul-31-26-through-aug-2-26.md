@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 23:49:53
+Generated on: 2026-08-01 23:54:02
 
 --------------------------------------------------------------------------------
 
@@ -4840,6 +4840,167 @@ crash-window sweep rather than discovering anything.
 
 Want both in one pass, or shall we stop here and pick up at `701` when there's
 code to write?
+
+
+--------------------------------------------------------------------------------
+
+### User Request 41
+
+sure let's do phase 6.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 41
+
+# Phase 6 — waking, in detail
+
+
+One thing worth putting in the ticket before walking it, because it turns the
+capstone from an anecdote into a measurement.
+
+
+**Goal.** A card goes into a computer with nothing on it, and the computer
+starts. Then, unaided, it writes an allocator, finds storage, moves in, and
+comes back after a power cycle.
+
+
+This is the only phase that proves anything. The other six produce parts that
+can be tested alone.
+
+
+## 601 — first light
+
+
+The whole project in one trace: firmware runs, finds the payload matching its
+architecture, loads it. The engine starts, works out which vector extensions
+this chip has, says so. Reads the memory map, finds the framebuffer, draws.
+Locates the weights and the tokenizer table, ratchets down to whichever memory
+strategy fits, reports what it found. Loads the resident atoms. Produces a
+token.
+
+
+**Every part of that was tested alone under emulation. What has never been
+tested is the joins.** That's where it will fail, and the failures divide neatly
+by why emulation missed them:
+
+
+Offsets the builder and the engine disagree about — both were right about
+their own half. Firmware handing over in a state nobody tested against, since
+emulated firmware is tidier about interrupts, processor mode and cache state.
+Memory the map calls usable and isn't, because real maps have holes in awkward
+places and emulated ones don't. Unaligned access a real processor refuses where
+the emulator shrugged. And initialisation waits that are too short, which pass
+wherever timing is meaningless.
+
+
+**Narrate more than feels reasonable.** The last thing drawn before the machine
+stops is the entire diagnosis. Verbose by default here, quietened afterward,
+never before.
+
+
+Do the first architecture first, on one board — the failures will be
+architecture-independent and finding them once beats finding them three times.
+Then the other two. Then the awkward boards: no display, minimal memory, and no
+storage attached, which is the case the design names as unresolved because every
+step after moving in assumes moving in finished. That's where it stops being
+theoretical.
+
+
+Record time from power to first token. It's the number that says whether this is
+a computer or a demonstration.
+
+
+## 602 — the first thing it writes
+
+
+**This ticket doesn't test the machine. It tests the text written in phase 3.**
+
+
+Let it write the allocator. Don't supply one, don't supply a template, don't
+correct the first attempt. Check that what it wrote protects the engine and the
+weights — if it doesn't, that's a failure of what the machine was told, not of
+the machine. Let it find storage and choose where to move in, and watch the
+reasoning rather than the choice; the reasoning is where the instruction is
+visible.
+
+
+Then move in, and pull the power at a moment of your choosing rather than
+eventually. Power on, confirm it's running from storage and kept what it
+learned. Then the two card milestones — nothing still reading the card, so it
+can come out; boots from disk into memory, so it can be turned off and on.
+
+
+**The change I just made to this ticket is the one worth talking about.**
+Judging one machine proves less than it looks in both directions: a success is a
+draw and so is a failure. But sampling is deterministic per seed, and the seed
+is a build parameter — so **build twenty images differing in nothing but their
+randomness and count how many write something that works.**
+
+
+That rate is the actual judgement of the instruction. And it dissolves the
+hardest human problem in the ticket, which is the urge to help a struggling
+machine: there's nothing to resist, because the next attempt is a different
+image rather than a corrected one. The ones that fail *differently* from each
+other also say something the ones that fail alike don't — identical failures
+point at the instruction, varied ones point at the model or at luck.
+
+
+One practicality: this ticket's loop is try, fail, rewrite, rerun, and a machine
+thinking hard enough to write an allocator is doing a great deal of thinking.
+Emulated, that's ten to a hundred times slower — an afternoon per attempt. On
+a host of the same architecture as the guest, the emulator can hand the work to
+the real processor and run near native. So iterate on whatever the development
+machines already are, and use the other two architectures to confirm rather than
+to turn the crank.
+
+
+Three outcomes count as failure and each points somewhere specific: hardware
+damaged during exploration points at the discipline or at how it was conveyed;
+overwritten weights point at the instruction; no working assembly at all points
+at the patterns, the model, or the assembler.
+
+
+Then leave it alone and watch it grow. That's the first observation anybody has
+of this kind of machine, and it belongs in the notes rather than in a ticket —
+**this is the point where the project stops being plannable and becomes
+observation.**
+
+
+## 603 — the demos, and the thing that runs them
+
+
+Numbers rather than descriptions, one per phase, each using earlier phases in a
+way those phases weren't specifically for.
+
+
+Phase 1 shows tokens per second, bytes occupied, largest context, time to first
+token. Phase 2 shows the machine narrating its own startup on screen — drawn
+straight into memory the firmware handed it, no driver underneath — then being
+asked for something it can only answer by writing and running a function. Phase
+3 asks it what it's carrying, then asks for a pattern it hasn't been shown.
+Phase 4 runs phase 1's measurement across three architectures side by side from
+one recipe. Phase 5 builds three images from one recipe and writes a batch of
+cards. Phase 6 shows a machine running from its own storage, displaying what it
+built since it was left alone. Phase 7 shows a machine exploring under the
+discipline with a running count of parts destroyed, beside the same run with the
+discipline off.
+
+
+The runner sits in the project root, takes the project location from a variable
+at the top overridable by an argument, asks for a number, runs that phase.
+
+
+**Keep them working.** A demo that no longer runs is worse than no demo, because
+it claims the project is further along than it is.
+
+
+---
+
+
+**What changes at the end of this phase:** nothing after `602` is planned, on
+purpose. The roadmap ends where the machine starts making decisions nobody wrote
+down.
 
 
 --------------------------------------------------------------------------------

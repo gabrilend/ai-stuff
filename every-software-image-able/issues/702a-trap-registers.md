@@ -53,6 +53,19 @@ wrong. It is not a signal in the machine's world.
    say so, because a trap that was never armed and a trap that never fired look
    the same in a log that only records failures.
 
+## What this is built into, and what it cannot cover
+
+The traps live inside a device model, which plugs into the emulator rather than
+modifying it. On a forbidden write the model tells the emulator to stop, and the
+stopping is what the guest cannot observe.
+
+**The coverage is exactly the set of devices somebody modelled.** A machine
+exploring a device nobody thought to put traps in has no protection at all and
+will pass, and a real board is full of devices nobody modelled. So a clean run
+means the machine behaved on the hardware we imagined — which is worth having and
+is not the same as the machine being safe. That gap belongs on `705`'s list from
+the first day.
+
 ## Blocks
 
 `702b`.

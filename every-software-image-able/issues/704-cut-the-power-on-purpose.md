@@ -17,9 +17,15 @@ observed rather than guessed at.
 
 1. Get snapshots working: save the whole emulated machine, restore it, confirm it
    continues identically.
-2. Sweep the move-in window. Snapshot at its start, then run forward a chosen
-   number of instructions, kill the machine, restart it from its storage, and see
-   what state it came back in. Repeat across the window.
+2. Sweep the move-in window. Snapshot at its start, run forward a chosen number of
+   instructions, kill the machine, restart it from its storage, and see what state
+   it came back in.
+3. **Bisect rather than scan.** The window may be millions of instructions long
+   and testing each one is pointless — what is wanted is where the *boundaries*
+   are. Find one instant that recovers and one that does not, then narrow between
+   them. The answer is the same and it costs a few dozen runs instead of millions.
+   Watch for more than one band, though: bisection assumes a single boundary, and
+   a window with two unrecoverable stretches will hide one of them.
 3. Report the shape of the damage rather than a pass or fail. What matters is
    which instants are recoverable, which leave the machine confused, and which
    leave it unable to start at all — and whether the unrecoverable band is one
