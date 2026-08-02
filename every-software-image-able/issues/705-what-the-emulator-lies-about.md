@@ -6,12 +6,30 @@ Passing every emulated test is treated as meaning the seed works. It does not
 mean that, and the places where it does not are currently discovered one at a
 time, painfully, at first light.
 
-**The list exists**, at `notes/023-what-the-emulator-lies-about.md`, seeded
-with the three differences below plus five expected-but-unpaid ones written
-down before being met.
+**This ticket does not close.** It is a list that grows every time the board
+disagrees with the emulator, and marking it done would mean claiming the
+disagreements had stopped. It is in its correct state when it is current, not
+when it is finished.
 
-All three of these were paid for during `701` and `702a` rather than
-predicted:
+**The list is at `notes/023-what-the-emulator-lies-about.md`** and now holds
+fifteen entries, each with a price beside it, plus five expected-but-unpaid
+ones written down before being met. A list of differences is interesting; a
+list of differences with costs attached is the argument for how often to stop
+developing against emulation and go put something on a card. That argument
+gets made on feeling otherwise.
+
+What has been added since the ticket was written, all paid for rather than
+predicted: no framebuffer without UEFI; three firmwares handed over three
+different ways; an image base that is memory on one machine and nowhere on
+another; every symbol reference becoming a silent zero with no linker;
+offsets counted by hand producing numbers that look like numbers; a fixture
+with an unstated precision; the two RAM tiers; a transcribed constant; the
+stack pointer's small region; where a rounding happens; the one failure that
+was loud; and — most recently — that **the emulated processor is not the
+host's processor**, which cost a test written on a wrong premise and returned
+a better test than the original.
+
+The three the ticket was seeded with, paid for during `701` and `702a`:
 
 | Difference | What it cost |
 |---|---|
