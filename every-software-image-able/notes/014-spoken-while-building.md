@@ -22,6 +22,22 @@ what this project is trying to make.
 
 ---
 
+On the card the machine was flashed from, and when it comes out:
+
+> It should derive the fact that it can accidentally overwrite it's prime
+> directive... except from the flashing medium, which is probably going to stay in
+> place (referenced probably? as some sort of holy truth grail or something?)
+> until the system has fully built itself. Though it could be removed as soon as
+> the system is running independently — learning to walk on it's own.
+
+Which gave the read-only medium a third job nobody designed for it. It plants, it
+cannot be harmed by what it plants, and it remembers — holding the original of
+everything the machine was told, readable for as long as it is there. Pulling it
+is the moment the machine stops being able to check itself against what it was
+handed, and becomes only what it has become.
+
+---
+
 On being allowed to start from something somebody else made:
 
 > If we want to be up and running quickly, bundle the driver code. If we want

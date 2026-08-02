@@ -31,7 +31,18 @@ machine can think about at once.
    condensing as requirements. They are patterns and belong in `303`. The
    instruction should be able to be read by a machine that decides to organise
    itself completely differently and still be followed.
-5. Keep it short enough to sit in context alongside actual work. Everything that
+5. **Say that the atoms making up the instruction can be rewritten. Do not say
+   what that could cost.** The machine should derive for itself that overwriting
+   its own instruction could destroy its own purpose — a machine that works that
+   out understands it, where one that was warned has only been handed another
+   rule.
+
+   Leaving it underived is safe while the delivery medium is plugged in, because
+   the medium is read-only and still holds the original (`docs/003`). The mistake
+   is undoable for exactly as long as the card is there, which is why nothing has
+   to be said in advance and why the instruction should not pre-empt the
+   discovery.
+6. Keep it short enough to sit in context alongside actual work. Everything that
    does not fit goes into what can be fetched (`304`).
 6. Write it in the plainest language available. It is read by something that has
    never seen this project and has no way to ask what a term means.

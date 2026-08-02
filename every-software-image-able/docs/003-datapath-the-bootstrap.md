@@ -197,6 +197,26 @@ It also removes a class of failure that a writable seed has. Nothing a machine
 does — including dying halfway through doing it — can damage the thing that would
 have started the next one.
 
+**And it stays as the original.** After moving in, the machine is running from its
+own copy and may rewrite any of it, including the instruction it was given
+(`013`). The card still holds what that instruction said, unaltered, readable, for
+as long as it is plugged in. A machine that has overwritten its own purpose can go
+and look at what it was handed.
+
+So the medium has three jobs, and none of them required designing: it plants, it
+cannot be harmed, and it remembers.
+
+## Pulling the card
+
+Removing the delivery medium is a real event rather than tidying up. Before it,
+the machine can always check itself against what it was told. After it, the
+machine is only what it has become.
+
+Nothing needs it after moving in — the engine, the weights and the payload were
+all copied to storage — so it can come out as soon as the machine runs
+independently. When that is depends on judgement rather than on a condition
+anything can test, which is question 21 in `008`.
+
 Memory is writable whether or not the boot medium is, so read-only delivery never
 stopped the machine thinking; it only stopped it keeping. The window where that
 still matters is between power arriving and moving in. Until there is somewhere

@@ -31,6 +31,14 @@ first moment this project has anything rather than parts.
    unresolved — every step after moving in assumes moving in finished — and this
    is where it stops being theoretical.
 
+## Leave the card in
+
+Nothing in this ticket removes the delivery medium, and nothing should. While it
+is plugged in, the original of everything the machine was told is still readable
+from it, so a machine that has overwritten its own instruction can be recovered
+rather than reflashed (`docs/003`). Pulling it belongs to `602`, and only once
+somebody has decided the machine is walking on its own.
+
 ## Blocks
 
 `602`.
