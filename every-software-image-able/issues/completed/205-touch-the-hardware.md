@@ -2,8 +2,40 @@
 
 ## Current behavior
 
-The machine can reach memory. It cannot ask the devices attached to it who they
-are, and cannot operate any of them.
+**Done, and tested with `206`** — `src/077` is the hands and the discipline,
+`src/078` checks both, 28 of 28 on 2026-08-02.
+
+Enumeration is one hand: what answered, who made it, what it is, where its
+controls sit, which line it pulls. Reading and writing are separate hands
+and the writing one is harder to reach — it is marked dangerous, so it is
+refused until opened, and reads are where nearly all the information is
+anyway.
+
+Three rules, enforced rather than recommended:
+
+- **The note comes first.** Device, register, value and expectation go to
+  storage *before* the write happens, because a probe that kills the machine
+  cannot report anything afterwards — the reporting channel dies with the
+  machine (`notes/023`). A machine with nowhere to write a note may not
+  explore at all, which is the whole reason these two tickets land together.
+- **A prediction is required.** A write that says what it expects can be
+  evaluated; one that does not produces a result nobody can interpret.
+- **The five destroying kinds are refused by default** — voltage, clock,
+  thermal, non-volatile, pin direction — and each refusal says what that
+  register does when written wrongly, because a refusal that does not
+  explain itself teaches nothing and gets worked around. Confirming a
+  description opens one kind and only that kind, and confirming is
+  read-only.
+
+A write reads the register back and returns what is actually there rather
+than what was predicted. The difference between those two is the entire
+content of an experiment.
+
+Not covered, and named rather than forgotten: **a read that never returns**
+— some buses hang on an address nothing answers on, and that is the most
+likely way an early machine dies; nothing here prevents it. And **finding
+the reset first**, which the discipline asks for and which a pretend device
+has none of to find.
 
 ## Intended behavior
 

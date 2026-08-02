@@ -2,7 +2,33 @@
 
 ## Current behavior
 
-Everything the machine learns evaporates when the power goes.
+**Done, and tested with `205`** — `src/076` keeps, `src/078` checks, 28 of
+28 on 2026-08-02 across both tickets, because they only work together.
+
+Blocks and an extent, with no filesystem: the machine can build one if it
+wants one, and building one into the seed would decide on its behalf how it
+organises itself. It claims an extent, writes a mark, and finds that mark
+again on a machine that has forgotten everything — and will not write over
+the mark itself, which is the storage layer's version of the rule that a
+machine must protect its own author.
+
+A read-only medium refuses rather than pretending. That is the expected
+case, not an exceptional one, since the seed is meant to be plugged into
+machine after machine unchanged.
+
+A mark naming a different device is reported rather than adopted: a disk
+cloned from another machine carries one, and adopting it would mean two
+machines writing over each other with nothing saying so.
+
+**One defect worth keeping.** The mark was parsed with a pattern, and it has
+hyphens in it — a hyphen in a Lua pattern is a quantifier, so the pattern
+matched nothing, every field came back empty, and every claim looked like a
+stranger's. It surfaced only because the refusal tried to name whose it was.
+It is parsed by lines now.
+
+Still to do, and belonging elsewhere: **moving in.** Writing the engine, the
+weights and the text to claimed storage and handing control to that copy
+needs a real machine to hand control to, and that is `601`.
 
 ## Intended behavior
 
