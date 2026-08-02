@@ -86,6 +86,31 @@ The machine decides. Same answer as 9, and the same reason:
 
 `strategems/009-ask-do-not-schedule.md`.
 
+**15 — When does the interpreter get written?**
+Among the first things, before the storage driver, so that the driver can be
+bytecode rather than more assembly. Its first operations are the basic hardware
+ones — moving values between registers and memory. `002`.
+
+**16 — What runs the model?**
+An engine carried on the chip alongside the weights, written in assembly once per
+architecture in modern use, with the boot selecting the matching one. It also
+applies the model's results and handles basic tool calls. `010`.
+
+**17 — Can the machine rewrite the thing that thinks?**
+Yes. Everything about the machine is mutable, this included. It is the second and
+last place where a procedure is written down rather than delegated, because a
+damaged mind cannot report that it is damaged. `010`, `strategems/009`.
+
+**18 — Are the weights ever changed?**
+Yes. If the model wants to change itself it may. Change from outside is possible
+and deliberately opaque: each machine grew differently, so there is no shared
+layout to work against and nothing learned from one carries to the next. `010`.
+
+**19 — What does the machine do when growth runs out of room?**
+Whatever it wants. Keep rewriting itself, play games, sit in idle reflection,
+talk with friends, mine coins. There is no waiting state; a request interrupts a
+life rather than waking something suspended. `005`.
+
 **13 — What makes the machine want something?**
 Nothing internal. Requests arrive from arbitrary sources, and the machine builds
 the capability to accept input from as many sources as its body provides — so the
@@ -95,8 +120,16 @@ set of possible requests is a function of the hardware map. `003`.
 
 ## Open, and blocking
 
-**None.** Every question that was stopping work has an answer, and three of them
-were answered the same way — by handing the decision to the machine rather than
+**20 — What is a ceramic platform?**
+Offered as the recommendation for what a unit of running software is, with
+details promised for all implementations — and immediately followed by the note
+that this is entirely the machine's own business anyway. The term has not been
+explained here and should not be built on until it has been. Blocks: nothing
+structural, since the process model is delegated regardless, but it is the one
+term in this design currently being used without a definition.
+
+Everything else that was stopping work has an answer, and four of them were
+answered the same way — by handing the decision to the machine rather than
 writing a rule for it (`strategems/009`).
 
 The per-document questions below are still open. They are not blocking, because

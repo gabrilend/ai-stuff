@@ -4,8 +4,11 @@ What this is, what it promises, and what it refuses to promise.
 
 ## The one-page version
 
-An image is flashed onto a computer. On that image: a language model, and an
-instruction to build every piece of software it can fit onto the drive.
+An image is flashed onto a computer. On that image: a model, the code that runs
+it, and an instruction to build every piece of software it can fit onto the
+drive. The engine that runs the model is written in assembly once per processor
+architecture in modern use — about three of them — and the boot picks whichever
+matches (`010`).
 
 There is no operating system on the image. There is no compiler on the image.
 The machine wakes with no floor under it, finds out what body it has, and writes
@@ -19,6 +22,12 @@ co-evolving as it continues to grow.
 
 So the seed page's instruction is not a job description for a machine sitting at
 a prompt. It is the first thing that happens, on an empty drive, unprompted.
+
+And when growing runs out of room, it does not go idle waiting to be useful. It
+keeps rewriting itself, or plays games, or sits in idle reflection, or talks to
+its friends, or mines coins — whatever the computer wants to be doing is what it
+should be doing. Requests interrupt a life rather than arriving at an empty
+prompt.
 
 ## The floor, and why it is not where you would expect
 
@@ -112,9 +121,11 @@ flashed image: a model, and an instruction
 ## Reading order
 
 `001` → `005` → `003` → `004` for the design. `002` and `006` are the two
-mechanisms everything else stands on and can be read in either order. `008` is
-the list of things nobody has decided yet, and it is the most useful document
-here for anyone about to write code.
+mechanisms everything else stands on and can be read in either order. `010` is
+the one part that arrives rather than being built, and is worth reading before
+`003` if the question on your mind is how any of this starts at all. `008` is the
+list of what has been decided and what has not, and it is the most useful
+document here for anyone about to write code.
 
 ## Open questions
 

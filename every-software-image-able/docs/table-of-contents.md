@@ -26,7 +26,8 @@ every-software-image-able/
 │   ├── 005-datapath-the-four-rungs.md  use it, alter it, build it, condense it
 │   ├── 006-datapath-status-and-tolerance.md  the colourshape, the square, and walking backward
 │   │
-│   └── 008-open-questions.md ........ every question, closed and open, in one place
+│   ├── 008-open-questions.md ........ every question, closed and open, in one place
+│   └── 010-datapath-the-mind.md ..... what arrives rather than being built, and changing it
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
