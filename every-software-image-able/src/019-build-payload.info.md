@@ -1,36 +1,68 @@
-# 019-build-first-light — info
+# 019-build-payload — info
 
-Builds the first-light stubs: one tiny payload per architecture that boots on
-its example board and says `first light: <arch>` over the console. They prove
-the harness end to end and are scaffolding, never the seed.
+Builds small payloads that run on a bare emulated board. One tool, several
+payloads: a first-light stub that only says hello, and hazard probes that
+deliberately write where they must not, so the traps in 021 have something to
+catch.
+
+Was `019-build-first-light`. Generalised rather than copied when the trap work
+needed a second kind of payload — one builder that takes a description, not
+two builders that share a generator.
 
 ## Invocation
 
 ```
-luajit src/019-build-first-light.lua [--arch x86_64|aarch64|riscv64] [--dir PROJECT_ROOT]
+luajit src/019-build-payload.lua [--payload NAME] [--arch NAME] [--dir ROOT]
 ```
 
-No `--arch` builds all three. Artifacts land on the RAM artifact tier at
-`tmp/shared-memory/first-light/<arch>.{s,o,bin}` — the generated assembly is
-kept beside the binary so what ran is always readable.
+Omitting `--payload` builds every known payload; omitting `--arch` builds all
+three architectures. Artifacts land on the RAM artifact tier at
+`tmp/shared-memory/payloads/<payload>-<arch>.{s,o,bin}` — the generated
+assembly is kept beside the binary, so what ran is always readable.
+
+## Known payloads
+
+| Name | What it does |
+|---|---|
+| `first-light` | says `first light: <arch>` and sleeps |
+| `hazard-<category>` | announces the register it is about to write, writes the fatal value there, then announces that it survived |
+
+The hazard categories come from the forbidden register map (020), so adding a
+category there adds a payload here. The addresses come from there too, which
+is what stops a probe and a trap pointing at different places.
+
+**Why a hazard probe speaks before it acts.** If the write really does end the
+machine, no watchpoint can report it — the debugger connection dies with the
+machine. The console is then the only witness, and the last line before
+silence is the confession.
 
 ## How it works, in one paragraph
 
-The assembly is generated from the message string: each character becomes a
-load-immediate plus a store to the board's console address, then the machine
-sleeps forever. No data section, no relocations — which is what lets the
-whole build be `clang -c` plus `llvm-objcopy -O binary`, with no linker on
-the machine at all. The x86 variant is a BIOS boot sector and is checked to
-be exactly 512 bytes; the other two are raw binaries for the boards' loader
-paths.
+The assembly is generated from a list of steps rather than written by hand.
+Two kinds of step exist: `say` a string, and `poke` a value to an address.
+Each becomes load-immediates and stores, so a payload has no data section and
+no relocations — which is what lets the whole build be an assembler and an
+extractor, with no linker on the machine at all.
 
-One generator per architecture in a dispatch table (`emit`). Adding an
-architecture is adding a row and a clang target triple.
+One generator table per architecture, each knowing `prologue`, `say`, `poke`
+and `epilogue`. Adding an architecture is adding a table and a target triple;
+adding an instruction is adding a row to each. The x86 variant is a BIOS boot
+sector and is checked to be exactly 512 bytes.
+
+## Constraints worth knowing
+
+The x86 payload runs in 16-bit real mode and can only reach addresses below
+`0x10000`. Hazard addresses for that board sit inside that range; anything
+further away cannot be poked from a boot sector.
+
+The console addresses are duplicated from the board descriptions, and marked
+as such in the source. A payload is built for an architecture rather than for
+a board, so the builder has no board to read them from. If a second board per
+architecture ever appears with a different console, that duplication becomes a
+lie and the builder should start taking a board instead.
 
 ## Proven results
 
-All three stubs produced first light on their boards on 2026-08-02, on the
-first attempt, via launcher 018. The empirical findings — the ARM board needs
-its PC set by a second loader entry, the RISC-V reset vector jumps to DRAM
-start with no firmware — are recorded in the board info files where they
-belong.
+All payload kinds built and ran on all three architectures on 2026-08-02.
+First light on each board; hazard probes caught by the traps in `022`, six of
+six cases as expected.
