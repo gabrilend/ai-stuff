@@ -79,6 +79,7 @@ run_test "saying how it is"                   "080-test-emit-a-status.lua"
 run_test "what it wakes up holding"           "085-test-the-payload.lua"
 run_test "a recipe, a board, and their bytes" "090-test-the-image.lua"
 run_test "devices that die, and the confusion" "093-test-devices-that-die.lua"
+run_test "watching, and cutting the power"    "096-test-watching-and-power.lua"
 
 if [ -z "${QUICK}" ]; then
   # These boot real emulated machines on three architectures and take minutes.

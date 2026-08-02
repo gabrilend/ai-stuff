@@ -2,8 +2,35 @@
 
 ## Current behavior
 
-When code the machine produced misbehaves, there is nothing to look at. No source
-file, no symbols, no names — and before `202` works, nothing to print with either.
+**Done, and tested** -- `src/094`, checked by `src/096`, 19 of 19 on
+2026-08-02.
+
+Attaching a debugger was never the hard part; the trap runner already did it.
+The hard part is that the code under inspection was produced at runtime by
+the model, so there is no file, no symbols and no names, and a debugger can
+say only that it is at an address.
+
+**The requirement this ticket put back on `204` is met rather than assumed.**
+The machine writes its own bookkeeping into guest memory in a layout declared
+once as data -- which programs it built, where each went, how long each is,
+and the text each was made from. Nothing inside the machine needs it in that
+shape; a tool outside does, and that makes it a contract with something that
+lives outside the machine.
+
+A tool with nothing to ask finds it by scanning for a number nothing else
+would plausibly be, then walks the records using a stride read from the
+record itself rather than assumed -- so a machine that has grown and changed
+its own bookkeeping can still be walked by a tool built before it changed.
+
+The answer the ticket exists for: an address becomes "you are thirty-two
+bytes into the thing it called the thing that finds disks, of four hundred",
+with the text it was made from beside it. Where to break is exactly what the
+machine built, so that list is the ledger rather than a second one that could
+drift.
+
+**It does not pretend to know which line.** The assembler inserts a watch at
+every loop back-edge, so the instruction count and the line count drift
+apart, and the tool says nothing rather than guessing -- which is checked.
 
 ## Intended behavior
 
