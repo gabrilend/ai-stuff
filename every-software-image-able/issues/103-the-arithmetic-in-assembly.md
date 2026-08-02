@@ -2,8 +2,26 @@
 
 ## Current behavior
 
-Nothing computes anything. This is the largest single piece of work in the
-project and the one everything else waits on.
+**The fixture exists, and it is the half that makes the other half possible.**
+A forward pass written plainly on the host (`src/035`) — embedding lookup,
+normalisation, the projections, rotary position encoding, attention over the
+cached keys and values with fewer key heads than query heads, the gated
+feedforward, and the projection to a score per token. It runs, and what it
+produces is recorded in `assets/036-fixture.lua`.
+
+`src/037` checks that record and five things that must be true regardless of
+whether the record is right — because a fixture only catches change, and one
+generated from a broken implementation would preserve the breakage forever.
+The sharpest of them: adding a token to the prompt must not change any earlier
+answer. Seven of seven on 2026-08-02.
+
+Which tensors a model contains is in `src/034`, so nothing works out names for
+itself.
+
+**The assembly does not exist yet.** That remains the largest single piece of
+work in the project. What has changed is that it now has something to be
+checked against, on every architecture, without anybody having to decide
+case by case whether an answer looks right.
 
 ## Intended behavior
 
