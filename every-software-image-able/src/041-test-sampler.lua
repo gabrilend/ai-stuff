@@ -63,7 +63,12 @@ local count = #scores
 local probabilities = sampler.softmax_with_temperature(scores, count, 1.0)
 local total = 0
 for index = 1, count do total = total + probabilities[index] end
-check("the chances add up to one", math.abs(total - 1) < 1e-9,
+-- The sampler's arithmetic is single precision by specification (so the
+-- assembly can match it to the bit), and eight single-precision roundings
+-- leave a total within a few parts in ten million of one -- not a few parts
+-- in a thousand million, which was the tolerance when the reference summed
+-- in doubles.
+check("the chances add up to one", math.abs(total - 1) < 1e-6,
       string.format("they added to %.12f", total))
 
 local ordered_right = true
