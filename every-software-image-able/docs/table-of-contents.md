@@ -27,7 +27,8 @@ every-software-image-able/
 │   ├── 006-datapath-status-and-tolerance.md  the colourshape, the square, and walking backward
 │   │
 │   ├── 008-open-questions.md ........ every question, closed and open, in one place
-│   └── 010-datapath-the-mind.md ..... what arrives rather than being built, and changing it
+│   ├── 010-datapath-the-mind.md ..... what arrives rather than being built, and changing it
+│   └── 011-roadmap.md ............... six phases; what people build, not what it becomes
 │
 ├── strategems/
 │   └── 009-ask-do-not-schedule.md ... say what is wanted; leave the method alone
@@ -71,6 +72,30 @@ what would un-park each.
 
 ---
 
+## The phases
+
+Defined in `011-roadmap.md`. They organise the work of building **the seed** —
+not the machine, which builds itself. Lower numbers are more foundational, so the
+last ticket finished may well be an early-phase one.
+
+| Phase | Cluster |
+|---|---|
+| 1 | The engine — weights in, tokens out, on one architecture |
+| 2 | The hands — memory, ports, storage, console, status, and running what it wrote |
+| 3 | What it is told — instruction, patterns, device descriptions |
+| 4 | Three tongues — the other two architectures, and choosing between them |
+| 5 | The image — recipe, board descriptions, build, flash, verify |
+| 6 | Waking — first light, and the first thing it makes unaided |
+
+Phase 6 is the capstone and the only one that proves anything. What happens after
+it is not planned, on purpose.
+
+**Issue names** are `{PHASE}{ID}-{description}`, with the ID two digits — read
+from the right, so `204` is the fourth issue of phase 2. A trailing letter marks a
+sub-issue of the ticket it shares a number with. Each names what blocks it and
+what it blocks, so dependency order comes from the tickets rather than from their
+numbering.
+
 ## The story in one line
 
 Find memory, find the body, learn to work the body, open every channel the body
@@ -82,13 +107,10 @@ out the duplication so the room came from verbosity rather than from capability.
 
 ## Not yet written
 
-- **The roadmap.** Phases are not defined yet, so the phase table that belongs in
-  this file is absent. The clusters are visible in the documents — the
-  interpreter, the bootstrap, learning hardware, compilation, the rungs, the
-  status reading — and nothing is blocking the work of grouping them now.
-- **Issue files.** None. Every one depends on the roadmap. The thing to watch
-  while writing them: a ticket that dictates how the machine must be organised is
-  the same mistake as a schedule (`strategems/009`).
+- **Any code at all.** Twenty-two tickets describe the seed and none of them have
+  been started.
+- **The demos**, and the runner in the project root that asks which phase to
+  show. Blocked on there being a completed phase.
 - **The HTML build** at `docs/HTML/`, cross-linked, with the status square as
   something you can move around in and the four rungs as something you can watch
   a request descend.

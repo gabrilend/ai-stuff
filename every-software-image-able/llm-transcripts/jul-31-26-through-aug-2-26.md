@@ -1,6 +1,6 @@
 # Conversation Summary: dcf3984f-f047-4c81-9455-db0ed61356de
 
-Generated on: 2026-08-01 20:47:05
+Generated on: 2026-08-01 20:51:38
 
 --------------------------------------------------------------------------------
 
@@ -2828,6 +2828,61 @@ runtime arrangement you already have worked out somewhere.
 It's the only word currently in the design being used without a definition, and
 I'd rather ask than guess — the last two times I filled in a term myself, I
 imported a whole preoccupation along with it.
+
+
+--------------------------------------------------------------------------------
+
+### User Request 28
+
+  One thing I can't build on:
+
+
+  What is a ceramic platform?
+
+
+
+oh uh... don't worry about it for now. We'll bundle it as instructions for
+recommended build patterns, alongside things like "dispatch tables" and "thread
+pools" and "looping iterators" and such.
+
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 28
+
+That gives the "these are suggestions" thread a home — a bundle of recommended
+patterns riding along on the chip, rather than rules scattered through the
+documents.
+
+
+That bundle did something to the documents themselves. Every one of them had
+been separately insisting that its contents were suggestions rather than rules
+— the same sentence written eight times in eight places, which is precisely
+the thing this design says not to do. It's in one place now, and the other
+documents can point at it. Rung four, applied to the paperwork.
+
+
+The chip now carries four things: the weights, the engine that runs them, the
+instruction, and the patterns.
+
+
+The design reads clean end to end. Nothing blocking, one term deferred with a
+note not to build on it until it's described.
+
+
+So — the roadmap and the issue files? Phases would cluster roughly along the
+seams that are already there: the mind and what it takes to start thinking; the
+interpreter; the bootstrap through moving in; learning hardware; compilation;
+the four rungs; the status reading. Lower numbers for what everything else
+stands on, which puts the mind and the interpreter at the bottom and growth near
+the top.
+
+
+The thing I'd hold to while writing the tickets is the one you just gave me: a
+ticket that dictates how the machine must be organised is the same mistake as a
+schedule. So they'd say what is wanted and what it costs to get wrong, and stop
+there — except for the two places where the procedure is the point, which get
+written out in full.
 
 
 --------------------------------------------------------------------------------

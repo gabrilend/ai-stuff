@@ -1,0 +1,58 @@
+# 103 — The arithmetic, in assembly
+
+## Current behavior
+
+Nothing computes anything. This is the largest single piece of work in the
+project and the one everything else waits on.
+
+## Intended behavior
+
+The operations a transformer needs, written in assembly for the first target
+architecture, running with no library beneath them: matrix by vector, attention
+over a cache of past keys and values, the normalisations, the activation, and
+the final projection to a score per token in the vocabulary.
+
+No compiler exists to build these with and no runtime exists to call into. There
+is the instruction set, the registers, and the memory found in `102`.
+
+## Suggested implementation steps
+
+1. Write the plain version first, without vector instructions, and get it
+   correct. Correctness here means: given the same input as a reference
+   implementation on a development machine, the numbers agree within the tolerance
+   the precision allows. A fast wrong answer is worthless and hard to notice.
+2. Build the reference comparison as a fixture, not as a one-off. Every later
+   optimisation is checked against it, and every architecture in phase 4 is
+   checked against it too.
+3. Then use the vector instructions. This is where nearly all the speed is, and it
+   is worth being exact about why: the operation is multiply-and-accumulate over
+   long runs of contiguous numbers, which is what those instructions exist for.
+   Expect the difference to be large enough to change which models are viable.
+4. Lay out the working memory deliberately. The cache of past keys and values
+   grows with the conversation and is the largest thing after the weights; where
+   it sits and how it is indexed decides both speed and how long a thought can
+   get.
+5. Keep the shapes as data rather than as constants baked into the code. The
+   header from `101` describes them, and reading them means a different model can
+   be packed without rewriting the arithmetic.
+6. Measure as you go, in tokens per second, on real hardware. It is the number
+   the whole project's feasibility rests on.
+
+## Notes on effort
+
+This ticket is a candidate for sub-issues — `103a` for the plain version and the
+reference fixture, `103b` for the vectorised version, `103c` for the working
+memory layout — and should be split if it stops fitting in one head.
+
+## Blocks
+
+`104`, `105`, `106`, and all of phase 4.
+
+## Blocked by
+
+`101`, `102`.
+
+## Related documents
+
+`docs/010-datapath-the-mind.md` — why this is written by people rather than by
+the machine, and why it is written more than once.
