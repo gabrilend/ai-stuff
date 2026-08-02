@@ -2,8 +2,35 @@
 
 ## Current behavior
 
-One token can be produced. Nothing produces a second one, and nothing decides
-when to stop.
+**The context mechanism exists and is tested** — `src/052`, checked by
+`src/053`, 17 of 17.
+
+The context is a concatenation of atoms and nothing else, and that is tested
+directly rather than asserted: the whole context is rebuilt from its
+enumerated atoms and must come out identical, so nothing unnamed can be hiding
+in it.
+
+Carrying, dropping, recalling, merging and editing are all operations the
+machine asks for. Two properties matter more than the operations: a dropped
+atom stays findable, because one that cannot be found again was lost rather
+than dropped; and a merged-away atom's number is never reused, because anything
+that referred to it would otherwise point at a different subject, which is worse
+than pointing at nothing.
+
+Running low is a condition the machine can see. Dropping for want of room is
+treated as a fallback — announced, counted, and never allowed to take the atoms
+carried on the chip, since those include the instruction and the explanation of
+this mechanism itself. When everything left is undroppable, nothing is dropped
+and the room left says so, rather than a machine believing it made room and
+overrunning.
+
+**And the uncomfortable property is tested rather than left implicit:** a
+machine can edit its own prohibitions, because they are atoms in a mutable
+list. Nothing prevents it, deliberately, and `docs/013` says why.
+
+Still to do: the loop itself, which needs the tokenizer and sampler wired to
+the forward pass; and the disk half of the atom operations, which waits on
+storage (`304`).
 
 ## Intended behavior
 
