@@ -15,7 +15,7 @@ be run is a file.
 | `103` | The arithmetic, in assembly | **completed** — nine kernels bit-exact 37 of 37; the conducting in assembly too, 6 of 6; a whole thought is assembly end to end on x86-64 |
 | `104` | Sampling, and the carried seed | **completed** — reference respecified to single precision and exact integers, 9 of 9; assembly agrees choice for choice over fifteen thousand draws, 8 of 8 |
 | `105` | The thinking loop, and its limits | not started |
-| `105a` | The tokenizer | reference done, 21 of 21; assembly not started |
+| `105a` | The tokenizer | **completed** — reference 21 of 21; assembly agrees on the whole awkward corpus, 17 of 17 |
 | `106` | Measure the engine | timed natively — 1.18 G multiply-adds/s; the wide kernel buys only 1.15x |
 
 ## Where the risk is
